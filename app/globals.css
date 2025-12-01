@@ -1,0 +1,70 @@
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600&display=swap");
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  @apply bg-neutral-950 text-neutral-100 antialiased font-sans;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-neutral-700 rounded-full;
+}
+
+/* =======================
+   THEME DEFINITIONS
+======================= */
+
+/* 🟧 CAM – NÂU (DEFAULT) */
+.theme-amber {
+  --primary: #d97706;
+  --primary-light: #fbbf24;
+  --primary-dark: #78350f;
+
+  --bg-start: #2b1800;
+  --bg-end: #0b0700;
+}
+
+/* 💜 TÍM – XANH */
+.theme-indigo {
+  --primary: #6366f1;
+  --primary-light: #818cf8;
+  --primary-dark: #312e81;
+
+  --bg-start: #0c0f33;
+  --bg-end: #050515;
+}
+
+/* ⚫ XÁM – ĐEN */
+.theme-charcoal {
+  --primary: #4b5563;
+  --primary-light: #9ca3af;
+  --primary-dark: #1f2937;
+
+  --bg-start: #0f0f0f;
+  --bg-end: #000000;
+}
+
+/* Gradient background */
+.chat-gradient {
+  background: linear-gradient(to bottom, var(--bg-start), var(--bg-end));
+}
+
+/* Code highlight */
+code, pre {
+  @apply bg-neutral-900 text-neutral-100 rounded-md px-2 py-1 overflow-x-auto;
+}
+
+pre code {
+  @apply bg-transparent p-0;
+}
