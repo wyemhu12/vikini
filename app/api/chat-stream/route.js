@@ -1,3 +1,6 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -8,10 +11,6 @@ import {
 } from "@google/generative-ai";
 import { parseWhitelist } from "@/lib/whitelist";
 import { checkRateLimit } from "@/lib/rateLimit";
-// import { saveConversation } from "@/lib/firestoreChat"; // dùng nếu muốn lưu chat
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 export async function POST(req) {
   const session = await getServerSession(authOptions);
@@ -75,11 +74,9 @@ export async function POST(req) {
       );
     }
 
-    // Ở đây bạn có thể truyền history nếu muốn:
-    // const history = messages.slice(0, -1).map(...);
     const chat = await model.startChat({ history: [] });
-
     const stream = await chat.sendMessageStream(userContent);
+
     const encoder = new TextEncoder();
 
     const readable = new ReadableStream({
