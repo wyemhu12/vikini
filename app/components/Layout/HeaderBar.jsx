@@ -10,78 +10,73 @@ export default function HeaderBar({
   onThemeChange,
 }) {
   return (
-    <header className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950 px-4 py-3 text-xs">
+    <header className="flex items-center justify-between border-b border-neutral-800 bg-[var(--bg-start)] px-4 py-3 text-sm">
+
       <div>
-        <div className="font-semibold">{t.appName}</div>
-        <div className="text-[11px] text-neutral-400">{t.whitelist}</div>
+        <div className="font-semibold text-[var(--primary-light)]">
+          {t.appName}
+        </div>
+        <div className="text-xs text-neutral-400">{t.whitelist}</div>
       </div>
 
-      <div className="flex items-center gap-2">
-        {/* Language toggle */}
-        <div className="inline-flex rounded-lg border border-neutral-700 bg-neutral-900 text-[11px]">
-          <button
-            onClick={() => onLanguageChange("vi")}
-            className={`px-2 py-1 ${
-              language === "vi"
-                ? "bg-[var(--primary)] text-black"
-                : "text-neutral-300"
-            }`}
-          >
-            VI
-          </button>
-          <button
-            onClick={() => onLanguageChange("en")}
-            className={`px-2 py-1 ${
-              language === "en"
-                ? "bg-[var(--primary)] text-black"
-                : "text-neutral-300"
-            }`}
-          >
-            EN
-          </button>
+      <div className="flex items-center gap-3">
+        {/* Language */}
+        <div className="inline-flex rounded-lg border border-neutral-700 bg-neutral-900 text-xs overflow-hidden">
+          {["vi", "en"].map((lng) => (
+            <button
+              key={lng}
+              onClick={() => onLanguageChange(lng)}
+              className={`px-3 py-1 ${
+                language === lng
+                  ? "bg-[var(--primary)] text-black font-semibold"
+                  : "text-neutral-300 hover:text-white"
+              }`}
+            >
+              {lng.toUpperCase()}
+            </button>
+          ))}
         </div>
 
-        {/* System mode */}
-        <div className="hidden items-center gap-1 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-[11px] sm:flex">
+        {/* Mode */}
+        <div className="hidden sm:flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs">
           <span className="text-neutral-400">{t.systemPrompt}:</span>
+
           <select
-            className="bg-transparent text-neutral-100 outline-none"
+            className="bg-neutral-900 text-neutral-100 outline-none px-2 py-1 rounded-md border border-neutral-700 focus:border-[var(--primary)]"
             value={systemMode}
             onChange={(e) => onSystemModeChange(e.target.value)}
           >
-            <option value="default">{t.modeDefault}</option>
-            <option value="dev">{t.modeDev}</option>
-            <option value="friendly">{t.modeFriendly}</option>
-            <option value="strict">{t.modeStrict}</option>
+            <option className="bg-neutral-900" value="default">
+              {t.modeDefault}
+            </option>
+            <option className="bg-neutral-900" value="dev">
+              {t.modeDev}
+            </option>
+            <option className="bg-neutral-900" value="friendly">
+              {t.modeFriendly}
+            </option>
+            <option className="bg-neutral-900" value="strict">
+              {t.modeStrict}
+            </option>
           </select>
         </div>
 
-        {/* Theme dots */}
+        {/* Theme */}
         <div className="flex gap-2">
-          <button
-            onClick={() => onThemeChange("amber")}
-            className={`h-4 w-4 rounded-full ${
-              theme === "amber" ? "ring-2 ring-[var(--primary-light)]" : ""
-            }`}
-            style={{ backgroundColor: "#d97706" }}
-            aria-label="Amber theme"
-          />
-          <button
-            onClick={() => onThemeChange("indigo")}
-            className={`h-4 w-4 rounded-full ${
-              theme === "indigo" ? "ring-2 ring-[var(--primary-light)]" : ""
-            }`}
-            style={{ backgroundColor: "#6366f1" }}
-            aria-label="Indigo theme"
-          />
-          <button
-            onClick={() => onThemeChange("charcoal")}
-            className={`h-4 w-4 rounded-full ${
-              theme === "charcoal" ? "ring-2 ring-[var(--primary-light)]" : ""
-            }`}
-            style={{ backgroundColor: "#4b5563" }}
-            aria-label="Charcoal theme"
-          />
+          {[
+            { id: "amber", color: "#d97706" },
+            { id: "indigo", color: "#6366f1" },
+            { id: "charcoal", color: "#4b5563" },
+          ].map((th) => (
+            <button
+              key={th.id}
+              onClick={() => onThemeChange(th.id)}
+              className={`h-4 w-4 rounded-full ${
+                theme === th.id ? "ring-2 ring-[var(--primary-light)]" : ""
+              }`}
+              style={{ backgroundColor: th.color }}
+            />
+          ))}
         </div>
       </div>
     </header>

@@ -1,112 +1,92 @@
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import {
-  GoogleGenerativeAI,
-  HarmBlockThreshold,
-  HarmCategory,
-} from "@google/generative-ai";
-import { parseWhitelist } from "@/lib/whitelist";
-import { checkRateLimit } from "@/lib/rateLimit";
+export const runtime = "nodejs";
+
+const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+const model = client.getGenerativeModel({
+  model: "gemini-2.5-flash",
+});
+
+// System modes
+function getSystemPrompt(mode, lang = "vi") {
+  const dict = {
+    dev: {
+      vi: "Developer Mode: trả lời kỹ thuật, chi tiết, ưu tiên code.",
+      en: "Developer Mode: technical, detailed, code-heavy.",
+    },
+    friendly: {
+      vi: "Friendly Mode: trả lời thân thiện, tự nhiên.",
+      en: "Friendly Mode: warm, casual.",
+    },
+    strict: {
+      vi: "Strict Mode: trả lời ngắn gọn, chính xác.",
+      en: "Strict Mode: concise, factual.",
+    },
+    default: {
+      vi: "Bạn là một trợ lý AI hữu ích.",
+      en: "You are a helpful AI assistant.",
+    },
+  };
+  return dict[mode]?.[lang] ?? dict.default[lang];
+}
 
 export async function POST(req) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!process.env.GEMINI_API_KEY) {
-    console.error("❌ GEMINI_API_KEY is not set.");
-    return NextResponse.json(
-      { error: "Server misconfigured" },
-      { status: 500 }
-    );
-  }
-
-  let body;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+    const { messages = [], systemMode = "default", language = "vi" } =
+      await req.json();
 
-  const { messages = [], chatId, metadata } = body;
-
-  const email = session.user.email.toLowerCase();
-  const whitelist = parseWhitelist(process.env.WHITELIST_EMAILS || "");
-
-  if (whitelist.length && !whitelist.includes(email)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  if (!checkRateLimit(email)) {
-    return NextResponse.json({ error: "Rate limited" }, { status: 429 });
-  }
-
-  if (!Array.isArray(messages) || !messages.length) {
-    return NextResponse.json({ error: "Messages missing" }, { status: 400 });
-  }
-
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
-    safetySettings: [
-      {
-        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-        threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-      },
-    ],
-  });
-
-  try {
     const last = messages[messages.length - 1];
-    const userContent = typeof last?.content === "string" ? last.content : "";
 
-    if (!userContent) {
-      return NextResponse.json(
-        { error: "Last message content missing" },
-        { status: 400 }
-      );
+    if (!last?.content) {
+      return new Response("No message content", { status: 400 });
     }
 
-    const chat = await model.startChat({ history: [] });
-    const stream = await chat.sendMessageStream(userContent);
+    // Build user prompt
+    const systemPrompt = getSystemPrompt(systemMode, language);
+    const finalPrompt = `${systemPrompt}\n\n${last.content}`;
+
+    // 🚨 Gemini 2.5: MUST USE 'contents', NOT 'messages'
+    // 🚨 NO safetySpec, NO safetySettings — or API will reject
+    const result = await model.generateContentStream({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: finalPrompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.85,
+        maxOutputTokens: 4096,
+        topP: 0.9,
+        topK: 40,
+      },
+    });
 
     const encoder = new TextEncoder();
 
-    const readable = new ReadableStream({
-      async pull(controller) {
-        try {
-          for await (const chunk of stream.stream) {
-            if (!chunk || typeof chunk.text !== "function") continue;
-
-            const text = chunk.text();
-            if (!text) continue;
-
-            controller.enqueue(encoder.encode(text));
+    return new Response(
+      new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const chunk of result.stream) {
+              const text = chunk.text();
+              controller.enqueue(encoder.encode(text));
+            }
+          } catch (err) {
+            console.error("STREAM ERROR:", err);
+            controller.enqueue(encoder.encode("Streaming error."));
+          } finally {
+            controller.close();
           }
-          controller.close();
-        } catch (err) {
-          console.error("❌ chat-stream streaming error:", err);
-          controller.close();
-        }
-      },
-    });
-
-    return new Response(readable, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
+        },
+      }),
+      {
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      }
+    );
   } catch (err) {
-    console.error("❌ chat-stream error:", err);
-    return NextResponse.json({ error: "ChatStream failed" }, { status: 500 });
+    console.error("Chat-stream error:", err);
+    return new Response("Internal error", { status: 500 });
   }
 }

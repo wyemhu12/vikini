@@ -68,3 +68,9 @@ code, pre {
 pre code {
   @apply bg-transparent p-0;
 }
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+html {
+  font-size: clamp(15px, 1.2vw + 10px, 22px);
+}
