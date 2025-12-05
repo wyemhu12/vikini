@@ -16,9 +16,12 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+// Map Firestore messages -> Gemini format
+// user  -> "user"
+// assistant -> "model"
 function buildGeminiMessages(messages) {
   return messages.map((m) => ({
-    role: m.role,
+    role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content }],
   }));
 }
@@ -33,8 +36,7 @@ export async function POST(req) {
 
     const body = await req.json();
     console.log("🔥 BODY:", body);
-    console.log("🔥 conversationId:", body?.conversationId);
-    console.log("🔥 content:", body?.content);
+
     const {
       conversationId,
       content,
@@ -48,6 +50,7 @@ export async function POST(req) {
 
     let convId = conversationId;
 
+    // Tạo cuộc trò chuyện nếu chưa có
     if (!convId) {
       const convo = await saveConversation(userId, {
         title: "New chat",
@@ -56,6 +59,7 @@ export async function POST(req) {
       convId = convo.id;
     }
 
+    // Lưu user message
     await saveMessage({
       conversationId: convId,
       userId,
@@ -63,22 +67,26 @@ export async function POST(req) {
       content,
     });
 
+    // Lấy toàn bộ history
     const history = await getMessages(convId);
 
-    let sysPrompt =
+    // System prompt
+    const sysPrompt =
       systemMode === "dev"
         ? "Developer mode: give detailed and technical answers."
         : systemMode === "friendly"
-        ? "Friendly mode: warm and casual."
+        ? "Friendly mode: warm, casual and helpful."
         : "You are a helpful and intelligent assistant.";
 
-    const geminiInput = [
-      { role: "system", parts: [{ text: sysPrompt }] },
-      ...buildGeminiMessages(history),
-    ];
+    const contents = buildGeminiMessages(history);
 
+    // Gọi Gemini với systemInstruction + contents
     const result = await model.generateContentStream({
-      contents: geminiInput,
+      contents,
+      systemInstruction: {
+        role: "system",
+        parts: [{ text: sysPrompt }],
+      },
       generationConfig: {
         temperature: 0.8,
         maxOutputTokens: 4096,
@@ -99,10 +107,12 @@ export async function POST(req) {
             controller.enqueue(encoder.encode(text));
           }
         } catch (err) {
+          console.error("❌ STREAM ERROR:", err);
           controller.enqueue(encoder.encode("[Stream error]"));
         } finally {
           controller.close();
 
+          // Lưu assistant message sau khi stream xong
           if (fullText.trim().length > 0) {
             await saveMessage({
               conversationId: convId,
