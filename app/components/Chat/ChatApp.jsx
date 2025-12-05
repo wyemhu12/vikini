@@ -40,14 +40,14 @@ export default function ChatApp() {
   const [isSending, setIsSending] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
-  // Assistant đang stream tạm thời
   const [streamingAssistant, setStreamingAssistant] = useState(null);
+
+  // --- auto title ---
+  const [titleLoading, setTitleLoading] = useState(false);
+  const [titleGeneratingId, setTitleGeneratingId] = useState(null);
 
   const chatWindowRef = useRef(null);
 
-  // ----------------------
-  // AUTO SCROLL
-  // ----------------------
   useEffect(() => {
     if (chatWindowRef.current) {
       chatWindowRef.current.scrollTo({
@@ -57,63 +57,55 @@ export default function ChatApp() {
     }
   }, [messages, streamingAssistant]);
 
-  // ----------------------
-  // GỘP MESSAGES + STREAMING
-  // ----------------------
   const combinedMessages = useMemo(() => {
     if (streamingAssistant) return [...messages, streamingAssistant];
     return messages;
   }, [messages, streamingAssistant]);
 
-  // ----------------------
-  // FIND LAST ASSISTANT INDEX
-  // ----------------------
-  const lastAssistantIndex = useMemo(() => {
-    return combinedMessages.reduce(
-      (acc, msg, idx) => (msg.role === "assistant" ? idx : acc),
+  const lastAssistantIndex = useMemo(
+    () => combinedMessages.reduce(
+      (acc, m, idx) => (m.role === "assistant" ? idx : acc),
       -1
-    );
-  }, [combinedMessages]);
+    ),
+    [combinedMessages]
+  );
 
   const canRegenerate = lastAssistantIndex >= 0;
 
-  // ----------------------
   // SEND MESSAGE
-  // ----------------------
   const sendMessage = async (overrideText = null, isRegenerate = false) => {
     const raw = overrideText ?? input;
     const text = (raw || "").trim();
     if (!text) return;
 
+    const isNewConversation = !activeId;
+
     let conversationId = activeId;
 
-    // Nếu chưa có conversation thì tạo mới
     if (!conversationId) {
-      const conv = await createConversation(t.newChat || "New chat");
-      if (!conv?.id) return; 
+      const conv = await createConversation("New chat");
+      if (!conv?.id) return;
       conversationId = conv.id;
+
+      // → bật shimmer auto title
+      setTitleGeneratingId(conv.id);
+      setTitleLoading(true);
+
+      setActiveId(conv.id);
     }
 
-    // Append user message vào UI (chưa cần Firestore)
     if (!isRegenerate) {
-      const userMsg = {
-        id: `local-${Date.now()}`,
-        role: "user",
-        content: text,
-      };
-      setMessages((prev) => [...prev, userMsg]);
+      setMessages((prev) => [
+        ...prev,
+        { id: `local-${Date.now()}`, role: "user", content: text },
+      ]);
     }
 
     setInput("");
     setIsSending(!isRegenerate);
     setRegenerating(isRegenerate);
 
-    // Tạo assistant tạm thời cho stream
-    setStreamingAssistant({
-      id: "assistant-stream",
-      role: "assistant",
-      content: "",
-    });
+    setStreamingAssistant({ id: "assistant-stream", role: "assistant", content: "" });
 
     try {
       const res = await fetch("/api/chat-stream", {
@@ -129,57 +121,51 @@ export default function ChatApp() {
       });
 
       if (!res.ok || !res.body) throw new Error("Stream error");
-
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let fullText = "";
+      let full = "";
 
-      // Stream theo chunk
       while (true) {
-        const { done, value } = await reader.read();
+        const { value, done } = await reader.read();
         if (done) break;
-
         const chunk = decoder.decode(value, { stream: true });
-        fullText += chunk;
+        full += chunk;
 
         setStreamingAssistant((prev) =>
           prev
-            ? { ...prev, content: fullText }
-            : { id: "assistant-stream", role: "assistant", content: fullText }
+            ? { ...prev, content: full }
+            : { id: "assistant-stream", role: "assistant", content: full }
         );
       }
 
-      // Stream xong → xoá assistant tạm → load lại từ Firestore
       setStreamingAssistant(null);
       await loadConversation(conversationId);
     } catch (err) {
-      console.error("❌ Chat stream error:", err);
+      console.error("Chat stream error:", err);
       setStreamingAssistant(null);
     } finally {
       setIsSending(false);
       setRegenerating(false);
+      if (isNewConversation) {
+        // tắt shimmer
+        setTitleLoading(false);
+        setTitleGeneratingId(null);
+      }
     }
   };
 
-  // ----------------------
-  // REGENERATE
-  // ----------------------
   const handleRegenerate = () => {
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     if (!lastUser) return;
-
     sendMessage(lastUser.content, true);
   };
 
-  // ----------------------
-  // AUTH UI
-  // ----------------------
   if (!session) {
     return (
-      <div className="flex h-screen items-center justify-center bg-neutral-950 text-white">
+      <div className="flex h-screen items-center justify-center bg-neutral-950">
         <button
           onClick={() => signIn("google")}
-          className="rounded-lg bg-white text-black px-4 py-2"
+          className="rounded-lg bg-white px-4 py-2"
         >
           Login with Google
         </button>
@@ -187,9 +173,6 @@ export default function ChatApp() {
     );
   }
 
-  // ----------------------
-  // RENDER UI
-  // ----------------------
   return (
     <div className="flex h-screen bg-neutral-950 text-neutral-100">
       <Sidebar
@@ -200,7 +183,7 @@ export default function ChatApp() {
           setActiveId(id);
         }}
         onNewChat={async () => {
-          const conv = await createConversation(t.newChat || "New chat");
+          const conv = await createConversation("New chat");
           if (conv?.id) {
             setStreamingAssistant(null);
             setActiveId(conv.id);
@@ -209,18 +192,17 @@ export default function ChatApp() {
         }}
         onRenameChat={async (id) => {
           const current = conversations.find((c) => c.id === id);
-          const oldTitle = current?.title || t.newChat;
-          const newTitle = window.prompt("Rename chat", oldTitle);
-          if (newTitle?.trim()) {
-            await renameConversation(id, newTitle.trim());
-          }
+          const old = current?.title || "New chat";
+          const newTitle = window.prompt("Rename chat", old);
+          if (newTitle?.trim()) await renameConversation(id, newTitle.trim());
         }}
         onDeleteChat={async (id) => {
-          const ok = confirm("Delete this chat?");
-          if (ok) await deleteConversation(id);
+          if (confirm("Delete this chat?")) await deleteConversation(id);
         }}
         onLogout={() => signOut()}
         t={t}
+        titleLoading={titleLoading}
+        titleGeneratingId={titleGeneratingId}
       />
 
       <div className="flex flex-col flex-1">
@@ -237,7 +219,7 @@ export default function ChatApp() {
         <div className="flex flex-col flex-1">
           <div
             ref={chatWindowRef}
-            className="flex-1 overflow-y-auto w-full max-w-3xl mx-auto px-4 py-6"
+            className="flex-1 overflow-y-auto max-w-3xl w-full mx-auto px-4 py-6"
           >
             {loadingMessages ? (
               <div className="text-center text-neutral-300">Loading…</div>
@@ -257,7 +239,7 @@ export default function ChatApp() {
             )}
           </div>
 
-          <div className="w-full max-w-3xl mx-auto">
+          <div className="max-w-3xl w-full mx-auto">
             <InputForm
               input={input}
               onChangeInput={setInput}
