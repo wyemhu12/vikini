@@ -32,6 +32,9 @@ export async function POST(req) {
     const userId = session.user.email.toLowerCase();
 
     const body = await req.json();
+    console.log("🔥 BODY:", body);
+    console.log("🔥 conversationId:", body?.conversationId);
+    console.log("🔥 content:", body?.content);
     const {
       conversationId,
       content,
