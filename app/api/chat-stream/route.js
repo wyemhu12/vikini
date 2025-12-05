@@ -3,11 +3,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 
-import ChatBubble from "./ChatBubble";
-import Sidebar from "../Sidebar/Sidebar";
-import HeaderBar from "../Layout/HeaderBar";
-import InputForm from "./InputForm";
-
 import { useTheme } from "../../hooks/useTheme";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useSystemMode } from "../../hooks/useSystemMode";
