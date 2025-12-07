@@ -63,10 +63,11 @@ export default function ChatApp() {
   }, [messages, streamingAssistant]);
 
   const lastAssistantIndex = useMemo(
-    () => combinedMessages.reduce(
-      (acc, m, idx) => (m.role === "assistant" ? idx : acc),
-      -1
-    ),
+    () =>
+      combinedMessages.reduce(
+        (acc, m, idx) => (m.role === "assistant" ? idx : acc),
+        -1
+      ),
     [combinedMessages]
   );
 
@@ -105,7 +106,11 @@ export default function ChatApp() {
     setIsSending(!isRegenerate);
     setRegenerating(isRegenerate);
 
-    setStreamingAssistant({ id: "assistant-stream", role: "assistant", content: "" });
+    setStreamingAssistant({
+      id: "assistant-stream",
+      role: "assistant",
+      content: "",
+    });
 
     try {
       const res = await fetch("/api/chat-stream", {
@@ -147,8 +152,8 @@ export default function ChatApp() {
       setIsSending(false);
       setRegenerating(false);
       if (isNewConversation) {
-        await loadConversations();
-        // tắt shimmer
+        // nếu bạn có hàm loadConversations trong hook, hãy đảm bảo nó được import & dùng ở đây
+        // await loadConversations?.();
         setTitleLoading(false);
         setTitleGeneratingId(null);
       }
@@ -163,7 +168,7 @@ export default function ChatApp() {
 
   if (!session) {
     return (
-      <div className="flex h-screen items-center justify-center bg-neutral-950">
+      <div className="flex min-h-screen items-center justify-center bg-neutral-950">
         <button
           onClick={() => signIn("google")}
           className="rounded-lg bg-white px-4 py-2"
@@ -175,7 +180,7 @@ export default function ChatApp() {
   }
 
   return (
-    <div className="flex h-screen bg-neutral-950 text-neutral-100">
+    <div className="flex min-h-screen bg-neutral-950 text-neutral-100">
       <Sidebar
         chats={conversations}
         activeId={activeId}

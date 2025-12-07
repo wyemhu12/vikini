@@ -13,10 +13,17 @@ export default function Sidebar({
   titleGeneratingId,
 }) {
   return (
-    // ⭐ SỬA 1: thêm h-screen + flex-col để sidebar kéo full chiều cao
-    <aside className="hidden h-screen w-64 border-r border-neutral-800 bg-neutral-950 p-3 md:flex md:flex-col">
-      
-      {/* Nút tạo chat */}
+    <aside
+      className="
+        hidden
+        w-64
+        border-r border-neutral-800
+        bg-neutral-950
+        p-3
+        md:flex md:flex-col
+      "
+    >
+      {/* Nút tạo chat mới */}
       <button
         onClick={onNewChat}
         className="mb-3 w-full rounded-lg bg-[var(--primary)] px-3 py-2 text-black text-sm"
@@ -24,7 +31,7 @@ export default function Sidebar({
         {t.newChat}
       </button>
 
-      {/* ⭐ SỬA 2: flex-1 + overflow-y-auto để vùng danh sách chats chiếm hết phần giữa */}
+      {/* Danh sách cuộc hội thoại */}
       <div className="flex-1 space-y-1 overflow-y-auto">
         {chats.map((c) => {
           const isActive = c.id === activeId;
@@ -81,7 +88,7 @@ export default function Sidebar({
         })}
       </div>
 
-      {/* ⭐ SỬA 3: nút logout luôn nằm cuối cùng nhờ flex-col + flex-1 ở phía trên */}
+      {/* Nút Logout luôn ở đáy Sidebar nhờ flex-col + flex-1 phía trên */}
       <button
         onClick={onLogout}
         className="mt-4 rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
