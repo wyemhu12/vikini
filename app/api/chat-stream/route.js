@@ -8,6 +8,7 @@ import { authOptions } from "@/lib/auth";
 import {
   getConversation,
   getMessages,
+  getUserConversations,
   saveConversation,
   saveMessage,
   setConversationAutoTitle,
@@ -25,7 +26,46 @@ function mapMessages(messages) {
   }));
 }
 
-// AUTO TITLE FUNCTION (đã viết lại)
+// ---------- Helpers cho auto-title ----------
+
+// Title Case
+function toTitleCase(str) {
+  return str
+    .toLowerCase()
+    .replace(/\b\w+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1));
+}
+
+// Clean + chuẩn hóa title
+function normalizeTitle(raw) {
+  if (!raw) return "";
+
+  // Lấy dòng đầu tiên (tránh trường hợp AI trả nhiều dòng)
+  let title = String(raw).split("\n")[0];
+
+  // Bỏ ngoặc, ngoặc kép, emoji, ký tự đặc biệt
+  title = title
+    .replace(/["'“”‘’`]/g, "")
+    .replace(/[^\p{L}\p{N}\s\-]/gu, "")
+    .replace(/\.+$/, "")
+    .trim();
+
+  // Giới hạn từ: tối đa 6 từ
+  const words = title.split(/\s+/).filter(Boolean);
+  if (words.length > 6) {
+    title = words.slice(0, 6).join(" ");
+  }
+
+  title = toTitleCase(title);
+
+  // Fallback
+  if (!title || title.length < 2) {
+    title = "New Chat";
+  }
+
+  return title;
+}
+
+// AUTO TITLE FUNCTION (nâng cấp)
 async function autoTitle({ userId, conversationId, messages }) {
   try {
     const convo = await getConversation(conversationId);
@@ -38,11 +78,27 @@ async function autoTitle({ userId, conversationId, messages }) {
     const firstUser = messages.find((m) => m.role === "user");
     if (!firstUser?.content?.trim()) return;
 
+    const transcript = messages
+      .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
+      .join("\n")
+      .slice(0, 4000); // tránh prompt quá dài
+
     const prompt = `
-Generate a very short title (max 5-6 words) summarizing the user's first message.
-No emojis, no quotes.
-User message:
-${firstUser.content}
+You are a title-generation model.
+
+Produce a short, semantic title summarizing the ENTIRE conversation so far.
+
+Rules:
+- 3–6 words only
+- No emojis
+- No quotes
+- No sentence-ending punctuation
+- Use Title Case (Capitalize Each Word)
+- Avoid phrases like "User Asks About"
+- Focus on the main intent
+
+Conversation transcript:
+${transcript}
     `.trim();
 
     const res = await model.generateContent({
@@ -54,14 +110,30 @@ ${firstUser.content}
       ],
       generationConfig: {
         temperature: 0.4,
-        maxOutputTokens: 20,
+        maxOutputTokens: 24,
       },
     });
 
-    let title = (res.response.text() || "")
-      .replace(/["'“”]/g, "")
-      .replace(/\.$/, "")
-      .trim();
+    let raw = res.response.text() || "";
+    let title = normalizeTitle(raw);
+
+    // Bảo hiểm: nếu vẫn quá ngắn, dùng fallback theo câu hỏi đầu
+    if (!title || title === "New Chat") {
+      const fallback = firstUser.content.trim().split("\n")[0];
+      title = normalizeTitle(fallback);
+    }
+
+    // Chống trùng lặp title trong cùng 1 user
+    const all = await getUserConversations(userId);
+    if (all.some((c) => c.id !== conversationId && c.title === title)) {
+      let i = 2;
+      while (
+        all.some((c) => c.id !== conversationId && c.title === `${title} ${i}`)
+      ) {
+        i++;
+      }
+      title = `${title} ${i}`;
+    }
 
     if (!title) return;
 

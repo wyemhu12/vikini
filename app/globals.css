@@ -74,3 +74,44 @@ pre code {
 html {
   font-size: clamp(15px, 1.2vw + 10px, 22px);
 }
+
+/* ========== TITLE ANIMATION (ChatGPT-like) ========== */
+
+@keyframes fadeInTitle {
+  0% {
+    opacity: 0;
+    transform: translateX(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-title {
+  animation: fadeInTitle 0.22s ease-out;
+}
+
+/* Shimmer cho title placeholder */
+@keyframes shimmerTitle {
+  0% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0.45;
+  }
+}
+
+.shimmer-block {
+  background: linear-gradient(
+    90deg,
+    #3f3f3f 0%,
+    #6b7280 50%,
+    #3f3f3f 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerTitle 1.2s infinite ease-in-out;
+}

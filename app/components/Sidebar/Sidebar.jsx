@@ -49,15 +49,24 @@ export default function Sidebar({
               }`}
               onClick={() => onSelectChat(c.id)}
             >
-              <span className="line-clamp-2 flex-1 flex items-center gap-2">
+              {/* TITLE + SHIMMER / ANIMATION */}
+              <span className="flex-1 flex items-center gap-2 min-w-0">
                 {isTitleShimmer ? (
-                  <span className="inline-flex h-3 w-24 animate-pulse rounded-full bg-neutral-700/70" />
+                  <span className="h-3 w-28 rounded-md shimmer-block" />
                 ) : (
-                  <span>{c.title}</span>
+                  <span
+                    className="
+                      truncate
+                      animate-title
+                    "
+                  >
+                    {c.title}
+                  </span>
                 )}
               </span>
 
-              <span className="flex items-center gap-1">
+              {/* ACTIONS */}
+              <span className="flex items-center gap-1 flex-shrink-0">
                 <span
                   onClick={(e) => {
                     e.stopPropagation();
