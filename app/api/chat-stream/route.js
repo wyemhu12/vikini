@@ -10,6 +10,7 @@ import {
   getMessages,
   saveConversation,
   saveMessage,
+  setConversationAutoTitle,
 } from "@/lib/firestoreChat";
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -24,14 +25,18 @@ function mapMessages(messages) {
   }));
 }
 
-// AUTO TITLE FUNCTION
+// AUTO TITLE FUNCTION (đã viết lại)
 async function autoTitle({ userId, conversationId, messages }) {
   try {
     const convo = await getConversation(conversationId);
-    if (convo?.autoTitled) return; // do nothing
+    if (!convo) return;
+    if (convo.userId !== userId) return;
+
+    // Nếu đã auto-titled HOẶC user đã rename thủ công -> bỏ qua
+    if (convo.autoTitled || convo.renamed) return;
 
     const firstUser = messages.find((m) => m.role === "user");
-    if (!firstUser) return;
+    if (!firstUser?.content?.trim()) return;
 
     const prompt = `
 Generate a very short title (max 5-6 words) summarizing the user's first message.
@@ -60,13 +65,8 @@ ${firstUser.content}
 
     if (!title) return;
 
-    await saveConversation(userId, {
-      id: conversationId,
-      title,
-      autoTitled: true,
-    });
-
-    console.log("🎉 Auto Titled:", title);
+    await setConversationAutoTitle(userId, conversationId, title);
+    console.log("🎉 Auto Titled:", conversationId, "=>", title);
   } catch (err) {
     console.error("❌ Auto-title error:", err);
   }
@@ -75,7 +75,9 @@ ${firstUser.content}
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) return new Response("Unauthorized", { status: 401 });
+    if (!session?.user?.email) {
+      return new Response("Unauthorized", { status: 401 });
+    }
 
     const userId = session.user.email.toLowerCase();
     const body = await req.json();
@@ -87,7 +89,9 @@ export async function POST(req) {
       language = "vi",
     } = body || {};
 
-    if (!content?.trim()) return new Response("Empty content", { status: 400 });
+    if (!content?.trim()) {
+      return new Response("Empty content", { status: 400 });
+    }
 
     // CREATE CONVERSATION IF NEEDED
     let convId = conversationId;
@@ -152,11 +156,14 @@ export async function POST(req) {
               content: trimmed,
             });
 
-            // RUN AUTO TITLE IF FIRST ANSWER
+            // RUN AUTO TITLE (chỉ tác động nếu chưa autoTitle / chưa rename)
             await autoTitle({
               userId,
               conversationId: convId,
-              messages: [...messages, { role: "assistant", content: trimmed }],
+              messages: [
+                ...messages,
+                { role: "assistant", content: trimmed },
+              ],
             });
           }
         }
@@ -166,7 +173,6 @@ export async function POST(req) {
     return new Response(stream, {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
-
   } catch (err) {
     console.error("❌ chat-stream error:", err);
     return new Response("Internal error", { status: 500 });

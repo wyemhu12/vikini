@@ -30,6 +30,7 @@ export default function ChatApp() {
     setMessages,
     loadingMessages,
     loadConversation,
+    loadConversations,
     createConversation,
     renameConversation,
     deleteConversation,
@@ -38,14 +39,15 @@ export default function ChatApp() {
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
-
   const [streamingAssistant, setStreamingAssistant] = useState(null);
 
+  // Auto-title UI states
   const [titleLoading, setTitleLoading] = useState(false);
   const [titleGeneratingId, setTitleGeneratingId] = useState(null);
 
   const chatWindowRef = useRef(null);
 
+  // Scroll to bottom on new messages
   useEffect(() => {
     if (chatWindowRef.current) {
       chatWindowRef.current.scrollTo({
@@ -55,11 +57,13 @@ export default function ChatApp() {
     }
   }, [messages, streamingAssistant]);
 
+  // Merge streaming assistant message with existing messages
   const combinedMessages = useMemo(() => {
     if (streamingAssistant) return [...messages, streamingAssistant];
     return messages;
   }, [messages, streamingAssistant]);
 
+  // Find last assistant msg index
   const lastAssistantIndex = useMemo(
     () =>
       combinedMessages.reduce(
@@ -71,26 +75,40 @@ export default function ChatApp() {
 
   const canRegenerate = lastAssistantIndex >= 0;
 
-  // MAIN SEND
+  // SEND MESSAGE — handles auto-title
   const sendMessage = async (overrideText = null, isRegenerate = false) => {
     const raw = overrideText ?? input;
     const text = (raw || "").trim();
     if (!text) return;
 
-    const isNewConversation = !activeId;
-    let conversationId = activeId;
+    setInput("");
 
-    // NEW CONVERSATION CREATED
+    let conversationId = activeId;
+    let isBrandNew = false;
+
+    // Create conversation if needed
     if (!conversationId) {
-      const conv = await createConversation("New chat");
+      const conv = await createConversation({
+        title: "New chat",
+        autoTitled: false,
+      });
       if (!conv?.id) return;
+
       conversationId = conv.id;
       setActiveId(conv.id);
-
-      // Enable title shimmer
-      setTitleGeneratingId(conv.id);
-      setTitleLoading(true);
+      isBrandNew = true;
     }
+
+    // Read freshest conversation meta
+    const getFreshConversation = () =>
+      conversations.find((c) => c.id === conversationId) || null;
+
+    let meta = getFreshConversation();
+
+    // Determine if we need auto-title
+    let shouldTrackAutoTitle =
+      isBrandNew ||
+      (meta && !meta.autoTitled && !meta.renamed);
 
     if (!isRegenerate) {
       setMessages((prev) => [
@@ -99,15 +117,20 @@ export default function ChatApp() {
       ]);
     }
 
-    setInput("");
     setIsSending(!isRegenerate);
     setRegenerating(isRegenerate);
 
+    // Streaming placeholder
     setStreamingAssistant({
       id: "assistant-stream",
       role: "assistant",
       content: "",
     });
+
+    if (shouldTrackAutoTitle) {
+      setTitleGeneratingId(conversationId);
+      setTitleLoading(true);
+    }
 
     try {
       const res = await fetch("/api/chat-stream", {
@@ -123,40 +146,57 @@ export default function ChatApp() {
       });
 
       if (!res.ok || !res.body) throw new Error("Stream failed");
+
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let full = "";
 
+      // STREAM LOOP
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        full += decoder.decode(value, { stream: true });
+        const chunk = decoder.decode(value, { stream: true });
+        full += chunk;
 
-        setStreamingAssistant((prev) => ({ ...prev, content: full }));
+        setStreamingAssistant({
+          id: "assistant-stream",
+          role: "assistant",
+          content: full,
+        });
       }
 
       setStreamingAssistant(null);
+
+      // Reload conversation messages
       await loadConversation(conversationId);
     } catch (err) {
-      console.error("Stream error:", err);
+      console.error("Chat stream error:", err);
       setStreamingAssistant(null);
     } finally {
       setIsSending(false);
       setRegenerating(false);
 
-      if (isNewConversation) {
+      if (shouldTrackAutoTitle) {
+        try {
+          await loadConversations(); // Fetch newest title from Firestore
+        } catch (e) {
+          console.error("Reload conversations failed:", e);
+        }
+
         setTitleLoading(false);
         setTitleGeneratingId(null);
       }
     }
   };
 
+  // REGENERATE LAST ASSISTANT REPLY
   const handleRegenerate = () => {
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     if (!lastUser) return;
     sendMessage(lastUser.content, true);
   };
 
+  // LOGIN PROMPT
   if (!session) {
     return (
       <div className="flex h-screen items-center justify-center bg-neutral-950">
@@ -170,9 +210,9 @@ export default function ChatApp() {
     );
   }
 
+  // RENDER MAIN UI
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-neutral-950 text-neutral-100">
-
       {/* FIXED SIDEBAR */}
       <Sidebar
         chats={conversations}
@@ -182,7 +222,10 @@ export default function ChatApp() {
           setActiveId(id);
         }}
         onNewChat={async () => {
-          const conv = await createConversation("New chat");
+          const conv = await createConversation({
+            title: "New chat",
+            autoTitled: false,
+          });
           if (conv?.id) {
             setStreamingAssistant(null);
             setActiveId(conv.id);
@@ -206,7 +249,6 @@ export default function ChatApp() {
 
       {/* MAIN PANEL */}
       <div className="flex flex-col flex-1 ml-64">
-
         <HeaderBar
           t={t}
           language={language}
@@ -240,8 +282,8 @@ export default function ChatApp() {
           )}
         </div>
 
-        {/* FIXED INPUT FORM (BOTTOM) */}
-        <div className="sticky bottom-0 bg-neutral-950 border-t border-neutral-800 shadow-[0_-4px_10px_rgba(0,0,0,0.4)]">
+        {/* INPUT FORM STICKY BOTTOM */}
+        <div className="sticky bottom-0 bg-neutral-950">
           <div className="max-w-3xl w-full mx-auto">
             <InputForm
               input={input}
