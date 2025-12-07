@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 import {
+  getConversation,
   getMessages,
   saveConversation,
   saveMessage,
@@ -16,34 +17,30 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-// Map Firestore messages -> Gemini format
-function buildGeminiMessages(messages) {
+function mapMessages(messages) {
   return messages.map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content }],
   }));
 }
 
-// ---------------------
 // AUTO TITLE FUNCTION
-// ---------------------
-async function autoTitleConversation({ userId, conversationId, history }) {
+async function autoTitle({ userId, conversationId, messages }) {
   try {
-    const userMsgs = history.filter((m) => m.role === "user");
-    if (userMsgs.length !== 1) return; // only auto title on first message
+    const convo = await getConversation(conversationId);
+    if (convo?.autoTitled) return; // do nothing
+
+    const firstUser = messages.find((m) => m.role === "user");
+    if (!firstUser) return;
 
     const prompt = `
-Generate a short, concise conversation title based on the user's first message.
-Rules:
-- Maximum 6 words.
-- No emojis.
-- No quotes.
-- No punctuation at the end.
+Generate a very short title (max 5-6 words) summarizing the user's first message.
+No emojis, no quotes.
 User message:
-${userMsgs[0].content}
+${firstUser.content}
     `.trim();
 
-    const titleRes = await model.generateContent({
+    const res = await model.generateContent({
       contents: [
         {
           role: "user",
@@ -51,25 +48,25 @@ ${userMsgs[0].content}
         },
       ],
       generationConfig: {
-        temperature: 0.2,
+        temperature: 0.4,
         maxOutputTokens: 20,
       },
     });
 
-    const raw = titleRes.response.text() || "";
-    const clean = raw
-      .replace(/["']/g, "")
+    let title = (res.response.text() || "")
+      .replace(/["'“”]/g, "")
       .replace(/\.$/, "")
-      .trim()
-      .slice(0, 80);
+      .trim();
 
-    if (!clean) return;
+    if (!title) return;
 
     await saveConversation(userId, {
       id: conversationId,
-      title: clean,
+      title,
       autoTitled: true,
     });
+
+    console.log("🎉 Auto Titled:", title);
   } catch (err) {
     console.error("❌ Auto-title error:", err);
   }
@@ -78,13 +75,10 @@ ${userMsgs[0].content}
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-    const userId = session.user.email.toLowerCase();
+    if (!session?.user?.email) return new Response("Unauthorized", { status: 401 });
 
+    const userId = session.user.email.toLowerCase();
     const body = await req.json();
-    console.log("🔥 BODY:", body);
 
     const {
       conversationId,
@@ -93,13 +87,10 @@ export async function POST(req) {
       language = "vi",
     } = body || {};
 
-    if (!content?.trim()) {
-      return new Response("Empty content", { status: 400 });
-    }
+    if (!content?.trim()) return new Response("Empty content", { status: 400 });
 
+    // CREATE CONVERSATION IF NEEDED
     let convId = conversationId;
-
-    // tạo conversation nếu chưa có
     if (!convId) {
       const convo = await saveConversation(userId, {
         title: "New chat",
@@ -108,7 +99,7 @@ export async function POST(req) {
       convId = convo.id;
     }
 
-    // lưu user message
+    // SAVE USER MESSAGE
     await saveMessage({
       conversationId: convId,
       userId,
@@ -116,64 +107,56 @@ export async function POST(req) {
       content,
     });
 
-    // load lại history
-    const history = await getMessages(convId);
+    // HISTORY BEFORE ASSISTANT RESPONSE
+    const messages = await getMessages(convId);
 
-    // system prompt
     const sysPrompt =
       systemMode === "dev"
-        ? "Developer mode: give detailed and technical answers."
+        ? "Developer mode: give technical detailed answers."
         : systemMode === "friendly"
-        ? "Friendly mode: warm and casual."
-        : "You are a helpful and intelligent assistant.";
-
-    const contents = buildGeminiMessages(history);
+        ? "Friendly, warm and helpful assistant."
+        : "You are a helpful, intelligent assistant.";
 
     const result = await model.generateContentStream({
-      contents,
-      systemInstruction: {
-        role: "system",
-        parts: [{ text: sysPrompt }],
-      },
+      contents: mapMessages(messages),
+      systemInstruction: { role: "system", parts: [{ text: sysPrompt }] },
       generationConfig: {
         temperature: 0.8,
-        maxOutputTokens: 4096,
         topP: 0.9,
         topK: 40,
+        maxOutputTokens: 4096,
       },
     });
 
+    let fullText = "";
     const encoder = new TextEncoder();
-    let finalText = "";
 
     const stream = new ReadableStream({
       async start(controller) {
         try {
           for await (const chunk of result.stream) {
             const text = chunk.text() || "";
-            finalText += text;
+            fullText += text;
             controller.enqueue(encoder.encode(text));
           }
         } catch (err) {
-          console.error("❌ STREAM ERROR:", err);
-          controller.enqueue(encoder.encode("[Stream error]"));
+          console.error("STREAM ERROR", err);
         } finally {
           controller.close();
 
-          // lưu assistant message sau khi stream xong
-          const trimmed = finalText.trim();
-          if (trimmed.length > 0) {
+          const trimmed = fullText.trim();
+          if (trimmed) {
             await saveMessage({
               conversationId: convId,
               role: "assistant",
               content: trimmed,
             });
 
-            // Auto title nếu là message đầu tiên
-            await autoTitleConversation({
+            // RUN AUTO TITLE IF FIRST ANSWER
+            await autoTitle({
               userId,
               conversationId: convId,
-              history: [...history, { role: "assistant", content: trimmed }],
+              messages: [...messages, { role: "assistant", content: trimmed }],
             });
           }
         }
@@ -183,6 +166,7 @@ export async function POST(req) {
     return new Response(stream, {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
+
   } catch (err) {
     console.error("❌ chat-stream error:", err);
     return new Response("Internal error", { status: 500 });

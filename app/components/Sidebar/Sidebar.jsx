@@ -13,7 +13,10 @@ export default function Sidebar({
   titleGeneratingId,
 }) {
   return (
-    <aside className="hidden w-64 border-r border-neutral-800 bg-neutral-950 p-3 md:flex md:flex-col">
+    // ⭐ SỬA 1: thêm h-screen + flex-col để sidebar kéo full chiều cao
+    <aside className="hidden h-screen w-64 border-r border-neutral-800 bg-neutral-950 p-3 md:flex md:flex-col">
+      
+      {/* Nút tạo chat */}
       <button
         onClick={onNewChat}
         className="mb-3 w-full rounded-lg bg-[var(--primary)] px-3 py-2 text-black text-sm"
@@ -21,14 +24,13 @@ export default function Sidebar({
         {t.newChat}
       </button>
 
+      {/* ⭐ SỬA 2: flex-1 + overflow-y-auto để vùng danh sách chats chiếm hết phần giữa */}
       <div className="flex-1 space-y-1 overflow-y-auto">
         {chats.map((c) => {
           const isActive = c.id === activeId;
+
           const isTitleShimmer =
-            titleLoading &&
-            titleGeneratingId === c.id &&
-            !c.autoTitled &&
-            !c.renamed;
+            titleLoading && titleGeneratingId === c.id && !c.autoTitled;
 
           return (
             <button
@@ -49,7 +51,7 @@ export default function Sidebar({
                   </span>
                 )}
 
-                {titleLoading && titleGeneratingId === c.id && (
+                {isTitleShimmer && (
                   <span className="h-3 w-3 animate-spin rounded-full border border-neutral-600 border-t-transparent" />
                 )}
               </span>
@@ -79,6 +81,7 @@ export default function Sidebar({
         })}
       </div>
 
+      {/* ⭐ SỬA 3: nút logout luôn nằm cuối cùng nhờ flex-col + flex-1 ở phía trên */}
       <button
         onClick={onLogout}
         className="mt-4 rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"

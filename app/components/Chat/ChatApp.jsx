@@ -147,6 +147,7 @@ export default function ChatApp() {
       setIsSending(false);
       setRegenerating(false);
       if (isNewConversation) {
+        await loadConversations();
         // tắt shimmer
         setTitleLoading(false);
         setTitleGeneratingId(null);
