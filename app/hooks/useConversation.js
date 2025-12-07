@@ -21,6 +21,7 @@ export function useConversation() {
       const list = Array.isArray(data.conversations)
         ? data.conversations
         : [];
+
       setConversations(list);
 
       // Nếu chưa có activeId thì chọn conv đầu tiên
@@ -35,22 +36,32 @@ export function useConversation() {
   }, [activeId]);
 
   // ---------- Load 1 conversation + messages ----------
-  const loadConversation = useCallback(async (id) => {
-    if (!id) return;
-    setLoadingMessages(true);
-    try {
-      const res = await fetch(`/api/conversations?id=${id}`);
-      if (!res.ok) throw new Error("Failed to load conversation");
-      const data = await res.json();
+  //      IMPORTANT: Now supports silent mode
+  const loadConversation = useCallback(
+    async (id, { silent = false } = {}) => {
+      if (!id) return;
 
-      setActiveId(id);
-      setMessages(Array.isArray(data.messages) ? data.messages : []);
-    } catch (err) {
-      console.error("loadConversation error:", err);
-    } finally {
-      setLoadingMessages(false);
-    }
-  }, []);
+      if (!silent) {
+        setLoadingMessages(true);
+      }
+
+      try {
+        const res = await fetch(`/api/conversations?id=${id}`);
+        if (!res.ok) throw new Error("Failed to load conversation");
+        const data = await res.json();
+
+        setActiveId(id);
+        setMessages(Array.isArray(data.messages) ? data.messages : []);
+      } catch (err) {
+        console.error("loadConversation error:", err);
+      } finally {
+        if (!silent) {
+          setLoadingMessages(false);
+        }
+      }
+    },
+    []
+  );
 
   // ---------- Create new conversation ----------
   const createConversation = useCallback(async (title = "New chat") => {
@@ -98,26 +109,29 @@ export function useConversation() {
   }, []);
 
   // ---------- Delete ----------
-  const deleteConversation = useCallback(async (id) => {
-    if (!id) return;
-    try {
-      const res = await fetch("/api/conversations", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      if (!res.ok) throw new Error("Failed to delete conversation");
+  const deleteConversation = useCallback(
+    async (id) => {
+      if (!id) return;
+      try {
+        const res = await fetch("/api/conversations", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        });
+        if (!res.ok) throw new Error("Failed to delete conversation");
 
-      setConversations((prev) => prev.filter((c) => c.id !== id));
+        setConversations((prev) => prev.filter((c) => c.id !== id));
 
-      if (activeId === id) {
-        setActiveId(null);
-        setMessages([]);
+        if (activeId === id) {
+          setActiveId(null);
+          setMessages([]);
+        }
+      } catch (err) {
+        console.error("deleteConversation error:", err);
       }
-    } catch (err) {
-      console.error("deleteConversation error:", err);
-    }
-  }, [activeId]);
+    },
+    [activeId]
+  );
 
   // ---------- Effects ----------
 
@@ -125,10 +139,10 @@ export function useConversation() {
     loadConversations();
   }, [loadConversations]);
 
-  // Khi activeId thay đổi -> load messages của conv đó
+  // Khi activeId thay đổi -> load messages của conv đó (normal mode)
   useEffect(() => {
     if (activeId) {
-      loadConversation(activeId);
+      loadConversation(activeId, { silent: false });
     }
   }, [activeId, loadConversation]);
 

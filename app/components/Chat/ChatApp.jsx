@@ -168,7 +168,7 @@ export default function ChatApp() {
       setStreamingAssistant(null);
 
       // Reload conversation messages
-      await loadConversation(conversationId);
+      await loadConversation(conversationId, { silent: true });
     } catch (err) {
       console.error("Chat stream error:", err);
       setStreamingAssistant(null);
