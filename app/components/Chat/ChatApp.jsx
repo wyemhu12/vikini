@@ -28,7 +28,6 @@ export default function ChatApp() {
     setActiveId,
     messages,
     setMessages,
-    loadingList,
     loadingMessages,
     loadConversation,
     createConversation,
@@ -42,7 +41,6 @@ export default function ChatApp() {
 
   const [streamingAssistant, setStreamingAssistant] = useState(null);
 
-  // --- auto title ---
   const [titleLoading, setTitleLoading] = useState(false);
   const [titleGeneratingId, setTitleGeneratingId] = useState(null);
 
@@ -73,26 +71,25 @@ export default function ChatApp() {
 
   const canRegenerate = lastAssistantIndex >= 0;
 
-  // SEND MESSAGE
+  // MAIN SEND
   const sendMessage = async (overrideText = null, isRegenerate = false) => {
     const raw = overrideText ?? input;
     const text = (raw || "").trim();
     if (!text) return;
 
     const isNewConversation = !activeId;
-
     let conversationId = activeId;
 
+    // NEW CONVERSATION CREATED
     if (!conversationId) {
       const conv = await createConversation("New chat");
       if (!conv?.id) return;
       conversationId = conv.id;
+      setActiveId(conv.id);
 
-      // → bật shimmer auto title
+      // Enable title shimmer
       setTitleGeneratingId(conv.id);
       setTitleLoading(true);
-
-      setActiveId(conv.id);
     }
 
     if (!isRegenerate) {
@@ -125,7 +122,7 @@ export default function ChatApp() {
         }),
       });
 
-      if (!res.ok || !res.body) throw new Error("Stream error");
+      if (!res.ok || !res.body) throw new Error("Stream failed");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let full = "";
@@ -133,27 +130,21 @@ export default function ChatApp() {
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        full += chunk;
+        full += decoder.decode(value, { stream: true });
 
-        setStreamingAssistant((prev) =>
-          prev
-            ? { ...prev, content: full }
-            : { id: "assistant-stream", role: "assistant", content: full }
-        );
+        setStreamingAssistant((prev) => ({ ...prev, content: full }));
       }
 
       setStreamingAssistant(null);
       await loadConversation(conversationId);
     } catch (err) {
-      console.error("Chat stream error:", err);
+      console.error("Stream error:", err);
       setStreamingAssistant(null);
     } finally {
       setIsSending(false);
       setRegenerating(false);
+
       if (isNewConversation) {
-        // nếu bạn có hàm loadConversations trong hook, hãy đảm bảo nó được import & dùng ở đây
-        // await loadConversations?.();
         setTitleLoading(false);
         setTitleGeneratingId(null);
       }
@@ -168,7 +159,7 @@ export default function ChatApp() {
 
   if (!session) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-950">
+      <div className="flex h-screen items-center justify-center bg-neutral-950">
         <button
           onClick={() => signIn("google")}
           className="rounded-lg bg-white px-4 py-2"
@@ -180,7 +171,9 @@ export default function ChatApp() {
   }
 
   return (
-    <div className="flex min-h-screen bg-neutral-950 text-neutral-100">
+    <div className="flex h-screen w-screen overflow-hidden bg-neutral-950 text-neutral-100">
+
+      {/* FIXED SIDEBAR */}
       <Sidebar
         chats={conversations}
         activeId={activeId}
@@ -211,7 +204,9 @@ export default function ChatApp() {
         titleGeneratingId={titleGeneratingId}
       />
 
-      <div className="flex flex-col flex-1">
+      {/* MAIN PANEL */}
+      <div className="flex flex-col flex-1 ml-64">
+
         <HeaderBar
           t={t}
           language={language}
@@ -222,29 +217,31 @@ export default function ChatApp() {
           onThemeChange={setTheme}
         />
 
-        <div className="flex flex-col flex-1">
-          <div
-            ref={chatWindowRef}
-            className="flex-1 overflow-y-auto max-w-3xl w-full mx-auto px-4 py-6"
-          >
-            {loadingMessages ? (
-              <div className="text-center text-neutral-300">Loading…</div>
-            ) : (
-              <div className="flex flex-col space-y-6">
-                {combinedMessages.map((msg, idx) => (
-                  <ChatBubble
-                    key={msg.id ?? idx}
-                    message={msg}
-                    isLastAssistant={idx === lastAssistantIndex}
-                    canRegenerate={canRegenerate}
-                    onRegenerate={handleRegenerate}
-                    regenerating={regenerating}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+        {/* CHAT SCROLL AREA */}
+        <div
+          ref={chatWindowRef}
+          className="flex-1 overflow-y-auto px-4 py-6 w-full max-w-3xl mx-auto"
+        >
+          {loadingMessages ? (
+            <div className="text-center text-neutral-300">Loading…</div>
+          ) : (
+            <div className="flex flex-col space-y-6">
+              {combinedMessages.map((msg, idx) => (
+                <ChatBubble
+                  key={msg.id ?? idx}
+                  message={msg}
+                  isLastAssistant={idx === lastAssistantIndex}
+                  canRegenerate={canRegenerate}
+                  onRegenerate={handleRegenerate}
+                  regenerating={regenerating}
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
+        {/* FIXED INPUT FORM (BOTTOM) */}
+        <div className="sticky bottom-0 bg-neutral-950 border-t border-neutral-800 shadow-[0_-4px_10px_rgba(0,0,0,0.4)]">
           <div className="max-w-3xl w-full mx-auto">
             <InputForm
               input={input}

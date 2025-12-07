@@ -15,15 +15,16 @@ export default function Sidebar({
   return (
     <aside
       className="
-        hidden
+        hidden md:flex flex-col
+        fixed top-0 left-0 bottom-0
         w-64
         border-r border-neutral-800
         bg-neutral-950
         p-3
-        md:flex md:flex-col
+        overflow-y-auto
       "
     >
-      {/* Nút tạo chat mới */}
+      {/* New chat */}
       <button
         onClick={onNewChat}
         className="mb-3 w-full rounded-lg bg-[var(--primary)] px-3 py-2 text-black text-sm"
@@ -31,11 +32,10 @@ export default function Sidebar({
         {t.newChat}
       </button>
 
-      {/* Danh sách cuộc hội thoại */}
-      <div className="flex-1 space-y-1 overflow-y-auto">
+      {/* Chat list */}
+      <div className="flex-1 space-y-1">
         {chats.map((c) => {
           const isActive = c.id === activeId;
-
           const isTitleShimmer =
             titleLoading && titleGeneratingId === c.id && !c.autoTitled;
 
@@ -53,13 +53,7 @@ export default function Sidebar({
                 {isTitleShimmer ? (
                   <span className="inline-flex h-3 w-24 animate-pulse rounded-full bg-neutral-700/70" />
                 ) : (
-                  <span className="transition-opacity duration-300">
-                    {c.title}
-                  </span>
-                )}
-
-                {isTitleShimmer && (
-                  <span className="h-3 w-3 animate-spin rounded-full border border-neutral-600 border-t-transparent" />
+                  <span>{c.title}</span>
                 )}
               </span>
 
@@ -88,7 +82,7 @@ export default function Sidebar({
         })}
       </div>
 
-      {/* Nút Logout luôn ở đáy Sidebar nhờ flex-col + flex-1 phía trên */}
+      {/* Logout (always bottom) */}
       <button
         onClick={onLogout}
         className="mt-4 rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
