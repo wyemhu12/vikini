@@ -26,7 +26,7 @@ export default function ChatApp() {
   const { systemMode, setSystemMode } = useSystemMode();
   const t = translations[language];
 
-  // Conversation state
+  // Conversations (SWR)
   const {
     conversations,
     activeId,
@@ -40,12 +40,12 @@ export default function ChatApp() {
     deleteConversation,
   } = useConversation();
 
-  // Auto-title store (Zustand)
+  // Auto-title store
   const setOptimisticTitle = useAutoTitleStore((s) => s.setOptimisticTitle);
   const setFinalTitle = useAutoTitleStore((s) => s.setFinalTitle);
   const setTitleLoading = useAutoTitleStore((s) => s.setTitleLoading);
 
-  // Chat states
+  // UI states
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -53,28 +53,23 @@ export default function ChatApp() {
 
   const chatWindowRef = useRef(null);
 
-  // ---------------------------
-  // OPTIMIZED scroll to bottom
-  // ---------------------------
+  // Scroll smooth
   const scrollToBottom = useCallback(() => {
     const el = chatWindowRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, []);
 
-  // Scroll only when new message appended OR streaming updates final chunk
   useEffect(() => {
     scrollToBottom();
   }, [messages, streamingAssistant, scrollToBottom]);
 
-  // -----------------------------------
-  // Combine messages (zero re-render)
-  // -----------------------------------
+  // Combine messages for UI
   const combinedMessages = streamingAssistant
     ? [...messages, streamingAssistant]
     : messages;
 
-  // Optimized last assistant index
+  // Find last assistant index
   const lastAssistantIndex = useMemo(() => {
     for (let i = combinedMessages.length - 1; i >= 0; i--) {
       if (combinedMessages[i].role === "assistant") return i;
@@ -85,7 +80,7 @@ export default function ChatApp() {
   const canRegenerate = lastAssistantIndex >= 0;
 
   // ================================================================
-  // SEND MESSAGE — optimized streaming + Zustand auto-title handling
+  // FIX: sendMessage() — ALWAYS use correct conversationId
   // ================================================================
   const sendMessage = async (overrideText = null, isRegenerate = false) => {
     const raw = overrideText ?? input;
@@ -94,18 +89,24 @@ export default function ChatApp() {
 
     setInput("");
 
+    // IMPORTANT: ALWAYS use local variable, never trust activeId directly.
     let conversationId = activeId;
-    let isBrandNew = false;
 
+    // If new conversation → create first, then use conv.id
     if (!conversationId) {
       const conv = await createConversation({ title: "New Chat" });
-      if (!conv?.id) return;
+      if (!conv?.id) {
+        console.error("FAILED TO CREATE CONVERSATION");
+        return;
+      }
+
+      // FIX: use conv.id immediately (no race condition)
       conversationId = conv.id;
       setActiveId(conv.id);
-      isBrandNew = true;
+      setMessages([]);
     }
 
-    // Append user message for UI
+    // Show user message immediately
     if (!isRegenerate) {
       setMessages((prev) => [
         ...prev,
@@ -113,7 +114,7 @@ export default function ChatApp() {
       ]);
     }
 
-    // Placeholder assistant
+    // Placeholder for assistant streaming
     setIsSending(!isRegenerate);
     setRegenerating(isRegenerate);
 
@@ -123,7 +124,7 @@ export default function ChatApp() {
       content: "",
     });
 
-    // Status for auto-title
+    // Auto-title
     setTitleLoading(conversationId, true);
 
     try {
@@ -131,7 +132,7 @@ export default function ChatApp() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          conversationId,
+          conversationId, // FIXED: never null
           content: text,
           systemMode,
           language,
@@ -139,7 +140,7 @@ export default function ChatApp() {
         }),
       });
 
-      if (!res.ok || !res.body) throw new Error("Stream failed");
+      if (!res.ok || !res.body) throw new Error("STREAM FAILED");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -151,7 +152,7 @@ export default function ChatApp() {
 
         const chunk = decoder.decode(value, { stream: true });
 
-        // Handle metadata block ($$META:{...}$$)
+        // Handle metadata
         if (chunk.includes("$$META:")) {
           const parts = chunk.split("$$META:");
           for (const p of parts) {
@@ -168,9 +169,8 @@ export default function ChatApp() {
           continue;
         }
 
-        // Streaming assistant merging
+        // Streaming assistant
         full += chunk;
-
         setStreamingAssistant({
           id: "assistant-stream",
           role: "assistant",
@@ -178,7 +178,7 @@ export default function ChatApp() {
         });
       }
 
-      // End streaming → commit final assistant message
+      // End streaming
       setStreamingAssistant(null);
 
       if (full.trim()) {
@@ -192,7 +192,7 @@ export default function ChatApp() {
         ]);
       }
     } catch (err) {
-      console.error("Stream error:", err);
+      console.error("STREAM ERROR", err);
       setStreamingAssistant(null);
     } finally {
       setIsSending(false);
@@ -201,15 +201,13 @@ export default function ChatApp() {
     }
   };
 
-  // Regenerate response
+  // Regenerate
   const handleRegenerate = () => {
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     if (lastUser) sendMessage(lastUser.content, true);
   };
 
-  // ---------------------------
-  // LOGIN GATE
-  // ---------------------------
+  // Login gate
   if (!session) {
     return (
       <div className="flex h-screen items-center justify-center bg-neutral-950">
@@ -223,9 +221,6 @@ export default function ChatApp() {
     );
   }
 
-  // ---------------------------
-  // MAIN LAYOUT
-  // ---------------------------
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-neutral-950 text-neutral-100">
       <Sidebar
@@ -249,7 +244,7 @@ export default function ChatApp() {
         t={t}
       />
 
-      {/* RIGHT PANEL */}
+      {/* Right panel */}
       <div className="flex flex-col flex-1 ml-64">
         <HeaderBar
           t={t}
@@ -257,11 +252,10 @@ export default function ChatApp() {
           onLanguageChange={setLanguage}
           systemMode={systemMode}
           onSystemModeChange={setSystemMode}
-          theme={theme}
           onThemeChange={setTheme}
+          theme={theme}
         />
 
-        {/* CHAT WINDOW */}
         <div
           ref={chatWindowRef}
           className="flex-1 overflow-y-auto px-4 py-6 w-full max-w-3xl mx-auto"
@@ -284,9 +278,8 @@ export default function ChatApp() {
           )}
         </div>
 
-        {/* INPUT AREA */}
         <div className="sticky bottom-0 bg-neutral-950">
-          <div className="max-w-3xl w-full mx-auto">
+          <div className="max-w-3xl mx-auto w-full">
             <InputForm
               input={input}
               onChangeInput={setInput}

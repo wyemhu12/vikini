@@ -8,7 +8,6 @@ import { authOptions } from "@/lib/auth";
 import {
   getConversation,
   getMessages,
-  getUserConversations,
   saveConversation,
   saveMessage,
   setConversationAutoTitle,
@@ -17,15 +16,10 @@ import {
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-// NEW: auto-title engine
 import {
   generateOptimisticTitle,
   generateFinalTitle,
-  normalizeTitle,
 } from "@/lib/autoTitleEngine";
-
-const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 function mapMessages(messages) {
   return messages.map((m) => ({
@@ -34,12 +28,14 @@ function mapMessages(messages) {
   }));
 }
 
-// Utility: gửi metadata dạng JSON trong stream
 function sendMeta(controller, obj) {
   controller.enqueue(
     new TextEncoder().encode(`$$META:${JSON.stringify(obj)}$$\n`)
   );
 }
+
+const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 export async function POST(req) {
   try {
@@ -51,7 +47,7 @@ export async function POST(req) {
     const userId = session.user.email.toLowerCase();
     const body = await req.json();
 
-    const {
+    let {
       conversationId,
       content,
       systemMode = "default",
@@ -63,52 +59,56 @@ export async function POST(req) {
       return new Response("Empty content", { status: 400 });
     }
 
-    // CREATE CONVERSATION IF NEEDED
-    let convId = conversationId;
-    if (!convId) {
-      const convo = await saveConversation(userId, {
+    // FIX 1 — Validate conversationId BEFORE anything
+    if (!conversationId) {
+      const conv = await saveConversation(userId, {
         title: "New Chat",
         createdAt: Date.now(),
       });
-      convId = convo.id;
+      conversationId = conv.id;
     }
 
-    // SAVE USER MESSAGE
+    // FIX 2 — Ensure conversation exists
+    const convo = await getConversation(conversationId);
+    if (!convo || convo.userId !== userId) {
+      console.error("❌ INVALID CONVERSATION:", conversationId);
+      return new Response("Conversation not found", { status: 404 });
+    }
+
+    // Save user message
     await saveMessage({
-      conversationId: convId,
+      conversationId,
       userId,
       role: "user",
       content,
       createdAt: Date.now(),
     });
 
-    // HISTORY BEFORE ASSISTANT RESPONSE
-    const messages = await getMessages(convId);
+    // Load message history BEFORE generating response
+    const messages = await getMessages(conversationId);
 
     const sysPrompt =
       systemMode === "dev"
-        ? "Developer mode: give technical detailed answers."
+        ? "Developer mode: detailed technical output."
         : systemMode === "friendly"
         ? "Friendly, warm and helpful assistant."
-        : "You are a helpful, intelligent assistant.";
+        : "You are a helpful assistant.";
 
-    // =============== 1) GENERATE OPTIMISTIC TITLE (FAST) ===============
-    const optimisticTitle = await generateOptimisticTitle(content);
-
+    // Prepare streaming
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream({
       async start(controller) {
-        // Gửi optimistic title trước khi gửi output từ model
+        // OPTIMISTIC TITLE
+        const optimisticTitle = await generateOptimisticTitle(content);
         if (optimisticTitle) {
           sendMeta(controller, {
             type: "optimisticTitle",
-            conversationId: convId,
+            conversationId,
             title: optimisticTitle,
           });
         }
 
-        // ========== AI STREAM ==========
         try {
           const result = await model.generateContentStream({
             contents: mapMessages(messages),
@@ -122,35 +122,36 @@ export async function POST(req) {
 
           let full = "";
 
+          // STREAM CHUNKS
           for await (const chunk of result.stream) {
             const text = chunk.text() || "";
             full += text;
             controller.enqueue(encoder.encode(text));
           }
 
+          // SAVE FINAL MESSAGE
           const trimmed = full.trim();
           if (trimmed) {
             await saveMessage({
-              conversationId: convId,
+              conversationId,
               role: "assistant",
               content: trimmed,
               createdAt: Date.now(),
             });
 
-            // =============== 2) FINAL TITLE ===============
+            // FINAL TITLE (slow)
             const finalTitle = await generateFinalTitle({
               userId,
-              conversationId: convId,
+              conversationId,
               messages: [...messages, { role: "assistant", content: trimmed }],
             });
 
             if (finalTitle) {
-              await setConversationAutoTitle(userId, convId, finalTitle);
+              await setConversationAutoTitle(userId, conversationId, finalTitle);
 
-              // Gửi final title về frontend
               sendMeta(controller, {
                 type: "finalTitle",
-                conversationId: convId,
+                conversationId,
                 title: finalTitle,
               });
             }
