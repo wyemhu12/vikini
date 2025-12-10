@@ -1,6 +1,6 @@
 // app/layout.jsx
 import "./globals.css";
-import "../styles/shimmer.css";
+import "./styles/shimmer.css";
 import Providers from "./providers";
 
 export const metadata = {
