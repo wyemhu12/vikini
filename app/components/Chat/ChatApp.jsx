@@ -1,7 +1,7 @@
 // app/components/Chat/ChatApp.jsx
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 
 import ChatBubble from "./ChatBubble";
@@ -13,16 +13,20 @@ import { useTheme } from "../../hooks/useTheme";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useSystemMode } from "../../hooks/useSystemMode";
 import { useConversation } from "../../hooks/useConversation";
+
+import useAutoTitleStore from "@/app/hooks/useAutoTitleStore";
 import { translations } from "../../utils/config";
 
 export default function ChatApp() {
   const { data: session } = useSession();
 
+  // Global settings
   const { theme, setTheme } = useTheme();
   const { language, setLanguage } = useLanguage();
   const { systemMode, setSystemMode } = useSystemMode();
   const t = translations[language];
 
+  // Conversation state
   const {
     conversations,
     activeId,
@@ -31,52 +35,58 @@ export default function ChatApp() {
     setMessages,
     loadingMessages,
     loadConversation,
-    loadConversations,
     createConversation,
     renameConversation,
     deleteConversation,
   } = useConversation();
 
+  // Auto-title store (Zustand)
+  const setOptimisticTitle = useAutoTitleStore((s) => s.setOptimisticTitle);
+  const setFinalTitle = useAutoTitleStore((s) => s.setFinalTitle);
+  const setTitleLoading = useAutoTitleStore((s) => s.setTitleLoading);
+
+  // Chat states
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [streamingAssistant, setStreamingAssistant] = useState(null);
 
-  // Auto-title UI states
-  const [titleLoading, setTitleLoading] = useState(false);
-  const [titleGeneratingId, setTitleGeneratingId] = useState(null);
-
   const chatWindowRef = useRef(null);
 
-  // Scroll to bottom on new messages / streaming
+  // ---------------------------
+  // OPTIMIZED scroll to bottom
+  // ---------------------------
+  const scrollToBottom = useCallback(() => {
+    const el = chatWindowRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, []);
+
+  // Scroll only when new message appended OR streaming updates final chunk
   useEffect(() => {
-    if (chatWindowRef.current) {
-      chatWindowRef.current.scrollTo({
-        top: chatWindowRef.current.scrollHeight,
-        behavior: "smooth",
-      });
+    scrollToBottom();
+  }, [messages, streamingAssistant, scrollToBottom]);
+
+  // -----------------------------------
+  // Combine messages (zero re-render)
+  // -----------------------------------
+  const combinedMessages = streamingAssistant
+    ? [...messages, streamingAssistant]
+    : messages;
+
+  // Optimized last assistant index
+  const lastAssistantIndex = useMemo(() => {
+    for (let i = combinedMessages.length - 1; i >= 0; i--) {
+      if (combinedMessages[i].role === "assistant") return i;
     }
-  }, [messages, streamingAssistant]);
-
-  // Merge streaming assistant message with existing messages
-  const combinedMessages = useMemo(() => {
-    if (streamingAssistant) return [...messages, streamingAssistant];
-    return messages;
-  }, [messages, streamingAssistant]);
-
-  // Find last assistant msg index
-  const lastAssistantIndex = useMemo(
-    () =>
-      combinedMessages.reduce(
-        (acc, m, idx) => (m.role === "assistant" ? idx : acc),
-        -1
-      ),
-    [combinedMessages]
-  );
+    return -1;
+  }, [combinedMessages]);
 
   const canRegenerate = lastAssistantIndex >= 0;
 
-  // SEND MESSAGE — handles auto-title
+  // ================================================================
+  // SEND MESSAGE — optimized streaming + Zustand auto-title handling
+  // ================================================================
   const sendMessage = async (overrideText = null, isRegenerate = false) => {
     const raw = overrideText ?? input;
     const text = (raw || "").trim();
@@ -87,51 +97,34 @@ export default function ChatApp() {
     let conversationId = activeId;
     let isBrandNew = false;
 
-    // Create conversation if needed
     if (!conversationId) {
-      const conv = await createConversation({
-        title: "New chat",
-        autoTitled: false,
-      });
+      const conv = await createConversation({ title: "New Chat" });
       if (!conv?.id) return;
-
       conversationId = conv.id;
       setActiveId(conv.id);
       isBrandNew = true;
     }
 
-    // Read freshest conversation meta
-    const getFreshConversation = () =>
-      conversations.find((c) => c.id === conversationId) || null;
-
-    let meta = getFreshConversation();
-
-    // Determine if we need auto-title
-    let shouldTrackAutoTitle =
-      isBrandNew || (meta && !meta.autoTitled && !meta.renamed);
-
-    // Append local user message (nếu không phải regenerate)
+    // Append user message for UI
     if (!isRegenerate) {
       setMessages((prev) => [
         ...prev,
-        { id: `local-${Date.now()}`, role: "user", content: text },
+        { id: `u-${Date.now()}`, role: "user", content: text },
       ]);
     }
 
+    // Placeholder assistant
     setIsSending(!isRegenerate);
     setRegenerating(isRegenerate);
 
-    // Streaming placeholder
     setStreamingAssistant({
       id: "assistant-stream",
       role: "assistant",
       content: "",
     });
 
-    if (shouldTrackAutoTitle) {
-      setTitleGeneratingId(conversationId);
-      setTitleLoading(true);
-    }
+    // Status for auto-title
+    setTitleLoading(conversationId, true);
 
     try {
       const res = await fetch("/api/chat-stream", {
@@ -152,11 +145,30 @@ export default function ChatApp() {
       const decoder = new TextDecoder();
       let full = "";
 
-      // STREAM LOOP — chỉ cập nhật streamingAssistant, KHÔNG reload từ backend
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
+
         const chunk = decoder.decode(value, { stream: true });
+
+        // Handle metadata block ($$META:{...}$$)
+        if (chunk.includes("$$META:")) {
+          const parts = chunk.split("$$META:");
+          for (const p of parts) {
+            if (!p.includes("$$")) continue;
+            const jsonStr = p.split("$$")[0];
+            try {
+              const meta = JSON.parse(jsonStr);
+              if (meta.type === "optimisticTitle")
+                setOptimisticTitle(meta.conversationId, meta.title);
+              if (meta.type === "finalTitle")
+                setFinalTitle(meta.conversationId, meta.title);
+            } catch {}
+          }
+          continue;
+        }
+
+        // Streaming assistant merging
         full += chunk;
 
         setStreamingAssistant({
@@ -166,53 +178,38 @@ export default function ChatApp() {
         });
       }
 
-      // Kết thúc stream:
-      // 1) bỏ placeholder streaming
-      // 2) append assistant message vào local state
+      // End streaming → commit final assistant message
       setStreamingAssistant(null);
 
-      const finalText = full.trim();
-      if (finalText) {
+      if (full.trim()) {
         setMessages((prev) => [
           ...prev,
           {
-            id: `assistant-${Date.now()}`,
+            id: `a-${Date.now()}`,
             role: "assistant",
-            content: finalText,
+            content: full.trim(),
           },
         ]);
       }
-
-      // KHÔNG gọi loadConversation() nữa → tránh flicker
     } catch (err) {
-      console.error("Chat stream error:", err);
+      console.error("Stream error:", err);
       setStreamingAssistant(null);
     } finally {
       setIsSending(false);
       setRegenerating(false);
-
-      if (shouldTrackAutoTitle) {
-        try {
-          // Fetch newest titles from Firestore (auto-title)
-          await loadConversations();
-        } catch (e) {
-          console.error("Reload conversations failed:", e);
-        }
-
-        setTitleLoading(false);
-        setTitleGeneratingId(null);
-      }
+      setTitleLoading(conversationId, false);
     }
   };
 
-  // REGENERATE LAST ASSISTANT REPLY
+  // Regenerate response
   const handleRegenerate = () => {
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
-    if (!lastUser) return;
-    sendMessage(lastUser.content, true);
+    if (lastUser) sendMessage(lastUser.content, true);
   };
 
-  // LOGIN PROMPT
+  // ---------------------------
+  // LOGIN GATE
+  // ---------------------------
   if (!session) {
     return (
       <div className="flex h-screen items-center justify-center bg-neutral-950">
@@ -226,10 +223,11 @@ export default function ChatApp() {
     );
   }
 
-  // RENDER MAIN UI
+  // ---------------------------
+  // MAIN LAYOUT
+  // ---------------------------
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-neutral-950 text-neutral-100">
-      {/* FIXED SIDEBAR */}
       <Sidebar
         chats={conversations}
         activeId={activeId}
@@ -238,32 +236,20 @@ export default function ChatApp() {
           setActiveId(id);
         }}
         onNewChat={async () => {
-          const conv = await createConversation({
-            title: "New chat",
-            autoTitled: false,
-          });
+          const conv = await createConversation({ title: "New Chat" });
           if (conv?.id) {
             setStreamingAssistant(null);
             setActiveId(conv.id);
             setMessages([]);
           }
         }}
-        onRenameChat={async (id) => {
-          const current = conversations.find((c) => c.id === id);
-          const old = current?.title || "New chat";
-          const newTitle = window.prompt("Rename chat", old);
-          if (newTitle?.trim()) await renameConversation(id, newTitle.trim());
-        }}
-        onDeleteChat={async (id) => {
-          if (confirm("Delete this chat?")) await deleteConversation(id);
-        }}
+        onRenameChat={renameConversation}
+        onDeleteChat={deleteConversation}
         onLogout={() => signOut()}
         t={t}
-        titleLoading={titleLoading}
-        titleGeneratingId={titleGeneratingId}
       />
 
-      {/* MAIN PANEL */}
+      {/* RIGHT PANEL */}
       <div className="flex flex-col flex-1 ml-64">
         <HeaderBar
           t={t}
@@ -275,13 +261,12 @@ export default function ChatApp() {
           onThemeChange={setTheme}
         />
 
-        {/* CHAT SCROLL AREA */}
+        {/* CHAT WINDOW */}
         <div
           ref={chatWindowRef}
           className="flex-1 overflow-y-auto px-4 py-6 w-full max-w-3xl mx-auto"
         >
           {loadingMessages && combinedMessages.length === 0 ? (
-            // Chỉ show "Loading…" khi thật sự chưa có message nào
             <div className="text-center text-neutral-300">Loading…</div>
           ) : (
             <div className="flex flex-col space-y-6">
@@ -299,7 +284,7 @@ export default function ChatApp() {
           )}
         </div>
 
-        {/* INPUT FORM STICKY BOTTOM */}
+        {/* INPUT AREA */}
         <div className="sticky bottom-0 bg-neutral-950">
           <div className="max-w-3xl w-full mx-auto">
             <InputForm

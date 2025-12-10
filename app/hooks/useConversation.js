@@ -1,130 +1,114 @@
 // app/hooks/useConversation.js
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import useSWR from "swr";
+import { useCallback, useEffect, useState } from "react";
+
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export function useConversation() {
   const [conversations, setConversations] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [loadingList, setLoadingList] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
-  // ---------- Load list conversations ----------
-  const loadConversations = useCallback(async () => {
-    setLoadingList(true);
-    try {
-      const res = await fetch("/api/conversations");
-      if (!res.ok) throw new Error("Failed to load conversations");
-      const data = await res.json();
+  // SWR for conversation list
+  const { data, mutate } = useSWR("/api/conversations", fetcher, {
+    dedupingInterval: 3000, // align với TTL cache server
+    revalidateOnFocus: false,
+  });
 
-      const list = Array.isArray(data.conversations)
-        ? data.conversations
-        : [];
+  // Khi data từ SWR về -> sync vào state local
+  useEffect(() => {
+    if (!data?.conversations) return;
+    setConversations(data.conversations);
 
-      setConversations(list);
-
-      // Nếu chưa có activeId thì chọn conv đầu tiên
-      if (!activeId && list.length > 0) {
-        setActiveId(list[0].id);
-      }
-    } catch (err) {
-      console.error("loadConversations error:", err);
-    } finally {
-      setLoadingList(false);
+    if (!activeId && data.conversations.length > 0) {
+      setActiveId(data.conversations[0].id);
     }
-  }, [activeId]);
+  }, [data, activeId]);
 
-  // ---------- Load 1 conversation + messages ----------
-  //      IMPORTANT: supports silent mode
-  const loadConversation = useCallback(
-    async (id, { silent = false } = {}) => {
-      if (!id) return;
+  // Load messages for a conversation
+  const loadConversation = useCallback(async (id) => {
+    if (!id) return;
+    setLoadingMessages(true);
+    try {
+      const res = await fetch(`/api/conversations?id=${id}`);
+      if (!res.ok) throw new Error("Failed to load conversation messages");
+      const json = await res.json();
 
-      if (!silent) {
-        setLoadingMessages(true);
-      }
+      setActiveId(id);
+      setMessages(Array.isArray(json.messages) ? json.messages : []);
+    } catch (err) {
+      console.error("loadConversation error:", err);
+    } finally {
+      setLoadingMessages(false);
+    }
+  }, []);
+
+  // Create new conversation
+  const createConversation = useCallback(
+    async (options = {}) => {
+      const title = typeof options === "string" ? options : options.title;
 
       try {
-        const res = await fetch(`/api/conversations?id=${id}`);
-        if (!res.ok) throw new Error("Failed to load conversation");
-        const data = await res.json();
+        const res = await fetch("/api/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: title || "New Chat" }),
+        });
 
-        setActiveId(id);
-        setMessages(Array.isArray(data.messages) ? data.messages : []);
+        if (!res.ok) throw new Error("Failed to create conversation");
+        const json = await res.json();
+        const conv = json.conversation;
+        if (!conv?.id) return null;
+
+        // Patch local list ngay lập tức (optimistic)
+        setConversations((prev) => [conv, ...prev]);
+        setActiveId(conv.id);
+        setMessages([]);
+
+        // Revalidate SWR trong background
+        mutate();
+
+        return conv;
       } catch (err) {
-        console.error("loadConversation error:", err);
-      } finally {
-        if (!silent) {
-          setLoadingMessages(false);
-        }
+        console.error("createConversation error:", err);
+        return null;
       }
     },
-    []
+    [mutate]
   );
 
-  // ---------- Create new conversation ----------
-  // Chấp nhận:
-  // - createConversation("New chat")
-  // - createConversation({ title: "New chat" })
-  const createConversation = useCallback(async (options) => {
-    try {
-      const defaultTitle = "New chat";
-      let payloadTitle = defaultTitle;
+  // Rename conversation
+  const renameConversation = useCallback(
+    async (id, title) => {
+      if (!id || !title?.trim()) return;
+      try {
+        const res = await fetch("/api/conversations", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, title }),
+        });
+        if (!res.ok) throw new Error("Failed to rename conversation");
+        const json = await res.json();
+        const updated = json.conversation;
 
-      if (typeof options === "string") {
-        payloadTitle = options;
-      } else if (
-        options &&
-        typeof options === "object" &&
-        typeof options.title === "string"
-      ) {
-        payloadTitle = options.title;
+        // Patch local
+        setConversations((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, title: updated.title } : c))
+        );
+
+        // Revalidate background
+        mutate();
+      } catch (err) {
+        console.error("renameConversation error:", err);
       }
+    },
+    [mutate]
+  );
 
-      const res = await fetch("/api/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: payloadTitle }),
-      });
-      if (!res.ok) throw new Error("Failed to create conversation");
-      const data = await res.json();
-
-      const conv = data.conversation;
-      if (!conv?.id) return null;
-
-      setConversations((prev) => [conv, ...prev]);
-      setActiveId(conv.id);
-      setMessages([]);
-      return conv;
-    } catch (err) {
-      console.error("createConversation error:", err);
-      return null;
-    }
-  }, []);
-
-  // ---------- Rename ----------
-  const renameConversation = useCallback(async (id, title) => {
-    if (!id || !title?.trim()) return;
-    try {
-      const res = await fetch("/api/conversations", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, title }),
-      });
-      if (!res.ok) throw new Error("Failed to rename conversation");
-      const data = await res.json();
-      const updated = data.conversation;
-
-      setConversations((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, ...updated } : c))
-      );
-    } catch (err) {
-      console.error("renameConversation error:", err);
-    }
-  }, []);
-
-  // ---------- Delete ----------
+  // Delete conversation
   const deleteConversation = useCallback(
     async (id) => {
       if (!id) return;
@@ -136,30 +120,21 @@ export function useConversation() {
         });
         if (!res.ok) throw new Error("Failed to delete conversation");
 
+        // Patch local
         setConversations((prev) => prev.filter((c) => c.id !== id));
 
         if (activeId === id) {
           setActiveId(null);
           setMessages([]);
         }
+
+        mutate();
       } catch (err) {
         console.error("deleteConversation error:", err);
       }
     },
-    [activeId]
+    [activeId, mutate]
   );
-
-  // ---------- Effects ----------
-
-  useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
-
-  // Khi activeId thay đổi -> load messages của conv đó (normal mode)
-  useEffect(() => {
-    if (!activeId) return;
-    loadConversation(activeId, { silent: false });
-  }, [activeId, loadConversation]);
 
   return {
     conversations,
@@ -167,9 +142,7 @@ export function useConversation() {
     setActiveId,
     messages,
     setMessages,
-    loadingList,
     loadingMessages,
-    loadConversations,
     loadConversation,
     createConversation,
     renameConversation,

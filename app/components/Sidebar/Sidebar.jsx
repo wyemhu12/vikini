@@ -1,4 +1,7 @@
+// app/components/Sidebar/Sidebar.jsx
 "use client";
+
+import SidebarItem from "./SidebarItem";
 
 export default function Sidebar({
   chats,
@@ -9,8 +12,6 @@ export default function Sidebar({
   onDeleteChat,
   onLogout,
   t,
-  titleLoading,
-  titleGeneratingId,
 }) {
   return (
     <aside
@@ -34,61 +35,16 @@ export default function Sidebar({
 
       {/* Chat list */}
       <div className="flex-1 space-y-1">
-        {chats.map((c) => {
-          const isActive = c.id === activeId;
-          const isTitleShimmer =
-            titleLoading && titleGeneratingId === c.id && !c.autoTitled;
-
-          return (
-            <button
-              key={c.id}
-              className={`flex w-full items-center justify-between gap-1 rounded-lg px-3 py-2 text-left text-xs ${
-                isActive
-                  ? "bg-neutral-800 text-white"
-                  : "text-neutral-400 hover:bg-neutral-900"
-              }`}
-              onClick={() => onSelectChat(c.id)}
-            >
-              {/* TITLE + SHIMMER / ANIMATION */}
-              <span className="flex-1 flex items-center gap-2 min-w-0">
-                {isTitleShimmer ? (
-                  <span className="h-3 w-28 rounded-md shimmer-block" />
-                ) : (
-                  <span
-                    className="
-                      truncate
-                      animate-title
-                    "
-                  >
-                    {c.title}
-                  </span>
-                )}
-              </span>
-
-              {/* ACTIONS */}
-              <span className="flex items-center gap-1 flex-shrink-0">
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRenameChat(c.id);
-                  }}
-                  className="cursor-pointer rounded px-1 py-0.5 text-[10px] text-neutral-400 hover:bg-neutral-700"
-                >
-                  ✏
-                </span>
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteChat(c.id);
-                  }}
-                  className="cursor-pointer rounded px-1 py-0.5 text-[10px] text-neutral-400 hover:bg-red-600 hover:text-white"
-                >
-                  🗑
-                </span>
-              </span>
-            </button>
-          );
-        })}
+        {chats.map((c) => (
+          <SidebarItem
+            key={c.id}
+            conversation={c}
+            isActive={c.id === activeId}
+            onSelect={onSelectChat}
+            onRename={onRenameChat}
+            onDelete={onDeleteChat}
+          />
+        ))}
       </div>
 
       {/* Logout (always bottom) */}

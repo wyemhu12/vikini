@@ -15,6 +15,14 @@ import {
 } from "@/lib/firestoreChat";
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { NextResponse } from "next/server";
+
+// NEW: auto-title engine
+import {
+  generateOptimisticTitle,
+  generateFinalTitle,
+  normalizeTitle,
+} from "@/lib/autoTitleEngine";
 
 const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -26,122 +34,11 @@ function mapMessages(messages) {
   }));
 }
 
-// ---------- Helpers cho auto-title ----------
-
-// Title Case
-function toTitleCase(str) {
-  return str
-    .toLowerCase()
-    .replace(/\b\w+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1));
-}
-
-// Clean + chuẩn hóa title
-function normalizeTitle(raw) {
-  if (!raw) return "";
-
-  // Lấy dòng đầu tiên (tránh trường hợp AI trả nhiều dòng)
-  let title = String(raw).split("\n")[0];
-
-  // Bỏ ngoặc, ngoặc kép, emoji, ký tự đặc biệt
-  title = title
-    .replace(/["'“”‘’`]/g, "")
-    .replace(/[^\p{L}\p{N}\s\-]/gu, "")
-    .replace(/\.+$/, "")
-    .trim();
-
-  // Giới hạn từ: tối đa 6 từ
-  const words = title.split(/\s+/).filter(Boolean);
-  if (words.length > 6) {
-    title = words.slice(0, 6).join(" ");
-  }
-
-  title = toTitleCase(title);
-
-  // Fallback
-  if (!title || title.length < 2) {
-    title = "New Chat";
-  }
-
-  return title;
-}
-
-// AUTO TITLE FUNCTION (nâng cấp)
-async function autoTitle({ userId, conversationId, messages }) {
-  try {
-    const convo = await getConversation(conversationId);
-    if (!convo) return;
-    if (convo.userId !== userId) return;
-
-    // Nếu đã auto-titled HOẶC user đã rename thủ công -> bỏ qua
-    if (convo.autoTitled || convo.renamed) return;
-
-    const firstUser = messages.find((m) => m.role === "user");
-    if (!firstUser?.content?.trim()) return;
-
-    const transcript = messages
-      .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
-      .join("\n")
-      .slice(0, 4000); // tránh prompt quá dài
-
-    const prompt = `
-You are a title-generation model.
-
-Produce a short, semantic title summarizing the ENTIRE conversation so far.
-
-Rules:
-- 3–6 words only
-- No emojis
-- No quotes
-- No sentence-ending punctuation
-- Use Title Case (Capitalize Each Word)
-- Avoid phrases like "User Asks About"
-- Focus on the main intent
-
-Conversation transcript:
-${transcript}
-    `.trim();
-
-    const res = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 24,
-      },
-    });
-
-    let raw = res.response.text() || "";
-    let title = normalizeTitle(raw);
-
-    // Bảo hiểm: nếu vẫn quá ngắn, dùng fallback theo câu hỏi đầu
-    if (!title || title === "New Chat") {
-      const fallback = firstUser.content.trim().split("\n")[0];
-      title = normalizeTitle(fallback);
-    }
-
-    // Chống trùng lặp title trong cùng 1 user
-    const all = await getUserConversations(userId);
-    if (all.some((c) => c.id !== conversationId && c.title === title)) {
-      let i = 2;
-      while (
-        all.some((c) => c.id !== conversationId && c.title === `${title} ${i}`)
-      ) {
-        i++;
-      }
-      title = `${title} ${i}`;
-    }
-
-    if (!title) return;
-
-    await setConversationAutoTitle(userId, conversationId, title);
-    console.log("🎉 Auto Titled:", conversationId, "=>", title);
-  } catch (err) {
-    console.error("❌ Auto-title error:", err);
-  }
+// Utility: gửi metadata dạng JSON trong stream
+function sendMeta(controller, obj) {
+  controller.enqueue(
+    new TextEncoder().encode(`$$META:${JSON.stringify(obj)}$$\n`)
+  );
 }
 
 export async function POST(req) {
@@ -159,6 +56,7 @@ export async function POST(req) {
       content,
       systemMode = "default",
       language = "vi",
+      isRegenerate,
     } = body || {};
 
     if (!content?.trim()) {
@@ -169,8 +67,8 @@ export async function POST(req) {
     let convId = conversationId;
     if (!convId) {
       const convo = await saveConversation(userId, {
-        title: "New chat",
-        autoTitled: false,
+        title: "New Chat",
+        createdAt: Date.now(),
       });
       convId = convo.id;
     }
@@ -181,6 +79,7 @@ export async function POST(req) {
       userId,
       role: "user",
       content,
+      createdAt: Date.now(),
     });
 
     // HISTORY BEFORE ASSISTANT RESPONSE
@@ -193,64 +92,87 @@ export async function POST(req) {
         ? "Friendly, warm and helpful assistant."
         : "You are a helpful, intelligent assistant.";
 
-    const result = await model.generateContentStream({
-      contents: mapMessages(messages),
-      systemInstruction: { role: "system", parts: [{ text: sysPrompt }] },
-      generationConfig: {
-        temperature: 0.8,
-        topP: 0.9,
-        topK: 40,
-        maxOutputTokens: 4096,
-      },
-    });
+    // =============== 1) GENERATE OPTIMISTIC TITLE (FAST) ===============
+    const optimisticTitle = await generateOptimisticTitle(content);
 
-    let fullText = "";
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream({
       async start(controller) {
+        // Gửi optimistic title trước khi gửi output từ model
+        if (optimisticTitle) {
+          sendMeta(controller, {
+            type: "optimisticTitle",
+            conversationId: convId,
+            title: optimisticTitle,
+          });
+        }
+
+        // ========== AI STREAM ==========
         try {
+          const result = await model.generateContentStream({
+            contents: mapMessages(messages),
+            systemInstruction: { role: "system", parts: [{ text: sysPrompt }] },
+            generationConfig: {
+              temperature: 0.85,
+              topP: 0.9,
+              maxOutputTokens: 4096,
+            },
+          });
+
+          let full = "";
+
           for await (const chunk of result.stream) {
             const text = chunk.text() || "";
-            fullText += text;
+            full += text;
             controller.enqueue(encoder.encode(text));
           }
-        } catch (err) {
-          console.error("STREAM ERROR", err);
-        } finally {
-          controller.close();
 
-          const trimmed = fullText.trim();
+          const trimmed = full.trim();
           if (trimmed) {
             await saveMessage({
               conversationId: convId,
               role: "assistant",
               content: trimmed,
+              createdAt: Date.now(),
             });
 
-            // RUN AUTO TITLE (chỉ tác động nếu chưa autoTitle / chưa rename)
-            await autoTitle({
+            // =============== 2) FINAL TITLE ===============
+            const finalTitle = await generateFinalTitle({
               userId,
               conversationId: convId,
-              messages: [
-                ...messages,
-                { role: "assistant", content: trimmed },
-              ],
+              messages: [...messages, { role: "assistant", content: trimmed }],
             });
+
+            if (finalTitle) {
+              await setConversationAutoTitle(userId, convId, finalTitle);
+
+              // Gửi final title về frontend
+              sendMeta(controller, {
+                type: "finalTitle",
+                conversationId: convId,
+                title: finalTitle,
+              });
+            }
           }
+
+          controller.close();
+        } catch (err) {
+          console.error("STREAM ERROR", err);
+          controller.error(err);
         }
       },
     });
 
     return new Response(stream, {
-      headers: { 
+      headers: {
         "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-        "Pragma": "no-cache",
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (err) {
-    console.error("❌ chat-stream error:", err);
-    return new Response("Internal error", { status: 500 });
+    console.error("❌ chat-stream failed:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
