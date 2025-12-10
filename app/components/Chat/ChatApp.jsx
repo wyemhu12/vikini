@@ -1,3 +1,4 @@
+// app/components/Chat/ChatApp.jsx
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
@@ -47,7 +48,7 @@ export default function ChatApp() {
 
   const chatWindowRef = useRef(null);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on new messages / streaming
   useEffect(() => {
     if (chatWindowRef.current) {
       chatWindowRef.current.scrollTo({
@@ -107,9 +108,9 @@ export default function ChatApp() {
 
     // Determine if we need auto-title
     let shouldTrackAutoTitle =
-      isBrandNew ||
-      (meta && !meta.autoTitled && !meta.renamed);
+      isBrandNew || (meta && !meta.autoTitled && !meta.renamed);
 
+    // Append local user message (nếu không phải regenerate)
     if (!isRegenerate) {
       setMessages((prev) => [
         ...prev,
@@ -151,7 +152,7 @@ export default function ChatApp() {
       const decoder = new TextDecoder();
       let full = "";
 
-      // STREAM LOOP
+      // STREAM LOOP — chỉ cập nhật streamingAssistant, KHÔNG reload từ backend
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -165,10 +166,24 @@ export default function ChatApp() {
         });
       }
 
+      // Kết thúc stream:
+      // 1) bỏ placeholder streaming
+      // 2) append assistant message vào local state
       setStreamingAssistant(null);
 
-      // Reload conversation messages
-      await loadConversation(conversationId, { silent: true });
+      const finalText = full.trim();
+      if (finalText) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant-${Date.now()}`,
+            role: "assistant",
+            content: finalText,
+          },
+        ]);
+      }
+
+      // KHÔNG gọi loadConversation() nữa → tránh flicker
     } catch (err) {
       console.error("Chat stream error:", err);
       setStreamingAssistant(null);
@@ -178,7 +193,8 @@ export default function ChatApp() {
 
       if (shouldTrackAutoTitle) {
         try {
-          await loadConversations(); // Fetch newest title from Firestore
+          // Fetch newest titles from Firestore (auto-title)
+          await loadConversations();
         } catch (e) {
           console.error("Reload conversations failed:", e);
         }
@@ -264,7 +280,8 @@ export default function ChatApp() {
           ref={chatWindowRef}
           className="flex-1 overflow-y-auto px-4 py-6 w-full max-w-3xl mx-auto"
         >
-          {loadingMessages ? (
+          {loadingMessages && combinedMessages.length === 0 ? (
+            // Chỉ show "Loading…" khi thật sự chưa có message nào
             <div className="text-center text-neutral-300">Loading…</div>
           ) : (
             <div className="flex flex-col space-y-6">

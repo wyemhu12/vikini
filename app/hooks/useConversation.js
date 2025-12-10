@@ -36,7 +36,7 @@ export function useConversation() {
   }, [activeId]);
 
   // ---------- Load 1 conversation + messages ----------
-  //      IMPORTANT: Now supports silent mode
+  //      IMPORTANT: supports silent mode
   const loadConversation = useCallback(
     async (id, { silent = false } = {}) => {
       if (!id) return;
@@ -64,18 +64,34 @@ export function useConversation() {
   );
 
   // ---------- Create new conversation ----------
-  const createConversation = useCallback(async (title = "New chat") => {
+  // Chấp nhận:
+  // - createConversation("New chat")
+  // - createConversation({ title: "New chat" })
+  const createConversation = useCallback(async (options) => {
     try {
+      const defaultTitle = "New chat";
+      let payloadTitle = defaultTitle;
+
+      if (typeof options === "string") {
+        payloadTitle = options;
+      } else if (
+        options &&
+        typeof options === "object" &&
+        typeof options.title === "string"
+      ) {
+        payloadTitle = options.title;
+      }
+
       const res = await fetch("/api/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
+        body: JSON.stringify({ title: payloadTitle }),
       });
       if (!res.ok) throw new Error("Failed to create conversation");
       const data = await res.json();
 
       const conv = data.conversation;
-      if (!conv?.id) return;
+      if (!conv?.id) return null;
 
       setConversations((prev) => [conv, ...prev]);
       setActiveId(conv.id);
@@ -141,9 +157,8 @@ export function useConversation() {
 
   // Khi activeId thay đổi -> load messages của conv đó (normal mode)
   useEffect(() => {
-    if (activeId) {
-      loadConversation(activeId, { silent: false });
-    }
+    if (!activeId) return;
+    loadConversation(activeId, { silent: false });
   }, [activeId, loadConversation]);
 
   return {
