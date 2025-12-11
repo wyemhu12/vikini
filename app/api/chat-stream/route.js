@@ -13,7 +13,7 @@ import {
   setConversationAutoTitle,
 } from "@/lib/firestoreChat";
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google-generative-ai";
 import { NextResponse } from "next/server";
 
 import {
@@ -21,8 +21,10 @@ import {
   generateFinalTitle,
 } from "@/lib/autoTitleEngine";
 
+// Map Firestore messages -> Gemini format
 function mapMessages(messages) {
   return messages.map((m) => ({
+    // Với Gemini, role lịch sử nên dùng "user" / "model"
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content }],
   }));
@@ -59,7 +61,7 @@ export async function POST(req) {
       return new Response("Empty content", { status: 400 });
     }
 
-    // FIX 1 — Validate conversationId BEFORE anything
+    // Đảm bảo có conversation trước khi làm bất cứ thứ gì
     if (!conversationId) {
       const conv = await saveConversation(userId, {
         title: "New Chat",
@@ -68,23 +70,22 @@ export async function POST(req) {
       conversationId = conv.id;
     }
 
-    // FIX 2 — Ensure conversation exists
+    // Xác thực conversation thuộc về user hiện tại
     const convo = await getConversation(conversationId);
     if (!convo || convo.userId !== userId) {
       console.error("❌ INVALID CONVERSATION:", conversationId);
       return new Response("Conversation not found", { status: 404 });
     }
 
-    // Save user message
+    // Lưu message của user
     await saveMessage({
       conversationId,
       userId,
       role: "user",
       content,
-      createdAt: Date.now(),
     });
 
-    // Load message history BEFORE generating response
+    // Load lại toàn bộ history đã sort ASC
     const messages = await getMessages(conversationId);
 
     const sysPrompt =
@@ -94,22 +95,29 @@ export async function POST(req) {
         ? "Friendly, warm and helpful assistant."
         : "You are a helpful assistant.";
 
-    // Prepare streaming
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream({
       async start(controller) {
-        // OPTIMISTIC TITLE
-        const optimisticTitle = await generateOptimisticTitle(content);
-        if (optimisticTitle) {
-          sendMeta(controller, {
-            type: "optimisticTitle",
-            conversationId,
-            title: optimisticTitle,
-          });
+        // ---------- OPTIMISTIC TITLE (gửi rất sớm) ----------
+        try {
+          const optimisticTitle = await generateOptimisticTitle(content);
+          if (optimisticTitle) {
+            sendMeta(controller, {
+              type: "optimisticTitle",
+              conversationId,
+              title: optimisticTitle,
+            });
+          }
+        } catch (e) {
+          console.error("Optimistic title error:", e);
         }
 
+        // ---------- MAIN STREAM ----------
+        let full = "";
+
         try {
+          // THỬ STREAMING TRƯỚC
           const result = await model.generateContentStream({
             contents: mapMessages(messages),
             systemInstruction: { role: "system", parts: [{ text: sysPrompt }] },
@@ -120,35 +128,86 @@ export async function POST(req) {
             },
           });
 
-          let full = "";
-
-          // STREAM CHUNKS
           for await (const chunk of result.stream) {
-            const text = chunk.text() || "";
+            let text = "";
+            try {
+              text = chunk.text() || "";
+            } catch (parseErr) {
+              // Đây là nơi trước kia Gemini ném "Failed to parse stream"
+              console.error("Chunk parse failed:", parseErr);
+              continue;
+            }
+
+            if (!text) continue;
+
             full += text;
             controller.enqueue(encoder.encode(text));
           }
+        } catch (err) {
+          // STREAM LỖI → LOG CHI TIẾT
+          console.error("STREAM ERROR (primary):", err);
 
-          // SAVE FINAL MESSAGE
-          const trimmed = full.trim();
-          if (trimmed) {
-            await saveMessage({
-              conversationId,
-              role: "assistant",
-              content: trimmed,
-              createdAt: Date.now(),
+          // ---------- FALLBACK: NON-STREAMING ----------
+          try {
+            const fallback = await model.generateContent({
+              contents: mapMessages(messages),
+              systemInstruction: {
+                role: "system",
+                parts: [{ text: sysPrompt }],
+              },
+              generationConfig: {
+                temperature: 0.85,
+                topP: 0.9,
+                maxOutputTokens: 4096,
+              },
             });
 
-            // FINAL TITLE (slow)
+            const text = fallback?.response?.text?.() || "";
+            full = (text || "").trim();
+
+            if (full) {
+              // Đẩy 1 lần toàn bộ nội dung về client
+              controller.enqueue(encoder.encode(full));
+            }
+          } catch (fallbackErr) {
+            console.error("STREAM FALLBACK ERROR (generateContent):", fallbackErr);
+            // Không còn gì để stream nữa
+            controller.close();
+            return;
+          }
+        }
+
+        // ---------- LƯU MESSAGE + AUTO TITLE ----------
+        try {
+          const trimmed = full.trim();
+          if (trimmed) {
+            // Lưu assistant message
+            await saveMessage({
+              conversationId,
+              userId,
+              role: "assistant",
+              content: trimmed,
+            });
+
+            // FINAL TITLE (dùng toàn bộ transcript)
             const finalTitle = await generateFinalTitle({
               userId,
               conversationId,
-              messages: [...messages, { role: "assistant", content: trimmed }],
+              messages: [
+                ...messages,
+                { role: "assistant", content: trimmed },
+              ],
             });
 
             if (finalTitle) {
-              await setConversationAutoTitle(userId, conversationId, finalTitle);
+              // Ghi title vào Firestore
+              await setConversationAutoTitle(
+                userId,
+                conversationId,
+                finalTitle
+              );
 
+              // Gửi meta để client update Zustand
               sendMeta(controller, {
                 type: "finalTitle",
                 conversationId,
@@ -156,11 +215,10 @@ export async function POST(req) {
               });
             }
           }
-
+        } catch (postErr) {
+          console.error("Post-stream error (save message / final title):", postErr);
+        } finally {
           controller.close();
-        } catch (err) {
-          console.error("STREAM ERROR", err);
-          controller.error(err);
         }
       },
     });
