@@ -1,4 +1,8 @@
 // app/api/conversations/route.js
+console.log("RUNTIME =", process.env.NEXT_RUNTIME);
+console.log("NODE_VERSION =", process.version);
+console.log("ADMIN_INIT =", !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
