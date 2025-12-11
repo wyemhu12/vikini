@@ -13,7 +13,7 @@ import {
   setConversationAutoTitle,
 } from "@/lib/firestoreChat";
 
-import { GoogleGenerativeAI } from "@google-generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
 import {
