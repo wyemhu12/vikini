@@ -1,4 +1,6 @@
 // app/api/conversations/route.js
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
