@@ -1,4 +1,3 @@
-// app/components/Chat/ChatApp.jsx
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
@@ -20,110 +19,171 @@ import { translations } from "../../utils/config";
 export default function ChatApp() {
   const { data: session } = useSession();
 
+  // App settings
   const { theme, setTheme } = useTheme();
   const { language, setLanguage } = useLanguage();
   const { systemMode, setSystemMode } = useSystemMode();
   const t = translations[language];
 
+  // Conversations
   const {
     conversations,
     activeId,
     setActiveId,
     messages,
     setMessages,
+    loadingMessages,
     loadConversation,
+    createConversation,
     renameConversation,
     deleteConversation,
     upsertConversation,
     patchConversationTitle,
   } = useConversation();
 
+  // Chat UI state
   const [input, setInput] = useState("");
   const [streamingAssistant, setStreamingAssistant] = useState(null);
   const [regenerating, setRegenerating] = useState(false);
-  const [draftActive, setDraftActive] = useState(false);
 
   const chatWindowRef = useRef(null);
 
+  // Scroll
   const scrollToBottom = useCallback(() => {
     const el = chatWindowRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, []);
 
-  useEffect(scrollToBottom, [messages, streamingAssistant]);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, streamingAssistant, scrollToBottom]);
 
+  // Combine messages
   const combinedMessages = streamingAssistant
     ? [...messages, streamingAssistant]
     : messages;
 
+  const lastAssistantIndex = useMemo(() => {
+    for (let i = combinedMessages.length - 1; i >= 0; i--) {
+      if (combinedMessages[i].role === "assistant") return i;
+    }
+    return -1;
+  }, [combinedMessages]);
+
+  const canRegenerate = lastAssistantIndex >= 0;
+
+  // ===============================
+  // useChat — STREAM ENGINE
+  // ===============================
   const { sendMessage, isStreaming } = useChat({
     onConversationCreated: (conv) => {
-      setDraftActive(false);
       upsertConversation(conv);
       setActiveId(conv.id);
       setMessages([]);
     },
+
     onAssistantDelta: (delta) => {
-      setStreamingAssistant((p) => ({
+      setStreamingAssistant((prev) => ({
         id: "assistant-stream",
         role: "assistant",
-        content: (p?.content || "") + delta,
+        content: (prev?.content || "") + delta,
       }));
     },
+
     onStreamDone: (full) => {
       setStreamingAssistant(null);
       if (full.trim()) {
-        setMessages((m) => [
-          ...m,
-          { id: Date.now(), role: "assistant", content: full.trim() },
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `a-${Date.now()}`,
+            role: "assistant",
+            content: full.trim(),
+          },
         ]);
       }
     },
-    onFinalTitle: patchConversationTitle,
+
+    onFinalTitle: (id, title) => {
+      patchConversationTitle(id, title);
+    },
   });
 
-  const handleSend = async () => {
-    const text = input.trim();
+  // ===============================
+  // SEND MESSAGE
+  // ===============================
+  const handleSend = async (override = null, isRegenerate = false) => {
+    const text = (override ?? input).trim();
     if (!text) return;
 
     setInput("");
-    setMessages((m) => [...m, { id: Date.now(), role: "user", content: text }]);
-    setStreamingAssistant({ id: "assistant-stream", role: "assistant", content: "" });
+    setRegenerating(isRegenerate);
+
+    let conversationId = activeId;
+
+    if (!conversationId) {
+      // Không tạo conversation ở đây nữa
+      // chat-stream sẽ tạo và gửi META conversationCreated
+      conversationId = null;
+    }
+
+    if (!isRegenerate) {
+      setMessages((prev) => [
+        ...prev,
+        { id: `u-${Date.now()}`, role: "user", content: text },
+      ]);
+    }
+
+    setStreamingAssistant({
+      id: "assistant-stream",
+      role: "assistant",
+      content: "",
+    });
 
     await sendMessage({
-      conversationId: draftActive ? null : activeId,
+      conversationId,
       content: text,
       systemMode,
     });
+
+    setRegenerating(false);
   };
 
+  const handleRegenerate = () => {
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    if (lastUser) handleSend(lastUser.content, true);
+  };
+
+  // Login
   if (!session) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <button onClick={() => signIn("google")}>Login</button>
+      <div className="flex h-screen items-center justify-center bg-neutral-950">
+        <button
+          onClick={() => signIn("google")}
+          className="rounded-lg bg-white px-4 py-2"
+        >
+          Login with Google
+        </button>
       </div>
     );
   }
 
-  const sidebarChats = draftActive
-    ? [{ id: "__draft__", title: "New Chat", draft: true }, ...conversations]
-    : conversations;
-
+  // ===============================
+  // UI
+  // ===============================
   return (
-    <div className="flex h-screen bg-neutral-950 text-neutral-100">
+    <div className="flex h-screen w-screen overflow-hidden bg-neutral-950 text-neutral-100">
       <Sidebar
-        chats={sidebarChats}
-        activeId={draftActive ? "__draft__" : activeId}
-        onNewChat={() => {
-          setDraftActive(true);
-          setActiveId(null);
-          setMessages([]);
-        }}
+        chats={conversations}
+        activeId={activeId}
         onSelectChat={(id) => {
-          if (id === "__draft__") return;
-          setDraftActive(false);
+          setStreamingAssistant(null);
           setActiveId(id);
           loadConversation(id);
+        }}
+        onNewChat={() => {
+          setActiveId(null);
+          setMessages([]);
         }}
         onRenameChat={renameConversation}
         onDeleteChat={deleteConversation}
@@ -142,19 +202,39 @@ export default function ChatApp() {
           theme={theme}
         />
 
-        <div ref={chatWindowRef} className="flex-1 overflow-y-auto p-6">
-          {combinedMessages.map((m, i) => (
-            <ChatBubble key={i} message={m} />
-          ))}
+        <div
+          ref={chatWindowRef}
+          className="flex-1 overflow-y-auto px-4 py-6 w-full max-w-3xl mx-auto"
+        >
+          {loadingMessages && combinedMessages.length === 0 ? (
+            <div className="text-center text-neutral-300">Loading…</div>
+          ) : (
+            <div className="flex flex-col space-y-6">
+              {combinedMessages.map((msg, idx) => (
+                <ChatBubble
+                  key={msg.id ?? idx}
+                  message={msg}
+                  isLastAssistant={idx === lastAssistantIndex}
+                  canRegenerate={canRegenerate}
+                  onRegenerate={handleRegenerate}
+                  regenerating={regenerating}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
-        <InputForm
-          input={input}
-          onChangeInput={setInput}
-          onSubmit={handleSend}
-          disabled={!input.trim() || isStreaming || regenerating}
-          t={t}
-        />
+        <div className="sticky bottom-0 bg-neutral-950">
+          <div className="max-w-3xl mx-auto w-full">
+            <InputForm
+              input={input}
+              onChangeInput={setInput}
+              onSubmit={() => handleSend()}
+              disabled={!input.trim() || isStreaming || regenerating}
+              t={t}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -6,6 +6,75 @@ import { useCallback, useEffect, useState } from "react";
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
+// ---- helpers: stable timestamp + merge strategy ----
+function getTs(c) {
+  // backend có thể trả updatedAt/createdAt dạng number hoặc string ISO
+  const raw = c?.updatedAt ?? c?.createdAt ?? 0;
+  if (typeof raw === "number") return raw;
+  const t = Date.parse(raw);
+  return Number.isFinite(t) ? t : 0;
+}
+
+function normalizeConv(c) {
+  if (!c) return c;
+  // đảm bảo luôn có createdAt/updatedAt dạng number (để sort/merge ổn định)
+  const createdAt = c.createdAt ?? 0;
+  const updatedAt = c.updatedAt ?? createdAt;
+  return {
+    ...c,
+    createdAt: typeof createdAt === "number" ? createdAt : getTs({ createdAt }),
+    updatedAt: typeof updatedAt === "number" ? updatedAt : getTs({ updatedAt }),
+  };
+}
+
+function mergeConversations(local = [], remote = []) {
+  // Ưu tiên local khi:
+  // - local có updatedAt mới hơn
+  // - hoặc local có title khác remote (ví dụ vừa patch finalTitle)
+  // - hoặc local có field bổ sung
+  const map = new Map();
+
+  for (const r of remote) {
+    const rr = normalizeConv(r);
+    if (rr?.id) map.set(rr.id, rr);
+  }
+
+  for (const l of local) {
+    const ll = normalizeConv(l);
+    if (!ll?.id) continue;
+
+    const existing = map.get(ll.id);
+    if (!existing) {
+      map.set(ll.id, ll);
+      continue;
+    }
+
+    const lts = getTs(ll);
+    const rts = getTs(existing);
+
+    // merge: base = remote, overlay = local (để giữ optimistic patch)
+    // nhưng nếu remote mới hơn rõ ràng, vẫn giữ remote.updatedAt
+    const merged = {
+      ...existing,
+      ...ll,
+      updatedAt: Math.max(lts, rts),
+      createdAt: Math.min(
+        getTs({ createdAt: ll.createdAt ?? lts }),
+        getTs({ createdAt: existing.createdAt ?? rts })
+      ),
+    };
+
+    map.set(ll.id, merged);
+  }
+
+  const mergedList = Array.from(map.values());
+
+  // sort DESC by updatedAt, fallback createdAt
+  mergedList.sort((a, b) => getTs(b) - getTs(a));
+
+  return mergedList;
+}
+
 export function useConversation() {
   const [conversations, setConversations] = useState([]);
   const [activeId, setActiveId] = useState(null);
@@ -18,14 +87,22 @@ export function useConversation() {
     revalidateOnFocus: false,
   });
 
-  // Khi data từ SWR về -> sync vào state local
+  // Khi data từ SWR về -> MERGE vào state local (KHÔNG overwrite)
   useEffect(() => {
     if (!data?.conversations) return;
 
-    setConversations(data.conversations);
+    const remote = Array.isArray(data.conversations) ? data.conversations : [];
 
-    if (!activeId && data.conversations.length > 0) {
-      setActiveId(data.conversations[0].id);
+    setConversations((prev) => {
+      const next = mergeConversations(prev, remote);
+      return next;
+    });
+
+    // Chỉ auto-select khi thật sự chưa có activeId
+    // và sau khi merge đã có list
+    if (!activeId && remote.length > 0) {
+      const sorted = mergeConversations([], remote);
+      if (sorted[0]?.id) setActiveId(sorted[0].id);
     }
   }, [data, activeId]);
 
@@ -33,16 +110,17 @@ export function useConversation() {
   const upsertConversation = useCallback((conv) => {
     if (!conv?.id) return;
 
+    const now = Date.now();
+    const normalized = normalizeConv({
+      ...conv,
+      // bump updatedAt local để đảm bảo đứng đầu list ngay lập tức
+      updatedAt: conv.updatedAt ?? now,
+      createdAt: conv.createdAt ?? now,
+    });
+
     setConversations((prev) => {
-      const idx = prev.findIndex((c) => c.id === conv.id);
-      if (idx === -1) return [conv, ...prev];
-
-      const merged = { ...prev[idx], ...conv };
-      const next = [...prev];
-      next[idx] = merged;
-
-      // đảm bảo sort theo updatedAt desc nếu có
-      next.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      const next = mergeConversations([normalized, ...prev], prev);
+      // mergeConversations([new,...prev], prev) sẽ giữ new và dedupe theo id
       return next;
     });
   }, []);
@@ -50,9 +128,23 @@ export function useConversation() {
   // Patch title vào local list (khi nhận finalTitle)
   const patchConversationTitle = useCallback((id, title) => {
     if (!id || !title?.trim()) return;
-    setConversations((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, title: title.trim() } : c))
-    );
+
+    const now = Date.now();
+    setConversations((prev) => {
+      const patched = prev.map((c) =>
+        c.id === id
+          ? normalizeConv({
+              ...c,
+              title: title.trim(),
+              // bump updatedAt để list re-sort + tránh SWR rollback
+              updatedAt: now,
+            })
+          : normalizeConv(c)
+      );
+
+      patched.sort((a, b) => getTs(b) - getTs(a));
+      return patched;
+    });
   }, []);
 
   // Load messages for a conversation
@@ -90,8 +182,9 @@ export function useConversation() {
         const conv = json.conversation;
         if (!conv?.id) return null;
 
-        // Patch local list ngay lập tức (optimistic)
-        setConversations((prev) => [conv, ...prev]);
+        // Patch local list ngay lập tức
+        upsertConversation(conv);
+
         setActiveId(conv.id);
         setMessages([]);
 
@@ -104,7 +197,7 @@ export function useConversation() {
         return null;
       }
     },
-    [mutate]
+    [mutate, upsertConversation]
   );
 
   // Rename conversation
@@ -121,10 +214,8 @@ export function useConversation() {
         const json = await res.json();
         const updated = json.conversation;
 
-        // Patch local
-        setConversations((prev) =>
-          prev.map((c) => (c.id === id ? { ...c, title: updated.title } : c))
-        );
+        // Patch local + bump updatedAt
+        patchConversationTitle(id, updated.title);
 
         // Revalidate background
         mutate();
@@ -132,7 +223,7 @@ export function useConversation() {
         console.error("renameConversation error:", err);
       }
     },
-    [mutate]
+    [mutate, patchConversationTitle]
   );
 
   // Delete conversation
@@ -175,7 +266,7 @@ export function useConversation() {
     renameConversation,
     deleteConversation,
 
-    // NEW helpers
+    // helpers
     upsertConversation,
     patchConversationTitle,
     mutateConversations: mutate,
