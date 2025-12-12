@@ -30,5 +30,8 @@
     "cross-env": "^10.1.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.17"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }
