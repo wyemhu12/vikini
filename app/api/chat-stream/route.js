@@ -25,7 +25,7 @@ import {
   generateFinalTitle,
 } from "@/lib/autoTitleEngine";
 
-// Redis/DB messages -> Gemini format
+// Map messages → Gemini format
 function mapMessages(messages) {
   return messages.map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
@@ -62,7 +62,7 @@ export async function POST(req) {
       return new Response("Empty content", { status: 400 });
     }
 
-    // Ensure conversation exists
+    // --- Ensure conversation exists ---
     if (!conversationId) {
       const conv = await saveConversation(userId, {
         title: "New Chat",
@@ -76,13 +76,13 @@ export async function POST(req) {
       return new Response("Conversation not found", { status: 404 });
     }
 
-    // ---- Redis: append USER message ----
+    // --- Redis: append USER message ---
     await appendToContext(conversationId, {
       role: "user",
       content,
     });
 
-    // ---- DB: persist USER message (background-ish) ----
+    // --- DB: persist USER message ---
     await saveMessage({
       conversationId,
       userId,
@@ -90,8 +90,15 @@ export async function POST(req) {
       content,
     });
 
-    // ---- Load short-term context from Redis ----
-    const contextMessages = await getContext(conversationId, 12);
+    // --- Load short-term context ---
+    let contextMessages = await getContext(conversationId, 12);
+
+    // 🔒 CRITICAL FIX: Gemini requires non-empty contents
+    if (!contextMessages || contextMessages.length === 0) {
+      contextMessages = [
+        { role: "user", content },
+      ];
+    }
 
     const sysPrompt =
       systemMode === "dev"
@@ -140,6 +147,7 @@ export async function POST(req) {
             } catch {
               continue;
             }
+
             if (!text) continue;
 
             full += text;
