@@ -79,7 +79,6 @@ export default function ChatApp() {
     onConversationCreated: (conv) => {
       upsertConversation(conv);
       setActiveId(conv.id);
-      setMessages([]);
     },
 
     onAssistantDelta: (delta) => {

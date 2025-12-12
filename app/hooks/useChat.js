@@ -1,23 +1,9 @@
-// /app/hooks/useChat.js
+// app/hooks/useChat.js
 "use client";
 
 import { useCallback, useRef, useState } from "react";
 import useAutoTitleStore from "@/app/hooks/useAutoTitleStore";
 
-/**
- * useChat
- *
- * Hook này chịu trách nhiệm:
- * - Gọi /api/chat-stream (stream text)
- * - Parse $$META:{...}$$ để cập nhật auto-title + conversation list
- *
- * Bạn có thể truyền vào các callback để hook “bơm” dữ liệu ra ngoài:
- * - onConversationCreated(conversation)
- * - onOptimisticTitle(conversationId, title)
- * - onFinalTitle(conversationId, title)
- * - onAssistantDelta(deltaText)
- * - onStreamDone(fullAssistantText)
- */
 export default function useChat({
   onConversationCreated,
   onOptimisticTitle,
@@ -32,22 +18,42 @@ export default function useChat({
   const setFinalTitle = useAutoTitleStore((s) => s.setFinalTitle);
   const setTitleLoading = useAutoTitleStore((s) => s.setTitleLoading);
 
+  // guard: nếu backend không gửi conversationCreated (hoặc parse trượt),
+  // ta sẽ dựng placeholder từ optimisticTitle/finalTitle để sidebar vẫn hiện.
+  const createdFiredRef = useRef(false);
+
   const stop = useCallback(() => {
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = null;
     setIsStreaming(false);
   }, []);
 
+  const ensureCreatedPlaceholder = useCallback(
+    (conversationId) => {
+      if (!conversationId) return;
+      if (createdFiredRef.current) return;
+
+      createdFiredRef.current = true;
+      onConversationCreated?.({
+        id: conversationId,
+        title: "New Chat",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    },
+    [onConversationCreated]
+  );
+
   const sendMessage = useCallback(
     async ({ conversationId, content, systemMode = "default" }) => {
       if (!content?.trim()) return { ok: false, error: "Empty content" };
+
+      createdFiredRef.current = false;
 
       const controller = new AbortController();
       abortRef.current = controller;
       setIsStreaming(true);
 
-      // nếu chưa có conversationId, backend sẽ tự tạo → ta bật loading “tạm”
-      // (sau khi nhận META optimistic/final sẽ tự cập nhật store)
       if (conversationId) setTitleLoading(conversationId, true);
 
       try {
@@ -69,46 +75,48 @@ export default function useChat({
         let buffer = "";
         let assistantFull = "";
 
-        // META format: $$META:{json}$$\n
-        // Lưu ý: chunk có thể cắt giữa META → phải buffer lại.
         const tryExtractMeta = () => {
-          // xử lý nhiều META trong buffer
           while (true) {
             const start = buffer.indexOf("$$META:");
             if (start === -1) break;
 
             const end = buffer.indexOf("$$\n", start);
-            if (end === -1) break; // chưa đủ dữ liệu
+            if (end === -1) break;
 
             const metaRaw = buffer.slice(start + "$$META:".length, end);
             const before = buffer.slice(0, start);
             const after = buffer.slice(end + "$$\n".length);
 
-            // phần trước META là text assistant “thật”
             if (before) {
               assistantFull += before;
               onAssistantDelta?.(before);
             }
 
-            // parse META
             try {
               const meta = JSON.parse(metaRaw);
 
               if (meta?.type === "conversationCreated" && meta?.conversation?.id) {
+                createdFiredRef.current = true;
                 onConversationCreated?.(meta.conversation);
               }
 
               if (meta?.type === "optimisticTitle" && meta?.conversationId && meta?.title) {
+                // nếu conversationId ban đầu null, dùng optimisticTitle để “create placeholder”
+                ensureCreatedPlaceholder(meta.conversationId);
+
+                setTitleLoading(meta.conversationId, true);
                 setOptimisticTitle(meta.conversationId, meta.title);
                 onOptimisticTitle?.(meta.conversationId, meta.title);
               }
 
               if (meta?.type === "finalTitle" && meta?.conversationId && meta?.title) {
-                setFinalTitle(meta.conversationId, meta.title);
+                ensureCreatedPlaceholder(meta.conversationId);
+
+                setFinalTitle(meta.conversationId, meta.title); // sẽ tự tắt loading trong store
                 onFinalTitle?.(meta.conversationId, meta.title);
               }
             } catch {
-              // ignore META parse errors (không phá stream)
+              // ignore meta parse error
             }
 
             buffer = after;
@@ -126,7 +134,6 @@ export default function useChat({
           tryExtractMeta();
         }
 
-        // flush phần còn lại (không có META)
         if (buffer) {
           assistantFull += buffer;
           onAssistantDelta?.(buffer);
@@ -134,12 +141,9 @@ export default function useChat({
         }
 
         onStreamDone?.(assistantFull);
-
         return { ok: true };
       } catch (err) {
-        if (err?.name !== "AbortError") {
-          console.error("useChat sendMessage error:", err);
-        }
+        if (err?.name !== "AbortError") console.error("useChat sendMessage error:", err);
         return { ok: false, error: err?.message || "Unknown error" };
       } finally {
         setIsStreaming(false);
@@ -147,6 +151,7 @@ export default function useChat({
       }
     },
     [
+      ensureCreatedPlaceholder,
       onAssistantDelta,
       onConversationCreated,
       onFinalTitle,
