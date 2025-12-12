@@ -1,4 +1,4 @@
-// app/hooks/useConversation.js
+// /app/hooks/useConversation.js
 "use client";
 
 import useSWR from "swr";
@@ -21,12 +21,39 @@ export function useConversation() {
   // Khi data từ SWR về -> sync vào state local
   useEffect(() => {
     if (!data?.conversations) return;
+
     setConversations(data.conversations);
 
     if (!activeId && data.conversations.length > 0) {
       setActiveId(data.conversations[0].id);
     }
   }, [data, activeId]);
+
+  // Upsert conversation vào list local (dùng cho META conversationCreated)
+  const upsertConversation = useCallback((conv) => {
+    if (!conv?.id) return;
+
+    setConversations((prev) => {
+      const idx = prev.findIndex((c) => c.id === conv.id);
+      if (idx === -1) return [conv, ...prev];
+
+      const merged = { ...prev[idx], ...conv };
+      const next = [...prev];
+      next[idx] = merged;
+
+      // đảm bảo sort theo updatedAt desc nếu có
+      next.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      return next;
+    });
+  }, []);
+
+  // Patch title vào local list (khi nhận finalTitle)
+  const patchConversationTitle = useCallback((id, title) => {
+    if (!id || !title?.trim()) return;
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, title: title.trim() } : c))
+    );
+  }, []);
 
   // Load messages for a conversation
   const loadConversation = useCallback(async (id) => {
@@ -147,5 +174,10 @@ export function useConversation() {
     createConversation,
     renameConversation,
     deleteConversation,
+
+    // NEW helpers
+    upsertConversation,
+    patchConversationTitle,
+    mutateConversations: mutate,
   };
 }

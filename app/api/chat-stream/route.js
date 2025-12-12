@@ -1,4 +1,4 @@
-// /app/api/chat-stream/route.js
+// app/api/chat-stream/route.js
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -12,17 +12,14 @@ import {
   setConversationAutoTitle,
 } from "@/lib/postgresChat";
 
-import {
-  appendToContext,
-  getContext,
-} from "@/lib/redisContext";
+import { appendToContext, getContext } from "@/lib/redisContext";
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
 import {
   generateOptimisticTitle,
-  generateFinalTitle,
+  generateFinalTitleDebounced,
 } from "@/lib/autoTitleEngine";
 
 // Map messages → Gemini format
@@ -50,25 +47,20 @@ export async function POST(req) {
     }
 
     const userId = session.user.email.toLowerCase();
-    const body = await req.json();
-
-    let {
-      conversationId,
-      content,
-      systemMode = "default",
-    } = body || {};
+    const { conversationId: rawId, content, systemMode = "default" } =
+      await req.json();
 
     if (!content?.trim()) {
       return new Response("Empty content", { status: 400 });
     }
 
-    // --- Ensure conversation exists ---
+    let conversationId = rawId;
+    let createdConversation = null;
+
     if (!conversationId) {
-      const conv = await saveConversation(userId, {
-        title: "New Chat",
-        createdAt: Date.now(),
-      });
+      const conv = await saveConversation(userId, { title: "New Chat" });
       conversationId = conv.id;
+      createdConversation = conv;
     }
 
     const convo = await getConversation(conversationId);
@@ -76,28 +68,12 @@ export async function POST(req) {
       return new Response("Conversation not found", { status: 404 });
     }
 
-    // --- Redis: append USER message ---
-    await appendToContext(conversationId, {
-      role: "user",
-      content,
-    });
+    await appendToContext(conversationId, { role: "user", content });
+    await saveMessage({ conversationId, userId, role: "user", content });
 
-    // --- DB: persist USER message ---
-    await saveMessage({
-      conversationId,
-      userId,
-      role: "user",
-      content,
-    });
-
-    // --- Load short-term context ---
     let contextMessages = await getContext(conversationId, 12);
-
-    // 🔒 CRITICAL FIX: Gemini requires non-empty contents
     if (!contextMessages || contextMessages.length === 0) {
-      contextMessages = [
-        { role: "user", content },
-      ];
+      contextMessages = [{ role: "user", content }];
     }
 
     const sysPrompt =
@@ -111,19 +87,23 @@ export async function POST(req) {
 
     const stream = new ReadableStream({
       async start(controller) {
-        // ---------- OPTIMISTIC TITLE ----------
-        try {
-          const optimisticTitle = await generateOptimisticTitle(content);
-          if (optimisticTitle) {
-            sendMeta(controller, {
-              type: "optimisticTitle",
-              conversationId,
-              title: optimisticTitle,
-            });
-          }
-        } catch {}
+        if (createdConversation) {
+          sendMeta(controller, {
+            type: "conversationCreated",
+            conversation: createdConversation,
+          });
+        }
 
-        // ---------- STREAM ----------
+        // Optimistic title
+        const optimistic = await generateOptimisticTitle(content);
+        if (optimistic) {
+          sendMeta(controller, {
+            type: "optimisticTitle",
+            conversationId,
+            title: optimistic,
+          });
+        }
+
         let full = "";
 
         try {
@@ -133,77 +113,50 @@ export async function POST(req) {
               role: "system",
               parts: [{ text: sysPrompt }],
             },
-            generationConfig: {
-              temperature: 0.85,
-              topP: 0.9,
-              maxOutputTokens: 4096,
-            },
           });
 
           for await (const chunk of result.stream) {
-            let text = "";
-            try {
-              text = chunk.text() || "";
-            } catch {
-              continue;
-            }
-
+            const text = chunk.text?.() || "";
             if (!text) continue;
-
             full += text;
             controller.enqueue(encoder.encode(text));
           }
-        } catch (err) {
-          console.error("STREAM ERROR:", err);
+        } catch (e) {
+          console.error("Stream error:", e);
         }
 
-        // ---------- POST STREAM ----------
-        try {
-          const trimmed = full.trim();
-          if (trimmed) {
-            // Redis append ASSISTANT
-            await appendToContext(conversationId, {
-              role: "assistant",
-              content: trimmed,
-            });
+        if (full.trim()) {
+          await appendToContext(conversationId, {
+            role: "assistant",
+            content: full.trim(),
+          });
 
-            // DB persist ASSISTANT
-            await saveMessage({
-              conversationId,
-              userId,
-              role: "assistant",
-              content: trimmed,
-            });
+          await saveMessage({
+            conversationId,
+            userId,
+            role: "assistant",
+            content: full.trim(),
+          });
 
-            // FINAL TITLE (NO DB READ)
-            const finalTitle = await generateFinalTitle({
-              userId,
-              conversationId,
-              messages: [
-                ...contextMessages,
-                { role: "assistant", content: trimmed },
-              ],
-            });
-
-            if (finalTitle) {
-              await setConversationAutoTitle(
-                userId,
-                conversationId,
-                finalTitle
-              );
-
+          // FINAL TITLE — DEBOUNCED
+          generateFinalTitleDebounced({
+            conversationId,
+            messages: [
+              ...contextMessages,
+              { role: "assistant", content: full.trim() },
+            ],
+            onResult: async (title) => {
+              await setConversationAutoTitle(userId, conversationId, title);
               sendMeta(controller, {
                 type: "finalTitle",
                 conversationId,
-                title: finalTitle,
+                title,
               });
-            }
-          }
-        } catch (e) {
-          console.error("Post-stream error:", e);
-        } finally {
-          controller.close();
+            },
+          });
         }
+
+        controller.close();
       },
     });
 
@@ -211,11 +164,10 @@ export async function POST(req) {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-store",
-        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (err) {
-    console.error("❌ chat-stream failed:", err);
+    console.error("chat-stream error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
