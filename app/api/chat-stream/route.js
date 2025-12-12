@@ -1,4 +1,9 @@
 // /app/api/chat-stream/route.js
+console.log("[AUTO TITLE INPUT]", {
+  messagesCount: contextMessages.length + 1,
+  lastAssistantLength: trimmed.length,
+});
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -24,6 +29,9 @@ import {
   generateOptimisticTitle,
   generateFinalTitle,
 } from "@/lib/autoTitleEngine";
+
+console.log("[AUTO TITLE RESULT]", finalTitle);
+
 
 // Map messages → Gemini format
 function mapMessages(messages) {
