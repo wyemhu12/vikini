@@ -1,4 +1,4 @@
-// app/api/chat-stream/route.js
+// /app/api/chat-stream/route.js
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -7,11 +7,15 @@ import { authOptions } from "@/lib/auth";
 
 import {
   getConversation,
-  getMessages,
   saveConversation,
   saveMessage,
   setConversationAutoTitle,
-} from "@/lib/firestoreChat";
+} from "@/lib/postgresChat";
+
+import {
+  appendToContext,
+  getContext,
+} from "@/lib/redisContext";
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
@@ -21,10 +25,9 @@ import {
   generateFinalTitle,
 } from "@/lib/autoTitleEngine";
 
-// Map Firestore messages -> Gemini format
+// Redis/DB messages -> Gemini format
 function mapMessages(messages) {
   return messages.map((m) => ({
-    // Với Gemini, role lịch sử nên dùng "user" / "model"
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content }],
   }));
@@ -53,15 +56,13 @@ export async function POST(req) {
       conversationId,
       content,
       systemMode = "default",
-      language = "vi",
-      isRegenerate,
     } = body || {};
 
     if (!content?.trim()) {
       return new Response("Empty content", { status: 400 });
     }
 
-    // Đảm bảo có conversation trước khi làm bất cứ thứ gì
+    // Ensure conversation exists
     if (!conversationId) {
       const conv = await saveConversation(userId, {
         title: "New Chat",
@@ -70,14 +71,18 @@ export async function POST(req) {
       conversationId = conv.id;
     }
 
-    // Xác thực conversation thuộc về user hiện tại
     const convo = await getConversation(conversationId);
     if (!convo || convo.userId !== userId) {
-      console.error("❌ INVALID CONVERSATION:", conversationId);
       return new Response("Conversation not found", { status: 404 });
     }
 
-    // Lưu message của user
+    // ---- Redis: append USER message ----
+    await appendToContext(conversationId, {
+      role: "user",
+      content,
+    });
+
+    // ---- DB: persist USER message (background-ish) ----
     await saveMessage({
       conversationId,
       userId,
@@ -85,8 +90,8 @@ export async function POST(req) {
       content,
     });
 
-    // Load lại toàn bộ history đã sort ASC
-    const messages = await getMessages(conversationId);
+    // ---- Load short-term context from Redis ----
+    const contextMessages = await getContext(conversationId, 12);
 
     const sysPrompt =
       systemMode === "dev"
@@ -99,7 +104,7 @@ export async function POST(req) {
 
     const stream = new ReadableStream({
       async start(controller) {
-        // ---------- OPTIMISTIC TITLE (gửi rất sớm) ----------
+        // ---------- OPTIMISTIC TITLE ----------
         try {
           const optimisticTitle = await generateOptimisticTitle(content);
           if (optimisticTitle) {
@@ -109,18 +114,18 @@ export async function POST(req) {
               title: optimisticTitle,
             });
           }
-        } catch (e) {
-          console.error("Optimistic title error:", e);
-        }
+        } catch {}
 
-        // ---------- MAIN STREAM ----------
+        // ---------- STREAM ----------
         let full = "";
 
         try {
-          // THỬ STREAMING TRƯỚC
           const result = await model.generateContentStream({
-            contents: mapMessages(messages),
-            systemInstruction: { role: "system", parts: [{ text: sysPrompt }] },
+            contents: mapMessages(contextMessages),
+            systemInstruction: {
+              role: "system",
+              parts: [{ text: sysPrompt }],
+            },
             generationConfig: {
               temperature: 0.85,
               topP: 0.9,
@@ -132,56 +137,29 @@ export async function POST(req) {
             let text = "";
             try {
               text = chunk.text() || "";
-            } catch (parseErr) {
-              // Đây là nơi trước kia Gemini ném "Failed to parse stream"
-              console.error("Chunk parse failed:", parseErr);
+            } catch {
               continue;
             }
-
             if (!text) continue;
 
             full += text;
             controller.enqueue(encoder.encode(text));
           }
         } catch (err) {
-          // STREAM LỖI → LOG CHI TIẾT
-          console.error("STREAM ERROR (primary):", err);
-
-          // ---------- FALLBACK: NON-STREAMING ----------
-          try {
-            const fallback = await model.generateContent({
-              contents: mapMessages(messages),
-              systemInstruction: {
-                role: "system",
-                parts: [{ text: sysPrompt }],
-              },
-              generationConfig: {
-                temperature: 0.85,
-                topP: 0.9,
-                maxOutputTokens: 4096,
-              },
-            });
-
-            const text = fallback?.response?.text?.() || "";
-            full = (text || "").trim();
-
-            if (full) {
-              // Đẩy 1 lần toàn bộ nội dung về client
-              controller.enqueue(encoder.encode(full));
-            }
-          } catch (fallbackErr) {
-            console.error("STREAM FALLBACK ERROR (generateContent):", fallbackErr);
-            // Không còn gì để stream nữa
-            controller.close();
-            return;
-          }
+          console.error("STREAM ERROR:", err);
         }
 
-        // ---------- LƯU MESSAGE + AUTO TITLE ----------
+        // ---------- POST STREAM ----------
         try {
           const trimmed = full.trim();
           if (trimmed) {
-            // Lưu assistant message
+            // Redis append ASSISTANT
+            await appendToContext(conversationId, {
+              role: "assistant",
+              content: trimmed,
+            });
+
+            // DB persist ASSISTANT
             await saveMessage({
               conversationId,
               userId,
@@ -189,25 +167,23 @@ export async function POST(req) {
               content: trimmed,
             });
 
-            // FINAL TITLE (dùng toàn bộ transcript)
+            // FINAL TITLE (NO DB READ)
             const finalTitle = await generateFinalTitle({
               userId,
               conversationId,
               messages: [
-                ...messages,
+                ...contextMessages,
                 { role: "assistant", content: trimmed },
               ],
             });
 
             if (finalTitle) {
-              // Ghi title vào Firestore
               await setConversationAutoTitle(
                 userId,
                 conversationId,
                 finalTitle
               );
 
-              // Gửi meta để client update Zustand
               sendMeta(controller, {
                 type: "finalTitle",
                 conversationId,
@@ -215,8 +191,8 @@ export async function POST(req) {
               });
             }
           }
-        } catch (postErr) {
-          console.error("Post-stream error (save message / final title):", postErr);
+        } catch (e) {
+          console.error("Post-stream error:", e);
         } finally {
           controller.close();
         }

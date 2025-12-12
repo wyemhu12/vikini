@@ -1,11 +1,4 @@
-// app/api/conversations/route.js
-console.log("RUNTIME =", process.env.NEXT_RUNTIME);
-console.log("NODE_VERSION =", process.version);
-console.log("ADMIN_INIT =", !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-console.log("GCLOUD_PROJECT =", process.env.GOOGLE_CLOUD_PROJECT);
-console.log("FIREBASE_CONFIG =", process.env.FIREBASE_CONFIG);
-
-
+// /app/api/conversations/route.js
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -19,7 +12,7 @@ import {
   saveConversation,
   updateConversationTitle,
   deleteConversation,
-} from "@/lib/firestoreChat";
+} from "@/lib/postgresChat";
 
 import { NextResponse } from "next/server";
 
@@ -40,15 +33,16 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
-    // --------------------------------------------------------
     // CASE 1 — Load messages of a single conversation
     // GET /api/conversations?id=xxxx
-    // --------------------------------------------------------
     if (id) {
       const conversation = await getConversation(id);
 
       if (!conversation) {
-        return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Conversation not found" },
+          { status: 404 }
+        );
       }
 
       if (conversation.userId !== email) {
@@ -57,16 +51,11 @@ export async function GET(req) {
 
       const messages = await getMessages(id);
 
-      return NextResponse.json(
-        { conversation, messages },
-        { status: 200 }
-      );
+      return NextResponse.json({ conversation, messages }, { status: 200 });
     }
 
-    // --------------------------------------------------------
     // CASE 2 — Load list of conversations (Sidebar)
     // GET /api/conversations
-    // --------------------------------------------------------
     const cached = convoCache.get(email);
 
     if (cached && Date.now() - cached.ts < TTL) {
@@ -83,7 +72,6 @@ export async function GET(req) {
 
     const conversations = await getUserConversations(email);
 
-    // Save to memory cache
     convoCache.set(email, {
       ts: Date.now(),
       data: conversations,
@@ -104,9 +92,7 @@ export async function GET(req) {
   }
 }
 
-// --------------------------------------------------------
 // CREATE CONVERSATION
-// --------------------------------------------------------
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
@@ -120,7 +106,6 @@ export async function POST(req) {
 
     const conv = await saveConversation(email, { title: title || "New Chat" });
 
-    // Invalidate cache
     convoCache.delete(email);
 
     return NextResponse.json({ conversation: conv }, { status: 200 });
@@ -130,9 +115,7 @@ export async function POST(req) {
   }
 }
 
-// --------------------------------------------------------
 // RENAME CONVERSATION
-// --------------------------------------------------------
 export async function PATCH(req) {
   try {
     const session = await getServerSession(authOptions);
@@ -144,9 +127,18 @@ export async function PATCH(req) {
     const email = session.user.email.toLowerCase();
     const { id, title } = await req.json();
 
+    // Ownership enforcement nằm trong data layer khi cần,
+    // nhưng để tránh đổi behavior quá mạnh, vẫn giữ logic tương tự hiện tại:
+    const existing = await getConversation(id);
+    if (!existing) {
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    }
+    if (existing.userId !== email) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const updated = await updateConversationTitle(id, title);
 
-    // Invalidate cache
     convoCache.delete(email);
 
     return NextResponse.json({ conversation: updated }, { status: 200 });
@@ -156,9 +148,7 @@ export async function PATCH(req) {
   }
 }
 
-// --------------------------------------------------------
 // DELETE CONVERSATION
-// --------------------------------------------------------
 export async function DELETE(req) {
   try {
     const session = await getServerSession(authOptions);
@@ -170,9 +160,8 @@ export async function DELETE(req) {
     const email = session.user.email.toLowerCase();
     const { id } = await req.json();
 
-    await deleteConversation(email, id); // ← FIXED PARAM ORDER
+    await deleteConversation(email, id);
 
-    // Invalidate cache
     convoCache.delete(email);
 
     return NextResponse.json({ ok: true }, { status: 200 });
