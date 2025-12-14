@@ -167,6 +167,7 @@ export default function ChatApp() {
       conversationId,
       content: text,
       systemMode,
+      language, // ✅ send UI language to backend for prompt sync
     });
 
     setRegenerating(false);

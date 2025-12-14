@@ -22,6 +22,9 @@ import {
   generateFinalTitle,
 } from "@/lib/autoTitleEngine";
 
+import { consumeRateLimit } from "@/lib/rateLimit";
+import { getSystemPrompt } from "@/app/utils/config";
+
 // Map messages → Gemini format
 function mapMessages(messages) {
   return messages.map((m) => ({
@@ -47,13 +50,36 @@ export async function POST(req) {
     }
 
     const userId = session.user.email.toLowerCase();
+
+    // Rate limit per user (email)
+    // NOTE: In-memory limiter => per-serverless-instance on Vercel (minimal patch).
+    const rl = consumeRateLimit(`chat-stream:${userId}`);
+    if (!rl.allowed) {
+      return new Response("Rate limit exceeded", {
+        status: 429,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-store",
+          "Retry-After": String(Math.ceil(rl.resetInMs / 1000)),
+        },
+      });
+    }
+
     const body = await req.json();
 
-    let { conversationId, content, systemMode = "default" } = body || {};
+    let {
+      conversationId,
+      content,
+      systemMode = "default",
+      language = "vi",
+    } = body || {};
 
     if (!content?.trim()) {
       return new Response("Empty content", { status: 400 });
     }
+
+    // Normalize language
+    if (language !== "vi" && language !== "en") language = "vi";
 
     // IMPORTANT:
     // - Nếu conversationId chưa có, ta tạo conversation ở đây (flow B)
@@ -96,12 +122,8 @@ export async function POST(req) {
       contextMessages = [{ role: "user", content }];
     }
 
-    const sysPrompt =
-      systemMode === "dev"
-        ? "Developer mode: detailed technical output."
-        : systemMode === "friendly"
-        ? "Friendly, warm and helpful assistant."
-        : "You are a helpful assistant.";
+    // ✅ Sync system prompt with UI (supports strict/dev/friendly/default + language)
+    const sysPrompt = getSystemPrompt(systemMode, language);
 
     const encoder = new TextEncoder();
 

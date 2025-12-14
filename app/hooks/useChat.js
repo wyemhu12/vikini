@@ -45,7 +45,12 @@ export default function useChat({
   );
 
   const sendMessage = useCallback(
-    async ({ conversationId, content, systemMode = "default" }) => {
+    async ({
+      conversationId,
+      content,
+      systemMode = "default",
+      language = "vi",
+    }) => {
       if (!content?.trim()) return { ok: false, error: "Empty content" };
 
       createdFiredRef.current = false;
@@ -60,7 +65,7 @@ export default function useChat({
         const res = await fetch("/api/chat-stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ conversationId, content, systemMode }),
+          body: JSON.stringify({ conversationId, content, systemMode, language }),
           signal: controller.signal,
         });
 
@@ -95,12 +100,19 @@ export default function useChat({
             try {
               const meta = JSON.parse(metaRaw);
 
-              if (meta?.type === "conversationCreated" && meta?.conversation?.id) {
+              if (
+                meta?.type === "conversationCreated" &&
+                meta?.conversation?.id
+              ) {
                 createdFiredRef.current = true;
                 onConversationCreated?.(meta.conversation);
               }
 
-              if (meta?.type === "optimisticTitle" && meta?.conversationId && meta?.title) {
+              if (
+                meta?.type === "optimisticTitle" &&
+                meta?.conversationId &&
+                meta?.title
+              ) {
                 // nếu conversationId ban đầu null, dùng optimisticTitle để “create placeholder”
                 ensureCreatedPlaceholder(meta.conversationId);
 
@@ -109,7 +121,11 @@ export default function useChat({
                 onOptimisticTitle?.(meta.conversationId, meta.title);
               }
 
-              if (meta?.type === "finalTitle" && meta?.conversationId && meta?.title) {
+              if (
+                meta?.type === "finalTitle" &&
+                meta?.conversationId &&
+                meta?.title
+              ) {
                 ensureCreatedPlaceholder(meta.conversationId);
 
                 setFinalTitle(meta.conversationId, meta.title); // sẽ tự tắt loading trong store
@@ -143,7 +159,8 @@ export default function useChat({
         onStreamDone?.(assistantFull);
         return { ok: true };
       } catch (err) {
-        if (err?.name !== "AbortError") console.error("useChat sendMessage error:", err);
+        if (err?.name !== "AbortError")
+          console.error("useChat sendMessage error:", err);
         return { ok: false, error: err?.message || "Unknown error" };
       } finally {
         setIsStreaming(false);
