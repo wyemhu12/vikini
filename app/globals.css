@@ -5,7 +5,8 @@
   color-scheme: dark;
 }
 
-html, body {
+html,
+body {
   height: 100%;
 }
 
@@ -60,17 +61,50 @@ body {
   background: linear-gradient(to bottom, var(--bg-start), var(--bg-end));
 }
 
-/* Code highlight */
-code, pre {
-  @apply bg-neutral-900 text-neutral-100 rounded-md px-2 py-1 overflow-x-auto;
+/* IMPORTANT:
+   Tránh style global "code, pre" vì sẽ làm code block nhìn thô & nặng.
+   Chỉ style markdown trong chat thông qua .chat-markdown.
+*/
+
+.chat-markdown {
+  /* đảm bảo khoảng cách đọc giống ChatGPT */
+  @apply text-neutral-100;
 }
 
-pre code {
-  @apply bg-transparent p-0;
+.chat-markdown .chat-p {
+  @apply mb-3;
 }
+.chat-markdown .chat-p:last-child {
+  @apply mb-0;
+}
+
+.chat-markdown .chat-ul {
+  @apply mb-3 list-disc pl-5;
+}
+.chat-markdown .chat-ol {
+  @apply mb-3 list-decimal pl-5;
+}
+.chat-markdown .chat-li {
+  @apply mb-1;
+}
+
+.chat-markdown .chat-quote {
+  @apply my-3 border-l-2 border-neutral-700 pl-3 text-neutral-200;
+}
+
+/* Inline code (block code đã được render bởi component riêng trong ChatBubble.jsx) */
+.chat-markdown code:not(pre code) {
+  @apply rounded-md bg-neutral-800/60 px-1 py-0.5 text-neutral-100;
+}
+
+/* Disable tap highlight */
 * {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Root font-size giữ nguyên nếu bạn muốn site scale theo viewport.
+   Cỡ chữ trong chat đã được hạ bằng px trong ChatBubble.jsx.
+*/
 html {
   font-size: clamp(15px, 1.2vw + 10px, 22px);
 }
@@ -106,12 +140,7 @@ html {
 }
 
 .shimmer-block {
-  background: linear-gradient(
-    90deg,
-    #3f3f3f 0%,
-    #6b7280 50%,
-    #3f3f3f 100%
-  );
+  background: linear-gradient(90deg, #3f3f3f 0%, #6b7280 50%, #3f3f3f 100%);
   background-size: 200% 100%;
   animation: shimmerTitle 1.2s infinite ease-in-out;
 }
