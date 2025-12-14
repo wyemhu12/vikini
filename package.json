@@ -13,7 +13,6 @@
     "@tailwindcss/postcss": "^4.1.17",
     "@upstash/redis": "^1.35.0",
     "axios": "^1.7.2",
-    "firebase-admin": "^12.0.0",
     "highlight.js": "^11.11.1",
     "next": "^16.0.10",
     "next-auth": "^4.24.5",
@@ -32,6 +31,6 @@
     "tailwindcss": "^4.1.17"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   }
 }

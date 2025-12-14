@@ -1,4 +1,4 @@
-// app/hooks/useConversation.js
+// /app/hooks/useConversation.js
 "use client";
 
 import useSWR from "swr";
@@ -121,6 +121,19 @@ export function useConversation() {
     });
   }, []);
 
+  // ✅ NEW: bump updatedAt local để sidebar reorder ngay khi user gửi message
+  const bumpConversationActivity = useCallback((id, ts = Date.now()) => {
+    if (!id) return;
+
+    setConversations((prev) => {
+      const next = prev.map((c) =>
+        c.id === id ? normalizeConv({ ...c, updatedAt: ts }) : normalizeConv(c)
+      );
+      next.sort((a, b) => getTs(b) - getTs(a));
+      return next;
+    });
+  }, []);
+
   const loadConversation = useCallback(async (id) => {
     if (!id) return;
     setLoadingMessages(true);
@@ -229,6 +242,7 @@ export function useConversation() {
     deleteConversation,
     upsertConversation,
     patchConversationTitle,
+    bumpConversationActivity, // ✅ new
     mutateConversations: mutate,
   };
 }

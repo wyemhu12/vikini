@@ -1,3 +1,4 @@
+// /app/components/Chat/ChatApp.jsx
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
@@ -39,19 +40,31 @@ export default function ChatApp() {
     deleteConversation,
     upsertConversation,
     patchConversationTitle,
+    bumpConversationActivity,
   } = useConversation();
+
+  // Creating conversation guard (avoid race: send into old activeId)
+  const [creatingConversation, setCreatingConversation] = useState(false);
 
   // ===============================
   // SIDEBAR ACTIONS
   // ===============================
   const handleNewChat = useCallback(async () => {
-    // Mục tiêu UX: bấm “New Chat” thì sidebar có item ngay.
-    // Tạo conversation thật ở backend (Postgres/Supabase) để có id ổn định.
+    // Fix race:
+    // - reset activeId immediately so user can't accidentally send into previous convo
+    // - disable input while creating
+    setCreatingConversation(true);
+    setActiveId(null);
+
+    // Create conversation thật ở backend để sidebar có item ngay
     const conv = await createConversation({ title: "New Chat" });
+
     if (!conv?.id) {
-      // fallback: vẫn cho phép user chat, chat-stream sẽ tự tạo conversationId
+      // fallback: allow chat-stream to create conversationId on first message
       setActiveId(null);
     }
+
+    setCreatingConversation(false);
   }, [createConversation, setActiveId]);
 
   const handleRenameChat = useCallback(
@@ -136,6 +149,8 @@ export default function ChatApp() {
   // SEND MESSAGE
   // ===============================
   const handleSend = async (override = null, isRegenerate = false) => {
+    if (creatingConversation) return;
+
     const text = (override ?? input).trim();
     if (!text) return;
 
@@ -145,9 +160,11 @@ export default function ChatApp() {
     let conversationId = activeId;
 
     if (!conversationId) {
-      // Không tạo conversation ở đây nữa
       // chat-stream sẽ tạo và gửi META conversationCreated
       conversationId = null;
+    } else {
+      // ✅ bump local updatedAt so sidebar reorder immediately
+      bumpConversationActivity(conversationId, Date.now());
     }
 
     if (!isRegenerate) {
@@ -167,7 +184,7 @@ export default function ChatApp() {
       conversationId,
       content: text,
       systemMode,
-      language, // ✅ send UI language to backend for prompt sync
+      language,
     });
 
     setRegenerating(false);
@@ -206,7 +223,9 @@ export default function ChatApp() {
           loadConversation(id);
         }}
         onNewChat={() => {
+          setStreamingAssistant(null);
           setMessages([]);
+          setActiveId(null);
           handleNewChat();
         }}
         onRenameChat={handleRenameChat}
@@ -254,7 +273,12 @@ export default function ChatApp() {
               input={input}
               onChangeInput={setInput}
               onSubmit={() => handleSend()}
-              disabled={!input.trim() || isStreaming || regenerating}
+              disabled={
+                creatingConversation ||
+                !input.trim() ||
+                isStreaming ||
+                regenerating
+              }
               t={t}
             />
           </div>

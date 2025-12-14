@@ -80,62 +80,96 @@ export default function useChat({
         let buffer = "";
         let assistantFull = "";
 
-        const tryExtractMeta = () => {
+        const handleMeta = (meta) => {
+          if (meta?.type === "conversationCreated" && meta?.conversation?.id) {
+            createdFiredRef.current = true;
+            onConversationCreated?.(meta.conversation);
+            return;
+          }
+
+          if (meta?.type === "optimisticTitle" && meta?.conversationId && meta?.title) {
+            // nếu conversationId ban đầu null, dùng optimisticTitle để “create placeholder”
+            ensureCreatedPlaceholder(meta.conversationId);
+
+            setTitleLoading(meta.conversationId, true);
+            setOptimisticTitle(meta.conversationId, meta.title);
+            onOptimisticTitle?.(meta.conversationId, meta.title);
+            return;
+          }
+
+          if (meta?.type === "finalTitle" && meta?.conversationId && meta?.title) {
+            ensureCreatedPlaceholder(meta.conversationId);
+
+            setFinalTitle(meta.conversationId, meta.title); // sẽ tự tắt loading trong store
+            onFinalTitle?.(meta.conversationId, meta.title);
+          }
+        };
+
+        /**
+         * Parse SSE frames from buffer.
+         * Frame delimiter: \n\n
+         * We support: event: token|meta|error|done, data: <json>
+         */
+        const tryParseSSE = () => {
           while (true) {
-            const start = buffer.indexOf("$$META:");
-            if (start === -1) break;
+            const sep = buffer.indexOf("\n\n");
+            if (sep === -1) break;
 
-            const end = buffer.indexOf("$$\n", start);
-            if (end === -1) break;
+            const frame = buffer.slice(0, sep);
+            buffer = buffer.slice(sep + 2);
 
-            const metaRaw = buffer.slice(start + "$$META:".length, end);
-            const before = buffer.slice(0, start);
-            const after = buffer.slice(end + "$$\n".length);
+            if (!frame.trim()) continue;
 
-            if (before) {
-              assistantFull += before;
-              onAssistantDelta?.(before);
+            let eventName = "message";
+            const dataLines = [];
+
+            for (const line of frame.split("\n")) {
+              if (line.startsWith("event:")) {
+                eventName = line.slice("event:".length).trim();
+                continue;
+              }
+              if (line.startsWith("data:")) {
+                dataLines.push(line.slice("data:".length).trim());
+              }
             }
 
-            try {
-              const meta = JSON.parse(metaRaw);
+            const dataRaw = dataLines.join("\n");
+            if (!dataRaw) continue;
 
-              if (
-                meta?.type === "conversationCreated" &&
-                meta?.conversation?.id
-              ) {
-                createdFiredRef.current = true;
-                onConversationCreated?.(meta.conversation);
+            if (eventName === "token") {
+              try {
+                const payload = JSON.parse(dataRaw);
+                const t = payload?.t || "";
+                if (t) {
+                  assistantFull += t;
+                  onAssistantDelta?.(t);
+                }
+              } catch {
+                // ignore token parse error
               }
-
-              if (
-                meta?.type === "optimisticTitle" &&
-                meta?.conversationId &&
-                meta?.title
-              ) {
-                // nếu conversationId ban đầu null, dùng optimisticTitle để “create placeholder”
-                ensureCreatedPlaceholder(meta.conversationId);
-
-                setTitleLoading(meta.conversationId, true);
-                setOptimisticTitle(meta.conversationId, meta.title);
-                onOptimisticTitle?.(meta.conversationId, meta.title);
-              }
-
-              if (
-                meta?.type === "finalTitle" &&
-                meta?.conversationId &&
-                meta?.title
-              ) {
-                ensureCreatedPlaceholder(meta.conversationId);
-
-                setFinalTitle(meta.conversationId, meta.title); // sẽ tự tắt loading trong store
-                onFinalTitle?.(meta.conversationId, meta.title);
-              }
-            } catch {
-              // ignore meta parse error
+              continue;
             }
 
-            buffer = after;
+            if (eventName === "meta") {
+              try {
+                const meta = JSON.parse(dataRaw);
+                handleMeta(meta);
+              } catch {
+                // ignore meta parse error
+              }
+              continue;
+            }
+
+            if (eventName === "error") {
+              try {
+                const payload = JSON.parse(dataRaw);
+                throw new Error(payload?.message || "Stream error");
+              } catch (e) {
+                throw e instanceof Error ? e : new Error("Stream error");
+              }
+            }
+
+            // done: ignore (body close will finalize)
           }
         };
 
@@ -147,20 +181,22 @@ export default function useChat({
           if (!chunk) continue;
 
           buffer += chunk;
-          tryExtractMeta();
+          tryParseSSE();
         }
 
-        if (buffer) {
-          assistantFull += buffer;
-          onAssistantDelta?.(buffer);
+        // flush any remaining partial frame (best-effort)
+        if (buffer.trim()) {
+          buffer += "\n\n";
+          tryParseSSE();
           buffer = "";
         }
 
         onStreamDone?.(assistantFull);
         return { ok: true };
       } catch (err) {
-        if (err?.name !== "AbortError")
+        if (err?.name !== "AbortError") {
           console.error("useChat sendMessage error:", err);
+        }
         return { ok: false, error: err?.message || "Unknown error" };
       } finally {
         setIsStreaming(false);
