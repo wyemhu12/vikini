@@ -41,6 +41,30 @@ export default function ChatApp() {
     patchConversationTitle,
   } = useConversation();
 
+  // ===============================
+  // SIDEBAR ACTIONS
+  // ===============================
+  const handleNewChat = useCallback(async () => {
+    // Mục tiêu UX: bấm “New Chat” thì sidebar có item ngay.
+    // Tạo conversation thật ở backend (Postgres/Supabase) để có id ổn định.
+    const conv = await createConversation({ title: "New Chat" });
+    if (!conv?.id) {
+      // fallback: vẫn cho phép user chat, chat-stream sẽ tự tạo conversationId
+      setActiveId(null);
+    }
+  }, [createConversation, setActiveId]);
+
+  const handleRenameChat = useCallback(
+    async (id) => {
+      if (!id) return;
+      const current = conversations.find((c) => c.id === id);
+      const next = window.prompt("Rename conversation", current?.title || "");
+      if (next === null) return; // user cancelled
+      await renameConversation(id, next);
+    },
+    [conversations, renameConversation]
+  );
+
   // Chat UI state
   const [input, setInput] = useState("");
   const [streamingAssistant, setStreamingAssistant] = useState(null);
@@ -181,10 +205,10 @@ export default function ChatApp() {
           loadConversation(id);
         }}
         onNewChat={() => {
-          setActiveId(null);
           setMessages([]);
+          handleNewChat();
         }}
-        onRenameChat={renameConversation}
+        onRenameChat={handleRenameChat}
         onDeleteChat={deleteConversation}
         onLogout={() => signOut()}
         t={t}
