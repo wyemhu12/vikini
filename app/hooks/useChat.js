@@ -1,4 +1,4 @@
-// app/hooks/useChat.js
+// /app/hooks/useChat.js
 "use client";
 
 import { useCallback, useRef, useState } from "react";
@@ -21,6 +21,9 @@ export default function useChat({
   // guard: nếu backend không gửi conversationCreated (hoặc parse trượt),
   // ta sẽ dựng placeholder từ optimisticTitle/finalTitle để sidebar vẫn hiện.
   const createdFiredRef = useRef(false);
+
+  // track conversationId thực tế trong vòng đời 1 request để có thể tắt loading ở finally
+  const activeConversationIdRef = useRef(null);
 
   const stop = useCallback(() => {
     if (abortRef.current) abortRef.current.abort();
@@ -54,11 +57,13 @@ export default function useChat({
       if (!content?.trim()) return { ok: false, error: "Empty content" };
 
       createdFiredRef.current = false;
+      activeConversationIdRef.current = conversationId || null;
 
       const controller = new AbortController();
       abortRef.current = controller;
       setIsStreaming(true);
 
+      // show loading if we already know conversationId
       if (conversationId) setTitleLoading(conversationId, true);
 
       try {
@@ -83,11 +88,15 @@ export default function useChat({
         const handleMeta = (meta) => {
           if (meta?.type === "conversationCreated" && meta?.conversation?.id) {
             createdFiredRef.current = true;
+            activeConversationIdRef.current = meta.conversation.id;
+
             onConversationCreated?.(meta.conversation);
             return;
           }
 
           if (meta?.type === "optimisticTitle" && meta?.conversationId && meta?.title) {
+            activeConversationIdRef.current = meta.conversationId;
+
             // nếu conversationId ban đầu null, dùng optimisticTitle để “create placeholder”
             ensureCreatedPlaceholder(meta.conversationId);
 
@@ -98,9 +107,11 @@ export default function useChat({
           }
 
           if (meta?.type === "finalTitle" && meta?.conversationId && meta?.title) {
+            activeConversationIdRef.current = meta.conversationId;
+
             ensureCreatedPlaceholder(meta.conversationId);
 
-            setFinalTitle(meta.conversationId, meta.title); // sẽ tự tắt loading trong store
+            setFinalTitle(meta.conversationId, meta.title); // store sẽ tắt loading
             onFinalTitle?.(meta.conversationId, meta.title);
           }
         };
@@ -199,8 +210,13 @@ export default function useChat({
         }
         return { ok: false, error: err?.message || "Unknown error" };
       } finally {
+        // ✅ Nếu cuối cùng không nhận được finalTitle thì vẫn nên tắt loading
+        const cid = activeConversationIdRef.current;
+        if (cid) setTitleLoading(cid, false);
+
         setIsStreaming(false);
         abortRef.current = null;
+        activeConversationIdRef.current = null;
       }
     },
     [
