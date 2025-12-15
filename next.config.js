@@ -5,11 +5,6 @@ const path = require("path");
 const nextConfig = {
   reactStrictMode: true,
 
-  // ❌ Tắt Turbopack hoàn toàn
-  experimental: {
-    turbo: false,
-  },
-
   webpack: (config) => {
     // Alias @ → root dir
     config.resolve.alias["@"] = path.resolve(__dirname);

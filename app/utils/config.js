@@ -2,6 +2,7 @@ export const translations = {
   vi: {
     appName: "Vikini - Gemini Chat",
     newChat: "Cuộc trò chuyện mới",
+    exploreGems: "Khám phá Gems",
     placeholder: "Nhập câu hỏi...",
     send: "Gửi",
     logout: "Đăng xuất",
@@ -26,6 +27,7 @@ export const translations = {
   en: {
     appName: "Vikini - Gemini Chat",
     newChat: "New Chat",
+    exploreGems: "Explore Gems",
     placeholder: "Type your message...",
     send: "Send",
     logout: "Log out",
@@ -44,8 +46,8 @@ export const translations = {
     modeDev: "Developer",
     modeFriendly: "Friendly",
     modeStrict: "Strict",
-    renameChat: "Rename conversation",
-    deleteConfirm: "Delete this conversation?",
+    renameChat: "Rename chat",
+    deleteConfirm: "Delete this chat?",
   },
 };
 
@@ -61,11 +63,10 @@ export function getSystemPrompt(mode, language) {
   };
 
   const en = {
-    default:
-      "You are a helpful Gemini assistant. Answer clearly and concisely.",
-    dev: "You are a technical assistant focused on coding, infrastructure, and debugging. Provide detailed, practical answers with examples.",
+    default: "You are a helpful Gemini assistant. Answer clearly and concisely.",
+    dev: "You are a technical assistant focused on programming and infrastructure. Provide detailed, practical answers with code examples.",
     friendly:
-      "You are a friendly assistant. Keep responses warm, casual but still accurate.",
+      "You are a friendly, warm assistant. Keep it easy to understand while staying accurate.",
     strict:
       "You are a strict, concise assistant. Answer directly with no fluff and no emojis.",
   };

@@ -8,6 +8,10 @@
 |   |   |   |-- route.js
 |   |   |-- conversations
 |   |   |   |-- route.js
+|   |   |-- gems
+|   |   |   |-- preview
+|   |   |   |   |-- route.js
+|   |   |   |-- route.js
 |   |-- components
 |   |   |-- Chat
 |   |   |   |-- ChatApp.jsx
@@ -24,6 +28,11 @@
 |   |   |   |-- MessageToolbar.jsx
 |   |   |-- UI
 |   |   |   |-- RegenerateIcon.jsx
+|   |-- gems
+|   |   |-- components
+|   |   |   |-- GemEditor.jsx
+|   |   |   |-- GemList.jsx
+|   |   |-- page.jsx
 |   |-- globals.css
 |   |-- hooks
 |   |   |-- useAutoTitleStore.js

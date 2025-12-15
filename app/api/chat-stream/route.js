@@ -10,6 +10,7 @@ import {
   saveConversation,
   saveMessage,
   setConversationAutoTitle,
+  getGemInstructionsForUser,
 } from "@/lib/postgresChat";
 
 import {
@@ -58,51 +59,36 @@ function sendEvent(controller, event, data) {
 const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-function formatTranscriptForSummary(messages) {
-  // keep compact; avoid huge prompt
-  return (messages || [])
-    .map((m) => {
-      const role =
-        m.role === "assistant" ? "ASSISTANT" : m.role === "user" ? "USER" : "OTHER";
-      return `${role}: ${String(m.content || "").trim()}`;
-    })
-    .filter(Boolean)
-    .join("\n");
-}
-
-async function checkpointSummaryIfNeeded({ conversationId, language = "vi" }) {
-  // If overflow exists (len > CONTEXT_MESSAGE_LIMIT), summarize overflow and trim buffer back to last 20
-  const len = await getContextLength(conversationId);
-  if (len <= CONTEXT_MESSAGE_LIMIT) return;
-
-  const overflow = await getOverflowForSummary(conversationId, CONTEXT_MESSAGE_LIMIT);
-  if (!overflow || overflow.length === 0) return;
-
-  const prevSummary = await getSummary(conversationId);
-  const transcript = formatTranscriptForSummary(overflow);
-
-  // Minimal, deterministic-style summarizer prompt
-  const sys =
-    language === "en"
-      ? "You are a summarization engine. Maintain a running conversation summary for future context. Keep it concise, factual, and actionable. Include: user goals, constraints, preferences, decisions, open tasks, and key technical details. Do not add new information."
-      : "Bạn là bộ máy tóm tắt. Hãy duy trì “tóm tắt chạy” của cuộc trò chuyện để dùng làm ngữ cảnh về sau. Viết ngắn gọn, đúng sự thật, có thể hành động được. Bao gồm: mục tiêu, ràng buộc, sở thích, quyết định, việc đang mở, và chi tiết kỹ thuật quan trọng. Không bịa thêm.";
-
-  const userText =
-    language === "en"
-      ? `Previous summary (if any):\n${prevSummary || "(none)"}\n\nNew transcript to incorporate:\n${transcript}\n\nReturn the UPDATED summary only.`
-      : `Tóm tắt trước đó (nếu có):\n${prevSummary || "(chưa có)"}\n\nĐoạn hội thoại mới cần gộp vào:\n${transcript}\n\nChỉ trả về BẢN TÓM TẮT ĐÃ CẬP NHẬT.`;
-
+async function checkpointSummaryIfNeeded(conversationId) {
   try {
+    const currentLen = await getContextLength(conversationId);
+    if (currentLen <= CONTEXT_MESSAGE_LIMIT) return;
+
+    const overflow = await getOverflowForSummary(
+      conversationId,
+      CONTEXT_MESSAGE_LIMIT
+    );
+    if (!overflow || overflow.length === 0) return;
+
+    const existingSummary = (await getSummary(conversationId)) || "";
+    const overflowText = overflow
+      .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
+      .join("\n")
+      .slice(0, 8000);
+
+    const summaryPrompt = existingSummary
+      ? `You are a concise summarizer.\n\nExisting running summary:\n${existingSummary}\n\nNew transcript to incorporate:\n${overflowText}\n\nUpdate the running summary. Keep it short, factual, and preserve key decisions and user preferences.`
+      : `You are a concise summarizer.\n\nTranscript:\n${overflowText}\n\nCreate a running summary. Keep it short, factual, and preserve key decisions and user preferences.`;
+
     const res = await model.generateContent({
-      systemInstruction: { role: "system", parts: [{ text: sys }] },
-      contents: [{ role: "user", parts: [{ text: userText }] }],
-      generationConfig: { temperature: 0.2, topP: 0.9, maxOutputTokens: 512 },
+      contents: [{ role: "user", parts: [{ text: summaryPrompt }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 512 },
     });
 
-    const nextSummary = res?.response?.text?.() ? res.response.text().trim() : "";
-    if (!nextSummary) return;
+    const newSummary = (res?.response?.text?.() || "").trim();
+    if (!newSummary) return;
 
-    await setSummary(conversationId, nextSummary);
+    await setSummary(conversationId, newSummary);
 
     // Only trim after summary success to avoid losing history without a checkpoint.
     await trimContextToLast(conversationId, CONTEXT_MESSAGE_LIMIT);
@@ -121,7 +107,6 @@ export async function POST(req) {
 
     const userId = session.user.email.toLowerCase();
 
-    // Rate limit per user (email). Minimal patch: in-memory Map (per serverless instance on Vercel).
     const allowed = checkRateLimit(`chat-stream:${userId}`);
     if (!allowed) {
       return new Response("Rate limit exceeded", {
@@ -147,10 +132,9 @@ export async function POST(req) {
       return new Response("Empty content", { status: 400 });
     }
 
-    // Normalize language
     if (language !== "vi" && language !== "en") language = "vi";
 
-    // Nếu conversationId chưa có, tạo conversation ở đây và báo client qua META
+    // Create conversation if needed
     let createdConversation = null;
 
     if (!conversationId) {
@@ -181,7 +165,10 @@ export async function POST(req) {
       content,
     });
 
-    // --- Load short-term context (last 20) ---
+    // checkpoint summary if needed BEFORE generating the model response (so we don't blow context)
+    await checkpointSummaryIfNeeded(conversationId);
+
+    // --- Load short-term context (last N turns) ---
     let contextMessages = await getContext(conversationId, CONTEXT_MESSAGE_LIMIT);
 
     // Gemini requires non-empty contents
@@ -202,9 +189,26 @@ export async function POST(req) {
         ? "Friendly, warm and helpful assistant."
         : "You are a helpful assistant.";
 
-    const sysPrompt = runningSummary
-      ? `${baseSysPrompt}\n\n[Conversation summary for context]\n${runningSummary}`
-      : baseSysPrompt;
+    // Load gem instructions (if conversation has gem_id). Do not block chat if gem lookup fails.
+    let gemInstructions = null;
+    if (convo?.gemId) {
+      try {
+        gemInstructions = await getGemInstructionsForUser(userId, convo.gemId);
+      } catch (e) {
+        console.error("Gem instructions load error:", e);
+        gemInstructions = null;
+      }
+    }
+
+    let sysPrompt = baseSysPrompt;
+
+    if (gemInstructions?.trim()) {
+      sysPrompt = `${sysPrompt}\n\n[Gem Instructions]\n${gemInstructions.trim()}`;
+    }
+
+    if (runningSummary) {
+      sysPrompt = `${sysPrompt}\n\n[Conversation summary for context]\n${runningSummary}`;
+    }
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -304,9 +308,6 @@ export async function POST(req) {
                 title: finalTitle,
               });
             }
-
-            // ✅ Summary checkpoint (limit messages + running summary)
-            await checkpointSummaryIfNeeded({ conversationId, language });
           }
         } catch (e) {
           console.error("Post-stream error:", e);

@@ -1,6 +1,7 @@
 // app/components/Sidebar/Sidebar.jsx
 "use client";
 
+import Link from "next/link";
 import SidebarItem from "./SidebarItem";
 
 export default function Sidebar({
@@ -13,6 +14,8 @@ export default function Sidebar({
   onLogout,
   t,
 }) {
+  const href = activeId ? `/gems?conversationId=${activeId}` : "/gems";
+
   return (
     <aside
       className="
@@ -28,10 +31,18 @@ export default function Sidebar({
       {/* New chat */}
       <button
         onClick={onNewChat}
-        className="mb-3 w-full rounded-lg bg-[var(--primary)] px-3 py-2 text-black text-sm"
+        className="mb-2 w-full rounded-lg bg-[var(--primary)] px-3 py-2 text-black text-sm"
       >
         {t.newChat}
       </button>
+
+      {/* Explore Gems */}
+      <Link
+        href={href}
+        className="mb-3 w-full rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-200 hover:bg-neutral-900"
+      >
+        {t.exploreGems || "Explore Gems"}
+      </Link>
 
       {/* Chat list */}
       <div className="flex-1 space-y-1">
@@ -47,7 +58,7 @@ export default function Sidebar({
         ))}
       </div>
 
-      {/* Logout (always bottom) */}
+      {/* Logout */}
       <button
         onClick={onLogout}
         className="mt-4 rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
