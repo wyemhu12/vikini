@@ -48,12 +48,7 @@ export default function useChat({
   );
 
   const sendMessage = useCallback(
-    async ({
-      conversationId,
-      content,
-      systemMode = "default",
-      language = "vi",
-    }) => {
+    async ({ conversationId, content }) => {
       if (!content?.trim()) return { ok: false, error: "Empty content" };
 
       createdFiredRef.current = false;
@@ -70,7 +65,8 @@ export default function useChat({
         const res = await fetch("/api/chat-stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ conversationId, content, systemMode, language }),
+          // ✅ Only send: conversationId + content
+          body: JSON.stringify({ conversationId, content }),
           signal: controller.signal,
         });
 
@@ -94,7 +90,11 @@ export default function useChat({
             return;
           }
 
-          if (meta?.type === "optimisticTitle" && meta?.conversationId && meta?.title) {
+          if (
+            meta?.type === "optimisticTitle" &&
+            meta?.conversationId &&
+            meta?.title
+          ) {
             activeConversationIdRef.current = meta.conversationId;
 
             // nếu conversationId ban đầu null, dùng optimisticTitle để “create placeholder”
@@ -106,7 +106,11 @@ export default function useChat({
             return;
           }
 
-          if (meta?.type === "finalTitle" && meta?.conversationId && meta?.title) {
+          if (
+            meta?.type === "finalTitle" &&
+            meta?.conversationId &&
+            meta?.title
+          ) {
             activeConversationIdRef.current = meta.conversationId;
 
             ensureCreatedPlaceholder(meta.conversationId);

@@ -33,7 +33,6 @@ import {
 } from "@/lib/autoTitleEngine";
 
 import { checkRateLimit } from "@/lib/rateLimit";
-import { getSystemPrompt } from "@/app/utils/config";
 
 // Map messages → Gemini format
 function mapMessages(messages) {
@@ -121,18 +120,12 @@ export async function POST(req) {
 
     const body = await req.json();
 
-    let {
-      conversationId,
-      content,
-      systemMode = "default",
-      language = "vi",
-    } = body || {};
+    // ✅ Only accept: conversationId + content
+    let { conversationId, content } = body || {};
 
     if (!content?.trim()) {
       return new Response("Empty content", { status: 400 });
     }
-
-    if (language !== "vi" && language !== "en") language = "vi";
 
     // Create conversation if needed
     let createdConversation = null;
@@ -176,20 +169,7 @@ export async function POST(req) {
       contextMessages = [{ role: "user", content }];
     }
 
-    // Pull running summary (if any) and inject into system prompt
-    const runningSummary = await getSummary(conversationId);
-
-    // Sync system prompt with UI
-    const baseSysPrompt =
-      typeof getSystemPrompt === "function"
-        ? getSystemPrompt(systemMode, language)
-        : systemMode === "dev"
-        ? "Developer mode: detailed technical output."
-        : systemMode === "friendly"
-        ? "Friendly, warm and helpful assistant."
-        : "You are a helpful assistant.";
-
-    // Load gem instructions (if conversation has gem_id). Do not block chat if gem lookup fails.
+    // ✅ Only load GEM instructions (if conversation has gem_id)
     let gemInstructions = null;
     if (convo?.gemId) {
       try {
@@ -200,15 +180,8 @@ export async function POST(req) {
       }
     }
 
-    let sysPrompt = baseSysPrompt;
-
-    if (gemInstructions?.trim()) {
-      sysPrompt = `${sysPrompt}\n\n[Gem Instructions]\n${gemInstructions.trim()}`;
-    }
-
-    if (runningSummary) {
-      sysPrompt = `${sysPrompt}\n\n[Conversation summary for context]\n${runningSummary}`;
-    }
+    // ✅ System instruction is GEM only (no mode/language, no runningSummary)
+    const sysPrompt = (gemInstructions || "").trim();
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -238,18 +211,23 @@ export async function POST(req) {
         let full = "";
 
         try {
-          const result = await model.generateContentStream({
+          const reqPayload = {
             contents: mapMessages(contextMessages),
-            systemInstruction: {
-              role: "system",
-              parts: [{ text: sysPrompt }],
-            },
             generationConfig: {
               temperature: 0.85,
               topP: 0.9,
               maxOutputTokens: 4096,
             },
-          });
+          };
+
+          if (sysPrompt) {
+            reqPayload.systemInstruction = {
+              role: "system",
+              parts: [{ text: sysPrompt }],
+            };
+          }
+
+          const result = await model.generateContentStream(reqPayload);
 
           for await (const chunk of result.stream) {
             let text = "";

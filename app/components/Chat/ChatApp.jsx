@@ -1,4 +1,3 @@
-// /app/components/Chat/ChatApp.jsx
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
@@ -11,7 +10,6 @@ import InputForm from "./InputForm";
 
 import { useTheme } from "../../hooks/useTheme";
 import { useLanguage } from "../../hooks/useLanguage";
-import { useSystemMode } from "../../hooks/useSystemMode";
 import { useConversation } from "../../hooks/useConversation";
 import useChat from "../../hooks/useChat";
 
@@ -23,7 +21,6 @@ export default function ChatApp() {
   // App settings
   const { theme, setTheme } = useTheme();
   const { language, setLanguage } = useLanguage();
-  const { systemMode, setSystemMode } = useSystemMode();
   const t = translations[language];
 
   // Conversations
@@ -176,11 +173,10 @@ export default function ChatApp() {
       content: "",
     });
 
+    // ✅ Only send: conversationId + content
     const result = await sendMessage({
       conversationId,
       content: text,
-      systemMode,
-      language,
     });
 
     if (!result?.ok) {
@@ -253,8 +249,6 @@ export default function ChatApp() {
           t={t}
           language={language}
           onLanguageChange={setLanguage}
-          systemMode={systemMode}
-          onSystemModeChange={setSystemMode}
           onThemeChange={setTheme}
           theme={theme}
           onToggleSidebar={() => setMobileSidebarOpen((v) => !v)}
