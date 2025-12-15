@@ -8,15 +8,27 @@ export default function HeaderBar({
   onSystemModeChange,
   theme,
   onThemeChange,
+  onToggleSidebar,
 }) {
   return (
     <header className="flex items-center justify-between border-b border-neutral-800 bg-[var(--bg-start)] px-4 py-3 text-sm">
+      <div className="flex items-center gap-3 min-w-0">
+        {/* ✅ Mobile sidebar toggle */}
+        <button
+          type="button"
+          onClick={onToggleSidebar}
+          className="md:hidden rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-200 hover:bg-neutral-800"
+          aria-label="Open sidebar"
+        >
+          ☰
+        </button>
 
-      <div>
-        <div className="font-semibold text-[var(--primary-light)]">
-          {t.appName}
+        <div className="min-w-0">
+          <div className="font-semibold text-[var(--primary-light)] truncate">
+            {t.appName}
+          </div>
+          <div className="text-xs text-neutral-400 truncate">{t.whitelist}</div>
         </div>
-        <div className="text-xs text-neutral-400">{t.whitelist}</div>
       </div>
 
       <div className="flex items-center gap-3">

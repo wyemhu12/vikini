@@ -13,24 +13,26 @@ export default function Sidebar({
   onDeleteChat,
   onLogout,
   t,
+  mobileOpen = false,
+  onCloseMobile,
 }) {
   const href = activeId ? `/gems?conversationId=${activeId}` : "/gems";
 
-  return (
-    <aside
-      className="
-        hidden md:flex flex-col
-        fixed top-0 left-0 bottom-0
-        w-64
-        border-r border-neutral-800
-        bg-neutral-950
-        p-3
-        overflow-y-auto
-      "
-    >
+  const handleSelect = (id) => {
+    onSelectChat?.(id);
+    onCloseMobile?.();
+  };
+
+  const handleNew = () => {
+    onNewChat?.();
+    onCloseMobile?.();
+  };
+
+  const content = (
+    <>
       {/* New chat */}
       <button
-        onClick={onNewChat}
+        onClick={handleNew}
         className="mb-2 w-full rounded-lg bg-[var(--primary)] px-3 py-2 text-black text-sm"
       >
         {t.newChat}
@@ -39,7 +41,8 @@ export default function Sidebar({
       {/* Explore Gems */}
       <Link
         href={href}
-        className="mb-3 w-full rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-200 hover:bg-neutral-900"
+        onClick={() => onCloseMobile?.()}
+        className="mb-3 block w-full rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-200 hover:bg-neutral-900"
       >
         {t.exploreGems || "Explore Gems"}
       </Link>
@@ -51,7 +54,7 @@ export default function Sidebar({
             key={c.id}
             conversation={c}
             isActive={c.id === activeId}
-            onSelect={onSelectChat}
+            onSelect={handleSelect}
             onRename={onRenameChat}
             onDelete={onDeleteChat}
           />
@@ -60,11 +63,70 @@ export default function Sidebar({
 
       {/* Logout */}
       <button
-        onClick={onLogout}
+        onClick={() => {
+          onLogout?.();
+          onCloseMobile?.();
+        }}
         className="mt-4 rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
       >
         {t.logout}
       </button>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar (unchanged behavior) */}
+      <aside
+        className="
+          hidden md:flex flex-col
+          fixed top-0 left-0 bottom-0
+          w-64
+          border-r border-neutral-800
+          bg-neutral-950
+          p-3
+          overflow-y-auto
+        "
+      >
+        {content}
+      </aside>
+
+      {/* Mobile drawer */}
+      {mobileOpen ? (
+        <div className="md:hidden">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/50"
+            onClick={() => onCloseMobile?.()}
+          />
+
+          {/* Panel */}
+          <aside
+            className="
+              fixed top-0 left-0 bottom-0 z-50
+              w-72 max-w-[80vw]
+              border-r border-neutral-800
+              bg-neutral-950
+              p-3
+              overflow-y-auto
+            "
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm font-semibold text-neutral-200">
+                {t.appName}
+              </div>
+              <button
+                onClick={() => onCloseMobile?.()}
+                className="rounded-md border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-900"
+                aria-label="Close sidebar"
+              >
+                ✕
+              </button>
+            </div>
+            {content}
+          </aside>
+        </div>
+      ) : null}
+    </>
   );
 }

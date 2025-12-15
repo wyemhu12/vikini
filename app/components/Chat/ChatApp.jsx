@@ -46,21 +46,19 @@ export default function ChatApp() {
   // Creating conversation guard (avoid race: send into old activeId)
   const [creatingConversation, setCreatingConversation] = useState(false);
 
+  // ✅ Mobile sidebar drawer
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
   // ===============================
   // SIDEBAR ACTIONS
   // ===============================
   const handleNewChat = useCallback(async () => {
-    // Fix race:
-    // - reset activeId immediately so user can't accidentally send into previous convo
-    // - disable input while creating
     setCreatingConversation(true);
     setActiveId(null);
 
-    // Create conversation thật ở backend để sidebar có item ngay
     const conv = await createConversation({ title: "New Chat" });
 
     if (!conv?.id) {
-      // fallback: allow chat-stream to create conversationId on first message
       setActiveId(null);
     }
 
@@ -72,7 +70,7 @@ export default function ChatApp() {
       if (!id) return;
       const current = conversations.find((c) => c.id === id);
       const next = window.prompt("Rename conversation", current?.title || "");
-      if (next === null) return; // user cancelled
+      if (next === null) return;
       await renameConversation(id, next);
     },
     [conversations, renameConversation]
@@ -160,10 +158,8 @@ export default function ChatApp() {
     let conversationId = activeId;
 
     if (!conversationId) {
-      // chat-stream sẽ tạo và gửi META conversationCreated
       conversationId = null;
     } else {
-      // ✅ bump local updatedAt so sidebar reorder immediately
       bumpConversationActivity(conversationId, Date.now());
     }
 
@@ -187,7 +183,6 @@ export default function ChatApp() {
       language,
     });
 
-    // ✅ Surface stream errors to UI (previously silent)
     if (!result?.ok) {
       setStreamingAssistant(null);
       setMessages((prev) => [
@@ -248,9 +243,12 @@ export default function ChatApp() {
         onDeleteChat={deleteConversation}
         onLogout={() => signOut()}
         t={t}
+        mobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
       />
 
-      <div className="flex flex-col flex-1 ml-64">
+      {/* ✅ IMPORTANT: remove ml-64 on mobile */}
+      <div className="flex flex-col flex-1 w-full md:ml-64">
         <HeaderBar
           t={t}
           language={language}
@@ -259,6 +257,7 @@ export default function ChatApp() {
           onSystemModeChange={setSystemMode}
           onThemeChange={setTheme}
           theme={theme}
+          onToggleSidebar={() => setMobileSidebarOpen((v) => !v)}
         />
 
         <div
