@@ -1,12 +1,11 @@
-// /app/gems/page.jsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import GemList from "./components/GemList";
 import GemEditor from "./components/GemEditor";
 
-export default function GemsPage() {
+function GemsPageInner() {
   const sp = useSearchParams();
   const router = useRouter();
 
@@ -39,7 +38,9 @@ export default function GemsPage() {
 
   const applyGemToConversation = async (gemId) => {
     if (!conversationId) {
-      setStatus("Thiếu conversationId. Hãy mở /gems từ Sidebar để áp vào chat hiện tại.");
+      setStatus(
+        "Thiếu conversationId. Hãy mở /gems từ Sidebar để áp vào chat hiện tại."
+      );
       return;
     }
 
@@ -217,5 +218,23 @@ export default function GemsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function GemsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-neutral-950 text-neutral-100">
+          <div className="mx-auto max-w-6xl px-4 py-5">
+            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-sm text-neutral-300">
+              Loading…
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <GemsPageInner />
+    </Suspense>
   );
 }
