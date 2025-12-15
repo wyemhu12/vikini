@@ -18,16 +18,37 @@ import {
 
 // ------------------------------
 // GET
+// - /api/conversations            => list conversations
+// - /api/conversations?id=<uuid>  => get messages for conversation (client is using this)
 // ------------------------------
-export async function GET() {
+export async function GET(req) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email)
+    if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const userId = session.user.email.toLowerCase();
-    const conversations = await getUserConversations(userId);
 
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
+
+    // ✅ If id provided => return messages
+    if (id) {
+      const convo = await getConversation(id);
+      if (!convo || convo.userId !== userId) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      const messages = await getMessages(id);
+      return NextResponse.json(
+        { messages },
+        { headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    // Default: list conversations
+    const conversations = await getUserConversations(userId);
     return NextResponse.json(
       { conversations },
       { headers: { "Cache-Control": "no-store" } }
@@ -128,7 +149,10 @@ export async function DELETE(req) {
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
     await deleteConversation(userId, id);
-    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { ok: true },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     console.error("DELETE /conversations error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
@@ -136,8 +160,7 @@ export async function DELETE(req) {
 }
 
 // ------------------------------
-// (Optional) GET messages for a conversation
-// If you already have a separate route for messages, keep that instead.
+// PUT (kept for backward compatibility)
 // ------------------------------
 export async function PUT(req) {
   try {
@@ -156,7 +179,10 @@ export async function PUT(req) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const messages = await getMessages(id);
-    return NextResponse.json({ messages }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { messages },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     console.error("PUT /conversations error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

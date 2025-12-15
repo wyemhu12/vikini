@@ -180,12 +180,28 @@ export default function ChatApp() {
       content: "",
     });
 
-    await sendMessage({
+    const result = await sendMessage({
       conversationId,
       content: text,
       systemMode,
       language,
     });
+
+    // ✅ Surface stream errors to UI (previously silent)
+    if (!result?.ok) {
+      setStreamingAssistant(null);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err-${Date.now()}`,
+          role: "assistant",
+          content:
+            (language === "vi"
+              ? `Không thể nhận phản hồi từ server. ${result?.error || ""}`.trim()
+              : `Failed to get response from server. ${result?.error || ""}`.trim()),
+        },
+      ]);
+    }
 
     setRegenerating(false);
   };
