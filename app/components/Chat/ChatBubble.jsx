@@ -90,25 +90,73 @@ function CodeBlock({ inline, className, children }) {
 }
 
 export default function ChatBubble({
+  // preferred
   message,
+
+  // fallback props for compatibility
+  role,
+  content,
+  sources: sourcesProp,
+  urlContext: urlContextProp,
+
   isLastAssistant,
   canRegenerate,
   onRegenerate,
   regenerating,
 }) {
-  const isBot = message.role === "assistant";
+  // ✅ Build a safe message object even when 'message' is undefined
+  const safeMessage = useMemo(() => {
+    const base =
+      message && typeof message === "object" ? message : {};
+
+    const finalRole =
+      typeof base.role === "string"
+        ? base.role
+        : typeof role === "string"
+        ? role
+        : "assistant";
+
+    const finalContent =
+      typeof base.content === "string"
+        ? base.content
+        : typeof content === "string"
+        ? content
+        : String(base.content ?? content ?? "");
+
+    const finalSources = Array.isArray(base.sources)
+      ? base.sources
+      : Array.isArray(sourcesProp)
+      ? sourcesProp
+      : [];
+
+    const finalUrlContext = Array.isArray(base.urlContext)
+      ? base.urlContext
+      : Array.isArray(urlContextProp)
+      ? urlContextProp
+      : [];
+
+    return {
+      ...base,
+      role: finalRole,
+      content: finalContent,
+      sources: finalSources,
+      urlContext: finalUrlContext,
+    };
+  }, [message, role, content, sourcesProp, urlContextProp]);
+
+  const isBot = safeMessage.role === "assistant";
 
   const [copied, setCopied] = useState(false);
   const handleCopyMessage = async () => {
     try {
-      await navigator.clipboard.writeText(message.content || "");
+      await navigator.clipboard.writeText(safeMessage.content || "");
       setCopied(true);
       setTimeout(() => setCopied(false), 900);
     } catch {}
   };
 
-  const sources = Array.isArray(message?.sources) ? message.sources : [];
-  const urlContext = Array.isArray(message?.urlContext) ? message.urlContext : [];
+  const sources = Array.isArray(safeMessage?.sources) ? safeMessage.sources : [];
+  const urlContext = Array.isArray(safeMessage?.urlContext) ? safeMessage.urlContext : [];
 
   return (
     <div className={`flex items-start gap-3 ${isBot ? "justify-start" : "justify-end"}`}>
@@ -149,10 +197,10 @@ export default function ChatBubble({
               }}
               className="chat-markdown"
             >
-              {message.content}
+              {safeMessage.content}
             </ReactMarkdown>
           ) : (
-            <span>{message.content}</span>
+            <span>{safeMessage.content}</span>
           )}
 
           {/* ✅ Citations / Sources */}
@@ -162,13 +210,13 @@ export default function ChatBubble({
               <div className="mt-1 flex flex-col gap-1">
                 {sources.slice(0, 8).map((s, idx) => (
                   <a
-                    key={`${s.uri}-${idx}`}
-                    href={s.uri}
+                    key={`${s?.uri ?? "src"}-${idx}`}
+                    href={s?.uri}
                     target="_blank"
                     rel="noreferrer"
                     className="text-[11px] text-[var(--primary-light)] underline underline-offset-2 hover:opacity-90"
                   >
-                    [{idx + 1}] {s.title || s.uri}
+                    [{idx + 1}] {s?.title || s?.uri}
                   </a>
                 ))}
               </div>
@@ -181,16 +229,16 @@ export default function ChatBubble({
               <div className="text-[11px] font-medium text-neutral-300">URL Context</div>
               <div className="mt-1 flex flex-col gap-1">
                 {urlContext.slice(0, 6).map((u, idx) => (
-                  <div key={`${u.retrievedUrl}-${idx}`} className="text-[11px] text-neutral-400">
-                    <span className="text-neutral-300">{u.status || "STATUS"}</span>
+                  <div key={`${u?.retrievedUrl ?? "url"}-${idx}`} className="text-[11px] text-neutral-400">
+                    <span className="text-neutral-300">{u?.status || "STATUS"}</span>
                     {" — "}
                     <a
-                      href={u.retrievedUrl}
+                      href={u?.retrievedUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="text-[var(--primary-light)] underline underline-offset-2 hover:opacity-90"
                     >
-                      {u.retrievedUrl}
+                      {u?.retrievedUrl}
                     </a>
                   </div>
                 ))}

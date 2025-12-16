@@ -62,9 +62,6 @@ export default function ChatApp() {
   const [streamingAssistant, setStreamingAssistant] = useState(null);
   const [regenerating, setRegenerating] = useState(false);
 
-  // ===============================
-  // WEB SEARCH TOGGLE (client-side)
-  // ===============================
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
 
   const getCookie = useCallback((name) => {
@@ -98,9 +95,7 @@ export default function ChatApp() {
       if (c === "1" || c === "0") {
         setWebSearchEnabled(c === "1");
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [getCookie, setCookie]);
 
   const toggleWebSearch = useCallback(() => {
@@ -117,14 +112,12 @@ export default function ChatApp() {
   const isAuthLoading = status === "loading";
   const isAuthed = !!session?.user?.email;
 
-  // Prefer config translations, fallback to ensure no runtime crash if keys missing
   const t = useMemo(() => {
     const base = language === "en" ? tEn : tVi;
     const fb = language === "en" ? T_EN_FALLBACK : T_VI_FALLBACK;
     return { ...fb, ...(base || {}) };
   }, [language]);
 
-  // ✅ Normalize messages to prevent client-side crashes if backend returns bad rows
   const normalizeMessages = useCallback((raw) => {
     const arr = Array.isArray(raw) ? raw : [];
     return arr
@@ -169,12 +162,10 @@ export default function ChatApp() {
       const res = await fetch(`/api/conversations?id=${id}`);
       if (!res.ok) throw new Error("Failed to load conversation");
       const data = await res.json();
-
-      // ✅ sanitize to avoid m.role crash
       setMessages(normalizeMessages(data?.messages));
     } catch (e) {
       console.error(e);
-      setMessages([]); // safety
+      setMessages([]);
     }
   };
 
@@ -217,9 +208,7 @@ export default function ChatApp() {
         }),
       });
 
-      if (!res.ok || !res.body) {
-        throw new Error("Stream failed");
-      }
+      if (!res.ok || !res.body) throw new Error("Stream failed");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -252,8 +241,7 @@ export default function ChatApp() {
 
           if (event === "token") {
             const tok = data?.t || "";
-            if (!tok) continue;
-            setStreamingAssistant((prev) => (prev || "") + tok);
+            if (tok) setStreamingAssistant((prev) => (prev || "") + tok);
           }
 
           if (event === "meta") {
@@ -263,17 +251,11 @@ export default function ChatApp() {
             }
 
             if (data?.type === "optimisticTitle" && data?.title) {
-              renameConversationOptimistic(
-                data.conversationId,
-                data.title || "New Chat"
-              );
+              renameConversationOptimistic(data.conversationId, data.title || "New Chat");
             }
 
             if (data?.type === "finalTitle" && data?.title) {
-              renameConversationFinal(
-                data.conversationId,
-                data.title || "New Chat"
-              );
+              renameConversationFinal(data.conversationId, data.title || "New Chat");
             }
           }
         }
@@ -364,11 +346,23 @@ export default function ChatApp() {
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-2 md:px-6 py-6">
           <div className="max-w-3xl mx-auto w-full space-y-4">
             {renderedMessages.map((m, idx) => (
-              <ChatBubble key={m.id ?? idx} role={m.role} content={m.content} />
+              <ChatBubble
+                key={m.id ?? idx}
+                message={m}
+                isLastAssistant={false}
+                canRegenerate={false}
+                regenerating={false}
+              />
             ))}
 
             {streamingAssistant !== null && (
-              <ChatBubble role="assistant" content={streamingAssistant} />
+              <ChatBubble
+                message={{ role: "assistant", content: streamingAssistant }}
+                isLastAssistant
+                canRegenerate
+                onRegenerate={handleRegenerate}
+                regenerating={regenerating}
+              />
             )}
           </div>
         </div>
