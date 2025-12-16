@@ -14,6 +14,11 @@ import {
 } from "@/lib/postgresChat";
 
 import {
+  generateOptimisticTitle,
+  generateFinalTitle,
+} from "@/lib/autoTitleEngine";
+
+import {
   appendToContext,
   getContext,
   getContextLength,
@@ -24,17 +29,12 @@ import {
   CONTEXT_MESSAGE_LIMIT,
 } from "@/lib/redisContext";
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { NextResponse } from "next/server";
 
-import {
-  generateOptimisticTitle,
-  generateFinalTitle,
-} from "@/lib/autoTitleEngine";
+// ✅ New GenAI SDK (supports googleSearch + urlContext tools)
+import { GoogleGenAI } from "@google/genai";
 
-import { checkRateLimit } from "@/lib/rateLimit";
-
-// Map messages → Gemini format
 function mapMessages(messages) {
   return messages.map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
@@ -55,8 +55,51 @@ function sendEvent(controller, event, data) {
   );
 }
 
-const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
+function parseCookies(header) {
+  const out = {};
+  if (!header) return out;
+  const parts = header.split(";").map((p) => p.trim()).filter(Boolean);
+  for (const p of parts) {
+    const idx = p.indexOf("=");
+    if (idx === -1) continue;
+    const k = p.slice(0, idx);
+    const v = p.slice(idx + 1);
+    out[k] = decodeURIComponent(v || "");
+  }
+  return out;
+}
+
+function envFlag(value, defaultValue = false) {
+  if (value === undefined || value === null) return defaultValue;
+  const v = String(value).trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}
+
+function hasUrl(text) {
+  return /https?:\/\/\S+/i.test(text || "");
+}
+
+function safeText(respOrChunk) {
+  if (!respOrChunk) return "";
+  try {
+    if (typeof respOrChunk.text === "function") return respOrChunk.text() || "";
+    if (typeof respOrChunk.text === "string") return respOrChunk.text || "";
+  } catch {
+    // ignore
+  }
+  // Fallback: dig into candidates/parts if present
+  const parts = respOrChunk?.candidates?.[0]?.content?.parts;
+  if (Array.isArray(parts)) {
+    return parts.map((p) => p?.text || "").join("");
+  }
+  return "";
+}
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const MODEL_ID = "gemini-2.5-flash";
+
+const WEB_SEARCH_ENABLED = envFlag(process.env.WEB_SEARCH_ENABLED, false);
+const URL_CONTEXT_ENABLED = envFlag(process.env.URL_CONTEXT_ENABLED, true);
 
 async function checkpointSummaryIfNeeded(conversationId) {
   try {
@@ -76,15 +119,16 @@ async function checkpointSummaryIfNeeded(conversationId) {
       .slice(0, 8000);
 
     const summaryPrompt = existingSummary
-      ? `You are a concise summarizer.\n\nExisting running summary:\n${existingSummary}\n\nNew transcript to incorporate:\n${overflowText}\n\nUpdate the running summary. Keep it short, factual, and preserve key decisions and user preferences.`
+      ? `You are a concise summarizer.\n\nExisting running summary:\n${existingSummary}\n\nNew transcript chunk:\n${overflowText}\n\nCreate an updated running summary. Keep it short, factual, and preserve key decisions and user preferences.`
       : `You are a concise summarizer.\n\nTranscript:\n${overflowText}\n\nCreate a running summary. Keep it short, factual, and preserve key decisions and user preferences.`;
 
-    const res = await model.generateContent({
+    const res = await ai.models.generateContent({
+      model: MODEL_ID,
       contents: [{ role: "user", parts: [{ text: summaryPrompt }] }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 512 },
+      config: { temperature: 0.2, maxOutputTokens: 512 },
     });
 
-    const newSummary = (res?.response?.text?.() || "").trim();
+    const newSummary = (safeText(res) || "").trim();
     if (!newSummary) return;
 
     await setSummary(conversationId, newSummary);
@@ -113,19 +157,36 @@ export async function POST(req) {
         headers: {
           "Content-Type": "text/plain; charset=utf-8",
           "Cache-Control": "no-store",
-          "Retry-After": "60",
         },
       });
     }
 
     const body = await req.json();
-
-    // ✅ Only accept: conversationId + content
-    let { conversationId, content } = body || {};
+    let {
+      conversationId,
+      content,
+      systemMode = "default",
+      language = "vi",
+    } = body || {};
 
     if (!content?.trim()) {
       return new Response("Empty content", { status: 400 });
     }
+
+    if (language !== "vi" && language !== "en") language = "vi";
+
+    // ===============================
+    // Web Search / URL Context toggles
+    // - UI sets cookie: vikini_web_search=1|0
+    // - Server also has feature-gates via ENV:
+    //   WEB_SEARCH_ENABLED=true|false
+    //   URL_CONTEXT_ENABLED=true|false
+    // ===============================
+    const cookies = parseCookies(req.headers.get("cookie") || "");
+    const enableWebSearch =
+      WEB_SEARCH_ENABLED && cookies["vikini_web_search"] === "1";
+
+    const enableUrlContext = URL_CONTEXT_ENABLED && hasUrl(content);
 
     // Create conversation if needed
     let createdConversation = null;
@@ -158,19 +219,16 @@ export async function POST(req) {
       content,
     });
 
-    // checkpoint summary if needed BEFORE generating the model response (so we don't blow context)
+    // Try summarize if overflow
     await checkpointSummaryIfNeeded(conversationId);
 
-    // --- Load short-term context (last N turns) ---
-    let contextMessages = await getContext(conversationId, CONTEXT_MESSAGE_LIMIT);
+    // Load context for request
+    const contextMessages = await getContext(conversationId);
+    const runningSummary = (await getSummary(conversationId)) || "";
 
-    // Gemini requires non-empty contents
-    if (!contextMessages || contextMessages.length === 0) {
-      contextMessages = [{ role: "user", content }];
-    }
-
-    // ✅ Only load GEM instructions (if conversation has gem_id)
+    const baseSysPrompt = `You are Vikini. Respond helpfully.\n\nSystem mode: ${systemMode}\nLanguage: ${language}`;
     let gemInstructions = null;
+
     if (convo?.gemId) {
       try {
         gemInstructions = await getGemInstructionsForUser(userId, convo.gemId);
@@ -180,13 +238,24 @@ export async function POST(req) {
       }
     }
 
-    // ✅ System instruction is GEM only (no mode/language, no runningSummary)
-    const sysPrompt = (gemInstructions || "").trim();
+    let sysPrompt = baseSysPrompt;
+
+    if (gemInstructions?.trim()) {
+      sysPrompt = `${sysPrompt}\n\n[Gem Instructions]\n${gemInstructions.trim()}`;
+    }
+
+    if (runningSummary) {
+      sysPrompt = `${sysPrompt}\n\n[Conversation summary for context]\n${runningSummary}`;
+    }
+
+    const tools = [];
+    if (enableWebSearch) tools.push({ googleSearch: {} });
+    if (enableUrlContext) tools.push({ urlContext: {} });
 
     const stream = new ReadableStream({
       async start(controller) {
-        // 1) Notify client if conversation was created here
-        if (createdConversation?.id) {
+        // 1) META: conversation created
+        if (createdConversation) {
           try {
             sendEvent(controller, "meta", {
               type: "conversationCreated",
@@ -195,9 +264,20 @@ export async function POST(req) {
           } catch {}
         }
 
+        try {
+          sendEvent(controller, "meta", {
+            type: "webSearch",
+            enabled: enableWebSearch,
+          });
+        } catch {}
+
         // 2) OPTIMISTIC TITLE
         try {
-          const optimisticTitle = await generateOptimisticTitle(content);
+          const optimisticTitle = await generateOptimisticTitle({
+            userId,
+            conversationId,
+            messages: contextMessages,
+          });
           if (optimisticTitle) {
             sendEvent(controller, "meta", {
               type: "optimisticTitle",
@@ -209,30 +289,28 @@ export async function POST(req) {
 
         // 3) STREAM
         let full = "";
+        let groundingMetadata = null;
+        let urlContextMetadata = null;
 
         try {
-          const reqPayload = {
-            contents: mapMessages(contextMessages),
-            generationConfig: {
-              temperature: 0.85,
-              topP: 0.9,
-              maxOutputTokens: 4096,
-            },
+          const config = {
+            systemInstruction: sysPrompt,
+            temperature: 0.85,
+            topP: 0.9,
+            maxOutputTokens: 4096,
+            ...(tools.length ? { tools } : {}),
           };
 
-          if (sysPrompt) {
-            reqPayload.systemInstruction = {
-              role: "system",
-              parts: [{ text: sysPrompt }],
-            };
-          }
+          const result = await ai.models.generateContentStream({
+            model: MODEL_ID,
+            contents: mapMessages(contextMessages),
+            config,
+          });
 
-          const result = await model.generateContentStream(reqPayload);
-
-          for await (const chunk of result.stream) {
+          for await (const chunk of result) {
             let text = "";
             try {
-              text = chunk.text() || "";
+              text = safeText(chunk) || "";
             } catch {
               continue;
             }
@@ -241,13 +319,52 @@ export async function POST(req) {
 
             full += text;
             sendEvent(controller, "token", { t: text });
+            const cand = chunk?.candidates?.[0];
+            if (cand?.groundingMetadata) groundingMetadata = cand.groundingMetadata;
+            if (cand?.urlContextMetadata) urlContextMetadata = cand.urlContextMetadata;
+            if (cand?.url_context_metadata) urlContextMetadata = cand.url_context_metadata;
           }
         } catch (err) {
-          console.error("STREAM ERROR:", err);
+          console.error("stream error:", err);
           try {
             sendEvent(controller, "error", { message: "Stream error" });
           } catch {}
         }
+
+        // Optional: expose tool metadata so the client can render citations / debug
+        try {
+          if (groundingMetadata) {
+            const chunks = groundingMetadata?.groundingChunks || [];
+            const sources = chunks
+              .map((c) =>
+                c?.web?.uri
+                  ? { uri: c.web.uri, title: c.web.title || c.web.uri }
+                  : null
+              )
+              .filter(Boolean);
+
+            sendEvent(controller, "meta", {
+              type: "sources",
+              sources,
+            });
+          }
+        } catch {}
+
+        try {
+          if (urlContextMetadata) {
+            const urlMeta =
+              urlContextMetadata?.urlMetadata ||
+              urlContextMetadata?.url_metadata ||
+              [];
+            sendEvent(controller, "meta", {
+              type: "urlContext",
+              urls: urlMeta.map((u) => ({
+                retrievedUrl: u.retrievedUrl || u.retrieved_url,
+                status: u.urlRetrievalStatus || u.url_retrieval_status,
+              })),
+            });
+          }
+        } catch {}
 
         // 4) POST STREAM
         try {
@@ -277,37 +394,37 @@ export async function POST(req) {
               ],
             });
 
-            if (finalTitle) {
-              await setConversationAutoTitle(userId, conversationId, finalTitle);
-
+            if (finalTitle?.trim()) {
+              await setConversationAutoTitle(conversationId, finalTitle.trim());
               sendEvent(controller, "meta", {
                 type: "finalTitle",
                 conversationId,
-                title: finalTitle,
+                title: finalTitle.trim(),
               });
             }
           }
-        } catch (e) {
-          console.error("Post-stream error:", e);
-        } finally {
-          try {
-            sendEvent(controller, "done", { ok: true });
-          } catch {}
-          controller.close();
+        } catch (err) {
+          console.error("post-stream error:", err);
         }
+
+        // 5) DONE
+        try {
+          sendEvent(controller, "done", { ok: true });
+        } catch {}
+        controller.close();
       },
     });
 
     return new Response(stream, {
+      status: 200,
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
-        "X-Content-Type-Options": "nosniff",
-        "X-Accel-Buffering": "no",
+        Connection: "keep-alive",
       },
     });
-  } catch (err) {
-    console.error("❌ chat-stream failed:", err);
+  } catch (e) {
+    console.error("chat-stream route error:", e);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

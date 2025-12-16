@@ -16,7 +16,6 @@ function CodeBlock({ inline, className, children }) {
     return raw.replace(/\n$/, "");
   }, [children]);
 
-  // Inline code (như ChatGPT)
   if (inline) {
     return (
       <code className="rounded-md bg-neutral-800/60 px-1 py-0.5 text-[0.92em] text-neutral-100">
@@ -45,7 +44,6 @@ function CodeBlock({ inline, className, children }) {
 
   return (
     <div className="my-3 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950/60">
-      {/* Header */}
       <div className="flex items-center justify-between border-b border-neutral-800 px-3 py-2">
         <div className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">
           {lang}
@@ -72,7 +70,6 @@ function CodeBlock({ inline, className, children }) {
         </div>
       </div>
 
-      {/* Body */}
       <div
         className={[
           "relative",
@@ -84,7 +81,6 @@ function CodeBlock({ inline, className, children }) {
           <code className={className}>{code}</code>
         </pre>
 
-        {/* Fade overlay when collapsed */}
         {isCollapsible && !expanded && (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-neutral-950/90 to-transparent" />
         )}
@@ -101,8 +97,8 @@ export default function ChatBubble({
   regenerating,
 }) {
   const isBot = message.role === "assistant";
-  const [copied, setCopied] = useState(false);
 
+  const [copied, setCopied] = useState(false);
   const handleCopyMessage = async () => {
     try {
       await navigator.clipboard.writeText(message.content || "");
@@ -111,38 +107,32 @@ export default function ChatBubble({
     } catch {}
   };
 
+  const sources = Array.isArray(message?.sources) ? message.sources : [];
+  const urlContext = Array.isArray(message?.urlContext) ? message.urlContext : [];
+
   return (
-    <div className={`flex ${isBot ? "justify-start" : "justify-end"} gap-2 items-end`}>
-      {/* Avatar */}
+    <div className={`flex items-start gap-3 ${isBot ? "justify-start" : "justify-end"}`}>
       {isBot && (
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--primary-dark)] text-[10px] font-semibold text-[var(--primary-light)]">
-          G
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--primary)] text-[10px] font-semibold text-black">
+          AI
         </div>
       )}
 
-      <div className="group relative max-w-full sm:max-w-[75%]">
+      <div className={`group relative max-w-[86%] ${isBot ? "" : "text-right"}`}>
         <div
           className={[
-            "rounded-xl border px-4 py-3 leading-[1.65]",
-            // ✅ giảm cỡ chữ trong bubble (responsive)
-            "text-[13.5px] sm:text-[14px] md:text-[15px]",
+            "rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ring-1",
             isBot
-              ? "border-neutral-800 bg-neutral-900 text-neutral-100"
-              : "border-[var(--primary-dark)] bg-[var(--primary)] text-black",
+              ? "bg-neutral-900/80 text-neutral-100 ring-neutral-800"
+              : "bg-[var(--primary)] text-black ring-[var(--primary)]",
           ].join(" ")}
         >
           {isBot ? (
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeHighlight]}
-              // ✅ custom renderer cho code/pre theo kiểu ChatGPT
               components={{
                 code: CodeBlock,
-                pre: ({ children }) => <>{children}</>, // tránh bọc pre 2 lần
-                p: ({ children }) => <p className="chat-p">{children}</p>,
-                ul: ({ children }) => <ul className="chat-ul">{children}</ul>,
-                ol: ({ children }) => <ol className="chat-ol">{children}</ol>,
-                li: ({ children }) => <li className="chat-li">{children}</li>,
                 a: ({ href, children }) => (
                   <a
                     href={href}
@@ -164,11 +154,53 @@ export default function ChatBubble({
           ) : (
             <span>{message.content}</span>
           )}
+
+          {/* ✅ Citations / Sources */}
+          {isBot && sources.length > 0 && (
+            <div className="mt-3 border-t border-neutral-800/80 pt-2">
+              <div className="text-[11px] font-medium text-neutral-300">Nguồn</div>
+              <div className="mt-1 flex flex-col gap-1">
+                {sources.slice(0, 8).map((s, idx) => (
+                  <a
+                    key={`${s.uri}-${idx}`}
+                    href={s.uri}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-[var(--primary-light)] underline underline-offset-2 hover:opacity-90"
+                  >
+                    [{idx + 1}] {s.title || s.uri}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* (Optional) url_context status */}
+          {isBot && urlContext.length > 0 && (
+            <div className="mt-3 border-t border-neutral-800/80 pt-2">
+              <div className="text-[11px] font-medium text-neutral-300">URL Context</div>
+              <div className="mt-1 flex flex-col gap-1">
+                {urlContext.slice(0, 6).map((u, idx) => (
+                  <div key={`${u.retrievedUrl}-${idx}`} className="text-[11px] text-neutral-400">
+                    <span className="text-neutral-300">{u.status || "STATUS"}</span>
+                    {" — "}
+                    <a
+                      href={u.retrievedUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[var(--primary-light)] underline underline-offset-2 hover:opacity-90"
+                    >
+                      {u.retrievedUrl}
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* TOOLBAR */}
         <div className="pointer-events-none absolute -top-3 right-1 flex gap-1 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
-          {/* COPY BUTTON (whole message) */}
           <button
             type="button"
             onClick={handleCopyMessage}
@@ -177,7 +209,6 @@ export default function ChatBubble({
             {copied ? "✓" : "⧉"}
           </button>
 
-          {/* REGENERATE BUTTON */}
           {isBot && isLastAssistant && canRegenerate && (
             <button
               type="button"

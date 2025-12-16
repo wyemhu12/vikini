@@ -1,3 +1,4 @@
+// /app/components/Chat/ChatApp.jsx
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
@@ -10,274 +11,373 @@ import InputForm from "./InputForm";
 
 import { useTheme } from "../../hooks/useTheme";
 import { useLanguage } from "../../hooks/useLanguage";
+import { useSystemMode } from "../../hooks/useSystemMode";
 import { useConversation } from "../../hooks/useConversation";
-import useChat from "../../hooks/useChat";
 
-import { translations } from "../../utils/config";
+import { tVi, tEn } from "../../utils/config";
 
 export default function ChatApp() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
-  // App settings
-  const { theme, setTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const { language, setLanguage } = useLanguage();
-  const t = translations[language];
+  const { systemMode, setSystemMode } = useSystemMode();
 
-  // Conversations
   const {
     conversations,
-    activeId,
-    setActiveId,
-    messages,
-    setMessages,
-    loadingMessages,
-    loadConversation,
+    selectedConversationId,
+    setSelectedConversationId,
     createConversation,
-    renameConversation,
+    creatingConversation,
+    renameConversationOptimistic,
+    renameConversationFinal,
     deleteConversation,
-    upsertConversation,
-    patchConversationTitle,
-    bumpConversationActivity,
+    deleteAllConversations,
+    refreshConversations,
   } = useConversation();
 
-  // Creating conversation guard (avoid race: send into old activeId)
-  const [creatingConversation, setCreatingConversation] = useState(false);
-
-  // ✅ Mobile sidebar drawer
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-
-  // ===============================
-  // SIDEBAR ACTIONS
-  // ===============================
-  const handleNewChat = useCallback(async () => {
-    setCreatingConversation(true);
-    setActiveId(null);
-
-    const conv = await createConversation({ title: "New Chat" });
-
-    if (!conv?.id) {
-      setActiveId(null);
-    }
-
-    setCreatingConversation(false);
-  }, [createConversation, setActiveId]);
-
-  const handleRenameChat = useCallback(
-    async (id) => {
-      if (!id) return;
-      const current = conversations.find((c) => c.id === id);
-      const next = window.prompt("Rename conversation", current?.title || "");
-      if (next === null) return;
-      await renameConversation(id, next);
-    },
-    [conversations, renameConversation]
-  );
-
-  // Chat UI state
   const [input, setInput] = useState("");
   const [streamingAssistant, setStreamingAssistant] = useState(null);
   const [regenerating, setRegenerating] = useState(false);
 
-  const chatWindowRef = useRef(null);
+  // ===============================
+  // WEB SEARCH TOGGLE (client-side)
+  // - Stored in localStorage + cookie
+  // - Backend reads cookie (keeps payload minimal)
+  // ===============================
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
 
-  // Scroll
-  const scrollToBottom = useCallback(() => {
-    const el = chatWindowRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  const getCookie = useCallback((name) => {
+    if (typeof document === "undefined") return null;
+    const cookies = document.cookie ? document.cookie.split("; ") : [];
+    for (const c of cookies) {
+      const [k, ...rest] = c.split("=");
+      if (k === name) return decodeURIComponent(rest.join("="));
+    }
+    return null;
+  }, []);
+
+  const setCookie = useCallback((name, value) => {
+    if (typeof document === "undefined") return;
+    // 1 year, site-wide, Lax
+    document.cookie = `${name}=${encodeURIComponent(
+      value
+    )}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, streamingAssistant, scrollToBottom]);
-
-  // Combine messages
-  const combinedMessages = streamingAssistant
-    ? [...messages, streamingAssistant]
-    : messages;
-
-  const lastAssistantIndex = useMemo(() => {
-    for (let i = combinedMessages.length - 1; i >= 0; i--) {
-      if (combinedMessages[i].role === "assistant") return i;
-    }
-    return -1;
-  }, [combinedMessages]);
-
-  const canRegenerate = lastAssistantIndex >= 0;
-
-  // ===============================
-  // useChat — STREAM ENGINE
-  // ===============================
-  const { sendMessage, isStreaming } = useChat({
-    onConversationCreated: (conv) => {
-      upsertConversation(conv);
-      setActiveId(conv.id);
-    },
-
-    onAssistantDelta: (delta) => {
-      setStreamingAssistant((prev) => ({
-        id: "assistant-stream",
-        role: "assistant",
-        content: (prev?.content || "") + delta,
-      }));
-    },
-
-    onStreamDone: (full) => {
-      setStreamingAssistant(null);
-      if (full.trim()) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `a-${Date.now()}`,
-            role: "assistant",
-            content: full.trim(),
-          },
-        ]);
+    try {
+      const ls = localStorage.getItem("vikini.webSearch");
+      if (ls === "1" || ls === "0") {
+        const enabled = ls === "1";
+        setWebSearchEnabled(enabled);
+        setCookie("vikini_web_search", enabled ? "1" : "0");
+        return;
       }
-    },
 
-    onFinalTitle: (id, title) => {
-      patchConversationTitle(id, title);
-    },
-  });
+      // Fallback to cookie (if exists)
+      const c = getCookie("vikini_web_search");
+      if (c === "1" || c === "0") {
+        setWebSearchEnabled(c === "1");
+      }
+    } catch {
+      // ignore
+    }
+  }, [getCookie, setCookie]);
 
-  // ===============================
-  // SEND MESSAGE
-  // ===============================
-  const handleSend = async (override = null, isRegenerate = false) => {
+  const toggleWebSearch = useCallback(() => {
+    setWebSearchEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("vikini.webSearch", next ? "1" : "0");
+      } catch {}
+      setCookie("vikini_web_search", next ? "1" : "0");
+      return next;
+    });
+  }, [setCookie]);
+
+  const isAuthLoading = status === "loading";
+  const isAuthed = !!session?.user?.email;
+
+  const t = useMemo(() => (language === "en" ? tEn : tVi), [language]);
+
+  const scrollRef = useRef(null);
+
+  const [messages, setMessages] = useState([]);
+
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages, streamingAssistant]);
+
+  const handleNewChat = async () => {
+    const conv = await createConversation();
+    if (conv?.id) {
+      setSelectedConversationId(conv.id);
+      setMessages([]);
+      setStreamingAssistant(null);
+      setInput("");
+    }
+  };
+
+  const handleSelectConversation = async (id) => {
+    setSelectedConversationId(id);
+    setStreamingAssistant(null);
+    setInput("");
+
+    try {
+      const res = await fetch(`/api/conversations?conversationId=${id}`);
+      if (!res.ok) throw new Error("Failed to load conversation");
+      const data = await res.json();
+      setMessages(data.messages || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSend = async (overrideText) => {
+    if (!isAuthed) return;
     if (creatingConversation) return;
 
-    const text = (override ?? input).trim();
+    const text = (overrideText ?? input).trim();
     if (!text) return;
 
     setInput("");
-    setRegenerating(isRegenerate);
+    setIsStreaming(true);
+    setStreamingAssistant("");
 
-    let conversationId = activeId;
+    const userMsg = { role: "user", content: text };
+    setMessages((prev) => [...prev, userMsg]);
 
-    if (!conversationId) {
-      conversationId = null;
-    } else {
-      bumpConversationActivity(conversationId, Date.now());
+    let convId = selectedConversationId;
+
+    if (!convId) {
+      const conv = await createConversation();
+      convId = conv?.id;
+      if (convId) setSelectedConversationId(convId);
     }
 
-    if (!isRegenerate) {
-      setMessages((prev) => [
-        ...prev,
-        { id: `u-${Date.now()}`, role: "user", content: text },
-      ]);
-    }
+    try {
+      const res = await fetch("/api/chat-stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: convId,
+          content: text,
+          systemMode,
+          language,
+        }),
+      });
 
-    setStreamingAssistant({
-      id: "assistant-stream",
-      role: "assistant",
-      content: "",
-    });
+      if (!res.ok || !res.body) {
+        throw new Error("Stream failed");
+      }
 
-    // ✅ Only send: conversationId + content
-    const result = await sendMessage({
-      conversationId,
-      content: text,
-    });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-    if (!result?.ok) {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || "";
+
+        for (const part of parts) {
+          const lines = part.split("\n").filter(Boolean);
+          const eventLine = lines.find((l) => l.startsWith("event:"));
+          const dataLine = lines.find((l) => l.startsWith("data:"));
+          const event = eventLine?.replace("event:", "").trim();
+          const dataStr = dataLine?.replace("data:", "").trim();
+
+          if (!event || !dataStr) continue;
+
+          let data;
+          try {
+            data = JSON.parse(dataStr);
+          } catch {
+            continue;
+          }
+
+          if (event === "token") {
+            const t = data?.t || "";
+            if (!t) continue;
+            setStreamingAssistant((prev) => (prev || "") + t);
+          }
+
+          if (event === "meta") {
+            if (data?.type === "conversationCreated" && data?.conversation?.id) {
+              setSelectedConversationId(data.conversation.id);
+              await refreshConversations();
+            }
+
+            if (data?.type === "optimisticTitle" && data?.title) {
+              renameConversationOptimistic(
+                data.conversationId,
+                data.title || "New Chat"
+              );
+            }
+
+            if (data?.type === "finalTitle" && data?.title) {
+              renameConversationFinal(
+                data.conversationId,
+                data.title || "New Chat"
+              );
+            }
+          }
+
+          if (event === "done") {
+            // will exit loop naturally
+          }
+        }
+      }
+
+      const finalAssistant = streamingAssistantRef.current || "";
+      const assistantMsg = { role: "assistant", content: finalAssistant };
+
+      setMessages((prev) => [...prev, assistantMsg]);
       setStreamingAssistant(null);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `err-${Date.now()}`,
-          role: "assistant",
-          content:
-            (language === "vi"
-              ? `Không thể nhận phản hồi từ server. ${result?.error || ""}`.trim()
-              : `Failed to get response from server. ${result?.error || ""}`.trim()),
-        },
-      ]);
+    } catch (e) {
+      console.error(e);
+      setStreamingAssistant(null);
+    } finally {
+      setIsStreaming(false);
     }
-
-    setRegenerating(false);
   };
 
-  const handleRegenerate = () => {
-    const lastUser = [...messages].reverse().find((m) => m.role === "user");
-    if (lastUser) handleSend(lastUser.content, true);
+  const streamingAssistantRef = useRef(streamingAssistant);
+  useEffect(() => {
+    streamingAssistantRef.current = streamingAssistant;
+  }, [streamingAssistant]);
+
+  const handleRegenerate = async () => {
+    if (!selectedConversationId) return;
+    if (isStreaming) return;
+
+    setRegenerating(true);
+
+    try {
+      const lastUser = [...messages].reverse().find((m) => m.role === "user");
+      if (!lastUser) return;
+
+      setMessages((prev) => prev.filter((m) => m.role !== "assistant"));
+      setStreamingAssistant("");
+      setIsStreaming(true);
+
+      await handleSend(lastUser.content);
+    } finally {
+      setIsStreaming(false);
+      setRegenerating(false);
+    }
   };
 
-  // Login
-  if (!session) {
+  if (isAuthLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-neutral-950">
+      <div className="h-screen w-screen flex items-center justify-center bg-neutral-950 text-neutral-200">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!isAuthed) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center gap-4 bg-neutral-950 text-neutral-200">
+        <div className="text-lg font-semibold">Vikini</div>
         <button
           onClick={() => signIn("google")}
-          className="rounded-lg bg-white px-4 py-2"
+          className="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 transition"
         >
-          Login with Google
+          Sign in with Google
         </button>
       </div>
     );
   }
 
-  // ===============================
-  // UI
-  // ===============================
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-neutral-950 text-neutral-100">
+    <div className="h-screen w-screen bg-neutral-950 text-neutral-100 flex overflow-hidden">
       <Sidebar
-        chats={conversations}
-        activeId={activeId}
-        onSelectChat={(id) => {
-          setStreamingAssistant(null);
-          setActiveId(id);
-          loadConversation(id);
-        }}
-        onNewChat={() => {
-          setStreamingAssistant(null);
-          setMessages([]);
-          setActiveId(null);
-          handleNewChat();
-        }}
-        onRenameChat={handleRenameChat}
-        onDeleteChat={deleteConversation}
-        onLogout={() => signOut()}
+        conversations={conversations}
+        selectedConversationId={selectedConversationId}
+        onSelectConversation={handleSelectConversation}
+        onNewChat={handleNewChat}
+        onDeleteConversation={deleteConversation}
+        onDeleteAll={deleteAllConversations}
+        onRefresh={refreshConversations}
         t={t}
-        mobileOpen={mobileSidebarOpen}
-        onCloseMobile={() => setMobileSidebarOpen(false)}
       />
 
-      {/* ✅ IMPORTANT: remove ml-64 on mobile */}
-      <div className="flex flex-col flex-1 w-full md:ml-64">
+      <div className="flex-1 flex flex-col min-w-0">
         <HeaderBar
-          t={t}
-          language={language}
-          onLanguageChange={setLanguage}
-          onThemeChange={setTheme}
           theme={theme}
-          onToggleSidebar={() => setMobileSidebarOpen((v) => !v)}
+          toggleTheme={toggleTheme}
+          language={language}
+          setLanguage={setLanguage}
+          systemMode={systemMode}
+          setSystemMode={setSystemMode}
+          onSignOut={() => signOut()}
+          t={t}
         />
 
         <div
-          ref={chatWindowRef}
-          className="flex-1 overflow-y-auto px-4 py-6 w-full max-w-3xl mx-auto"
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto px-2 md:px-6 py-6"
         >
-          {loadingMessages && combinedMessages.length === 0 ? (
-            <div className="text-center text-neutral-300">Loading…</div>
-          ) : (
-            <div className="flex flex-col space-y-6">
-              {combinedMessages.map((msg, idx) => (
-                <ChatBubble
-                  key={msg.id ?? idx}
-                  message={msg}
-                  isLastAssistant={idx === lastAssistantIndex}
-                  canRegenerate={canRegenerate}
-                  onRegenerate={handleRegenerate}
-                  regenerating={regenerating}
-                />
-              ))}
-            </div>
-          )}
+          <div className="max-w-3xl mx-auto w-full space-y-4">
+            {messages.map((m, idx) => (
+              <ChatBubble key={idx} role={m.role} content={m.content} />
+            ))}
+
+            {streamingAssistant !== null && (
+              <ChatBubble role="assistant" content={streamingAssistant} />
+            )}
+          </div>
         </div>
 
-        <div className="sticky bottom-0 bg-neutral-950">
+        <div className="sticky bottom-0 bg-neutral-950 border-t border-neutral-800">
           <div className="max-w-3xl mx-auto w-full">
+            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={webSearchEnabled}
+                  onClick={toggleWebSearch}
+                  className={[
+                    "relative inline-flex h-6 w-11 items-center rounded-full border transition",
+                    webSearchEnabled
+                      ? "bg-neutral-200 border-neutral-200"
+                      : "bg-neutral-800 border-neutral-700",
+                  ].join(" ")}
+                >
+                  <span
+                    className={[
+                      "inline-block h-5 w-5 transform rounded-full bg-neutral-950 transition",
+                      webSearchEnabled ? "translate-x-5" : "translate-x-1",
+                    ].join(" ")}
+                  />
+                </button>
+
+                <div className="text-xs text-neutral-300">
+                  {language === "vi" ? "Tìm trên web" : "Web search"}
+                </div>
+              </div>
+
+              <div className="text-xs text-neutral-500">
+                {webSearchEnabled
+                  ? language === "vi"
+                    ? "Bật"
+                    : "On"
+                  : language === "vi"
+                    ? "Tắt"
+                    : "Off"}
+              </div>
+            </div>
+
             <InputForm
               input={input}
               onChangeInput={setInput}
@@ -290,6 +390,20 @@ export default function ChatApp() {
               }
               t={t}
             />
+
+            <div className="px-4 pb-3 flex items-center justify-between text-xs text-neutral-500">
+              <button
+                onClick={handleRegenerate}
+                disabled={isStreaming || regenerating || messages.length === 0}
+                className="hover:text-neutral-300 transition disabled:opacity-50 disabled:hover:text-neutral-500"
+              >
+                {t.regenerate}
+              </button>
+
+              <div className="truncate">
+                {session?.user?.email || ""}
+              </div>
+            </div>
           </div>
         </div>
       </div>
