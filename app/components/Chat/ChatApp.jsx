@@ -14,7 +14,29 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { useSystemMode } from "../../hooks/useSystemMode";
 import { useConversation } from "../../hooks/useConversation";
 
-import { tVi, tEn } from "../../utils/config";
+import { tEn, tVi } from "../../utils/config";
+
+const T_VI_FALLBACK = {
+  regenerate: "Tạo lại",
+  newChat: "Chat mới",
+  delete: "Xoá",
+  deleteAll: "Xoá tất cả",
+  refresh: "Làm mới",
+  signOut: "Đăng xuất",
+  send: "Gửi",
+  placeholder: "Nhập tin nhắn…"
+};
+
+const T_EN_FALLBACK = {
+  regenerate: "Regenerate",
+  newChat: "New chat",
+  delete: "Delete",
+  deleteAll: "Delete all",
+  refresh: "Refresh",
+  signOut: "Sign out",
+  send: "Send",
+  placeholder: "Type a message…"
+};
 
 export default function ChatApp() {
   const { data: session, status } = useSession();
@@ -33,7 +55,7 @@ export default function ChatApp() {
     renameConversationFinal,
     deleteConversation,
     deleteAllConversations,
-    refreshConversations,
+    refreshConversations
   } = useConversation();
 
   const [input, setInput] = useState("");
@@ -42,8 +64,6 @@ export default function ChatApp() {
 
   // ===============================
   // WEB SEARCH TOGGLE (client-side)
-  // - Stored in localStorage + cookie
-  // - Backend reads cookie (keeps payload minimal)
   // ===============================
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
 
@@ -59,7 +79,6 @@ export default function ChatApp() {
 
   const setCookie = useCallback((name, value) => {
     if (typeof document === "undefined") return;
-    // 1 year, site-wide, Lax
     document.cookie = `${name}=${encodeURIComponent(
       value
     )}; Path=/; Max-Age=31536000; SameSite=Lax`;
@@ -75,7 +94,6 @@ export default function ChatApp() {
         return;
       }
 
-      // Fallback to cookie (if exists)
       const c = getCookie("vikini_web_search");
       if (c === "1" || c === "0") {
         setWebSearchEnabled(c === "1");
@@ -99,12 +117,15 @@ export default function ChatApp() {
   const isAuthLoading = status === "loading";
   const isAuthed = !!session?.user?.email;
 
-  const t = useMemo(() => (language === "en" ? tEn : tVi), [language]);
+  // Prefer config translations, fallback to ensure no runtime crash if keys missing
+  const t = useMemo(() => {
+    const base = language === "en" ? tEn : tVi;
+    const fb = language === "en" ? T_EN_FALLBACK : T_VI_FALLBACK;
+    return { ...fb, ...(base || {}) };
+  }, [language]);
 
   const scrollRef = useRef(null);
-
   const [messages, setMessages] = useState([]);
-
   const [isStreaming, setIsStreaming] = useState(false);
 
   useEffect(() => {
@@ -137,6 +158,11 @@ export default function ChatApp() {
     }
   };
 
+  const streamingAssistantRef = useRef(streamingAssistant);
+  useEffect(() => {
+    streamingAssistantRef.current = streamingAssistant;
+  }, [streamingAssistant]);
+
   const handleSend = async (overrideText) => {
     if (!isAuthed) return;
     if (creatingConversation) return;
@@ -167,8 +193,8 @@ export default function ChatApp() {
           conversationId: convId,
           content: text,
           systemMode,
-          language,
-        }),
+          language
+        })
       });
 
       if (!res.ok || !res.body) {
@@ -205,9 +231,9 @@ export default function ChatApp() {
           }
 
           if (event === "token") {
-            const t = data?.t || "";
-            if (!t) continue;
-            setStreamingAssistant((prev) => (prev || "") + t);
+            const tok = data?.t || "";
+            if (!tok) continue;
+            setStreamingAssistant((prev) => (prev || "") + tok);
           }
 
           if (event === "meta") {
@@ -230,10 +256,6 @@ export default function ChatApp() {
               );
             }
           }
-
-          if (event === "done") {
-            // will exit loop naturally
-          }
         }
       }
 
@@ -249,11 +271,6 @@ export default function ChatApp() {
       setIsStreaming(false);
     }
   };
-
-  const streamingAssistantRef = useRef(streamingAssistant);
-  useEffect(() => {
-    streamingAssistantRef.current = streamingAssistant;
-  }, [streamingAssistant]);
 
   const handleRegenerate = async () => {
     if (!selectedConversationId) return;
@@ -351,13 +368,13 @@ export default function ChatApp() {
                     "relative inline-flex h-6 w-11 items-center rounded-full border transition",
                     webSearchEnabled
                       ? "bg-neutral-200 border-neutral-200"
-                      : "bg-neutral-800 border-neutral-700",
+                      : "bg-neutral-800 border-neutral-700"
                   ].join(" ")}
                 >
                   <span
                     className={[
                       "inline-block h-5 w-5 transform rounded-full bg-neutral-950 transition",
-                      webSearchEnabled ? "translate-x-5" : "translate-x-1",
+                      webSearchEnabled ? "translate-x-5" : "translate-x-1"
                     ].join(" ")}
                   />
                 </button>
@@ -373,8 +390,8 @@ export default function ChatApp() {
                     ? "Bật"
                     : "On"
                   : language === "vi"
-                    ? "Tắt"
-                    : "Off"}
+                  ? "Tắt"
+                  : "Off"}
               </div>
             </div>
 
@@ -400,9 +417,7 @@ export default function ChatApp() {
                 {t.regenerate}
               </button>
 
-              <div className="truncate">
-                {session?.user?.email || ""}
-              </div>
+              <div className="truncate">{session?.user?.email || ""}</div>
             </div>
           </div>
         </div>

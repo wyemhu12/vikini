@@ -23,6 +23,7 @@ export const translations = {
     modeStrict: "Nghiêm túc",
     renameChat: "Đổi tên cuộc trò chuyện",
     deleteConfirm: "Xóa cuộc trò chuyện này?",
+    regenerate: "Tạo lại"
   },
   en: {
     appName: "Vikini - Gemini Chat",
@@ -48,8 +49,13 @@ export const translations = {
     modeStrict: "Strict",
     renameChat: "Rename chat",
     deleteConfirm: "Delete this chat?",
-  },
+    regenerate: "Regenerate"
+  }
 };
+
+// Backward compatible exports (fix build warnings from ChatApp.jsx imports)
+export const tVi = translations.vi;
+export const tEn = translations.en;
 
 export function getSystemPrompt(mode, language) {
   const vi = {
@@ -59,7 +65,7 @@ export function getSystemPrompt(mode, language) {
     friendly:
       "Bạn là trợ lý thân thiện, nói chuyện gần gũi, dễ hiểu, nhưng vẫn chính xác.",
     strict:
-      "Bạn là trợ lý nghiêm túc, trả lời trực tiếp, súc tích, không vòng vo, không thêm emoji.",
+      "Bạn là trợ lý nghiêm túc, trả lời trực tiếp, súc tích, không vòng vo, không thêm emoji."
   };
 
   const en = {
@@ -68,7 +74,7 @@ export function getSystemPrompt(mode, language) {
     friendly:
       "You are a friendly, warm assistant. Keep it easy to understand while staying accurate.",
     strict:
-      "You are a strict, concise assistant. Answer directly with no fluff and no emojis.",
+      "You are a strict, concise assistant. Answer directly with no fluff and no emojis."
   };
 
   const dict = language === "vi" ? vi : en;
@@ -82,6 +88,6 @@ export function createChat(lang) {
     createdAt: Date.now(),
     title: lang === "vi" ? "Cuộc trò chuyện mới" : "New chat",
     autoTitled: false,
-    renamed: false,
+    renamed: false
   };
 }
