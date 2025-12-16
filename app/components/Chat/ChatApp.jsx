@@ -24,7 +24,7 @@ const T_VI_FALLBACK = {
   refresh: "Làm mới",
   signOut: "Đăng xuất",
   send: "Gửi",
-  placeholder: "Nhập tin nhắn…"
+  placeholder: "Nhập tin nhắn…",
 };
 
 const T_EN_FALLBACK = {
@@ -35,7 +35,7 @@ const T_EN_FALLBACK = {
   refresh: "Refresh",
   signOut: "Sign out",
   send: "Send",
-  placeholder: "Type a message…"
+  placeholder: "Type a message…",
 };
 
 export default function ChatApp() {
@@ -55,7 +55,7 @@ export default function ChatApp() {
     renameConversationFinal,
     deleteConversation,
     deleteAllConversations,
-    refreshConversations
+    refreshConversations,
   } = useConversation();
 
   const [input, setInput] = useState("");
@@ -124,14 +124,31 @@ export default function ChatApp() {
     return { ...fb, ...(base || {}) };
   }, [language]);
 
+  // ✅ Normalize messages to prevent client-side crashes if backend returns bad rows
+  const normalizeMessages = useCallback((raw) => {
+    const arr = Array.isArray(raw) ? raw : [];
+    return arr
+      .filter((m) => m && typeof m === "object")
+      .filter((m) => typeof m.role === "string" && m.role.length > 0)
+      .map((m) => ({
+        ...m,
+        content: typeof m.content === "string" ? m.content : String(m.content ?? ""),
+      }));
+  }, []);
+
   const scrollRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [isStreaming, setIsStreaming] = useState(false);
 
+  const renderedMessages = useMemo(
+    () => normalizeMessages(messages),
+    [messages, normalizeMessages]
+  );
+
   useEffect(() => {
     if (!scrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages, streamingAssistant]);
+  }, [renderedMessages, streamingAssistant]);
 
   const handleNewChat = async () => {
     const conv = await createConversation();
@@ -149,13 +166,15 @@ export default function ChatApp() {
     setInput("");
 
     try {
-      // ✅ FIX: API expects ?id=
       const res = await fetch(`/api/conversations?id=${id}`);
       if (!res.ok) throw new Error("Failed to load conversation");
       const data = await res.json();
-      setMessages(data.messages || []);
+
+      // ✅ sanitize to avoid m.role crash
+      setMessages(normalizeMessages(data?.messages));
     } catch (e) {
       console.error(e);
+      setMessages([]); // safety
     }
   };
 
@@ -176,7 +195,7 @@ export default function ChatApp() {
     setStreamingAssistant("");
 
     const userMsg = { role: "user", content: text };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...normalizeMessages(prev), userMsg]);
 
     let convId = selectedConversationId;
 
@@ -194,8 +213,8 @@ export default function ChatApp() {
           conversationId: convId,
           content: text,
           systemMode,
-          language
-        })
+          language,
+        }),
       });
 
       if (!res.ok || !res.body) {
@@ -263,7 +282,7 @@ export default function ChatApp() {
       const finalAssistant = streamingAssistantRef.current || "";
       const assistantMsg = { role: "assistant", content: finalAssistant };
 
-      setMessages((prev) => [...prev, assistantMsg]);
+      setMessages((prev) => [...normalizeMessages(prev), assistantMsg]);
       setStreamingAssistant(null);
     } catch (e) {
       console.error(e);
@@ -280,10 +299,11 @@ export default function ChatApp() {
     setRegenerating(true);
 
     try {
-      const lastUser = [...messages].reverse().find((m) => m.role === "user");
+      const safe = normalizeMessages(messages);
+      const lastUser = [...safe].reverse().find((m) => m.role === "user");
       if (!lastUser) return;
 
-      setMessages((prev) => prev.filter((m) => m.role !== "assistant"));
+      setMessages((prev) => normalizeMessages(prev).filter((m) => m.role !== "assistant"));
       setStreamingAssistant("");
       setIsStreaming(true);
 
@@ -341,13 +361,10 @@ export default function ChatApp() {
           t={t}
         />
 
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto px-2 md:px-6 py-6"
-        >
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-2 md:px-6 py-6">
           <div className="max-w-3xl mx-auto w-full space-y-4">
-            {messages.map((m, idx) => (
-              <ChatBubble key={idx} role={m.role} content={m.content} />
+            {renderedMessages.map((m, idx) => (
+              <ChatBubble key={m.id ?? idx} role={m.role} content={m.content} />
             ))}
 
             {streamingAssistant !== null && (
@@ -367,15 +384,13 @@ export default function ChatApp() {
                   onClick={toggleWebSearch}
                   className={[
                     "relative inline-flex h-6 w-11 items-center rounded-full border transition",
-                    webSearchEnabled
-                      ? "bg-neutral-200 border-neutral-200"
-                      : "bg-neutral-800 border-neutral-700"
+                    webSearchEnabled ? "bg-neutral-200 border-neutral-200" : "bg-neutral-800 border-neutral-700",
                   ].join(" ")}
                 >
                   <span
                     className={[
                       "inline-block h-5 w-5 transform rounded-full bg-neutral-950 transition",
-                      webSearchEnabled ? "translate-x-5" : "translate-x-1"
+                      webSearchEnabled ? "translate-x-5" : "translate-x-1",
                     ].join(" ")}
                   />
                 </button>
@@ -386,13 +401,7 @@ export default function ChatApp() {
               </div>
 
               <div className="text-xs text-neutral-500">
-                {webSearchEnabled
-                  ? language === "vi"
-                    ? "Bật"
-                    : "On"
-                  : language === "vi"
-                  ? "Tắt"
-                  : "Off"}
+                {webSearchEnabled ? (language === "vi" ? "Bật" : "On") : language === "vi" ? "Tắt" : "Off"}
               </div>
             </div>
 
@@ -400,19 +409,14 @@ export default function ChatApp() {
               input={input}
               onChangeInput={setInput}
               onSubmit={() => handleSend()}
-              disabled={
-                creatingConversation ||
-                !input.trim() ||
-                isStreaming ||
-                regenerating
-              }
+              disabled={creatingConversation || !input.trim() || isStreaming || regenerating}
               t={t}
             />
 
             <div className="px-4 pb-3 flex items-center justify-between text-xs text-neutral-500">
               <button
                 onClick={handleRegenerate}
-                disabled={isStreaming || regenerating || messages.length === 0}
+                disabled={isStreaming || regenerating || renderedMessages.length === 0}
                 className="hover:text-neutral-300 transition disabled:opacity-50 disabled:hover:text-neutral-500"
               >
                 {t.regenerate}

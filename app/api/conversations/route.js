@@ -40,7 +40,17 @@ export async function GET(req) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
 
-      const messages = await getMessages(id);
+      const messagesRaw = await getMessages(id);
+
+      // ✅ sanitize: prevent null/undefined/invalid role from crashing client
+      const messages = (Array.isArray(messagesRaw) ? messagesRaw : [])
+        .filter((m) => m && typeof m === "object")
+        .filter((m) => typeof m.role === "string" && m.role.length > 0)
+        .map((m) => ({
+          ...m,
+          content: typeof m.content === "string" ? m.content : String(m.content ?? ""),
+        }));
+
       return NextResponse.json(
         { messages },
         { headers: { "Cache-Control": "no-store" } }
@@ -178,7 +188,15 @@ export async function PUT(req) {
     if (!convo || convo.userId !== userId)
       return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const messages = await getMessages(id);
+    const messagesRaw = await getMessages(id);
+    const messages = (Array.isArray(messagesRaw) ? messagesRaw : [])
+      .filter((m) => m && typeof m === "object")
+      .filter((m) => typeof m.role === "string" && m.role.length > 0)
+      .map((m) => ({
+        ...m,
+        content: typeof m.content === "string" ? m.content : String(m.content ?? ""),
+      }));
+
     return NextResponse.json(
       { messages },
       { headers: { "Cache-Control": "no-store" } }
