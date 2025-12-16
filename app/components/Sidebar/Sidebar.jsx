@@ -5,27 +5,50 @@ import Link from "next/link";
 import SidebarItem from "./SidebarItem";
 
 export default function Sidebar({
+  // New props (ChatApp.jsx đang truyền)
+  conversations,
+  selectedConversationId,
+  onSelectConversation,
+  onDeleteConversation,
+  onDeleteAll, // optional
+  onRefresh, // optional
+
+  // Legacy props (file cũ)
   chats,
   activeId,
-  onNewChat,
   onSelectChat,
   onRenameChat,
   onDeleteChat,
+
+  // Shared
+  onNewChat,
   onLogout,
   t,
   mobileOpen = false,
   onCloseMobile,
 }) {
-  const href = activeId ? `/gems?conversationId=${activeId}` : "/gems";
+  const list = Array.isArray(chats)
+    ? chats
+    : Array.isArray(conversations)
+    ? conversations
+    : [];
+
+  const currentId = activeId ?? selectedConversationId ?? null;
+
+  const href = currentId ? `/gems?conversationId=${currentId}` : "/gems";
 
   const handleSelect = (id) => {
-    onSelectChat?.(id);
+    (onSelectChat ?? onSelectConversation)?.(id);
     onCloseMobile?.();
   };
 
   const handleNew = () => {
     onNewChat?.();
     onCloseMobile?.();
+  };
+
+  const handleDelete = (id) => {
+    (onDeleteChat ?? onDeleteConversation)?.(id);
   };
 
   const content = (
@@ -35,7 +58,7 @@ export default function Sidebar({
         onClick={handleNew}
         className="mb-2 w-full rounded-lg bg-[var(--primary)] px-3 py-2 text-black text-sm"
       >
-        {t.newChat}
+        {t?.newChat}
       </button>
 
       {/* Explore Gems */}
@@ -44,39 +67,64 @@ export default function Sidebar({
         onClick={() => onCloseMobile?.()}
         className="mb-3 block w-full rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-200 hover:bg-neutral-900"
       >
-        {t.exploreGems || "Explore Gems"}
+        {t?.exploreGems || "Explore Gems"}
       </Link>
 
       {/* Chat list */}
       <div className="flex-1 space-y-1">
-        {chats.map((c) => (
+        {list.map((c) => (
           <SidebarItem
             key={c.id}
             conversation={c}
-            isActive={c.id === activeId}
+            isActive={c.id === currentId}
             onSelect={handleSelect}
             onRename={onRenameChat}
-            onDelete={onDeleteChat}
+            onDelete={handleDelete}
           />
         ))}
       </div>
 
-      {/* Logout */}
-      <button
-        onClick={() => {
-          onLogout?.();
-          onCloseMobile?.();
-        }}
-        className="mt-4 rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
-      >
-        {t.logout}
-      </button>
+      {/* Optional actions */}
+      {(onRefresh || onDeleteAll) && (
+        <div className="mt-3 flex items-center gap-2">
+          {onRefresh ? (
+            <button
+              onClick={() => onRefresh?.()}
+              className="rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
+            >
+              {t?.refresh || "Refresh"}
+            </button>
+          ) : null}
+
+          {onDeleteAll ? (
+            <button
+              onClick={() => onDeleteAll?.()}
+              className="rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
+            >
+              {t?.deleteAll || "Delete all"}
+            </button>
+          ) : null}
+        </div>
+      )}
+
+      {/* Logout (only if wired) */}
+      {onLogout ? (
+        <button
+          onClick={() => {
+            onLogout?.();
+            onCloseMobile?.();
+          }}
+          className="mt-4 rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
+        >
+          {t?.logout || t?.signOut || "Log out"}
+        </button>
+      ) : null}
     </>
   );
 
   return (
     <>
-      {/* Desktop sidebar (unchanged behavior) */}
+      {/* Desktop sidebar */}
       <aside
         className="
           hidden md:flex flex-col
@@ -113,7 +161,7 @@ export default function Sidebar({
           >
             <div className="mb-2 flex items-center justify-between">
               <div className="text-sm font-semibold text-neutral-200">
-                {t.appName}
+                {t?.appName || "Vikini"}
               </div>
               <button
                 onClick={() => onCloseMobile?.()}

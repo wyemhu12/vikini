@@ -2,7 +2,7 @@
 "use client";
 
 import useSWR from "swr";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -70,6 +70,9 @@ export function useConversation() {
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // ✅ for ChatApp.jsx compatibility
+  const [creatingConversation, setCreatingConversation] = useState(false);
 
   const { data, mutate } = useSWR("/api/conversations", fetcher, {
     dedupingInterval: 3000,
@@ -153,8 +156,11 @@ export function useConversation() {
 
   const createConversation = useCallback(
     async (options = {}) => {
+      if (creatingConversation) return null;
+
       const title = typeof options === "string" ? options : options.title;
 
+      setCreatingConversation(true);
       try {
         const res = await fetch("/api/conversations", {
           method: "POST",
@@ -176,9 +182,11 @@ export function useConversation() {
       } catch (err) {
         console.error("createConversation error:", err);
         return null;
+      } finally {
+        setCreatingConversation(false);
       }
     },
-    [mutate, upsertConversation]
+    [creatingConversation, mutate, upsertConversation]
   );
 
   const renameConversation = useCallback(
@@ -229,7 +237,49 @@ export function useConversation() {
     [activeId, mutate]
   );
 
+  // ===== ChatApp.jsx compatibility layer (aliases) =====
+  const selectedConversationId = activeId;
+  const setSelectedConversationId = setActiveId;
+
+  const refreshConversations = useCallback(async () => {
+    await mutate();
+  }, [mutate]);
+
+  const renameConversationOptimistic = useCallback(
+    (id, title) => {
+      patchConversationTitle(id, title);
+    },
+    [patchConversationTitle]
+  );
+
+  const renameConversationFinal = useCallback(
+    (id, title) => {
+      patchConversationTitle(id, title);
+      // best-effort sync with server ordering/title
+      mutate();
+    },
+    [mutate, patchConversationTitle]
+  );
+
+  const deleteAllConversations = useCallback(async () => {
+    const ids = (Array.isArray(conversations) ? conversations : [])
+      .map((c) => c?.id)
+      .filter(Boolean);
+
+    if (ids.length === 0) return;
+
+    await Promise.all(ids.map((id) => deleteConversation(id)));
+
+    // local safety
+    setConversations([]);
+    setActiveId(null);
+    setMessages([]);
+
+    mutate();
+  }, [conversations, deleteConversation, mutate]);
+
   return {
+    // core
     conversations,
     activeId,
     setActiveId,
@@ -242,7 +292,16 @@ export function useConversation() {
     deleteConversation,
     upsertConversation,
     patchConversationTitle,
-    bumpConversationActivity, // ✅ new
+    bumpConversationActivity,
     mutateConversations: mutate,
+
+    // ChatApp.jsx expected fields
+    selectedConversationId,
+    setSelectedConversationId,
+    creatingConversation,
+    refreshConversations,
+    renameConversationOptimistic,
+    renameConversationFinal,
+    deleteAllConversations,
   };
 }

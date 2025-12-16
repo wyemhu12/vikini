@@ -1,0 +1,65 @@
+﻿|-- .env.local
+|-- .gitignore
+|-- app
+|   |-- api
+|   |   |-- auth
+|   |   |   |-- [...nextauth]
+|   |   |-- chat-stream
+|   |   |   |-- route.js
+|   |   |-- conversations
+|   |   |   |-- route.js
+|   |   |-- gems
+|   |   |   |-- preview
+|   |   |   |   |-- route.js
+|   |   |   |-- route.js
+|   |-- components
+|   |   |-- Chat
+|   |   |   |-- ChatApp.jsx
+|   |   |   |-- ChatBubble.jsx
+|   |   |   |-- InputForm.jsx
+|   |   |   |-- TitleItem.jsx
+|   |   |-- Layout
+|   |   |   |-- HeaderBar.jsx
+|   |   |   |-- MainLayout.jsx
+|   |   |-- Sidebar
+|   |   |   |-- Sidebar.jsx
+|   |   |   |-- SidebarItem.jsx
+|   |   |-- Toolbar
+|   |   |   |-- MessageToolbar.jsx
+|   |   |-- UI
+|   |   |   |-- RegenerateIcon.jsx
+|   |-- gems
+|   |   |-- components
+|   |   |   |-- GemEditor.jsx
+|   |   |   |-- GemList.jsx
+|   |   |-- page.jsx
+|   |-- globals.css
+|   |-- hooks
+|   |   |-- useAutoTitleStore.js
+|   |   |-- useChat.js
+|   |   |-- useConversation.js
+|   |   |-- useLanguage.js
+|   |   |-- useScrollToBottom.js
+|   |   |-- useSystemMode.js
+|   |   |-- useTheme.js
+|   |-- layout.jsx
+|   |-- page.jsx
+|   |-- providers.jsx
+|   |-- styles
+|   |   |-- shimmer.css
+|   |-- utils
+|   |   |-- config.js
+|-- jsconfig.json
+|-- lib
+|   |-- auth.js
+|   |-- autoTitleEngine.js
+|   |-- postgresChat.js
+|   |-- rateLimit.js
+|   |-- redisContext.js
+|   |-- whitelist.js
+|-- next.config.js
+|-- package.json
+|-- package-lock.json
+|-- postcss.config.mjs
+|-- tailwind.config.mjs
+|-- tree.txt

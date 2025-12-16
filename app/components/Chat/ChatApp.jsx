@@ -149,7 +149,8 @@ export default function ChatApp() {
     setInput("");
 
     try {
-      const res = await fetch(`/api/conversations?conversationId=${id}`);
+      // ✅ FIX: API expects ?id=
+      const res = await fetch(`/api/conversations?id=${id}`);
       if (!res.ok) throw new Error("Failed to load conversation");
       const data = await res.json();
       setMessages(data.messages || []);
