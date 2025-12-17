@@ -9,17 +9,16 @@ import {
   getConversation,
   saveConversation,
   saveMessage,
+  deleteLastAssistantMessage,
   setConversationAutoTitle,
   getGemInstructionsForUser,
 } from "@/lib/postgresChat";
 
-import {
-  generateOptimisticTitle,
-  generateFinalTitle,
-} from "@/lib/autoTitleEngine";
+import { generateOptimisticTitle, generateFinalTitle } from "@/lib/autoTitleEngine";
 
 import {
   appendToContext,
+  removeLastFromContextIfRole,
   getContext,
   getContextLength,
   getOverflowForSummary,
@@ -42,23 +41,18 @@ function mapMessages(messages) {
   }));
 }
 
-const encoder = new TextEncoder();
-
-/**
- * SSE helper
- * - event: token | meta | error | done
- * - data: JSON object
- */
 function sendEvent(controller, event, data) {
-  controller.enqueue(
-    encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
-  );
+  const encoder = new TextEncoder();
+  controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
 }
 
 function parseCookies(header) {
   const out = {};
   if (!header) return out;
-  const parts = header.split(";").map((p) => p.trim()).filter(Boolean);
+  const parts = header
+    .split(";")
+    .map((p) => p.trim())
+    .filter(Boolean);
   for (const p of parts) {
     const idx = p.indexOf("=");
     if (idx === -1) continue;
@@ -80,65 +74,53 @@ function hasUrl(text) {
 }
 
 function safeText(respOrChunk) {
-  if (!respOrChunk) return "";
   try {
-    if (typeof respOrChunk.text === "function") return respOrChunk.text() || "";
-    if (typeof respOrChunk.text === "string") return respOrChunk.text || "";
-  } catch {
-    // ignore
-  }
-  // Fallback: dig into candidates/parts if present
-  const parts = respOrChunk?.candidates?.[0]?.content?.parts;
-  if (Array.isArray(parts)) {
-    return parts.map((p) => p?.text || "").join("");
-  }
+    if (typeof respOrChunk === "string") return respOrChunk;
+    if (respOrChunk?.text) return respOrChunk.text;
+    if (respOrChunk?.candidates?.[0]?.content?.parts?.[0]?.text)
+      return respOrChunk.candidates[0].content.parts[0].text;
+  } catch {}
   return "";
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const MODEL_ID = "gemini-2.5-flash";
-
-const WEB_SEARCH_ENABLED = envFlag(process.env.WEB_SEARCH_ENABLED, false);
-const URL_CONTEXT_ENABLED = envFlag(process.env.URL_CONTEXT_ENABLED, true);
-
 async function checkpointSummaryIfNeeded(conversationId) {
+  const len = await getContextLength(conversationId);
+  if (len <= CONTEXT_MESSAGE_LIMIT) return;
+
+  const overflow = await getOverflowForSummary(conversationId, CONTEXT_MESSAGE_LIMIT);
+  if (!overflow || overflow.length === 0) return;
+
+  const existingSummary = (await getSummary(conversationId)) || "";
+  const overflowText = overflow
+    .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
+    .join("\n")
+    .slice(0, 8000);
+
+  const summaryPrompt = existingSummary
+    ? `You are a concise summarizer.\n\nExisting running summary:\n${existingSummary}\n\nNew transcript chunk:\n${overflowText}\n\nCreate an updated running summary. Keep it short, factual, and useful for future context.`
+    : `You are a concise summarizer.\n\nTranscript chunk:\n${overflowText}\n\nCreate a running summary. Keep it short, factual, and useful for future context.`;
+
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+
+  let summary = "";
   try {
-    const currentLen = await getContextLength(conversationId);
-    if (currentLen <= CONTEXT_MESSAGE_LIMIT) return;
-
-    const overflow = await getOverflowForSummary(
-      conversationId,
-      CONTEXT_MESSAGE_LIMIT
-    );
-    if (!overflow || overflow.length === 0) return;
-
-    const existingSummary = (await getSummary(conversationId)) || "";
-    const overflowText = overflow
-      .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
-      .join("\n")
-      .slice(0, 8000);
-
-    const summaryPrompt = existingSummary
-      ? `You are a concise summarizer.\n\nExisting running summary:\n${existingSummary}\n\nNew transcript chunk:\n${overflowText}\n\nCreate an updated running summary. Keep it short, factual, and preserve key decisions and user preferences.`
-      : `You are a concise summarizer.\n\nTranscript:\n${overflowText}\n\nCreate a running summary. Keep it short, factual, and preserve key decisions and user preferences.`;
-
     const res = await ai.models.generateContent({
-      model: MODEL_ID,
+      model,
       contents: [{ role: "user", parts: [{ text: summaryPrompt }] }],
-      config: { temperature: 0.2, maxOutputTokens: 512 },
+      generationConfig: { temperature: 0.2 },
     });
-
-    const newSummary = (safeText(res) || "").trim();
-    if (!newSummary) return;
-
-    await setSummary(conversationId, newSummary);
-
-    // Only trim after summary success to avoid losing history without a checkpoint.
-    await trimContextToLast(conversationId, CONTEXT_MESSAGE_LIMIT);
-  } catch (e) {
-    // If summary fails, do not trim (buffer is still hard-capped in redisContext)
-    console.error("checkpointSummaryIfNeeded error:", e);
+    summary = safeText(res).trim();
+  } catch {
+    summary = "";
   }
+
+  if (summary) {
+    await setSummary(conversationId, summary);
+  }
+
+  // Keep only last N messages after summarization
+  await trimContextToLast(conversationId, CONTEXT_MESSAGE_LIMIT);
 }
 
 export async function POST(req) {
@@ -165,6 +147,7 @@ export async function POST(req) {
     let {
       conversationId,
       content,
+      regenerate = false,
       systemMode = "default",
       language = "vi",
     } = body || {};
@@ -173,24 +156,28 @@ export async function POST(req) {
       return new Response("Empty content", { status: 400 });
     }
 
+    if (regenerate && !conversationId) {
+      return new Response("Missing conversationId for regenerate", { status: 400 });
+    }
+
     if (language !== "vi" && language !== "en") language = "vi";
 
     // ===============================
     // Web Search / URL Context toggles
-    // - UI sets cookie: vikini_web_search=1|0
-    // - Server also has feature-gates via ENV:
-    //   WEB_SEARCH_ENABLED=true|false
-    //   URL_CONTEXT_ENABLED=true|false
+    // - UI sets cookie: vikini_web_search=1/0
     // ===============================
+    const WEB_SEARCH_ENABLED = envFlag(process.env.WEB_SEARCH_ENABLED, false);
+    const URL_CONTEXT_ENABLED = envFlag(process.env.URL_CONTEXT_ENABLED, false);
+
     const cookies = parseCookies(req.headers.get("cookie") || "");
     const enableWebSearch =
       WEB_SEARCH_ENABLED && cookies["vikini_web_search"] === "1";
 
+    // urlContext only when URL exists in content, and feature enabled
     const enableUrlContext = URL_CONTEXT_ENABLED && hasUrl(content);
 
-    // Create conversation if needed
+    // Ensure conversation exists
     let createdConversation = null;
-
     if (!conversationId) {
       const conv = await saveConversation(userId, {
         title: "New Chat",
@@ -205,52 +192,71 @@ export async function POST(req) {
       return new Response("Conversation not found", { status: 404 });
     }
 
-    // --- Redis: append USER message ---
-    await appendToContext(conversationId, {
-      role: "user",
-      content,
-    });
-
-    // --- DB: persist USER message ---
-    await saveMessage({
-      conversationId,
-      userId,
-      role: "user",
-      content,
-    });
-
-    // Try summarize if overflow
-    await checkpointSummaryIfNeeded(conversationId);
-
-    // Load context for request
-    const contextMessages = await getContext(conversationId);
-    const runningSummary = (await getSummary(conversationId)) || "";
-
-    const baseSysPrompt = `You are Vikini. Respond helpfully.\n\nSystem mode: ${systemMode}\nLanguage: ${language}`;
-    let gemInstructions = null;
-
-    if (convo?.gemId) {
+    if (regenerate) {
+      // Best-effort: remove the last assistant turn so we can re-generate it
       try {
-        gemInstructions = await getGemInstructionsForUser(userId, convo.gemId);
-      } catch (e) {
-        console.error("Gem instructions load error:", e);
-        gemInstructions = null;
-      }
+        await removeLastFromContextIfRole(conversationId, "assistant");
+      } catch {}
+
+      try {
+        await deleteLastAssistantMessage(userId, conversationId);
+      } catch {}
+    } else {
+      // --- Redis: append USER message ---
+      await appendToContext(conversationId, {
+        role: "user",
+        content,
+      });
+
+      // --- DB: persist USER message ---
+      await saveMessage({
+        conversationId,
+        userId,
+        role: "user",
+        content,
+      });
+
+      // Try summarize if overflow
+      await checkpointSummaryIfNeeded(conversationId);
     }
 
-    let sysPrompt = baseSysPrompt;
-
-    if (gemInstructions?.trim()) {
-      sysPrompt = `${sysPrompt}\n\n[Gem Instructions]\n${gemInstructions.trim()}`;
+    // --- Build system instruction ---
+    let sysPrompt = "";
+    try {
+      sysPrompt = await getGemInstructionsForUser(userId);
+    } catch {
+      sysPrompt = "";
     }
 
-    if (runningSummary) {
+    // keep minimal systemMode/language influence (existing behavior)
+    if (systemMode === "strict") {
+      sysPrompt = `${sysPrompt}\n\nBe precise, structured, and avoid speculation.`;
+    } else if (systemMode === "friendly") {
+      sysPrompt = `${sysPrompt}\n\nBe friendly and helpful.`;
+    }
+
+    if (language === "en") {
+      sysPrompt = `${sysPrompt}\n\nRespond in English.`;
+    } else {
+      sysPrompt = `${sysPrompt}\n\nTrả lời bằng tiếng Việt.`;
+    }
+
+    // Add running summary if exists
+    const runningSummary = (await getSummary(conversationId)) || "";
+    if (runningSummary?.trim()) {
       sysPrompt = `${sysPrompt}\n\n[Conversation summary for context]\n${runningSummary}`;
     }
 
     const tools = [];
     if (enableWebSearch) tools.push({ googleSearch: {} });
     if (enableUrlContext) tools.push({ urlContext: {} });
+
+    // Build model context from Redis
+    const contextMessages = await getContext(conversationId, CONTEXT_MESSAGE_LIMIT);
+    const contents = mapMessages(contextMessages);
+
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -272,20 +278,18 @@ export async function POST(req) {
         } catch {}
 
         // 2) OPTIMISTIC TITLE
-        try {
-          const optimisticTitle = await generateOptimisticTitle({
-            userId,
-            conversationId,
-            messages: contextMessages,
-          });
-          if (optimisticTitle) {
-            sendEvent(controller, "meta", {
-              type: "optimisticTitle",
-              conversationId,
-              title: optimisticTitle,
-            });
-          }
-        } catch {}
+        if (!regenerate) {
+          try {
+            const optimisticTitle = await generateOptimisticTitle(content);
+            if (optimisticTitle) {
+              sendEvent(controller, "meta", {
+                type: "optimisticTitle",
+                conversationId,
+                title: optimisticTitle,
+              });
+            }
+          } catch {}
+        }
 
         // 3) STREAM
         let full = "";
@@ -295,34 +299,30 @@ export async function POST(req) {
         try {
           const config = {
             systemInstruction: sysPrompt,
-            temperature: 0.85,
-            topP: 0.9,
-            maxOutputTokens: 4096,
-            ...(tools.length ? { tools } : {}),
+            temperature: 0,
           };
 
-          const result = await ai.models.generateContentStream({
-            model: MODEL_ID,
-            contents: mapMessages(contextMessages),
-            config,
+          const res = await ai.models.generateContentStream({
+            model,
+            contents,
+            tools,
+            generationConfig: config,
           });
 
-          for await (const chunk of result) {
-            let text = "";
-            try {
-              text = safeText(chunk) || "";
-            } catch {
-              continue;
+          for await (const chunk of res) {
+            const t = safeText(chunk);
+            if (t) {
+              full += t;
+              sendEvent(controller, "token", { t });
             }
 
-            if (!text) continue;
-
-            full += text;
-            sendEvent(controller, "token", { t: text });
-            const cand = chunk?.candidates?.[0];
-            if (cand?.groundingMetadata) groundingMetadata = cand.groundingMetadata;
-            if (cand?.urlContextMetadata) urlContextMetadata = cand.urlContextMetadata;
-            if (cand?.url_context_metadata) urlContextMetadata = cand.url_context_metadata;
+            // Capture tool metadata if available
+            try {
+              const cand = chunk?.candidates?.[0];
+              if (cand?.groundingMetadata) groundingMetadata = cand.groundingMetadata;
+              if (cand?.urlContextMetadata) urlContextMetadata = cand.urlContextMetadata;
+              if (cand?.url_context_metadata) urlContextMetadata = cand.url_context_metadata;
+            } catch {}
           }
         } catch (err) {
           console.error("stream error:", err);
@@ -337,9 +337,7 @@ export async function POST(req) {
             const chunks = groundingMetadata?.groundingChunks || [];
             const sources = chunks
               .map((c) =>
-                c?.web?.uri
-                  ? { uri: c.web.uri, title: c.web.title || c.web.uri }
-                  : null
+                c?.web?.uri ? { uri: c.web.uri, title: c.web.title || c.web.uri } : null
               )
               .filter(Boolean);
 
@@ -385,22 +383,21 @@ export async function POST(req) {
             });
 
             // FINAL TITLE
-            const finalTitle = await generateFinalTitle({
-              userId,
-              conversationId,
-              messages: [
-                ...contextMessages,
-                { role: "assistant", content: trimmed },
-              ],
-            });
-
-            if (finalTitle?.trim()) {
-              await setConversationAutoTitle(conversationId, finalTitle.trim());
-              sendEvent(controller, "meta", {
-                type: "finalTitle",
+            if (!regenerate) {
+              const finalTitle = await generateFinalTitle({
+                userId,
                 conversationId,
-                title: finalTitle.trim(),
+                messages: [...contextMessages, { role: "assistant", content: trimmed }],
               });
+
+              if (finalTitle?.trim()) {
+                await setConversationAutoTitle(userId, conversationId, finalTitle.trim());
+                sendEvent(controller, "meta", {
+                  type: "finalTitle",
+                  conversationId,
+                  title: finalTitle.trim(),
+                });
+              }
             }
           }
         } catch (err) {

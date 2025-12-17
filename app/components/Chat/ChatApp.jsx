@@ -14,35 +14,16 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { useSystemMode } from "../../hooks/useSystemMode";
 import { useConversation } from "../../hooks/useConversation";
 
-import { tEn, tVi } from "../../utils/config";
-
-const T_VI_FALLBACK = {
-  regenerate: "Tạo lại",
-  newChat: "Chat mới",
-  delete: "Xoá",
-  deleteAll: "Xoá tất cả",
-  refresh: "Làm mới",
-  signOut: "Đăng xuất",
-  send: "Gửi",
-  placeholder: "Nhập tin nhắn…",
-};
-
-const T_EN_FALLBACK = {
-  regenerate: "Regenerate",
-  newChat: "New chat",
-  delete: "Delete",
-  deleteAll: "Delete all",
-  refresh: "Refresh",
-  signOut: "Sign out",
-  send: "Send",
-  placeholder: "Type a message…",
-};
+const Bool = Boolean;
 
 export default function ChatApp() {
   const { data: session, status } = useSession();
 
+  const isAuthLoading = status === "loading";
+  const isAuthed = status === "authenticated" && !!session?.user?.email;
+
   const { theme, toggleTheme } = useTheme();
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const { systemMode, setSystemMode } = useSystemMode();
 
   const {
@@ -50,16 +31,19 @@ export default function ChatApp() {
     selectedConversationId,
     setSelectedConversationId,
     createConversation,
-    creatingConversation,
+    refreshConversations,
     renameConversationOptimistic,
     renameConversationFinal,
-    deleteConversation,
-    deleteAllConversations,
-    refreshConversations,
   } = useConversation();
 
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [creatingConversation, setCreatingConversation] = useState(false);
+
+  const [isStreaming, setIsStreaming] = useState(false);
   const [streamingAssistant, setStreamingAssistant] = useState(null);
+  const [streamingSources, setStreamingSources] = useState([]);
+  const [streamingUrlContext, setStreamingUrlContext] = useState([]);
   const [regenerating, setRegenerating] = useState(false);
 
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
@@ -76,9 +60,7 @@ export default function ChatApp() {
 
   const setCookie = useCallback((name, value) => {
     if (typeof document === "undefined") return;
-    document.cookie = `${name}=${encodeURIComponent(
-      value
-    )}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=31536000`;
   }, []);
 
   useEffect(() => {
@@ -109,29 +91,20 @@ export default function ChatApp() {
     });
   }, [setCookie]);
 
-  const isAuthLoading = status === "loading";
-  const isAuthed = !!session?.user?.email;
-
-  const t = useMemo(() => {
-    const base = language === "en" ? tEn : tVi;
-    const fb = language === "en" ? T_EN_FALLBACK : T_VI_FALLBACK;
-    return { ...fb, ...(base || {}) };
-  }, [language]);
-
-  const normalizeMessages = useCallback((raw) => {
-    const arr = Array.isArray(raw) ? raw : [];
-    return arr
-      .filter((m) => m && typeof m === "object")
-      .filter((m) => typeof m.role === "string" && m.role.length > 0)
-      .map((m) => ({
-        ...m,
-        content: typeof m.content === "string" ? m.content : String(m.content ?? ""),
-      }));
-  }, []);
-
   const scrollRef = useRef(null);
-  const [messages, setMessages] = useState([]);
-  const [isStreaming, setIsStreaming] = useState(false);
+
+  const normalizeMessages = useCallback((arr) => {
+    const safe = Array.isArray(arr) ? arr : [];
+    return safe
+      .map((m) => ({
+        id: m?.id,
+        role: m?.role,
+        content: typeof m?.content === "string" ? m.content : String(m?.content ?? ""),
+        sources: Array.isArray(m?.sources) ? m.sources : [],
+        urlContext: Array.isArray(m?.urlContext) ? m.urlContext : [],
+      }))
+      .filter((m) => m.role === "user" || m.role === "assistant");
+  }, []);
 
   const renderedMessages = useMemo(
     () => normalizeMessages(messages),
@@ -174,26 +147,38 @@ export default function ChatApp() {
     streamingAssistantRef.current = streamingAssistant;
   }, [streamingAssistant]);
 
-  const handleSend = async (overrideText) => {
+  const handleSend = async (overrideText, options = {}) => {
     if (!isAuthed) return;
     if (creatingConversation) return;
 
     const text = (overrideText ?? input).trim();
     if (!text) return;
 
+    const regenerate = Boolean(options?.regenerate);
+    const skipUserAppend = Boolean(options?.skipUserAppend);
+
     setInput("");
     setIsStreaming(true);
     setStreamingAssistant("");
+    setStreamingSources([]);
+    setStreamingUrlContext([]);
 
-    const userMsg = { role: "user", content: text };
-    setMessages((prev) => [...normalizeMessages(prev), userMsg]);
+    if (!skipUserAppend) {
+      const userMsg = { role: "user", content: text };
+      setMessages((prev) => [...normalizeMessages(prev), userMsg]);
+    }
 
     let convId = selectedConversationId;
 
     if (!convId) {
-      const conv = await createConversation();
-      convId = conv?.id;
-      if (convId) setSelectedConversationId(convId);
+      setCreatingConversation(true);
+      try {
+        const conv = await createConversation();
+        convId = conv?.id;
+        if (convId) setSelectedConversationId(convId);
+      } finally {
+        setCreatingConversation(false);
+      }
     }
 
     try {
@@ -203,6 +188,7 @@ export default function ChatApp() {
         body: JSON.stringify({
           conversationId: convId,
           content: text,
+          regenerate,
           systemMode,
           language,
         }),
@@ -213,6 +199,8 @@ export default function ChatApp() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let localSources = [];
+      let localUrlContext = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -257,18 +245,39 @@ export default function ChatApp() {
             if (data?.type === "finalTitle" && data?.title) {
               renameConversationFinal(data.conversationId, data.title || "New Chat");
             }
+
+            if (data?.type === "sources") {
+              const nextSources = Array.isArray(data?.sources) ? data.sources : [];
+              localSources = nextSources;
+              setStreamingSources(nextSources);
+            }
+
+            if (data?.type === "urlContext") {
+              const nextUrls = Array.isArray(data?.urls) ? data.urls : [];
+              localUrlContext = nextUrls;
+              setStreamingUrlContext(nextUrls);
+            }
           }
         }
       }
 
       const finalAssistant = streamingAssistantRef.current || "";
-      const assistantMsg = { role: "assistant", content: finalAssistant };
+      const assistantMsg = {
+        role: "assistant",
+        content: finalAssistant,
+        sources: Array.isArray(localSources) ? localSources : [],
+        urlContext: Array.isArray(localUrlContext) ? localUrlContext : [],
+      };
 
       setMessages((prev) => [...normalizeMessages(prev), assistantMsg]);
       setStreamingAssistant(null);
+      setStreamingSources([]);
+      setStreamingUrlContext([]);
     } catch (e) {
       console.error(e);
       setStreamingAssistant(null);
+      setStreamingSources([]);
+      setStreamingUrlContext([]);
     } finally {
       setIsStreaming(false);
     }
@@ -283,15 +292,21 @@ export default function ChatApp() {
     try {
       const safe = normalizeMessages(messages);
       const lastUser = [...safe].reverse().find((m) => m.role === "user");
-      if (!lastUser) return;
+      if (!lastUser?.content) return;
 
-      setMessages((prev) => normalizeMessages(prev).filter((m) => m.role !== "assistant"));
-      setStreamingAssistant("");
-      setIsStreaming(true);
+      // Optimistic UI: remove the last assistant message only (keep user turns intact)
+      setMessages((prev) => {
+        const arr = normalizeMessages(prev);
+        for (let i = arr.length - 1; i >= 0; i--) {
+          if (arr[i]?.role === "assistant") {
+            return [...arr.slice(0, i), ...arr.slice(i + 1)];
+          }
+        }
+        return arr;
+      });
 
-      await handleSend(lastUser.content);
+      await handleSend(lastUser.content, { regenerate: true, skipUserAppend: true });
     } finally {
-      setIsStreaming(false);
       setRegenerating(false);
     }
   };
@@ -306,27 +321,28 @@ export default function ChatApp() {
 
   if (!isAuthed) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center gap-4 bg-neutral-950 text-neutral-200">
-        <div className="text-lg font-semibold">Vikini</div>
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-neutral-950 text-neutral-200">
+        <div className="text-lg font-semibold mb-2">Vikini</div>
+        <div className="text-sm text-neutral-400 mb-6">
+          Vui lòng đăng nhập để tiếp tục.
+        </div>
         <button
           onClick={() => signIn("google")}
-          className="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 transition"
+          className="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-medium text-black hover:opacity-90"
         >
-          Sign in with Google
+          Đăng nhập bằng Google
         </button>
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-screen bg-neutral-950 text-neutral-100 flex overflow-hidden">
+    <div className="h-screen w-screen flex bg-neutral-950 text-neutral-100">
       <Sidebar
         conversations={conversations}
         selectedConversationId={selectedConversationId}
         onSelectConversation={handleSelectConversation}
         onNewChat={handleNewChat}
-        onDeleteConversation={deleteConversation}
-        onDeleteAll={deleteAllConversations}
         onRefresh={refreshConversations}
         t={t}
       />
@@ -357,7 +373,12 @@ export default function ChatApp() {
 
             {streamingAssistant !== null && (
               <ChatBubble
-                message={{ role: "assistant", content: streamingAssistant }}
+                message={{
+                  role: "assistant",
+                  content: streamingAssistant,
+                  sources: streamingSources,
+                  urlContext: streamingUrlContext,
+                }}
                 isLastAssistant
                 canRegenerate
                 onRegenerate={handleRegenerate}
@@ -367,56 +388,50 @@ export default function ChatApp() {
           </div>
         </div>
 
-        <div className="sticky bottom-0 bg-neutral-950 border-t border-neutral-800">
-          <div className="max-w-3xl mx-auto w-full">
-            <div className="flex items-center justify-between px-4 pt-3 pb-2">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={webSearchEnabled}
-                  onClick={toggleWebSearch}
-                  className={[
-                    "relative inline-flex h-6 w-11 items-center rounded-full border transition",
-                    webSearchEnabled ? "bg-neutral-200 border-neutral-200" : "bg-neutral-800 border-neutral-700",
-                  ].join(" ")}
-                >
-                  <span
-                    className={[
-                      "inline-block h-5 w-5 transform rounded-full bg-neutral-950 transition",
-                      webSearchEnabled ? "translate-x-5" : "translate-x-1",
-                    ].join(" ")}
-                  />
-                </button>
+        <div className="max-w-3xl mx-auto w-full">
+          <div className="px-4 pt-1 flex items-center justify-between">
+            <button
+              onClick={toggleWebSearch}
+              className={[
+                "text-xs px-3 py-1.5 rounded-full ring-1 transition",
+                webSearchEnabled
+                  ? "bg-neutral-900 ring-neutral-700 text-neutral-100"
+                  : "bg-neutral-950 ring-neutral-800 text-neutral-400 hover:text-neutral-200",
+              ].join(" ")}
+              title="Bật/Tắt Web Search"
+              type="button"
+            >
+              Web Search: {webSearchEnabled ? "ON" : "OFF"}
+            </button>
 
-                <div className="text-xs text-neutral-300">
-                  {language === "vi" ? "Tìm trên web" : "Web search"}
-                </div>
-              </div>
+            <button
+              onClick={() => signOut()}
+              className="text-xs text-neutral-500 hover:text-neutral-200"
+              type="button"
+            >
+              {t.signOut}
+            </button>
+          </div>
 
-              <div className="text-xs text-neutral-500">
-                {webSearchEnabled ? (language === "vi" ? "Bật" : "On") : language === "vi" ? "Tắt" : "Off"}
-              </div>
-            </div>
+          <InputForm
+            input={input}
+            onChangeInput={setInput}
+            onSubmit={() => handleSend()}
+            disabled={creatingConversation || !input.trim() || isStreaming || regenerating}
+            t={t}
+          />
 
-            <InputForm
-              input={input}
-              onChangeInput={setInput}
-              onSubmit={() => handleSend()}
-              disabled={creatingConversation || !input.trim() || isStreaming || regenerating}
-              t={t}
-            />
+          <div className="px-4 pb-3 flex items-center justify-between text-xs text-neutral-500">
+            <button
+              onClick={handleNewChat}
+              className="hover:text-neutral-200"
+              type="button"
+            >
+              {t.newChat}
+            </button>
 
-            <div className="px-4 pb-3 flex items-center justify-between text-xs text-neutral-500">
-              <button
-                onClick={handleRegenerate}
-                disabled={isStreaming || regenerating || renderedMessages.length === 0}
-                className="hover:text-neutral-300 transition disabled:opacity-50 disabled:hover:text-neutral-500"
-              >
-                {t.regenerate}
-              </button>
-
-              <div className="truncate">{session?.user?.email || ""}</div>
+            <div className="text-neutral-600">
+              {isStreaming ? "Streaming..." : "Ready"}
             </div>
           </div>
         </div>
