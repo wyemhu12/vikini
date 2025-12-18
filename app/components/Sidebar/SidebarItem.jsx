@@ -1,4 +1,3 @@
-// app/components/Sidebar/SidebarItem.jsx
 "use client";
 
 import { memo } from "react";
@@ -14,7 +13,8 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
           ? "bg-neutral-800 text-white"
           : "text-neutral-400 hover:bg-neutral-900"
       }`}
-      onClick={() => onSelect(c.id)}
+      onClick={() => onSelect?.(c.id)}
+      type="button"
     >
       {/* TITLE */}
       <span className="flex-1 flex items-center gap-2 min-w-0">
@@ -26,18 +26,22 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
         <span
           onClick={(e) => {
             e.stopPropagation();
-            onRename(c.id);
+            if (typeof onRename === "function") onRename(c.id);
           }}
           className="cursor-pointer rounded px-1 py-0.5 text-[10px] text-neutral-400 hover:bg-neutral-700"
+          title="Rename"
+          role="button"
         >
           ✏
         </span>
         <span
           onClick={(e) => {
             e.stopPropagation();
-            onDelete(c.id);
+            if (typeof onDelete === "function") onDelete(c.id);
           }}
           className="cursor-pointer rounded px-1 py-0.5 text-[10px] text-neutral-400 hover:bg-red-600 hover:text-white"
+          title="Delete"
+          role="button"
         >
           🗑
         </span>
@@ -46,5 +50,4 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
   );
 }
 
-// memo để tránh re-render toàn bộ list khi chỉ 1 conv đổi
 export default memo(SidebarItem);

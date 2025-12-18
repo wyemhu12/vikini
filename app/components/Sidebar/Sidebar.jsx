@@ -1,4 +1,3 @@
-// app/components/Sidebar/Sidebar.jsx
 "use client";
 
 import Link from "next/link";
@@ -34,7 +33,6 @@ export default function Sidebar({
     : [];
 
   const currentId = activeId ?? selectedConversationId ?? null;
-
   const href = currentId ? `/gems?conversationId=${currentId}` : "/gems";
 
   const handleSelect = (id) => {
@@ -47,8 +45,65 @@ export default function Sidebar({
     onCloseMobile?.();
   };
 
+  // ---------- Fallback API calls ----------
+  const renameFallback = async (id) => {
+    try {
+      const current = list.find((c) => c?.id === id);
+      const curTitle = current?.title || "";
+      const nextTitle = window.prompt("Đổi tên cuộc hội thoại:", curTitle);
+      if (nextTitle === null) return; // cancel
+      const title = String(nextTitle).trim();
+      if (!title) return;
+
+      const res = await fetch("/api/conversations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, title }),
+      });
+
+      if (!res.ok) throw new Error("Rename failed");
+      await onRefresh?.();
+    } catch (e) {
+      console.error(e);
+      alert("Không đổi tên được. Vui lòng thử lại.");
+    }
+  };
+
+  const deleteFallback = async (id) => {
+    try {
+      const ok = window.confirm("Xoá cuộc hội thoại này?");
+      if (!ok) return;
+
+      const res = await fetch("/api/conversations", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+
+      if (!res.ok) throw new Error("Delete failed");
+
+      // If deleting active conversation, switch to another one (if any)
+      if (currentId === id) {
+        const next = list.find((c) => c?.id && c.id !== id);
+        if (next?.id) handleSelect(next.id);
+      }
+
+      await onRefresh?.();
+    } catch (e) {
+      console.error(e);
+      alert("Không xoá được. Vui lòng thử lại.");
+    }
+  };
+
+  const handleRename = (id) => {
+    if (typeof onRenameChat === "function") return onRenameChat(id);
+    return renameFallback(id);
+  };
+
   const handleDelete = (id) => {
-    (onDeleteChat ?? onDeleteConversation)?.(id);
+    const fn = onDeleteChat ?? onDeleteConversation;
+    if (typeof fn === "function") return fn(id);
+    return deleteFallback(id);
   };
 
   const content = (
@@ -57,6 +112,7 @@ export default function Sidebar({
       <button
         onClick={handleNew}
         className="mb-2 w-full rounded-lg bg-[var(--primary)] px-3 py-2 text-black text-sm"
+        type="button"
       >
         {t?.newChat}
       </button>
@@ -78,7 +134,7 @@ export default function Sidebar({
             conversation={c}
             isActive={c.id === currentId}
             onSelect={handleSelect}
-            onRename={onRenameChat}
+            onRename={handleRename}
             onDelete={handleDelete}
           />
         ))}
@@ -91,6 +147,7 @@ export default function Sidebar({
             <button
               onClick={() => onRefresh?.()}
               className="rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
+              type="button"
             >
               {t?.refresh || "Refresh"}
             </button>
@@ -100,6 +157,7 @@ export default function Sidebar({
             <button
               onClick={() => onDeleteAll?.()}
               className="rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
+              type="button"
             >
               {t?.deleteAll || "Delete all"}
             </button>
@@ -115,6 +173,7 @@ export default function Sidebar({
             onCloseMobile?.();
           }}
           className="mt-4 rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
+          type="button"
         >
           {t?.logout || t?.signOut || "Log out"}
         </button>
@@ -167,6 +226,7 @@ export default function Sidebar({
                 onClick={() => onCloseMobile?.()}
                 className="rounded-md border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-900"
                 aria-label="Close sidebar"
+                type="button"
               >
                 ✕
               </button>
