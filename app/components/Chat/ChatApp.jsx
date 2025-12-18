@@ -14,8 +14,6 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { useSystemMode } from "../../hooks/useSystemMode";
 import { useConversation } from "../../hooks/useConversation";
 
-const Bool = Boolean;
-
 export default function ChatApp() {
   const { data: session, status } = useSession();
 
@@ -23,8 +21,26 @@ export default function ChatApp() {
   const isAuthed = status === "authenticated" && !!session?.user?.email;
 
   const { theme, toggleTheme } = useTheme();
-  const { language, setLanguage, t } = useLanguage();
+  const { language, setLanguage, t: tRaw } = useLanguage();
   const { systemMode, setSystemMode } = useSystemMode();
+
+  const t = useMemo(() => {
+    // make UI resilient if useLanguage() returns undefined briefly
+    if (typeof tRaw === "function") {
+      return {
+        signOut: tRaw("signOut") ?? "Sign out",
+        newChat: tRaw("newChat") ?? "New Chat",
+      };
+    }
+    if (tRaw && typeof tRaw === "object") {
+      return {
+        signOut: tRaw.signOut ?? "Sign out",
+        newChat: tRaw.newChat ?? "New Chat",
+        ...tRaw,
+      };
+    }
+    return { signOut: "Sign out", newChat: "New Chat" };
+  }, [tRaw, language]);
 
   const {
     conversations,
@@ -294,7 +310,6 @@ export default function ChatApp() {
       const lastUser = [...safe].reverse().find((m) => m.role === "user");
       if (!lastUser?.content) return;
 
-      // Optimistic UI: remove the last assistant message only (keep user turns intact)
       setMessages((prev) => {
         const arr = normalizeMessages(prev);
         for (let i = arr.length - 1; i >= 0; i--) {
@@ -422,17 +437,11 @@ export default function ChatApp() {
           />
 
           <div className="px-4 pb-3 flex items-center justify-between text-xs text-neutral-500">
-            <button
-              onClick={handleNewChat}
-              className="hover:text-neutral-200"
-              type="button"
-            >
+            <button onClick={handleNewChat} className="hover:text-neutral-200" type="button">
               {t.newChat}
             </button>
 
-            <div className="text-neutral-600">
-              {isStreaming ? "Streaming..." : "Ready"}
-            </div>
+            <div className="text-neutral-600">{isStreaming ? "Streaming..." : "Ready"}</div>
           </div>
         </div>
       </div>
