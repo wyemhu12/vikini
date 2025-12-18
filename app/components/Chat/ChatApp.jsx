@@ -58,7 +58,11 @@ export default function ChatApp() {
     refreshConversations,
     renameConversationOptimistic,
     renameConversationFinal,
-  } = useConversation();
+
+    // ✅ add these two
+    renameConversation,
+    deleteConversation,
+  } = useConversation(); // :contentReference[oaicite:5]{index=5}
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -87,7 +91,12 @@ export default function ChatApp() {
   const setCookie = useCallback((name, value) => {
     if (typeof document === "undefined") return;
 
-    const parts = [`${name}=${encodeURIComponent(value)}`, "path=/", "max-age=31536000", "samesite=lax"];
+    const parts = [
+      `${name}=${encodeURIComponent(value)}`,
+      "path=/",
+      "max-age=31536000",
+      "samesite=lax",
+    ];
     try {
       if (typeof window !== "undefined" && window.location?.protocol === "https:") {
         parts.push("secure");
@@ -175,6 +184,55 @@ export default function ChatApp() {
     }
   };
 
+  // ✅ Wire rename/delete so Sidebar won't use fallback logic
+  const handleRenameFromSidebar = useCallback(
+    async (id) => {
+      try {
+        const current = (Array.isArray(conversations) ? conversations : []).find((c) => c?.id === id);
+        const curTitle = current?.title || "";
+        const nextTitle = window.prompt("Đổi tên cuộc hội thoại:", curTitle);
+        if (nextTitle === null) return;
+
+        const title = String(nextTitle).trim();
+        if (!title) return;
+
+        // Optimistic first
+        renameConversationOptimistic(id, title);
+        await renameConversation(id, title);
+      } catch (e) {
+        console.error(e);
+        alert("Không đổi tên được. Vui lòng thử lại.");
+      }
+    },
+    [conversations, renameConversation, renameConversationOptimistic]
+  );
+
+  const handleDeleteFromSidebar = useCallback(
+    async (id) => {
+      try {
+        const ok = window.confirm("Xoá cuộc hội thoại này?");
+        if (!ok) return;
+
+        // Optimistic delete in hook (updates sidebar immediately)
+        await deleteConversation(id);
+
+        // If deleting currently opened conversation, clear UI messages immediately
+        if (selectedConversationId === id) {
+          setMessages([]);
+          setStreamingAssistant(null);
+          setInput("");
+        }
+
+        // Best-effort revalidate
+        await refreshConversations();
+      } catch (e) {
+        console.error(e);
+        alert("Không xoá được. Vui lòng thử lại.");
+      }
+    },
+    [deleteConversation, refreshConversations, selectedConversationId]
+  );
+
   const streamingAssistantRef = useRef(streamingAssistant);
   useEffect(() => {
     streamingAssistantRef.current = streamingAssistant;
@@ -218,7 +276,7 @@ export default function ChatApp() {
       const res = await fetch("/api/chat-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "same-origin", // ✅ ensure cookie is sent
+        credentials: "same-origin",
         body: JSON.stringify({
           conversationId: convId,
           content: text,
@@ -292,13 +350,9 @@ export default function ChatApp() {
               setStreamingUrlContext(nextUrls);
             }
 
-            // ✅ NEW: observe server-side web search enablement
             if (data?.type === "webSearch") {
               if (typeof data?.enabled === "boolean") setServerWebSearch(data.enabled);
               if (typeof data?.available === "boolean") setServerWebSearchAvailable(data.available);
-
-              // Optional: helpful when debugging
-              // console.log("webSearch meta:", data);
             }
           }
         }
@@ -365,9 +419,7 @@ export default function ChatApp() {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-neutral-950 text-neutral-200">
         <div className="text-lg font-semibold mb-2">Vikini</div>
-        <div className="text-sm text-neutral-400 mb-6">
-          Vui lòng đăng nhập để tiếp tục.
-        </div>
+        <div className="text-sm text-neutral-400 mb-6">Vui lòng đăng nhập để tiếp tục.</div>
         <button
           onClick={() => signIn("google")}
           className="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-medium text-black hover:opacity-90"
@@ -393,6 +445,9 @@ export default function ChatApp() {
         onSelectConversation={handleSelectConversation}
         onNewChat={handleNewChat}
         onRefresh={refreshConversations}
+        // ✅ Important: wire actions to avoid Sidebar fallback
+        onDeleteConversation={handleDeleteFromSidebar}
+        onRenameChat={handleRenameFromSidebar}
         t={t}
       />
 
