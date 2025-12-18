@@ -105,10 +105,11 @@ async function checkpointSummaryIfNeeded(conversationId) {
 
   let summary = "";
   try {
+    // ✅ @google/genai uses `config` (not generationConfig)
     const res = await ai.models.generateContent({
       model,
       contents: [{ role: "user", parts: [{ text: summaryPrompt }] }],
-      generationConfig: { temperature: 0.2 },
+      config: { temperature: 0.2 },
     });
     summary = safeText(res).trim();
   } catch {
@@ -170,10 +171,9 @@ export async function POST(req) {
     const URL_CONTEXT_ENABLED = envFlag(process.env.URL_CONTEXT_ENABLED, false);
 
     const cookies = parseCookies(req.headers.get("cookie") || "");
-    const enableWebSearch =
-      WEB_SEARCH_ENABLED && cookies["vikini_web_search"] === "1";
+    const cookieWeb = cookies["vikini_web_search"];
 
-    // urlContext only when URL exists in content, and feature enabled
+    const enableWebSearch = WEB_SEARCH_ENABLED && cookieWeb === "1";
     const enableUrlContext = URL_CONTEXT_ENABLED && hasUrl(content);
 
     // Ensure conversation exists
@@ -193,7 +193,6 @@ export async function POST(req) {
     }
 
     if (regenerate) {
-      // Best-effort: remove the last assistant turn so we can re-generate it
       try {
         await removeLastFromContextIfRole(conversationId, "assistant");
       } catch {}
@@ -202,13 +201,11 @@ export async function POST(req) {
         await deleteLastAssistantMessage(userId, conversationId);
       } catch {}
     } else {
-      // --- Redis: append USER message ---
       await appendToContext(conversationId, {
         role: "user",
         content,
       });
 
-      // --- DB: persist USER message ---
       await saveMessage({
         conversationId,
         userId,
@@ -216,7 +213,6 @@ export async function POST(req) {
         content,
       });
 
-      // Try summarize if overflow
       await checkpointSummaryIfNeeded(conversationId);
     }
 
@@ -228,7 +224,6 @@ export async function POST(req) {
       sysPrompt = "";
     }
 
-    // keep minimal systemMode/language influence (existing behavior)
     if (systemMode === "strict") {
       sysPrompt = `${sysPrompt}\n\nBe precise, structured, and avoid speculation.`;
     } else if (systemMode === "friendly") {
@@ -241,7 +236,6 @@ export async function POST(req) {
       sysPrompt = `${sysPrompt}\n\nTrả lời bằng tiếng Việt.`;
     }
 
-    // Add running summary if exists
     const runningSummary = (await getSummary(conversationId)) || "";
     if (runningSummary?.trim()) {
       sysPrompt = `${sysPrompt}\n\n[Conversation summary for context]\n${runningSummary}`;
@@ -251,7 +245,6 @@ export async function POST(req) {
     if (enableWebSearch) tools.push({ googleSearch: {} });
     if (enableUrlContext) tools.push({ urlContext: {} });
 
-    // Build model context from Redis
     const contextMessages = await getContext(conversationId, CONTEXT_MESSAGE_LIMIT);
     const contents = mapMessages(contextMessages);
 
@@ -260,7 +253,6 @@ export async function POST(req) {
 
     const stream = new ReadableStream({
       async start(controller) {
-        // 1) META: conversation created
         if (createdConversation) {
           try {
             sendEvent(controller, "meta", {
@@ -270,14 +262,16 @@ export async function POST(req) {
           } catch {}
         }
 
+        // ✅ Debug meta: let client see if server *actually* enabled tools
         try {
           sendEvent(controller, "meta", {
             type: "webSearch",
             enabled: enableWebSearch,
+            available: WEB_SEARCH_ENABLED,
+            cookie: cookieWeb === "1" ? "1" : cookieWeb === "0" ? "0" : "",
           });
         } catch {}
 
-        // 2) OPTIMISTIC TITLE
         if (!regenerate) {
           try {
             const optimisticTitle = await generateOptimisticTitle(content);
@@ -291,22 +285,22 @@ export async function POST(req) {
           } catch {}
         }
 
-        // 3) STREAM
         let full = "";
         let groundingMetadata = null;
         let urlContextMetadata = null;
 
         try {
+          // ✅ @google/genai expects everything in `config`
           const config = {
             systemInstruction: sysPrompt,
             temperature: 0,
+            ...(tools.length > 0 ? { tools } : {}),
           };
 
           const res = await ai.models.generateContentStream({
             model,
             contents,
-            tools,
-            generationConfig: config,
+            config,
           });
 
           for await (const chunk of res) {
@@ -316,7 +310,6 @@ export async function POST(req) {
               sendEvent(controller, "token", { t });
             }
 
-            // Capture tool metadata if available
             try {
               const cand = chunk?.candidates?.[0];
               if (cand?.groundingMetadata) groundingMetadata = cand.groundingMetadata;
@@ -331,7 +324,6 @@ export async function POST(req) {
           } catch {}
         }
 
-        // Optional: expose tool metadata so the client can render citations / debug
         try {
           if (groundingMetadata) {
             const chunks = groundingMetadata?.groundingChunks || [];
@@ -364,17 +356,14 @@ export async function POST(req) {
           }
         } catch {}
 
-        // 4) POST STREAM
         try {
           const trimmed = full.trim();
           if (trimmed) {
-            // Redis append ASSISTANT
             await appendToContext(conversationId, {
               role: "assistant",
               content: trimmed,
             });
 
-            // DB persist ASSISTANT
             await saveMessage({
               conversationId,
               userId,
@@ -382,7 +371,6 @@ export async function POST(req) {
               content: trimmed,
             });
 
-            // FINAL TITLE
             if (!regenerate) {
               const finalTitle = await generateFinalTitle({
                 userId,
@@ -404,7 +392,6 @@ export async function POST(req) {
           console.error("post-stream error:", err);
         }
 
-        // 5) DONE
         try {
           sendEvent(controller, "done", { ok: true });
         } catch {}

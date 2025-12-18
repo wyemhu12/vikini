@@ -25,21 +25,29 @@ export default function ChatApp() {
   const { systemMode, setSystemMode } = useSystemMode();
 
   const t = useMemo(() => {
-    // make UI resilient if useLanguage() returns undefined briefly
     if (typeof tRaw === "function") {
       return {
         signOut: tRaw("signOut") ?? "Sign out",
         newChat: tRaw("newChat") ?? "New Chat",
+        send: tRaw("send") ?? "Send",
+        placeholder: tRaw("placeholder") ?? "Nhập tin nhắn...",
       };
     }
     if (tRaw && typeof tRaw === "object") {
       return {
         signOut: tRaw.signOut ?? "Sign out",
         newChat: tRaw.newChat ?? "New Chat",
+        send: tRaw.send ?? "Send",
+        placeholder: tRaw.placeholder ?? "Nhập tin nhắn...",
         ...tRaw,
       };
     }
-    return { signOut: "Sign out", newChat: "New Chat" };
+    return {
+      signOut: "Sign out",
+      newChat: "New Chat",
+      send: "Send",
+      placeholder: "Nhập tin nhắn...",
+    };
   }, [tRaw, language]);
 
   const {
@@ -63,6 +71,8 @@ export default function ChatApp() {
   const [regenerating, setRegenerating] = useState(false);
 
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [serverWebSearch, setServerWebSearch] = useState(null); // null | boolean
+  const [serverWebSearchAvailable, setServerWebSearchAvailable] = useState(null); // null | boolean
 
   const getCookie = useCallback((name) => {
     if (typeof document === "undefined") return null;
@@ -76,7 +86,14 @@ export default function ChatApp() {
 
   const setCookie = useCallback((name, value) => {
     if (typeof document === "undefined") return;
-    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=31536000`;
+
+    const parts = [`${name}=${encodeURIComponent(value)}`, "path=/", "max-age=31536000", "samesite=lax"];
+    try {
+      if (typeof window !== "undefined" && window.location?.protocol === "https:") {
+        parts.push("secure");
+      }
+    } catch {}
+    document.cookie = parts.join("; ");
   }, []);
 
   useEffect(() => {
@@ -201,6 +218,7 @@ export default function ChatApp() {
       const res = await fetch("/api/chat-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin", // ✅ ensure cookie is sent
         body: JSON.stringify({
           conversationId: convId,
           content: text,
@@ -272,6 +290,15 @@ export default function ChatApp() {
               const nextUrls = Array.isArray(data?.urls) ? data.urls : [];
               localUrlContext = nextUrls;
               setStreamingUrlContext(nextUrls);
+            }
+
+            // ✅ NEW: observe server-side web search enablement
+            if (data?.type === "webSearch") {
+              if (typeof data?.enabled === "boolean") setServerWebSearch(data.enabled);
+              if (typeof data?.available === "boolean") setServerWebSearchAvailable(data.available);
+
+              // Optional: helpful when debugging
+              // console.log("webSearch meta:", data);
             }
           }
         }
@@ -351,6 +378,13 @@ export default function ChatApp() {
     );
   }
 
+  const serverHint =
+    serverWebSearchAvailable === false
+      ? " (server: feature OFF)"
+      : serverWebSearch === false && webSearchEnabled
+      ? " (server: OFF)"
+      : "";
+
   return (
     <div className="h-screen w-screen flex bg-neutral-950 text-neutral-100">
       <Sidebar
@@ -417,6 +451,7 @@ export default function ChatApp() {
               type="button"
             >
               Web Search: {webSearchEnabled ? "ON" : "OFF"}
+              {webSearchEnabled ? serverHint : ""}
             </button>
 
             <button
