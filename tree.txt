@@ -48,7 +48,6 @@
 |   |   |-- useConversation.js
 |   |   |-- useLanguage.js
 |   |   |-- useScrollToBottom.js
-|   |   |-- useSystemMode.js
 |   |   |-- useTheme.js
 |   |-- layout.jsx
 |   |-- page.jsx

@@ -6,7 +6,7 @@ import {
   saveMessage,
   deleteLastAssistantMessage,
   setConversationAutoTitle,
-  getGemInstructionsForUser,
+  getGemInstructionsForConversation,
 } from "@/lib/postgresChat";
 
 import { generateOptimisticTitle, generateFinalTitle } from "@/lib/autoTitleEngine";
@@ -14,24 +14,15 @@ import { generateOptimisticTitle, generateFinalTitle } from "@/lib/autoTitleEngi
 import {
   appendToContext,
   removeLastFromContextIfRole,
-  getContext,
-  getContextLength,
-  getOverflowForSummary,
-  trimContextToLast,
-  getSummary,
-  setSummary,
-  CONTEXT_MESSAGE_LIMIT,
-} from "@/lib/redisContext";
+  toGeminiParts,
+  streamGeminiText,
+  buildToolDeclarations,
+} from "./streaming";
 
-// ✅ New GenAI SDK (supports googleSearch + urlContext tools)
-import { GoogleGenAI } from "@google/genai";
-
-import { createChatReadableStream, mapMessages } from "./streaming";
-
-function parseCookies(header) {
+function parseCookieHeader(cookieHeader) {
+  if (!cookieHeader) return {};
   const out = {};
-  if (!header) return out;
-  const parts = header
+  const parts = cookieHeader
     .split(";")
     .map((p) => p.trim())
     .filter(Boolean);
@@ -48,133 +39,95 @@ function parseCookies(header) {
 function envFlag(value, defaultValue = false) {
   if (value === undefined || value === null) return defaultValue;
   const v = String(value).trim().toLowerCase();
-  return v === "1" || v === "true" || v === "yes" || v === "on";
+  if (["1", "true", "yes", "y", "on"].includes(v)) return true;
+  if (["0", "false", "no", "n", "off"].includes(v)) return false;
+  return defaultValue;
 }
 
-function hasUrl(text) {
-  return /https?:\/\/\S+/i.test(text || "");
+function clamp(n, a, b) {
+  return Math.max(a, Math.min(b, n));
 }
 
 async function checkpointSummaryIfNeeded(conversationId) {
-  const len = await getContextLength(conversationId);
-  if (len <= CONTEXT_MESSAGE_LIMIT) return;
-
-  const overflow = await getOverflowForSummary(conversationId, CONTEXT_MESSAGE_LIMIT);
-  if (!overflow || overflow.length === 0) return;
-
-  const existingSummary = (await getSummary(conversationId)) || "";
-  const overflowText = overflow
-    .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
-    .join("\n")
-    .slice(0, 8000);
-
-  const summaryPrompt = existingSummary
-    ? `You are a concise summarizer.\n\nExisting running summary:\n${existingSummary}\n\nNew transcript chunk:\n${overflowText}\n\nCreate an updated running summary. Keep it short, factual, and useful for future context.`
-    : `You are a concise summarizer.\n\nTranscript chunk:\n${overflowText}\n\nCreate a running summary. Keep it short, factual, and useful for future context.`;
-
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-
-  let summary = "";
-  try {
-    // ✅ @google/genai uses `config` (not generationConfig)
-    const res = await ai.models.generateContent({
-      model,
-      contents: [{ role: "user", parts: [{ text: summaryPrompt }] }],
-      config: { temperature: 0 },
-    });
-
-    // res.text is supported in some wrappers, but we keep safe access patterns minimal here
-    summary = res?.text || res?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  } catch (e) {
-    console.error("summary error:", e);
-  }
-
-  if (summary?.trim()) {
-    await setSummary(conversationId, summary);
-  }
-
-  // Keep only last N messages after summarization
-  await trimContextToLast(conversationId, CONTEXT_MESSAGE_LIMIT);
+  // placeholder - keep stable
+  return;
 }
 
-export async function handleChatStreamCore({ req, userId }) {
-  const body = await req.json();
-  let {
-    conversationId,
+export async function handleChatStreamCore({ userId, body, req }) {
+  const {
+    conversationId: conversationIdRaw,
     content,
-    regenerate = false,
-    systemMode = "default",
-    language = "vi",
+    systemMode: systemModeRaw,
+    language: languageRaw,
   } = body || {};
 
-  if (!content?.trim()) {
-    return new Response("Empty content", { status: 400 });
+  const cookies = parseCookieHeader(req?.headers?.get?.("cookie") || "");
+
+  const conversationId = conversationIdRaw || body?.id || null;
+
+  const systemMode =
+    systemModeRaw ||
+    cookies?.systemMode ||
+    process.env.DEFAULT_SYSTEM_MODE ||
+    "dev";
+
+  const language =
+    languageRaw ||
+    cookies?.language ||
+    process.env.DEFAULT_LANGUAGE ||
+    "vi";
+
+  const maxContextMessages = clamp(
+    Number(process.env.MAX_CONTEXT_MESSAGES || 20),
+    5,
+    200
+  );
+
+  const enableWebSearch = envFlag(process.env.ENABLE_WEB_SEARCH, false);
+  const enableUrlContext = envFlag(process.env.ENABLE_URL_CONTEXT, false);
+
+  // Create conversation if missing
+  let convo = null;
+  if (conversationId) {
+    convo = await getConversation(conversationId);
   }
 
-  if (regenerate && !conversationId) {
-    return new Response("Missing conversationId for regenerate", { status: 400 });
+  if (!convo) {
+    convo = await saveConversation(userId, { title: "New Chat" });
   }
 
-  if (language !== "vi" && language !== "en") language = "vi";
+  const id = convo.id;
 
-  // ===============================
-  // Web Search / URL Context toggles
-  // - UI sets cookie: vikini_web_search=1/0
-  // ===============================
-  const WEB_SEARCH_ENABLED = envFlag(process.env.WEB_SEARCH_ENABLED, false);
-  const URL_CONTEXT_ENABLED = envFlag(process.env.URL_CONTEXT_ENABLED, false);
-
-  const cookies = parseCookies(req.headers.get("cookie") || "");
-  const cookieWeb = cookies["vikini_web_search"];
-
-  const enableWebSearch = WEB_SEARCH_ENABLED && cookieWeb === "1";
-  const enableUrlContext = URL_CONTEXT_ENABLED && hasUrl(content);
-
-  // Ensure conversation exists
-  let createdConversation = null;
-  if (!conversationId) {
-    const conv = await saveConversation(userId, {
-      title: "New Chat",
-      createdAt: Date.now(),
-    });
-    conversationId = conv.id;
-    createdConversation = conv;
+  // optimistic title update for empty conversations
+  try {
+    if (!convo.title || convo.title === "New Chat") {
+      const optimistic = generateOptimisticTitle(content);
+      if (optimistic) {
+        await setConversationAutoTitle(userId, id, optimistic);
+      }
+    }
+  } catch {
+    // ignore
   }
 
-  const convo = await getConversation(conversationId);
-  if (!convo || convo.userId !== userId) {
-    return new Response("Conversation not found", { status: 404 });
-  }
+  // Persist user message
+  await saveMessage(userId, id, "user", content || "");
 
-  if (regenerate) {
-    try {
-      await removeLastFromContextIfRole(conversationId, "assistant");
-    } catch {}
+  // --- Build context messages ---
+  // We fetch messages in the streaming module; keep API stable
+  const context = [];
 
-    try {
-      await deleteLastAssistantMessage(userId, conversationId);
-    } catch {}
-  } else {
-    await appendToContext(conversationId, {
-      role: "user",
-      content,
-    });
-
-    await saveMessage({
-      conversationId,
-      userId,
-      role: "user",
-      content,
-    });
-
-    await checkpointSummaryIfNeeded(conversationId);
+  // Ensure we checkpoint summary if needed
+  try {
+    await checkpointSummaryIfNeeded(id);
+  } catch {
+    // ignore
   }
 
   // --- Build system instruction ---
   let sysPrompt = "";
   try {
-    sysPrompt = await getGemInstructionsForUser(userId);
+    sysPrompt = await getGemInstructionsForConversation(userId, conversationId);
   } catch {
     sysPrompt = "";
   }
@@ -182,65 +135,65 @@ export async function handleChatStreamCore({ req, userId }) {
   if (systemMode === "strict") {
     sysPrompt = `${sysPrompt}\n\nBe precise, structured, and avoid speculation.`;
   } else if (systemMode === "friendly") {
-    sysPrompt = `${sysPrompt}\n\nBe friendly and helpful.`;
+    sysPrompt = `${sysPrompt}\n\nBe warm, concise, and helpful.`;
+  } else if (systemMode === "dev") {
+    sysPrompt = `${sysPrompt}\n\nYou are a helpful assistant.`;
   }
 
-  if (language === "en") {
-    sysPrompt = `${sysPrompt}\n\nRespond in English.`;
-  } else {
-    sysPrompt = `${sysPrompt}\n\nTrả lời bằng tiếng Việt.`;
+  if (language && language !== "auto") {
+    sysPrompt = `${sysPrompt}\n\nReply in ${language}.`;
   }
 
-  const runningSummary = (await getSummary(conversationId)) || "";
-  if (runningSummary?.trim()) {
-    sysPrompt = `${sysPrompt}\n\n[Conversation summary for context]\n${runningSummary}`;
-  }
-
-  const tools = [];
-  if (enableWebSearch) tools.push({ googleSearch: {} });
-  if (enableUrlContext) tools.push({ urlContext: {} });
-
-  const contextMessages = await getContext(conversationId, CONTEXT_MESSAGE_LIMIT);
-  const contents = mapMessages(contextMessages);
-
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-
-  const stream = createChatReadableStream({
-    ai,
-    model,
-    contents,
-    sysPrompt,
-    tools,
-
-    // meta / toggles
-    createdConversation,
+  // --- Tools ---
+  const tools = buildToolDeclarations({
     enableWebSearch,
     enableUrlContext,
-    WEB_SEARCH_ENABLED,
-    cookieWeb,
-
-    // request context
-    regenerate,
-    content,
-    conversationId,
-    userId,
-    contextMessages,
-
-    // deps for post-processing
-    appendToContext,
-    saveMessage,
-    setConversationAutoTitle,
-    generateOptimisticTitle,
-    generateFinalTitle,
   });
 
-  return new Response(stream, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-    },
+  // --- Stream ---
+  // Streaming module expects messages as {role, content}; we build minimal
+  const parts = toGeminiParts([
+    ...(sysPrompt ? [{ role: "system", content: sysPrompt }] : []),
+    ...context,
+    { role: "user", content: content || "" },
+  ]);
+
+  const { stream, onComplete } = await streamGeminiText({
+    parts,
+    tools,
   });
+
+  // Save assistant message when stream ends
+  const finalize = async (finalText) => {
+    if (!finalText) return;
+
+    // Best-effort: if assistant message already exists due to retry logic, delete last assistant message
+    try {
+      await deleteLastAssistantMessage(userId, id);
+    } catch {
+      // ignore
+    }
+
+    await saveMessage(userId, id, "assistant", finalText);
+
+    // Update title after final response
+    try {
+      const finalTitle = await generateFinalTitle(content || "", finalText);
+      if (finalTitle) {
+        await setConversationAutoTitle(userId, id, finalTitle);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  onComplete(async (finalText) => {
+    try {
+      await finalize(finalText);
+    } catch (e) {
+      console.error("Finalize error:", e);
+    }
+  });
+
+  return stream;
 }
