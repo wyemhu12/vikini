@@ -16,6 +16,9 @@
 |   |   |-- Chat
 |   |   |   |-- ChatApp.jsx
 |   |   |   |-- ChatBubble.jsx
+|   |   |   |-- hooks
+|   |   |   |   |-- useChatStreamController.js
+|   |   |   |   |-- useWebSearchPreference.js
 |   |   |   |-- InputForm.jsx
 |   |   |   |-- TitleItem.jsx
 |   |   |-- Layout
