@@ -1,6 +1,7 @@
 // /app/api/chat-stream/chatStreamCore.js
 
 import { GoogleGenAI } from "@google/genai";
+import { createClient } from "@supabase/supabase-js";
 
 import {
   getConversation,
@@ -9,11 +10,12 @@ import {
   deleteLastAssistantMessage,
   setConversationAutoTitle,
   getGemInstructionsForConversation,
+  getMessages,
 } from "@/lib/postgresChat";
 
 import { generateOptimisticTitle, generateFinalTitle } from "@/lib/autoTitleEngine";
 
-import { createChatReadableStream } from "./streaming";
+import { createChatReadableStream, mapMessages } from "./streaming";
 
 function parseCookieHeader(cookieHeader) {
   if (!cookieHeader) return {};
@@ -46,6 +48,80 @@ function pickFirstEnv(keys) {
     if (v && String(v).trim()) return String(v).trim();
   }
   return "";
+}
+
+function getSupabaseAdminCompat() {
+  const url = pickFirstEnv(["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"]);
+  const serviceKey = pickFirstEnv([
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_SERVICE_KEY",
+    "SUPABASE_SERVICE_ROLE",
+    "SUPABASE_SERVICE",
+  ]);
+
+  if (!url) throw new Error("Missing Supabase URL env (NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL)");
+  if (!serviceKey) throw new Error("Missing Supabase service role key env (SUPABASE_SERVICE_ROLE_KEY)");
+
+  return createClient(url, serviceKey, { auth: { persistSession: false } });
+}
+
+async function getGemInstructionsForConversationCompat({ userId, conversationId }) {
+  const supabase = getSupabaseAdminCompat();
+
+  // 1) Load conversation -> gem id (support snake_case + camelCase)
+  let gemId = null;
+  let owner = "";
+
+  const q1 = await supabase
+    .from("conversations")
+    .select("gem_id,user_id")
+    .eq("id", conversationId)
+    .maybeSingle();
+
+  if (!q1.error) {
+    gemId = q1.data?.gem_id ?? null;
+    owner = typeof q1.data?.user_id === "string" ? q1.data.user_id : "";
+  } else {
+    const q2 = await supabase
+      .from("conversations")
+      .select("gemId,userId")
+      .eq("id", conversationId)
+      .maybeSingle();
+
+    if (q2.error) throw new Error(q1.error?.message || q2.error.message);
+
+    gemId = q2.data?.gemId ?? null;
+    owner = typeof q2.data?.userId === "string" ? q2.data.userId : "";
+  }
+
+  if (owner && owner !== userId) throw new Error("Forbidden");
+  if (!gemId) return "";
+
+  // 2) Prefer gem_versions latest (non-fatal if table doesn't exist)
+  const vq = await supabase
+    .from("gem_versions")
+    .select("version,instructions")
+    .eq("gem_id", gemId)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!vq.error && typeof vq.data?.instructions === "string") return vq.data.instructions;
+
+  // 3) Fallback to gems legacy columns
+  const gq = await supabase
+    .from("gems")
+    .select("instruction,instructions")
+    .eq("id", gemId)
+    .maybeSingle();
+
+  if (gq.error) throw new Error(gq.error.message);
+
+  return (
+    (typeof gq.data?.instructions === "string" && gq.data.instructions) ||
+    (typeof gq.data?.instruction === "string" && gq.data.instruction) ||
+    ""
+  );
 }
 
 function jsonError(message, status = 500) {
@@ -151,10 +227,41 @@ export async function handleChatStreamCore({ req, userId }) {
 
   // GEM sysPrompt theo conversation
   let sysPrompt = "";
+  let gemLoadError = "";
   try {
     sysPrompt = await getGemInstructionsForConversation(userId, conversationId);
+  } catch (e) {
+    // Fallback: tolerate schema differences (camelCase) or missing columns.
+    try {
+      sysPrompt = await getGemInstructionsForConversationCompat({ userId, conversationId });
+    } catch (e2) {
+      gemLoadError = String(e?.message || e2?.message || "");
+      sysPrompt = "";
+    }
+  }
+
+  // Build full chat contents (history) để Gemini có đủ ngữ cảnh.
+  // Chỉ gửi: (1) nội dung tin nhắn trong cuộc hội thoại, (2) GEM system instruction.
+  let contextMessages = [];
+  let contents = [{ role: "user", parts: [{ text: content }] }];
+
+  try {
+    const rows = await getMessages(conversationId);
+    contextMessages = (Array.isArray(rows) ? rows : [])
+      .map((m) => ({ role: m?.role, content: m?.content }))
+      .filter(
+        (m) =>
+          (m?.role === "user" || m?.role === "assistant") &&
+          typeof m?.content === "string" &&
+          m.content.trim()
+      );
+
+    const mapped = mapMessages(contextMessages);
+    if (Array.isArray(mapped) && mapped.length > 0) {
+      contents = mapped;
+    }
   } catch {
-    sysPrompt = "";
+    // Fallback: giữ contents chỉ gồm message hiện tại
   }
 
   /**
@@ -169,10 +276,6 @@ export async function handleChatStreamCore({ req, userId }) {
   // (URL context tool is optional; leave off unless you confirm the exact tool name for your SDK)
   // if (enableUrlContext && URL_CONTEXT_AVAILABLE) tools.push({ urlContext: {} });
 
-  // Build contents theo @google/genai: [{role, parts:[{text}]}]
-  const contextMessages = [];
-  const contents = [{ role: "user", parts: [{ text: content }] }];
-
   // Wrapper theo signature mà streaming.js đang gọi: saveMessage({conversationId,userId,role,content})
   const saveMessageCompat = async ({ conversationId, userId, role, content }) => {
     return saveMessage(userId, conversationId, role, content);
@@ -184,6 +287,13 @@ export async function handleChatStreamCore({ req, userId }) {
     contents,
     sysPrompt,
     tools,
+
+    gemMeta: {
+      gemId: convo?.gemId ?? null,
+      hasSystemInstruction: Boolean(sysPrompt && String(sysPrompt).trim()),
+      systemInstructionChars: typeof sysPrompt === "string" ? sysPrompt.length : 0,
+      error: gemLoadError || "",
+    },
 
     createdConversation,
     enableWebSearch,

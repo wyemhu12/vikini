@@ -24,8 +24,6 @@ export function useChatStreamController({
   refreshConversations,
   renameConversationOptimistic,
   renameConversationFinal,
-  systemMode,
-  language,
   onWebSearchMeta,
 }) {
   const [messages, setMessages] = useState([]);
@@ -144,8 +142,6 @@ export function useChatStreamController({
             conversationId: convId,
             content: text,
             regenerate,
-            systemMode,
-            language,
           }),
         });
 
@@ -256,8 +252,6 @@ export function useChatStreamController({
       refreshConversations,
       renameConversationOptimistic,
       renameConversationFinal,
-      systemMode,
-      language,
       normalizeMessages,
       onWebSearchMeta,
     ]

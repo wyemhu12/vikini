@@ -32,6 +32,8 @@ export function createChatReadableStream(params) {
     sysPrompt,
     tools,
 
+    gemMeta,
+
     createdConversation,
     enableWebSearch,
     WEB_SEARCH_AVAILABLE,
@@ -68,6 +70,20 @@ export function createChatReadableStream(params) {
           enabled: enableWebSearch,
           available: WEB_SEARCH_AVAILABLE,
           cookie: cookieWeb === "1" ? "1" : cookieWeb === "0" ? "0" : "",
+        });
+      } catch {}
+
+      // ✅ Debug meta: GEM status for this conversation
+      try {
+        sendEvent(controller, "meta", {
+          type: "gem",
+          gemId: gemMeta?.gemId ?? null,
+          hasSystemInstruction: Boolean(gemMeta?.hasSystemInstruction),
+          systemInstructionChars:
+            typeof gemMeta?.systemInstructionChars === "number"
+              ? gemMeta.systemInstructionChars
+              : 0,
+          error: typeof gemMeta?.error === "string" ? gemMeta.error : "",
         });
       } catch {}
 

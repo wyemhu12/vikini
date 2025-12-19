@@ -25,9 +25,6 @@ export default function ChatApp() {
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t: tRaw } = useLanguage();
 
-  // ✅ Không còn System Mode / mode prompt
-  const systemMode = "default";
-
   // ✅ Mobile sidebar drawer state
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobileSidebar = useCallback(() => setMobileOpen(false), []);
@@ -159,9 +156,6 @@ export default function ChatApp() {
     refreshConversations,
     renameConversationOptimistic,
     renameConversationFinal,
-
-    systemMode,
-    language,
 
     onWebSearchMeta: ({ enabled, available }) => {
       if (typeof enabled === "boolean") setServerWebSearch(enabled);
