@@ -1,7 +1,7 @@
 // /app/components/Chat/ChatApp.jsx
 "use client";
 
-import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { useEffect, useRef, useMemo, useCallback } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 
 import ChatBubble from "./ChatBubble";
@@ -13,6 +13,9 @@ import { useTheme } from "../../hooks/useTheme";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useSystemMode } from "../../hooks/useSystemMode";
 import { useConversation } from "../../hooks/useConversation";
+
+import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
+import { useChatStreamController } from "./hooks/useChatStreamController";
 
 export default function ChatApp() {
   const { data: session, status } = useSession();
@@ -64,125 +67,51 @@ export default function ChatApp() {
     deleteConversation,
   } = useConversation(); // :contentReference[oaicite:5]{index=5}
 
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [creatingConversation, setCreatingConversation] = useState(false);
+  const {
+    webSearchEnabled,
+    toggleWebSearch,
+    setServerWebSearch,
+    setServerWebSearchAvailable,
+    serverHint,
+  } = useWebSearchPreference();
 
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingAssistant, setStreamingAssistant] = useState(null);
-  const [streamingSources, setStreamingSources] = useState([]);
-  const [streamingUrlContext, setStreamingUrlContext] = useState([]);
-  const [regenerating, setRegenerating] = useState(false);
-
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
-  const [serverWebSearch, setServerWebSearch] = useState(null); // null | boolean
-  const [serverWebSearchAvailable, setServerWebSearchAvailable] = useState(null); // null | boolean
-
-  const getCookie = useCallback((name) => {
-    if (typeof document === "undefined") return null;
-    const cookies = document.cookie ? document.cookie.split("; ") : [];
-    for (const c of cookies) {
-      const [k, ...rest] = c.split("=");
-      if (k === name) return decodeURIComponent(rest.join("="));
-    }
-    return null;
-  }, []);
-
-  const setCookie = useCallback((name, value) => {
-    if (typeof document === "undefined") return;
-
-    const parts = [
-      `${name}=${encodeURIComponent(value)}`,
-      "path=/",
-      "max-age=31536000",
-      "samesite=lax",
-    ];
-    try {
-      if (typeof window !== "undefined" && window.location?.protocol === "https:") {
-        parts.push("secure");
-      }
-    } catch {}
-    document.cookie = parts.join("; ");
-  }, []);
-
-  useEffect(() => {
-    try {
-      const ls = localStorage.getItem("vikini.webSearch");
-      if (ls === "1" || ls === "0") {
-        const enabled = ls === "1";
-        setWebSearchEnabled(enabled);
-        setCookie("vikini_web_search", enabled ? "1" : "0");
-        return;
-      }
-
-      const c = getCookie("vikini_web_search");
-      if (c === "1" || c === "0") {
-        setWebSearchEnabled(c === "1");
-      }
-    } catch {}
-  }, [getCookie, setCookie]);
-
-  const toggleWebSearch = useCallback(() => {
-    setWebSearchEnabled((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("vikini.webSearch", next ? "1" : "0");
-      } catch {}
-      setCookie("vikini_web_search", next ? "1" : "0");
-      return next;
-    });
-  }, [setCookie]);
+  const {
+    renderedMessages,
+    input,
+    setInput,
+    creatingConversation,
+    isStreaming,
+    streamingAssistant,
+    streamingSources,
+    streamingUrlContext,
+    regenerating,
+    resetChatUI,
+    handleNewChat,
+    handleSelectConversation,
+    handleSend,
+    handleRegenerate,
+  } = useChatStreamController({
+    isAuthed,
+    selectedConversationId,
+    setSelectedConversationId,
+    createConversation,
+    refreshConversations,
+    renameConversationOptimistic,
+    renameConversationFinal,
+    systemMode,
+    language,
+    onWebSearchMeta: ({ enabled, available }) => {
+      if (typeof enabled === "boolean") setServerWebSearch(enabled);
+      if (typeof available === "boolean") setServerWebSearchAvailable(available);
+    },
+  });
 
   const scrollRef = useRef(null);
-
-  const normalizeMessages = useCallback((arr) => {
-    const safe = Array.isArray(arr) ? arr : [];
-    return safe
-      .map((m) => ({
-        id: m?.id,
-        role: m?.role,
-        content: typeof m?.content === "string" ? m.content : String(m?.content ?? ""),
-        sources: Array.isArray(m?.sources) ? m.sources : [],
-        urlContext: Array.isArray(m?.urlContext) ? m.urlContext : [],
-      }))
-      .filter((m) => m.role === "user" || m.role === "assistant");
-  }, []);
-
-  const renderedMessages = useMemo(
-    () => normalizeMessages(messages),
-    [messages, normalizeMessages]
-  );
 
   useEffect(() => {
     if (!scrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [renderedMessages, streamingAssistant]);
-
-  const handleNewChat = async () => {
-    const conv = await createConversation();
-    if (conv?.id) {
-      setSelectedConversationId(conv.id);
-      setMessages([]);
-      setStreamingAssistant(null);
-      setInput("");
-    }
-  };
-
-  const handleSelectConversation = async (id) => {
-    setSelectedConversationId(id);
-    setStreamingAssistant(null);
-    setInput("");
-
-    try {
-      const res = await fetch(`/api/conversations?id=${id}`);
-      if (!res.ok) throw new Error("Failed to load conversation");
-      const data = await res.json();
-      setMessages(normalizeMessages(data?.messages));
-    } catch (e) {
-      console.error(e);
-      setMessages([]);
-    }
-  };
 
   // ✅ Wire rename/delete so Sidebar won't use fallback logic
   const handleRenameFromSidebar = useCallback(
@@ -218,9 +147,7 @@ export default function ChatApp() {
 
         // If deleting currently opened conversation, clear UI messages immediately
         if (selectedConversationId === id) {
-          setMessages([]);
-          setStreamingAssistant(null);
-          setInput("");
+          resetChatUI();
         }
 
         // Best-effort revalidate
@@ -230,182 +157,8 @@ export default function ChatApp() {
         alert("Không xoá được. Vui lòng thử lại.");
       }
     },
-    [deleteConversation, refreshConversations, selectedConversationId]
+    [deleteConversation, refreshConversations, resetChatUI, selectedConversationId]
   );
-
-  const streamingAssistantRef = useRef(streamingAssistant);
-  useEffect(() => {
-    streamingAssistantRef.current = streamingAssistant;
-  }, [streamingAssistant]);
-
-  const handleSend = async (overrideText, options = {}) => {
-    if (!isAuthed) return;
-    if (creatingConversation) return;
-
-    const text = (overrideText ?? input).trim();
-    if (!text) return;
-
-    const regenerate = Boolean(options?.regenerate);
-    const skipUserAppend = Boolean(options?.skipUserAppend);
-
-    setInput("");
-    setIsStreaming(true);
-    setStreamingAssistant("");
-    setStreamingSources([]);
-    setStreamingUrlContext([]);
-
-    if (!skipUserAppend) {
-      const userMsg = { role: "user", content: text };
-      setMessages((prev) => [...normalizeMessages(prev), userMsg]);
-    }
-
-    let convId = selectedConversationId;
-
-    if (!convId) {
-      setCreatingConversation(true);
-      try {
-        const conv = await createConversation();
-        convId = conv?.id;
-        if (convId) setSelectedConversationId(convId);
-      } finally {
-        setCreatingConversation(false);
-      }
-    }
-
-    try {
-      const res = await fetch("/api/chat-stream", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          conversationId: convId,
-          content: text,
-          regenerate,
-          systemMode,
-          language,
-        }),
-      });
-
-      if (!res.ok || !res.body) throw new Error("Stream failed");
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let localSources = [];
-      let localUrlContext = [];
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop() || "";
-
-        for (const part of parts) {
-          const lines = part.split("\n").filter(Boolean);
-          const eventLine = lines.find((l) => l.startsWith("event:"));
-          const dataLine = lines.find((l) => l.startsWith("data:"));
-          const event = eventLine?.replace("event:", "").trim();
-          const dataStr = dataLine?.replace("data:", "").trim();
-
-          if (!event || !dataStr) continue;
-
-          let data;
-          try {
-            data = JSON.parse(dataStr);
-          } catch {
-            continue;
-          }
-
-          if (event === "token") {
-            const tok = data?.t || "";
-            if (tok) setStreamingAssistant((prev) => (prev || "") + tok);
-          }
-
-          if (event === "meta") {
-            if (data?.type === "conversationCreated" && data?.conversation?.id) {
-              setSelectedConversationId(data.conversation.id);
-              await refreshConversations();
-            }
-
-            if (data?.type === "optimisticTitle" && data?.title) {
-              renameConversationOptimistic(data.conversationId, data.title || "New Chat");
-            }
-
-            if (data?.type === "finalTitle" && data?.title) {
-              renameConversationFinal(data.conversationId, data.title || "New Chat");
-            }
-
-            if (data?.type === "sources") {
-              const nextSources = Array.isArray(data?.sources) ? data.sources : [];
-              localSources = nextSources;
-              setStreamingSources(nextSources);
-            }
-
-            if (data?.type === "urlContext") {
-              const nextUrls = Array.isArray(data?.urls) ? data.urls : [];
-              localUrlContext = nextUrls;
-              setStreamingUrlContext(nextUrls);
-            }
-
-            if (data?.type === "webSearch") {
-              if (typeof data?.enabled === "boolean") setServerWebSearch(data.enabled);
-              if (typeof data?.available === "boolean") setServerWebSearchAvailable(data.available);
-            }
-          }
-        }
-      }
-
-      const finalAssistant = streamingAssistantRef.current || "";
-      const assistantMsg = {
-        role: "assistant",
-        content: finalAssistant,
-        sources: Array.isArray(localSources) ? localSources : [],
-        urlContext: Array.isArray(localUrlContext) ? localUrlContext : [],
-      };
-
-      setMessages((prev) => [...normalizeMessages(prev), assistantMsg]);
-      setStreamingAssistant(null);
-      setStreamingSources([]);
-      setStreamingUrlContext([]);
-    } catch (e) {
-      console.error(e);
-      setStreamingAssistant(null);
-      setStreamingSources([]);
-      setStreamingUrlContext([]);
-    } finally {
-      setIsStreaming(false);
-    }
-  };
-
-  const handleRegenerate = async () => {
-    if (!selectedConversationId) return;
-    if (isStreaming) return;
-
-    setRegenerating(true);
-
-    try {
-      const safe = normalizeMessages(messages);
-      const lastUser = [...safe].reverse().find((m) => m.role === "user");
-      if (!lastUser?.content) return;
-
-      setMessages((prev) => {
-        const arr = normalizeMessages(prev);
-        for (let i = arr.length - 1; i >= 0; i--) {
-          if (arr[i]?.role === "assistant") {
-            return [...arr.slice(0, i), ...arr.slice(i + 1)];
-          }
-        }
-        return arr;
-      });
-
-      await handleSend(lastUser.content, { regenerate: true, skipUserAppend: true });
-    } finally {
-      setRegenerating(false);
-    }
-  };
 
   if (isAuthLoading) {
     return (
@@ -429,13 +182,6 @@ export default function ChatApp() {
       </div>
     );
   }
-
-  const serverHint =
-    serverWebSearchAvailable === false
-      ? " (server: feature OFF)"
-      : serverWebSearch === false && webSearchEnabled
-      ? " (server: OFF)"
-      : "";
 
   return (
     <div className="h-screen w-screen flex bg-neutral-950 text-neutral-100">
