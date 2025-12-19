@@ -34,7 +34,7 @@ export function createChatReadableStream(params) {
 
     createdConversation,
     enableWebSearch,
-    WEB_SEARCH_ENABLED,
+    WEB_SEARCH_AVAILABLE,
     cookieWeb,
 
     regenerate,
@@ -66,7 +66,7 @@ export function createChatReadableStream(params) {
         sendEvent(controller, "meta", {
           type: "webSearch",
           enabled: enableWebSearch,
-          available: WEB_SEARCH_ENABLED,
+          available: WEB_SEARCH_AVAILABLE,
           cookie: cookieWeb === "1" ? "1" : cookieWeb === "0" ? "0" : "",
         });
       } catch {}
@@ -88,12 +88,11 @@ export function createChatReadableStream(params) {
       let groundingMetadata = null;
       let urlContextMetadata = null;
 
-      try {
-        // ✅ @google/genai expects everything in `config`
+      const runStream = async ({ useTools }) => {
         const config = {
           systemInstruction: sysPrompt,
           temperature: 0,
-          ...(tools.length > 0 ? { tools } : {}),
+          ...(useTools && Array.isArray(tools) && tools.length > 0 ? { tools } : {}),
         };
 
         const res = await ai.models.generateContentStream({
@@ -116,11 +115,31 @@ export function createChatReadableStream(params) {
             if (cand?.url_context_metadata) urlContextMetadata = cand.url_context_metadata;
           } catch {}
         }
+      };
+
+      try {
+        // ✅ First try with tools (if any)
+        await runStream({ useTools: true });
       } catch (err) {
-        console.error("stream error:", err);
+        console.error("stream error (with tools):", err);
+
+        // ✅ Fallback: retry without tools to avoid breaking chat if tool unsupported
         try {
-          sendEvent(controller, "error", { message: "Stream error" });
-        } catch {}
+          if (Array.isArray(tools) && tools.length > 0) {
+            sendEvent(controller, "meta", {
+              type: "webSearchFallback",
+              message: "Tools not supported by current SDK/model. Retrying without web search.",
+            });
+            await runStream({ useTools: false });
+          } else {
+            sendEvent(controller, "error", { message: "Stream error" });
+          }
+        } catch (err2) {
+          console.error("stream error (without tools):", err2);
+          try {
+            sendEvent(controller, "error", { message: "Stream error" });
+          } catch {}
+        }
       }
 
       try {

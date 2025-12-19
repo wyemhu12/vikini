@@ -67,11 +67,7 @@ export async function handleChatStreamCore({ req, userId }) {
     body = {};
   }
 
-  const {
-    conversationId: conversationIdRaw,
-    content,
-    regenerate,
-  } = body || {};
+  const { conversationId: conversationIdRaw, content, regenerate } = body || {};
 
   if (typeof content !== "string" || !content.trim()) {
     return jsonError("Missing content", 400);
@@ -79,19 +75,30 @@ export async function handleChatStreamCore({ req, userId }) {
 
   const cookies = parseCookieHeader(req?.headers?.get?.("cookie") || "");
 
-  // Flags (giữ tương thích với streaming.js meta)
-  const WEB_SEARCH_ENABLED = envFlag(process.env.ENABLE_WEB_SEARCH, false);
-  const URL_CONTEXT_ENABLED = envFlag(process.env.ENABLE_URL_CONTEXT, false);
+  /**
+   * ✅ FIX #1: Accept both env names:
+   * - ENABLE_WEB_SEARCH (original in code)
+   * - WEB_SEARCH_ENABLED (what you configured)
+   */
+  const WEB_SEARCH_AVAILABLE = envFlag(
+    pickFirstEnv(["ENABLE_WEB_SEARCH", "WEB_SEARCH_ENABLED"]),
+    false
+  );
+
+  const URL_CONTEXT_AVAILABLE = envFlag(
+    pickFirstEnv(["ENABLE_URL_CONTEXT", "URL_CONTEXT_ENABLED"]),
+    false
+  );
 
   // Cookie override (nếu có). Nếu cookie không tồn tại -> dùng env.
   const cookieWeb = cookies?.webSearchEnabled ?? cookies?.webSearch ?? "";
   const cookieUrl = cookies?.urlContextEnabled ?? cookies?.urlContext ?? "";
 
   const enableWebSearch =
-    cookieWeb === "1" ? true : cookieWeb === "0" ? false : WEB_SEARCH_ENABLED;
+    cookieWeb === "1" ? true : cookieWeb === "0" ? false : WEB_SEARCH_AVAILABLE;
 
   const enableUrlContext =
-    cookieUrl === "1" ? true : cookieUrl === "0" ? false : URL_CONTEXT_ENABLED;
+    cookieUrl === "1" ? true : cookieUrl === "0" ? false : URL_CONTEXT_AVAILABLE;
 
   // Khởi tạo ai client (@google/genai)
   const apiKey = pickFirstEnv(["GEMINI_API_KEY", "GOOGLE_API_KEY"]);
@@ -99,8 +106,7 @@ export async function handleChatStreamCore({ req, userId }) {
 
   const ai = new GoogleGenAI({ apiKey });
 
-  const model =
-    pickFirstEnv(["GEMINI_MODEL", "GOOGLE_MODEL"]) || "gemini-2.0-flash";
+  const model = pickFirstEnv(["GEMINI_MODEL", "GOOGLE_MODEL"]) || "gemini-2.0-flash";
 
   // Load / create conversation
   let convo = null;
@@ -116,7 +122,6 @@ export async function handleChatStreamCore({ req, userId }) {
 
   let createdConversation = null;
   if (!convo) {
-    // Tạo conversation mới
     try {
       convo = await saveConversation(userId, { title: "New Chat" });
       createdConversation = convo;
@@ -152,16 +157,21 @@ export async function handleChatStreamCore({ req, userId }) {
     sysPrompt = "";
   }
 
-  // Tools: để an toàn compile + tránh sai schema tool declaration, mặc định để []
-  // (Nếu bạn muốn bật web search/url context bằng tool chính thức của SDK, mình sẽ bổ sung sau khi sync đúng phiên bản SDK bạn đang dùng.)
+  /**
+   * ✅ FIX #2: Actually pass web search tools when enabled+available.
+   * Note: tool name depends on SDK/model support. We'll try "googleSearch" and streaming.js will fallback safely if unsupported.
+   */
   const tools = [];
+  if (enableWebSearch && WEB_SEARCH_AVAILABLE) {
+    tools.push({ googleSearch: {} });
+  }
+
+  // (URL context tool is optional; leave off unless you confirm the exact tool name for your SDK)
+  // if (enableUrlContext && URL_CONTEXT_AVAILABLE) tools.push({ urlContext: {} });
 
   // Build contents theo @google/genai: [{role, parts:[{text}]}]
-  // Ở bản vá tối thiểu này, không kéo full history để tránh phụ thuộc thêm exports khác.
   const contextMessages = [];
-  const contents = [
-    { role: "user", parts: [{ text: content }] },
-  ];
+  const contents = [{ role: "user", parts: [{ text: content }] }];
 
   // Wrapper theo signature mà streaming.js đang gọi: saveMessage({conversationId,userId,role,content})
   const saveMessageCompat = async ({ conversationId, userId, role, content }) => {
@@ -177,7 +187,7 @@ export async function handleChatStreamCore({ req, userId }) {
 
     createdConversation,
     enableWebSearch,
-    WEB_SEARCH_ENABLED,
+    WEB_SEARCH_AVAILABLE,
     cookieWeb,
 
     regenerate: Boolean(regenerate),
@@ -186,7 +196,6 @@ export async function handleChatStreamCore({ req, userId }) {
     userId,
     contextMessages,
 
-    // streaming.js yêu cầu các callback này; dùng no-op cho context tại bản vá tối thiểu
     appendToContext: async () => {},
     saveMessage: saveMessageCompat,
     setConversationAutoTitle,
