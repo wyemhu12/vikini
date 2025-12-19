@@ -26,12 +26,10 @@ export default function ChatApp() {
   const { language, setLanguage, t: tRaw } = useLanguage();
 
   // ✅ Không còn System Mode / mode prompt
-  // (giữ biến constant nếu hook/controller còn nhận param)
   const systemMode = "default";
 
   // ✅ Mobile sidebar drawer state
   const [mobileOpen, setMobileOpen] = useState(false);
-  const openMobileSidebar = useCallback(() => setMobileOpen(true), []);
   const closeMobileSidebar = useCallback(() => setMobileOpen(false), []);
   const toggleMobileSidebar = useCallback(() => setMobileOpen((v) => !v), []);
 
@@ -162,9 +160,7 @@ export default function ChatApp() {
     renameConversationOptimistic,
     renameConversationFinal,
 
-    // giữ để tương thích nếu controller còn dùng, nhưng không còn UI mode
     systemMode,
-
     language,
 
     onWebSearchMeta: ({ enabled, available }) => {
@@ -263,9 +259,11 @@ export default function ChatApp() {
           handleNewChat();
           closeMobileSidebar();
         }}
-        onRefresh={refreshConversations}
+        // ✅ Không truyền onRefresh để không render nút Refresh
         onDeleteConversation={handleDeleteFromSidebar}
         onRenameChat={handleRenameFromSidebar}
+        // ✅ Di chuyển Sign out vào Sidebar
+        onLogout={() => signOut()}
         t={t}
         mobileOpen={mobileOpen}
         onCloseMobile={closeMobileSidebar}
@@ -329,13 +327,7 @@ export default function ChatApp() {
               {webSearchEnabled ? serverHint : ""}
             </button>
 
-            <button
-              onClick={() => signOut()}
-              className="text-xs text-neutral-500 hover:text-neutral-200"
-              type="button"
-            >
-              {t.signOut}
-            </button>
+            {/* ✅ BỎ Sign out khỏi main area (đã chuyển vào sidebar) */}
           </div>
 
           <InputForm
@@ -346,25 +338,9 @@ export default function ChatApp() {
             t={t}
           />
 
-          <div className="px-4 pb-3 flex items-center justify-between text-xs text-neutral-500">
-            <button
-              onClick={() => {
-                handleNewChat();
-                closeMobileSidebar();
-              }}
-              className="hover:text-neutral-200"
-              type="button"
-            >
-              {t.newChat}
-            </button>
-
-            <div className="text-neutral-600">{isStreaming ? "Streaming..." : "Ready"}</div>
-          </div>
+          {/* ✅ BỎ footer New Chat + Ready (nút dư) */}
         </div>
       </div>
-
-      {/* Clicking outside to close is handled inside Sidebar via its backdrop onClick -> onCloseMobile */}
-      {/* openMobileSidebar kept for future use */}
     </div>
   );
 }

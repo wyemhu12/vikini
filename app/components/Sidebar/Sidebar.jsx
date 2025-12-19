@@ -140,42 +140,35 @@ export default function Sidebar({
         ))}
       </div>
 
-      {/* Optional actions */}
-      {(onRefresh || onDeleteAll) && (
+      {/* Optional actions (giữ Delete all nếu có, nhưng bỏ Refresh theo yêu cầu UI) */}
+      {onDeleteAll ? (
         <div className="mt-3 flex items-center gap-2">
-          {onRefresh ? (
-            <button
-              onClick={() => onRefresh?.()}
-              className="rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
-              type="button"
-            >
-              {t?.refresh || "Refresh"}
-            </button>
-          ) : null}
-
-          {onDeleteAll ? (
-            <button
-              onClick={() => onDeleteAll?.()}
-              className="rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
-              type="button"
-            >
-              {t?.deleteAll || "Delete all"}
-            </button>
-          ) : null}
+          <button
+            onClick={() => onDeleteAll?.()}
+            className="rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
+            type="button"
+          >
+            {t?.deleteAll || "Delete all"}
+          </button>
         </div>
-      )}
+      ) : null}
 
-      {/* Logout (only if wired) */}
+      {/* ✅ Sign out nằm trong sidebar, khung màu giống New Chat nhưng nhỏ hơn ~20% */}
       {onLogout ? (
         <button
           onClick={() => {
             onLogout?.();
             onCloseMobile?.();
           }}
-          className="mt-4 rounded-lg border border-neutral-700 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900"
+          className="
+            mt-3 w-full rounded-lg bg-[var(--primary)]
+            px-3 py-[0.4rem]
+            text-black text-[0.8rem] font-medium
+            hover:opacity-95
+          "
           type="button"
         >
-          {t?.logout || t?.signOut || "Log out"}
+          {t?.signOut || t?.logout || "Sign out"}
         </button>
       ) : null}
     </>
