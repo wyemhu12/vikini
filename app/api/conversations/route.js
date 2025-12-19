@@ -3,8 +3,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireUser } from "./auth";
+import { parseJsonBody } from "./validators";
+import { sanitizeMessages } from "./sanitize";
 
 import {
   getUserConversations,
@@ -23,12 +24,9 @@ import {
 // ------------------------------
 export async function GET(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = session.user.email.toLowerCase();
+    const auth = await requireUser(req);
+    if (!auth.ok) return auth.response;
+    const { userId } = auth;
 
     const url = new URL(req.url);
     const id = url.searchParams.get("id");
@@ -43,13 +41,7 @@ export async function GET(req) {
       const messagesRaw = await getMessages(id);
 
       // ✅ sanitize: prevent null/undefined/invalid role from crashing client
-      const messages = (Array.isArray(messagesRaw) ? messagesRaw : [])
-        .filter((m) => m && typeof m === "object")
-        .filter((m) => typeof m.role === "string" && m.role.length > 0)
-        .map((m) => ({
-          ...m,
-          content: typeof m.content === "string" ? m.content : String(m.content ?? ""),
-        }));
+      const messages = sanitizeMessages(messagesRaw);
 
       return NextResponse.json(
         { messages },
@@ -74,12 +66,11 @@ export async function GET(req) {
 // ------------------------------
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireUser(req);
+    if (!auth.ok) return auth.response;
+    const { userId } = auth;
 
-    const userId = session.user.email.toLowerCase();
-    const body = await req.json().catch(() => ({}));
+    const body = await parseJsonBody(req, { fallback: {} });
     const title = body?.title || "New Chat";
 
     const conversation = await saveConversation(userId, { title });
@@ -101,12 +92,12 @@ export async function POST(req) {
 // ------------------------------
 export async function PATCH(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireUser(req);
+    if (!auth.ok) return auth.response;
+    const { userId } = auth;
 
-    const userId = session.user.email.toLowerCase();
-    const body = await req.json();
+    // NOTE: keep strict parsing behavior (invalid JSON => throws => 500 as before)
+    const body = await parseJsonBody(req);
 
     const { id, title } = body || {};
     const hasGemId = Object.prototype.hasOwnProperty.call(body || {}, "gemId");
@@ -148,12 +139,11 @@ export async function PATCH(req) {
 // ------------------------------
 export async function DELETE(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireUser(req);
+    if (!auth.ok) return auth.response;
+    const { userId } = auth;
 
-    const userId = session.user.email.toLowerCase();
-    const body = await req.json().catch(() => ({}));
+    const body = await parseJsonBody(req, { fallback: {} });
     const { id } = body || {};
 
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
@@ -174,12 +164,11 @@ export async function DELETE(req) {
 // ------------------------------
 export async function PUT(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireUser(req);
+    if (!auth.ok) return auth.response;
+    const { userId } = auth;
 
-    const userId = session.user.email.toLowerCase();
-    const body = await req.json().catch(() => ({}));
+    const body = await parseJsonBody(req, { fallback: {} });
     const { id } = body || {};
 
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
@@ -189,13 +178,7 @@ export async function PUT(req) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const messagesRaw = await getMessages(id);
-    const messages = (Array.isArray(messagesRaw) ? messagesRaw : [])
-      .filter((m) => m && typeof m === "object")
-      .filter((m) => typeof m.role === "string" && m.role.length > 0)
-      .map((m) => ({
-        ...m,
-        content: typeof m.content === "string" ? m.content : String(m.content ?? ""),
-      }));
+    const messages = sanitizeMessages(messagesRaw);
 
     return NextResponse.json(
       { messages },
