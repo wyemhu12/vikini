@@ -5,9 +5,14 @@
 |   |   |-- auth
 |   |   |   |-- [...nextauth]
 |   |   |-- chat-stream
+|   |   |   |-- chatStreamCore.js
 |   |   |   |-- route.js
+|   |   |   |-- streaming.js
 |   |   |-- conversations
+|   |   |   |-- auth.js
 |   |   |   |-- route.js
+|   |   |   |-- sanitize.js
+|   |   |   |-- validators.js
 |   |   |-- gems
 |   |   |   |-- preview
 |   |   |   |   |-- route.js

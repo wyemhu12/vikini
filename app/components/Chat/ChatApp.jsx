@@ -1,7 +1,7 @@
 // /app/components/Chat/ChatApp.jsx
 "use client";
 
-import { useEffect, useRef, useMemo, useCallback } from "react";
+import { useEffect, useRef, useMemo, useCallback, useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 
 import ChatBubble from "./ChatBubble";
@@ -11,7 +11,6 @@ import InputForm from "./InputForm";
 
 import { useTheme } from "../../hooks/useTheme";
 import { useLanguage } from "../../hooks/useLanguage";
-import { useSystemMode } from "../../hooks/useSystemMode";
 import { useConversation } from "../../hooks/useConversation";
 
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
@@ -25,31 +24,96 @@ export default function ChatApp() {
 
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t: tRaw } = useLanguage();
-  const { systemMode, setSystemMode } = useSystemMode();
 
+  // ✅ Không còn System Mode / mode prompt
+  // (giữ biến constant nếu hook/controller còn nhận param)
+  const systemMode = "default";
+
+  // ✅ Mobile sidebar drawer state
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const openMobileSidebar = useCallback(() => setMobileOpen(true), []);
+  const closeMobileSidebar = useCallback(() => setMobileOpen(false), []);
+  const toggleMobileSidebar = useCallback(() => setMobileOpen((v) => !v), []);
+
+  // ✅ Prevent background scroll when mobile drawer is open
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const body = document.body;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+
+    const prev = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflowY: body.style.overflowY,
+    };
+
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflowY = "scroll";
+
+    return () => {
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.left = prev.left;
+      body.style.right = prev.right;
+      body.style.width = prev.width;
+      body.style.overflowY = prev.overflowY;
+
+      window.scrollTo(0, scrollY);
+    };
+  }, [mobileOpen]);
+
+  // ✅ Build `t` đủ key cho HeaderBar + Chat UI
   const t = useMemo(() => {
     if (typeof tRaw === "function") {
       return {
+        appName: tRaw("appName") ?? "Vikini",
+        whitelist: tRaw("whitelist") ?? "",
+        exploreGems: tRaw("exploreGems") ?? "Explore Gems",
         signOut: tRaw("signOut") ?? "Sign out",
         newChat: tRaw("newChat") ?? "New Chat",
         send: tRaw("send") ?? "Send",
         placeholder: tRaw("placeholder") ?? "Nhập tin nhắn...",
+        refresh: tRaw("refresh") ?? "Refresh",
+        deleteAll: tRaw("deleteAll") ?? "Delete all",
+        logout: tRaw("logout") ?? "Log out",
       };
     }
+
     if (tRaw && typeof tRaw === "object") {
       return {
+        appName: tRaw.appName ?? "Vikini",
+        whitelist: tRaw.whitelist ?? "",
+        exploreGems: tRaw.exploreGems ?? "Explore Gems",
         signOut: tRaw.signOut ?? "Sign out",
         newChat: tRaw.newChat ?? "New Chat",
         send: tRaw.send ?? "Send",
         placeholder: tRaw.placeholder ?? "Nhập tin nhắn...",
+        refresh: tRaw.refresh ?? "Refresh",
+        deleteAll: tRaw.deleteAll ?? "Delete all",
+        logout: tRaw.logout ?? tRaw.signOut ?? "Log out",
         ...tRaw,
       };
     }
+
     return {
+      appName: "Vikini",
+      whitelist: "",
+      exploreGems: "Explore Gems",
       signOut: "Sign out",
       newChat: "New Chat",
       send: "Send",
       placeholder: "Nhập tin nhắn...",
+      refresh: "Refresh",
+      deleteAll: "Delete all",
+      logout: "Log out",
     };
   }, [tRaw, language]);
 
@@ -61,12 +125,11 @@ export default function ChatApp() {
     refreshConversations,
     renameConversationOptimistic,
     renameConversationFinal,
-
-    // ✅ add these two
     renameConversation,
     deleteConversation,
-  } = useConversation(); // :contentReference[oaicite:5]{index=5}
+  } = useConversation();
 
+  // ✅ Keep Web Search toggle UI (theo yêu cầu)
   const {
     webSearchEnabled,
     toggleWebSearch,
@@ -98,8 +161,12 @@ export default function ChatApp() {
     refreshConversations,
     renameConversationOptimistic,
     renameConversationFinal,
+
+    // giữ để tương thích nếu controller còn dùng, nhưng không còn UI mode
     systemMode,
+
     language,
+
     onWebSearchMeta: ({ enabled, available }) => {
       if (typeof enabled === "boolean") setServerWebSearch(enabled);
       if (typeof available === "boolean") setServerWebSearchAvailable(available);
@@ -113,19 +180,19 @@ export default function ChatApp() {
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [renderedMessages, streamingAssistant]);
 
-  // ✅ Wire rename/delete so Sidebar won't use fallback logic
+  // ✅ Wire rename/delete để Sidebar không dùng fallback API calls
   const handleRenameFromSidebar = useCallback(
     async (id) => {
       try {
-        const current = (Array.isArray(conversations) ? conversations : []).find((c) => c?.id === id);
+        const current = (Array.isArray(conversations) ? conversations : []).find(
+          (c) => c?.id === id
+        );
         const curTitle = current?.title || "";
         const nextTitle = window.prompt("Đổi tên cuộc hội thoại:", curTitle);
         if (nextTitle === null) return;
-
         const title = String(nextTitle).trim();
         if (!title) return;
 
-        // Optimistic first
         renameConversationOptimistic(id, title);
         await renameConversation(id, title);
       } catch (e) {
@@ -142,15 +209,12 @@ export default function ChatApp() {
         const ok = window.confirm("Xoá cuộc hội thoại này?");
         if (!ok) return;
 
-        // Optimistic delete in hook (updates sidebar immediately)
         await deleteConversation(id);
 
-        // If deleting currently opened conversation, clear UI messages immediately
         if (selectedConversationId === id) {
           resetChatUI();
         }
 
-        // Best-effort revalidate
         await refreshConversations();
       } catch (e) {
         console.error(e);
@@ -172,7 +236,9 @@ export default function ChatApp() {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-neutral-950 text-neutral-200">
         <div className="text-lg font-semibold mb-2">Vikini</div>
-        <div className="text-sm text-neutral-400 mb-6">Vui lòng đăng nhập để tiếp tục.</div>
+        <div className="text-sm text-neutral-400 mb-6">
+          Vui lòng đăng nhập để tiếp tục.
+        </div>
         <button
           onClick={() => signIn("google")}
           className="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-medium text-black hover:opacity-90"
@@ -184,29 +250,36 @@ export default function ChatApp() {
   }
 
   return (
-    <div className="h-screen w-screen flex bg-neutral-950 text-neutral-100">
+    <div className="h-screen w-screen bg-neutral-950 text-neutral-100">
+      {/* Sidebar (fixed desktop + mobile drawer) */}
       <Sidebar
         conversations={conversations}
         selectedConversationId={selectedConversationId}
-        onSelectConversation={handleSelectConversation}
-        onNewChat={handleNewChat}
+        onSelectConversation={(id) => {
+          handleSelectConversation(id);
+          closeMobileSidebar();
+        }}
+        onNewChat={() => {
+          handleNewChat();
+          closeMobileSidebar();
+        }}
         onRefresh={refreshConversations}
-        // ✅ Important: wire actions to avoid Sidebar fallback
         onDeleteConversation={handleDeleteFromSidebar}
         onRenameChat={handleRenameFromSidebar}
         t={t}
+        mobileOpen={mobileOpen}
+        onCloseMobile={closeMobileSidebar}
       />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main content: add left padding on desktop to avoid overlap with fixed sidebar */}
+      <div className="h-full flex flex-col md:pl-64">
         <HeaderBar
-          theme={theme}
-          toggleTheme={toggleTheme}
-          language={language}
-          setLanguage={setLanguage}
-          systemMode={systemMode}
-          setSystemMode={setSystemMode}
-          onSignOut={() => signOut()}
           t={t}
+          language={language}
+          onLanguageChange={setLanguage}
+          theme={theme}
+          onThemeChange={toggleTheme}
+          onToggleSidebar={toggleMobileSidebar}
         />
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-2 md:px-6 py-6">
@@ -240,6 +313,7 @@ export default function ChatApp() {
 
         <div className="max-w-3xl mx-auto w-full">
           <div className="px-4 pt-1 flex items-center justify-between">
+            {/* ✅ Keep Web Search toggle UI */}
             <button
               onClick={toggleWebSearch}
               className={[
@@ -273,7 +347,14 @@ export default function ChatApp() {
           />
 
           <div className="px-4 pb-3 flex items-center justify-between text-xs text-neutral-500">
-            <button onClick={handleNewChat} className="hover:text-neutral-200" type="button">
+            <button
+              onClick={() => {
+                handleNewChat();
+                closeMobileSidebar();
+              }}
+              className="hover:text-neutral-200"
+              type="button"
+            >
               {t.newChat}
             </button>
 
@@ -281,6 +362,9 @@ export default function ChatApp() {
           </div>
         </div>
       </div>
+
+      {/* Clicking outside to close is handled inside Sidebar via its backdrop onClick -> onCloseMobile */}
+      {/* openMobileSidebar kept for future use */}
     </div>
   );
 }
