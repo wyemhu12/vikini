@@ -55,6 +55,36 @@ body {
   --bg-end: #000000;
 }
 
+/* 🟡 VÀNG METALLIC */
+.theme-gold {
+  --primary: #d4af37;
+  --primary-light: #f2d675;
+  --primary-dark: #7a5a00;
+
+  --bg-start: #2a1f00;
+  --bg-end: #070400;
+}
+
+/* 🔴 ĐỎ */
+.theme-red {
+  --primary: #ef4444;
+  --primary-light: #fca5a5;
+  --primary-dark: #7f1d1d;
+
+  --bg-start: #2a0000;
+  --bg-end: #070000;
+}
+
+/* 🌸 HỒNG NHẠT (#cc8899) */
+.theme-rose {
+  --primary: #cc8899;
+  --primary-light: #f1b8c6;
+  --primary-dark: #6b2d3b;
+
+  --bg-start: #240c12;
+  --bg-end: #060102;
+}
+
 /* Gradient background */
 .chat-gradient {
   background: linear-gradient(to bottom, var(--bg-start), var(--bg-end));
@@ -66,7 +96,6 @@ body {
 */
 
 .chat-markdown {
-  /* đảm bảo khoảng cách đọc giống ChatGPT */
   @apply text-neutral-100;
 }
 
@@ -91,7 +120,7 @@ body {
   @apply my-3 border-l-2 border-neutral-700 pl-3 text-neutral-200;
 }
 
-/* Inline code (block code đã được render bởi component riêng trong ChatBubble.jsx) */
+/* Inline code */
 .chat-markdown code:not(pre code) {
   @apply rounded-md bg-neutral-800/60 px-1 py-0.5 text-neutral-100;
 }
@@ -101,9 +130,6 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Root font-size giữ nguyên nếu bạn muốn site scale theo viewport.
-   Cỡ chữ trong chat đã được hạ bằng px trong ChatBubble.jsx.
-*/
 html {
   font-size: clamp(15px, 1.2vw + 10px, 22px);
 }
