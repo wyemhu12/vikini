@@ -95,27 +95,33 @@ body {
    Chỉ style markdown trong chat thông qua .chat-markdown.
 */
 
+/* ChatGPT-like: preserve newlines + spacing, but keep markdown structure */
 .chat-markdown {
-  @apply text-neutral-100;
+  white-space: pre-wrap; /* preserve \n and multiple spaces */
+  overflow-wrap: anywhere; /* avoid overflow on long tokens/urls */
 }
 
-.chat-markdown .chat-p {
+/* Paragraph spacing */
+.chat-markdown p {
   @apply mb-3;
 }
-.chat-markdown .chat-p:last-child {
+.chat-markdown p:last-child {
   @apply mb-0;
 }
 
-.chat-markdown .chat-ul {
+/* Lists */
+.chat-markdown ul {
   @apply mb-3 list-disc pl-5;
 }
-.chat-markdown .chat-ol {
+.chat-markdown ol {
   @apply mb-3 list-decimal pl-5;
 }
-.chat-markdown .chat-li {
+.chat-markdown li {
   @apply mb-1;
 }
 
+/* Blockquote */
+.chat-markdown blockquote,
 .chat-markdown .chat-quote {
   @apply my-3 border-l-2 border-neutral-700 pl-3 text-neutral-200;
 }
@@ -123,6 +129,11 @@ body {
 /* Inline code */
 .chat-markdown code:not(pre code) {
   @apply rounded-md bg-neutral-800/60 px-1 py-0.5 text-neutral-100;
+}
+
+/* Ensure fenced code blocks remain "pre" (not wrapped by pre-wrap) */
+.chat-markdown pre {
+  white-space: pre;
 }
 
 /* Disable tap highlight */

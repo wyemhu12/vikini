@@ -106,34 +106,33 @@ export default function ChatBubble({
 }) {
   // ✅ Build a safe message object even when 'message' is undefined
   const safeMessage = useMemo(() => {
-    const base =
-      message && typeof message === "object" ? message : {};
+    const base = message && typeof message === "object" ? message : {};
 
     const finalRole =
       typeof base.role === "string"
         ? base.role
         : typeof role === "string"
-        ? role
-        : "assistant";
+          ? role
+          : "assistant";
 
     const finalContent =
       typeof base.content === "string"
         ? base.content
         : typeof content === "string"
-        ? content
-        : String(base.content ?? content ?? "");
+          ? content
+          : String(base.content ?? content ?? "");
 
     const finalSources = Array.isArray(base.sources)
       ? base.sources
       : Array.isArray(sourcesProp)
-      ? sourcesProp
-      : [];
+        ? sourcesProp
+        : [];
 
     const finalUrlContext = Array.isArray(base.urlContext)
       ? base.urlContext
       : Array.isArray(urlContextProp)
-      ? urlContextProp
-      : [];
+        ? urlContextProp
+        : [];
 
     return {
       ...base,
@@ -175,33 +174,30 @@ export default function ChatBubble({
               : "bg-[var(--primary)] text-black ring-[var(--primary)]",
           ].join(" ")}
         >
-          {isBot ? (
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeHighlight]}
-              components={{
-                code: CodeBlock,
-                a: ({ href, children }) => (
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[var(--primary-light)] underline underline-offset-2 hover:opacity-90"
-                  >
-                    {children}
-                  </a>
-                ),
-                blockquote: ({ children }) => (
-                  <blockquote className="chat-quote">{children}</blockquote>
-                ),
-              }}
-              className="chat-markdown"
-            >
-              {safeMessage.content}
-            </ReactMarkdown>
-          ) : (
-            <span>{safeMessage.content}</span>
-          )}
+          {/* ✅ Render BOTH sides with markdown (ChatGPT-like) and preserve newlines via CSS */}
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeHighlight]}
+            components={{
+              code: CodeBlock,
+              a: ({ href, children }) => (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[var(--primary-light)] underline underline-offset-2 hover:opacity-90"
+                >
+                  {children}
+                </a>
+              ),
+              blockquote: ({ children }) => (
+                <blockquote className="chat-quote">{children}</blockquote>
+              ),
+            }}
+            className="chat-markdown"
+          >
+            {safeMessage.content}
+          </ReactMarkdown>
 
           {/* ✅ Citations / Sources */}
           {isBot && sources.length > 0 && (
@@ -229,7 +225,10 @@ export default function ChatBubble({
               <div className="text-[11px] font-medium text-neutral-300">URL Context</div>
               <div className="mt-1 flex flex-col gap-1">
                 {urlContext.slice(0, 6).map((u, idx) => (
-                  <div key={`${u?.retrievedUrl ?? "url"}-${idx}`} className="text-[11px] text-neutral-400">
+                  <div
+                    key={`${u?.retrievedUrl ?? "url"}-${idx}`}
+                    className="text-[11px] text-neutral-400"
+                  >
                     <span className="text-neutral-300">{u?.status || "STATUS"}</span>
                     {" — "}
                     <a
