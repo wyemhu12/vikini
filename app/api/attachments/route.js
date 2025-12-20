@@ -4,7 +4,11 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { requireUser } from "@/app/api/conversations/auth";
-import { listAttachmentsForConversation, deleteAttachmentById } from "@/lib/attachments";
+import {
+  listAttachmentsForConversation,
+  deleteAttachmentById,
+  deleteAttachmentsByConversation,
+} from "@/lib/attachments";
 
 export async function GET(req) {
   try {
@@ -35,7 +39,9 @@ export async function DELETE(req) {
     const { userId } = auth;
     const url = new URL(req.url);
 
+    const conversationId = url.searchParams.get("conversationId");
     let id = url.searchParams.get("id");
+
     if (!id) {
       try {
         const body = await req.json();
@@ -43,7 +49,17 @@ export async function DELETE(req) {
       } catch {}
     }
 
+    // DELETE all in conversation (used by Files menu)
+    if (!id && conversationId) {
+      await deleteAttachmentsByConversation({ userId, conversationId });
+      return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+    }
+
     if (!id) {
+      if (conversationId) {
+        await deleteAttachmentsByConversation({ userId, conversationId });
+        return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+      }
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }
 
@@ -51,6 +67,6 @@ export async function DELETE(req) {
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("DELETE /api/attachments error:", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return NextResponse.json({ error: err?.message || "Internal error" }, { status: 500 });
   }
 }
