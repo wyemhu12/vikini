@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useCallback, useMemo, useState } from "react";
 
 function extractClipboardImages(clipboardData) {
   const out = [];
@@ -35,19 +35,21 @@ function extractClipboardImages(clipboardData) {
   return out;
 }
 
-async function uploadOneImage({ conversationId, file }) {
-  const form = new FormData();
-  form.set("conversationId", conversationId);
-  form.set("file", file);
+async function uploadImages({ conversationId, images }) {
+  for (const file of images) {
+    const form = new FormData();
+    form.set("conversationId", conversationId);
+    form.set("file", file);
 
-  const res = await fetch("/api/attachments/upload", {
-    method: "POST",
-    body: form,
-  });
+    const res = await fetch("/api/attachments/upload", {
+      method: "POST",
+      body: form,
+    });
 
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(json?.error || "Upload failed");
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(json?.error || "Upload failed");
+    }
   }
 }
 
@@ -60,9 +62,12 @@ export default function InputForm({
   conversationId,
 }) {
   const textareaRef = useRef(null);
-
-  const [pasting, setPasting] = useState(false);
   const [pasteError, setPasteError] = useState("");
+
+  // NOTE:
+  // ChatApp now passes `disabled` only for "busy" states (streaming/regenerate/creating).
+  // Send button still needs to be disabled when input is empty.
+  const sendDisabled = useMemo(() => disabled || !String(input || "").trim(), [disabled, input]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -70,7 +75,7 @@ export default function InputForm({
 
     textarea.style.height = "auto";
 
-    const lineHeight = 24; // text-base + leading-relaxed
+    const lineHeight = 24; // phù hợp text-base + leading-relaxed
     const maxLines = 5;
     const maxHeight = lineHeight * maxLines;
 
@@ -85,42 +90,36 @@ export default function InputForm({
     onSubmit(e);
   };
 
-  const onPaste = useCallback(
+  const handlePaste = useCallback(
     async (e) => {
-      // Requirement: paste image into chat ONLY when chat input is selected.
-      // This handler is attached to the textarea, so it only runs when focused.
-      if (disabled) return;
-
+      // Requirement: paste image into chat ONLY when chat textarea is focused.
+      // This handler is attached directly to the textarea, so it only fires when focused.
       const images = extractClipboardImages(e.clipboardData);
       if (images.length === 0) return; // allow normal paste (text)
 
+      // Do not allow paste-uploads during busy states (streaming/regen/creating).
+      if (disabled) return;
+
+      // Need conversationId to upload attachments
       if (!conversationId) {
-        // Conversation-level attachments require conversationId (upload endpoint needs it).
-        // Keep it simple: user should send a message once to create conversation.
         e.preventDefault();
-        setPasteError("Create/select a chat first, then paste the image again.");
+        setPasteError("Hãy tạo/chọn một chat (có conversationId) rồi paste lại ảnh.");
         return;
       }
 
       e.preventDefault();
       setPasteError("");
-      setPasting(true);
 
       try {
-        // Upload sequentially to respect server limits.
-        for (const f of images) {
-          await uploadOneImage({ conversationId, file: f });
-        }
+        await uploadImages({ conversationId, images });
 
-        // Notify attachments panel to refresh (no prop drilling).
+        // Notify AttachmentsPanel to refresh
         window.dispatchEvent(
           new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
         );
       } catch (err) {
         console.error(err);
         setPasteError(String(err?.message || "Paste upload failed"));
-      } finally {
-        setPasting(false);
       }
     },
     [conversationId, disabled]
@@ -130,13 +129,14 @@ export default function InputForm({
     <form
       onSubmit={handleSubmit}
       className="
-        bg-neutral-950
+        bg-neutral-950 
         px-4 py-3
         sticky bottom-0
         shadow-[0_-4px_10px_rgba(0,0,0,0.35)]
       "
     >
       <div className="flex items-end gap-2">
+        {/* TEXTAREA */}
         <textarea
           id="chat-input"
           ref={textareaRef}
@@ -144,7 +144,7 @@ export default function InputForm({
           value={input}
           rows={1}
           onChange={(e) => onChangeInput(e.target.value)}
-          onPaste={onPaste}
+          onPaste={handlePaste}
           className="
             flex-1 resize-none overflow-y-auto
             rounded-xl border border-neutral-800
@@ -153,12 +153,15 @@ export default function InputForm({
             transition-all duration-150
             focus:outline-none focus:border-[var(--primary)]
           "
-          style={{ maxHeight: "120px" }}
+          style={{
+            maxHeight: "120px",
+          }}
         />
 
+        {/* SEND BUTTON */}
         <button
           type="submit"
-          disabled={disabled}
+          disabled={sendDisabled}
           className="
             rounded-xl bg-[var(--primary)]
             px-4 py-2
@@ -167,7 +170,7 @@ export default function InputForm({
             disabled:opacity-40
           "
         >
-          {pasting ? "Uploading..." : t.send}
+          {t.send}
         </button>
       </div>
 

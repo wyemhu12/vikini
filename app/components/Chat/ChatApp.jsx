@@ -339,7 +339,7 @@ export default function ChatApp() {
             input={input}
             onChangeInput={setInput}
             onSubmit={() => handleSend()}
-            disabled={creatingConversation || !input.trim() || isStreaming || regenerating}
+            disabled={creatingConversation || isStreaming || regenerating}
             t={t}
             conversationId={selectedConversationId}
           />
