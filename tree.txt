@@ -2,6 +2,14 @@
 |-- .gitignore
 |-- app
 |   |-- api
+|   |   |-- attachments
+|   |   |   |-- analyze
+|   |   |   |   |-- route.js
+|   |   |   |-- route.js
+|   |   |   |-- upload
+|   |   |   |   |-- route.js
+|   |   |   |-- url
+|   |   |   |   |-- route.js
 |   |   |-- auth
 |   |   |   |-- [...nextauth]
 |   |   |-- chat-stream
@@ -13,12 +21,16 @@
 |   |   |   |-- route.js
 |   |   |   |-- sanitize.js
 |   |   |   |-- validators.js
+|   |   |-- cron
+|   |   |   |-- attachments-cleanup
+|   |   |   |   |-- route.js
 |   |   |-- gems
 |   |   |   |-- preview
 |   |   |   |   |-- route.js
 |   |   |   |-- route.js
 |   |-- components
 |   |   |-- Chat
+|   |   |   |-- AttachmentsPanel.jsx
 |   |   |   |-- ChatApp.jsx
 |   |   |   |-- ChatBubble.jsx
 |   |   |   |-- hooks
@@ -58,6 +70,7 @@
 |   |   |-- config.js
 |-- jsconfig.json
 |-- lib
+|   |-- attachments.js
 |   |-- auth.js
 |   |-- autoTitleEngine.js
 |   |-- postgresChat.js

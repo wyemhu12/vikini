@@ -8,6 +8,7 @@ import ChatBubble from "./ChatBubble";
 import Sidebar from "../Sidebar/Sidebar";
 import HeaderBar from "../Layout/HeaderBar";
 import InputForm from "./InputForm";
+import AttachmentsPanel from "./AttachmentsPanel";
 
 import { useTheme } from "../../hooks/useTheme";
 import { useLanguage } from "../../hooks/useLanguage";
@@ -323,6 +324,16 @@ export default function ChatApp() {
 
             {/* ✅ BỎ Sign out khỏi main area (đã chuyển vào sidebar) */}
           </div>
+
+          <AttachmentsPanel
+            conversationId={selectedConversationId}
+            disabled={creatingConversation || isStreaming || regenerating}
+            onAfterAnalyze={async () => {
+              if (selectedConversationId) {
+                await handleSelectConversation(selectedConversationId);
+              }
+            }}
+          />
 
           <InputForm
             input={input}
