@@ -2,7 +2,7 @@
 "use client";
 
 import useSWR from "swr";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -71,6 +71,12 @@ export function useConversation() {
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
+  // Tombstone set để chặn "conversation đã xoá" bị re-add lại do merge/refresh.
+  // Lý do: mergeConversations() giữ lại local-only items, nên nếu remote tạm thời còn chứa
+  // item đã xoá (do SWR/cache/độ trễ), item có thể bị đưa lại vào list và sẽ không bị loại
+  // bỏ ở lần merge kế tiếp.
+  const deletedIdsRef = useRef(new Set());
+
   // ✅ for ChatApp.jsx compatibility
   const [creatingConversation, setCreatingConversation] = useState(false);
 
@@ -85,11 +91,20 @@ export function useConversation() {
 
     const remote = Array.isArray(data.conversations) ? data.conversations : [];
 
-    setConversations((prev) => mergeConversations(prev, remote));
+    const remoteFiltered = remote.filter((c) => !deletedIdsRef.current.has(c?.id));
+
+    setConversations((prev) => {
+      const prevFiltered = (Array.isArray(prev) ? prev : []).filter(
+        (c) => !deletedIdsRef.current.has(c?.id)
+      );
+      return mergeConversations(prevFiltered, remoteFiltered).filter(
+        (c) => !deletedIdsRef.current.has(c?.id)
+      );
+    });
 
     // chọn activeId lần đầu (nếu chưa có)
-    if (!activeId && remote.length > 0) {
-      const sorted = mergeConversations([], remote);
+    if (!activeId && remoteFiltered.length > 0) {
+      const sorted = mergeConversations([], remoteFiltered);
       if (sorted[0]?.id) setActiveId(sorted[0].id);
     }
   }, [data, activeId]);
@@ -98,6 +113,11 @@ export function useConversation() {
   const upsertConversation = useCallback((conv) => {
     if (!conv?.id) return;
 
+    // Nếu server gửi lại conversation cùng id (hiếm), bỏ tombstone để UI hiển thị.
+    if (deletedIdsRef.current.has(conv.id)) {
+      deletedIdsRef.current.delete(conv.id);
+    }
+
     const now = Date.now();
     const normalized = normalizeConv({
       ...conv,
@@ -105,7 +125,14 @@ export function useConversation() {
       updatedAt: conv.updatedAt ?? now,
     });
 
-    setConversations((prev) => mergeConversations([normalized, ...prev], prev));
+    setConversations((prev) => {
+      const prevFiltered = (Array.isArray(prev) ? prev : []).filter(
+        (c) => !deletedIdsRef.current.has(c?.id)
+      );
+      return mergeConversations([normalized, ...prevFiltered], prevFiltered).filter(
+        (c) => !deletedIdsRef.current.has(c?.id)
+      );
+    });
   }, []);
 
   // Patch title + bump updatedAt để không bị rollback
@@ -221,6 +248,9 @@ export function useConversation() {
           body: JSON.stringify({ id }),
         });
         if (!res.ok) throw new Error("Failed to delete conversation");
+
+        // Mark tombstone trước để ngăn SWR merge đưa item trở lại.
+        deletedIdsRef.current.add(id);
 
         setConversations((prev) => prev.filter((c) => c.id !== id));
 
