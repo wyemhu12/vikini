@@ -341,6 +341,7 @@ export default function ChatApp() {
             onSubmit={() => handleSend()}
             disabled={creatingConversation || !input.trim() || isStreaming || regenerating}
             t={t}
+            conversationId={selectedConversationId}
           />
 
           {/* ✅ BỎ footer New Chat + Ready (nút dư) */}

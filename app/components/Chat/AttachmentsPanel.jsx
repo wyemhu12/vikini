@@ -24,11 +24,53 @@ function isTextMime(mime) {
   return m.startsWith("text/") || m.includes("javascript") || m.includes("json") || m === "application/json";
 }
 
+function extractClipboardImages(clipboardData) {
+  const out = [];
+  const items = clipboardData?.items ? Array.from(clipboardData.items) : [];
+
+  for (const item of items) {
+    if (!item) continue;
+    if (item.kind !== "file") continue;
+
+    const type = String(item.type || "");
+    if (!type.startsWith("image/")) continue;
+
+    const blob = item.getAsFile?.();
+    if (!blob) continue;
+
+    const ext =
+      type === "image/png"
+        ? "png"
+        : type === "image/webp"
+          ? "webp"
+          : type === "image/jpeg"
+            ? "jpg"
+            : "img";
+
+    out.push(
+      new File([blob], `pasted-${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`, {
+        type,
+      })
+    );
+  }
+
+  return out;
+}
+
 export default function AttachmentsPanel({ conversationId, disabled }) {
   const [attachments, setAttachments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // Drag & drop UI state
   const [dragOver, setDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  // Expand/collapse (details)
+  const detailsRef = useRef(null);
+  const dropZoneRef = useRef(null);
+  const [open, setOpen] = useState(false);
+
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
   const fileInputRef = useRef(null);
@@ -37,6 +79,12 @@ export default function AttachmentsPanel({ conversationId, disabled }) {
     () => (attachments || []).reduce((sum, a) => sum + Number(a?.size_bytes || 0), 0),
     [attachments]
   );
+
+  const ensureOpen = useCallback(() => {
+    const el = detailsRef.current;
+    if (el && !el.open) el.open = true;
+    setOpen(true);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!conversationId) {
@@ -66,6 +114,18 @@ export default function AttachmentsPanel({ conversationId, disabled }) {
     refresh();
   }, [refresh]);
 
+  // Cross-component sync: when InputForm pastes an image and uploads, refresh this list.
+  useEffect(() => {
+    const handler = (ev) => {
+      const cid = ev?.detail?.conversationId;
+      if (cid && conversationId && cid === conversationId) {
+        refresh();
+      }
+    };
+    window.addEventListener("vikini:attachments-changed", handler);
+    return () => window.removeEventListener("vikini:attachments-changed", handler);
+  }, [conversationId, refresh]);
+
   const uploadFiles = useCallback(
     async (files) => {
       if (!conversationId) return;
@@ -89,6 +149,10 @@ export default function AttachmentsPanel({ conversationId, disabled }) {
           if (!res.ok) throw new Error(json?.error || "Upload failed");
         }
 
+        // Notify other components and refresh self.
+        window.dispatchEvent(
+          new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
+        );
         await refresh();
       } catch (e) {
         console.error(e);
@@ -114,23 +178,68 @@ export default function AttachmentsPanel({ conversationId, disabled }) {
   const onDrop = async (e) => {
     e.preventDefault();
     e.stopPropagation();
+
+    dragCounterRef.current = 0;
     setDragOver(false);
+
     if (disabled || uploading || !conversationId) return;
     const files = e.dataTransfer?.files;
     if (files) await uploadFiles(files);
   };
 
+  const onDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (disabled || uploading || !conversationId) return;
+
+    dragCounterRef.current += 1;
+    ensureOpen();
+    setDragOver(true);
+  };
+
   const onDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!disabled && !uploading && conversationId) setDragOver(true);
+    if (disabled || uploading || !conversationId) return;
+
+    ensureOpen();
+    setDragOver(true);
   };
 
   const onDragLeave = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setDragOver(false);
+    if (disabled || uploading || !conversationId) return;
+
+    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+    if (dragCounterRef.current === 0) setDragOver(false);
   };
+
+  const onPaste = useCallback(
+    async (e) => {
+      // Requirement: paste in Files ONLY when Files is expanded.
+      if (!open) return;
+      if (disabled || uploading || !conversationId) return;
+
+      // If chat input is focused, let InputForm handle it.
+      const activeId = document?.activeElement?.id || "";
+      if (activeId === "chat-input") return;
+
+      const images = extractClipboardImages(e.clipboardData);
+      if (images.length === 0) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Ensure the drop zone is the focus target to make the behavior predictable.
+      try {
+        dropZoneRef.current?.focus?.();
+      } catch {}
+
+      await uploadFiles(images);
+    },
+    [open, disabled, uploading, conversationId, uploadFiles]
+  );
 
   const doPreview = useCallback(async (a) => {
     if (!a?.id) return;
@@ -174,18 +283,23 @@ export default function AttachmentsPanel({ conversationId, disabled }) {
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.error || "Delete failed");
+
+        window.dispatchEvent(
+          new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
+        );
         await refresh();
       } catch (e) {
         console.error(e);
         setError(String(e?.message || "Delete failed"));
       }
     },
-    [refresh]
+    [conversationId, refresh]
   );
 
   const doDeleteAll = useCallback(async () => {
     if (!conversationId) return;
     if ((attachments || []).length === 0) return;
+
     setError("");
     try {
       const res = await fetch(`/api/attachments?conversationId=${encodeURIComponent(conversationId)}`, {
@@ -193,6 +307,10 @@ export default function AttachmentsPanel({ conversationId, disabled }) {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || "Delete all failed");
+
+      window.dispatchEvent(
+        new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
+      );
       await refresh();
     } catch (e) {
       console.error(e);
@@ -207,15 +325,46 @@ export default function AttachmentsPanel({ conversationId, disabled }) {
   return (
     <div className="px-4 pb-3">
       <div
+        ref={dropZoneRef}
+        tabIndex={open ? 0 : -1}
+        onPaste={onPaste}
         onDrop={onDrop}
+        onDragEnter={onDragEnter}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
+        onClick={() => {
+          // Make paste-to-files predictable: click the Files box, then Ctrl+V.
+          if (open) {
+            try {
+              dropZoneRef.current?.focus?.();
+            } catch {}
+          }
+        }}
         className={
-          "rounded-xl border border-neutral-800 bg-neutral-950 p-3 " +
-          (dragOver ? "border-[var(--primary)]" : "")
+          "relative rounded-xl border border-neutral-800 bg-neutral-950 p-3 outline-none transition " +
+          (dragOver ? "border-[var(--primary)] ring-2 ring-[var(--primary)]/30" : "")
         }
       >
-        <details className="group">
+        {/* Drag overlay (ChatGPT-like) */}
+        <div
+          className={
+            "pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl " +
+            "transition-all duration-150 " +
+            (dragOver ? "opacity-100 scale-100" : "opacity-0 scale-[0.985]")
+          }
+          aria-hidden="true"
+        >
+          <div className="absolute inset-0 rounded-xl bg-neutral-950/60 backdrop-blur-[2px]" />
+          <div className="relative z-10 rounded-xl border border-dashed border-[var(--primary)] bg-neutral-950/60 px-4 py-3 text-sm text-neutral-100 shadow">
+            Drop to upload
+          </div>
+        </div>
+
+        <details
+          ref={detailsRef}
+          className="group"
+          onToggle={(e) => setOpen(Boolean(e.currentTarget.open))}
+        >
           <summary className="flex cursor-pointer items-center justify-between gap-3 list-none">
             <div className="text-sm text-neutral-200">
               <div className="font-medium">Files</div>
@@ -231,7 +380,7 @@ export default function AttachmentsPanel({ conversationId, disabled }) {
           <div className="mt-3">
             <div className="flex items-center justify-between gap-3">
               <div className="text-xs text-neutral-500">
-                Drop files here or click Upload.
+                Drop files here, click Upload, or click this box then paste an image (Ctrl+V).
               </div>
 
               <div className="flex items-center gap-2">
