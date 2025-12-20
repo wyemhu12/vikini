@@ -104,7 +104,6 @@ export default function ChatBubble({
   onRegenerate,
   regenerating,
 }) {
-  // ✅ Build a safe message object even when 'message' is undefined
   const safeMessage = useMemo(() => {
     const base = message && typeof message === "object" ? message : {};
 
@@ -165,7 +164,8 @@ export default function ChatBubble({
         </div>
       )}
 
-      <div className={`group relative max-w-[86%] ${isBot ? "" : "text-right"}`}>
+      {/* ✅ Always keep message text left-aligned (ChatGPT-like) */}
+      <div className="group relative max-w-[86%] text-left">
         <div
           className={[
             "rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ring-1",
@@ -174,7 +174,6 @@ export default function ChatBubble({
               : "bg-[var(--primary)] text-black ring-[var(--primary)]",
           ].join(" ")}
         >
-          {/* ✅ Render BOTH sides with markdown (ChatGPT-like) and preserve newlines via CSS */}
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeHighlight]}
@@ -199,7 +198,6 @@ export default function ChatBubble({
             {safeMessage.content}
           </ReactMarkdown>
 
-          {/* ✅ Citations / Sources */}
           {isBot && sources.length > 0 && (
             <div className="mt-3 border-t border-neutral-800/80 pt-2">
               <div className="text-[11px] font-medium text-neutral-300">Nguồn</div>
@@ -219,7 +217,6 @@ export default function ChatBubble({
             </div>
           )}
 
-          {/* (Optional) url_context status */}
           {isBot && urlContext.length > 0 && (
             <div className="mt-3 border-t border-neutral-800/80 pt-2">
               <div className="text-[11px] font-medium text-neutral-300">URL Context</div>
