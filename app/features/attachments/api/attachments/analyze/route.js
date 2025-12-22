@@ -4,13 +4,13 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { requireUser } from "@/app/api/conversations/auth";
-import { downloadAttachmentBytes } from "@/lib/attachments";
+import { requireUser } from "@/app/features/chat/api/conversations/auth";
+import { downloadAttachmentBytes } from "@/lib/features/attachments/attachments";
 import {
   getConversation,
-  getGemInstructionsForConversation,
-  saveMessage,
-} from "@/lib/postgresChat";
+} from "@/lib/features/chat/conversations";
+import { saveMessage } from "@/lib/features/chat/messages";
+import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
 
 function pickFirstEnv(keys) {
   for (const k of keys) {

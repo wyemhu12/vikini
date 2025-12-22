@@ -1,6 +1,6 @@
 "use client";
 
-import ChatApp from "./components/Chat/ChatApp";
+import ChatApp from "./components/ChatApp";
 
 export default function HomePage() {
   return <ChatApp />;
