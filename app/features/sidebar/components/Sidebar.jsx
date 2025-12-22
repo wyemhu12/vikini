@@ -163,12 +163,12 @@ export default function Sidebar({
           className="
             mt-3 w-full rounded-lg bg-[var(--primary)]
             px-3 py-[0.4rem]
-            text-black text-[0.8rem] font-medium
+            text-black text-[0.8rem] font-medium capitalize
             hover:opacity-95
           "
           type="button"
         >
-          {t?.signOut || t?.logout || "Sign out"}
+          {t?.signOut || t?.logout || "Sign Out"}
         </button>
       ) : null}
     </>
