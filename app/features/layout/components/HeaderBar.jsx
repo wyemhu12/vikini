@@ -8,6 +8,7 @@ export default function HeaderBar({
   onThemeChange,
   onToggleSidebar,
 }) {
+  // Theme options với translations từ t
   const themeOptions = [
     { id: "amber", label: t?.amber ?? "Amber", swatch: "#d97706" },
     { id: "indigo", label: t?.indigo ?? "Indigo", swatch: "#6366f1" },
@@ -15,6 +16,12 @@ export default function HeaderBar({
     { id: "gold", label: t?.gold ?? "Metallic Gold", swatch: "#d4af37" },
     { id: "red", label: t?.red ?? "Red", swatch: "#ef4444" },
     { id: "rose", label: t?.rose ?? "Rose", swatch: "#cc8899" },
+  ];
+
+  // Language options với translations từ t
+  const languageOptions = [
+    { id: "vi", label: t?.vi ?? "Tiếng Việt" },
+    { id: "en", label: t?.en ?? "English" },
   ];
 
   return (
@@ -42,22 +49,25 @@ export default function HeaderBar({
         {/* Language dropdown */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-neutral-400 hidden sm:inline">
-            {t?.language ?? "Language"}
+            {t?.language ?? "Ngôn ngữ"}
           </span>
           <select
             value={language}
             onChange={(e) => onLanguageChange?.(e.target.value)}
             className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-100 outline-none focus:border-[var(--primary-light)]"
           >
-            <option value="vi">{(t?.vi ?? "VI").toUpperCase()}</option>
-            <option value="en">{(t?.en ?? "EN").toUpperCase()}</option>
+            {languageOptions.map((lang) => (
+              <option key={lang.id} value={lang.id}>
+                {lang.id.toUpperCase()}
+              </option>
+            ))}
           </select>
         </div>
 
         {/* Theme dropdown */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-neutral-400 hidden sm:inline">
-            {t?.themes ?? "Themes"}
+            {t?.themes ?? "Giao diện"}
           </span>
 
           <div className="flex items-center gap-2">

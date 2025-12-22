@@ -17,12 +17,12 @@ import { useConversation } from "../hooks/useConversation";
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 
-// Available models for selection
+// Available models for selection - chỉ các model thực sự có sẵn trong API
 const AVAILABLE_MODELS = [
   { id: "gemini-2.5-flash", descKey: "modelDescFlash25" },
   { id: "gemini-2.5-pro", descKey: "modelDescPro25" },
-  { id: "gemini-3-flash", descKey: "modelDescFlash3" },
-  { id: "gemini-3-pro", descKey: "modelDescPro3" },
+  { id: "gemini-2.0-flash", descKey: "modelDescFlash20" },
+  { id: "gemini-1.5-pro", descKey: "modelDescPro15" },
 ];
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
@@ -90,24 +90,24 @@ export default function ChatApp() {
         refresh: tRaw("refresh") ?? "Refresh",
         deleteAll: tRaw("deleteAll") ?? "Delete all",
         logout: tRaw("logout") ?? "Log out",
-        // NEW: Model selector
+        // Model selector
         modelSelector: tRaw("modelSelector") ?? "Model",
         selectModel: tRaw("selectModel") ?? "Select Model",
         currentModel: tRaw("currentModel") ?? "Current Model",
-        // NEW: Applied GEM
+        // Applied GEM
         appliedGem: tRaw("appliedGem") ?? "Applied GEM",
         appliedGemNone: tRaw("appliedGemNone") ?? "None",
-        // NEW: Model names
+        // Model names
         "gemini-2.5-flash": tRaw("gemini-2.5-flash") ?? "Gemini 2.5 Flash",
         "gemini-2.5-pro": tRaw("gemini-2.5-pro") ?? "Gemini 2.5 Pro",
-        "gemini-3-flash": tRaw("gemini-3-flash") ?? "Gemini 3 Flash",
-        "gemini-3-pro": tRaw("gemini-3-pro") ?? "Gemini 3 Pro",
-        // NEW: Model descriptions
+        "gemini-2.0-flash": tRaw("gemini-2.0-flash") ?? "Gemini 2.0 Flash",
+        "gemini-1.5-pro": tRaw("gemini-1.5-pro") ?? "Gemini 1.5 Pro",
+        // Model descriptions
         modelDescFlash25: tRaw("modelDescFlash25") ?? "Fast & balanced",
         modelDescPro25: tRaw("modelDescPro25") ?? "Advanced thinking",
-        modelDescFlash3: tRaw("modelDescFlash3") ?? "Smart & fast",
-        modelDescPro3: tRaw("modelDescPro3") ?? "Most intelligent",
-        // NEW: Web search
+        modelDescFlash20: tRaw("modelDescFlash20") ?? "Previous generation",
+        modelDescPro15: tRaw("modelDescPro15") ?? "Long context",
+        // Web search
         webSearch: tRaw("webSearch") ?? "Web Search",
         webSearchOn: tRaw("webSearchOn") ?? "ON",
         webSearchOff: tRaw("webSearchOff") ?? "OFF",
@@ -126,24 +126,24 @@ export default function ChatApp() {
         refresh: tRaw.refresh ?? "Refresh",
         deleteAll: tRaw.deleteAll ?? "Delete all",
         logout: tRaw.logout ?? tRaw.signOut ?? "Log out",
-        // NEW: Model selector
+        // Model selector
         modelSelector: tRaw.modelSelector ?? "Model",
         selectModel: tRaw.selectModel ?? "Select Model",
         currentModel: tRaw.currentModel ?? "Current Model",
-        // NEW: Applied GEM
+        // Applied GEM
         appliedGem: tRaw.appliedGem ?? "Applied GEM",
         appliedGemNone: tRaw.appliedGemNone ?? "None",
-        // NEW: Model names
+        // Model names
         "gemini-2.5-flash": tRaw["gemini-2.5-flash"] ?? "Gemini 2.5 Flash",
         "gemini-2.5-pro": tRaw["gemini-2.5-pro"] ?? "Gemini 2.5 Pro",
-        "gemini-3-flash": tRaw["gemini-3-flash"] ?? "Gemini 3 Flash",
-        "gemini-3-pro": tRaw["gemini-3-pro"] ?? "Gemini 3 Pro",
-        // NEW: Model descriptions
+        "gemini-2.0-flash": tRaw["gemini-2.0-flash"] ?? "Gemini 2.0 Flash",
+        "gemini-1.5-pro": tRaw["gemini-1.5-pro"] ?? "Gemini 1.5 Pro",
+        // Model descriptions
         modelDescFlash25: tRaw.modelDescFlash25 ?? "Fast & balanced",
         modelDescPro25: tRaw.modelDescPro25 ?? "Advanced thinking",
-        modelDescFlash3: tRaw.modelDescFlash3 ?? "Smart & fast",
-        modelDescPro3: tRaw.modelDescPro3 ?? "Most intelligent",
-        // NEW: Web search
+        modelDescFlash20: tRaw.modelDescFlash20 ?? "Previous generation",
+        modelDescPro15: tRaw.modelDescPro15 ?? "Long context",
+        // Web search
         webSearch: tRaw.webSearch ?? "Web Search",
         webSearchOn: tRaw.webSearchOn ?? "ON",
         webSearchOff: tRaw.webSearchOff ?? "OFF",
@@ -162,24 +162,24 @@ export default function ChatApp() {
       refresh: "Refresh",
       deleteAll: "Delete all",
       logout: "Log out",
-      // NEW: Model selector
+      // Model selector
       modelSelector: "Model",
       selectModel: "Select Model",
       currentModel: "Current Model",
-      // NEW: Applied GEM
+      // Applied GEM
       appliedGem: "Applied GEM",
       appliedGemNone: "None",
-      // NEW: Model names
+      // Model names
       "gemini-2.5-flash": "Gemini 2.5 Flash",
       "gemini-2.5-pro": "Gemini 2.5 Pro",
-      "gemini-3-flash": "Gemini 3 Flash",
-      "gemini-3-pro": "Gemini 3 Pro",
-      // NEW: Model descriptions
+      "gemini-2.0-flash": "Gemini 2.0 Flash",
+      "gemini-1.5-pro": "Gemini 1.5 Pro",
+      // Model descriptions
       modelDescFlash25: "Fast & balanced",
       modelDescPro25: "Advanced thinking",
-      modelDescFlash3: "Smart & fast",
-      modelDescPro3: "Most intelligent",
-      // NEW: Web search
+      modelDescFlash20: "Previous generation",
+      modelDescPro15: "Long context",
+      // Web search
       webSearch: "Web Search",
       webSearchOn: "ON",
       webSearchOff: "OFF",
@@ -196,7 +196,7 @@ export default function ChatApp() {
     renameConversationFinal,
     renameConversation,
     deleteConversation,
-    // NEW: Model management
+    // Model management
     setConversationModel,
     patchConversationModel,
   } = useConversation();
@@ -291,7 +291,7 @@ export default function ChatApp() {
     [deleteConversation, refreshConversations, resetChatUI, selectedConversationId]
   );
 
-  // ✅ NEW: Get current conversation info for Applied GEM and Model display
+  // ✅ Get current conversation info for Applied GEM and Model display
   const currentConversation = useMemo(() => {
     if (!selectedConversationId) return null;
     return (Array.isArray(conversations) ? conversations : []).find(
@@ -302,7 +302,7 @@ export default function ChatApp() {
   const currentModel = currentConversation?.model || DEFAULT_MODEL;
   const currentGem = currentConversation?.gem || null;
 
-  // ✅ NEW: Handle model change
+  // ✅ Handle model change
   const handleModelChange = useCallback(
     async (newModel) => {
       if (!selectedConversationId) return;
@@ -413,7 +413,7 @@ export default function ChatApp() {
 
         <div className="max-w-3xl mx-auto w-full">
           <div className="px-4 pt-1 flex flex-wrap items-center gap-2">
-            {/* ✅ NEW: Model Selector */}
+            {/* ✅ Model Selector */}
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-neutral-500 hidden sm:inline">
                 {t.modelSelector}:
@@ -449,7 +449,7 @@ export default function ChatApp() {
               {webSearchEnabled ? serverHint : ""}
             </button>
 
-            {/* ✅ NEW: Applied GEM Indicator */}
+            {/* ✅ Applied GEM Indicator */}
             <div
               className="text-xs px-3 py-1.5 rounded-full ring-1 ring-neutral-800 bg-neutral-950 text-neutral-400"
               title={t.appliedGem}
