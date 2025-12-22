@@ -388,7 +388,7 @@ export default function AttachmentsPanel({ conversationId, disabled }) {
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept=".txt,.js,.jsx,.json,.png,.jpg,.jpeg,.webp"
+                  accept=".txt,.js,.jsx,.json,.png,.jpg,.jpeg,.webp,.pdf,.doc,.docx,.xls,.xlsx,.zip"
                   className="hidden"
                   onChange={onInputChange}
                 />

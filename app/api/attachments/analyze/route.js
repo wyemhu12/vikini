@@ -9,6 +9,7 @@ import { downloadAttachmentBytes } from "@/lib/features/attachments/attachments"
 import { getConversation } from "@/lib/features/chat/conversations";
 import { saveMessage } from "@/lib/features/chat/messages";
 import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
+import { summarizeZipBytes } from "@/lib/features/attachments/zip";
 
 function pickFirstEnv(keys) {
   for (const k of keys) {
@@ -40,6 +41,11 @@ function isOfficeDocMime(m) {
     mime === "application/vnd.ms-excel" ||
     mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   );
+}
+
+function isZipMime(m) {
+  const mime = String(m || "").toLowerCase();
+  return mime === "application/zip" || mime === "application/x-zip-compressed" || mime === "multipart/x-zip";
 }
 
 export async function POST(req) {
@@ -102,6 +108,7 @@ export async function POST(req) {
 
     const guard = buildGuardIntro();
     const mime = String(row?.mime_type || "");
+    const isZip = isZipMime(mime) || String(row?.filename || "").toLowerCase().endsWith(".zip");
     const metaLine = `filename: ${row.filename}\nmime: ${mime}\nsize_bytes: ${row.size_bytes}\n`;
 
     // Office docs are allowed for upload, but not supported for server-side analysis (no converter in this app).
@@ -142,6 +149,17 @@ export async function POST(req) {
           mimeType: "application/pdf",
           data: bytes.toString("base64"),
         },
+      });
+    } else if (isZip) {
+      const maxChars = getAnalyzeMaxChars();
+      const z = await summarizeZipBytes(bytes, { maxChars });
+      const zipText = (z?.text || "").slice(0, maxChars);
+      parts.push({
+        text:
+          `${guard}\n\nUSER REQUEST:\n${ask}\n\nFILE META:\n${metaLine}\n\n` +
+          "ATTACHMENT DATA BLOCK (ZIP unpacked summary):\n```\n" +
+          zipText +
+          "\n```",
       });
     } else {
       const maxChars = getAnalyzeMaxChars();

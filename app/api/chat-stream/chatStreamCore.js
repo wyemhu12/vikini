@@ -26,6 +26,39 @@ import {
   listAttachmentsForConversation,
   downloadAttachmentBytes,
 } from "@/lib/features/attachments/attachments";
+import { summarizeZipBytes } from "@/lib/features/attachments/zip";
+
+function isOfficeDocMime(m) {
+  const mime = String(m || "").toLowerCase();
+  return (
+    mime === "application/msword" ||
+    mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    mime === "application/vnd.ms-excel" ||
+    mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+}
+
+function isZipMime(m) {
+  const mime = String(m || "").toLowerCase();
+  return mime === "application/zip" || mime === "application/x-zip-compressed" || mime === "multipart/x-zip";
+}
+
+function isPdfMime(m) {
+  const mime = String(m || "").toLowerCase();
+  return mime === "application/pdf";
+}
+
+function isLikelyTextMime(m) {
+  const mime = String(m || "").toLowerCase();
+  return (
+    mime.startsWith("text/") ||
+    mime === "application/json" ||
+    mime === "application/javascript" ||
+    mime === "application/x-javascript" ||
+    mime === "application/xml" ||
+    mime === "application/x-www-form-urlencoded"
+  );
+}
 
 function parseCookieHeader(cookieHeader) {
   if (!cookieHeader) return {};
@@ -295,6 +328,29 @@ export async function handleChatStreamCore({ req, userId }) {
           });
           continue;
         }
+
+        if (isZipMime(mime) || name.toLowerCase().endsWith(".zip")) {
+          const dl = await downloadAttachmentBytes({ userId, id: a.id });
+          const z = await summarizeZipBytes(dl.bytes, { maxChars: Math.max(0, remaining) });
+          const zipText = String(z?.text || "");
+          const used = Math.min(zipText.length, Math.max(0, remaining));
+          remaining -= used;
+
+          parts.push({
+            text:
+              `\n[ZIP: ${name} | ${mime}]\n<<ATTACHMENT_DATA_START>>\n` +
+              zipText.slice(0, used) +
+              `\n<<ATTACHMENT_DATA_END>>\n`,
+          });
+          continue;
+        }
+
+        // Avoid dumping binary content into prompt
+        if (isPdfMime(mime) || name.toLowerCase().endsWith(".pdf") || isOfficeDocMime(mime) || /\.(docx?|xlsx?)$/i.test(name)) {
+          parts.push({ text: `\n[FILE SKIPPED: ${name} | ${mime} - unsupported for chat context]\n` });
+          continue;
+        }
+
 
         if (remaining <= 0) {
           parts.push({ text: `\n[TEXT SKIPPED: ${name} - context limit reached]\n` });
