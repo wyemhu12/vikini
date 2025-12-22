@@ -3,15 +3,26 @@
 import { GoogleGenAI } from "@google/genai";
 import { getSupabaseAdmin } from "@/lib/core/supabase";
 
-import { getConversation, saveConversation, setConversationAutoTitle, DEFAULT_MODEL } from "@/lib/features/chat/conversations";
-import { saveMessage, deleteLastAssistantMessage, getMessages } from "@/lib/features/chat/messages";
+import {
+  getConversation,
+  saveConversation,
+  setConversationAutoTitle,
+  DEFAULT_MODEL,
+} from "@/lib/features/chat/conversations";
+import {
+  saveMessage,
+  deleteLastAssistantMessage,
+  getMessages,
+} from "@/lib/features/chat/messages";
 import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
 
 import { generateOptimisticTitle, generateFinalTitle } from "@/lib/core/autoTitleEngine";
 
 import { createChatReadableStream, mapMessages } from "./streaming";
-import { listAttachmentsForConversation, downloadAttachmentBytes } from "@/lib/features/attachments/attachments";
-
+import {
+  listAttachmentsForConversation,
+  downloadAttachmentBytes,
+} from "@/lib/features/attachments/attachments";
 
 function parseCookieHeader(cookieHeader) {
   if (!cookieHeader) return {};
@@ -46,8 +57,23 @@ function pickFirstEnv(keys) {
   return "";
 }
 
+/**
+ * Normalize model ids to avoid 404 due to preview/renames.
+ * Gemini 3 models are currently preview and the official IDs include `-preview`.
+ * Ref (official models list):
+ * - gemini-3-flash-preview
+ * - gemini-3-pro-preview
+ */
+function normalizeModelId(modelId) {
+  const m = String(modelId || "").trim();
+  if (!m) return m;
 
+  if (m === "gemini-3-flash") return "gemini-3-flash-preview";
+  if (m === "gemini-3-pro") return "gemini-3-pro-preview";
+  if (m === "gemini-3-pro-image") return "gemini-3-pro-image-preview";
 
+  return m;
+}
 
 function jsonError(message, status = 500) {
   return new Response(JSON.stringify({ error: message }), {
@@ -77,9 +103,9 @@ export async function handleChatStreamCore({ req, userId }) {
   const cookies = parseCookieHeader(req?.headers?.get?.("cookie") || "");
 
   /**
-   * ✅ FIX #1: Accept both env names:
-   * - ENABLE_WEB_SEARCH (original in code)
-   * - WEB_SEARCH_ENABLED (what you configured)
+   * Accept both env names:
+   * - ENABLE_WEB_SEARCH (original)
+   * - WEB_SEARCH_ENABLED (configured)
    */
   const WEB_SEARCH_AVAILABLE = envFlag(
     pickFirstEnv(["ENABLE_WEB_SEARCH", "WEB_SEARCH_ENABLED"]),
@@ -101,7 +127,7 @@ export async function handleChatStreamCore({ req, userId }) {
   const enableUrlContext =
     cookieUrl === "1" ? true : cookieUrl === "0" ? false : URL_CONTEXT_AVAILABLE;
 
-  // Khởi tạo ai client (@google/genai)
+  // Init client (@google/genai)
   const apiKey = pickFirstEnv(["GEMINI_API_KEY", "GOOGLE_API_KEY"]);
   if (!apiKey) return jsonError("Missing GEMINI_API_KEY/GOOGLE_API_KEY", 500);
 
@@ -133,11 +159,12 @@ export async function handleChatStreamCore({ req, userId }) {
   if (!conversationId) return jsonError("Conversation missing id", 500);
 
   /**
-   * ✅ NEW: Get model from conversation (per-chat model selection)
-   * Priority: conversation.model > env GEMINI_MODEL > DEFAULT_MODEL
+   * Get model from conversation (per-chat) > env > DEFAULT_MODEL
+   * Then normalize to avoid 404 (e.g. gemini-3-flash -> gemini-3-flash-preview).
    */
   const envModel = pickFirstEnv(["GEMINI_MODEL", "GOOGLE_MODEL"]);
-  const model = convo?.model || envModel || DEFAULT_MODEL;
+  const requestedModel = convo?.model || envModel || DEFAULT_MODEL;
+  const model = normalizeModelId(requestedModel);
 
   // Nếu regenerate: xoá last assistant message (best-effort)
   if (regenerate) {
@@ -161,15 +188,11 @@ export async function handleChatStreamCore({ req, userId }) {
   try {
     sysPrompt = await getGemInstructionsForConversation(userId, conversationId);
   } catch (e) {
-    // Fallback: tolerate schema differences (camelCase) or missing columns.
-    // The compatibility logic was removed as part of the refactoring.
-    // If the new getGemInstructionsForConversation fails, we log the error and proceed with empty sysPrompt.
     gemLoadError = String(e?.message || "");
     sysPrompt = "";
   }
 
-  // Build full chat contents (history) để Gemini có đủ ngữ cảnh.
-  // Chỉ gửi: (1) nội dung tin nhắn trong cuộc hội thoại, (2) GEM system instruction.
+  // Build chat contents (history) for Gemini context
   let contextMessages = [];
   let contents = [{ role: "user", parts: [{ text: content }] }];
 
@@ -189,9 +212,8 @@ export async function handleChatStreamCore({ req, userId }) {
       contents = mapped;
     }
   } catch {
-    // Fallback: giữ contents chỉ gồm message hiện tại
+    // fallback keep current message only
   }
-
 
   // Conversation-level attachments context (ChatGPT-like)
   try {
@@ -269,19 +291,12 @@ export async function handleChatStreamCore({ req, userId }) {
     console.error("attachments context error:", e);
   }
 
-  /**
-   * ✅ FIX #2: Actually pass web search tools when enabled+available.
-   * Note: tool name depends on SDK/model support. We'll try "googleSearch" and streaming.js will fallback safely if unsupported.
-   */
+  // Tools (web search)
   const tools = [];
   if (enableWebSearch && WEB_SEARCH_AVAILABLE) {
     tools.push({ googleSearch: {} });
   }
 
-  // (URL context tool is optional; leave off unless you confirm the exact tool name for your SDK)
-  // if (enableUrlContext && URL_CONTEXT_AVAILABLE) tools.push({ urlContext: {} });
-
-  // Wrapper theo signature mà streaming.js đang gọi: saveMessage({conversationId,userId,role,content})
   const saveMessageCompat = async ({ conversationId, userId, role, content }) => {
     return saveMessage(userId, conversationId, role, content);
   };
@@ -300,10 +315,10 @@ export async function handleChatStreamCore({ req, userId }) {
       error: gemLoadError || "",
     },
 
-    // NEW: Include model info in meta for client display
     modelMeta: {
       model,
-      isDefault: model === DEFAULT_MODEL,
+      requestedModel,
+      normalized: model !== requestedModel,
     },
 
     createdConversation,
