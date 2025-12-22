@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/lib/features/auth/auth";
 
 import { checkRateLimit } from "@/lib/rateLimit";
 import { NextResponse } from "next/server";

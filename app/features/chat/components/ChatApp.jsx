@@ -5,14 +5,14 @@ import { useEffect, useRef, useMemo, useCallback, useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 
 import ChatBubble from "./ChatBubble";
-import Sidebar from "../Sidebar/Sidebar";
-import HeaderBar from "../Layout/HeaderBar";
+import Sidebar from "../../sidebar/components/Sidebar";
+import HeaderBar from "../../layout/components/HeaderBar";
 import InputForm from "./InputForm";
 import AttachmentsPanel from "./AttachmentsPanel";
 
-import { useTheme } from "../../hooks/useTheme";
-import { useLanguage } from "../../hooks/useLanguage";
-import { useConversation } from "../../hooks/useConversation";
+import { useTheme } from "../hooks/useTheme";
+import { useLanguage } from "../hooks/useLanguage";
+import { useConversation } from "../hooks/useConversation";
 
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useChatStreamController } from "./hooks/useChatStreamController";

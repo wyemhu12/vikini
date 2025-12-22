@@ -1,22 +1,16 @@
 // /app/api/chat-stream/chatStreamCore.js
 
 import { GoogleGenAI } from "@google/genai";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/core/supabase";
 
-import {
-  getConversation,
-  saveConversation,
-  saveMessage,
-  deleteLastAssistantMessage,
-  setConversationAutoTitle,
-  getGemInstructionsForConversation,
-  getMessages,
-} from "@/lib/postgresChat";
+import { getConversation, saveConversation, setConversationAutoTitle } from "@/lib/features/chat/conversations";
+import { saveMessage, deleteLastAssistantMessage, getMessages } from "@/lib/features/chat/messages";
+import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
 
-import { generateOptimisticTitle, generateFinalTitle } from "@/lib/autoTitleEngine";
+import { generateOptimisticTitle, generateFinalTitle } from "@/lib/core/autoTitleEngine";
 
 import { createChatReadableStream, mapMessages } from "./streaming";
-import { listAttachmentsForConversation, downloadAttachmentBytes } from "@/lib/attachments";
+import { listAttachmentsForConversation, downloadAttachmentBytes } from "@/lib/features/attachments/attachments";
 
 
 function parseCookieHeader(cookieHeader) {
@@ -52,79 +46,9 @@ function pickFirstEnv(keys) {
   return "";
 }
 
-function getSupabaseAdminCompat() {
-  const url = pickFirstEnv(["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"]);
-  const serviceKey = pickFirstEnv([
-    "SUPABASE_SERVICE_ROLE_KEY",
-    "SUPABASE_SERVICE_KEY",
-    "SUPABASE_SERVICE_ROLE",
-    "SUPABASE_SERVICE",
-  ]);
 
-  if (!url) throw new Error("Missing Supabase URL env (NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL)");
-  if (!serviceKey) throw new Error("Missing Supabase service role key env (SUPABASE_SERVICE_ROLE_KEY)");
 
-  return createClient(url, serviceKey, { auth: { persistSession: false } });
-}
 
-async function getGemInstructionsForConversationCompat({ userId, conversationId }) {
-  const supabase = getSupabaseAdminCompat();
-
-  // 1) Load conversation -> gem id (support snake_case + camelCase)
-  let gemId = null;
-  let owner = "";
-
-  const q1 = await supabase
-    .from("conversations")
-    .select("gem_id,user_id")
-    .eq("id", conversationId)
-    .maybeSingle();
-
-  if (!q1.error) {
-    gemId = q1.data?.gem_id ?? null;
-    owner = typeof q1.data?.user_id === "string" ? q1.data.user_id : "";
-  } else {
-    const q2 = await supabase
-      .from("conversations")
-      .select("gemId,userId")
-      .eq("id", conversationId)
-      .maybeSingle();
-
-    if (q2.error) throw new Error(q1.error?.message || q2.error.message);
-
-    gemId = q2.data?.gemId ?? null;
-    owner = typeof q2.data?.userId === "string" ? q2.data.userId : "";
-  }
-
-  if (owner && owner !== userId) throw new Error("Forbidden");
-  if (!gemId) return "";
-
-  // 2) Prefer gem_versions latest (non-fatal if table doesn't exist)
-  const vq = await supabase
-    .from("gem_versions")
-    .select("version,instructions")
-    .eq("gem_id", gemId)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!vq.error && typeof vq.data?.instructions === "string") return vq.data.instructions;
-
-  // 3) Fallback to gems legacy columns
-  const gq = await supabase
-    .from("gems")
-    .select("instruction,instructions")
-    .eq("id", gemId)
-    .maybeSingle();
-
-  if (gq.error) throw new Error(gq.error.message);
-
-  return (
-    (typeof gq.data?.instructions === "string" && gq.data.instructions) ||
-    (typeof gq.data?.instruction === "string" && gq.data.instruction) ||
-    ""
-  );
-}
 
 function jsonError(message, status = 500) {
   return new Response(JSON.stringify({ error: message }), {
@@ -234,12 +158,10 @@ export async function handleChatStreamCore({ req, userId }) {
     sysPrompt = await getGemInstructionsForConversation(userId, conversationId);
   } catch (e) {
     // Fallback: tolerate schema differences (camelCase) or missing columns.
-    try {
-      sysPrompt = await getGemInstructionsForConversationCompat({ userId, conversationId });
-    } catch (e2) {
-      gemLoadError = String(e?.message || e2?.message || "");
-      sysPrompt = "";
-    }
+    // The compatibility logic was removed as part of the refactoring.
+    // If the new getGemInstructionsForConversation fails, we log the error and proceed with empty sysPrompt.
+    gemLoadError = String(e?.message || "");
+    sysPrompt = "";
   }
 
   // Build full chat contents (history) để Gemini có đủ ngữ cảnh.
