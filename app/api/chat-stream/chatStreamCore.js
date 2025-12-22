@@ -60,6 +60,19 @@ function pickFirstEnv(keys) {
   return "";
 }
 
+function stripOuterQuotes(s) {
+  const v = String(s || "").trim();
+  if (v.length >= 2) {
+    const first = v[0];
+    const last = v[v.length - 1];
+    if ((first === "'" && last === "'") || (first === '"' && last === '"')) {
+      return v.slice(1, -1).trim();
+    }
+  }
+  return v;
+}
+
+
 /**
  * Normalize model ids to avoid 404 due to preview/renames.
  * Gemini 3 models are currently preview and the official IDs include `-preview`.
@@ -321,7 +334,7 @@ export async function handleChatStreamCore({ req, userId }) {
   const safetyJson = pickFirstEnv(["GEMINI_SAFETY_SETTINGS_JSON"]);
   if (safetyJson) {
     try {
-      const parsed = JSON.parse(safetyJson);
+      const parsed = JSON.parse(stripOuterQuotes(safetyJson));
       if (Array.isArray(parsed) && parsed.length > 0) {
         safetySettings = parsed;
       }
