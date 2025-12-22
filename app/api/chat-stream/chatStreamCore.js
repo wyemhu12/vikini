@@ -16,7 +16,10 @@ import {
 } from "@/lib/features/chat/messages";
 import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
 
-import { generateOptimisticTitle, generateFinalTitle } from "@/lib/core/autoTitleEngine";
+import {
+  generateOptimisticTitle,
+  generateFinalTitle,
+} from "@/lib/core/autoTitleEngine";
 
 import { createChatReadableStream, mapMessages } from "./streaming";
 import {
@@ -232,10 +235,14 @@ export async function handleChatStreamCore({ req, userId }) {
 
     if (aliveA.length > 0) {
       const maxChars = Number(
-        process.env.ATTACH_CONTEXT_MAX_CHARS || process.env.ATTACH_ANALYZE_MAX_CHARS || 120000
+        process.env.ATTACH_CONTEXT_MAX_CHARS ||
+          process.env.ATTACH_ANALYZE_MAX_CHARS ||
+          120000
       );
       const maxImages = Number(process.env.ATTACH_CONTEXT_MAX_IMAGES || 4);
-      const maxImageBytes = Number(process.env.ATTACH_CONTEXT_MAX_IMAGE_BYTES || 4 * 1024 * 1024);
+      const maxImageBytes = Number(
+        process.env.ATTACH_CONTEXT_MAX_IMAGE_BYTES || 4 * 1024 * 1024
+      );
 
       let remaining = maxChars;
       let imgCount = 0;
@@ -263,12 +270,16 @@ export async function handleChatStreamCore({ req, userId }) {
           }
           const dl = await downloadAttachmentBytes({ userId, id: a.id });
           if (dl?.bytes?.length > maxImageBytes) {
-            parts.push({ text: `\n[IMAGE SKIPPED: ${name} - too large for context]\n` });
+            parts.push({
+              text: `\n[IMAGE SKIPPED: ${name} - too large for context]\n`,
+            });
             continue;
           }
           imgCount += 1;
           parts.push({ text: `\n[IMAGE: ${name} | ${mime}]\n` });
-          parts.push({ inlineData: { data: dl.bytes.toString("base64"), mimeType: mime } });
+          parts.push({
+            inlineData: { data: dl.bytes.toString("base64"), mimeType: mime },
+          });
           continue;
         }
 
@@ -303,6 +314,22 @@ export async function handleChatStreamCore({ req, userId }) {
     tools.push({ googleSearch: {} });
   }
 
+  // ✅ Optional safety settings via env (JSON array)
+  // Example:
+  // GEMINI_SAFETY_SETTINGS_JSON='[{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"}]'
+  let safetySettings = null;
+  const safetyJson = pickFirstEnv(["GEMINI_SAFETY_SETTINGS_JSON"]);
+  if (safetyJson) {
+    try {
+      const parsed = JSON.parse(safetyJson);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        safetySettings = parsed;
+      }
+    } catch (e) {
+      console.warn("Invalid GEMINI_SAFETY_SETTINGS_JSON:", e?.message || e);
+    }
+  }
+
   const saveMessageCompat = async ({ conversationId, userId, role, content }) => {
     return saveMessage(userId, conversationId, role, content);
   };
@@ -313,6 +340,7 @@ export async function handleChatStreamCore({ req, userId }) {
     contents,
     sysPrompt,
     tools,
+    safetySettings,
 
     gemMeta: {
       gemId: convo?.gemId ?? null,

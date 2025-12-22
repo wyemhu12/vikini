@@ -24,6 +24,13 @@ export function safeText(respOrChunk) {
   return "";
 }
 
+function pick(obj, keys) {
+  for (const k of keys) {
+    if (obj && obj[k] !== undefined) return obj[k];
+  }
+  return undefined;
+}
+
 export function createChatReadableStream(params) {
   const {
     ai,
@@ -31,6 +38,7 @@ export function createChatReadableStream(params) {
     contents,
     sysPrompt,
     tools,
+    safetySettings,
 
     gemMeta,
     modelMeta,
@@ -114,11 +122,19 @@ export function createChatReadableStream(params) {
       let groundingMetadata = null;
       let urlContextMetadata = null;
 
+      // ✅ Safety diagnostics (for UX + debugging)
+      let promptFeedback = null;
+      let finishReason = "";
+      let safetyRatings = null;
+
       const runStream = async ({ useTools }) => {
         const config = {
           systemInstruction: sysPrompt,
           temperature: 0,
           ...(useTools && Array.isArray(tools) && tools.length > 0 ? { tools } : {}),
+          ...(Array.isArray(safetySettings) && safetySettings.length > 0
+            ? { safetySettings }
+            : {}),
         };
 
         const res = await ai.models.generateContentStream({
@@ -128,6 +144,12 @@ export function createChatReadableStream(params) {
         });
 
         for await (const chunk of res) {
+          // Capture prompt feedback if present
+          try {
+            const pf = pick(chunk, ["promptFeedback", "prompt_feedback"]);
+            if (pf) promptFeedback = pf;
+          } catch {}
+
           const t = safeText(chunk);
           if (t) {
             full += t;
@@ -139,6 +161,12 @@ export function createChatReadableStream(params) {
             if (cand?.groundingMetadata) groundingMetadata = cand.groundingMetadata;
             if (cand?.urlContextMetadata) urlContextMetadata = cand.urlContextMetadata;
             if (cand?.url_context_metadata) urlContextMetadata = cand.url_context_metadata;
+
+            const fr = pick(cand, ["finishReason", "finish_reason"]);
+            if (typeof fr === "string" && fr) finishReason = fr;
+
+            const sr = pick(cand, ["safetyRatings", "safety_ratings"]);
+            if (sr) safetyRatings = sr;
           } catch {}
         }
       };
@@ -167,6 +195,31 @@ export function createChatReadableStream(params) {
           } catch {}
         }
       }
+
+      // ✅ If blocked by safety, Gemini may return no content at all.
+      // Gemini docs: promptFeedback.blockReason or Candidate.finishReason=SAFETY and safetyRatings for details.
+      // We convert "silent" into a clear assistant message.
+      try {
+        const blockReason = pick(promptFeedback, ["blockReason", "block_reason"]);
+        const isBlocked =
+          Boolean(blockReason) ||
+          String(finishReason || "").toUpperCase() === "SAFETY";
+
+        if (!full.trim() && isBlocked) {
+          sendEvent(controller, "meta", {
+            type: "safety",
+            blocked: true,
+            blockReason: blockReason || "",
+            finishReason: finishReason || "",
+            safetyRatings: safetyRatings || null,
+          });
+
+          const msg =
+            "Nội dung bị chặn bởi safety filter. Hãy thử đổi tên GEM hoặc viết lại yêu cầu theo hướng trung lập.";
+          full = msg;
+          sendEvent(controller, "token", { t: msg });
+        }
+      } catch {}
 
       try {
         if (groundingMetadata) {
@@ -213,7 +266,9 @@ export function createChatReadableStream(params) {
             content: trimmed,
           });
 
-          if (!regenerate) {
+          // Nếu response chỉ là message blocked, tránh auto-title (giảm spam title)
+          const isBlockedMsg = trimmed.startsWith("Nội dung bị chặn bởi safety filter");
+          if (!regenerate && !isBlockedMsg) {
             const finalTitle = await generateFinalTitle({
               userId,
               conversationId,
