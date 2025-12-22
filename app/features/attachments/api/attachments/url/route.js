@@ -3,8 +3,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { requireUser } from "@/app/api/conversations/auth";
-import { createSignedUrlForAttachmentId } from "@/lib/attachments";
+import { requireUser } from "@/app/features/chat/api/conversations/auth";
+import { createSignedUrlForAttachmentId } from "@/lib/features/attachments/attachments";
 
 export async function GET(req) {
   try {

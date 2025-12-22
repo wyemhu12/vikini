@@ -1,7 +1,7 @@
 // app/components/Chat/TitleItem.jsx
 "use client";
 
-import useAutoTitleStore from "@/app/hooks/useAutoTitleStore";
+import useAutoTitleStore from "@/app/features/chat/hooks/useAutoTitleStore";
 
 export default function TitleItem({ id, defaultTitle, isActive }) {
   const finalTitle = useAutoTitleStore((s) => s.final[id]);
