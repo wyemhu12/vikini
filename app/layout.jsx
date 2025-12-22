@@ -1,5 +1,5 @@
 // app/layout.jsx
-import "../globals.css"; // Corrected path
+import "./globals.css";
 import "./features/styles/shimmer.css"; // Corrected path
 import Providers from "./features/layout/providers"; // Corrected path
 
