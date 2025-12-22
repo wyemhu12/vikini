@@ -60,14 +60,19 @@ function pickFirstEnv(keys) {
 /**
  * Normalize model ids to avoid 404 due to preview/renames.
  * Gemini 3 models are currently preview and the official IDs include `-preview`.
- * Ref (official models list):
- * - gemini-3-flash-preview
- * - gemini-3-pro-preview
+ *
+ * Additionally: we intentionally deprecate Gemini 1.5 / 2.0 options in this app.
+ * If DB/env still contains them, we fallback to DEFAULT_MODEL.
  */
 function normalizeModelId(modelId) {
   const m = String(modelId || "").trim();
   if (!m) return m;
 
+  // ✅ Remove/Deprecate old models (UI no longer exposes them)
+  if (m === "gemini-2.0-flash") return DEFAULT_MODEL;
+  if (m === "gemini-1.5-pro") return DEFAULT_MODEL;
+
+  // ✅ Gemini 3 aliases -> official preview IDs
   if (m === "gemini-3-flash") return "gemini-3-flash-preview";
   if (m === "gemini-3-pro") return "gemini-3-pro-preview";
   if (m === "gemini-3-pro-image") return "gemini-3-pro-image-preview";
@@ -160,7 +165,8 @@ export async function handleChatStreamCore({ req, userId }) {
 
   /**
    * Get model from conversation (per-chat) > env > DEFAULT_MODEL
-   * Then normalize to avoid 404 (e.g. gemini-3-flash -> gemini-3-flash-preview).
+   * Then normalize to avoid 404 (e.g. gemini-3-flash -> gemini-3-flash-preview),
+   * and fallback away from deprecated Gemini 1.5 / 2.0.
    */
   const envModel = pickFirstEnv(["GEMINI_MODEL", "GOOGLE_MODEL"]);
   const requestedModel = convo?.model || envModel || DEFAULT_MODEL;

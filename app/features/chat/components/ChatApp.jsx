@@ -1,4 +1,4 @@
-// /app/components/Chat/ChatApp.jsx
+// /app/features/chat/components/ChatApp.jsx
 "use client";
 
 import { useEffect, useRef, useMemo, useCallback, useState } from "react";
@@ -18,16 +18,22 @@ import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 
 // Available models for selection - tên phải khớp chính xác với AI Studio
+// ✅ Removed: gemini-2.0-flash, gemini-1.5-pro
 const AVAILABLE_MODELS = [
   { id: "gemini-2.5-flash", descKey: "modelDescFlash25" },
   { id: "gemini-2.5-pro", descKey: "modelDescPro25" },
   { id: "gemini-3-flash", descKey: "modelDescFlash3" },
   { id: "gemini-3-pro", descKey: "modelDescPro3" },
-  { id: "gemini-2.0-flash", descKey: "modelDescFlash20" },
-  { id: "gemini-1.5-pro", descKey: "modelDescPro15" },
 ];
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
+
+const ALLOWED_MODEL_IDS = new Set(AVAILABLE_MODELS.map((m) => m.id));
+function isAllowedModelId(modelId) {
+  const m = String(modelId || "").trim();
+  if (!m) return false;
+  return ALLOWED_MODEL_IDS.has(m);
+}
 
 export default function ChatApp() {
   const { data: session, status } = useSession();
@@ -104,15 +110,11 @@ export default function ChatApp() {
         "gemini-2.5-pro": tRaw("gemini-2.5-pro") ?? "Gemini 2.5 Pro",
         "gemini-3-flash": tRaw("gemini-3-flash") ?? "Gemini 3 Flash",
         "gemini-3-pro": tRaw("gemini-3-pro") ?? "Gemini 3 Pro",
-        "gemini-2.0-flash": tRaw("gemini-2.0-flash") ?? "Gemini 2.0 Flash",
-        "gemini-1.5-pro": tRaw("gemini-1.5-pro") ?? "Gemini 1.5 Pro",
         // Model descriptions
         modelDescFlash25: tRaw("modelDescFlash25") ?? "Fast & balanced",
         modelDescPro25: tRaw("modelDescPro25") ?? "Advanced thinking",
         modelDescFlash3: tRaw("modelDescFlash3") ?? "Smart & fast",
         modelDescPro3: tRaw("modelDescPro3") ?? "Most intelligent",
-        modelDescFlash20: tRaw("modelDescFlash20") ?? "Previous generation",
-        modelDescPro15: tRaw("modelDescPro15") ?? "Long context",
         // Web search
         webSearch: tRaw("webSearch") ?? "Web Search",
         webSearchOn: tRaw("webSearchOn") ?? "ON",
@@ -144,15 +146,11 @@ export default function ChatApp() {
         "gemini-2.5-pro": tRaw["gemini-2.5-pro"] ?? "Gemini 2.5 Pro",
         "gemini-3-flash": tRaw["gemini-3-flash"] ?? "Gemini 3 Flash",
         "gemini-3-pro": tRaw["gemini-3-pro"] ?? "Gemini 3 Pro",
-        "gemini-2.0-flash": tRaw["gemini-2.0-flash"] ?? "Gemini 2.0 Flash",
-        "gemini-1.5-pro": tRaw["gemini-1.5-pro"] ?? "Gemini 1.5 Pro",
         // Model descriptions
         modelDescFlash25: tRaw.modelDescFlash25 ?? "Fast & balanced",
         modelDescPro25: tRaw.modelDescPro25 ?? "Advanced thinking",
         modelDescFlash3: tRaw.modelDescFlash3 ?? "Smart & fast",
         modelDescPro3: tRaw.modelDescPro3 ?? "Most intelligent",
-        modelDescFlash20: tRaw.modelDescFlash20 ?? "Previous generation",
-        modelDescPro15: tRaw.modelDescPro15 ?? "Long context",
         // Web search
         webSearch: tRaw.webSearch ?? "Web Search",
         webSearchOn: tRaw.webSearchOn ?? "ON",
@@ -184,15 +182,11 @@ export default function ChatApp() {
       "gemini-2.5-pro": "Gemini 2.5 Pro",
       "gemini-3-flash": "Gemini 3 Flash",
       "gemini-3-pro": "Gemini 3 Pro",
-      "gemini-2.0-flash": "Gemini 2.0 Flash",
-      "gemini-1.5-pro": "Gemini 1.5 Pro",
       // Model descriptions
       modelDescFlash25: "Fast & balanced",
       modelDescPro25: "Advanced thinking",
       modelDescFlash3: "Smart & fast",
       modelDescPro3: "Most intelligent",
-      modelDescFlash20: "Previous generation",
-      modelDescPro15: "Long context",
       // Web search
       webSearch: "Web Search",
       webSearchOn: "ON",
@@ -313,20 +307,43 @@ export default function ChatApp() {
     );
   }, [conversations, selectedConversationId]);
 
-  const currentModel = currentConversation?.model || DEFAULT_MODEL;
+  const currentModelRaw = currentConversation?.model || DEFAULT_MODEL;
+  const currentModel = isAllowedModelId(currentModelRaw) ? currentModelRaw : DEFAULT_MODEL;
   const currentGem = currentConversation?.gem || null;
+
+  // ✅ Auto-migrate old/unsupported model values (Gemini 1.5 / 2.0) to DEFAULT_MODEL
+  useEffect(() => {
+    if (!selectedConversationId) return;
+    const raw = currentConversation?.model;
+
+    // Only migrate if a model is explicitly set but not allowed
+    if (!raw) return;
+    if (isAllowedModelId(raw)) return;
+
+    (async () => {
+      try {
+        patchConversationModel?.(selectedConversationId, DEFAULT_MODEL);
+        await setConversationModel?.(selectedConversationId, DEFAULT_MODEL);
+      } catch (e) {
+        console.error("Failed to migrate unsupported model:", e);
+      }
+    })();
+  }, [selectedConversationId, currentConversation?.model, patchConversationModel, setConversationModel]);
 
   // ✅ Handle model change
   const handleModelChange = useCallback(
     async (newModel) => {
       if (!selectedConversationId) return;
-      if (newModel === currentModel) return;
+
+      const next = String(newModel || "").trim();
+      if (!isAllowedModelId(next)) return;
+      if (next === currentModel) return;
 
       try {
         // Optimistic update
-        patchConversationModel?.(selectedConversationId, newModel);
+        patchConversationModel?.(selectedConversationId, next);
         // Server update
-        await setConversationModel?.(selectedConversationId, newModel);
+        await setConversationModel?.(selectedConversationId, next);
       } catch (e) {
         console.error("Failed to change model:", e);
         // Revert on error
