@@ -16,7 +16,7 @@ export default function TitleItem({ id, defaultTitle, isActive }) {
 
   return (
     <span
-      className={`truncate text-xs ${
+      className={`truncate text-sm ${
         isActive ? "text-white" : "text-neutral-300"
       }`}
       title={title}

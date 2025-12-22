@@ -394,7 +394,7 @@ export default function ChatApp() {
       />
 
       {/* Main content: add left padding on desktop to avoid overlap with fixed sidebar */}
-      <div className="h-full flex flex-col md:pl-64">
+      <div className="h-full flex flex-col md:pl-80">
         <HeaderBar
           t={t}
           language={language}
@@ -434,17 +434,17 @@ export default function ChatApp() {
         </div>
 
         <div className="max-w-3xl mx-auto w-full">
-          <div className="px-4 pt-1 flex flex-wrap items-center gap-2">
+          <div className="px-4 pt-2 flex flex-wrap items-center gap-2.5">
             {/* ✅ Model Selector */}
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-neutral-500 hidden sm:inline">
+              <span className="text-xs text-neutral-500 hidden sm:inline">
                 {t.modelSelector}:
               </span>
               <select
                 value={currentModel}
                 onChange={(e) => handleModelChange(e.target.value)}
                 disabled={!selectedConversationId || isStreaming || regenerating}
-                className="text-xs px-2 py-1.5 rounded-full ring-1 ring-neutral-700 bg-neutral-900 text-neutral-100 outline-none focus:ring-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-sm px-3 py-2 rounded-full ring-1 ring-neutral-700 bg-neutral-900 text-neutral-100 outline-none focus:ring-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed"
                 title={t.selectModel}
               >
                 {AVAILABLE_MODELS.map((m) => (
@@ -459,7 +459,7 @@ export default function ChatApp() {
             <button
               onClick={toggleWebSearch}
               className={[
-                "text-xs px-3 py-1.5 rounded-full ring-1 transition",
+                "text-sm px-3.5 py-2 rounded-full ring-1 transition",
                 webSearchEnabled
                   ? "bg-neutral-900 ring-neutral-700 text-neutral-100"
                   : "bg-neutral-950 ring-neutral-800 text-neutral-400 hover:text-neutral-200",
@@ -473,7 +473,7 @@ export default function ChatApp() {
 
             {/* ✅ Applied GEM Indicator */}
             <div
-              className="text-xs px-3 py-1.5 rounded-full ring-1 ring-neutral-800 bg-neutral-950 text-neutral-400"
+              className="text-sm px-3.5 py-2 rounded-full ring-1 ring-neutral-800 bg-neutral-950 text-neutral-400"
               title={t.appliedGem}
             >
               {t.appliedGem}: {currentGem?.name || t.appliedGemNone}

@@ -8,7 +8,7 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
 
   return (
     <button
-      className={`flex w-full items-center justify-between gap-1 rounded-lg px-3 py-2 text-left text-xs ${
+      className={`flex w-full items-center justify-between gap-1.5 rounded-lg px-3.5 py-2.5 text-left text-sm ${
         isActive
           ? "bg-neutral-800 text-white"
           : "text-neutral-400 hover:bg-neutral-900"
@@ -28,7 +28,7 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
             e.stopPropagation();
             if (typeof onRename === "function") onRename(c.id);
           }}
-          className="cursor-pointer rounded px-1 py-0.5 text-[10px] text-neutral-400 hover:bg-neutral-700"
+          className="cursor-pointer rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-neutral-700"
           title="Rename"
           role="button"
         >
@@ -39,7 +39,7 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
             e.stopPropagation();
             if (typeof onDelete === "function") onDelete(c.id);
           }}
-          className="cursor-pointer rounded px-1 py-0.5 text-[10px] text-neutral-400 hover:bg-red-600 hover:text-white"
+          className="cursor-pointer rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-red-600 hover:text-white"
           title="Delete"
           role="button"
         >
