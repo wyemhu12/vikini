@@ -1,0 +1,109 @@
+﻿|-- .env.local
+|-- .gitignore
+|-- app
+|   |-- api
+|   |   |-- attachments
+|   |   |   |-- analyze
+|   |   |   |   |-- route.js
+|   |   |   |-- route.js
+|   |   |   |-- upload
+|   |   |   |   |-- route.js
+|   |   |   |-- url
+|   |   |   |   |-- route.js
+|   |   |-- auth
+|   |   |   |-- [...nextauth]
+|   |   |-- chat-stream
+|   |   |   |-- chatStreamCore.js
+|   |   |   |-- route.js
+|   |   |   |-- streaming.js
+|   |   |-- conversations
+|   |   |   |-- auth.js
+|   |   |   |-- route.js
+|   |   |   |-- sanitize.js
+|   |   |   |-- validators.js
+|   |   |-- cron
+|   |   |   |-- attachments-cleanup
+|   |   |   |   |-- route.js
+|   |   |-- gems
+|   |   |   |-- preview
+|   |   |   |   |-- route.js
+|   |   |   |-- route.js
+|   |-- features
+|   |   |-- attachments
+|   |   |-- auth
+|   |   |-- chat
+|   |   |   |-- components
+|   |   |   |   |-- AttachmentsPanel.jsx
+|   |   |   |   |-- ChatApp.jsx
+|   |   |   |   |-- ChatBubble.jsx
+|   |   |   |   |-- hooks
+|   |   |   |   |   |-- useChatStreamController.js
+|   |   |   |   |   |-- useWebSearchPreference.js
+|   |   |   |   |-- InputForm.jsx
+|   |   |   |   |-- TitleItem.jsx
+|   |   |   |-- hooks
+|   |   |   |   |-- useAutoTitleStore.js
+|   |   |   |   |-- useChat.js
+|   |   |   |   |-- useConversation.js
+|   |   |   |   |-- useLanguage.js
+|   |   |   |   |-- useScrollToBottom.js
+|   |   |   |   |-- useTheme.js
+|   |   |   |-- page.jsx
+|   |   |-- cron
+|   |   |-- gems
+|   |   |   |-- components
+|   |   |   |   |-- GemEditor.jsx
+|   |   |   |   |-- GemList.jsx
+|   |   |   |-- page.jsx
+|   |   |-- layout
+|   |   |   |-- components
+|   |   |   |   |-- HeaderBar.jsx
+|   |   |   |   |-- MainLayout.jsx
+|   |   |   |-- providers.jsx
+|   |   |-- sidebar
+|   |   |   |-- components
+|   |   |   |   |-- Sidebar.jsx
+|   |   |   |   |-- SidebarItem.jsx
+|   |   |-- styles
+|   |   |   |-- shimmer.css
+|   |   |-- toolbar
+|   |   |   |-- components
+|   |   |   |   |-- MessageToolbar.jsx
+|   |   |-- ui
+|   |   |   |-- components
+|   |   |   |   |-- RegenerateIcon.jsx
+|   |-- gems
+|   |   |-- page.jsx
+|   |-- globals.css
+|   |-- layout.jsx
+|   |-- page.jsx
+|-- jsconfig.json
+|-- lib
+|   |-- core
+|   |   |-- autoTitleEngine.js
+|   |   |-- genaiClient.js
+|   |   |-- modelRegistry.js
+|   |   |-- rateLimit.js
+|   |   |-- redisContext.js
+|   |   |-- supabase.js
+|   |   |-- whitelist.js
+|   |-- features
+|   |   |-- attachments
+|   |   |   |-- attachments.js
+|   |   |   |-- zip.js
+|   |   |-- auth
+|   |   |   |-- auth.js
+|   |   |-- chat
+|   |   |   |-- conversations.js
+|   |   |   |-- messages.js
+|   |   |   |-- postgresChat.js
+|   |   |-- gems
+|   |   |   |-- gems.js
+|   |-- utils
+|   |   |-- config.js
+|-- next.config.js
+|-- package.json
+|-- package-lock.json
+|-- postcss.config.mjs
+|-- tailwind.config.mjs
+|-- tree.txt

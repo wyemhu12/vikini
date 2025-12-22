@@ -5,6 +5,17 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { useMemo, useState } from "react";
 
+
+function TypingDots() {
+  return (
+    <div className="typing-dots flex items-center gap-1 px-0.5 py-1">
+      <span />
+      <span />
+      <span />
+    </div>
+  );
+}
+
 function getLang(className) {
   const m = /language-([a-z0-9-]+)/i.exec(className || "");
   return m?.[1]?.toLowerCase() || "text";
@@ -13,7 +24,8 @@ function getLang(className) {
 function CodeBlock({ inline, className, children }) {
   const code = useMemo(() => {
     const raw = Array.isArray(children) ? children.join("") : String(children || "");
-    return raw.replace(/\n$/, "");
+    const normalized = raw.replace(/\r\n/g, "\n").replace(/^\n+/, "").replace(/\n+$/, "");
+    return normalized;
   }, [children]);
 
   if (inline) {
@@ -43,8 +55,8 @@ function CodeBlock({ inline, className, children }) {
   };
 
   return (
-    <div className="my-3 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950/60">
-      <div className="flex items-center justify-between border-b border-neutral-800 px-3 py-2">
+    <div className="my-2 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950/60">
+      <div className="flex items-center justify-between border-b border-neutral-800 px-3 py-1.5">
         <div className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">
           {lang}
         </div>
@@ -77,7 +89,7 @@ function CodeBlock({ inline, className, children }) {
           isCollapsible && !expanded ? "max-h-[320px]" : "max-h-none",
         ].join(" ")}
       >
-        <pre className="m-0 p-3 text-[12px] leading-5 text-neutral-100">
+        <pre className="m-0 p-2.5 text-[12px] leading-5 text-neutral-100">
           <code className={className}>{code}</code>
         </pre>
 
@@ -155,6 +167,7 @@ export default function ChatBubble({
 
   const sources = Array.isArray(safeMessage?.sources) ? safeMessage.sources : [];
   const urlContext = Array.isArray(safeMessage?.urlContext) ? safeMessage.urlContext : [];
+  const isTyping = isBot && isLastAssistant && !regenerating && !String(safeMessage?.content || "").trim();
 
   return (
     <div className={`flex items-start gap-3 ${isBot ? "justify-start" : "justify-end"}`}>
@@ -168,12 +181,16 @@ export default function ChatBubble({
       <div className="group relative max-w-[86%] text-left">
         <div
           className={[
-            "rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ring-1",
+            "rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ring-1",
             isBot
               ? "bg-neutral-900/80 text-neutral-100 ring-neutral-800"
               : "bg-[var(--primary)] text-black ring-[var(--primary)]",
           ].join(" ")}
         >
+          {isTyping ? (
+            <TypingDots />
+          ) : (
+
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeHighlight]}
@@ -197,6 +214,8 @@ export default function ChatBubble({
           >
             {safeMessage.content}
           </ReactMarkdown>
+          )}
+
 
           {isBot && sources.length > 0 && (
             <div className="mt-3 border-t border-neutral-800/80 pt-2">
