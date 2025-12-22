@@ -17,10 +17,12 @@ import { useConversation } from "../hooks/useConversation";
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 
-// Available models for selection - chỉ các model thực sự có sẵn trong API
+// Available models for selection - tên phải khớp chính xác với AI Studio
 const AVAILABLE_MODELS = [
   { id: "gemini-2.5-flash", descKey: "modelDescFlash25" },
   { id: "gemini-2.5-pro", descKey: "modelDescPro25" },
+  { id: "gemini-3-flash", descKey: "modelDescFlash3" },
+  { id: "gemini-3-pro", descKey: "modelDescPro3" },
   { id: "gemini-2.0-flash", descKey: "modelDescFlash20" },
   { id: "gemini-1.5-pro", descKey: "modelDescPro15" },
 ];
@@ -97,14 +99,18 @@ export default function ChatApp() {
         // Applied GEM
         appliedGem: tRaw("appliedGem") ?? "Applied GEM",
         appliedGemNone: tRaw("appliedGemNone") ?? "None",
-        // Model names
+        // Model names - tên phải khớp chính xác với AI Studio
         "gemini-2.5-flash": tRaw("gemini-2.5-flash") ?? "Gemini 2.5 Flash",
         "gemini-2.5-pro": tRaw("gemini-2.5-pro") ?? "Gemini 2.5 Pro",
+        "gemini-3-flash": tRaw("gemini-3-flash") ?? "Gemini 3 Flash",
+        "gemini-3-pro": tRaw("gemini-3-pro") ?? "Gemini 3 Pro",
         "gemini-2.0-flash": tRaw("gemini-2.0-flash") ?? "Gemini 2.0 Flash",
         "gemini-1.5-pro": tRaw("gemini-1.5-pro") ?? "Gemini 1.5 Pro",
         // Model descriptions
         modelDescFlash25: tRaw("modelDescFlash25") ?? "Fast & balanced",
         modelDescPro25: tRaw("modelDescPro25") ?? "Advanced thinking",
+        modelDescFlash3: tRaw("modelDescFlash3") ?? "Smart & fast",
+        modelDescPro3: tRaw("modelDescPro3") ?? "Most intelligent",
         modelDescFlash20: tRaw("modelDescFlash20") ?? "Previous generation",
         modelDescPro15: tRaw("modelDescPro15") ?? "Long context",
         // Web search
@@ -136,11 +142,15 @@ export default function ChatApp() {
         // Model names
         "gemini-2.5-flash": tRaw["gemini-2.5-flash"] ?? "Gemini 2.5 Flash",
         "gemini-2.5-pro": tRaw["gemini-2.5-pro"] ?? "Gemini 2.5 Pro",
+        "gemini-3-flash": tRaw["gemini-3-flash"] ?? "Gemini 3 Flash",
+        "gemini-3-pro": tRaw["gemini-3-pro"] ?? "Gemini 3 Pro",
         "gemini-2.0-flash": tRaw["gemini-2.0-flash"] ?? "Gemini 2.0 Flash",
         "gemini-1.5-pro": tRaw["gemini-1.5-pro"] ?? "Gemini 1.5 Pro",
         // Model descriptions
         modelDescFlash25: tRaw.modelDescFlash25 ?? "Fast & balanced",
         modelDescPro25: tRaw.modelDescPro25 ?? "Advanced thinking",
+        modelDescFlash3: tRaw.modelDescFlash3 ?? "Smart & fast",
+        modelDescPro3: tRaw.modelDescPro3 ?? "Most intelligent",
         modelDescFlash20: tRaw.modelDescFlash20 ?? "Previous generation",
         modelDescPro15: tRaw.modelDescPro15 ?? "Long context",
         // Web search
@@ -172,11 +182,15 @@ export default function ChatApp() {
       // Model names
       "gemini-2.5-flash": "Gemini 2.5 Flash",
       "gemini-2.5-pro": "Gemini 2.5 Pro",
+      "gemini-3-flash": "Gemini 3 Flash",
+      "gemini-3-pro": "Gemini 3 Pro",
       "gemini-2.0-flash": "Gemini 2.0 Flash",
       "gemini-1.5-pro": "Gemini 1.5 Pro",
       // Model descriptions
       modelDescFlash25: "Fast & balanced",
       modelDescPro25: "Advanced thinking",
+      modelDescFlash3: "Smart & fast",
+      modelDescPro3: "Most intelligent",
       modelDescFlash20: "Previous generation",
       modelDescPro15: "Long context",
       // Web search
