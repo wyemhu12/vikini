@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/features/auth/auth";
 
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit } from "@/lib/core/rateLimit";
 import { NextResponse } from "next/server";
 
 import { handleChatStreamCore } from "./chatStreamCore";

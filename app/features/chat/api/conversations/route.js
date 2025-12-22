@@ -10,12 +10,12 @@ import { sanitizeMessages } from "./sanitize";
 import {
   getUserConversations,
   getConversation,
-  getMessages,
   saveConversation,
   updateConversationTitle,
   deleteConversation,
   setConversationGem,
-} from "@/lib/postgresChat";
+} from "@/lib/features/chat/conversations";
+import { getMessages } from "@/lib/features/chat/messages";
 
 // ------------------------------
 // GET

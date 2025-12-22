@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { getAttachmentsConfig, getSupabaseAdmin } from "@/lib/attachments";
+import { getAttachmentsConfig, getSupabaseAdmin } from "@/lib/features/attachments/attachments";
 
 function pickFirstEnv(keys) {
   for (const k of keys) {

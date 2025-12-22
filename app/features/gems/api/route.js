@@ -4,9 +4,9 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/lib/features/auth/auth";
 
-import { getGemsForUser, createGem, updateGem, deleteGem } from "@/lib/postgresChat";
+import { getGemsForUser, createGem, updateGem, deleteGem } from "@/lib/features/gems/gems";
 
 function mapGemForClient(row) {
   if (!row) return null;
