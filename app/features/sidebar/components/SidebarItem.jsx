@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import TitleItem from "../Chat/TitleItem";
+import TitleItem from "@/app/features/chat/components/TitleItem";
 
 function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
   const c = conversation;

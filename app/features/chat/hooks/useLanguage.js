@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { translations } from "../utils/config";
+import { translations } from "@/lib/utils/config";
 
 const LANGS = ["vi", "en"];
 
