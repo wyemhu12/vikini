@@ -17,23 +17,14 @@ import { useConversation } from "../hooks/useConversation";
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 
-// Available models for selection - tên phải khớp chính xác với AI Studio
-// ✅ Removed: gemini-2.0-flash, gemini-1.5-pro
-const AVAILABLE_MODELS = [
-  { id: "gemini-2.5-flash", descKey: "modelDescFlash25" },
-  { id: "gemini-2.5-pro", descKey: "modelDescPro25" },
-  { id: "gemini-3-flash", descKey: "modelDescFlash3" },
-  { id: "gemini-3-pro", descKey: "modelDescPro3" },
-];
+import {
+  DEFAULT_MODEL,
+  SELECTABLE_MODELS,
+  isSelectableModelId,
+} from "@/lib/core/modelRegistry";
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
-
-const ALLOWED_MODEL_IDS = new Set(AVAILABLE_MODELS.map((m) => m.id));
-function isAllowedModelId(modelId) {
-  const m = String(modelId || "").trim();
-  if (!m) return false;
-  return ALLOWED_MODEL_IDS.has(m);
-}
+// Shared model registry (single source of truth)
+const AVAILABLE_MODELS = SELECTABLE_MODELS;
 
 export default function ChatApp() {
   const { data: session, status } = useSession();
@@ -308,7 +299,7 @@ export default function ChatApp() {
   }, [conversations, selectedConversationId]);
 
   const currentModelRaw = currentConversation?.model || DEFAULT_MODEL;
-  const currentModel = isAllowedModelId(currentModelRaw) ? currentModelRaw : DEFAULT_MODEL;
+  const currentModel = isSelectableModelId(currentModelRaw) ? currentModelRaw : DEFAULT_MODEL;
   const currentGem = currentConversation?.gem || null;
 
   // ✅ Auto-migrate old/unsupported model values (Gemini 1.5 / 2.0) to DEFAULT_MODEL
@@ -318,7 +309,7 @@ export default function ChatApp() {
 
     // Only migrate if a model is explicitly set but not allowed
     if (!raw) return;
-    if (isAllowedModelId(raw)) return;
+    if (isSelectableModelId(raw)) return;
 
     (async () => {
       try {
@@ -336,7 +327,7 @@ export default function ChatApp() {
       if (!selectedConversationId) return;
 
       const next = String(newModel || "").trim();
-      if (!isAllowedModelId(next)) return;
+      if (!isSelectableModelId(next)) return;
       if (next === currentModel) return;
 
       try {

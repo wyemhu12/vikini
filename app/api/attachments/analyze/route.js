@@ -3,7 +3,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+
+import { getGenAIClient } from "@/lib/core/genaiClient";
+import { DEFAULT_MODEL, normalizeModelForApi } from "@/lib/core/modelRegistry";
 import { requireUser } from "@/app/api/conversations/auth";
 import { downloadAttachmentBytes } from "@/lib/features/attachments/attachments";
 import { getConversation } from "@/lib/features/chat/conversations";
@@ -16,6 +18,17 @@ function pickFirstEnv(keys) {
     const v = process.env[k];
     if (v && String(v).trim()) return String(v).trim();
   }
+  return "";
+}
+
+function extractText(resp) {
+  try {
+    if (typeof resp?.text === "string") return resp.text;
+    if (typeof resp?.text === "function") return resp.text();
+    if (resp?.candidates?.[0]?.content?.parts?.[0]?.text) {
+      return resp.candidates[0].content.parts[0].text;
+    }
+  } catch {}
   return "";
 }
 
@@ -88,18 +101,18 @@ export async function POST(req) {
       sysPrompt = "";
     }
 
-    const apiKey = pickFirstEnv(["GEMINI_API_KEY", "GOOGLE_API_KEY"]);
-    if (!apiKey) {
-      return NextResponse.json({ error: "Missing GEMINI_API_KEY/GOOGLE_API_KEY" }, { status: 500 });
+    let ai;
+    try {
+      ai = getGenAIClient();
+    } catch (e) {
+      return NextResponse.json(
+        { error: e?.message || "Missing GEMINI_API_KEY/GOOGLE_API_KEY" },
+        { status: 500 }
+      );
     }
 
-    const modelName = pickFirstEnv(["GEMINI_MODEL", "GOOGLE_MODEL"]) || "gemini-2.0-flash";
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      ...(sysPrompt && sysPrompt.trim() ? { systemInstruction: sysPrompt } : {}),
-    });
+    const requestedModel = pickFirstEnv(["GEMINI_MODEL", "GOOGLE_MODEL"]) || DEFAULT_MODEL;
+    const modelName = normalizeModelForApi(requestedModel);
 
     const defaultAsk =
       "Analyze the attachment: summarize key points, note any security risks (if applicable), and suggest next steps.";
@@ -184,8 +197,16 @@ export async function POST(req) {
       });
     }
 
-    const result = await model.generateContent(parts);
-    const analysisText = result?.response?.text?.() ? result.response.text() : "";
+    const result = await ai.models.generateContent({
+      model: modelName,
+      contents: [{ role: "user", parts }],
+      config: {
+        ...(sysPrompt && sysPrompt.trim() ? { systemInstruction: sysPrompt } : {}),
+        temperature: 0.2,
+        maxOutputTokens: 2048,
+      },
+    });
+    const analysisText = extractText(result) || "";
 
     // Save minimal audit messages (do NOT store attachment content)
     const auditUser = `[Analyze attachment] ${row.filename}\n${ask}`;

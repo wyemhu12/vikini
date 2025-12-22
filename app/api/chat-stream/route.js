@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/features/auth/auth";
 
-import { checkRateLimit } from "@/lib/core/rateLimit";
+import { consumeRateLimit, rateLimitHeaders } from "@/lib/core/rateLimit";
 import { NextResponse } from "next/server";
 
 import { handleChatStreamCore } from "./chatStreamCore";
@@ -19,15 +19,22 @@ export async function POST(req) {
 
     const userId = session.user.email.toLowerCase();
 
-    const allowed = checkRateLimit(`chat-stream:${userId}`);
-    if (!allowed) {
-      return new Response("Rate limit exceeded", {
-        status: 429,
-        headers: {
-          "Content-Type": "text/plain; charset=utf-8",
-          "Cache-Control": "no-store",
-        },
-      });
+    const rl = await consumeRateLimit(`chat-stream:${userId}`);
+    if (!rl.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded",
+          retryAfterSeconds: rl.retryAfterSeconds,
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": "no-store",
+            ...rateLimitHeaders(rl),
+          },
+        }
+      );
     }
 
     return await handleChatStreamCore({ req, userId });

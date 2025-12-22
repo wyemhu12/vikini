@@ -1,18 +1,19 @@
 // /app/api/chat-stream/chatStreamCore.js
 
-import { GoogleGenAI } from "@google/genai";
 import { getSupabaseAdmin } from "@/lib/core/supabase";
+
+import { getGenAIClient } from "@/lib/core/genaiClient";
+import { DEFAULT_MODEL, normalizeModelForApi, coerceStoredModel } from "@/lib/core/modelRegistry";
 
 import {
   getConversation,
   saveConversation,
   setConversationAutoTitle,
-  DEFAULT_MODEL,
 } from "@/lib/features/chat/conversations";
 import {
   saveMessage,
   deleteLastAssistantMessage,
-  getMessages,
+  getRecentMessages,
 } from "@/lib/features/chat/messages";
 import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
 
@@ -85,6 +86,11 @@ function envFlag(value, defaultValue = false) {
   return defaultValue;
 }
 
+function toPositiveInt(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
 function pickFirstEnv(keys) {
   for (const k of keys) {
     const v = process.env[k];
@@ -103,30 +109,6 @@ function stripOuterQuotes(s) {
     }
   }
   return v;
-}
-
-
-/**
- * Normalize model ids to avoid 404 due to preview/renames.
- * Gemini 3 models are currently preview and the official IDs include `-preview`.
- *
- * Additionally: we intentionally deprecate Gemini 1.5 / 2.0 options in this app.
- * If DB/env still contains them, we fallback to DEFAULT_MODEL.
- */
-function normalizeModelId(modelId) {
-  const m = String(modelId || "").trim();
-  if (!m) return m;
-
-  // ✅ Remove/Deprecate old models (UI no longer exposes them)
-  if (m === "gemini-2.0-flash") return DEFAULT_MODEL;
-  if (m === "gemini-1.5-pro") return DEFAULT_MODEL;
-
-  // ✅ Gemini 3 aliases -> official preview IDs
-  if (m === "gemini-3-flash") return "gemini-3-flash-preview";
-  if (m === "gemini-3-pro") return "gemini-3-pro-preview";
-  if (m === "gemini-3-pro-image") return "gemini-3-pro-image-preview";
-
-  return m;
 }
 
 function jsonError(message, status = 500) {
@@ -181,11 +163,13 @@ export async function handleChatStreamCore({ req, userId }) {
   const enableUrlContext =
     cookieUrl === "1" ? true : cookieUrl === "0" ? false : URL_CONTEXT_AVAILABLE;
 
-  // Init client (@google/genai)
-  const apiKey = pickFirstEnv(["GEMINI_API_KEY", "GOOGLE_API_KEY"]);
-  if (!apiKey) return jsonError("Missing GEMINI_API_KEY/GOOGLE_API_KEY", 500);
-
-  const ai = new GoogleGenAI({ apiKey });
+  // Init client (@google/genai) - lazy singleton cache
+  let ai;
+  try {
+    ai = getGenAIClient();
+  } catch (e) {
+    return jsonError(e?.message || "Missing GEMINI_API_KEY/GOOGLE_API_KEY", 500);
+  }
 
   // Load / create conversation
   let convo = null;
@@ -219,7 +203,7 @@ export async function handleChatStreamCore({ req, userId }) {
    */
   const envModel = pickFirstEnv(["GEMINI_MODEL", "GOOGLE_MODEL"]);
   const requestedModel = convo?.model || envModel || DEFAULT_MODEL;
-  const model = normalizeModelId(requestedModel);
+  const model = normalizeModelForApi(requestedModel);
 
   // Nếu regenerate: xoá last assistant message (best-effort)
   if (regenerate) {
@@ -252,7 +236,8 @@ export async function handleChatStreamCore({ req, userId }) {
   let contents = [{ role: "user", parts: [{ text: content }] }];
 
   try {
-    const rows = await getMessages(conversationId);
+    const ctxLimit = toPositiveInt(pickFirstEnv(["CHAT_CONTEXT_MESSAGE_LIMIT"]), 50);
+    const rows = await getRecentMessages(conversationId, ctxLimit);
     contextMessages = (Array.isArray(rows) ? rows : [])
       .map((m) => ({ role: m?.role, content: m?.content }))
       .filter(
@@ -419,9 +404,12 @@ export async function handleChatStreamCore({ req, userId }) {
     },
 
     modelMeta: {
-      model,
+      // show a stable id to the UI (prefer stored/selectable ids)
+      model: coerceStoredModel(requestedModel),
       requestedModel,
-      normalized: model !== requestedModel,
+      apiModel: model,
+      normalized: normalizeModelForApi(requestedModel) !== coerceStoredModel(requestedModel),
+      isDefault: normalizeModelForApi(requestedModel) === normalizeModelForApi(DEFAULT_MODEL),
     },
 
     createdConversation,
