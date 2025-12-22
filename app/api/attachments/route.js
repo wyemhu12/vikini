@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { requireUser } from "@/app/features/chat/api/conversations/auth";
+import { requireUser } from "@/app/api/conversations/auth";
 import {
   listAttachmentsForConversation,
   deleteAttachmentById,
