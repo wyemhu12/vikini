@@ -3,7 +3,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { getSupabaseAdmin } from "@/lib/core/supabase";
 
-import { getConversation, saveConversation, setConversationAutoTitle } from "@/lib/features/chat/conversations";
+import { getConversation, saveConversation, setConversationAutoTitle, DEFAULT_MODEL } from "@/lib/features/chat/conversations";
 import { saveMessage, deleteLastAssistantMessage, getMessages } from "@/lib/features/chat/messages";
 import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
 
@@ -45,7 +45,6 @@ function pickFirstEnv(keys) {
   }
   return "";
 }
-
 
 
 
@@ -108,8 +107,6 @@ export async function handleChatStreamCore({ req, userId }) {
 
   const ai = new GoogleGenAI({ apiKey });
 
-  const model = pickFirstEnv(["GEMINI_MODEL", "GOOGLE_MODEL"]) || "gemini-2.0-flash";
-
   // Load / create conversation
   let convo = null;
   const requestedConversationId = conversationIdRaw || null;
@@ -134,6 +131,13 @@ export async function handleChatStreamCore({ req, userId }) {
 
   const conversationId = convo?.id;
   if (!conversationId) return jsonError("Conversation missing id", 500);
+
+  /**
+   * ✅ NEW: Get model from conversation (per-chat model selection)
+   * Priority: conversation.model > env GEMINI_MODEL > DEFAULT_MODEL
+   */
+  const envModel = pickFirstEnv(["GEMINI_MODEL", "GOOGLE_MODEL"]);
+  const model = convo?.model || envModel || DEFAULT_MODEL;
 
   // Nếu regenerate: xoá last assistant message (best-effort)
   if (regenerate) {
@@ -294,6 +298,12 @@ export async function handleChatStreamCore({ req, userId }) {
       hasSystemInstruction: Boolean(sysPrompt && String(sysPrompt).trim()),
       systemInstructionChars: typeof sysPrompt === "string" ? sysPrompt.length : 0,
       error: gemLoadError || "",
+    },
+
+    // NEW: Include model info in meta for client display
+    modelMeta: {
+      model,
+      isDefault: model === DEFAULT_MODEL,
     },
 
     createdConversation,

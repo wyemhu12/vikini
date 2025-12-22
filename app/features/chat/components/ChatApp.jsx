@@ -17,6 +17,16 @@ import { useConversation } from "../hooks/useConversation";
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 
+// Available models for selection
+const AVAILABLE_MODELS = [
+  { id: "gemini-2.5-flash", descKey: "modelDescFlash25" },
+  { id: "gemini-2.5-pro", descKey: "modelDescPro25" },
+  { id: "gemini-3-flash", descKey: "modelDescFlash3" },
+  { id: "gemini-3-pro", descKey: "modelDescPro3" },
+];
+
+const DEFAULT_MODEL = "gemini-2.5-flash";
+
 export default function ChatApp() {
   const { data: session, status } = useSession();
 
@@ -80,6 +90,27 @@ export default function ChatApp() {
         refresh: tRaw("refresh") ?? "Refresh",
         deleteAll: tRaw("deleteAll") ?? "Delete all",
         logout: tRaw("logout") ?? "Log out",
+        // NEW: Model selector
+        modelSelector: tRaw("modelSelector") ?? "Model",
+        selectModel: tRaw("selectModel") ?? "Select Model",
+        currentModel: tRaw("currentModel") ?? "Current Model",
+        // NEW: Applied GEM
+        appliedGem: tRaw("appliedGem") ?? "Applied GEM",
+        appliedGemNone: tRaw("appliedGemNone") ?? "None",
+        // NEW: Model names
+        "gemini-2.5-flash": tRaw("gemini-2.5-flash") ?? "Gemini 2.5 Flash",
+        "gemini-2.5-pro": tRaw("gemini-2.5-pro") ?? "Gemini 2.5 Pro",
+        "gemini-3-flash": tRaw("gemini-3-flash") ?? "Gemini 3 Flash",
+        "gemini-3-pro": tRaw("gemini-3-pro") ?? "Gemini 3 Pro",
+        // NEW: Model descriptions
+        modelDescFlash25: tRaw("modelDescFlash25") ?? "Fast & balanced",
+        modelDescPro25: tRaw("modelDescPro25") ?? "Advanced thinking",
+        modelDescFlash3: tRaw("modelDescFlash3") ?? "Smart & fast",
+        modelDescPro3: tRaw("modelDescPro3") ?? "Most intelligent",
+        // NEW: Web search
+        webSearch: tRaw("webSearch") ?? "Web Search",
+        webSearchOn: tRaw("webSearchOn") ?? "ON",
+        webSearchOff: tRaw("webSearchOff") ?? "OFF",
       };
     }
 
@@ -95,6 +126,27 @@ export default function ChatApp() {
         refresh: tRaw.refresh ?? "Refresh",
         deleteAll: tRaw.deleteAll ?? "Delete all",
         logout: tRaw.logout ?? tRaw.signOut ?? "Log out",
+        // NEW: Model selector
+        modelSelector: tRaw.modelSelector ?? "Model",
+        selectModel: tRaw.selectModel ?? "Select Model",
+        currentModel: tRaw.currentModel ?? "Current Model",
+        // NEW: Applied GEM
+        appliedGem: tRaw.appliedGem ?? "Applied GEM",
+        appliedGemNone: tRaw.appliedGemNone ?? "None",
+        // NEW: Model names
+        "gemini-2.5-flash": tRaw["gemini-2.5-flash"] ?? "Gemini 2.5 Flash",
+        "gemini-2.5-pro": tRaw["gemini-2.5-pro"] ?? "Gemini 2.5 Pro",
+        "gemini-3-flash": tRaw["gemini-3-flash"] ?? "Gemini 3 Flash",
+        "gemini-3-pro": tRaw["gemini-3-pro"] ?? "Gemini 3 Pro",
+        // NEW: Model descriptions
+        modelDescFlash25: tRaw.modelDescFlash25 ?? "Fast & balanced",
+        modelDescPro25: tRaw.modelDescPro25 ?? "Advanced thinking",
+        modelDescFlash3: tRaw.modelDescFlash3 ?? "Smart & fast",
+        modelDescPro3: tRaw.modelDescPro3 ?? "Most intelligent",
+        // NEW: Web search
+        webSearch: tRaw.webSearch ?? "Web Search",
+        webSearchOn: tRaw.webSearchOn ?? "ON",
+        webSearchOff: tRaw.webSearchOff ?? "OFF",
         ...tRaw,
       };
     }
@@ -110,6 +162,27 @@ export default function ChatApp() {
       refresh: "Refresh",
       deleteAll: "Delete all",
       logout: "Log out",
+      // NEW: Model selector
+      modelSelector: "Model",
+      selectModel: "Select Model",
+      currentModel: "Current Model",
+      // NEW: Applied GEM
+      appliedGem: "Applied GEM",
+      appliedGemNone: "None",
+      // NEW: Model names
+      "gemini-2.5-flash": "Gemini 2.5 Flash",
+      "gemini-2.5-pro": "Gemini 2.5 Pro",
+      "gemini-3-flash": "Gemini 3 Flash",
+      "gemini-3-pro": "Gemini 3 Pro",
+      // NEW: Model descriptions
+      modelDescFlash25: "Fast & balanced",
+      modelDescPro25: "Advanced thinking",
+      modelDescFlash3: "Smart & fast",
+      modelDescPro3: "Most intelligent",
+      // NEW: Web search
+      webSearch: "Web Search",
+      webSearchOn: "ON",
+      webSearchOff: "OFF",
     };
   }, [tRaw, language]);
 
@@ -123,6 +196,9 @@ export default function ChatApp() {
     renameConversationFinal,
     renameConversation,
     deleteConversation,
+    // NEW: Model management
+    setConversationModel,
+    patchConversationModel,
   } = useConversation();
 
   // ✅ Keep Web Search toggle UI (theo yêu cầu)
@@ -215,6 +291,37 @@ export default function ChatApp() {
     [deleteConversation, refreshConversations, resetChatUI, selectedConversationId]
   );
 
+  // ✅ NEW: Get current conversation info for Applied GEM and Model display
+  const currentConversation = useMemo(() => {
+    if (!selectedConversationId) return null;
+    return (Array.isArray(conversations) ? conversations : []).find(
+      (c) => c?.id === selectedConversationId
+    );
+  }, [conversations, selectedConversationId]);
+
+  const currentModel = currentConversation?.model || DEFAULT_MODEL;
+  const currentGem = currentConversation?.gem || null;
+
+  // ✅ NEW: Handle model change
+  const handleModelChange = useCallback(
+    async (newModel) => {
+      if (!selectedConversationId) return;
+      if (newModel === currentModel) return;
+
+      try {
+        // Optimistic update
+        patchConversationModel?.(selectedConversationId, newModel);
+        // Server update
+        await setConversationModel?.(selectedConversationId, newModel);
+      } catch (e) {
+        console.error("Failed to change model:", e);
+        // Revert on error
+        patchConversationModel?.(selectedConversationId, currentModel);
+      }
+    },
+    [selectedConversationId, currentModel, setConversationModel, patchConversationModel]
+  );
+
   if (isAuthLoading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-neutral-950 text-neutral-200">
@@ -305,7 +412,27 @@ export default function ChatApp() {
         </div>
 
         <div className="max-w-3xl mx-auto w-full">
-          <div className="px-4 pt-1 flex items-center justify-between">
+          <div className="px-4 pt-1 flex flex-wrap items-center gap-2">
+            {/* ✅ NEW: Model Selector */}
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-neutral-500 hidden sm:inline">
+                {t.modelSelector}:
+              </span>
+              <select
+                value={currentModel}
+                onChange={(e) => handleModelChange(e.target.value)}
+                disabled={!selectedConversationId || isStreaming || regenerating}
+                className="text-xs px-2 py-1.5 rounded-full ring-1 ring-neutral-700 bg-neutral-900 text-neutral-100 outline-none focus:ring-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed"
+                title={t.selectModel}
+              >
+                {AVAILABLE_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {t[m.id] || m.id}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* ✅ Keep Web Search toggle UI */}
             <button
               onClick={toggleWebSearch}
@@ -315,14 +442,21 @@ export default function ChatApp() {
                   ? "bg-neutral-900 ring-neutral-700 text-neutral-100"
                   : "bg-neutral-950 ring-neutral-800 text-neutral-400 hover:text-neutral-200",
               ].join(" ")}
-              title="Bật/Tắt Web Search"
+              title={t.webSearch}
               type="button"
             >
-              Web Search: {webSearchEnabled ? "ON" : "OFF"}
+              {t.webSearch}: {webSearchEnabled ? t.webSearchOn : t.webSearchOff}
               {webSearchEnabled ? serverHint : ""}
             </button>
 
-            {/* ✅ BỎ Sign out khỏi main area (đã chuyển vào sidebar) */}
+            {/* ✅ NEW: Applied GEM Indicator */}
+            <div
+              className="text-xs px-3 py-1.5 rounded-full ring-1 ring-neutral-800 bg-neutral-950 text-neutral-400"
+              title={t.appliedGem}
+            >
+              {t.appliedGem}: {currentGem?.name || t.appliedGemNone}
+              {currentGem?.icon ? ` ${currentGem.icon}` : ""}
+            </div>
           </div>
 
           <AttachmentsPanel

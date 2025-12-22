@@ -151,6 +151,22 @@ export function useConversation() {
     });
   }, []);
 
+  // ✅ NEW: Patch model locally (optimistic update)
+  const patchConversationModel = useCallback((id, model) => {
+    if (!id || !model) return;
+    const now = Date.now();
+
+    setConversations((prev) => {
+      const next = prev.map((c) =>
+        c.id === id
+          ? normalizeConv({ ...c, model, updatedAt: now })
+          : normalizeConv(c)
+      );
+      next.sort((a, b) => getTs(b) - getTs(a));
+      return next;
+    });
+  }, []);
+
   // ✅ NEW: bump updatedAt local để sidebar reorder ngay khi user gửi message
   const bumpConversationActivity = useCallback((id, ts = Date.now()) => {
     if (!id) return;
@@ -236,6 +252,30 @@ export function useConversation() {
       }
     },
     [mutate, patchConversationTitle]
+  );
+
+  // ✅ NEW: Set model for a conversation (server call)
+  const setConversationModel = useCallback(
+    async (id, model) => {
+      if (!id || !model) return;
+      try {
+        const res = await fetch("/api/conversations", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, model }),
+        });
+        if (!res.ok) throw new Error("Failed to set conversation model");
+        const json = await res.json();
+        const updated = json.conversation;
+
+        patchConversationModel(id, updated.model);
+        mutate();
+      } catch (err) {
+        console.error("setConversationModel error:", err);
+        throw err;
+      }
+    },
+    [mutate, patchConversationModel]
   );
 
   const deleteConversation = useCallback(
@@ -324,6 +364,10 @@ export function useConversation() {
     patchConversationTitle,
     bumpConversationActivity,
     mutateConversations: mutate,
+
+    // ✅ NEW: Model management
+    setConversationModel,
+    patchConversationModel,
 
     // ChatApp.jsx expected fields
     selectedConversationId,

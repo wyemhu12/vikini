@@ -33,6 +33,7 @@ export function createChatReadableStream(params) {
     tools,
 
     gemMeta,
+    modelMeta,
 
     createdConversation,
     enableWebSearch,
@@ -84,6 +85,15 @@ export function createChatReadableStream(params) {
               ? gemMeta.systemInstructionChars
               : 0,
           error: typeof gemMeta?.error === "string" ? gemMeta.error : "",
+        });
+      } catch {}
+
+      // ✅ NEW: Model meta for client display
+      try {
+        sendEvent(controller, "meta", {
+          type: "model",
+          model: modelMeta?.model ?? model,
+          isDefault: Boolean(modelMeta?.isDefault),
         });
       } catch {}
 

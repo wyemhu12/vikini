@@ -14,6 +14,7 @@ import {
   updateConversationTitle,
   deleteConversation,
   setConversationGem,
+  setConversationModel,
 } from "@/lib/features/chat/conversations";
 import { getMessages } from "@/lib/features/chat/messages";
 
@@ -89,6 +90,7 @@ export async function POST(req) {
 // PATCH
 // - rename (existing)
 // - set gemId (new): { id, gemId } (gemId can be null)
+// - set model (new): { id, model }
 // ------------------------------
 export async function PATCH(req) {
   try {
@@ -102,6 +104,10 @@ export async function PATCH(req) {
     const { id, title } = body || {};
     const hasGemId = Object.prototype.hasOwnProperty.call(body || {}, "gemId");
     const gemId = body?.gemId ?? null;
+    
+    // ✅ NEW: Handle model field
+    const hasModel = Object.prototype.hasOwnProperty.call(body || {}, "model");
+    const model = body?.model ?? null;
 
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
@@ -114,6 +120,11 @@ export async function PATCH(req) {
 
     if (hasGemId) {
       conversation = await setConversationGem(userId, id, gemId);
+    }
+
+    // ✅ NEW: Handle model update
+    if (hasModel && model) {
+      conversation = await setConversationModel(userId, id, model);
     }
 
     // fallback: return current
