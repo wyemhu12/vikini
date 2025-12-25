@@ -1,7 +1,7 @@
 // app/layout.jsx
 import "./globals.css";
-import "./features/styles/shimmer.css"; // Corrected path
-import Providers from "./features/layout/providers"; // Corrected path
+import "@/app/features/styles/shimmer.css";
+import Providers from "@/app/features/layout/providers";
 
 export const metadata = {
   title: "Vikini - Gemini Chat",

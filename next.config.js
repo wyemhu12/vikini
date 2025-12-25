@@ -9,11 +9,6 @@ const nextConfig = {
   // Add an explicit (even empty) turbopack config to avoid build error when webpack config exists.
   turbopack: {},
 
-  webpack: (config) => {
-    // Alias @ → root dir
-    config.resolve.alias["@"] = path.resolve(__dirname);
-    return config;
-  },
 };
 
 module.exports = nextConfig;
