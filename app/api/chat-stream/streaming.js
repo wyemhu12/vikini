@@ -222,9 +222,7 @@ orted
             safetyRatings: safetyRatings || null,
           });
 
-          const msg =
-            "Nội dung bị chặn bởi safety filter. Hãy thử đổi tên GEM hoặc viết l
-ại yêu cầu theo hướng trung lập.";
+          const msg = "Nội dung bị chặn bởi safety filter. Hãy thử đổi tên GEM hoặc viết lại yêu cầu theo hướng trung lập.";
           full = msg;
           sendEvent(controller, "token", { t: msg });
         }
