@@ -105,17 +105,19 @@ export function createChatReadableStream(params) {
         });
       } catch {}
 
-      if (!regenerate) {
-        try {
-          const optimisticTitle = await generateOptimisticTitle(content);
-          if (optimisticTitle) {
-            sendEvent(controller, "meta", {
-              type: "optimisticTitle",
-              conversationId,
-              title: optimisticTitle,
-            });
-          }
-        } catch {}
+      if (createdConversation) {
+        if (!regenerate) {
+          try {
+            const optimisticTitle = await generateOptimisticTitle(content);
+            if (optimisticTitle) {
+              sendEvent(controller, "meta", {
+                type: "optimisticTitle",
+                conversationId,
+                title: optimisticTitle,
+              });
+            }
+          } catch {}
+        }
       }
 
       let full = "";
@@ -131,7 +133,8 @@ export function createChatReadableStream(params) {
         const config = {
           systemInstruction: sysPrompt,
           temperature: 0,
-          ...(useTools && Array.isArray(tools) && tools.length > 0 ? { tools } : {}),
+          ...(useTools && Array.isArray(tools) && tools.length > 0 ? { tools } :
+ {}),
           ...(Array.isArray(safetySettings) && safetySettings.length > 0
             ? { safetySettings }
             : {}),
@@ -158,9 +161,12 @@ export function createChatReadableStream(params) {
 
           try {
             const cand = chunk?.candidates?.[0];
-            if (cand?.groundingMetadata) groundingMetadata = cand.groundingMetadata;
-            if (cand?.urlContextMetadata) urlContextMetadata = cand.urlContextMetadata;
-            if (cand?.url_context_metadata) urlContextMetadata = cand.url_context_metadata;
+            if (cand?.groundingMetadata) groundingMetadata = cand.groundingMetad
+ata;
+            if (cand?.urlContextMetadata) urlContextMetadata = cand.urlContextMe
+tadata;
+            if (cand?.url_context_metadata) urlContextMetadata = cand.url_contex
+t_metadata;
 
             const fr = pick(cand, ["finishReason", "finish_reason"]);
             if (typeof fr === "string" && fr) finishReason = fr;
@@ -177,12 +183,14 @@ export function createChatReadableStream(params) {
       } catch (err) {
         console.error("stream error (with tools):", err);
 
-        // ✅ Fallback: retry without tools to avoid breaking chat if tool unsupported
+        // ✅ Fallback: retry without tools to avoid breaking chat if tool unsupp
+orted
         try {
           if (Array.isArray(tools) && tools.length > 0) {
             sendEvent(controller, "meta", {
               type: "webSearchFallback",
-              message: "Tools not supported by current SDK/model. Retrying without web search.",
+              message: "Tools not supported by current SDK/model. Retrying witho
+ut web search.",
             });
             await runStream({ useTools: false });
           } else {
@@ -197,10 +205,12 @@ export function createChatReadableStream(params) {
       }
 
       // ✅ If blocked by safety, Gemini may return no content at all.
-      // Gemini docs: promptFeedback.blockReason or Candidate.finishReason=SAFETY and safetyRatings for details.
+      // Gemini docs: promptFeedback.blockReason or Candidate.finishReason=SAFET
+Y and safetyRatings for details.
       // We convert "silent" into a clear assistant message.
       try {
-        const blockReason = pick(promptFeedback, ["blockReason", "block_reason"]);
+        const blockReason = pick(promptFeedback, ["blockReason", "block_reason"]
+);
         const isBlocked =
           Boolean(blockReason) ||
           String(finishReason || "").toUpperCase() === "SAFETY";
@@ -215,7 +225,8 @@ export function createChatReadableStream(params) {
           });
 
           const msg =
-            "Nội dung bị chặn bởi safety filter. Hãy thử đổi tên GEM hoặc viết lại yêu cầu theo hướng trung lập.";
+            "Nội dung bị chặn bởi safety filter. Hãy thử đổi tên GEM hoặc viết l
+ại yêu cầu theo hướng trung lập.";
           full = msg;
           sendEvent(controller, "token", { t: msg });
         }
@@ -226,7 +237,8 @@ export function createChatReadableStream(params) {
           const chunks = groundingMetadata?.groundingChunks || [];
           const sources = chunks
             .map((c) =>
-              c?.web?.uri ? { uri: c.web.uri, title: c.web.title || c.web.uri } : null
+              c?.web?.uri ? { uri: c.web.uri, title: c.web.title || c.web.uri }
+: null
             )
             .filter(Boolean);
 
@@ -240,7 +252,8 @@ export function createChatReadableStream(params) {
       try {
         if (urlContextMetadata) {
           const urlMeta =
-            urlContextMetadata?.urlMetadata || urlContextMetadata?.url_metadata || [];
+            urlContextMetadata?.urlMetadata || urlContextMetadata?.url_metadata
+|| [];
           sendEvent(controller, "meta", {
             type: "urlContext",
             urls: urlMeta.map((u) => ({
@@ -266,22 +279,28 @@ export function createChatReadableStream(params) {
             content: trimmed,
           });
 
-          // Nếu response chỉ là message blocked, tránh auto-title (giảm spam title)
-          const isBlockedMsg = trimmed.startsWith("Nội dung bị chặn bởi safety filter");
-          if (!regenerate && !isBlockedMsg) {
-            const finalTitle = await generateFinalTitle({
-              userId,
-              conversationId,
-              messages: [...contextMessages, { role: "assistant", content: trimmed }],
-            });
-
-            if (finalTitle?.trim()) {
-              await setConversationAutoTitle(userId, conversationId, finalTitle.trim());
-              sendEvent(controller, "meta", {
-                type: "finalTitle",
+          // Nếu response chỉ là message blocked, tránh auto-title (giảm spam ti
+tle)
+          const isBlockedMsg = trimmed.startsWith("Nội dung bị chặn bởi safety f
+ilter");
+          if (createdConversation) {
+            if (!regenerate && !isBlockedMsg) {
+              const finalTitle = await generateFinalTitle({
+                userId,
                 conversationId,
-                title: finalTitle.trim(),
+                messages: [...contextMessages, { role: "assistant", content: tr
+immed }],
               });
+
+              if (finalTitle?.trim()) {
+                await setConversationAutoTitle(userId, conversationId, finalTit
+le.trim());
+                sendEvent(controller, "meta", {
+                  type: "finalTitle",
+                  conversationId,
+                  title: finalTitle.trim(),
+                });
+              }
             }
           }
         }
