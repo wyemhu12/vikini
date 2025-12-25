@@ -204,8 +204,7 @@ orted
       }
 
       // ✅ If blocked by safety, Gemini may return no content at all.
-      // Gemini docs: promptFeedback.blockReason or Candidate.finishReason=SAFET
-Y and safetyRatings for details.
+      // Gemini docs: promptFeedback.blockReason or Candidate.finishReason=SAFETY and safetyRatings for details.
       // We convert "silent" into a clear assistant message.
       try {
         const blockReason = pick(promptFeedback, ["blockReason", "block_reason"]
@@ -224,8 +223,7 @@ Y and safetyRatings for details.
           });
 
           const msg =
-            "Nội dung bị chặn bởi safety filter. Hãy thử đổi tên GEM hoặc viết l
-ại yêu cầu theo hướng trung lập.";
+            "Nội dung bị chặn bởi safety filter. Hãy thử đổi tên GEM hoặc viết lại yêu cầu theo hướng trung lập.";
           full = msg;
           sendEvent(controller, "token", { t: msg });
         }
