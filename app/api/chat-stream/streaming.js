@@ -189,8 +189,7 @@ orted
           if (Array.isArray(tools) && tools.length > 0) {
             sendEvent(controller, "meta", {
               type: "webSearchFallback",
-              message: "Tools not supported by current SDK/model. Retrying witho
-ut web search.",
+              message: "Tools not supported by current SDK/model. Retrying without web search.",
             });
             await runStream({ useTools: false });
           } else {
