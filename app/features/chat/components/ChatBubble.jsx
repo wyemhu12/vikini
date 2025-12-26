@@ -1,11 +1,11 @@
+// /app/features/chat/components/ChatBubble.jsx
 "use client";
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useLanguage } from "../hooks/useLanguage";
-
 
 function TypingDots() {
   return (
@@ -100,6 +100,7 @@ export default function ChatBubble({
   isLastAssistant,
   canRegenerate,
   onRegenerate,
+  onEdit, // New prop for editing user message
   regenerating,
 }) {
   const { t } = useLanguage();
@@ -109,11 +110,36 @@ export default function ChatBubble({
     const finalContent = base.content || content || "";
     const finalSources = base.sources || sourcesProp || [];
     const finalUrlContext = base.urlContext || urlContextProp || [];
-    return { role: finalRole, content: finalContent, sources: finalSources, urlContext: finalUrlContext };
+    return { 
+      role: finalRole, 
+      content: finalContent, 
+      sources: finalSources, 
+      urlContext: finalUrlContext,
+      id: base.id // Ensure ID is passed if available
+    };
   }, [message, role, content, sourcesProp, urlContextProp]);
 
   const isBot = safeMessage.role === "assistant";
   const [copied, setCopied] = useState(false);
+  
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(safeMessage.content);
+  const textareaRef = useRef(null);
+
+  // Reset content when message changes
+  useEffect(() => {
+    setEditContent(safeMessage.content);
+  }, [safeMessage.content]);
+
+  // Auto-focus and resize textarea when editing starts
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [isEditing]);
 
   const handleCopyMessage = async () => {
     try {
@@ -123,6 +149,13 @@ export default function ChatBubble({
     } catch (err) {
       console.error("Failed to copy:", err);
     }
+  };
+
+  const handleSaveEdit = () => {
+    if (editContent.trim() !== safeMessage.content) {
+      onEdit?.(safeMessage, editContent);
+    }
+    setIsEditing(false);
   };
 
   const isTyping = isBot && isLastAssistant && !regenerating && !String(safeMessage.content).trim();
@@ -139,11 +172,39 @@ export default function ChatBubble({
         </div>
 
         {/* Content */}
-        <div className={`flex flex-col gap-2 ${isBot ? "items-start" : "items-end"}`}>
+        <div className={`flex flex-col gap-2 ${isBot ? "items-start w-full" : "items-end max-w-full"}`}>
           <div className={`relative rounded-2xl px-1 text-sm leading-relaxed transition-all
-            ${isBot ? "text-neutral-200" : "bg-[var(--primary)] px-4 py-2.5 text-black shadow-lg"}`}>
+            ${isBot ? "text-neutral-200 w-full" : "bg-[var(--primary)] px-4 py-2.5 text-black shadow-lg"}`}>
             
-            {isTyping ? (
+            {isEditing ? (
+              <div className="flex flex-col gap-2 min-w-[300px]">
+                <textarea
+                  ref={textareaRef}
+                  value={editContent}
+                  onChange={(e) => {
+                    setEditContent(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${e.target.scrollHeight}px`;
+                  }}
+                  className="w-full bg-black/10 text-black p-2 rounded-md outline-none resize-none overflow-hidden"
+                  rows={1}
+                />
+                <div className="flex justify-end gap-2 mt-2">
+                  <button 
+                    onClick={() => setIsEditing(false)}
+                    className="px-3 py-1 text-xs font-bold uppercase tracking-wider bg-black/10 hover:bg-black/20 rounded-md transition-colors"
+                  >
+                    {t("cancel")}
+                  </button>
+                  <button 
+                    onClick={handleSaveEdit}
+                    className="px-3 py-1 text-xs font-bold uppercase tracking-wider bg-black/80 text-white hover:bg-black rounded-md transition-colors"
+                  >
+                    {t("save")}
+                  </button>
+                </div>
+              </div>
+            ) : isTyping ? (
               <TypingDots />
             ) : (
               <div className="chat-markdown-container">
@@ -186,12 +247,22 @@ export default function ChatBubble({
           </div>
 
           {/* Bottom Toolbar */}
-          {isBot && !isTyping && (
-            <div className="flex items-center gap-4 px-1 py-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {!isTyping && !isEditing && (
+            <div className={`flex items-center gap-4 px-1 py-1 opacity-0 group-hover:opacity-100 transition-opacity ${isBot ? "" : "flex-row-reverse"}`}>
+               {/* Copy Button */}
                <button onClick={handleCopyMessage} className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-tighter">
                   {copied ? t("copied") : t("copy")}
                </button>
-               {isLastAssistant && canRegenerate && (
+
+               {/* Edit Button for User */}
+               {!isBot && (
+                 <button onClick={() => setIsEditing(true)} className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-tighter">
+                    {t("edit")}
+                 </button>
+               )}
+
+               {/* Regenerate Button for AI (Available for ALL AI messages) */}
+               {isBot && canRegenerate && (
                  <button onClick={onRegenerate} disabled={regenerating} className="flex items-center gap-1 text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-tighter disabled:opacity-30">
                     <span className={regenerating ? "animate-spin" : ""}>🔄</span>
                     {regenerating ? t("thinking") : t("regenerate")}

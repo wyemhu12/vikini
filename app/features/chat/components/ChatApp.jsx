@@ -48,7 +48,7 @@ export default function ChatApp() {
       "modelDescPro25", "modelDescFlash3", "modelDescPro3", "blueprint", "amber",
       "indigo", "charcoal", "gold", "red", "rose", "gemsTitle", "myGems", "premadeGems",
       "createGem", "editGem", "deleteGem", "saveGem", "cancel", "select", "error", "success", "renameChat", "deleteConfirm",
-      "thinking", "regenerate"
+      "thinking", "regenerate", "edit", "save", "copy", "copied"
     ];
     const result = {};
     keys.forEach(k => { result[k] = tRaw(k); });
@@ -91,6 +91,7 @@ export default function ChatApp() {
     handleSelectConversation,
     handleSend,
     handleRegenerate,
+    handleEdit, // New handler
   } = useChatStreamController({
     isAuthed,
     selectedConversationId,
@@ -220,19 +221,16 @@ export default function ChatApp() {
           ) : (
             <div className="max-w-3xl mx-auto w-full py-8 space-y-2">
               {renderedMessages.map((m, idx) => {
-                 // Logic to determine if this message is the last AI message
                  const isLastAI = m.role === "assistant" && idx === renderedMessages.length - 1;
-                 // Or we can allow regenerating any AI message?
-                 // For now, let's just pass canRegenerate=true to ALL AI messages as requested
-                 
                  return (
                   <ChatBubble 
                     key={m.id ?? idx} 
                     message={m} 
-                    isLastAssistant={isLastAI} // Keep existing logic for "typing" effect
-                    canRegenerate={m.role === "assistant"} // Allow regenerate on ALL AI messages
-                    onRegenerate={() => handleRegenerate(m)} // Pass specific message if needed, or handleRegenerate logic
-                    regenerating={regenerating && isLastAI} // Only show spinner on the last one if regenerating
+                    isLastAssistant={isLastAI} 
+                    canRegenerate={m.role === "assistant"}
+                    onRegenerate={() => handleRegenerate(m)}
+                    onEdit={handleEdit} // Pass the edit handler
+                    regenerating={regenerating && isLastAI} 
                   />
                  );
               })}
@@ -240,7 +238,7 @@ export default function ChatApp() {
                 <ChatBubble
                   message={{ role: "assistant", content: streamingAssistant, sources: streamingSources, urlContext: streamingUrlContext }}
                   isLastAssistant
-                  canRegenerate={false} // Streaming msg cannot be regenerated yet
+                  canRegenerate={false}
                   onRegenerate={() => {}}
                   regenerating={regenerating}
                 />
