@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { useMemo, useState } from "react";
+import { useLanguage } from "../hooks/useLanguage";
 
 
 function TypingDots() {
@@ -22,6 +23,7 @@ function getLang(className) {
 }
 
 function CodeBlock({ inline, className, children }) {
+  const { t } = useLanguage();
   const code = useMemo(() => {
     const raw = Array.isArray(children) ? children.join("") : String(children || "");
     const normalized = raw.replace(/\r\n/g, "\n").replace(/^\n+/, "").replace(/\n+$/, "");
@@ -30,19 +32,13 @@ function CodeBlock({ inline, className, children }) {
 
   if (inline) {
     return (
-      <code className="rounded-md bg-neutral-800/60 px-1 py-0.5 text-[0.92em] text-neutral-100">
+      <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[0.9em] text-[var(--primary-light)]">
         {code}
       </code>
     );
   }
 
   const lang = getLang(className);
-  const lines = useMemo(() => code.split("\n"), [code]);
-  const lineCount = lines.length;
-
-  const COLLAPSE_AFTER_LINES = 12;
-  const isCollapsible = lineCount > COLLAPSE_AFTER_LINES;
-
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -56,47 +52,39 @@ function CodeBlock({ inline, className, children }) {
     }
   };
 
+  const lineCount = code.split("\n").length;
+  const COLLAPSE_AFTER_LINES = 15;
+  const isCollapsible = lineCount > COLLAPSE_AFTER_LINES;
+
   return (
-    <div className="my-2 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950/60">
-      <div className="flex items-center justify-between border-b border-neutral-800 px-3 py-1.5">
-        <div className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">
+    <div className="my-4 overflow-hidden rounded-xl border border-white/10 bg-[#0d1117]">
+      <div className="flex items-center justify-between bg-white/5 px-4 py-2 border-b border-white/5">
+        <div className="text-[11px] font-bold uppercase tracking-widest text-white/40">
           {lang}
         </div>
-
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {isCollapsible && (
             <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="rounded-md bg-neutral-900/80 px-2 py-1 text-[11px] text-neutral-300 ring-1 ring-neutral-700 hover:bg-neutral-800"
+              onClick={() => setExpanded(!expanded)}
+              className="text-[11px] font-bold text-white/40 hover:text-white transition-colors uppercase tracking-wider"
             >
-              {expanded ? "Collapse" : "Expand"}
+              {expanded ? t("collapse") : t("expand")}
             </button>
           )}
-
           <button
-            type="button"
             onClick={handleCopy}
-            className="rounded-md bg-neutral-900/80 px-2 py-1 text-[11px] text-neutral-300 ring-1 ring-neutral-700 hover:bg-neutral-800"
+            className="text-[11px] font-bold text-white/40 hover:text-white transition-colors uppercase tracking-wider"
           >
-            {copied ? "Copied" : "Copy"}
+            {copied ? t("copied") : t("copy")}
           </button>
         </div>
       </div>
-
-      <div
-        className={[
-          "relative",
-          "overflow-auto",
-          isCollapsible && !expanded ? "max-h-[320px]" : "max-h-none",
-        ].join(" ")}
-      >
-        <pre className="m-0 p-2.5 text-[12px] leading-5 text-neutral-100">
+      <div className={`relative ${isCollapsible && !expanded ? "max-h-[400px]" : "max-h-none"} overflow-auto`}>
+        <pre className="p-4 text-[13px] leading-6 font-mono">
           <code className={className}>{code}</code>
         </pre>
-
         {isCollapsible && !expanded && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-neutral-950/90 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#0d1117] to-transparent pointer-events-none" />
         )}
       </div>
     </div>
@@ -104,200 +92,115 @@ function CodeBlock({ inline, className, children }) {
 }
 
 export default function ChatBubble({
-  // preferred
   message,
-
-  // fallback props for compatibility
   role,
   content,
   sources: sourcesProp,
   urlContext: urlContextProp,
-
   isLastAssistant,
   canRegenerate,
   onRegenerate,
   regenerating,
 }) {
+  const { t } = useLanguage();
   const safeMessage = useMemo(() => {
     const base = message && typeof message === "object" ? message : {};
-
-    const finalRole =
-      typeof base.role === "string"
-        ? base.role
-        : typeof role === "string"
-          ? role
-          : "assistant";
-
-    const finalContent =
-      typeof base.content === "string"
-        ? base.content
-        : typeof content === "string"
-          ? content
-          : String(base.content ?? content ?? "");
-
-    const finalSources = Array.isArray(base.sources)
-      ? base.sources
-      : Array.isArray(sourcesProp)
-        ? sourcesProp
-        : [];
-
-    const finalUrlContext = Array.isArray(base.urlContext)
-      ? base.urlContext
-      : Array.isArray(urlContextProp)
-        ? urlContextProp
-        : [];
-
-    return {
-      ...base,
-      role: finalRole,
-      content: finalContent,
-      sources: finalSources,
-      urlContext: finalUrlContext,
-    };
+    const finalRole = base.role || role || "assistant";
+    const finalContent = base.content || content || "";
+    const finalSources = base.sources || sourcesProp || [];
+    const finalUrlContext = base.urlContext || urlContextProp || [];
+    return { role: finalRole, content: finalContent, sources: finalSources, urlContext: finalUrlContext };
   }, [message, role, content, sourcesProp, urlContextProp]);
 
   const isBot = safeMessage.role === "assistant";
-
   const [copied, setCopied] = useState(false);
+
   const handleCopyMessage = async () => {
     try {
       await navigator.clipboard.writeText(safeMessage.content || "");
       setCopied(true);
       setTimeout(() => setCopied(false), 900);
     } catch (err) {
-      console.error("Failed to copy message to clipboard:", err);
+      console.error("Failed to copy:", err);
     }
   };
 
-  const sources = Array.isArray(safeMessage?.sources) ? safeMessage.sources : [];
-  const urlContext = Array.isArray(safeMessage?.urlContext) ? safeMessage.urlContext : [];
-  const isTyping = isBot && isLastAssistant && !regenerating && !String(safeMessage?.content || "").trim();
+  const isTyping = isBot && isLastAssistant && !regenerating && !String(safeMessage.content).trim();
 
   return (
-    <div className={`flex items-start gap-3 ${isBot ? "justify-start" : "justify-end"}`}>
-      {isBot && (
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--primary)] text-[10px] font-semibold text-black">
-          AI
+    <div className={`group flex w-full flex-col gap-3 py-6 ${isBot ? "" : "items-end"}`}>
+      <div className={`flex max-w-[90%] gap-4 ${isBot ? "items-start" : "flex-row-reverse items-start"}`}>
+        {/* Avatar */}
+        <div className={`flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-lg border text-[10px] font-black tracking-tighter shadow-sm
+          ${isBot 
+            ? "border-white/10 bg-white/5 text-white" 
+            : "border-[var(--primary)]/20 bg-[var(--primary)] text-black"}`}>
+          {isBot ? "AI" : "ME"}
         </div>
-      )}
 
-      {/* ✅ Always keep message text left-aligned (ChatGPT-like) */}
-      <div className="group relative max-w-[86%] text-left">
-        <div
-          className={[
-            "rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ring-1",
-            isBot
-              ? "bg-neutral-900/80 text-neutral-100 ring-neutral-800"
-              : "bg-[var(--primary)] text-black ring-[var(--primary)]",
-          ].join(" ")}
-        >
-          {isTyping ? (
-            <TypingDots />
-          ) : (
-
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeHighlight]}
-            components={{
-              code: CodeBlock,
-              a: ({ href, children }) => (
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[var(--primary-light)] underline underline-offset-2 hover:opacity-90"
+        {/* Content */}
+        <div className={`flex flex-col gap-2 ${isBot ? "items-start" : "items-end"}`}>
+          <div className={`relative rounded-2xl px-1 text-sm leading-relaxed transition-all
+            ${isBot ? "text-neutral-200" : "bg-[var(--primary)] px-4 py-2.5 text-black shadow-lg"}`}>
+            
+            {isTyping ? (
+              <TypingDots />
+            ) : (
+              <div className="chat-markdown-container">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeHighlight]}
+                  components={{
+                    code: CodeBlock,
+                    p: ({ children }) => <p className="mb-4 last:mb-0 leading-7">{children}</p>,
+                    ul: ({ children }) => <ul className="mb-4 ml-6 list-disc space-y-2">{children}</ul>,
+                    ol: ({ children }) => <ol className="mb-4 ml-6 list-decimal space-y-2">{children}</ul>,
+                    li: ({ children }) => <li className="leading-7">{children}</li>,
+                    h1: ({ children }) => <h1 className="mt-8 mb-4 text-2xl font-bold text-white">{children}</h1>,
+                    h2: ({ children }) => <h2 className="mt-7 mb-3 text-xl font-bold text-white">{children}</h2>,
+                    h3: ({ children }) => <h3 className="mt-6 mb-2 text-lg font-bold text-white">{children}</h3>,
+                  }}
+                  className="chat-markdown"
                 >
-                  {children}
-                </a>
-              ),
-              blockquote: ({ children }) => (
-                <blockquote className="chat-quote">{children}</blockquote>
-              ),
-            }}
-            className="chat-markdown"
-          >
-            {safeMessage.content}
-          </ReactMarkdown>
-          )}
-
-
-          {isBot && sources.length > 0 && (
-            <div className="mt-3 border-t border-neutral-800/80 pt-2">
-              <div className="text-[11px] font-medium text-neutral-300">Nguồn</div>
-              <div className="mt-1 flex flex-col gap-1">
-                {sources.slice(0, 8).map((s, idx) => (
-                  <a
-                    key={`${s?.uri ?? "src"}-${idx}`}
-                    href={s?.uri}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] text-[var(--primary-light)] underline underline-offset-2 hover:opacity-90"
-                  >
-                    [{idx + 1}] {s?.title || s?.uri}
-                  </a>
-                ))}
+                  {safeMessage.content}
+                </ReactMarkdown>
               </div>
-            </div>
-          )}
+            )}
 
-          {isBot && urlContext.length > 0 && (
-            <div className="mt-3 border-t border-neutral-800/80 pt-2">
-              <div className="text-[11px] font-medium text-neutral-300">URL Context</div>
-              <div className="mt-1 flex flex-col gap-1">
-                {urlContext.slice(0, 6).map((u, idx) => (
-                  <div
-                    key={`${u?.retrievedUrl ?? "url"}-${idx}`}
-                    className="text-[11px] text-neutral-400"
-                  >
-                    <span className="text-neutral-300">{u?.status || "STATUS"}</span>
-                    {" — "}
-                    <a
-                      href={u?.retrievedUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[var(--primary-light)] underline underline-offset-2 hover:opacity-90"
-                    >
-                      {u?.retrievedUrl}
-                    </a>
+            {/* Sources & Context (if any) */}
+            {isBot && (safeMessage.sources.length > 0 || safeMessage.urlContext.length > 0) && (
+              <div className="mt-6 space-y-4 border-t border-white/5 pt-4">
+                {safeMessage.sources.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {safeMessage.sources.slice(0, 5).map((s, idx) => (
+                      <a key={idx} href={s.uri} target="_blank" rel="noreferrer" 
+                         className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] text-white/50 hover:bg-white/10 hover:text-white transition-all">
+                        <span className="font-bold">[{idx + 1}]</span>
+                        <span className="max-w-[120px] truncate">{s.title || s.uri}</span>
+                      </a>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
+            )}
+          </div>
+
+          {/* Bottom Toolbar */}
+          {isBot && !isTyping && (
+            <div className="flex items-center gap-4 px-1 py-2 opacity-0 group-hover:opacity-100 transition-opacity">
+               <button onClick={handleCopyMessage} className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-tighter">
+                  {copied ? t("copied") : t("copy")}
+               </button>
+               {isLastAssistant && canRegenerate && (
+                 <button onClick={onRegenerate} disabled={regenerating} className="flex items-center gap-1 text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-tighter disabled:opacity-30">
+                    <span className={regenerating ? "animate-spin" : ""}>🔄</span>
+                    {regenerating ? t("thinking") : t("regenerate")}
+                 </button>
+               )}
             </div>
-          )}
-        </div>
-
-        {/* TOOLBAR */}
-        <div className="pointer-events-none absolute -top-3 right-1 flex gap-1 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
-          <button
-            type="button"
-            onClick={handleCopyMessage}
-            className="rounded-md bg-neutral-900/90 px-1.5 py-1 text-[10px] text-neutral-300 shadow-sm ring-1 ring-neutral-700 hover:bg-neutral-800"
-          >
-            {copied ? "✓" : "⧉"}
-          </button>
-
-          {isBot && isLastAssistant && canRegenerate && (
-            <button
-              type="button"
-              onClick={onRegenerate}
-              className="rounded-md bg-neutral-900/90 px-1.5 py-1 text-[10px] text-neutral-300 shadow-sm ring-1 ring-neutral-700 hover:bg-neutral-800 disabled:opacity-40"
-              disabled={regenerating}
-            >
-              {regenerating ? (
-                <span className="animate-spin inline-block">🔄</span>
-              ) : (
-                "🔄"
-              )}
-            </button>
           )}
         </div>
       </div>
-
-      {!isBot && (
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-700 text-[10px] font-semibold text-neutral-50">
-          U
-        </div>
-      )}
     </div>
   );
 }

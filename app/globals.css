@@ -72,14 +72,14 @@ body {
   --bg-end: #000000;
 }
 
-/* 🟡 VÀNG METALLIC */
+/* 🟡 VÀNG METALLIC - IMPROVED GOLD */
 .theme-gold {
   --primary: #d4af37;
-  --primary-light: #f2d675;
-  --primary-dark: #7a5a00;
+  --primary-light: #f3cf6d;
+  --primary-dark: #916c14;
 
-  --bg-start: #2a1f00;
-  --bg-end: #070400;
+  --bg-start: #1c1605;
+  --bg-end: #050400;
 }
 
 /* 🔴 ĐỎ */
@@ -107,52 +107,83 @@ body {
   background: linear-gradient(to bottom, var(--bg-start), var(--bg-end));
 }
 
+/* =======================
+   MARKDOWN & CHAT STYLING
+======================= */
+
 .chat-markdown {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  @apply text-[15px] leading-[1.65];
+  word-break: break-word;
 }
 
+/* Heading styles */
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3,
+.chat-markdown h4 {
+  @apply mt-6 mb-3 font-bold text-white;
+}
+
+.chat-markdown h1 { @apply text-2xl; }
+.chat-markdown h2 { @apply text-xl; }
+.chat-markdown h3 { @apply text-lg; }
+.chat-markdown h4 { @apply text-base; }
+
+.chat-markdown p {
+  @apply mb-4 last:mb-0;
+}
+
+/* Lists */
+.chat-markdown ul,
+.chat-markdown ol {
+  @apply my-4 pl-6 space-y-2;
+}
+.chat-markdown ul { @apply list-disc; }
+.chat-markdown ol { @apply list-decimal; }
+
+.chat-markdown li > p {
+  @apply mb-0;
+}
+
+/* Table styling */
 .chat-markdown table {
-  @apply my-3 w-full border-collapse text-sm;
+  @apply my-4 w-full border-collapse text-sm overflow-hidden rounded-lg;
   display: block;
   overflow-x: auto;
 }
 .chat-markdown thead th {
-  @apply bg-neutral-900/60;
+  @apply bg-neutral-800/80 text-neutral-100 font-semibold;
 }
 .chat-markdown th,
 .chat-markdown td {
-  @apply border border-neutral-800 px-2 py-1 align-top;
+  @apply border border-neutral-800 px-4 py-2 text-left;
+}
+.chat-markdown tr:nth-child(even) {
+  @apply bg-white/5;
 }
 
-.chat-markdown p {
-  @apply mb-3;
-}
-.chat-markdown p:last-child {
-  @apply mb-0;
+/* Quotes */
+.chat-markdown blockquote {
+  @apply my-4 border-l-4 border-neutral-700 pl-4 italic text-neutral-400;
 }
 
-.chat-markdown ul {
-  @apply mb-3 list-disc pl-5;
-}
-.chat-markdown ol {
-  @apply mb-3 list-decimal pl-5;
-}
-.chat-markdown li {
-  @apply mb-1;
-}
-
-.chat-markdown blockquote,
-.chat-markdown .chat-quote {
-  @apply my-3 border-l-2 border-neutral-700 pl-3 text-neutral-200;
-}
-
+/* Code */
 .chat-markdown code:not(pre code) {
-  @apply rounded-md bg-neutral-800/60 px-1 py-0.5 text-neutral-100;
+  @apply rounded bg-white/10 px-1.5 py-0.5 font-mono text-sm text-[var(--primary-light)];
 }
 
 .chat-markdown pre {
-  white-space: pre;
+  @apply my-4 rounded-xl overflow-hidden;
+}
+
+/* Horizontal Rule */
+.chat-markdown hr {
+  @apply my-6 border-neutral-800;
+}
+
+/* Link */
+.chat-markdown a {
+  @apply text-[var(--primary-light)] underline decoration-white/20 underline-offset-4 transition-all hover:decoration-[var(--primary-light)];
 }
 
 * {
