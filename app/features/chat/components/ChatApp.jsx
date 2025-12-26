@@ -14,7 +14,7 @@ import { useTheme } from "../hooks/useTheme";
 import { useLanguage } from "../hooks/useLanguage";
 import { useConversation } from "../hooks/useConversation";
 
-import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
+import { useWebSearchPreference } from "./hooks/web/useWebSearchPreference";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 
 import {
@@ -78,7 +78,7 @@ export default function ChatApp() {
   // ✅ Build `t` đầy đủ key
   const t = useMemo(() => {
     const keys = [
-      "appName", "whitelist", "whitelistOnly", "exploreGems", "signOut", "newChat", 
+      "appName", "whitelist", "whitelistOnly", "landingMessage", "exploreGems", "signOut", "newChat", 
       "send", "placeholder", "refresh", "deleteAll", "logout", "modelSelector",
       "selectModel", "currentModel", "appliedGem", "appliedGemNone", "webSearch",
       "webSearchOn", "webSearchOff", "aiDisclaimer", "loading", "noConversations",
@@ -86,7 +86,7 @@ export default function ChatApp() {
       "gemini-3-pro-preview", "gemini-3-flash", "gemini-3-pro", "modelDescFlash25",
       "modelDescPro25", "modelDescFlash3", "modelDescPro3", "blueprint", "amber",
       "indigo", "charcoal", "gold", "red", "rose", "gemsTitle", "myGems", "premadeGems",
-      "createGem", "editGem", "deleteGem", "saveGem", "cancel", "select", "error", "success"
+      "createGem", "editGem", "deleteGem", "saveGem", "cancel", "select", "error", "success", "renameChat", "deleteConfirm"
     ];
 
     const result = {};
@@ -157,7 +157,7 @@ export default function ChatApp() {
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [renderedMessages, streamingAssistant]);
 
-  // ✅ Wire rename/delete để Sidebar không dùng fallback API calls
+  // ✅ Wire rename/delete
   const handleRenameFromSidebar = useCallback(
     async (id) => {
       try {
@@ -199,7 +199,7 @@ export default function ChatApp() {
     [deleteConversation, refreshConversations, resetChatUI, selectedConversationId, t]
   );
 
-  // ✅ Get current conversation info for Applied GEM and Model display
+  // ✅ Get current conversation info
   const currentConversation = useMemo(() => {
     if (!selectedConversationId) return null;
     return (Array.isArray(conversations) ? conversations : []).find(
@@ -249,10 +249,10 @@ export default function ChatApp() {
     [selectedConversationId, currentModel, setConversationModel, patchConversationModel]
   );
 
-  // ✅ EFFECT: Redirect to custom signin page if not authed
+  // ✅ Redirect to custom signin
   useEffect(() => {
     if (!isAuthLoading && !isAuthed) {
-      signIn(); // This will trigger redirection to /auth/signin as configured
+      signIn();
     }
   }, [isAuthed, isAuthLoading]);
 
@@ -266,6 +266,8 @@ export default function ChatApp() {
       </div>
     );
   }
+
+  const showLanding = !selectedConversationId || renderedMessages.length === 0;
 
   return (
     <div className="h-screen w-screen bg-neutral-950 text-neutral-100">
@@ -298,33 +300,51 @@ export default function ChatApp() {
           onToggleSidebar={toggleMobileSidebar}
         />
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-2 md:px-6 py-6">
-          <div className="max-w-3xl mx-auto w-full space-y-4">
-            {renderedMessages.map((m, idx) => (
-              <ChatBubble
-                key={m.id ?? idx}
-                message={m}
-                isLastAssistant={false}
-                canRegenerate={false}
-                regenerating={false}
-              />
-            ))}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-2 md:px-6 py-6 relative">
+          {showLanding ? (
+            <div className="absolute inset-0 flex items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-700">
+              <div className="max-w-md space-y-6">
+                 <div className="mx-auto h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[var(--primary)] shadow-2xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3h9m-9 3h9m-6.75-12.75H16.5a2.25 2.25 0 0 1 2.25 2.25v13.5a2.25 2.25 0 0 1-2.25 2.25H7.5a2.25 2.25 0 0 1-2.25-2.25V5.25A2.25 2.25 0 0 1 7.5 3Z" />
+                    </svg>
+                 </div>
+                 <h2 className="text-xl md:text-2xl font-medium text-white tracking-tight leading-relaxed">
+                   {t.landingMessage || "Ask anything to start a new conversation."}
+                 </h2>
+                 <p className="text-sm text-neutral-500 font-medium tracking-wide">
+                   {t.appName} AI • NEXT GEN INTELLIGENCE
+                 </p>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-3xl mx-auto w-full space-y-4">
+              {renderedMessages.map((m, idx) => (
+                <ChatBubble
+                  key={m.id ?? idx}
+                  message={m}
+                  isLastAssistant={false}
+                  canRegenerate={false}
+                  regenerating={false}
+                />
+              ))}
 
-            {streamingAssistant !== null && (
-              <ChatBubble
-                message={{
-                  role: "assistant",
-                  content: streamingAssistant,
-                  sources: streamingSources,
-                  urlContext: streamingUrlContext,
-                }}
-                isLastAssistant
-                canRegenerate
-                onRegenerate={handleRegenerate}
-                regenerating={regenerating}
-              />
-            )}
-          </div>
+              {streamingAssistant !== null && (
+                <ChatBubble
+                  message={{
+                    role: "assistant",
+                    content: streamingAssistant,
+                    sources: streamingSources,
+                    urlContext: streamingUrlContext,
+                  }}
+                  isLastAssistant
+                  canRegenerate
+                  onRegenerate={handleRegenerate}
+                  regenerating={regenerating}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         <div className="max-w-3xl mx-auto w-full">
@@ -336,7 +356,7 @@ export default function ChatApp() {
               <select
                 value={currentModel}
                 onChange={(e) => handleModelChange(e.target.value)}
-                disabled={!selectedConversationId || isStreaming || regenerating}
+                disabled={isStreaming || regenerating}
                 className="text-sm px-3 py-2 rounded-full ring-1 ring-neutral-700 bg-neutral-900 text-neutral-100 outline-none focus:ring-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed"
                 title={t.selectModel}
               >

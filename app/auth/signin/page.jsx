@@ -1,88 +1,114 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { useLanguage } from "../../features/chat/hooks/useLanguage";
-import { useTheme } from "../../features/chat/hooks/useTheme";
+
+const THEME_COLORS = [
+  { primary: "#79A9D9", bg: "#0f172a" }, // Blueprint
+  { primary: "#d97706", bg: "#2b1800" }, // Amber
+  { primary: "#6366f1", bg: "#0c0f33" }, // Indigo
+  { primary: "#ef4444", bg: "#2a0000" }, // Red
+  { primary: "#cc8899", bg: "#240c12" }, // Rose
+  { primary: "#4b5563", bg: "#0f0f0f" }, // Charcoal
+];
 
 export default function SignInPage() {
   const { t, language, setLanguage } = useLanguage();
-  const { theme, setTheme } = useTheme();
+  const [colorIndex, setColorIndex] = useState(0);
 
-  const themeOptions = [
-    { id: "blueprint", swatch: "#79A9D9" },
-    { id: "amber", swatch: "#d97706" },
-    { id: "indigo", swatch: "#6366f1" },
-    { id: "charcoal", swatch: "#4b5563" },
-    { id: "gold", swatch: "#d4af37" },
-    { id: "red", swatch: "#ef4444" },
-    { id: "rose", swatch: "#cc8899" },
-  ];
+  // Tự động chuyển màu mỗi 4 giây
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setColorIndex((prev) => (prev + 1) % THEME_COLORS.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentColor = THEME_COLORS[colorIndex];
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-950 p-6 text-white transition-colors duration-500 chat-gradient">
-      
-      {/* Top Controls (Language & Theme) */}
-      <div className="fixed top-6 right-6 flex items-center gap-4">
-        {/* Language Toggle */}
-        <div className="flex rounded-lg border border-neutral-800 bg-neutral-900/50 p-1 backdrop-blur-md">
+    <div 
+      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-6 text-white transition-colors duration-[2000ms] ease-in-out"
+      style={{ 
+        backgroundColor: currentColor.bg,
+        "--primary": currentColor.primary 
+      }}
+    >
+      {/* 🌊 Dynamic Mesh Gradient Layers */}
+      <div className="absolute inset-0 z-0 opacity-40">
+        <div 
+          className="absolute -top-[20%] -left-[10%] h-[70%] w-[70%] rounded-full blur-[120px] transition-colors duration-[3000ms]"
+          style={{ backgroundColor: currentColor.primary }}
+        />
+        <div 
+          className="absolute -bottom-[20%] -right-[10%] h-[60%] w-[60%] rounded-full blur-[100px] transition-colors duration-[4000ms]"
+          style={{ backgroundColor: currentColor.primary }}
+        />
+      </div>
+
+      {/* 🌊 SVG Waves */}
+      <div className="absolute bottom-0 left-0 w-full leading-[0] z-0 opacity-20">
+        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="relative block h-[150px] w-full fill-white">
+          <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C58.23,113.13,145.51,123.99,222,112.1,280,103.11,321.39,78.29,321.39,56.44Z" className="animate-[wave_10s_infinite_linear]"></path>
+        </svg>
+      </div>
+
+      {/* Top Controls (Language only) */}
+      <div className="fixed top-6 right-6 z-20 flex items-center gap-4">
+        <div className="flex rounded-full border border-white/10 bg-black/20 p-1 backdrop-blur-xl">
           <button
             onClick={() => setLanguage("vi")}
-            className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${language === "vi" ? "bg-[var(--primary)] text-black" : "text-neutral-500 hover:text-white"}`}
+            className={`px-4 py-1.5 text-[10px] font-black rounded-full transition-all ${language === "vi" ? "bg-white text-black" : "text-white/40 hover:text-white"}`}
           >
             VI
           </button>
           <button
             onClick={() => setLanguage("en")}
-            className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${language === "en" ? "bg-[var(--primary)] text-black" : "text-neutral-500 hover:text-white"}`}
+            className={`px-4 py-1.5 text-[10px] font-black rounded-full transition-all ${language === "en" ? "bg-white text-black" : "text-white/40 hover:text-white"}`}
           >
             EN
           </button>
         </div>
-
-        {/* Theme Dots */}
-        <div className="flex gap-2 rounded-lg border border-neutral-800 bg-neutral-900/50 p-2 backdrop-blur-md">
-          {themeOptions.map((opt) => (
-            <button
-              key={opt.id}
-              onClick={() => setTheme(opt.id)}
-              style={{ backgroundColor: opt.swatch }}
-              className={`h-4 w-4 rounded-full transition-transform hover:scale-125 ${theme === opt.id ? "ring-2 ring-white ring-offset-2 ring-offset-neutral-950 scale-110" : ""}`}
-              title={t(opt.id)}
-            />
-          ))}
-        </div>
       </div>
 
-      <div className="w-full max-w-sm space-y-12 text-center">
+      <div className="relative z-10 w-full max-w-sm space-y-12 text-center">
         {/* Brand Area */}
         <div className="space-y-4">
-          <div className="mx-auto h-16 w-16 rounded-2xl bg-[var(--primary)] p-0.5 shadow-2xl shadow-[var(--primary)]/20 rotate-3">
-             <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-neutral-950 text-2xl font-black text-[var(--primary)] -rotate-3">
+          <div 
+            className="mx-auto h-20 w-20 rounded-[2.5rem] p-0.5 shadow-2xl transition-all duration-1000 rotate-12 flex items-center justify-center bg-white/10 backdrop-blur-sm border border-white/20"
+          >
+             <div 
+                className="flex h-16 w-16 items-center justify-center rounded-[2rem] bg-white text-3xl font-black transition-colors duration-1000 -rotate-12"
+                style={{ color: currentColor.bg }}
+             >
                V
              </div>
           </div>
-          <div className="space-y-2">
-            <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
+          <div className="space-y-3">
+            <h1 className="text-5xl font-black tracking-tighter text-white">
               {t("appName") || "Vikini"}
             </h1>
-            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[var(--primary)] opacity-80">
-              {t("whitelistOnly")}
-            </p>
+            <div className="inline-block px-4 py-1 rounded-full border border-white/10 bg-white/5 backdrop-blur-md">
+                <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/60">
+                {t("whitelistOnly")}
+                </p>
+            </div>
           </div>
         </div>
 
         {/* Action Card */}
-        <div className="group relative rounded-[2rem] border border-neutral-800 bg-neutral-900/40 p-1 transition-all hover:border-[var(--primary)]/30">
-          <div className="rounded-[1.9rem] bg-neutral-950 p-8 shadow-inner">
-            <p className="mb-8 text-sm leading-relaxed text-neutral-400">
+        <div className="relative rounded-[3rem] border border-white/10 bg-white/5 p-2 backdrop-blur-2xl shadow-2xl">
+          <div className="rounded-[2.8rem] bg-black/40 p-10 backdrop-blur-md border border-white/5">
+            <p className="mb-10 text-sm font-medium leading-relaxed text-white/50">
               {language === "vi" 
-                ? "Chào mừng bạn quay trở lại. Vui lòng xác thực tài khoản Google của bạn để truy cập hệ thống." 
-                : "Welcome back. Please authenticate with your Google account to access the system."}
+                ? "Bắt đầu hành trình khám phá trí tuệ nhân tạo thế hệ mới cùng Vikini." 
+                : "Start your journey of exploring next-gen AI with Vikini."}
             </p>
 
             <button
               onClick={() => signIn("google", { callbackUrl: "/" })}
-              className="group relative flex w-full items-center justify-center gap-4 overflow-hidden rounded-2xl bg-white px-6 py-4 text-sm font-bold text-black transition-all hover:pr-8 active:scale-95"
+              className="group relative flex w-full items-center justify-center gap-4 overflow-hidden rounded-full bg-white px-8 py-5 text-sm font-black text-black transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-white/10"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -90,17 +116,23 @@ export default function SignInPage() {
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
               </svg>
-              {language === "vi" ? "ĐĂNG NHẬP VỚI GOOGLE" : "SIGN IN WITH GOOGLE"}
-              <span className="absolute right-4 translate-x-4 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100">→</span>
+              {language === "vi" ? "ĐĂNG NHẬP" : "LOG IN NOW"}
             </button>
           </div>
         </div>
 
-        {/* Footer Disclaimer */}
-        <div className="pt-8 text-[10px] font-medium text-neutral-600">
-           © 2025 {t("appName")} • {t("whitelist")}
+        <div className="pt-8 text-[10px] font-bold text-white/20 tracking-widest uppercase">
+           {t("whitelist")} • SECURE ACCESS
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes wave {
+          0% { transform: translateX(0); }
+          50% { transform: translateX(-25%); }
+          100% { transform: translateX(0); }
+        }
+      `}</style>
     </div>
   );
 }
