@@ -56,6 +56,10 @@ export default function HeaderBar({
           <div className="font-bold text-lg text-[var(--primary)] tracking-tight truncate">
             {t?.appName ?? "Vikini AI"}
           </div>
+          {/* ✅ Sub-text White Listed Only */}
+          <div className="text-[10px] text-neutral-500 font-medium uppercase tracking-wider -mt-1">
+            {t?.whitelistOnly || "White Listed Only"}
+          </div>
         </div>
       </div>
 

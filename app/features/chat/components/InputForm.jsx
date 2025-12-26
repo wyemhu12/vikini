@@ -200,7 +200,7 @@ export default function InputForm({
       )}
       
       <div className="text-center mt-2 text-[10px] text-neutral-600">
-        {t?.appName || "Vikini"} can make mistakes. Check important info.
+        {t?.aiDisclaimer || "Vikini can make mistakes. Check important info."}
       </div>
     </div>
   );
