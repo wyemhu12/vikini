@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 import { useLanguage } from "../../features/chat/hooks/useLanguage";
 
 /**
- * 🌠 Deep Aurora Login Page
- * A premium, mysterious design inspired by modern AI assistants.
- * Features slow-moving, ultra-blurred light patches (Auroras) and smooth transitions.
+ * 🌠 Professional Flowing Gradient Login Page
+ * Features a smooth, horizontal color flow from right to left.
+ * Designed for a premium and modern feel.
  */
 
 export default function SignInPage() {
@@ -18,24 +18,20 @@ export default function SignInPage() {
     setMounted(true);
   }, []);
 
-  if (!mounted) return <div className="min-h-screen bg-black" />;
+  if (!mounted) return <div className="min-h-screen bg-[#020617]" />;
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#020617] text-white">
       
-      {/* 🌌 Deep Aurora Background Layers */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        {/* Main Blue Aurora (Top Left) */}
-        <div className="absolute -top-[10%] -left-[10%] h-[80%] w-[80%] rounded-full bg-[#79A9D9] opacity-20 blur-[160px] animate-[aurora_20s_infinite_alternate]" />
-        
-        {/* Indigo Aurora (Bottom Right) */}
-        <div className="absolute -bottom-[10%] -right-[10%] h-[70%] w-[70%] rounded-full bg-[#6366f1] opacity-15 blur-[140px] animate-[aurora_25s_infinite_alternate-reverse]" />
-        
-        {/* Soft Accent Aurora (Center) */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[50%] w-[50%] rounded-full bg-[#A69CAC] opacity-10 blur-[120px] animate-[pulse_15s_infinite]" />
+      {/* 🌌 Smooth Flowing Background */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-[#020617]" />
+        <div className="flowing-gradient absolute inset-0 opacity-60" />
+        {/* Vignette effect for focus */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#020617_90%)]" />
       </div>
 
-      {/* Language Toggle (Subtle Top Right) */}
+      {/* Language Toggle */}
       <div className="fixed top-8 right-8 z-20">
         <div className="flex rounded-full border border-white/5 bg-white/5 p-1 backdrop-blur-3xl shadow-2xl">
           <button
@@ -63,7 +59,7 @@ export default function SignInPage() {
         {/* Brand Identity */}
         <div className="space-y-6 animate-in fade-in slide-in-from-top-8 duration-1000">
           <div className="mx-auto h-20 w-20 relative">
-             <div className="absolute inset-0 bg-[var(--primary)] blur-3xl opacity-30 animate-pulse" style={{'--primary': '#79A9D9'}} />
+             <div className="absolute inset-0 bg-blue-500/20 blur-3xl animate-pulse" />
              <div className="relative flex h-full w-full items-center justify-center rounded-[2rem] border border-white/20 bg-white/5 backdrop-blur-xl shadow-2xl transition-transform hover:scale-105 duration-500">
                 <span className="text-3xl font-black text-white tracking-tighter">V</span>
              </div>
@@ -73,7 +69,7 @@ export default function SignInPage() {
             <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60">
               {t("appName") || "Vikini"}
             </h1>
-            <p className="text-[10px] font-bold uppercase tracking-[0.5em] text-[#79A9D9] opacity-70">
+            <p className="text-[10px] font-bold uppercase tracking-[0.5em] text-blue-400/70">
               {t("whitelistOnly") || "White Listed Only"}
             </p>
           </div>
@@ -81,7 +77,7 @@ export default function SignInPage() {
 
         {/* Action Area */}
         <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-          <div className="rounded-[2.5rem] border border-white/10 bg-white/5 p-8 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+          <div className="rounded-[2.5rem] border border-white/10 bg-white/5 p-8 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
             <p className="mb-8 text-sm font-medium leading-relaxed text-white/40 max-w-[280px] mx-auto">
               {language === "vi" 
                 ? "Bước vào kỷ nguyên trí tuệ nhân tạo cá nhân hóa dành riêng cho bạn." 
@@ -106,20 +102,34 @@ export default function SignInPage() {
         {/* Footer Info */}
         <div className="pt-12 animate-in fade-in duration-1000 delay-500">
            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/5 bg-white/5 text-[9px] font-bold text-white/30 tracking-[0.2em] uppercase">
-              {t("whitelist")} • ENCRYPTED ACCESS
+              {t("whitelist") || "Whitelist"} • ENCRYPTED ACCESS
            </div>
         </div>
       </div>
 
       <style jsx>{`
-        @keyframes aurora {
-          0% { transform: translate(0, 0) rotate(0deg) scale(1); }
-          50% { transform: translate(10%, 5%) rotate(5deg) scale(1.1); }
-          100% { transform: translate(-5%, 10%) rotate(-5deg) scale(0.9); }
+        .flowing-gradient {
+          background: linear-gradient(
+            to left,
+            #020617,
+            #0f172a,
+            #1e1b4b,
+            #312e81,
+            #1e1b4b,
+            #0f172a,
+            #020617
+          );
+          background-size: 200% 100%;
+          animation: flow 15s linear infinite;
         }
-        @keyframes pulse {
-          0%, 100% { opacity: 0.1; transform: translate(-50%, -50%) scale(1); }
-          50% { opacity: 0.15; transform: translate(-50%, -50%) scale(1.2); }
+
+        @keyframes flow {
+          0% {
+            background-position: 200% 0%;
+          }
+          100% {
+            background-position: 0% 0%;
+          }
         }
       `}</style>
     </div>
