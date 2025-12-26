@@ -1,5 +1,7 @@
-// /app/gems/components/GemList.jsx
+// /app/features/gems/components/GemList.jsx
 "use client";
+
+import { useLanguage } from "../../chat/hooks/useLanguage";
 
 export default function GemList({
   loading,
@@ -10,6 +12,8 @@ export default function GemList({
   onEdit,
   onDelete,
 }) {
+  const { t } = useLanguage();
+
   const renderItem = (g, readOnly) => {
     const selected = selectedGemId === g.id;
 
@@ -29,7 +33,7 @@ export default function GemList({
               <div className="truncate text-sm font-medium">{g.name}</div>
               {g.isPremade ? (
                 <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-neutral-300">
-                  Premade
+                  {t("premadeGems")}
                 </span>
               ) : null}
             </div>
@@ -38,9 +42,6 @@ export default function GemList({
                 {g.description}
               </div>
             ) : null}
-            <div className="mt-1 text-[10px] text-neutral-500">
-              v{g.latestVersion || 0}
-            </div>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -48,7 +49,7 @@ export default function GemList({
               onClick={() => onSelect?.(g)}
               className="rounded-md bg-[var(--primary)] px-2 py-1 text-[11px] text-black"
             >
-              Select
+              {t("refresh")}
             </button>
 
             {!readOnly && (
@@ -57,13 +58,13 @@ export default function GemList({
                   onClick={() => onEdit?.(g)}
                   className="rounded-md border border-neutral-700 px-2 py-1 text-[11px] text-neutral-200 hover:bg-neutral-900"
                 >
-                  Edit
+                  {t("editGem")}
                 </button>
                 <button
                   onClick={() => onDelete?.(g)}
                   className="rounded-md border border-red-900/50 px-2 py-1 text-[11px] text-red-300 hover:bg-red-950/40"
                 >
-                  Delete
+                  {t("deleteGem")}
                 </button>
               </>
             )}
@@ -74,27 +75,27 @@ export default function GemList({
   };
 
   if (loading) {
-    return <div className="text-xs text-neutral-400">Loading…</div>;
+    return <div className="text-xs text-neutral-400">{t("loading")}</div>;
   }
 
   return (
     <div className="space-y-4">
       <div>
         <div className="mb-2 text-xs font-semibold text-neutral-300">
-          Premade by Vikini
+          {t("premadeGems")}
         </div>
         <div className="space-y-2">
           {premade?.length ? premade.map((g) => renderItem(g, true)) : (
-            <div className="text-xs text-neutral-500">No premade gems.</div>
+            <div className="text-xs text-neutral-500">---</div>
           )}
         </div>
       </div>
 
       <div>
-        <div className="mb-2 text-xs font-semibold text-neutral-300">My Gems</div>
+        <div className="mb-2 text-xs font-semibold text-neutral-300">{t("myGems")}</div>
         <div className="space-y-2">
           {mine?.length ? mine.map((g) => renderItem(g, false)) : (
-            <div className="text-xs text-neutral-500">No gems yet.</div>
+            <div className="text-xs text-neutral-500">---</div>
           )}
         </div>
       </div>

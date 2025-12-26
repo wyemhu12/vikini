@@ -5,10 +5,12 @@ import { useSearchParams, useRouter } from "next/navigation";
 import GemList from "./GemList";
 import GemEditor from "./GemEditor";
 import { useGemStore } from "../stores/useGemStore";
+import { useLanguage } from "../../chat/hooks/useLanguage";
 
 export default function GemManager() {
   const sp = useSearchParams();
   const router = useRouter();
+  const { t } = useLanguage();
   
   // Lấy ID từ store (do Sidebar truyền vào) hoặc từ URL (fallback)
   const { contextConversationId, closeGemModal } = useGemStore();
@@ -42,13 +44,11 @@ export default function GemManager() {
 
   const applyGemToConversation = async (gemId) => {
     if (!conversationId) {
-      setStatus(
-        "Không tìm thấy conversationId. Hãy mở chat trước khi chọn Gem."
-      );
+      setStatus(t("error") + ": No conversation ID");
       return;
     }
 
-    setStatus("Đang áp dụng...");
+    setStatus(t("loading"));
     try {
       const res = await fetch("/api/conversations", {
         method: "PATCH",
@@ -59,12 +59,11 @@ export default function GemManager() {
       if (!res.ok) throw new Error(data?.error || "Apply gem failed");
 
       setSelectedGemId(gemId);
-      setStatus("Thành công! Đang đóng...");
+      setStatus(t("success"));
       
       // Đóng modal sau khi chọn thành công để user quay lại chat ngay
       setTimeout(() => {
         closeGemModal();
-        // Optional: Refresh chat page logic if needed here
       }, 500);
 
     } catch (e) {
@@ -89,9 +88,9 @@ export default function GemManager() {
   const onEdit = (gem) => setEditingGem(gem);
 
   const onDelete = async (gem) => {
-    if (!confirm(`Xoá Gem "${gem.name}"? (soft delete)`)) return;
+    if (!confirm(t("gemDeleteConfirm") + ` "${gem.name}"?`)) return;
 
-    setStatus("Đang xoá...");
+    setStatus(t("loading"));
     try {
       const res = await fetch("/api/gems", {
         method: "DELETE",
@@ -100,7 +99,7 @@ export default function GemManager() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Delete failed");
-      setStatus("Đã xoá.");
+      setStatus(t("success"));
       if (editingGem?.id === gem.id) setEditingGem(null);
       await refresh();
     } catch (e) {
@@ -109,7 +108,7 @@ export default function GemManager() {
   };
 
   const onSave = async (payload) => {
-    setStatus("Đang lưu...");
+    setStatus(t("loading"));
     try {
       const isNew = !payload.id;
       const res = await fetch("/api/gems", {
@@ -121,7 +120,7 @@ export default function GemManager() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Save failed");
 
-      setStatus("Đã lưu.");
+      setStatus(t("success"));
       setEditingGem(data?.gem || null);
       await refresh();
     } catch (e) {
@@ -134,11 +133,11 @@ export default function GemManager() {
     <div className="flex flex-col h-full bg-neutral-950 text-neutral-100 overflow-hidden">
       <div className="flex-none px-6 py-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-950 sticky top-0 z-10">
         <div>
-          <h1 className="text-xl font-semibold">Gem Manager</h1>
+          <h1 className="text-xl font-semibold">{t("gemsTitle")}</h1>
           <p className="text-xs text-neutral-400 truncate max-w-md">
             {conversationId
-              ? `Đang chọn Gem cho hội thoại: ${conversationId.slice(0, 8)}...`
-              : "Chưa xác định hội thoại (Global mode)"}
+              ? `${t("appliedGem")}: ${conversationId.slice(0, 8)}...`
+              : "Global Mode"}
           </p>
         </div>
 
@@ -147,7 +146,7 @@ export default function GemManager() {
             onClick={onCreate}
             className="rounded-lg bg-[var(--primary)] px-3 py-1.5 text-sm text-black font-medium hover:brightness-110"
           >
-            + New Gem
+            + {t("createGem")}
           </button>
         </div>
       </div>
@@ -163,7 +162,7 @@ export default function GemManager() {
           {/* List Column */}
           <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3 h-fit">
             <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-medium">Available Gems</div>
+              <div className="text-sm font-medium">{t("myGems")}</div>
               <button
                 onClick={clearGem}
                 className="rounded-md border border-neutral-700 px-2 py-1 text-[10px] text-neutral-300 hover:bg-neutral-800 transition-colors"
@@ -189,14 +188,14 @@ export default function GemManager() {
               <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
                  <div className="flex justify-between items-center mb-4">
                     <h3 className="font-medium">Editor</h3>
-                    <button onClick={() => setEditingGem(null)} className="text-xs text-neutral-500 hover:text-white">Close</button>
+                    <button onClick={() => setEditingGem(null)} className="text-xs text-neutral-500 hover:text-white">{t("cancel")}</button>
                  </div>
                 <GemEditor gem={editingGem} onSave={onSave} />
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-neutral-800 bg-neutral-900/20 p-8 flex flex-col items-center justify-center text-center text-neutral-500">
-                <p className="text-sm">Chọn "New Gem" để tạo hoặc bấm nút Edit trên một Gem để sửa.</p>
-                <p className="text-xs mt-2 opacity-60">Chọn một Gem từ danh sách bên trái để áp dụng ngay vào chat.</p>
+                <p className="text-sm">{t("gemPlaceholderName")}</p>
+                <p className="text-xs mt-2 opacity-60">Select a Gem from the list to apply it to your chat.</p>
               </div>
             )}
           </div>

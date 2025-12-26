@@ -1,9 +1,11 @@
-// /app/gems/components/GemEditor.jsx
+// /app/features/gems/components/GemEditor.jsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLanguage } from "../../chat/hooks/useLanguage";
 
 export default function GemEditor({ gem, onSave }) {
+  const { t } = useLanguage();
   const isReadOnly = !!gem?.isPremade;
 
   const [dirty, setDirty] = useState(false);
@@ -33,9 +35,9 @@ export default function GemEditor({ gem, onSave }) {
 
   const title = gem
     ? isReadOnly
-      ? "View Gem (Premade)"
-      : `Edit Gem${dirty ? " (Gem not saved)" : ""}`
-    : "Select or create a Gem";
+      ? `${t("premadeGems")} (Read Only)`
+      : `${t("editGem")}${dirty ? " *" : ""}`
+    : t("selectModel");
 
   const handleChange = (setter) => (e) => {
     setter(e.target.value);
@@ -58,28 +60,31 @@ export default function GemEditor({ gem, onSave }) {
     <div>
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="text-sm font-medium">{title}</div>
-        <button
-          onClick={save}
-          disabled={!canSave}
-          className="rounded-lg bg-[var(--primary)] px-3 py-2 text-sm text-black disabled:opacity-40"
-        >
-          Save
-        </button>
+        {!isReadOnly && (
+          <button
+            onClick={save}
+            disabled={!canSave}
+            className="rounded-lg bg-[var(--primary)] px-3 py-2 text-sm text-black disabled:opacity-40"
+          >
+            {t("saveGem")}
+          </button>
+        )}
       </div>
 
       {!gem ? (
         <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-3 text-sm text-neutral-300">
-          Chọn một Gem để xem / sửa, hoặc bấm <b>+ New Gem</b>.
+          {t("gemPlaceholderName")}
         </div>
       ) : (
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs text-neutral-400">Name</label>
+              <label className="mb-1 block text-xs text-neutral-400">{t("gemName")}</label>
               <input
                 value={name}
                 onChange={handleChange(setName)}
                 disabled={isReadOnly}
+                placeholder={t("gemPlaceholderName")}
                 className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm outline-none disabled:opacity-60"
               />
             </div>
@@ -97,18 +102,19 @@ export default function GemEditor({ gem, onSave }) {
 
           <div>
             <label className="mb-1 block text-xs text-neutral-400">
-              Description
+              {t("gemDescription")}
             </label>
             <input
               value={description}
               onChange={handleChange(setDescription)}
               disabled={isReadOnly}
+              placeholder={t("gemPlaceholderDesc")}
               className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm outline-none disabled:opacity-60"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs text-neutral-400">Color</label>
+            <label className="mb-1 block text-xs text-neutral-400">{t("themes")}</label>
             <input
               value={color}
               onChange={handleChange(setColor)}
@@ -120,18 +126,16 @@ export default function GemEditor({ gem, onSave }) {
 
           <div>
             <label className="mb-1 block text-xs text-neutral-400">
-              Instructions (versioned)
+              {t("gemInstructions")}
             </label>
             <textarea
               value={instructions}
               onChange={handleChange(setInstructions)}
               disabled={isReadOnly}
               rows={14}
+              placeholder={t("gemPlaceholderInst")}
               className="w-full resize-y rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm leading-6 outline-none disabled:opacity-60"
             />
-            <div className="mt-1 text-[11px] text-neutral-500">
-              Mỗi lần Save sẽ tạo 1 version mới trong <code>gem_versions</code>.
-            </div>
           </div>
         </div>
       )}

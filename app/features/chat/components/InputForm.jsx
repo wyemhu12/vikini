@@ -80,7 +80,7 @@ export default function InputForm({
       if (disabled) return;
       if (!conversationId) {
         e.preventDefault();
-        setPasteError("Hãy tạo một chat mới trước khi dán ảnh.");
+        setPasteError(t?.noConversations || "Please create a chat first.");
         return;
       }
       e.preventDefault();
@@ -93,13 +93,13 @@ export default function InputForm({
         setPasteError(String(err?.message || "Upload failed"));
       }
     },
-    [conversationId, disabled]
+    [conversationId, disabled, t]
   );
 
   const handleFileSelect = async (e) => {
     if (!e.target.files || e.target.files.length === 0) return;
     if (!conversationId) {
-        setPasteError("Hãy tạo một chat mới trước khi tải ảnh.");
+        setPasteError(t?.noConversations || "Please create a chat first.");
         e.target.value = "";
         return;
     }
@@ -147,7 +147,7 @@ export default function InputForm({
             active:scale-90
             disabled:opacity-50
           "
-          title="Đính kèm ảnh"
+          title={t?.uploadFile || "Upload File"}
         >
           <PaperClipIcon />
         </button>
@@ -155,7 +155,7 @@ export default function InputForm({
         <textarea
           id="chat-input"
           ref={textareaRef}
-          placeholder={t.placeholder || "Nhập tin nhắn..."}
+          placeholder={t?.placeholder || "Type your message..."}
           value={input}
           rows={1}
           onChange={(e) => onChangeInput(e.target.value)}
@@ -200,7 +200,7 @@ export default function InputForm({
       )}
       
       <div className="text-center mt-2 text-[10px] text-neutral-600">
-        Vikini có thể mắc lỗi. Hãy kiểm tra thông tin quan trọng.
+        {t?.appName || "Vikini"} can make mistakes. Check important info.
       </div>
     </div>
   );
