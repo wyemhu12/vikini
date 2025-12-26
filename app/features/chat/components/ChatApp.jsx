@@ -91,7 +91,8 @@ export default function ChatApp() {
     handleSelectConversation,
     handleSend,
     handleRegenerate,
-    handleEdit, // New handler
+    handleEdit, 
+    handleStop, // Get handleStop
   } = useChatStreamController({
     isAuthed,
     selectedConversationId,
@@ -107,10 +108,15 @@ export default function ChatApp() {
   });
 
   const scrollRef = useRef(null);
+  
+  // Auto scroll only when NOT streaming to avoid annoying jumps
   useEffect(() => {
     if (!scrollRef.current) return;
+    if (isStreaming) return; // Disable auto-scroll during streaming
+    
+    // Only scroll on initial load or new user message, not constantly during stream
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [renderedMessages, streamingAssistant]);
+  }, [renderedMessages.length, isStreaming]); // Depend on length change, not content
 
   const handleRenameFromSidebar = useCallback(
     async (id) => {
@@ -229,7 +235,7 @@ export default function ChatApp() {
                     isLastAssistant={isLastAI} 
                     canRegenerate={m.role === "assistant"}
                     onRegenerate={() => handleRegenerate(m)}
-                    onEdit={handleEdit} // Pass the edit handler
+                    onEdit={handleEdit} 
                     regenerating={regenerating && isLastAI} 
                   />
                  );
@@ -292,14 +298,16 @@ export default function ChatApp() {
             <div className="relative">
                <AttachmentsPanel
                   conversationId={selectedConversationId}
-                  disabled={creatingConversation || isStreaming || regenerating}
+                  disabled={creatingConversation || (isStreaming && !streamingAssistant) || regenerating}
                   onAfterAnalyze={async () => { if (selectedConversationId) await handleSelectConversation(selectedConversationId); }}
                />
                <InputForm
                   input={input}
                   onChangeInput={setInput}
                   onSubmit={() => handleSend()}
-                  disabled={creatingConversation || isStreaming || regenerating}
+                  onStop={handleStop}
+                  disabled={creatingConversation || regenerating} // Only disable completely if creating new conv or regenerating
+                  isStreaming={isStreaming} // Pass streaming state
                   t={t}
                   conversationId={selectedConversationId}
                />

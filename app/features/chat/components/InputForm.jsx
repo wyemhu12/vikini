@@ -27,7 +27,9 @@ export default function InputForm({
   input,
   onChangeInput,
   onSubmit,
+  onStop, // Add onStop prop
   disabled,
+  isStreaming, // Add isStreaming prop to know when to show Stop button
   t,
   conversationId,
 }) {
@@ -60,13 +62,10 @@ export default function InputForm({
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    // Optional: check total count or size limit
     setIsUploading(true);
     try {
       for (const f of files) {
         if (!conversationId) {
-          // If no conversation yet, we might store file in temp state or alert user
-          // For now, let's just create a quick ID or warn
           console.warn("No conversation ID for upload yet");
           continue;
         }
@@ -87,7 +86,11 @@ export default function InputForm({
       ref={formRef}
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit();
+        if (isStreaming) {
+           onStop?.();
+        } else {
+           onSubmit();
+        }
       }}
       className="relative flex w-full items-end gap-2 rounded-3xl bg-[#0f1115] border border-white/10 p-2 shadow-2xl transition-all duration-300 focus-within:border-[var(--primary)]/50 focus-within:ring-1 focus-within:ring-[var(--primary)]/20"
     >
@@ -125,15 +128,18 @@ export default function InputForm({
       {/* Send / Stop Button - THEMED */}
       <button
         type="submit"
-        disabled={(!input.trim() && attachments.length === 0) || (disabled && !isUploading)}
+        // Button enabled if:
+        // 1. Streaming (to allow Stop)
+        // 2. OR Input not empty/has attachments AND not disabled/uploading
+        disabled={!isStreaming && ((!input.trim() && attachments.length === 0) || (disabled && !isUploading))}
         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 shadow-lg ${
-          disabled 
+          (!isStreaming && ((!input.trim() && attachments.length === 0) || (disabled && !isUploading)))
             ? "bg-neutral-800 text-neutral-500 cursor-not-allowed" 
             : "bg-[var(--primary)] text-black hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--primary)]"
         }`}
-        title={t?.send || "Send"}
+        title={isStreaming ? "Stop" : (t?.send || "Send")}
       >
-        {disabled ? <StopIcon /> : <PaperAirplaneIcon />}
+        {isStreaming ? <StopIcon /> : <PaperAirplaneIcon />}
       </button>
     </form>
   );
