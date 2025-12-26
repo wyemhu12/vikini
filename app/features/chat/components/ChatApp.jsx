@@ -14,7 +14,7 @@ import { useTheme } from "../hooks/useTheme";
 import { useLanguage } from "../hooks/useLanguage";
 import { useConversation } from "../hooks/useConversation";
 
-import { useWebSearchPreference } from "./hooks/web/useWebSearchPreference";
+import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 
 import {
