@@ -60,13 +60,13 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
   };
 
   return (
-    <div className="relative group w-full"> 
+    <div className="relative group w-full px-2"> 
       <button
-        className={`relative flex w-full items-center justify-between gap-1.5 rounded-lg px-3 py-2 text-left text-sm transition-all duration-200 ease-out ${
+        className={`relative flex w-full items-center justify-between gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm transition-all duration-300 ${
           isActive
-            ? "bg-neutral-800 text-white shadow-sm ring-1 ring-white/5 font-medium" // Giữ màu nền tối cho Active để dễ đọc, nhưng bạn có thể đổi thành bg-[var(--primary)]/20 nếu muốn
-            : "text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-900 hover:text-black dark:hover:text-white"
-        } active:scale-[0.98]`}
+            ? "bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)] border border-white/10"
+            : "text-white/50 hover:bg-white/5 hover:text-white border border-transparent"
+        }`}
         onClick={() => onSelect?.(c.id)}
         type="button"
       >
@@ -86,8 +86,8 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
               e.stopPropagation();
               setIsMenuOpen(!isMenuOpen);
             }}
-            className={`p-1 rounded-md hover:bg-neutral-700 cursor-pointer ${
-              isActive ? "text-neutral-300" : "text-neutral-400 dark:text-neutral-500"
+            className={`p-1 rounded-md hover:bg-white/10 cursor-pointer ${
+              isActive ? "text-white" : "text-white/40 hover:text-white"
             }`}
             role="button"
             title="Tùy chọn"
@@ -95,9 +95,9 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
             <EllipsisVerticalIcon />
           </div>
 
-          {/* MENU DROPDOWN */}
+          {/* MENU DROPDOWN - Dark Glass Style */}
           {isMenuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-48 origin-top-right rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 shadow-xl z-50 overflow-hidden ring-1 ring-black/5 focus:outline-none flex flex-col py-1.5">
+            <div className="absolute right-0 top-full mt-1 w-48 origin-top-right rounded-xl bg-[#0a0a0a]/90 backdrop-blur-xl border border-white/10 shadow-2xl z-50 overflow-hidden ring-1 ring-black/5 flex flex-col py-1.5">
               
               <button
                 onClick={(e) => {
@@ -105,22 +105,22 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
                   setIsMenuOpen(false);
                   if (typeof onRename === "function") onRename(c.id);
                 }}
-                className="flex w-full items-center px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors text-left"
+                className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:text-white hover:bg-white/5 transition-colors text-left"
               >
                 <PencilIcon />
-                Đổi tên
+                Rename
               </button>
 
               <button
                 onClick={handleDownloadClick}
                 disabled={isDownloading}
-                className="flex w-full items-center px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors text-left disabled:opacity-50"
+                className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:text-white hover:bg-white/5 transition-colors text-left disabled:opacity-50"
               >
                 <DownloadIcon />
-                {isDownloading ? "Đang tải..." : "Tải về (.txt)"}
+                {isDownloading ? "Downloading..." : "Export .txt"}
               </button>
 
-              <div className="h-px bg-neutral-100 dark:bg-neutral-700 my-1 mx-2" />
+              <div className="h-px bg-white/10 my-1 mx-2" />
 
               <button
                 onClick={(e) => {
@@ -128,10 +128,10 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
                   setIsMenuOpen(false);
                   if (typeof onDelete === "function") onDelete(c.id);
                 }}
-                className="flex w-full items-center px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
+                className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left"
               >
                 <TrashIcon />
-                Xóa đoạn chat
+                Delete
               </button>
             </div>
           )}

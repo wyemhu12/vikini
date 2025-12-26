@@ -25,22 +25,17 @@ const SignOutIcon = () => (
 );
 
 export default function Sidebar({
-  // New props
   conversations,
   selectedConversationId,
   onSelectConversation,
   onDeleteConversation,
   onDeleteAll, 
   onRefresh, 
-
-  // Legacy props
   chats,
   activeId,
   onSelectChat,
   onRenameChat,
   onDeleteChat,
-
-  // Shared
   onNewChat,
   onLogout,
   t,
@@ -56,7 +51,6 @@ export default function Sidebar({
     : [];
 
   const currentId = activeId ?? selectedConversationId ?? null;
-  // const href = currentId ? `/gems?conversationId=${currentId}` : "/gems"; // OLD
 
   const handleSelect = (id) => {
     (onSelectChat ?? onSelectConversation)?.(id);
@@ -68,122 +62,101 @@ export default function Sidebar({
     onCloseMobile?.();
   };
 
-  // Handler mở modal Gem thay vì chuyển trang
   const handleOpenGems = () => {
     openGemModal(currentId);
     onCloseMobile?.();
   };
 
-  // ---------- Fallback API calls ----------
   const renameFallback = async (id) => {
     try {
       const current = list.find((c) => c?.id === id);
       const curTitle = current?.title || "";
       const nextTitle = window.prompt("Đổi tên cuộc hội thoại:", curTitle);
-      if (nextTitle === null) return;
-      const title = String(nextTitle).trim();
-      if (!title) return;
-
-      const res = await fetch("/api/conversations", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, title }),
-      });
-
-      if (!res.ok) throw new Error("Rename failed");
-      await onRefresh?.();
+      if (nextTitle) {
+        const title = String(nextTitle).trim();
+        await fetch("/api/conversations", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, title }),
+        });
+        await onRefresh?.();
+      }
     } catch (e) {
       console.error(e);
-      alert("Không đổi tên được. Vui lòng thử lại.");
     }
   };
 
   const deleteFallback = async (id) => {
     try {
-      const ok = window.confirm("Xoá cuộc hội thoại này?");
-      if (!ok) return;
-
-      const res = await fetch("/api/conversations", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-
-      if (!res.ok) throw new Error("Delete failed");
-
-      if (currentId === id) {
-        const next = list.find((c) => c?.id && c.id !== id);
-        if (next?.id) handleSelect(next.id);
+      if (window.confirm("Xoá cuộc hội thoại này?")) {
+        await fetch("/api/conversations", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        });
+        if (currentId === id) {
+          const next = list.find((c) => c?.id && c.id !== id);
+          if (next?.id) handleSelect(next.id);
+        }
+        await onRefresh?.();
       }
-
-      await onRefresh?.();
     } catch (e) {
       console.error(e);
-      alert("Không xoá được. Vui lòng thử lại.");
     }
   };
 
-  const handleRename = (id) => {
-    if (typeof onRenameChat === "function") return onRenameChat(id);
-    return renameFallback(id);
-  };
-
+  const handleRename = (id) => (typeof onRenameChat === "function" ? onRenameChat(id) : renameFallback(id));
   const handleDelete = (id) => {
     const fn = onDeleteChat ?? onDeleteConversation;
-    if (typeof fn === "function") return fn(id);
-    return deleteFallback(id);
+    return typeof fn === "function" ? fn(id) : deleteFallback(id);
   };
 
   const content = (
-    <>
-      {/* New chat - THEMED BACKGROUND */}
+    <div className="flex flex-col h-full text-white">
+      {/* New chat - THEMED GLASS */}
       <button
         onClick={handleNew}
         className="
           group relative w-full mb-3
           flex items-center justify-center gap-2
           rounded-xl 
-          bg-[var(--primary)] text-black
+          bg-white/5 hover:bg-white/10 border border-white/5
           py-3 px-4
-          text-sm font-medium
-          border border-transparent
-          shadow-sm
-          transition-all duration-200 ease-out
-          hover:brightness-110 hover:shadow-md hover:-translate-y-0.5
-          active:scale-[0.97] active:translate-y-0
+          text-sm font-bold tracking-wide
+          shadow-lg backdrop-blur-md
+          transition-all duration-300
+          hover:scale-[1.02] active:scale-[0.98]
         "
         type="button"
       >
-        <span className="transition-transform duration-300 group-hover:rotate-90">
+        <span className="transition-transform duration-300 group-hover:rotate-90 text-[var(--primary)]">
           <PlusIcon />
         </span>
-        <span>{t?.newChat || "New Chat"}</span>
+        <span className="text-white/90 group-hover:text-white">{t?.newChat || "New Chat"}</span>
       </button>
 
-      {/* Explore Gems - MODAL TRIGGER */}
+      {/* Explore Gems - GLASS TRIGGER */}
       <button
         onClick={handleOpenGems}
         className="
           group flex items-center gap-3 w-full 
-          rounded-lg px-3 py-2.5 mb-4
-          text-sm font-medium text-neutral-600 dark:text-neutral-400
-          hover:bg-neutral-100 dark:hover:bg-neutral-900 
-          hover:text-neutral-900 dark:hover:text-white
-          transition-all duration-200 text-left
+          rounded-lg px-3 py-2.5 mb-6
+          text-xs font-bold uppercase tracking-wider text-white/50
+          hover:bg-white/5 hover:text-white
+          transition-all duration-300 text-left border border-transparent hover:border-white/5
         "
         type="button"
       >
-        {/* Icon also themed now */}
-        <span className="p-1 rounded-md text-[var(--primary)] bg-neutral-100 dark:bg-neutral-800 group-hover:bg-[var(--primary)] group-hover:text-black transition-colors">
+        <span className="p-1 rounded-md text-[var(--primary)] bg-white/5 group-hover:bg-[var(--primary)] group-hover:text-black transition-colors">
           <SparklesIcon />
         </span>
         {t?.exploreGems || "Explore Gems"}
       </button>
 
-      <div className="h-px bg-neutral-200 dark:bg-neutral-800 mb-2 mx-2" />
+      <div className="h-px bg-white/5 mb-4 mx-2" />
 
       {/* Chat list */}
-      <div className="flex-1 overflow-y-auto space-y-0.5 pr-1 scrollbar-thin scrollbar-thumb-neutral-200 dark:scrollbar-thumb-neutral-800">
+      <div className="flex-1 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
         {list.map((c) => (
           <SidebarItem
             key={c.id}
@@ -195,25 +168,25 @@ export default function Sidebar({
           />
         ))}
         {list.length === 0 && (
-          <div className="text-center py-10 text-xs text-neutral-400 select-none italic">
-            Chưa có cuộc trò chuyện nào
+          <div className="text-center py-10 text-[10px] font-bold uppercase tracking-widest text-white/20 select-none">
+            {t?.noConversations || "NO CONVERSATIONS"}
           </div>
         )}
       </div>
 
       {/* FOOTER ACTIONS */}
-      <div className="mt-auto pt-3 border-t border-neutral-200 dark:border-neutral-800 space-y-2">
+      <div className="mt-auto pt-4 border-t border-white/5 space-y-3">
         {onDeleteAll && (
           <button
             onClick={() => onDeleteAll?.()}
-            className="w-full flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs text-neutral-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+            className="w-full flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
             type="button"
           >
-            {t?.deleteAll || "Xóa tất cả"}
+            {t?.deleteAll || "Clear History"}
           </button>
         )}
 
-        {/* SIGN OUT BUTTON - THEMED */}
+        {/* SIGN OUT BUTTON - GLASS */}
         {onLogout && (
           <button
             onClick={() => {
@@ -221,10 +194,10 @@ export default function Sidebar({
               onCloseMobile?.();
             }}
             className="
-              w-full flex items-center gap-3 rounded-lg px-3 py-2.5
-              text-sm font-medium 
-              bg-[var(--primary)] text-black
-              hover:brightness-110
+              w-full flex items-center gap-3 rounded-lg px-3 py-3
+              text-xs font-bold uppercase tracking-wide
+              bg-white/5 border border-white/5 text-white/70
+              hover:bg-white/10 hover:text-white hover:border-white/10
               active:scale-[0.98] transition-all duration-200
             "
             type="button"
@@ -234,19 +207,19 @@ export default function Sidebar({
           </button>
         )}
       </div>
-    </>
+    </div>
   );
 
   return (
     <>
-      {/* Desktop sidebar */}
+      {/* Desktop sidebar - GLASSMORPHISM */}
       <aside
         className="
           hidden md:flex flex-col
           fixed top-0 left-0 bottom-0
           w-72 lg:w-80
-          border-r border-neutral-200 dark:border-neutral-800
-          bg-white dark:bg-neutral-950
+          border-r border-white/5
+          bg-black/20 backdrop-blur-xl
           p-4
           z-30
         "
@@ -259,7 +232,7 @@ export default function Sidebar({
         <div className="md:hidden">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm transition-opacity"
             onClick={() => onCloseMobile?.()}
           />
 
@@ -268,21 +241,21 @@ export default function Sidebar({
             className="
               fixed top-0 left-0 bottom-0 z-50
               w-[85vw] max-w-sm
-              border-r border-neutral-800
-              bg-white dark:bg-neutral-950
-              p-4
+              border-r border-white/10
+              bg-[#0a0a0a]
+              p-6
               shadow-2xl
               flex flex-col
             "
           >
-            <div className="mb-6 flex items-center justify-between">
-              <div className="text-lg font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-                <span className="w-2 h-6 rounded-full bg-[var(--primary)]"></span>
+            <div className="mb-8 flex items-center justify-between">
+              <div className="text-lg font-black tracking-tighter text-white flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center border border-white/10">V</div>
                 {t?.appName || "Vikini"}
               </div>
               <button
                 onClick={() => onCloseMobile?.()}
-                className="p-2 rounded-full text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                className="p-2 rounded-full text-white/50 hover:bg-white/10 hover:text-white transition-colors"
                 aria-label="Close sidebar"
                 type="button"
               >

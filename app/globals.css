@@ -88,30 +88,23 @@ body {
   --bg-end: #060102;
 }
 
-/* Global Flowing Gradient Animation */
-@keyframes flow {
-  0% { background-position: 0% 0%; }
-  100% { background-position: 300% 0%; }
+/* =======================
+   STATIC BACKGROUND EFFECTS
+======================= */
+
+/* 
+   Subtle static radial gradient for depth
+   Replaces the animated flow
+*/
+.static-depth-bg {
+  background: radial-gradient(
+    circle at 50% 0%, 
+    rgba(255, 255, 255, 0.03) 0%, 
+    transparent 60%
+  ),
+  linear-gradient(to bottom, #020617, #000000);
 }
 
-.animate-flow {
-  animation: flow 15s linear infinite;
-}
-
-.flowing-gradient-bg {
-  background: linear-gradient(
-    to left,
-    rgba(99, 102, 241, 0.1),
-    rgba(212, 175, 55, 0.1),
-    rgba(239, 68, 68, 0.1),
-    rgba(236, 72, 153, 0.1),
-    rgba(245, 158, 11, 0.1),
-    rgba(59, 130, 246, 0.1),
-    rgba(99, 102, 241, 0.1)
-  );
-  background-size: 300% 100%;
-  animation: flow 15s linear infinite;
-}
 
 /* =======================
    MARKDOWN & CHAT STYLING
