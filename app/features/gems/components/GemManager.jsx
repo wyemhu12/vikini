@@ -44,11 +44,11 @@ export default function GemManager() {
 
   const applyGemToConversation = async (gemId) => {
     if (!conversationId) {
-      setStatus(t("error") + ": No conversation ID");
+      setStatus(`${t("error") || "Error"}: No conversation ID`);
       return;
     }
 
-    setStatus(t("loading"));
+    setStatus(t("loading") || "Loading...");
     try {
       const res = await fetch("/api/conversations", {
         method: "PATCH",
@@ -59,7 +59,7 @@ export default function GemManager() {
       if (!res.ok) throw new Error(data?.error || "Apply gem failed");
 
       setSelectedGemId(gemId);
-      setStatus(t("success"));
+      setStatus(t("success") || "Success");
       
       setTimeout(() => {
         closeGemModal();
@@ -87,9 +87,10 @@ export default function GemManager() {
   const onEdit = (gem) => setEditingGem(gem);
 
   const onDelete = async (gem) => {
-    if (!confirm(t("gemDeleteConfirm") + ` "${gem.name}"?`)) return;
+    const confirmMsg = t("gemDeleteConfirm") || "Are you sure you want to delete this Gem?";
+    if (!confirm(`${confirmMsg} "${gem.name}"?`)) return;
 
-    setStatus(t("loading"));
+    setStatus(t("loading") || "Loading...");
     try {
       const res = await fetch("/api/gems", {
         method: "DELETE",
@@ -98,7 +99,7 @@ export default function GemManager() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Delete failed");
-      setStatus(t("success"));
+      setStatus(t("success") || "Success");
       if (editingGem?.id === gem.id) setEditingGem(null);
       await refresh();
     } catch (e) {
@@ -107,7 +108,7 @@ export default function GemManager() {
   };
 
   const onSave = async (payload) => {
-    setStatus(t("loading"));
+    setStatus(t("loading") || "Loading...");
     try {
       const isNew = !payload.id;
       const res = await fetch("/api/gems", {
@@ -119,7 +120,7 @@ export default function GemManager() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Save failed");
 
-      setStatus(t("success"));
+      setStatus(t("success") || "Success");
       setEditingGem(data?.gem || null);
       await refresh();
     } catch (e) {
@@ -184,13 +185,17 @@ export default function GemManager() {
               <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
                  <div className="flex justify-between items-center mb-4">
                     <h3 className="font-medium">Editor</h3>
-                    <button onClick={() => setEditingGem(null)} className="text-xs text-neutral-500 hover:text-white">{t("cancel")}</button>
+                    <button onClick={() => setEditingGem(null)} className="text-xs text-neutral-500 hover:text-white">{t("cancel") || "Cancel"}</button>
                  </div>
                 <GemEditor gem={editingGem} onSave={onSave} />
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-neutral-800 bg-neutral-900/20 p-8 flex flex-col items-center justify-center text-center text-neutral-500">
-                <p className="text-sm">{language === 'vi' ? 'Chọn "Tạo Gem mới" để bắt đầu hoặc chọn Gem từ danh sách.' : 'Select "Create New Gem" to start or pick a Gem from the list.'}</p>
+              <div className="rounded-xl border border-dashed border-neutral-800 bg-neutral-900/20 p-8 flex flex-col items-center justify-center text-center text-neutral-500 min-h-[300px]">
+                <p className="text-sm">
+                  {language === 'vi' 
+                    ? 'Chọn "Tạo Gem mới" để bắt đầu hoặc chọn Gem từ danh sách.' 
+                    : 'Select "Create New Gem" to start or pick a Gem from the list.'}
+                </p>
               </div>
             )}
           </div>

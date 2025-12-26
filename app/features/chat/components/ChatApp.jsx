@@ -85,7 +85,8 @@ export default function ChatApp() {
       "uploadFile", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview",
       "gemini-3-pro-preview", "gemini-3-flash", "gemini-3-pro", "modelDescFlash25",
       "modelDescPro25", "modelDescFlash3", "modelDescPro3", "blueprint", "amber",
-      "indigo", "charcoal", "gold", "red", "rose"
+      "indigo", "charcoal", "gold", "red", "rose", "gemsTitle", "myGems", "premadeGems",
+      "createGem", "editGem", "deleteGem", "saveGem", "cancel", "select", "error", "success"
     ];
 
     const result = {};
@@ -248,26 +249,20 @@ export default function ChatApp() {
     [selectedConversationId, currentModel, setConversationModel, patchConversationModel]
   );
 
-  if (isAuthLoading) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-neutral-950 text-neutral-200">
-        {t.loading || "Loading..."}
-      </div>
-    );
-  }
+  // ✅ EFFECT: Redirect to custom signin page if not authed
+  useEffect(() => {
+    if (!isAuthLoading && !isAuthed) {
+      signIn(); // This will trigger redirection to /auth/signin as configured
+    }
+  }, [isAuthed, isAuthLoading]);
 
-  // ✅ Khi chưa đăng nhập, chuyển hướng sang trang Sign-in custom
-  if (!isAuthed) {
+  if (isAuthLoading || !isAuthed) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-neutral-950 text-neutral-200">
-        <div className="text-2xl font-bold mb-2 text-[var(--primary)]">{t.appName}</div>
-        <div className="text-sm text-neutral-400 mb-6 uppercase tracking-widest">{t.whitelistOnly}</div>
-        <button
-          onClick={() => signIn("google")}
-          className="rounded-xl bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-neutral-200 transition-all active:scale-95"
-        >
-          {language === "vi" ? "Đăng nhập" : "Sign In"}
-        </button>
+      <div className="h-screen w-screen flex items-center justify-center bg-neutral-950 text-neutral-200 chat-gradient">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+           <div className="text-4xl font-black text-[var(--primary)]">{t.appName}</div>
+           <div className="text-xs tracking-widest text-neutral-500 uppercase">{t.loading}</div>
+        </div>
       </div>
     );
   }

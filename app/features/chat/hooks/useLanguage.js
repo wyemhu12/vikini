@@ -14,16 +14,19 @@ export function useLanguage() {
 
   useEffect(() => {
     localStorage.setItem("vikini-language", language);
+    // Sync with a custom event for other components to listen if needed
+    window.dispatchEvent(new CustomEvent('vikini-language-change', { detail: language }));
   }, [language]);
 
   const dict = useMemo(() => {
-    return translations?.[language] || translations?.vi || {};
+    return translations?.[language] || translations?.en || {};
   }, [language]);
 
   const t = useCallback(
     (key) => {
       if (!key) return "";
-      return dict?.[key] ?? translations?.vi?.[key] ?? String(key);
+      // Ưu tiên ngôn ngữ hiện tại, nếu không có mới tìm trong tiếng Anh, cuối cùng là tiếng Việt
+      return dict?.[key] ?? translations?.en?.[key] ?? translations?.vi?.[key] ?? String(key);
     },
     [dict]
   );
