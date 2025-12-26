@@ -75,114 +75,24 @@ export default function ChatApp() {
     };
   }, [mobileOpen]);
 
-  // ✅ Build `t` đủ key cho HeaderBar + Chat UI
+  // ✅ Build `t` đầy đủ key
   const t = useMemo(() => {
-    if (typeof tRaw === "function") {
-      return {
-        appName: tRaw("appName") ?? "Vikini",
-        whitelist: tRaw("whitelist") ?? "",
-        exploreGems: tRaw("exploreGems") ?? "Explore Gems",
-        signOut: tRaw("signOut") ?? "Sign out",
-        newChat: tRaw("newChat") ?? "New Chat",
-        send: tRaw("send") ?? "Send",
-        placeholder: tRaw("placeholder") ?? "Nhập tin nhắn...",
-        refresh: tRaw("refresh") ?? "Refresh",
-        deleteAll: tRaw("deleteAll") ?? "Delete all",
-        logout: tRaw("logout") ?? "Log out",
-        // Model selector
-        modelSelector: tRaw("modelSelector") ?? "Model",
-        selectModel: tRaw("selectModel") ?? "Select Model",
-        currentModel: tRaw("currentModel") ?? "Current Model",
-        // Applied GEM
-        appliedGem: tRaw("appliedGem") ?? "Applied GEM",
-        appliedGemNone: tRaw("appliedGemNone") ?? "None",
-        // Model names - tên phải khớp chính xác với AI Studio
-        "gemini-2.5-flash": tRaw("gemini-2.5-flash") ?? "Gemini 2.5 Flash",
-        "gemini-2.5-pro": tRaw("gemini-2.5-pro") ?? "Gemini 2.5 Pro",
-        "gemini-3-flash": tRaw("gemini-3-flash") ?? "Gemini 3 Flash",
-        "gemini-3-pro": tRaw("gemini-3-pro") ?? "Gemini 3 Pro",
-        // Model descriptions
-        modelDescFlash25: tRaw("modelDescFlash25") ?? "Fast & balanced",
-        modelDescPro25: tRaw("modelDescPro25") ?? "Advanced thinking",
-        modelDescFlash3: tRaw("modelDescFlash3") ?? "Smart & fast",
-        modelDescPro3: tRaw("modelDescPro3") ?? "Most intelligent",
-        // Web search
-        webSearch: tRaw("webSearch") ?? "Web Search",
-        webSearchOn: tRaw("webSearchOn") ?? "ON",
-        webSearchOff: tRaw("webSearchOff") ?? "OFF",
-      };
-    }
+    const keys = [
+      "appName", "whitelist", "whitelistOnly", "exploreGems", "signOut", "newChat", 
+      "send", "placeholder", "refresh", "deleteAll", "logout", "modelSelector",
+      "selectModel", "currentModel", "appliedGem", "appliedGemNone", "webSearch",
+      "webSearchOn", "webSearchOff", "aiDisclaimer", "loading", "noConversations",
+      "uploadFile", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview",
+      "gemini-3-pro-preview", "gemini-3-flash", "gemini-3-pro", "modelDescFlash25",
+      "modelDescPro25", "modelDescFlash3", "modelDescPro3", "blueprint", "amber",
+      "indigo", "charcoal", "gold", "red", "rose"
+    ];
 
-    if (tRaw && typeof tRaw === "object") {
-      return {
-        appName: tRaw.appName ?? "Vikini",
-        whitelist: tRaw.whitelist ?? "",
-        exploreGems: tRaw.exploreGems ?? "Explore Gems",
-        signOut: tRaw.signOut ?? "Sign out",
-        newChat: tRaw.newChat ?? "New Chat",
-        send: tRaw.send ?? "Send",
-        placeholder: tRaw.placeholder ?? "Nhập tin nhắn...",
-        refresh: tRaw.refresh ?? "Refresh",
-        deleteAll: tRaw.deleteAll ?? "Delete all",
-        logout: tRaw.logout ?? tRaw.signOut ?? "Log out",
-        // Model selector
-        modelSelector: tRaw.modelSelector ?? "Model",
-        selectModel: tRaw.selectModel ?? "Select Model",
-        currentModel: tRaw.currentModel ?? "Current Model",
-        // Applied GEM
-        appliedGem: tRaw.appliedGem ?? "Applied GEM",
-        appliedGemNone: tRaw.appliedGemNone ?? "None",
-        // Model names
-        "gemini-2.5-flash": tRaw["gemini-2.5-flash"] ?? "Gemini 2.5 Flash",
-        "gemini-2.5-pro": tRaw["gemini-2.5-pro"] ?? "Gemini 2.5 Pro",
-        "gemini-3-flash": tRaw["gemini-3-flash"] ?? "Gemini 3 Flash",
-        "gemini-3-pro": tRaw["gemini-3-pro"] ?? "Gemini 3 Pro",
-        // Model descriptions
-        modelDescFlash25: tRaw.modelDescFlash25 ?? "Fast & balanced",
-        modelDescPro25: tRaw.modelDescPro25 ?? "Advanced thinking",
-        modelDescFlash3: tRaw.modelDescFlash3 ?? "Smart & fast",
-        modelDescPro3: tRaw.modelDescPro3 ?? "Most intelligent",
-        // Web search
-        webSearch: tRaw.webSearch ?? "Web Search",
-        webSearchOn: tRaw.webSearchOn ?? "ON",
-        webSearchOff: tRaw.webSearchOff ?? "OFF",
-        ...tRaw,
-      };
-    }
-
-    return {
-      appName: "Vikini",
-      whitelist: "",
-      exploreGems: "Explore Gems",
-      signOut: "Sign out",
-      newChat: "New Chat",
-      send: "Send",
-      placeholder: "Nhập tin nhắn...",
-      refresh: "Refresh",
-      deleteAll: "Delete all",
-      logout: "Log out",
-      // Model selector
-      modelSelector: "Model",
-      selectModel: "Select Model",
-      currentModel: "Current Model",
-      // Applied GEM
-      appliedGem: "Applied GEM",
-      appliedGemNone: "None",
-      // Model names
-      "gemini-2.5-flash": "Gemini 2.5 Flash",
-      "gemini-2.5-pro": "Gemini 2.5 Pro",
-      "gemini-3-flash": "Gemini 3 Flash",
-      "gemini-3-pro": "Gemini 3 Pro",
-      // Model descriptions
-      modelDescFlash25: "Fast & balanced",
-      modelDescPro25: "Advanced thinking",
-      modelDescFlash3: "Smart & fast",
-      modelDescPro3: "Most intelligent",
-      // Web search
-      webSearch: "Web Search",
-      webSearchOn: "ON",
-      webSearchOff: "OFF",
-    };
+    const result = {};
+    keys.forEach(k => {
+      result[k] = tRaw(k);
+    });
+    return result;
   }, [tRaw, language]);
 
   const {
@@ -254,7 +164,7 @@ export default function ChatApp() {
           (c) => c?.id === id
         );
         const curTitle = current?.title || "";
-        const nextTitle = window.prompt("Đổi tên cuộc hội thoại:", curTitle);
+        const nextTitle = window.prompt(t.renameChat || "Đổi tên cuộc hội thoại:", curTitle);
         if (nextTitle === null) return;
         const title = String(nextTitle).trim();
         if (!title) return;
@@ -263,16 +173,15 @@ export default function ChatApp() {
         await renameConversation(id, title);
       } catch (e) {
         console.error(e);
-        alert("Không đổi tên được. Vui lòng thử lại.");
       }
     },
-    [conversations, renameConversation, renameConversationOptimistic]
+    [conversations, renameConversation, renameConversationOptimistic, t]
   );
 
   const handleDeleteFromSidebar = useCallback(
     async (id) => {
       try {
-        const ok = window.confirm("Xoá cuộc hội thoại này?");
+        const ok = window.confirm(t.deleteConfirm || "Xoá cuộc hội thoại này?");
         if (!ok) return;
 
         await deleteConversation(id);
@@ -284,10 +193,9 @@ export default function ChatApp() {
         await refreshConversations();
       } catch (e) {
         console.error(e);
-        alert("Không xoá được. Vui lòng thử lại.");
       }
     },
-    [deleteConversation, refreshConversations, resetChatUI, selectedConversationId]
+    [deleteConversation, refreshConversations, resetChatUI, selectedConversationId, t]
   );
 
   // ✅ Get current conversation info for Applied GEM and Model display
@@ -302,12 +210,11 @@ export default function ChatApp() {
   const currentModel = isSelectableModelId(currentModelRaw) ? currentModelRaw : DEFAULT_MODEL;
   const currentGem = currentConversation?.gem || null;
 
-  // ✅ Auto-migrate old/unsupported model values (Gemini 1.5 / 2.0) to DEFAULT_MODEL
+  // ✅ Auto-migrate old/unsupported model values
   useEffect(() => {
     if (!selectedConversationId) return;
     const raw = currentConversation?.model;
 
-    // Only migrate if a model is explicitly set but not allowed
     if (!raw) return;
     if (isSelectableModelId(raw)) return;
 
@@ -331,13 +238,10 @@ export default function ChatApp() {
       if (next === currentModel) return;
 
       try {
-        // Optimistic update
         patchConversationModel?.(selectedConversationId, next);
-        // Server update
         await setConversationModel?.(selectedConversationId, next);
       } catch (e) {
         console.error("Failed to change model:", e);
-        // Revert on error
         patchConversationModel?.(selectedConversationId, currentModel);
       }
     },
@@ -347,23 +251,22 @@ export default function ChatApp() {
   if (isAuthLoading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-neutral-950 text-neutral-200">
-        Loading...
+        {t.loading || "Loading..."}
       </div>
     );
   }
 
+  // ✅ Khi chưa đăng nhập, chuyển hướng sang trang Sign-in custom
   if (!isAuthed) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-neutral-950 text-neutral-200">
-        <div className="text-lg font-semibold mb-2">Vikini</div>
-        <div className="text-sm text-neutral-400 mb-6">
-          Vui lòng đăng nhập để tiếp tục.
-        </div>
+        <div className="text-2xl font-bold mb-2 text-[var(--primary)]">{t.appName}</div>
+        <div className="text-sm text-neutral-400 mb-6 uppercase tracking-widest">{t.whitelistOnly}</div>
         <button
           onClick={() => signIn("google")}
-          className="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-medium text-black hover:opacity-90"
+          className="rounded-xl bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-neutral-200 transition-all active:scale-95"
         >
-          Đăng nhập bằng Google
+          {language === "vi" ? "Đăng nhập" : "Sign In"}
         </button>
       </div>
     );
@@ -371,7 +274,6 @@ export default function ChatApp() {
 
   return (
     <div className="h-screen w-screen bg-neutral-950 text-neutral-100">
-      {/* Sidebar (fixed desktop + mobile drawer) */}
       <Sidebar
         conversations={conversations}
         selectedConversationId={selectedConversationId}
@@ -383,17 +285,14 @@ export default function ChatApp() {
           handleNewChat();
           closeMobileSidebar();
         }}
-        // ✅ Không truyền onRefresh để không render nút Refresh
         onDeleteConversation={handleDeleteFromSidebar}
         onRenameChat={handleRenameFromSidebar}
-        // ✅ Di chuyển Sign out vào Sidebar
         onLogout={() => signOut()}
         t={t}
         mobileOpen={mobileOpen}
         onCloseMobile={closeMobileSidebar}
       />
 
-      {/* Main content: add left padding on desktop to avoid overlap with fixed sidebar */}
       <div className="h-full flex flex-col md:pl-80">
         <HeaderBar
           t={t}
@@ -435,7 +334,6 @@ export default function ChatApp() {
 
         <div className="max-w-3xl mx-auto w-full">
           <div className="px-4 pt-2 flex flex-wrap items-center gap-2.5">
-            {/* ✅ Model Selector */}
             <div className="flex items-center gap-1">
               <span className="text-xs text-neutral-500 hidden sm:inline">
                 {t.modelSelector}:
@@ -455,7 +353,6 @@ export default function ChatApp() {
               </select>
             </div>
 
-            {/* ✅ Keep Web Search toggle UI */}
             <button
               onClick={toggleWebSearch}
               className={[
@@ -471,7 +368,6 @@ export default function ChatApp() {
               {webSearchEnabled ? serverHint : ""}
             </button>
 
-            {/* ✅ Applied GEM Indicator */}
             <div
               className="text-sm px-3.5 py-2 rounded-full ring-1 ring-neutral-800 bg-neutral-950 text-neutral-400"
               title={t.appliedGem}
@@ -499,8 +395,6 @@ export default function ChatApp() {
             t={t}
             conversationId={selectedConversationId}
           />
-
-          {/* ✅ BỎ footer New Chat + Ready (nút dư) */}
         </div>
       </div>
     </div>

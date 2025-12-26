@@ -47,22 +47,22 @@ export default function GemList({
           <div className="flex flex-col gap-1">
             <button
               onClick={() => onSelect?.(g)}
-              className="rounded-md bg-[var(--primary)] px-2 py-1 text-[11px] text-black"
+              className="rounded-md bg-[var(--primary)] px-2 py-1 text-[11px] text-black transition-all hover:brightness-110 active:scale-95"
             >
-              {t("refresh")}
+              {t("select")}
             </button>
 
             {!readOnly && (
               <>
                 <button
                   onClick={() => onEdit?.(g)}
-                  className="rounded-md border border-neutral-700 px-2 py-1 text-[11px] text-neutral-200 hover:bg-neutral-900"
+                  className="rounded-md border border-neutral-700 px-2 py-1 text-[11px] text-neutral-200 hover:bg-neutral-900 transition-all active:scale-95"
                 >
                   {t("editGem")}
                 </button>
                 <button
                   onClick={() => onDelete?.(g)}
-                  className="rounded-md border border-red-900/50 px-2 py-1 text-[11px] text-red-300 hover:bg-red-950/40"
+                  className="rounded-md border border-red-900/50 px-2 py-1 text-[11px] text-red-300 hover:bg-red-950/40 transition-all active:scale-95"
                 >
                   {t("deleteGem")}
                 </button>
