@@ -154,7 +154,7 @@ export default function ChatBubble({
                     code: CodeBlock,
                     p: ({ children }) => <p className="mb-4 last:mb-0 leading-7">{children}</p>,
                     ul: ({ children }) => <ul className="mb-4 ml-6 list-disc space-y-2">{children}</ul>,
-                    ol: ({ children }) => <ol className="mb-4 ml-6 list-decimal space-y-2">{children}</ul>,
+                    ol: ({ children }) => <ol className="mb-4 ml-6 list-decimal space-y-2">{children}</ol>,
                     li: ({ children }) => <li className="leading-7">{children}</li>,
                     h1: ({ children }) => <h1 className="mt-8 mb-4 text-2xl font-bold text-white">{children}</h1>,
                     h2: ({ children }) => <h2 className="mt-7 mb-3 text-xl font-bold text-white">{children}</h2>,
