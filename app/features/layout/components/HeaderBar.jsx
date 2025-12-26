@@ -16,7 +16,7 @@ export default function HeaderBar({
   onToggleSidebar,
 }) {
   const themeOptions = [
-    { id: "blueprint", label: t?.blueprint ?? "Blueprint", swatch: "#79A9D9" },
+    { id: "blueprint", label: t?.blueprint ?? "Blueprint", swatch: "#3b82f6" },
     { id: "amber", label: t?.amber ?? "Amber", swatch: "#d97706" },
     { id: "indigo", label: t?.indigo ?? "Indigo", swatch: "#6366f1" },
     { id: "charcoal", label: t?.charcoal ?? "Charcoal", swatch: "#4b5563" },
@@ -45,7 +45,7 @@ export default function HeaderBar({
           onClick={onToggleSidebar}
           className="
             md:hidden rounded-lg p-2 -ml-2
-            text-white/60 hover:text-white hover:bg-white/10
+            text-white hover:bg-white/10
             transition-colors active:scale-95
           "
           aria-label="Open sidebar"
@@ -53,9 +53,10 @@ export default function HeaderBar({
           <Bars3Icon />
         </button>
 
-        <div className="min-w-0 flex flex-col md:hidden">
-          <div className="font-black text-base text-white tracking-tight truncate">
-            {t?.appName ?? "Vikini"}
+        {/* Luôn hiển thị tên ứng dụng, kể cả trên Desktop */}
+        <div className="min-w-0 flex flex-col">
+          <div className="font-black text-xl text-white tracking-tight flex items-center gap-2">
+             <span className="text-[var(--primary)]">V</span>ikini Chat
           </div>
         </div>
       </div>
@@ -68,11 +69,11 @@ export default function HeaderBar({
             onChange={(e) => onLanguageChange?.(e.target.value)}
             className="
               appearance-none
-              rounded-full border border-white/5 
+              rounded-full border border-white/10
               bg-white/5 px-4 py-1.5 
-              text-[10px] font-bold uppercase tracking-wider text-white/60
-              outline-none focus:border-white/20
-              hover:bg-white/10 hover:text-white transition-all
+              text-[10px] font-bold uppercase tracking-wider text-white
+              outline-none focus:border-white/30
+              hover:bg-white/10 transition-all
               cursor-pointer
               backdrop-blur-md
             "
@@ -89,7 +90,7 @@ export default function HeaderBar({
         <div className="flex items-center gap-2">
           <div className="relative">
              <span
-               className="absolute left-2.5 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full shadow-[0_0_10px_currentColor] pointer-events-none"
+               className="absolute left-2.5 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full shadow-[0_0_8px_currentColor] pointer-events-none"
                style={{
                  backgroundColor: themeOptions.find((x) => x.id === theme)?.swatch ?? "#d97706",
                  color: themeOptions.find((x) => x.id === theme)?.swatch ?? "#d97706"
@@ -101,11 +102,11 @@ export default function HeaderBar({
                onChange={(e) => onThemeChange?.(e.target.value)}
                className="
                  appearance-none
-                 rounded-full border border-white/5 
+                 rounded-full border border-white/10
                  bg-white/5 pl-7 pr-4 py-1.5 
-                 text-[10px] font-bold uppercase tracking-wider text-white/60
-                 outline-none focus:border-white/20
-                 hover:bg-white/10 hover:text-white transition-all
+                 text-[10px] font-bold uppercase tracking-wider text-white
+                 outline-none focus:border-white/30
+                 hover:bg-white/10 transition-all
                  cursor-pointer
                  backdrop-blur-md
                "

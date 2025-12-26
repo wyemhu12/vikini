@@ -120,7 +120,7 @@ export default function Sidebar({
           group relative w-full mb-3
           flex items-center justify-center gap-2
           rounded-xl 
-          bg-white/5 hover:bg-white/10 border border-white/5
+          bg-white/10 hover:bg-white/15 border border-white/10
           py-3 px-4
           text-sm font-bold tracking-wide
           shadow-lg backdrop-blur-md
@@ -132,7 +132,7 @@ export default function Sidebar({
         <span className="transition-transform duration-300 group-hover:rotate-90 text-[var(--primary)]">
           <PlusIcon />
         </span>
-        <span className="text-white/90 group-hover:text-white">{t?.newChat || "New Chat"}</span>
+        <span className="text-white group-hover:text-white">{t?.newChat || "New Chat"}</span>
       </button>
 
       {/* Explore Gems - GLASS TRIGGER */}
@@ -141,7 +141,7 @@ export default function Sidebar({
         className="
           group flex items-center gap-3 w-full 
           rounded-lg px-3 py-2.5 mb-6
-          text-xs font-bold uppercase tracking-wider text-white/50
+          text-xs font-bold uppercase tracking-wider text-white/60
           hover:bg-white/5 hover:text-white
           transition-all duration-300 text-left border border-transparent hover:border-white/5
         "
@@ -153,7 +153,7 @@ export default function Sidebar({
         {t?.exploreGems || "Explore Gems"}
       </button>
 
-      <div className="h-px bg-white/5 mb-4 mx-2" />
+      <div className="h-px bg-white/10 mb-4 mx-2" />
 
       {/* Chat list */}
       <div className="flex-1 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
@@ -212,14 +212,14 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Desktop sidebar - GLASSMORPHISM */}
+      {/* Desktop sidebar - LIGHTER GLASSMORPHISM */}
       <aside
         className="
           hidden md:flex flex-col
           fixed top-0 left-0 bottom-0
           w-72 lg:w-80
           border-r border-white/5
-          bg-black/20 backdrop-blur-xl
+          bg-white/[0.03] backdrop-blur-3xl
           p-4
           z-30
         "
@@ -250,7 +250,7 @@ export default function Sidebar({
           >
             <div className="mb-8 flex items-center justify-between">
               <div className="text-lg font-black tracking-tighter text-white flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center border border-white/10">V</div>
+                <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center border border-white/10 text-[var(--primary)]">V</div>
                 {t?.appName || "Vikini"}
               </div>
               <button
