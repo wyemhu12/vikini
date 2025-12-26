@@ -1,4 +1,33 @@
-.next
-node_modules
-.env.local
-.env
+# Dependencies
+/node_modules
+
+# Local Environment Variables
+.env*.local
+
+# Next.js build output
+/.next/
+/out/
+
+# Vercel
+.vercel
+
+# Production
+build
+
+# IDE / Editor specific
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Other
+.DS_Store
+*.pem
