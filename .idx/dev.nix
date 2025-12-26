@@ -26,7 +26,7 @@
     workspace = {
       onCreate = {
         default.openFiles = [
-          "/app/page.tsx"
+          "app/page.tsx"
         ];
       };
     };
