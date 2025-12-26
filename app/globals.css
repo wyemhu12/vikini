@@ -21,90 +21,96 @@ body {
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-neutral-700 rounded-full;
+  @apply bg-neutral-800 rounded-full;
 }
 
 /* =======================
    THEME DEFINITIONS
 ======================= */
 
-/* 💎 BLUEPRINT (MUTED BLUE) - Theo docs/blueprint.md */
 .theme-blueprint {
-  --primary: #79A9D9;       /* Muted blue */
+  --primary: #79A9D9;
   --primary-light: #9dbce0;
   --primary-dark: #5a87b3;
-  --accent: #A69CAC;        /* Soft purple */
-
-  --bg-start: #0f172a;      /* Darker slate for dark mode background */
+  --accent: #A69CAC;
+  --bg-start: #0f172a;
   --bg-end: #020617;
 }
 
-/* 🟧 CAM – NÂU */
 .theme-amber {
   --primary: #d97706;
   --primary-light: #fbbf24;
   --primary-dark: #78350f;
-
   --bg-start: #2b1800;
   --bg-end: #0b0700;
 }
 
-/* 💜 TÍM – XANH */
 .theme-indigo {
   --primary: #6366f1;
   --primary-light: #818cf8;
   --primary-dark: #312e81;
-
   --bg-start: #0c0f33;
   --bg-end: #050515;
 }
 
-/* ⚫ XÁM – ĐEN */
 .theme-charcoal {
   --primary: #4b5563;
   --primary-light: #9ca3af;
   --primary-dark: #1f2937;
-
   --bg-start: #0f0f0f;
   --bg-end: #000000;
 }
 
-/* 🟡 VÀNG METALLIC - IMPROVED GOLD */
 .theme-gold {
   --primary: #d4af37;
   --primary-light: #f3cf6d;
   --primary-dark: #916c14;
-
   --bg-start: #1c1605;
   --bg-end: #050400;
 }
 
-/* 🔴 ĐỎ */
 .theme-red {
   --primary: #ef4444;
   --primary-light: #fca5a5;
   --primary-dark: #7f1d1d;
-
   --bg-start: #2a0000;
   --bg-end: #070000;
 }
 
-/* 🌸 HỒNG NHẠT */
 .theme-rose {
   --primary: #cc8899;
   --primary-light: #f1b8c6;
   --primary-dark: #6b2d3b;
-
   --bg-start: #240c12;
   --bg-end: #060102;
 }
 
-/* Gradient background */
-.chat-gradient {
-  background: linear-gradient(to bottom, var(--bg-start), var(--bg-end));
+/* Global Flowing Gradient Animation */
+@keyframes flow {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 300% 0%; }
+}
+
+.animate-flow {
+  background-size: 300% 100%;
+  animation: flow 15s linear infinite;
+}
+
+.flowing-gradient-bg {
+  background: linear-gradient(
+    to left,
+    rgba(99, 102, 241, 0.1),
+    rgba(212, 175, 55, 0.1),
+    rgba(239, 68, 68, 0.1),
+    rgba(236, 72, 153, 0.1),
+    rgba(245, 158, 11, 0.1),
+    rgba(59, 130, 246, 0.1),
+    rgba(99, 102, 241, 0.1)
+  );
+  @apply animate-flow;
 }
 
 /* =======================
@@ -112,146 +118,45 @@ body {
 ======================= */
 
 .chat-markdown {
-  @apply text-[15px] leading-[1.65];
+  @apply text-[15px] leading-[1.75];
   word-break: break-word;
 }
 
-/* Heading styles */
-.chat-markdown h1,
-.chat-markdown h2,
-.chat-markdown h3,
-.chat-markdown h4 {
-  @apply mt-6 mb-3 font-bold text-white;
+.chat-markdown h1, .chat-markdown h2, .chat-markdown h3, .chat-markdown h4 {
+  @apply mt-8 mb-4 font-bold text-white;
 }
 
 .chat-markdown h1 { @apply text-2xl; }
 .chat-markdown h2 { @apply text-xl; }
 .chat-markdown h3 { @apply text-lg; }
-.chat-markdown h4 { @apply text-base; }
 
-.chat-markdown p {
-  @apply mb-4 last:mb-0;
-}
-
-/* Lists */
-.chat-markdown ul,
-.chat-markdown ol {
-  @apply my-4 pl-6 space-y-2;
-}
+.chat-markdown p { @apply mb-5 last:mb-0; }
+.chat-markdown ul, .chat-markdown ol { @apply my-5 pl-6 space-y-2.5; }
 .chat-markdown ul { @apply list-disc; }
 .chat-markdown ol { @apply list-decimal; }
 
-.chat-markdown li > p {
-  @apply mb-0;
-}
-
-/* Table styling */
 .chat-markdown table {
-  @apply my-4 w-full border-collapse text-sm overflow-hidden rounded-lg;
+  @apply my-6 w-full border-collapse text-sm overflow-hidden rounded-xl border border-white/5;
   display: block;
   overflow-x: auto;
 }
 .chat-markdown thead th {
-  @apply bg-neutral-800/80 text-neutral-100 font-semibold;
+  @apply bg-white/5 text-neutral-100 font-bold px-4 py-3;
 }
-.chat-markdown th,
 .chat-markdown td {
-  @apply border border-neutral-800 px-4 py-2 text-left;
-}
-.chat-markdown tr:nth-child(even) {
-  @apply bg-white/5;
+  @apply border-t border-white/5 px-4 py-3 text-neutral-300;
 }
 
-/* Quotes */
 .chat-markdown blockquote {
-  @apply my-4 border-l-4 border-neutral-700 pl-4 italic text-neutral-400;
+  @apply my-6 border-l-4 border-white/10 bg-white/[0.02] py-3 pl-5 pr-4 rounded-r-lg italic text-neutral-400;
 }
 
-/* Code */
 .chat-markdown code:not(pre code) {
-  @apply rounded bg-white/10 px-1.5 py-0.5 font-mono text-sm text-[var(--primary-light)];
+  @apply rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-[0.85em] text-[var(--primary-light)];
 }
 
 .chat-markdown pre {
-  @apply my-4 rounded-xl overflow-hidden;
+  @apply my-6;
 }
 
-/* Horizontal Rule */
-.chat-markdown hr {
-  @apply my-6 border-neutral-800;
-}
-
-/* Link */
-.chat-markdown a {
-  @apply text-[var(--primary-light)] underline decoration-white/20 underline-offset-4 transition-all hover:decoration-[var(--primary-light)];
-}
-
-* {
-  -webkit-tap-highlight-color: transparent;
-}
-
-html {
-  font-size: 16px;
-}
-
-@media (max-width: 640px) {
-  html {
-    font-size: 15px;
-  }
-}
-
-@keyframes fadeInTitle {
-  0% {
-    opacity: 0;
-    transform: translateX(4px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.animate-title {
-  animation: fadeInTitle 0.22s ease-out;
-}
-
-@keyframes typingDot {
-  0%, 80%, 100% {
-    transform: translateY(0);
-    opacity: 0.35;
-  }
-  40% {
-    transform: translateY(-3px);
-    opacity: 1;
-  }
-}
-
-.typing-dots > span {
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
-  background: rgb(212 212 212);
-  display: inline-block;
-  animation: typingDot 1.1s infinite ease-in-out;
-}
-
-.typing-dots > span:nth-child(2) { animation-delay: 0.12s; }
-.typing-dots > span:nth-child(3) { animation-delay: 0.24s; }
-
-@keyframes shimmerTitle {
-  0% {
-    opacity: 0.45;
-  }
-  50% {
-    opacity: 0.85;
-  }
-  100% {
-    opacity: 0.45;
-  }
-}
-
-.shimmer-block {
-  background: linear-gradient(90deg, #3f3f3f 0%, #6b7280 50%, #3f3f3f 100%);
-  background-size: 200% 100%;
-  animation: shimmerTitle 1.2s infinite ease-in-out;
-}
+* { -webkit-tap-highlight-color: transparent; }
