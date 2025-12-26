@@ -1,9 +1,10 @@
 // /app/features/chat/components/InputForm.jsx
 "use client";
 
-import { useRef, useEffect, useCallback, useMemo, useState } from "react";
+import { useRef, useEffect, useState } from "react";
+import { uploadAttachment } from "@/lib/features/attachments/attachments";
+import { useAttachmentStore } from "@/lib/features/attachments/store";
 
-// Icons
 const PaperAirplaneIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
     <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
@@ -16,32 +17,11 @@ const PaperClipIcon = () => (
   </svg>
 );
 
-function extractClipboardImages(clipboardData) {
-  const out = [];
-  const items = clipboardData?.items ? Array.from(clipboardData.items) : [];
-  for (const item of items) {
-    if (!item) continue;
-    if (item.kind !== "file") continue;
-    const type = String(item.type || "");
-    if (!type.startsWith("image/")) continue;
-    const blob = item.getAsFile?.();
-    if (!blob) continue;
-    const ext = type === "image/png" ? "png" : type === "image/webp" ? "webp" : type === "image/jpeg" ? "jpg" : "img";
-    out.push(new File([blob], `pasted-${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`, { type }));
-  }
-  return out;
-}
-
-async function uploadImages({ conversationId, images }) {
-  for (const file of images) {
-    const form = new FormData();
-    form.set("conversationId", conversationId);
-    form.set("file", file);
-    const res = await fetch("/api/attachments/upload", { method: "POST", body: form });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json?.error || "Upload failed");
-  }
-}
+const StopIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <rect x="6" y="6" width="12" height="12" rx="2" />
+  </svg>
+);
 
 export default function InputForm({
   input,
@@ -51,157 +31,110 @@ export default function InputForm({
   t,
   conversationId,
 }) {
+  const formRef = useRef(null);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
-  const [pasteError, setPasteError] = useState("");
+  const { addAttachment, attachments } = useAttachmentStore();
+  const [isUploading, setIsUploading] = useState(false);
 
-  const sendDisabled = useMemo(() => disabled || !String(input || "").trim(), [disabled, input]);
-
+  // Auto resize textarea
   useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    textarea.style.height = "auto";
-    const lineHeight = 24; 
-    const maxLines = 6;
-    const maxHeight = lineHeight * maxLines;
-    const targetHeight = Math.min(textarea.scrollHeight, maxHeight);
-    textarea.style.transition = "height 120ms ease";
-    textarea.style.height = `${targetHeight}px`;
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    }
   }, [input]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(e);
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (!disabled && (input.trim() || attachments.length > 0)) {
+        onSubmit();
+        // Reset height
+        if (textareaRef.current) textareaRef.current.style.height = "auto";
+      }
+    }
   };
 
-  const handlePaste = useCallback(async (e) => {
-      const images = extractClipboardImages(e.clipboardData);
-      if (images.length === 0) return; 
-      if (disabled) return;
-      if (!conversationId) {
-        e.preventDefault();
-        setPasteError(t?.noConversations || "Please create a chat first.");
-        return;
-      }
-      e.preventDefault();
-      setPasteError("");
-      try {
-        await uploadImages({ conversationId, images });
-        window.dispatchEvent(new CustomEvent("vikini:attachments-changed", { detail: { conversationId } }));
-      } catch (err) {
-        console.error(err);
-        setPasteError(String(err?.message || "Upload failed"));
-      }
-    },
-    [conversationId, disabled, t]
-  );
-
   const handleFileSelect = async (e) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    if (!conversationId) {
-        setPasteError(t?.noConversations || "Please create a chat first.");
-        e.target.value = "";
-        return;
-    }
-    const files = Array.from(e.target.files);
-    setPasteError("");
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Optional: check total count or size limit
+    setIsUploading(true);
     try {
-        await uploadImages({ conversationId, images: files });
-        window.dispatchEvent(new CustomEvent("vikini:attachments-changed", { detail: { conversationId } }));
-    } catch(err) {
-        setPasteError(err.message || "Upload failed");
+      for (const f of files) {
+        if (!conversationId) {
+          // If no conversation yet, we might store file in temp state or alert user
+          // For now, let's just create a quick ID or warn
+          console.warn("No conversation ID for upload yet");
+          continue;
+        }
+        const uploaded = await uploadAttachment(f, conversationId);
+        addAttachment(uploaded);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(t?.error || "Upload failed");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-    e.target.value = "";
   };
 
   return (
-    <div className="bg-neutral-950 px-4 py-4 sticky bottom-0 z-20">
-      <form
-        onSubmit={handleSubmit}
-        className="
-          relative flex items-end gap-2 
-          max-w-3xl mx-auto
-          rounded-2xl border border-neutral-800 
-          bg-neutral-900 shadow-lg
-          p-2 transition-all duration-200
-          focus-within:ring-2 focus-within:ring-[var(--primary)] focus-within:border-transparent
-        "
+    <form
+      ref={formRef}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+      className="relative flex w-full items-end gap-2 rounded-3xl bg-[#0f1115] border border-white/10 p-2 shadow-2xl transition-all duration-300 focus-within:border-[var(--primary)]/50 focus-within:ring-1 focus-within:ring-[var(--primary)]/20"
+    >
+      {/* File Upload Button */}
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={disabled || isUploading}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-neutral-400 hover:bg-white/5 hover:text-white transition-colors disabled:opacity-50"
+        title={t?.uploadFile || "Upload file"}
       >
-        <input 
-            type="file" 
-            multiple 
-            accept="image/*" 
-            className="hidden" 
-            ref={fileInputRef} 
-            onChange={handleFileSelect}
-        />
+        <PaperClipIcon />
+      </button>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        className="hidden"
+        multiple
+      />
 
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={disabled}
-          className="
-            p-2.5 rounded-xl text-neutral-400 
-            hover:bg-neutral-800 hover:text-neutral-200
-            transition-colors duration-200
-            active:scale-90
-            disabled:opacity-50
-          "
-          title={t?.uploadFile || "Upload File"}
-        >
-          <PaperClipIcon />
-        </button>
+      {/* Text Area */}
+      <textarea
+        ref={textareaRef}
+        rows={1}
+        value={input}
+        onChange={(e) => onChangeInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={t?.placeholder || "Message..."}
+        disabled={disabled}
+        className="max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] text-white placeholder-neutral-500 outline-none scrollbar-thin scrollbar-thumb-neutral-700"
+        style={{ height: "40px" }}
+      />
 
-        <textarea
-          id="chat-input"
-          ref={textareaRef}
-          placeholder={t?.placeholder || "Type your message..."}
-          value={input}
-          rows={1}
-          onChange={(e) => onChangeInput(e.target.value)}
-          onPaste={handlePaste}
-          className="
-            flex-1 resize-none overflow-y-auto
-            bg-transparent px-1 py-2.5
-            text-base text-white placeholder:text-neutral-500
-            outline-none
-          "
-          style={{ maxHeight: "150px" }}
-          onKeyDown={(e) => {
-            if(e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                if(!sendDisabled) handleSubmit(e);
-            }
-          }}
-        />
-
-        {/* SEND BUTTON - THEME RESTORED */}
-        <button
-          type="submit"
-          disabled={sendDisabled}
-          className="
-            p-2.5 rounded-xl 
-            bg-[var(--primary)] text-black
-            shadow-md
-            transition-all duration-200 ease-in-out
-            hover:brightness-110 hover:shadow-lg hover:-translate-y-0.5
-            active:scale-90 active:translate-y-0
-            disabled:bg-neutral-800 disabled:text-neutral-600 disabled:shadow-none disabled:translate-y-0
-          "
-        >
-          <PaperAirplaneIcon />
-        </button>
-      </form>
-      
-      {pasteError && (
-        <div className="max-w-3xl mx-auto mt-2 text-center text-xs text-red-400 animate-pulse">
-            {pasteError}
-        </div>
-      )}
-      
-      <div className="text-center mt-2 text-[10px] text-neutral-600">
-        {t?.aiDisclaimer || "Vikini can make mistakes. Check important info."}
-      </div>
-    </div>
+      {/* Send / Stop Button - THEMED */}
+      <button
+        type="submit"
+        disabled={(!input.trim() && attachments.length === 0) || (disabled && !isUploading)}
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 shadow-lg ${
+          disabled 
+            ? "bg-neutral-800 text-neutral-500 cursor-not-allowed" 
+            : "bg-[var(--primary)] text-black hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--primary)]"
+        }`}
+        title={t?.send || "Send"}
+      >
+        {disabled ? <StopIcon /> : <PaperAirplaneIcon />}
+      </button>
+    </form>
   );
 }

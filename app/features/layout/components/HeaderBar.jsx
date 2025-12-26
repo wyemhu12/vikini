@@ -53,16 +53,21 @@ export default function HeaderBar({
           <Bars3Icon />
         </button>
 
-        {/* Luôn hiển thị tên ứng dụng, kể cả trên Desktop */}
+        {/* Chữ Vikini Chat được redesign */}
         <div className="min-w-0 flex flex-col">
-          <div className="font-black text-xl text-white tracking-tight flex items-center gap-2">
-             <span className="text-[var(--primary)]">V</span>ikini Chat
+          <div className="font-sans text-xl font-bold text-white tracking-wide flex items-center gap-2 select-none">
+             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] shadow-[0_0_15px_var(--primary)] text-black font-black text-lg">
+               V
+             </div>
+             <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/70">
+               Vikini Chat
+             </span>
           </div>
         </div>
       </div>
 
       <div className="flex items-center gap-3 ml-auto">
-        {/* Language dropdown - Minimalist Glass */}
+        {/* Language dropdown */}
         <div className="relative group">
           <select
             value={language}
@@ -86,7 +91,7 @@ export default function HeaderBar({
           </select>
         </div>
 
-        {/* Theme dropdown - Minimalist Glass */}
+        {/* Theme dropdown */}
         <div className="flex items-center gap-2">
           <div className="relative">
              <span
