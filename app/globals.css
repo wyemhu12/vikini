@@ -95,7 +95,6 @@ body {
 }
 
 .animate-flow {
-  background-size: 300% 100%;
   animation: flow 15s linear infinite;
 }
 
@@ -110,7 +109,8 @@ body {
     rgba(59, 130, 246, 0.1),
     rgba(99, 102, 241, 0.1)
   );
-  @apply animate-flow;
+  background-size: 300% 100%;
+  animation: flow 15s linear infinite;
 }
 
 /* =======================
