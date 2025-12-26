@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState, useCallback } from "react";
 
-const THEME_IDS = ["amber", "indigo", "charcoal", "gold", "red", "rose"];
+const THEME_IDS = ["blueprint", "amber", "indigo", "charcoal", "gold", "red", "rose"];
 
 export function useTheme() {
-  const [theme, setTheme] = useState("amber");
+  const [theme, setTheme] = useState("blueprint");
 
   useEffect(() => {
     const stored = localStorage.getItem("vikini-theme");

@@ -4,8 +4,6 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-noto: "Noto Sans", sans-serif;
-
-  /* Theme definitions can be added here if needed for custom utilities */
 }
 
 :root {
@@ -33,7 +31,18 @@ body {
    THEME DEFINITIONS
 ======================= */
 
-/* 🟧 CAM – NÂU (DEFAULT) */
+/* 💎 BLUEPRINT (MUTED BLUE) - Theo docs/blueprint.md */
+.theme-blueprint {
+  --primary: #79A9D9;       /* Muted blue */
+  --primary-light: #9dbce0;
+  --primary-dark: #5a87b3;
+  --accent: #A69CAC;        /* Soft purple */
+
+  --bg-start: #0f172a;      /* Darker slate for dark mode background */
+  --bg-end: #020617;
+}
+
+/* 🟧 CAM – NÂU */
 .theme-amber {
   --primary: #d97706;
   --primary-light: #fbbf24;
@@ -83,7 +92,7 @@ body {
   --bg-end: #070000;
 }
 
-/* 🌸 HỒNG NHẠT (#cc8899) */
+/* 🌸 HỒNG NHẠT */
 .theme-rose {
   --primary: #cc8899;
   --primary-light: #f1b8c6;
@@ -98,13 +107,11 @@ body {
   background: linear-gradient(to bottom, var(--bg-start), var(--bg-end));
 }
 
-/* ChatGPT-like: preserve newlines + spacing, but keep markdown structure */
 .chat-markdown {
-  white-space: pre-wrap; /* preserve \n and multiple spaces */
-  overflow-wrap: anywhere; /* avoid overflow on long tokens/urls */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-/* Tables (ChatGPT-like) */
 .chat-markdown table {
   @apply my-3 w-full border-collapse text-sm;
   display: block;
@@ -118,7 +125,6 @@ body {
   @apply border border-neutral-800 px-2 py-1 align-top;
 }
 
-/* Paragraph spacing */
 .chat-markdown p {
   @apply mb-3;
 }
@@ -126,7 +132,6 @@ body {
   @apply mb-0;
 }
 
-/* Lists */
 .chat-markdown ul {
   @apply mb-3 list-disc pl-5;
 }
@@ -137,23 +142,19 @@ body {
   @apply mb-1;
 }
 
-/* Blockquote */
 .chat-markdown blockquote,
 .chat-markdown .chat-quote {
   @apply my-3 border-l-2 border-neutral-700 pl-3 text-neutral-200;
 }
 
-/* Inline code */
 .chat-markdown code:not(pre code) {
   @apply rounded-md bg-neutral-800/60 px-1 py-0.5 text-neutral-100;
 }
 
-/* Ensure fenced code blocks remain "pre" (not wrapped by pre-wrap) */
 .chat-markdown pre {
   white-space: pre;
 }
 
-/* Disable tap highlight */
 * {
   -webkit-tap-highlight-color: transparent;
 }
@@ -167,7 +168,6 @@ html {
     font-size: 15px;
   }
 }
-/* ========== TITLE ANIMATION (ChatGPT-like) ========== */
 
 @keyframes fadeInTitle {
   0% {
@@ -184,7 +184,6 @@ html {
   animation: fadeInTitle 0.22s ease-out;
 }
 
-/* Typing indicator (3 dots) */
 @keyframes typingDot {
   0%, 80%, 100% {
     transform: translateY(0);
@@ -200,7 +199,7 @@ html {
   width: 6px;
   height: 6px;
   border-radius: 9999px;
-  background: rgb(212 212 212); /* neutral-300 */
+  background: rgb(212 212 212);
   display: inline-block;
   animation: typingDot 1.1s infinite ease-in-out;
 }
@@ -208,7 +207,6 @@ html {
 .typing-dots > span:nth-child(2) { animation-delay: 0.12s; }
 .typing-dots > span:nth-child(3) { animation-delay: 0.24s; }
 
-/* Shimmer cho title placeholder */
 @keyframes shimmerTitle {
   0% {
     opacity: 0.45;

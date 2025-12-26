@@ -16,6 +16,7 @@ export default function HeaderBar({
   onToggleSidebar,
 }) {
   const themeOptions = [
+    { id: "blueprint", label: t?.blueprint ?? "Blueprint", swatch: "#79A9D9" },
     { id: "amber", label: t?.amber ?? "Amber", swatch: "#d97706" },
     { id: "indigo", label: t?.indigo ?? "Indigo", swatch: "#6366f1" },
     { id: "charcoal", label: t?.charcoal ?? "Charcoal", swatch: "#4b5563" },
