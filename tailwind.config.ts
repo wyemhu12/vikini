@@ -95,9 +95,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [
-    require('tailwindcss/nesting'),
-  ],
+  plugins: [],
 };
 
 export default config;
