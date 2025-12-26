@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 
 export function middleware(request) {
-  const { pathname, searchParams } = request.nextUrl;
+  const { pathname } = request.nextUrl;
 
   if (pathname === "/") {
-    return NextResponse.redirect(new URL("/features/chat", request.url));
+    const url = request.nextUrl.clone();
+    url.pathname = "/features/chat";
+    return NextResponse.redirect(url);
   }
 
   if (pathname === "/gems") {
-    const conversationId = searchParams.get("conversationId");
-    const targetUrl = conversationId
-      ? `/features/gems?conversationId=${conversationId}`
-      : "/features/gems";
-    return NextResponse.redirect(new URL(targetUrl, request.url));
+    const url = request.nextUrl.clone();
+    url.pathname = "/features/gems";
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();
