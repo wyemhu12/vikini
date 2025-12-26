@@ -1,0 +1,207 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import GemList from "./GemList";
+import GemEditor from "./GemEditor";
+import { useGemStore } from "../stores/useGemStore";
+
+export default function GemManager() {
+  const sp = useSearchParams();
+  const router = useRouter();
+  
+  // Lấy ID từ store (do Sidebar truyền vào) hoặc từ URL (fallback)
+  const { contextConversationId, closeGemModal } = useGemStore();
+  const urlConversationId = sp.get("conversationId");
+  const conversationId = contextConversationId || urlConversationId;
+
+  const [gems, setGems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [selectedGemId, setSelectedGemId] = useState(null); 
+  const [editingGem, setEditingGem] = useState(null); 
+  const [status, setStatus] = useState("");
+
+  const premade = useMemo(() => gems.filter((g) => g.isPremade), [gems]);
+  const mine = useMemo(() => gems.filter((g) => !g.isPremade), [gems]);
+
+  async function refresh() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/gems", { cache: "no-store" });
+      const data = await res.json();
+      setGems(Array.isArray(data?.gems) ? data.gems : []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const applyGemToConversation = async (gemId) => {
+    if (!conversationId) {
+      setStatus(
+        "Không tìm thấy conversationId. Hãy mở chat trước khi chọn Gem."
+      );
+      return;
+    }
+
+    setStatus("Đang áp dụng...");
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: conversationId, gemId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Apply gem failed");
+
+      setSelectedGemId(gemId);
+      setStatus("Thành công! Đang đóng...");
+      
+      // Đóng modal sau khi chọn thành công để user quay lại chat ngay
+      setTimeout(() => {
+        closeGemModal();
+        // Optional: Refresh chat page logic if needed here
+      }, 500);
+
+    } catch (e) {
+      setStatus(e?.message || "Apply gem failed");
+    }
+  };
+
+  const clearGem = async () => applyGemToConversation(null);
+
+  const onCreate = () => {
+    setEditingGem({
+      id: null,
+      name: "",
+      description: "",
+      instructions: "",
+      icon: "",
+      color: "",
+      isPremade: false,
+    });
+  };
+
+  const onEdit = (gem) => setEditingGem(gem);
+
+  const onDelete = async (gem) => {
+    if (!confirm(`Xoá Gem "${gem.name}"? (soft delete)`)) return;
+
+    setStatus("Đang xoá...");
+    try {
+      const res = await fetch("/api/gems", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: gem.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Delete failed");
+      setStatus("Đã xoá.");
+      if (editingGem?.id === gem.id) setEditingGem(null);
+      await refresh();
+    } catch (e) {
+      setStatus(e?.message || "Delete failed");
+    }
+  };
+
+  const onSave = async (payload) => {
+    setStatus("Đang lưu...");
+    try {
+      const isNew = !payload.id;
+      const res = await fetch("/api/gems", {
+        method: isNew ? "POST" : "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Save failed");
+
+      setStatus("Đã lưu.");
+      setEditingGem(data?.gem || null);
+      await refresh();
+    } catch (e) {
+      setStatus(e?.message || "Save failed");
+    }
+  };
+
+  // UI đã được điều chỉnh để fit trong Modal (h-full, overflow)
+  return (
+    <div className="flex flex-col h-full bg-neutral-950 text-neutral-100 overflow-hidden">
+      <div className="flex-none px-6 py-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-950 sticky top-0 z-10">
+        <div>
+          <h1 className="text-xl font-semibold">Gem Manager</h1>
+          <p className="text-xs text-neutral-400 truncate max-w-md">
+            {conversationId
+              ? `Đang chọn Gem cho hội thoại: ${conversationId.slice(0, 8)}...`
+              : "Chưa xác định hội thoại (Global mode)"}
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={onCreate}
+            className="rounded-lg bg-[var(--primary)] px-3 py-1.5 text-sm text-black font-medium hover:brightness-110"
+          >
+            + New Gem
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin scrollbar-thumb-neutral-800">
+        {status && (
+          <div className="mb-4 rounded-lg border border-neutral-800 bg-neutral-900/40 px-3 py-2 text-xs text-neutral-200">
+            {status}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_1fr]">
+          {/* List Column */}
+          <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3 h-fit">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-sm font-medium">Available Gems</div>
+              <button
+                onClick={clearGem}
+                className="rounded-md border border-neutral-700 px-2 py-1 text-[10px] text-neutral-300 hover:bg-neutral-800 transition-colors"
+              >
+                Reset Default
+              </button>
+            </div>
+
+            <GemList
+              loading={loading}
+              premade={premade}
+              mine={mine}
+              selectedGemId={selectedGemId}
+              onSelect={(gem) => applyGemToConversation(gem.id)}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          </div>
+
+          {/* Editor/Preview Column */}
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-1">
+            {editingGem ? (
+              <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                 <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-medium">Editor</h3>
+                    <button onClick={() => setEditingGem(null)} className="text-xs text-neutral-500 hover:text-white">Close</button>
+                 </div>
+                <GemEditor gem={editingGem} onSave={onSave} />
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-neutral-800 bg-neutral-900/20 p-8 flex flex-col items-center justify-center text-center text-neutral-500">
+                <p className="text-sm">Chọn "New Gem" để tạo hoặc bấm nút Edit trên một Gem để sửa.</p>
+                <p className="text-xs mt-2 opacity-60">Chọn một Gem từ danh sách bên trái để áp dụng ngay vào chat.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
