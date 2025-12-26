@@ -51,7 +51,9 @@ function CodeBlock({ inline, className, children }) {
       await navigator.clipboard.writeText(code);
       setCopied(true);
       setTimeout(() => setCopied(false), 900);
-    } catch {}
+    } catch (err) {
+      console.error("Failed to copy code to clipboard:", err);
+    }
   };
 
   return (
@@ -162,7 +164,9 @@ export default function ChatBubble({
       await navigator.clipboard.writeText(safeMessage.content || "");
       setCopied(true);
       setTimeout(() => setCopied(false), 900);
-    } catch {}
+    } catch (err) {
+      console.error("Failed to copy message to clipboard:", err);
+    }
   };
 
   const sources = Array.isArray(safeMessage?.sources) ? safeMessage.sources : [];
