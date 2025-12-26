@@ -2,6 +2,7 @@
 "use client";
 
 import { memo, useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import TitleItem from "@/app/features/chat/components/TitleItem";
 import { downloadConversationById } from "@/lib/utils/download";
 
@@ -33,17 +34,40 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
   const c = conversation;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const menuRef = useRef(null);
+  const triggerRef = useRef(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (triggerRef.current && !triggerRef.current.contains(event.target) && !event.target.closest('.portal-menu')) {
         setIsMenuOpen(false);
       }
     }
+    // Handle scroll to close menu
+    function handleScroll() {
+       if (isMenuOpen) setIsMenuOpen(false);
+    }
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    window.addEventListener("scroll", handleScroll, true);
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [isMenuOpen]);
+
+  const toggleMenu = (e) => {
+    e.stopPropagation();
+    if (!isMenuOpen) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + window.scrollY + 5,
+        left: rect.right + window.scrollX - 192, // 192px is w-48
+      });
+    }
+    setIsMenuOpen(!isMenuOpen);
+  };
 
   const handleDownloadClick = async (e) => {
     e.stopPropagation();
@@ -76,67 +100,64 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
 
         {/* 3 DOTS TRIGGER */}
         <div 
-          className={`absolute right-2 top-1/2 -translate-y-1/2 ${
-            isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-          } transition-opacity duration-200`}
-          ref={menuRef}
+          ref={triggerRef}
+          onClick={toggleMenu}
+          className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-white/10 cursor-pointer transition-opacity duration-200 ${
+            isMenuOpen || isActive ? "opacity-100 text-white" : "opacity-0 group-hover:opacity-100 text-white/40 hover:text-white"
+          }`}
+          role="button"
+          title="Tùy chọn"
         >
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsMenuOpen(!isMenuOpen);
-            }}
-            className={`p-1 rounded-md hover:bg-white/10 cursor-pointer ${
-              isActive ? "text-white" : "text-white/40 hover:text-white"
-            }`}
-            role="button"
-            title="Tùy chọn"
-          >
-            <EllipsisVerticalIcon />
-          </div>
-
-          {/* MENU DROPDOWN - Dark Glass Style */}
-          {isMenuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-48 origin-top-right rounded-xl bg-[#0a0a0a]/90 backdrop-blur-xl border border-white/10 shadow-2xl z-50 overflow-hidden ring-1 ring-black/5 flex flex-col py-1.5">
-              
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsMenuOpen(false);
-                  if (typeof onRename === "function") onRename(c.id);
-                }}
-                className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:text-white hover:bg-white/5 transition-colors text-left"
-              >
-                <PencilIcon />
-                Rename
-              </button>
-
-              <button
-                onClick={handleDownloadClick}
-                disabled={isDownloading}
-                className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:text-white hover:bg-white/5 transition-colors text-left disabled:opacity-50"
-              >
-                <DownloadIcon />
-                {isDownloading ? "Downloading..." : "Export .txt"}
-              </button>
-
-              <div className="h-px bg-white/10 my-1 mx-2" />
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsMenuOpen(false);
-                  if (typeof onDelete === "function") onDelete(c.id);
-                }}
-                className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left"
-              >
-                <TrashIcon />
-                Delete
-              </button>
-            </div>
-          )}
+          <EllipsisVerticalIcon />
         </div>
       </button>
+
+      {/* PORTAL MENU - Renders outside overflow containers */}
+      {isMenuOpen && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="portal-menu fixed z-[9999] w-48 rounded-xl bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden ring-1 ring-white/5 flex flex-col py-1.5"
+          style={{ 
+            top: coords.top, 
+            left: coords.left 
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(false);
+              if (typeof onRename === "function") onRename(c.id);
+            }}
+            className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:text-white hover:bg-white/5 transition-colors text-left"
+          >
+            <PencilIcon />
+            Rename
+          </button>
+
+          <button
+            onClick={handleDownloadClick}
+            disabled={isDownloading}
+            className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:text-white hover:bg-white/5 transition-colors text-left disabled:opacity-50"
+          >
+            <DownloadIcon />
+            {isDownloading ? "Downloading..." : "Export .txt"}
+          </button>
+
+          <div className="h-px bg-white/10 my-1 mx-2" />
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(false);
+              if (typeof onDelete === "function") onDelete(c.id);
+            }}
+            className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left"
+          >
+            <TrashIcon />
+            Delete
+          </button>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

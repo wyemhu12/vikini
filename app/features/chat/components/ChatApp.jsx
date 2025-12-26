@@ -174,7 +174,7 @@ export default function ChatApp() {
   const showLanding = !selectedConversationId || renderedMessages.length === 0;
 
   return (
-    <div className="h-screen w-screen bg-[#020617] text-neutral-100 overflow-hidden relative font-sans">
+    <div className="h-screen w-screen bg-[#050505] text-neutral-100 overflow-hidden relative font-sans">
       
       {/* 🌌 Static Professional Background */}
       <div className="absolute inset-0 z-0 static-depth-bg pointer-events-none" />
@@ -219,15 +219,29 @@ export default function ChatApp() {
             </div>
           ) : (
             <div className="max-w-3xl mx-auto w-full py-8 space-y-2">
-              {renderedMessages.map((m, idx) => (
-                <ChatBubble key={m.id ?? idx} message={m} />
-              ))}
+              {renderedMessages.map((m, idx) => {
+                 // Logic to determine if this message is the last AI message
+                 const isLastAI = m.role === "assistant" && idx === renderedMessages.length - 1;
+                 // Or we can allow regenerating any AI message?
+                 // For now, let's just pass canRegenerate=true to ALL AI messages as requested
+                 
+                 return (
+                  <ChatBubble 
+                    key={m.id ?? idx} 
+                    message={m} 
+                    isLastAssistant={isLastAI} // Keep existing logic for "typing" effect
+                    canRegenerate={m.role === "assistant"} // Allow regenerate on ALL AI messages
+                    onRegenerate={() => handleRegenerate(m)} // Pass specific message if needed, or handleRegenerate logic
+                    regenerating={regenerating && isLastAI} // Only show spinner on the last one if regenerating
+                  />
+                 );
+              })}
               {streamingAssistant !== null && (
                 <ChatBubble
                   message={{ role: "assistant", content: streamingAssistant, sources: streamingSources, urlContext: streamingUrlContext }}
                   isLastAssistant
-                  canRegenerate
-                  onRegenerate={handleRegenerate}
+                  canRegenerate={false} // Streaming msg cannot be regenerated yet
+                  onRegenerate={() => {}}
                   regenerating={regenerating}
                 />
               )}
