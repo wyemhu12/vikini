@@ -1,4 +1,4 @@
-// /app/hooks/useConversation.js
+// /app/features/chat/hooks/useConversation.js
 "use client";
 
 import useSWR from "swr";
@@ -72,9 +72,6 @@ export function useConversation() {
   const [loadingMessages, setLoadingMessages] = useState(false);
 
   // Tombstone set để chặn "conversation đã xoá" bị re-add lại do merge/refresh.
-  // Lý do: mergeConversations() giữ lại local-only items, nên nếu remote tạm thời còn chứa
-  // item đã xoá (do SWR/cache/độ trễ), item có thể bị đưa lại vào list và sẽ không bị loại
-  // bỏ ở lần merge kế tiếp.
   const deletedIdsRef = useRef(new Set());
 
   // ✅ for ChatApp.jsx compatibility
@@ -90,7 +87,6 @@ export function useConversation() {
     if (!data?.conversations) return;
 
     const remote = Array.isArray(data.conversations) ? data.conversations : [];
-
     const remoteFiltered = remote.filter((c) => !deletedIdsRef.current.has(c?.id));
 
     setConversations((prev) => {
@@ -102,18 +98,14 @@ export function useConversation() {
       );
     });
 
-    // chọn activeId lần đầu (nếu chưa có)
-    if (!activeId && remoteFiltered.length > 0) {
-      const sorted = mergeConversations([], remoteFiltered);
-      if (sorted[0]?.id) setActiveId(sorted[0].id);
-    }
-  }, [data, activeId]);
+    // ✅ REMOVED: Tự động chọn activeId. 
+    // Chúng ta muốn ở lại Landing Page (activeId = null) khi load lại trang.
+  }, [data]);
 
   // Upsert conversation vào list local (META conversationCreated)
   const upsertConversation = useCallback((conv) => {
     if (!conv?.id) return;
 
-    // Nếu server gửi lại conversation cùng id (hiếm), bỏ tombstone để UI hiển thị.
     if (deletedIdsRef.current.has(conv.id)) {
       deletedIdsRef.current.delete(conv.id);
     }
@@ -289,7 +281,6 @@ export function useConversation() {
         });
         if (!res.ok) throw new Error("Failed to delete conversation");
 
-        // Mark tombstone trước để ngăn SWR merge đưa item trở lại.
         deletedIdsRef.current.add(id);
 
         setConversations((prev) => prev.filter((c) => c.id !== id));
@@ -325,7 +316,6 @@ export function useConversation() {
   const renameConversationFinal = useCallback(
     (id, title) => {
       patchConversationTitle(id, title);
-      // best-effort sync with server ordering/title
       mutate();
     },
     [mutate, patchConversationTitle]
@@ -340,7 +330,6 @@ export function useConversation() {
 
     await Promise.all(ids.map((id) => deleteConversation(id)));
 
-    // local safety
     setConversations([]);
     setActiveId(null);
     setMessages([]);

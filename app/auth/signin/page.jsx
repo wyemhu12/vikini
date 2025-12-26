@@ -4,111 +4,93 @@ import { signIn } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { useLanguage } from "../../features/chat/hooks/useLanguage";
 
-const THEME_COLORS = [
-  { primary: "#79A9D9", bg: "#0f172a" }, // Blueprint
-  { primary: "#d97706", bg: "#2b1800" }, // Amber
-  { primary: "#6366f1", bg: "#0c0f33" }, // Indigo
-  { primary: "#ef4444", bg: "#2a0000" }, // Red
-  { primary: "#cc8899", bg: "#240c12" }, // Rose
-  { primary: "#4b5563", bg: "#0f0f0f" }, // Charcoal
-];
+/**
+ * 🌠 Deep Aurora Login Page
+ * A premium, mysterious design inspired by modern AI assistants.
+ * Features slow-moving, ultra-blurred light patches (Auroras) and smooth transitions.
+ */
 
 export default function SignInPage() {
   const { t, language, setLanguage } = useLanguage();
-  const [colorIndex, setColorIndex] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
-  // Tự động chuyển màu mỗi 4 giây
   useEffect(() => {
-    const interval = setInterval(() => {
-      setColorIndex((prev) => (prev + 1) % THEME_COLORS.length);
-    }, 4000);
-    return () => clearInterval(interval);
+    setMounted(true);
   }, []);
 
-  const currentColor = THEME_COLORS[colorIndex];
+  if (!mounted) return <div className="min-h-screen bg-black" />;
 
   return (
-    <div 
-      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-6 text-white transition-colors duration-[2000ms] ease-in-out"
-      style={{ 
-        backgroundColor: currentColor.bg,
-        "--primary": currentColor.primary 
-      }}
-    >
-      {/* 🌊 Dynamic Mesh Gradient Layers */}
-      <div className="absolute inset-0 z-0 opacity-40">
-        <div 
-          className="absolute -top-[20%] -left-[10%] h-[70%] w-[70%] rounded-full blur-[120px] transition-colors duration-[3000ms]"
-          style={{ backgroundColor: currentColor.primary }}
-        />
-        <div 
-          className="absolute -bottom-[20%] -right-[10%] h-[60%] w-[60%] rounded-full blur-[100px] transition-colors duration-[4000ms]"
-          style={{ backgroundColor: currentColor.primary }}
-        />
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#020617] text-white">
+      
+      {/* 🌌 Deep Aurora Background Layers */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        {/* Main Blue Aurora (Top Left) */}
+        <div className="absolute -top-[10%] -left-[10%] h-[80%] w-[80%] rounded-full bg-[#79A9D9] opacity-20 blur-[160px] animate-[aurora_20s_infinite_alternate]" />
+        
+        {/* Indigo Aurora (Bottom Right) */}
+        <div className="absolute -bottom-[10%] -right-[10%] h-[70%] w-[70%] rounded-full bg-[#6366f1] opacity-15 blur-[140px] animate-[aurora_25s_infinite_alternate-reverse]" />
+        
+        {/* Soft Accent Aurora (Center) */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[50%] w-[50%] rounded-full bg-[#A69CAC] opacity-10 blur-[120px] animate-[pulse_15s_infinite]" />
       </div>
 
-      {/* 🌊 SVG Waves */}
-      <div className="absolute bottom-0 left-0 w-full leading-[0] z-0 opacity-20">
-        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="relative block h-[150px] w-full fill-white">
-          <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C58.23,113.13,145.51,123.99,222,112.1,280,103.11,321.39,78.29,321.39,56.44Z" className="animate-[wave_10s_infinite_linear]"></path>
-        </svg>
-      </div>
-
-      {/* Top Controls (Language only) */}
-      <div className="fixed top-6 right-6 z-20 flex items-center gap-4">
-        <div className="flex rounded-full border border-white/10 bg-black/20 p-1 backdrop-blur-xl">
+      {/* Language Toggle (Subtle Top Right) */}
+      <div className="fixed top-8 right-8 z-20">
+        <div className="flex rounded-full border border-white/5 bg-white/5 p-1 backdrop-blur-3xl shadow-2xl">
           <button
             onClick={() => setLanguage("vi")}
-            className={`px-4 py-1.5 text-[10px] font-black rounded-full transition-all ${language === "vi" ? "bg-white text-black" : "text-white/40 hover:text-white"}`}
+            className={`px-4 py-1.5 text-[10px] font-bold rounded-full transition-all duration-300 ${
+              language === "vi" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white"
+            }`}
           >
             VI
           </button>
           <button
             onClick={() => setLanguage("en")}
-            className={`px-4 py-1.5 text-[10px] font-black rounded-full transition-all ${language === "en" ? "bg-white text-black" : "text-white/40 hover:text-white"}`}
+            className={`px-4 py-1.5 text-[10px] font-bold rounded-full transition-all duration-300 ${
+              language === "en" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white"
+            }`}
           >
             EN
           </button>
         </div>
       </div>
 
-      <div className="relative z-10 w-full max-w-sm space-y-12 text-center">
-        {/* Brand Area */}
-        <div className="space-y-4">
-          <div 
-            className="mx-auto h-20 w-20 rounded-[2.5rem] p-0.5 shadow-2xl transition-all duration-1000 rotate-12 flex items-center justify-center bg-white/10 backdrop-blur-sm border border-white/20"
-          >
-             <div 
-                className="flex h-16 w-16 items-center justify-center rounded-[2rem] bg-white text-3xl font-black transition-colors duration-1000 -rotate-12"
-                style={{ color: currentColor.bg }}
-             >
-               V
+      {/* Main Content Card */}
+      <div className="relative z-10 w-full max-w-md px-6 space-y-12 text-center">
+        
+        {/* Brand Identity */}
+        <div className="space-y-6 animate-in fade-in slide-in-from-top-8 duration-1000">
+          <div className="mx-auto h-20 w-20 relative">
+             <div className="absolute inset-0 bg-[var(--primary)] blur-3xl opacity-30 animate-pulse" style={{'--primary': '#79A9D9'}} />
+             <div className="relative flex h-full w-full items-center justify-center rounded-[2rem] border border-white/20 bg-white/5 backdrop-blur-xl shadow-2xl transition-transform hover:scale-105 duration-500">
+                <span className="text-3xl font-black text-white tracking-tighter">V</span>
              </div>
           </div>
+          
           <div className="space-y-3">
-            <h1 className="text-5xl font-black tracking-tighter text-white">
+            <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60">
               {t("appName") || "Vikini"}
             </h1>
-            <div className="inline-block px-4 py-1 rounded-full border border-white/10 bg-white/5 backdrop-blur-md">
-                <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/60">
-                {t("whitelistOnly")}
-                </p>
-            </div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.5em] text-[#79A9D9] opacity-70">
+              {t("whitelistOnly") || "White Listed Only"}
+            </p>
           </div>
         </div>
 
-        {/* Action Card */}
-        <div className="relative rounded-[3rem] border border-white/10 bg-white/5 p-2 backdrop-blur-2xl shadow-2xl">
-          <div className="rounded-[2.8rem] bg-black/40 p-10 backdrop-blur-md border border-white/5">
-            <p className="mb-10 text-sm font-medium leading-relaxed text-white/50">
+        {/* Action Area */}
+        <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+          <div className="rounded-[2.5rem] border border-white/10 bg-white/5 p-8 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+            <p className="mb-8 text-sm font-medium leading-relaxed text-white/40 max-w-[280px] mx-auto">
               {language === "vi" 
-                ? "Bắt đầu hành trình khám phá trí tuệ nhân tạo thế hệ mới cùng Vikini." 
-                : "Start your journey of exploring next-gen AI with Vikini."}
+                ? "Bước vào kỷ nguyên trí tuệ nhân tạo cá nhân hóa dành riêng cho bạn." 
+                : "Step into the era of personalized AI intelligence tailored for you."}
             </p>
 
             <button
               onClick={() => signIn("google", { callbackUrl: "/" })}
-              className="group relative flex w-full items-center justify-center gap-4 overflow-hidden rounded-full bg-white px-8 py-5 text-sm font-black text-black transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-white/10"
+              className="group relative flex w-full items-center justify-center gap-4 overflow-hidden rounded-full bg-white px-8 py-4 text-sm font-bold text-black transition-all hover:bg-[#F0F4F7] hover:scale-[1.02] active:scale-[0.98] shadow-2xl"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -116,21 +98,28 @@ export default function SignInPage() {
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
               </svg>
-              {language === "vi" ? "ĐĂNG NHẬP" : "LOG IN NOW"}
+              {language === "vi" ? "ĐĂNG NHẬP VỚI GOOGLE" : "SIGN IN WITH GOOGLE"}
             </button>
           </div>
         </div>
 
-        <div className="pt-8 text-[10px] font-bold text-white/20 tracking-widest uppercase">
-           {t("whitelist")} • SECURE ACCESS
+        {/* Footer Info */}
+        <div className="pt-12 animate-in fade-in duration-1000 delay-500">
+           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/5 bg-white/5 text-[9px] font-bold text-white/30 tracking-[0.2em] uppercase">
+              {t("whitelist")} • ENCRYPTED ACCESS
+           </div>
         </div>
       </div>
 
       <style jsx>{`
-        @keyframes wave {
-          0% { transform: translateX(0); }
-          50% { transform: translateX(-25%); }
-          100% { transform: translateX(0); }
+        @keyframes aurora {
+          0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+          50% { transform: translate(10%, 5%) rotate(5deg) scale(1.1); }
+          100% { transform: translate(-5%, 10%) rotate(-5deg) scale(0.9); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.1; transform: translate(-50%, -50%) scale(1); }
+          50% { opacity: 0.15; transform: translate(-50%, -50%) scale(1.2); }
         }
       `}</style>
     </div>
