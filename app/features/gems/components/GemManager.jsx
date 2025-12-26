@@ -10,7 +10,7 @@ import { useLanguage } from "../../chat/hooks/useLanguage";
 export default function GemManager() {
   const sp = useSearchParams();
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   // Lấy ID từ store (do Sidebar truyền vào) hoặc từ URL (fallback)
   const { contextConversationId, closeGemModal } = useGemStore();
@@ -61,7 +61,6 @@ export default function GemManager() {
       setSelectedGemId(gemId);
       setStatus(t("success"));
       
-      // Đóng modal sau khi chọn thành công để user quay lại chat ngay
       setTimeout(() => {
         closeGemModal();
       }, 500);
@@ -128,15 +127,14 @@ export default function GemManager() {
     }
   };
 
-  // UI đã được điều chỉnh để fit trong Modal (h-full, overflow)
   return (
     <div className="flex flex-col h-full bg-neutral-950 text-neutral-100 overflow-hidden">
       <div className="flex-none px-6 py-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-950 sticky top-0 z-10">
         <div>
-          <h1 className="text-xl font-semibold">{t("gemsTitle")}</h1>
+          <h1 className="text-xl font-semibold">{t("gemsTitle") || "Gems Manager"}</h1>
           <p className="text-xs text-neutral-400 truncate max-w-md">
             {conversationId
-              ? `${t("appliedGem")}: ${conversationId.slice(0, 8)}...`
+              ? `${t("appliedGem") || "Applied Gem"}: ${conversationId.slice(0, 8)}...`
               : "Global Mode"}
           </p>
         </div>
@@ -144,9 +142,9 @@ export default function GemManager() {
         <div className="flex gap-2">
           <button
             onClick={onCreate}
-            className="rounded-lg bg-[var(--primary)] px-3 py-1.5 text-sm text-black font-medium hover:brightness-110"
+            className="rounded-lg bg-[var(--primary)] px-3 py-1.5 text-sm text-black font-medium hover:brightness-110 transition-all active:scale-95"
           >
-            + {t("createGem")}
+            + {t("createGem") || "New Gem"}
           </button>
         </div>
       </div>
@@ -159,10 +157,9 @@ export default function GemManager() {
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_1fr]">
-          {/* List Column */}
           <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3 h-fit">
             <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-medium">{t("myGems")}</div>
+              <div className="text-sm font-medium">{t("myGems") || "My Gems"}</div>
               <button
                 onClick={clearGem}
                 className="rounded-md border border-neutral-700 px-2 py-1 text-[10px] text-neutral-300 hover:bg-neutral-800 transition-colors"
@@ -182,7 +179,6 @@ export default function GemManager() {
             />
           </div>
 
-          {/* Editor/Preview Column */}
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-1">
             {editingGem ? (
               <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -194,8 +190,7 @@ export default function GemManager() {
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-neutral-800 bg-neutral-900/20 p-8 flex flex-col items-center justify-center text-center text-neutral-500">
-                <p className="text-sm">{t("gemPlaceholderName")}</p>
-                <p className="text-xs mt-2 opacity-60">Select a Gem from the list to apply it to your chat.</p>
+                <p className="text-sm">{language === 'vi' ? 'Chọn "Tạo Gem mới" để bắt đầu hoặc chọn Gem từ danh sách.' : 'Select "Create New Gem" to start or pick a Gem from the list.'}</p>
               </div>
             )}
           </div>
