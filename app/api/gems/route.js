@@ -3,8 +3,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/features/auth/auth";
+import { auth } from "@/lib/features/auth/auth";
 
 import { getGemsForUser, createGem, updateGem, deleteGem } from "@/lib/features/gems/gems";
 
@@ -35,7 +34,7 @@ function mapGemForClient(row) {
 // ------------------------------
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const userId = session.user.email.toLowerCase();
@@ -55,7 +54,7 @@ export async function GET() {
 // ------------------------------
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const userId = session.user.email.toLowerCase();
@@ -74,7 +73,7 @@ export async function POST(req) {
 // ------------------------------
 export async function PATCH(req) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const userId = session.user.email.toLowerCase();
@@ -96,7 +95,7 @@ export async function PATCH(req) {
 // ------------------------------
 export async function DELETE(req) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const userId = session.user.email.toLowerCase();

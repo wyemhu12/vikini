@@ -2,8 +2,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/features/auth/auth";
+import { auth } from "@/lib/features/auth/auth";
 
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/core/rateLimit";
 import { NextResponse } from "next/server";
@@ -12,7 +11,7 @@ import { handleChatStreamCore } from "./chatStreamCore";
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.email) {
       return new Response("Unauthorized", { status: 401 });
     }

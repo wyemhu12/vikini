@@ -1,8 +1,7 @@
 // /app/api/conversations/auth.js
 
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/features/auth/auth";
+import { auth } from "@/lib/features/auth/auth";
 
 /**
  * Centralized auth for /api/conversations.*
@@ -10,7 +9,7 @@ import { authOptions } from "@/lib/features/auth/auth";
  * Returns a uniform shape so route handlers can remain concise without changing behavior.
  */
 export async function requireUser(req) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.email) {
     return {
       ok: false,

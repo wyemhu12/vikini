@@ -3,9 +3,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   images: {
     remotePatterns: [
       {
@@ -21,6 +18,20 @@ const nextConfig = {
         hostname: "picsum.photos",
       },
     ],
+  },
+  async redirects() {
+    return [
+      {
+        source: "/",
+        destination: "/features/chat",
+        permanent: false, // dùng false cho redirect kiểu logic app
+      },
+      {
+        source: "/gems",
+        destination: "/features/gems",
+        permanent: false,
+      },
+    ];
   },
 };
 
