@@ -2,7 +2,6 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
-import { uploadAttachment } from "@/lib/features/attachments/attachments";
 import { useAttachmentStore } from "@/lib/features/attachments/store";
 
 const PaperAirplaneIcon = () => (
@@ -69,12 +68,30 @@ export default function InputForm({
           console.warn("No conversation ID for upload yet");
           continue;
         }
-        const uploaded = await uploadAttachment(f, conversationId);
-        addAttachment(uploaded);
+        
+        // Upload via API endpoint
+        const form = new FormData();
+        form.set("conversationId", conversationId);
+        form.set("file", f);
+
+        const res = await fetch("/api/attachments/upload", {
+          method: "POST",
+          body: form,
+        });
+
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(json?.error || "Upload failed");
+        }
+
+        if (json?.attachment) {
+          addAttachment(json.attachment);
+        }
       }
     } catch (err) {
       console.error(err);
-      alert(t?.error || "Upload failed");
+      const errorMessage = err instanceof Error ? err.message : (t?.error || "Upload failed");
+      alert(errorMessage);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
