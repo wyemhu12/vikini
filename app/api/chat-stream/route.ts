@@ -10,7 +10,7 @@ import { AppError } from "@/lib/utils/errors";
 import { errorFromAppError, rateLimitError, error } from "@/lib/utils/apiResponse";
 import { HTTP_STATUS } from "@/lib/utils/constants";
 
-import { handleChatStreamCore } from "./chatStreamCore";
+import { handleChatStreamCore } from "./chatStreamCore.ts";
 
 const routeLogger = logger.withContext("POST /api/chat-stream");
 
