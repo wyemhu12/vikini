@@ -1,5 +1,7 @@
 // /lib/core/genaiClient.ts
 // Lazy, cached GoogleGenAI client (Node/server only)
+// Validate environment variables on import
+import "@/lib/env";
 
 import { GoogleGenAI } from "@google/genai";
 

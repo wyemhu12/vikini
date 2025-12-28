@@ -1,4 +1,7 @@
 // /lib/core/supabase.ts
+// Validate environment variables on import
+import "@/lib/env";
+
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 function pickFirstEnv(keys: string[]): string {

@@ -1,3 +1,6 @@
+// Validate environment variables on import
+import "@/lib/env";
+
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { parseWhitelist } from "@/lib/core/whitelist";
