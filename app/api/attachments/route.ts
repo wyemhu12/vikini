@@ -1,8 +1,8 @@
-// /app/api/attachments/route.js
+// /app/api/attachments/route.ts
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/app/api/conversations/auth";
 import {
   listAttachmentsForConversation,
@@ -10,7 +10,7 @@ import {
   deleteAttachmentsByConversation,
 } from "@/lib/features/attachments/attachments";
 
-export async function GET(req) {
+export async function GET(req: NextRequest) {
   try {
     const auth = await requireUser(req);
     if (!auth.ok) return auth.response;
@@ -26,12 +26,13 @@ export async function GET(req) {
     const attachments = await listAttachmentsForConversation({ userId, conversationId });
     return NextResponse.json({ attachments }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
-    console.error("GET /api/attachments error:", err);
+    const error = err as Error;
+    console.error("GET /api/attachments error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
-export async function DELETE(req) {
+export async function DELETE(req: NextRequest) {
   try {
     const auth = await requireUser(req);
     if (!auth.ok) return auth.response;
@@ -44,9 +45,11 @@ export async function DELETE(req) {
 
     if (!id) {
       try {
-        const body = await req.json();
+        const body = (await req.json()) as { id?: string };
         id = body?.id || "";
-      } catch {}
+      } catch {
+        // Ignore JSON parse errors
+      }
     }
 
     // DELETE all in conversation (used by Files menu)
@@ -66,7 +69,9 @@ export async function DELETE(req) {
     await deleteAttachmentById({ userId, id });
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
-    console.error("DELETE /api/attachments error:", err);
-    return NextResponse.json({ error: err?.message || "Internal error" }, { status: 500 });
+    const error = err as Error;
+    console.error("DELETE /api/attachments error:", error);
+    return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
   }
 }
+

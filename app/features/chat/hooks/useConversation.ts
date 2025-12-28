@@ -1,23 +1,51 @@
-// /app/features/chat/hooks/useConversation.js
+// /app/features/chat/hooks/useConversation.ts
 "use client";
 
 import useSWR from "swr";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Conversation } from "@/lib/features/chat/conversations";
+import type { Message } from "@/lib/features/chat/messages";
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+interface ConversationResponse {
+  conversations?: Conversation[];
+  [key: string]: unknown;
+}
+
+interface FrontendConversation {
+  id: string;
+  title?: string;
+  createdAt?: number;
+  updatedAt?: number;
+  model?: string;
+  [key: string]: unknown;
+}
+
+interface FrontendMessage {
+  id?: string;
+  role: string;
+  content: string;
+  sources?: unknown[];
+  urlContext?: unknown[];
+  [key: string]: unknown;
+}
+
+const fetcher = async (url: string): Promise<ConversationResponse> => {
+  const res = await fetch(url);
+  return res.json();
+};
 
 // ---- helpers: normalize + merge (chống SWR overwrite) ----
-function toTs(v) {
+function toTs(v: unknown): number {
   if (typeof v === "number") return v;
-  const t = Date.parse(v);
+  const t = Date.parse(String(v || ""));
   return Number.isFinite(t) ? t : 0;
 }
 
-function getTs(c) {
+function getTs(c: FrontendConversation | null | undefined): number {
   return toTs(c?.updatedAt ?? c?.createdAt ?? 0);
 }
 
-function normalizeConv(c) {
+function normalizeConv(c: FrontendConversation | null | undefined): FrontendConversation | null {
   if (!c) return c;
   const createdAt = c.createdAt ?? 0;
   const updatedAt = c.updatedAt ?? createdAt;
@@ -29,8 +57,11 @@ function normalizeConv(c) {
   };
 }
 
-function mergeConversations(local = [], remote = []) {
-  const map = new Map();
+function mergeConversations(
+  local: FrontendConversation[] = [],
+  remote: FrontendConversation[] = []
+): FrontendConversation[] {
+  const map = new Map<string, FrontendConversation>();
 
   // remote base
   for (const r of remote) {
@@ -65,19 +96,50 @@ function mergeConversations(local = [], remote = []) {
   return merged;
 }
 
-export function useConversation() {
-  const [conversations, setConversations] = useState([]);
-  const [activeId, setActiveId] = useState(null);
-  const [messages, setMessages] = useState([]);
+interface UseConversationReturn {
+  // core
+  conversations: FrontendConversation[];
+  activeId: string | null;
+  setActiveId: (id: string | null) => void;
+  messages: FrontendMessage[];
+  setMessages: (messages: FrontendMessage[]) => void;
+  loadingMessages: boolean;
+  loadConversation: (id: string) => Promise<void>;
+  createConversation: (options?: { title?: string } | string) => Promise<FrontendConversation | null>;
+  renameConversation: (id: string, title: string) => Promise<void>;
+  deleteConversation: (id: string) => Promise<void>;
+  upsertConversation: (conv: FrontendConversation) => void;
+  patchConversationTitle: (id: string, title: string) => void;
+  bumpConversationActivity: (id: string, ts?: number) => void;
+  mutateConversations: () => Promise<unknown>;
+
+  // Model management
+  setConversationModel: (id: string, model: string) => Promise<void>;
+  patchConversationModel: (id: string, model: string) => void;
+
+  // ChatApp.jsx expected fields
+  selectedConversationId: string | null;
+  setSelectedConversationId: (id: string | null) => void;
+  creatingConversation: boolean;
+  refreshConversations: () => Promise<void>;
+  renameConversationOptimistic: (id: string, title: string) => void;
+  renameConversationFinal: (id: string, title: string) => void;
+  deleteAllConversations: () => Promise<void>;
+}
+
+export function useConversation(): UseConversationReturn {
+  const [conversations, setConversations] = useState<FrontendConversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<FrontendMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
   // Tombstone set để chặn "conversation đã xoá" bị re-add lại do merge/refresh.
-  const deletedIdsRef = useRef(new Set());
+  const deletedIdsRef = useRef<Set<string>>(new Set());
 
   // ✅ for ChatApp.jsx compatibility
   const [creatingConversation, setCreatingConversation] = useState(false);
 
-  const { data, mutate } = useSWR("/api/conversations", fetcher, {
+  const { data, mutate } = useSWR<ConversationResponse>("/api/conversations", fetcher, {
     dedupingInterval: 3000,
     revalidateOnFocus: false,
   });
@@ -87,23 +149,21 @@ export function useConversation() {
     if (!data?.conversations) return;
 
     const remote = Array.isArray(data.conversations) ? data.conversations : [];
-    const remoteFiltered = remote.filter((c) => !deletedIdsRef.current.has(c?.id));
+    const remoteFiltered = remote.filter((c) => c?.id && !deletedIdsRef.current.has(c.id)) as FrontendConversation[];
 
     setConversations((prev) => {
       const prevFiltered = (Array.isArray(prev) ? prev : []).filter(
-        (c) => !deletedIdsRef.current.has(c?.id)
+        (c) => c?.id && !deletedIdsRef.current.has(c.id)
       );
-      return mergeConversations(prevFiltered, remoteFiltered).filter(
-        (c) => !deletedIdsRef.current.has(c?.id)
-      );
+      return mergeConversations(prevFiltered, remoteFiltered).filter((c) => c?.id && !deletedIdsRef.current.has(c.id));
     });
 
-    // ✅ REMOVED: Tự động chọn activeId. 
+    // ✅ REMOVED: Tự động chọn activeId.
     // Chúng ta muốn ở lại Landing Page (activeId = null) khi load lại trang.
   }, [data]);
 
   // Upsert conversation vào list local (META conversationCreated)
-  const upsertConversation = useCallback((conv) => {
+  const upsertConversation = useCallback((conv: FrontendConversation) => {
     if (!conv?.id) return;
 
     if (deletedIdsRef.current.has(conv.id)) {
@@ -117,26 +177,28 @@ export function useConversation() {
       updatedAt: conv.updatedAt ?? now,
     });
 
+    if (!normalized) return;
+
     setConversations((prev) => {
       const prevFiltered = (Array.isArray(prev) ? prev : []).filter(
-        (c) => !deletedIdsRef.current.has(c?.id)
+        (c) => c?.id && !deletedIdsRef.current.has(c.id)
       );
       return mergeConversations([normalized, ...prevFiltered], prevFiltered).filter(
-        (c) => !deletedIdsRef.current.has(c?.id)
+        (c) => c?.id && !deletedIdsRef.current.has(c.id)
       );
     });
   }, []);
 
   // Patch title + bump updatedAt để không bị rollback
-  const patchConversationTitle = useCallback((id, title) => {
+  const patchConversationTitle = useCallback((id: string, title: string) => {
     if (!id || !title?.trim()) return;
     const now = Date.now();
 
     setConversations((prev) => {
       const next = prev.map((c) =>
         c.id === id
-          ? normalizeConv({ ...c, title: title.trim(), updatedAt: now })
-          : normalizeConv(c)
+          ? normalizeConv({ ...c, title: title.trim(), updatedAt: now }) || c
+          : normalizeConv(c) || c
       );
       next.sort((a, b) => getTs(b) - getTs(a));
       return next;
@@ -144,15 +206,13 @@ export function useConversation() {
   }, []);
 
   // ✅ NEW: Patch model locally (optimistic update)
-  const patchConversationModel = useCallback((id, model) => {
+  const patchConversationModel = useCallback((id: string, model: string) => {
     if (!id || !model) return;
     const now = Date.now();
 
     setConversations((prev) => {
       const next = prev.map((c) =>
-        c.id === id
-          ? normalizeConv({ ...c, model, updatedAt: now })
-          : normalizeConv(c)
+        c.id === id ? normalizeConv({ ...c, model, updatedAt: now }) || c : normalizeConv(c) || c
       );
       next.sort((a, b) => getTs(b) - getTs(a));
       return next;
@@ -160,19 +220,17 @@ export function useConversation() {
   }, []);
 
   // ✅ NEW: bump updatedAt local để sidebar reorder ngay khi user gửi message
-  const bumpConversationActivity = useCallback((id, ts = Date.now()) => {
+  const bumpConversationActivity = useCallback((id: string, ts: number = Date.now()) => {
     if (!id) return;
 
     setConversations((prev) => {
-      const next = prev.map((c) =>
-        c.id === id ? normalizeConv({ ...c, updatedAt: ts }) : normalizeConv(c)
-      );
+      const next = prev.map((c) => (c.id === id ? normalizeConv({ ...c, updatedAt: ts }) || c : normalizeConv(c) || c));
       next.sort((a, b) => getTs(b) - getTs(a));
       return next;
     });
   }, []);
 
-  const loadConversation = useCallback(async (id) => {
+  const loadConversation = useCallback(async (id: string) => {
     if (!id) return;
     setLoadingMessages(true);
     try {
@@ -181,7 +239,7 @@ export function useConversation() {
       const json = await res.json();
 
       setActiveId(id);
-      setMessages(Array.isArray(json.messages) ? json.messages : []);
+      setMessages((Array.isArray(json.messages) ? json.messages : []) as FrontendMessage[]);
     } catch (err) {
       console.error("loadConversation error:", err);
     } finally {
@@ -190,7 +248,7 @@ export function useConversation() {
   }, []);
 
   const createConversation = useCallback(
-    async (options = {}) => {
+    async (options: { title?: string } | string = {}): Promise<FrontendConversation | null> => {
       if (creatingConversation) return null;
 
       const title = typeof options === "string" ? options : options.title;
@@ -205,14 +263,14 @@ export function useConversation() {
 
         if (!res.ok) throw new Error("Failed to create conversation");
         const json = await res.json();
-        const conv = json.conversation;
+        const conv = json.conversation as FrontendConversation | undefined;
         if (!conv?.id) return null;
 
         upsertConversation(conv);
         setActiveId(conv.id);
         setMessages([]);
 
-        mutate();
+        await mutate();
         return conv;
       } catch (err) {
         console.error("createConversation error:", err);
@@ -225,7 +283,7 @@ export function useConversation() {
   );
 
   const renameConversation = useCallback(
-    async (id, title) => {
+    async (id: string, title: string) => {
       if (!id || !title?.trim()) return;
       try {
         const res = await fetch("/api/conversations", {
@@ -235,10 +293,10 @@ export function useConversation() {
         });
         if (!res.ok) throw new Error("Failed to rename conversation");
         const json = await res.json();
-        const updated = json.conversation;
+        const updated = json.conversation as FrontendConversation;
 
-        patchConversationTitle(id, updated.title);
-        mutate();
+        patchConversationTitle(id, updated.title || title);
+        await mutate();
       } catch (err) {
         console.error("renameConversation error:", err);
       }
@@ -248,7 +306,7 @@ export function useConversation() {
 
   // ✅ NEW: Set model for a conversation (server call)
   const setConversationModel = useCallback(
-    async (id, model) => {
+    async (id: string, model: string) => {
       if (!id || !model) return;
       try {
         const res = await fetch("/api/conversations", {
@@ -258,10 +316,10 @@ export function useConversation() {
         });
         if (!res.ok) throw new Error("Failed to set conversation model");
         const json = await res.json();
-        const updated = json.conversation;
+        const updated = json.conversation as FrontendConversation;
 
-        patchConversationModel(id, updated.model);
-        mutate();
+        patchConversationModel(id, updated.model || model);
+        await mutate();
       } catch (err) {
         console.error("setConversationModel error:", err);
         throw err;
@@ -271,7 +329,7 @@ export function useConversation() {
   );
 
   const deleteConversation = useCallback(
-    async (id) => {
+    async (id: string) => {
       if (!id) return;
       try {
         const res = await fetch("/api/conversations", {
@@ -290,7 +348,7 @@ export function useConversation() {
           setMessages([]);
         }
 
-        mutate();
+        await mutate();
       } catch (err) {
         console.error("deleteConversation error:", err);
       }
@@ -307,14 +365,14 @@ export function useConversation() {
   }, [mutate]);
 
   const renameConversationOptimistic = useCallback(
-    (id, title) => {
+    (id: string, title: string) => {
       patchConversationTitle(id, title);
     },
     [patchConversationTitle]
   );
 
   const renameConversationFinal = useCallback(
-    (id, title) => {
+    (id: string, title: string) => {
       patchConversationTitle(id, title);
       mutate();
     },
@@ -324,7 +382,7 @@ export function useConversation() {
   const deleteAllConversations = useCallback(async () => {
     const ids = (Array.isArray(conversations) ? conversations : [])
       .map((c) => c?.id)
-      .filter(Boolean);
+      .filter((id): id is string => Boolean(id));
 
     if (ids.length === 0) return;
 
@@ -334,7 +392,7 @@ export function useConversation() {
     setActiveId(null);
     setMessages([]);
 
-    mutate();
+    await mutate();
   }, [conversations, deleteConversation, mutate]);
 
   return {
@@ -368,3 +426,4 @@ export function useConversation() {
     deleteAllConversations,
   };
 }
+

@@ -1,14 +1,16 @@
 "use client";
 import { useEffect, useMemo, useState, useCallback } from "react";
 
-const THEME_IDS = ["blueprint", "amber", "indigo", "charcoal", "gold", "red", "rose"];
+const THEME_IDS = ["blueprint", "amber", "indigo", "charcoal", "gold", "red", "rose"] as const;
+
+export type ThemeId = (typeof THEME_IDS)[number];
 
 export function useTheme() {
-  const [theme, setTheme] = useState("blueprint");
+  const [theme, setTheme] = useState<ThemeId>("blueprint");
 
   useEffect(() => {
     const stored = localStorage.getItem("vikini-theme");
-    if (stored && THEME_IDS.includes(stored)) setTheme(stored);
+    if (stored && THEME_IDS.includes(stored as ThemeId)) setTheme(stored as ThemeId);
   }, []);
 
   useEffect(() => {
@@ -26,17 +28,21 @@ export function useTheme() {
    * - toggleTheme("red") => set theme to "red"
    * - toggleTheme() => cycle theme list
    */
-  const toggleTheme = useCallback((next) => {
-    if (typeof next === "string" && THEME_IDS.includes(next)) {
-      setTheme(next);
-      return;
-    }
-    setTheme((prev) => {
-      const idx = THEME_IDS.indexOf(prev);
-      const nextIdx = idx === -1 ? 0 : (idx + 1) % THEME_IDS.length;
-      return THEME_IDS[nextIdx];
-    });
-  }, []);
+  const toggleTheme = useCallback(
+    (next?: string) => {
+      if (typeof next === "string" && THEME_IDS.includes(next as ThemeId)) {
+        setTheme(next as ThemeId);
+        return;
+      }
+      setTheme((prev) => {
+        const idx = THEME_IDS.indexOf(prev);
+        const nextIdx = idx === -1 ? 0 : (idx + 1) % THEME_IDS.length;
+        return THEME_IDS[nextIdx];
+      });
+    },
+    []
+  );
 
   return { theme, setTheme, toggleTheme, themeIds: THEME_IDS };
 }
+

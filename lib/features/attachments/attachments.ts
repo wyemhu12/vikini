@@ -1,23 +1,71 @@
-// /lib/features/attachments/attachments.js
+// /lib/features/attachments/attachments.ts
 
 import crypto from "crypto";
 import { getSupabaseAdmin } from "@/lib/core/supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Re-export for backward compatibility
 export { getSupabaseAdmin };
 import { pickFirstEnv } from "@/lib/utils/config";
 
-function toInt(v, fallback) {
+interface AttachmentsConfig {
+  bucket: string;
+  ttlHours: number;
+  maxTextBytes: number;
+  maxImageBytes: number;
+  maxDocBytes: number;
+  maxZipBytes: number;
+  maxFilesPerConversation: number;
+  maxTotalBytesPerConversation: number;
+  signedUrlSeconds: number;
+}
+
+interface ValidateUploadResult {
+  kind: "text" | "image" | "doc" | "zip";
+  filename: string;
+  ext: string;
+  mime: string;
+  sizeBytes: number;
+}
+
+interface AttachmentRow {
+  id: string;
+  conversation_id?: string;
+  message_id?: string | null;
+  filename?: string;
+  mime_type?: string;
+  size_bytes?: number;
+  created_at?: string;
+  expires_at?: string;
+  bucket?: string;
+  storage_path?: string;
+  user_id?: string;
+  [key: string]: unknown;
+}
+
+interface AttachmentBytesResult {
+  row: AttachmentRow;
+  bytes: Buffer;
+}
+
+interface SignedUrlResult {
+  signedUrl: string;
+  filename?: string;
+  mimeType?: string;
+  expiresAt?: string;
+}
+
+function toInt(v: unknown, fallback: number): number {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
-function toBytes(v, fallback) {
+function toBytes(v: unknown, fallback: number): number {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
-export function getAttachmentsConfig() {
+export function getAttachmentsConfig(): AttachmentsConfig {
   return {
     bucket: pickFirstEnv(["ATTACHMENTS_BUCKET", "SUPABASE_ATTACHMENTS_BUCKET"]) || "vikini-attachments",
     ttlHours: toInt(pickFirstEnv(["ATTACHMENTS_TTL_HOURS", "ATTACH_TTL_HOURS"]), 36),
@@ -56,12 +104,7 @@ const ALLOWED_DOC_MIMES = new Set([
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]);
 
-
-const ALLOWED_ARCHIVE_MIMES = new Set([
-  "application/zip",
-  "application/x-zip-compressed",
-  "multipart/x-zip",
-]);
+const ALLOWED_ARCHIVE_MIMES = new Set(["application/zip", "application/x-zip-compressed", "multipart/x-zip"]);
 
 const ALLOWED_EXTS = new Set([
   "txt",
@@ -80,11 +123,11 @@ const ALLOWED_EXTS = new Set([
   "zip",
 ]);
 
-function safeLower(v) {
+function safeLower(v: unknown): string {
   return String(v || "").trim().toLowerCase();
 }
 
-export function sanitizeFilename(name) {
+export function sanitizeFilename(name: unknown): string {
   const raw = String(name || "file").trim();
   const cleaned = raw
     .replace(/[\\\/]+/g, "_")
@@ -94,14 +137,14 @@ export function sanitizeFilename(name) {
   return cleaned || "file";
 }
 
-function getExt(filename) {
+function getExt(filename: string): string {
   const n = safeLower(filename);
   const idx = n.lastIndexOf(".");
   if (idx === -1) return "";
   return n.slice(idx + 1);
 }
 
-async function sniffImageMime(file) {
+async function sniffImageMime(file: File): Promise<string> {
   try {
     const buf = Buffer.from(await file.arrayBuffer());
     if (buf.length < 12) return "";
@@ -145,7 +188,12 @@ async function sniffImageMime(file) {
   }
 }
 
-export async function validateUpload({ file, filename }) {
+interface ValidateUploadParams {
+  file: File;
+  filename?: string;
+}
+
+export async function validateUpload({ file, filename }: ValidateUploadParams): Promise<ValidateUploadResult> {
   const cfg = getAttachmentsConfig();
   if (!file) throw new Error("Missing file");
 
@@ -215,7 +263,19 @@ export async function validateUpload({ file, filename }) {
   throw new Error("File type not allowed");
 }
 
-export async function enforceConversationQuotas({ supabase, userId, conversationId, addBytes }) {
+interface EnforceQuotasParams {
+  supabase: SupabaseClient;
+  userId: string;
+  conversationId: string;
+  addBytes: number;
+}
+
+export async function enforceConversationQuotas({
+  supabase,
+  userId,
+  conversationId,
+  addBytes,
+}: EnforceQuotasParams): Promise<void> {
   const cfg = getAttachmentsConfig();
   const nowTs = Date.now();
 
@@ -228,12 +288,16 @@ export async function enforceConversationQuotas({ supabase, userId, conversation
   if (error) throw new Error(`Quota check failed: ${error.message}`);
 
   const alive = (rows || []).filter((r) => {
-    const exp = r?.expires_at ? Date.parse(r.expires_at) : Infinity;
+    const row = r as { expires_at?: string };
+    const exp = row?.expires_at ? Date.parse(row.expires_at) : Infinity;
     return Number.isFinite(exp) ? exp > nowTs : true;
   });
 
   const count = alive.length;
-  const total = alive.reduce((sum, r) => sum + Number(r?.size_bytes || 0), 0);
+  const total = alive.reduce((sum, r) => {
+    const row = r as { size_bytes?: number };
+    return sum + Number(row?.size_bytes || 0);
+  }, 0);
 
   if (count + 1 > cfg.maxFilesPerConversation) {
     throw new Error("Too many files in this conversation");
@@ -244,7 +308,15 @@ export async function enforceConversationQuotas({ supabase, userId, conversation
   }
 }
 
-export async function listAttachmentsForConversation({ userId, conversationId }) {
+interface ListAttachmentsParams {
+  userId: string;
+  conversationId: string;
+}
+
+export async function listAttachmentsForConversation({
+  userId,
+  conversationId,
+}: ListAttachmentsParams): Promise<AttachmentRow[]> {
   const supabase = getSupabaseAdmin();
 
   const { data, error } = await supabase
@@ -255,10 +327,15 @@ export async function listAttachmentsForConversation({ userId, conversationId })
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(`listAttachments failed: ${error.message}`);
-  return data || [];
+  return (data || []) as AttachmentRow[];
 }
 
-export async function getAttachmentById({ userId, id }) {
+interface GetAttachmentParams {
+  userId: string;
+  id: string;
+}
+
+export async function getAttachmentById({ userId, id }: GetAttachmentParams): Promise<AttachmentRow> {
   const supabase = getSupabaseAdmin();
 
   const { data, error } = await supabase
@@ -270,10 +347,24 @@ export async function getAttachmentById({ userId, id }) {
 
   if (error) throw new Error(`getAttachment failed: ${error.message}`);
   if (!data) throw new Error("Not found");
-  return data;
+  return data as AttachmentRow;
 }
 
-export async function uploadAttachment({ userId, conversationId, messageId = null, file, filename }) {
+interface UploadAttachmentParams {
+  userId: string;
+  conversationId: string;
+  messageId?: string | null;
+  file: File;
+  filename?: string;
+}
+
+export async function uploadAttachment({
+  userId,
+  conversationId,
+  messageId = null,
+  file,
+  filename,
+}: UploadAttachmentParams): Promise<AttachmentRow> {
   const supabase = getSupabaseAdmin();
   const cfg = getAttachmentsConfig();
 
@@ -313,46 +404,58 @@ export async function uploadAttachment({ userId, conversationId, messageId = nul
   if (ins.error) {
     try {
       await supabase.storage.from(cfg.bucket).remove([storagePath]);
-    } catch {}
+    } catch {
+      // Ignore cleanup errors
+    }
     throw new Error(`DB insert failed: ${ins.error.message}`);
   }
 
-  return ins.data;
+  return ins.data as AttachmentRow;
 }
 
-export async function createSignedUrlForAttachmentId({ userId, id }) {
+interface CreateSignedUrlParams {
+  userId: string;
+  id: string;
+}
+
+export async function createSignedUrlForAttachmentId({ userId, id }: CreateSignedUrlParams): Promise<SignedUrlResult> {
   const supabase = getSupabaseAdmin();
   const row = await getAttachmentById({ userId, id });
 
-  const bucket = row?.bucket || getAttachmentsConfig().bucket;
+  const bucket = (row?.bucket || getAttachmentsConfig().bucket) as string;
   const seconds = getAttachmentsConfig().signedUrlSeconds;
 
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(row.storage_path, seconds);
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(row.storage_path as string, seconds);
   if (error) throw new Error(`Signed URL failed: ${error.message}`);
   if (!data?.signedUrl) throw new Error("Signed URL missing");
 
-  return { signedUrl: data.signedUrl, filename: row.filename, mimeType: row.mime_type, expiresAt: row.expires_at };
+  return {
+    signedUrl: data.signedUrl,
+    filename: row.filename,
+    mimeType: row.mime_type,
+    expiresAt: row.expires_at,
+  };
 }
 
-export async function downloadAttachmentBytes({ userId, id }) {
+export async function downloadAttachmentBytes({ userId, id }: GetAttachmentParams): Promise<AttachmentBytesResult> {
   const supabase = getSupabaseAdmin();
   const row = await getAttachmentById({ userId, id });
-  const bucket = row?.bucket || getAttachmentsConfig().bucket;
+  const bucket = (row?.bucket || getAttachmentsConfig().bucket) as string;
 
-  const { data, error } = await supabase.storage.from(bucket).download(row.storage_path);
-  if (error) throw new Error(`Download failed: ${error.error.message}`);
+  const { data, error } = await supabase.storage.from(bucket).download(row.storage_path as string);
+  if (error) throw new Error(`Download failed: ${(error as { error?: { message?: string } }).error?.message || error.message}`);
   if (!data) throw new Error("Download missing");
 
   const bytes = Buffer.from(await data.arrayBuffer());
   return { row, bytes };
 }
 
-export async function deleteAttachmentById({ userId, id }) {
+export async function deleteAttachmentById({ userId, id }: GetAttachmentParams): Promise<{ ok: boolean }> {
   const supabase = getSupabaseAdmin();
   const row = await getAttachmentById({ userId, id });
-  const bucket = row?.bucket || getAttachmentsConfig().bucket;
+  const bucket = (row?.bucket || getAttachmentsConfig().bucket) as string;
 
-  const rm = await supabase.storage.from(bucket).remove([row.storage_path]);
+  const rm = await supabase.storage.from(bucket).remove([row.storage_path as string]);
   if (rm.error) throw new Error(`Storage delete failed: ${rm.error.message}`);
 
   const del = await supabase.from("attachments").delete().eq("id", id).eq("user_id", userId);
@@ -361,7 +464,15 @@ export async function deleteAttachmentById({ userId, id }) {
   return { ok: true };
 }
 
-export async function deleteAttachmentsByConversation({ userId, conversationId }) {
+interface DeleteByConversationParams {
+  userId: string;
+  conversationId: string;
+}
+
+export async function deleteAttachmentsByConversation({
+  userId,
+  conversationId,
+}: DeleteByConversationParams): Promise<{ ok: boolean; deleted: number }> {
   const supabase = getSupabaseAdmin();
 
   const { data: rows, error } = await supabase
@@ -370,13 +481,14 @@ export async function deleteAttachmentsByConversation({ userId, conversationId }
     .eq("conversation_id", conversationId)
     .eq("user_id", userId);
 
-  if (error) throw new Error(`List attachments failed: ${error.error.message}`);
+  if (error) throw new Error(`List attachments failed: ${(error as { error?: { message?: string } }).error?.message || error.message}`);
 
-  const byBucket = new Map();
+  const byBucket = new Map<string, string[]>();
   for (const r of rows || []) {
-    const bucket = r?.bucket || getAttachmentsConfig().bucket;
+    const row = r as { bucket?: string; storage_path?: string };
+    const bucket = (row?.bucket || getAttachmentsConfig().bucket) as string;
     const arr = byBucket.get(bucket) || [];
-    if (r?.storage_path) arr.push(r.storage_path);
+    if (row?.storage_path) arr.push(row.storage_path);
     byBucket.set(bucket, arr);
   }
 
@@ -396,3 +508,4 @@ export async function deleteAttachmentsByConversation({ userId, conversationId }
 
   return { ok: true, deleted: (rows || []).length };
 }
+

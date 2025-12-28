@@ -1,4 +1,4 @@
-// /app/features/chat/components/hooks/useWebSearchPreference.js
+// /app/features/chat/components/hooks/useWebSearchPreference.ts
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -11,10 +11,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
  */
 export function useWebSearchPreference() {
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
-  const [serverWebSearch, setServerWebSearch] = useState(null); // null | boolean
-  const [serverWebSearchAvailable, setServerWebSearchAvailable] = useState(null); // null | boolean
+  const [serverWebSearch, setServerWebSearch] = useState<boolean | null>(null); // null | boolean
+  const [serverWebSearchAvailable, setServerWebSearchAvailable] = useState<boolean | null>(null); // null | boolean
 
-  const getCookie = useCallback((name) => {
+  const getCookie = useCallback((name: string): string | null => {
     if (typeof document === "undefined") return null;
     const cookies = document.cookie ? document.cookie.split("; ") : [];
     for (const c of cookies) {
@@ -24,21 +24,18 @@ export function useWebSearchPreference() {
     return null;
   }, []);
 
-  const setCookie = useCallback((name, value) => {
+  const setCookie = useCallback((name: string, value: string): void => {
     if (typeof document === "undefined") return;
 
-    const parts = [
-      `${name}=${encodeURIComponent(value)}`,
-      "path=/",
-      "max-age=31536000",
-      "samesite=lax",
-    ];
+    const parts = [`${name}=${encodeURIComponent(value)}`, "path=/", "max-age=31536000", "samesite=lax"];
 
     try {
       if (typeof window !== "undefined" && window.location?.protocol === "https:") {
         parts.push("secure");
       }
-    } catch {}
+    } catch {
+      // Ignore errors
+    }
 
     document.cookie = parts.join("; ");
   }, []);
@@ -58,7 +55,9 @@ export function useWebSearchPreference() {
       if (c === "1" || c === "0") {
         setWebSearchEnabled(c === "1");
       }
-    } catch {}
+    } catch {
+      // Ignore errors
+    }
   }, [getCookie, setCookie]);
 
   const toggleWebSearch = useCallback(() => {
@@ -66,7 +65,9 @@ export function useWebSearchPreference() {
       const next = !prev;
       try {
         localStorage.setItem("vikini.webSearch", next ? "1" : "0");
-      } catch {}
+      } catch {
+        // Ignore errors
+      }
 
       setCookie("webSearchEnabled", next ? "1" : "0");
       return next;
@@ -77,8 +78,8 @@ export function useWebSearchPreference() {
     return serverWebSearchAvailable === false
       ? " (server: feature OFF)"
       : serverWebSearch === false && webSearchEnabled
-      ? " (server: OFF)"
-      : "";
+        ? " (server: OFF)"
+        : "";
   }, [serverWebSearchAvailable, serverWebSearch, webSearchEnabled]);
 
   return {
@@ -92,3 +93,4 @@ export function useWebSearchPreference() {
     serverHint,
   };
 }
+

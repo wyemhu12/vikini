@@ -1,13 +1,13 @@
-// /app/api/attachments/upload/route.js
+// /app/api/attachments/upload/route.ts
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/app/api/conversations/auth";
 import { getConversation } from "@/lib/features/chat/conversations";
 import { uploadAttachment } from "@/lib/features/attachments/attachments";
 
-export async function POST(req) {
+export async function POST(req: NextRequest) {
   try {
     const auth = await requireUser(req);
     if (!auth.ok) return auth.response;
@@ -23,7 +23,7 @@ export async function POST(req) {
     if (!conversationId) {
       return NextResponse.json({ error: "Missing conversationId" }, { status: 400 });
     }
-    if (!file) {
+    if (!file || !(file instanceof File)) {
       return NextResponse.json({ error: "Missing file" }, { status: 400 });
     }
 
@@ -37,12 +37,14 @@ export async function POST(req) {
       conversationId,
       messageId,
       file,
-      filename: file?.name,
+      filename: file.name,
     });
 
     return NextResponse.json({ attachment }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
-    console.error("POST /api/attachments/upload error:", err);
-    return NextResponse.json({ error: err?.message || "Internal error" }, { status: 500 });
+    const error = err as Error;
+    console.error("POST /api/attachments/upload error:", error);
+    return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
   }
 }
+

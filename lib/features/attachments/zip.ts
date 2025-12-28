@@ -1,29 +1,30 @@
-// /lib/features/attachments/zip.js
+// /lib/features/attachments/zip.ts
 import { createInflateRaw } from "zlib";
 
 const SIG_EOCD = 0x06054b50;
 const SIG_CEN = 0x02014b50;
 const SIG_LOC = 0x04034b50;
 
-function u16(buf, off) {
+function u16(buf: Buffer, off: number): number {
   return buf.readUInt16LE(off);
 }
-function u32(buf, off) {
+
+function u32(buf: Buffer, off: number): number {
   return buf.readUInt32LE(off);
 }
 
-function safeName(name) {
+function safeName(name: string): string {
   const s = String(name || "").replace(/\\/g, "/");
   return s.replace(/^\/+/, "").replace(/\u0000/g, "");
 }
 
-function extOf(name) {
+function extOf(name: string): string {
   const n = String(name || "").toLowerCase();
   const i = n.lastIndexOf(".");
   return i === -1 ? "" : n.slice(i + 1);
 }
 
-function isTextLikeExt(ext, name) {
+function isTextLikeExt(ext: string, name: string): boolean {
   const base = String(name || "").toLowerCase();
   if (base === "dockerfile") return true;
   if (base.endsWith(".gitignore")) return true;
@@ -67,7 +68,7 @@ function isTextLikeExt(ext, name) {
   ]).has(ext);
 }
 
-function findEOCD(buf) {
+function findEOCD(buf: Buffer): number {
   // EOCD is within last 64KB + 22 bytes
   const maxBack = Math.min(buf.length, 0x10000 + 22);
   for (let i = buf.length - 22; i >= buf.length - maxBack; i--) {
@@ -77,7 +78,28 @@ function findEOCD(buf) {
   return -1;
 }
 
-function parseCentralDirectory(buf, opts) {
+interface ZipEntry {
+  name: string;
+  method: number;
+  compSize: number;
+  uncompSize: number;
+  localOff: number;
+  warning?: string;
+}
+
+interface ParseResult {
+  entries: ZipEntry[];
+  truncated: boolean;
+  cdOffset: number;
+  cdSize: number;
+}
+
+interface ParseOptions {
+  maxEntries?: number;
+  maxTotalUncompressed?: number;
+}
+
+function parseCentralDirectory(buf: Buffer, opts: ParseOptions = {}): ParseResult {
   const eocdOff = findEOCD(buf);
   if (eocdOff < 0) throw new Error("ZIP EOCD not found");
 
@@ -87,7 +109,7 @@ function parseCentralDirectory(buf, opts) {
 
   if (cdOffset + cdSize > buf.length) throw new Error("ZIP central directory out of range");
 
-  const entries = [];
+  const entries: ZipEntry[] = [];
   let off = cdOffset;
 
   const maxEntries = Number(opts.maxEntries || 2000);
@@ -129,7 +151,7 @@ function parseCentralDirectory(buf, opts) {
   return { entries, truncated, cdOffset, cdSize };
 }
 
-function localDataOffset(buf, localOff) {
+function localDataOffset(buf: Buffer, localOff: number): number {
   if (localOff + 30 > buf.length) throw new Error("ZIP local header out of range");
   const sig = u32(buf, localOff);
   if (sig !== SIG_LOC) throw new Error("ZIP local header signature mismatch");
@@ -138,10 +160,10 @@ function localDataOffset(buf, localOff) {
   return localOff + 30 + nameLen + extraLen;
 }
 
-async function inflateRawToStringLimited(compBuf, byteCap) {
+async function inflateRawToStringLimited(compBuf: Buffer, byteCap: number): Promise<string> {
   return await new Promise((resolve, reject) => {
     const infl = createInflateRaw();
-    const chunks = [];
+    const chunks: Buffer[] = [];
     let total = 0;
     let done = false;
 
@@ -151,12 +173,14 @@ async function inflateRawToStringLimited(compBuf, byteCap) {
       try {
         infl.removeAllListeners();
         infl.destroy();
-      } catch {}
+      } catch {
+        // Ignore cleanup errors
+      }
       const out = Buffer.concat(chunks).toString("utf8");
       resolve(out);
     }
 
-    infl.on("data", (chunk) => {
+    infl.on("data", (chunk: Buffer) => {
       if (done) return;
       const b = Buffer.from(chunk);
       if (total < byteCap) {
@@ -167,7 +191,7 @@ async function inflateRawToStringLimited(compBuf, byteCap) {
       if (total >= byteCap) finish();
     });
 
-    infl.on("error", (e) => {
+    infl.on("error", (e: Error) => {
       if (done) return;
       done = true;
       reject(e);
@@ -179,31 +203,51 @@ async function inflateRawToStringLimited(compBuf, byteCap) {
   });
 }
 
+interface SummarizeOptions {
+  maxEntries?: number;
+  maxFilesToExtract?: number;
+  maxChars?: number;
+  maxPerFileBytes?: number;
+  maxTotalUncompressed?: number;
+}
+
+interface ZipSnippet {
+  name: string;
+  text: string;
+  truncated: boolean;
+}
+
+interface SummarizeResult {
+  text: string;
+  warnings?: string[];
+}
+
 /**
  * Summarize a ZIP buffer into a prompt-safe text block.
  * - Lists entries (capped)
  * - Extracts snippets from text-like files (capped)
  * Supported compression: stored (0) and deflate (8)
  */
-export async function summarizeZipBytes(bytes, opts = {}) {
+export async function summarizeZipBytes(bytes: Buffer, opts: SummarizeOptions = {}): Promise<SummarizeResult> {
   const maxEntries = Number(opts.maxEntries || 2000);
   const maxFilesToExtract = Number(opts.maxFilesToExtract || 30);
   const maxChars = Number(opts.maxChars || 120000);
   const maxPerFileBytes = Number(opts.maxPerFileBytes || 40000);
   const maxTotalUncompressed = Number(opts.maxTotalUncompressed || 200 * 1024 * 1024);
 
-  const warnings = [];
-  const snippets = [];
+  const warnings: string[] = [];
+  const snippets: ZipSnippet[] = [];
 
   if (!bytes || !Buffer.isBuffer(bytes)) {
     return { text: "ZIP: (no bytes)", warnings: ["missing_bytes"] };
   }
 
-  let parsed;
+  let parsed: ParseResult;
   try {
     parsed = parseCentralDirectory(bytes, { maxEntries, maxTotalUncompressed });
   } catch (e) {
-    return { text: `ZIP parse failed: ${String(e?.message || e)}`, warnings: ["zip_parse_failed"] };
+    const error = e as Error;
+    return { text: `ZIP parse failed: ${String(error?.message || error)}`, warnings: ["zip_parse_failed"] };
   }
 
   const entries = parsed.entries || [];
@@ -260,7 +304,7 @@ export async function summarizeZipBytes(bytes, opts = {}) {
     }
   }
 
-  const lines = [];
+  const lines: string[] = [];
   lines.push("ZIP SUMMARY");
   lines.push(`entries: ${entries.length}`);
   if (warnings.length) lines.push(`warnings: ${warnings.join(", ")}`);
@@ -288,3 +332,4 @@ export async function summarizeZipBytes(bytes, opts = {}) {
 
   return { text: lines.join("\n"), warnings };
 }
+

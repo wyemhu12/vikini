@@ -1,18 +1,58 @@
-// /app/hooks/useChat.js
+// /app/hooks/useChat.ts
 "use client";
 
 import { useCallback, useRef, useState } from "react";
 import useAutoTitleStore from "@/app/features/chat/hooks/useAutoTitleStore";
 
-export default function useChat({
-  onConversationCreated,
-  onOptimisticTitle,
-  onFinalTitle,
-  onAssistantDelta,
-  onStreamDone,
-} = {}) {
+interface ConversationCreated {
+  id: string;
+  title?: string;
+  createdAt?: number | string;
+  updatedAt?: number | string;
+  [key: string]: unknown;
+}
+
+interface UseChatCallbacks {
+  onConversationCreated?: (conversation: ConversationCreated) => void;
+  onOptimisticTitle?: (conversationId: string, title: string) => void;
+  onFinalTitle?: (conversationId: string, title: string) => void;
+  onAssistantDelta?: (delta: string) => void;
+  onStreamDone?: (fullText: string) => void;
+}
+
+interface SendMessageParams {
+  conversationId?: string | null;
+  content: string;
+}
+
+interface SendMessageResult {
+  ok: boolean;
+  error?: string;
+}
+
+interface SSEMeta {
+  type?: string;
+  conversation?: ConversationCreated;
+  conversationId?: string;
+  title?: string;
+  [key: string]: unknown;
+}
+
+interface TokenPayload {
+  t?: string;
+  [key: string]: unknown;
+}
+
+interface ErrorPayload {
+  message?: string;
+  [key: string]: unknown;
+}
+
+export default function useChat(callbacks: UseChatCallbacks = {}) {
+  const { onConversationCreated, onOptimisticTitle, onFinalTitle, onAssistantDelta, onStreamDone } = callbacks;
+
   const [isStreaming, setIsStreaming] = useState(false);
-  const abortRef = useRef(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const setOptimisticTitle = useAutoTitleStore((s) => s.setOptimisticTitle);
   const setFinalTitle = useAutoTitleStore((s) => s.setFinalTitle);
@@ -23,7 +63,7 @@ export default function useChat({
   const createdFiredRef = useRef(false);
 
   // track conversationId thực tế trong vòng đời 1 request để có thể tắt loading ở finally
-  const activeConversationIdRef = useRef(null);
+  const activeConversationIdRef = useRef<string | null>(null);
 
   const stop = useCallback(() => {
     if (abortRef.current) abortRef.current.abort();
@@ -32,7 +72,7 @@ export default function useChat({
   }, []);
 
   const ensureCreatedPlaceholder = useCallback(
-    (conversationId) => {
+    (conversationId: string) => {
       if (!conversationId) return;
       if (createdFiredRef.current) return;
 
@@ -48,7 +88,7 @@ export default function useChat({
   );
 
   const sendMessage = useCallback(
-    async ({ conversationId, content }) => {
+    async ({ conversationId, content }: SendMessageParams): Promise<SendMessageResult> => {
       if (!content?.trim()) return { ok: false, error: "Empty content" };
 
       createdFiredRef.current = false;
@@ -81,7 +121,7 @@ export default function useChat({
         let buffer = "";
         let assistantFull = "";
 
-        const handleMeta = (meta) => {
+        const handleMeta = (meta: SSEMeta) => {
           if (meta?.type === "conversationCreated" && meta?.conversation?.id) {
             createdFiredRef.current = true;
             activeConversationIdRef.current = meta.conversation.id;
@@ -90,14 +130,10 @@ export default function useChat({
             return;
           }
 
-          if (
-            meta?.type === "optimisticTitle" &&
-            meta?.conversationId &&
-            meta?.title
-          ) {
+          if (meta?.type === "optimisticTitle" && meta?.conversationId && meta?.title) {
             activeConversationIdRef.current = meta.conversationId;
 
-            // nếu conversationId ban đầu null, dùng optimisticTitle để “create placeholder”
+            // nếu conversationId ban đầu null, dùng optimisticTitle để "create placeholder"
             ensureCreatedPlaceholder(meta.conversationId);
 
             setTitleLoading(meta.conversationId, true);
@@ -106,11 +142,7 @@ export default function useChat({
             return;
           }
 
-          if (
-            meta?.type === "finalTitle" &&
-            meta?.conversationId &&
-            meta?.title
-          ) {
+          if (meta?.type === "finalTitle" && meta?.conversationId && meta?.title) {
             activeConversationIdRef.current = meta.conversationId;
 
             ensureCreatedPlaceholder(meta.conversationId);
@@ -136,7 +168,7 @@ export default function useChat({
             if (!frame.trim()) continue;
 
             let eventName = "message";
-            const dataLines = [];
+            const dataLines: string[] = [];
 
             for (const line of frame.split("\n")) {
               if (line.startsWith("event:")) {
@@ -153,7 +185,7 @@ export default function useChat({
 
             if (eventName === "token") {
               try {
-                const payload = JSON.parse(dataRaw);
+                const payload = JSON.parse(dataRaw) as TokenPayload;
                 const t = payload?.t || "";
                 if (t) {
                   assistantFull += t;
@@ -167,7 +199,7 @@ export default function useChat({
 
             if (eventName === "meta") {
               try {
-                const meta = JSON.parse(dataRaw);
+                const meta = JSON.parse(dataRaw) as SSEMeta;
                 handleMeta(meta);
               } catch {
                 // ignore meta parse error
@@ -177,7 +209,7 @@ export default function useChat({
 
             if (eventName === "error") {
               try {
-                const payload = JSON.parse(dataRaw);
+                const payload = JSON.parse(dataRaw) as ErrorPayload;
                 throw new Error(payload?.message || "Stream error");
               } catch (e) {
                 throw e instanceof Error ? e : new Error("Stream error");
@@ -209,10 +241,11 @@ export default function useChat({
         onStreamDone?.(assistantFull);
         return { ok: true };
       } catch (err) {
-        if (err?.name !== "AbortError") {
+        const error = err as Error & { name?: string };
+        if (error?.name !== "AbortError") {
           console.error("useChat sendMessage error:", err);
         }
-        return { ok: false, error: err?.message || "Unknown error" };
+        return { ok: false, error: error?.message || "Unknown error" };
       } finally {
         // ✅ Nếu cuối cùng không nhận được finalTitle thì vẫn nên tắt loading
         const cid = activeConversationIdRef.current;
@@ -238,3 +271,4 @@ export default function useChat({
 
   return { sendMessage, stop, isStreaming };
 }
+

@@ -1,7 +1,24 @@
-// app/hooks/useAutoTitleStore.js
+// app/hooks/useAutoTitleStore.ts
 "use client";
 
 import { create } from "zustand";
+
+interface AutoTitleStore {
+  optimistic: Record<string, string>;
+  final: Record<string, string>;
+  loading: Record<string, boolean>;
+
+  // Helpers nội bộ
+  _setMapValue: (key: "optimistic" | "final" | "loading", id: string, value: string | boolean) => void;
+  _deleteMapKey: (key: "optimistic" | "final" | "loading", id: string) => void;
+
+  // API công khai
+  setOptimisticTitle: (conversationId: string, title: string) => void;
+  setFinalTitle: (conversationId: string, title: string) => void;
+  setTitleLoading: (conversationId: string, isLoading: boolean) => void;
+  clearConversationTitle: (conversationId: string) => void;
+  resetAllTitles: () => void;
+}
 
 /**
  * Auto-title global store (Zustand)
@@ -15,7 +32,7 @@ import { create } from "zustand";
  * - Khi backend trả final title: setFinalTitle(...)
  * - UI (TitleItem.jsx / Sidebar) chỉ cần đọc store này để hiển thị.
  */
-const useAutoTitleStore = create((set, get) => ({
+const useAutoTitleStore = create<AutoTitleStore>((set, get) => ({
   optimistic: {},
   final: {},
   loading: {},
@@ -88,3 +105,4 @@ const useAutoTitleStore = create((set, get) => ({
 }));
 
 export default useAutoTitleStore;
+
