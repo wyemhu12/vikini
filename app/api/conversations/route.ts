@@ -2,13 +2,13 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "./auth";
 import { parseJsonBody } from "./validators";
 import { sanitizeMessages } from "./sanitize";
 import { logger } from "@/lib/utils/logger";
 import { NotFoundError, ValidationError, AppError } from "@/lib/utils/errors";
-import { success, error, errorFromAppError } from "@/lib/utils/apiResponse";
+import { errorFromAppError } from "@/lib/utils/apiResponse";
 import { HTTP_STATUS, CONVERSATION_DEFAULTS } from "@/lib/utils/constants";
 
 import {
@@ -49,12 +49,20 @@ export async function GET(req: NextRequest) {
       const messagesRaw = await getMessages(id);
       const messages = sanitizeMessages(messagesRaw);
 
-      return success({ messages });
+      // Backward compatibility: return direct format instead of wrapped in { success, data }
+      return NextResponse.json(
+        { messages },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     // Default: list conversations
     const conversations = await getUserConversations(userId);
-    return success({ conversations });
+    // Backward compatibility: return direct format instead of wrapped in { success, data }
+    return NextResponse.json(
+      { conversations },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     routeLogger.error("GET error:", err);
     
@@ -62,7 +70,10 @@ export async function GET(req: NextRequest) {
       return errorFromAppError(err);
     }
     
-    return error("Internal error", HTTP_STATUS.INTERNAL_SERVER_ERROR);
+    return NextResponse.json(
+      { error: "Internal error" },
+      { status: HTTP_STATUS.INTERNAL_SERVER_ERROR }
+    );
   }
 }
 
@@ -81,7 +92,14 @@ export async function POST(req: NextRequest) {
     const conversation = await saveConversation(userId, { title });
     routeLogger.info(`Created conversation ${conversation?.id} for user: ${userId}`);
 
-    return success({ conversation }, HTTP_STATUS.CREATED);
+    // Backward compatibility: return direct format instead of wrapped in { success, data }
+    return NextResponse.json(
+      { conversation },
+      { 
+        status: HTTP_STATUS.CREATED,
+        headers: { "Cache-Control": "no-store" } 
+      }
+    );
   } catch (err) {
     routeLogger.error("POST error:", err);
     
@@ -89,7 +107,10 @@ export async function POST(req: NextRequest) {
       return errorFromAppError(err);
     }
     
-    return error("Internal error", HTTP_STATUS.INTERNAL_SERVER_ERROR);
+    return NextResponse.json(
+      { error: "Internal error" },
+      { status: HTTP_STATUS.INTERNAL_SERVER_ERROR }
+    );
   }
 }
 
@@ -146,7 +167,11 @@ export async function PATCH(req: NextRequest) {
       conversation = c;
     }
 
-    return success({ conversation });
+    // Backward compatibility: return direct format instead of wrapped in { success, data }
+    return NextResponse.json(
+      { conversation },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     routeLogger.error("PATCH error:", err);
     
@@ -154,7 +179,10 @@ export async function PATCH(req: NextRequest) {
       return errorFromAppError(err);
     }
     
-    return error("Internal error", HTTP_STATUS.INTERNAL_SERVER_ERROR);
+    return NextResponse.json(
+      { error: "Internal error" },
+      { status: HTTP_STATUS.INTERNAL_SERVER_ERROR }
+    );
   }
 }
 
@@ -177,7 +205,11 @@ export async function DELETE(req: NextRequest) {
     await deleteConversation(userId, id);
     routeLogger.info(`Deleted conversation ${id} for user: ${userId}`);
     
-    return success({ ok: true });
+    // Backward compatibility: return direct format
+    return NextResponse.json(
+      { ok: true },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     routeLogger.error("DELETE error:", err);
     
@@ -185,7 +217,10 @@ export async function DELETE(req: NextRequest) {
       return errorFromAppError(err);
     }
     
-    return error("Internal error", HTTP_STATUS.INTERNAL_SERVER_ERROR);
+    return NextResponse.json(
+      { error: "Internal error" },
+      { status: HTTP_STATUS.INTERNAL_SERVER_ERROR }
+    );
   }
 }
 
@@ -214,7 +249,11 @@ export async function PUT(req: NextRequest) {
     const messagesRaw = await getMessages(id);
     const messages = sanitizeMessages(messagesRaw);
 
-    return success({ messages });
+    // Backward compatibility: return direct format instead of wrapped in { success, data }
+    return NextResponse.json(
+      { messages },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     routeLogger.error("PUT error:", err);
     
@@ -222,7 +261,10 @@ export async function PUT(req: NextRequest) {
       return errorFromAppError(err);
     }
     
-    return error("Internal error", HTTP_STATUS.INTERNAL_SERVER_ERROR);
+    return NextResponse.json(
+      { error: "Internal error" },
+      { status: HTTP_STATUS.INTERNAL_SERVER_ERROR }
+    );
   }
 }
 
