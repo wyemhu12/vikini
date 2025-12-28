@@ -124,8 +124,13 @@ export async function POST(req: NextRequest) {
       ai = getGenAIClient();
     } catch (e) {
       const error = e as Error;
+      // SECURITY: Sanitize error message in production
+      const isProduction = process.env.NODE_ENV === 'production';
+      const errorMessage = isProduction 
+        ? "AI service unavailable" 
+        : (error?.message || "Missing GEMINI_API_KEY/GOOGLE_API_KEY");
       return NextResponse.json(
-        { error: error?.message || "Missing GEMINI_API_KEY/GOOGLE_API_KEY" },
+        { error: errorMessage },
         { status: 500 }
       );
     }

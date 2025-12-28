@@ -103,3 +103,64 @@ export class ExternalServiceError extends AppError {
   }
 }
 
+/**
+ * Sanitizes error messages for production to prevent information leakage
+ * 
+ * @param error - The error to sanitize
+ * @param isProduction - Whether we're in production mode
+ * @returns Sanitized error message
+ */
+export function sanitizeError(error: unknown, isProduction: boolean = process.env.NODE_ENV === 'production'): string {
+  // In development, return full error details
+  if (!isProduction) {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return String(error);
+  }
+
+  // In production, sanitize sensitive information
+  if (error instanceof AppError) {
+    // Use AppError's user-friendly message (already sanitized)
+    return error.message;
+  }
+
+  if (error instanceof Error) {
+    const message = error.message;
+    
+    // Hide environment variable names
+    const envVarPatterns = [
+      /GEMINI_API_KEY/gi,
+      /GOOGLE_API_KEY/gi,
+      /SUPABASE_SERVICE_ROLE_KEY/gi,
+      /NEXTAUTH_SECRET/gi,
+      /DATA_ENCRYPTION_KEY/gi,
+      /GOOGLE_CLIENT_SECRET/gi,
+      /UPSTASH_REDIS_REST_TOKEN/gi,
+    ];
+    
+    let sanitized = message;
+    for (const pattern of envVarPatterns) {
+      sanitized = sanitized.replace(pattern, '[REDACTED]');
+    }
+    
+    // Hide database schema information
+    sanitized = sanitized.replace(/from\s+["']?(\w+)["']?/gi, 'from [table]');
+    sanitized = sanitized.replace(/table\s+["']?(\w+)["']?/gi, 'table [table]');
+    sanitized = sanitized.replace(/column\s+["']?(\w+)["']?/gi, 'column [column]');
+    
+    // Hide file paths
+    sanitized = sanitized.replace(/\/[^\s]+/g, '/[path]');
+    
+    // If message was heavily sanitized, return generic message
+    if (sanitized !== message && sanitized.length < message.length * 0.5) {
+      return 'An error occurred. Please try again later.';
+    }
+    
+    return sanitized;
+  }
+
+  // Generic error for unknown types
+  return 'An error occurred. Please try again later.';
+}
+

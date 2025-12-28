@@ -453,7 +453,8 @@ export async function handleChatStreamCore({ req, userId }: HandleChatStreamCore
     ai = getGenAIClient();
   } catch (e) {
     const error = e as Error;
-    return jsonError(error?.message || "Missing GEMINI_API_KEY", 500);
+    // jsonError will automatically sanitize the message in production
+    return jsonError(error?.message || "AI service unavailable", 500);
   }
 
   // Load or create conversation

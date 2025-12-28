@@ -47,7 +47,8 @@ let cachedCreatedAt = 0;
 export function getGenAIClient(): GoogleGenAI {
   const apiKey = pickFirstEnv(["GEMINI_API_KEY", "GOOGLE_API_KEY"]);
   if (!apiKey) {
-    throw new Error("Missing GEMINI_API_KEY/GOOGLE_API_KEY");
+    // SECURITY: Use generic error message to avoid leaking env var names
+    throw new Error("AI service configuration is missing");
   }
 
   if (cachedClient && cachedKey === apiKey) return cachedClient;

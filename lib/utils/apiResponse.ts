@@ -3,7 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { HTTP_STATUS, type HttpStatus } from "./constants";
-import { AppError } from "./errors";
+import { AppError, sanitizeError } from "./errors";
 
 /**
  * Success response
@@ -23,17 +23,23 @@ export function success<T = unknown>(
 
 /**
  * Error response
+ * Automatically sanitizes error messages in production
  */
 export function error(
-  message: string, 
+  message: string | unknown, 
   statusCode: HttpStatus = HTTP_STATUS.INTERNAL_SERVER_ERROR, 
   code: string = 'INTERNAL_ERROR'
 ): NextResponse<{ success: false; error: { message: string; code: string } }> {
+  // Sanitize error message in production
+  const sanitizedMessage = typeof message === 'string' 
+    ? sanitizeError(new Error(message), process.env.NODE_ENV === 'production')
+    : sanitizeError(message, process.env.NODE_ENV === 'production');
+  
   return NextResponse.json(
     { 
       success: false, 
       error: { 
-        message, 
+        message: sanitizedMessage, 
         code 
       } 
     },
@@ -49,12 +55,14 @@ export function error(
 
 /**
  * Create error response from AppError instance
+ * AppError messages are already user-friendly, but we still sanitize in production
  */
 export function errorFromAppError(
   appError: AppError
 ): NextResponse<{ success: false; error: { message: string; code: string } }> {
+  const sanitizedMessage = sanitizeError(appError, process.env.NODE_ENV === 'production');
   return error(
-    appError.message,
+    sanitizedMessage,
     appError.statusCode as HttpStatus,
     appError.code
   );

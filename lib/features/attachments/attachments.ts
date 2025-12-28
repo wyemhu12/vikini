@@ -188,6 +188,90 @@ async function sniffImageMime(file: File): Promise<string> {
   }
 }
 
+/**
+ * Validates that the file is actually a valid image by checking magic bytes
+ * and basic structure. This prevents malicious files with image extensions.
+ * 
+ * @param file - The file to validate
+ * @param expectedMime - The expected MIME type
+ * @returns true if the file is a valid image, false otherwise
+ */
+async function validateImageContent(file: File, expectedMime: string): Promise<boolean> {
+  try {
+    const buf = Buffer.from(await file.arrayBuffer());
+    
+    // Must have minimum size
+    if (buf.length < 12) return false;
+    
+    const sniffedMime = await sniffImageMime(file);
+    
+    // Sniffed MIME must match expected MIME
+    if (sniffedMime && sniffedMime !== expectedMime) {
+      return false;
+    }
+    
+    // Additional validation based on image type
+    if (expectedMime === "image/png") {
+      // PNG must start with PNG signature and have IEND chunk at the end
+      if (
+        buf[0] === 0x89 &&
+        buf[1] === 0x50 &&
+        buf[2] === 0x4e &&
+        buf[3] === 0x47
+      ) {
+        // Check for IEND chunk near the end (PNG files end with IEND)
+        const end = buf.slice(-12);
+        if (end.includes(Buffer.from("IEND"))) {
+          return true;
+        }
+        // If file is very small, just check signature
+        if (buf.length < 100) {
+          return true;
+        }
+      }
+      return false;
+    }
+    
+    if (expectedMime === "image/jpeg") {
+      // JPEG must start with FF D8 FF and end with FF D9
+      if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+        // Check for JPEG end marker (FF D9)
+        const end = buf.slice(-2);
+        if (end[0] === 0xff && end[1] === 0xd9) {
+          return true;
+        }
+        // If file is very small, just check signature
+        if (buf.length < 100) {
+          return true;
+        }
+      }
+      return false;
+    }
+    
+    if (expectedMime === "image/webp") {
+      // WEBP must have RIFF header and WEBP signature
+      if (
+        buf[0] === 0x52 &&
+        buf[1] === 0x49 &&
+        buf[2] === 0x46 &&
+        buf[3] === 0x46 &&
+        buf[8] === 0x57 &&
+        buf[9] === 0x45 &&
+        buf[10] === 0x42 &&
+        buf[11] === 0x50
+      ) {
+        return true;
+      }
+      return false;
+    }
+    
+    // If we can't validate, trust the sniffed MIME
+    return !!sniffedMime;
+  } catch {
+    return false;
+  }
+}
+
 interface ValidateUploadParams {
   file: File;
   filename?: string;
@@ -224,6 +308,12 @@ export async function validateUpload({ file, filename }: ValidateUploadParams): 
     const sniffed = await sniffImageMime(file);
     const effectiveMime = sniffed || mime;
     if (!ALLOWED_IMAGE_MIMES.has(effectiveMime)) throw new Error("Image MIME not allowed");
+
+    // SECURITY: Validate that the file is actually a valid image (not just extension)
+    const isValidImage = await validateImageContent(file, effectiveMime);
+    if (!isValidImage) {
+      throw new Error("Invalid image file - file content does not match image format");
+    }
 
     return { kind: "image", filename: safeName, ext, mime: effectiveMime, sizeBytes: size };
   }
