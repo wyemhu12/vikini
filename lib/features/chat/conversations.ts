@@ -139,10 +139,52 @@ async function listConversationsSafe(userId: string): Promise<Conversation[]> {
 // ------------------------------
 // Conversations
 // ------------------------------
+
+/**
+ * Retrieves a conversation by ID.
+ * 
+ * Includes related gem information (name, icon, color) if available.
+ * 
+ * @param conversationId - UUID of the conversation to retrieve
+ * @returns Conversation object with gem info, or null if not found
+ * @throws {Error} If database query fails
+ * 
+ * @example
+ * ```typescript
+ * const conv = await getConversation('123e4567-e89b-12d3-a456-426614174000');
+ * if (conv) {
+ *   console.log(`Title: ${conv.title}, Model: ${conv.model}`);
+ * }
+ * ```
+ */
 export async function getConversation(conversationId: string): Promise<Conversation | null> {
   return getConversationSafe(conversationId);
 }
 
+/**
+ * Creates a new conversation or updates an existing one.
+ * 
+ * **Schema Compatibility:**
+ * Supports both snake_case (`user_id`, `created_at`) and camelCase (`userId`, `createdAt`)
+ * database schemas for backward compatibility.
+ * 
+ * @param userId - User ID (email) who owns the conversation
+ * @param payload - Conversation data:
+ *   - `title`: Optional conversation title (defaults to "New Chat")
+ *   - `model`: Optional AI model to use (defaults to DEFAULT_MODEL)
+ *   - `lastMessagePreview`: Optional preview of last message
+ *   - `gemId`: Optional gem ID to associate with conversation
+ * @returns Created/updated conversation object, or null on error
+ * @throws {Error} If database insert fails
+ * 
+ * @example
+ * ```typescript
+ * const conv = await saveConversation('user@example.com', {
+ *   title: 'My Chat',
+ *   model: 'gemini-pro'
+ * });
+ * ```
+ */
 export async function saveConversation(userId: string, payload: ConversationPayload = {}): Promise<Conversation | null> {
   const supabase = getSupabaseAdmin();
   const title = typeof payload?.title === "string" ? payload.title : CONVERSATION_DEFAULTS.TITLE;
