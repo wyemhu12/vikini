@@ -146,11 +146,29 @@ export function useChatStreamController({
     [normalizeMessages, setSelectedConversationId, cancelStream]
   );
 
-  const coreSend = useCallback(
-    async (text: string, options: CoreSendOptions = {}) => {
-      if (!isAuthed) return;
-      if (creatingConversation) return;
-      if (!text) return;
+  // --- EXTRACTED FUNCTIONS ---
+
+  const ensureConversationExists = useCallback(async (): Promise<string | null> => {
+    if (selectedConversationId) return selectedConversationId;
+
+    setCreatingConversation(true);
+    try {
+      const conv = await createConversation?.();
+      const convId = conv?.id || null;
+      if (convId) setSelectedConversationId?.(convId);
+      return convId;
+    } finally {
+      setCreatingConversation(false);
+    }
+  }, [selectedConversationId, createConversation, setSelectedConversationId]);
+
+  const prepareStreamRequest = useCallback(
+    (text: string, options: CoreSendOptions) => {
+      const regenerate = Boolean(options?.regenerate);
+      const skipUserAppend = Boolean(options?.skipUserAppend);
+      const truncateFromIndex = options?.truncateFromIndex;
+      const truncateMessageId = options?.truncateMessageId;
+      const skipSaveUserMessage = options?.skipSaveUserMessage;
 
       // Hủy request cũ nếu đang chạy
       if (abortControllerRef.current) {
@@ -158,12 +176,6 @@ export function useChatStreamController({
       }
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
-
-      const regenerate = Boolean(options?.regenerate);
-      const skipUserAppend = Boolean(options?.skipUserAppend);
-      const truncateFromIndex = options?.truncateFromIndex;
-      const truncateMessageId = options?.truncateMessageId;
-      const skipSaveUserMessage = options?.skipSaveUserMessage;
 
       setInput("");
       setIsStreaming(true);
@@ -186,18 +198,159 @@ export function useChatStreamController({
         });
       }
 
-      let convId = selectedConversationId;
+      return {
+        signal,
+        regenerate,
+        truncateMessageId,
+        skipSaveUserMessage,
+      };
+    },
+    [normalizeMessages]
+  );
 
-      if (!convId) {
-        setCreatingConversation(true);
-        try {
-          const conv = await createConversation?.();
-          convId = conv?.id || null;
-          if (convId) setSelectedConversationId?.(convId);
-        } finally {
-          setCreatingConversation(false);
+  interface ParsedSSEEvent {
+    event: string;
+    data: {
+      type?: string;
+      conversation?: { id?: string; [key: string]: unknown };
+      conversationId?: string;
+      title?: string;
+      sources?: unknown[];
+      urls?: unknown[];
+      enabled?: boolean;
+      available?: boolean;
+      t?: string;
+      [key: string]: unknown;
+    };
+  }
+
+  const parseSSEEvent = (part: string): ParsedSSEEvent | null => {
+    const lines = part.split("\n").filter(Boolean);
+    const eventLine = lines.find((l) => l.startsWith("event:"));
+    const dataLine = lines.find((l) => l.startsWith("data:"));
+    const event = eventLine?.replace("event:", "").trim();
+    const dataStr = dataLine?.replace("data:", "").trim();
+
+    if (!event || !dataStr) return null;
+
+    try {
+      const data = JSON.parse(dataStr);
+      return { event, data };
+    } catch {
+      return null;
+    }
+  };
+
+  const handleStreamMetaEvent = useCallback(
+    async (
+      data: ParsedSSEEvent["data"],
+      localSources: { current: unknown[] },
+      localUrlContext: { current: unknown[] }
+    ) => {
+      if (data?.type === "conversationCreated" && data?.conversation?.id) {
+        setSelectedConversationId?.(data.conversation.id);
+        await refreshConversations?.();
+      }
+      if (data?.type === "optimisticTitle" && data?.title) {
+        renameConversationOptimistic?.(data.conversationId || "", data.title || "New Chat");
+      }
+      if (data?.type === "finalTitle" && data?.title) {
+        renameConversationFinal?.(data.conversationId || "", data.title || "New Chat");
+      }
+      if (data?.type === "sources") {
+        const sources = safeArray(data?.sources);
+        setStreamingSources(sources);
+        localSources.current = sources;
+      }
+      if (data?.type === "urlContext") {
+        const urls = safeArray(data?.urls);
+        setStreamingUrlContext(urls);
+        localUrlContext.current = urls;
+      }
+      if (data?.type === "webSearch") {
+        const enabled = typeof data?.enabled === "boolean" ? data.enabled : undefined;
+        const available = typeof data?.available === "boolean" ? data.available : undefined;
+        if (typeof onWebSearchMeta === "function") {
+          onWebSearchMeta({ enabled, available, raw: data });
         }
       }
+    },
+    [
+      setSelectedConversationId,
+      refreshConversations,
+      renameConversationOptimistic,
+      renameConversationFinal,
+      onWebSearchMeta,
+    ]
+  );
+
+  const processStreamResponse = useCallback(
+    async (
+      reader: ReadableStreamDefaultReader<Uint8Array>,
+      localSources: { current: unknown[] },
+      localUrlContext: { current: unknown[] }
+    ): Promise<void> => {
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || "";
+
+        for (const part of parts) {
+          const parsed = parseSSEEvent(part);
+          if (!parsed) continue;
+
+          const { event, data } = parsed;
+
+          if (event === "token") {
+            const tok = data?.t || "";
+            if (tok) setStreamingAssistant((prev) => (prev || "") + tok);
+          }
+
+          if (event === "meta") {
+            await handleStreamMetaEvent(data, localSources, localUrlContext);
+          }
+        }
+      }
+    },
+    [handleStreamMetaEvent]
+  );
+
+  const reloadMessagesAfterStream = useCallback(
+    async (convId: string | null) => {
+      if (!convId) return;
+
+      try {
+        const res = await fetch(`/api/conversations?id=${convId}`, { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.messages && Array.isArray(data.messages)) {
+            setMessages(normalizeMessages(data.messages));
+          }
+        }
+      } catch (reloadError) {
+        // Non-critical: if reload fails, continue with local state
+        console.warn("Failed to reload messages after stream:", reloadError);
+      }
+    },
+    [normalizeMessages]
+  );
+
+  const coreSend = useCallback(
+    async (text: string, options: CoreSendOptions = {}) => {
+      if (!isAuthed) return;
+      if (creatingConversation) return;
+      if (!text) return;
+
+      const { signal, regenerate, truncateMessageId, skipSaveUserMessage } = prepareStreamRequest(text, options);
+
+      const convId = await ensureConversationExists();
 
       try {
         const res = await fetch("/api/chat-stream", {
@@ -211,115 +364,29 @@ export function useChatStreamController({
             truncateMessageId,
             skipSaveUserMessage,
           }),
-          signal, // Truyền signal để hủy request
+          signal,
         });
 
         if (!res.ok || !res.body) throw new Error("Stream failed");
 
         const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let localSources: unknown[] = [];
-        let localUrlContext: unknown[] = [];
+        const localSources = { current: [] as unknown[] };
+        const localUrlContext = { current: [] as unknown[] };
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-
-          const parts = buffer.split("\n\n");
-          buffer = parts.pop() || "";
-
-          for (const part of parts) {
-            const lines = part.split("\n").filter(Boolean);
-            const eventLine = lines.find((l) => l.startsWith("event:"));
-            const dataLine = lines.find((l) => l.startsWith("data:"));
-            const event = eventLine?.replace("event:", "").trim();
-            const dataStr = dataLine?.replace("data:", "").trim();
-
-            if (!event || !dataStr) continue;
-
-            let data: {
-              type?: string;
-              conversation?: { id?: string; [key: string]: unknown };
-              conversationId?: string;
-              title?: string;
-              sources?: unknown[];
-              urls?: unknown[];
-              enabled?: boolean;
-              available?: boolean;
-              t?: string;
-              [key: string]: unknown;
-            };
-            try {
-              data = JSON.parse(dataStr);
-            } catch {
-              continue;
-            }
-
-            if (event === "token") {
-              const tok = data?.t || "";
-              if (tok) setStreamingAssistant((prev) => (prev || "") + tok);
-            }
-
-            if (event === "meta") {
-              if (data?.type === "conversationCreated" && data?.conversation?.id) {
-                setSelectedConversationId?.(data.conversation.id);
-                await refreshConversations?.();
-              }
-              if (data?.type === "optimisticTitle" && data?.title) {
-                renameConversationOptimistic?.(data.conversationId || "", data.title || "New Chat");
-              }
-              if (data?.type === "finalTitle" && data?.title) {
-                renameConversationFinal?.(data.conversationId || "", data.title || "New Chat");
-              }
-              if (data?.type === "sources") {
-                setStreamingSources(safeArray(data?.sources));
-                localSources = safeArray(data?.sources);
-              }
-              if (data?.type === "urlContext") {
-                setStreamingUrlContext(safeArray(data?.urls));
-                localUrlContext = safeArray(data?.urls);
-              }
-              if (data?.type === "webSearch") {
-                const enabled = typeof data?.enabled === "boolean" ? data.enabled : undefined;
-                const available = typeof data?.available === "boolean" ? data.available : undefined;
-                if (typeof onWebSearchMeta === "function") {
-                  onWebSearchMeta({ enabled, available, raw: data });
-                }
-              }
-            }
-          }
-        }
+        await processStreamResponse(reader, localSources, localUrlContext);
 
         const finalAssistant = streamingAssistantRef.current || "";
         const assistantMsg: FrontendMessage = {
           role: "assistant",
           content: finalAssistant,
-          sources: safeArray(localSources),
-          urlContext: safeArray(localUrlContext),
+          sources: safeArray(localSources.current),
+          urlContext: safeArray(localUrlContext.current),
         };
 
         setMessages((prev) => [...normalizeMessages(prev), assistantMsg]);
         setStreamingAssistant(null);
 
-        // Reload messages from server to get correct IDs (important for regenerate/edit to work)
-        // Only reload if we have a conversation ID (not for new conversations)
-        if (convId) {
-          try {
-            const res = await fetch(`/api/conversations?id=${convId}`, { cache: "no-store" });
-            if (res.ok) {
-              const data = await res.json();
-              if (data?.messages && Array.isArray(data.messages)) {
-                setMessages(normalizeMessages(data.messages));
-              }
-            }
-          } catch (reloadError) {
-            // Non-critical: if reload fails, continue with local state
-            console.warn("Failed to reload messages after stream:", reloadError);
-          }
-        }
+        await reloadMessagesAfterStream(convId);
       } catch (e) {
         const error = e as Error & { name?: string };
         if (error.name !== "AbortError") {
@@ -336,14 +403,11 @@ export function useChatStreamController({
     [
       isAuthed,
       creatingConversation,
-      selectedConversationId,
-      createConversation,
-      setSelectedConversationId,
-      refreshConversations,
+      prepareStreamRequest,
+      ensureConversationExists,
+      processStreamResponse,
+      reloadMessagesAfterStream,
       normalizeMessages,
-      onWebSearchMeta,
-      renameConversationOptimistic,
-      renameConversationFinal,
     ]
   );
 
