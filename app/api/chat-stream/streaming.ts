@@ -138,6 +138,380 @@ interface ChatStreamParams {
   }) => Promise<string | null>;
 }
 
+// --- EXTRACTED FUNCTIONS ---
+
+function sendInitialMetaEvents(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  params: {
+    createdConversation: unknown | null;
+    enableWebSearch: boolean;
+    WEB_SEARCH_AVAILABLE: boolean;
+    cookieWeb: string;
+    gemMeta: ChatStreamParams["gemMeta"];
+    modelMeta: ChatStreamParams["modelMeta"];
+    model: string;
+  }
+): void {
+  const { createdConversation, enableWebSearch, WEB_SEARCH_AVAILABLE, cookieWeb, gemMeta, modelMeta, model } = params;
+
+  if (createdConversation) {
+    sendEvent(controller, "meta", {
+      type: "conversationCreated",
+      conversation: createdConversation,
+    });
+  }
+
+  sendEvent(controller, "meta", {
+    type: "webSearch",
+    enabled: enableWebSearch,
+    available: WEB_SEARCH_AVAILABLE,
+    cookie: cookieWeb === "1" ? "1" : cookieWeb === "0" ? "0" : "",
+  });
+
+  sendEvent(controller, "meta", {
+    type: "gem",
+    gemId: gemMeta?.gemId ?? null,
+    hasSystemInstruction: Boolean(gemMeta?.hasSystemInstruction),
+    systemInstructionChars: gemMeta?.systemInstructionChars || 0,
+    error: gemMeta?.error || "",
+  });
+
+  sendEvent(controller, "meta", {
+    type: "model",
+    model: modelMeta?.model ?? model,
+    isDefault: Boolean(modelMeta?.isDefault),
+  });
+}
+
+async function generateAndSendOptimisticTitle(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  shouldGenerateTitle: boolean,
+  content: string,
+  conversationId: string,
+  generateOptimisticTitle: (content: string) => Promise<string | null>
+): Promise<void> {
+  if (!shouldGenerateTitle) return;
+
+  try {
+    const optimisticTitle = await generateOptimisticTitle(content);
+    if (optimisticTitle) {
+      sendEvent(controller, "meta", {
+        type: "optimisticTitle",
+        conversationId,
+        title: optimisticTitle,
+      });
+    }
+  } catch (err) {
+    console.error("Optimistic title error:", err);
+  }
+}
+
+interface StreamResult {
+  full: string;
+  groundingMetadata: unknown;
+  urlContextMetadata: unknown;
+  promptFeedback: unknown;
+  finishReason: string;
+  safetyRatings: unknown;
+}
+
+async function executeStream(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  params: {
+    ai: ChatStreamParams["ai"];
+    model: string;
+    contents: unknown[];
+    sysPrompt: string;
+    tools: unknown[];
+    safetySettings: unknown[] | null;
+    useTools: boolean;
+  }
+): Promise<StreamResult> {
+  const { ai, model, contents, sysPrompt, tools, safetySettings, useTools } = params;
+
+  let full = "";
+  let groundingMetadata: unknown = null;
+  let urlContextMetadata: unknown = null;
+  let promptFeedback: unknown = null;
+  let finishReason = "";
+  let safetyRatings: unknown = null;
+
+  const config = {
+    systemInstruction: sysPrompt,
+    temperature: 0,
+    ...(useTools && Array.isArray(tools) && tools.length > 0 ? { tools } : {}),
+    ...(Array.isArray(safetySettings) && safetySettings.length > 0 ? { safetySettings } : {}),
+  };
+
+  const res = await ai.models.generateContentStream({
+    model,
+    contents,
+    config,
+  });
+
+  for await (const chunk of res) {
+    const pf = pick(chunk, ["promptFeedback", "prompt_feedback"]);
+    if (pf) promptFeedback = pf;
+
+    const t = safeText(chunk);
+    if (t) {
+      full += t;
+      sendEvent(controller, "token", { t });
+    }
+
+    const cand = (chunk as { candidates?: unknown[] })?.candidates?.[0] as {
+      groundingMetadata?: unknown;
+      urlContextMetadata?: unknown;
+      url_context_metadata?: unknown;
+      finishReason?: string;
+      finish_reason?: string;
+      safetyRatings?: unknown;
+      safety_ratings?: unknown;
+    } | undefined;
+
+    if (cand) {
+      if (cand.groundingMetadata) groundingMetadata = cand.groundingMetadata;
+      if (cand.urlContextMetadata || cand.url_context_metadata) {
+        urlContextMetadata = cand.urlContextMetadata || cand.url_context_metadata;
+      }
+
+      const fr = pick<string>(cand, ["finishReason", "finish_reason"]);
+      if (fr) finishReason = fr;
+
+      const sr = pick(cand, ["safetyRatings", "safety_ratings"]);
+      if (sr) safetyRatings = sr;
+    }
+  }
+
+  return {
+    full,
+    groundingMetadata,
+    urlContextMetadata,
+    promptFeedback,
+    finishReason,
+    safetyRatings,
+  };
+}
+
+async function runStreamWithFallback(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  params: {
+    ai: ChatStreamParams["ai"];
+    model: string;
+    contents: unknown[];
+    sysPrompt: string;
+    tools: unknown[];
+    safetySettings: unknown[] | null;
+  }
+): Promise<StreamResult> {
+  const { ai, model, contents, sysPrompt, tools, safetySettings } = params;
+
+  try {
+    return await executeStream(controller, {
+      ai,
+      model,
+      contents,
+      sysPrompt,
+      tools,
+      safetySettings,
+      useTools: true,
+    });
+  } catch (err) {
+    console.error("stream error (with tools):", err);
+    try {
+      if (Array.isArray(tools) && tools.length > 0) {
+        sendEvent(controller, "meta", {
+          type: "webSearchFallback",
+          message: "Tools not supported. Retrying without web search.",
+        });
+        return await executeStream(controller, {
+          ai,
+          model,
+          contents,
+          sysPrompt,
+          tools,
+          safetySettings,
+          useTools: false,
+        });
+      } else {
+        sendEvent(controller, "error", { message: "Stream error" });
+        throw err;
+      }
+    } catch (err2) {
+      console.error("stream error (fallback):", err2);
+      sendEvent(controller, "error", { message: "Stream error" });
+      throw err2;
+    }
+  }
+}
+
+function handleSafetyBlocking(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  full: string,
+  promptFeedback: unknown,
+  finishReason: string,
+  safetyRatings: unknown
+): { full: string; isActuallyBlocked: boolean } {
+  const blockReason = pick<string>(promptFeedback, ["blockReason", "block_reason"]);
+  const isBlocked = Boolean(blockReason) || String(finishReason || "").toUpperCase() === "SAFETY";
+  let isActuallyBlocked = false;
+
+  if (!full.trim() && isBlocked) {
+    isActuallyBlocked = true;
+    sendEvent(controller, "meta", {
+      type: "safety",
+      blocked: true,
+      blockReason: blockReason || "",
+      finishReason: finishReason || "",
+      safetyRatings: safetyRatings || null,
+    });
+
+    const msg = "Nội dung bị chặn bởi safety filter. Hãy thử đổi tên GEM hoặc viết lại yêu cầu theo hướng trung lập.";
+    full = msg;
+    sendEvent(controller, "token", { t: msg });
+  }
+
+  return { full, isActuallyBlocked };
+}
+
+function processGroundingMetadata(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  groundingMetadata: unknown
+): void {
+  const grounding = groundingMetadata as {
+    groundingChunks?: Array<{
+      web?: {
+        uri?: string;
+        title?: string;
+      };
+    }>;
+  } | null;
+
+  if (grounding?.groundingChunks) {
+    const sources = grounding.groundingChunks
+      .map((c) => (c?.web?.uri ? { uri: c.web.uri, title: c.web.title || c.web.uri } : null))
+      .filter((s): s is { uri: string; title: string } => s !== null);
+
+    if (sources.length) {
+      sendEvent(controller, "meta", { type: "sources", sources });
+    }
+  }
+}
+
+function processUrlContextMetadata(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  urlContextMetadata: unknown
+): void {
+  if (!urlContextMetadata) return;
+
+  const urlMeta =
+    (urlContextMetadata as {
+      urlMetadata?: Array<{
+        retrievedUrl?: string;
+        retrieved_url?: string;
+        urlRetrievalStatus?: string;
+        url_retrieval_status?: string;
+      }>;
+      url_metadata?: Array<{
+        retrievedUrl?: string;
+        retrieved_url?: string;
+        urlRetrievalStatus?: string;
+        url_retrieval_status?: string;
+      }>;
+    })?.urlMetadata ||
+    (urlContextMetadata as {
+      url_metadata?: Array<{
+        retrievedUrl?: string;
+        retrieved_url?: string;
+        urlRetrievalStatus?: string;
+        url_retrieval_status?: string;
+      }>;
+    })?.url_metadata ||
+    [];
+
+  sendEvent(controller, "meta", {
+    type: "urlContext",
+    urls: urlMeta.map((u) => ({
+      retrievedUrl: u.retrievedUrl || u.retrieved_url || "",
+      status: u.urlRetrievalStatus || u.url_retrieval_status || "",
+    })),
+  });
+}
+
+async function processPostStream(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  params: {
+    full: string;
+    isActuallyBlocked: boolean;
+    shouldGenerateTitle: boolean;
+    conversationId: string;
+    userId: string;
+    contextMessages: Message[];
+    content: string;
+    appendToContext: ChatStreamParams["appendToContext"];
+    saveMessage: ChatStreamParams["saveMessage"];
+    setConversationAutoTitle: ChatStreamParams["setConversationAutoTitle"];
+    generateFinalTitle: ChatStreamParams["generateFinalTitle"];
+  }
+): Promise<void> {
+  const {
+    full,
+    isActuallyBlocked,
+    shouldGenerateTitle,
+    conversationId,
+    userId,
+    contextMessages,
+    content,
+    appendToContext,
+    saveMessage,
+    setConversationAutoTitle,
+    generateFinalTitle,
+  } = params;
+
+  const trimmed = full.trim();
+  if (!trimmed) return;
+
+  try {
+    await Promise.all([
+      appendToContext(conversationId, {
+        role: "assistant",
+        content: trimmed,
+      }),
+      saveMessage({
+        conversationId,
+        userId,
+        role: "assistant",
+        content: trimmed,
+      }),
+    ]);
+
+    if (shouldGenerateTitle && !isActuallyBlocked) {
+      const messagesForTitle: Message[] = [
+        ...contextMessages,
+        { role: "user", content: content },
+        { role: "assistant", content: trimmed },
+      ];
+
+      const finalTitle = await generateFinalTitle({
+        userId,
+        conversationId,
+        messages: messagesForTitle,
+      });
+
+      if (finalTitle?.trim()) {
+        await setConversationAutoTitle(userId, conversationId, finalTitle.trim());
+        sendEvent(controller, "meta", {
+          type: "finalTitle",
+          conversationId,
+          title: finalTitle.trim(),
+        });
+      }
+    }
+  } catch (err) {
+    console.error("post-stream processing error:", err);
+  }
+}
+
 export function createChatReadableStream(params: ChatStreamParams): ReadableStream<Uint8Array> {
   const {
     ai,
@@ -146,23 +520,18 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
     sysPrompt,
     tools,
     safetySettings,
-
     gemMeta,
     modelMeta,
-
     createdConversation,
     shouldGenerateTitle,
-
     enableWebSearch,
     WEB_SEARCH_AVAILABLE,
     cookieWeb,
-
     regenerate,
     content,
     conversationId,
     userId,
     contextMessages,
-
     appendToContext,
     saveMessage,
     setConversationAutoTitle,
@@ -172,253 +541,57 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
 
   return new ReadableStream({
     async start(controller) {
-      if (createdConversation) {
-        sendEvent(controller, "meta", {
-          type: "conversationCreated",
-          conversation: createdConversation,
-        });
-      }
-
-      sendEvent(controller, "meta", {
-        type: "webSearch",
-        enabled: enableWebSearch,
-        available: WEB_SEARCH_AVAILABLE,
-        cookie: cookieWeb === "1" ? "1" : cookieWeb === "0" ? "0" : "",
+      // Send initial meta events
+      sendInitialMetaEvents(controller, {
+        createdConversation,
+        enableWebSearch,
+        WEB_SEARCH_AVAILABLE,
+        cookieWeb,
+        gemMeta,
+        modelMeta,
+        model,
       });
 
-      sendEvent(controller, "meta", {
-        type: "gem",
-        gemId: gemMeta?.gemId ?? null,
-        hasSystemInstruction: Boolean(gemMeta?.hasSystemInstruction),
-        systemInstructionChars: gemMeta?.systemInstructionChars || 0,
-        error: gemMeta?.error || "",
+      // Generate optimistic title if needed
+      await generateAndSendOptimisticTitle(controller, shouldGenerateTitle, content, conversationId, generateOptimisticTitle);
+
+      // Execute stream with fallback
+      const streamResult = await runStreamWithFallback(controller, {
+        ai,
+        model,
+        contents,
+        sysPrompt,
+        tools,
+        safetySettings,
       });
 
-      sendEvent(controller, "meta", {
-        type: "model",
-        model: modelMeta?.model ?? model,
-        isDefault: Boolean(modelMeta?.isDefault),
+      // Handle safety blocking
+      const { full: finalFull, isActuallyBlocked } = handleSafetyBlocking(
+        controller,
+        streamResult.full,
+        streamResult.promptFeedback,
+        streamResult.finishReason,
+        streamResult.safetyRatings
+      );
+
+      // Process metadata
+      processGroundingMetadata(controller, streamResult.groundingMetadata);
+      processUrlContextMetadata(controller, streamResult.urlContextMetadata);
+
+      // Post-stream processing
+      await processPostStream(controller, {
+        full: finalFull,
+        isActuallyBlocked,
+        shouldGenerateTitle,
+        conversationId,
+        userId,
+        contextMessages,
+        content,
+        appendToContext,
+        saveMessage,
+        setConversationAutoTitle,
+        generateFinalTitle,
       });
-
-      // --- LOGIC TỐI ƯU ---
-      // Optimistic Title: Chỉ chạy khi shouldGenerateTitle là true
-      if (shouldGenerateTitle) {
-        try {
-          const optimisticTitle = await generateOptimisticTitle(content);
-          if (optimisticTitle) {
-            sendEvent(controller, "meta", {
-              type: "optimisticTitle",
-              conversationId,
-              title: optimisticTitle,
-            });
-          }
-        } catch (err) {
-          console.error("Optimistic title error:", err);
-        }
-      }
-      // --- KẾT THÚC LOGIC TỐI ƯU ---
-
-      let full = "";
-      let groundingMetadata: unknown = null;
-      let urlContextMetadata: unknown = null;
-      let promptFeedback: unknown = null;
-      let finishReason = "";
-      let safetyRatings: unknown = null;
-
-      const runStream = async ({ useTools }: { useTools: boolean }): Promise<void> => {
-        full = "";
-        const config = {
-          systemInstruction: sysPrompt,
-          temperature: 0,
-          ...(useTools && Array.isArray(tools) && tools.length > 0 ? { tools } : {}),
-          ...(Array.isArray(safetySettings) && safetySettings.length > 0
-            ? { safetySettings }
-            : {}),
-        };
-
-        const res = await ai.models.generateContentStream({
-          model,
-          contents,
-          config,
-        });
-
-        for await (const chunk of res) {
-          const pf = pick(chunk, ["promptFeedback", "prompt_feedback"]);
-          if (pf) promptFeedback = pf;
-
-          const t = safeText(chunk);
-          if (t) {
-            full += t;
-            sendEvent(controller, "token", { t });
-          }
-
-          const cand = (chunk as { candidates?: unknown[] })?.candidates?.[0] as {
-            groundingMetadata?: unknown;
-            urlContextMetadata?: unknown;
-            url_context_metadata?: unknown;
-            finishReason?: string;
-            finish_reason?: string;
-            safetyRatings?: unknown;
-            safety_ratings?: unknown;
-          } | undefined;
-          
-          if (cand) {
-            if (cand.groundingMetadata) groundingMetadata = cand.groundingMetadata;
-            if (cand.urlContextMetadata || cand.url_context_metadata) {
-              urlContextMetadata = cand.urlContextMetadata || cand.url_context_metadata;
-            }
-
-            const fr = pick<string>(cand, ["finishReason", "finish_reason"]);
-            if (fr) finishReason = fr;
-
-            const sr = pick(cand, ["safetyRatings", "safety_ratings"]);
-            if (sr) safetyRatings = sr;
-          }
-        }
-      };
-
-      try {
-        await runStream({ useTools: true });
-      } catch (err) {
-        console.error("stream error (with tools):", err);
-        try {
-          if (Array.isArray(tools) && tools.length > 0) {
-            sendEvent(controller, "meta", {
-              type: "webSearchFallback",
-              message: "Tools not supported. Retrying without web search.",
-            });
-            await runStream({ useTools: false });
-          } else {
-            sendEvent(controller, "error", { message: "Stream error" });
-          }
-        } catch (err2) {
-          console.error("stream error (fallback):", err2);
-          sendEvent(controller, "error", { message: "Stream error" });
-        }
-      }
-
-      const blockReason = pick<string>(promptFeedback, ["blockReason", "block_reason"]);
-      const isBlocked =
-        Boolean(blockReason) ||
-        String(finishReason || "").toUpperCase() === "SAFETY";
-      
-      let isActuallyBlocked = false;
-
-      if (!full.trim() && isBlocked) {
-        isActuallyBlocked = true;
-        sendEvent(controller, "meta", {
-          type: "safety",
-          blocked: true,
-          blockReason: blockReason || "",
-          finishReason: finishReason || "",
-          safetyRatings: safetyRatings || null,
-        });
-
-        const msg = "Nội dung bị chặn bởi safety filter. Hãy thử đổi tên GEM hoặc viết lại yêu cầu theo hướng trung lập.";
-        full = msg;
-        sendEvent(controller, "token", { t: msg });
-      }
-
-      const grounding = groundingMetadata as {
-        groundingChunks?: Array<{
-          web?: {
-            uri?: string;
-            title?: string;
-          };
-        }>;
-      } | null;
-
-      if (grounding?.groundingChunks) {
-        const sources = grounding.groundingChunks
-          .map((c) =>
-            c?.web?.uri
-              ? { uri: c.web.uri, title: c.web.title || c.web.uri }
-              : null
-          )
-          .filter((s): s is { uri: string; title: string } => s !== null);
-        
-        if (sources.length) {
-          sendEvent(controller, "meta", { type: "sources", sources });
-        }
-      }
-
-      if (urlContextMetadata) {
-        const urlMeta =
-          (urlContextMetadata as {
-            urlMetadata?: Array<{
-              retrievedUrl?: string;
-              retrieved_url?: string;
-              urlRetrievalStatus?: string;
-              url_retrieval_status?: string;
-            }>;
-            url_metadata?: Array<{
-              retrievedUrl?: string;
-              retrieved_url?: string;
-              urlRetrievalStatus?: string;
-              url_retrieval_status?: string;
-            }>;
-          })?.urlMetadata ||
-          (urlContextMetadata as {
-            url_metadata?: Array<{
-              retrievedUrl?: string;
-              retrieved_url?: string;
-              urlRetrievalStatus?: string;
-              url_retrieval_status?: string;
-            }>;
-          })?.url_metadata ||
-          [];
-        sendEvent(controller, "meta", {
-          type: "urlContext",
-          urls: urlMeta.map((u) => ({
-            retrievedUrl: u.retrievedUrl || u.retrieved_url || "",
-            status: u.urlRetrievalStatus || u.url_retrieval_status || "",
-          })),
-        });
-      }
-
-      const trimmed = full.trim();
-      if (trimmed) {
-        try {
-          await Promise.all([
-            appendToContext(conversationId, {
-              role: "assistant",
-              content: trimmed,
-            }),
-            saveMessage({
-              conversationId,
-              userId,
-              role: "assistant",
-              content: trimmed,
-            }),
-          ]);
-
-          // --- LOGIC TỐI ƯU: Dùng flag shouldGenerateTitle
-          if (shouldGenerateTitle && !isActuallyBlocked) {
-            const messagesForTitle: Message[] = [
-              ...contextMessages,
-              { role: "user", content: content },
-              { role: "assistant", content: trimmed }
-            ];
-
-            const finalTitle = await generateFinalTitle({
-              userId,
-              conversationId,
-              messages: messagesForTitle,
-            });
-
-            if (finalTitle?.trim()) {
-              await setConversationAutoTitle(userId, conversationId, finalTitle.trim());
-              sendEvent(controller, "meta", {
-                type: "finalTitle",
-                conversationId,
-                title: finalTitle.trim(),
-              });
-            }
-          }
-        } catch (err) {
-          console.error("post-stream processing error:", err);
-        }
-      }
 
       sendEvent(controller, "done", { ok: true });
       controller.close();
