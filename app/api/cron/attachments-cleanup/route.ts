@@ -80,9 +80,9 @@ export async function GET(req: NextRequest) {
     const secret = pickFirstEnv(["ATTACHMENTS_CRON_SECRET", "CRON_SECRET"]);
     if (!secret) return unauthorized();
 
-    const url = new URL(req.url);
-    const provided = req.headers.get("x-cron-secret") || url.searchParams.get("secret") || "";
-    if (provided !== secret) return unauthorized();
+    // SECURITY: Only use header, never query params (query params can be logged/exposed)
+    const provided = req.headers.get("x-cron-secret") || "";
+    if (!provided || provided !== secret) return unauthorized();
 
     const result = await runCleanup();
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });

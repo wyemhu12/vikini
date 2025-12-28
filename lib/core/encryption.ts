@@ -1,24 +1,53 @@
 // lib/core/encryption.ts
+// NOTE: This module is server-only (uses Node.js crypto)
+// It should only be imported in server-side code (API routes, server components)
+
 import crypto from "crypto";
 import { logger } from "@/lib/utils/logger";
 
 const encryptionLogger = logger.withContext("encryption");
 
-// 1. Key dự phòng: Giúp app chạy được ngay cả khi bạn quên set biến môi trường trên Vercel.
-// (Lưu ý: Key này chỉ để chống crash, không bảo mật cao bằng Env Var)
-const FALLBACK_KEY = "vibe-coding-fallback-key-32-chars!!"; 
+// SECURITY: Encryption key MUST be set via environment variable
+// No fallback key to prevent using insecure default encryption
+// Only validate on server-side (this module should not be used on client)
+const RAW_KEY = typeof window === "undefined" ? process.env.DATA_ENCRYPTION_KEY : undefined;
 
-// 2. Lấy key ưu tiên từ Env, nếu không có thì dùng Fallback
-const RAW_KEY = process.env.DATA_ENCRYPTION_KEY || FALLBACK_KEY;
+if (typeof window === "undefined") {
+  if (!RAW_KEY || RAW_KEY.trim().length < 32) {
+    const error = new Error(
+      "DATA_ENCRYPTION_KEY is required and must be at least 32 characters. " +
+      "Please set it in your environment variables. " +
+      "Generate a secure key with: openssl rand -base64 32"
+    );
+    encryptionLogger.error("Missing or invalid DATA_ENCRYPTION_KEY", error);
+    throw error;
+  }
+}
+
 const IV_LENGTH = 16; 
 
 // 3. Hàm tạo key chuẩn 32 bytes (SHA-256)
 function getKey(): Buffer {
+  if (!RAW_KEY) {
+    throw new Error("DATA_ENCRYPTION_KEY is not available");
+  }
   return crypto.createHash("sha256").update(String(RAW_KEY)).digest();
 }
 
 export function encryptText(text: string | null | undefined): string {
   if (!text) return text || "";
+  
+  // Server-only: This function should not be called on client-side
+  if (typeof window !== "undefined") {
+    encryptionLogger.warn("encryptText called on client-side - this should not happen");
+    return String(text);
+  }
+  
+  if (!RAW_KEY) {
+    encryptionLogger.error("DATA_ENCRYPTION_KEY not available");
+    return String(text);
+  }
+  
   // Ép kiểu về String để tránh lỗi nếu text là object/null
   const textStr = String(text);
   
@@ -40,6 +69,18 @@ export function encryptText(text: string | null | undefined): string {
 
 export function decryptText(text: string | null | undefined): string {
   if (!text) return text || "";
+  
+  // Server-only: This function should not be called on client-side
+  if (typeof window !== "undefined") {
+    // On client-side, return text as-is (decryption should happen server-side)
+    return String(text);
+  }
+  
+  if (!RAW_KEY) {
+    encryptionLogger.error("DATA_ENCRYPTION_KEY not available");
+    return String(text);
+  }
+  
   try {
     const textStr = String(text);
     const parts = textStr.split(":");

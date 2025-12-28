@@ -27,6 +27,9 @@ const requiredEnvSchema = z.object({
 
   // Gemini API
   geminiApiKey: z.string().min(1),
+
+  // Data Encryption (CRITICAL: Required for security)
+  dataEncryptionKey: z.string().min(32, "DATA_ENCRYPTION_KEY must be at least 32 characters"),
 });
 
 // Schema for optional environment variables
@@ -71,6 +74,7 @@ interface ValidatedEnv {
   googleClientId: string;
   googleClientSecret: string;
   geminiApiKey: string;
+  dataEncryptionKey: string;
 
   // Optional
   nextAuthUrl?: string;
@@ -111,6 +115,7 @@ export function validateEnv(): ValidatedEnv {
     googleClientId: process.env.GOOGLE_CLIENT_ID,
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
     geminiApiKey: pickFirstEnv(["GEMINI_API_KEY", "GOOGLE_API_KEY"]),
+    dataEncryptionKey: process.env.DATA_ENCRYPTION_KEY,
     nextAuthUrl: process.env.NEXTAUTH_URL,
     whitelistEmails: process.env.WHITELIST_EMAILS,
     upstashRedisUrl: process.env.UPSTASH_REDIS_REST_URL,
@@ -133,10 +138,11 @@ export function validateEnv(): ValidatedEnv {
     const required = requiredEnvSchema.parse({
       supabaseUrl: normalizedEnv.supabaseUrl,
       supabaseServiceKey: normalizedEnv.supabaseServiceKey,
-      nextAuthSecret: normalizedEnv.nextAuthSecret,
-      googleClientId: normalizedEnv.googleClientId,
-      googleClientSecret: normalizedEnv.googleClientSecret,
-      geminiApiKey: normalizedEnv.geminiApiKey,
+    nextAuthSecret: normalizedEnv.nextAuthSecret,
+    googleClientId: normalizedEnv.googleClientId,
+    googleClientSecret: normalizedEnv.googleClientSecret,
+    geminiApiKey: normalizedEnv.geminiApiKey,
+    dataEncryptionKey: normalizedEnv.dataEncryptionKey,
     });
 
     // Validate optional vars (won't throw if missing)

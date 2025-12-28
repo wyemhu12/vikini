@@ -252,6 +252,7 @@ Ensure all required environment variables are set in your deployment platform.
 ## 📖 Additional Documentation
 
 - [Code Improvements](./CODE_IMPROVEMENTS.md) - Improvement suggestions
+- [Security Improvements](./SECURITY_IMPROVEMENTS.md) - Security recommendations and fixes
 - [TypeScript Migration](./TYPESCRIPT_MIGRATION_FINAL.md) - Migration status
 - [Database Schema](./database-schema.md) - Database structure
 - [Performance Improvements](./PERFORMANCE_IMPROVEMENTS.md) - Performance optimizations
