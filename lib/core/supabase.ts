@@ -3,6 +3,7 @@
 import "@/lib/env";
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { trackQuery } from "@/lib/utils/performance";
 
 /**
  * Picks the first available environment variable from a list of possible keys.

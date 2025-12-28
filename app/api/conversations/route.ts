@@ -10,6 +10,7 @@ import { logger } from "@/lib/utils/logger";
 import { NotFoundError, ValidationError, AppError } from "@/lib/utils/errors";
 import { errorFromAppError } from "@/lib/utils/apiResponse";
 import { HTTP_STATUS, CONVERSATION_DEFAULTS } from "@/lib/utils/constants";
+import { createPerformanceMonitor } from "@/lib/utils/performance";
 
 import {
   getUserConversations,
@@ -30,10 +31,16 @@ const routeLogger = logger.withContext("/api/conversations");
 // - /api/conversations?id=<uuid>  => get messages for conversation (client is using this)
 // ------------------------------
 export async function GET(req: NextRequest) {
+  const perfMonitor = createPerformanceMonitor("/api/conversations", "GET");
+  
   try {
     const auth = await requireUser(req);
-    if (!auth.ok) return auth.response;
+    if (!auth.ok) {
+      perfMonitor.end(auth.response.status);
+      return auth.response;
+    }
     const { userId } = auth;
+    perfMonitor.userId = userId;
 
     const url = new URL(req.url);
     const id = url.searchParams.get("id");
@@ -43,12 +50,14 @@ export async function GET(req: NextRequest) {
       const convo = await getConversation(id);
       if (!convo || convo.userId !== userId) {
         routeLogger.warn(`Conversation not found or access denied: ${id} for user: ${userId}`);
+        perfMonitor.end(404, { operation: "getMessages", conversationId: id });
         return errorFromAppError(new NotFoundError("Conversation"));
       }
 
       const messagesRaw = await getMessages(id);
       const messages = sanitizeMessages(messagesRaw);
 
+      perfMonitor.end(200, { operation: "getMessages", conversationId: id, messageCount: messages.length });
       // Backward compatibility: return direct format instead of wrapped in { success, data }
       return NextResponse.json(
         { messages },
@@ -58,6 +67,7 @@ export async function GET(req: NextRequest) {
 
     // Default: list conversations
     const conversations = await getUserConversations(userId);
+    perfMonitor.end(200, { operation: "listConversations", count: conversations.length });
     // Backward compatibility: return direct format instead of wrapped in { success, data }
     return NextResponse.json(
       { conversations },
@@ -65,6 +75,9 @@ export async function GET(req: NextRequest) {
     );
   } catch (err) {
     routeLogger.error("GET error:", err);
+    
+    const statusCode = err instanceof AppError ? err.statusCode : HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    perfMonitor.end(statusCode, { error: true });
     
     if (err instanceof AppError) {
       return errorFromAppError(err);
@@ -81,10 +94,16 @@ export async function GET(req: NextRequest) {
 // CREATE
 // ------------------------------
 export async function POST(req: NextRequest) {
+  const perfMonitor = createPerformanceMonitor("/api/conversations", "POST");
+  
   try {
     const auth = await requireUser(req);
-    if (!auth.ok) return auth.response;
+    if (!auth.ok) {
+      perfMonitor.end(auth.response.status);
+      return auth.response;
+    }
     const { userId } = auth;
+    perfMonitor.userId = userId;
 
     const rawBody = await parseJsonBody(req, { fallback: {} });
     const body = createConversationSchema.parse(rawBody);
@@ -93,6 +112,7 @@ export async function POST(req: NextRequest) {
     const conversation = await saveConversation(userId, { title });
     routeLogger.info(`Created conversation ${conversation?.id} for user: ${userId}`);
 
+    perfMonitor.end(HTTP_STATUS.CREATED, { operation: "createConversation", conversationId: conversation?.id });
     // Backward compatibility: return direct format instead of wrapped in { success, data }
     return NextResponse.json(
       { conversation },
@@ -103,6 +123,9 @@ export async function POST(req: NextRequest) {
     );
   } catch (err) {
     routeLogger.error("POST error:", err);
+    
+    const statusCode = err instanceof AppError ? err.statusCode : HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    perfMonitor.end(statusCode, { error: true });
     
     if (err instanceof AppError) {
       return errorFromAppError(err);
@@ -122,10 +145,16 @@ export async function POST(req: NextRequest) {
 // - set model (new): { id, model }
 // ------------------------------
 export async function PATCH(req: NextRequest) {
+  const perfMonitor = createPerformanceMonitor("/api/conversations", "PATCH");
+  
   try {
     const auth = await requireUser(req);
-    if (!auth.ok) return auth.response;
+    if (!auth.ok) {
+      perfMonitor.end(auth.response.status);
+      return auth.response;
+    }
     const { userId } = auth;
+    perfMonitor.userId = userId;
 
     // NOTE: keep strict parsing behavior (invalid JSON => throws => 500 as before)
     const rawBody = await parseJsonBody(req);
@@ -172,6 +201,11 @@ export async function PATCH(req: NextRequest) {
       conversation = c;
     }
 
+    perfMonitor.end(200, { 
+      operation: "updateConversation", 
+      conversationId: id,
+      updatedFields: { hasTitle: typeof title === "string", hasGemId, hasModel }
+    });
     // Backward compatibility: return direct format instead of wrapped in { success, data }
     return NextResponse.json(
       { conversation },
@@ -179,6 +213,9 @@ export async function PATCH(req: NextRequest) {
     );
   } catch (err) {
     routeLogger.error("PATCH error:", err);
+    
+    const statusCode = err instanceof AppError ? err.statusCode : HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    perfMonitor.end(statusCode, { error: true });
     
     if (err instanceof AppError) {
       return errorFromAppError(err);
@@ -195,10 +232,16 @@ export async function PATCH(req: NextRequest) {
 // DELETE
 // ------------------------------
 export async function DELETE(req: NextRequest) {
+  const perfMonitor = createPerformanceMonitor("/api/conversations", "DELETE");
+  
   try {
     const auth = await requireUser(req);
-    if (!auth.ok) return auth.response;
+    if (!auth.ok) {
+      perfMonitor.end(auth.response.status);
+      return auth.response;
+    }
     const { userId } = auth;
+    perfMonitor.userId = userId;
 
     const rawBody = await parseJsonBody(req, { fallback: {} });
     let body;
@@ -219,6 +262,7 @@ export async function DELETE(req: NextRequest) {
     await deleteConversation(userId, id);
     routeLogger.info(`Deleted conversation ${id} for user: ${userId}`);
     
+    perfMonitor.end(200, { operation: "deleteConversation", conversationId: id });
     // Backward compatibility: return direct format
     return NextResponse.json(
       { ok: true },
@@ -226,6 +270,9 @@ export async function DELETE(req: NextRequest) {
     );
   } catch (err) {
     routeLogger.error("DELETE error:", err);
+    
+    const statusCode = err instanceof AppError ? err.statusCode : HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    perfMonitor.end(statusCode, { error: true });
     
     if (err instanceof AppError) {
       return errorFromAppError(err);
