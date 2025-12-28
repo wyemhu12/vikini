@@ -1,11 +1,15 @@
-// /app/api/conversations/route.js
+// /app/api/conversations/route.ts
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { requireUser } from "./auth";
 import { parseJsonBody } from "./validators";
 import { sanitizeMessages } from "./sanitize";
+import { logger } from "@/lib/utils/logger";
+import { NotFoundError, ValidationError, AppError } from "@/lib/utils/errors";
+import { success, error, errorFromAppError } from "@/lib/utils/apiResponse";
+import { HTTP_STATUS, CONVERSATION_DEFAULTS } from "@/lib/utils/constants";
 
 import {
   getUserConversations,
@@ -18,12 +22,14 @@ import {
 } from "@/lib/features/chat/conversations";
 import { getMessages } from "@/lib/features/chat/messages";
 
+const routeLogger = logger.withContext("/api/conversations");
+
 // ------------------------------
 // GET
 // - /api/conversations            => list conversations
 // - /api/conversations?id=<uuid>  => get messages for conversation (client is using this)
 // ------------------------------
-export async function GET(req) {
+export async function GET(req: NextRequest) {
   try {
     const auth = await requireUser(req);
     if (!auth.ok) return auth.response;
@@ -36,53 +42,54 @@ export async function GET(req) {
     if (id) {
       const convo = await getConversation(id);
       if (!convo || convo.userId !== userId) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
+        routeLogger.warn(`Conversation not found or access denied: ${id} for user: ${userId}`);
+        return errorFromAppError(new NotFoundError("Conversation"));
       }
 
       const messagesRaw = await getMessages(id);
-
-      // ✅ sanitize: prevent null/undefined/invalid role from crashing client
       const messages = sanitizeMessages(messagesRaw);
 
-      return NextResponse.json(
-        { messages },
-        { headers: { "Cache-Control": "no-store" } }
-      );
+      return success({ messages });
     }
 
     // Default: list conversations
     const conversations = await getUserConversations(userId);
-    return NextResponse.json(
-      { conversations },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return success({ conversations });
   } catch (err) {
-    console.error("GET /conversations error:", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    routeLogger.error("GET error:", err);
+    
+    if (err instanceof AppError) {
+      return errorFromAppError(err);
+    }
+    
+    return error("Internal error", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
 
 // ------------------------------
 // CREATE
 // ------------------------------
-export async function POST(req) {
+export async function POST(req: NextRequest) {
   try {
     const auth = await requireUser(req);
     if (!auth.ok) return auth.response;
     const { userId } = auth;
 
-    const body = await parseJsonBody(req, { fallback: {} });
-    const title = body?.title || "New Chat";
+    const body = await parseJsonBody<{ title?: string }>(req, { fallback: {} });
+    const title = body?.title || CONVERSATION_DEFAULTS.TITLE;
 
     const conversation = await saveConversation(userId, { title });
+    routeLogger.info(`Created conversation ${conversation?.id} for user: ${userId}`);
 
-    return NextResponse.json(
-      { conversation },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return success({ conversation }, HTTP_STATUS.CREATED);
   } catch (err) {
-    console.error("POST /conversations error:", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    routeLogger.error("POST error:", err);
+    
+    if (err instanceof AppError) {
+      return errorFromAppError(err);
+    }
+    
+    return error("Internal error", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
 
@@ -92,14 +99,14 @@ export async function POST(req) {
 // - set gemId (new): { id, gemId } (gemId can be null)
 // - set model (new): { id, model }
 // ------------------------------
-export async function PATCH(req) {
+export async function PATCH(req: NextRequest) {
   try {
     const auth = await requireUser(req);
     if (!auth.ok) return auth.response;
     const { userId } = auth;
 
     // NOTE: keep strict parsing behavior (invalid JSON => throws => 500 as before)
-    const body = await parseJsonBody(req);
+    const body = await parseJsonBody(req) as { id?: string; title?: string; gemId?: string | null; model?: string | null };
 
     const { id, title } = body || {};
     const hasGemId = Object.prototype.hasOwnProperty.call(body || {}, "gemId");
@@ -109,7 +116,9 @@ export async function PATCH(req) {
     const hasModel = Object.prototype.hasOwnProperty.call(body || {}, "model");
     const model = body?.model ?? null;
 
-    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    if (!id) {
+      return errorFromAppError(new ValidationError("Missing id"));
+    }
 
     let conversation = null;
 
@@ -130,73 +139,90 @@ export async function PATCH(req) {
     // fallback: return current
     if (!conversation) {
       const c = await getConversation(id);
-      if (!c || c.userId !== userId)
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      if (!c || c.userId !== userId) {
+        routeLogger.warn(`Conversation not found: ${id} for user: ${userId}`);
+        return errorFromAppError(new NotFoundError("Conversation"));
+      }
       conversation = c;
     }
 
-    return NextResponse.json(
-      { conversation },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return success({ conversation });
   } catch (err) {
-    console.error("PATCH /conversations error:", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    routeLogger.error("PATCH error:", err);
+    
+    if (err instanceof AppError) {
+      return errorFromAppError(err);
+    }
+    
+    return error("Internal error", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
 
 // ------------------------------
 // DELETE
 // ------------------------------
-export async function DELETE(req) {
+export async function DELETE(req: NextRequest) {
   try {
     const auth = await requireUser(req);
     if (!auth.ok) return auth.response;
     const { userId } = auth;
 
-    const body = await parseJsonBody(req, { fallback: {} });
+    const body = await parseJsonBody(req, { fallback: {} }) as { id?: string };
     const { id } = body || {};
 
-    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    if (!id) {
+      return errorFromAppError(new ValidationError("Missing id"));
+    }
 
     await deleteConversation(userId, id);
-    return NextResponse.json(
-      { ok: true },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    routeLogger.info(`Deleted conversation ${id} for user: ${userId}`);
+    
+    return success({ ok: true });
   } catch (err) {
-    console.error("DELETE /conversations error:", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    routeLogger.error("DELETE error:", err);
+    
+    if (err instanceof AppError) {
+      return errorFromAppError(err);
+    }
+    
+    return error("Internal error", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
 
 // ------------------------------
 // PUT (kept for backward compatibility)
 // ------------------------------
-export async function PUT(req) {
+export async function PUT(req: NextRequest) {
   try {
     const auth = await requireUser(req);
     if (!auth.ok) return auth.response;
     const { userId } = auth;
 
-    const body = await parseJsonBody(req, { fallback: {} });
+    const body = await parseJsonBody(req, { fallback: {} }) as { id?: string };
     const { id } = body || {};
 
-    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    if (!id) {
+      return errorFromAppError(new ValidationError("Missing id"));
+    }
 
     const convo = await getConversation(id);
-    if (!convo || convo.userId !== userId)
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!convo || convo.userId !== userId) {
+      routeLogger.warn(`Conversation not found: ${id} for user: ${userId}`);
+      return errorFromAppError(new NotFoundError("Conversation"));
+    }
 
     const messagesRaw = await getMessages(id);
     const messages = sanitizeMessages(messagesRaw);
 
-    return NextResponse.json(
-      { messages },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return success({ messages });
   } catch (err) {
-    console.error("PUT /conversations error:", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    routeLogger.error("PUT error:", err);
+    
+    if (err instanceof AppError) {
+      return errorFromAppError(err);
+    }
+    
+    return error("Internal error", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
+

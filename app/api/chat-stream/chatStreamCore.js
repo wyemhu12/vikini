@@ -8,12 +8,16 @@ import {
   coerceStoredModel,
   getModelTokenLimit 
 } from "@/lib/core/modelRegistry";
+import { CONVERSATION_DEFAULTS } from "@/lib/utils/constants";
+import { logger } from "@/lib/utils/logger";
 
 import {
   getConversation,
   saveConversation,
   setConversationAutoTitle,
 } from "@/lib/features/chat/conversations";
+
+const coreLogger = logger.withContext("chatStreamCore");
 import {
   saveMessage,
   deleteLastAssistantMessage,
@@ -158,7 +162,7 @@ export async function handleChatStreamCore({ req, userId }) {
   let createdConversation = null;
   if (!convo) {
     try {
-      convo = await saveConversation(userId, { title: "New Chat" });
+      convo = await saveConversation(userId, { title: CONVERSATION_DEFAULTS.TITLE });
       createdConversation = convo;
     } catch (e) {
       return jsonError(e?.message || "Failed to create conversation", 500);
@@ -169,7 +173,7 @@ export async function handleChatStreamCore({ req, userId }) {
   if (!conversationId) return jsonError("Conversation missing id", 500);
 
   const isNew = Boolean(createdConversation);
-  const isUntitled = convo?.title === "New Chat" || convo?.title === "New chat";
+  const isUntitled = convo?.title === CONVERSATION_DEFAULTS.TITLE || convo?.title === CONVERSATION_DEFAULTS.TITLE.toLowerCase();
   const shouldGenerateTitle = (isNew || isUntitled) && !regenerate;
 
   const requestedModel = convo?.model || DEFAULT_MODEL;
@@ -181,7 +185,7 @@ export async function handleChatStreamCore({ req, userId }) {
     try {
       await deleteMessagesIncludingAndAfter(userId, conversationId, truncateMessageId);
     } catch (e) {
-      console.error("Failed to truncate messages:", e);
+      coreLogger.error("Failed to truncate messages:", e);
     }
   } else if (regenerate) {
     try {
@@ -245,7 +249,7 @@ export async function handleChatStreamCore({ req, userId }) {
         currentTokenCount += msgTokens;
       } else {
         // Stop once we hit the limit
-        console.log(`Context limit reached for ${model}: ${currentTokenCount} tokens used. Skipping older messages.`);
+        coreLogger.debug(`Context limit reached for ${model}: ${currentTokenCount} tokens used. Skipping older messages.`);
         break; 
       }
     }
@@ -256,7 +260,7 @@ export async function handleChatStreamCore({ req, userId }) {
       contents = mapped;
     }
   } catch (e) {
-    console.error("Context load error:", e);
+    coreLogger.error("Context load error:", e);
     // fallback empty context
   }
 
@@ -341,7 +345,7 @@ export async function handleChatStreamCore({ req, userId }) {
       }
     }
   } catch (e) {
-    console.error("attachments context error:", e);
+    coreLogger.error("attachments context error:", e);
   }
 
   const tools = [];
