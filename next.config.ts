@@ -3,7 +3,8 @@ import type {NextConfig} from 'next';
 const config: NextConfig = {
   output: 'standalone',
   typescript: {
-    ignoreBuildErrors: true,
+    // Removed ignoreBuildErrors to enforce type checking
+    // Fix all TypeScript errors before building
   },
   images: {
     remotePatterns: [

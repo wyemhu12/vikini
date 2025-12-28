@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
 
     const result = await ai.models.generateContent({
       model: modelName,
-      contents: [{ role: "user", parts: parts as unknown[] }],
+      contents: [{ role: "user", parts: parts as unknown[] }] as unknown as Parameters<typeof ai.models.generateContent>[0]["contents"],
       config: {
         ...(sysPrompt && sysPrompt.trim() ? { systemInstruction: sysPrompt } : {}),
         temperature: 0.2,

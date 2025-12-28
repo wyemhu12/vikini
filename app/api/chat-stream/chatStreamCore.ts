@@ -33,7 +33,7 @@ import {
   generateFinalTitle,
 } from "@/lib/core/autoTitleEngine";
 
-import { createChatReadableStream, mapMessages } from "./streaming";
+import { createChatReadableStream, mapMessages, type ChatStreamParams } from "./streaming";
 import { chatStreamRequestSchema, type ChatStreamRequest } from "./validators";
 
 interface AttachmentRow {
@@ -165,7 +165,8 @@ const listAttachmentsForConversation = async (params: { userId: string; conversa
 
 const downloadAttachmentBytes = async (params: { userId: string; id: string }): Promise<AttachmentBytes> => {
   const mod = await import("@/lib/features/attachments/attachments");
-  return mod.downloadAttachmentBytes(params) as Promise<AttachmentBytes>;
+  const result = await mod.downloadAttachmentBytes(params);
+  return { bytes: result.bytes, ...result.row } as AttachmentBytes;
 };
 
 const summarizeZipBytes = async (bytes: Buffer, options: { maxChars: number }): Promise<ZipSummary> => {
@@ -201,16 +202,20 @@ async function loadOrCreateConversation(
     }
   }
 
-  const conversationId = convo?.id;
+  if (!convo) {
+    throw new Error("Conversation missing");
+  }
+
+  const conversationId = convo.id;
   if (!conversationId) {
     throw new Error("Conversation missing id");
   }
 
   const isNew = Boolean(createdConversation);
-  const isUntitled = convo?.title === CONVERSATION_DEFAULTS.TITLE || convo?.title === CONVERSATION_DEFAULTS.TITLE.toLowerCase();
+  const isUntitled = convo.title === CONVERSATION_DEFAULTS.TITLE || convo.title === CONVERSATION_DEFAULTS.TITLE.toLowerCase();
   const shouldGenerateTitle = (isNew || isUntitled);
 
-  const requestedModel = convo?.model || DEFAULT_MODEL;
+  const requestedModel = convo.model || DEFAULT_MODEL;
   const model = normalizeModelForApi(requestedModel);
   const modelLimitTokens = getModelTokenLimit(requestedModel);
 
@@ -518,7 +523,7 @@ export async function handleChatStreamCore({ req, userId }: HandleChatStreamCore
   };
 
   const stream = createChatReadableStream({
-    ai,
+    ai: ai as unknown as ChatStreamParams["ai"],
     model,
     contents,
     sysPrompt: finalSysPrompt,
@@ -549,7 +554,9 @@ export async function handleChatStreamCore({ req, userId }: HandleChatStreamCore
     contextMessages: messageContext.contextMessages,
     appendToContext: async () => {},
     saveMessage: saveMessageCompat,
-    setConversationAutoTitle,
+    setConversationAutoTitle: async (userId: string, conversationId: string, title: string) => {
+      await setConversationAutoTitle(userId, conversationId, title);
+    },
     generateOptimisticTitle,
     generateFinalTitle,
   });

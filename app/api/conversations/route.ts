@@ -183,7 +183,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (hasGemId) {
-      conversation = await setConversationGem(userId, id, gemId);
+      conversation = await setConversationGem(userId, id, gemId ?? null);
     }
 
     // ✅ NEW: Handle model update

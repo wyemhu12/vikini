@@ -41,12 +41,31 @@ function toTs(v: unknown): number {
   return Number.isFinite(t) ? t : 0;
 }
 
+/**
+ * Converts a backend Conversation (with ISO string dates) to FrontendConversation (with timestamp numbers)
+ */
+function convertConversationToFrontend(conv: Conversation): FrontendConversation {
+  const convertDate = (dateStr: string | null | undefined): number | undefined => {
+    if (!dateStr || typeof dateStr !== "string") return undefined;
+    const timestamp = Date.parse(dateStr);
+    return Number.isFinite(timestamp) ? timestamp : undefined;
+  };
+
+  return {
+    id: conv.id,
+    title: conv.title,
+    createdAt: convertDate(conv.createdAt),
+    updatedAt: convertDate(conv.updatedAt),
+    model: conv.model,
+  };
+}
+
 function getTs(c: FrontendConversation | null | undefined): number {
   return toTs(c?.updatedAt ?? c?.createdAt ?? 0);
 }
 
 function normalizeConv(c: FrontendConversation | null | undefined): FrontendConversation | null {
-  if (!c) return c;
+  if (!c) return null;
   const createdAt = c.createdAt ?? 0;
   const updatedAt = c.updatedAt ?? createdAt;
 
@@ -149,7 +168,9 @@ export function useConversation(): UseConversationReturn {
     if (!data?.conversations) return;
 
     const remote = Array.isArray(data.conversations) ? data.conversations : [];
-    const remoteFiltered = remote.filter((c) => c?.id && !deletedIdsRef.current.has(c.id)) as FrontendConversation[];
+    const remoteFiltered = remote
+      .filter((c) => c?.id && !deletedIdsRef.current.has(c.id))
+      .map((c) => convertConversationToFrontend(c as Conversation));
 
     setConversations((prev) => {
       const prevFiltered = (Array.isArray(prev) ? prev : []).filter(
@@ -263,9 +284,10 @@ export function useConversation(): UseConversationReturn {
 
         if (!res.ok) throw new Error("Failed to create conversation");
         const json = await res.json();
-        const conv = json.conversation as FrontendConversation | undefined;
-        if (!conv?.id) return null;
+        const backendConv = json.conversation as Conversation | undefined;
+        if (!backendConv?.id) return null;
 
+        const conv = convertConversationToFrontend(backendConv);
         upsertConversation(conv);
         setActiveId(conv.id);
         setMessages([]);
@@ -293,7 +315,8 @@ export function useConversation(): UseConversationReturn {
         });
         if (!res.ok) throw new Error("Failed to rename conversation");
         const json = await res.json();
-        const updated = json.conversation as FrontendConversation;
+        const backendConv = json.conversation as Conversation;
+        const updated = convertConversationToFrontend(backendConv);
 
         patchConversationTitle(id, updated.title || title);
         await mutate();
@@ -316,7 +339,8 @@ export function useConversation(): UseConversationReturn {
         });
         if (!res.ok) throw new Error("Failed to set conversation model");
         const json = await res.json();
-        const updated = json.conversation as FrontendConversation;
+        const backendConv = json.conversation as Conversation;
+        const updated = convertConversationToFrontend(backendConv);
 
         patchConversationModel(id, updated.model || model);
         await mutate();

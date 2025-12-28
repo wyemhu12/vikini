@@ -117,7 +117,7 @@ async function checkTable(tableName: string): Promise<CheckTableResult> {
 
 async function listTables(): Promise<void> {
   console.log("🔍 Checking tables on Supabase...\n");
-  console.log(`📡 Connected to: ${supabaseUrl.replace(/https?:\/\//, "").split("/")[0]}\n`);
+  console.log(`📡 Connected to: ${(supabaseUrl ?? "").replace(/https?:\/\//, "").split("/")[0] || "(unknown)"}\n`);
 
   console.log("📊 Checking known tables:\n");
 

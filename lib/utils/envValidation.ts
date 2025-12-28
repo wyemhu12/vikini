@@ -155,12 +155,12 @@ export function validateEnv(): ValidatedEnv {
       ...optional,
     };
   } catch (error) {
-    const zodError = error as z.ZodError;
+    const zodError = error as z.ZodError<unknown>;
     
     envLogger.error("Environment validation failed:", zodError);
 
     const missingVars: string[] = [];
-    zodError.errors.forEach((err) => {
+    zodError.issues.forEach((err: z.ZodIssue) => {
       const field = err.path.join(".");
       missingVars.push(`  - ${field}: ${err.message}`);
     });

@@ -106,7 +106,7 @@ const expectedIndexes: ExpectedIndexes = {
 
 async function checkIndexes(): Promise<void> {
   console.log("🔍 Checking database indexes...\n");
-  console.log(`📡 Connected to: ${supabaseUrl.replace(/https?:\/\//, "").split("/")[0]}\n`);
+  console.log(`📡 Connected to: ${(supabaseUrl ?? "").replace(/https?:\/\//, "").split("/")[0] || "(unknown)"}\n`);
 
   console.log("⚠️  Note: Supabase JS client doesn't support direct SQL queries.");
   console.log("💡 To check indexes, run this SQL in Supabase SQL Editor:\n");

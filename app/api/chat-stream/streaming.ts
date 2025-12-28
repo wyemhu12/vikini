@@ -79,7 +79,7 @@ function pick<T = unknown>(obj: unknown, keys: string[]): T | undefined {
   return undefined;
 }
 
-interface ChatStreamParams {
+export interface ChatStreamParams {
   ai: {
     models: {
       generateContentStream: (params: {
@@ -91,7 +91,7 @@ interface ChatStreamParams {
           tools?: unknown[];
           safetySettings?: unknown[];
         };
-      }) => AsyncIterable<unknown>;
+      }) => Promise<AsyncGenerator<unknown, unknown, unknown>> | AsyncIterable<unknown>;
     };
   };
   model: string;
@@ -249,7 +249,8 @@ async function executeStream(
     config,
   });
 
-  for await (const chunk of res) {
+  const stream = res instanceof Promise ? await res : res;
+  for await (const chunk of stream) {
     const pf = pick(chunk, ["promptFeedback", "prompt_feedback"]);
     if (pf) promptFeedback = pf;
 
