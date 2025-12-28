@@ -9,7 +9,7 @@ afterEach(() => {
 });
 
 // Mock environment variables for tests
-process.env.NODE_ENV = "test";
+// Note: NODE_ENV is read-only and set automatically by Vitest
 process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
 process.env.UPSTASH_REDIS_REST_URL = "https://test-redis.upstash.io";
