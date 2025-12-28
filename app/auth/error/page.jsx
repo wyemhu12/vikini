@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLanguage } from "../../features/chat/hooks/useLanguage";
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
   const searchParams = useSearchParams();
   const { language, setLanguage } = useLanguage();
   const [mounted, setMounted] = useState(false);
@@ -128,6 +128,14 @@ export default function AuthErrorPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#020617]" />}>
+      <AuthErrorContent />
+    </Suspense>
   );
 }
 
