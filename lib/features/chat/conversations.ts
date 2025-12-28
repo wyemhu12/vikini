@@ -1,27 +1,78 @@
-// /lib/features/chat/conversations.js
+// /lib/features/chat/conversations.ts
 import { getSupabaseAdmin } from "@/lib/core/supabase";
 import { deleteAttachmentsByConversation } from "@/lib/features/attachments/attachments";
 import { CONVERSATION_DEFAULTS } from "@/lib/utils/constants";
-
 import {
   DEFAULT_MODEL,
   SELECTABLE_MODELS,
   coerceStoredModel,
   isSelectableModelId,
+  type SelectableModel,
 } from "@/lib/core/modelRegistry";
 
 // ------------------------------
-// Constants (single source of truth: /lib/core/modelRegistry.js)
+// Constants (single source of truth: /lib/core/modelRegistry.ts)
 // ------------------------------
 
 // Backward-compatible exports
 export { DEFAULT_MODEL };
-export const AVAILABLE_MODELS = SELECTABLE_MODELS;
+export const AVAILABLE_MODELS: readonly SelectableModel[] = SELECTABLE_MODELS;
+
+// ------------------------------
+// Types
+// ------------------------------
+
+export interface Conversation {
+  id: string;
+  userId: string;
+  title: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  lastMessagePreview: string | null;
+  gemId: string | null;
+  model: string;
+  gem: {
+    name: string;
+    icon: string | null;
+    color: string | null;
+  } | null;
+}
+
+interface ConversationRow {
+  id: string;
+  user_id?: string;
+  userId?: string;
+  user?: string;
+  owner?: string;
+  created_by?: string;
+  title?: string;
+  created_at?: string;
+  createdAt?: string;
+  updated_at?: string;
+  updatedAt?: string;
+  last_message_preview?: string;
+  lastMessagePreview?: string;
+  gem_id?: string | null;
+  gemId?: string | null;
+  model?: string;
+  gems?: {
+    name: string;
+    icon: string | null;
+    color: string | null;
+  } | null;
+}
+
+interface ConversationPayload {
+  title?: string;
+  model?: string;
+  lastMessagePreview?: string | null;
+  gemId?: string | null;
+}
 
 // ------------------------------
 // Row mappers
 // ------------------------------
-export function mapConversationRow(row) {
+export function mapConversationRow(row: ConversationRow | null): Conversation | null {
   if (!row) return null;
 
   return {
@@ -44,7 +95,7 @@ export function mapConversationRow(row) {
   };
 }
 
-export async function getConversationSafe(conversationId) {
+export async function getConversationSafe(conversationId: string): Promise<Conversation | null> {
   const supabase = getSupabaseAdmin();
 
   // Try join on gems (supabase can join by relationship)
@@ -62,7 +113,7 @@ export async function getConversationSafe(conversationId) {
   return mapConversationRow(q2.data);
 }
 
-async function listConversationsSafe(userId) {
+async function listConversationsSafe(userId: string): Promise<Conversation[]> {
   const supabase = getSupabaseAdmin();
 
   // Try primary schema: user_id
@@ -72,7 +123,7 @@ async function listConversationsSafe(userId) {
     .eq("user_id", userId)
     .order("updated_at", { ascending: false });
 
-  if (!q1.error) return (q1.data || []).map(mapConversationRow);
+  if (!q1.error) return (q1.data || []).map(mapConversationRow).filter((c): c is Conversation => c !== null);
 
   // Fallback schema: userId
   const q2 = await supabase
@@ -82,17 +133,17 @@ async function listConversationsSafe(userId) {
     .order("updated_at", { ascending: false });
 
   if (q2.error) throw new Error(`listConversations failed: ${q2.error.message}`);
-  return (q2.data || []).map(mapConversationRow);
+  return (q2.data || []).map(mapConversationRow).filter((c): c is Conversation => c !== null);
 }
 
 // ------------------------------
 // Conversations
 // ------------------------------
-export async function getConversation(conversationId) {
+export async function getConversation(conversationId: string): Promise<Conversation | null> {
   return getConversationSafe(conversationId);
 }
 
-export async function saveConversation(userId, payload) {
+export async function saveConversation(userId: string, payload: ConversationPayload = {}): Promise<Conversation | null> {
   const supabase = getSupabaseAdmin();
   const title = typeof payload?.title === "string" ? payload.title : CONVERSATION_DEFAULTS.TITLE;
   const model = coerceStoredModel(payload?.model);
@@ -133,7 +184,11 @@ export async function saveConversation(userId, payload) {
   return mapConversationRow(attempt2.data);
 }
 
-export async function setConversationGem(userId, conversationId, gemId) {
+export async function setConversationGem(
+  userId: string,
+  conversationId: string,
+  gemId: string | null
+): Promise<Conversation | null> {
   const supabase = getSupabaseAdmin();
 
   const current = await getConversationSafe(conversationId);
@@ -150,7 +205,11 @@ export async function setConversationGem(userId, conversationId, gemId) {
 }
 
 // NEW: Set model for a conversation
-export async function setConversationModel(userId, conversationId, model) {
+export async function setConversationModel(
+  userId: string,
+  conversationId: string,
+  model: string
+): Promise<Conversation | null> {
   const supabase = getSupabaseAdmin();
 
   const current = await getConversationSafe(conversationId);
@@ -169,7 +228,11 @@ export async function setConversationModel(userId, conversationId, model) {
   return getConversationSafe(conversationId);
 }
 
-export async function renameConversation(userId, id, title) {
+export async function renameConversation(
+  userId: string,
+  id: string,
+  title: string
+): Promise<Conversation | null> {
   const supabase = getSupabaseAdmin();
 
   const current = await getConversationSafe(id);
@@ -185,7 +248,7 @@ export async function renameConversation(userId, id, title) {
   return getConversationSafe(id);
 }
 
-export async function deleteConversation(userId, conversationId) {
+export async function deleteConversation(userId: string, conversationId: string): Promise<{ ok: boolean }> {
   const supabase = getSupabaseAdmin();
 
   const current = await getConversationSafe(conversationId);
@@ -204,15 +267,24 @@ export async function deleteConversation(userId, conversationId) {
 // ------------------------------
 // Compatibility exports (expected by your routes)
 // ------------------------------
-export async function getUserConversations(userId) {
+export async function getUserConversations(userId: string): Promise<Conversation[]> {
   return listConversationsSafe(userId);
 }
 
-export async function updateConversationTitle(userId, conversationId, title) {
+export async function updateConversationTitle(
+  userId: string,
+  conversationId: string,
+  title: string
+): Promise<Conversation | null> {
   return renameConversation(userId, conversationId, title);
 }
 
-export async function setConversationAutoTitle(userId, id, title) {
+export async function setConversationAutoTitle(
+  userId: string,
+  id: string,
+  title: string
+): Promise<Conversation | null> {
   // same as renameConversation but kept for semantic clarity
   return renameConversation(userId, id, title);
 }
+

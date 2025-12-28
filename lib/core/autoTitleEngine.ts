@@ -1,4 +1,4 @@
-// /lib/core/autoTitleEngine.js
+// /lib/core/autoTitleEngine.ts
 // Auto-title generation (uses @google/genai via cached client)
 
 import { getGenAIClient } from "@/lib/core/genaiClient";
@@ -15,15 +15,39 @@ const PRIMARY_MODEL = "gemini-3-flash-preview";
 // Model dự phòng ổn định (Stable) nếu bản Preview bị lỗi rate limit hoặc 503
 const FALLBACK_MODEL = "gemini-2.5-flash";
 
-function extractText(resp) {
+interface GenerateTitleOptions {
+  temperature: number;
+  maxOutputTokens: number;
+}
+
+interface Message {
+  role: string;
+  content: string;
+}
+
+function extractText(resp: unknown): string {
   try {
     // Xử lý các định dạng response khác nhau của @google/genai SDK
-    if (typeof resp?.text === "function") return resp.text();
-    if (typeof resp?.text === "string") return resp.text;
-    
-    // Fallback sâu vào cấu trúc JSON (đề phòng thay đổi SDK)
-    if (resp?.candidates?.[0]?.content?.parts?.[0]?.text) {
-      return resp.candidates[0].content.parts[0].text;
+    if (typeof resp === "object" && resp !== null) {
+      if (typeof (resp as { text?: () => string }).text === "function") {
+        return (resp as { text: () => string }).text();
+      }
+      if (typeof (resp as { text?: string }).text === "string") {
+        return (resp as { text: string }).text;
+      }
+      
+      // Fallback sâu vào cấu trúc JSON (đề phòng thay đổi SDK)
+      const candidates = (resp as { candidates?: unknown[] })?.candidates;
+      if (Array.isArray(candidates) && candidates[0]) {
+        const candidate = candidates[0] as { content?: { parts?: unknown[] } };
+        const parts = candidate?.content?.parts;
+        if (Array.isArray(parts) && parts[0]) {
+          const part = parts[0] as { text?: string };
+          if (typeof part.text === "string") {
+            return part.text;
+          }
+        }
+      }
     }
   } catch (e) {
     titleLogger.error("Error extracting text:", e);
@@ -32,7 +56,7 @@ function extractText(resp) {
 }
 
 // Chuẩn hóa title (KHÔNG bao giờ trả rỗng)
-export function normalizeTitle(str) {
+export function normalizeTitle(str: string | null | undefined): string {
   if (str == null) return CONVERSATION_DEFAULTS.TITLE;
 
   // ép về string để tránh trường hợp .text() trả non-string
@@ -64,7 +88,7 @@ export function normalizeTitle(str) {
   );
 }
 
-function titleFromUserMessage(userMessage) {
+function titleFromUserMessage(userMessage: string): string {
   const short = String(userMessage || "")
     .trim()
     .split(/\s+/)
@@ -76,11 +100,14 @@ function titleFromUserMessage(userMessage) {
 /**
  * Hàm core gọi AI với cơ chế Fallback
  */
-async function generateTitleWithModel(promptText, { temperature, maxOutputTokens }) {
+async function generateTitleWithModel(
+  promptText: string,
+  { temperature, maxOutputTokens }: GenerateTitleOptions
+): Promise<string | null> {
   const ai = getGenAIClient();
   
   // Helper thực thi gọi model
-  const attemptGenerate = async (modelId) => {
+  const attemptGenerate = async (modelId: string): Promise<string> => {
     try {
       const res = await ai.models.generateContent({
         model: modelId,
@@ -101,28 +128,25 @@ async function generateTitleWithModel(promptText, { temperature, maxOutputTokens
     // Thử model chính (Gemini 3 Flash Preview)
     return await attemptGenerate(PRIMARY_MODEL);
   } catch (e1) {
-    titleLogger.warn(`Primary model ${PRIMARY_MODEL} failed, trying fallback. Error: ${e1.message}`);
+    titleLogger.warn(`Primary model ${PRIMARY_MODEL} failed, trying fallback. Error: ${e1}`);
     
     try {
       // Thử model dự phòng (Gemini 2.5 Flash Stable)
       return await attemptGenerate(FALLBACK_MODEL);
     } catch (e2) {
-      titleLogger.error(`All models failed. Fallback: ${e2.message}`);
+      titleLogger.error(`All models failed. Fallback: ${e2}`);
       return null;
     }
   }
 }
 
 // -------- OPTIMISTIC TITLE (RẤT NHANH) --------
-export async function generateOptimisticTitle(userMessage) {
+export async function generateOptimisticTitle(userMessage: string): Promise<string> {
   const fallback = titleFromUserMessage(userMessage);
-  if (!userMessage?.trim()) return null;
-
-  const short = String(userMessage).trim().split(/\s+/).slice(0, 10).join(" ");
 
   try {
     const raw = await generateTitleWithModel(
-      `Summarize this into a 3-5 word title (plain text, no quotes):\n"${short}"`,
+      `Summarize this into a 3-5 word title (plain text, no quotes):\n"${fallback}"`,
       { temperature: 0.3, maxOutputTokens: 15 }
     );
 
@@ -135,7 +159,15 @@ export async function generateOptimisticTitle(userMessage) {
 }
 
 // -------- FINAL TITLE --------
-export async function generateFinalTitle({ userId, conversationId, messages }) {
+export async function generateFinalTitle({
+  userId,
+  conversationId,
+  messages,
+}: {
+  userId: string;
+  conversationId: string;
+  messages: Message[];
+}): Promise<string | null> {
   try {
     const transcript = (messages || [])
       .map((m) => `${String(m.role || "").toUpperCase()}: ${String(m.content || "")}`)
@@ -159,7 +191,8 @@ export async function generateFinalTitle({ userId, conversationId, messages }) {
 
     return normalized;
   } catch (e) {
-    console.error("Final title error:", e);
+    titleLogger.error("Final title error:", e);
     return null;
   }
 }
+
