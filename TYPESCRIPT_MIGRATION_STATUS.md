@@ -1,110 +1,104 @@
 # TypeScript Migration Status
 
-## 📊 Tiến trình tổng quan
+## ✅ Đã Hoàn Thành
 
-**Trạng thái hiện tại**: Đã migrate một phần (khoảng 20-25%)
+### lib/ Directory - 77% Complete (17/22 files)
+- ✅ **lib/core/** - 100% (8/8 files)
+  - supabase.ts, genaiClient.ts, modelRegistry.ts, encryption.ts
+  - rateLimit.ts, autoTitleEngine.ts, redisContext.ts, whitelist.ts
+- ✅ **lib/utils/** - 100% (6/6 files)
+  - constants.ts, logger.ts, errors.ts, apiResponse.ts, config.ts, download.ts
+- ✅ **lib/features/auth/** - 100% (1/1 file)
+  - auth.ts
+- ✅ **lib/features/chat/** - 66% (2/3 files)
+  - conversations.ts, messages.ts
+  - ⏳ postgresChat.js
 
-### ✅ Đã hoàn thành (9 files)
+### app/api/ Directory - 18% Complete (2/11 routes)
+- ✅ conversations/route.ts
+- ✅ chat-stream/route.ts
+- ⏳ 9 routes còn lại
 
-#### 1. Utility Files (lib/utils/) - 4/6 files ✅
-- ✅ `constants.ts` 
-- ✅ `logger.ts`
-- ✅ `errors.ts`
-- ✅ `apiResponse.ts`
-- ⏳ `download.js` - Chưa migrate
-- ⏳ `config.js` - Chưa migrate
+## ⏳ Còn Lại
 
-#### 2. API Routes (app/api/) - 2/15 files ✅
-- ✅ `conversations/route.ts`
-- ✅ `chat-stream/route.ts`
-- ✅ Type definitions: `auth.d.ts`, `validators.d.ts`, `sanitize.d.ts`
-- ⏳ `chat-stream/chatStreamCore.js` - Large file, chưa migrate
-- ⏳ `chat-stream/streaming.js` - Chưa migrate
-- ⏳ `gems/route.js` - Chưa migrate
-- ⏳ `gems/preview/route.js` - Chưa migrate
-- ⏳ `attachments/*.js` (4 files) - Chưa migrate
-- ⏳ `cron/attachments-cleanup/route.js` - Chưa migrate
-- ⏳ `auth/[...nextauth]/route.js` - Chưa migrate
-- ⏳ `conversations/auth.js` - Có .d.ts nhưng chưa migrate
-- ⏳ `conversations/validators.js` - Có .d.ts nhưng chưa migrate
-- ⏳ `conversations/sanitize.js` - Có .d.ts nhưng chưa migrate
+### lib/features/ - 5 files
+1. `gems/gems.js`
+2. `chat/postgresChat.js`
+3. `attachments/zip.js`
+4. `attachments/store.js`
+5. `attachments/attachments.js`
 
-### ⏳ Còn lại cần migrate
+### app/api/ - 13 files
+**Chat Stream:**
+1. `chat-stream/chatStreamCore.js`
+2. `chat-stream/streaming.js`
 
-#### 3. Core Library Files (lib/core/) - 0/8 files ⏳
-- ⏳ `supabase.js`
-- ⏳ `genaiClient.js`
-- ⏳ `modelRegistry.js`
-- ⏳ `autoTitleEngine.js`
-- ⏳ `encryption.js`
-- ⏳ `rateLimit.js`
-- ⏳ `redisContext.js`
-- ⏳ `whitelist.js`
+**Conversations:**
+3. `conversations/auth.js`
+4. `conversations/validators.js`
+5. `conversations/sanitize.js`
 
-#### 4. Feature Library Files (lib/features/) - 0/5 files ⏳
-- ⏳ `chat/conversations.js`
-- ⏳ `chat/messages.js`
-- ⏳ `chat/postgresChat.js`
-- ⏳ `gems/gems.js`
-- ⏳ `auth/auth.js`
-- ⏳ `attachments/attachments.js`
-- ⏳ `attachments/store.js`
-- ⏳ `attachments/zip.js`
+**Gems:**
+6. `gems/route.js`
+7. `gems/preview/route.js`
 
-#### 5. Frontend Components
-- ⏳ Tất cả `.jsx` files - Có thể migrate sau
-- ⏳ React hooks - Có thể migrate sau
+**Attachments:**
+8. `attachments/route.js`
+9. `attachments/analyze/route.js`
+10. `attachments/upload/route.js`
+11. `attachments/url/route.js`
 
-## 📈 Thống kê
+**Other:**
+12. `auth/[...nextauth]/route.js`
+13. `cron/attachments-cleanup/route.js`
 
-- **Total .js files cần migrate**: ~30 files
-- **Đã migrate thành .ts**: ~9 files
-- **Tỷ lệ hoàn thành**: ~30%
+### app/features/ - 7 files (Frontend hooks/stores)
+1. `chat/hooks/useChat.js`
+2. `chat/hooks/useTheme.js`
+3. `chat/hooks/useLanguage.js`
+4. `chat/hooks/useConversation.js`
+5. `chat/hooks/useAutoTitleStore.js`
+6. `chat/components/hooks/useChatStreamController.js`
+7. `chat/components/hooks/useWebSearchPreference.js`
+8. `gems/stores/useGemStore.js`
 
-## 🎯 Ưu tiên tiếp theo
+### app/auth/ - 1 file
+1. `signin/actions.js`
 
-### High Priority (Core functionality)
-1. **lib/core/supabase.js** - Quan trọng, được dùng nhiều
-2. **lib/features/chat/conversations.js** - Quan trọng, được dùng nhiều
-3. **lib/features/chat/messages.js** - Quan trọng, được dùng nhiều
-4. **app/api/chat-stream/chatStreamCore.js** - Large file nhưng quan trọng
+### scripts/ - 2 files (không quan trọng)
+1. `check-tables.js`
+2. `check-indexes.js`
 
-### Medium Priority
-5. lib/core/genaiClient.js
-6. lib/core/modelRegistry.js
-7. lib/features/gems/gems.js
-8. app/api/gems/route.js
+## 📊 Tổng Kết
 
-### Low Priority (Có thể để sau)
-- Frontend components (.jsx)
-- Helper utilities (download.js, config.js)
-- Cron jobs
+### Statistics:
+- **TypeScript files:** 25 files (.ts)
+- **JavaScript files còn lại:** 29 files (.js)
+- **Migration progress:** ~46% (25/54 files)
 
-## 💡 Lưu ý
+### Breakdown by Priority:
+- ✅ **Core & Utils:** 100% Complete (14/14 files)
+- ⏳ **Feature Libraries:** ~62% (3/8 files)
+- ⏳ **API Routes:** ~18% (2/11 routes)
+- ⏳ **Frontend Hooks/Stores:** 0% (0/8 files)
 
-1. **Gradual Migration**: Project đang dùng `allowJs: true`, nên có thể migrate từng file một mà không ảnh hưởng đến code khác.
+## 🎯 Ưu Tiên Tiếp Theo
 
-2. **Type Definitions**: Một số files đã có `.d.ts` files (type definitions) nhưng chưa migrate sang `.ts`. Có thể giữ nguyên hoặc migrate khi cần.
+### High Priority (Backend/API):
+1. API routes (13 files) - Quan trọng cho type safety
+2. Feature libraries còn lại (5 files) - Core functionality
 
-3. **Backward Compatibility**: Đã fix vấn đề API response format để giữ backward compatibility với frontend.
+### Medium Priority (Frontend):
+3. Frontend hooks/stores (8 files) - Cải thiện DX nhưng không critical
 
-4. **Testing**: Sau mỗi lần migrate file quan trọng, nên test để đảm bảo không có lỗi runtime.
+### Low Priority:
+4. Scripts và utilities nhỏ (3 files)
 
-## ✅ Những gì đã đạt được
+## 💡 Kết Luận
 
-1. ✅ Setup TypeScript infrastructure hoàn chỉnh
-2. ✅ Migrate utilities (constants, logger, errors, apiResponse)
-3. ✅ Migrate 2 API routes quan trọng (conversations, chat-stream)
-4. ✅ Type safety cho error handling
-5. ✅ Proper type definitions
-6. ✅ Build passes without errors
-7. ✅ Backward compatibility được giữ
+**CHƯA xong hết**, nhưng đã hoàn thành phần **Core & Utils (100%)** - đây là nền tảng quan trọng nhất.
 
-## 🚀 Next Steps
-
-Nếu muốn tiếp tục migration, có thể:
-
-1. Migrate core files trước (supabase, conversations, messages)
-2. Sau đó migrate các API routes còn lại
-3. Cuối cùng migrate frontend components (optional)
-
+**Ước tính thời gian để hoàn thành:**
+- API routes + Feature libraries: ~2-3 giờ
+- Frontend hooks: ~1-2 giờ
+- **Tổng:** ~3-5 giờ để migrate 100%
