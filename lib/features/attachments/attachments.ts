@@ -67,7 +67,8 @@ function toBytes(v: unknown, fallback: number): number {
 
 export function getAttachmentsConfig(): AttachmentsConfig {
   return {
-    bucket: pickFirstEnv(["ATTACHMENTS_BUCKET", "SUPABASE_ATTACHMENTS_BUCKET"]) || "vikini-attachments",
+    bucket:
+      pickFirstEnv(["ATTACHMENTS_BUCKET", "SUPABASE_ATTACHMENTS_BUCKET"]) || "vikini-attachments",
     ttlHours: toInt(pickFirstEnv(["ATTACHMENTS_TTL_HOURS", "ATTACH_TTL_HOURS"]), 36),
 
     maxTextBytes: toBytes(pickFirstEnv(["ATTACH_MAX_TEXT_BYTES"]), 2 * 1024 * 1024),
@@ -78,7 +79,10 @@ export function getAttachmentsConfig(): AttachmentsConfig {
     maxZipBytes: toBytes(pickFirstEnv(["ATTACH_MAX_ZIP_BYTES"]), 20 * 1024 * 1024),
 
     maxFilesPerConversation: toInt(pickFirstEnv(["ATTACH_MAX_FILES_PER_CONV"]), 20),
-    maxTotalBytesPerConversation: toBytes(pickFirstEnv(["ATTACH_MAX_TOTAL_BYTES_PER_CONV"]), 50 * 1024 * 1024),
+    maxTotalBytesPerConversation: toBytes(
+      pickFirstEnv(["ATTACH_MAX_TOTAL_BYTES_PER_CONV"]),
+      50 * 1024 * 1024
+    ),
 
     signedUrlSeconds: toInt(pickFirstEnv(["ATTACH_SIGNED_URL_SECONDS"]), 5 * 60),
   };
@@ -104,7 +108,11 @@ const ALLOWED_DOC_MIMES = new Set([
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]);
 
-const ALLOWED_ARCHIVE_MIMES = new Set(["application/zip", "application/x-zip-compressed", "multipart/x-zip"]);
+const ALLOWED_ARCHIVE_MIMES = new Set([
+  "application/zip",
+  "application/x-zip-compressed",
+  "multipart/x-zip",
+]);
 
 const ALLOWED_EXTS = new Set([
   "txt",
@@ -124,14 +132,17 @@ const ALLOWED_EXTS = new Set([
 ]);
 
 function safeLower(v: unknown): string {
-  return String(v || "").trim().toLowerCase();
+  return String(v || "")
+    .trim()
+    .toLowerCase();
 }
 
 export function sanitizeFilename(name: unknown): string {
   const raw = String(name || "file").trim();
   const cleaned = raw
-    .replace(/[\\\/]+/g, "_")
-    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .replace(/[\\/]+/g, "_")
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x00-\x1F\x7F]/g, "")
     .slice(0, 200)
     .trim();
   return cleaned || "file";
@@ -192,7 +203,7 @@ async function sniffImageMime(file: File): Promise<string> {
  * Validates that the file is actually a valid image by checking magic bytes.
  * This prevents malicious files with image extensions but is lenient enough
  * to accept valid images that may have variations in structure.
- * 
+ *
  * @param file - The file to validate
  * @param expectedMime - The expected MIME type
  * @returns true if the file is a valid image, false otherwise
@@ -200,19 +211,19 @@ async function sniffImageMime(file: File): Promise<string> {
 async function validateImageContent(file: File, expectedMime: string): Promise<boolean> {
   try {
     const buf = Buffer.from(await file.arrayBuffer());
-    
+
     // Must have minimum size for any image
     if (buf.length < 8) return false;
-    
+
     const sniffedMime = await sniffImageMime(file);
-    
+
     // If we can sniff the MIME type, it's likely a valid image
     // Just verify it matches the expected type
     if (sniffedMime) {
       // Allow if sniffed MIME matches expected, or if expected is generic
       return sniffedMime === expectedMime || expectedMime.startsWith("image/");
     }
-    
+
     // If we can't sniff but expected MIME is set, do basic magic byte check
     if (expectedMime === "image/png") {
       // PNG signature: 89 50 4E 47 0D 0A 1A 0A
@@ -227,12 +238,12 @@ async function validateImageContent(file: File, expectedMime: string): Promise<b
         buf[7] === 0x0a
       );
     }
-    
+
     if (expectedMime === "image/jpeg") {
       // JPEG signature: FF D8 FF
       return buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
     }
-    
+
     if (expectedMime === "image/webp") {
       // WEBP: RIFF header (52 49 46 46) and WEBP signature at offset 8
       if (buf.length < 12) return false;
@@ -247,7 +258,7 @@ async function validateImageContent(file: File, expectedMime: string): Promise<b
         buf[11] === 0x50
       );
     }
-    
+
     // If we can't validate and no sniffed MIME, be lenient and allow it
     // (the MIME type check above should have caught invalid types)
     return true;
@@ -262,7 +273,10 @@ interface ValidateUploadParams {
   filename?: string;
 }
 
-export async function validateUpload({ file, filename }: ValidateUploadParams): Promise<ValidateUploadResult> {
+export async function validateUpload({
+  file,
+  filename,
+}: ValidateUploadParams): Promise<ValidateUploadResult> {
   const cfg = getAttachmentsConfig();
   if (!file) throw new Error("Missing file");
 
@@ -284,7 +298,13 @@ export async function validateUpload({ file, filename }: ValidateUploadParams): 
       throw new Error("Text MIME not allowed");
     }
     const defaultTextMime = ext === "json" ? "application/json" : "text/plain";
-    return { kind: "text", filename: safeName, ext, mime: mime || defaultTextMime, sizeBytes: size };
+    return {
+      kind: "text",
+      filename: safeName,
+      ext,
+      mime: mime || defaultTextMime,
+      sizeBytes: size,
+    };
   }
 
   if (isImageExt) {
@@ -332,7 +352,13 @@ export async function validateUpload({ file, filename }: ValidateUploadParams): 
     }
     const defaultZipMime = "application/zip";
     const effectiveMime = mime === "application/octet-stream" ? "" : mime;
-    return { kind: "zip", filename: safeName, ext, mime: effectiveMime || defaultZipMime, sizeBytes: size };
+    return {
+      kind: "zip",
+      filename: safeName,
+      ext,
+      mime: effectiveMime || defaultZipMime,
+      sizeBytes: size,
+    };
   }
 
   throw new Error("File type not allowed");
@@ -410,7 +436,10 @@ interface GetAttachmentParams {
   id: string;
 }
 
-export async function getAttachmentById({ userId, id }: GetAttachmentParams): Promise<AttachmentRow> {
+export async function getAttachmentById({
+  userId,
+  id,
+}: GetAttachmentParams): Promise<AttachmentRow> {
   const supabase = getSupabaseAdmin();
 
   const { data, error } = await supabase
@@ -493,14 +522,19 @@ interface CreateSignedUrlParams {
   id: string;
 }
 
-export async function createSignedUrlForAttachmentId({ userId, id }: CreateSignedUrlParams): Promise<SignedUrlResult> {
+export async function createSignedUrlForAttachmentId({
+  userId,
+  id,
+}: CreateSignedUrlParams): Promise<SignedUrlResult> {
   const supabase = getSupabaseAdmin();
   const row = await getAttachmentById({ userId, id });
 
   const bucket = (row?.bucket || getAttachmentsConfig().bucket) as string;
   const seconds = getAttachmentsConfig().signedUrlSeconds;
 
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(row.storage_path as string, seconds);
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(row.storage_path as string, seconds);
   if (error) throw new Error(`Signed URL failed: ${error.message}`);
   if (!data?.signedUrl) throw new Error("Signed URL missing");
 
@@ -512,20 +546,29 @@ export async function createSignedUrlForAttachmentId({ userId, id }: CreateSigne
   };
 }
 
-export async function downloadAttachmentBytes({ userId, id }: GetAttachmentParams): Promise<AttachmentBytesResult> {
+export async function downloadAttachmentBytes({
+  userId,
+  id,
+}: GetAttachmentParams): Promise<AttachmentBytesResult> {
   const supabase = getSupabaseAdmin();
   const row = await getAttachmentById({ userId, id });
   const bucket = (row?.bucket || getAttachmentsConfig().bucket) as string;
 
   const { data, error } = await supabase.storage.from(bucket).download(row.storage_path as string);
-  if (error) throw new Error(`Download failed: ${(error as { error?: { message?: string } }).error?.message || error.message}`);
+  if (error)
+    throw new Error(
+      `Download failed: ${(error as { error?: { message?: string } }).error?.message || error.message}`
+    );
   if (!data) throw new Error("Download missing");
 
   const bytes = Buffer.from(await data.arrayBuffer());
   return { row, bytes };
 }
 
-export async function deleteAttachmentById({ userId, id }: GetAttachmentParams): Promise<{ ok: boolean }> {
+export async function deleteAttachmentById({
+  userId,
+  id,
+}: GetAttachmentParams): Promise<{ ok: boolean }> {
   const supabase = getSupabaseAdmin();
   const row = await getAttachmentById({ userId, id });
   const bucket = (row?.bucket || getAttachmentsConfig().bucket) as string;
@@ -556,7 +599,10 @@ export async function deleteAttachmentsByConversation({
     .eq("conversation_id", conversationId)
     .eq("user_id", userId);
 
-  if (error) throw new Error(`List attachments failed: ${(error as { error?: { message?: string } }).error?.message || error.message}`);
+  if (error)
+    throw new Error(
+      `List attachments failed: ${(error as { error?: { message?: string } }).error?.message || error.message}`
+    );
 
   const byBucket = new Map<string, string[]>();
   for (const r of rows || []) {
@@ -583,4 +629,3 @@ export async function deleteAttachmentsByConversation({
 
   return { ok: true, deleted: (rows || []).length };
 }
-

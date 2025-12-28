@@ -9,6 +9,11 @@ import {
   isSelectableModelId,
   type SelectableModel,
 } from "@/lib/core/modelRegistry";
+import {
+  getCachedConversations,
+  setCachedConversations,
+  invalidateConversationsCache,
+} from "@/lib/core/cache";
 
 // ------------------------------
 // Constants (single source of truth: /lib/core/modelRegistry.ts)
@@ -108,7 +113,11 @@ export async function getConversationSafe(conversationId: string): Promise<Conve
   if (!q1.error) return mapConversationRow(q1.data);
 
   // Fallback: no relation or join not supported
-  const q2 = await supabase.from("conversations").select("*").eq("id", conversationId).maybeSingle();
+  const q2 = await supabase
+    .from("conversations")
+    .select("*")
+    .eq("id", conversationId)
+    .maybeSingle();
   if (q2.error) throw new Error(`getConversation failed: ${q2.error.message}`);
   return mapConversationRow(q2.data);
 }
@@ -123,7 +132,8 @@ async function listConversationsSafe(userId: string): Promise<Conversation[]> {
     .eq("user_id", userId)
     .order("updated_at", { ascending: false });
 
-  if (!q1.error) return (q1.data || []).map(mapConversationRow).filter((c): c is Conversation => c !== null);
+  if (!q1.error)
+    return (q1.data || []).map(mapConversationRow).filter((c): c is Conversation => c !== null);
 
   // Fallback schema: userId
   const q2 = await supabase
@@ -142,13 +152,13 @@ async function listConversationsSafe(userId: string): Promise<Conversation[]> {
 
 /**
  * Retrieves a conversation by ID.
- * 
+ *
  * Includes related gem information (name, icon, color) if available.
- * 
+ *
  * @param conversationId - UUID of the conversation to retrieve
  * @returns Conversation object with gem info, or null if not found
  * @throws {Error} If database query fails
- * 
+ *
  * @example
  * ```typescript
  * const conv = await getConversation('123e4567-e89b-12d3-a456-426614174000');
@@ -163,11 +173,11 @@ export async function getConversation(conversationId: string): Promise<Conversat
 
 /**
  * Creates a new conversation or updates an existing one.
- * 
+ *
  * **Schema Compatibility:**
  * Supports both snake_case (`user_id`, `created_at`) and camelCase (`userId`, `createdAt`)
  * database schemas for backward compatibility.
- * 
+ *
  * @param userId - User ID (email) who owns the conversation
  * @param payload - Conversation data:
  *   - `title`: Optional conversation title (defaults to "New Chat")
@@ -176,7 +186,7 @@ export async function getConversation(conversationId: string): Promise<Conversat
  *   - `gemId`: Optional gem ID to associate with conversation
  * @returns Created/updated conversation object, or null on error
  * @throws {Error} If database insert fails
- * 
+ *
  * @example
  * ```typescript
  * const conv = await saveConversation('user@example.com', {
@@ -185,7 +195,10 @@ export async function getConversation(conversationId: string): Promise<Conversat
  * });
  * ```
  */
-export async function saveConversation(userId: string, payload: ConversationPayload = {}): Promise<Conversation | null> {
+export async function saveConversation(
+  userId: string,
+  payload: ConversationPayload = {}
+): Promise<Conversation | null> {
   const supabase = getSupabaseAdmin();
   const title = typeof payload?.title === "string" ? payload.title : CONVERSATION_DEFAULTS.TITLE;
   const model = coerceStoredModel(payload?.model);
@@ -205,25 +218,33 @@ export async function saveConversation(userId: string, payload: ConversationPayl
     .select("*")
     .single();
 
-  if (!attempt1.error) return mapConversationRow(attempt1.data);
+  let result: Conversation | null = null;
+  if (!attempt1.error) {
+    result = mapConversationRow(attempt1.data);
+  } else {
+    // Fallback
+    const attempt2 = await supabase
+      .from("conversations")
+      .insert({
+        userId,
+        title,
+        model,
+        createdAt: now,
+        updatedAt: now,
+        lastMessagePreview: payload?.lastMessagePreview ?? null,
+        gemId: payload?.gemId ?? null,
+      })
+      .select("*")
+      .single();
 
-  // Fallback
-  const attempt2 = await supabase
-    .from("conversations")
-    .insert({
-      userId,
-      title,
-      model,
-      createdAt: now,
-      updatedAt: now,
-      lastMessagePreview: payload?.lastMessagePreview ?? null,
-      gemId: payload?.gemId ?? null,
-    })
-    .select("*")
-    .single();
+    if (attempt2.error) throw new Error(`saveConversation failed: ${attempt2.error.message}`);
+    result = mapConversationRow(attempt2.data);
+  }
 
-  if (attempt2.error) throw new Error(`saveConversation failed: ${attempt2.error.message}`);
-  return mapConversationRow(attempt2.data);
+  // Invalidate cache after creating conversation
+  await invalidateConversationsCache(userId);
+
+  return result;
 }
 
 export async function setConversationGem(
@@ -243,6 +264,10 @@ export async function setConversationGem(
     .eq("id", conversationId);
 
   if (error) throw new Error(`setConversationGem failed: ${error.message}`);
+
+  // Invalidate cache after update
+  await invalidateConversationsCache(userId);
+
   return getConversationSafe(conversationId);
 }
 
@@ -267,6 +292,10 @@ export async function setConversationModel(
     .eq("id", conversationId);
 
   if (error) throw new Error(`setConversationModel failed: ${error.message}`);
+
+  // Invalidate cache after update
+  await invalidateConversationsCache(userId);
+
   return getConversationSafe(conversationId);
 }
 
@@ -287,10 +316,17 @@ export async function renameConversation(
     .eq("id", id);
 
   if (error) throw new Error(`renameConversation failed: ${error.message}`);
+
+  // Invalidate cache after update
+  await invalidateConversationsCache(userId);
+
   return getConversationSafe(id);
 }
 
-export async function deleteConversation(userId: string, conversationId: string): Promise<{ ok: boolean }> {
+export async function deleteConversation(
+  userId: string,
+  conversationId: string
+): Promise<{ ok: boolean }> {
   const supabase = getSupabaseAdmin();
 
   const current = await getConversationSafe(conversationId);
@@ -303,6 +339,9 @@ export async function deleteConversation(userId: string, conversationId: string)
   const { error } = await supabase.from("conversations").delete().eq("id", conversationId);
   if (error) throw new Error(`deleteConversation failed: ${error.message}`);
 
+  // Invalidate cache after deletion
+  await invalidateConversationsCache(userId);
+
   return { ok: true };
 }
 
@@ -310,7 +349,19 @@ export async function deleteConversation(userId: string, conversationId: string)
 // Compatibility exports (expected by your routes)
 // ------------------------------
 export async function getUserConversations(userId: string): Promise<Conversation[]> {
-  return listConversationsSafe(userId);
+  // Try to get from cache first
+  const cached = await getCachedConversations<Conversation[]>(userId);
+  if (cached !== null) {
+    return cached;
+  }
+
+  // Cache miss: fetch from database
+  const conversations = await listConversationsSafe(userId);
+
+  // Store in cache (non-blocking)
+  await setCachedConversations(userId, conversations);
+
+  return conversations;
 }
 
 export async function updateConversationTitle(
@@ -329,4 +380,3 @@ export async function setConversationAutoTitle(
   // same as renameConversation but kept for semantic clarity
   return renameConversation(userId, id, title);
 }
-

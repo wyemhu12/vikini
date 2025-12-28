@@ -15,7 +15,8 @@ function u32(buf: Buffer, off: number): number {
 
 function safeName(name: string): string {
   const s = String(name || "").replace(/\\/g, "/");
-  return s.replace(/^\/+/, "").replace(/\u0000/g, "");
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/^\/+/, "").replace(/\x00/g, "");
 }
 
 function extOf(name: string): string {
@@ -228,7 +229,10 @@ interface SummarizeResult {
  * - Extracts snippets from text-like files (capped)
  * Supported compression: stored (0) and deflate (8)
  */
-export async function summarizeZipBytes(bytes: Buffer, opts: SummarizeOptions = {}): Promise<SummarizeResult> {
+export async function summarizeZipBytes(
+  bytes: Buffer,
+  opts: SummarizeOptions = {}
+): Promise<SummarizeResult> {
   const maxEntries = Number(opts.maxEntries || 2000);
   const maxFilesToExtract = Number(opts.maxFilesToExtract || 30);
   const maxChars = Number(opts.maxChars || 120000);
@@ -247,7 +251,10 @@ export async function summarizeZipBytes(bytes: Buffer, opts: SummarizeOptions = 
     parsed = parseCentralDirectory(bytes, { maxEntries, maxTotalUncompressed });
   } catch (e) {
     const error = e as Error;
-    return { text: `ZIP parse failed: ${String(error?.message || error)}`, warnings: ["zip_parse_failed"] };
+    return {
+      text: `ZIP parse failed: ${String(error?.message || error)}`,
+      warnings: ["zip_parse_failed"],
+    };
   }
 
   const entries = parsed.entries || [];
@@ -289,7 +296,8 @@ export async function summarizeZipBytes(bytes: Buffer, opts: SummarizeOptions = 
         continue;
       }
 
-      text = String(text || "").replace(/\u0000/g, "");
+      // eslint-disable-next-line no-control-regex
+      text = String(text || "").replace(/\x00/g, "");
       let truncated = false;
       if (text.length > remainingChars) {
         text = text.slice(0, Math.max(0, remainingChars));
@@ -332,4 +340,3 @@ export async function summarizeZipBytes(bytes: Buffer, opts: SummarizeOptions = 
 
   return { text: lines.join("\n"), warnings };
 }
-

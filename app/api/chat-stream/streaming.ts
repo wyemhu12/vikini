@@ -1,4 +1,7 @@
 // /app/api/chat-stream/streaming.ts
+import { logger } from "@/lib/utils/logger";
+
+const streamLogger = logger.withContext("/api/chat-stream");
 
 interface Message {
   role: string;
@@ -33,18 +36,16 @@ export function sendEvent(
 ): void {
   try {
     const encoder = new TextEncoder();
-    controller.enqueue(
-      encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
-    );
+    controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
   } catch (e) {
-    console.error(`Failed to send event ${event}:`, e);
+    streamLogger.error(`Failed to send event ${event}:`, e);
   }
 }
 
 export function safeText(respOrChunk: unknown): string {
   try {
     if (typeof respOrChunk === "string") return respOrChunk;
-    
+
     const obj = respOrChunk as { text?: string | (() => string); candidates?: unknown[] };
     if (typeof obj?.text === "function") {
       return obj.text();
@@ -52,7 +53,7 @@ export function safeText(respOrChunk: unknown): string {
     if (typeof obj?.text === "string") {
       return obj.text;
     }
-    
+
     const candidates = obj?.candidates;
     if (Array.isArray(candidates) && candidates[0]) {
       const candidate = candidates[0] as { content?: { parts?: unknown[] } };
@@ -122,14 +123,21 @@ export interface ChatStreamParams {
   conversationId: string;
   userId: string;
   contextMessages: Message[];
-  appendToContext: (conversationId: string, message: { role: string; content: string }) => Promise<void>;
+  appendToContext: (
+    conversationId: string,
+    message: { role: string; content: string }
+  ) => Promise<void>;
   saveMessage: (params: {
     conversationId: string;
     userId: string;
     role: string;
     content: string;
   }) => Promise<unknown>;
-  setConversationAutoTitle: (userId: string, conversationId: string, title: string) => Promise<void>;
+  setConversationAutoTitle: (
+    userId: string,
+    conversationId: string,
+    title: string
+  ) => Promise<void>;
   generateOptimisticTitle: (content: string) => Promise<string | null>;
   generateFinalTitle: (params: {
     userId: string;
@@ -152,7 +160,15 @@ function sendInitialMetaEvents(
     model: string;
   }
 ): void {
-  const { createdConversation, enableWebSearch, WEB_SEARCH_AVAILABLE, cookieWeb, gemMeta, modelMeta, model } = params;
+  const {
+    createdConversation,
+    enableWebSearch,
+    WEB_SEARCH_AVAILABLE,
+    cookieWeb,
+    gemMeta,
+    modelMeta,
+    model,
+  } = params;
 
   if (createdConversation) {
     sendEvent(controller, "meta", {
@@ -202,7 +218,7 @@ async function generateAndSendOptimisticTitle(
       });
     }
   } catch (err) {
-    console.error("Optimistic title error:", err);
+    streamLogger.error("Optimistic title error:", err);
   }
 }
 
@@ -260,15 +276,17 @@ async function executeStream(
       sendEvent(controller, "token", { t });
     }
 
-    const cand = (chunk as { candidates?: unknown[] })?.candidates?.[0] as {
-      groundingMetadata?: unknown;
-      urlContextMetadata?: unknown;
-      url_context_metadata?: unknown;
-      finishReason?: string;
-      finish_reason?: string;
-      safetyRatings?: unknown;
-      safety_ratings?: unknown;
-    } | undefined;
+    const cand = (chunk as { candidates?: unknown[] })?.candidates?.[0] as
+      | {
+          groundingMetadata?: unknown;
+          urlContextMetadata?: unknown;
+          url_context_metadata?: unknown;
+          finishReason?: string;
+          finish_reason?: string;
+          safetyRatings?: unknown;
+          safety_ratings?: unknown;
+        }
+      | undefined;
 
     if (cand) {
       if (cand.groundingMetadata) groundingMetadata = cand.groundingMetadata;
@@ -318,7 +336,7 @@ async function runStreamWithFallback(
       useTools: true,
     });
   } catch (err) {
-    console.error("stream error (with tools):", err);
+    streamLogger.error("stream error (with tools):", err);
     try {
       if (Array.isArray(tools) && tools.length > 0) {
         sendEvent(controller, "meta", {
@@ -339,7 +357,7 @@ async function runStreamWithFallback(
         throw err;
       }
     } catch (err2) {
-      console.error("stream error (fallback):", err2);
+      streamLogger.error("stream error (fallback):", err2);
       sendEvent(controller, "error", { message: "Stream error" });
       throw err2;
     }
@@ -367,7 +385,8 @@ function handleSafetyBlocking(
       safetyRatings: safetyRatings || null,
     });
 
-    const msg = "Nội dung bị chặn bởi safety filter. Hãy thử đổi tên GEM hoặc viết lại yêu cầu theo hướng trung lập.";
+    const msg =
+      "Nội dung bị chặn bởi safety filter. Hãy thử đổi tên GEM hoặc viết lại yêu cầu theo hướng trung lập.";
     full = msg;
     sendEvent(controller, "token", { t: msg });
   }
@@ -406,28 +425,32 @@ function processUrlContextMetadata(
   if (!urlContextMetadata) return;
 
   const urlMeta =
-    (urlContextMetadata as {
-      urlMetadata?: Array<{
-        retrievedUrl?: string;
-        retrieved_url?: string;
-        urlRetrievalStatus?: string;
-        url_retrieval_status?: string;
-      }>;
-      url_metadata?: Array<{
-        retrievedUrl?: string;
-        retrieved_url?: string;
-        urlRetrievalStatus?: string;
-        url_retrieval_status?: string;
-      }>;
-    })?.urlMetadata ||
-    (urlContextMetadata as {
-      url_metadata?: Array<{
-        retrievedUrl?: string;
-        retrieved_url?: string;
-        urlRetrievalStatus?: string;
-        url_retrieval_status?: string;
-      }>;
-    })?.url_metadata ||
+    (
+      urlContextMetadata as {
+        urlMetadata?: Array<{
+          retrievedUrl?: string;
+          retrieved_url?: string;
+          urlRetrievalStatus?: string;
+          url_retrieval_status?: string;
+        }>;
+        url_metadata?: Array<{
+          retrievedUrl?: string;
+          retrieved_url?: string;
+          urlRetrievalStatus?: string;
+          url_retrieval_status?: string;
+        }>;
+      }
+    )?.urlMetadata ||
+    (
+      urlContextMetadata as {
+        url_metadata?: Array<{
+          retrievedUrl?: string;
+          retrieved_url?: string;
+          urlRetrievalStatus?: string;
+          url_retrieval_status?: string;
+        }>;
+      }
+    )?.url_metadata ||
     [];
 
   sendEvent(controller, "meta", {
@@ -509,7 +532,7 @@ async function processPostStream(
       }
     }
   } catch (err) {
-    console.error("post-stream processing error:", err);
+    streamLogger.error("post-stream processing error:", err);
   }
 }
 
@@ -528,7 +551,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
     enableWebSearch,
     WEB_SEARCH_AVAILABLE,
     cookieWeb,
-    regenerate,
+    regenerate: _regenerate,
     content,
     conversationId,
     userId,
@@ -554,7 +577,13 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
       });
 
       // Generate optimistic title if needed
-      await generateAndSendOptimisticTitle(controller, shouldGenerateTitle, content, conversationId, generateOptimisticTitle);
+      await generateAndSendOptimisticTitle(
+        controller,
+        shouldGenerateTitle,
+        content,
+        conversationId,
+        generateOptimisticTitle
+      );
 
       // Execute stream with fallback
       const streamResult = await runStreamWithFallback(controller, {

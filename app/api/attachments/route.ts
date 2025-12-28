@@ -9,6 +9,9 @@ import {
   deleteAttachmentById,
   deleteAttachmentsByConversation,
 } from "@/lib/features/attachments/attachments";
+import { logger } from "@/lib/utils/logger";
+
+const routeLogger = logger.withContext("/api/attachments");
 
 export async function GET(req: NextRequest) {
   try {
@@ -27,7 +30,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ attachments }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     const error = err as Error;
-    console.error("GET /api/attachments error:", error);
+    routeLogger.error("GET error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -70,8 +73,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     const error = err as Error;
-    console.error("DELETE /api/attachments error:", error);
+    routeLogger.error("DELETE error:", error);
     return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
   }
 }
-

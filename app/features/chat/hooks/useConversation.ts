@@ -2,9 +2,8 @@
 "use client";
 
 import useSWR from "swr";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Conversation } from "@/lib/features/chat/conversations";
-import type { Message } from "@/lib/features/chat/messages";
 
 interface ConversationResponse {
   conversations?: Conversation[];
@@ -124,7 +123,9 @@ interface UseConversationReturn {
   setMessages: (messages: FrontendMessage[]) => void;
   loadingMessages: boolean;
   loadConversation: (id: string) => Promise<void>;
-  createConversation: (options?: { title?: string } | string) => Promise<FrontendConversation | null>;
+  createConversation: (
+    options?: { title?: string } | string
+  ) => Promise<FrontendConversation | null>;
   renameConversation: (id: string, title: string) => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
   upsertConversation: (conv: FrontendConversation) => void;
@@ -176,7 +177,9 @@ export function useConversation(): UseConversationReturn {
       const prevFiltered = (Array.isArray(prev) ? prev : []).filter(
         (c) => c?.id && !deletedIdsRef.current.has(c.id)
       );
-      return mergeConversations(prevFiltered, remoteFiltered).filter((c) => c?.id && !deletedIdsRef.current.has(c.id));
+      return mergeConversations(prevFiltered, remoteFiltered).filter(
+        (c) => c?.id && !deletedIdsRef.current.has(c.id)
+      );
     });
 
     // ✅ REMOVED: Tự động chọn activeId.
@@ -245,7 +248,9 @@ export function useConversation(): UseConversationReturn {
     if (!id) return;
 
     setConversations((prev) => {
-      const next = prev.map((c) => (c.id === id ? normalizeConv({ ...c, updatedAt: ts }) || c : normalizeConv(c) || c));
+      const next = prev.map((c) =>
+        c.id === id ? normalizeConv({ ...c, updatedAt: ts }) || c : normalizeConv(c) || c
+      );
       next.sort((a, b) => getTs(b) - getTs(a));
       return next;
     });
@@ -450,4 +455,3 @@ export function useConversation(): UseConversationReturn {
     deleteAllConversations,
   };
 }
-

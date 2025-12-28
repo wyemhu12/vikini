@@ -1,20 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useImperativeHandle, forwardRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Paperclip, 
-  Trash2, 
-  Eye, 
-  UploadCloud, 
-  RefreshCw, 
-  File as FileIcon, 
-  Image as ImageIcon, 
-  FileCode, 
-  FileArchive, 
+import {
+  Trash2,
+  Eye,
+  UploadCloud,
+  RefreshCw,
+  File as FileIcon,
+  Image as ImageIcon,
+  FileCode,
+  FileArchive,
   FileText,
   X,
-  ChevronDown
+  ChevronDown,
 } from "lucide-react";
 
 function formatBytes(n) {
@@ -36,19 +43,39 @@ function isImageMime(mime) {
 
 function isTextMime(mime) {
   const m = String(mime || "").toLowerCase();
-  return m.startsWith("text/") || m.includes("javascript") || m.includes("json") || m === "application/json";
+  return (
+    m.startsWith("text/") ||
+    m.includes("javascript") ||
+    m.includes("json") ||
+    m === "application/json"
+  );
 }
 
 function getFileIcon(mime, filename) {
   const m = String(mime || "").toLowerCase();
   const f = String(filename || "").toLowerCase();
-  
+
   if (m.startsWith("image/")) return <ImageIcon className="w-4 h-4 text-purple-400" />;
-  if (m.includes("zip") || m.includes("compressed") || m.includes("tar") || f.endsWith(".zip") || f.endsWith(".rar")) return <FileArchive className="w-4 h-4 text-yellow-500" />;
+  if (
+    m.includes("zip") ||
+    m.includes("compressed") ||
+    m.includes("tar") ||
+    f.endsWith(".zip") ||
+    f.endsWith(".rar")
+  )
+    return <FileArchive className="w-4 h-4 text-yellow-500" />;
   if (m.includes("pdf")) return <FileText className="w-4 h-4 text-red-400" />;
-  if (m.includes("javascript") || m.includes("json") || m.includes("html") || m.includes("css") || f.endsWith(".js") || f.endsWith(".jsx")) return <FileCode className="w-4 h-4 text-blue-400" />;
+  if (
+    m.includes("javascript") ||
+    m.includes("json") ||
+    m.includes("html") ||
+    m.includes("css") ||
+    f.endsWith(".js") ||
+    f.endsWith(".jsx")
+  )
+    return <FileCode className="w-4 h-4 text-blue-400" />;
   if (m.startsWith("text/")) return <FileText className="w-4 h-4 text-gray-400" />;
-  
+
   return <FileIcon className="w-4 h-4 text-gray-400" />;
 }
 
@@ -85,513 +112,528 @@ function extractClipboardImages(clipboardData) {
   return out;
 }
 
-const AttachmentsPanel = forwardRef(({ 
-    conversationId, 
-    disabled, 
-    isExpanded = false, 
-    onToggle,           
-    onCountChange       
-}, ref) => {
-  const [attachments, setAttachments] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
+const AttachmentsPanel = forwardRef(
+  ({ conversationId, disabled, isExpanded = false, onToggle, onCountChange }, ref) => {
+    const [attachments, setAttachments] = useState([]);
+    const [, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
-  // Drag & drop UI state
-  const [dragOver, setDragOver] = useState(false);
-  const dragCounterRef = useRef(0);
+    // Drag & drop UI state
+    const [dragOver, setDragOver] = useState(false);
+    const dragCounterRef = useRef(0);
 
-  const dropZoneRef = useRef(null);
-  const [preview, setPreview] = useState(null);
-  const [error, setError] = useState("");
-  const fileInputRef = useRef(null);
+    const dropZoneRef = useRef(null);
+    const [preview, setPreview] = useState(null);
+    const [error, setError] = useState("");
+    const fileInputRef = useRef(null);
 
-  const totalBytes = useMemo(
-    () => (attachments || []).reduce((sum, a) => sum + Number(a?.size_bytes || 0), 0),
-    [attachments]
-  );
+    const totalBytes = useMemo(
+      () => (attachments || []).reduce((sum, a) => sum + Number(a?.size_bytes || 0), 0),
+      [attachments]
+    );
 
-  // Notify parent about file count changes
-  useEffect(() => {
-     onCountChange?.(attachments.length);
-  }, [attachments.length, onCountChange]);
+    // Notify parent about file count changes
+    useEffect(() => {
+      onCountChange?.(attachments.length);
+    }, [attachments.length, onCountChange]);
 
-  const refresh = useCallback(async () => {
-    if (!conversationId) {
-      setAttachments([]);
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/attachments?conversationId=${encodeURIComponent(conversationId)}`, {
-        cache: "no-store",
-      });
-      if (!res.ok) throw new Error("Failed to load attachments");
-      const json = await res.json();
-      setAttachments(Array.isArray(json?.attachments) ? json.attachments : []);
-    } catch (e) {
-      console.error(e);
-      setError("Failed to load attachments");
-      setAttachments([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [conversationId]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  // Cross-component sync
-  useEffect(() => {
-    const handler = (ev) => {
-      const cid = ev?.detail?.conversationId;
-      if (cid && conversationId && cid === conversationId) {
-        refresh();
+    const refresh = useCallback(async () => {
+      if (!conversationId) {
+        setAttachments([]);
+        return;
       }
-    };
-    window.addEventListener("vikini:attachments-changed", handler);
-    return () => window.removeEventListener("vikini:attachments-changed", handler);
-  }, [conversationId, refresh]);
 
-  const uploadFiles = useCallback(
-    async (files) => {
-      if (!conversationId) return;
-      const arr = Array.from(files || []).filter(Boolean);
-      if (arr.length === 0) return;
-
-      setUploading(true);
+      setLoading(true);
       setError("");
-      
-      // Auto-expand if uploading via drag-drop
-      if (!isExpanded && onToggle) {
-          onToggle(true);
-      }
-
       try {
-        for (const f of arr) {
-          const form = new FormData();
-          form.set("conversationId", conversationId);
-          form.set("file", f);
-
-          const res = await fetch("/api/attachments/upload", {
-            method: "POST",
-            body: form,
-          });
-
-          const json = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(json?.error || "Upload failed");
-        }
-
-        window.dispatchEvent(
-          new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
+        const res = await fetch(
+          `/api/attachments?conversationId=${encodeURIComponent(conversationId)}`,
+          {
+            cache: "no-store",
+          }
         );
-        await refresh();
+        if (!res.ok) throw new Error("Failed to load attachments");
+        const json = await res.json();
+        setAttachments(Array.isArray(json?.attachments) ? json.attachments : []);
       } catch (e) {
         console.error(e);
-        setError(String(e?.message || "Upload failed"));
+        setError("Failed to load attachments");
+        setAttachments([]);
       } finally {
-        setUploading(false);
+        setLoading(false);
       }
-    },
-    [conversationId, refresh, isExpanded, onToggle]
-  );
+    }, [conversationId]);
 
-  // Expose uploadFiles to parent
-  useImperativeHandle(ref, () => ({
-      uploadFiles
-  }));
+    useEffect(() => {
+      refresh();
+    }, [refresh]);
 
-  const onPickFiles = (e) => {
-    e.stopPropagation();
-    if (disabled || uploading || !conversationId) return;
-    fileInputRef.current?.click?.();
-  };
+    // Cross-component sync
+    useEffect(() => {
+      const handler = (ev) => {
+        const cid = ev?.detail?.conversationId;
+        if (cid && conversationId && cid === conversationId) {
+          refresh();
+        }
+      };
+      window.addEventListener("vikini:attachments-changed", handler);
+      return () => window.removeEventListener("vikini:attachments-changed", handler);
+    }, [conversationId, refresh]);
 
-  const onInputChange = async (e) => {
-    const files = e?.target?.files;
-    if (files) await uploadFiles(files);
-    e.target.value = "";
-  };
+    const uploadFiles = useCallback(
+      async (files) => {
+        if (!conversationId) return;
+        const arr = Array.from(files || []).filter(Boolean);
+        if (arr.length === 0) return;
 
-  const onDrop = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+        setUploading(true);
+        setError("");
 
-    dragCounterRef.current = 0;
-    setDragOver(false);
+        // Auto-expand if uploading via drag-drop
+        if (!isExpanded && onToggle) {
+          onToggle(true);
+        }
 
-    if (disabled || uploading || !conversationId) return;
-    const files = e.dataTransfer?.files;
-    if (files) await uploadFiles(files);
-  };
+        try {
+          for (const f of arr) {
+            const form = new FormData();
+            form.set("conversationId", conversationId);
+            form.set("file", f);
 
-  const onDragEnter = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (disabled || uploading || !conversationId) return;
+            const res = await fetch("/api/attachments/upload", {
+              method: "POST",
+              body: form,
+            });
 
-    dragCounterRef.current += 1;
-    setDragOver(true);
-  };
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json?.error || "Upload failed");
+          }
 
-  const onDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (disabled || uploading || !conversationId) return;
-    setDragOver(true);
-  };
+          window.dispatchEvent(
+            new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
+          );
+          await refresh();
+        } catch (e) {
+          console.error(e);
+          setError(String(e?.message || "Upload failed"));
+        } finally {
+          setUploading(false);
+        }
+      },
+      [conversationId, refresh, isExpanded, onToggle]
+    );
 
-  const onDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (disabled || uploading || !conversationId) return;
+    // Expose uploadFiles to parent
+    useImperativeHandle(ref, () => ({
+      uploadFiles,
+    }));
 
-    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
-    if (dragCounterRef.current === 0) setDragOver(false);
-  };
-
-  const onPaste = useCallback(
-    async (e) => {
-      // Only handle paste if panel is visible
-      if (!isExpanded) return;
+    const onPickFiles = (e) => {
+      e.stopPropagation();
       if (disabled || uploading || !conversationId) return;
+      fileInputRef.current?.click?.();
+    };
 
-      const activeId = document?.activeElement?.id || "";
-      if (activeId === "chat-input") return;
+    const onInputChange = async (e) => {
+      const files = e?.target?.files;
+      if (files) await uploadFiles(files);
+      e.target.value = "";
+    };
 
-      const images = extractClipboardImages(e.clipboardData);
-      if (images.length === 0) return;
-
+    const onDrop = async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      try {
-        dropZoneRef.current?.focus?.();
-      } catch {}
 
-      await uploadFiles(images);
-    },
-    [isExpanded, disabled, uploading, conversationId, uploadFiles]
-  );
+      dragCounterRef.current = 0;
+      setDragOver(false);
 
-  const doPreview = useCallback(async (a) => {
-    if (!a?.id) return;
-    setError("");
-    try {
-      const res = await fetch(`/api/attachments/url?id=${encodeURIComponent(a.id)}`, {
-        cache: "no-store",
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Failed to create signed url");
+      if (disabled || uploading || !conversationId) return;
+      const files = e.dataTransfer?.files;
+      if (files) await uploadFiles(files);
+    };
 
-      const url = json?.signedUrl;
-      if (!url) throw new Error("Missing signed url");
+    const onDragEnter = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (disabled || uploading || !conversationId) return;
 
-      if (isImageMime(a.mime_type)) {
-        setPreview({ kind: "image", filename: a.filename, url });
-        return;
-      }
+      dragCounterRef.current += 1;
+      setDragOver(true);
+    };
 
-      if (isTextMime(a.mime_type)) {
-        const tRes = await fetch(url, { cache: "no-store" });
-        const text = await tRes.text();
-        setPreview({ kind: "text", filename: a.filename, text });
-        return;
-      }
+    const onDragOver = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (disabled || uploading || !conversationId) return;
+      setDragOver(true);
+    };
 
-      setPreview({ kind: "other", filename: a.filename, url });
-    } catch (e) {
-      console.error(e);
-      setError(String(e?.message || "Preview failed"));
-    }
-  }, []);
+    const onDragLeave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (disabled || uploading || !conversationId) return;
 
-  const doDelete = useCallback(
-    async (a) => {
+      dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+      if (dragCounterRef.current === 0) setDragOver(false);
+    };
+
+    const onPaste = useCallback(
+      async (e) => {
+        // Only handle paste if panel is visible
+        if (!isExpanded) return;
+        if (disabled || uploading || !conversationId) return;
+
+        const activeId = document?.activeElement?.id || "";
+        if (activeId === "chat-input") return;
+
+        const images = extractClipboardImages(e.clipboardData);
+        if (images.length === 0) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          dropZoneRef.current?.focus?.();
+        } catch {
+          // Ignore focus errors
+        }
+
+        await uploadFiles(images);
+      },
+      [isExpanded, disabled, uploading, conversationId, uploadFiles]
+    );
+
+    const doPreview = useCallback(async (a) => {
       if (!a?.id) return;
       setError("");
       try {
-        const res = await fetch(`/api/attachments?id=${encodeURIComponent(a.id)}`, {
-          method: "DELETE",
+        const res = await fetch(`/api/attachments/url?id=${encodeURIComponent(a.id)}`, {
+          cache: "no-store",
         });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json?.error || "Delete failed");
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || "Failed to create signed url");
 
-        window.dispatchEvent(
-          new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
-        );
-        await refresh();
+        const url = json?.signedUrl;
+        if (!url) throw new Error("Missing signed url");
+
+        if (isImageMime(a.mime_type)) {
+          setPreview({ kind: "image", filename: a.filename, url });
+          return;
+        }
+
+        if (isTextMime(a.mime_type)) {
+          const tRes = await fetch(url, { cache: "no-store" });
+          const text = await tRes.text();
+          setPreview({ kind: "text", filename: a.filename, text });
+          return;
+        }
+
+        setPreview({ kind: "other", filename: a.filename, url });
       } catch (e) {
         console.error(e);
-        setError(String(e?.message || "Delete failed"));
+        setError(String(e?.message || "Preview failed"));
       }
-    },
-    [conversationId, refresh]
-  );
+    }, []);
 
-  const doDeleteAll = useCallback(async (e) => {
-    e.stopPropagation();
-    if (!conversationId) return;
-    if ((attachments || []).length === 0) return;
+    const doDelete = useCallback(
+      async (a) => {
+        if (!a?.id) return;
+        setError("");
+        try {
+          const res = await fetch(`/api/attachments?id=${encodeURIComponent(a.id)}`, {
+            method: "DELETE",
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json?.error || "Delete failed");
 
-    if (!window.confirm("Delete all files?")) return;
+          window.dispatchEvent(
+            new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
+          );
+          await refresh();
+        } catch (e) {
+          console.error(e);
+          setError(String(e?.message || "Delete failed"));
+        }
+      },
+      [conversationId, refresh]
+    );
 
-    setError("");
-    try {
-      const res = await fetch(`/api/attachments?conversationId=${encodeURIComponent(conversationId)}`, {
-        method: "DELETE",
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error || "Delete all failed");
+    const doDeleteAll = useCallback(
+      async (e) => {
+        e.stopPropagation();
+        if (!conversationId) return;
+        if ((attachments || []).length === 0) return;
 
-      window.dispatchEvent(
-        new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
-      );
-      await refresh();
-    } catch (e) {
-      console.error(e);
-      setError(String(e?.message || "Delete all failed"));
+        if (!window.confirm("Delete all files?")) return;
+
+        setError("");
+        try {
+          const res = await fetch(
+            `/api/attachments?conversationId=${encodeURIComponent(conversationId)}`,
+            {
+              method: "DELETE",
+            }
+          );
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json?.error || "Delete all failed");
+
+          window.dispatchEvent(
+            new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
+          );
+          await refresh();
+        } catch (e) {
+          console.error(e);
+          setError(String(e?.message || "Delete all failed"));
+        }
+      },
+      [conversationId, attachments, refresh]
+    );
+
+    if (!conversationId) {
+      return null;
     }
-  }, [conversationId, attachments, refresh]);
 
-  if (!conversationId) {
-    return null;
-  }
+    const hasFiles = attachments.length > 0;
 
-  const hasFiles = attachments.length > 0;
-
-  return (
-    <>
-      <div className="px-4">
-        <AnimatePresence>
+    return (
+      <>
+        <div className="px-4">
+          <AnimatePresence>
             {isExpanded && (
-                <motion.div
-                    layout
-                    initial={{ height: 0, opacity: 0, marginBottom: 0 }}
-                    animate={{ height: "auto", opacity: 1, marginBottom: 16 }}
-                    exit={{ height: 0, opacity: 0, marginBottom: 0 }}
-                    transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
-                    className="overflow-hidden"
+              <motion.div
+                layout
+                initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+                animate={{ height: "auto", opacity: 1, marginBottom: 16 }}
+                exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+                transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+                className="overflow-hidden"
+              >
+                <div
+                  ref={dropZoneRef}
+                  tabIndex={0}
+                  onPaste={onPaste}
+                  onDrop={onDrop}
+                  onDragEnter={onDragEnter}
+                  onDragOver={onDragOver}
+                  onDragLeave={onDragLeave}
+                  className={`relative rounded-2xl border bg-neutral-950 transition-colors ${
+                    dragOver ? "border-purple-500/50 bg-purple-500/5" : "border-neutral-800"
+                  }`}
                 >
-                    <div 
-                        ref={dropZoneRef}
-                        tabIndex={0}
-                        onPaste={onPaste}
-                        onDrop={onDrop}
-                        onDragEnter={onDragEnter}
-                        onDragOver={onDragOver}
-                        onDragLeave={onDragLeave}
-                        className={`relative rounded-2xl border bg-neutral-950 transition-colors ${
-                            dragOver 
-                                ? "border-purple-500/50 bg-purple-500/5" 
-                                : "border-neutral-800"
-                        }`}
-                    >
-                        {/* Drag Overlay */}
-                        <AnimatePresence>
-                            {dragOver && (
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-neutral-950/80 backdrop-blur-sm border-2 border-purple-500/50"
-                                >
-                                    <UploadCloud className="w-10 h-10 text-purple-400 mb-2 animate-bounce" />
-                                    <span className="text-sm font-semibold text-purple-100">Drop files to upload</span>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                  {/* Drag Overlay */}
+                  <AnimatePresence>
+                    {dragOver && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-neutral-950/80 backdrop-blur-sm border-2 border-purple-500/50"
+                      >
+                        <UploadCloud className="w-10 h-10 text-purple-400 mb-2 animate-bounce" />
+                        <span className="text-sm font-semibold text-purple-100">
+                          Drop files to upload
+                        </span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
-                        <div className="p-4">
-                            {/* Toolbar */}
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="text-[10px] uppercase tracking-wider font-semibold text-neutral-500 flex items-center gap-2">
-                                    <span>Attached Files</span>
-                                    {hasFiles && (
-                                        <span className="px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300">
-                                            {attachments.length} • {formatBytes(totalBytes)}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        onClick={refresh}
-                                        title="Refresh"
-                                        className="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-500 hover:text-neutral-300 transition-colors"
-                                    >
-                                        <RefreshCw className="w-3.5 h-3.5" />
-                                    </button>
-                                    {hasFiles && (
-                                        <button
-                                            onClick={doDeleteAll}
-                                            title="Delete All"
-                                            className="p-1.5 rounded-md hover:bg-red-900/20 text-neutral-500 hover:text-red-400 transition-colors"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                    )}
-                                    <div className="w-px h-3 bg-neutral-800 mx-1" />
-                                    <button
-                                        onClick={onPickFiles}
-                                        disabled={uploading}
-                                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-neutral-100 hover:bg-white text-black text-xs font-semibold transition-colors disabled:opacity-50 shadow-[0_0_10px_rgba(255,255,255,0.1)]"
-                                    >
-                                        {uploading ? (
-                                            <>
-                                                <RefreshCw className="w-3 h-3 animate-spin" />
-                                                <span>Uploading...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <UploadCloud className="w-3 h-3" />
-                                                <span>Upload</span>
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
+                  <div className="p-4">
+                    {/* Toolbar */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="text-[10px] uppercase tracking-wider font-semibold text-neutral-500 flex items-center gap-2">
+                        <span>Attached Files</span>
+                        {hasFiles && (
+                          <span className="px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300">
+                            {attachments.length} • {formatBytes(totalBytes)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={refresh}
+                          title="Refresh"
+                          className="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-500 hover:text-neutral-300 transition-colors"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </button>
+                        {hasFiles && (
+                          <button
+                            onClick={doDeleteAll}
+                            title="Delete All"
+                            className="p-1.5 rounded-md hover:bg-red-900/20 text-neutral-500 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <div className="w-px h-3 bg-neutral-800 mx-1" />
+                        <button
+                          onClick={onPickFiles}
+                          disabled={uploading}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-neutral-100 hover:bg-white text-black text-xs font-semibold transition-colors disabled:opacity-50 shadow-[0_0_10px_rgba(255,255,255,0.1)]"
+                        >
+                          {uploading ? (
+                            <>
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              <span>Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <UploadCloud className="w-3 h-3" />
+                              <span>Upload</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Error Message */}
+                    {error && (
+                      <div className="mb-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                        {error}
+                      </div>
+                    )}
+
+                    {/* File Grid */}
+                    {hasFiles ? (
+                      <div className="space-y-1 max-h-[240px] overflow-y-auto custom-scrollbar pr-1">
+                        {attachments.map((a) => (
+                          <motion.div
+                            key={a.id}
+                            layout
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="group flex items-center gap-3 p-2.5 rounded-xl border border-transparent hover:border-neutral-800 bg-neutral-900/30 hover:bg-neutral-900 transition-all"
+                          >
+                            {/* Icon */}
+                            <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-neutral-950 border border-neutral-800 shadow-sm">
+                              {getFileIcon(a.mime_type, a.filename)}
                             </div>
 
-                            {/* Error Message */}
-                            {error && (
-                                <div className="mb-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
-                                    {error}
-                                </div>
-                            )}
+                            {/* Info */}
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-xs font-medium text-neutral-200 group-hover:text-white transition-colors">
+                                {a.filename}
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] text-neutral-500">
+                                <span>{formatBytes(a.size_bytes)}</span>
+                                <span className="w-0.5 h-0.5 rounded-full bg-neutral-600" />
+                                <span className="uppercase">
+                                  {a.mime_type.split("/")[1] || "FILE"}
+                                </span>
+                              </div>
+                            </div>
 
-                            {/* File Grid */}
-                            {hasFiles ? (
-                                <div className="space-y-1 max-h-[240px] overflow-y-auto custom-scrollbar pr-1">
-                                    {attachments.map((a) => (
-                                        <motion.div 
-                                            key={a.id}
-                                            layout
-                                            initial={{ opacity: 0, y: 5 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0.95 }}
-                                            className="group flex items-center gap-3 p-2.5 rounded-xl border border-transparent hover:border-neutral-800 bg-neutral-900/30 hover:bg-neutral-900 transition-all"
-                                        >
-                                            {/* Icon */}
-                                            <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-neutral-950 border border-neutral-800 shadow-sm">
-                                                {getFileIcon(a.mime_type, a.filename)}
-                                            </div>
-
-                                            {/* Info */}
-                                            <div className="min-w-0 flex-1">
-                                                <div className="truncate text-xs font-medium text-neutral-200 group-hover:text-white transition-colors">
-                                                    {a.filename}
-                                                </div>
-                                                <div className="flex items-center gap-2 text-[10px] text-neutral-500">
-                                                    <span>{formatBytes(a.size_bytes)}</span>
-                                                    <span className="w-0.5 h-0.5 rounded-full bg-neutral-600" />
-                                                    <span className="uppercase">{a.mime_type.split('/')[1] || 'FILE'}</span>
-                                                </div>
-                                            </div>
-
-                                            {/* Actions */}
-                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button 
-                                                    onClick={() => doPreview(a)}
-                                                    className="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 transition-colors"
-                                                    title="Preview"
-                                                >
-                                                    <Eye className="w-3.5 h-3.5" />
-                                                </button>
-                                                <button 
-                                                    onClick={() => doDelete(a)}
-                                                    className="p-1.5 rounded-md hover:bg-red-900/20 text-neutral-400 hover:text-red-400 transition-colors"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div 
-                                    onClick={onPickFiles}
-                                    className="cursor-pointer flex flex-col items-center justify-center py-8 text-center border border-dashed border-neutral-800 rounded-xl bg-neutral-900/20 hover:bg-neutral-900/40 hover:border-neutral-700 transition-all"
-                                >
-                                    <div className="w-10 h-10 rounded-full bg-neutral-900 flex items-center justify-center mb-3">
-                                        <UploadCloud className="w-5 h-5 text-neutral-600" />
-                                    </div>
-                                    <div className="text-sm font-medium text-neutral-400">Drop files here</div>
-                                    <div className="text-xs text-neutral-600 mt-1">or click to browse</div>
-                                </div>
-                            )}
-                            
-                            {/* Hidden Input */}
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                multiple
-                                accept=".txt,.js,.jsx,.json,.png,.jpg,.jpeg,.webp,.pdf,.doc,.docx,.xls,.xlsx,.zip"
-                                className="hidden"
-                                onChange={onInputChange}
-                            />
+                            {/* Actions */}
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => doPreview(a)}
+                                className="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 transition-colors"
+                                title="Preview"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => doDelete(a)}
+                                className="p-1.5 rounded-md hover:bg-red-900/20 text-neutral-400 hover:text-red-400 transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div
+                        onClick={onPickFiles}
+                        className="cursor-pointer flex flex-col items-center justify-center py-8 text-center border border-dashed border-neutral-800 rounded-xl bg-neutral-900/20 hover:bg-neutral-900/40 hover:border-neutral-700 transition-all"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-neutral-900 flex items-center justify-center mb-3">
+                          <UploadCloud className="w-5 h-5 text-neutral-600" />
                         </div>
+                        <div className="text-sm font-medium text-neutral-400">Drop files here</div>
+                        <div className="text-xs text-neutral-600 mt-1">or click to browse</div>
+                      </div>
+                    )}
 
-                        {/* Close Toggle (Bottom) */}
-                        <div 
-                             onClick={() => onToggle?.(false)}
-                             className="flex items-center justify-center py-1.5 border-t border-neutral-900 bg-neutral-950 hover:bg-neutral-900 cursor-pointer transition-colors"
-                        >
-                             <ChevronDown className="w-4 h-4 text-neutral-500" />
-                        </div>
-                    </div>
-                </motion.div>
+                    {/* Hidden Input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept=".txt,.js,.jsx,.json,.png,.jpg,.jpeg,.webp,.pdf,.doc,.docx,.xls,.xlsx,.zip"
+                      className="hidden"
+                      onChange={onInputChange}
+                    />
+                  </div>
+
+                  {/* Close Toggle (Bottom) */}
+                  <div
+                    onClick={() => onToggle?.(false)}
+                    className="flex items-center justify-center py-1.5 border-t border-neutral-900 bg-neutral-950 hover:bg-neutral-900 cursor-pointer transition-colors"
+                  >
+                    <ChevronDown className="w-4 h-4 text-neutral-500" />
+                  </div>
+                </div>
+              </motion.div>
             )}
-        </AnimatePresence>
-      </div>
+          </AnimatePresence>
+        </div>
 
-      {/* Preview Modal ... */}
-      <AnimatePresence>
-        {preview && (
+        {/* Preview Modal ... */}
+        <AnimatePresence>
+          {preview && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="relative w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl bg-neutral-900 border border-neutral-800 shadow-2xl overflow-hidden"
-                >
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900">
-                        <div className="truncate text-sm font-medium text-neutral-200">
-                            {preview.filename}
-                        </div>
-                        <button 
-                            onClick={() => setPreview(null)}
-                            className="p-1 rounded-full hover:bg-neutral-800 text-neutral-400 transition-colors"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl bg-neutral-900 border border-neutral-800 shadow-2xl overflow-hidden"
+              >
+                <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900">
+                  <div className="truncate text-sm font-medium text-neutral-200">
+                    {preview.filename}
+                  </div>
+                  <button
+                    onClick={() => setPreview(null)}
+                    className="p-1 rounded-full hover:bg-neutral-800 text-neutral-400 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-auto p-4 bg-neutral-950/50">
+                  {preview.kind === "image" ? (
+                    <img
+                      src={preview.url}
+                      alt={preview.filename}
+                      className="max-w-full h-auto mx-auto rounded-lg"
+                    />
+                  ) : preview.kind === "text" ? (
+                    <pre className="whitespace-pre-wrap break-words text-xs text-neutral-300 font-mono bg-neutral-950 p-4 rounded-lg border border-neutral-800">
+                      {preview.text}
+                    </pre>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-48 gap-4">
+                      <FileIcon className="w-12 h-12 text-neutral-600" />
+                      <a
+                        href={preview.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-4 py-2 rounded-lg bg-neutral-100 text-black text-xs font-bold hover:bg-white transition-colors"
+                      >
+                        Download / Open File
+                      </a>
                     </div>
-                    
-                    <div className="flex-1 overflow-auto p-4 bg-neutral-950/50">
-                        {preview.kind === "image" ? (
-                            <img src={preview.url} alt={preview.filename} className="max-w-full h-auto mx-auto rounded-lg" />
-                        ) : preview.kind === "text" ? (
-                            <pre className="whitespace-pre-wrap break-words text-xs text-neutral-300 font-mono bg-neutral-950 p-4 rounded-lg border border-neutral-800">{preview.text}</pre>
-                        ) : (
-                             <div className="flex flex-col items-center justify-center h-48 gap-4">
-                                <FileIcon className="w-12 h-12 text-neutral-600" />
-                                <a 
-                                    href={preview.url} 
-                                    target="_blank" 
-                                    rel="noreferrer" 
-                                    className="px-4 py-2 rounded-lg bg-neutral-100 text-black text-xs font-bold hover:bg-white transition-colors"
-                                >
-                                    Download / Open File
-                                </a>
-                             </div>
-                        )}
-                    </div>
-                </motion.div>
+                  )}
+                </div>
+              </motion.div>
             </div>
-        )}
-      </AnimatePresence>
-    </>
-  );
-});
+          )}
+        </AnimatePresence>
+      </>
+    );
+  }
+);
 
 export default AttachmentsPanel;

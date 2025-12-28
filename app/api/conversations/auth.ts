@@ -21,7 +21,7 @@ export type RequireUserResponse = RequireUserResult | RequireUserSuccess;
  *
  * Returns a uniform shape so route handlers can remain concise without changing behavior.
  */
-export async function requireUser(req: NextRequest): Promise<RequireUserResponse> {
+export async function requireUser(_req: NextRequest): Promise<RequireUserResponse> {
   const session = await auth();
   if (!session?.user?.email) {
     return {
@@ -37,4 +37,3 @@ export async function requireUser(req: NextRequest): Promise<RequireUserResponse
     session: session as unknown, // Type assertion to avoid NextAuth type conflicts
   };
 }
-

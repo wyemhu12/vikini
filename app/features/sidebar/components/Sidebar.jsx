@@ -1,26 +1,56 @@
 // /app/features/sidebar/components/Sidebar.jsx
 "use client";
 
-import Link from "next/link";
 import SidebarItem from "./SidebarItem";
 import { useGemStore } from "../../gems/stores/useGemStore";
 
 // Icons
 const PlusIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-    <path fillRule="evenodd" d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className="w-5 h-5"
+  >
+    <path
+      fillRule="evenodd"
+      d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z"
+      clipRule="evenodd"
+    />
   </svg>
 );
 
 const SparklesIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    className="w-5 h-5"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"
+    />
   </svg>
 );
 
 const SignOutIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    className="w-5 h-5"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"
+    />
   </svg>
 );
 
@@ -29,8 +59,8 @@ export default function Sidebar({
   selectedConversationId,
   onSelectConversation,
   onDeleteConversation,
-  onDeleteAll, 
-  onRefresh, 
+  onDeleteAll,
+  onRefresh,
   chats,
   activeId,
   onSelectChat,
@@ -44,11 +74,7 @@ export default function Sidebar({
 }) {
   const { openGemModal } = useGemStore();
 
-  const list = Array.isArray(chats)
-    ? chats
-    : Array.isArray(conversations)
-    ? conversations
-    : [];
+  const list = Array.isArray(chats) ? chats : Array.isArray(conversations) ? conversations : [];
 
   const currentId = activeId ?? selectedConversationId ?? null;
 
@@ -105,7 +131,8 @@ export default function Sidebar({
     }
   };
 
-  const handleRename = (id) => (typeof onRenameChat === "function" ? onRenameChat(id) : renameFallback(id));
+  const handleRename = (id) =>
+    typeof onRenameChat === "function" ? onRenameChat(id) : renameFallback(id);
   const handleDelete = (id) => {
     const fn = onDeleteChat ?? onDeleteConversation;
     return typeof fn === "function" ? fn(id) : deleteFallback(id);
@@ -156,12 +183,12 @@ export default function Sidebar({
       <div className="h-px bg-white/10 mb-4 mx-2" />
 
       {/* Chat list with CSS Virtualization / Containment */}
-      <div 
+      <div
         className="
           flex-1 overflow-y-auto space-y-1 pr-1 
           scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20
         "
-        style={{ contentVisibility: 'auto', containIntrinsicSize: '0 500px' }}
+        style={{ contentVisibility: "auto", containIntrinsicSize: "0 500px" }}
       >
         {list.map((c) => (
           <SidebarItem
@@ -256,7 +283,9 @@ export default function Sidebar({
           >
             <div className="mb-8 flex items-center justify-between">
               <div className="text-lg font-black tracking-tighter text-white flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center border border-white/10 text-[var(--primary)]">V</div>
+                <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center border border-white/10 text-[var(--primary)]">
+                  V
+                </div>
                 {t?.appName || "Vikini"}
               </div>
               <button

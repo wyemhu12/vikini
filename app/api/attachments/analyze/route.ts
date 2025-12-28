@@ -11,6 +11,9 @@ import { getConversation } from "@/lib/features/chat/conversations";
 import { saveMessage } from "@/lib/features/chat/messages";
 import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
 import { summarizeZipBytes } from "@/lib/features/attachments/zip";
+import { logger } from "@/lib/utils/logger";
+
+const routeLogger = logger.withContext("/api/attachments/analyze");
 
 interface AnalyzeRequestBody {
   attachmentId?: string;
@@ -76,7 +79,11 @@ function isOfficeDocMime(m: unknown): boolean {
 
 function isZipMime(m: unknown): boolean {
   const mime = String(m || "").toLowerCase();
-  return mime === "application/zip" || mime === "application/x-zip-compressed" || mime === "multipart/x-zip";
+  return (
+    mime === "application/zip" ||
+    mime === "application/x-zip-compressed" ||
+    mime === "multipart/x-zip"
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -125,14 +132,11 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       const error = e as Error;
       // SECURITY: Sanitize error message in production
-      const isProduction = process.env.NODE_ENV === 'production';
-      const errorMessage = isProduction 
-        ? "AI service unavailable" 
-        : (error?.message || "Missing GEMINI_API_KEY/GOOGLE_API_KEY");
-      return NextResponse.json(
-        { error: errorMessage },
-        { status: 500 }
-      );
+      const isProduction = process.env.NODE_ENV === "production";
+      const errorMessage = isProduction
+        ? "AI service unavailable"
+        : error?.message || "Missing GEMINI_API_KEY/GOOGLE_API_KEY";
+      return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 
     const requestedModel = pickFirstEnv(["GEMINI_MODEL", "GOOGLE_MODEL"]) || DEFAULT_MODEL;
@@ -145,14 +149,19 @@ export async function POST(req: NextRequest) {
 
     const guard = buildGuardIntro();
     const mime = String(row?.mime_type || "");
-    const isZip = isZipMime(mime) || String(row?.filename || "").toLowerCase().endsWith(".zip");
+    const isZip =
+      isZipMime(mime) ||
+      String(row?.filename || "")
+        .toLowerCase()
+        .endsWith(".zip");
     const metaLine = `filename: ${row.filename}\nmime: ${mime}\nsize_bytes: ${row.size_bytes}\n`;
 
     // Office docs are allowed for upload, but not supported for server-side analysis (no converter in this app).
     if (isOfficeDocMime(mime)) {
       return NextResponse.json(
         {
-          error: "Unsupported for analysis: DOC/DOCX/XLS/XLSX. Convert to PDF or export to text first.",
+          error:
+            "Unsupported for analysis: DOC/DOCX/XLS/XLSX. Convert to PDF or export to text first.",
         },
         { status: 400 }
       );
@@ -222,7 +231,9 @@ export async function POST(req: NextRequest) {
 
     const result = await ai.models.generateContent({
       model: modelName,
-      contents: [{ role: "user", parts: parts as unknown[] }] as unknown as Parameters<typeof ai.models.generateContent>[0]["contents"],
+      contents: [{ role: "user", parts: parts as unknown[] }] as unknown as Parameters<
+        typeof ai.models.generateContent
+      >[0]["contents"],
       config: {
         ...(sysPrompt && sysPrompt.trim() ? { systemInstruction: sysPrompt } : {}),
         temperature: 0.2,
@@ -242,8 +253,7 @@ export async function POST(req: NextRequest) {
     );
   } catch (err) {
     const error = err as Error;
-    console.error("POST /api/attachments/analyze error:", error);
+    routeLogger.error("POST error:", error);
     return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
   }
 }
-

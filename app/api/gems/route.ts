@@ -6,6 +6,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
 import { getGemsForUser, createGem, updateGem, deleteGem } from "@/lib/features/gems/gems";
 import { createGemSchema, updateGemSchema, deleteGemSchema } from "./validators";
+import { logger } from "@/lib/utils/logger";
+import { error, errorFromAppError } from "@/lib/utils/apiResponse";
+import { ValidationError, AppError } from "@/lib/utils/errors";
+import { HTTP_STATUS } from "@/lib/utils/constants";
+
+const routeLogger = logger.withContext("/api/gems");
 
 interface GemRow {
   id: string;
@@ -32,24 +38,6 @@ interface GemForClient {
   isPremade: boolean;
   latestVersion: number;
   instructions: string;
-}
-
-interface CreateGemPayload {
-  name?: string;
-  description?: string;
-  instruction?: string;
-  icon?: string;
-  color?: string;
-  [key: string]: unknown;
-}
-
-interface UpdateGemPayload extends CreateGemPayload {
-  id?: string;
-}
-
-interface DeleteGemPayload {
-  id?: string;
-  [key: string]: unknown;
 }
 
 function mapGemForClient(row: GemRow | null): GemForClient | null {
@@ -85,13 +73,20 @@ export async function GET() {
     const userId = session.user.email.toLowerCase();
 
     const gems = await getGemsForUser(userId);
-    const mapped = (Array.isArray(gems) ? gems : []).map(mapGemForClient).filter((g): g is GemForClient => g !== null);
+    const mapped = (Array.isArray(gems) ? gems : [])
+      .map(mapGemForClient)
+      .filter((g): g is GemForClient => g !== null);
 
     return NextResponse.json({ gems: mapped }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
-    const error = e as Error;
-    console.error("GET /gems error:", error);
-    return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
+    const err = e as Error;
+    routeLogger.error("GET error:", err);
+
+    if (err instanceof AppError) {
+      return errorFromAppError(err);
+    }
+
+    return error("Failed to load gems", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
 
@@ -109,21 +104,34 @@ export async function POST(req: NextRequest) {
     try {
       body = createGemSchema.parse(rawBody);
     } catch (e) {
-      const error = e as { errors?: Array<{ path: string[]; message: string }>; message?: string };
-      if (error.errors) {
-        const firstError = error.errors[0];
+      const validationError = e as {
+        errors?: Array<{ path: string[]; message: string }>;
+        message?: string;
+      };
+      if (validationError.errors) {
+        const firstError = validationError.errors[0];
         const field = firstError.path.join(".");
-        return NextResponse.json({ error: `Validation error: ${field} - ${firstError.message}` }, { status: 400 });
+        return errorFromAppError(new ValidationError(`${field}: ${firstError.message}`));
       }
-      return NextResponse.json({ error: error?.message || "Invalid request body" }, { status: 400 });
+      return errorFromAppError(
+        new ValidationError(validationError?.message || "Invalid request body")
+      );
     }
 
     const gem = await createGem(userId, body);
-    return NextResponse.json({ gem: mapGemForClient(gem as GemRow) }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { gem: mapGemForClient(gem as GemRow) },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (e) {
-    const error = e as Error;
-    console.error("POST /gems error:", error);
-    return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
+    const err = e as Error;
+    routeLogger.error("POST error:", err);
+
+    if (err instanceof AppError) {
+      return errorFromAppError(err);
+    }
+
+    return error("Failed to create gem", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
 
@@ -141,23 +149,36 @@ export async function PATCH(req: NextRequest) {
     try {
       body = updateGemSchema.parse(rawBody);
     } catch (e) {
-      const error = e as { errors?: Array<{ path: string[]; message: string }>; message?: string };
-      if (error.errors) {
-        const firstError = error.errors[0];
+      const validationError = e as {
+        errors?: Array<{ path: string[]; message: string }>;
+        message?: string;
+      };
+      if (validationError.errors) {
+        const firstError = validationError.errors[0];
         const field = firstError.path.join(".");
-        return NextResponse.json({ error: `Validation error: ${field} - ${firstError.message}` }, { status: 400 });
+        return errorFromAppError(new ValidationError(`${field}: ${firstError.message}`));
       }
-      return NextResponse.json({ error: error?.message || "Invalid request body" }, { status: 400 });
+      return errorFromAppError(
+        new ValidationError(validationError?.message || "Invalid request body")
+      );
     }
 
     const { id, ...rest } = body;
 
     const gem = await updateGem(userId, id, rest);
-    return NextResponse.json({ gem: mapGemForClient(gem as GemRow) }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { gem: mapGemForClient(gem as GemRow) },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (e) {
-    const error = e as Error;
-    console.error("PATCH /gems error:", error);
-    return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
+    const err = e as Error;
+    routeLogger.error("PATCH error:", err);
+
+    if (err instanceof AppError) {
+      return errorFromAppError(err);
+    }
+
+    return error("Failed to update gem", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
 
@@ -175,13 +196,18 @@ export async function DELETE(req: NextRequest) {
     try {
       body = deleteGemSchema.parse(rawBody);
     } catch (e) {
-      const error = e as { errors?: Array<{ path: string[]; message: string }>; message?: string };
-      if (error.errors) {
-        const firstError = error.errors[0];
+      const validationError = e as {
+        errors?: Array<{ path: string[]; message: string }>;
+        message?: string;
+      };
+      if (validationError.errors) {
+        const firstError = validationError.errors[0];
         const field = firstError.path.join(".");
-        return NextResponse.json({ error: `Validation error: ${field} - ${firstError.message}` }, { status: 400 });
+        return errorFromAppError(new ValidationError(`${field}: ${firstError.message}`));
       }
-      return NextResponse.json({ error: error?.message || "Invalid request body" }, { status: 400 });
+      return errorFromAppError(
+        new ValidationError(validationError?.message || "Invalid request body")
+      );
     }
 
     const { id } = body;
@@ -189,9 +215,13 @@ export async function DELETE(req: NextRequest) {
     await deleteGem(userId, id);
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
-    const error = e as Error;
-    console.error("DELETE /gems error:", error);
-    return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
+    const err = e as Error;
+    routeLogger.error("DELETE error:", err);
+
+    if (err instanceof AppError) {
+      return errorFromAppError(err);
+    }
+
+    return error("Failed to delete gem", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
-

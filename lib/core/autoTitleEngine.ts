@@ -35,7 +35,7 @@ function extractText(resp: unknown): string {
       if (typeof (resp as { text?: string }).text === "string") {
         return (resp as { text: string }).text;
       }
-      
+
       // Fallback sâu vào cấu trúc JSON (đề phòng thay đổi SDK)
       const candidates = (resp as { candidates?: unknown[] })?.candidates;
       if (Array.isArray(candidates) && candidates[0]) {
@@ -65,7 +65,7 @@ export function normalizeTitle(str: string | null | undefined): string {
   // lấy dòng đầu + dọn rác markdown/quotes
   t = t.split("\n")[0] ?? "";
   t = t.replace(/^["']|["']$/g, ""); // Chỉ xóa quote ở đầu/cuối
-  t = t.replace(/[.,!?;:`]/g, "");   // Xóa dấu câu
+  t = t.replace(/[.,!?;:`]/g, ""); // Xóa dấu câu
   t = t.replace(/\s+/g, " ").trim();
 
   // nếu sau khi clean bị rỗng -> fallback
@@ -105,23 +105,18 @@ async function generateTitleWithModel(
   { temperature, maxOutputTokens }: GenerateTitleOptions
 ): Promise<string | null> {
   const ai = getGenAIClient();
-  
+
   // Helper thực thi gọi model
   const attemptGenerate = async (modelId: string): Promise<string> => {
-    try {
-      const res = await ai.models.generateContent({
-        model: modelId,
-        contents: [{ role: "user", parts: [{ text: promptText }] }],
-        config: {
-          temperature,
-          maxOutputTokens,
-        },
-      });
-      return extractText(res);
-    } catch (e) {
-      // Ném lỗi để catch block bên dưới xử lý fallback
-      throw e;
-    }
+    const res = await ai.models.generateContent({
+      model: modelId,
+      contents: [{ role: "user", parts: [{ text: promptText }] }],
+      config: {
+        temperature,
+        maxOutputTokens,
+      },
+    });
+    return extractText(res);
   };
 
   try {
@@ -129,7 +124,7 @@ async function generateTitleWithModel(
     return await attemptGenerate(PRIMARY_MODEL);
   } catch (e1) {
     titleLogger.warn(`Primary model ${PRIMARY_MODEL} failed, trying fallback. Error: ${e1}`);
-    
+
     try {
       // Thử model dự phòng (Gemini 2.5 Flash Stable)
       return await attemptGenerate(FALLBACK_MODEL);
@@ -160,8 +155,8 @@ export async function generateOptimisticTitle(userMessage: string): Promise<stri
 
 // -------- FINAL TITLE --------
 export async function generateFinalTitle({
-  userId,
-  conversationId,
+  userId: _userId,
+  conversationId: _conversationId,
   messages,
 }: {
   userId: string;
@@ -182,9 +177,7 @@ export async function generateFinalTitle({
     const normalized = normalizeTitle(raw);
 
     if (!normalized || normalized === CONVERSATION_DEFAULTS.TITLE) {
-      const firstUser = (messages || []).find(
-        (m) => m?.role === "user" && m?.content?.trim()
-      );
+      const firstUser = (messages || []).find((m) => m?.role === "user" && m?.content?.trim());
       const fb = firstUser ? titleFromUserMessage(firstUser.content) : null;
       return fb && fb !== CONVERSATION_DEFAULTS.TITLE ? fb : null;
     }
@@ -195,4 +188,3 @@ export async function generateFinalTitle({
     return null;
   }
 }
-

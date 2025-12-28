@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useLanguage } from "../../features/chat/hooks/useLanguage";
 
 function AuthErrorContent() {
-  const searchParams = useSearchParams();
   const { language, setLanguage } = useLanguage();
   const [mounted, setMounted] = useState(false);
 
@@ -72,15 +70,15 @@ function AuthErrorContent() {
           <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
             {language === "vi" ? "Truy Cập Bị Từ Chối" : "Access Denied"}
           </h1>
-          
+
           <div className="rounded-[2rem] border border-red-500/20 bg-red-500/5 p-6 backdrop-blur-sm">
             <p className="text-base font-medium text-white/80 leading-relaxed mb-4">
-              {language === "vi" 
+              {language === "vi"
                 ? "Email của bạn chưa được cấp phép truy cập ứng dụng này."
                 : "Your email is not authorized to access this application."}
             </p>
             <p className="text-sm font-medium text-white/60 leading-relaxed">
-              {language === "vi" 
+              {language === "vi"
                 ? "Chỉ những người dùng có trong whitelist mới được phép sử dụng dịch vụ này."
                 : "Only whitelisted users are allowed to use this service."}
             </p>
@@ -96,7 +94,7 @@ function AuthErrorContent() {
         {/* Back Button */}
         <div className="pt-4">
           <button
-            onClick={() => window.location.href = "/auth/signin"}
+            onClick={() => (window.location.href = "/auth/signin")}
             className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-full border border-white/20 bg-white/5 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-white/10 hover:scale-[1.02] active:scale-[0.98]"
           >
             {language === "vi" ? "Quay Lại Đăng Nhập" : "Back to Sign In"}
@@ -108,11 +106,11 @@ function AuthErrorContent() {
         .flowing-gradient {
           background: linear-gradient(
             to left,
-            #ef4444, /* red */
-            #dc2626, /* darker red */
-            #991b1b, /* dark red */
-            #dc2626, /* darker red */
-            #ef4444  /* red back */
+            #ef4444,
+            /* red */ #dc2626,
+            /* darker red */ #991b1b,
+            /* dark red */ #dc2626,
+            /* darker red */ #ef4444 /* red back */
           );
           background-size: 300% 100%;
           animation: flow 8s linear infinite;
@@ -132,10 +130,5 @@ function AuthErrorContent() {
 }
 
 export default function AuthErrorPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-[#020617]" />}>
-      <AuthErrorContent />
-    </Suspense>
-  );
+  return <AuthErrorContent />;
 }
-

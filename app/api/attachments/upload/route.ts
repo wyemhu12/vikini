@@ -6,6 +6,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/app/api/conversations/auth";
 import { getConversation } from "@/lib/features/chat/conversations";
 import { uploadAttachment } from "@/lib/features/attachments/attachments";
+import { logger } from "@/lib/utils/logger";
+
+const routeLogger = logger.withContext("/api/attachments/upload");
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,8 +46,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ attachment }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     const error = err as Error;
-    console.error("POST /api/attachments/upload error:", error);
+    routeLogger.error("POST error:", error);
     return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
   }
 }
-

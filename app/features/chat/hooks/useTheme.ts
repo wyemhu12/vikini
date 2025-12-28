@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 const THEME_IDS = ["blueprint", "amber", "indigo", "charcoal", "gold", "red", "rose"] as const;
 
@@ -28,21 +28,17 @@ export function useTheme() {
    * - toggleTheme("red") => set theme to "red"
    * - toggleTheme() => cycle theme list
    */
-  const toggleTheme = useCallback(
-    (next?: string) => {
-      if (typeof next === "string" && THEME_IDS.includes(next as ThemeId)) {
-        setTheme(next as ThemeId);
-        return;
-      }
-      setTheme((prev) => {
-        const idx = THEME_IDS.indexOf(prev);
-        const nextIdx = idx === -1 ? 0 : (idx + 1) % THEME_IDS.length;
-        return THEME_IDS[nextIdx];
-      });
-    },
-    []
-  );
+  const toggleTheme = useCallback((next?: string) => {
+    if (typeof next === "string" && THEME_IDS.includes(next as ThemeId)) {
+      setTheme(next as ThemeId);
+      return;
+    }
+    setTheme((prev) => {
+      const idx = THEME_IDS.indexOf(prev);
+      const nextIdx = idx === -1 ? 0 : (idx + 1) % THEME_IDS.length;
+      return THEME_IDS[nextIdx];
+    });
+  }, []);
 
   return { theme, setTheme, toggleTheme, themeIds: THEME_IDS };
 }
-

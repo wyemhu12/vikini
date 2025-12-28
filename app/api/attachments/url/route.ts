@@ -5,6 +5,9 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/app/api/conversations/auth";
 import { createSignedUrlForAttachmentId } from "@/lib/features/attachments/attachments";
+import { logger } from "@/lib/utils/logger";
+
+const routeLogger = logger.withContext("/api/attachments/url");
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,8 +23,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ...data }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     const error = err as Error;
-    console.error("GET /api/attachments/url error:", error);
+    routeLogger.error("GET error:", error);
     return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
   }
 }
-

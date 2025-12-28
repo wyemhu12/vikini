@@ -4,6 +4,9 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAttachmentsConfig, getSupabaseAdmin } from "@/lib/features/attachments/attachments";
+import { logger } from "@/lib/utils/logger";
+
+const routeLogger = logger.withContext("/api/cron/attachments-cleanup");
 
 interface AttachmentRow {
   id: string;
@@ -88,7 +91,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     const error = err as Error;
-    console.error("GET /api/cron/attachments-cleanup error:", error);
+    routeLogger.error("GET error:", error);
     return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
   }
 }
@@ -96,4 +99,3 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return GET(req);
 }
-

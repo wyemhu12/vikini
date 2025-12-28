@@ -1,6 +1,7 @@
 // /lib/features/gems/gems.ts
 import { getSupabaseAdmin } from "@/lib/core/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getCachedGems, setCachedGems, invalidateGemsCache } from "@/lib/core/cache";
 
 interface GemPayload {
   name?: string;
@@ -64,17 +65,22 @@ function normalizeGemPayload(payload: unknown): NormalizedGemPayload {
     name: typeof body.name === "string" ? body.name : "New GEM",
     description: typeof body.description === "string" ? body.description : "",
     instruction,
-    icon: typeof body.icon === "string" ? body.icon : body.icon ?? "",
-    color: typeof body.color === "string" ? body.color : body.color ?? "",
+    icon: typeof body.icon === "string" ? body.icon : (body.icon ?? ""),
+    color: typeof body.color === "string" ? body.color : (body.color ?? ""),
   };
 }
 
 function sanitizeOrFilterValue(value: unknown): string {
   // PostgREST filter strings treat commas as separators, so strip them defensively.
-  return String(value ?? "").replace(/,/g, "").trim();
+  return String(value ?? "")
+    .replace(/,/g, "")
+    .trim();
 }
 
-async function tryGetLatestGemVersion(supabase: SupabaseClient, gemId: string): Promise<GemVersion | null> {
+async function tryGetLatestGemVersion(
+  supabase: SupabaseClient,
+  gemId: string
+): Promise<GemVersion | null> {
   // Returns { version, instructions } or null. Safe to call even if table doesn't exist.
   const q = await supabase
     .from("gem_versions")
@@ -144,12 +150,18 @@ async function tryInsertGemVersion(
 
 export async function listGems(): Promise<GemRow[]> {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase.from("gems").select("*").order("name", { ascending: true });
+  const { data, error } = await supabase
+    .from("gems")
+    .select("*")
+    .order("name", { ascending: true });
   if (error) throw new Error(`listGems failed: ${error.message}`);
   return (data || []) as GemRow[];
 }
 
-export async function getGemInstructionsForConversation(userId: string, conversationId: string): Promise<string> {
+export async function getGemInstructionsForConversation(
+  userId: string,
+  conversationId: string
+): Promise<string> {
   const supabase = getSupabaseAdmin();
 
   if (!conversationId) return "";
@@ -160,7 +172,8 @@ export async function getGemInstructionsForConversation(userId: string, conversa
     .eq("id", conversationId)
     .maybeSingle();
 
-  if (convoErr) throw new Error(`getGemInstructionsForConversation convo failed: ${convoErr.message}`);
+  if (convoErr)
+    throw new Error(`getGemInstructionsForConversation convo failed: ${convoErr.message}`);
   if (!convo) return "";
 
   // If user_id exists on the row, enforce ownership (defense-in-depth; chat route already authenticates).
@@ -195,6 +208,12 @@ export async function getGemInstructionsForConversation(userId: string, conversa
 }
 
 export async function getGemsForUser(userId: string): Promise<GemRow[]> {
+  // Try to get from cache first
+  const cached = await getCachedGems<GemRow[]>(userId);
+  if (cached !== null) {
+    return cached;
+  }
+
   const supabase = getSupabaseAdmin();
 
   const safeUserId = sanitizeOrFilterValue(userId);
@@ -221,7 +240,11 @@ export async function getGemsForUser(userId: string): Promise<GemRow[]> {
     gems = (q.data || []) as GemRow[];
   } else {
     // Legacy fallback (read-only): keep previous behavior rather than failing hard.
-    const q1 = await supabase.from("gems").select("*").eq("user_id", userId).order("name", { ascending: true });
+    const q1 = await supabase
+      .from("gems")
+      .select("*")
+      .eq("user_id", userId)
+      .order("name", { ascending: true });
     if (!q1.error) gems = (q1.data || []) as GemRow[];
     else {
       const q2 = await supabase.from("gems").select("*").order("name", { ascending: true });
@@ -233,16 +256,22 @@ export async function getGemsForUser(userId: string): Promise<GemRow[]> {
   // Enrich with latest gem_versions when available
   const ids = (gems || []).map((g) => g?.id).filter(Boolean) as string[];
 
-  const fallbackEnriched = (gems || []).map((g): GemRow => ({
-    ...g,
-    latestVersion: 0,
-    instructions:
-      (typeof g?.instructions === "string" && g.instructions) ||
-      (typeof g?.instruction === "string" && g.instruction) ||
-      "",
-  }));
+  const fallbackEnriched = (gems || []).map(
+    (g): GemRow => ({
+      ...g,
+      latestVersion: 0,
+      instructions:
+        (typeof g?.instructions === "string" && g.instructions) ||
+        (typeof g?.instruction === "string" && g.instruction) ||
+        "",
+    })
+  );
 
-  if (!ids.length) return fallbackEnriched;
+  if (!ids.length) {
+    // Store in cache (non-blocking)
+    await setCachedGems(userId, fallbackEnriched);
+    return fallbackEnriched;
+  }
 
   const vq = await supabase
     .from("gem_versions")
@@ -250,7 +279,11 @@ export async function getGemsForUser(userId: string): Promise<GemRow[]> {
     .in("gem_id", ids)
     .order("version", { ascending: false });
 
-  if (vq.error || !Array.isArray(vq.data)) return fallbackEnriched;
+  if (vq.error || !Array.isArray(vq.data)) {
+    // Store in cache (non-blocking)
+    await setCachedGems(userId, fallbackEnriched);
+    return fallbackEnriched;
+  }
 
   const latestByGem = new Map<string, GemVersion>();
   for (const row of vq.data) {
@@ -263,7 +296,7 @@ export async function getGemsForUser(userId: string): Promise<GemRow[]> {
     });
   }
 
-  return (gems || []).map((g): GemRow => {
+  const result = (gems || []).map((g): GemRow => {
     const latest = latestByGem.get(g.id);
     const fallback =
       (typeof g?.instructions === "string" && g.instructions) ||
@@ -275,6 +308,11 @@ export async function getGemsForUser(userId: string): Promise<GemRow[]> {
       instructions: latest ? latest.instructions : fallback,
     };
   });
+
+  // Store in cache (non-blocking)
+  await setCachedGems(userId, result);
+
+  return result;
 }
 
 export async function createGem(userId: string, payload: unknown): Promise<GemRow> {
@@ -337,7 +375,12 @@ export async function createGem(userId: string, payload: unknown): Promise<GemRo
     }
   }
 
-  return { ...created, latestVersion, instructions };
+  const result = { ...created, latestVersion, instructions };
+
+  // Invalidate cache after creating gem
+  await invalidateGemsCache(userId);
+
+  return result;
 }
 
 export async function updateGem(userId: string, gemId: string, payload: unknown): Promise<GemRow> {
@@ -407,8 +450,7 @@ export async function updateGem(userId: string, gemId: string, payload: unknown)
 
   const payloadObj = payload as GemPayload | undefined;
   const instructionsProvided =
-    typeof payloadObj?.instructions === "string" ||
-    typeof payloadObj?.instruction === "string";
+    typeof payloadObj?.instructions === "string" || typeof payloadObj?.instruction === "string";
 
   if (instructionsProvided) {
     const ins = await tryInsertGemVersion(supabase, {
@@ -432,7 +474,12 @@ export async function updateGem(userId: string, gemId: string, payload: unknown)
     }
   }
 
-  return { ...updated, latestVersion, instructions };
+  const result = { ...updated, latestVersion, instructions };
+
+  // Invalidate cache after updating gem
+  await invalidateGemsCache(userId);
+
+  return result;
 }
 
 export async function deleteGem(userId: string, gemId: string): Promise<{ ok: boolean }> {
@@ -459,11 +506,17 @@ export async function deleteGem(userId: string, gemId: string): Promise<{ ok: bo
   if (owner && owner !== userId) throw new Error("Forbidden");
 
   const attempt1 = await supabase.from("gems").delete().eq("id", gemId).eq("user_id", userId);
-  if (!attempt1.error) return { ok: true };
+  if (!attempt1.error) {
+    // Invalidate cache after deleting gem
+    await invalidateGemsCache(userId);
+    return { ok: true };
+  }
 
   const attempt2 = await supabase.from("gems").delete().eq("id", gemId).eq("userId", userId);
   if (attempt2.error) throw new Error(`deleteGem failed: ${attempt2.error.message}`);
 
+  // Invalidate cache after deleting gem
+  await invalidateGemsCache(userId);
+
   return { ok: true };
 }
-
