@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
 import { getGemsForUser, createGem, updateGem, deleteGem } from "@/lib/features/gems/gems";
+import { createGemSchema, updateGemSchema, deleteGemSchema } from "./validators";
 
 interface GemRow {
   id: string;
@@ -103,7 +104,19 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const userId = session.user.email.toLowerCase();
-    const body = (await req.json().catch(() => ({}))) as CreateGemPayload;
+    const rawBody = await req.json().catch(() => ({}));
+    let body;
+    try {
+      body = createGemSchema.parse(rawBody);
+    } catch (e) {
+      const error = e as { errors?: Array<{ path: string[]; message: string }>; message?: string };
+      if (error.errors) {
+        const firstError = error.errors[0];
+        const field = firstError.path.join(".");
+        return NextResponse.json({ error: `Validation error: ${field} - ${firstError.message}` }, { status: 400 });
+      }
+      return NextResponse.json({ error: error?.message || "Invalid request body" }, { status: 400 });
+    }
 
     const gem = await createGem(userId, body);
     return NextResponse.json({ gem: mapGemForClient(gem as GemRow) }, { headers: { "Cache-Control": "no-store" } });
@@ -123,10 +136,21 @@ export async function PATCH(req: NextRequest) {
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const userId = session.user.email.toLowerCase();
-    const body = (await req.json().catch(() => ({}))) as UpdateGemPayload;
+    const rawBody = await req.json().catch(() => ({}));
+    let body;
+    try {
+      body = updateGemSchema.parse(rawBody);
+    } catch (e) {
+      const error = e as { errors?: Array<{ path: string[]; message: string }>; message?: string };
+      if (error.errors) {
+        const firstError = error.errors[0];
+        const field = firstError.path.join(".");
+        return NextResponse.json({ error: `Validation error: ${field} - ${firstError.message}` }, { status: 400 });
+      }
+      return NextResponse.json({ error: error?.message || "Invalid request body" }, { status: 400 });
+    }
 
-    const { id, ...rest } = body || {};
-    if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+    const { id, ...rest } = body;
 
     const gem = await updateGem(userId, id, rest);
     return NextResponse.json({ gem: mapGemForClient(gem as GemRow) }, { headers: { "Cache-Control": "no-store" } });
@@ -146,10 +170,21 @@ export async function DELETE(req: NextRequest) {
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const userId = session.user.email.toLowerCase();
-    const body = (await req.json().catch(() => ({}))) as DeleteGemPayload;
+    const rawBody = await req.json().catch(() => ({}));
+    let body;
+    try {
+      body = deleteGemSchema.parse(rawBody);
+    } catch (e) {
+      const error = e as { errors?: Array<{ path: string[]; message: string }>; message?: string };
+      if (error.errors) {
+        const firstError = error.errors[0];
+        const field = firstError.path.join(".");
+        return NextResponse.json({ error: `Validation error: ${field} - ${firstError.message}` }, { status: 400 });
+      }
+      return NextResponse.json({ error: error?.message || "Invalid request body" }, { status: 400 });
+    }
 
-    const { id } = body || {};
-    if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+    const { id } = body;
 
     await deleteGem(userId, id);
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });

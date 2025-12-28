@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "./auth";
-import { parseJsonBody } from "./validators";
+import { parseJsonBody, createConversationSchema, updateConversationSchema, deleteConversationSchema } from "./validators";
 import { sanitizeMessages } from "./sanitize";
 import { logger } from "@/lib/utils/logger";
 import { NotFoundError, ValidationError, AppError } from "@/lib/utils/errors";
@@ -86,8 +86,9 @@ export async function POST(req: NextRequest) {
     if (!auth.ok) return auth.response;
     const { userId } = auth;
 
-    const body = await parseJsonBody<{ title?: string }>(req, { fallback: {} });
-    const title = body?.title || CONVERSATION_DEFAULTS.TITLE;
+    const rawBody = await parseJsonBody(req, { fallback: {} });
+    const body = createConversationSchema.parse(rawBody);
+    const title = body.title || CONVERSATION_DEFAULTS.TITLE;
 
     const conversation = await saveConversation(userId, { title });
     routeLogger.info(`Created conversation ${conversation?.id} for user: ${userId}`);
@@ -127,19 +128,23 @@ export async function PATCH(req: NextRequest) {
     const { userId } = auth;
 
     // NOTE: keep strict parsing behavior (invalid JSON => throws => 500 as before)
-    const body = await parseJsonBody(req) as { id?: string; title?: string; gemId?: string | null; model?: string | null };
-
-    const { id, title } = body || {};
-    const hasGemId = Object.prototype.hasOwnProperty.call(body || {}, "gemId");
-    const gemId = body?.gemId ?? null;
-    
-    // ✅ NEW: Handle model field
-    const hasModel = Object.prototype.hasOwnProperty.call(body || {}, "model");
-    const model = body?.model ?? null;
-
-    if (!id) {
-      return errorFromAppError(new ValidationError("Missing id"));
+    const rawBody = await parseJsonBody(req);
+    let body;
+    try {
+      body = updateConversationSchema.parse(rawBody);
+    } catch (e) {
+      const error = e as { errors?: Array<{ path: string[]; message: string }>; message?: string };
+      if (error.errors) {
+        const firstError = error.errors[0];
+        const field = firstError.path.join(".");
+        return errorFromAppError(new ValidationError(`${field}: ${firstError.message}`));
+      }
+      return errorFromAppError(new ValidationError(error?.message || "Invalid request body"));
     }
+
+    const { id, title, gemId, model } = body;
+    const hasGemId = Object.prototype.hasOwnProperty.call(rawBody, "gemId");
+    const hasModel = Object.prototype.hasOwnProperty.call(rawBody, "model");
 
     let conversation = null;
 
@@ -195,12 +200,21 @@ export async function DELETE(req: NextRequest) {
     if (!auth.ok) return auth.response;
     const { userId } = auth;
 
-    const body = await parseJsonBody(req, { fallback: {} }) as { id?: string };
-    const { id } = body || {};
-
-    if (!id) {
-      return errorFromAppError(new ValidationError("Missing id"));
+    const rawBody = await parseJsonBody(req, { fallback: {} });
+    let body;
+    try {
+      body = deleteConversationSchema.parse(rawBody);
+    } catch (e) {
+      const error = e as { errors?: Array<{ path: string[]; message: string }>; message?: string };
+      if (error.errors) {
+        const firstError = error.errors[0];
+        const field = firstError.path.join(".");
+        return errorFromAppError(new ValidationError(`${field}: ${firstError.message}`));
+      }
+      return errorFromAppError(new ValidationError(error?.message || "Invalid request body"));
     }
+
+    const { id } = body;
 
     await deleteConversation(userId, id);
     routeLogger.info(`Deleted conversation ${id} for user: ${userId}`);

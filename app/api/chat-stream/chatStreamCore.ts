@@ -34,6 +34,7 @@ import {
 } from "@/lib/core/autoTitleEngine";
 
 import { createChatReadableStream, mapMessages } from "./streaming";
+import { chatStreamRequestSchema, type ChatStreamRequest } from "./validators";
 
 interface AttachmentRow {
   id: string;
@@ -133,14 +134,6 @@ function estimateTokens(text: string | null | undefined): number {
   return Math.ceil(text.length / 4);
 }
 
-interface ChatStreamRequestBody {
-  conversationId?: string;
-  content?: string;
-  regenerate?: boolean;
-  truncateMessageId?: string;
-  skipSaveUserMessage?: boolean;
-  [key: string]: unknown;
-}
 
 interface HandleChatStreamCoreParams {
   req: NextRequest;
@@ -437,19 +430,22 @@ function setupToolsAndSafety(enableWebSearch: boolean, WEB_SEARCH_AVAILABLE: boo
 }
 
 export async function handleChatStreamCore({ req, userId }: HandleChatStreamCoreParams): Promise<Response> {
-  // Parse request body
-  let body: ChatStreamRequestBody = {};
+  // Parse and validate request body
+  let body: ChatStreamRequest;
   try {
-    body = await req.json() as ChatStreamRequestBody;
-  } catch {
-    body = {};
+    const rawBody = await req.json();
+    body = chatStreamRequestSchema.parse(rawBody);
+  } catch (e) {
+    const error = e as { errors?: Array<{ path: string[]; message: string }>; message?: string };
+    if (error.errors) {
+      const firstError = error.errors[0];
+      const field = firstError.path.join(".");
+      return jsonError(`Validation error: ${field} - ${firstError.message}`, 400);
+    }
+    return jsonError(error?.message || "Invalid request body", 400);
   }
 
-  const { conversationId: conversationIdRaw, content, regenerate, truncateMessageId, skipSaveUserMessage } = body || {};
-
-  if (typeof content !== "string" || !content.trim()) {
-    return jsonError("Missing content", 400);
-  }
+  const { conversationId: conversationIdRaw, content, regenerate, truncateMessageId, skipSaveUserMessage } = body;
 
   // Initialize AI client
   let ai: ReturnType<typeof getGenAIClient>;

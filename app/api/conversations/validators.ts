@@ -1,6 +1,7 @@
 // /app/api/conversations/validators.ts
 
 import { NextRequest } from "next/server";
+import { z } from "zod";
 
 /**
  * Parse JSON body.
@@ -16,4 +17,27 @@ export async function parseJsonBody<T = unknown>(
   }
   return await req.json() as Promise<T>;
 }
+
+// Zod schemas for validation
+
+export const createConversationSchema = z.object({
+  title: z.string().max(200).optional(),
+});
+
+export type CreateConversationRequest = z.infer<typeof createConversationSchema>;
+
+export const updateConversationSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().max(200).optional(),
+  gemId: z.string().uuid().nullable().optional(),
+  model: z.string().nullable().optional(),
+});
+
+export type UpdateConversationRequest = z.infer<typeof updateConversationSchema>;
+
+export const deleteConversationSchema = z.object({
+  id: z.string().uuid(),
+});
+
+export type DeleteConversationRequest = z.infer<typeof deleteConversationSchema>;
 
