@@ -332,9 +332,7 @@ export default function ChatApp() {
 
   const handleModelChange = useCallback(
     async (newModelId) => {
-      if (!selectedConversationId) return;
-
-      // Check if user has access to this model
+      // Check if user has access to this model FIRST
       if (!isModelAllowed(newModelId)) {
         // Show bilingual alert
         alert(
@@ -347,6 +345,13 @@ export default function ChatApp() {
         return; // Don't change model
       }
 
+      // Only update conversation model if a conversation is selected
+      if (!selectedConversationId) {
+        // On landing page, model will be used when creating new conversation
+        return;
+      }
+
+      // Update existing conversation's model
       try {
         patchConversationModel?.(selectedConversationId, newModelId);
         await setConversationModel?.(selectedConversationId, newModelId);
@@ -493,8 +498,7 @@ export default function ChatApp() {
                     <option
                       key={m.id}
                       value={m.id}
-                      disabled={!allowed}
-                      className={`bg-[#0f172a] ${!allowed ? "opacity-40 cursor-not-allowed" : ""}`}
+                      className={`bg-[#0f172a] ${!allowed ? "opacity-40" : ""}`}
                       style={{ opacity: allowed ? 1 : 0.4 }}
                     >
                       {allowed ? "" : "🔒 "}
