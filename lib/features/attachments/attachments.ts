@@ -93,6 +93,9 @@ const ALLOWED_TEXT_MIMES = new Set([
   "text/javascript",
   "application/javascript",
   "application/x-javascript",
+  "text/typescript",
+  "application/typescript",
+  "video/mp2t",
   "text/jsx",
   "application/json",
   "text/json",
@@ -117,6 +120,7 @@ const ALLOWED_ARCHIVE_MIMES = new Set([
 const ALLOWED_EXTS = new Set([
   "txt",
   "js",
+  "ts",
   "jsx",
   "json",
   "png",
@@ -297,7 +301,7 @@ export async function validateUpload({
     );
   }
 
-  const isTextExt = ["txt", "js", "jsx", "json"].includes(ext);
+  const isTextExt = ["txt", "js", "ts", "jsx", "json"].includes(ext);
   const isImageExt = ["png", "jpg", "jpeg", "webp"].includes(ext);
   const isDocExt = ["pdf", "doc", "docx", "xls", "xlsx"].includes(ext);
   const isZipExt = ext === "zip";
@@ -306,7 +310,8 @@ export async function validateUpload({
     if (mime && !ALLOWED_TEXT_MIMES.has(mime) && mime !== "application/octet-stream") {
       throw new Error("Text MIME not allowed");
     }
-    const defaultTextMime = ext === "json" ? "application/json" : "text/plain";
+    const defaultTextMime =
+      ext === "json" ? "application/json" : ext === "ts" ? "text/typescript" : "text/plain";
     return {
       kind: "text",
       filename: safeName,
