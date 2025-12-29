@@ -90,7 +90,12 @@ export default function ChatApp() {
 
   // Allowed Models (filtered by rank)
   const { allowedModels, loading: modelsLoading } = useAllowedModels(isAuthed);
-  const AVAILABLE_MODELS = modelsLoading ? [] : allowedModels;
+  // Show all models while loading, then filter by rank
+  const AVAILABLE_MODELS = modelsLoading
+    ? SELECTABLE_MODELS
+    : allowedModels.length > 0
+      ? allowedModels
+      : SELECTABLE_MODELS;
 
   const attachmentsRef = useRef(null);
   const dragCounter = useRef(0);
