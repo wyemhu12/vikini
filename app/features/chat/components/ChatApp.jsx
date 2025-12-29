@@ -9,6 +9,7 @@ import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
 import InputForm from "./InputForm";
 import AttachmentsPanel from "./AttachmentsPanel";
+import AccessPendingScreen from "@/app/components/AccessPendingScreen";
 
 import { useTheme } from "../hooks/useTheme";
 import { useLanguage } from "../hooks/useLanguage";
@@ -303,6 +304,11 @@ export default function ChatApp() {
         </div>
       </div>
     );
+  }
+
+  // Check if user is not whitelisted (pending approval)
+  if (isAuthed && session?.user?.rank === "not_whitelisted") {
+    return <AccessPendingScreen />;
   }
 
   const showLanding = !selectedConversationId || renderedMessages.length === 0;
