@@ -294,13 +294,17 @@ export async function validateUpload({
   let mime = safeLower(file.type || "");
   const size = Number(file.size || 0);
 
-  // Fix: Force correct MIME type for specific extensions if missing or generic
+  // Fix: Force correct MIME type for specific extensions, overriding browser detection
+  // This is critical because browsers often misidentify .ts as video/mp2t or other non-text types
+  if (ext === "ts") mime = "text/typescript";
+  else if (ext === "tsx") mime = "text/tsx";
+  else if (ext === "jsx") mime = "text/jsx";
+  else if (ext === "json") mime = "application/json";
+  else if (ext === "js") mime = "text/javascript";
+
+  // For other text types, if missing or generic, fall back to plain text
   if (!mime || mime === "application/octet-stream") {
-    if (ext === "ts") mime = "text/typescript";
-    else if (ext === "tsx") mime = "text/tsx";
-    else if (ext === "json") mime = "application/json";
-    else if (ext === "js") mime = "text/javascript";
-    else if (ext === "jsx") mime = "text/jsx";
+    mime = "text/plain";
   }
 
   // Check user's file size limit (rank-based)
@@ -328,7 +332,9 @@ export async function validateUpload({
           ? "text/typescript"
           : ext === "tsx"
             ? "text/tsx"
-            : "text/plain";
+            : ext === "jsx"
+              ? "text/jsx"
+              : "text/plain";
 
     return {
       kind: "text",
