@@ -80,22 +80,6 @@ export default function UserManager() {
         <span className="text-sm text-gray-500">({users.length} users)</span>
       </div>
 
-      {/* Whitelist Info Banner */}
-      <div className="mb-4 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-        <div className="flex items-start gap-2">
-          <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5" />
-          <div>
-            <div className="text-sm font-medium text-blue-300 mb-1">Whitelist Status</div>
-            <div className="text-xs text-gray-400">
-              All users shown in this table are{" "}
-              <span className="text-blue-400 font-medium">whitelisted</span>. Users are auto-added
-              to the whitelist (profiles table) on first login if their email is in temp_user_ranks.
-              To remove access, use the <span className="text-red-400">Block</span> button.
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
