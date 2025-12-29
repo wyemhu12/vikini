@@ -22,12 +22,12 @@ import { DEFAULT_MODEL, SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
 
 // Inline hook to fetch allowed models for current user
 function useAllowedModels(isAuthed) {
-  const [allowedModels, setAllowedModels] = useState([]);
+  const [allowedModelIds, setAllowedModelIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!isAuthed) {
-      setAllowedModels([]);
+      setAllowedModelIds(new Set());
       setLoading(false);
       return;
     }
@@ -45,15 +45,13 @@ function useAllowedModels(isAuthed) {
 
         if (cancelled) return;
 
-        // Filter SELECTABLE_MODELS to only include allowed ones
-        const filtered = SELECTABLE_MODELS.filter((model) => allowed.includes(model.id));
-
-        setAllowedModels(filtered.length > 0 ? filtered : SELECTABLE_MODELS);
+        // Return Set of allowed model IDs for easy checking
+        setAllowedModelIds(new Set(allowed));
       } catch (error) {
         console.warn("Error fetching allowed models:", error);
-        // Fallback to all models on error
+        // Fallback to allowing all models on error
         if (!cancelled) {
-          setAllowedModels(SELECTABLE_MODELS);
+          setAllowedModelIds(new Set(SELECTABLE_MODELS.map((m) => m.id)));
         }
       } finally {
         if (!cancelled) {
@@ -69,7 +67,7 @@ function useAllowedModels(isAuthed) {
     };
   }, [isAuthed]);
 
-  return { allowedModels, loading };
+  return { allowedModelIds, loading };
 }
 
 export default function ChatApp() {
@@ -88,14 +86,20 @@ export default function ChatApp() {
   const [showFiles, setShowFiles] = useState(false);
   const [fileCount, setFileCount] = useState(0);
 
-  // Allowed Models (filtered by rank)
-  const { allowedModels, loading: modelsLoading } = useAllowedModels(isAuthed);
-  // Show all models while loading, then filter by rank
-  const AVAILABLE_MODELS = modelsLoading
-    ? SELECTABLE_MODELS
-    : allowedModels.length > 0
-      ? allowedModels
-      : SELECTABLE_MODELS;
+  // Allowed Models (check access permissions)
+  const { allowedModelIds, loading: modelsLoading } = useAllowedModels(isAuthed);
+  // Always show all models, but some will be disabled
+  const AVAILABLE_MODELS = SELECTABLE_MODELS;
+
+  // Function to check if a model is allowed
+  const isModelAllowed = useCallback(
+    (modelId) => {
+      if (modelsLoading) return true; // Allow all while loading
+      if (allowedModelIds.size === 0) return true; // Allow all if no restrictions
+      return allowedModelIds.has(modelId);
+    },
+    [allowedModelIds, modelsLoading]
+  );
 
   const attachmentsRef = useRef(null);
   const dragCounter = useRef(0);
@@ -327,16 +331,30 @@ export default function ChatApp() {
   const currentGem = currentConversation?.gem || null;
 
   const handleModelChange = useCallback(
-    async (newModel) => {
+    async (newModelId) => {
       if (!selectedConversationId) return;
+
+      // Check if user has access to this model
+      if (!isModelAllowed(newModelId)) {
+        // Show bilingual alert
+        alert(
+          "🔒 Model Access Restricted / Mô hình bị hạn chế\n\n" +
+            "You don't have permission to use this model.\n" +
+            "Please contact an administrator to upgrade your account.\n\n" +
+            "Bạn không có quyền sử dụng mô hình này.\n" +
+            "Vui lòng liên hệ quản trị viên để nâng cấp tài khoản."
+        );
+        return; // Don't change model
+      }
+
       try {
-        patchConversationModel?.(selectedConversationId, newModel);
-        await setConversationModel?.(selectedConversationId, newModel);
+        patchConversationModel?.(selectedConversationId, newModelId);
+        await setConversationModel?.(selectedConversationId, newModelId);
       } catch (e) {
         console.error(e);
       }
     },
-    [selectedConversationId, setConversationModel, patchConversationModel]
+    [selectedConversationId, setConversationModel, patchConversationModel, isModelAllowed]
   );
 
   useEffect(() => {
@@ -469,11 +487,21 @@ export default function ChatApp() {
                 disabled={isStreaming || regenerating}
                 className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 bg-transparent text-white/60 outline-none cursor-pointer hover:text-white transition-colors"
               >
-                {AVAILABLE_MODELS.map((m) => (
-                  <option key={m.id} value={m.id} className="bg-[#0f172a]">
-                    {t[m.id] || m.name || m.id}
-                  </option>
-                ))}
+                {AVAILABLE_MODELS.map((m) => {
+                  const allowed = isModelAllowed(m.id);
+                  return (
+                    <option
+                      key={m.id}
+                      value={m.id}
+                      disabled={!allowed}
+                      className={`bg-[#0f172a] ${!allowed ? "opacity-40 cursor-not-allowed" : ""}`}
+                      style={{ opacity: allowed ? 1 : 0.4 }}
+                    >
+                      {allowed ? "" : "🔒 "}
+                      {t[m.id] || m.name || m.id}
+                    </option>
+                  );
+                })}
               </select>
 
               <div className="h-3 w-[1px] bg-white/10 mx-1" />
