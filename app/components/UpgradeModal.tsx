@@ -12,7 +12,7 @@ interface UpgradeModalProps {
 export default function UpgradeModal({ isOpen, onClose, modelName }: UpgradeModalProps) {
   // Close on Escape key
   useEffect(() => {
-    const handleEsc = (e) => {
+    const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     if (isOpen) {
