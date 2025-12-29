@@ -12,10 +12,17 @@ export interface SelectableModel {
 
 // Models shown in the UI selector (store these IDs in DB)
 export const SELECTABLE_MODELS: readonly SelectableModel[] = [
-  { id: "gemini-2.5-flash", descKey: "modelDescFlash25", tokenLimit: 1000000, contextWindow: 1000000 },
+  {
+    id: "gemini-2.5-flash",
+    descKey: "modelDescFlash25",
+    tokenLimit: 1000000,
+    contextWindow: 1000000,
+  },
   { id: "gemini-2.5-pro", descKey: "modelDescPro25", tokenLimit: 2000000, contextWindow: 2000000 },
   { id: "gemini-3-flash", descKey: "modelDescFlash3", tokenLimit: 1000000, contextWindow: 1000000 },
   { id: "gemini-3-pro", descKey: "modelDescPro3", tokenLimit: 2000000, contextWindow: 2000000 },
+  { id: "llama3-70b-8192", descKey: "modelDescLlama3_70b", tokenLimit: 8192, contextWindow: 8192 },
+  { id: "llama3-8b-8192", descKey: "modelDescLlama3_8b", tokenLimit: 8192, contextWindow: 8192 },
 ] as const;
 
 const SELECTABLE_SET = new Set(SELECTABLE_MODELS.map((m) => m.id));
@@ -26,7 +33,10 @@ const API_ALLOWED = new Set([
   "gemini-2.5-pro",
   "gemini-3-flash-preview",
   "gemini-3-pro-preview",
+  "gemini-3-pro-preview",
   "gemini-3-pro-image-preview",
+  "llama3-70b-8192",
+  "llama3-8b-8192",
 ]);
 
 // Back-compat aliases and deprecations.
@@ -88,4 +98,3 @@ export function getModelTokenLimit(modelId: unknown): number {
   const model = SELECTABLE_MODELS.find((m) => m.id === coerceStoredModel(modelId));
   return model?.tokenLimit || SELECTABLE_MODELS[0]?.tokenLimit || 1000000;
 }
-

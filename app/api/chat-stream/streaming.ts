@@ -1,5 +1,6 @@
 // /app/api/chat-stream/streaming.ts
 import { logger } from "@/lib/utils/logger";
+import OpenAI from "openai";
 
 const streamLogger = logger.withContext("/api/chat-stream");
 
@@ -612,6 +613,129 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
       await processPostStream(controller, {
         full: finalFull,
         isActuallyBlocked,
+        shouldGenerateTitle,
+        conversationId,
+        userId,
+        contextMessages,
+        content,
+        appendToContext,
+        saveMessage,
+        setConversationAutoTitle,
+        generateFinalTitle,
+      });
+
+      sendEvent(controller, "done", { ok: true });
+      controller.close();
+    },
+  });
+}
+
+export function createGroqReadableStream(params: {
+  ai: OpenAI;
+  model: string;
+  contents: unknown[]; // This will need to be mapped to OpenAI format
+  sysPrompt: string;
+  // Common params
+  gemMeta: ChatStreamParams["gemMeta"];
+  modelMeta: ChatStreamParams["modelMeta"];
+  createdConversation: unknown | null;
+  shouldGenerateTitle: boolean;
+  enableWebSearch: boolean;
+  WEB_SEARCH_AVAILABLE: boolean;
+  cookieWeb: string;
+  userId: string;
+  conversationId: string;
+  content: string;
+  contextMessages: Message[];
+  appendToContext: ChatStreamParams["appendToContext"];
+  saveMessage: ChatStreamParams["saveMessage"];
+  setConversationAutoTitle: ChatStreamParams["setConversationAutoTitle"];
+  generateOptimisticTitle: ChatStreamParams["generateOptimisticTitle"];
+  generateFinalTitle: ChatStreamParams["generateFinalTitle"];
+}): ReadableStream<Uint8Array> {
+  const {
+    ai,
+    model,
+    contents,
+    sysPrompt,
+    gemMeta,
+    modelMeta,
+    createdConversation,
+    shouldGenerateTitle,
+    enableWebSearch,
+    WEB_SEARCH_AVAILABLE,
+    cookieWeb,
+    userId,
+    conversationId,
+    content,
+    contextMessages,
+    appendToContext,
+    saveMessage,
+    setConversationAutoTitle,
+    generateOptimisticTitle,
+    generateFinalTitle,
+  } = params;
+
+  return new ReadableStream({
+    async start(controller) {
+      // 1. Send Initial Meta
+      sendInitialMetaEvents(controller, {
+        createdConversation,
+        enableWebSearch,
+        WEB_SEARCH_AVAILABLE,
+        cookieWeb,
+        gemMeta,
+        modelMeta,
+        model,
+      });
+
+      // 2. Optimistic Title
+      await generateAndSendOptimisticTitle(
+        controller,
+        shouldGenerateTitle,
+        content,
+        conversationId,
+        generateOptimisticTitle
+      );
+
+      let full = "";
+
+      try {
+        // Map contents to OpenAI format
+        // contents from chatStreamCore is [{ role: "user", parts: [{text: ""}] }]
+        // OpenAI expects: [{ role: "user", content: "" }]
+        const openAIMessages = [
+          { role: "system", content: sysPrompt },
+          ...(contents as Array<{ role: string; parts: Array<{ text?: string }> }>).map((m) => ({
+            role: m.role === "model" ? "assistant" : m.role,
+            content: m.parts.map((p) => p.text || "").join(""),
+          })),
+        ] as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+
+        const stream = await ai.chat.completions.create({
+          model: model,
+          messages: openAIMessages,
+          stream: true,
+          temperature: 0,
+          max_tokens: 8192,
+        });
+
+        for await (const chunk of stream) {
+          const text = chunk.choices[0]?.delta?.content || "";
+          if (text) {
+            full += text;
+            sendEvent(controller, "token", { t: text });
+          }
+        }
+      } catch (e) {
+        streamLogger.error("Groq stream error:", e);
+        sendEvent(controller, "error", { message: "Stream error" });
+      }
+
+      // 3. Post Stream Processing
+      await processPostStream(controller, {
+        full,
+        isActuallyBlocked: false, // Groq doesn't provide granular safety flags like Gemini
         shouldGenerateTitle,
         conversationId,
         userId,

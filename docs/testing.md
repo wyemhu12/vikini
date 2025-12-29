@@ -1,3 +1,5 @@
+﻿# docs/testing.md
+
 # Hướng Dẫn Testing - Vikini
 
 ## 📋 Tổng Quan

@@ -2,6 +2,7 @@
 
 import { NextRequest } from "next/server";
 import { getGenAIClient } from "@/lib/core/genaiClient";
+import { getGroqClient } from "@/lib/core/groqClient";
 import {
   DEFAULT_MODEL,
   normalizeModelForApi,
@@ -30,7 +31,7 @@ import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
 
 import { generateOptimisticTitle, generateFinalTitle } from "@/lib/core/autoTitleEngine";
 
-import { createChatReadableStream, mapMessages, type ChatStreamParams } from "./streaming";
+import { createChatReadableStream, createGroqReadableStream, mapMessages } from "./streaming";
 import { chatStreamRequestSchema, type ChatStreamRequest } from "./validators";
 
 interface AttachmentRow {
@@ -584,9 +585,21 @@ export async function handleChatStreamCore({
     return saveMessage(userId, conversationId, role, content);
   };
 
-  const stream = createChatReadableStream({
-    ai: ai as unknown as ChatStreamParams["ai"],
-    model,
+  const streamCreator =
+    model.includes("llama") || model.includes("mixtral")
+      ? createGroqReadableStream
+      : createChatReadableStream;
+  const isGroq = streamCreator === createGroqReadableStream;
+  let aiClient: any;
+  if (isGroq) {
+    aiClient = getGroqClient();
+  } else {
+    aiClient = ai;
+  }
+
+  const stream = streamCreator({
+    ai: aiClient,
+    model: isGroq ? model : model, // Groq models are passed as is
     contents,
     sysPrompt: finalSysPrompt,
     tools,
