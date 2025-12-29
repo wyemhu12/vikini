@@ -3,7 +3,13 @@
 import { Shield, X } from "lucide-react";
 import { useEffect } from "react";
 
-export default function UpgradeModal({ isOpen, onClose, modelName }) {
+interface UpgradeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  modelName: string | null;
+}
+
+export default function UpgradeModal({ isOpen, onClose, modelName }: UpgradeModalProps) {
   // Close on Escape key
   useEffect(() => {
     const handleEsc = (e) => {
