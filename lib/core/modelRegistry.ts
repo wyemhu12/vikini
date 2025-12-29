@@ -33,12 +33,6 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     tokenLimit: 128000,
     contextWindow: 128000,
   },
-  {
-    id: "deepseek-r1-distill-llama-70b",
-    descKey: "modelDescDeepSeekR1",
-    tokenLimit: 128000,
-    contextWindow: 128000,
-  },
 ] as const;
 
 const SELECTABLE_SET = new Set(SELECTABLE_MODELS.map((m) => m.id));
@@ -53,7 +47,6 @@ const API_ALLOWED = new Set([
   "gemini-3-pro-image-preview",
   "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant",
-  "deepseek-r1-distill-llama-70b",
 ]);
 
 // Back-compat aliases and deprecations.
