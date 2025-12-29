@@ -7,9 +7,10 @@ interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
   modelName: string | null;
+  t: Record<string, string>; // Translation object
 }
 
-export default function UpgradeModal({ isOpen, onClose, modelName }: UpgradeModalProps) {
+export default function UpgradeModal({ isOpen, onClose, modelName, t }: UpgradeModalProps) {
   // Close on Escape key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -56,17 +57,16 @@ export default function UpgradeModal({ isOpen, onClose, modelName }: UpgradeModa
 
           {/* Content */}
           <div className="px-8 pb-8">
-            <h2 className="text-2xl font-bold text-white text-center mb-2">
-              Model Access Restricted
+            <h2 className="text-2xl font-bold text-white text-center mb-6">
+              {t.modalUpgradeTitle}
             </h2>
-            <p className="text-lg text-purple-300 text-center mb-6">Mô hình bị hạn chế</p>
 
             <div className="space-y-4 mb-6">
               {/* Model info */}
               {modelName && (
                 <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
                   <div className="text-sm font-medium text-blue-300 mb-1">
-                    Requested Model / Mô hình yêu cầu
+                    {t.modalUpgradeRequestedModel}
                   </div>
                   <div className="text-white font-semibold">🔒 {modelName}</div>
                 </div>
@@ -74,20 +74,12 @@ export default function UpgradeModal({ isOpen, onClose, modelName }: UpgradeModa
 
               {/* Message */}
               <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-                <div className="text-sm text-gray-300 mb-2">
-                  You don't have permission to use this model.
-                </div>
-                <div className="text-xs text-gray-400">Bạn không có quyền sử dụng mô hình này.</div>
+                <div className="text-sm text-gray-300">{t.modalUpgradeNoPermission}</div>
               </div>
 
               {/* Action */}
               <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
-                <div className="text-sm text-gray-300 mb-2">
-                  Please contact an administrator to upgrade your account.
-                </div>
-                <div className="text-xs text-gray-400">
-                  Vui lòng liên hệ quản trị viên để nâng cấp tài khoản.
-                </div>
+                <div className="text-sm text-gray-300">{t.modalUpgradeContactAdmin}</div>
               </div>
             </div>
 
@@ -96,7 +88,7 @@ export default function UpgradeModal({ isOpen, onClose, modelName }: UpgradeModa
               onClick={onClose}
               className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-lg text-white font-medium transition-all shadow-lg shadow-purple-500/20"
             >
-              Got It / Đã hiểu
+              {t.modalUpgradeGotIt}
             </button>
           </div>
         </div>

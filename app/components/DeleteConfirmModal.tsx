@@ -9,14 +9,16 @@ interface DeleteConfirmModalProps {
   onCancel: () => void;
   title?: string;
   message?: string;
+  t: Record<string, string>; // Translation object
 }
 
 export default function DeleteConfirmModal({
   isOpen,
   onConfirm,
   onCancel,
-  title = "Delete Conversation / Xóa cuộc hội thoại",
+  title,
   message,
+  t,
 }: DeleteConfirmModalProps) {
   // Close on Escape key
   useEffect(() => {
@@ -64,19 +66,16 @@ export default function DeleteConfirmModal({
 
           {/* Content */}
           <div className="px-8 pb-8">
-            <h2 className="text-2xl font-bold text-white text-center mb-2">{title}</h2>
+            <h2 className="text-2xl font-bold text-white text-center mb-6">
+              {title || t.modalDeleteTitle}
+            </h2>
 
             <div className="space-y-4 mb-6">
               {/* Warning */}
               <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
-                <div className="flex items-start gap-2 mb-2">
+                <div className="flex items-start gap-2">
                   <Trash2 className="w-5 h-5 text-red-400 mt-0.5" />
-                  <div>
-                    <div className="text-sm font-medium text-red-300 mb-1">
-                      This action cannot be undone
-                    </div>
-                    <div className="text-xs text-gray-400">Hành động này không thể hoàn tác</div>
-                  </div>
+                  <div className="text-sm font-medium text-red-300">{t.modalDeleteWarning}</div>
                 </div>
               </div>
 
@@ -90,12 +89,7 @@ export default function DeleteConfirmModal({
               {/* Default message if none provided */}
               {!message && (
                 <div className="p-4 bg-gray-500/10 border border-gray-500/30 rounded-xl">
-                  <div className="text-sm text-gray-300 mb-2">
-                    Are you sure you want to delete this conversation?
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    Bạn có chắc chắn muốn xóa cuộc hội thoại này?
-                  </div>
+                  <div className="text-sm text-gray-300">{t.modalDeleteConfirm}</div>
                 </div>
               )}
             </div>
@@ -106,13 +100,13 @@ export default function DeleteConfirmModal({
                 onClick={onCancel}
                 className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white font-medium transition-all"
               >
-                Cancel / Hủy
+                {t.cancel}
               </button>
               <button
                 onClick={onConfirm}
                 className="flex-1 py-3 px-4 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-lg text-white font-medium transition-all shadow-lg shadow-red-500/20"
               >
-                Delete / Xóa
+                {t.modalDeleteButton}
               </button>
             </div>
           </div>

@@ -112,6 +112,16 @@ export const translations: TranslationSet = {
     success: "Thành công",
     // AI disclaimer
     aiDisclaimer: "AI có thể mắc lỗi. Hãy kiểm tra thông tin quan trọng.",
+    // Modal translations
+    modalUpgradeTitle: "Mô hình bị hạn chế",
+    modalUpgradeRequestedModel: "Mô hình yêu cầu",
+    modalUpgradeNoPermission: "Bạn không có quyền sử dụng mô hình này.",
+    modalUpgradeContactAdmin: "Vui lòng liên hệ quản trị viên để nâng cấp tài khoản.",
+    modalUpgradeGotIt: "Đã hiểu",
+    modalDeleteTitle: "Xóa cuộc hội thoại",
+    modalDeleteWarning: "Hành động này không thể hoàn tác",
+    modalDeleteConfirm: "Bạn có chắc chắn muốn xóa cuộc hội thoại này?",
+    modalDeleteButton: "Xóa",
   },
   en: {
     appName: "Vikini Chat",
@@ -198,6 +208,16 @@ export const translations: TranslationSet = {
     error: "An error occurred",
     success: "Success",
     aiDisclaimer: "AI may make mistakes. Verify important information.",
+    // Modal translations
+    modalUpgradeTitle: "Model Access Restricted",
+    modalUpgradeRequestedModel: "Requested Model",
+    modalUpgradeNoPermission: "You don't have permission to use this model.",
+    modalUpgradeContactAdmin: "Please contact an administrator to upgrade your account.",
+    modalUpgradeGotIt: "Got It",
+    modalDeleteTitle: "Delete Conversation",
+    modalDeleteWarning: "This action cannot be undone",
+    modalDeleteConfirm: "Are you sure you want to delete this conversation?",
+    modalDeleteButton: "Delete",
   },
 };
 
@@ -233,4 +253,3 @@ export function createChat(lang: "vi" | "en"): CreateChatResult {
     renamed: false,
   };
 }
-

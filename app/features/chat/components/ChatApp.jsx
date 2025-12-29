@@ -616,6 +616,7 @@ export default function ChatApp() {
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         modelName={restrictedModel}
+        t={t}
       />
 
       {/* Delete Confirmation Modal */}
@@ -626,6 +627,7 @@ export default function ChatApp() {
           setShowDeleteModal(false);
           setConversationToDelete(null);
         }}
+        t={t}
       />
     </div>
   );
