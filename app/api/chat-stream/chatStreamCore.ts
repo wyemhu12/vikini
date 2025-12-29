@@ -32,7 +32,12 @@ import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
 
 import { generateOptimisticTitle, generateFinalTitle } from "@/lib/core/autoTitleEngine";
 
-import { createChatReadableStream, createOpenAICompatibleStream, mapMessages } from "./streaming";
+import {
+  createChatReadableStream,
+  createOpenAICompatibleStream,
+  mapMessages,
+  type ChatStreamParams,
+} from "./streaming";
 import { chatStreamRequestSchema, type ChatStreamRequest } from "./validators";
 
 interface AttachmentRow {
@@ -587,14 +592,12 @@ export async function handleChatStreamCore({
   };
 
   const isStandardGroq = model.includes("llama") || model.includes("mixtral");
-  const isOpenRouter = model.includes("/") || model.startsWith("cognitivecomputations"); // Heuristic: / implies provider prefix like openrouter
+  const isOpenRouter = model.includes("/") || model.startsWith("cognitivecomputations");
 
   // Route to specific client
-  let streamCreator = createChatReadableStream;
   let aiClient: any = ai;
 
   if (isOpenRouter) {
-    streamCreator = createOpenAICompatibleStream;
     try {
       aiClient = getOpenRouterClient();
     } catch (e) {
@@ -602,7 +605,6 @@ export async function handleChatStreamCore({
       return jsonError("OpenRouter configuration missing", 500);
     }
   } else if (isStandardGroq) {
-    streamCreator = createOpenAICompatibleStream;
     try {
       aiClient = getGroqClient();
     } catch (e) {
@@ -611,44 +613,90 @@ export async function handleChatStreamCore({
     }
   }
 
-  const stream = streamCreator({
-    ai: aiClient,
-    model: model,
-    contents,
-    sysPrompt: finalSysPrompt,
-    tools,
-    safetySettings,
-    gemMeta: {
-      gemId: conversation?.gemId ?? null,
-      hasSystemInstruction: Boolean(finalSysPrompt && String(finalSysPrompt).trim()),
-      systemInstructionChars: typeof finalSysPrompt === "string" ? finalSysPrompt.length : 0,
-      error: gemLoadError || "",
-    },
-    modelMeta: {
-      model: coerceStoredModel(requestedModel),
-      requestedModel,
-      apiModel: model,
-      normalized: normalizeModelForApi(requestedModel) !== coerceStoredModel(requestedModel),
-      isDefault: normalizeModelForApi(requestedModel) === normalizeModelForApi(DEFAULT_MODEL),
-    },
-    createdConversation,
-    shouldGenerateTitle: finalShouldGenerateTitle,
-    enableWebSearch,
-    WEB_SEARCH_AVAILABLE,
-    cookieWeb,
-    regenerate: Boolean(regenerate),
-    content,
-    conversationId,
-    userId,
-    contextMessages: messageContext.contextMessages,
-    appendToContext: async () => {},
-    saveMessage: saveMessageCompat,
-    setConversationAutoTitle: async (userId: string, conversationId: string, title: string) => {
-      await setConversationAutoTitle(userId, conversationId, title);
-    },
-    generateOptimisticTitle,
-    generateFinalTitle,
-  });
+  // Create appropriate stream based on client type
+  const stream =
+    isOpenRouter || isStandardGroq
+      ? createOpenAICompatibleStream({
+          ai: aiClient,
+          model: model,
+          contents,
+          sysPrompt: finalSysPrompt,
+          gemMeta: {
+            gemId: conversation?.gemId ?? null,
+            hasSystemInstruction: Boolean(finalSysPrompt && String(finalSysPrompt).trim()),
+            systemInstructionChars: typeof finalSysPrompt === "string" ? finalSysPrompt.length : 0,
+            error: gemLoadError || "",
+          },
+          modelMeta: {
+            model: coerceStoredModel(requestedModel),
+            requestedModel,
+            apiModel: model,
+            normalized: normalizeModelForApi(requestedModel) !== coerceStoredModel(requestedModel),
+            isDefault: normalizeModelForApi(requestedModel) === normalizeModelForApi(DEFAULT_MODEL),
+          },
+          createdConversation,
+          shouldGenerateTitle: finalShouldGenerateTitle,
+          enableWebSearch,
+          WEB_SEARCH_AVAILABLE,
+          cookieWeb,
+          userId,
+          conversationId,
+          content,
+          contextMessages: messageContext.contextMessages,
+          appendToContext: async () => {},
+          saveMessage: saveMessageCompat,
+          setConversationAutoTitle: async (
+            userId: string,
+            conversationId: string,
+            title: string
+          ) => {
+            await setConversationAutoTitle(userId, conversationId, title);
+          },
+          generateOptimisticTitle,
+          generateFinalTitle,
+        })
+      : createChatReadableStream({
+          ai: ai as unknown as ChatStreamParams["ai"],
+          model,
+          contents,
+          sysPrompt: finalSysPrompt,
+          tools,
+          safetySettings,
+          gemMeta: {
+            gemId: conversation?.gemId ?? null,
+            hasSystemInstruction: Boolean(finalSysPrompt && String(finalSysPrompt).trim()),
+            systemInstructionChars: typeof finalSysPrompt === "string" ? finalSysPrompt.length : 0,
+            error: gemLoadError || "",
+          },
+          modelMeta: {
+            model: coerceStoredModel(requestedModel),
+            requestedModel,
+            apiModel: model,
+            normalized: normalizeModelForApi(requestedModel) !== coerceStoredModel(requestedModel),
+            isDefault: normalizeModelForApi(requestedModel) === normalizeModelForApi(DEFAULT_MODEL),
+          },
+          createdConversation,
+          shouldGenerateTitle: finalShouldGenerateTitle,
+          enableWebSearch,
+          WEB_SEARCH_AVAILABLE,
+          cookieWeb,
+          regenerate: Boolean(regenerate),
+          content,
+          conversationId,
+          userId,
+          contextMessages: messageContext.contextMessages,
+          appendToContext: async () => {},
+          saveMessage: saveMessageCompat,
+          setConversationAutoTitle: async (
+            userId: string,
+            conversationId: string,
+            title: string
+          ) => {
+            await setConversationAutoTitle(userId, conversationId, title);
+          },
+          generateOptimisticTitle,
+          generateFinalTitle,
+        });
 
   return new Response(stream, {
     status: 200,
