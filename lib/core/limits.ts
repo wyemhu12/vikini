@@ -17,6 +17,7 @@ export interface RankConfig {
     unlimited_gems: boolean;
     [key: string]: boolean;
   };
+  allowed_models?: string[];
 }
 
 export interface UserLimits extends RankConfig {

@@ -17,10 +17,9 @@ import { useConversation } from "../hooks/useConversation";
 
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useChatStreamController } from "./hooks/useChatStreamController";
+import { useAllowedModels } from "./hooks/useAllowedModels";
 
-import { DEFAULT_MODEL, SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
-
-const AVAILABLE_MODELS = SELECTABLE_MODELS;
+import { DEFAULT_MODEL } from "@/lib/core/modelRegistry";
 
 export default function ChatApp() {
   const { data: session, status } = useSession();
@@ -37,6 +36,10 @@ export default function ChatApp() {
   // File Panel State
   const [showFiles, setShowFiles] = useState(false);
   const [fileCount, setFileCount] = useState(0);
+
+  // Allowed Models (filtered by rank)
+  const { allowedModels, loading: modelsLoading } = useAllowedModels(isAuthed);
+  const AVAILABLE_MODELS = modelsLoading ? [] : allowedModels;
 
   const attachmentsRef = useRef(null);
   const dragCounter = useRef(0);
