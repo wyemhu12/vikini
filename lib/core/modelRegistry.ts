@@ -21,8 +21,24 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
   { id: "gemini-2.5-pro", descKey: "modelDescPro25", tokenLimit: 2000000, contextWindow: 2000000 },
   { id: "gemini-3-flash", descKey: "modelDescFlash3", tokenLimit: 1000000, contextWindow: 1000000 },
   { id: "gemini-3-pro", descKey: "modelDescPro3", tokenLimit: 2000000, contextWindow: 2000000 },
-  { id: "llama3-70b-8192", descKey: "modelDescLlama3_70b", tokenLimit: 8192, contextWindow: 8192 },
-  { id: "llama3-8b-8192", descKey: "modelDescLlama3_8b", tokenLimit: 8192, contextWindow: 8192 },
+  {
+    id: "llama-3.3-70b-versatile",
+    descKey: "modelDescLlama33_70b",
+    tokenLimit: 128000,
+    contextWindow: 128000,
+  },
+  {
+    id: "llama-3.1-8b-instant",
+    descKey: "modelDescLlama31_8b",
+    tokenLimit: 128000,
+    contextWindow: 128000,
+  },
+  {
+    id: "deepseek-r1-distill-llama-70b",
+    descKey: "modelDescDeepSeekR1",
+    tokenLimit: 128000,
+    contextWindow: 128000,
+  },
 ] as const;
 
 const SELECTABLE_SET = new Set(SELECTABLE_MODELS.map((m) => m.id));
@@ -35,8 +51,9 @@ const API_ALLOWED = new Set([
   "gemini-3-pro-preview",
   "gemini-3-pro-preview",
   "gemini-3-pro-image-preview",
-  "llama3-70b-8192",
-  "llama3-8b-8192",
+  "llama-3.3-70b-versatile",
+  "llama-3.1-8b-instant",
+  "deepseek-r1-distill-llama-70b",
 ]);
 
 // Back-compat aliases and deprecations.
@@ -51,6 +68,10 @@ export const MODEL_ALIASES: Record<string, string> = {
   "gemini-3-flash": "gemini-3-flash-preview",
   "gemini-3-pro": "gemini-3-pro-preview",
   "gemini-3-pro-image": "gemini-3-pro-image-preview",
+
+  // Legacy Groq models
+  "llama3-70b-8192": "llama-3.3-70b-versatile",
+  "llama3-8b-8192": "llama-3.1-8b-instant",
 } as const;
 
 export function isSelectableModelId(modelId: unknown): boolean {
