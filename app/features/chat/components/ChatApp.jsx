@@ -176,6 +176,16 @@ export default function ChatApp() {
       "save",
       "copy",
       "copied",
+      // Modal translations
+      "modalUpgradeTitle",
+      "modalUpgradeRequestedModel",
+      "modalUpgradeNoPermission",
+      "modalUpgradeContactAdmin",
+      "modalUpgradeGotIt",
+      "modalDeleteTitle",
+      "modalDeleteWarning",
+      "modalDeleteConfirm",
+      "modalDeleteButton",
     ];
     const result = {};
     keys.forEach((k) => {
