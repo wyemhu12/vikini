@@ -51,6 +51,7 @@ export async function PATCH(req: NextRequest) {
           daily_message_limit: config.daily_message_limit,
           max_file_size_mb: config.max_file_size_mb,
           features: config.features,
+          allowed_models: config.allowed_models || [], // NEW: Include allowed_models
         })
         .eq("rank", config.rank);
 
