@@ -11,6 +11,7 @@ import InputForm from "./InputForm";
 import AttachmentsPanel from "./AttachmentsPanel";
 import AccessPendingScreen from "@/app/components/AccessPendingScreen";
 import UpgradeModal from "@/app/components/UpgradeModal";
+import DeleteConfirmModal from "@/app/components/DeleteConfirmModal";
 
 import { useTheme } from "../hooks/useTheme";
 import { useLanguage } from "../hooks/useLanguage";
@@ -90,6 +91,10 @@ export default function ChatApp() {
   // Upgrade Modal State
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [restrictedModel, setRestrictedModel] = useState(null);
+
+  // Delete Confirmation Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState(null);
 
   // Allowed Models (check access permissions)
   const { allowedModelIds, loading: modelsLoading } = useAllowedModels(isAuthed);
@@ -316,16 +321,34 @@ export default function ChatApp() {
     [conversations, renameConversation, renameConversationOptimistic, t]
   );
 
-  const handleDeleteFromSidebar = useCallback(
-    async (id) => {
-      if (window.confirm(t.deleteConfirm)) {
-        await deleteConversation(id);
-        if (selectedConversationId === id) resetChatUI();
-        await refreshConversations();
+  const handleDeleteFromSidebar = useCallback(async (id) => {
+    // Show confirmation modal instead of browser confirm
+    setConversationToDelete(id);
+    setShowDeleteModal(true);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!conversationToDelete) return;
+
+    try {
+      await deleteConversation(conversationToDelete);
+      if (conversationToDelete === selectedConversationId) {
+        resetChatUI();
       }
-    },
-    [deleteConversation, refreshConversations, resetChatUI, selectedConversationId, t]
-  );
+      await refreshConversations();
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+    } finally {
+      setShowDeleteModal(false);
+      setConversationToDelete(null);
+    }
+  }, [
+    conversationToDelete,
+    deleteConversation,
+    refreshConversations,
+    resetChatUI,
+    selectedConversationId,
+  ]);
 
   const currentConversation = useMemo(
     () => (conversations || []).find((c) => c?.id === selectedConversationId),
@@ -593,6 +616,16 @@ export default function ChatApp() {
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         modelName={restrictedModel}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setShowDeleteModal(false);
+          setConversationToDelete(null);
+        }}
       />
     </div>
   );
