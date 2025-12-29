@@ -320,11 +320,15 @@ export async function validateUpload({
           : ext === "tsx"
             ? "text/tsx"
             : "text/plain";
+
+    // Fix: If browser says octet-stream, force the correct type
+    const finalMime = !mime || mime === "application/octet-stream" ? defaultTextMime : mime;
+
     return {
       kind: "text",
       filename: safeName,
       ext,
-      mime: mime || defaultTextMime,
+      mime: finalMime,
       sizeBytes: size,
     };
   }
@@ -361,7 +365,10 @@ export async function validateUpload({
                 ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 : "application/octet-stream";
 
-    return { kind: "doc", filename: safeName, ext, mime: mime || defaultDocMime, sizeBytes: size };
+    // Fix: If browser says octet-stream, force the correct type
+    const finalMime = !mime || mime === "application/octet-stream" ? defaultDocMime : mime;
+
+    return { kind: "doc", filename: safeName, ext, mime: finalMime, sizeBytes: size };
   }
 
   if (isZipExt) {
@@ -370,6 +377,7 @@ export async function validateUpload({
     }
     const defaultZipMime = "application/zip";
     const effectiveMime = mime === "application/octet-stream" ? "" : mime;
+    // Fix: If browser says octet-stream (which becomes empty string above) or is missing, use default
     return {
       kind: "zip",
       filename: safeName,
