@@ -291,8 +291,17 @@ export async function validateUpload({
   const ext = getExt(safeName);
   if (!ALLOWED_EXTS.has(ext)) throw new Error("File type not allowed");
 
-  const mime = safeLower(file.type || "");
+  let mime = safeLower(file.type || "");
   const size = Number(file.size || 0);
+
+  // Fix: Force correct MIME type for specific extensions if missing or generic
+  if (!mime || mime === "application/octet-stream") {
+    if (ext === "ts") mime = "text/typescript";
+    else if (ext === "tsx") mime = "text/tsx";
+    else if (ext === "json") mime = "application/json";
+    else if (ext === "js") mime = "text/javascript";
+    else if (ext === "jsx") mime = "text/jsx";
+  }
 
   // Check user's file size limit (rank-based)
   const { checkFileSize } = await import("@/lib/core/limits");
@@ -321,14 +330,11 @@ export async function validateUpload({
             ? "text/tsx"
             : "text/plain";
 
-    // Fix: If browser says octet-stream, force the correct type
-    const finalMime = !mime || mime === "application/octet-stream" ? defaultTextMime : mime;
-
     return {
       kind: "text",
       filename: safeName,
       ext,
-      mime: finalMime,
+      mime: mime || defaultTextMime,
       sizeBytes: size,
     };
   }
@@ -365,10 +371,7 @@ export async function validateUpload({
                 ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 : "application/octet-stream";
 
-    // Fix: If browser says octet-stream, force the correct type
-    const finalMime = !mime || mime === "application/octet-stream" ? defaultDocMime : mime;
-
-    return { kind: "doc", filename: safeName, ext, mime: finalMime, sizeBytes: size };
+    return { kind: "doc", filename: safeName, ext, mime: mime || defaultDocMime, sizeBytes: size };
   }
 
   if (isZipExt) {
