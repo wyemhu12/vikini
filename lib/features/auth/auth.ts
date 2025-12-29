@@ -71,7 +71,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         .maybeSingle();
 
       if (fetchError) {
-        console.error("Error checking profile:", fetchError);
+        console.warn("Error checking profile:", fetchError);
         return false;
       }
 
@@ -81,40 +81,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           console.warn(`Blocked user attempted login: ${email}`);
           return false;
         }
+        // Allow login for existing users (even if not_whitelisted - they can see pending message)
         return true;
       }
 
-      // Auto-create profile for new user
-      // First check temp_user_ranks for pre-approved rank
-      const { data: tempRank } = await supabase
-        .from("temp_user_ranks")
-        .select("rank")
-        .eq("email", email)
-        .maybeSingle();
-
-      const rank = tempRank?.rank || "pro"; // Default to 'pro' for existing users
+      // Auto-create profile for NEW user with "not_whitelisted" rank
+      // Admin must manually approve by changing rank
       const userId = account?.providerAccountId || user?.id;
 
       if (!userId) {
-        console.error("No user ID available for profile creation");
+        console.warn("No user ID available for profile creation");
         return false;
       }
 
-      // Create profile
+      // Create profile with pending approval status
       const { error: insertError } = await supabase.from("profiles").insert({
         id: userId,
         email,
-        rank,
+        rank: "not_whitelisted", // Manual approval required
         is_blocked: false,
       });
 
       if (insertError) {
-        console.error("Error creating profile:", insertError);
+        console.warn("Error creating profile:", insertError);
         return false;
       }
 
-      console.warn(`Created new profile: ${email} with rank ${rank}`);
-      return true;
+      console.warn(`New user pending approval: ${email}`);
+      return true; // Allow login but restrict access via rank
     },
 
     async jwt({ token, user, account: _account }) {

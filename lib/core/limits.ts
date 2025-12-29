@@ -9,7 +9,7 @@ import { Redis } from "@upstash/redis";
 // =====================================================================================
 
 export interface RankConfig {
-  rank: "basic" | "pro" | "admin";
+  rank: "not_whitelisted" | "basic" | "pro" | "admin";
   daily_message_limit: number;
   max_file_size_mb: number;
   features: {
@@ -29,6 +29,7 @@ export interface DailyMessageStatus {
   limit: number;
   remaining: number;
   canSend: boolean;
+  rank: string;
 }
 
 // =====================================================================================
@@ -220,6 +221,7 @@ export async function checkDailyMessageLimit(userId: string): Promise<DailyMessa
     limit: limits.daily_message_limit,
     remaining: Math.max(0, limits.daily_message_limit - count),
     canSend: count < limits.daily_message_limit,
+    rank: limits.rank,
   };
 }
 

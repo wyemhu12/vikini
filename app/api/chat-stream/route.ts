@@ -39,6 +39,25 @@ export async function POST(req: NextRequest) {
 
     // Check daily message limit
     const messageLimit = await checkDailyMessageLimit(userId);
+
+    // Block not-whitelisted users (pending approval)
+    if (messageLimit.rank === "not_whitelisted") {
+      routeLogger.warn(`Access denied - user pending approval: ${userId}`);
+      perfMonitor.end(403, { pendingApproval: true });
+      return new Response(
+        JSON.stringify({
+          error: "Access Pending Approval",
+          message:
+            "Your account is pending admin approval. Please wait for an administrator to grant you access.",
+          rank: "not_whitelisted",
+        }),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
     if (!messageLimit.canSend) {
       routeLogger.warn(
         `Daily message limit reached for user: ${userId} (${messageLimit.count}/${messageLimit.limit})`

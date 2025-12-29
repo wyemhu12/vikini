@@ -6,7 +6,7 @@ import { Users, Loader2, AlertCircle } from "lucide-react";
 interface Profile {
   id: string;
   email: string;
-  rank: "basic" | "pro" | "admin";
+  rank: "not_whitelisted" | "basic" | "pro" | "admin";
   is_blocked: boolean;
   created_at: string;
 }
@@ -123,6 +123,9 @@ export default function UserManager() {
                       colorScheme: "dark",
                     }}
                   >
+                    <option value="not_whitelisted" className="bg-[#1a1a1a] text-white">
+                      Not Whitelisted
+                    </option>
                     <option value="basic" className="bg-[#1a1a1a] text-white">
                       Basic
                     </option>
