@@ -3,6 +3,7 @@
 import { NextRequest } from "next/server";
 import { getGenAIClient } from "@/lib/core/genaiClient";
 import { getGroqClient } from "@/lib/core/groqClient";
+import { getOpenRouterClient } from "@/lib/core/openRouterClient";
 import {
   DEFAULT_MODEL,
   normalizeModelForApi,
@@ -31,7 +32,7 @@ import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
 
 import { generateOptimisticTitle, generateFinalTitle } from "@/lib/core/autoTitleEngine";
 
-import { createChatReadableStream, createGroqReadableStream, mapMessages } from "./streaming";
+import { createChatReadableStream, createOpenAICompatibleStream, mapMessages } from "./streaming";
 import { chatStreamRequestSchema, type ChatStreamRequest } from "./validators";
 
 interface AttachmentRow {
@@ -585,21 +586,34 @@ export async function handleChatStreamCore({
     return saveMessage(userId, conversationId, role, content);
   };
 
-  const streamCreator =
-    model.includes("llama") || model.includes("mixtral")
-      ? createGroqReadableStream
-      : createChatReadableStream;
-  const isGroq = streamCreator === createGroqReadableStream;
-  let aiClient: any;
-  if (isGroq) {
-    aiClient = getGroqClient();
-  } else {
-    aiClient = ai;
+  const isStandardGroq = model.includes("llama") || model.includes("mixtral");
+  const isOpenRouter = model.includes("/") || model.startsWith("cognitivecomputations"); // Heuristic: / implies provider prefix like openrouter
+
+  // Route to specific client
+  let streamCreator = createChatReadableStream;
+  let aiClient: any = ai;
+
+  if (isOpenRouter) {
+    streamCreator = createOpenAICompatibleStream;
+    try {
+      aiClient = getOpenRouterClient();
+    } catch (e) {
+      coreLogger.error("OpenRouter Init Error:", e);
+      return jsonError("OpenRouter configuration missing", 500);
+    }
+  } else if (isStandardGroq) {
+    streamCreator = createOpenAICompatibleStream;
+    try {
+      aiClient = getGroqClient();
+    } catch (e) {
+      coreLogger.error("Groq Init Error:", e);
+      return jsonError("Groq configuration missing", 500);
+    }
   }
 
   const stream = streamCreator({
     ai: aiClient,
-    model: isGroq ? model : model, // Groq models are passed as is
+    model: model,
     contents,
     sysPrompt: finalSysPrompt,
     tools,

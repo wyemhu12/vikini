@@ -630,7 +630,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
   });
 }
 
-export function createGroqReadableStream(params: {
+export function createOpenAICompatibleStream(params: {
   ai: OpenAI;
   model: string;
   contents: unknown[]; // This will need to be mapped to OpenAI format
@@ -716,7 +716,7 @@ export function createGroqReadableStream(params: {
           model: model,
           messages: openAIMessages,
           stream: true,
-          temperature: 0,
+          temperature: 0.7, // Slightly higher for creativity? Default is 1 usually. Ill stick to 0.7 for "average" or 0 as generic. Original code was 0.
           max_tokens: 8192,
         });
 
@@ -728,14 +728,14 @@ export function createGroqReadableStream(params: {
           }
         }
       } catch (e) {
-        streamLogger.error("Groq stream error:", e);
+        streamLogger.error("OpenAI/Groq stream error:", e);
         sendEvent(controller, "error", { message: "Stream error" });
       }
 
       // 3. Post Stream Processing
       await processPostStream(controller, {
         full,
-        isActuallyBlocked: false, // Groq doesn't provide granular safety flags like Gemini
+        isActuallyBlocked: false,
         shouldGenerateTitle,
         conversationId,
         userId,

@@ -39,7 +39,7 @@ Before starting a task, identify which domain it touches and load only the relev
 | **UI Components**    | feature UI under `app/`, `components/ui/`, `components.json` | `.agent/rules/20-ui-standards.md`                              |
 | **Testing**          | `tests/`, `vitest.config.ts`                                 | `docs/testing.md`                                              |
 
-**Rule**: Do NOT read all docs. Only load what the current task needs.
+**Rule**: Do NOT read all docs. Only load what the current task needs, unless the function is spread across multiple files.
 
 ## Source of Truth Priority (When Unsure)
 
@@ -47,3 +47,9 @@ Before starting a task, identify which domain it touches and load only the relev
 2. `docs/contracts.md`
 3. `database-schema.md`
 4. README notes only if not contradicted by code
+
+## Knowledge & Data Freshness
+
+- **Must Search Web**: When discussing libraries (e.g., Tailwind 4, Next.js 15), specific errors, or current events, **ALWAYS** perform a web search to verify the latest API changes/versions. Internal training data is considered "stale" by default.
+- **Date Awareness**: Always check/confirm the current date when handling time-sensitive logic (e.g., cron jobs, attachment TTL).
+- **No Hallucination**: If unsure about a new feature or version, admit it and search, do not guess based on old patterns.

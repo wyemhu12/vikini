@@ -405,7 +405,7 @@ export default function ChatApp() {
               >
                 {AVAILABLE_MODELS.map((m) => (
                   <option key={m.id} value={m.id} className="bg-[#0f172a]">
-                    {t[m.id] || m.id}
+                    {t[m.id] || m.name || m.id}
                   </option>
                 ))}
               </select>

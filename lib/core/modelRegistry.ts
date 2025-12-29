@@ -6,6 +6,7 @@ export const DEFAULT_MODEL = "gemini-2.5-flash" as const;
 export interface SelectableModel {
   id: string;
   descKey: string;
+  name?: string;
   tokenLimit: number;
   contextWindow: number;
 }
@@ -33,6 +34,27 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     tokenLimit: 128000,
     contextWindow: 128000,
   },
+  {
+    id: "cognitivecomputations/dolphin-mixtral-8x7b",
+    name: "Dolphin Mixtral 8x7B (Paid)",
+    descKey: "modelDescDolphinMix",
+    tokenLimit: 32768,
+    contextWindow: 32768,
+  },
+  {
+    id: "cognitivecomputations/dolphin-llama-3-70b",
+    name: "Dolphin Llama 3 70B (Paid)",
+    descKey: "modelDescDolphinL3",
+    tokenLimit: 8192,
+    contextWindow: 8192,
+  },
+  {
+    id: "venice/dolphin-mistral-24b",
+    name: "Dolphin Mistral 24B (Free)",
+    descKey: "modelDescDolphinMistral24",
+    tokenLimit: 32768,
+    contextWindow: 32768,
+  },
 ] as const;
 
 const SELECTABLE_SET = new Set(SELECTABLE_MODELS.map((m) => m.id));
@@ -47,6 +69,9 @@ const API_ALLOWED = new Set([
   "gemini-3-pro-image-preview",
   "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant",
+  "cognitivecomputations/dolphin-mixtral-8x7b",
+  "cognitivecomputations/dolphin-llama-3-70b",
+  "venice/dolphin-mistral-24b",
 ]);
 
 // Back-compat aliases and deprecations.
