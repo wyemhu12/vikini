@@ -35,23 +35,16 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     contextWindow: 128000,
   },
   {
-    id: "cognitivecomputations/dolphin-mixtral-8x7b",
-    name: "Dolphin Mixtral 8x7B (Paid)",
-    descKey: "modelDescDolphinMix",
-    tokenLimit: 32768,
-    contextWindow: 32768,
+    id: "cognitivecomputations/dolphin-2.9.2-mixtral-8x22b",
+    name: "Dolphin Mixtral 8x22B (Paid)",
+    descKey: "modelDescDolphinMix22b",
+    tokenLimit: 65536,
+    contextWindow: 65536,
   },
   {
-    id: "cognitivecomputations/dolphin-llama-3-70b",
-    name: "Dolphin Llama 3 70B (Paid)",
-    descKey: "modelDescDolphinL3",
-    tokenLimit: 8192,
-    contextWindow: 8192,
-  },
-  {
-    id: "venice/dolphin-mistral-24b",
-    name: "Dolphin Mistral 24B (Free)",
-    descKey: "modelDescDolphinMistral24",
+    id: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+    name: "Dolphin Mistral 24B Venice (Free)",
+    descKey: "modelDescDolphinVenice",
     tokenLimit: 32768,
     contextWindow: 32768,
   },
@@ -69,9 +62,8 @@ const API_ALLOWED = new Set([
   "gemini-3-pro-image-preview",
   "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant",
-  "cognitivecomputations/dolphin-mixtral-8x7b",
-  "cognitivecomputations/dolphin-llama-3-70b",
-  "venice/dolphin-mistral-24b",
+  "cognitivecomputations/dolphin-2.9.2-mixtral-8x22b",
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
 ]);
 
 // Back-compat aliases and deprecations.
