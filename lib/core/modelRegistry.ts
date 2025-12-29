@@ -12,28 +12,57 @@ export interface SelectableModel {
 }
 
 // Models shown in the UI selector (store these IDs in DB)
+// Updated December 2024 with latest available models
 export const SELECTABLE_MODELS: readonly SelectableModel[] = [
+  // Gemini 2.5 Series (GA June 2025, available now)
   {
     id: "gemini-2.5-flash",
     descKey: "modelDescFlash25",
+    name: "Gemini 2.5 Flash",
     tokenLimit: 1000000,
     contextWindow: 1000000,
   },
-  { id: "gemini-2.5-pro", descKey: "modelDescPro25", tokenLimit: 2000000, contextWindow: 2000000 },
-  { id: "gemini-3-flash", descKey: "modelDescFlash3", tokenLimit: 1000000, contextWindow: 1000000 },
-  { id: "gemini-3-pro", descKey: "modelDescPro3", tokenLimit: 2000000, contextWindow: 2000000 },
+  {
+    id: "gemini-2.5-pro",
+    descKey: "modelDescPro25",
+    name: "Gemini 2.5 Pro",
+    tokenLimit: 2000000,
+    contextWindow: 2000000,
+  },
+
+  // Gemini 3 Series (Latest - Dec 2025)
+  {
+    id: "gemini-3-flash",
+    descKey: "modelDescFlash3",
+    name: "Gemini 3 Flash",
+    tokenLimit: 1000000,
+    contextWindow: 1000000,
+  },
+  {
+    id: "gemini-3-pro",
+    descKey: "modelDescPro3",
+    name: "Gemini 3 Pro",
+    tokenLimit: 2000000,
+    contextWindow: 2000000,
+  },
+
+  // Llama Models via Groq (Updated Dec 2024)
   {
     id: "llama-3.3-70b-versatile",
     descKey: "modelDescLlama33_70b",
+    name: "Llama 3.3 70B Versatile",
     tokenLimit: 128000,
     contextWindow: 128000,
   },
   {
     id: "llama-3.1-8b-instant",
     descKey: "modelDescLlama31_8b",
+    name: "Llama 3.1 8B Instant",
     tokenLimit: 128000,
     contextWindow: 128000,
   },
+
+  // Alternative Models
   {
     id: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
     name: "Dolphin Mistral 24B Venice (Free)",
@@ -47,14 +76,20 @@ const SELECTABLE_SET = new Set(SELECTABLE_MODELS.map((m) => m.id));
 
 // Canonical IDs that are safe to send to Gemini API (including official preview IDs)
 const API_ALLOWED = new Set([
+  // Gemini 2.5
   "gemini-2.5-flash",
   "gemini-2.5-pro",
+
+  // Gemini 3 official IDs (with -preview suffix)
   "gemini-3-flash-preview",
   "gemini-3-pro-preview",
-  "gemini-3-pro-preview",
   "gemini-3-pro-image-preview",
+
+  // Llama via Groq
   "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant",
+
+  // Alternative
   "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
 ]);
 
@@ -62,18 +97,22 @@ const API_ALLOWED = new Set([
 // - DB/UI may store aliases.
 // - Gemini 3 official IDs include `-preview`.
 export const MODEL_ALIASES: Record<string, string> = {
-  // Deprecated models
+  // Deprecated models → Default
   "gemini-2.0-flash": DEFAULT_MODEL,
+  "gemini-2.0-flash-exp": DEFAULT_MODEL,
   "gemini-1.5-pro": DEFAULT_MODEL,
+  "gemini-1.5-flash": DEFAULT_MODEL,
 
-  // Gemini 3 aliases -> official preview IDs
+  // Gemini 3 aliases → official preview IDs
   "gemini-3-flash": "gemini-3-flash-preview",
   "gemini-3-pro": "gemini-3-pro-preview",
   "gemini-3-pro-image": "gemini-3-pro-image-preview",
 
-  // Legacy Groq models
+  // Legacy Groq Llama models
   "llama3-70b-8192": "llama-3.3-70b-versatile",
   "llama3-8b-8192": "llama-3.1-8b-instant",
+  "llama-3.1-70b-versatile": "llama-3.3-70b-versatile", // Deprecated Dec 2024
+  "llama-3.1-70b-specdec": "llama-3.3-70b-versatile",
 } as const;
 
 export function isSelectableModelId(modelId: unknown): boolean {

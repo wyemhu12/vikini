@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, Loader2, Save, AlertCircle } from "lucide-react";
+import { Settings, Loader2, Save, AlertCircle, Cpu } from "lucide-react";
+import { SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
 
 interface RankConfig {
   rank: "basic" | "pro" | "admin";
@@ -11,6 +12,7 @@ interface RankConfig {
     web_search: boolean;
     unlimited_gems: boolean;
   };
+  allowed_models?: string[];
 }
 
 export default function RankConfigManager() {
@@ -19,6 +21,7 @@ export default function RankConfigManager() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [editedConfigs, setEditedConfigs] = useState<RankConfig[]>([]);
+  const [modelModalRank, setModelModalRank] = useState<string | null>(null);
 
   useEffect(() => {
     fetchConfigs();
@@ -39,7 +42,7 @@ export default function RankConfigManager() {
     }
   };
 
-  const updateConfig = (rank: string, field: string, value: any) => {
+  const updateConfig = (rank: string, field: string, value: unknown) => {
     setEditedConfigs((prev) =>
       prev.map((c) => {
         if (c.rank !== rank) return c;
@@ -47,9 +50,24 @@ export default function RankConfigManager() {
           const featureKey = field.split(".")[1];
           return { ...c, features: { ...c.features, [featureKey]: value } };
         }
+        if (field === "allowed_models") {
+          return { ...c, allowed_models: value as string[] };
+        }
         return { ...c, [field]: value };
       })
     );
+  };
+
+  const toggleModel = (rank: string, modelId: string) => {
+    const config = editedConfigs.find((c) => c.rank === rank);
+    if (!config) return;
+
+    const currentModels = config.allowed_models || [];
+    const newModels = currentModels.includes(modelId)
+      ? currentModels.filter((m) => m !== modelId)
+      : [...currentModels, modelId];
+
+    updateConfig(rank, "allowed_models", newModels);
   };
 
   const saveConfigs = async () => {
@@ -91,6 +109,10 @@ export default function RankConfigManager() {
       </div>
     );
   }
+
+  const currentModalConfig = modelModalRank
+    ? editedConfigs.find((c) => c.rank === modelModalRank)
+    : null;
 
   return (
     <div>
@@ -174,10 +196,83 @@ export default function RankConfigManager() {
                   </label>
                 </div>
               </div>
+
+              {/* Allowed Models Button */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Allowed Models
+                </label>
+                <button
+                  onClick={() => setModelModalRank(config.rank)}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 border border-purple-500/30 transition-all"
+                >
+                  <Cpu className="w-4 h-4" />
+                  Configure Models ({config.allowed_models?.length || 0})
+                </button>
+              </div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Model Selection Modal */}
+      {modelModalRank && currentModalConfig && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-white capitalize">
+                {modelModalRank} Models
+              </h3>
+              <button
+                onClick={() => setModelModalRank(null)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-400 mb-4">Select which models this rank can access</p>
+
+            <div className="space-y-2">
+              {SELECTABLE_MODELS.map((model) => {
+                const isSelected = currentModalConfig.allowed_models?.includes(model.id) || false;
+                return (
+                  <label
+                    key={model.id}
+                    className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                      isSelected
+                        ? "bg-blue-500/20 border border-blue-500/30"
+                        : "bg-white/[0.02] border border-white/10 hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleModel(modelModalRank, model.id)}
+                      className="mt-1 w-4 h-4 rounded bg-white/5 border-white/10 text-blue-500 focus:ring-blue-500/50"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-white">{model.name || model.id}</div>
+                      <div className="text-xs text-gray-400">
+                        Context: {(model.contextWindow / 1000).toFixed(0)}K tokens
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setModelModalRank(null)}
+                className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
