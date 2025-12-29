@@ -32,14 +32,14 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
 
   // Gemini 3 Series (Latest - Dec 2025)
   {
-    id: "gemini-3-flash",
+    id: "gemini-3-flash-preview",
     descKey: "modelDescFlash3",
     name: "Gemini 3 Flash",
     tokenLimit: 1000000,
     contextWindow: 1000000,
   },
   {
-    id: "gemini-3-pro",
+    id: "gemini-3-pro-preview",
     descKey: "modelDescPro3",
     name: "Gemini 3 Pro",
     tokenLimit: 2000000,
