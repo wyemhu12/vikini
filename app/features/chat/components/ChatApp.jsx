@@ -10,6 +10,7 @@ import HeaderBar from "../../layout/components/HeaderBar";
 import InputForm from "./InputForm";
 import AttachmentsPanel from "./AttachmentsPanel";
 import AccessPendingScreen from "@/app/components/AccessPendingScreen";
+import UpgradeModal from "@/app/components/UpgradeModal";
 
 import { useTheme } from "../hooks/useTheme";
 import { useLanguage } from "../hooks/useLanguage";
@@ -85,6 +86,10 @@ export default function ChatApp() {
   // File Panel State
   const [showFiles, setShowFiles] = useState(false);
   const [fileCount, setFileCount] = useState(0);
+
+  // Upgrade Modal State
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [restrictedModel, setRestrictedModel] = useState(null);
 
   // Allowed Models (check access permissions)
   const { allowedModelIds, loading: modelsLoading } = useAllowedModels(isAuthed);
@@ -334,14 +339,10 @@ export default function ChatApp() {
     async (newModelId) => {
       // Check if user has access to this model FIRST
       if (!isModelAllowed(newModelId)) {
-        // Show bilingual alert
-        alert(
-          "🔒 Model Access Restricted / Mô hình bị hạn chế\n\n" +
-            "You don't have permission to use this model.\n" +
-            "Please contact an administrator to upgrade your account.\n\n" +
-            "Bạn không có quyền sử dụng mô hình này.\n" +
-            "Vui lòng liên hệ quản trị viên để nâng cấp tài khoản."
-        );
+        // Find model name for display
+        const model = SELECTABLE_MODELS.find((m) => m.id === newModelId);
+        setRestrictedModel(model?.name || newModelId);
+        setShowUpgradeModal(true);
         return; // Don't change model
       }
 
@@ -586,6 +587,13 @@ export default function ChatApp() {
           </div>
         </div>
       </div>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        modelName={restrictedModel}
+      />
     </div>
   );
 }
