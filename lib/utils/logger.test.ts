@@ -11,8 +11,18 @@ describe("Logger", () => {
   });
 
   afterEach(() => {
-    process.env.NODE_ENV = originalEnv;
-    process.env.LOG_LEVEL = originalLogLevel;
+    // Use Object.defineProperty to avoid readonly property error
+    if (originalEnv !== undefined) {
+      Object.defineProperty(process.env, "NODE_ENV", {
+        value: originalEnv,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      });
+    }
+    if (originalLogLevel !== undefined) {
+      process.env.LOG_LEVEL = originalLogLevel;
+    }
   });
 
   describe("logger.info", () => {
