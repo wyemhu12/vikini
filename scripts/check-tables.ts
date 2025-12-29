@@ -1,5 +1,6 @@
 // Script để kiểm tra các tables trên Supabase
 // Usage: ts-node scripts/check-tables.ts hoặc npx tsx scripts/check-tables.ts
+/* eslint-disable no-console */
 
 import { createClient } from "@supabase/supabase-js";
 import * as fs from "fs";
@@ -51,7 +52,7 @@ function loadEnvFile(): void {
         }
       }
 
-      console.log(`📄 Loaded environment variables from ${envFile}\n`);
+      console.log(`📄 Loaded environment variables from ${envFile} \n`);
       break;
     }
   }
@@ -93,9 +94,11 @@ const knownTables: KnownTable[] = [
 async function checkTable(tableName: string): Promise<CheckTableResult> {
   try {
     // Test query để kiểm tra table có tồn tại và có thể query được không
-    const { data, error, count } = await supabase
-      .from(tableName)
-      .select("*", { count: "exact", head: true });
+    const {
+      data: _data,
+      error,
+      count,
+    } = await supabase.from(tableName).select("*", { count: "exact", head: true });
 
     if (error) {
       const err = error as { code?: string; message?: string };
@@ -117,7 +120,9 @@ async function checkTable(tableName: string): Promise<CheckTableResult> {
 
 async function listTables(): Promise<void> {
   console.log("🔍 Checking tables on Supabase...\n");
-  console.log(`📡 Connected to: ${(supabaseUrl ?? "").replace(/https?:\/\//, "").split("/")[0] || "(unknown)"}\n`);
+  console.log(
+    `📡 Connected to: ${(supabaseUrl ?? "").replace(/https?:\/\//, "").split("/")[0] || "(unknown)"} \n`
+  );
 
   console.log("📊 Checking known tables:\n");
 
@@ -128,19 +133,19 @@ async function listTables(): Promise<void> {
     const result = await checkTable(table.name);
 
     if (result.exists && !result.error) {
-      console.log(`✅ ${table.name}`);
-      console.log(`   ${table.description}`);
-      console.log(`   Rows: ${result.count}`);
+      console.log(`✅ ${table.name} `);
+      console.log(`   ${table.description} `);
+      console.log(`   Rows: ${result.count} `);
       existingCount++;
     } else if (result.exists && result.error) {
-      console.log(`⚠️  ${table.name}`);
-      console.log(`   ${table.description}`);
-      console.log(`   Status: ${result.error}`);
+      console.log(`⚠️  ${table.name} `);
+      console.log(`   ${table.description} `);
+      console.log(`   Status: ${result.error} `);
       existingCount++;
     } else {
-      console.log(`❌ ${table.name}`);
-      console.log(`   ${table.description}`);
-      console.log(`   Error: ${result.error}`);
+      console.log(`❌ ${table.name} `);
+      console.log(`   ${table.description} `);
+      console.log(`   Error: ${result.error} `);
       missingCount++;
     }
     console.log();
@@ -150,7 +155,9 @@ async function listTables(): Promise<void> {
   console.log(`\n📈 Summary: ${existingCount} existing, ${missingCount} missing\n`);
 
   if (missingCount > 0) {
-    console.log("💡 Missing tables need to be created. Check database-schema.md for schema details.");
+    console.log(
+      "💡 Missing tables need to be created. Check database-schema.md for schema details."
+    );
   }
 
   console.log("💡 To see full schema details, use:");
@@ -171,4 +178,3 @@ async function main(): Promise<void> {
 }
 
 main();
-

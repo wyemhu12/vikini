@@ -1,5 +1,6 @@
 // Script để kiểm tra các indexes trên Supabase
 // Usage: ts-node scripts/check-indexes.ts hoặc npx tsx scripts/check-indexes.ts
+/* eslint-disable no-console */
 
 import { createClient } from "@supabase/supabase-js";
 import * as fs from "fs";
@@ -57,7 +58,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+const _supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { persistSession: false },
 });
 
@@ -91,11 +92,21 @@ const expectedIndexes: ExpectedIndexes = {
     { name: "idx_gems_is_premade", columns: ["is_premade"], partial: "is_premade = true" },
     { name: "idx_gems_name", columns: ["name"] },
   ],
-  gem_versions: [{ name: "idx_gem_versions_gem_version_desc", columns: ["gem_id", "version"], desc: true }],
+  gem_versions: [
+    { name: "idx_gem_versions_gem_version_desc", columns: ["gem_id", "version"], desc: true },
+  ],
   attachments: [
     { name: "idx_attachments_conversation_user", columns: ["conversation_id", "user_id"] },
-    { name: "idx_attachments_expires_at", columns: ["expires_at"], partial: "expires_at IS NOT NULL" },
-    { name: "idx_attachments_message_id", columns: ["message_id"], partial: "message_id IS NOT NULL" },
+    {
+      name: "idx_attachments_expires_at",
+      columns: ["expires_at"],
+      partial: "expires_at IS NOT NULL",
+    },
+    {
+      name: "idx_attachments_message_id",
+      columns: ["message_id"],
+      partial: "message_id IS NOT NULL",
+    },
     {
       name: "idx_attachments_conversation_user_created",
       columns: ["conversation_id", "user_id", "created_at"],
@@ -106,7 +117,9 @@ const expectedIndexes: ExpectedIndexes = {
 
 async function checkIndexes(): Promise<void> {
   console.log("🔍 Checking database indexes...\n");
-  console.log(`📡 Connected to: ${(supabaseUrl ?? "").replace(/https?:\/\//, "").split("/")[0] || "(unknown)"}\n`);
+  console.log(
+    `📡 Connected to: ${(supabaseUrl ?? "").replace(/https?:\/\//, "").split("/")[0] || "(unknown)"}\n`
+  );
 
   console.log("⚠️  Note: Supabase JS client doesn't support direct SQL queries.");
   console.log("💡 To check indexes, run this SQL in Supabase SQL Editor:\n");
@@ -142,4 +155,3 @@ ORDER BY tablename, indexname;
 }
 
 checkIndexes().catch(console.error);
-

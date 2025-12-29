@@ -271,13 +271,14 @@ async function validateImageContent(file: File, expectedMime: string): Promise<b
 interface ValidateUploadParams {
   file: File;
   filename?: string;
+  userId: string; // NEW: Required for checking user's file size limit
 }
 
 export async function validateUpload({
   file,
   filename,
+  userId,
 }: ValidateUploadParams): Promise<ValidateUploadResult> {
-  const cfg = getAttachmentsConfig();
   if (!file) throw new Error("Missing file");
 
   const safeName = sanitizeFilename(filename || file.name || "file");
@@ -287,13 +288,21 @@ export async function validateUpload({
   const mime = safeLower(file.type || "");
   const size = Number(file.size || 0);
 
+  // Check user's file size limit (rank-based)
+  const { checkFileSize } = await import("@/lib/core/limits");
+  const sizeCheck = await checkFileSize(userId, size);
+  if (!sizeCheck.allowed) {
+    throw new Error(
+      `File too large (${sizeCheck.fileSizeMB}MB). Your limit is ${sizeCheck.maxSizeMB}MB`
+    );
+  }
+
   const isTextExt = ["txt", "js", "jsx", "json"].includes(ext);
   const isImageExt = ["png", "jpg", "jpeg", "webp"].includes(ext);
   const isDocExt = ["pdf", "doc", "docx", "xls", "xlsx"].includes(ext);
   const isZipExt = ext === "zip";
 
   if (isTextExt) {
-    if (size > cfg.maxTextBytes) throw new Error("Text file too large");
     if (mime && !ALLOWED_TEXT_MIMES.has(mime) && mime !== "application/octet-stream") {
       throw new Error("Text MIME not allowed");
     }
@@ -308,8 +317,6 @@ export async function validateUpload({
   }
 
   if (isImageExt) {
-    if (size > cfg.maxImageBytes) throw new Error("Image too large");
-
     const sniffed = await sniffImageMime(file);
     const effectiveMime = sniffed || mime;
     if (!ALLOWED_IMAGE_MIMES.has(effectiveMime)) throw new Error("Image MIME not allowed");
@@ -324,7 +331,6 @@ export async function validateUpload({
   }
 
   if (isDocExt) {
-    if (size > cfg.maxDocBytes) throw new Error("Document file too large");
     if (mime && !ALLOWED_DOC_MIMES.has(mime) && mime !== "application/octet-stream") {
       throw new Error("Document MIME not allowed");
     }
@@ -346,7 +352,6 @@ export async function validateUpload({
   }
 
   if (isZipExt) {
-    if (size > cfg.maxZipBytes) throw new Error("ZIP file too large");
     if (mime && !ALLOWED_ARCHIVE_MIMES.has(mime) && mime !== "application/octet-stream") {
       throw new Error("ZIP MIME not allowed");
     }
@@ -472,7 +477,7 @@ export async function uploadAttachment({
   const supabase = getSupabaseAdmin();
   const cfg = getAttachmentsConfig();
 
-  const v = await validateUpload({ file, filename });
+  const v = await validateUpload({ file, filename, userId });
 
   await enforceConversationQuotas({ supabase, userId, conversationId, addBytes: v.sizeBytes });
 

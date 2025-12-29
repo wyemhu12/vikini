@@ -1,5 +1,6 @@
 // Centralized logging utility
 // Provides consistent logging interface with log levels
+/* eslint-disable no-console */
 
 /**
  * Log levels
@@ -12,18 +13,18 @@ const LOG_LEVELS = {
   NONE: 4,
 } as const;
 
-type LogLevel = typeof LOG_LEVELS[keyof typeof LOG_LEVELS];
+type LogLevel = (typeof LOG_LEVELS)[keyof typeof LOG_LEVELS];
 
 /**
  * Get current log level from environment
  */
 function getLogLevel(): LogLevel {
-  const level = (process.env.LOG_LEVEL || 'info').toUpperCase() as keyof typeof LOG_LEVELS;
+  const level = (process.env.LOG_LEVEL || "info").toUpperCase() as keyof typeof LOG_LEVELS;
   return LOG_LEVELS[level] ?? LOG_LEVELS.INFO;
 }
 
 const currentLogLevel = getLogLevel();
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = process.env.NODE_ENV === "development";
 
 /**
  * Logger interface
@@ -45,7 +46,7 @@ export const logger: Logger & { withContext: (context: string) => Logger } = {
    */
   debug: (...args: unknown[]): void => {
     if (currentLogLevel <= LOG_LEVELS.DEBUG && isDevelopment) {
-      console.log('[DEBUG]', ...args);
+      console.log("[DEBUG]", ...args);
     }
   },
 
@@ -54,7 +55,7 @@ export const logger: Logger & { withContext: (context: string) => Logger } = {
    */
   info: (...args: unknown[]): void => {
     if (currentLogLevel <= LOG_LEVELS.INFO) {
-      console.log('[INFO]', ...args);
+      console.log("[INFO]", ...args);
     }
   },
 
@@ -63,7 +64,7 @@ export const logger: Logger & { withContext: (context: string) => Logger } = {
    */
   warn: (...args: unknown[]): void => {
     if (currentLogLevel <= LOG_LEVELS.WARN) {
-      console.warn('[WARN]', ...args);
+      console.warn("[WARN]", ...args);
     }
   },
 
@@ -72,8 +73,8 @@ export const logger: Logger & { withContext: (context: string) => Logger } = {
    */
   error: (...args: unknown[]): void => {
     if (currentLogLevel <= LOG_LEVELS.ERROR) {
-      console.error('[ERROR]', ...args);
-      
+      console.error("[ERROR]", ...args);
+
       // TODO: In production, consider sending to error tracking service
       // e.g., Sentry, LogRocket, etc.
       // if (!isDevelopment) {
@@ -92,4 +93,3 @@ export const logger: Logger & { withContext: (context: string) => Logger } = {
     error: (...args: unknown[]) => logger.error(`[${context}]`, ...args),
   }),
 };
-

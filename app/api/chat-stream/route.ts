@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
+import { checkDailyMessageLimit, incrementDailyMessageCount } from "@/lib/core/limits";
 import { logger } from "@/lib/utils/logger";
 import { AppError } from "@/lib/utils/errors";
 import { errorFromAppError, rateLimitError, error } from "@/lib/utils/apiResponse";
@@ -17,7 +18,7 @@ const routeLogger = logger.withContext("POST /api/chat-stream");
 
 export async function POST(req: NextRequest) {
   const perfMonitor = createPerformanceMonitor("/api/chat-stream", "POST");
-  
+
   try {
     const session = await auth();
     if (!session?.user?.email) {
@@ -26,9 +27,35 @@ export async function POST(req: NextRequest) {
       return new Response("Unauthorized", { status: HTTP_STATUS.UNAUTHORIZED });
     }
 
-    const userId = session.user.email.toLowerCase();
+    const userId = session.user.id || session.user.email?.toLowerCase() || "";
+    if (!userId) {
+      routeLogger.warn("No user ID available");
+      perfMonitor.end(HTTP_STATUS.UNAUTHORIZED);
+      return new Response("Unauthorized", { status: HTTP_STATUS.UNAUTHORIZED });
+    }
+
     routeLogger.debug("Processing request for user:", userId);
     perfMonitor.userId = userId;
+
+    // Check daily message limit
+    const messageLimit = await checkDailyMessageLimit(userId);
+    if (!messageLimit.canSend) {
+      routeLogger.warn(
+        `Daily message limit reached for user: ${userId} (${messageLimit.count}/${messageLimit.limit})`
+      );
+      perfMonitor.end(429, { dailyLimitReached: true });
+      return new Response(
+        JSON.stringify({
+          error: "Daily message limit reached",
+          count: messageLimit.count,
+          limit: messageLimit.limit,
+        }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
 
     const rl = await consumeRateLimit(`chat-stream:${userId}`);
     if (!rl.allowed) {
@@ -38,19 +65,26 @@ export async function POST(req: NextRequest) {
     }
 
     const response = await handleChatStreamCore({ req, userId });
+
+    // Increment daily message count after successful stream initiation
+    // Note: We increment immediately; ideally we'd increment only after successful completion,
+    // but for streaming that's complex. This is acceptable trade-off.
+    incrementDailyMessageCount(userId).catch((err) => {
+      routeLogger.error("Failed to increment message count:", err);
+    });
+
     perfMonitor.end(200, { streaming: true });
     return response;
   } catch (e) {
     routeLogger.error("Route error:", e);
-    
+
     const statusCode = e instanceof AppError ? e.statusCode : HTTP_STATUS.INTERNAL_SERVER_ERROR;
     perfMonitor.end(statusCode, { error: true });
-    
+
     if (e instanceof AppError) {
       return errorFromAppError(e);
     }
-    
+
     return error("Internal error", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
-

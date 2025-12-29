@@ -329,6 +329,7 @@ export default function ChatApp() {
         t={t}
         mobileOpen={mobileOpen}
         onCloseMobile={closeMobileSidebar}
+        session={session}
       />
 
       <div className="h-full flex flex-col md:pl-80 relative z-10 transition-all duration-300">
