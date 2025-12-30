@@ -23,6 +23,7 @@ body {
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-thumb {
   @apply bg-neutral-800 rounded-full;
 }
@@ -37,50 +38,58 @@ body {
 */
 
 .theme-blueprint {
-  --primary: #60a5fa; /* Bright Blue */
+  --primary: #60a5fa;
+  /* Bright Blue */
   --primary-light: #93c5fd;
   --primary-dark: #2563eb;
   --accent: #a69cac;
-  --bg-glow: rgba(96, 165, 250, 0.08); /* Blue tint */
+  --bg-glow: rgba(96, 165, 250, 0.08);
+  /* Blue tint */
 }
 
 .theme-amber {
-  --primary: #f59e0b; /* Amber */
+  --primary: #f59e0b;
+  /* Amber */
   --primary-light: #fcd34d;
   --primary-dark: #b45309;
   --bg-glow: rgba(245, 158, 11, 0.08);
 }
 
 .theme-indigo {
-  --primary: #818cf8; /* Indigo */
+  --primary: #818cf8;
+  /* Indigo */
   --primary-light: #a5b4fc;
   --primary-dark: #4f46e5;
   --bg-glow: rgba(129, 140, 248, 0.08);
 }
 
 .theme-charcoal {
-  --primary: #9ca3af; /* Grey */
+  --primary: #9ca3af;
+  /* Grey */
   --primary-light: #d1d5db;
   --primary-dark: #4b5563;
   --bg-glow: rgba(255, 255, 255, 0.05);
 }
 
 .theme-gold {
-  --primary: #fbbf24; /* Gold */
+  --primary: #fbbf24;
+  /* Gold */
   --primary-light: #fde68a;
   --primary-dark: #d97706;
   --bg-glow: rgba(251, 191, 36, 0.08);
 }
 
 .theme-red {
-  --primary: #f87171; /* Red */
+  --primary: #f87171;
+  /* Red */
   --primary-light: #fca5a5;
   --primary-dark: #dc2626;
   --bg-glow: rgba(248, 113, 113, 0.08);
 }
 
 .theme-rose {
-  --primary: #fb7185; /* Rose */
+  --primary: #fb7185;
+  /* Rose */
   --primary-light: #fecdd3;
   --primary-dark: #e11d48;
   --bg-glow: rgba(251, 113, 133, 0.08);
@@ -88,15 +97,17 @@ body {
 
 /* Red Alert 2 Themed Backgrounds */
 .theme-yuri {
-  --primary: #a855f7; /* Purple */
+  --primary: #a855f7;
+  /* Purple */
   --primary-light: #c084fc;
   --primary-dark: #7c3aed;
   --bg-glow: rgba(168, 85, 247, 0.12);
-  --theme-bg-image: url("/assets/themes/yuri.jpg");
+  --theme-bg-image: url("/assets/themes/yuri.png");
 }
 
 .theme-allied {
-  --primary: #38bdf8; /* Cyan Blue */
+  --primary: #38bdf8;
+  /* Cyan Blue */
   --primary-light: #7dd3fc;
   --primary-dark: #0284c7;
   --bg-glow: rgba(56, 189, 248, 0.12);
@@ -104,11 +115,12 @@ body {
 }
 
 .theme-soviet {
-  --primary: #ef4444; /* Red */
+  --primary: #ef4444;
+  /* Red */
   --primary-light: #fca5a5;
   --primary-dark: #b91c1c;
   --bg-glow: rgba(239, 68, 68, 0.15);
-  --theme-bg-image: url("/assets/themes/soviet.jpg");
+  --theme-bg-image: url("/assets/themes/soviet.png");
 }
 
 /* =======================
@@ -154,6 +166,7 @@ body {
   100% {
     opacity: 0.06;
   }
+
   50% {
     opacity: 0.12;
   }
@@ -190,9 +203,11 @@ body {
 .chat-markdown h1 {
   @apply text-2xl;
 }
+
 .chat-markdown h2 {
   @apply text-xl;
 }
+
 .chat-markdown h3 {
   @apply text-lg;
 }
@@ -200,13 +215,16 @@ body {
 .chat-markdown p {
   @apply mb-5 last:mb-0;
 }
+
 .chat-markdown ul,
 .chat-markdown ol {
   @apply my-5 pl-6 space-y-2.5;
 }
+
 .chat-markdown ul {
   @apply list-disc;
 }
+
 .chat-markdown ol {
   @apply list-decimal;
 }
@@ -216,9 +234,11 @@ body {
   display: block;
   overflow-x: auto;
 }
+
 .chat-markdown thead th {
   @apply bg-white/5 text-neutral-100 font-bold px-4 py-3 border-b border-white/10;
 }
+
 .chat-markdown td {
   @apply border-b border-white/5 px-4 py-3 text-neutral-300;
 }
