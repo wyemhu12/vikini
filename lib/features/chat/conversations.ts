@@ -308,7 +308,13 @@ export async function renameConversation(
 
   const current = await getConversationSafe(id);
   if (!current) throw new Error("Conversation not found");
-  if (current.userId !== userId) throw new Error("Forbidden");
+  if (current.userId !== userId) {
+    // Debug log to identify mismatch
+    console.warn(
+      `[renameConversation] Forbidden - userId mismatch. current.userId='${current.userId}' vs passed userId='${userId}'`
+    );
+    throw new Error("Forbidden");
+  }
 
   const { error } = await supabase
     .from("conversations")

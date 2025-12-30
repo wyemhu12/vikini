@@ -48,11 +48,15 @@ export async function getCachedConversations<T>(userId: string): Promise<T | nul
 
   try {
     const key = CACHE_KEYS.conversations(userId);
-    const cached = await r.get<string>(key);
+    const cached = await r.get(key);
     if (!cached) return null;
 
-    // Parse JSON string back to object
-    return JSON.parse(cached) as T;
+    // Upstash Redis may return already-parsed object or string
+    if (typeof cached === "string") {
+      return JSON.parse(cached) as T;
+    }
+    // Already an object (Upstash auto-deserializes JSON)
+    return cached as T;
   } catch (error) {
     logger.warn("Failed to get cached conversations:", error);
     return null;
@@ -98,11 +102,15 @@ export async function getCachedGems<T>(userId: string): Promise<T | null> {
 
   try {
     const key = CACHE_KEYS.gems(userId);
-    const cached = await r.get<string>(key);
+    const cached = await r.get(key);
     if (!cached) return null;
 
-    // Parse JSON string back to object
-    return JSON.parse(cached) as T;
+    // Upstash Redis may return already-parsed object or string
+    if (typeof cached === "string") {
+      return JSON.parse(cached) as T;
+    }
+    // Already an object (Upstash auto-deserializes JSON)
+    return cached as T;
   } catch (error) {
     logger.warn("Failed to get cached gems:", error);
     return null;
