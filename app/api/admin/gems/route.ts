@@ -17,9 +17,10 @@ export async function GET(_req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
+    // Use select("*") to be robust against schema mismatches, and filter properly
+    const { data: rawData, error } = await supabase
       .from("gems")
-      .select("id, name, description, instructions, icon, color, is_premade")
+      .select("*")
       .eq("is_premade", true)
       .order("name");
 
@@ -28,7 +29,13 @@ export async function GET(_req: NextRequest) {
       throw error;
     }
 
-    return NextResponse.json({ gems: data });
+    // Map DB column `instruction` to Frontend field `instructions` if needed
+    const gems = rawData?.map((g: any) => ({
+      ...g,
+      instructions: g.instructions || g.instruction || "",
+    }));
+
+    return NextResponse.json({ gems });
   } catch (error: any) {
     console.error("[AdminGEMs] Catch Error:", error); // DEBUG
     return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
@@ -46,6 +53,7 @@ export async function POST(req: NextRequest) {
     const json = await req.json();
     const { name, description, instructions, icon, color } = json;
 
+    // Validate inputs
     if (!name || !instructions) {
       return NextResponse.json({ error: "Name and instructions are required" }, { status: 400 });
     }
@@ -56,18 +64,24 @@ export async function POST(req: NextRequest) {
       .insert({
         name,
         description,
-        instructions,
+        instruction: instructions, // Map frontend 'instructions' to DB 'instruction'
         icon,
         color,
         is_premade: true,
-        user_id: session.user.id, // Optional: link to admin who created it, or null depending on schema
+        user_id: session.user.id,
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    return NextResponse.json({ gem: data });
+    // Map back for response
+    const gem = {
+      ...data,
+      instructions: data.instructions || data.instruction,
+    };
+
+    return NextResponse.json({ gem });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
   }
@@ -92,15 +106,19 @@ export async function PUT(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+
+    // Map frontend 'instructions' to DB 'instruction'
+    const updatePayload = {
+      name,
+      description,
+      instruction: instructions,
+      icon,
+      color,
+    };
+
     const { data, error } = await supabase
       .from("gems")
-      .update({
-        name,
-        description,
-        instructions,
-        icon,
-        color,
-      })
+      .update(updatePayload)
       .eq("id", id)
       .eq("is_premade", true)
       .select()
@@ -108,7 +126,13 @@ export async function PUT(req: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ gem: data });
+    // Map back for response
+    const gem = {
+      ...data,
+      instructions: data.instructions || data.instruction,
+    };
+
+    return NextResponse.json({ gem });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
   }
