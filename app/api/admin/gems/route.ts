@@ -29,11 +29,36 @@ export async function GET(_req: NextRequest) {
       throw error;
     }
 
+    // Enrich with latest gem_versions
+    const ids = (rawData || []).map((g) => g.id);
+    const latestByGem = new Map<string, string>();
+
+    if (ids.length > 0) {
+      const { data: versions } = await supabase
+        .from("gem_versions")
+        .select("gem_id,version,instructions")
+        .in("gem_id", ids)
+        .order("version", { ascending: false });
+
+      if (versions) {
+        for (const v of versions) {
+          // Since ordered by version desc, first one we see is latest
+          if (!latestByGem.has(v.gem_id)) {
+            latestByGem.set(v.gem_id, v.instructions || "");
+          }
+        }
+      }
+    }
+
     // Map DB column `instruction` to Frontend field `instructions` if needed
-    const gems = rawData?.map((g: any) => ({
-      ...g,
-      instructions: g.instructions || g.instruction || "",
-    }));
+    const gems = rawData?.map((g: any) => {
+      const fallback = g.instructions || g.instruction || "";
+      const latest = latestByGem.get(g.id);
+      return {
+        ...g,
+        instructions: typeof latest === "string" ? latest : fallback,
+      };
+    });
 
     return NextResponse.json({ gems });
   } catch (error: any) {
