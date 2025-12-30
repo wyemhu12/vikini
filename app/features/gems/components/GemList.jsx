@@ -10,6 +10,7 @@ export default function GemList({
   selectedGemId,
   onSelect,
   onEdit,
+  onPreview,
   onDelete,
 }) {
   const { t } = useLanguage();
@@ -38,9 +39,7 @@ export default function GemList({
               ) : null}
             </div>
             {g.description ? (
-              <div className="mt-1 line-clamp-2 text-[11px] text-neutral-400">
-                {g.description}
-              </div>
+              <div className="mt-1 line-clamp-2 text-[11px] text-neutral-400">{g.description}</div>
             ) : null}
           </div>
 
@@ -50,6 +49,27 @@ export default function GemList({
               className="rounded-md bg-[var(--primary)] px-2 py-1 text-[11px] text-black transition-all hover:brightness-110 active:scale-95"
             >
               {t("select")}
+            </button>
+
+            <button
+              onClick={() => onPreview?.(g)}
+              className="rounded-md border border-neutral-700 px-2 py-1 text-[11px] text-neutral-200 hover:bg-neutral-900 transition-all active:scale-95 flex items-center justify-center gap-1"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              Preview
             </button>
 
             {!readOnly && (
@@ -81,11 +101,11 @@ export default function GemList({
   return (
     <div className="space-y-4">
       <div>
-        <div className="mb-2 text-xs font-semibold text-neutral-300">
-          {t("premadeGems")}
-        </div>
+        <div className="mb-2 text-xs font-semibold text-neutral-300">{t("premadeGems")}</div>
         <div className="space-y-2">
-          {premade?.length ? premade.map((g) => renderItem(g, true)) : (
+          {premade?.length ? (
+            premade.map((g) => renderItem(g, true))
+          ) : (
             <div className="text-xs text-neutral-500">---</div>
           )}
         </div>
@@ -94,7 +114,9 @@ export default function GemList({
       <div>
         <div className="mb-2 text-xs font-semibold text-neutral-300">{t("myGems")}</div>
         <div className="space-y-2">
-          {mine?.length ? mine.map((g) => renderItem(g, false)) : (
+          {mine?.length ? (
+            mine.map((g) => renderItem(g, false))
+          ) : (
             <div className="text-xs text-neutral-500">---</div>
           )}
         </div>

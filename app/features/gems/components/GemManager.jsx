@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import GemList from "./GemList";
 import GemEditor from "./GemEditor";
+import GemPreview from "./GemPreview";
 import { useGemStore } from "../stores/useGemStore";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 
@@ -22,6 +23,7 @@ export default function GemManager() {
 
   const [selectedGemId, setSelectedGemId] = useState(null);
   const [editingGem, setEditingGem] = useState(null);
+  const [previewGem, setPreviewGem] = useState(null);
   const [status, setStatus] = useState("");
 
   const premade = useMemo(() => gems.filter((g) => g.isPremade), [gems]);
@@ -72,6 +74,7 @@ export default function GemManager() {
   const clearGem = async () => applyGemToConversation(null);
 
   const onCreate = () => {
+    setPreviewGem(null);
     setEditingGem({
       id: null,
       name: "",
@@ -174,7 +177,14 @@ export default function GemManager() {
               mine={mine}
               selectedGemId={selectedGemId}
               onSelect={(gem) => applyGemToConversation(gem.id)}
-              onEdit={onEdit}
+              onPreview={(gem) => {
+                setEditingGem(null);
+                setPreviewGem(gem);
+              }}
+              onEdit={(gem) => {
+                setPreviewGem(null);
+                onEdit(gem);
+              }}
               onDelete={onDelete}
             />
           </div>
@@ -192,6 +202,10 @@ export default function GemManager() {
                   </button>
                 </div>
                 <GemEditor gem={editingGem} onSave={onSave} />
+              </div>
+            ) : previewGem ? (
+              <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 h-full">
+                <GemPreview gem={previewGem} />
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-neutral-800 bg-neutral-900/20 p-8 flex flex-col items-center justify-center text-center text-neutral-500 min-h-[300px]">

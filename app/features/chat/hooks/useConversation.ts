@@ -16,6 +16,7 @@ interface FrontendConversation {
   createdAt?: number;
   updatedAt?: number;
   model?: string;
+  gem?: any; // Include gem in frontend model
   [key: string]: unknown;
 }
 
@@ -56,6 +57,7 @@ function convertConversationToFrontend(conv: Conversation): FrontendConversation
     createdAt: convertDate(conv.createdAt),
     updatedAt: convertDate(conv.updatedAt),
     model: conv.model,
+    gem: conv.gem, // Map gem field
   };
 }
 

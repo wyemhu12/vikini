@@ -64,7 +64,7 @@ export default function GemEditor({ gem, onSave }) {
           <button
             onClick={save}
             disabled={!canSave}
-            className="rounded-lg bg-[var(--primary)] px-3 py-2 text-sm text-black disabled:opacity-40"
+            className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t("saveGem")}
           </button>
@@ -101,9 +101,7 @@ export default function GemEditor({ gem, onSave }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-xs text-neutral-400">
-              {t("gemDescription")}
-            </label>
+            <label className="mb-1 block text-xs text-neutral-400">{t("gemDescription")}</label>
             <input
               value={description}
               onChange={handleChange(setDescription)}
@@ -125,9 +123,7 @@ export default function GemEditor({ gem, onSave }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-xs text-neutral-400">
-              {t("gemInstructions")}
-            </label>
+            <label className="mb-1 block text-xs text-neutral-400">{t("gemInstructions")}</label>
             <textarea
               value={instructions}
               onChange={handleChange(setInstructions)}
