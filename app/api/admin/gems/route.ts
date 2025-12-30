@@ -17,13 +17,92 @@ export async function GET(_req: NextRequest) {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("gems")
-      .select("id, name, description, icon, color, is_premade")
+      .select("id, name, description, instructions, icon, color, is_premade")
       .eq("is_premade", true)
       .order("name");
 
     if (error) throw error;
 
     return NextResponse.json({ gems: data });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
+  }
+}
+
+// POST: Create a new premade gem
+export async function POST(req: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user || session.user.rank !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const json = await req.json();
+    const { name, description, instructions, icon, color } = json;
+
+    if (!name || !instructions) {
+      return NextResponse.json({ error: "Name and instructions are required" }, { status: 400 });
+    }
+
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from("gems")
+      .insert({
+        name,
+        description,
+        instructions,
+        icon,
+        color,
+        is_premade: true,
+        user_id: session.user.id, // Optional: link to admin who created it, or null depending on schema
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({ gem: data });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
+  }
+}
+
+// PUT: Update an existing premade gem
+export async function PUT(req: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user || session.user.rank !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const json = await req.json();
+    const { id, name, description, instructions, icon, color } = json;
+
+    if (!id || !name || !instructions) {
+      return NextResponse.json(
+        { error: "ID, Name and instructions are required" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from("gems")
+      .update({
+        name,
+        description,
+        instructions,
+        icon,
+        color,
+      })
+      .eq("id", id)
+      .eq("is_premade", true)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({ gem: data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
   }

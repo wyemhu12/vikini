@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Gem, Loader2, Plus, Edit2, Trash2, AlertCircle } from "lucide-react";
+import { Gem, Loader2, Plus, Edit2, Trash2, AlertCircle, X } from "lucide-react";
+import GemEditor from "@/app/features/gems/components/GemEditor";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface PremadeGem {
   id: string;
   name: string;
   description: string | null;
+  instructions: string | null;
   icon: string | null;
   color: string | null;
   is_premade: boolean;
@@ -16,6 +19,10 @@ export default function GemsManager() {
   const [gems, setGems] = useState<PremadeGem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Editor State
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editingGem, setEditingGem] = useState<PremadeGem | null>(null);
 
   useEffect(() => {
     fetchGems();
@@ -51,6 +58,38 @@ export default function GemsManager() {
     }
   };
 
+  const handleSaveGem = async (gemData: any) => {
+    try {
+      const method = gemData.id ? "PUT" : "POST";
+      const res = await fetch("/api/admin/gems", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(gemData),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to save gem");
+      }
+
+      await fetchGems();
+      setIsEditorOpen(false);
+      setEditingGem(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to save gem");
+    }
+  };
+
+  const openAddModal = () => {
+    setEditingGem(null);
+    setIsEditorOpen(true);
+  };
+
+  const openEditModal = (gem: PremadeGem) => {
+    setEditingGem(gem);
+    setIsEditorOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -77,7 +116,10 @@ export default function GemsManager() {
           <h2 className="text-xl font-semibold text-white">Global GEMs Management</h2>
           <span className="text-sm text-gray-500">({gems.length} gems)</span>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-all">
+        <button
+          onClick={openAddModal}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-all"
+        >
           <Plus className="w-4 h-4" />
           Add GEM
         </button>
@@ -101,7 +143,11 @@ export default function GemsManager() {
                   <h3 className="font-semibold text-white">{gem.name}</h3>
                 </div>
                 <div className="flex gap-1">
-                  <button className="p-1.5 rounded hover:bg-white/10 transition-all" title="Edit">
+                  <button
+                    onClick={() => openEditModal(gem)}
+                    className="p-1.5 rounded hover:bg-white/10 transition-all"
+                    title="Edit"
+                  >
                     <Edit2 className="w-4 h-4 text-gray-400 hover:text-white" />
                   </button>
                   <button
@@ -120,6 +166,39 @@ export default function GemsManager() {
           ))}
         </div>
       )}
+
+      {/* Editor Modal */}
+      <AnimatePresence>
+        {isEditorOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-neutral-800 sticky top-0 bg-neutral-900 z-10">
+                <h3 className="text-lg font-semibold text-white">
+                  {editingGem ? "Edit Global GEM" : "Create Global GEM"}
+                </h3>
+                <button
+                  onClick={() => setIsEditorOpen(false)}
+                  className="p-1 rounded-full hover:bg-white/10 transition-colors"
+                >
+                  <X className="w-5 h-5 text-neutral-400" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                <GemEditor
+                  gem={editingGem || undefined} // GemEditor expects undefined for new
+                  onSave={handleSaveGem}
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
