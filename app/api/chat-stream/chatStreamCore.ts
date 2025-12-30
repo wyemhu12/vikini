@@ -547,6 +547,14 @@ export async function handleChatStreamCore({
   let gemLoadError = "";
   try {
     sysPrompt = await getGemInstructionsForConversation(userId, conversationId);
+    // Debug: Log gem instructions status
+    if (sysPrompt) {
+      coreLogger.info(
+        `[GEM ACTIVE] Conversation ${conversationId} has gem instructions (${sysPrompt.length} chars)`
+      );
+    } else {
+      coreLogger.info(`[GEM NONE] Conversation ${conversationId} has no gem applied`);
+    }
   } catch (e) {
     const error = e as Error;
     gemLoadError = String(error?.message || "");
