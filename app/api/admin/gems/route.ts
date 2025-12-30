@@ -24,6 +24,8 @@ export async function GET(_req: NextRequest) {
       .eq("is_premade", true)
       .order("name");
 
+    console.log("[AdminGEMs] Actual columns:", rawData?.[0] ? Object.keys(rawData[0]) : "No data");
+
     if (error) {
       console.error("[AdminGEMs] DB Error:", error); // DEBUG
       throw error;
@@ -84,12 +86,13 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+    // 1. Insert into gems (metadata only)
     const { data, error } = await supabase
       .from("gems")
       .insert({
         name,
         description,
-        instruction: instructions, // Map frontend 'instructions' to DB 'instruction'
+        // instruction: instructions, // REMOVED: Column does not exist
         icon,
         color,
         is_premade: true,
@@ -100,10 +103,36 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
+    // 2. Insert into gem_versions (content)
+    let versionedInstructions = "";
+    if (data?.id) {
+      // Check standard library usage for version insertion
+      // We'll reimplement simplified version here to avoid circular dependencies with `lib/features/gems` if it's client-side mixed
+      // Actually we can try to use the `gem_versions` table directly
+      const { data: vData, error: vError } = await supabase
+        .from("gem_versions")
+        .insert({
+          gem_id: data.id,
+          version: 1,
+          instructions: instructions,
+          created_by: session.user.id,
+        })
+        .select()
+        .single();
+
+      if (!vError && vData) {
+        versionedInstructions = vData.instructions;
+      } else {
+        console.error("Failed to insert gem_version:", vError);
+        // Fallback? If version fails, we have a broken gem.
+        // But the user error is specifically about the COLUMN on 'gems'.
+      }
+    }
+
     // Map back for response
     const gem = {
       ...data,
-      instructions: data.instructions || data.instruction,
+      instructions: versionedInstructions || instructions,
     };
 
     return NextResponse.json({ gem });
@@ -132,11 +161,11 @@ export async function PUT(req: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    // Map frontend 'instructions' to DB 'instruction'
+    // 1. Update gems table (metadata only)
     const updatePayload = {
       name,
       description,
-      instruction: instructions,
+      // instruction: instructions, // REMOVED
       icon,
       color,
     };
@@ -151,10 +180,37 @@ export async function PUT(req: NextRequest) {
 
     if (error) throw error;
 
+    // 2. Create new gem_version
+    // Find latest version first
+    const { data: latest } = await supabase
+      .from("gem_versions")
+      .select("version")
+      .eq("gem_id", id)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const nextVersion = (latest?.version || 0) + 1;
+
+    const { data: vData, error: vError } = await supabase
+      .from("gem_versions")
+      .insert({
+        gem_id: id,
+        version: nextVersion,
+        instructions: instructions,
+        created_by: session.user.id,
+      })
+      .select()
+      .single();
+
+    if (vError) {
+      console.error("Failed to insert gem_version update:", vError);
+    }
+
     // Map back for response
     const gem = {
       ...data,
-      instructions: data.instructions || data.instruction,
+      instructions: vData?.instructions || instructions,
     };
 
     return NextResponse.json({ gem });

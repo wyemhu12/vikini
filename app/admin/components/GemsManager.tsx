@@ -175,7 +175,7 @@ export default function GemsManager() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl"
+              className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col shadow-2xl relative"
             >
               <div className="flex items-center justify-between p-4 border-b border-neutral-800 sticky top-0 bg-neutral-900 z-10">
                 <h3 className="text-lg font-semibold text-white">
@@ -189,7 +189,7 @@ export default function GemsManager() {
                 </button>
               </div>
 
-              <div className="p-6">
+              <div className="p-6 overflow-y-auto custom-scrollbar">
                 <GemEditor
                   gem={editingGem || undefined} // GemEditor expects undefined for new
                   onSave={handleSaveGem}
