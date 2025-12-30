@@ -1,7 +1,18 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 
-const THEME_IDS = ["blueprint", "amber", "indigo", "charcoal", "gold", "red", "rose"] as const;
+const THEME_IDS = [
+  "blueprint",
+  "amber",
+  "indigo",
+  "charcoal",
+  "gold",
+  "red",
+  "rose",
+  "yuri",
+  "allied",
+  "soviet",
+] as const;
 
 export type ThemeId = (typeof THEME_IDS)[number];
 

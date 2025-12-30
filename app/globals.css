@@ -37,53 +37,78 @@ body {
 */
 
 .theme-blueprint {
-  --primary: #60a5fa;       /* Bright Blue */
+  --primary: #60a5fa; /* Bright Blue */
   --primary-light: #93c5fd;
   --primary-dark: #2563eb;
-  --accent: #A69CAC;
+  --accent: #a69cac;
   --bg-glow: rgba(96, 165, 250, 0.08); /* Blue tint */
 }
 
 .theme-amber {
-  --primary: #f59e0b;       /* Amber */
+  --primary: #f59e0b; /* Amber */
   --primary-light: #fcd34d;
   --primary-dark: #b45309;
   --bg-glow: rgba(245, 158, 11, 0.08);
 }
 
 .theme-indigo {
-  --primary: #818cf8;       /* Indigo */
+  --primary: #818cf8; /* Indigo */
   --primary-light: #a5b4fc;
   --primary-dark: #4f46e5;
   --bg-glow: rgba(129, 140, 248, 0.08);
 }
 
 .theme-charcoal {
-  --primary: #9ca3af;       /* Grey */
+  --primary: #9ca3af; /* Grey */
   --primary-light: #d1d5db;
   --primary-dark: #4b5563;
   --bg-glow: rgba(255, 255, 255, 0.05);
 }
 
 .theme-gold {
-  --primary: #fbbf24;       /* Gold */
+  --primary: #fbbf24; /* Gold */
   --primary-light: #fde68a;
   --primary-dark: #d97706;
   --bg-glow: rgba(251, 191, 36, 0.08);
 }
 
 .theme-red {
-  --primary: #f87171;       /* Red */
+  --primary: #f87171; /* Red */
   --primary-light: #fca5a5;
   --primary-dark: #dc2626;
   --bg-glow: rgba(248, 113, 113, 0.08);
 }
 
 .theme-rose {
-  --primary: #fb7185;       /* Rose */
+  --primary: #fb7185; /* Rose */
   --primary-light: #fecdd3;
   --primary-dark: #e11d48;
   --bg-glow: rgba(251, 113, 133, 0.08);
+}
+
+/* Red Alert 2 Themed Backgrounds */
+.theme-yuri {
+  --primary: #a855f7; /* Purple */
+  --primary-light: #c084fc;
+  --primary-dark: #7c3aed;
+  --bg-glow: rgba(168, 85, 247, 0.12);
+  --theme-bg-image: url("/assets/themes/yuri.jpg");
+}
+
+.theme-allied {
+  --primary: #38bdf8; /* Cyan Blue */
+  --primary-light: #7dd3fc;
+  --primary-dark: #0284c7;
+  --bg-glow: rgba(56, 189, 248, 0.12);
+  --theme-bg-image: url("/assets/themes/allied.png");
+}
+
+.theme-soviet {
+  --primary: #ef4444; /* Red */
+  --primary-light: #fca5a5;
+  --primary-dark: #b91c1c;
+  --bg-glow: rgba(239, 68, 68, 0.15);
+  --theme-bg-image: url("/assets/themes/soviet.jpg");
 }
 
 /* =======================
@@ -92,11 +117,59 @@ body {
 
 /* Sử dụng biến --bg-glow để thay đổi màu nền theo theme */
 .static-depth-bg {
-  background: 
+  background:
     radial-gradient(circle at 50% 0%, var(--bg-glow), transparent 70%),
     linear-gradient(to bottom, #050505, #000000);
 }
 
+/* RA2 Themed backgrounds with centered watermark logo */
+.theme-yuri .static-depth-bg,
+.theme-allied .static-depth-bg,
+.theme-soviet .static-depth-bg {
+  background:
+    radial-gradient(circle at 50% 30%, var(--bg-glow), transparent 60%),
+    linear-gradient(to bottom, rgba(5, 5, 5, 0.95), rgba(0, 0, 0, 0.98));
+  position: relative;
+}
+
+.theme-yuri .static-depth-bg::before,
+.theme-allied .static-depth-bg::before,
+.theme-soviet .static-depth-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--theme-bg-image);
+  background-size: 35%;
+  background-position: center 40%;
+  background-repeat: no-repeat;
+  opacity: 0.08;
+  filter: blur(1px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Subtle pulsing glow animation for RA2 themes */
+@keyframes ra2-glow {
+  0%,
+  100% {
+    opacity: 0.06;
+  }
+  50% {
+    opacity: 0.12;
+  }
+}
+
+.theme-yuri .static-depth-bg::after,
+.theme-allied .static-depth-bg::after,
+.theme-soviet .static-depth-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 40%, var(--bg-glow), transparent 50%);
+  animation: ra2-glow 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
 
 /* =======================
    MARKDOWN & CHAT STYLING
@@ -107,18 +180,36 @@ body {
   word-break: break-word;
 }
 
-.chat-markdown h1, .chat-markdown h2, .chat-markdown h3, .chat-markdown h4 {
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3,
+.chat-markdown h4 {
   @apply mt-8 mb-4 font-bold text-white;
 }
 
-.chat-markdown h1 { @apply text-2xl; }
-.chat-markdown h2 { @apply text-xl; }
-.chat-markdown h3 { @apply text-lg; }
+.chat-markdown h1 {
+  @apply text-2xl;
+}
+.chat-markdown h2 {
+  @apply text-xl;
+}
+.chat-markdown h3 {
+  @apply text-lg;
+}
 
-.chat-markdown p { @apply mb-5 last:mb-0; }
-.chat-markdown ul, .chat-markdown ol { @apply my-5 pl-6 space-y-2.5; }
-.chat-markdown ul { @apply list-disc; }
-.chat-markdown ol { @apply list-decimal; }
+.chat-markdown p {
+  @apply mb-5 last:mb-0;
+}
+.chat-markdown ul,
+.chat-markdown ol {
+  @apply my-5 pl-6 space-y-2.5;
+}
+.chat-markdown ul {
+  @apply list-disc;
+}
+.chat-markdown ol {
+  @apply list-decimal;
+}
 
 .chat-markdown table {
   @apply my-6 w-full border-collapse text-sm overflow-hidden rounded-xl border border-white/10;
@@ -144,4 +235,6 @@ body {
   @apply my-6;
 }
 
-* { -webkit-tap-highlight-color: transparent; }
+* {
+  -webkit-tap-highlight-color: transparent;
+}
