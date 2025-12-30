@@ -144,18 +144,44 @@ body {
   position: relative;
 }
 
-.theme-yuri .static-depth-bg::before,
-.theme-allied .static-depth-bg::before,
+/* Yuri themed background */
+.theme-yuri .static-depth-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/assets/themes/yuri.png");
+  background-size: 35%;
+  background-position: center 40%;
+  background-repeat: no-repeat;
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Allied themed background */
+.theme-allied .static-depth-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/assets/themes/allied.png");
+  background-size: 35%;
+  background-position: center 40%;
+  background-repeat: no-repeat;
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Soviet themed background */
 .theme-soviet .static-depth-bg::before {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: var(--theme-bg-image);
+  background-image: url("/assets/themes/soviet.png");
   background-size: 35%;
   background-position: center 40%;
   background-repeat: no-repeat;
-  opacity: 0.08;
-  filter: blur(1px);
+  opacity: 0.15;
   pointer-events: none;
   z-index: 0;
 }
