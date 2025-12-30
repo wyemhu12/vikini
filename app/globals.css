@@ -284,3 +284,89 @@ body {
 * {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* =======================
+   RA2 THEMED BUTTON STYLES
+   Auto-applies to all buttons when RA2 themes are active
+======================= */
+
+/* Base button enhancement for RA2 themes */
+.theme-yuri button,
+.theme-allied button,
+.theme-soviet button {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Glossy overlay for RA2 themed buttons */
+.theme-yuri button::after,
+.theme-allied button::after,
+.theme-soviet button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.03) 50%,
+    transparent 50%
+  );
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Primary action buttons - enhanced border and shadow for RA2 */
+.theme-yuri button,
+.theme-allied button,
+.theme-soviet button {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Yuri Purple theme buttons */
+.theme-yuri button {
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.2);
+}
+
+.theme-yuri button:hover {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+}
+
+/* Allied Blue theme buttons */
+.theme-allied button {
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+}
+
+.theme-allied button:hover {
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+}
+
+/* Soviet Red theme buttons */
+.theme-soviet button {
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+}
+
+.theme-soviet button:hover {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+}
+
+/* Send button special enhancement */
+.theme-yuri button[type="submit"],
+.theme-allied button[type="submit"],
+.theme-soviet button[type="submit"] {
+  background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
+  box-shadow: 0 0 25px var(--primary) !important;
+}
+
+/* Input fields with theme glow for RA2 */
+.theme-yuri input:focus,
+.theme-allied input:focus,
+.theme-soviet input:focus,
+.theme-yuri textarea:focus,
+.theme-allied textarea:focus,
+.theme-soviet textarea:focus {
+  box-shadow:
+    0 0 0 2px var(--primary),
+    0 0 15px var(--bg-glow);
+  border-color: var(--primary) !important;
+}

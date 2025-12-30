@@ -437,16 +437,7 @@ export default function ChatApp() {
       {/* RA2 Theme Background Logos - Premium Effects */}
       {theme === "yuri" && (
         <>
-          {/* Animated glow layer */}
-          <div
-            className="absolute inset-0 z-[1] pointer-events-none animate-pulse"
-            style={{
-              background:
-                "radial-gradient(ellipse at center, rgba(168, 85, 247, 0.15) 0%, transparent 60%)",
-              animationDuration: "3s",
-            }}
-          />
-          {/* Main logo */}
+          {/* Main logo with glow */}
           <div
             className="absolute inset-0 z-[2] pointer-events-none"
             style={{
@@ -470,16 +461,7 @@ export default function ChatApp() {
       )}
       {theme === "allied" && (
         <>
-          {/* Animated glow layer */}
-          <div
-            className="absolute inset-0 z-[1] pointer-events-none animate-pulse"
-            style={{
-              background:
-                "radial-gradient(ellipse at center, rgba(56, 189, 248, 0.12) 0%, transparent 60%)",
-              animationDuration: "3s",
-            }}
-          />
-          {/* Main logo */}
+          {/* Main logo with glow */}
           <div
             className="absolute inset-0 z-[2] pointer-events-none"
             style={{
@@ -503,16 +485,7 @@ export default function ChatApp() {
       )}
       {theme === "soviet" && (
         <>
-          {/* Animated glow layer */}
-          <div
-            className="absolute inset-0 z-[1] pointer-events-none animate-pulse"
-            style={{
-              background:
-                "radial-gradient(ellipse at center, rgba(239, 68, 68, 0.15) 0%, transparent 55%)",
-              animationDuration: "2.5s",
-            }}
-          />
-          {/* Main logo */}
+          {/* Main logo with glow */}
           <div
             className="absolute inset-0 z-[2] pointer-events-none"
             style={{
