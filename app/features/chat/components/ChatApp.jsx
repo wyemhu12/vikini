@@ -434,39 +434,106 @@ export default function ChatApp() {
       {/* 🌌 Static Professional Background */}
       <div className="absolute inset-0 z-0 static-depth-bg pointer-events-none" />
 
-      {/* RA2 Theme Background Logos */}
+      {/* RA2 Theme Background Logos - Premium Effects */}
       {theme === "yuri" && (
-        <div
-          className="absolute inset-0 z-[1] pointer-events-none opacity-[0.12]"
-          style={{
-            backgroundImage: "url('/assets/themes/yuri.png')",
-            backgroundSize: "35%",
-            backgroundPosition: "center 40%",
-            backgroundRepeat: "no-repeat",
-          }}
-        />
+        <>
+          {/* Animated glow layer */}
+          <div
+            className="absolute inset-0 z-[1] pointer-events-none animate-pulse"
+            style={{
+              background:
+                "radial-gradient(ellipse at center, rgba(168, 85, 247, 0.15) 0%, transparent 60%)",
+              animationDuration: "3s",
+            }}
+          />
+          {/* Main logo */}
+          <div
+            className="absolute inset-0 z-[2] pointer-events-none"
+            style={{
+              backgroundImage: "url('/assets/themes/yuri.png')",
+              backgroundSize: "28%",
+              backgroundPosition: "center center",
+              backgroundRepeat: "no-repeat",
+              opacity: 0.18,
+              filter: "drop-shadow(0 0 60px rgba(168, 85, 247, 0.5))",
+            }}
+          />
+          {/* Glossy overlay */}
+          <div
+            className="absolute inset-0 z-[3] pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(168, 85, 247, 0.03) 0%, transparent 30%, transparent 70%, rgba(168, 85, 247, 0.02) 100%)",
+            }}
+          />
+        </>
       )}
       {theme === "allied" && (
-        <div
-          className="absolute inset-0 z-[1] pointer-events-none opacity-[0.12]"
-          style={{
-            backgroundImage: "url('/assets/themes/allied.png')",
-            backgroundSize: "35%",
-            backgroundPosition: "center 40%",
-            backgroundRepeat: "no-repeat",
-          }}
-        />
+        <>
+          {/* Animated glow layer */}
+          <div
+            className="absolute inset-0 z-[1] pointer-events-none animate-pulse"
+            style={{
+              background:
+                "radial-gradient(ellipse at center, rgba(56, 189, 248, 0.12) 0%, transparent 60%)",
+              animationDuration: "3s",
+            }}
+          />
+          {/* Main logo */}
+          <div
+            className="absolute inset-0 z-[2] pointer-events-none"
+            style={{
+              backgroundImage: "url('/assets/themes/allied.png')",
+              backgroundSize: "32%",
+              backgroundPosition: "center center",
+              backgroundRepeat: "no-repeat",
+              opacity: 0.15,
+              filter: "drop-shadow(0 0 80px rgba(56, 189, 248, 0.4))",
+            }}
+          />
+          {/* Glossy overlay */}
+          <div
+            className="absolute inset-0 z-[3] pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(56, 189, 248, 0.04) 0%, transparent 30%, transparent 70%, rgba(56, 189, 248, 0.02) 100%)",
+            }}
+          />
+        </>
       )}
       {theme === "soviet" && (
-        <div
-          className="absolute inset-0 z-[1] pointer-events-none opacity-[0.15]"
-          style={{
-            backgroundImage: "url('/assets/themes/soviet.png')",
-            backgroundSize: "35%",
-            backgroundPosition: "center 40%",
-            backgroundRepeat: "no-repeat",
-          }}
-        />
+        <>
+          {/* Animated glow layer */}
+          <div
+            className="absolute inset-0 z-[1] pointer-events-none animate-pulse"
+            style={{
+              background:
+                "radial-gradient(ellipse at center, rgba(239, 68, 68, 0.15) 0%, transparent 55%)",
+              animationDuration: "2.5s",
+            }}
+          />
+          {/* Main logo */}
+          <div
+            className="absolute inset-0 z-[2] pointer-events-none"
+            style={{
+              backgroundImage: "url('/assets/themes/soviet.png')",
+              backgroundSize: "28%",
+              backgroundPosition: "center center",
+              backgroundRepeat: "no-repeat",
+              opacity: 0.2,
+              filter:
+                "drop-shadow(0 0 60px rgba(239, 68, 68, 0.6)) drop-shadow(0 0 100px rgba(251, 191, 36, 0.3))",
+            }}
+          />
+          {/* Glossy overlay with warm tint */}
+          <div
+            className="absolute inset-0 z-[3] pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(239, 68, 68, 0.03) 0%, transparent 25%, transparent 75%, rgba(251, 191, 36, 0.02) 100%)",
+            }}
+          />
+        </>
       )}
 
       <Sidebar
