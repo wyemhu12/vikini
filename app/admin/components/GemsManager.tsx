@@ -172,12 +172,12 @@ export default function GemsManager() {
         {isEditorOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col shadow-2xl relative"
+              initial={{ opacity: 0, scale: 0.95, y: 0 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 0 }}
+              className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl relative my-auto"
             >
-              <div className="flex items-center justify-between p-4 border-b border-neutral-800 sticky top-0 bg-neutral-900 z-10">
+              <div className="flex-none flex items-center justify-between p-4 border-b border-neutral-800 bg-neutral-900 rounded-t-xl z-20">
                 <h3 className="text-lg font-semibold text-white">
                   {editingGem ? "Edit Global GEM" : "Create Global GEM"}
                 </h3>
@@ -189,11 +189,8 @@ export default function GemsManager() {
                 </button>
               </div>
 
-              <div className="p-6 overflow-y-auto custom-scrollbar">
-                <GemEditor
-                  gem={editingGem || undefined} // GemEditor expects undefined for new
-                  onSave={handleSaveGem}
-                />
+              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
+                <GemEditor gem={editingGem || undefined} onSave={handleSaveGem} />
               </div>
             </motion.div>
           </div>
