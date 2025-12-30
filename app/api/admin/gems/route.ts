@@ -10,7 +10,9 @@ import { getSupabaseAdmin } from "@/lib/core/supabase";
 export async function GET(_req: NextRequest) {
   try {
     const session = await auth();
+    console.log("[AdminGEMs] Session:", session); // DEBUG
     if (!session?.user || session.user.rank !== "admin") {
+      console.log("[AdminGEMs] Unauthorized. Rank:", session?.user?.rank); // DEBUG
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -21,10 +23,14 @@ export async function GET(_req: NextRequest) {
       .eq("is_premade", true)
       .order("name");
 
-    if (error) throw error;
+    if (error) {
+      console.error("[AdminGEMs] DB Error:", error); // DEBUG
+      throw error;
+    }
 
     return NextResponse.json({ gems: data });
   } catch (error: any) {
+    console.error("[AdminGEMs] Catch Error:", error); // DEBUG
     return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
   }
 }
