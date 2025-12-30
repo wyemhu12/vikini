@@ -434,6 +434,41 @@ export default function ChatApp() {
       {/* 🌌 Static Professional Background */}
       <div className="absolute inset-0 z-0 static-depth-bg pointer-events-none" />
 
+      {/* RA2 Theme Background Logos */}
+      {theme === "yuri" && (
+        <div
+          className="absolute inset-0 z-[1] pointer-events-none opacity-[0.12]"
+          style={{
+            backgroundImage: "url('/assets/themes/yuri.png')",
+            backgroundSize: "35%",
+            backgroundPosition: "center 40%",
+            backgroundRepeat: "no-repeat",
+          }}
+        />
+      )}
+      {theme === "allied" && (
+        <div
+          className="absolute inset-0 z-[1] pointer-events-none opacity-[0.12]"
+          style={{
+            backgroundImage: "url('/assets/themes/allied.png')",
+            backgroundSize: "35%",
+            backgroundPosition: "center 40%",
+            backgroundRepeat: "no-repeat",
+          }}
+        />
+      )}
+      {theme === "soviet" && (
+        <div
+          className="absolute inset-0 z-[1] pointer-events-none opacity-[0.15]"
+          style={{
+            backgroundImage: "url('/assets/themes/soviet.png')",
+            backgroundSize: "35%",
+            backgroundPosition: "center 40%",
+            backgroundRepeat: "no-repeat",
+          }}
+        />
+      )}
+
       <Sidebar
         conversations={conversations}
         selectedConversationId={selectedConversationId}
