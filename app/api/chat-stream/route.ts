@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
       return new Response("Unauthorized", { status: HTTP_STATUS.UNAUTHORIZED });
     }
 
-    const userId = session.user.id || session.user.email?.toLowerCase() || "";
+    // Use email as userId for consistency with conversations table
+    const userId = session.user.email?.toLowerCase() || session.user.id || "";
     if (!userId) {
       routeLogger.warn("No user ID available");
       perfMonitor.end(HTTP_STATUS.UNAUTHORIZED);
