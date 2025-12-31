@@ -783,3 +783,125 @@ export function createOpenAICompatibleStream(params: {
     },
   });
 }
+
+export function createAnthropicStream({
+  ai,
+  model,
+  contents,
+  sysPrompt,
+  gemMeta,
+  modelMeta,
+  createdConversation,
+  shouldGenerateTitle,
+  enableWebSearch,
+  WEB_SEARCH_AVAILABLE,
+  cookieWeb,
+  regenerate: _regenerate,
+  content,
+  conversationId,
+  userId,
+  contextMessages,
+  appendToContext,
+  saveMessage,
+  setConversationAutoTitle,
+  generateFinalTitle,
+}: ChatStreamParams & {
+  ai: any;
+  enableWebSearch: boolean;
+  WEB_SEARCH_AVAILABLE: boolean;
+  cookieWeb: string;
+  regenerate?: boolean;
+  content: string;
+  conversationId: string;
+  userId: string;
+  contextMessages: { role: string; content: string }[];
+  appendToContext: any;
+  saveMessage: any;
+  setConversationAutoTitle: any;
+  generateFinalTitle: any;
+}): ReadableStream {
+  return new ReadableStream({
+    async start(controller) {
+      // 1. Send Initial Metadata
+      const convAny = createdConversation as any;
+      const meta = {
+        conversationId,
+        title: convAny?.title ?? null,
+        isNew: Boolean(createdConversation),
+        model: modelMeta,
+        gem: gemMeta,
+        webSearch: {
+          enabled: enableWebSearch,
+          available: WEB_SEARCH_AVAILABLE,
+          cookie: cookieWeb,
+        },
+      };
+      sendEvent(controller, "meta", meta);
+
+      let full = "";
+
+      try {
+        // Map contents to Anthropic format
+        // contents: [{ role: "user", parts: [{text: ""}] }]
+        // Anthropic: [{ role: "user" | "assistant", content: string }]
+        const anthropicMessages = (
+          contents as Array<{ role: string; parts: Array<{ text?: string }> }>
+        ).map((m) => ({
+          role: m.role === "model" ? "assistant" : m.role,
+          content: m.parts.map((p) => p.text || "").join(""),
+        }));
+
+        const stream = await ai.messages.create({
+          model: model, // e.g. "claude-3-5-sonnet-20240620"
+          system: sysPrompt,
+          messages: anthropicMessages,
+          stream: true,
+          max_tokens: 8192,
+          temperature: 0.7,
+        });
+
+        for await (const chunk of stream) {
+          if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
+            const text = chunk.delta.text;
+            if (text) {
+              full += text;
+              sendEvent(controller, "token", { t: text });
+            }
+          }
+        }
+      } catch (e: any) {
+        streamLogger.error("Anthropic stream error:", e);
+
+        // Extract detailed error info
+        const status = e.status || 500;
+        const errorMessage = e.message || "Stream error";
+        const isTokenLimit = status === 429 || errorMessage.includes("rate_limit");
+
+        sendEvent(controller, "error", {
+          message: errorMessage,
+          code: e.code || (isTokenLimit ? "rate_limit_exceeded" : "stream_error"),
+          status: status,
+          isTokenLimit,
+        });
+      }
+
+      // 3. Post Stream Processing
+      await processPostStream(controller, {
+        full,
+        isActuallyBlocked: false,
+        shouldGenerateTitle,
+        conversationId,
+        userId,
+        contextMessages,
+        content,
+        appendToContext,
+        saveMessage,
+        setConversationAutoTitle,
+        generateFinalTitle,
+      });
+
+      sendEvent(controller, "done", { ok: true });
+      controller.close();
+    },
+  });
+}

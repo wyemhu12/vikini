@@ -147,6 +147,10 @@ export default function ChatApp() {
       "gemini-3-pro-preview",
       "gemini-3-flash",
       "gemini-3-pro",
+      "modelDescClaudeHaiku",
+      "modelDescClaudeSonnet",
+      "alwaysSearch",
+      "alwaysSearchTooltip",
       "modelDescFlash25",
       "modelDescPro25",
       "modelDescFlash3",
@@ -212,6 +216,8 @@ export default function ChatApp() {
   const {
     webSearchEnabled,
     toggleWebSearch,
+    alwaysSearch,
+    toggleAlwaysSearch,
     setServerWebSearch,
     setServerWebSearchAvailable,
     serverHint: _serverHint,
@@ -649,8 +655,25 @@ export default function ChatApp() {
                     : "text-white/40 hover:text-white"
                 }`}
               >
-                WEB {webSearchEnabled ? "ON" : "OFF"}
+                WEB {webSearchEnabled ? t.webSearchOn : t.webSearchOff}
               </button>
+
+              {currentModel && currentModel.startsWith("gemini") && (
+                <>
+                  <div className="h-3 w-[1px] bg-white/10 mx-1" />
+                  <button
+                    onClick={toggleAlwaysSearch}
+                    className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full ${
+                      alwaysSearch
+                        ? "text-emerald-400 bg-emerald-400/10"
+                        : "text-white/40 hover:text-white"
+                    }`}
+                    title={t.alwaysSearchTooltip}
+                  >
+                    {t.alwaysSearch} {alwaysSearch ? t.webSearchOn : t.webSearchOff}
+                  </button>
+                </>
+              )}
 
               {currentGem && (
                 <>

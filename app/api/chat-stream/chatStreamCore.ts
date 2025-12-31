@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getGenAIClient } from "@/lib/core/genaiClient";
 import { getGroqClient } from "@/lib/core/groqClient";
 import { getOpenRouterClient } from "@/lib/core/openRouterClient";
+import { getClaudeClient } from "@/lib/core/claudeClient";
 import {
   DEFAULT_MODEL,
   normalizeModelForApi,
@@ -35,6 +36,7 @@ import { generateOptimisticTitle, generateFinalTitle } from "@/lib/core/autoTitl
 import {
   createChatReadableStream,
   createOpenAICompatibleStream,
+  createAnthropicStream,
   mapMessages,
   type ChatStreamParams,
 } from "./streaming";
@@ -441,8 +443,18 @@ function getWebSearchConfig(cookies: Record<string, string>): {
 } {
   const WEB_SEARCH_AVAILABLE = envFlag(process.env.WEB_SEARCH_ENABLED, false);
   const cookieWeb = cookies?.webSearchEnabled ?? cookies?.webSearch ?? "";
-  const enableWebSearch =
-    cookieWeb === "1" ? true : cookieWeb === "0" ? false : WEB_SEARCH_AVAILABLE;
+  const cookieAlways = cookies?.alwaysSearch ?? "";
+
+  let enableWebSearch: boolean;
+
+  if (cookieAlways === "1") {
+    // If Always Search is ON, force enable unless backend disabled it entirely
+    enableWebSearch = WEB_SEARCH_AVAILABLE;
+  } else {
+    // Standard preference logic
+    enableWebSearch = cookieWeb === "1" ? true : cookieWeb === "0" ? false : WEB_SEARCH_AVAILABLE;
+  }
+
   return { enableWebSearch, WEB_SEARCH_AVAILABLE };
 }
 
@@ -599,13 +611,28 @@ export async function handleChatStreamCore({
     return saveMessage(userId, conversationId, role, content);
   };
 
-  const isStandardGroq = model.includes("llama") || model.includes("mixtral");
-  const isOpenRouter = model.includes("/") || model.startsWith("cognitivecomputations");
+  // Detect model provider
+  const isStandardGroq = model.includes("llama") && !model.includes("/");
+  const isOpenRouter = model.includes("/") || model.includes(":free");
+  const isClaude = model.startsWith("claude-");
 
   // Route to specific client
+
   let aiClient: any = ai;
 
-  if (isOpenRouter) {
+  if (isClaude) {
+    // Claude uses OpenAI-compatible streaming via OpenRouter for simplicity
+    // Direct Claude API integration would require different streaming format
+    try {
+      aiClient = getOpenRouterClient();
+    } catch (e) {
+      coreLogger.error("OpenRouter Init Error (for Claude):", e);
+      return jsonError(
+        "Claude via OpenRouter configuration missing. Add OPENROUTER_API_KEY to .env",
+        500
+      );
+    }
+  } else if (isOpenRouter) {
     try {
       aiClient = getOpenRouterClient();
     } catch (e) {
@@ -621,90 +648,146 @@ export async function handleChatStreamCore({
     }
   }
 
+  // Map Claude model IDs to OpenRouter format
+  const apiModel = isClaude
+    ? model === "claude-sonnet-4.5"
+      ? "anthropic/claude-sonnet-4"
+      : "anthropic/claude-haiku-4"
+    : model;
+
   // Create appropriate stream based on client type
-  const stream =
-    isOpenRouter || isStandardGroq
-      ? createOpenAICompatibleStream({
-          ai: aiClient,
-          model: model,
-          contents,
-          sysPrompt: finalSysPrompt,
-          gemMeta: {
-            gemId: conversation?.gemId ?? null,
-            hasSystemInstruction: Boolean(finalSysPrompt && String(finalSysPrompt).trim()),
-            systemInstructionChars: typeof finalSysPrompt === "string" ? finalSysPrompt.length : 0,
-            error: gemLoadError || "",
-          },
-          modelMeta: {
-            model: coerceStoredModel(requestedModel),
-            requestedModel,
-            apiModel: model,
-            normalized: normalizeModelForApi(requestedModel) !== coerceStoredModel(requestedModel),
-            isDefault: normalizeModelForApi(requestedModel) === normalizeModelForApi(DEFAULT_MODEL),
-          },
-          createdConversation,
-          shouldGenerateTitle: finalShouldGenerateTitle,
-          enableWebSearch,
-          WEB_SEARCH_AVAILABLE,
-          cookieWeb,
-          userId,
-          conversationId,
-          content,
-          contextMessages: messageContext.contextMessages,
-          appendToContext: async () => {},
-          saveMessage: saveMessageCompat,
-          setConversationAutoTitle: async (
-            userId: string,
-            conversationId: string,
-            title: string
-          ) => {
-            await setConversationAutoTitle(userId, conversationId, title);
-          },
-          generateOptimisticTitle,
-          generateFinalTitle,
-        })
-      : createChatReadableStream({
-          ai: ai as unknown as ChatStreamParams["ai"],
-          model,
-          contents,
-          sysPrompt: finalSysPrompt,
-          tools,
-          safetySettings,
-          gemMeta: {
-            gemId: conversation?.gemId ?? null,
-            hasSystemInstruction: Boolean(finalSysPrompt && String(finalSysPrompt).trim()),
-            systemInstructionChars: typeof finalSysPrompt === "string" ? finalSysPrompt.length : 0,
-            error: gemLoadError || "",
-          },
-          modelMeta: {
-            model: coerceStoredModel(requestedModel),
-            requestedModel,
-            apiModel: model,
-            normalized: normalizeModelForApi(requestedModel) !== coerceStoredModel(requestedModel),
-            isDefault: normalizeModelForApi(requestedModel) === normalizeModelForApi(DEFAULT_MODEL),
-          },
-          createdConversation,
-          shouldGenerateTitle: finalShouldGenerateTitle,
-          enableWebSearch,
-          WEB_SEARCH_AVAILABLE,
-          cookieWeb,
-          regenerate: Boolean(regenerate),
-          content,
-          conversationId,
-          userId,
-          contextMessages: messageContext.contextMessages,
-          appendToContext: async () => {},
-          saveMessage: saveMessageCompat,
-          setConversationAutoTitle: async (
-            userId: string,
-            conversationId: string,
-            title: string
-          ) => {
-            await setConversationAutoTitle(userId, conversationId, title);
-          },
-          generateOptimisticTitle,
-          generateFinalTitle,
-        });
+  let stream: ReadableStream;
+
+  if (isClaude && process.env.ANTHROPIC_API_KEY) {
+    // Direct Anthropic API (for Free Tier $5/mo or paid)
+    try {
+      aiClient = getClaudeClient();
+    } catch (e) {
+      coreLogger.error("Claude Init Error:", e);
+      return jsonError("Claude configuration missing", 500);
+    }
+
+    // Map to Anthropic Model IDs
+    // Assuming "latest" alias is safe, or specific versions
+    const claudeModel =
+      model === "claude-sonnet-4.5" ? "claude-3-5-sonnet-latest" : "claude-3-5-haiku-latest";
+
+    stream = createAnthropicStream({
+      ai: aiClient,
+      model: claudeModel,
+      contents,
+      sysPrompt: finalSysPrompt,
+      tools: [], // Anthropic tools not yet implemented
+      safetySettings: null,
+      gemMeta: {
+        gemId: conversation?.gemId ?? null,
+        hasSystemInstruction: Boolean(finalSysPrompt && String(finalSysPrompt).trim()),
+        systemInstructionChars: typeof finalSysPrompt === "string" ? finalSysPrompt.length : 0,
+        error: gemLoadError || "",
+      },
+      modelMeta: {
+        model: coerceStoredModel(requestedModel),
+        requestedModel,
+        apiModel: claudeModel,
+        normalized: normalizeModelForApi(requestedModel) !== coerceStoredModel(requestedModel),
+        isDefault: normalizeModelForApi(requestedModel) === normalizeModelForApi(DEFAULT_MODEL),
+      },
+      createdConversation,
+      shouldGenerateTitle: finalShouldGenerateTitle,
+      enableWebSearch,
+      WEB_SEARCH_AVAILABLE,
+      cookieWeb,
+      regenerate: Boolean(regenerate),
+      userId,
+      conversationId,
+      content,
+      contextMessages: messageContext.contextMessages,
+      appendToContext: async () => {},
+      saveMessage: saveMessageCompat,
+      setConversationAutoTitle: async (userId: string, conversationId: string, title: string) => {
+        await setConversationAutoTitle(userId, conversationId, title);
+      },
+      generateOptimisticTitle,
+      generateFinalTitle,
+    });
+  } else if (isOpenRouter || isStandardGroq || isClaude) {
+    // OpenRouter / Groq / Claude(via OpenRouter)
+    stream = createOpenAICompatibleStream({
+      ai: aiClient,
+      model: apiModel,
+      contents,
+      sysPrompt: finalSysPrompt,
+      gemMeta: {
+        gemId: conversation?.gemId ?? null,
+        hasSystemInstruction: Boolean(finalSysPrompt && String(finalSysPrompt).trim()),
+        systemInstructionChars: typeof finalSysPrompt === "string" ? finalSysPrompt.length : 0,
+        error: gemLoadError || "",
+      },
+      modelMeta: {
+        model: coerceStoredModel(requestedModel),
+        requestedModel,
+        apiModel: apiModel,
+        normalized: normalizeModelForApi(requestedModel) !== coerceStoredModel(requestedModel),
+        isDefault: normalizeModelForApi(requestedModel) === normalizeModelForApi(DEFAULT_MODEL),
+      },
+      createdConversation,
+      shouldGenerateTitle: finalShouldGenerateTitle,
+      enableWebSearch,
+      WEB_SEARCH_AVAILABLE,
+      cookieWeb,
+      userId,
+      conversationId,
+      content,
+      contextMessages: messageContext.contextMessages,
+      appendToContext: async () => {},
+      saveMessage: saveMessageCompat,
+      setConversationAutoTitle: async (userId: string, conversationId: string, title: string) => {
+        await setConversationAutoTitle(userId, conversationId, title);
+      },
+      generateOptimisticTitle,
+      generateFinalTitle,
+    });
+  } else {
+    // Gemini Native
+    stream = createChatReadableStream({
+      ai: ai as unknown as ChatStreamParams["ai"],
+      model,
+      contents,
+      sysPrompt: finalSysPrompt,
+      tools,
+      safetySettings,
+      gemMeta: {
+        gemId: conversation?.gemId ?? null,
+        hasSystemInstruction: Boolean(finalSysPrompt && String(finalSysPrompt).trim()),
+        systemInstructionChars: typeof finalSysPrompt === "string" ? finalSysPrompt.length : 0,
+        error: gemLoadError || "",
+      },
+      modelMeta: {
+        model: coerceStoredModel(requestedModel),
+        requestedModel,
+        apiModel: model,
+        normalized: normalizeModelForApi(requestedModel) !== coerceStoredModel(requestedModel),
+        isDefault: normalizeModelForApi(requestedModel) === normalizeModelForApi(DEFAULT_MODEL),
+      },
+      createdConversation,
+      shouldGenerateTitle: finalShouldGenerateTitle,
+      enableWebSearch,
+      WEB_SEARCH_AVAILABLE,
+      cookieWeb,
+      regenerate: Boolean(regenerate),
+      content,
+      conversationId,
+      userId,
+      contextMessages: messageContext.contextMessages,
+      appendToContext: async () => {},
+      saveMessage: saveMessageCompat,
+      setConversationAutoTitle: async (userId: string, conversationId: string, title: string) => {
+        await setConversationAutoTitle(userId, conversationId, title);
+      },
+      generateOptimisticTitle,
+      generateFinalTitle,
+    });
+  }
 
   return new Response(stream, {
     status: 200,

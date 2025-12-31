@@ -8,9 +8,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
  * - Persists to localStorage key: vikini.webSearch ("1" | "0")
  * - Mirrors to cookie: webSearchEnabled ("1" | "0") (Synced with backend expectation)
  * - Tracks server-reported capability & effective enablement via SSE meta.
+ * - alwaysSearch: forces web search for every request (Gemini only)
  */
 export function useWebSearchPreference() {
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [alwaysSearch, setAlwaysSearch] = useState(false);
   const [serverWebSearch, setServerWebSearch] = useState<boolean | null>(null); // null | boolean
   const [serverWebSearchAvailable, setServerWebSearchAvailable] = useState<boolean | null>(null); // null | boolean
 
@@ -27,7 +29,12 @@ export function useWebSearchPreference() {
   const setCookie = useCallback((name: string, value: string): void => {
     if (typeof document === "undefined") return;
 
-    const parts = [`${name}=${encodeURIComponent(value)}`, "path=/", "max-age=31536000", "samesite=lax"];
+    const parts = [
+      `${name}=${encodeURIComponent(value)}`,
+      "path=/",
+      "max-age=31536000",
+      "samesite=lax",
+    ];
 
     try {
       if (typeof window !== "undefined" && window.location?.protocol === "https:") {
@@ -48,12 +55,19 @@ export function useWebSearchPreference() {
         const enabled = ls === "1";
         setWebSearchEnabled(enabled);
         setCookie("webSearchEnabled", enabled ? "1" : "0");
-        return;
+      } else {
+        const c = getCookie("webSearchEnabled");
+        if (c === "1" || c === "0") {
+          setWebSearchEnabled(c === "1");
+        }
       }
 
-      const c = getCookie("webSearchEnabled");
-      if (c === "1" || c === "0") {
-        setWebSearchEnabled(c === "1");
+      // Load alwaysSearch preference
+      const alwaysSearchLs = localStorage.getItem("vikini.alwaysSearch");
+      if (alwaysSearchLs === "1" || alwaysSearchLs === "0") {
+        const enabled = alwaysSearchLs === "1";
+        setAlwaysSearch(enabled);
+        setCookie("alwaysSearch", enabled ? "1" : "0");
       }
     } catch {
       // Ignore errors
@@ -74,6 +88,32 @@ export function useWebSearchPreference() {
     });
   }, [setCookie]);
 
+  const toggleAlwaysSearch = useCallback(() => {
+    setAlwaysSearch((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("vikini.alwaysSearch", next ? "1" : "0");
+      } catch {
+        // Ignore errors
+      }
+
+      setCookie("alwaysSearch", next ? "1" : "0");
+
+      // If turning on alwaysSearch, also turn on webSearch
+      if (next && !webSearchEnabled) {
+        setWebSearchEnabled(true);
+        try {
+          localStorage.setItem("vikini.webSearch", "1");
+        } catch {
+          // Ignore errors
+        }
+        setCookie("webSearchEnabled", "1");
+      }
+
+      return next;
+    });
+  }, [setCookie, webSearchEnabled]);
+
   const serverHint = useMemo(() => {
     return serverWebSearchAvailable === false
       ? " (server: feature OFF)"
@@ -85,6 +125,8 @@ export function useWebSearchPreference() {
   return {
     webSearchEnabled,
     toggleWebSearch,
+    alwaysSearch,
+    toggleAlwaysSearch,
 
     serverWebSearch,
     setServerWebSearch,
@@ -93,4 +135,3 @@ export function useWebSearchPreference() {
     serverHint,
   };
 }
-

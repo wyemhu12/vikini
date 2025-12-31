@@ -12,8 +12,12 @@ export interface SelectableModel {
 }
 
 // Models shown in the UI selector (store these IDs in DB)
-// Updated December 2024 with latest available models
+// Updated December 2025 with latest available models
 export const SELECTABLE_MODELS: readonly SelectableModel[] = [
+  // ═══════════════════════════════════════════════════════════
+  // GEMINI MODELS (Google AI)
+  // ═══════════════════════════════════════════════════════════
+
   // Gemini 2.5 Series (GA June 2025, available now)
   {
     id: "gemini-2.5-flash",
@@ -46,7 +50,9 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     contextWindow: 2000000,
   },
 
-  // Llama Models via Groq (Updated Dec 2024)
+  // ═══════════════════════════════════════════════════════════
+  // GROQ MODELS (Llama via Groq API)
+  // ═══════════════════════════════════════════════════════════
   {
     id: "llama-3.3-70b-versatile",
     descKey: "modelDescLlama33_70b",
@@ -62,19 +68,84 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     contextWindow: 128000,
   },
 
-  // Alternative Models
+  // ═══════════════════════════════════════════════════════════
+  // OPENROUTER FREE MODELS (December 2025)
+  // ═══════════════════════════════════════════════════════════
+
+  // DeepSeek - Free, very powerful
   {
-    id: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
-    name: "Dolphin Mistral 24B Venice (Free)",
-    descKey: "modelDescDolphinVenice",
-    tokenLimit: 32768,
-    contextWindow: 32768,
+    id: "deepseek/deepseek-chat-v3-0324:free",
+    name: "DeepSeek V3 Chat (Free)",
+    descKey: "modelDescDeepSeekV3",
+    tokenLimit: 128000,
+    contextWindow: 128000,
+  },
+  {
+    id: "deepseek/deepseek-r1-0528:free",
+    name: "DeepSeek R1 Reasoning (Free)",
+    descKey: "modelDescDeepSeekR1",
+    tokenLimit: 64000,
+    contextWindow: 64000,
+  },
+
+  // Meta Llama 4 - Free via OpenRouter
+  {
+    id: "meta-llama/llama-4-maverick:free",
+    name: "Llama 4 Maverick (Free)",
+    descKey: "modelDescLlama4Maverick",
+    tokenLimit: 256000,
+    contextWindow: 256000,
+  },
+  {
+    id: "meta-llama/llama-3.3-70b-instruct:free",
+    name: "Llama 3.3 70B Instruct (Free)",
+    descKey: "modelDescLlama33Instruct",
+    tokenLimit: 128000,
+    contextWindow: 128000,
+  },
+
+  // Google Gemma - Free
+  {
+    id: "google/gemma-3-27b-it:free",
+    name: "Gemma 3 27B (Free)",
+    descKey: "modelDescGemma3",
+    tokenLimit: 96000,
+    contextWindow: 96000,
+  },
+
+  // Mistral - Free
+  {
+    id: "mistral/mistral-small-3.1-24b-instruct:free",
+    name: "Mistral Small 3.1 24B (Free)",
+    descKey: "modelDescMistralSmall",
+    tokenLimit: 32000,
+    contextWindow: 32000,
+  },
+
+  // ═══════════════════════════════════════════════════════════
+  // CLAUDE MODELS (Anthropic API)
+  // Get API key at: https://console.anthropic.com/
+  // Free tier: $10/month, 5 req/min
+  // ═══════════════════════════════════════════════════════════
+  {
+    id: "claude-haiku-4.5",
+    name: "Claude 4.5 Haiku (Fast)",
+    descKey: "modelDescClaudeHaiku",
+    tokenLimit: 200000,
+    contextWindow: 200000,
+  },
+  {
+    id: "claude-sonnet-4.5",
+    name: "Claude 4.5 Sonnet",
+    descKey: "modelDescClaudeSonnet",
+    tokenLimit: 200000,
+    contextWindow: 200000,
   },
 ] as const;
 
 const SELECTABLE_SET = new Set(SELECTABLE_MODELS.map((m) => m.id));
 
-// Canonical IDs that are safe to send to Gemini API (including official preview IDs)
+// Canonical IDs that are safe to send to respective APIs
 const API_ALLOWED = new Set([
   // Gemini 2.5
   "gemini-2.5-flash",
@@ -89,8 +160,17 @@ const API_ALLOWED = new Set([
   "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant",
 
-  // Alternative
-  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+  // OpenRouter Free Models
+  "deepseek/deepseek-chat-v3-0324:free",
+  "deepseek/deepseek-r1-0528:free",
+  "meta-llama/llama-4-maverick:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemma-3-27b-it:free",
+  "mistral/mistral-small-3.1-24b-instruct:free",
+
+  // Claude (Anthropic)
+  "claude-haiku-4.5",
+  "claude-sonnet-4.5",
 ]);
 
 // Back-compat aliases and deprecations.
