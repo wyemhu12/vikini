@@ -1,16 +1,24 @@
 import { create } from "zustand";
 
+interface GemInfo {
+  name: string;
+  icon: string | null;
+  color: string | null;
+}
+
 interface GemStore {
   isOpen: boolean;
   contextConversationId: string | null;
 
-  // Callback to refresh conversations after gem is applied
-  onGemApplied: (() => void) | null;
+  // Callback to patch gem optimistically after gem is applied
+  onGemApplied: ((conversationId: string, gem: GemInfo | null) => void) | null;
 
   openGemModal: (conversationId?: string | null) => void;
   closeGemModal: () => void;
-  setOnGemApplied: (callback: (() => void) | null) => void;
-  triggerGemApplied: () => void;
+  setOnGemApplied: (
+    callback: ((conversationId: string, gem: GemInfo | null) => void) | null
+  ) => void;
+  triggerGemApplied: (conversationId: string, gem: GemInfo | null) => void;
 }
 
 export const useGemStore = create<GemStore>((set, get) => ({
@@ -32,8 +40,8 @@ export const useGemStore = create<GemStore>((set, get) => ({
 
   setOnGemApplied: (callback) => set({ onGemApplied: callback }),
 
-  triggerGemApplied: () => {
+  triggerGemApplied: (conversationId: string, gem: GemInfo | null) => {
     const callback = get().onGemApplied;
-    if (callback) callback();
+    if (callback) callback(conversationId, gem);
   },
 }));

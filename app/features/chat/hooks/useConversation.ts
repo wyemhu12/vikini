@@ -139,6 +139,12 @@ interface UseConversationReturn {
   setConversationModel: (id: string, model: string) => Promise<void>;
   patchConversationModel: (id: string, model: string) => void;
 
+  // Gem management (optimistic update)
+  patchConversationGem: (
+    id: string,
+    gem: { name: string; icon: string | null; color: string | null } | null
+  ) => void;
+
   // ChatApp.jsx expected fields
   selectedConversationId: string | null;
   setSelectedConversationId: (id: string | null) => void;
@@ -244,6 +250,23 @@ export function useConversation(): UseConversationReturn {
       return next;
     });
   }, []);
+
+  // ✅ NEW: Patch gem locally (optimistic update) - fixes immediate UI update after gem selection
+  const patchConversationGem = useCallback(
+    (id: string, gem: { name: string; icon: string | null; color: string | null } | null) => {
+      if (!id) return;
+      const now = Date.now();
+
+      setConversations((prev) => {
+        const next = prev.map((c) =>
+          c.id === id ? normalizeConv({ ...c, gem, updatedAt: now }) || c : normalizeConv(c) || c
+        );
+        next.sort((a, b) => getTs(b) - getTs(a));
+        return next;
+      });
+    },
+    []
+  );
 
   // ✅ NEW: bump updatedAt local để sidebar reorder ngay khi user gửi message
   const bumpConversationActivity = useCallback((id: string, ts: number = Date.now()) => {
@@ -446,6 +469,9 @@ export function useConversation(): UseConversationReturn {
     // ✅ NEW: Model management
     setConversationModel,
     patchConversationModel,
+
+    // ✅ NEW: Gem management (optimistic update)
+    patchConversationGem,
 
     // ChatApp.jsx expected fields
     selectedConversationId,

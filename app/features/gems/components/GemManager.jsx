@@ -63,8 +63,18 @@ export default function GemManager() {
       setSelectedGemId(gemId);
       setStatus(t("success") || "Success");
 
-      // Trigger refresh in ChatApp before closing modal
-      triggerGemApplied();
+      // Find the gem data to pass for optimistic update
+      const selectedGem = gemId ? gems.find((g) => g.id === gemId) : null;
+      const gemInfo = selectedGem
+        ? {
+            name: selectedGem.name,
+            icon: selectedGem.icon || null,
+            color: selectedGem.color || null,
+          }
+        : null;
+
+      // Trigger optimistic update in ChatApp with gem data
+      triggerGemApplied(conversationId, gemInfo);
 
       setTimeout(() => {
         closeGemModal();

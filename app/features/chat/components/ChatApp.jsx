@@ -206,6 +206,7 @@ export default function ChatApp() {
     deleteConversation,
     setConversationModel,
     patchConversationModel,
+    patchConversationGem,
   } = useConversation();
 
   const {
@@ -407,14 +408,17 @@ export default function ChatApp() {
     setShowFiles(false);
   }, [selectedConversationId]);
 
-  // Register callback for gem applied - refresh conversations when gem changes
+  // Register callback for gem applied - optimistic update when gem changes
   const { setOnGemApplied } = useGemStore();
   useEffect(() => {
-    setOnGemApplied(() => {
+    setOnGemApplied((conversationId, gem) => {
+      // Optimistically update the gem in local state for immediate UI feedback
+      patchConversationGem(conversationId, gem);
+      // Also refresh from server to ensure consistency
       refreshConversations();
     });
     return () => setOnGemApplied(null);
-  }, [setOnGemApplied, refreshConversations]);
+  }, [setOnGemApplied, patchConversationGem, refreshConversations]);
 
   if (isAuthLoading || !isAuthed) {
     return (
