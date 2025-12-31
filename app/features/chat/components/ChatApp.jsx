@@ -233,7 +233,9 @@ export default function ChatApp() {
     handleSend,
     handleRegenerate,
     handleEdit,
-    handleStop, // Get handleStop
+    handleStop,
+    streamError,
+    clearStreamError,
   } = useChatStreamController({
     isAuthed,
     selectedConversationId,
@@ -447,6 +449,43 @@ export default function ChatApp() {
     <div className="h-screen w-screen bg-[#050505] text-neutral-100 overflow-hidden relative font-sans">
       {/* 🌌 Static Professional Background */}
       <div className="absolute inset-0 z-0 static-depth-bg pointer-events-none" />
+
+      {/* 🚨 Stream Error Toast */}
+      {streamError && (
+        <div className="fixed top-4 right-4 z-[100] max-w-md animate-in slide-in-from-top-2 fade-in duration-300">
+          <div className="bg-red-900/90 backdrop-blur-xl border border-red-500/50 rounded-xl p-4 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
+                <span className="text-red-400 text-lg">⚠</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-semibold text-red-200 mb-1">
+                  {streamError.isTokenLimit
+                    ? language === "vi"
+                      ? "Giới hạn Token"
+                      : "Token Limit Exceeded"
+                    : language === "vi"
+                      ? "Lỗi"
+                      : "Error"}
+                </h4>
+                <p className="text-xs text-red-300/80 break-words">
+                  {streamError.isTokenLimit && streamError.tokenInfo
+                    ? language === "vi"
+                      ? `Yêu cầu quá lớn cho model này. Giới hạn: ${streamError.tokenInfo.limit?.toLocaleString() || "?"} tokens, Yêu cầu: ${streamError.tokenInfo.requested?.toLocaleString() || "?"} tokens. Hãy thử giảm độ dài tin nhắn hoặc xóa bớt file đính kèm.`
+                      : `Request too large for this model. Limit: ${streamError.tokenInfo.limit?.toLocaleString() || "?"} tokens, Requested: ${streamError.tokenInfo.requested?.toLocaleString() || "?"} tokens. Try reducing your message size or removing attachments.`
+                    : streamError.message}
+                </p>
+              </div>
+              <button
+                onClick={clearStreamError}
+                className="flex-shrink-0 w-6 h-6 rounded-full bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center transition-colors"
+              >
+                <span className="text-red-300 text-xs">✕</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Sidebar
         conversations={conversations}

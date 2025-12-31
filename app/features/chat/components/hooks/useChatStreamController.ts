@@ -21,6 +21,15 @@ interface UseChatStreamControllerParams {
   renameConversationOptimistic?: (id: string, title: string) => void;
   renameConversationFinal?: (id: string, title: string) => void;
   onWebSearchMeta?: (meta: { enabled?: boolean; available?: boolean; raw?: unknown }) => void;
+  onStreamError?: (error: StreamError) => void;
+}
+
+interface StreamError {
+  message: string;
+  code?: string;
+  status?: number;
+  isTokenLimit?: boolean;
+  tokenInfo?: { limit?: number; requested?: number } | null;
 }
 
 interface CoreSendOptions {
@@ -44,6 +53,7 @@ export function useChatStreamController({
   renameConversationOptimistic,
   renameConversationFinal,
   onWebSearchMeta,
+  onStreamError,
 }: UseChatStreamControllerParams) {
   const [messages, setMessages] = useState<FrontendMessage[]>([]);
   const [input, setInput] = useState("");
@@ -54,6 +64,7 @@ export function useChatStreamController({
   const [streamingSources, setStreamingSources] = useState<unknown[]>([]);
   const [streamingUrlContext, setStreamingUrlContext] = useState<unknown[]>([]);
   const [regenerating, setRegenerating] = useState(false);
+  const [streamError, setStreamError] = useState<StreamError | null>(null);
 
   // AbortController để quản lý việc hủy request streaming
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -62,17 +73,22 @@ export function useChatStreamController({
   const normalizeMessages = useCallback((arr: FrontendMessage[] | unknown): FrontendMessage[] => {
     const safe = safeArray<FrontendMessage>(arr);
     return safe
-      .map((m): FrontendMessage => ({
-        id: m?.id,
-        role: m?.role || "",
-        content: typeof m?.content === "string" ? m.content : String(m?.content ?? ""),
-        sources: safeArray(m?.sources),
-        urlContext: safeArray(m?.urlContext),
-      }))
+      .map(
+        (m): FrontendMessage => ({
+          id: m?.id,
+          role: m?.role || "",
+          content: typeof m?.content === "string" ? m.content : String(m?.content ?? ""),
+          sources: safeArray(m?.sources),
+          urlContext: safeArray(m?.urlContext),
+        })
+      )
       .filter((m) => m.role === "user" || m.role === "assistant");
   }, []);
 
-  const renderedMessages = useMemo(() => normalizeMessages(messages), [messages, normalizeMessages]);
+  const renderedMessages = useMemo(
+    () => normalizeMessages(messages),
+    [messages, normalizeMessages]
+  );
 
   useEffect(() => {
     streamingAssistantRef.current = streamingAssistant;
@@ -220,6 +236,12 @@ export function useChatStreamController({
       enabled?: boolean;
       available?: boolean;
       t?: string;
+      // Error fields
+      message?: string;
+      code?: string;
+      status?: number;
+      isTokenLimit?: boolean;
+      tokenInfo?: { limit?: number; requested?: number } | null;
       [key: string]: unknown;
     };
   }
@@ -316,10 +338,23 @@ export function useChatStreamController({
           if (event === "meta") {
             await handleStreamMetaEvent(data, localSources, localUrlContext);
           }
+
+          // Handle error events from backend
+          if (event === "error") {
+            const errorData: StreamError = {
+              message: data?.message || "An error occurred",
+              code: data?.code,
+              status: data?.status,
+              isTokenLimit: data?.isTokenLimit,
+              tokenInfo: data?.tokenInfo,
+            };
+            setStreamError(errorData);
+            onStreamError?.(errorData);
+          }
         }
       }
     },
-    [handleStreamMetaEvent]
+    [handleStreamMetaEvent, onStreamError]
   );
 
   const reloadMessagesAfterStream = useCallback(
@@ -348,7 +383,10 @@ export function useChatStreamController({
       if (creatingConversation) return;
       if (!text) return;
 
-      const { signal, regenerate, truncateMessageId, skipSaveUserMessage } = prepareStreamRequest(text, options);
+      const { signal, regenerate, truncateMessageId, skipSaveUserMessage } = prepareStreamRequest(
+        text,
+        options
+      );
 
       const convId = await ensureConversationExists();
 
@@ -490,6 +528,8 @@ export function useChatStreamController({
     cancelStream(true);
   }, [cancelStream]);
 
+  const clearStreamError = useCallback(() => setStreamError(null), []);
+
   return {
     messages,
     renderedMessages,
@@ -501,6 +541,8 @@ export function useChatStreamController({
     streamingSources,
     streamingUrlContext,
     regenerating,
+    streamError,
+    clearStreamError,
     resetChatUI,
     handleNewChat,
     handleSelectConversation,
@@ -510,4 +552,3 @@ export function useChatStreamController({
     handleStop,
   };
 }
-

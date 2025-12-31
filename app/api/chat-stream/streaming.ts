@@ -729,7 +729,38 @@ export function createOpenAICompatibleStream(params: {
         }
       } catch (e) {
         streamLogger.error("OpenAI/Groq stream error:", e);
-        sendEvent(controller, "error", { message: "Stream error" });
+
+        // Extract detailed error info for frontend
+        const err = e as {
+          status?: number;
+          code?: string;
+          message?: string;
+          error?: { message?: string };
+        };
+
+        const isTokenLimit = err.status === 413 || err.code === "rate_limit_exceeded";
+        const errorMessage = err.error?.message || err.message || "Stream error";
+
+        // Parse token info from error message if available
+        let tokenInfo: { limit?: number; requested?: number } | null = null;
+        if (isTokenLimit && errorMessage) {
+          const limitMatch = errorMessage.match(/Limit (\d+)/);
+          const requestedMatch = errorMessage.match(/Requested (\d+)/);
+          if (limitMatch || requestedMatch) {
+            tokenInfo = {
+              limit: limitMatch ? parseInt(limitMatch[1], 10) : undefined,
+              requested: requestedMatch ? parseInt(requestedMatch[1], 10) : undefined,
+            };
+          }
+        }
+
+        sendEvent(controller, "error", {
+          message: errorMessage,
+          code: err.code || (isTokenLimit ? "token_limit_exceeded" : "stream_error"),
+          status: err.status || 500,
+          isTokenLimit,
+          tokenInfo,
+        });
       }
 
       // 3. Post Stream Processing
