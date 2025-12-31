@@ -93,7 +93,7 @@ export default function ModelSelector({
 
       {/* DROPDOWN CONTENT */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-[320px] bg-[#0A0A0A] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute bottom-full left-0 mb-2 w-[320px] bg-[#0A0A0A] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100">
           {/* TABS HEADER */}
           <div className="flex items-center p-1 bg-[#151515] border-b border-white/5">
             <button

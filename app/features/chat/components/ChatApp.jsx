@@ -612,7 +612,6 @@ export default function ChatApp() {
           {/* Static Floating Controls Toolbar - Minimalist */}
           <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
             <div className="flex items-center rounded-full bg-[#0f1115] border border-white/5 p-1 shadow-lg">
-              // Replace the whole native select block
               <ModelSelector
                 currentModelId={currentModel}
                 onSelectModel={handleModelChange}
