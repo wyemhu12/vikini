@@ -25,6 +25,27 @@ const PROVIDER_LOGOS: Record<string, string> = {
   "openrouter-pay": "/assets/providers/openrouter.png",
 };
 
+const PROVIDER_COLORS: Record<string, string> = {
+  gemini: "from-blue-500/20 to-purple-500/20 border-blue-500/50",
+  grok: "from-gray-600/20 to-gray-400/20 border-gray-400/50",
+  deepseek: "from-blue-600/20 to-cyan-400/20 border-blue-400/50",
+  openai: "from-emerald-500/20 to-green-500/20 border-emerald-500/50",
+  anthropic: "from-orange-400/20 to-amber-200/20 border-amber-400/50",
+  groq: "from-orange-600/20 to-red-500/20 border-orange-500/50",
+  "openrouter-free": "from-indigo-500/20 to-purple-500/20 border-indigo-500/50",
+  "openrouter-pay": "from-indigo-500/20 to-purple-500/20 border-indigo-500/50",
+};
+
+// Logos that are black and need to be inverted on dark backgrounds
+const NEEDS_INVERSION = new Set([
+  "grok",
+  "openai",
+  "anthropic",
+  "groq",
+  "openrouter-free",
+  "openrouter-pay",
+]);
+
 interface ModelSelectorProps {
   // ... (keep interface)
   currentModelId: string;
@@ -139,14 +160,17 @@ export default function ModelSelector({
                   {PROVIDER_IDS.map((pid) => {
                     const logoSrc = PROVIDER_LOGOS[pid];
                     const isActive = activeProviderFilter === pid;
+                    const needsInvert = NEEDS_INVERSION.has(pid);
+                    const activeClass = PROVIDER_COLORS[pid] || "bg-[#252525] border-white/10";
+
                     return (
                       <button
                         key={pid}
                         onClick={() => setActiveProviderFilter(pid)}
-                        className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl transition-all border ${
+                        className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl transition-all border bg-gradient-to-br ${
                           isActive
-                            ? "bg-[#252525] border-white/10 text-white shadow-lg scale-[1.02]"
-                            : "bg-transparent border-transparent text-white/40 hover:bg-white/5 hover:text-white/80"
+                            ? `${activeClass} text-white shadow-lg scale-[1.02]`
+                            : "from-transparent to-transparent border-transparent text-white/40 hover:bg-white/5 hover:text-white/80"
                         }`}
                       >
                         {logoSrc ? (
@@ -157,7 +181,7 @@ export default function ModelSelector({
                               src={logoSrc}
                               alt={PROVIDER_LABELS[pid] || pid}
                               fill
-                              className="object-contain drop-shadow-sm"
+                              className={`object-contain drop-shadow-sm transition-all ${needsInvert ? "invert brightness-200" : ""}`}
                             />
                           </div>
                         ) : (
