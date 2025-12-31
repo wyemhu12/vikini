@@ -135,32 +135,37 @@ export default function ModelSelector({
             {activeTab === "providers" && (
               <div className="flex flex-col">
                 {/* Horizontal Provider Filter Scroll -> REPLACED WITH GRID */}
-                <div className="grid grid-cols-2 gap-2 p-2 border-b border-white/5">
+                <div className="grid grid-cols-3 gap-2 p-2 border-b border-white/5">
                   {PROVIDER_IDS.map((pid) => {
                     const logoSrc = PROVIDER_LOGOS[pid];
+                    const isActive = activeProviderFilter === pid;
                     return (
                       <button
                         key={pid}
                         onClick={() => setActiveProviderFilter(pid)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all border ${
-                          activeProviderFilter === pid
-                            ? "bg-white text-black border-white shadow-md glow-white"
-                            : "bg-[#111] text-white/40 border-white/5 hover:bg-[#1a1a1a] hover:border-white/20"
+                        className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl transition-all border ${
+                          isActive
+                            ? "bg-[#252525] border-white/10 text-white shadow-lg scale-[1.02]"
+                            : "bg-transparent border-transparent text-white/40 hover:bg-white/5 hover:text-white/80"
                         }`}
                       >
                         {logoSrc ? (
-                          <div className="relative w-5 h-5 flex-shrink-0">
+                          <div
+                            className={`relative w-8 h-8 flex-shrink-0 transition-opacity ${isActive ? "opacity-100" : "opacity-50 group-hover:opacity-80"}`}
+                          >
                             <Image
                               src={logoSrc}
                               alt={PROVIDER_LABELS[pid] || pid}
                               fill
-                              className="object-contain"
+                              className="object-contain drop-shadow-sm"
                             />
                           </div>
                         ) : (
-                          <Sparkles className="w-5 h-5 flex-shrink-0" />
+                          <Sparkles className="w-8 h-8 flex-shrink-0" />
                         )}
-                        <span className="truncate">{PROVIDER_LABELS[pid] || pid}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-center leading-tight">
+                          {PROVIDER_LABELS[pid] || pid}
+                        </span>
                       </button>
                     );
                   })}
