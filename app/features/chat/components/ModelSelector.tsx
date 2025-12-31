@@ -293,8 +293,7 @@ interface ModelItemProps {
 function ModelItem({ model, isActive, isAllowed, onSelect, t }: ModelItemProps) {
   return (
     <button
-      onClick={() => isAllowed && onSelect()}
-      disabled={!isAllowed}
+      onClick={() => onSelect()}
       className={`w-full text-left flex items-start gap-3 p-2 rounded-lg transition-all group ${
         isActive ? "bg-white/10" : "hover:bg-white/5"
       } ${!isAllowed ? "opacity-50 cursor-not-allowed" : ""}`}
