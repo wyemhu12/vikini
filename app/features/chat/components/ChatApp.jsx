@@ -16,6 +16,7 @@ import DeleteConfirmModal from "@/app/components/DeleteConfirmModal";
 import { useTheme } from "../hooks/useTheme";
 import { useLanguage } from "../hooks/useLanguage";
 import { useConversation } from "../hooks/useConversation";
+import { useGemStore } from "../../gems/stores/useGemStore";
 
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useChatStreamController } from "./hooks/useChatStreamController";
@@ -405,6 +406,15 @@ export default function ChatApp() {
     setFileCount(0);
     setShowFiles(false);
   }, [selectedConversationId]);
+
+  // Register callback for gem applied - refresh conversations when gem changes
+  const { setOnGemApplied } = useGemStore();
+  useEffect(() => {
+    setOnGemApplied(() => {
+      refreshConversations();
+    });
+    return () => setOnGemApplied(null);
+  }, [setOnGemApplied, refreshConversations]);
 
   if (isAuthLoading || !isAuthed) {
     return (

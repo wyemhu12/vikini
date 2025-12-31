@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Gem, Loader2, Plus, Edit2, Trash2, AlertCircle, X } from "lucide-react";
 import GemEditor from "@/app/features/gems/components/GemEditor";
 import { AnimatePresence, motion } from "framer-motion";
+import { translations } from "@/lib/utils/config";
 
 interface PremadeGem {
   id: string;
@@ -15,7 +16,11 @@ interface PremadeGem {
   is_premade: boolean;
 }
 
-export default function GemsManager() {
+interface GemsManagerProps {
+  language: "vi" | "en";
+}
+
+export default function GemsManager({ language }: GemsManagerProps) {
   const [gems, setGems] = useState<PremadeGem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -23,6 +28,8 @@ export default function GemsManager() {
   // Editor State
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingGem, setEditingGem] = useState<PremadeGem | null>(null);
+
+  const t = language === "vi" ? translations.vi : translations.en;
 
   useEffect(() => {
     fetchGems();
@@ -43,7 +50,7 @@ export default function GemsManager() {
   };
 
   const deleteGem = async (gemId: string) => {
-    if (!confirm("Are you sure you want to delete this GEM?")) return;
+    if (!confirm(t.confirmDeleteGem)) return;
 
     try {
       const res = await fetch(`/api/admin/gems?id=${gemId}`, {
@@ -94,7 +101,7 @@ export default function GemsManager() {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-gray-400">Loading gems...</span>
+        <span className="ml-2 text-gray-400">{t.loadingGems}</span>
       </div>
     );
   }
@@ -113,22 +120,24 @@ export default function GemsManager() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Gem className="w-5 h-5 text-blue-400" />
-          <h2 className="text-xl font-semibold text-white">Global GEMs Management</h2>
-          <span className="text-sm text-gray-500">({gems.length} gems)</span>
+          <h2 className="text-xl font-semibold text-white">{t.globalGemsManagement}</h2>
+          <span className="text-sm text-gray-500">
+            ({gems.length} {t.gems})
+          </span>
         </div>
         <button
           onClick={openAddModal}
           className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-all"
         >
           <Plus className="w-4 h-4" />
-          Add GEM
+          {t.addGem}
         </button>
       </div>
 
       {gems.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <Gem className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>No global GEMs found</p>
+          <p>{t.noGlobalGems}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -146,14 +155,14 @@ export default function GemsManager() {
                   <button
                     onClick={() => openEditModal(gem)}
                     className="p-1.5 rounded hover:bg-white/10 transition-all"
-                    title="Edit"
+                    title={t.edit}
                   >
                     <Edit2 className="w-4 h-4 text-gray-400 hover:text-white" />
                   </button>
                   <button
                     onClick={() => deleteGem(gem.id)}
                     className="p-1.5 rounded hover:bg-red-500/20 transition-all"
-                    title="Delete"
+                    title={t.deleteGem}
                   >
                     <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-400" />
                   </button>
@@ -179,7 +188,7 @@ export default function GemsManager() {
             >
               <div className="flex-none flex items-center justify-between p-4 border-b border-neutral-800 bg-neutral-900 rounded-t-xl z-20">
                 <h3 className="text-lg font-semibold text-white">
-                  {editingGem ? "Edit Global GEM" : "Create Global GEM"}
+                  {editingGem ? t.editGlobalGem : t.createGlobalGem}
                 </h3>
                 <button
                   onClick={() => setIsEditorOpen(false)}
@@ -190,7 +199,11 @@ export default function GemsManager() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
-                <GemEditor gem={editingGem || undefined} onSave={handleSaveGem} />
+                <GemEditor
+                  gem={editingGem || undefined}
+                  onSave={handleSaveGem}
+                  language={language}
+                />
               </div>
             </motion.div>
           </div>

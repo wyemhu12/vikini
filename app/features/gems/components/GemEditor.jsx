@@ -3,9 +3,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
+import { translations } from "@/lib/utils/config";
 
-export default function GemEditor({ gem, onSave }) {
-  const { t } = useLanguage();
+export default function GemEditor({ gem, onSave, language: languageProp }) {
+  const { language: hookLanguage, t: _hookT } = useLanguage();
+
+  // Use prop if provided (Admin), otherwise use hook (normal Gems page)
+  const language = languageProp || hookLanguage;
+  const t = (key) => {
+    const trans = language === "vi" ? translations.vi : translations.en;
+    return trans[key] || key;
+  };
+
   const isReadOnly = !!gem?.isPremade;
 
   const [dirty, setDirty] = useState(false);

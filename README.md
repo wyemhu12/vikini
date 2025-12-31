@@ -102,17 +102,20 @@ User Input → API Route → Core Library → Database/AI → Response Stream
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/yourusername/vikini.git
 cd vikini
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Copy environment variables:
+
 ```bash
 cp env.local.example env.local
 ```
@@ -125,6 +128,7 @@ cp env.local.example env.local
    - Redis credentials (optional, for rate limiting)
 
 5. Run the development server:
+
 ```bash
 npm run dev
 ```
@@ -134,6 +138,7 @@ npm run dev
 See `env.local.example` for all required and optional environment variables.
 
 **Required:**
+
 - `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
 - `GEMINI_API_KEY` - Google Gemini API key
@@ -142,6 +147,7 @@ See `env.local.example` for all required and optional environment variables.
 - `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
 
 **Optional:**
+
 - `UPSTASH_REDIS_REST_URL` - Redis URL (for rate limiting)
 - `UPSTASH_REDIS_REST_TOKEN` - Redis token
 - `WEB_SEARCH_ENABLED` - Enable web search feature
@@ -156,6 +162,7 @@ See `env.local.example` for all required and optional environment variables.
 Stream chat responses from Gemini AI.
 
 **Request Body:**
+
 ```json
 {
   "conversationId": "uuid (optional)",
@@ -167,6 +174,7 @@ Stream chat responses from Gemini AI.
 ```
 
 **Response:** Server-Sent Events (SSE) stream with events:
+
 - `token`: Streaming text tokens
 - `meta`: Metadata (conversation, title, sources, etc.)
 - `done`: Stream completion
@@ -208,6 +216,7 @@ Stream chat responses from Gemini AI.
 ### Conversations
 
 A conversation represents a chat session with:
+
 - Unique ID (UUID)
 - Title (auto-generated or user-set)
 - Associated GEM (custom instructions)
@@ -217,6 +226,7 @@ A conversation represents a chat session with:
 ### GEMs (Custom Instructions)
 
 GEMs are reusable system instructions that can be attached to conversations:
+
 - Premade GEMs: Available to all users
 - Custom GEMs: User-created instructions
 - Versioned: Supports multiple versions per GEM
@@ -224,6 +234,7 @@ GEMs are reusable system instructions that can be attached to conversations:
 ### Attachments
 
 File attachments are:
+
 - Stored in Supabase Storage
 - Analyzed/extracted for context
 - Token-counted for smart context window
@@ -249,13 +260,28 @@ File attachments are:
 
 Ensure all required environment variables are set in your deployment platform.
 
-## 📖 Additional Documentation
+## 📖 Documentation
 
-- [Code Improvements](./CODE_IMPROVEMENTS.md) - Improvement suggestions
-- [Security Improvements](./SECURITY_IMPROVEMENTS.md) - Security recommendations and fixes
-- [TypeScript Migration](./TYPESCRIPT_MIGRATION_FINAL.md) - Migration status
-- [Database Schema](./database-schema.md) - Database structure
-- [Performance Improvements](./PERFORMANCE_IMPROVEMENTS.md) - Performance optimizations
+### Core Documentation (docs/)
+
+| Document                                     | Description                                  |
+| -------------------------------------------- | -------------------------------------------- |
+| [Architecture](./docs/architecture.md)       | Tech stack, project structure, data flow     |
+| [API Reference](./docs/api-reference.md)     | All API endpoints with examples (Vietnamese) |
+| [Database Schema](./docs/database-schema.md) | Tables, ERD diagram, RLS policies            |
+| [Data Contracts](./docs/contracts.md)        | TypeScript interfaces, data models           |
+| [Features](./docs/features.md)               | Feature inventory, status, roadmap           |
+| [Security](./docs/security.md)               | RLS, encryption, rate limiting               |
+| [Testing](./docs/testing.md)                 | Test setup, commands, patterns               |
+| [Context](./docs/context.md)                 | Project scope, use cases, business context   |
+
+### Agent Memory (.agent/rules/)
+
+| File                       | Purpose                                 |
+| -------------------------- | --------------------------------------- |
+| `00-core.md`               | Core rules, tech stack, context routing |
+| `10-output-and-quality.md` | Quality gates, output format            |
+| `20-ui-standards.md`       | UI/UX standards, design tokens          |
 
 ## 🤝 Contributing
 
@@ -275,4 +301,3 @@ Ensure all required environment variables are set in your deployment platform.
 - Next.js
 - Supabase
 - Upstash Redis
-

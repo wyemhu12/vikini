@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Settings, Loader2, Save, AlertCircle, Cpu } from "lucide-react";
 import { SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
+import { translations } from "@/lib/utils/config";
 
 interface RankConfig {
   rank: "basic" | "pro" | "admin";
@@ -15,13 +16,19 @@ interface RankConfig {
   allowed_models?: string[];
 }
 
-export default function RankConfigManager() {
+interface RankConfigManagerProps {
+  language: "vi" | "en";
+}
+
+export default function RankConfigManager({ language }: RankConfigManagerProps) {
   const [configs, setConfigs] = useState<RankConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [editedConfigs, setEditedConfigs] = useState<RankConfig[]>([]);
   const [modelModalRank, setModelModalRank] = useState<string | null>(null);
+
+  const t = language === "vi" ? translations.vi : translations.en;
 
   useEffect(() => {
     fetchConfigs();
@@ -82,7 +89,7 @@ export default function RankConfigManager() {
       if (!res.ok) throw new Error("Failed to save configs");
 
       await fetchConfigs();
-      alert("Rank configs updated successfully!");
+      alert(t.configsSaved);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to save configs");
     } finally {
@@ -96,7 +103,7 @@ export default function RankConfigManager() {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-gray-400">Loading configs...</span>
+        <span className="ml-2 text-gray-400">{t.loadingConfigs}</span>
       </div>
     );
   }
@@ -119,7 +126,7 @@ export default function RankConfigManager() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Settings className="w-5 h-5 text-blue-400" />
-          <h2 className="text-xl font-semibold text-white">Global Limit Configuration</h2>
+          <h2 className="text-xl font-semibold text-white">{t.globalLimitConfig}</h2>
         </div>
         {hasChanges && (
           <button
@@ -128,7 +135,7 @@ export default function RankConfigManager() {
             className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-all disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save Changes
+            {t.saveChanges}
           </button>
         )}
       </div>
@@ -141,7 +148,7 @@ export default function RankConfigManager() {
               {/* Daily Message Limit */}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Daily Message Limit
+                  {t.dailyMessageLimit}
                 </label>
                 <input
                   type="number"
@@ -156,7 +163,7 @@ export default function RankConfigManager() {
               {/* Max File Size */}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Max File Size (MB)
+                  {t.maxFileSize}
                 </label>
                 <input
                   type="number"
@@ -170,7 +177,7 @@ export default function RankConfigManager() {
 
               {/* Features */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-400 mb-2">Features</label>
+                <label className="block text-sm font-medium text-gray-400 mb-2">{t.features}</label>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -181,7 +188,7 @@ export default function RankConfigManager() {
                       }
                       className="w-4 h-4 rounded bg-white/5 border-white/10 text-blue-500 focus:ring-blue-500/50"
                     />
-                    <span className="text-sm text-gray-300">Web Search</span>
+                    <span className="text-sm text-gray-300">{t.webSearch}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -192,7 +199,7 @@ export default function RankConfigManager() {
                       }
                       className="w-4 h-4 rounded bg-white/5 border-white/10 text-blue-500 focus:ring-blue-500/50"
                     />
-                    <span className="text-sm text-gray-300">Unlimited GEMs</span>
+                    <span className="text-sm text-gray-300">{t.unlimitedGems}</span>
                   </label>
                 </div>
               </div>
@@ -200,14 +207,14 @@ export default function RankConfigManager() {
               {/* Allowed Models Button */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Allowed Models
+                  {t.allowedModels}
                 </label>
                 <button
                   onClick={() => setModelModalRank(config.rank)}
                   className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 border border-purple-500/30 transition-all"
                 >
                   <Cpu className="w-4 h-4" />
-                  Configure Models ({config.allowed_models?.length || 0})
+                  {t.configureModels} ({config.allowed_models?.length || 0})
                 </button>
               </div>
             </div>
@@ -221,7 +228,7 @@ export default function RankConfigManager() {
           <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-white capitalize">
-                {modelModalRank} Models
+                {modelModalRank} {t.models}
               </h3>
               <button
                 onClick={() => setModelModalRank(null)}
@@ -231,7 +238,7 @@ export default function RankConfigManager() {
               </button>
             </div>
 
-            <p className="text-sm text-gray-400 mb-4">Select which models this rank can access</p>
+            <p className="text-sm text-gray-400 mb-4">{t.selectModelsForRank}</p>
 
             <div className="space-y-2">
               {SELECTABLE_MODELS.map((model) => {
@@ -254,7 +261,7 @@ export default function RankConfigManager() {
                     <div className="flex-1">
                       <div className="font-medium text-white">{model.name || model.id}</div>
                       <div className="text-xs text-gray-400">
-                        Context: {(model.contextWindow / 1000).toFixed(0)}K tokens
+                        {t.contextTokens}: {(model.contextWindow / 1000).toFixed(0)}K {t.tokens}
                       </div>
                     </div>
                   </label>
@@ -267,7 +274,7 @@ export default function RankConfigManager() {
                 onClick={() => setModelModalRank(null)}
                 className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-all"
               >
-                Done
+                {t.done}
               </button>
             </div>
           </div>

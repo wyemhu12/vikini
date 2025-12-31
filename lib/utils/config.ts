@@ -125,6 +125,54 @@ export const translations: TranslationSet = {
     modalDeleteWarning: "Hành động này không thể hoàn tác",
     modalDeleteConfirm: "Bạn có chắc chắn muốn xóa cuộc hội thoại này?",
     modalDeleteButton: "Xóa",
+    // Admin Dashboard
+    adminDashboard: "Bảng điều khiển Admin",
+    adminDescription: "Quản lý người dùng, giới hạn và cấu hình hệ thống",
+    adminUsers: "Người dùng",
+    adminLimits: "Giới hạn",
+    adminGlobalGems: "GEMs hệ thống",
+    // User Manager
+    userManagement: "Quản lý người dùng",
+    userUsers: "người dùng",
+    userEmail: "Email",
+    userRank: "Xếp hạng",
+    userStatus: "Trạng thái",
+    userCreated: "Ngày tạo",
+    userActions: "Thao tác",
+    userNotWhitelisted: "Chưa duyệt",
+    userBasic: "Cơ bản",
+    userPro: "Pro",
+    userAdmin: "Admin",
+    userBlocked: "Đã khóa",
+    userActive: "Hoạt động",
+    userBlock: "Khóa",
+    userUnblock: "Mở khóa",
+    userLoadingUsers: "Đang tải người dùng...",
+    // GEMs Manager
+    globalGemsManagement: "Quản lý GEMs hệ thống",
+    addGem: "Thêm GEM",
+    noGlobalGems: "Chưa có GEM hệ thống nào",
+    editGlobalGem: "Sửa GEM hệ thống",
+    createGlobalGem: "Tạo GEM hệ thống",
+    confirmDeleteGem: "Bạn có chắc chắn muốn xóa GEM này?",
+    loadingGems: "Đang tải gems...",
+    gems: "gems",
+    // Rank Config Manager
+    globalLimitConfig: "Cấu hình giới hạn toàn cục",
+    saveChanges: "Lưu thay đổi",
+    dailyMessageLimit: "Giới hạn tin nhắn/ngày",
+    maxFileSize: "Dung lượng tệp tối đa (MB)",
+    features: "Tính năng",
+    unlimitedGems: "GEMs không giới hạn",
+    allowedModels: "Model được phép",
+    configureModels: "Cấu hình Model",
+    selectModelsForRank: "Chọn các model mà xếp hạng này có thể sử dụng",
+    models: "Models",
+    contextTokens: "Ngữ cảnh",
+    tokens: "tokens",
+    done: "Xong",
+    loadingConfigs: "Đang tải cấu hình...",
+    configsSaved: "Đã lưu cấu hình thành công!",
   },
   en: {
     appName: "Vikini Chat",
@@ -224,11 +272,78 @@ export const translations: TranslationSet = {
     modalDeleteWarning: "This action cannot be undone",
     modalDeleteConfirm: "Are you sure you want to delete this conversation?",
     modalDeleteButton: "Delete",
+    // Admin Dashboard
+    adminDashboard: "Admin Dashboard",
+    adminDescription: "Manage users, limits, and system configuration",
+    adminUsers: "Users",
+    adminLimits: "Limits",
+    adminGlobalGems: "Global GEMs",
+    // User Manager
+    userManagement: "User Management",
+    userUsers: "users",
+    userEmail: "Email",
+    userRank: "Rank",
+    userStatus: "Status",
+    userCreated: "Created",
+    userActions: "Actions",
+    userNotWhitelisted: "Not Whitelisted",
+    userBasic: "Basic",
+    userPro: "Pro",
+    userAdmin: "Admin",
+    userBlocked: "Blocked",
+    userActive: "Active",
+    userBlock: "Block",
+    userUnblock: "Unblock",
+    userLoadingUsers: "Loading users...",
+    // GEMs Manager
+    globalGemsManagement: "Global GEMs Management",
+    addGem: "Add GEM",
+    noGlobalGems: "No global GEMs found",
+    editGlobalGem: "Edit Global GEM",
+    createGlobalGem: "Create Global GEM",
+    confirmDeleteGem: "Are you sure you want to delete this GEM?",
+    loadingGems: "Loading gems...",
+    gems: "gems",
+    // Rank Config Manager
+    globalLimitConfig: "Global Limit Configuration",
+    saveChanges: "Save Changes",
+    dailyMessageLimit: "Daily Message Limit",
+    maxFileSize: "Max File Size (MB)",
+    features: "Features",
+    unlimitedGems: "Unlimited GEMs",
+    allowedModels: "Allowed Models",
+    configureModels: "Configure Models",
+    selectModelsForRank: "Select which models this rank can access",
+    models: "Models",
+    contextTokens: "Context",
+    tokens: "tokens",
+    done: "Done",
+    loadingConfigs: "Loading configs...",
+    configsSaved: "Rank configs updated successfully!",
   },
 };
 
 export const tVi = translations.vi;
 export const tEn = translations.en;
+
+// Type-safety: Ensure vi and en have the SAME keys at compile time
+// If you add a key to vi but forget en (or vice versa), TypeScript will error here
+type ViKeys = keyof typeof translations.vi;
+type EnKeys = keyof typeof translations.en;
+type _AssertViHasAllEnKeys =
+  Record<EnKeys, string> extends Record<ViKeys, string>
+    ? true
+    : "ERROR: translations.vi is missing keys that exist in translations.en";
+type _AssertEnHasAllViKeys =
+  Record<ViKeys, string> extends Record<EnKeys, string>
+    ? true
+    : "ERROR: translations.en is missing keys that exist in translations.vi";
+// These will cause compile errors if keys don't match:
+const _viCheck: _AssertViHasAllEnKeys = true;
+const _enCheck: _AssertEnHasAllViKeys = true;
+// Suppress unused variable warnings
+void _viCheck;
+void _enCheck;
 
 export function pickFirstEnv(keys: string[]): string {
   for (const k of keys) {

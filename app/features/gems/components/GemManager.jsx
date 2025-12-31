@@ -14,7 +14,7 @@ export default function GemManager() {
   const { t, language } = useLanguage();
 
   // Lấy ID từ store (do Sidebar truyền vào) hoặc từ URL (fallback)
-  const { contextConversationId, closeGemModal } = useGemStore();
+  const { contextConversationId, closeGemModal, triggerGemApplied } = useGemStore();
   const urlConversationId = sp.get("conversationId");
   const conversationId = contextConversationId || urlConversationId;
 
@@ -63,9 +63,12 @@ export default function GemManager() {
       setSelectedGemId(gemId);
       setStatus(t("success") || "Success");
 
+      // Trigger refresh in ChatApp before closing modal
+      triggerGemApplied();
+
       setTimeout(() => {
         closeGemModal();
-      }, 500);
+      }, 300);
     } catch (e) {
       setStatus(e?.message || "Apply gem failed");
     }

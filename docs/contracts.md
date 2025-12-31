@@ -1,80 +1,291 @@
-﻿# docs/contracts.md
+﻿# Data Contracts & Protocols - Vikini
 
-Vikini Data Contracts & Protocols
-Tài liệu này định nghĩa các cấu trúc dữ liệu (Interfaces) và giao thức truyền tải giữa các thành phần của hệ thống Vikini.
+> **Cập nhật**: 2025-12-31  
+> **Mục đích**: Định nghĩa các cấu trúc dữ liệu (Interfaces) và giao thức truyền tải giữa các thành phần của hệ thống Vikini.
 
-1. Core Models (Thực thể chính)
-   Conversation (Cuộc hội thoại)
-   Đại diện cho một phiên chat của người dùng.
+---
 
-id: UUID (String)
+## 1. Core Models (Thực thể chính)
 
-userId: Email hoặc ID người dùng (String)
+### Conversation (Cuộc hội thoại)
 
-title: Tiêu đề chat (Mặc định: "New Chat")
-
-model: Model AI đang sử dụng (ví dụ: gemini-1.5-flash)
-
-gemId: ID của GEM đang áp dụng (có thể null)
-
-updatedAt: Thời gian cập nhật cuối cùng (ISO String)
-
-Message (Tin nhắn)
-id: UUID (String)
-
-role: "user" hoặc "assistant"
-
-content: Nội dung tin nhắn (Lưu ý: Nội dung này được mã hóa khi lưu vào DB)
-
-meta: Dữ liệu bổ sung (JSON) như nguồn Web Search hoặc ID tệp đính kèm.
-
-GEM (AI Persona)
-id: UUID (String)
-
-name: Tên của GEM
-
-instructions: Chỉ dẫn hệ thống (System Prompt) cho AI.
-
-latestVersion: Phiên bản mới nhất của chỉ dẫn.
-
-2. API Communication (Giao tiếp API)
-   Chat Stream Request (/api/chat-stream)
-   Giao thức khi gửi tin nhắn mới:
-
-TypeScript
-
-{
-"conversationId": string (optional),
-"content": string (min: 1),
-"regenerate": boolean (optional),
-"truncateMessageId": string (uuid, optional),
-"skipSaveUserMessage": boolean (optional)
+```typescript
+interface Conversation {
+  id: string; // UUID
+  userId: string; // Email người dùng (lowercase)
+  title: string; // Tiêu đề (mặc định: "New Chat")
+  model: string; // Model AI (e.g. "gemini-1.5-flash")
+  gemId: string | null; // GEM đang áp dụng
+  createdAt: string; // ISO timestamp
+  updatedAt: string; // ISO timestamp
 }
-GEM Operations (/api/gems)
-Create: Yêu cầu name, description, instructions, icon, color.
+```
 
-Update: Yêu cầu id và các trường cần thay đổi.
+---
 
-3. Attachment Lifecycle (Vòng đời tệp đính kèm)
-   Định dạng hỗ trợ:
-   Ảnh: png, jpg, jpeg, webp (Max 10MB)
+### Message (Tin nhắn)
 
-Văn bản: txt, js, jsx, json (Max 2MB)
+```typescript
+interface Message {
+  id: string; // UUID
+  conversationId: string; // FK → Conversation
+  role: "user" | "assistant"; // Vai trò
+  content: string; // Nội dung (đã giải mã)
+  meta: MessageMeta | null; // Dữ liệu bổ sung
+  createdAt: string; // ISO timestamp
+}
 
-Tài liệu: pdf, doc, docx, xls, xlsx (Max 20MB)
+interface MessageMeta {
+  sources?: WebSearchSource[]; // Kết quả web search
+  attachmentIds?: string[]; // IDs tệp đính kèm
+  modelUsed?: string; // Model thực tế được sử dụng
+  tokensUsed?: number; // Token count
+}
 
-Nén: zip (Max 20MB)
+interface WebSearchSource {
+  title: string;
+  url: string;
+  snippet?: string;
+}
+```
 
-Quy trình xử lý:
-Upload: Tệp được đẩy lên Supabase Storage theo đường dẫn: {userId}/{conversationId}/{uuid}-{filename}.
+> [!IMPORTANT]
+> **Mã hóa**: Cột `content` trong DB được mã hóa bằng AES. Client luôn nhận nội dung đã giải mã.
 
-Metadata: Thông tin tệp được lưu vào bảng attachments kèm theo expires_at (Mặc định hết hạn sau 36 giờ).
+---
 
-Context: Khi chat, nội dung tệp (nếu là văn bản) sẽ được đọc và đưa vào Prompt của AI.
+### GEM (AI Persona)
 
-4. Security & Performance (Bảo mật & Hiệu suất)
-   Encryption: Mọi nội dung tin nhắn (content) BẮT BUỘC phải đi qua hàm encryptText trước khi vào DB và decryptText khi lấy ra.
+```typescript
+interface Gem {
+  id: string; // UUID
+  slug: string | null; // URL-friendly identifier
+  name: string; // Tên hiển thị
+  description: string; // Mô tả ngắn
+  icon: string; // Emoji hoặc icon name
+  color: string; // Hex color (#ffffff)
+  instructions: string; // System prompt (latest version)
+  userId: string | null; // Owner email (null = premade)
+  isPremade: boolean; // true = GEM hệ thống (read-only)
+  latestVersion: number; // Số phiên bản mới nhất
+  createdAt: string;
+  updatedAt: string;
+}
 
-Caching: Danh sách Conversations và Gems của người dùng được lưu trong Redis (Upstash) để tăng tốc độ phản hồi.
+// Response từ API (camelCase)
+interface GemForClient {
+  id: string;
+  slug: string | null;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  isPremade: boolean;
+  latestVersion: number;
+  instructions: string;
+}
+```
 
-Rate Limit: Áp dụng giới hạn số lượng yêu cầu dựa trên địa chỉ IP để bảo vệ tài nguyên hệ thống.
+---
+
+### Attachment (Tệp đính kèm)
+
+```typescript
+interface Attachment {
+  id: string; // UUID
+  conversationId: string; // FK → Conversation
+  messageId: string | null; // FK → Message (optional)
+  userId: string; // Email owner
+  filename: string; // Tên file gốc
+  storagePath: string; // Path trong Supabase Storage
+  mimeType: string; // MIME type (image/png, etc.)
+  sizeBytes: number; // Kích thước
+  extractedText: string | null; // Nội dung trích xuất
+  tokenCount: number | null; // Token ước tính
+  expiresAt: string; // ISO timestamp (36h TTL)
+  createdAt: string;
+}
+```
+
+**Định dạng hỗ trợ**:
+
+| Loại     | Extensions                | Max Size |
+| -------- | ------------------------- | -------- |
+| Ảnh      | png, jpg, jpeg, webp      | 10MB     |
+| Văn bản  | txt, js, jsx, tsx, json   | 2MB      |
+| Tài liệu | pdf, doc, docx, xls, xlsx | 20MB     |
+| Nén      | zip                       | 20MB     |
+
+**Vòng đời**:
+
+1. **Upload** → Supabase Storage: `{userId}/{conversationId}/{uuid}-{filename}`
+2. **Metadata** → DB `attachments` table kèm `expires_at` (36h)
+3. **Context** → Nội dung trích xuất đưa vào AI prompt
+4. **Cleanup** → Cron job xóa sau khi hết hạn
+
+---
+
+### Profile (Hồ sơ người dùng)
+
+```typescript
+interface Profile {
+  id: string; // UUID từ Supabase Auth
+  email: string; // Email đăng nhập
+  rank: UserRank; // Xếp hạng
+  isBlocked: boolean; // Trạng thái khóa
+  createdAt: string;
+  updatedAt: string;
+}
+
+type UserRank = "basic" | "pro" | "admin" | "not_whitelisted";
+```
+
+---
+
+### RankConfig (Cấu hình xếp hạng)
+
+```typescript
+interface RankConfig {
+  rank: UserRank;
+  dailyMessageLimit: number; // Giới hạn tin nhắn/ngày
+  maxFileSizeMb: number; // Giới hạn upload (MB)
+  features: RankFeatures;
+  allowedModels: string[]; // Danh sách model được phép
+  updatedAt: string;
+}
+
+interface RankFeatures {
+  webSearch: boolean;
+  unlimitedGems: boolean;
+}
+```
+
+---
+
+## 2. API Request/Response Schemas
+
+### Chat Stream Request
+
+```typescript
+// POST /api/chat-stream
+interface ChatStreamRequest {
+  conversationId?: string; // UUID (optional - tạo mới nếu không có)
+  content: string; // Tin nhắn (min: 1 char)
+  regenerate?: boolean; // Tạo lại response
+  truncateMessageId?: string; // Xóa messages sau ID này
+  skipSaveUserMessage?: boolean; // Không lưu tin nhắn user
+}
+```
+
+### Chat Stream Events (SSE)
+
+```typescript
+// Event: token
+interface TokenEvent {
+  type: "token";
+  data: { token: string };
+}
+
+// Event: meta
+interface MetaEvent {
+  type: "meta";
+  data: {
+    conversationId: string;
+    title: string;
+    sources?: WebSearchSource[];
+  };
+}
+
+// Event: done
+interface DoneEvent {
+  type: "done";
+  data: {};
+}
+
+// Event: error
+interface ErrorEvent {
+  type: "error";
+  data: { error: string; message?: string };
+}
+```
+
+---
+
+### GEM Operations
+
+```typescript
+// POST /api/gems (Create)
+interface CreateGemRequest {
+  name: string; // Bắt buộc
+  description: string; // Bắt buộc
+  instructions: string; // System prompt - Bắt buộc
+  icon: string; // Emoji
+  color: string; // Hex color
+}
+
+// PATCH /api/gems (Update)
+interface UpdateGemRequest {
+  id: string; // UUID - Bắt buộc
+  name?: string;
+  description?: string;
+  instructions?: string; // Thay đổi → tạo version mới
+  icon?: string;
+  color?: string;
+}
+
+// DELETE /api/gems
+interface DeleteGemRequest {
+  id: string; // UUID
+}
+```
+
+---
+
+### Conversation Operations
+
+```typescript
+// POST /api/conversations (Create)
+interface CreateConversationRequest {
+  title?: string;
+  model?: string;
+  gemId?: string;
+}
+
+// PATCH /api/conversations (Update)
+interface UpdateConversationRequest {
+  id: string; // UUID - Bắt buộc
+  title?: string; // Đổi tiêu đề
+  gemId?: string | null; // Đổi/xóa GEM
+  model?: string; // Đổi model
+}
+```
+
+---
+
+## 3. Security & Performance
+
+### Encryption
+
+- **Thuật toán**: AES-256-GCM
+- **Áp dụng**: Cột `content` trong bảng `messages`
+- **Functions**: `encryptText()` / `decryptText()` trong `/lib/core/encryption.ts`
+
+### Caching (Redis)
+
+- **Conversations list**: Cache theo userId
+- **Gems list**: Cache theo userId
+- **TTL**: Vài phút, invalidate khi có thay đổi
+
+### Rate Limiting
+
+- **Engine**: Upstash Redis
+- **Scope**: Per-user (email-based)
+- **Headers**: `X-RateLimit-Remaining`, `Retry-After`
+
+---
+
+## 4. Liên kết tài liệu
+
+- [Database Schema](./database-schema.md) - Chi tiết bảng và ERD
+- [API Reference](./api-reference.md) - Chi tiết endpoints
+- [Security](./security.md) - RLS và encryption

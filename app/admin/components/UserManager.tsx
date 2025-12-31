@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Users, Loader2, AlertCircle } from "lucide-react";
+import { translations } from "@/lib/utils/config";
 
 interface Profile {
   id: string;
@@ -11,11 +12,17 @@ interface Profile {
   created_at: string;
 }
 
-export default function UserManager() {
+interface UserManagerProps {
+  language: "vi" | "en";
+}
+
+export default function UserManager({ language }: UserManagerProps) {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
+
+  const t = language === "vi" ? translations.vi : translations.en;
 
   useEffect(() => {
     fetchUsers();
@@ -54,11 +61,26 @@ export default function UserManager() {
     }
   };
 
+  const _getRankLabel = (rank: string) => {
+    switch (rank) {
+      case "not_whitelisted":
+        return t.userNotWhitelisted;
+      case "basic":
+        return t.userBasic;
+      case "pro":
+        return t.userPro;
+      case "admin":
+        return t.userAdmin;
+      default:
+        return rank;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-gray-400">Loading users...</span>
+        <span className="ml-2 text-gray-400">{t.userLoadingUsers}</span>
       </div>
     );
   }
@@ -76,19 +98,31 @@ export default function UserManager() {
     <div>
       <div className="flex items-center gap-2 mb-4">
         <Users className="w-5 h-5 text-blue-400" />
-        <h2 className="text-xl font-semibold text-white">User Management</h2>
-        <span className="text-sm text-gray-500">({users.length} users)</span>
+        <h2 className="text-xl font-semibold text-white">{t.userManagement}</h2>
+        <span className="text-sm text-gray-500">
+          ({users.length} {t.userUsers})
+        </span>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-white/10">
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Email</th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Rank</th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Status</th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Created</th>
-              <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">Actions</th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
+                {t.userEmail}
+              </th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
+                {t.userRank}
+              </th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
+                {t.userStatus}
+              </th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
+                {t.userCreated}
+              </th>
+              <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">
+                {t.userActions}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -108,16 +142,16 @@ export default function UserManager() {
                     }}
                   >
                     <option value="not_whitelisted" className="bg-[#1a1a1a] text-white">
-                      Not Whitelisted
+                      {t.userNotWhitelisted}
                     </option>
                     <option value="basic" className="bg-[#1a1a1a] text-white">
-                      Basic
+                      {t.userBasic}
                     </option>
                     <option value="pro" className="bg-[#1a1a1a] text-white">
-                      Pro
+                      {t.userPro}
                     </option>
                     <option value="admin" className="bg-[#1a1a1a] text-white">
-                      Admin
+                      {t.userAdmin}
                     </option>
                   </select>
                 </td>
@@ -129,7 +163,7 @@ export default function UserManager() {
                         : "bg-green-500/20 text-green-400 border border-green-500/30"
                     }`}
                   >
-                    {user.is_blocked ? "Blocked" : "Active"}
+                    {user.is_blocked ? t.userBlocked : t.userActive}
                   </span>
                 </td>
                 <td className="py-3 px-4 text-sm text-gray-400">
@@ -148,9 +182,9 @@ export default function UserManager() {
                     {updating === user.id ? (
                       <Loader2 className="w-4 h-4 animate-spin inline" />
                     ) : user.is_blocked ? (
-                      "Unblock"
+                      t.userUnblock
                     ) : (
-                      "Block"
+                      t.userBlock
                     )}
                   </button>
                 </td>
