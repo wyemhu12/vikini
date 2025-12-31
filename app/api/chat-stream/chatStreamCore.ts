@@ -472,12 +472,7 @@ function setupToolsAndSafety(
   // Special case for Gemini 3 Pro Research: Force Dynamic Retrieval (Threshold 0 = Always)
   if (model === "gemini-3-pro-research") {
     tools.push({
-      googleSearchRetrieval: {
-        dynamicRetrievalConfig: {
-          mode: "MODE_DYNAMIC",
-          dynamicThreshold: 0, // Force search
-        },
-      },
+      googleSearch: {},
     });
   }
   // Standard logic for other models
