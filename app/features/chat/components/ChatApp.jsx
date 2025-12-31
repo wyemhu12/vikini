@@ -580,11 +580,12 @@ export default function ChatApp() {
                   />
                 );
               })}
-              {streamingAssistant !== null && (
+              {/* Animation Bubble: Show if streaming/creating OR if we have partial content */}
+              {(streamingAssistant !== null || isStreaming || creatingConversation) && (
                 <ChatBubble
                   message={{
                     role: "assistant",
-                    content: streamingAssistant,
+                    content: streamingAssistant || "", // Pass empty string if null to trigger typing dots
                     sources: streamingSources,
                     urlContext: streamingUrlContext,
                   }}

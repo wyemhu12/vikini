@@ -145,6 +145,7 @@ export interface ChatStreamParams {
     conversationId: string;
     messages: Message[];
   }) => Promise<string | null>;
+  thinkingLevel?: "low" | "medium" | "high" | "minimal";
 }
 
 // --- EXTRACTED FUNCTIONS ---
@@ -242,9 +243,27 @@ async function executeStream(
     tools: unknown[];
     safetySettings: unknown[] | null;
     useTools: boolean;
+    thinkingLevel?: "low" | "medium" | "high" | "minimal";
   }
 ): Promise<StreamResult> {
-  const { ai, model, contents, sysPrompt, tools, safetySettings, useTools } = params;
+  const { ai, model, contents, sysPrompt, tools, safetySettings, useTools, thinkingLevel } = params;
+
+  // Resolve Thinking Models
+  let apiModel = model;
+  let thinkingConfig: { thinkingLevel: string } | undefined;
+
+  if (model === "gemini-3-flash-thinking") {
+    apiModel = "gemini-3-flash-preview";
+    thinkingConfig = { thinkingLevel: "low" }; // Default for Flash Thinking variant
+  } else if (model === "gemini-3-pro-thinking") {
+    apiModel = "gemini-3-pro-preview";
+    thinkingConfig = { thinkingLevel: "high" }; // Default for Pro Thinking variant
+  }
+
+  // Override if manually provided (future proofing)
+  if (thinkingLevel) {
+    thinkingConfig = { thinkingLevel };
+  }
 
   let full = "";
   let groundingMetadata: unknown = null;
@@ -258,10 +277,11 @@ async function executeStream(
     temperature: 0,
     ...(useTools && Array.isArray(tools) && tools.length > 0 ? { tools } : {}),
     ...(Array.isArray(safetySettings) && safetySettings.length > 0 ? { safetySettings } : {}),
+    ...(thinkingConfig ? { thinkingConfig } : {}),
   };
 
   const res = await ai.models.generateContentStream({
-    model,
+    model: apiModel,
     contents,
     config,
   });
@@ -322,9 +342,10 @@ async function runStreamWithFallback(
     sysPrompt: string;
     tools: unknown[];
     safetySettings: unknown[] | null;
+    thinkingLevel?: "low" | "medium" | "high" | "minimal";
   }
 ): Promise<StreamResult> {
-  const { ai, model, contents, sysPrompt, tools, safetySettings } = params;
+  const { ai, model, contents, sysPrompt, tools, safetySettings, thinkingLevel } = params;
 
   try {
     return await executeStream(controller, {
@@ -335,10 +356,12 @@ async function runStreamWithFallback(
       tools,
       safetySettings,
       useTools: true,
+      thinkingLevel,
     });
   } catch (err) {
     streamLogger.error("stream error (with tools):", err);
     try {
+      // If we failed with tools, retry without tools (BUT keep thinking config if present)
       if (Array.isArray(tools) && tools.length > 0) {
         sendEvent(controller, "meta", {
           type: "webSearchFallback",
@@ -352,6 +375,7 @@ async function runStreamWithFallback(
           tools,
           safetySettings,
           useTools: false,
+          thinkingLevel,
         });
       } else {
         sendEvent(controller, "error", { message: "Stream error" });
@@ -562,6 +586,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
     setConversationAutoTitle,
     generateOptimisticTitle,
     generateFinalTitle,
+    thinkingLevel,
   } = params;
 
   return new ReadableStream({
@@ -594,6 +619,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
         sysPrompt,
         tools,
         safetySettings,
+        thinkingLevel,
       });
 
       // Handle safety blocking

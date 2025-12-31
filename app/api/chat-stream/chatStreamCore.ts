@@ -509,6 +509,7 @@ export async function handleChatStreamCore({
     regenerate,
     truncateMessageId,
     skipSaveUserMessage,
+    thinkingLevel,
   } = body;
 
   // Initialize AI client
@@ -786,6 +787,7 @@ export async function handleChatStreamCore({
       },
       generateOptimisticTitle,
       generateFinalTitle,
+      thinkingLevel,
     });
   }
 

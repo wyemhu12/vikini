@@ -49,6 +49,20 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     tokenLimit: 2000000,
     contextWindow: 2000000,
   },
+  {
+    id: "gemini-3-flash-thinking",
+    descKey: "modelDescFlash3",
+    name: "Gemini 3 Flash (Thinking)",
+    tokenLimit: 1000000,
+    contextWindow: 1000000,
+  },
+  {
+    id: "gemini-3-pro-thinking",
+    descKey: "modelDescPro3",
+    name: "Gemini 3 Pro (Thinking)",
+    tokenLimit: 2000000,
+    contextWindow: 2000000,
+  },
 
   // ═══════════════════════════════════════════════════════════
   // GROQ MODELS (Llama via Groq API)
@@ -74,14 +88,14 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
 
   // DeepSeek - Free, very powerful
   {
-    id: "deepseek/deepseek-chat-v3-0324:free",
+    id: "deepseek/deepseek-chat:free",
     name: "DeepSeek V3 Chat (Free)",
     descKey: "modelDescDeepSeekV3",
     tokenLimit: 128000,
     contextWindow: 128000,
   },
   {
-    id: "deepseek/deepseek-r1-0528:free",
+    id: "deepseek/deepseek-r1:free",
     name: "DeepSeek R1 Reasoning (Free)",
     descKey: "modelDescDeepSeekR1",
     tokenLimit: 64000,
@@ -155,14 +169,16 @@ const API_ALLOWED = new Set([
   "gemini-3-flash-preview",
   "gemini-3-pro-preview",
   "gemini-3-pro-image-preview",
+  "gemini-3-flash-thinking",
+  "gemini-3-pro-thinking",
 
   // Llama via Groq
   "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant",
 
   // OpenRouter Free Models
-  "deepseek/deepseek-chat-v3-0324:free",
-  "deepseek/deepseek-r1-0528:free",
+  "deepseek/deepseek-chat:free",
+  "deepseek/deepseek-r1:free",
   "meta-llama/llama-4-maverick:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "google/gemma-3-27b-it:free",
