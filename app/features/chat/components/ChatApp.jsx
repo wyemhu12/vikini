@@ -12,6 +12,7 @@ import AttachmentsPanel from "./AttachmentsPanel";
 import AccessPendingScreen from "@/app/components/AccessPendingScreen";
 import UpgradeModal from "@/app/components/UpgradeModal";
 import DeleteConfirmModal from "@/app/components/DeleteConfirmModal";
+import ModelSelector from "./ModelSelector";
 
 import { useTheme } from "../hooks/useTheme";
 import { useLanguage } from "../hooks/useLanguage";
@@ -100,7 +101,7 @@ export default function ChatApp() {
   // Allowed Models (check access permissions)
   const { allowedModelIds, loading: modelsLoading } = useAllowedModels(isAuthed);
   // Always show all models, but some will be disabled
-  const AVAILABLE_MODELS = SELECTABLE_MODELS;
+  // const AVAILABLE_MODELS = SELECTABLE_MODELS; // Unused
 
   // Function to check if a model is allowed
   const isModelAllowed = useCallback(
@@ -131,7 +132,14 @@ export default function ChatApp() {
       "logout",
       "modelSelector",
       "selectModel",
+      "selectModel",
       "currentModel",
+      "modelSelectorProviders",
+      "modelSelectorService",
+      "modelCategoryReasoning",
+      "modelCategoryLowLatency",
+      "modelSelectorModelsSuffix",
+      "modelSelectorAvailableLater",
       "appliedGem",
       "appliedGemNone",
       "webSearch",
@@ -604,30 +612,15 @@ export default function ChatApp() {
           {/* Static Floating Controls Toolbar - Minimalist */}
           <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
             <div className="flex items-center rounded-full bg-[#0f1115] border border-white/5 p-1 shadow-lg">
-              <select
-                value={currentModel}
-                onChange={(e) => handleModelChange(e.target.value)}
+              // Replace the whole native select block
+              <ModelSelector
+                currentModelId={currentModel}
+                onSelectModel={handleModelChange}
+                isModelAllowed={isModelAllowed}
+                t={t}
                 disabled={isStreaming || regenerating}
-                className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 bg-transparent text-white/60 outline-none cursor-pointer hover:text-white transition-colors"
-              >
-                {AVAILABLE_MODELS.map((m) => {
-                  const allowed = isModelAllowed(m.id);
-                  return (
-                    <option
-                      key={m.id}
-                      value={m.id}
-                      className={`bg-[#0f172a] ${!allowed ? "opacity-40" : ""}`}
-                      style={{ opacity: allowed ? 1 : 0.4 }}
-                    >
-                      {allowed ? "" : "🔒 "}
-                      {t[m.id] || m.name || m.id}
-                    </option>
-                  );
-                })}
-              </select>
-
+              />
               <div className="h-3 w-[1px] bg-white/10 mx-1" />
-
               <button
                 onClick={() => setShowFiles(!showFiles)}
                 className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full flex items-center gap-1 ${
@@ -645,20 +638,28 @@ export default function ChatApp() {
                   ""
                 )}
               </button>
-
               <div className="h-3 w-[1px] bg-white/10 mx-1" />
-
-              <button
-                onClick={toggleWebSearch}
-                className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full ${
-                  webSearchEnabled
-                    ? "text-[var(--primary)] bg-white/5"
-                    : "text-white/40 hover:text-white"
-                }`}
-              >
-                WEB {webSearchEnabled ? t.webSearchOn : t.webSearchOff}
-              </button>
-
+              <div className="h-3 w-[1px] bg-white/10 mx-1" />
+              {currentModel === "gemini-3-pro-research" ? (
+                <button
+                  disabled
+                  className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full text-blue-400 bg-blue-500/10 cursor-not-allowed border border-blue-500/30"
+                  title="Research Mode always searches"
+                >
+                  RESEARCH MODE (SEARCH ON)
+                </button>
+              ) : (
+                <button
+                  onClick={toggleWebSearch}
+                  className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full ${
+                    webSearchEnabled
+                      ? "text-[var(--primary)] bg-white/5"
+                      : "text-white/40 hover:text-white"
+                  }`}
+                >
+                  WEB {webSearchEnabled ? t.webSearchOn : t.webSearchOff}
+                </button>
+              )}
               {currentModel && currentModel.startsWith("gemini") && (
                 <>
                   <div className="h-3 w-[1px] bg-white/10 mx-1" />
@@ -675,7 +676,6 @@ export default function ChatApp() {
                   </button>
                 </>
               )}
-
               {currentGem && (
                 <>
                   <div className="h-3 w-[1px] bg-white/10 mx-1" />

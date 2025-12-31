@@ -460,13 +460,28 @@ function getWebSearchConfig(cookies: Record<string, string>): {
 
 function setupToolsAndSafety(
   enableWebSearch: boolean,
-  WEB_SEARCH_AVAILABLE: boolean
+  WEB_SEARCH_AVAILABLE: boolean,
+  model: string // Added model param
 ): {
-  tools: Array<{ googleSearch?: Record<string, never> }>;
+  tools: Array<{ googleSearch?: Record<string, never>; googleSearchRetrieval?: unknown }>;
   safetySettings: unknown[] | null;
 } {
-  const tools: Array<{ googleSearch?: Record<string, never> }> = [];
-  if (enableWebSearch && WEB_SEARCH_AVAILABLE) {
+  const tools: Array<{ googleSearch?: Record<string, never>; googleSearchRetrieval?: unknown }> =
+    [];
+
+  // Special case for Gemini 3 Pro Research: Force Dynamic Retrieval (Threshold 0 = Always)
+  if (model === "gemini-3-pro-research") {
+    tools.push({
+      googleSearchRetrieval: {
+        dynamicRetrievalConfig: {
+          mode: "MODE_DYNAMIC",
+          dynamicThreshold: 0, // Force search
+        },
+      },
+    });
+  }
+  // Standard logic for other models
+  else if (enableWebSearch && WEB_SEARCH_AVAILABLE) {
     tools.push({ googleSearch: {} });
   }
 
@@ -595,7 +610,11 @@ export async function handleChatStreamCore({
   const cookies = parseCookieHeader(req?.headers?.get?.("cookie") || undefined);
   const { enableWebSearch, WEB_SEARCH_AVAILABLE } = getWebSearchConfig(cookies);
   const cookieWeb = cookies?.webSearchEnabled ?? cookies?.webSearch ?? "";
-  const { tools, safetySettings } = setupToolsAndSafety(enableWebSearch, WEB_SEARCH_AVAILABLE);
+  const { tools, safetySettings } = setupToolsAndSafety(
+    enableWebSearch,
+    WEB_SEARCH_AVAILABLE,
+    model
+  );
 
   // Create stream
   const saveMessageCompat = async ({

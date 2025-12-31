@@ -258,6 +258,12 @@ async function executeStream(
   } else if (model === "gemini-3-pro-thinking") {
     apiModel = "gemini-3-pro-preview";
     thinkingConfig = { thinkingLevel: "high" }; // Default for Pro Thinking variant
+  } else if (model === "gemini-3-pro-research") {
+    apiModel = "gemini-3-pro-preview";
+    // Research mode uses forced tools (configured in chatStreamCore), no special thinking level needed by default,
+    // unless we want to combine them. For now, just Thinking High + Search?
+    // User requested "Thinking" model + Search. So let's enable thinking too.
+    thinkingConfig = { thinkingLevel: "high" };
   }
 
   // Override if manually provided (future proofing)
