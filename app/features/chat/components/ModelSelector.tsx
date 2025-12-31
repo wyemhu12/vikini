@@ -1,7 +1,6 @@
-"use client";
-
 import { useState, useMemo } from "react";
-import { Check, ChevronDown, Cpu, Zap } from "lucide-react";
+import { Check, ChevronDown, Cpu, Zap, Sparkles } from "lucide-react";
+import Image from "next/image";
 import { SELECTABLE_MODELS, PROVIDER_LABELS, SelectableModel } from "@/lib/core/modelRegistry";
 
 const PROVIDER_IDS = [
@@ -15,7 +14,19 @@ const PROVIDER_IDS = [
   "openrouter-pay",
 ] as const;
 
+const PROVIDER_LOGOS: Record<string, string> = {
+  gemini: "/assets/providers/gemini.png",
+  grok: "/assets/providers/grok.webp",
+  deepseek: "/assets/providers/deepseek.png",
+  openai: "/assets/providers/gpt.png",
+  anthropic: "/assets/providers/anthropic.png",
+  groq: "/assets/providers/groq.png",
+  "openrouter-free": "/assets/providers/openrouter.png",
+  "openrouter-pay": "/assets/providers/openrouter.png",
+};
+
 interface ModelSelectorProps {
+  // ... (keep interface)
   currentModelId: string;
   onSelectModel: (id: string) => void;
   isModelAllowed: (id: string) => boolean;
@@ -30,6 +41,7 @@ export default function ModelSelector({
   t,
   disabled,
 }: ModelSelectorProps) {
+  // ... (keep state)
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"service" | "providers">("service");
   const [activeProviderFilter, setActiveProviderFilter] = useState<string>("gemini");
@@ -93,7 +105,7 @@ export default function ModelSelector({
 
       {/* DROPDOWN CONTENT */}
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-[320px] bg-[#0A0A0A] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute bottom-full left-0 mb-2 w-[350px] bg-[#0A0A0A] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100">
           {/* TABS HEADER */}
           <div className="flex items-center p-1 bg-[#151515] border-b border-white/5">
             <button
@@ -118,25 +130,40 @@ export default function ModelSelector({
             </button>
           </div>
 
-          <div className="max-h-[400px] overflow-y-auto custom-scrollbar bg-[#0A0A0A]">
+          <div className="max-h-[450px] overflow-y-auto custom-scrollbar bg-[#0A0A0A]">
             {/* --- PROVIDERS VIEW --- */}
             {activeTab === "providers" && (
               <div className="flex flex-col">
-                {/* Horizontal Provider Filter Scroll */}
-                <div className="flex overflow-x-auto p-2 gap-2 border-b border-white/5 no-scrollbar">
-                  {PROVIDER_IDS.map((pid) => (
-                    <button
-                      key={pid}
-                      onClick={() => setActiveProviderFilter(pid)}
-                      className={`whitespace-nowrap px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all border ${
-                        activeProviderFilter === pid
-                          ? "bg-white text-black border-white"
-                          : "bg-transparent text-white/40 border-white/10 hover:border-white/30"
-                      }`}
-                    >
-                      {PROVIDER_LABELS[pid] || pid}
-                    </button>
-                  ))}
+                {/* Horizontal Provider Filter Scroll -> REPLACED WITH GRID */}
+                <div className="grid grid-cols-2 gap-2 p-2 border-b border-white/5">
+                  {PROVIDER_IDS.map((pid) => {
+                    const logoSrc = PROVIDER_LOGOS[pid];
+                    return (
+                      <button
+                        key={pid}
+                        onClick={() => setActiveProviderFilter(pid)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all border ${
+                          activeProviderFilter === pid
+                            ? "bg-white text-black border-white shadow-md glow-white"
+                            : "bg-[#111] text-white/40 border-white/5 hover:bg-[#1a1a1a] hover:border-white/20"
+                        }`}
+                      >
+                        {logoSrc ? (
+                          <div className="relative w-5 h-5 flex-shrink-0">
+                            <Image
+                              src={logoSrc}
+                              alt={PROVIDER_LABELS[pid] || pid}
+                              fill
+                              className="object-contain"
+                            />
+                          </div>
+                        ) : (
+                          <Sparkles className="w-5 h-5 flex-shrink-0" />
+                        )}
+                        <span className="truncate">{PROVIDER_LABELS[pid] || pid}</span>
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Models List for Provider */}
