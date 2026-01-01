@@ -14,6 +14,8 @@ const THEME_IDS = [
   "soviet",
   "amethyst",
   "emerald",
+  "frosted",
+  "holo",
 ] as const;
 
 export type ThemeId = (typeof THEME_IDS)[number];
