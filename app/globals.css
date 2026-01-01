@@ -141,24 +141,24 @@ body {
   --glass-border: rgba(34, 211, 238, 0.3);
 }
 
-/* LAVENDER - Pastel Purple/Pink Light Theme */
-.theme-lavender {
+/* ORCHID SILK - Pastel Purple/Pink Light Theme (Image 2) */
+.theme-orchid {
   --primary: #c084fc;
   --primary-light: #e9d5ff;
   --primary-dark: #9333ea;
   --bg-glow: rgba(192, 132, 252, 0.4);
-  --glass-bg: rgba(255, 255, 255, 0.15);
-  --glass-border: rgba(192, 132, 252, 0.3);
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(192, 132, 252, 0.25);
 }
 
-/* AQUA - Pure Black + Subtle Teal (Image 4) */
+/* AQUA - Dark Business Teal (Image 3) */
 .theme-aqua {
   --primary: #14b8a6;
   --primary-light: #2dd4bf;
-  --primary-dark: #0d9488;
-  --bg-glow: rgba(20, 184, 166, 0.3);
-  --glass-bg: rgba(10, 15, 15, 0.9);
-  --glass-border: rgba(20, 184, 166, 0.15);
+  --primary-dark: #0f766e;
+  --bg-glow: rgba(20, 184, 166, 0.35);
+  --glass-bg: rgba(10, 25, 25, 0.85);
+  --glass-border: rgba(20, 184, 166, 0.25);
 }
 
 .theme-holo {
@@ -305,7 +305,7 @@ body {
 }
 
 .theme-nebula input:focus,
-.theme-lavender input:focus,
+.theme-orchid input:focus,
 .theme-aqua input:focus,
 .theme-holo input:focus,
 .theme-sunset input:focus {
@@ -314,32 +314,62 @@ body {
   outline: none;
 }
 
-/* --- LAVENDER LIGHT THEME OVERRIDES --- */
-.theme-lavender,
-.theme-lavender * {
-  color: #6b21a8 !important;
-}
-
-.theme-lavender aside,
-.theme-lavender header {
-  background: rgba(255, 255, 255, 0.25) !important;
-}
-
-.theme-lavender button {
+/* --- ORCHID SILK LIGHT THEME - COMPLETE OVERRIDES (per Image 2) --- */
+/* All text: dark purple */
+.theme-orchid,
+.theme-orchid * {
   color: #581c87 !important;
-  background: rgba(255, 255, 255, 0.3) !important;
 }
 
-.theme-lavender input,
-.theme-lavender textarea {
-  background: rgba(255, 255, 255, 0.5) !important;
-  border: 2px solid #c084fc !important;
+/* Sidebar & Header: frosted white glass */
+.theme-orchid aside,
+.theme-orchid header {
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(20px) !important;
+  border-color: rgba(192, 132, 252, 0.2) !important;
+}
+
+/* Buttons: white glass with subtle purple border */
+.theme-orchid button {
+  background: rgba(255, 255, 255, 0.7) !important;
+  border: 1px solid rgba(192, 132, 252, 0.3) !important;
+  color: #7c3aed !important;
+}
+
+.theme-orchid button:hover {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: #c084fc !important;
+}
+
+/* Input/Toolbar: white glass (NOT dark) */
+.theme-orchid input,
+.theme-orchid textarea {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(192, 132, 252, 0.4) !important;
   color: #581c87 !important;
+}
+
+/* Dropdown: light background for contrast */
+.theme-orchid [role="listbox"],
+.theme-orchid [role="menu"],
+.theme-orchid select,
+.theme-orchid div[class*="dropdown"],
+.theme-orchid div[class*="menu"] {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(192, 132, 252, 0.3) !important;
+}
+
+/* Override any remaining dark elements */
+.theme-orchid div[class*="bg-black"],
+.theme-orchid div[class*="bg-neutral"],
+.theme-orchid div[class*="bg-[#"] {
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(16px) !important;
 }
 
 /* --- HIDE DEFAULT BG FOR GLASS THEMES --- */
 .theme-nebula .static-depth-bg,
-.theme-lavender .static-depth-bg,
+.theme-orchid .static-depth-bg,
 .theme-aqua .static-depth-bg,
 .theme-holo .static-depth-bg,
 .theme-sunset .static-depth-bg {

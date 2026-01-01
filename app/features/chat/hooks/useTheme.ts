@@ -13,7 +13,7 @@ const THEME_IDS = [
   "allied",
   "soviet",
   "nebula",
-  "lavender",
+  "orchid",
   "aqua",
   "holo",
   "sunset",

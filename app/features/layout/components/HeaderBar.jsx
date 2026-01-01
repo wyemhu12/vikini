@@ -27,21 +27,24 @@ export default function HeaderBar({
   onToggleSidebar,
 }) {
   const themeOptions = [
-    { id: "blueprint", label: t?.blueprint ?? "Blueprint", swatch: "#3b82f6" },
-    { id: "amber", label: t?.amber ?? "Amber", swatch: "#d97706" },
-    { id: "indigo", label: t?.indigo ?? "Indigo", swatch: "#6366f1" },
-    { id: "charcoal", label: t?.charcoal ?? "Charcoal", swatch: "#4b5563" },
-    { id: "gold", label: t?.gold ?? "Metallic Gold", swatch: "#d4af37" },
-    { id: "red", label: t?.red ?? "Red", swatch: "#ef4444" },
-    { id: "rose", label: t?.rose ?? "Rose", swatch: "#cc8899" },
-    { id: "yuri", label: t?.yuri ?? "Yuri Purple", swatch: "#a855f7" },
-    { id: "allied", label: t?.allied ?? "Allied Blue", swatch: "#38bdf8" },
-    { id: "soviet", label: t?.soviet ?? "Soviet Red", swatch: "#ef4444" },
-    { id: "nebula", label: t?.nebula ?? "Nebula Glass", swatch: "#22d3ee" },
-    { id: "lavender", label: t?.lavender ?? "Lavender Glass", swatch: "#c084fc" },
-    { id: "aqua", label: t?.aqua ?? "Aqua Glass", swatch: "#14b8a6" },
-    { id: "holo", label: t?.holo ?? "Holo Glass", swatch: "#22d3ee" },
-    { id: "sunset", label: t?.sunset ?? "Sunset Glass", swatch: "#f97316" },
+    // --- GLASSMORPHISM ---
+    { id: "nebula", label: t?.nebula ?? "Nebula Glass", swatch: "#22d3ee", group: "Glassmorphism" },
+    { id: "orchid", label: t?.orchid ?? "Orchid Silk", swatch: "#c084fc", group: "Glassmorphism" },
+    { id: "aqua", label: t?.aqua ?? "Aqua Glass", swatch: "#14b8a6", group: "Glassmorphism" },
+    { id: "holo", label: t?.holo ?? "Holo Glass", swatch: "#22d3ee", group: "Glassmorphism" },
+    { id: "sunset", label: t?.sunset ?? "Sunset Glass", swatch: "#f97316", group: "Glassmorphism" },
+    // --- FOCUS ---
+    { id: "blueprint", label: t?.blueprint ?? "Blueprint", swatch: "#3b82f6", group: "Focus" },
+    { id: "amber", label: t?.amber ?? "Amber", swatch: "#d97706", group: "Focus" },
+    { id: "indigo", label: t?.indigo ?? "Indigo", swatch: "#6366f1", group: "Focus" },
+    { id: "charcoal", label: t?.charcoal ?? "Charcoal", swatch: "#4b5563", group: "Focus" },
+    { id: "gold", label: t?.gold ?? "Metallic Gold", swatch: "#d4af37", group: "Focus" },
+    { id: "red", label: t?.red ?? "Red", swatch: "#ef4444", group: "Focus" },
+    { id: "rose", label: t?.rose ?? "Rose", swatch: "#cc8899", group: "Focus" },
+    // --- RED ALERT 2 ---
+    { id: "yuri", label: t?.yuri ?? "Yuri Purple", swatch: "#a855f7", group: "Red Alert 2" },
+    { id: "allied", label: t?.allied ?? "Allied Blue", swatch: "#38bdf8", group: "Red Alert 2" },
+    { id: "soviet", label: t?.soviet ?? "Soviet Red", swatch: "#ef4444", group: "Red Alert 2" },
   ];
 
   const languageOptions = [
