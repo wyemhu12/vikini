@@ -312,20 +312,67 @@ body {
   outline: none;
 }
 
-/* --- LAVENDER TEXT ADJUSTMENTS --- */
+/* --- LAVENDER COMPREHENSIVE OVERRIDES --- */
+/* Text Colors - STRONG CONTRAST */
 .theme-lavender {
-  color: #581c87;
+  color: #4c1d95 !important;
 }
 
 .theme-lavender .text-neutral-100,
-.theme-lavender .text-white {
-  color: #581c87 !important;
+.theme-lavender .text-white,
+.theme-lavender h1,
+.theme-lavender h2,
+.theme-lavender h3,
+.theme-lavender p,
+.theme-lavender span,
+.theme-lavender a {
+  color: #4c1d95 !important;
 }
 
 .theme-lavender .text-neutral-400,
+.theme-lavender .text-neutral-500,
 .theme-lavender .text-white\/40,
 .theme-lavender .text-white\/30 {
   color: #7c3aed !important;
+}
+
+/* Sidebar Buttons - Glass with Purple Tint */
+.theme-lavender aside button,
+.theme-lavender aside a {
+  background: rgba(255, 255, 255, 0.25) !important;
+  border: 1px solid rgba(192, 132, 252, 0.25) !important;
+  color: #4c1d95 !important;
+}
+
+.theme-lavender aside button:hover,
+.theme-lavender aside a:hover {
+  background: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Toolbar / Bottom Chat Area - GLASS instead of Black */
+.theme-lavender div[class*="bg-black"],
+.theme-lavender div[class*="bg-neutral"],
+.theme-lavender div[class*="bg-[#"] {
+  background: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(192, 132, 252, 0.2) !important;
+}
+
+/* Input Bar specifically */
+.theme-lavender input,
+.theme-lavender textarea {
+  background: rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(192, 132, 252, 0.4) !important;
+  border-radius: 12px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+  color: #4c1d95 !important;
+}
+
+.theme-lavender input::placeholder,
+.theme-lavender textarea::placeholder {
+  color: #7c3aed !important;
+  opacity: 0.8;
 }
 
 /* --- HIDE DEFAULT BG FOR GLASS THEMES --- */
