@@ -195,30 +195,34 @@ body {
 }
 
 /* 
-   BACKGROUND LAYER IMPL 
-   Using ::before to ensure it sits on top of any neutral-950 body color 
+   BACKGROUND IMPLEMENTATION
+   Directly override body background to ensure validity.
 */
-.theme-amethyst body::before,
-.theme-emerald body::before,
-.theme-frosted body::before,
-.theme-holo body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background: var(--theme-bg-image);
-  background-size: cover;
-  background-position: center;
-  pointer-events: none;
-}
-
-/* Force body background transparency so ::before shows through */
 .theme-amethyst body,
 .theme-emerald body,
 .theme-frosted body,
 .theme-holo body {
+  background: var(--theme-bg-image) !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+}
+
+/* Ensure no pseudo-elements block the view */
+.theme-amethyst body::before,
+.theme-emerald body::before,
+.theme-frosted body::before,
+.theme-holo body::before {
+  display: none !important;
+}
+
+/* Force Html to be transparent just in case */
+.theme-amethyst,
+.theme-emerald,
+.theme-frosted,
+.theme-holo {
   background-color: transparent !important;
-  background-image: none !important;
 }
 
 /* Special Case: Frosted Text Colors (Light theme) */
