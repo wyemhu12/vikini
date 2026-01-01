@@ -38,9 +38,10 @@ export default function HeaderBar({
     { id: "allied", label: t?.allied ?? "Allied Blue", swatch: "#38bdf8" },
     { id: "soviet", label: t?.soviet ?? "Soviet Red", swatch: "#ef4444" },
     { id: "amethyst", label: t?.amethyst ?? "Amethyst Glass", swatch: "#8b5cf6" },
-    { id: "emerald", label: t?.emerald ?? "Emerald Glass", swatch: "#10b981" },
-    { id: "lavender", label: t?.lavender ?? "Lavender Glass", swatch: "#c084fc" },
+    { id: "aurora", label: t?.aurora ?? "Aurora Glass", swatch: "#22d3ee" },
+    { id: "aqua", label: t?.aqua ?? "Aqua Glass", swatch: "#2dd4bf" },
     { id: "holo", label: t?.holo ?? "Holo Glass", swatch: "#22d3ee" },
+    { id: "sunset", label: t?.sunset ?? "Sunset Glass", swatch: "#f97316" },
   ];
 
   const languageOptions = [

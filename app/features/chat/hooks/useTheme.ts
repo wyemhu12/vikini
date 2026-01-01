@@ -13,9 +13,10 @@ const THEME_IDS = [
   "allied",
   "soviet",
   "amethyst",
-  "emerald",
-  "lavender",
+  "aurora",
+  "aqua",
   "holo",
+  "sunset",
 ] as const;
 
 export type ThemeId = (typeof THEME_IDS)[number];
