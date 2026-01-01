@@ -14,7 +14,7 @@ const THEME_IDS = [
   "soviet",
   "amethyst",
   "emerald",
-  "frosted",
+  "lavender",
   "holo",
 ] as const;
 

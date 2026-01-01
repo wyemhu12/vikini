@@ -39,7 +39,7 @@ export default function HeaderBar({
     { id: "soviet", label: t?.soviet ?? "Soviet Red", swatch: "#ef4444" },
     { id: "amethyst", label: t?.amethyst ?? "Amethyst Glass", swatch: "#8b5cf6" },
     { id: "emerald", label: t?.emerald ?? "Emerald Glass", swatch: "#10b981" },
-    { id: "frosted", label: t?.frosted ?? "Frosted Glass", swatch: "#e5e7eb" },
+    { id: "lavender", label: t?.lavender ?? "Lavender Glass", swatch: "#c084fc" },
     { id: "holo", label: t?.holo ?? "Holo Glass", swatch: "#22d3ee" },
   ];
 
