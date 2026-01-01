@@ -129,6 +129,8 @@ body {
    Rich backgrounds, heavy blur (crystal effect)
 ======================= */
 
+/* --- DARK GLASS THEMES --- */
+
 .theme-amethyst {
   --primary: #a78bfa;
   /* Light Violet */
@@ -157,67 +159,142 @@ body {
     linear-gradient(to bottom, #02120b, #000000);
 }
 
-/* 
-   Apply the background to the body or main container 
-   when these themes are active 
-*/
-.theme-amethyst body,
-.theme-emerald body {
-  background: var(--theme-bg-image);
-  background-attachment: fixed;
-  background-size: cover;
+/* --- LIGHT / BRIGHT GLASS THEMES --- */
+
+.theme-frosted {
+  --primary: #374151;
+  /* Charcoal Text for contrast */
+  --primary-light: #9ca3af;
+  --primary-dark: #111827;
+  --bg-glow: rgba(255, 255, 255, 0.6);
+
+  /* BRIGHTER Smart Home / Silver Glass Background */
+  --theme-bg-image:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.8), transparent 80%),
+    linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%);
+
+  /* Text adjustments for light theme */
+  --text-primary: #000000;
 }
 
-/* Crystal Button Styles (Floating Glass shards) */
+.theme-holo {
+  --primary: #22d3ee;
+  /* Cyan */
+  --primary-light: #bae6fd;
+  --primary-dark: #0e7490;
+  --bg-glow: rgba(34, 211, 238, 0.5);
+
+  /* VIBRANT Neon Background (High Opacity) */
+  --theme-bg-image:
+    radial-gradient(circle at 10% 10%, rgba(236, 72, 153, 0.8), transparent 50%),
+    /* Pink */ radial-gradient(circle at 90% 10%, rgba(34, 211, 238, 0.8), transparent 50%),
+    /* Cyan */ radial-gradient(circle at 90% 90%, rgba(139, 92, 246, 0.8), transparent 50%),
+    /* Purple */ radial-gradient(circle at 10% 90%, rgba(59, 130, 246, 0.8), transparent 50%),
+    /* Blue */ linear-gradient(to bottom, #1a1a2e, #16213e);
+  /* Dark Blue Base */
+}
+
+/* 
+   BACKGROUND LAYER IMPL 
+   Using ::before to ensure it sits on top of any neutral-950 body color 
+*/
+.theme-amethyst body::before,
+.theme-emerald body::before,
+.theme-frosted body::before,
+.theme-holo body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--theme-bg-image);
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+}
+
+/* Force body background transparency so ::before shows through */
+.theme-amethyst body,
+.theme-emerald body,
+.theme-frosted body,
+.theme-holo body {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* Special Case: Frosted Text Colors (Light theme) */
+.theme-frosted {
+  color: #1f2937;
+}
+
+.theme-frosted .text-neutral-100 {
+  color: #111827 !important;
+}
+
+.theme-frosted .text-neutral-400 {
+  color: #4b5563 !important;
+}
+
+/* Crystal Button Styles (Shared) */
 .theme-amethyst button,
-.theme-emerald button {
+.theme-emerald button,
+.theme-frosted button,
+.theme-holo button {
   backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow:
     0 4px 30px rgba(0, 0, 0, 0.1),
     inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  /* Readable text against glass */
 }
 
 .theme-amethyst button:hover,
-.theme-emerald button:hover {
-  background: rgba(255, 255, 255, 0.1);
+.theme-emerald button:hover,
+.theme-frosted button:hover,
+.theme-holo button:hover {
+  background: rgba(255, 255, 255, 0.15);
   border-color: var(--primary-light);
   box-shadow:
     0 0 20px var(--bg-glow),
-    inset 0 0 20px rgba(255, 255, 255, 0.05);
+    inset 0 0 20px rgba(255, 255, 255, 0.1);
   transform: translateY(-2px) scale(1.02);
 }
 
-/* Sidebar & Containers - Make them transparent panels */
+/* Sidebar & Containers - Shared Transparency */
 .theme-amethyst aside,
 .theme-emerald aside,
+.theme-frosted aside,
+.theme-holo aside,
 .theme-amethyst header,
-.theme-emerald header {
+.theme-emerald header,
+.theme-frosted header,
+.theme-holo header {
   background-color: rgba(20, 20, 25, 0.3) !important;
-  /* Low opacity black */
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
-  /* Subtle glass edge */
 }
 
-/* Input Fields - Deep glass crevices */
+/* Input Fields - Shared */
 .theme-amethyst input,
 .theme-amethyst textarea,
 .theme-emerald input,
-.theme-emerald textarea {
+.theme-emerald textarea,
+.theme-frosted input,
+.theme-frosted textarea,
+.theme-holo input,
+.theme-holo textarea {
   background: rgba(0, 0, 0, 0.3) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   backdrop-filter: blur(4px);
 }
 
 .theme-amethyst input:focus,
-.theme-emerald input:focus {
+.theme-emerald input:focus,
+.theme-frosted input:focus,
+.theme-holo input:focus {
   border-color: var(--primary) !important;
   box-shadow: 0 0 15px var(--bg-glow) !important;
   background: rgba(0, 0, 0, 0.5) !important;
@@ -225,7 +302,9 @@ body {
 
 /* Active Navigation Items */
 .theme-amethyst aside button[data-active="true"],
-.theme-emerald aside button[data-active="true"] {
+.theme-emerald aside button[data-active="true"],
+.theme-frosted aside button[data-active="true"],
+.theme-holo aside button[data-active="true"] {
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0.05) 0%,
