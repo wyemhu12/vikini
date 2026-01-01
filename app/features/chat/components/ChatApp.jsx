@@ -460,7 +460,7 @@ export default function ChatApp() {
   const showLanding = !selectedConversationId || renderedMessages.length === 0;
 
   return (
-    <div className="h-screen w-screen bg-[#050505] text-neutral-100 overflow-hidden relative font-sans">
+    <div className="h-screen w-screen text-neutral-100 overflow-hidden relative font-sans">
       {/* 🌌 Static Professional Background */}
       <div className="absolute inset-0 z-0 static-depth-bg pointer-events-none" />
 

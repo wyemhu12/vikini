@@ -125,61 +125,121 @@ body {
 }
 
 /* =======================
-   GLASSMORPHISM THEMES
-   High transparency, blur, and deep colors
+   TRUE GLASSMORPHISM OVERHAUL
+   Rich backgrounds, heavy blur (crystal effect)
 ======================= */
 
 .theme-amethyst {
-  --primary: #8b5cf6;
-  /* Violet/Purple */
-  --primary-light: #a78bfa;
+  --primary: #a78bfa;
+  /* Light Violet */
+  --primary-light: #c4b5fd;
   --primary-dark: #7c3aed;
-  --bg-glow: rgba(139, 92, 246, 0.25);
+  --bg-glow: rgba(167, 139, 250, 0.3);
+
+  /* Deep Nebula Background */
+  --theme-bg-image:
+    radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.4), transparent 50%),
+    radial-gradient(circle at 85% 30%, rgba(124, 58, 237, 0.25), transparent 50%),
+    linear-gradient(to bottom, #0f0a1e, #020205);
 }
 
 .theme-emerald {
-  --primary: #10b981;
-  /* Emerald/Teal */
-  --primary-light: #34d399;
+  --primary: #34d399;
+  /* Light Emerald */
+  --primary-light: #6ee7b7;
   --primary-dark: #059669;
-  --bg-glow: rgba(16, 185, 129, 0.25);
+  --bg-glow: rgba(52, 211, 153, 0.3);
+
+  /* Deep Sea/Cyber Jungle Background */
+  --theme-bg-image:
+    radial-gradient(circle at 20% 20%, rgba(6, 78, 59, 0.5), transparent 60%),
+    radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.2), transparent 50%),
+    linear-gradient(to bottom, #02120b, #000000);
 }
 
-/* Shared Glassmorphism Button Styles */
+/* 
+   Apply the background to the body or main container 
+   when these themes are active 
+*/
+.theme-amethyst body,
+.theme-emerald body {
+  background: var(--theme-bg-image);
+  background-attachment: fixed;
+  background-size: cover;
+}
+
+/* Crystal Button Styles (Floating Glass shards) */
 .theme-amethyst button,
 .theme-emerald button {
-  backdrop-filter: blur(12px);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  transition: all 0.3s ease;
+    0 4px 30px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  /* Readable text against glass */
 }
 
 .theme-amethyst button:hover,
 .theme-emerald button:hover {
   background: rgba(255, 255, 255, 0.1);
-  border-color: var(--primary);
-  box-shadow: 0 0 15px var(--bg-glow);
-  transform: translateY(-1px);
+  border-color: var(--primary-light);
+  box-shadow:
+    0 0 20px var(--bg-glow),
+    inset 0 0 20px rgba(255, 255, 255, 0.05);
+  transform: translateY(-2px) scale(1.02);
 }
 
-/* Active states for sidebar/navigation in Glassmorphism themes */
+/* Sidebar & Containers - Make them transparent panels */
+.theme-amethyst aside,
+.theme-emerald aside,
+.theme-amethyst header,
+.theme-emerald header {
+  background-color: rgba(20, 20, 25, 0.3) !important;
+  /* Low opacity black */
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  /* Subtle glass edge */
+}
+
+/* Input Fields - Deep glass crevices */
+.theme-amethyst input,
+.theme-amethyst textarea,
+.theme-emerald input,
+.theme-emerald textarea {
+  background: rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(4px);
+}
+
+.theme-amethyst input:focus,
+.theme-emerald input:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 15px var(--bg-glow) !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Active Navigation Items */
 .theme-amethyst aside button[data-active="true"],
-.theme-amethyst aside a[data-active="true"],
-.theme-emerald aside button[data-active="true"],
-.theme-emerald aside a[data-active="true"] {
+.theme-emerald aside button[data-active="true"] {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    rgba(255, 255, 255, 0.08) 100%
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0) 100%
   ) !important;
-  border-left: 3px solid var(--primary) !important;
-  border-right: none !important;
-  border-top: none !important;
-  border-bottom: none !important;
-  box-shadow: 0 0 20px var(--bg-glow) !important;
+  border-left: 2px solid var(--primary) !important;
+  box-shadow: 0 0 20px -5px var(--bg-glow) !important;
+}
+
+/* Hide the default static background overlay for Glass themes to let the body gradient show */
+.theme-amethyst .static-depth-bg,
+.theme-emerald .static-depth-bg {
+  background: none !important;
+  display: none;
 }
 
 /* =======================
@@ -589,6 +649,7 @@ body {
   100% {
     transform: scale(0);
   }
+
   40% {
     transform: scale(1);
   }
