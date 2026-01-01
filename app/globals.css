@@ -114,6 +114,7 @@ body {
   --theme-bg-image: url("/assets/themes/allied.png");
 }
 
+/* Soviet themed background */
 .theme-soviet {
   --primary: #ef4444;
   /* Red */
@@ -121,6 +122,64 @@ body {
   --primary-dark: #b91c1c;
   --bg-glow: rgba(239, 68, 68, 0.15);
   --theme-bg-image: url("/assets/themes/soviet.png");
+}
+
+/* =======================
+   GLASSMORPHISM THEMES
+   High transparency, blur, and deep colors
+======================= */
+
+.theme-amethyst {
+  --primary: #8b5cf6;
+  /* Violet/Purple */
+  --primary-light: #a78bfa;
+  --primary-dark: #7c3aed;
+  --bg-glow: rgba(139, 92, 246, 0.25);
+}
+
+.theme-emerald {
+  --primary: #10b981;
+  /* Emerald/Teal */
+  --primary-light: #34d399;
+  --primary-dark: #059669;
+  --bg-glow: rgba(16, 185, 129, 0.25);
+}
+
+/* Shared Glassmorphism Button Styles */
+.theme-amethyst button,
+.theme-emerald button {
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.theme-amethyst button:hover,
+.theme-emerald button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--primary);
+  box-shadow: 0 0 15px var(--bg-glow);
+  transform: translateY(-1px);
+}
+
+/* Active states for sidebar/navigation in Glassmorphism themes */
+.theme-amethyst aside button[data-active="true"],
+.theme-amethyst aside a[data-active="true"],
+.theme-emerald aside button[data-active="true"],
+.theme-emerald aside a[data-active="true"] {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.08) 100%
+  ) !important;
+  border-left: 3px solid var(--primary) !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  box-shadow: 0 0 20px var(--bg-glow) !important;
 }
 
 /* =======================

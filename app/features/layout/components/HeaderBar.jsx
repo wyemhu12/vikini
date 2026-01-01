@@ -37,6 +37,8 @@ export default function HeaderBar({
     { id: "yuri", label: t?.yuri ?? "Yuri Purple", swatch: "#a855f7" },
     { id: "allied", label: t?.allied ?? "Allied Blue", swatch: "#38bdf8" },
     { id: "soviet", label: t?.soviet ?? "Soviet Red", swatch: "#ef4444" },
+    { id: "amethyst", label: t?.amethyst ?? "Amethyst", swatch: "#8b5cf6" },
+    { id: "emerald", label: t?.emerald ?? "Emerald", swatch: "#10b981" },
   ];
 
   const languageOptions = [
