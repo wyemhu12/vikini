@@ -191,8 +191,8 @@ body {
     linear-gradient(180deg, #0f172a 0%, #1a1a3e 50%, #0f0f20 100%) !important;
 }
 
-/* LAVENDER - Pastel gradient */
-.theme-lavender body {
+/* ORCHID SILK - Pastel gradient */
+.theme-orchid body {
   background:
     radial-gradient(ellipse at 30% 0%, rgba(233, 213, 255, 0.8) 0%, transparent 50%),
     radial-gradient(ellipse at 70% 100%, rgba(244, 114, 182, 0.5) 0%, transparent 50%),
@@ -357,6 +357,13 @@ body {
 .theme-orchid div[class*="menu"] {
   background: rgba(255, 255, 255, 0.95) !important;
   border: 1px solid rgba(192, 132, 252, 0.3) !important;
+}
+
+/* Select option styling for Orchid */
+.theme-orchid select option,
+.theme-orchid select optgroup {
+  background: #ffffff !important;
+  color: #581c87 !important;
 }
 
 /* Override any remaining dark elements */

@@ -140,11 +140,33 @@ export default function HeaderBar({
                  backdrop-blur-md
                "
             >
-              {themeOptions.map((th) => (
-                <option key={th.id} value={th.id} className="bg-[#0f172a] text-white">
-                  {th.label}
-                </option>
-              ))}
+              <optgroup label="✨ Glassmorphism" className="bg-[#0f172a] text-white font-bold">
+                {themeOptions
+                  .filter((th) => th.group === "Glassmorphism")
+                  .map((th) => (
+                    <option key={th.id} value={th.id} className="bg-[#1e293b] text-white">
+                      {th.label}
+                    </option>
+                  ))}
+              </optgroup>
+              <optgroup label="🎯 Focus" className="bg-[#0f172a] text-white font-bold">
+                {themeOptions
+                  .filter((th) => th.group === "Focus")
+                  .map((th) => (
+                    <option key={th.id} value={th.id} className="bg-[#1e293b] text-white">
+                      {th.label}
+                    </option>
+                  ))}
+              </optgroup>
+              <optgroup label="🎮 Red Alert 2" className="bg-[#0f172a] text-white font-bold">
+                {themeOptions
+                  .filter((th) => th.group === "Red Alert 2")
+                  .map((th) => (
+                    <option key={th.id} value={th.id} className="bg-[#1e293b] text-white">
+                      {th.label}
+                    </option>
+                  ))}
+              </optgroup>
             </select>
           </div>
         </div>
