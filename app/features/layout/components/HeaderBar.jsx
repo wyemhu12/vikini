@@ -37,9 +37,9 @@ export default function HeaderBar({
     { id: "yuri", label: t?.yuri ?? "Yuri Purple", swatch: "#a855f7" },
     { id: "allied", label: t?.allied ?? "Allied Blue", swatch: "#38bdf8" },
     { id: "soviet", label: t?.soviet ?? "Soviet Red", swatch: "#ef4444" },
-    { id: "amethyst", label: t?.amethyst ?? "Amethyst Glass", swatch: "#8b5cf6" },
-    { id: "aurora", label: t?.aurora ?? "Aurora Glass", swatch: "#22d3ee" },
-    { id: "aqua", label: t?.aqua ?? "Aqua Glass", swatch: "#2dd4bf" },
+    { id: "nebula", label: t?.nebula ?? "Nebula Glass", swatch: "#22d3ee" },
+    { id: "lavender", label: t?.lavender ?? "Lavender Glass", swatch: "#c084fc" },
+    { id: "aqua", label: t?.aqua ?? "Aqua Glass", swatch: "#14b8a6" },
     { id: "holo", label: t?.holo ?? "Holo Glass", swatch: "#22d3ee" },
     { id: "sunset", label: t?.sunset ?? "Sunset Glass", swatch: "#f97316" },
   ];

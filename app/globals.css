@@ -130,33 +130,35 @@ body {
 ======================= */
 
 /* --- THEME COLOR DEFINITIONS --- */
-.theme-amethyst {
-  --primary: #a78bfa;
-  --primary-light: #c4b5fd;
-  --primary-dark: #7c3aed;
-  --bg-glow: rgba(167, 139, 250, 0.4);
-  --glass-bg: rgba(30, 20, 50, 0.6);
-  --glass-border: rgba(167, 139, 250, 0.3);
-}
 
-/* AURORA - Dark Blue/Cyan/Magenta (Image 1+2) */
-.theme-aurora {
+/* NEBULA - Dark Navy + Cyan Beam + Magenta (Images 2+3) */
+.theme-nebula {
   --primary: #22d3ee;
   --primary-light: #a5f3fc;
   --primary-dark: #0891b2;
   --bg-glow: rgba(34, 211, 238, 0.5);
-  --glass-bg: rgba(15, 23, 42, 0.7);
-  --glass-border: rgba(34, 211, 238, 0.25);
+  --glass-bg: rgba(30, 40, 80, 0.7);
+  --glass-border: rgba(34, 211, 238, 0.3);
 }
 
-/* AQUA - Dark Teal/Mint (Image 4) */
+/* LAVENDER - Pastel Purple/Pink Light Theme */
+.theme-lavender {
+  --primary: #c084fc;
+  --primary-light: #e9d5ff;
+  --primary-dark: #9333ea;
+  --bg-glow: rgba(192, 132, 252, 0.4);
+  --glass-bg: rgba(255, 255, 255, 0.15);
+  --glass-border: rgba(192, 132, 252, 0.3);
+}
+
+/* AQUA - Pure Black + Subtle Teal (Image 4) */
 .theme-aqua {
-  --primary: #2dd4bf;
-  --primary-light: #5eead4;
+  --primary: #14b8a6;
+  --primary-light: #2dd4bf;
   --primary-dark: #0d9488;
-  --bg-glow: rgba(45, 212, 191, 0.4);
-  --glass-bg: rgba(10, 20, 20, 0.75);
-  --glass-border: rgba(45, 212, 191, 0.2);
+  --bg-glow: rgba(20, 184, 166, 0.3);
+  --glass-bg: rgba(10, 15, 15, 0.9);
+  --glass-border: rgba(20, 184, 166, 0.15);
 }
 
 .theme-holo {
@@ -168,39 +170,41 @@ body {
   --glass-border: rgba(34, 211, 238, 0.3);
 }
 
-/* SUNSET - Black/Orange/Amber (Image 3) */
+/* SUNSET - Black + Bright Orange Glow (Image 1) */
 .theme-sunset {
   --primary: #f97316;
-  --primary-light: #fdba74;
-  --primary-dark: #c2410c;
-  --bg-glow: rgba(249, 115, 22, 0.5);
-  --glass-bg: rgba(20, 10, 5, 0.8);
-  --glass-border: rgba(249, 115, 22, 0.3);
+  --primary-light: #fb923c;
+  --primary-dark: #ea580c;
+  --bg-glow: rgba(249, 115, 22, 0.6);
+  --glass-bg: rgba(25, 15, 10, 0.85);
+  --glass-border: rgba(251, 146, 60, 0.4);
 }
 
 /* --- VIBRANT BACKGROUNDS --- */
-.theme-amethyst body {
+
+/* NEBULA - Cyan beam from top center + magenta corner */
+.theme-nebula body {
   background:
-    radial-gradient(ellipse at 20% 0%, rgba(139, 92, 246, 0.5) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 100%, rgba(76, 29, 149, 0.4) 0%, transparent 50%),
-    linear-gradient(180deg, #1a0a2e 0%, #0d0015 100%) !important;
+    radial-gradient(ellipse at 50% -10%, rgba(34, 211, 238, 0.6) 0%, transparent 45%),
+    radial-gradient(ellipse at 85% 15%, rgba(236, 72, 153, 0.4) 0%, transparent 35%),
+    radial-gradient(ellipse at 15% 85%, rgba(59, 130, 246, 0.25) 0%, transparent 45%),
+    linear-gradient(180deg, #0f172a 0%, #1a1a3e 50%, #0f0f20 100%) !important;
 }
 
-/* AURORA - Cyan beam from top + magenta accents */
-.theme-aurora body {
+/* LAVENDER - Pastel gradient */
+.theme-lavender body {
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(34, 211, 238, 0.4) 0%, transparent 40%),
-    radial-gradient(ellipse at 80% 20%, rgba(236, 72, 153, 0.3) 0%, transparent 35%),
-    radial-gradient(ellipse at 20% 80%, rgba(59, 130, 246, 0.2) 0%, transparent 40%),
-    linear-gradient(180deg, #0f172a 0%, #020617 100%) !important;
+    radial-gradient(ellipse at 30% 0%, rgba(233, 213, 255, 0.8) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 100%, rgba(244, 114, 182, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse at 100% 50%, rgba(192, 132, 252, 0.4) 0%, transparent 40%),
+    linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #fce7f3 100%) !important;
 }
 
-/* AQUA - Subtle teal glow */
+/* AQUA - Pure black with very subtle teal hint */
 .theme-aqua body {
   background:
-    radial-gradient(ellipse at 50% 30%, rgba(45, 212, 191, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 70%, rgba(20, 184, 166, 0.1) 0%, transparent 40%),
-    linear-gradient(180deg, #0a0a0a 0%, #000000 100%) !important;
+    radial-gradient(ellipse at 50% 50%, rgba(20, 184, 166, 0.08) 0%, transparent 60%),
+    linear-gradient(180deg, #050505 0%, #000000 100%) !important;
 }
 
 .theme-holo body {
@@ -212,22 +216,27 @@ body {
     linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%) !important;
 }
 
-/* SUNSET - Orange glow from top */
+/* SUNSET - Bright orange horizon glow */
 .theme-sunset body {
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(249, 115, 22, 0.35) 0%, transparent 45%),
-    radial-gradient(ellipse at 30% 50%, rgba(251, 191, 36, 0.15) 0%, transparent 40%),
-    linear-gradient(180deg, #0c0a09 0%, #000000 100%) !important;
+    radial-gradient(
+      ellipse at 50% 0%,
+      rgba(249, 115, 22, 0.7) 0%,
+      rgba(251, 146, 60, 0.3) 30%,
+      transparent 50%
+    ),
+    radial-gradient(ellipse at 50% 100%, rgba(234, 88, 12, 0.25) 0%, transparent 40%),
+    linear-gradient(180deg, #1a0a00 0%, #0c0a09 30%, #000000 100%) !important;
 }
 
 /* --- GLASS PANEL (Sidebar, Header) --- */
-.theme-amethyst aside,
-.theme-aurora aside,
+.theme-nebula aside,
+.theme-lavender aside,
 .theme-aqua aside,
 .theme-holo aside,
 .theme-sunset aside,
-.theme-amethyst header,
-.theme-aurora header,
+.theme-nebula header,
+.theme-lavender header,
 .theme-aqua header,
 .theme-holo header,
 .theme-sunset header {
@@ -246,8 +255,8 @@ body {
 }
 
 /* --- GLASS BUTTONS (Redesigned) --- */
-.theme-amethyst button,
-.theme-aurora button,
+.theme-nebula button,
+.theme-lavender button,
 .theme-aqua button,
 .theme-holo button,
 .theme-sunset button {
@@ -263,8 +272,8 @@ body {
   color: #ffffff;
 }
 
-.theme-amethyst button:hover,
-.theme-aurora button:hover,
+.theme-nebula button:hover,
+.theme-lavender button:hover,
 .theme-aqua button:hover,
 .theme-holo button:hover,
 .theme-sunset button:hover {
@@ -277,10 +286,10 @@ body {
 }
 
 /* --- GLASS INPUTS --- */
-.theme-amethyst input,
-.theme-amethyst textarea,
-.theme-aurora input,
-.theme-aurora textarea,
+.theme-nebula input,
+.theme-nebula textarea,
+.theme-lavender input,
+.theme-lavender textarea,
 .theme-aqua input,
 .theme-aqua textarea,
 .theme-holo input,
@@ -295,8 +304,8 @@ body {
   color: #ffffff;
 }
 
-.theme-amethyst input:focus,
-.theme-aurora input:focus,
+.theme-nebula input:focus,
+.theme-lavender input:focus,
 .theme-aqua input:focus,
 .theme-holo input:focus,
 .theme-sunset input:focus {
@@ -305,9 +314,32 @@ body {
   outline: none;
 }
 
+/* --- LAVENDER LIGHT THEME OVERRIDES --- */
+.theme-lavender,
+.theme-lavender * {
+  color: #6b21a8 !important;
+}
+
+.theme-lavender aside,
+.theme-lavender header {
+  background: rgba(255, 255, 255, 0.25) !important;
+}
+
+.theme-lavender button {
+  color: #581c87 !important;
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.theme-lavender input,
+.theme-lavender textarea {
+  background: rgba(255, 255, 255, 0.5) !important;
+  border: 2px solid #c084fc !important;
+  color: #581c87 !important;
+}
+
 /* --- HIDE DEFAULT BG FOR GLASS THEMES --- */
-.theme-amethyst .static-depth-bg,
-.theme-aurora .static-depth-bg,
+.theme-nebula .static-depth-bg,
+.theme-lavender .static-depth-bg,
 .theme-aqua .static-depth-bg,
 .theme-holo .static-depth-bg,
 .theme-sunset .static-depth-bg {
