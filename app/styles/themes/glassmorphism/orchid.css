@@ -1,0 +1,406 @@
+/* =====================================================
+   ORCHID SILK - READABLE GLASS COMPONENT SYSTEM
+   WCAG AA Compliant Text + Glass-Lite Aesthetic
+   ===================================================== */
+
+/* --- THEME VARIABLES --- */
+.theme-orchid {
+  /* === Primary Accents (Orchid / Violet) === */
+  --primary: #a855f7;
+  --primary-light: #c084fc;
+  --primary-dark: #7c3aed;
+
+  /* === Secondary Accents (Lilac / Periwinkle) === */
+  --secondary: #818cf8;
+  --secondary-light: #a5b4fc;
+
+  /* === Warm Highlight (Blush / Pink) === */
+  --blush: #f472b6;
+  --blush-light: #fbcfe8;
+
+  /* === TEXT TOKENS (Readable - WCAG AA Compliant) === */
+  --text-1: #2e1a47;
+  --text-2: #5a4270;
+  --text-3: #7a6490;
+  --text-placeholder: #9080a8;
+
+  /* === GLASS SURFACES (Higher Opacity for Readability) === */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-bg-strong: rgba(255, 255, 255, 0.85);
+  --glass-blur: 16px;
+  --glass-border: rgba(168, 85, 247, 0.18);
+  --glass-border-hover: rgba(168, 85, 247, 0.35);
+
+  /* === Shadows (soft, wide, low-contrast) === */
+  --shadow-soft: 0 8px 32px rgba(147, 51, 234, 0.1);
+  --shadow-glow: 0 0 20px rgba(168, 85, 247, 0.18);
+  --shadow-float: 0 12px 40px rgba(147, 51, 234, 0.14);
+
+  /* === Radii (large, pill) === */
+  --r-xl: 28px;
+  --r-lg: 20px;
+  --r-md: 14px;
+  --r-pill: 999px;
+
+  /* === Background Gradient Colors === */
+  --bg-lavender: #f3e8ff;
+  --bg-blush: #fce7f3;
+  --bg-lilac: #ede9fe;
+
+  /* === Reading Surface (for long text areas) === */
+  --reading-bg: rgba(255, 255, 255, 0.88);
+  --reading-blur: 12px;
+}
+
+/* --- BACKGROUND --- */
+.theme-orchid body {
+  background:
+        /* Bokeh dots */
+    radial-gradient(circle at 15% 20%, rgba(168, 85, 247, 0.12) 0%, transparent 8%),
+    radial-gradient(circle at 85% 15%, rgba(244, 114, 182, 0.1) 0%, transparent 6%),
+    radial-gradient(circle at 70% 75%, rgba(129, 140, 248, 0.08) 0%, transparent 10%),
+    radial-gradient(circle at 25% 80%, rgba(192, 132, 252, 0.1) 0%, transparent 7%),
+    radial-gradient(circle at 50% 50%, rgba(251, 207, 232, 0.06) 0%, transparent 15%),
+    /* Large radial glows */
+    radial-gradient(ellipse at 20% 10%, rgba(243, 232, 255, 0.9) 0%, transparent 45%),
+    radial-gradient(ellipse at 80% 20%, rgba(252, 231, 243, 0.8) 0%, transparent 40%),
+    radial-gradient(ellipse at 60% 90%, rgba(237, 233, 254, 0.7) 0%, transparent 45%),
+    radial-gradient(ellipse at 10% 70%, rgba(251, 207, 232, 0.5) 0%, transparent 35%),
+    /* Base gradient */
+    linear-gradient(135deg, var(--bg-lavender) 0%, var(--bg-lilac) 40%, var(--bg-blush) 100%) !important;
+}
+
+/* ===========================================
+   TEXT COLORS & TYPOGRAPHY (Readable)
+   =========================================== */
+
+.theme-orchid,
+.theme-orchid h1,
+.theme-orchid h2,
+.theme-orchid h3,
+.theme-orchid p,
+.theme-orchid span,
+.theme-orchid label,
+.theme-orchid li,
+.theme-orchid td,
+.theme-orchid th {
+  color: var(--text-1) !important;
+  font-weight: 450;
+}
+
+/* Body text: comfortable line height for readability */
+.theme-orchid p,
+.theme-orchid li {
+  line-height: 1.65 !important;
+}
+
+/* Headings: semibold for hierarchy */
+.theme-orchid h1,
+.theme-orchid h2,
+.theme-orchid h3 {
+  font-weight: 600 !important;
+}
+
+/* Secondary text: still readable, not washed out */
+.theme-orchid .text-neutral-400,
+.theme-orchid .text-neutral-500,
+.theme-orchid .text-muted,
+.theme-orchid small {
+  color: var(--text-2) !important;
+}
+
+/* Anchor/link colors */
+.theme-orchid a {
+  color: var(--primary-dark) !important;
+}
+
+/* ===========================================
+   GLASS COMPONENTS
+   =========================================== */
+
+/* === SIDEBAR: Glass Panel === */
+.theme-orchid aside {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-left: none !important;
+  box-shadow: var(--shadow-float) !important;
+}
+
+/* Sidebar list items: pill rows */
+.theme-orchid aside a,
+.theme-orchid aside button {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--r-pill) !important;
+  transition: all 0.18s ease !important;
+}
+
+.theme-orchid aside a:hover,
+.theme-orchid aside button:hover {
+  background: var(--glass-bg) !important;
+  border-color: var(--glass-border) !important;
+  box-shadow: var(--shadow-glow) !important;
+}
+
+/* Active sidebar item */
+.theme-orchid aside a[aria-current],
+.theme-orchid aside a.active {
+  background: rgba(168, 85, 247, 0.12) !important;
+  border-color: var(--glass-border-hover) !important;
+}
+
+/* === HEADER: Thin Frosted Glass Bar === */
+.theme-orchid header {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-top: none !important;
+  border-left: none !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+/* === BUTTONS: Pill Glass with Violet Tint === */
+.theme-orchid button {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--r-pill) !important;
+  box-shadow: var(--shadow-soft) !important;
+  color: var(--primary-dark) !important;
+  transition: all 0.18s ease !important;
+}
+
+.theme-orchid button:hover {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-color: var(--glass-border-hover) !important;
+  box-shadow: var(--shadow-glow), var(--shadow-soft) !important;
+  transform: translateY(-1px) !important;
+}
+
+.theme-orchid button:active {
+  transform: translateY(0) !important;
+  box-shadow: inset 0 2px 8px rgba(147, 51, 234, 0.1) !important;
+}
+
+/* Primary button: accent gradient */
+.theme-orchid button[class*="bg-[var(--primary)"] {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%) !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: var(--shadow-glow), var(--shadow-soft) !important;
+}
+
+/* === INPUTS: Glass Inset Style === */
+.theme-orchid input,
+.theme-orchid textarea {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--r-lg) !important;
+  box-shadow: inset 0 2px 8px rgba(147, 51, 234, 0.06) !important;
+  color: var(--text-1) !important;
+  transition: all 0.18s ease !important;
+}
+
+.theme-orchid input::placeholder,
+.theme-orchid textarea::placeholder {
+  color: var(--text-placeholder) !important;
+  font-weight: 400 !important;
+}
+
+.theme-orchid input:focus,
+.theme-orchid textarea:focus {
+  border-color: var(--primary-light) !important;
+  box-shadow:
+    var(--shadow-glow),
+    inset 0 2px 8px rgba(147, 51, 234, 0.06) !important;
+  outline: none !important;
+}
+
+/* === CHAT COMPOSER: Floating Glass Toolbar === */
+.theme-orchid form.rounded-3xl,
+.theme-orchid form[class*="bg-[#"] {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--r-xl) !important;
+  box-shadow: var(--shadow-float) !important;
+}
+
+/* Send button: circular accent */
+.theme-orchid form button[type="submit"] {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 50% !important;
+  box-shadow: var(--shadow-glow) !important;
+}
+
+/* === DROPDOWNS & MENUS: Glass Cards === */
+.theme-orchid [role="listbox"],
+.theme-orchid [role="menu"],
+.theme-orchid select,
+.theme-orchid div[class*="dropdown"],
+.theme-orchid div[class*="menu"],
+.theme-orchid div[class*="popover"],
+.theme-orchid div[class*="Popover"] {
+  background: var(--reading-bg) !important;
+  backdrop-filter: blur(16px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--r-lg) !important;
+  box-shadow: var(--shadow-float) !important;
+}
+
+/* Select dropdown text: explicit dark color for WCAG AA */
+.theme-orchid select {
+  color: #2e1a47 !important;
+}
+
+/* Option elements: solid lavender bg + dark text for readability */
+.theme-orchid select option,
+.theme-orchid select optgroup {
+  background: #f3e8ff !important;
+  color: #2e1a47 !important;
+  font-weight: 500 !important;
+}
+
+/* Optgroup labels: slightly darker for hierarchy */
+.theme-orchid select optgroup {
+  background: #ede9fe !important;
+  color: #1e1033 !important;
+  font-weight: 600 !important;
+}
+
+/* Selected option: accent tint but dark text maintained */
+.theme-orchid select option:checked,
+.theme-orchid select option:hover {
+  background: #ddd6fe !important;
+  color: #1e1033 !important;
+}
+
+/* === MODALS & DIALOGS: Glass Overlay === */
+.theme-orchid [role="dialog"],
+.theme-orchid div[class*="modal"],
+.theme-orchid div[class*="Modal"] {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--r-xl) !important;
+  box-shadow:
+    var(--shadow-float),
+    0 0 80px rgba(168, 85, 247, 0.08) !important;
+}
+
+/* Modal backdrop: violet haze */
+.theme-orchid div[class*="backdrop"],
+.theme-orchid div[class*="bg-black/"] {
+  background: rgba(168, 85, 247, 0.15) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* === CARDS & PANELS: Frosted Glass === */
+.theme-orchid div[class*="bg-neutral"],
+.theme-orchid div[class*="bg-slate"],
+.theme-orchid div[class*="bg-zinc"],
+.theme-orchid div[class*="bg-gray"],
+.theme-orchid div[class*="bg-[#0"],
+.theme-orchid div[class*="bg-[#1"] {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(var(--reading-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--reading-blur)) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--r-lg) !important;
+}
+
+/* === READING SURFACE: Main Content & Chat Area === */
+.theme-orchid main,
+.theme-orchid section[class*="chat"],
+.theme-orchid div[class*="message-list"],
+.theme-orchid div[class*="chat-content"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%),
+    var(--glass-bg-strong) !important;
+}
+
+/* === CHAT BUBBLES: Milky glass for readability === */
+.theme-orchid div[class*="message"],
+.theme-orchid div[class*="bubble"] {
+  background: var(--reading-bg) !important;
+  backdrop-filter: blur(var(--reading-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--reading-blur)) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--r-lg) !important;
+  box-shadow: var(--shadow-soft) !important;
+  color: var(--text-1) !important;
+}
+
+/* User bubbles: lightly tinted violet */
+.theme-orchid div[class*="user"] div[class*="message"],
+.theme-orchid div[class*="user"] div[class*="bubble"] {
+  background:
+    linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(129, 140, 248, 0.08) 100%),
+    var(--reading-bg) !important;
+}
+
+/* Timestamps/metadata: secondary but visible */
+.theme-orchid time,
+.theme-orchid span[class*="timestamp"],
+.theme-orchid span[class*="time"],
+.theme-orchid .text-xs {
+  color: var(--text-2) !important;
+}
+
+/* === MARKDOWN/LONG-FORM CONTENT: Reading Card === */
+.theme-orchid article,
+.theme-orchid div[class*="markdown"],
+.theme-orchid div[class*="prose"],
+.theme-orchid div[class*="content"] {
+  background: var(--reading-bg) !important;
+  backdrop-filter: blur(var(--reading-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--reading-blur)) !important;
+  border-radius: var(--r-lg) !important;
+  padding: 1.5rem !important;
+  color: var(--text-1) !important;
+  line-height: 1.7 !important;
+  max-width: 75ch;
+}
+
+/* === GEM CARDS: Frosted White Glass === */
+.theme-orchid div[class*="gem"],
+.theme-orchid div[class*="Gem"] {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--r-lg) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+/* === SCROLLBARS: Thin, Rounded, Glass === */
+.theme-orchid ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.theme-orchid ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.theme-orchid ::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.2);
+  border-radius: var(--r-pill);
+}
+
+.theme-orchid ::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 247, 0.35);
+}
+
+/* --- HIDE DEFAULT BG --- */
+.theme-orchid .static-depth-bg {
+  display: none !important;
+}

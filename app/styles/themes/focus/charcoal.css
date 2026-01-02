@@ -1,0 +1,10 @@
+/* ===========================================
+   FOCUS THEMES - Charcoal (Xám-đen)
+   =========================================== */
+
+.theme-charcoal {
+  --primary: #9ca3af;
+  --primary-light: #d1d5db;
+  --primary-dark: #4b5563;
+  --bg-glow: rgba(255, 255, 255, 0.05);
+}

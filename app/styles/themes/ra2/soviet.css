@@ -1,0 +1,150 @@
+/* ===========================================
+   RED ALERT 2 - Soviet Red Theme
+   Inspired by Red Alert 2 menu buttons
+   =========================================== */
+
+/* --- THEME VARIABLES --- */
+.theme-soviet {
+  --primary: #ef4444;
+  --primary-light: #fca5a5;
+  --primary-dark: #b91c1c;
+  --bg-glow: rgba(239, 68, 68, 0.15);
+  --theme-bg-image: url("/assets/themes/soviet.png");
+}
+
+/* --- STATIC BACKGROUND --- */
+.theme-soviet .static-depth-bg {
+  background:
+    radial-gradient(circle at 50% 30%, var(--bg-glow), transparent 60%),
+    linear-gradient(to bottom, rgba(5, 5, 5, 0.95), rgba(0, 0, 0, 0.98));
+  position: relative;
+}
+
+/* Soviet watermark */
+.theme-soviet .static-depth-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/assets/themes/soviet.png");
+  background-size: 35%;
+  background-position: center 40%;
+  background-repeat: no-repeat;
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Pulsing glow */
+.theme-soviet .static-depth-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 40%, var(--bg-glow), transparent 50%);
+  animation: ra2-glow 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* --- BUTTONS --- */
+.theme-soviet button {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+}
+
+.theme-soviet button:hover {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+}
+
+/* Glossy overlay */
+.theme-soviet button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.03) 50%,
+    transparent 50%
+  );
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Send button */
+.theme-soviet button[type="submit"] {
+  background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
+  box-shadow: 0 0 25px var(--primary) !important;
+}
+
+/* Input focus */
+.theme-soviet input:focus,
+.theme-soviet textarea:focus {
+  box-shadow:
+    0 0 0 2px var(--primary),
+    0 0 15px var(--bg-glow);
+  border-color: var(--primary) !important;
+}
+
+/* --- SIDEBAR --- */
+.theme-soviet aside {
+  background: linear-gradient(
+    180deg,
+    rgba(20, 20, 25, 0.98) 0%,
+    rgba(10, 10, 15, 0.99) 100%
+  ) !important;
+}
+
+/* RA2 styled sidebar buttons */
+.theme-soviet aside button,
+.theme-soviet aside a {
+  position: relative !important;
+  background: linear-gradient(
+    180deg,
+    rgba(40, 40, 50, 0.9) 0%,
+    rgba(25, 25, 35, 0.95) 50%,
+    rgba(30, 30, 40, 0.9) 100%
+  ) !important;
+  border: 1px solid rgba(100, 100, 120, 0.4) !important;
+  border-top-color: rgba(150, 150, 170, 0.3) !important;
+  border-bottom-color: rgba(30, 30, 40, 0.8) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Inner glow effect */
+.theme-soviet aside button::before,
+.theme-soviet aside a::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 3px !important;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(239, 68, 68, 0.18) 0%,
+    transparent 70%
+  ) !important;
+  pointer-events: none !important;
+  border-radius: inherit !important;
+}
+
+.theme-soviet aside button:hover,
+.theme-soviet aside a:hover {
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  box-shadow:
+    inset 0 0 20px rgba(239, 68, 68, 0.25),
+    0 0 15px rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Active/selected state */
+.theme-soviet aside button[data-active="true"],
+.theme-soviet aside a[data-active="true"],
+.theme-soviet aside .active {
+  border-color: rgba(239, 68, 68, 0.6) !important;
+  box-shadow:
+    inset 0 0 25px rgba(239, 68, 68, 0.35),
+    0 0 20px rgba(239, 68, 68, 0.4) !important;
+}

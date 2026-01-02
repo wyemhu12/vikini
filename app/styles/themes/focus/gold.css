@@ -1,0 +1,10 @@
+/* ===========================================
+   FOCUS THEMES - Gold (Vàng ánh kim)
+   =========================================== */
+
+.theme-gold {
+  --primary: #fbbf24;
+  --primary-light: #fde68a;
+  --primary-dark: #d97706;
+  --bg-glow: rgba(251, 191, 36, 0.08);
+}

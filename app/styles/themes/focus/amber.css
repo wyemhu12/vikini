@@ -1,0 +1,10 @@
+/* ===========================================
+   FOCUS THEMES - Amber (Cam-nâu)
+   =========================================== */
+
+.theme-amber {
+  --primary: #f59e0b;
+  --primary-light: #fcd34d;
+  --primary-dark: #b45309;
+  --bg-glow: rgba(245, 158, 11, 0.08);
+}

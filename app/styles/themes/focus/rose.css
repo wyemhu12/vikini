@@ -1,0 +1,10 @@
+/* ===========================================
+   FOCUS THEMES - Rose (Hồng nhạt)
+   =========================================== */
+
+.theme-rose {
+  --primary: #fb7185;
+  --primary-light: #fecdd3;
+  --primary-dark: #e11d48;
+  --bg-glow: rgba(251, 113, 133, 0.08);
+}

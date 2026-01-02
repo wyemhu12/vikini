@@ -1,0 +1,10 @@
+/* ===========================================
+   FOCUS THEMES - Indigo (Tím-xanh)
+   =========================================== */
+
+.theme-indigo {
+  --primary: #818cf8;
+  --primary-light: #a5b4fc;
+  --primary-dark: #4f46e5;
+  --bg-glow: rgba(129, 140, 248, 0.08);
+}

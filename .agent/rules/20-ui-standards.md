@@ -41,8 +41,20 @@ trigger: always_on
 - `components/ui/`: shared/common UI components (shadcn atoms/molecules).
 - Prefer colocating feature UI with its route when it reduces coupling.
 
+## Theme File Structure
+
+Themes are organized in `app/styles/themes/`:
+
+app/styles/themes/ ├── \_shared/ │ ├── base.css # Root, html, body, scrollbar │ └── utilities.css # Markdown, chat styling, animations ├── focus/ │ ├── blueprint.css # Xanh dịu │ ├── amber.css # Cam-nâu │ ├── indigo.css # Tím-xanh │ ├── charcoal.css # Xám-đen │ ├── gold.css # Vàng ánh kim │ ├── red.css # Đỏ │ └── rose.css # Hồng nhạt ├── glassmorphism/ │ ├── nebula.css # Dark glass + cyan │ ├── aqua.css # Dark teal glass │ ├── holo.css # Rainbow corners │ ├── orchid.css # Light pastel glass (WCAG AA) │ └── sunset.css # Clay-neumo + glass-lite └── ra2/ ├── yuri.css # Purple (Red Alert 2) ├── allied.css # Blue (Red Alert 2) └── soviet.css # Red (Red Alert 2)
+
+**Each theme file is self-contained** with its own:
+
+- CSS variables
+- Component rules
+- Background
+- Scrollbars
+
 ## “Do Not”
 
 - No template-y layouts; avoid generic dashboard boilerplate unless requested.
 - No redundant CSS that duplicates shadcn/tailwind patterns.
-- No visual effects that reduce readability in chat (e.g., overly strong glass blur behind text).
