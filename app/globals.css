@@ -929,18 +929,39 @@ body {
 .theme-orchid div[class*="menu"],
 .theme-orchid div[class*="popover"],
 .theme-orchid div[class*="Popover"] {
-  background: var(--glass-bg-strong) !important;
-  backdrop-filter: blur(24px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  background: var(--reading-bg) !important;
+  backdrop-filter: blur(16px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
   border: 1px solid var(--glass-border) !important;
   border-radius: var(--r-lg) !important;
   box-shadow: var(--shadow-float) !important;
 }
 
+/* Select dropdown text: explicit dark color for WCAG AA */
+.theme-orchid select {
+  color: #2e1a47 !important;
+}
+
+/* Option elements: solid lavender bg + dark text for readability */
 .theme-orchid select option,
 .theme-orchid select optgroup {
-  background: var(--bg-lavender) !important;
-  color: var(--text-1) !important;
+  background: #f3e8ff !important;
+  color: #2e1a47 !important;
+  font-weight: 500 !important;
+}
+
+/* Optgroup labels: slightly darker for hierarchy */
+.theme-orchid select optgroup {
+  background: #ede9fe !important;
+  color: #1e1033 !important;
+  font-weight: 600 !important;
+}
+
+/* Selected option: accent tint but dark text maintained */
+.theme-orchid select option:checked,
+.theme-orchid select option:hover {
+  background: #ddd6fe !important;
+  color: #1e1033 !important;
 }
 
 /* === MODALS & DIALOGS: Glass Overlay === */
