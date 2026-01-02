@@ -141,7 +141,7 @@ body {
   --glass-border: rgba(34, 211, 238, 0.3);
 }
 
-/* ORCHID SILK - Pastel Glass-Lite Theme */
+/* ORCHID SILK - Pastel Glass-Lite Theme (Readable Glass System) */
 .theme-orchid {
   /* === Primary Accents (Orchid / Violet) === */
   --primary: #a855f7;
@@ -156,22 +156,31 @@ body {
   --blush: #f472b6;
   --blush-light: #fbcfe8;
 
-  /* === Text Colors (Purple-Gray, not pure black) === */
-  --text-1: #4c1d6e;
-  --text-2: #7e5a9b;
-  --text-3: #a78bbd;
+  /* === TEXT TOKENS (Readable - WCAG AA Compliant) === */
+  /* Primary: deep purple-gray for body text - meets 4.5:1 on light bg */
+  --text-1: #2e1a47;
+  /* Secondary: muted but readable - meets 4.5:1 for UI labels */
+  --text-2: #5a4270;
+  /* Tertiary: only for helper labels, timestamps - still readable */
+  --text-3: #7a6490;
+  /* Placeholder: visible but subtle */
+  --text-placeholder: #9080a8;
 
-  /* === Surface / Glass Material === */
-  --glass-bg: rgba(255, 255, 255, 0.55);
-  --glass-bg-strong: rgba(255, 255, 255, 0.75);
-  --glass-blur: 20px;
-  --glass-border: rgba(168, 85, 247, 0.15);
-  --glass-border-hover: rgba(168, 85, 247, 0.3);
+  /* === GLASS SURFACES (Higher Opacity for Readability) === */
+  /* Default glass: slightly higher opacity than before */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  /* Reading surface: milky white for text containers */
+  --glass-bg-strong: rgba(255, 255, 255, 0.85);
+  /* Blur: moderate to avoid softening text */
+  --glass-blur: 16px;
+  /* Borders */
+  --glass-border: rgba(168, 85, 247, 0.18);
+  --glass-border-hover: rgba(168, 85, 247, 0.35);
 
   /* === Shadows (soft, wide, low-contrast) === */
-  --shadow-soft: 0 8px 32px rgba(147, 51, 234, 0.08);
-  --shadow-glow: 0 0 20px rgba(168, 85, 247, 0.15);
-  --shadow-float: 0 12px 40px rgba(147, 51, 234, 0.12);
+  --shadow-soft: 0 8px 32px rgba(147, 51, 234, 0.1);
+  --shadow-glow: 0 0 20px rgba(168, 85, 247, 0.18);
+  --shadow-float: 0 12px 40px rgba(147, 51, 234, 0.14);
 
   /* === Radii (large, pill) === */
   --r-xl: 28px;
@@ -183,6 +192,10 @@ body {
   --bg-lavender: #f3e8ff;
   --bg-blush: #fce7f3;
   --bg-lilac: #ede9fe;
+
+  /* === Reading Surface (for long text areas) === */
+  --reading-bg: rgba(255, 255, 255, 0.88);
+  --reading-blur: 12px;
 }
 
 /* AQUA - Dark Business Teal (Image 3) */
@@ -740,23 +753,44 @@ body {
 }
 
 /* ===========================================
-   ORCHID SILK - GLASS-LITE COMPONENT SYSTEM
+   ORCHID SILK - READABLE GLASS COMPONENT SYSTEM
+   WCAG AA Compliant Text + Glass-Lite Aesthetic
    =========================================== */
 
-/* === TEXT COLORS (Purple-Gray, not pure black) === */
+/* === TEXT COLORS & TYPOGRAPHY (Readable) === */
 .theme-orchid,
 .theme-orchid h1,
 .theme-orchid h2,
 .theme-orchid h3,
 .theme-orchid p,
 .theme-orchid span,
-.theme-orchid label {
+.theme-orchid label,
+.theme-orchid li,
+.theme-orchid td,
+.theme-orchid th {
   color: var(--text-1) !important;
+  /* Slightly increase font weight for crispness on light backgrounds */
+  font-weight: 450;
 }
 
+/* Body text: comfortable line height for readability */
+.theme-orchid p,
+.theme-orchid li {
+  line-height: 1.65 !important;
+}
+
+/* Headings: semibold for hierarchy */
+.theme-orchid h1,
+.theme-orchid h2,
+.theme-orchid h3 {
+  font-weight: 600 !important;
+}
+
+/* Secondary text: still readable, not washed out */
 .theme-orchid .text-neutral-400,
 .theme-orchid .text-neutral-500,
-.theme-orchid .text-muted {
+.theme-orchid .text-muted,
+.theme-orchid small {
   color: var(--text-2) !important;
 }
 
@@ -854,7 +888,8 @@ body {
 
 .theme-orchid input::placeholder,
 .theme-orchid textarea::placeholder {
-  color: var(--text-3) !important;
+  color: var(--text-placeholder) !important;
+  font-weight: 400 !important;
 }
 
 .theme-orchid input:focus,
@@ -936,11 +971,67 @@ body {
 .theme-orchid div[class*="bg-gray"],
 .theme-orchid div[class*="bg-[#0"],
 .theme-orchid div[class*="bg-[#1"] {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(var(--glass-blur)) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(var(--reading-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--reading-blur)) !important;
   border: 1px solid var(--glass-border) !important;
   border-radius: var(--r-lg) !important;
+}
+
+/* === READING SURFACE: Main Content & Chat Area === */
+/* Higher opacity for text containers to ensure readability */
+.theme-orchid main,
+.theme-orchid section[class*="chat"],
+.theme-orchid div[class*="message-list"],
+.theme-orchid div[class*="chat-content"] {
+  /* Subtle dim overlay behind reading regions */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%),
+    var(--glass-bg-strong) !important;
+}
+
+/* === CHAT BUBBLES: Milky glass for readability === */
+.theme-orchid div[class*="message"],
+.theme-orchid div[class*="bubble"] {
+  background: var(--reading-bg) !important;
+  backdrop-filter: blur(var(--reading-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--reading-blur)) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--r-lg) !important;
+  box-shadow: var(--shadow-soft) !important;
+  color: var(--text-1) !important;
+}
+
+/* User bubbles: lightly tinted violet */
+.theme-orchid div[class*="user"] div[class*="message"],
+.theme-orchid div[class*="user"] div[class*="bubble"] {
+  background:
+    linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(129, 140, 248, 0.08) 100%),
+    var(--reading-bg) !important;
+}
+
+/* Timestamps/metadata: secondary but visible */
+.theme-orchid time,
+.theme-orchid span[class*="timestamp"],
+.theme-orchid span[class*="time"],
+.theme-orchid .text-xs {
+  color: var(--text-2) !important;
+}
+
+/* === MARKDOWN/LONG-FORM CONTENT: Reading Card === */
+.theme-orchid article,
+.theme-orchid div[class*="markdown"],
+.theme-orchid div[class*="prose"],
+.theme-orchid div[class*="content"] {
+  background: var(--reading-bg) !important;
+  backdrop-filter: blur(var(--reading-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--reading-blur)) !important;
+  border-radius: var(--r-lg) !important;
+  padding: 1.5rem !important;
+  color: var(--text-1) !important;
+  line-height: 1.7 !important;
+  max-width: 75ch;
+  /* Optimal reading width */
 }
 
 /* === GEM CARDS: Frosted White Glass === */
