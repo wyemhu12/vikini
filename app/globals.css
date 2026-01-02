@@ -396,7 +396,8 @@ body {
   border-radius: 16px !important;
 }
 
-/* Override any solid dark backgrounds */
+/* Override any solid dark backgrounds - FORMS AND DIVS */
+.theme-orchid form[class*="bg-[#"],
 .theme-orchid div[class*="bg-black"],
 .theme-orchid div[class*="bg-neutral"],
 .theme-orchid div[class*="bg-slate"],
@@ -404,25 +405,32 @@ body {
 .theme-orchid div[class*="bg-gray"],
 .theme-orchid div[class*="bg-[#0"],
 .theme-orchid div[class*="bg-[#1"] {
-  background: rgba(250, 245, 255, 0.85) !important;
+  background: rgba(250, 245, 255, 0.9) !important;
+  backdrop-filter: blur(20px) !important;
+  border-radius: inherit !important;
+}
+
+/* Chat Input Form - specifically target rounded-3xl forms */
+.theme-orchid form.rounded-3xl {
+  background: rgba(255, 255, 255, 0.85) !important;
   backdrop-filter: blur(16px) !important;
+  border: 2px solid rgba(192, 132, 252, 0.35) !important;
 }
 
 /* --- GEM MODAL GLASSMORPHISM FOR ALL GLASS THEMES --- */
-/* Dark glass themes: Nebula, Aqua, Holo, Sunset */
-.theme-nebula div[class*="gem"],
-.theme-nebula div[class*="Gem"],
-.theme-aqua div[class*="gem"],
-.theme-aqua div[class*="Gem"],
-.theme-holo div[class*="gem"],
-.theme-holo div[class*="Gem"],
-.theme-sunset div[class*="gem"],
-.theme-sunset div[class*="Gem"] {
+/* Target the actual classes used: bg-neutral-950, bg-neutral-900, etc. */
+.theme-nebula div[class*="bg-neutral-9"],
+.theme-aqua div[class*="bg-neutral-9"],
+.theme-holo div[class*="bg-neutral-9"],
+.theme-sunset div[class*="bg-neutral-9"],
+.theme-nebula div[class*="bg-neutral-8"],
+.theme-aqua div[class*="bg-neutral-8"],
+.theme-holo div[class*="bg-neutral-8"],
+.theme-sunset div[class*="bg-neutral-8"] {
   background: var(--glass-bg) !important;
   backdrop-filter: blur(20px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
   border: 1px solid var(--glass-border) !important;
-  border-radius: 16px !important;
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
