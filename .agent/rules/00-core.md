@@ -6,7 +6,7 @@ trigger: always_on
 
 ## Technology Stack (Immutable)
 
-- **Framework**: Next.js 15 (App Router)
+- **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS 4, Framer Motion
 - **Database & Auth**: Supabase (PostgreSQL)

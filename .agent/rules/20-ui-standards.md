@@ -58,3 +58,10 @@ app/styles/themes/ ├── \_shared/ │ ├── base.css # Root, html, body
 
 - No template-y layouts; avoid generic dashboard boilerplate unless requested.
 - No redundant CSS that duplicates shadcn/tailwind patterns.
+
+## Override rule
+
+- If user request conflicts, list the conflicts and wait for user's approve, then:
+
+* If user approved: follow user request with minimal exception.
+* If user not approved: suggest other approaches.
