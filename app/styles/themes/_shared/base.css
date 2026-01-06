@@ -8,6 +8,53 @@
 }
 
 :root {
+  --surface-dark: #050505;
+  --surface-dark-strong: #0a0a0a;
+  --text-primary-dark: #e5e7eb;
+  --text-secondary-dark: #a1a1aa;
+
+  --surface-light: #f8fafc;
+  --surface-light-strong: #e2e8f0;
+  --text-primary-light: #0f172a;
+  --text-secondary-light: #334155;
+
+  --surface: var(--surface-dark);
+  --surface-strong: var(--surface-dark-strong);
+  --text-primary: var(--text-primary-dark);
+  --text-secondary: var(--text-secondary-dark);
+}
+
+:root.theme-blueprint,
+:root.theme-amber,
+:root.theme-indigo,
+:root.theme-charcoal,
+:root.theme-gold,
+:root.theme-red,
+:root.theme-rose,
+:root.theme-yuri,
+:root.theme-allied,
+:root.theme-soviet,
+:root.theme-nebula,
+:root.theme-aqua,
+:root.theme-holo,
+:root.theme-orchid,
+:root.theme-sunset {
+  color-scheme: dark;
+}
+
+:root[data-theme-tone="light"] {
+  --surface: var(--surface-light);
+  --surface-strong: var(--surface-light-strong);
+  --text-primary: var(--text-primary-light);
+  --text-secondary: var(--text-secondary-light);
+  color-scheme: light;
+}
+
+:root[data-theme-tone="dark"] {
+  --surface: var(--surface-dark);
+  --surface-strong: var(--surface-dark-strong);
+  --text-primary: var(--text-primary-dark);
+  --text-secondary: var(--text-secondary-dark);
   color-scheme: dark;
 }
 
@@ -17,7 +64,9 @@ body {
 }
 
 body {
-  @apply bg-[#050505] text-neutral-100 antialiased font-sans;
+  background: var(--surface);
+  color: var(--text-primary);
+  @apply antialiased font-sans;
 }
 
 /* Default Scrollbar */
