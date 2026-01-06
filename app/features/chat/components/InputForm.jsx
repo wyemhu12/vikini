@@ -94,23 +94,56 @@ export default function InputForm({
           continue;
         }
 
-        // Upload via API endpoint
-        const form = new FormData();
-        form.set("conversationId", conversationId);
-        form.set("file", f);
-
-        const res = await fetch("/api/attachments/upload", {
+        // 1. Get signed URL
+        const signRes = await fetch("/api/attachments/sign-upload", {
           method: "POST",
-          body: form,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conversationId,
+            filename: f.name,
+            fileType: f.type,
+            fileSize: f.size,
+          }),
         });
 
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(json?.error || "Upload failed");
+        if (!signRes.ok) {
+          const json = await signRes.json().catch(() => ({}));
+          throw new Error(json?.error || "Upload init failed");
         }
 
-        if (json?.attachment) {
-          addAttachment(json.attachment);
+        const { signedUrl, path, filename, mimeType } = await signRes.json();
+
+        // 2. Upload file directly to storage
+        const uploadRes = await fetch(signedUrl, {
+          method: "PUT",
+          headers: { "Content-Type": mimeType },
+          body: f,
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error(`Storage upload failed: ${uploadRes.statusText}`);
+        }
+
+        // 3. Complete upload (record in DB)
+        const completeRes = await fetch("/api/attachments/complete-upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conversationId,
+            path,
+            filename,
+            sizeBytes: f.size,
+            mimeType,
+          }),
+        });
+
+        const completeJson = await completeRes.json().catch(() => ({}));
+        if (!completeRes.ok) {
+          throw new Error(completeJson?.error || "Upload completion failed");
+        }
+
+        if (completeJson?.attachment) {
+          addAttachment(completeJson.attachment);
         }
       }
     } catch (err) {
