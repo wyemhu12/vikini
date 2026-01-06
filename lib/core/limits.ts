@@ -233,14 +233,18 @@ export async function incrementDailyMessageCount(userId: string): Promise<void> 
   const supabase = getSupabaseAdmin();
   const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
 
-  // Upsert: increment if exists, create if not
+  // Read the current count so we can increment instead of resetting to 1
+  const currentCount = await getDailyMessageCount(userId);
+  const nextCount = currentCount + 1;
+
+  // Upsert the incremented value (creates the row if it doesn't exist yet)
   const { error } = await supabase
     .from("daily_message_counts")
     .upsert(
       {
         user_id: userId,
         date: today,
-        count: 1,
+        count: nextCount,
       },
       {
         onConflict: "user_id,date",
@@ -250,17 +254,7 @@ export async function incrementDailyMessageCount(userId: string): Promise<void> 
     .select();
 
   if (error) {
-    // If upsert failed, try increment manually
-    const current = await getDailyMessageCount(userId);
-    const { error: updateError } = await supabase
-      .from("daily_message_counts")
-      .update({ count: current + 1 })
-      .eq("user_id", userId)
-      .eq("date", today);
-
-    if (updateError) {
-      console.warn("Error incrementing message count:", updateError);
-    }
+    console.warn("Error incrementing message count:", error);
   }
 }
 
