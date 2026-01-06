@@ -134,14 +134,14 @@ export default function InputForm({
           onSubmit();
         }
       }}
-      className="relative flex w-full items-end gap-2 rounded-3xl bg-[#0f1115] border border-white/10 p-2 shadow-2xl transition-all duration-300 focus-within:border-[var(--primary)]/50 focus-within:ring-1 focus-within:ring-[var(--primary)]/20"
+      className="relative flex w-full items-end gap-2 rounded-3xl bg-[var(--control-bg)] border border-[var(--control-border)] p-2 shadow-2xl transition-all duration-300 focus-within:border-[var(--accent)] focus-within:ring-1 focus-within:ring-[var(--accent)]/30"
     >
       {/* File Upload Button */}
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
         disabled={disabled || isUploading}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-neutral-400 hover:bg-white/5 hover:text-white transition-colors disabled:opacity-50"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
         title={t?.uploadFile || "Upload file"}
       >
         <PaperClipIcon />
@@ -163,7 +163,7 @@ export default function InputForm({
         onKeyDown={handleKeyDown}
         placeholder={t?.placeholder || "Message..."}
         disabled={disabled}
-        className="max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] text-white placeholder-neutral-500 outline-none scrollbar-thin scrollbar-thumb-neutral-700"
+        className="max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)]"
         style={{ height: "40px" }}
       />
 
@@ -180,8 +180,8 @@ export default function InputForm({
         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 shadow-lg ${
           !isStreaming &&
           ((!input.trim() && attachments.length === 0) || (disabled && !isUploading))
-            ? "bg-neutral-800 text-neutral-500 cursor-not-allowed"
-            : "bg-[var(--primary)] text-black hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--primary)]"
+            ? "bg-[var(--control-bg)] text-[var(--text-secondary)] cursor-not-allowed"
+            : "bg-[var(--accent)] text-black hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--glow)]"
         }`}
         title={isStreaming ? "Stop" : t?.send || "Send"}
       >

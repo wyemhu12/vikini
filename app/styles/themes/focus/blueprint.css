@@ -3,9 +3,14 @@
    =========================================== */
 
 .theme-blueprint {
-  --primary: #60a5fa;
-  --primary-light: #93c5fd;
-  --primary-dark: #2563eb;
-  --accent: #a69cac;
-  --bg-glow: rgba(96, 165, 250, 0.08);
+  --surface: #06080f;
+  --surface-muted: #0e1422;
+  --border: rgba(96, 165, 250, 0.16);
+  --control-bg: rgba(255, 255, 255, 0.04);
+  --control-bg-hover: rgba(255, 255, 255, 0.1);
+  --control-border: rgba(96, 165, 250, 0.25);
+  --text-primary: #e8f0ff;
+  --text-secondary: #c1cde8;
+  --accent: #60a5fa;
+  --glow: rgba(96, 165, 250, 0.24);
 }

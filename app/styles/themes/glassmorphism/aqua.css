@@ -3,101 +3,17 @@
    Dark Business Teal
    =========================================== */
 
-/* --- THEME VARIABLES --- */
 .theme-aqua {
-  --primary: #14b8a6;
-  --primary-light: #2dd4bf;
-  --primary-dark: #0f766e;
-  --bg-glow: rgba(20, 184, 166, 0.35);
-  --glass-bg: rgba(10, 25, 25, 0.85);
-  --glass-border: rgba(20, 184, 166, 0.25);
-}
-
-/* --- BACKGROUND --- */
-.theme-aqua body {
-  background:
+  --surface:
     radial-gradient(ellipse at 50% 50%, rgba(20, 184, 166, 0.08) 0%, transparent 60%),
-    linear-gradient(180deg, #050505 0%, #000000 100%) !important;
-}
-
-/* --- GLASS PANELS (Sidebar, Header) --- */
-.theme-aqua aside,
-.theme-aqua header {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-left: none !important;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-}
-
-/* --- GLASS BUTTONS --- */
-.theme-aqua button {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  box-shadow:
-    0 4px 15px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  transition: all 0.25s ease;
-  color: #ffffff;
-}
-
-.theme-aqua button:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: var(--primary-light);
-  box-shadow:
-    0 0 10px var(--bg-glow),
-    0 4px 15px rgba(0, 0, 0, 0.25);
-  transform: translateY(-2px);
-}
-
-/* --- GLASS INPUTS --- */
-.theme-aqua input,
-.theme-aqua textarea {
-  background: rgba(0, 0, 0, 0.3) !important;
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  border-radius: 12px;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-  color: #ffffff;
-}
-
-.theme-aqua input:focus {
-  border-color: var(--primary) !important;
-  box-shadow: 0 0 10px var(--bg-glow) !important;
-  outline: none;
-}
-
-/* --- MODALS & DIALOGS --- */
-.theme-aqua [role="dialog"],
-.theme-aqua div[class*="modal"],
-.theme-aqua div[class*="Modal"] {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(24px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: 20px !important;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5) !important;
-}
-
-/* --- GEM MODALS --- */
-.theme-aqua div[class*="bg-neutral-9"],
-.theme-aqua div[class*="bg-neutral-8"] {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid var(--glass-border) !important;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-}
-
-/* --- HIDE DEFAULT BG --- */
-.theme-aqua .static-depth-bg {
-  display: none !important;
+    linear-gradient(180deg, #050505 0%, #000000 100%);
+  --surface-muted: rgba(10, 25, 25, 0.85);
+  --border: rgba(20, 184, 166, 0.25);
+  --control-bg: rgba(255, 255, 255, 0.08);
+  --control-bg-hover: rgba(255, 255, 255, 0.15);
+  --control-border: rgba(255, 255, 255, 0.2);
+  --text-primary: #e9fffb;
+  --text-secondary: #b5e3d9;
+  --accent: #14b8a6;
+  --glow: rgba(20, 184, 166, 0.35);
 }

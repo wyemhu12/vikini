@@ -3,8 +3,14 @@
    =========================================== */
 
 .theme-gold {
-  --primary: #fbbf24;
-  --primary-light: #fde68a;
-  --primary-dark: #d97706;
-  --bg-glow: rgba(251, 191, 36, 0.08);
+  --surface: #0b0905;
+  --surface-muted: #141008;
+  --border: rgba(251, 191, 36, 0.18);
+  --control-bg: rgba(255, 255, 255, 0.04);
+  --control-bg-hover: rgba(255, 255, 255, 0.1);
+  --control-border: rgba(251, 191, 36, 0.26);
+  --text-primary: #fff6dc;
+  --text-secondary: #f1dba3;
+  --accent: #fbbf24;
+  --glow: rgba(251, 191, 36, 0.24);
 }

@@ -3,8 +3,14 @@
    =========================================== */
 
 .theme-charcoal {
-  --primary: #9ca3af;
-  --primary-light: #d1d5db;
-  --primary-dark: #4b5563;
-  --bg-glow: rgba(255, 255, 255, 0.05);
+  --surface: #070707;
+  --surface-muted: #111111;
+  --border: rgba(156, 163, 175, 0.16);
+  --control-bg: rgba(255, 255, 255, 0.03);
+  --control-bg-hover: rgba(255, 255, 255, 0.08);
+  --control-border: rgba(156, 163, 175, 0.25);
+  --text-primary: #f5f6f7;
+  --text-secondary: #d5d7dc;
+  --accent: #9ca3af;
+  --glow: rgba(255, 255, 255, 0.12);
 }

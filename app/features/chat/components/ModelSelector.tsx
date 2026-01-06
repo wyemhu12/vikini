@@ -96,8 +96,8 @@ export default function ModelSelector({
 
   if (disabled) {
     return (
-      <div className="flex items-center rounded-full bg-[#0f1115] border border-white/5 p-1 px-4 py-1.5 opacity-50 cursor-not-allowed">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
+      <div className="flex items-center rounded-full bg-[var(--control-bg)] border border-[var(--control-border)] p-1 px-4 py-1.5 opacity-50 cursor-not-allowed">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
           {currentModel?.name || currentModelId}
         </span>
       </div>
@@ -109,13 +109,13 @@ export default function ModelSelector({
       {/* TRIGGER BUTTON */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-full bg-[#0f1115] border border-white/5 hover:border-white/10 p-1 px-4 py-1.5 transition-all shadow-lg group"
+        className="flex items-center gap-2 rounded-full bg-[var(--control-bg)] border border-[var(--control-border)] hover:border-[var(--border)] p-1 px-4 py-1.5 transition-all shadow-lg group text-[var(--text-primary)]"
       >
-        <span className="text-[10px] font-bold uppercase tracking-wider text-white/60 group-hover:text-white transition-colors">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
           {currentModel?.name || currentModelId}
         </span>
         <ChevronDown
-          className={`w-3 h-3 text-white/40 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-3 h-3 text-[var(--text-secondary)] transition-transform ${isOpen ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -126,15 +126,15 @@ export default function ModelSelector({
 
       {/* DROPDOWN CONTENT */}
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-[350px] bg-[#0A0A0A] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute bottom-full left-0 mb-2 w-[350px] bg-[var(--surface-muted)] border border-[var(--border)] rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100">
           {/* TABS HEADER */}
-          <div className="flex items-center p-1 bg-[#151515] border-b border-white/5">
+          <div className="flex items-center p-1 bg-[var(--control-bg)] border-b border-[var(--border)]">
             <button
               onClick={() => setActiveTab("providers")}
               className={`flex-1 text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all ${
                 activeTab === "providers"
-                  ? "bg-[#252525] text-white shadow-sm"
-                  : "text-white/40 hover:text-white/60"
+                  ? "bg-[var(--control-bg-hover)] text-[var(--text-primary)] shadow-sm"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               {t.modelSelectorProviders || "Providers"}
@@ -143,25 +143,26 @@ export default function ModelSelector({
               onClick={() => setActiveTab("service")}
               className={`flex-1 text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all ${
                 activeTab === "service"
-                  ? "bg-[#252525] text-white shadow-sm"
-                  : "text-white/40 hover:text-white/60"
+                  ? "bg-[var(--control-bg-hover)] text-[var(--text-primary)] shadow-sm"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               {t.modelSelectorService || "Service"}
             </button>
           </div>
 
-          <div className="max-h-[450px] overflow-y-auto custom-scrollbar bg-[#0A0A0A]">
+          <div className="max-h-[450px] overflow-y-auto custom-scrollbar bg-[var(--surface-muted)]">
             {/* --- PROVIDERS VIEW --- */}
             {activeTab === "providers" && (
               <div className="flex flex-col">
                 {/* Horizontal Provider Filter Scroll -> REPLACED WITH GRID */}
-                <div className="grid grid-cols-3 gap-2 p-2 border-b border-white/5">
+                <div className="grid grid-cols-3 gap-2 p-2 border-b border-[var(--border)]">
                   {PROVIDER_IDS.map((pid) => {
                     const logoSrc = PROVIDER_LOGOS[pid];
                     const isActive = activeProviderFilter === pid;
                     const needsInvert = NEEDS_INVERSION.has(pid);
-                    const activeClass = PROVIDER_COLORS[pid] || "bg-[#252525] border-white/10";
+                    const activeClass =
+                      PROVIDER_COLORS[pid] || "bg-[var(--control-bg-hover)] border-[var(--border)]";
 
                     return (
                       <button
@@ -169,8 +170,8 @@ export default function ModelSelector({
                         onClick={() => setActiveProviderFilter(pid)}
                         className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl transition-all border bg-gradient-to-br ${
                           isActive
-                            ? `${activeClass} text-white shadow-lg scale-[1.02]`
-                            : "from-transparent to-transparent border-transparent text-white/40 hover:bg-white/5 hover:text-white/80"
+                            ? `${activeClass} text-[var(--text-primary)] shadow-lg scale-[1.02]`
+                            : "from-transparent to-transparent border-transparent text-[var(--text-secondary)] hover:bg-[var(--control-bg)] hover:text-[var(--text-primary)]"
                         }`}
                       >
                         {logoSrc ? (
@@ -197,13 +198,13 @@ export default function ModelSelector({
 
                 {/* Models List for Provider */}
                 <div className="p-2 space-y-1">
-                  <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white/30">
+                  <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {PROVIDER_LABELS[activeProviderFilter]}{" "}
                     {t.modelSelectorModelsSuffix || "MODELS"}
                   </div>
 
                   {filteredModelsByProvider.length === 0 ? (
-                    <div className="px-4 py-8 text-center text-xs text-white/20 italic">
+                    <div className="px-4 py-8 text-center text-xs text-[var(--text-secondary)] opacity-60 italic">
                       {t.modelSelectorAvailableLater || "Available later"}
                     </div>
                   ) : (
@@ -230,7 +231,7 @@ export default function ModelSelector({
               <div className="p-2 space-y-4">
                 {/* Reasoning Group */}
                 <div>
-                  <div className="flex items-center gap-2 px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-indigo-400/80 sticky top-0 bg-[#0A0A0A] z-10">
+                  <div className="flex items-center gap-2 px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--accent)] sticky top-0 bg-[var(--surface-muted)] z-10">
                     <Cpu className="w-3 h-3" />
                     {t.modelCategoryReasoning || "Reasoning"}
                   </div>
@@ -253,7 +254,7 @@ export default function ModelSelector({
 
                 {/* Low Latency Group */}
                 <div>
-                  <div className="flex items-center gap-2 px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-emerald-400/80 sticky top-0 bg-[#0A0A0A] z-10">
+                  <div className="flex items-center gap-2 px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] sticky top-0 bg-[var(--surface-muted)] z-10">
                     <Zap className="w-3 h-3" />
                     {t.modelCategoryLowLatency || "Low Latency"}
                   </div>
@@ -295,25 +296,29 @@ function ModelItem({ model, isActive, isAllowed, onSelect, t }: ModelItemProps) 
     <button
       onClick={() => onSelect()}
       className={`w-full text-left flex items-start gap-3 p-2 rounded-lg transition-all group ${
-        isActive ? "bg-white/10" : "hover:bg-white/5"
+        isActive ? "bg-[var(--control-bg-hover)]" : "hover:bg-[var(--control-bg)]"
       } ${!isAllowed ? "opacity-50 cursor-not-allowed" : ""}`}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span
-            className={`text-sm font-medium ${isActive ? "text-white" : "text-gray-300 group-hover:text-white"}`}
+            className={`text-sm font-medium ${isActive ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"}`}
           >
             {model.name}
           </span>
-          {!isAllowed && <span className="text-[10px] text-white/30">🔒</span>}
+          {!isAllowed && (
+            <span className="text-[10px] text-[var(--text-secondary)] opacity-70">🔒</span>
+          )}
         </div>
         {model.descKey && t[model.descKey] && (
-          <div className="text-[11px] text-gray-500 line-clamp-1">{t[model.descKey]}</div>
+          <div className="text-[11px] text-[var(--text-secondary)] line-clamp-1">
+            {t[model.descKey]}
+          </div>
         )}
       </div>
       {isActive && (
-        <div className="bg-blue-500 rounded-full p-0.5 mt-1">
-          <Check className="w-3 h-3 text-white" />
+        <div className="bg-[var(--accent)] rounded-full p-0.5 mt-1">
+          <Check className="w-3 h-3 text-black" />
         </div>
       )}
     </button>

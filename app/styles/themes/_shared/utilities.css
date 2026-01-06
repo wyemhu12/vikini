@@ -5,8 +5,8 @@
 /* Static Depth Background (for Focus themes) */
 .static-depth-bg {
   background:
-    radial-gradient(circle at 50% 0%, var(--bg-glow), transparent 70%),
-    linear-gradient(to bottom, var(--surface), var(--surface-strong));
+    radial-gradient(circle at 50% 0%, var(--glow), transparent 70%), var(--surface-muted),
+    var(--surface);
 }
 
 /* Markdown & Chat Styling */

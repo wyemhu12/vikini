@@ -157,7 +157,7 @@ export default function Sidebar({
   };
 
   const content = (
-    <div className="flex flex-col h-full text-white">
+    <div className="flex flex-col h-full text-[var(--text-primary)]">
       {/* New chat - THEMED GLASS */}
       <button
         onClick={handleNew}
@@ -165,19 +165,21 @@ export default function Sidebar({
           group relative w-full mb-3
           flex items-center justify-center gap-2
           rounded-xl 
-          bg-white/10 hover:bg-white/15 border border-white/10
+          bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] border border-[var(--control-border)]
           py-3 px-4
-          text-sm font-bold tracking-wide
+          text-sm font-bold tracking-wide text-[var(--text-primary)]
           shadow-lg backdrop-blur-md
           transition-all duration-300
           hover:scale-[1.02] active:scale-[0.98]
         "
         type="button"
       >
-        <span className="transition-transform duration-300 group-hover:rotate-90 text-[var(--primary)]">
+        <span className="transition-transform duration-300 group-hover:rotate-90 text-[var(--accent)]">
           <PlusIcon />
         </span>
-        <span className="text-white group-hover:text-white">{t?.newChat || "New Chat"}</span>
+        <span className="text-[var(--text-primary)] group-hover:text-[var(--text-primary)]">
+          {t?.newChat || "New Chat"}
+        </span>
       </button>
 
       {/* Explore Gems - GLASS TRIGGER */}
@@ -186,25 +188,25 @@ export default function Sidebar({
         className="
           group flex items-center gap-3 w-full 
           rounded-lg px-3 py-2.5 mb-6
-          text-xs font-bold uppercase tracking-wider text-white/60
-          hover:bg-white/5 hover:text-white
-          transition-all duration-300 text-left border border-transparent hover:border-white/5
+          text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]
+          hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)]
+          transition-all duration-300 text-left border border-transparent hover:border-[var(--control-border)]
         "
         type="button"
       >
-        <span className="p-1 rounded-md text-[var(--primary)] bg-white/5 group-hover:bg-[var(--primary)] group-hover:text-black transition-colors">
+        <span className="p-1 rounded-md text-[var(--accent)] bg-[var(--control-bg)] group-hover:bg-[var(--accent)] group-hover:text-black transition-colors">
           <SparklesIcon />
         </span>
         {t?.exploreGems || "Explore Gems"}
       </button>
 
-      <div className="h-px bg-white/10 mb-4 mx-2" />
+      <div className="h-px bg-[var(--border)]/60 mb-4 mx-2" />
 
       {/* Chat list with CSS Virtualization / Containment */}
       <div
         className="
           flex-1 overflow-y-auto space-y-1 pr-1 
-          scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20
+          scrollbar-thin scrollbar-thumb-[var(--control-border)] hover:scrollbar-thumb-[var(--border)]
         "
         style={{ contentVisibility: "auto", containIntrinsicSize: "0 500px" }}
       >
@@ -219,18 +221,18 @@ export default function Sidebar({
           />
         ))}
         {list.length === 0 && (
-          <div className="text-center py-10 text-[10px] font-bold uppercase tracking-widest text-white/20 select-none">
+          <div className="text-center py-10 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-60 select-none">
             {t?.noConversations || "NO CONVERSATIONS"}
           </div>
         )}
       </div>
 
       {/* FOOTER ACTIONS */}
-      <div className="mt-auto pt-4 border-t border-white/5 space-y-3">
+      <div className="mt-auto pt-4 border-t border-[var(--border)] space-y-3">
         {onDeleteAll && (
           <button
             onClick={() => onDeleteAll?.()}
-            className="w-full flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            className="w-full flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--control-bg-hover)] transition-colors"
             type="button"
           >
             {t?.deleteAll || "Clear History"}
@@ -244,8 +246,8 @@ export default function Sidebar({
             className="
               w-full flex items-center gap-3 rounded-lg px-3 py-3
               text-xs font-bold uppercase tracking-wide
-              bg-blue-500/10 border border-blue-500/20 text-blue-400
-              hover:bg-blue-500/20 hover:text-blue-300 hover:border-blue-500/30
+              bg-[var(--control-bg)] border border-[var(--control-border)] text-[var(--text-primary)]
+              hover:bg-[var(--control-bg-hover)] hover:border-[var(--border)]
               active:scale-[0.98] transition-all duration-200
             "
           >
@@ -264,8 +266,8 @@ export default function Sidebar({
             className="
               w-full flex items-center gap-3 rounded-lg px-3 py-3
               text-xs font-bold uppercase tracking-wide
-              bg-white/5 border border-white/5 text-white/70
-              hover:bg-white/10 hover:text-white hover:border-white/10
+              bg-[var(--control-bg)] border border-[var(--control-border)] text-[var(--text-secondary)]
+              hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)] hover:border-[var(--border)]
               active:scale-[0.98] transition-all duration-200
             "
             type="button"
@@ -286,8 +288,8 @@ export default function Sidebar({
           hidden md:flex flex-col
           fixed top-0 left-0 bottom-0
           w-72 lg:w-80
-          border-r border-white/5
-          bg-white/[0.03] backdrop-blur-3xl
+          border-r border-[var(--border)]
+          bg-[var(--surface-muted)]/90 backdrop-blur-3xl
           p-4
           z-30
         "
@@ -300,7 +302,7 @@ export default function Sidebar({
         <div className="md:hidden">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 z-40 bg-[var(--surface-muted)]/80 backdrop-blur-sm transition-opacity"
             onClick={() => onCloseMobile?.()}
           />
 
@@ -309,23 +311,23 @@ export default function Sidebar({
             className="
               fixed top-0 left-0 bottom-0 z-50
               w-[85vw] max-w-sm
-              border-r border-white/10
-              bg-[#0a0a0a]
+              border-r border-[var(--border)]
+              bg-[var(--surface-muted)]
               p-6
               shadow-2xl
               flex flex-col
             "
           >
             <div className="mb-8 flex items-center justify-between">
-              <div className="text-lg font-black tracking-tighter text-white flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center border border-white/10 text-[var(--primary)]">
+              <div className="text-lg font-black tracking-tighter text-[var(--text-primary)] flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-[var(--control-bg)] flex items-center justify-center border border-[var(--control-border)] text-[var(--accent)]">
                   V
                 </div>
                 {t?.appName || "Vikini"}
               </div>
               <button
                 onClick={() => onCloseMobile?.()}
-                className="p-2 rounded-full text-white/50 hover:bg-white/10 hover:text-white transition-colors"
+                className="p-2 rounded-full text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)] transition-colors"
                 aria-label="Close sidebar"
                 type="button"
               >

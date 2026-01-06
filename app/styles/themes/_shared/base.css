@@ -8,20 +8,23 @@
 }
 
 :root {
-  --surface-dark: #050505;
-  --surface-dark-strong: #0a0a0a;
-  --text-primary-dark: #e5e7eb;
-  --text-secondary-dark: #a1a1aa;
+  /* Semantic surface + content tokens */
+  --surface: #050505;
+  --surface-muted: #0f1115;
+  --border: rgba(255, 255, 255, 0.08);
+  --control-bg: rgba(255, 255, 255, 0.04);
+  --control-bg-hover: rgba(255, 255, 255, 0.08);
+  --control-border: rgba(255, 255, 255, 0.12);
+  --text-primary: #e5e7eb;
+  --text-secondary: #a1a1aa;
+  --accent: #60a5fa;
+  --glow: rgba(96, 165, 250, 0.2);
 
-  --surface-light: #f8fafc;
-  --surface-light-strong: #e2e8f0;
-  --text-primary-light: #0f172a;
-  --text-secondary-light: #334155;
-
-  --surface: var(--surface-dark);
-  --surface-strong: var(--surface-dark-strong);
-  --text-primary: var(--text-primary-dark);
-  --text-secondary: var(--text-secondary-dark);
+  /* Legacy aliases */
+  --primary: var(--accent);
+  --primary-light: color-mix(in srgb, var(--accent) 75%, white 25%);
+  --primary-dark: color-mix(in srgb, var(--accent) 80%, black 20%);
+  --bg-glow: var(--glow);
 }
 
 :root.theme-blueprint,
@@ -43,18 +46,26 @@
 }
 
 :root[data-theme-tone="light"] {
-  --surface: var(--surface-light);
-  --surface-strong: var(--surface-light-strong);
-  --text-primary: var(--text-primary-light);
-  --text-secondary: var(--text-secondary-light);
+  --surface: #f8fafc;
+  --surface-muted: #e2e8f0;
+  --border: rgba(0, 0, 0, 0.08);
+  --control-bg: rgba(255, 255, 255, 0.9);
+  --control-bg-hover: rgba(0, 0, 0, 0.04);
+  --control-border: rgba(0, 0, 0, 0.12);
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
   color-scheme: light;
 }
 
 :root[data-theme-tone="dark"] {
-  --surface: var(--surface-dark);
-  --surface-strong: var(--surface-dark-strong);
-  --text-primary: var(--text-primary-dark);
-  --text-secondary: var(--text-secondary-dark);
+  --surface: #050505;
+  --surface-muted: #0f1115;
+  --border: rgba(255, 255, 255, 0.08);
+  --control-bg: rgba(255, 255, 255, 0.04);
+  --control-bg-hover: rgba(255, 255, 255, 0.08);
+  --control-border: rgba(255, 255, 255, 0.12);
+  --text-primary: #e5e7eb;
+  --text-secondary: #a1a1aa;
   color-scheme: dark;
 }
 
