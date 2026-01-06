@@ -3,7 +3,8 @@
 
 import { useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
-import { THEME_TONES } from "../../chat/hooks/useTheme";
+import { useTheme } from "next-themes";
+import { THEME_CONFIG } from "@/lib/config/theme-config";
 
 const Bars3Icon = () => (
   <svg
@@ -22,47 +23,24 @@ const Bars3Icon = () => (
   </svg>
 );
 
-export default function HeaderBar({
-  t,
-  language,
-  onLanguageChange,
-  theme,
-  onThemeChange,
-  onToggleSidebar,
-}) {
+export default function HeaderBar({ t, language, onLanguageChange, onToggleSidebar }) {
+  const { theme, setTheme } = useTheme();
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
 
-  const themeOptions = [
-    // --- GLASSMORPHISM ---
-    { id: "nebula", label: t?.nebula ?? "Nebula Glass", swatch: "#22d3ee", group: "Glassmorphism" },
-    { id: "orchid", label: t?.orchid ?? "Orchid Silk", swatch: "#c084fc", group: "Glassmorphism" },
-    { id: "aqua", label: t?.aqua ?? "Aqua Glass", swatch: "#14b8a6", group: "Glassmorphism" },
-    { id: "holo", label: t?.holo ?? "Holo Glass", swatch: "#22d3ee", group: "Glassmorphism" },
-    { id: "sunset", label: t?.sunset ?? "Sunset Glass", swatch: "#f97316", group: "Glassmorphism" },
-    // --- FOCUS ---
-    { id: "blueprint", label: t?.blueprint ?? "Blueprint", swatch: "#3b82f6", group: "Focus" },
-    { id: "amber", label: t?.amber ?? "Amber", swatch: "#d97706", group: "Focus" },
-    { id: "indigo", label: t?.indigo ?? "Indigo", swatch: "#6366f1", group: "Focus" },
-    { id: "charcoal", label: t?.charcoal ?? "Charcoal", swatch: "#4b5563", group: "Focus" },
-    { id: "gold", label: t?.gold ?? "Metallic Gold", swatch: "#d4af37", group: "Focus" },
-    { id: "red", label: t?.red ?? "Red", swatch: "#ef4444", group: "Focus" },
-    { id: "rose", label: t?.rose ?? "Rose", swatch: "#cc8899", group: "Focus" },
-    // --- RED ALERT 2 ---
-    { id: "yuri", label: t?.yuri ?? "Yuri Purple", swatch: "#a855f7", group: "Red Alert 2" },
-    { id: "allied", label: t?.allied ?? "Allied Blue", swatch: "#38bdf8", group: "Red Alert 2" },
-    { id: "soviet", label: t?.soviet ?? "Soviet Red", swatch: "#ef4444", group: "Red Alert 2" },
-  ].map((option) => ({
-    ...option,
-    tone: THEME_TONES[option.id] ?? "dark",
-  }));
+  // Group themes by category
+  const groupedThemes = THEME_CONFIG.reduce((acc, theme) => {
+    if (!acc[theme.group]) acc[theme.group] = [];
+    acc[theme.group].push(theme);
+    return acc;
+  }, {});
+
+  const currentTheme = THEME_CONFIG.find((x) => x.id === theme);
 
   const languageOptions = [
     { id: "vi", label: t?.vi ?? "Tiếng Việt" },
     { id: "en", label: t?.en ?? "English" },
   ];
-
-  const currentTheme = themeOptions.find((x) => x.id === theme);
 
   return (
     <header
@@ -162,7 +140,7 @@ export default function HeaderBar({
               }}
             />
             <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors max-w-[100px] truncate">
-              {currentTheme?.label || "Theme"}
+              {t?.[currentTheme?.labelKey] || currentTheme?.id || "Theme"}
             </span>
             <ChevronDown
               className={`w-3 h-3 text-[var(--text-secondary)] transition-transform ${isThemeOpen ? "rotate-180" : ""}`}
@@ -176,38 +154,36 @@ export default function HeaderBar({
                 onClick={() => setIsThemeOpen(false)}
               />
               <div className="absolute top-full right-0 mt-2 w-56 bg-[var(--surface-muted)] border border-[var(--border)] rounded-xl shadow-2xl z-40 overflow-hidden animate-in fade-in zoom-in-95 duration-100 max-h-[400px] overflow-y-auto custom-scrollbar">
-                {["Glassmorphism", "Focus", "Red Alert 2"].map((group) => (
+                {Object.entries(groupedThemes).map(([group, themes]) => (
                   <div key={group}>
                     <div className="sticky top-0 bg-[var(--surface-muted)] z-10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {group}
                     </div>
                     <div className="p-1 space-y-0.5">
-                      {themeOptions
-                        .filter((t) => t.group === group)
-                        .map((tItem) => (
-                          <button
-                            key={tItem.id}
-                            onClick={() => {
-                              onThemeChange?.(tItem.id);
-                              setIsThemeOpen(false);
-                            }}
-                            data-theme-tone={tItem.tone}
-                            className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-all group/item ${
-                              theme === tItem.id
-                                ? "bg-[var(--control-bg-hover)] text-[var(--text-primary)]"
-                                : "text-[var(--text-secondary)] hover:bg-[var(--control-bg)] hover:text-[var(--text-primary)]"
-                            }`}
-                          >
-                            <div
-                              className="h-3 w-3 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: tItem.swatch }}
-                            />
-                            <span className="flex-1 text-[11px] font-medium truncate">
-                              {tItem.label}
-                            </span>
-                            {theme === tItem.id && <Check className="w-3 h-3 text-blue-400" />}
-                          </button>
-                        ))}
+                      {themes.map((tItem) => (
+                        <button
+                          key={tItem.id}
+                          onClick={() => {
+                            setTheme(tItem.id);
+                            setIsThemeOpen(false);
+                          }}
+                          data-theme-tone={tItem.tone}
+                          className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-all group/item ${
+                            theme === tItem.id
+                              ? "bg-[var(--control-bg-hover)] text-[var(--text-primary)]"
+                              : "text-[var(--text-secondary)] hover:bg-[var(--control-bg)] hover:text-[var(--text-primary)]"
+                          }`}
+                        >
+                          <div
+                            className="h-3 w-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: tItem.swatch }}
+                          />
+                          <span className="flex-1 text-[11px] font-medium truncate">
+                            {t?.[tItem.labelKey] ?? tItem.id}
+                          </span>
+                          {theme === tItem.id && <Check className="w-3 h-3 text-blue-400" />}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 ))}
