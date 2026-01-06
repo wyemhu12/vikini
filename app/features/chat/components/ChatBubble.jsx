@@ -11,9 +11,9 @@ import { ChevronDown, ChevronRight, Sparkles, Brain } from "lucide-react";
 function TypingDots() {
   return (
     <div className="typing-dots flex items-center gap-1 px-2 py-1">
-      <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
-      <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
-      <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" />
+      <span className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-bounce [animation-delay:-0.3s]" />
+      <span className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-bounce [animation-delay:-0.15s]" />
+      <span className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-bounce" />
     </div>
   );
 }
@@ -24,10 +24,10 @@ function ThinkingBlock({ content }) {
   // Auto-collapse if complete? Maybe later.
 
   return (
-    <div className="mb-4 rounded-lg border border-white/10 bg-white/5 overflow-hidden">
+    <div className="mb-4 rounded-lg border card-surface overflow-hidden">
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-white/50 hover:text-white hover:bg-white/5 transition-colors"
+        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary hover:text-primary hover:bg-control-hover transition-colors"
       >
         <Brain className="w-3 h-3" />
         <span>Thinking Process</span>
@@ -39,7 +39,7 @@ function ThinkingBlock({ content }) {
       </button>
 
       {!isCollapsed && (
-        <div className="px-3 py-3 border-t border-white/5 text-sm text-white/70 font-mono leading-relaxed bg-[#0d1117]/50 whitespace-pre-wrap animate-in slide-in-from-top-2 duration-200">
+        <div className="px-3 py-3 border-t border-token text-sm text-secondary font-mono leading-relaxed bg-surface whitespace-pre-wrap animate-in slide-in-from-top-2 duration-200">
           {content}
         </div>
       )}
@@ -92,7 +92,7 @@ function CodeBlock({ inline, className, children }) {
 
   if (inline) {
     return (
-      <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[0.9em] text-[var(--primary-light)]">
+      <code className="rounded bg-control px-1.5 py-0.5 font-mono text-[0.9em] text-[var(--primary-light)]">
         {code}
       </code>
     );
@@ -120,16 +120,16 @@ function CodeBlock({ inline, className, children }) {
   const isCollapsed = isCollapsible && !expanded;
 
   return (
-    <div className="group/code my-5 overflow-hidden rounded-xl border border-white/10 bg-[#0d1117] shadow-2xl transition-all hover:border-white/20">
+    <div className="group/code my-5 overflow-hidden rounded-xl border card-surface shadow-2xl transition-all hover:border-token">
       {/* Mac-style Header */}
-      <div className="flex items-center justify-between bg-[#161b22] px-4 py-3 border-b border-white/5 select-none">
+      <div className="flex items-center justify-between bg-surface-muted px-4 py-3 border-b border-token select-none">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5 opacity-60 group-hover/code:opacity-100 transition-opacity">
             <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
             <div className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
             <div className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
           </div>
-          <span className="ml-3 text-[11px] font-mono font-medium text-white/40 uppercase tracking-wider">
+          <span className="ml-3 text-[11px] font-mono font-medium text-secondary uppercase tracking-wider">
             {lang}
           </span>
         </div>
@@ -138,7 +138,7 @@ function CodeBlock({ inline, className, children }) {
           {isCollapsible && (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="px-2 py-1 rounded hover:bg-white/5 text-[10px] font-bold text-white/40 hover:text-white transition-colors uppercase tracking-wider"
+              className="px-2 py-1 rounded hover:bg-control-hover text-[10px] font-bold text-secondary hover:text-primary transition-colors uppercase tracking-wider"
             >
               {expanded ? t("collapse") : t("expand")}
             </button>
@@ -152,7 +152,7 @@ function CodeBlock({ inline, className, children }) {
               ${
                 copied
                   ? "bg-green-500/10 text-green-400"
-                  : "text-white/40 hover:text-white hover:bg-white/5"
+                  : "text-secondary hover:text-primary hover:bg-control-hover"
               }
             `}
           >
@@ -206,8 +206,8 @@ function CodeBlock({ inline, className, children }) {
 
         {/* Gradient Fade for Collapsed State */}
         {isCollapsed && (
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0d1117] via-[#0d1117]/80 to-transparent pointer-events-none flex items-end justify-center pb-4">
-            <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[var(--surface)] via-[color-mix(in_srgb,var(--surface)_80%,transparent)] to-transparent pointer-events-none flex items-end justify-center pb-4">
+            <div className="text-[10px] font-bold text-secondary uppercase tracking-widest">
               {lineCount - COLLAPSE_AFTER_LINES} more lines...
             </div>
           </div>
@@ -308,8 +308,8 @@ export default function ChatBubble({
             isBot
               ? isLoading
                 ? "border-blue-500/50 bg-blue-500/10 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-                : "border-white/10 bg-white/5 text-white"
-              : "border-[var(--primary)]/20 bg-[var(--primary)] text-black"
+                : "border-token bg-surface-elevated text-primary"
+              : "border-[var(--primary)]/20 bg-[var(--primary)] text-[var(--surface)]"
           }`}
         >
           {isBot ? (
@@ -334,7 +334,7 @@ export default function ChatBubble({
         >
           <div
             className={`relative rounded-2xl px-1 text-sm leading-relaxed transition-all
-            ${isBot ? "text-neutral-200 w-full" : "bg-[var(--primary)] px-4 py-2.5 text-black shadow-lg"}`}
+            ${isBot ? "text-primary w-full" : "bg-[var(--primary)] px-4 py-2.5 text-[var(--surface)] shadow-lg"}`}
           >
             {isEditing ? (
               <div className="flex flex-col gap-2 min-w-[300px] w-full">
@@ -346,19 +346,19 @@ export default function ChatBubble({
                     e.target.style.height = "auto";
                     e.target.style.height = `${e.target.scrollHeight}px`;
                   }}
-                  className="w-full bg-black/10 text-black p-3 rounded-md outline-none resize-none overflow-hidden font-mono text-sm leading-6"
+                  className="w-full bg-surface-elevated text-primary p-3 rounded-md outline-none resize-none overflow-hidden font-mono text-sm leading-6 border border-token"
                   rows={1}
                 />
                 <div className="flex justify-end gap-2 mt-2">
                   <button
                     onClick={() => setIsEditing(false)}
-                    className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-black/10 hover:bg-black/20 rounded-md transition-colors"
+                    className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-control hover:bg-control-hover rounded-md transition-colors text-secondary"
                   >
                     {t("cancel")}
                   </button>
                   <button
                     onClick={handleSaveEdit}
-                    className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-black/80 text-white hover:bg-black rounded-md transition-colors shadow-sm"
+                    className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-accent text-[var(--surface)] hover:brightness-110 rounded-md transition-colors shadow-sm"
                   >
                     {t("save")}
                   </button>
@@ -390,18 +390,18 @@ export default function ChatBubble({
                         ),
                         li: ({ children }) => <li className="leading-7">{children}</li>,
                         h1: ({ children }) => (
-                          <h1 className="mt-8 mb-4 text-2xl font-bold text-white border-b border-white/10 pb-2">
+                          <h1 className="mt-8 mb-4 text-2xl font-bold text-primary border-b border-token pb-2">
                             {children}
                           </h1>
                         ),
                         h2: ({ children }) => (
-                          <h2 className="mt-7 mb-3 text-xl font-bold text-white">{children}</h2>
+                          <h2 className="mt-7 mb-3 text-xl font-bold text-primary">{children}</h2>
                         ),
                         h3: ({ children }) => (
-                          <h3 className="mt-6 mb-2 text-lg font-bold text-white">{children}</h3>
+                          <h3 className="mt-6 mb-2 text-lg font-bold text-primary">{children}</h3>
                         ),
                         blockquote: ({ children }) => (
-                          <blockquote className="border-l-4 border-white/20 pl-4 py-1 my-4 text-white/60 italic">
+                          <blockquote className="border-l-4 border-token pl-4 py-1 my-4 text-secondary italic">
                             {children}
                           </blockquote>
                         ),
@@ -416,20 +416,24 @@ export default function ChatBubble({
                           </a>
                         ),
                         table: ({ children }) => (
-                          <div className="overflow-x-auto my-4 rounded-lg border border-white/10">
+                          <div className="overflow-x-auto my-4 rounded-lg border border-token bg-surface-elevated">
                             <table className="w-full text-left text-sm">{children}</table>
                           </div>
                         ),
                         thead: ({ children }) => (
-                          <thead className="bg-white/5 uppercase font-bold text-xs text-white/70">
+                          <thead className="bg-surface-muted uppercase font-bold text-xs text-secondary">
                             {children}
                           </thead>
                         ),
                         th: ({ children }) => (
-                          <th className="px-4 py-3 border-b border-white/10">{children}</th>
+                          <th className="px-4 py-3 border-b border-token text-primary">
+                            {children}
+                          </th>
                         ),
                         td: ({ children }) => (
-                          <td className="px-4 py-3 border-b border-white/5">{children}</td>
+                          <td className="px-4 py-3 border-b border-token text-secondary">
+                            {children}
+                          </td>
                         ),
                       }}
                       className="chat-markdown"
@@ -443,7 +447,7 @@ export default function ChatBubble({
 
             {/* Sources & Context */}
             {isBot && (safeMessage.sources.length > 0 || safeMessage.urlContext.length > 0) && (
-              <div className="mt-6 space-y-4 border-t border-white/5 pt-4">
+              <div className="mt-6 space-y-4 border-t border-token pt-4">
                 {safeMessage.sources.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {safeMessage.sources.slice(0, 5).map((s, idx) => (
@@ -452,7 +456,7 @@ export default function ChatBubble({
                         href={s.uri}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] text-white/50 hover:bg-white/10 hover:text-white transition-all max-w-[200px]"
+                        className="flex items-center gap-1.5 rounded-full border border-token bg-surface-elevated px-3 py-1 text-[10px] text-secondary hover:bg-control-hover hover:text-primary transition-all max-w-[200px]"
                       >
                         <span className="font-bold shrink-0">[{idx + 1}]</span>
                         <span className="truncate">{s.title || s.uri}</span>
@@ -472,7 +476,7 @@ export default function ChatBubble({
               {/* Copy Button */}
               <button
                 onClick={handleCopyMessage}
-                className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-tighter transition-colors"
+                className="text-[10px] font-bold text-secondary hover:text-primary uppercase tracking-tighter transition-colors"
               >
                 {copied ? t("copied") : t("copy")}
               </button>
@@ -481,7 +485,7 @@ export default function ChatBubble({
               {!isBot && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-tighter transition-colors"
+                  className="text-[10px] font-bold text-secondary hover:text-primary uppercase tracking-tighter transition-colors"
                 >
                   {t("edit")}
                 </button>
@@ -492,7 +496,7 @@ export default function ChatBubble({
                 <button
                   onClick={onRegenerate}
                   disabled={regenerating}
-                  className="flex items-center gap-1 text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-tighter disabled:opacity-30 transition-colors"
+                  className="flex items-center gap-1 text-[10px] font-bold text-secondary hover:text-primary uppercase tracking-tighter disabled:opacity-30 transition-colors"
                 >
                   <span className={regenerating ? "animate-spin" : ""}>🔄</span>
                   {regenerating ? t("thinking") : t("regenerate")}

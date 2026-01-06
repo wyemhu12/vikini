@@ -92,7 +92,7 @@ export default function HeaderBar({
         {/* Chữ Vikini Chat được redesign */}
         <div className="min-w-0 flex flex-col">
           <div className="font-sans text-xl font-bold tracking-wide flex items-center gap-2 select-none text-[var(--text-primary)]">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--accent)] to-[color-mix(in_srgb,var(--accent)_80%,black)] shadow-[0_0_15px_var(--glow)] text-black font-black text-lg">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--accent)] to-[color-mix(in_srgb,var(--accent)_80%,black)] shadow-[0_0_15px_var(--glow)] text-[var(--surface)] font-black text-lg">
               V
             </div>
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-[var(--text-primary)] via-[var(--text-primary)] to-[color-mix(in_srgb,var(--text-primary)_70%,transparent)]">

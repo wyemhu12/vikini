@@ -194,7 +194,7 @@ export default function Sidebar({
         "
         type="button"
       >
-        <span className="p-1 rounded-md text-[var(--accent)] bg-[var(--control-bg)] group-hover:bg-[var(--accent)] group-hover:text-black transition-colors">
+        <span className="p-1 rounded-md text-[var(--accent)] bg-[var(--control-bg)] group-hover:bg-[var(--accent)] group-hover:text-[var(--surface)] transition-colors">
           <SparklesIcon />
         </span>
         {t?.exploreGems || "Explore Gems"}

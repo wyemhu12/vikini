@@ -438,10 +438,10 @@ export default function ChatApp() {
 
   if (isAuthLoading || !isAuthed) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[var(--surface)] text-[var(--text-primary)] overflow-hidden">
-        <div className="absolute inset-0 z-0 bg-[var(--surface-muted)] opacity-80" />
+      <div className="h-screen w-screen flex items-center justify-center bg-surface text-primary overflow-hidden">
+        <div className="absolute inset-0 z-0 bg-surface-muted opacity-80" />
         <div className="relative animate-pulse flex flex-col items-center gap-6 z-10">
-          <div className="h-16 w-16 rounded-2xl border border-[var(--control-border)] bg-[var(--control-bg)] backdrop-blur-xl flex items-center justify-center text-3xl font-black shadow-2xl">
+          <div className="h-16 w-16 rounded-2xl border border-[var(--control-border)] bg-control backdrop-blur-xl flex items-center justify-center text-3xl font-black shadow-2xl">
             V
           </div>
           <div className="text-[10px] tracking-[0.4em] text-[var(--text-secondary)] uppercase font-bold">
@@ -460,7 +460,7 @@ export default function ChatApp() {
   const showLanding = !selectedConversationId || renderedMessages.length === 0;
 
   return (
-    <div className="h-screen w-screen text-[var(--text-primary)] overflow-hidden relative font-sans bg-[var(--surface)]">
+    <div className="h-screen w-screen text-primary overflow-hidden relative font-sans bg-surface">
       {/* 🌌 Static Professional Background */}
       <div className="absolute inset-0 z-0 static-depth-bg pointer-events-none" />
 

@@ -12,12 +12,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className="h-full">
       {/* Giữ nguyên các class cũ (nền đen, text trắng) */}
-      <body className="min-h-screen bg-neutral-950 text-neutral-100">
+      <body className="min-h-screen bg-surface text-primary">
         <Providers>
           {/* Bọc MainLayout vào đây để Modal hoạt động, nhưng không làm mất style của Body */}
-          <MainLayout>
-            {children}
-          </MainLayout>
+          <MainLayout>{children}</MainLayout>
         </Providers>
       </body>
     </html>

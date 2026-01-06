@@ -1,0 +1,57 @@
+/* ===========================================
+   DESIGN TOKEN UTILITIES
+   Map semantic CSS variables to utility-like classes
+   =========================================== */
+
+/* Backgrounds */
+.bg-surface {
+  background-color: var(--surface);
+}
+
+.bg-surface-muted {
+  background-color: var(--surface-muted);
+}
+
+.bg-surface-elevated {
+  background-color: var(--surface-elevated);
+}
+
+.bg-control {
+  background-color: var(--control-bg);
+}
+
+.bg-control-hover {
+  background-color: var(--control-bg-hover);
+}
+
+.bg-accent {
+  background-color: var(--accent);
+}
+
+/* Borders */
+.border-token {
+  border-color: var(--border);
+}
+
+.border-control {
+  border-color: var(--control-border);
+}
+
+/* Text */
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+/* Generic surface cards */
+.card-surface {
+  background-color: var(--surface-elevated);
+  border-color: var(--border);
+}

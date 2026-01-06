@@ -318,7 +318,7 @@ function ModelItem({ model, isActive, isAllowed, onSelect, t }: ModelItemProps) 
       </div>
       {isActive && (
         <div className="bg-[var(--accent)] rounded-full p-0.5 mt-1">
-          <Check className="w-3 h-3 text-black" />
+          <Check className="w-3 h-3 text-[var(--surface)]" />
         </div>
       )}
     </button>
