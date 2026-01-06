@@ -181,7 +181,7 @@ export default function InputForm({
           !isStreaming &&
           ((!input.trim() && attachments.length === 0) || (disabled && !isUploading))
             ? "bg-[var(--control-bg)] text-[var(--text-secondary)] cursor-not-allowed"
-            : "bg-[var(--accent)] text-black hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--glow)]"
+            : "bg-[var(--accent)] text-[var(--surface)] hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--glow)]"
         }`}
         title={isStreaming ? "Stop" : t?.send || "Send"}
       >

@@ -439,10 +439,10 @@ const AttachmentsPanel = forwardRef(
                   <div className="p-4">
                     {/* Toolbar */}
                     <div className="flex items-center justify-between mb-4">
-                      <div className="text-[10px] uppercase tracking-wider font-semibold text-neutral-500 flex items-center gap-2">
+                      <div className="text-[10px] uppercase tracking-wider font-semibold text-secondary flex items-center gap-2">
                         <span>Attached Files</span>
                         {hasFiles && (
-                          <span className="px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300">
+                          <span className="px-1.5 py-0.5 rounded bg-surface-elevated text-secondary">
                             {attachments.length} • {formatBytes(totalBytes)}
                           </span>
                         )}
@@ -451,7 +451,7 @@ const AttachmentsPanel = forwardRef(
                         <button
                           onClick={refresh}
                           title="Refresh"
-                          className="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-500 hover:text-neutral-300 transition-colors"
+                          className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
                         >
                           <RefreshCw className="w-3.5 h-3.5" />
                         </button>
@@ -459,16 +459,16 @@ const AttachmentsPanel = forwardRef(
                           <button
                             onClick={doDeleteAll}
                             title="Delete All"
-                            className="p-1.5 rounded-md hover:bg-red-900/20 text-neutral-500 hover:text-red-400 transition-colors"
+                            className="p-1.5 rounded-md hover:bg-red-900/20 text-secondary hover:text-red-400 transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        <div className="w-px h-3 bg-neutral-800 mx-1" />
+                        <div className="w-px h-3 bg-[var(--border)] mx-1" />
                         <button
                           onClick={onPickFiles}
                           disabled={uploading}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-neutral-100 hover:bg-white text-black text-xs font-semibold transition-colors disabled:opacity-50 shadow-[0_0_10px_rgba(255,255,255,0.1)]"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-accent hover:brightness-110 text-[var(--surface)] text-xs font-semibold transition-colors disabled:opacity-50 shadow-[0_0_10px_var(--glow)]"
                         >
                           {uploading ? (
                             <>
@@ -502,21 +502,21 @@ const AttachmentsPanel = forwardRef(
                             initial={{ opacity: 0, y: 5 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="group flex items-center gap-3 p-2.5 rounded-xl border border-transparent hover:border-neutral-800 bg-neutral-900/30 hover:bg-neutral-900 transition-all"
+                            className="group flex items-center gap-3 p-2.5 rounded-xl border border-transparent hover:border-token bg-surface-elevated hover:bg-control-hover transition-all"
                           >
                             {/* Icon */}
-                            <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-neutral-950 border border-neutral-800 shadow-sm">
+                            <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-surface border border-token shadow-sm">
                               {getFileIcon(a.mime_type, a.filename)}
                             </div>
 
                             {/* Info */}
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-xs font-medium text-neutral-200 group-hover:text-white transition-colors">
+                              <div className="truncate text-xs font-medium text-secondary group-hover:text-primary transition-colors">
                                 {a.filename}
                               </div>
-                              <div className="flex items-center gap-2 text-[10px] text-neutral-500">
+                              <div className="flex items-center gap-2 text-[10px] text-secondary">
                                 <span>{formatBytes(a.size_bytes)}</span>
-                                <span className="w-0.5 h-0.5 rounded-full bg-neutral-600" />
+                                <span className="w-0.5 h-0.5 rounded-full bg-[var(--border)]" />
                                 <span className="uppercase">
                                   {a.mime_type.split("/")[1] || "FILE"}
                                 </span>
@@ -527,14 +527,14 @@ const AttachmentsPanel = forwardRef(
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
                                 onClick={() => doPreview(a)}
-                                className="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 transition-colors"
+                                className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
                                 title="Preview"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => doDelete(a)}
-                                className="p-1.5 rounded-md hover:bg-red-900/20 text-neutral-400 hover:text-red-400 transition-colors"
+                                className="p-1.5 rounded-md hover:bg-red-900/20 text-secondary hover:text-red-400 transition-colors"
                                 title="Delete"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -546,13 +546,13 @@ const AttachmentsPanel = forwardRef(
                     ) : (
                       <div
                         onClick={onPickFiles}
-                        className="cursor-pointer flex flex-col items-center justify-center py-8 text-center border border-dashed border-neutral-800 rounded-xl bg-neutral-900/20 hover:bg-neutral-900/40 hover:border-neutral-700 transition-all"
+                        className="cursor-pointer flex flex-col items-center justify-center py-8 text-center border border-dashed border-token rounded-xl bg-surface-elevated hover:bg-control-hover transition-all"
                       >
-                        <div className="w-10 h-10 rounded-full bg-neutral-900 flex items-center justify-center mb-3">
-                          <UploadCloud className="w-5 h-5 text-neutral-600" />
+                        <div className="w-10 h-10 rounded-full bg-surface flex items-center justify-center mb-3">
+                          <UploadCloud className="w-5 h-5 text-secondary" />
                         </div>
-                        <div className="text-sm font-medium text-neutral-400">Drop files here</div>
-                        <div className="text-xs text-neutral-600 mt-1">or click to browse</div>
+                        <div className="text-sm font-medium text-secondary">Drop files here</div>
+                        <div className="text-xs text-secondary mt-1">or click to browse</div>
                       </div>
                     )}
 
@@ -570,9 +570,9 @@ const AttachmentsPanel = forwardRef(
                   {/* Close Toggle (Bottom) */}
                   <div
                     onClick={() => onToggle?.(false)}
-                    className="flex items-center justify-center py-1.5 border-t border-neutral-900 bg-neutral-950 hover:bg-neutral-900 cursor-pointer transition-colors"
+                    className="flex items-center justify-center py-1.5 border-t border-token bg-surface hover:bg-surface-muted cursor-pointer transition-colors"
                   >
-                    <ChevronDown className="w-4 h-4 text-neutral-500" />
+                    <ChevronDown className="w-4 h-4 text-secondary" />
                   </div>
                 </div>
               </motion.div>
@@ -583,26 +583,26 @@ const AttachmentsPanel = forwardRef(
         {/* Preview Modal ... */}
         <AnimatePresence>
           {preview && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--surface)_85%,black)] backdrop-blur-sm p-4">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="relative w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl bg-neutral-900 border border-neutral-800 shadow-2xl overflow-hidden"
+                className="relative w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl bg-surface-elevated border border-token shadow-2xl overflow-hidden"
               >
-                <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900">
-                  <div className="truncate text-sm font-medium text-neutral-200">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-token bg-surface-elevated">
+                  <div className="truncate text-sm font-medium text-primary">
                     {preview.filename}
                   </div>
                   <button
                     onClick={() => setPreview(null)}
-                    className="p-1 rounded-full hover:bg-neutral-800 text-neutral-400 transition-colors"
+                    className="p-1 rounded-full hover:bg-control-hover text-secondary transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-auto p-4 bg-neutral-950/50">
+                <div className="flex-1 overflow-auto p-4 bg-surface">
                   {preview.kind === "image" ? (
                     <img
                       src={preview.url}
@@ -610,17 +610,17 @@ const AttachmentsPanel = forwardRef(
                       className="max-w-full h-auto mx-auto rounded-lg"
                     />
                   ) : preview.kind === "text" ? (
-                    <pre className="whitespace-pre-wrap break-words text-xs text-neutral-300 font-mono bg-neutral-950 p-4 rounded-lg border border-neutral-800">
+                    <pre className="whitespace-pre-wrap break-words text-xs text-secondary font-mono bg-surface p-4 rounded-lg border border-token">
                       {preview.text}
                     </pre>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-48 gap-4">
-                      <FileIcon className="w-12 h-12 text-neutral-600" />
+                      <FileIcon className="w-12 h-12 text-secondary" />
                       <a
                         href={preview.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-4 py-2 rounded-lg bg-neutral-100 text-black text-xs font-bold hover:bg-white transition-colors"
+                        className="px-4 py-2 rounded-lg bg-accent text-[var(--surface)] text-xs font-bold hover:brightness-110 transition-colors"
                       >
                         Download / Open File
                       </a>

@@ -8,23 +8,15 @@ export default function TitleItem({ id, defaultTitle, isActive }) {
   const optimisticTitle = useAutoTitleStore((s) => s.optimistic[id]);
   const isLoading = useAutoTitleStore((s) => s.loading[id]);
 
-  const title =
-    finalTitle ||
-    optimisticTitle ||
-    defaultTitle ||
-    "New Chat";
+  const title = finalTitle || optimisticTitle || defaultTitle || "New Chat";
 
   return (
     <span
-      className={`truncate text-sm ${
-        isActive ? "text-white" : "text-neutral-300"
-      }`}
+      className={`truncate text-sm ${isActive ? "text-primary" : "text-secondary"}`}
       title={title}
     >
       {title}
-      {isLoading && (
-        <span className="ml-1 animate-pulse text-neutral-500">…</span>
-      )}
+      {isLoading && <span className="ml-1 animate-pulse text-secondary">…</span>}
     </span>
   );
 }
