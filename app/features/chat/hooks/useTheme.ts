@@ -1,25 +1,39 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 
-const THEME_IDS = [
-  "blueprint",
-  "amber",
-  "indigo",
-  "charcoal",
-  "gold",
-  "red",
-  "rose",
-  "yuri",
-  "allied",
-  "soviet",
-  "nebula",
-  "orchid",
-  "aqua",
-  "holo",
-  "sunset",
-] as const;
+export type ThemeTone = "light" | "dark";
+type ThemeConfigEntry = { id: string; tone: ThemeTone };
 
-export type ThemeId = (typeof THEME_IDS)[number];
+const THEME_CONFIG = [
+  { id: "blueprint", tone: "dark" },
+  { id: "amber", tone: "dark" },
+  { id: "indigo", tone: "dark" },
+  { id: "charcoal", tone: "dark" },
+  { id: "gold", tone: "dark" },
+  { id: "red", tone: "dark" },
+  { id: "rose", tone: "dark" },
+  { id: "yuri", tone: "dark" },
+  { id: "allied", tone: "dark" },
+  { id: "soviet", tone: "dark" },
+  { id: "nebula", tone: "dark" },
+  { id: "orchid", tone: "dark" },
+  { id: "aqua", tone: "dark" },
+  { id: "holo", tone: "dark" },
+  { id: "sunset", tone: "dark" },
+] as const satisfies readonly ThemeConfigEntry[];
+
+type ThemeConfig = (typeof THEME_CONFIG)[number];
+export type ThemeId = ThemeConfig["id"];
+
+const THEME_IDS = THEME_CONFIG.map((theme) => theme.id) as ThemeId[];
+
+export const THEME_TONES: Record<ThemeId, ThemeTone> = THEME_CONFIG.reduce(
+  (acc, { id, tone }) => {
+    acc[id] = tone;
+    return acc;
+  },
+  {} as Record<ThemeId, ThemeTone>
+);
 
 export function useTheme() {
   const [theme, setTheme] = useState<ThemeId>("blueprint");
@@ -36,6 +50,7 @@ export function useTheme() {
 
     // add active theme class
     root.classList.add(`theme-${theme}`);
+    root.dataset.themeTone = THEME_TONES[theme] ?? "dark";
     localStorage.setItem("vikini-theme", theme);
   }, [theme]);
 

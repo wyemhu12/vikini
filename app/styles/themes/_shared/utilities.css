@@ -6,7 +6,7 @@
 .static-depth-bg {
   background:
     radial-gradient(circle at 50% 0%, var(--bg-glow), transparent 70%),
-    linear-gradient(to bottom, #050505, #000000);
+    linear-gradient(to bottom, var(--surface), var(--surface-strong));
 }
 
 /* Markdown & Chat Styling */

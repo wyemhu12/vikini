@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
+import { THEME_TONES } from "../../chat/hooks/useTheme";
 
 const Bars3Icon = () => (
   <svg
@@ -51,7 +52,10 @@ export default function HeaderBar({
     { id: "yuri", label: t?.yuri ?? "Yuri Purple", swatch: "#a855f7", group: "Red Alert 2" },
     { id: "allied", label: t?.allied ?? "Allied Blue", swatch: "#38bdf8", group: "Red Alert 2" },
     { id: "soviet", label: t?.soviet ?? "Soviet Red", swatch: "#ef4444", group: "Red Alert 2" },
-  ];
+  ].map((option) => ({
+    ...option,
+    tone: THEME_TONES[option.id] ?? "dark",
+  }));
 
   const languageOptions = [
     { id: "vi", label: t?.vi ?? "Tiếng Việt" },
@@ -187,6 +191,7 @@ export default function HeaderBar({
                               onThemeChange?.(tItem.id);
                               setIsThemeOpen(false);
                             }}
+                            data-theme-tone={tItem.tone}
                             className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-all group/item ${
                               theme === tItem.id
                                 ? "bg-white/10 text-white"
