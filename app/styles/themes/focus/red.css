@@ -3,8 +3,14 @@
    =========================================== */
 
 .theme-red {
-  --primary: #f87171;
-  --primary-light: #fca5a5;
-  --primary-dark: #dc2626;
-  --bg-glow: rgba(248, 113, 113, 0.08);
+  --surface: #0a0505;
+  --surface-muted: #120909;
+  --border: rgba(248, 113, 113, 0.16);
+  --control-bg: rgba(255, 255, 255, 0.04);
+  --control-bg-hover: rgba(255, 255, 255, 0.1);
+  --control-border: rgba(248, 113, 113, 0.24);
+  --text-primary: #ffecec;
+  --text-secondary: #f7c1c1;
+  --accent: #f87171;
+  --glow: rgba(248, 113, 113, 0.22);
 }

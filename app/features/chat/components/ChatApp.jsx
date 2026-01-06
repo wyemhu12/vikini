@@ -438,13 +438,13 @@ export default function ChatApp() {
 
   if (isAuthLoading || !isAuthed) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[#020617] text-white overflow-hidden">
-        <div className="absolute inset-0 z-0 bg-black/60" />
+      <div className="h-screen w-screen flex items-center justify-center bg-[var(--surface)] text-[var(--text-primary)] overflow-hidden">
+        <div className="absolute inset-0 z-0 bg-[var(--surface-muted)] opacity-80" />
         <div className="relative animate-pulse flex flex-col items-center gap-6 z-10">
-          <div className="h-16 w-16 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl flex items-center justify-center text-3xl font-black shadow-2xl">
+          <div className="h-16 w-16 rounded-2xl border border-[var(--control-border)] bg-[var(--control-bg)] backdrop-blur-xl flex items-center justify-center text-3xl font-black shadow-2xl">
             V
           </div>
-          <div className="text-[10px] tracking-[0.4em] text-white/30 uppercase font-bold">
+          <div className="text-[10px] tracking-[0.4em] text-[var(--text-secondary)] uppercase font-bold">
             {t.loading}
           </div>
         </div>
@@ -460,7 +460,7 @@ export default function ChatApp() {
   const showLanding = !selectedConversationId || renderedMessages.length === 0;
 
   return (
-    <div className="h-screen w-screen text-neutral-100 overflow-hidden relative font-sans">
+    <div className="h-screen w-screen text-[var(--text-primary)] overflow-hidden relative font-sans bg-[var(--surface)]">
       {/* 🌌 Static Professional Background */}
       <div className="absolute inset-0 z-0 static-depth-bg pointer-events-none" />
 
@@ -558,17 +558,17 @@ export default function ChatApp() {
             />
           )}
           {showLanding ? (
-            <div className="h-full flex flex-col items-center justify-center p-8 animate-in fade-in zoom-in duration-500">
+            <div className="h-full flex flex-col items-center justify-center p-8 animate-in fade-in zoom-in duration-500 text-[var(--text-primary)]">
               <div className="mb-8 relative group">
-                <div className="absolute inset-0 bg-[var(--primary)] blur-[60px] opacity-10 group-hover:opacity-20 transition-opacity duration-700" />
-                <div className="relative h-24 w-24 rounded-[2rem] border border-white/10 bg-white/[0.03] backdrop-blur-2xl flex items-center justify-center text-5xl font-black shadow-2xl text-white/90">
+                <div className="absolute inset-0 bg-[var(--accent)] blur-[60px] opacity-10 group-hover:opacity-20 transition-opacity duration-700" />
+                <div className="relative h-24 w-24 rounded-[2rem] border border-[var(--control-border)] bg-[var(--control-bg)] backdrop-blur-2xl flex items-center justify-center text-5xl font-black shadow-2xl text-[var(--text-primary)]">
                   V
                 </div>
               </div>
-              <h2 className="max-w-xl text-center text-2xl md:text-3xl font-bold tracking-tight text-white mb-3">
+              <h2 className="max-w-xl text-center text-2xl md:text-3xl font-bold tracking-tight text-[var(--text-primary)] mb-3">
                 {t.landingMessage}
               </h2>
-              <p className="text-[10px] font-bold tracking-[0.4em] text-white/30 uppercase">
+              <p className="text-[10px] font-bold tracking-[0.4em] text-[var(--text-secondary)] uppercase">
                 VIKINI INTELLIGENCE
               </p>
             </div>
@@ -611,7 +611,7 @@ export default function ChatApp() {
         <div className="w-full max-w-4xl mx-auto pb-6 px-4 md:px-6">
           {/* Static Floating Controls Toolbar - Minimalist */}
           <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
-            <div className="flex items-center rounded-full bg-[#0f1115] border border-white/5 p-1 shadow-lg">
+            <div className="flex items-center rounded-full bg-[var(--control-bg)] border border-[var(--control-border)] p-1 shadow-lg">
               <ModelSelector
                 currentModelId={currentModel}
                 onSelectModel={handleModelChange}
@@ -619,30 +619,30 @@ export default function ChatApp() {
                 t={t}
                 disabled={isStreaming || regenerating}
               />
-              <div className="h-3 w-[1px] bg-white/10 mx-1" />
+              <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
               <button
                 onClick={() => setShowFiles(!showFiles)}
                 className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full flex items-center gap-1 ${
                   showFiles || fileCount > 0
-                    ? "text-indigo-400 bg-indigo-500/10"
-                    : "text-white/40 hover:text-white"
+                    ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 FILES{" "}
                 {fileCount > 0 ? (
-                  <span className="text-[9px] bg-indigo-500/20 px-1 rounded-sm ml-0.5">
+                  <span className="text-[9px] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] px-1 rounded-sm ml-0.5 text-[var(--text-primary)]">
                     {fileCount}
                   </span>
                 ) : (
                   ""
                 )}
               </button>
-              <div className="h-3 w-[1px] bg-white/10 mx-1" />
-              <div className="h-3 w-[1px] bg-white/10 mx-1" />
+              <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
+              <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
               {currentModel === "gemini-3-pro-research" ? (
                 <button
                   disabled
-                  className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full text-blue-400 bg-blue-500/10 cursor-not-allowed border border-blue-500/30"
+                  className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full text-[var(--text-secondary)] bg-[var(--control-bg)] cursor-not-allowed border border-[var(--control-border)]"
                   title="Research Mode always searches"
                 >
                   RESEARCH MODE (SEARCH ON)
@@ -652,8 +652,8 @@ export default function ChatApp() {
                   onClick={toggleWebSearch}
                   className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full ${
                     webSearchEnabled
-                      ? "text-[var(--primary)] bg-white/5"
-                      : "text-white/40 hover:text-white"
+                      ? "text-[var(--accent)] bg-[var(--control-bg-hover)]"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   WEB {webSearchEnabled ? t.webSearchOn : t.webSearchOff}
@@ -661,13 +661,13 @@ export default function ChatApp() {
               )}
               {currentModel && currentModel.startsWith("gemini") && (
                 <>
-                  <div className="h-3 w-[1px] bg-white/10 mx-1" />
+                  <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
                   <button
                     onClick={toggleAlwaysSearch}
                     className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full ${
                       alwaysSearch
-                        ? "text-emerald-400 bg-emerald-400/10"
-                        : "text-white/40 hover:text-white"
+                        ? "text-[var(--accent)] bg-[var(--control-bg-hover)]"
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     }`}
                     title={t.alwaysSearchTooltip}
                   >
@@ -677,8 +677,8 @@ export default function ChatApp() {
               )}
               {currentGem && (
                 <>
-                  <div className="h-3 w-[1px] bg-white/10 mx-1" />
-                  <div className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 text-[var(--primary-light)]">
+                  <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
+                  <div className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 text-[var(--accent)]">
                     {currentGem.icon} {currentGem.name}
                   </div>
                 </>
@@ -688,7 +688,7 @@ export default function ChatApp() {
 
           {/* Input Box Wrapper */}
           <div className="relative group">
-            <div className="absolute -inset-0.5 bg-[var(--primary)] rounded-[2rem] opacity-0 group-focus-within:opacity-20 transition-opacity duration-500 blur-lg" />
+            <div className="absolute -inset-0.5 bg-[var(--accent)] rounded-[2rem] opacity-0 group-focus-within:opacity-20 transition-opacity duration-500 blur-lg" />
             <div className="relative">
               <AttachmentsPanel
                 ref={attachmentsRef}
@@ -714,7 +714,7 @@ export default function ChatApp() {
           </div>
 
           <div className="mt-3 text-center">
-            <p className="text-[9px] font-bold text-white/10 tracking-widest uppercase hover:text-white/30 transition-colors cursor-default">
+            <p className="text-[9px] font-bold text-[var(--text-secondary)] tracking-widest uppercase hover:text-[var(--text-primary)] transition-colors cursor-default">
               {t.aiDisclaimer}
             </p>
           </div>

@@ -96,8 +96,8 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
       <button
         className={`relative flex w-full items-center justify-between gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm transition-all duration-300 ${
           isActive
-            ? "bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)] border border-white/10"
-            : "text-white/50 hover:bg-white/5 hover:text-white border border-transparent"
+            ? "bg-[var(--control-bg-hover)] text-[var(--text-primary)] shadow-[0_0_15px_var(--glow)] border border-[var(--control-border)]"
+            : "text-[var(--text-secondary)] hover:bg-[var(--control-bg)] hover:text-[var(--text-primary)] border border-transparent"
         }`}
         onClick={() => onSelect?.(c.id)}
         type="button"
@@ -111,10 +111,10 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
           <div
-            className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-white/10 cursor-pointer transition-opacity duration-200 z-10 ${
+            className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-[var(--control-bg-hover)] cursor-pointer transition-opacity duration-200 z-10 ${
               isActive
-                ? "opacity-100 text-white"
-                : "opacity-0 group-hover:opacity-100 text-white/40 hover:text-white"
+                ? "opacity-100 text-[var(--text-primary)]"
+                : "opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
             role="button"
             title="Tùy chọn"
@@ -126,7 +126,7 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
 
         <DropdownMenu.Portal>
           <DropdownMenu.Content
-            className="z-[9999] min-w-[12rem] rounded-xl bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden ring-1 ring-white/5 py-1.5 animate-in fade-in zoom-in-95 duration-200"
+            className="z-[9999] min-w-[12rem] rounded-xl bg-[var(--surface-muted)]/95 backdrop-blur-xl border border-[var(--border)] shadow-2xl overflow-hidden ring-1 ring-[var(--border)] py-1.5 animate-in fade-in zoom-in-95 duration-200"
             align="end"
             sideOffset={5}
           >
@@ -134,7 +134,7 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
               onClick={(_e) => {
                 if (typeof onRename === "function") onRename(c.id);
               }}
-              className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:text-white hover:bg-white/5 transition-colors cursor-pointer outline-none data-[highlighted]:bg-white/5 data-[highlighted]:text-white"
+              className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg)] transition-colors cursor-pointer outline-none data-[highlighted]:bg-[var(--control-bg)] data-[highlighted]:text-[var(--text-primary)]"
             >
               <PencilIcon />
               Rename
@@ -143,13 +143,13 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
             <DropdownMenu.Item
               onClick={handleDownloadClick}
               disabled={isDownloading}
-              className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:text-white hover:bg-white/5 transition-colors cursor-pointer outline-none data-[highlighted]:bg-white/5 data-[highlighted]:text-white disabled:opacity-50"
+              className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg)] transition-colors cursor-pointer outline-none data-[highlighted]:bg-[var(--control-bg)] data-[highlighted]:text-[var(--text-primary)] disabled:opacity-50"
             >
               <DownloadIcon />
               {isDownloading ? "Downloading..." : "Export .txt"}
             </DropdownMenu.Item>
 
-            <DropdownMenu.Separator className="h-px bg-white/10 my-1 mx-2" />
+            <DropdownMenu.Separator className="h-px bg-[var(--border)] my-1 mx-2" />
 
             <DropdownMenu.Item
               onClick={(_e) => {

@@ -3,8 +3,14 @@
    =========================================== */
 
 .theme-amber {
-  --primary: #f59e0b;
-  --primary-light: #fcd34d;
-  --primary-dark: #b45309;
-  --bg-glow: rgba(245, 158, 11, 0.08);
+  --surface: #0a0805;
+  --surface-muted: #14100a;
+  --border: rgba(245, 158, 11, 0.14);
+  --control-bg: rgba(255, 255, 255, 0.04);
+  --control-bg-hover: rgba(255, 255, 255, 0.1);
+  --control-border: rgba(245, 158, 11, 0.25);
+  --text-primary: #fff4e5;
+  --text-secondary: #f3c78b;
+  --accent: #f59e0b;
+  --glow: rgba(245, 158, 11, 0.2);
 }

@@ -3,8 +3,14 @@
    =========================================== */
 
 .theme-rose {
-  --primary: #fb7185;
-  --primary-light: #fecdd3;
-  --primary-dark: #e11d48;
-  --bg-glow: rgba(251, 113, 133, 0.08);
+  --surface: #0b0708;
+  --surface-muted: #151013;
+  --border: rgba(251, 113, 133, 0.16);
+  --control-bg: rgba(255, 255, 255, 0.04);
+  --control-bg-hover: rgba(255, 255, 255, 0.1);
+  --control-border: rgba(251, 113, 133, 0.24);
+  --text-primary: #ffe9ee;
+  --text-secondary: #f7c0cb;
+  --accent: #fb7185;
+  --glow: rgba(251, 113, 133, 0.22);
 }
