@@ -1,10 +1,10 @@
 import GemModal from "../../gems/components/GemModal";
 
-export default function MainLayout({children}){ 
+export default function MainLayout({ children }) {
   return (
-    <div className="relative">
+    <main id="main" className="relative flex-1">
       {children}
       <GemModal />
-    </div>
-  ); 
+    </main>
+  );
 }

@@ -37,9 +37,9 @@ export const translations: TranslationSet = {
     edit: "Chỉnh sửa",
     save: "Lưu & Gửi",
     cancel: "Hủy",
-    // HeaderBar translations
-    language: "Ngôn ngữ",
-    themes: "Giao diện",
+    openSidebar: "Mở thanh bên",
+    selectLanguage: "Chọn ngôn ngữ",
+    selectTheme: "Chọn giao diện",
     vi: "Tiếng Việt",
     en: "Tiếng Anh",
     // Theme names
@@ -215,6 +215,9 @@ export const translations: TranslationSet = {
     edit: "Edit",
     save: "Save & Send",
     cancel: "Cancel",
+    openSidebar: "Open sidebar",
+    selectLanguage: "Select Language",
+    selectTheme: "Select Theme",
     language: "Language",
     themes: "Themes",
     vi: "Vietnamese",
