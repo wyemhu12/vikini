@@ -14,9 +14,9 @@ export default function GemPreview({ gem }) {
           {gem.icon || "◆"}
         </div>
         <div>
-          <h2 className="text-lg font-bold text-white">{gem.name}</h2>
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">{gem.name}</h2>
           {gem.isPremade && (
-            <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-neutral-300">
+            <span className="rounded bg-[var(--control-bg)] px-1.5 py-0.5 text-[10px] text-[var(--text-secondary)]">
               {t("premadeGems") || "System Gem"}
             </span>
           )}
@@ -25,20 +25,22 @@ export default function GemPreview({ gem }) {
 
       <div className="space-y-4 flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-neutral-800">
         <div>
-          <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider block mb-1">
+          <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">
             {t("gemDescription") || "Description"}
           </label>
-          <div className="text-sm text-neutral-300 bg-neutral-900/30 p-3 rounded-lg border border-neutral-800/50">
-            {gem.description || <span className="italic text-neutral-600">No description</span>}
+          <div className="text-sm text-[var(--text-primary)] bg-[var(--surface-muted)] p-3 rounded-lg border border-[var(--border)]">
+            {gem.description || (
+              <span className="italic text-[var(--text-muted)]">No description</span>
+            )}
           </div>
         </div>
 
         {gem.color && (
           <div>
-            <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider block mb-1">
+            <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">
               {t("themes") || "Color Theme"}
             </label>
-            <div className="text-sm text-neutral-300 flex items-center gap-2">
+            <div className="text-sm text-[var(--text-primary)] flex items-center gap-2">
               <span
                 className="w-4 h-4 rounded-full border border-white/10"
                 style={{ backgroundColor: gem.color }}
@@ -49,12 +51,12 @@ export default function GemPreview({ gem }) {
         )}
 
         <div>
-          <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider block mb-1">
+          <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">
             {t("gemInstructions") || "Instructions (System Prompt)"}
           </label>
-          <div className="text-sm text-neutral-300 bg-neutral-900/30 p-3 rounded-lg border border-neutral-800/50 whitespace-pre-wrap font-mono text-xs leading-relaxed max-h-[400px] overflow-y-auto">
+          <div className="text-sm text-[var(--text-primary)] bg-[var(--surface-muted)] p-3 rounded-lg border border-[var(--border)] whitespace-pre-wrap font-mono text-xs leading-relaxed max-h-[400px] overflow-y-auto">
             {gem.instructions || gem.instruction || (
-              <span className="italic text-neutral-600">No instructions</span>
+              <span className="italic text-[var(--text-muted)]">No instructions</span>
             )}
           </div>
         </div>

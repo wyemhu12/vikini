@@ -7,8 +7,9 @@ import GemEditor from "./GemEditor";
 import GemPreview from "./GemPreview";
 import { useGemStore } from "../stores/useGemStore";
 import { useLanguage } from "../../chat/hooks/useLanguage";
+import { cn } from "@/lib/utils/cn";
 
-export default function GemManager() {
+export default function GemManager({ inModal = false }) {
   const sp = useSearchParams();
   const _router = useRouter();
   const { t, language } = useLanguage();
@@ -144,11 +145,16 @@ export default function GemManager() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950 text-neutral-100 overflow-hidden">
-      <div className="flex-none px-6 py-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-950 sticky top-0 z-10">
+    <div className="flex flex-col h-full bg-transparent text-[var(--text-primary)] overflow-hidden">
+      <div
+        className={cn(
+          "flex-none py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface)]/80 backdrop-blur-md sticky top-0 z-10",
+          inModal ? "pl-6 pr-14" : "px-6"
+        )}
+      >
         <div>
           <h1 className="text-xl font-semibold">{t("gemsTitle") || "Gems Manager"}</h1>
-          <p className="text-xs text-neutral-400 truncate max-w-md">
+          <p className="text-xs text-[var(--text-secondary)] truncate max-w-md">
             {conversationId
               ? `${t("appliedGem") || "Applied Gem"}: ${conversationId.slice(0, 8)}...`
               : "Global Mode"}
@@ -165,20 +171,20 @@ export default function GemManager() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin scrollbar-thumb-neutral-800">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin scrollbar-thumb-[var(--border)]">
         {status && (
-          <div className="mb-4 rounded-lg border border-neutral-800 bg-neutral-900/40 px-3 py-2 text-xs text-neutral-200">
+          <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-xs text-[var(--text-secondary)]">
             {status}
           </div>
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_1fr]">
-          <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3 h-fit">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)]/50 p-3 h-fit">
             <div className="mb-3 flex items-center justify-between">
               <div className="text-sm font-medium">{t("myGems") || "My Gems"}</div>
               <button
                 onClick={clearGem}
-                className="rounded-md border border-neutral-700 px-2 py-1 text-[10px] text-neutral-300 hover:bg-neutral-800 transition-colors"
+                className="rounded-md border border-[var(--control-border)] px-2 py-1 text-[10px] text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] transition-colors"
               >
                 Reset Default
               </button>
@@ -204,12 +210,12 @@ export default function GemManager() {
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-1">
             {editingGem ? (
-              <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-medium">Editor</h3>
                   <button
                     onClick={() => setEditingGem(null)}
-                    className="text-xs text-neutral-500 hover:text-white"
+                    className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   >
                     {t("cancel") || "Cancel"}
                   </button>
@@ -217,11 +223,11 @@ export default function GemManager() {
                 <GemEditor gem={editingGem} onSave={onSave} />
               </div>
             ) : previewGem ? (
-              <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 h-full">
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)]/50 h-full">
                 <GemPreview gem={previewGem} />
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-neutral-800 bg-neutral-900/20 p-8 flex flex-col items-center justify-center text-center text-neutral-500 min-h-[300px]">
+              <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-muted)]/20 p-8 flex flex-col items-center justify-center text-center text-[var(--text-secondary)] min-h-[300px]">
                 <p className="text-sm">
                   {language === "vi"
                     ? 'Chọn "Tạo Gem mới" để bắt đầu hoặc chọn Gem từ danh sách.'

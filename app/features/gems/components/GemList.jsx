@@ -21,10 +21,10 @@ export default function GemList({
     return (
       <div
         key={g.id}
-        className={`rounded-lg border px-3 py-2 ${
+        className={`rounded-lg border px-3 py-2 transition-all duration-200 ${
           selected
-            ? "border-[var(--primary)] bg-neutral-900/60"
-            : "border-neutral-800 bg-neutral-950"
+            ? "border-[var(--primary)] bg-[var(--primary)]/10"
+            : "border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-muted)]"
         }`}
       >
         <div className="flex items-start justify-between gap-2">
@@ -33,13 +33,15 @@ export default function GemList({
               <span className="text-sm">{g.icon || "◆"}</span>
               <div className="truncate text-sm font-medium">{g.name}</div>
               {g.isPremade ? (
-                <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-neutral-300">
+                <span className="rounded bg-[var(--control-bg)] px-1.5 py-0.5 text-[10px] text-[var(--text-secondary)]">
                   {t("premadeGems")}
                 </span>
               ) : null}
             </div>
             {g.description ? (
-              <div className="mt-1 line-clamp-2 text-[11px] text-neutral-400">{g.description}</div>
+              <div className="mt-1 line-clamp-2 text-[11px] text-[var(--text-secondary)]">
+                {g.description}
+              </div>
             ) : null}
           </div>
 
@@ -53,7 +55,7 @@ export default function GemList({
 
             <button
               onClick={() => onPreview?.(g)}
-              className="rounded-md border border-neutral-700 px-2 py-1 text-[11px] text-neutral-200 hover:bg-neutral-900 transition-all active:scale-95 flex items-center justify-center gap-1"
+              className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)] transition-all active:scale-95 flex items-center justify-center gap-1"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -76,7 +78,7 @@ export default function GemList({
               <>
                 <button
                   onClick={() => onEdit?.(g)}
-                  className="rounded-md border border-neutral-700 px-2 py-1 text-[11px] text-neutral-200 hover:bg-neutral-900 transition-all active:scale-95"
+                  className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)] transition-all active:scale-95"
                 >
                   {t("editGem")}
                 </button>

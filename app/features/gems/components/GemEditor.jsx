@@ -83,13 +83,15 @@ export default function GemEditor({ gem, onSave, language: languageProp }) {
       <div className="space-y-3">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <div className="md:col-span-2">
-            <label className="mb-1 block text-xs text-neutral-400">{t("gemName")}</label>
+            <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+              {t("gemName")}
+            </label>
             <input
               value={name}
               onChange={handleChange(setName)}
               disabled={isReadOnly}
               placeholder={t("gemPlaceholderName")}
-              className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm outline-none disabled:opacity-60"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--control-bg)] text-[var(--text-primary)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)] disabled:opacity-60"
             />
           </div>
           <div>
@@ -99,42 +101,46 @@ export default function GemEditor({ gem, onSave, language: languageProp }) {
               onChange={handleChange(setIcon)}
               disabled={isReadOnly}
               placeholder="💡"
-              className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm outline-none disabled:opacity-60"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--control-bg)] text-[var(--text-primary)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)] disabled:opacity-60"
             />
           </div>
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-neutral-400">{t("gemDescription")}</label>
+          <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+            {t("gemDescription")}
+          </label>
           <input
             value={description}
             onChange={handleChange(setDescription)}
             disabled={isReadOnly}
             placeholder={t("gemPlaceholderDesc")}
-            className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm outline-none disabled:opacity-60"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--control-bg)] text-[var(--text-primary)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)] disabled:opacity-60"
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-neutral-400">{t("themes")}</label>
+          <label className="mb-1 block text-xs text-[var(--text-secondary)]">{t("themes")}</label>
           <input
             value={color}
             onChange={handleChange(setColor)}
             disabled={isReadOnly}
             placeholder="amber | indigo | charcoal | ..."
-            className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm outline-none disabled:opacity-60"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--control-bg)] text-[var(--text-primary)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)] disabled:opacity-60"
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-neutral-400">{t("gemInstructions")}</label>
+          <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+            {t("gemInstructions")}
+          </label>
           <textarea
             value={instructions}
             onChange={handleChange(setInstructions)}
             disabled={isReadOnly}
             rows={14}
             placeholder={t("gemPlaceholderInst")}
-            className="w-full resize-y rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm leading-6 outline-none disabled:opacity-60"
+            className="w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--control-bg)] text-[var(--text-primary)] px-3 py-2 text-sm leading-6 outline-none focus:border-[var(--primary)] disabled:opacity-60"
           />
         </div>
       </div>
