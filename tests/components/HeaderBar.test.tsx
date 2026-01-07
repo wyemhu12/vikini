@@ -6,13 +6,13 @@ import { vi, describe, it, expect } from "vitest";
 
 // Mock dependencies
 vi.mock("next/dynamic", () => ({
-  default: (fn) => {
-    let Component;
+  default: (fn: any) => {
+    let Component: any;
     const load = async () => {
       Component = (await fn()).default;
     };
     load();
-    return (props) => (Component ? <Component {...props} /> : null);
+    return (props: any) => (Component ? <Component {...props} /> : null);
   },
 }));
 
