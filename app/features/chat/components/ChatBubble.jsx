@@ -373,7 +373,7 @@ export default function ChatBubble({
                 {(!hasContent && isLoading) || (showTyping && !displayContent.trim()) ? (
                   <TypingDots />
                 ) : (
-                  <div className="chat-markdown-container w-full overflow-hidden">
+                  <div className="chat-markdown-container chat-markdown w-full overflow-hidden">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[rehypeHighlight]}
@@ -436,7 +436,6 @@ export default function ChatBubble({
                           </td>
                         ),
                       }}
-                      className="chat-markdown"
                     >
                       {displayContent}
                     </ReactMarkdown>

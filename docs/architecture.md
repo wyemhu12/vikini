@@ -60,6 +60,11 @@ Separation of concerns between UI and business logic.
 ### Chat System
 
 - **Real-time Streaming**: Custom implementation for streaming AI responses.
+- **Component Architecture**:
+  - `ChatApp.jsx`: Main container and state orchestrator.
+  - `ChatControls.jsx`: Isolated input and model selection UI.
+  - `ChatBubble.jsx`: Message rendering.
+  - Custom hooks (`useChatStreamController`, `useAllowedModels`) to separate logic.
 - **Message Handling**: Supports diverse content types (Text, Code, Attachments).
 
 ### Gems (AI Assistants)

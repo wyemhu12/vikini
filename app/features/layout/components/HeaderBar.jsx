@@ -2,6 +2,7 @@
 
 import React, { useMemo } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { THEME_CONFIG } from "@/lib/config/theme-config";
 import {
@@ -92,14 +93,17 @@ const HeaderBar = ({ t, language, onLanguageChange, onToggleSidebar }) => {
 
         {/* Chữ Vikini Chat được redesign */}
         <div className="min-w-0 flex flex-col">
-          <div className="font-sans text-xl font-bold tracking-wide flex items-center gap-2 select-none text-[var(--text-primary)]">
+          <Link
+            href="/features/chat"
+            className="font-sans text-xl font-bold tracking-wide flex items-center gap-2 select-none text-[var(--text-primary)] hover:opacity-80 transition-opacity"
+          >
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--accent)] to-[color-mix(in_srgb,var(--accent)_80%,black)] shadow-[0_0_15px_var(--glow)] text-[var(--surface)] font-black text-lg">
               V
             </div>
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-[var(--text-primary)] via-[var(--text-primary)] to-[color-mix(in_srgb,var(--text-primary)_70%,transparent)]">
               Vikini Chat
             </span>
-          </div>
+          </Link>
         </div>
       </div>
 

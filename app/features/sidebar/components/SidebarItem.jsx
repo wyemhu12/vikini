@@ -134,7 +134,7 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
               onClick={(_e) => {
                 if (typeof onRename === "function") onRename(c.id);
               }}
-              className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg)] transition-colors cursor-pointer outline-none data-[highlighted]:bg-[var(--control-bg)] data-[highlighted]:text-[var(--text-primary)]"
+              className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg)] transition-colors cursor-pointer outline-none data-[highlighted]:bg-[var(--control-bg)] data-[highlighted]:text-[var(--text-primary)]"
             >
               <PencilIcon />
               Rename
@@ -143,7 +143,7 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
             <DropdownMenu.Item
               onClick={handleDownloadClick}
               disabled={isDownloading}
-              className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg)] transition-colors cursor-pointer outline-none data-[highlighted]:bg-[var(--control-bg)] data-[highlighted]:text-[var(--text-primary)] disabled:opacity-50"
+              className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg)] transition-colors cursor-pointer outline-none data-[highlighted]:bg-[var(--control-bg)] data-[highlighted]:text-[var(--text-primary)] disabled:opacity-50"
             >
               <DownloadIcon />
               {isDownloading ? "Downloading..." : "Export .txt"}
@@ -155,7 +155,7 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
               onClick={(_e) => {
                 if (typeof onDelete === "function") onDelete(c.id);
               }}
-              className="flex w-full items-center px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer outline-none data-[highlighted]:bg-red-500/10 data-[highlighted]:text-red-300"
+              className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer outline-none data-[highlighted]:bg-red-500/10 data-[highlighted]:text-red-300"
             >
               <TrashIcon />
               Delete

@@ -16,10 +16,10 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <head />
       {/* Giữ nguyên các class cũ (nền đen, text trắng) */}
-      <body className="min-h-screen bg-surface text-primary">
+      <body className="min-h-screen bg-surface text-primary" suppressHydrationWarning>
         <a
           href="#main"
           className="sr-only focus:not-sr-only absolute left-4 top-4 z-50 rounded bg-[var(--control-bg)] px-3 py-2 text-[var(--text-primary)] shadow-lg hover:bg-[var(--control-bg-hover)]"

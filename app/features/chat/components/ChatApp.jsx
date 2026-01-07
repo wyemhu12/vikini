@@ -7,12 +7,11 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import ChatBubble from "./ChatBubble";
 import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
-import InputForm from "./InputForm";
-import AttachmentsPanel from "./AttachmentsPanel";
 import AccessPendingScreen from "@/app/components/AccessPendingScreen";
 import UpgradeModal from "@/app/components/UpgradeModal";
 import DeleteConfirmModal from "@/app/components/DeleteConfirmModal";
-import ModelSelector from "./ModelSelector";
+import DashboardView from "./DashboardView";
+import ChatControls from "./ChatControls";
 
 import { useTheme } from "../hooks/useTheme";
 import { useLanguage } from "../hooks/useLanguage";
@@ -21,58 +20,10 @@ import { useGemStore } from "../../gems/stores/useGemStore";
 
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useChatStreamController } from "./hooks/useChatStreamController";
+import { useAllowedModels } from "./hooks/useAllowedModels";
+import { useFileDragDrop } from "./hooks/useFileDragDrop";
 
 import { DEFAULT_MODEL, SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
-
-// Inline hook to fetch allowed models for current user
-function useAllowedModels(isAuthed) {
-  const [allowedModelIds, setAllowedModelIds] = useState(new Set());
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!isAuthed) {
-      setAllowedModelIds(new Set());
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function fetchAllowedModels() {
-      try {
-        setLoading(true);
-        const res = await fetch("/api/user/allowed-models");
-        if (!res.ok) throw new Error("Failed to fetch allowed models");
-
-        const data = await res.json();
-        const allowed = data.allowed_models || [];
-
-        if (cancelled) return;
-
-        // Return Set of allowed model IDs for easy checking
-        setAllowedModelIds(new Set(allowed));
-      } catch (error) {
-        console.warn("Error fetching allowed models:", error);
-        // Fallback to allowing all models on error
-        if (!cancelled) {
-          setAllowedModelIds(new Set(SELECTABLE_MODELS.map((m) => m.id)));
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    fetchAllowedModels();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthed]);
-
-  return { allowedModelIds, loading };
-}
 
 export default function ChatApp() {
   const { data: session, status } = useSession();
@@ -86,10 +37,6 @@ export default function ChatApp() {
   const closeMobileSidebar = useCallback(() => setMobileOpen(false), []);
   const toggleMobileSidebar = useCallback(() => setMobileOpen((v) => !v), []);
 
-  // File Panel State
-  const [showFiles, setShowFiles] = useState(false);
-  const [fileCount, setFileCount] = useState(0);
-
   // Upgrade Modal State
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [restrictedModel, setRestrictedModel] = useState(null);
@@ -98,10 +45,11 @@ export default function ChatApp() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState(null);
 
+  // Sidebar Collapsed State
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   // Allowed Models (check access permissions)
-  const { allowedModelIds, loading: modelsLoading } = useAllowedModels(isAuthed);
-  // Always show all models, but some will be disabled
-  // const AVAILABLE_MODELS = SELECTABLE_MODELS; // Unused
+  const { allowedModelIds, loading: modelsLoading } = useAllowedModels(isAuthed); // [REFACTORED] Extracted hook
 
   // Function to check if a model is allowed
   const isModelAllowed = useCallback(
@@ -114,7 +62,9 @@ export default function ChatApp() {
   );
 
   const attachmentsRef = useRef(null);
-  const dragCounter = useRef(0);
+
+  // [REFACTORED] Extracted Drag & Drop Logic
+  const { showFiles, setShowFiles, fileCount, setFileCount } = useFileDragDrop(attachmentsRef);
 
   const t = useMemo(() => {
     const keys = [
@@ -199,6 +149,13 @@ export default function ChatApp() {
       "modalDeleteWarning",
       "modalDeleteConfirm",
       "modalDeleteButton",
+      // New Dashboard Descriptions
+      "descSuggestionCode",
+      "descSuggestionImage",
+      "descSuggestionAnalyze",
+      "descSuggestionChat",
+      "descStatsTokenUsage",
+      "descStatsNoData",
     ];
     const result = {};
     keys.forEach((k) => {
@@ -228,7 +185,6 @@ export default function ChatApp() {
     toggleAlwaysSearch,
     setServerWebSearch,
     setServerWebSearchAvailable,
-    serverHint: _serverHint,
   } = useWebSearchPreference();
 
   const {
@@ -274,68 +230,6 @@ export default function ChatApp() {
     // Only scroll on initial load or new user message, not constantly during stream
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [renderedMessages.length, isStreaming]); // Depend on length change, not content
-
-  // Global Drag & Drop Handler
-  useEffect(() => {
-    const handleDragEnter = (e) => {
-      // Only care if dragging files
-      if (e.dataTransfer?.types?.includes("Files")) {
-        e.preventDefault();
-        // dragCounter helps avoid flickering when entering child elements
-        dragCounter.current += 1;
-        if (dragCounter.current === 1) {
-          if (!showFiles) setShowFiles(true);
-        }
-      }
-    };
-
-    const handleDragLeave = (e) => {
-      if (e.dataTransfer?.types?.includes("Files")) {
-        e.preventDefault();
-        dragCounter.current -= 1;
-        // If we left the window (counter 0)
-        if (dragCounter.current === 0) {
-          // Collapse if empty, implying user cancelled drag-to-upload
-          if (fileCount === 0) {
-            setShowFiles(false);
-          }
-        }
-      }
-    };
-
-    const handleDragOver = (e) => {
-      e.preventDefault(); // Necessary to allow dropping
-    };
-
-    const handleDrop = (e) => {
-      e.preventDefault();
-      dragCounter.current = 0;
-
-      if (e.dataTransfer?.files?.length > 0) {
-        if (attachmentsRef.current) {
-          attachmentsRef.current.uploadFiles(e.dataTransfer.files);
-          // Ensure it stays open
-          if (!showFiles) setShowFiles(true);
-        }
-      } else {
-        // If dropped something else or nothing, revert?
-        // Typically if dropping files, length > 0.
-        if (fileCount === 0) setShowFiles(false);
-      }
-    };
-
-    window.addEventListener("dragenter", handleDragEnter);
-    window.addEventListener("dragleave", handleDragLeave);
-    window.addEventListener("dragover", handleDragOver);
-    window.addEventListener("drop", handleDrop);
-
-    return () => {
-      window.removeEventListener("dragenter", handleDragEnter);
-      window.removeEventListener("dragleave", handleDragLeave);
-      window.removeEventListener("dragover", handleDragOver);
-      window.removeEventListener("drop", handleDrop);
-    };
-  }, [showFiles, fileCount]);
 
   const handleRenameFromSidebar = useCallback(
     async (id) => {
@@ -422,7 +316,7 @@ export default function ChatApp() {
   useEffect(() => {
     setFileCount(0);
     setShowFiles(false);
-  }, [selectedConversationId]);
+  }, [selectedConversationId, setFileCount, setShowFiles]);
 
   // Register callback for gem applied - optimistic update when gem changes
   const { setOnGemApplied } = useGemStore();
@@ -519,9 +413,15 @@ export default function ChatApp() {
         mobileOpen={mobileOpen}
         onCloseMobile={closeMobileSidebar}
         session={session}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
       />
 
-      <div className="h-full flex flex-col md:pl-80 relative z-10 transition-all duration-300">
+      <div
+        className={`h-full flex flex-col relative z-10 transition-all duration-300 ${
+          sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"
+        }`}
+      >
         <HeaderBar
           t={t}
           language={language}
@@ -536,7 +436,9 @@ export default function ChatApp() {
           {/* RA2 Theme Background Logos - Centered in Chat Content Area */}
           {(theme === "yuri" || theme === "allied" || theme === "soviet") && (
             <div
-              className="fixed top-0 left-0 md:left-80 right-0 bottom-0 z-[0] pointer-events-none"
+              className={`fixed top-0 left-0 right-0 bottom-0 z-[0] pointer-events-none transition-all duration-300 ${
+                sidebarCollapsed ? "md:left-20" : "md:left-72 lg:left-80"
+              }`}
               style={{
                 backgroundImage:
                   theme === "yuri"
@@ -558,19 +460,13 @@ export default function ChatApp() {
             />
           )}
           {showLanding ? (
-            <div className="h-full flex flex-col items-center justify-center p-8 animate-in fade-in zoom-in duration-500 text-[var(--text-primary)]">
-              <div className="mb-8 relative group">
-                <div className="absolute inset-0 bg-[var(--accent)] blur-[60px] opacity-10 group-hover:opacity-20 transition-opacity duration-700" />
-                <div className="relative h-24 w-24 rounded-[2rem] border border-[var(--control-border)] bg-[var(--control-bg)] backdrop-blur-2xl flex items-center justify-center text-5xl font-black shadow-2xl text-[var(--text-primary)]">
-                  V
-                </div>
-              </div>
-              <h2 className="max-w-xl text-center text-2xl md:text-3xl font-bold tracking-tight text-[var(--text-primary)] mb-3">
-                {t.landingMessage}
-              </h2>
-              <p className="text-[10px] font-bold tracking-[0.4em] text-[var(--text-secondary)] uppercase">
-                VIKINI INTELLIGENCE
-              </p>
+            <div className="min-h-full flex flex-col justify-center py-4 animate-in fade-in zoom-in duration-500">
+              <DashboardView
+                onPromptSelect={(text) => {
+                  setInput(text);
+                  // Optional: auto focus input
+                }}
+              />
             </div>
           ) : (
             <div className="max-w-3xl mx-auto w-full py-8 space-y-2">
@@ -607,118 +503,33 @@ export default function ChatApp() {
           )}
         </div>
 
-        {/* Input & Controls */}
-        <div className="w-full max-w-4xl mx-auto pb-6 px-4 md:px-6">
-          {/* Static Floating Controls Toolbar - Minimalist */}
-          <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
-            <div className="flex items-center rounded-full bg-[var(--control-bg)] border border-[var(--control-border)] p-1 shadow-lg">
-              <ModelSelector
-                currentModelId={currentModel}
-                onSelectModel={handleModelChange}
-                isModelAllowed={isModelAllowed}
-                t={t}
-                disabled={isStreaming || regenerating}
-              />
-              <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
-              <button
-                onClick={() => setShowFiles(!showFiles)}
-                className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full flex items-center gap-1 ${
-                  showFiles || fileCount > 0
-                    ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                FILES{" "}
-                {fileCount > 0 ? (
-                  <span className="text-[9px] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] px-1 rounded-sm ml-0.5 text-[var(--text-primary)]">
-                    {fileCount}
-                  </span>
-                ) : (
-                  ""
-                )}
-              </button>
-              <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
-              <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
-              {currentModel === "gemini-3-pro-research" ? (
-                <button
-                  disabled
-                  className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full text-[var(--text-secondary)] bg-[var(--control-bg)] cursor-not-allowed border border-[var(--control-border)]"
-                  title="Research Mode always searches"
-                >
-                  RESEARCH MODE (SEARCH ON)
-                </button>
-              ) : (
-                <button
-                  onClick={toggleWebSearch}
-                  className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full ${
-                    webSearchEnabled
-                      ? "text-[var(--accent)] bg-[var(--control-bg-hover)]"
-                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                  }`}
-                >
-                  WEB {webSearchEnabled ? t.webSearchOn : t.webSearchOff}
-                </button>
-              )}
-              {currentModel && currentModel.startsWith("gemini") && (
-                <>
-                  <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
-                  <button
-                    onClick={toggleAlwaysSearch}
-                    className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full ${
-                      alwaysSearch
-                        ? "text-[var(--accent)] bg-[var(--control-bg-hover)]"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    }`}
-                    title={t.alwaysSearchTooltip}
-                  >
-                    {t.alwaysSearch} {alwaysSearch ? t.webSearchOn : t.webSearchOff}
-                  </button>
-                </>
-              )}
-              {currentGem && (
-                <>
-                  <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
-                  <div className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 text-[var(--accent)]">
-                    {currentGem.icon} {currentGem.name}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Input Box Wrapper */}
-          <div className="relative group">
-            <div className="absolute -inset-0.5 bg-[var(--accent)] rounded-[2rem] opacity-0 group-focus-within:opacity-20 transition-opacity duration-500 blur-lg" />
-            <div className="relative">
-              <AttachmentsPanel
-                ref={attachmentsRef}
-                conversationId={selectedConversationId}
-                disabled={
-                  creatingConversation || (isStreaming && !streamingAssistant) || regenerating
-                }
-                isExpanded={showFiles}
-                onToggle={setShowFiles}
-                onCountChange={setFileCount}
-              />
-              <InputForm
-                input={input}
-                onChangeInput={setInput}
-                onSubmit={() => handleSend()}
-                onStop={handleStop}
-                disabled={creatingConversation || regenerating} // Only disable completely if creating new conv or regenerating
-                isStreaming={isStreaming} // Pass streaming state
-                t={t}
-                conversationId={selectedConversationId}
-              />
-            </div>
-          </div>
-
-          <div className="mt-3 text-center">
-            <p className="text-[9px] font-bold text-[var(--text-secondary)] tracking-widest uppercase hover:text-[var(--text-primary)] transition-colors cursor-default">
-              {t.aiDisclaimer}
-            </p>
-          </div>
-        </div>
+        {/* [REFACTORED] Extracted ChatControls */}
+        <ChatControls
+          currentModel={currentModel}
+          handleModelChange={handleModelChange}
+          isModelAllowed={isModelAllowed}
+          t={t}
+          showFiles={showFiles}
+          setShowFiles={setShowFiles}
+          fileCount={fileCount}
+          setFileCount={setFileCount}
+          webSearchEnabled={webSearchEnabled}
+          toggleWebSearch={toggleWebSearch}
+          alwaysSearch={alwaysSearch}
+          toggleAlwaysSearch={toggleAlwaysSearch}
+          currentGem={currentGem}
+          input={input}
+          setInput={setInput}
+          handleSend={handleSend}
+          handleStop={handleStop}
+          disabled={creatingConversation || regenerating}
+          isStreaming={isStreaming}
+          regenerating={regenerating}
+          creatingConversation={creatingConversation}
+          streamingAssistant={streamingAssistant}
+          attachmentsRef={attachmentsRef}
+          selectedConversationId={selectedConversationId}
+        />
       </div>
 
       {/* Upgrade Modal */}
