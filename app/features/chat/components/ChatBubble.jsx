@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useLanguage } from "../hooks/useLanguage";
+import ChartTool from "./ChartTool";
 import { ChevronDown, ChevronRight, Sparkles, Brain } from "lucide-react";
 
 function TypingDots() {
@@ -224,12 +225,30 @@ function SmartCode({ inline, className, children }) {
 }
 
 // Wrapper to intercept 'pre' tags (Block Code)
+// Wrapper to intercept 'pre' tags (Block Code)
 function PreBlock({ children }) {
   // Check if children is a <code> element
   if ((React.isValidElement(children) && children.type === "code") || children?.props?.className) {
-    // Extract code content and className from the child <code>
-    // Note: if <code node={...}> is passed, we might need props
     const childProps = children.props || {};
+    const className = childProps.className || "";
+    const isJson = className.includes("language-json");
+
+    // Attempt to parse JSON for Chart rendering
+    if (isJson) {
+      try {
+        const textContent = extractText(childProps.children);
+        // Only try parsing if it looks like our chart object
+        if (textContent.trim().startsWith("{") && textContent.includes('"type": "chart"')) {
+          const parsed = JSON.parse(textContent);
+          if (parsed.type === "chart") {
+            return <ChartTool {...parsed} />;
+          }
+        }
+      } catch {
+        // Not valid JSON or not our chart format, continue to render as code
+      }
+    }
+
     return (
       <SmartCode inline={false} className={childProps.className} {...childProps}>
         {childProps.children}

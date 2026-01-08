@@ -601,6 +601,25 @@ export async function handleChatStreamCore({
     modelLimitTokens
   );
 
+  // Inject Chart Generation Protocol
+  const chartProtocol = `
+\n\n[CHART GENERATION PROTOCOL]
+If the user asks to visualize data, output a JSON code block (language="json").
+The JSON must follow this schema exactly:
+{
+  "type": "chart",
+  "chartType": "bar" | "line" | "area" | "pie",
+  "title": "Chart Title",
+  "data": [{ "name": "Category A", "value": 100 }, ...],
+  "xKey": "name",
+  "yKeys": ["value"],
+  "colors": ["#3b82f6", "#ef4444", ...] (optional)
+}
+DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when specifically asked for a chart or visualization.
+`;
+
+  const finalSysPromptWithCharts = (finalSysPrompt || "") + chartProtocol;
+
   // Setup web search and safety settings
   const cookies = parseCookieHeader(req?.headers?.get?.("cookie") || undefined);
   const { enableWebSearch, WEB_SEARCH_AVAILABLE } = getWebSearchConfig(cookies);
@@ -691,7 +710,7 @@ export async function handleChatStreamCore({
       ai: aiClient,
       model: claudeModel,
       contents,
-      sysPrompt: finalSysPrompt,
+      sysPrompt: finalSysPromptWithCharts,
       tools: [], // Anthropic tools not yet implemented
       safetySettings: null,
       gemMeta: {
@@ -731,7 +750,7 @@ export async function handleChatStreamCore({
       ai: aiClient,
       model: apiModel,
       contents,
-      sysPrompt: finalSysPrompt,
+      sysPrompt: finalSysPromptWithCharts,
       gemMeta: {
         gemId: conversation?.gemId ?? null,
         hasSystemInstruction: Boolean(finalSysPrompt && String(finalSysPrompt).trim()),
@@ -768,7 +787,7 @@ export async function handleChatStreamCore({
       ai: ai as unknown as ChatStreamParams["ai"],
       model,
       contents,
-      sysPrompt: finalSysPrompt,
+      sysPrompt: finalSysPromptWithCharts,
       tools,
       safetySettings,
       gemMeta: {
