@@ -22,6 +22,9 @@ const ChevronDown = dynamic(() => import("lucide-react").then((mod) => mod.Chevr
   ssr: false,
 });
 const Check = dynamic(() => import("lucide-react").then((mod) => mod.Check), { ssr: false });
+const Settings = dynamic(() => import("lucide-react").then((mod) => mod.Settings), {
+  ssr: false,
+});
 
 const Bars3Icon = () => (
   <svg
@@ -131,80 +134,146 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
       </div>
 
       <div className="flex items-center gap-3 ml-auto">
-        {/* Language Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className={triggerButtonStyles}
-              aria-label={t?.selectLanguage || "Select Language"}
-            >
-              <span className={triggerLabelStyles}>{language === "vi" ? "VN" : "EN"}</span>
-              <ChevronDown className="w-3 h-3 text-[var(--text-secondary)] transition-transform group-data-[state=open]:rotate-180" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-32">
-            {languageOptions.map((lang) => (
-              <DropdownMenuItem
-                key={lang.id}
-                onClick={() => onLanguageChange?.(lang.id)}
-                className="flex items-center justify-between cursor-pointer"
+        {/* DESKTOP: Separate Controls */}
+        <div className="hidden md:flex items-center gap-3">
+          {/* Language Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={triggerButtonStyles}
+                aria-label={t?.selectLanguage || "Select Language"}
               >
-                <span className="text-[11px] font-bold uppercase tracking-wider">
-                  {lang.id === "vi" ? "VN" : "EN"}
-                </span>
-                {language === lang.id && <Check className="w-3 h-3 text-[var(--accent)]" />}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <span className={triggerLabelStyles}>{language === "vi" ? "VN" : "EN"}</span>
+                <ChevronDown className="w-3 h-3 text-[var(--text-secondary)] transition-transform group-data-[state=open]:rotate-180" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-32">
+              {languageOptions.map((lang) => (
+                <DropdownMenuItem
+                  key={lang.id}
+                  onClick={() => onLanguageChange?.(lang.id)}
+                  className="flex items-center justify-between cursor-pointer"
+                >
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {lang.id === "vi" ? "VN" : "EN"}
+                  </span>
+                  {language === lang.id && <Check className="w-3 h-3 text-[var(--accent)]" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-        {/* Theme Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className={triggerButtonStyles} aria-label={t?.selectTheme || "Select Theme"}>
-              <div
-                className="h-4 w-4 rounded-full shadow-[0_0_8px_currentColor]"
-                style={{
-                  backgroundColor: currentTheme?.swatch ?? "#d97706",
-                  color: currentTheme?.swatch ?? "#d97706",
-                }}
-              />
-              <span className={triggerLabelStyles}>
-                {t?.[currentTheme?.labelKey || ""] || currentTheme?.id || "Theme"}
-              </span>
-              <ChevronDown className="w-3 h-3 text-[var(--text-secondary)] transition-transform group-data-[state=open]:rotate-180" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-56 max-h-[400px] overflow-y-auto custom-scrollbar"
-          >
-            {Object.entries(groupedThemes).map(([group, themes]) => (
-              <DropdownMenuGroup key={group}>
-                <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] px-2 py-1.5">
-                  {group}
-                </DropdownMenuLabel>
-                {themes.map((tItem) => (
-                  <DropdownMenuItem
-                    key={tItem.id}
-                    onClick={() => setTheme(tItem.id)}
-                    className="flex items-center gap-3 cursor-pointer"
-                  >
-                    <div
-                      className="h-3 w-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: tItem.swatch }}
-                    />
-                    <span className="flex-1 text-[11px] font-medium truncate">
-                      {t?.[tItem.labelKey] ?? tItem.id}
-                    </span>
-                    {theme === tItem.id && <Check className="w-3 h-3 text-blue-400" />}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-              </DropdownMenuGroup>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          {/* Theme Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className={triggerButtonStyles} aria-label={t?.selectTheme || "Select Theme"}>
+                <div
+                  className="h-4 w-4 rounded-full shadow-[0_0_8px_currentColor]"
+                  style={{
+                    backgroundColor: currentTheme?.swatch ?? "#d97706",
+                    color: currentTheme?.swatch ?? "#d97706",
+                  }}
+                />
+                <span className={triggerLabelStyles}>
+                  {t?.[currentTheme?.labelKey || ""] || currentTheme?.id || "Theme"}
+                </span>
+                <ChevronDown className="w-3 h-3 text-[var(--text-secondary)] transition-transform group-data-[state=open]:rotate-180" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-56 max-h-[400px] overflow-y-auto custom-scrollbar"
+            >
+              {Object.entries(groupedThemes).map(([group, themes]) => (
+                <DropdownMenuGroup key={group}>
+                  <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] px-2 py-1.5">
+                    {group}
+                  </DropdownMenuLabel>
+                  {themes.map((tItem) => (
+                    <DropdownMenuItem
+                      key={tItem.id}
+                      onClick={() => setTheme(tItem.id)}
+                      className="flex items-center gap-3 cursor-pointer"
+                    >
+                      <div
+                        className="h-3 w-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: tItem.swatch }}
+                      />
+                      <span className="flex-1 text-[11px] font-medium truncate">
+                        {t?.[tItem.labelKey] ?? tItem.id}
+                      </span>
+                      {theme === tItem.id && <Check className="w-3 h-3 text-blue-400" />}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                </DropdownMenuGroup>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* MOBILE: Consolidated Menu */}
+        <div className="flex md:hidden">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={`${triggerButtonStyles} px-2`}
+                aria-label={t?.settings || "Settings"}
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 overflow-y-auto max-h-[80vh]">
+              {/* Language Section */}
+              <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] px-2 py-1.5">
+                {t?.language || "Language"}
+              </DropdownMenuLabel>
+              {languageOptions.map((lang) => (
+                <DropdownMenuItem
+                  key={`mobile-${lang.id}`}
+                  onClick={() => onLanguageChange?.(lang.id)}
+                  className="flex items-center justify-between cursor-pointer"
+                >
+                  <span className="text-[11px] font-medium">
+                    {lang.label} ({lang.id === "vi" ? "VN" : "EN"})
+                  </span>
+                  {language === lang.id && <Check className="w-3 h-3 text-[var(--accent)]" />}
+                </DropdownMenuItem>
+              ))}
+
+              <DropdownMenuSeparator />
+
+              {/* Theme Section */}
+              <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] px-2 py-1.5">
+                {t?.theme || "Theme"}
+              </DropdownMenuLabel>
+              {Object.entries(groupedThemes).map(([group, themes]) => (
+                <DropdownMenuGroup key={`mobile-${group}`}>
+                  <DropdownMenuLabel className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-secondary)]/70 px-2 py-1">
+                    {group}
+                  </DropdownMenuLabel>
+                  {themes.map((tItem) => (
+                    <DropdownMenuItem
+                      key={`mobile-${tItem.id}`}
+                      onClick={() => setTheme(tItem.id)}
+                      className="flex items-center gap-3 cursor-pointer"
+                    >
+                      <div
+                        className="h-3 w-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: tItem.swatch }}
+                      />
+                      <span className="flex-1 text-[11px] font-medium truncate">
+                        {t?.[tItem.labelKey] ?? tItem.id}
+                      </span>
+                      {theme === tItem.id && <Check className="w-3 h-3 text-blue-400" />}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator className="last:hidden" />
+                </DropdownMenuGroup>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </motion.header>
   );
