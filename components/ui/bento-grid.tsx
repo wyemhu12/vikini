@@ -39,8 +39,16 @@ export const BentoGridItem = ({
   return (
     <div
       onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
       className={cn(
-        "row-span-1 rounded-xl group/bento transition duration-200 justify-start flex flex-row items-center gap-3 p-3 md:flex-col md:justify-between md:items-start md:space-y-4 md:p-4 cursor-pointer relative overflow-hidden",
+        "row-span-1 rounded-xl group/bento transition duration-200 justify-start flex flex-row items-center gap-3 p-3 md:flex-col md:justify-between md:items-start md:space-y-4 md:p-4 cursor-pointer relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-[var(--accent)]",
         // Glassmorphism 2.0
         "bg-[var(--surface-muted)]/40 backdrop-blur-xl border border-[var(--border)]",
         "hover:bg-[var(--control-bg-hover)] hover:border-[var(--accent)]/30 hover:shadow-2xl hover:-translate-y-1",

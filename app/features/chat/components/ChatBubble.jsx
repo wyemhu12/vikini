@@ -6,7 +6,16 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useLanguage } from "../hooks/useLanguage";
-import ChartTool from "./ChartTool";
+import dynamic from "next/dynamic";
+
+const ChartTool = dynamic(() => import("./ChartTool"), {
+  loading: () => (
+    <div className="w-full h-64 flex items-center justify-center bg-surface-muted rounded-xl animate-pulse">
+      <span className="text-sm text-secondary">Loading Chart...</span>
+    </div>
+  ),
+  ssr: false,
+});
 import { ChevronDown, ChevronRight, Sparkles, Brain } from "lucide-react";
 
 function TypingDots() {
