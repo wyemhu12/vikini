@@ -5,15 +5,15 @@
 
 /* Backgrounds */
 .bg-surface {
-  background-color: var(--surface);
+  background: var(--surface);
 }
 
 .bg-surface-muted {
-  background-color: var(--surface-muted);
+  background: var(--surface-muted);
 }
 
 .bg-surface-elevated {
-  background-color: var(--surface-elevated);
+  background: var(--surface-elevated);
 }
 
 .bg-control {
@@ -52,6 +52,6 @@
 
 /* Generic surface cards */
 .card-surface {
-  background-color: var(--surface-elevated);
+  background: var(--surface-elevated);
   border-color: var(--border);
 }

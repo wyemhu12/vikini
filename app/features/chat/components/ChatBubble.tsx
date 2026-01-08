@@ -8,6 +8,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import dynamic from "next/dynamic";
 import { ChevronDown, ChevronRight, Sparkles, Brain } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 // Dynamic import for ChartTool
 const ChartTool = dynamic(() => import("./ChartTool"), {
@@ -367,7 +368,7 @@ export default function ChatBubble({
           >
             {isEditing ? (
               <div className="flex flex-col gap-2 min-w-[300px] w-full">
-                <textarea
+                <Textarea
                   ref={textareaRef}
                   value={editContent}
                   onChange={(e) => {
@@ -375,7 +376,7 @@ export default function ChatBubble({
                     e.target.style.height = "auto";
                     e.target.style.height = `${e.target.scrollHeight}px`;
                   }}
-                  className="w-full bg-surface-elevated text-primary p-3 rounded-md outline-none resize-none overflow-hidden font-mono text-sm leading-6 border border-token"
+                  className="w-full bg-surface-elevated text-primary p-3 rounded-md outline-none resize-none overflow-hidden font-mono text-sm leading-6 border border-token min-h-[40px] focus-visible:ring-0"
                   rows={1}
                 />
                 <div className="flex justify-end gap-2 mt-2">
