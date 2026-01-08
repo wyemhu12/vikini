@@ -1,14 +1,14 @@
-// Hook to fetch and filter allowed models for current user
 import { useState, useEffect } from "react";
 import { SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
 
-export function useAllowedModels(isAuthed) {
-  const [allowedModels, setAllowedModels] = useState([]);
+// Hook to fetch allowed models for current user
+export function useAllowedModels(isAuthed: boolean) {
+  const [allowedModelIds, setAllowedModelIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!isAuthed) {
-      setAllowedModels([]);
+      setAllowedModelIds(new Set());
       setLoading(false);
       return;
     }
@@ -26,15 +26,13 @@ export function useAllowedModels(isAuthed) {
 
         if (cancelled) return;
 
-        // Filter SELECTABLE_MODELS to only include allowed ones
-        const filtered = SELECTABLE_MODELS.filter((model) => allowed.includes(model.id));
-
-        setAllowedModels(filtered.length > 0 ? filtered : SELECTABLE_MODELS);
+        // Return Set of allowed model IDs for easy checking
+        setAllowedModelIds(new Set(allowed));
       } catch (error) {
         console.warn("Error fetching allowed models:", error);
-        // Fallback to all models on error
+        // Fallback to allowing all models on error
         if (!cancelled) {
-          setAllowedModels(SELECTABLE_MODELS);
+          setAllowedModelIds(new Set(SELECTABLE_MODELS.map((m) => m.id)));
         }
       } finally {
         if (!cancelled) {
@@ -50,5 +48,5 @@ export function useAllowedModels(isAuthed) {
     };
   }, [isAuthed]);
 
-  return { allowedModels, loading };
+  return { allowedModelIds, loading };
 }

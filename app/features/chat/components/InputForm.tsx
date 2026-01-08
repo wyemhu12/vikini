@@ -1,7 +1,7 @@
-// /app/features/chat/components/InputForm.jsx
+// /app/features/chat/components/InputForm.tsx
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { useAttachmentStore } from "@/lib/features/attachments/store";
 
 const PaperAirplaneIcon = () => (
@@ -43,6 +43,17 @@ const StopIcon = () => (
   </svg>
 );
 
+interface InputFormProps {
+  input: string;
+  onChangeInput: (value: string) => void;
+  onSubmit: () => void;
+  onStop?: () => void;
+  disabled?: boolean;
+  isStreaming?: boolean;
+  t?: any;
+  conversationId?: string | null;
+}
+
 export default function InputForm({
   input,
   onChangeInput,
@@ -52,10 +63,10 @@ export default function InputForm({
   isStreaming, // Add isStreaming prop to know when to show Stop button
   t,
   conversationId,
-}) {
-  const formRef = useRef(null);
-  const textareaRef = useRef(null);
-  const fileInputRef = useRef(null);
+}: InputFormProps) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { addAttachment, attachments } = useAttachmentStore();
   const [isUploading, setIsUploading] = useState(false);
 
@@ -67,7 +78,7 @@ export default function InputForm({
     }
   }, [input]);
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       // On mobile (screen width < 768px), Enter should just be a newline
       // Only prevent default and submit if on desktop
@@ -82,7 +93,7 @@ export default function InputForm({
     }
   };
 
-  const handleFileSelect = async (e) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 

@@ -1,16 +1,23 @@
-// /app/features/gems/components/GemEditor.jsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { translations } from "@/lib/utils/config";
+import { Gem } from "./GemPreview";
 
-export default function GemEditor({ gem, onSave, language: languageProp }) {
+interface GemEditorProps {
+  gem: Gem | null;
+  onSave: (gem: Partial<Gem>) => void;
+  language?: string;
+}
+
+export default function GemEditor({ gem, onSave, language: languageProp }: GemEditorProps) {
   const { language: hookLanguage, t: _hookT } = useLanguage();
 
   // Use prop if provided (Admin), otherwise use hook (normal Gems page)
   const language = languageProp || hookLanguage;
-  const t = (key) => {
+  const t = (key: string) => {
+    // @ts-ignore - dictionary access
     const trans = language === "vi" ? translations.vi : translations.en;
     return trans[key] || key;
   };
@@ -19,7 +26,7 @@ export default function GemEditor({ gem, onSave, language: languageProp }) {
 
   const [dirty, setDirty] = useState(false);
 
-  const [id, setId] = useState(null);
+  const [id, setId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -48,15 +55,17 @@ export default function GemEditor({ gem, onSave, language: languageProp }) {
       : `${t("editGem")}${dirty ? " *" : ""}`
     : t("selectModel");
 
-  const handleChange = (setter) => (e) => {
-    setter(e.target.value);
-    setDirty(true);
-  };
+  const handleChange =
+    (setter: React.Dispatch<React.SetStateAction<string>>) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setter(e.target.value);
+      setDirty(true);
+    };
 
   const save = () => {
     if (!canSave) return;
     onSave?.({
-      id,
+      id: id || undefined, // or handled in parent logic for new gems
       name,
       description,
       instructions,

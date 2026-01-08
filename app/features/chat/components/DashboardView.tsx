@@ -1,11 +1,19 @@
+// /app/features/chat/components/DashboardView.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
+// @ts-ignore
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
 import { useSession } from "next-auth/react";
 import { useLanguage } from "../hooks/useLanguage";
 import { motion } from "framer-motion";
 import { CodeXml, BarChart3, Image as ImageIcon, Clock, PieChart } from "lucide-react";
+
+interface DashboardViewProps {
+  onPromptSelect?: (prompt: string) => void;
+  lastConversation?: { id: string; title?: string };
+  onSelectConversation?: (id: string) => void;
+}
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -22,7 +30,11 @@ const itemVariants = {
   show: { opacity: 1, y: 0 },
 };
 
-export default function DashboardView({ onPromptSelect, lastConversation, onSelectConversation }) {
+export default function DashboardView({
+  onPromptSelect,
+  lastConversation,
+  onSelectConversation,
+}: DashboardViewProps) {
   const { data: session } = useSession();
   const { t } = useLanguage();
   const [greeting, setGreeting] = useState("");
@@ -41,6 +53,7 @@ export default function DashboardView({ onPromptSelect, lastConversation, onSele
       header: <CodeXml className="w-8 h-8 md:w-10 md:h-10 text-[var(--accent)]" />,
       className: "col-span-1",
       prompt: "Review this code for best practices and potential bugs:",
+      onClick: undefined,
     },
     {
       title: t("suggestionAnalyze") || "Analyze Data",
@@ -48,6 +61,7 @@ export default function DashboardView({ onPromptSelect, lastConversation, onSele
       header: <BarChart3 className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />,
       className: "col-span-1",
       prompt: "Please analyze the following data and provide insights:",
+      onClick: undefined,
     },
     {
       title: t("suggestionImage") || "Generate Image",
@@ -55,6 +69,7 @@ export default function DashboardView({ onPromptSelect, lastConversation, onSele
       header: <ImageIcon className="w-8 h-8 md:w-10 md:h-10 text-pink-400" />,
       className: "col-span-1",
       prompt: "Generate a high-quality image of:",
+      onClick: undefined,
     },
     {
       title: t("statsTokenUsage") || "Token Usage",
@@ -62,6 +77,7 @@ export default function DashboardView({ onPromptSelect, lastConversation, onSele
       header: <PieChart className="w-8 h-8 md:w-10 md:h-10 text-orange-400" />,
       className: "col-span-1 md:col-span-2",
       prompt: null, // Info only
+      onClick: undefined,
     },
     {
       title: lastConversation
@@ -72,6 +88,7 @@ export default function DashboardView({ onPromptSelect, lastConversation, onSele
         : t("descStatsNoData") || "No recent chats",
       header: <Clock className="w-8 h-8 md:w-10 md:h-10 text-gray-400" />,
       className: "col-span-1",
+      prompt: undefined,
       onClick: () => lastConversation && onSelectConversation?.(lastConversation.id),
     },
   ];

@@ -2,7 +2,22 @@
 
 import { useLanguage } from "../../chat/hooks/useLanguage";
 
-export default function GemPreview({ gem }) {
+export interface Gem {
+  id: string;
+  name: string;
+  description?: string;
+  instructions?: string;
+  instruction?: string;
+  icon?: string;
+  color?: string;
+  isPremade?: boolean;
+}
+
+interface GemPreviewProps {
+  gem: Gem | null;
+}
+
+export default function GemPreview({ gem }: GemPreviewProps) {
   const { t } = useLanguage();
 
   if (!gem) return null;

@@ -1,4 +1,4 @@
-// /app/features/chat/components/ChatBubble.jsx
+// /app/features/chat/components/ChatBubble.tsx
 "use client";
 
 import ReactMarkdown from "react-markdown";
@@ -7,7 +7,9 @@ import rehypeHighlight from "rehype-highlight";
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import dynamic from "next/dynamic";
+import { ChevronDown, ChevronRight, Sparkles, Brain } from "lucide-react";
 
+// Dynamic import for ChartTool
 const ChartTool = dynamic(() => import("./ChartTool"), {
   loading: () => (
     <div className="w-full h-64 flex items-center justify-center bg-surface-muted rounded-xl animate-pulse">
@@ -16,7 +18,6 @@ const ChartTool = dynamic(() => import("./ChartTool"), {
   ),
   ssr: false,
 });
-import { ChevronDown, ChevronRight, Sparkles, Brain } from "lucide-react";
 
 function TypingDots() {
   return (
@@ -28,10 +29,8 @@ function TypingDots() {
   );
 }
 
-function ThinkingBlock({ content }) {
-  const [isCollapsed, setIsCollapsed] = useState(false); // Default open for visibility while streaming
-
-  // Auto-collapse if complete? Maybe later.
+function ThinkingBlock({ content }: { content: string }) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
     <div className="mb-4 rounded-lg border card-surface overflow-hidden">
@@ -57,9 +56,7 @@ function ThinkingBlock({ content }) {
   );
 }
 
-function extractThinking(text) {
-  // Pattern for <think>...</think> or <thought>...</thought>
-  // Handles partial tags for streaming
+function extractThinking(text: string) {
   const patterns = [
     { start: "<think>", end: "</think>" },
     { start: "<thought>", end: "</thought>" },
@@ -70,41 +67,36 @@ function extractThinking(text) {
     if (startIndex !== -1) {
       const endIndex = text.indexOf(end, startIndex);
 
-      // If tag is closed
       if (endIndex !== -1) {
         const thought = text.slice(startIndex + start.length, endIndex);
         const rest = text.slice(0, startIndex) + text.slice(endIndex + end.length);
-        return { thought, rest, isThinking: false }; // Finished thinking
+        return { thought, rest, isThinking: false };
       }
 
-      // If tag is open (streaming)
       const thought = text.slice(startIndex + start.length);
       const rest = text.slice(0, startIndex);
-      return { thought, rest, isThinking: true }; // Still thinking
+      return { thought, rest, isThinking: true };
     }
   }
 
   return { thought: null, rest: text, isThinking: false };
 }
 
-function getLang(className) {
+function getLang(className?: string) {
   const m = /language-([a-z0-9-]+)/i.exec(className || "");
   return m?.[1]?.toLowerCase() || "text";
 }
 
-// Helper to extract raw text for copy/collapse logic
-const extractText = (node) => {
+const extractText = (node: React.ReactNode): string => {
   if (typeof node === "string" || typeof node === "number") return String(node);
   if (Array.isArray(node)) return node.map(extractText).join("");
-  if (React.isValidElement(node)) return extractText(node.props.children);
+  if (React.isValidElement(node)) return extractText((node.props as any).children);
   return "";
 };
 
-// Custom Pre/Code logic to prevent <div> inside <p> hydration errors
-function SmartCode({ inline, className, children }) {
+function SmartCode({ inline, className, children }: any) {
   const { t } = useLanguage();
 
-  // Extract clean text for Copy button and Line Counting
   const codeText = useMemo(() => {
     const raw = extractText(children);
     return raw.replace(/\r\n/g, "\n").replace(/^\n+/, "").replace(/\n+$/, "");
@@ -139,7 +131,6 @@ function SmartCode({ inline, className, children }) {
 
   return (
     <div className="group/code my-5 overflow-hidden rounded-xl border card-surface shadow-2xl transition-all hover:border-token">
-      {/* Mac-style Header */}
       <div className="flex items-center justify-between bg-surface-muted px-4 py-3 border-b border-token select-none">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5 opacity-60 group-hover/code:opacity-100 transition-opacity">
@@ -174,41 +165,7 @@ function SmartCode({ inline, className, children }) {
               }
             `}
           >
-            {copied ? (
-              <>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="w-3 h-3"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                {t("copied")}
-              </>
-            ) : (
-              <>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="currentColor"
-                  className="w-3 h-3"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5"
-                  />
-                </svg>
-                {t("copy")}
-              </>
-            )}
+            {copied ? t("copied") : t("copy")}
           </button>
         </div>
       </div>
@@ -233,20 +190,18 @@ function SmartCode({ inline, className, children }) {
   );
 }
 
-// Wrapper to intercept 'pre' tags (Block Code)
-// Wrapper to intercept 'pre' tags (Block Code)
-function PreBlock({ children }) {
-  // Check if children is a <code> element
-  if ((React.isValidElement(children) && children.type === "code") || children?.props?.className) {
+function PreBlock({ children }: any) {
+  if (
+    (React.isValidElement(children) && ((children.type === "code") as any)) ||
+    children?.props?.className
+  ) {
     const childProps = children.props || {};
     const className = childProps.className || "";
     const isJson = className.includes("language-json");
 
-    // Attempt to parse JSON for Chart rendering
     if (isJson) {
       try {
         const textContent = extractText(childProps.children);
-        // Only try parsing if it looks like our chart object
         if (textContent.trim().startsWith("{") && textContent.includes('"type": "chart"')) {
           const parsed = JSON.parse(textContent);
           if (parsed.type === "chart") {
@@ -254,7 +209,7 @@ function PreBlock({ children }) {
           }
         }
       } catch {
-        // Not valid JSON or not our chart format, continue to render as code
+        // Ignore
       }
     }
 
@@ -265,14 +220,10 @@ function PreBlock({ children }) {
     );
   }
 
-  // Fallback for non-standard pre usage
   return <pre>{children}</pre>;
 }
 
-// Wrapper for 'code' tags (Inline Code only, because blocks go to PreBlock)
-function InlineCode({ children, className, ...props }) {
-  // If this contains newlines, force it to be handled as block?
-  // No, keep strictly inline. Text selection bugs happen if we try to be too smart.
+function InlineCode({ children, className, ...props }: any) {
   return (
     <SmartCode inline={true} className={className} {...props}>
       {children}
@@ -280,12 +231,24 @@ function InlineCode({ children, className, ...props }) {
   );
 }
 
-// ... inside ChatBubble ...
-// components={{
-//   pre: PreBlock,
-//   code: InlineCode,
-//   ...
-// }}
+interface ChatBubbleProps {
+  message: {
+    role: string;
+    content: string;
+    sources?: any[];
+    urlContext?: any[];
+    id?: string;
+  };
+  role?: string;
+  content?: string;
+  sources?: any[];
+  urlContext?: any[];
+  isLastAssistant?: boolean;
+  canRegenerate?: boolean;
+  onRegenerate?: () => void;
+  onEdit?: (message: any, newContent: string) => void;
+  regenerating?: boolean;
+}
 
 export default function ChatBubble({
   message,
@@ -298,10 +261,10 @@ export default function ChatBubble({
   onRegenerate,
   onEdit,
   regenerating,
-}) {
+}: ChatBubbleProps) {
   const { t } = useLanguage();
   const safeMessage = useMemo(() => {
-    const base = message && typeof message === "object" ? message : {};
+    const base = message && typeof message === "object" ? message : ({} as any);
     const finalRole = base.role || role || "assistant";
     const finalContent = base.content || content || "";
     const finalSources = base.sources || sourcesProp || [];
@@ -318,10 +281,9 @@ export default function ChatBubble({
   const isBot = safeMessage.role === "assistant";
   const [copied, setCopied] = useState(false);
 
-  // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(safeMessage.content);
-  const textareaRef = useRef(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setEditContent(safeMessage.content);
@@ -371,7 +333,6 @@ export default function ChatBubble({
       <div
         className={`flex max-w-[95%] lg:max-w-[90%] gap-4 ${isBot ? "items-start" : "flex-row-reverse items-start"}`}
       >
-        {/* Avatar */}
         <div
           className={`relative flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-lg border text-[10px] font-black tracking-tighter shadow-sm overflow-hidden transition-all duration-300
           ${
@@ -392,13 +353,11 @@ export default function ChatBubble({
             "ME"
           )}
 
-          {/* Active border glow for AI */}
           {isBot && isLoading && (
             <div className="absolute inset-0 border border-blue-400/30 rounded-lg animate-ping opacity-20" />
           )}
         </div>
 
-        {/* Content */}
         <div
           className={`flex flex-col gap-2 ${isBot ? "items-start w-full min-w-0" : "items-end max-w-full"}`}
         >
@@ -436,10 +395,8 @@ export default function ChatBubble({
               </div>
             ) : (
               <div className="flex flex-col w-full overflow-hidden">
-                {/* Thinking Block */}
-                {thought && <ThinkingBlock content={thought} />}
+                {thought && typeof thought === "string" && <ThinkingBlock content={thought} />}
 
-                {/* Main Content */}
                 {(!hasContent && isLoading) || (showTyping && !displayContent.trim()) ? (
                   <TypingDots />
                 ) : (
@@ -515,12 +472,11 @@ export default function ChatBubble({
               </div>
             )}
 
-            {/* Sources & Context */}
             {isBot && (safeMessage.sources.length > 0 || safeMessage.urlContext.length > 0) && (
               <div className="mt-6 space-y-4 border-t border-token pt-4">
                 {safeMessage.sources.length > 0 && (
                   <div className="flex flex-wrap gap-2">
-                    {safeMessage.sources.slice(0, 5).map((s, idx) => (
+                    {safeMessage.sources.slice(0, 5).map((s: any, idx: number) => (
                       <a
                         key={idx}
                         href={s.uri}
@@ -538,35 +494,34 @@ export default function ChatBubble({
             )}
           </div>
 
-          {/* Bottom Toolbar */}
           {!isLoading && !isEditing && (
             <div
               className={`flex items-center gap-4 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${isBot ? "" : "flex-row-reverse"}`}
             >
-              {/* Copy Button */}
               <button
                 onClick={handleCopyMessage}
                 className="text-[10px] font-bold text-secondary hover:text-primary uppercase tracking-tighter transition-colors"
+                title={copied ? t("copied") : t("copy")}
               >
                 {copied ? t("copied") : t("copy")}
               </button>
 
-              {/* Edit Button for User */}
               {!isBot && (
                 <button
                   onClick={() => setIsEditing(true)}
                   className="text-[10px] font-bold text-secondary hover:text-primary uppercase tracking-tighter transition-colors"
+                  title={t("edit")}
                 >
                   {t("edit")}
                 </button>
               )}
 
-              {/* Regenerate Button for AI */}
               {isBot && canRegenerate && (
                 <button
                   onClick={onRegenerate}
                   disabled={regenerating}
                   className="flex items-center gap-1 text-[10px] font-bold text-secondary hover:text-primary uppercase tracking-tighter disabled:opacity-30 transition-colors"
+                  title={t("regenerate")}
                 >
                   <span className={regenerating ? "animate-spin" : ""}>🔄</span>
                   {regenerating ? t("thinking") : t("regenerate")}

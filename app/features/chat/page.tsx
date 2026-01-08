@@ -1,3 +1,4 @@
+// app/features/chat/page.tsx
 "use client";
 
 import React, { Suspense } from "react";

@@ -1,4 +1,4 @@
-// app/page.jsx
+// app/page.tsx
 import React, { Suspense } from "react";
 import ChatApp from "@/app/features/chat/components/ChatApp";
 

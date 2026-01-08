@@ -1,4 +1,4 @@
-// /app/features/chat/components/ChatApp.jsx
+// /app/features/chat/components/ChatApp.tsx
 "use client";
 
 import { useEffect, useRef, useMemo, useCallback, useState } from "react";
@@ -40,8 +40,8 @@ export default function ChatApp() {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("vikini-language");
       // Only set if stored is valid and DIFFERENT from current default
-      if (stored && LANGS.includes(stored) && stored !== language) {
-        setLanguage(stored);
+      if (stored && LANGS.includes(stored as any) && stored !== language) {
+        setLanguage(stored as "vi" | "en");
       }
     }
   }, []); // Run ONCE on mount
@@ -52,11 +52,11 @@ export default function ChatApp() {
 
   // Upgrade Modal State
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [restrictedModel, setRestrictedModel] = useState(null);
+  const [restrictedModel, setRestrictedModel] = useState<string | null>(null);
 
   // Delete Confirmation Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [conversationToDelete, setConversationToDelete] = useState(null);
+  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
 
   // Sidebar Collapsed State
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -66,7 +66,7 @@ export default function ChatApp() {
 
   // Function to check if a model is allowed
   const isModelAllowed = useCallback(
-    (modelId) => {
+    (modelId: string) => {
       if (modelsLoading) return true;
       if (allowedModelIds.size === 0) return true;
       return allowedModelIds.has(modelId);
@@ -74,10 +74,10 @@ export default function ChatApp() {
     [allowedModelIds, modelsLoading]
   );
 
-  const attachmentsRef = useRef(null);
+  const attachmentsRef = useRef<any>(null);
   const { showFiles, setShowFiles, fileCount, setFileCount } = useFileDragDrop(attachmentsRef);
 
-  const t = useMemo(() => {
+  const t: Record<string, any> = useMemo(() => {
     const keys = [
       "appName",
       "whitelist",
@@ -165,7 +165,7 @@ export default function ChatApp() {
       "descStatsTokenUsage",
       "descStatsNoData",
     ];
-    const result = {};
+    const result: Record<string, any> = {};
     keys.forEach((k) => {
       result[k] = tRaw(k);
     });
@@ -213,7 +213,7 @@ export default function ChatApp() {
 
   // 2. Sync Query helper
   const syncUrlWithId = useCallback(
-    (id) => {
+    (id: string | null) => {
       const params = new URLSearchParams(searchParams?.toString() || "");
       if (id) {
         params.set("id", id);
@@ -227,7 +227,7 @@ export default function ChatApp() {
 
   // Wrapper for setting ID and URL together
   const setSelectedConversationIdAndUrl = useCallback(
-    (id) => {
+    (id: string | null) => {
       setSelectedConversationId(id);
       syncUrlWithId(id);
     },
@@ -261,13 +261,13 @@ export default function ChatApp() {
     refreshConversations,
     renameConversationOptimistic,
 
-    onWebSearchMeta: ({ enabled, available }) => {
+    onWebSearchMeta: ({ enabled, available }: { enabled?: boolean; available?: boolean }) => {
       if (typeof enabled === "boolean") setServerWebSearch(enabled);
       if (typeof available === "boolean") setServerWebSearchAvailable(available);
     },
   });
 
-  const scrollRef = useRef(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto scroll only when NOT streaming to avoid annoying jumps
   useEffect(() => {
@@ -283,8 +283,8 @@ export default function ChatApp() {
 
   // Restore Missing Functions
   const handleRenameFromSidebar = useCallback(
-    async (id) => {
-      const current = (conversations || []).find((c) => c?.id === id);
+    async (id: string) => {
+      const current = (conversations || []).find((c: any) => c?.id === id);
       const nextTitle = window.prompt(t.renameChat, current?.title || "");
       if (nextTitle) {
         renameConversationOptimistic(id, nextTitle.trim());
@@ -294,7 +294,7 @@ export default function ChatApp() {
     [conversations, renameConversation, renameConversationOptimistic, t]
   );
 
-  const handleDeleteFromSidebar = useCallback(async (id) => {
+  const handleDeleteFromSidebar = useCallback(async (id: string) => {
     // Show confirmation modal instead of browser confirm
     setConversationToDelete(id);
     setShowDeleteModal(true);
@@ -324,7 +324,7 @@ export default function ChatApp() {
   ]);
 
   const currentConversation = useMemo(
-    () => (conversations || []).find((c) => c?.id === selectedConversationId),
+    () => (conversations || []).find((c: any) => c?.id === selectedConversationId),
     [conversations, selectedConversationId]
   );
 
@@ -332,7 +332,7 @@ export default function ChatApp() {
   const currentGem = currentConversation?.gem || null;
 
   const handleModelChange = useCallback(
-    async (newModelId) => {
+    async (newModelId: string) => {
       // Check if user has access to this model FIRST
       if (!isModelAllowed(newModelId)) {
         // Find model name for display
@@ -372,7 +372,7 @@ export default function ChatApp() {
   // Register callback for gem applied - optimistic update when gem changes
   const { setOnGemApplied } = useGemStore();
   useEffect(() => {
-    setOnGemApplied((conversationId, gem) => {
+    setOnGemApplied((conversationId: string, gem: any) => {
       // Optimistically update the gem in local state for immediate UI feedback
       patchConversationGem(conversationId, gem);
       // Also refresh from server to ensure consistency
@@ -398,7 +398,7 @@ export default function ChatApp() {
   }
 
   // Check if user is not whitelisted (pending approval)
-  if (isAuthed && session?.user?.rank === "not_whitelisted") {
+  if (isAuthed && (session?.user as any)?.rank === "not_whitelisted") {
     return <AccessPendingScreen />;
   }
 
@@ -483,7 +483,8 @@ export default function ChatApp() {
         <HeaderBar
           t={t}
           language={language}
-          onLanguageChange={setLanguage}
+          onLanguageChange={(lang) => setLanguage(lang as "vi" | "en")}
+          // @ts-ignore
           theme={theme}
           onThemeChange={toggleTheme}
           onToggleSidebar={toggleMobileSidebar}
@@ -507,7 +508,7 @@ export default function ChatApp() {
               setShowMobileControls((prev) => !prev);
             }, 10);
           }}
-          className="flex-1 overflow-y-auto px-4 md:px-0 scroll-smooth relative pt-24 md:pt-0 pb-32 md:pb-0" // Added pt-24 (mobile header), pb-32 (mobile input)
+          className="flex-1 overflow-y-auto px-4 md:px-0 scroll-smooth relative pt-24 md:pt-0 pb-32 md:pb-0 cursor-pointer md:cursor-auto" // Added pt-24 (mobile header), pb-32 (mobile input)
         >
           {/* RA2 Theme Background Logos - Centered in Chat Content Area */}
           {(theme === "yuri" || theme === "allied" || theme === "soviet") && (
@@ -538,7 +539,7 @@ export default function ChatApp() {
           {showLanding ? (
             <div className="min-h-full flex flex-col justify-center py-4 animate-in fade-in zoom-in duration-500">
               <DashboardView
-                onPromptSelect={(text) => {
+                onPromptSelect={(text: string) => {
                   setInput(text);
                   // Optional: auto focus input
                 }}
@@ -548,7 +549,7 @@ export default function ChatApp() {
             </div>
           ) : (
             <div className="max-w-3xl mx-auto w-full py-8 space-y-2">
-              {renderedMessages.map((m, idx) => {
+              {renderedMessages.map((m: any, idx: number) => {
                 const isLastAI = m.role === "assistant" && idx === renderedMessages.length - 1;
                 return (
                   <ChatBubble

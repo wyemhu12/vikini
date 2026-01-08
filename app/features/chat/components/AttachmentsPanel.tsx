@@ -1,6 +1,7 @@
+// /app/features/chat/components/AttachmentsPanel.tsx
 "use client";
 
-import {
+import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -24,7 +25,27 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-function formatBytes(n) {
+interface Attachment {
+  id: string;
+  filename: string;
+  size_bytes: number;
+  mime_type: string;
+  [key: string]: any;
+}
+
+interface AttachmentsPanelProps {
+  conversationId: string | null;
+  disabled?: boolean;
+  isExpanded?: boolean;
+  onToggle?: (expanded: boolean) => void;
+  onCountChange?: (count: number) => void;
+}
+
+export interface AttachmentsPanelRef {
+  uploadFiles: (files: FileList | File[]) => Promise<void>;
+}
+
+function formatBytes(n: number | string) {
   const num = Number(n || 0);
   if (!Number.isFinite(num)) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
@@ -37,11 +58,11 @@ function formatBytes(n) {
   return (i === 0 ? v.toFixed(0) : v.toFixed(1)) + " " + units[i];
 }
 
-function isImageMime(mime) {
+function isImageMime(mime?: string) {
   return String(mime || "").startsWith("image/");
 }
 
-function isTextMime(mime) {
+function isTextMime(mime?: string) {
   const m = String(mime || "").toLowerCase();
   return (
     m.startsWith("text/") ||
@@ -51,7 +72,7 @@ function isTextMime(mime) {
   );
 }
 
-function getFileIcon(mime, filename) {
+function getFileIcon(mime?: string, filename?: string) {
   const m = String(mime || "").toLowerCase();
   const f = String(filename || "").toLowerCase();
 
@@ -79,8 +100,8 @@ function getFileIcon(mime, filename) {
   return <FileIcon className="w-4 h-4 text-gray-400" />;
 }
 
-function extractClipboardImages(clipboardData) {
-  const out = [];
+function extractClipboardImages(clipboardData: DataTransfer) {
+  const out: File[] = [];
   const items = clipboardData?.items ? Array.from(clipboardData.items) : [];
 
   for (const item of items) {
@@ -112,9 +133,9 @@ function extractClipboardImages(clipboardData) {
   return out;
 }
 
-const AttachmentsPanel = forwardRef(
+const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
   ({ conversationId, disabled, isExpanded = false, onToggle, onCountChange }, ref) => {
-    const [attachments, setAttachments] = useState([]);
+    const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
 
@@ -122,10 +143,15 @@ const AttachmentsPanel = forwardRef(
     const [dragOver, setDragOver] = useState(false);
     const dragCounterRef = useRef(0);
 
-    const dropZoneRef = useRef(null);
-    const [preview, setPreview] = useState(null);
+    const dropZoneRef = useRef<HTMLDivElement>(null);
+    const [preview, setPreview] = useState<{
+      kind: "image" | "text" | "other";
+      filename: string;
+      url?: string;
+      text?: string;
+    } | null>(null);
     const [error, setError] = useState("");
-    const fileInputRef = useRef(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const totalBytes = useMemo(
       () => (attachments || []).reduce((sum, a) => sum + Number(a?.size_bytes || 0), 0),
@@ -170,8 +196,9 @@ const AttachmentsPanel = forwardRef(
 
     // Cross-component sync
     useEffect(() => {
-      const handler = (ev) => {
-        const cid = ev?.detail?.conversationId;
+      const handler = (ev: Event) => {
+        const customEv = ev as CustomEvent;
+        const cid = customEv?.detail?.conversationId;
         if (cid && conversationId && cid === conversationId) {
           refresh();
         }
@@ -181,7 +208,7 @@ const AttachmentsPanel = forwardRef(
     }, [conversationId, refresh]);
 
     const uploadFiles = useCallback(
-      async (files) => {
+      async (files: FileList | File[]) => {
         if (!conversationId) return;
         const arr = Array.from(files || []).filter(Boolean);
         if (arr.length === 0) return;
@@ -213,7 +240,7 @@ const AttachmentsPanel = forwardRef(
             new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
           );
           await refresh();
-        } catch (e) {
+        } catch (e: any) {
           console.error(e);
           setError(String(e?.message || "Upload failed"));
         } finally {
@@ -228,19 +255,19 @@ const AttachmentsPanel = forwardRef(
       uploadFiles,
     }));
 
-    const onPickFiles = (e) => {
+    const onPickFiles = (e: React.MouseEvent) => {
       e.stopPropagation();
       if (disabled || uploading || !conversationId) return;
       fileInputRef.current?.click?.();
     };
 
-    const onInputChange = async (e) => {
+    const onInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e?.target?.files;
       if (files) await uploadFiles(files);
       e.target.value = "";
     };
 
-    const onDrop = async (e) => {
+    const onDrop = async (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -252,7 +279,7 @@ const AttachmentsPanel = forwardRef(
       if (files) await uploadFiles(files);
     };
 
-    const onDragEnter = (e) => {
+    const onDragEnter = (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
       if (disabled || uploading || !conversationId) return;
@@ -261,14 +288,14 @@ const AttachmentsPanel = forwardRef(
       setDragOver(true);
     };
 
-    const onDragOver = (e) => {
+    const onDragOver = (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
       if (disabled || uploading || !conversationId) return;
       setDragOver(true);
     };
 
-    const onDragLeave = (e) => {
+    const onDragLeave = (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
       if (disabled || uploading || !conversationId) return;
@@ -278,7 +305,7 @@ const AttachmentsPanel = forwardRef(
     };
 
     const onPaste = useCallback(
-      async (e) => {
+      async (e: React.ClipboardEvent) => {
         // Only handle paste if panel is visible
         if (!isExpanded) return;
         if (disabled || uploading || !conversationId) return;
@@ -302,7 +329,7 @@ const AttachmentsPanel = forwardRef(
       [isExpanded, disabled, uploading, conversationId, uploadFiles]
     );
 
-    const doPreview = useCallback(async (a) => {
+    const doPreview = useCallback(async (a: Attachment) => {
       if (!a?.id) return;
       setError("");
       try {
@@ -328,14 +355,14 @@ const AttachmentsPanel = forwardRef(
         }
 
         setPreview({ kind: "other", filename: a.filename, url });
-      } catch (e) {
+      } catch (e: any) {
         console.error(e);
         setError(String(e?.message || "Preview failed"));
       }
     }, []);
 
     const doDelete = useCallback(
-      async (a) => {
+      async (a: Attachment) => {
         if (!a?.id) return;
         setError("");
         try {
@@ -349,7 +376,7 @@ const AttachmentsPanel = forwardRef(
             new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
           );
           await refresh();
-        } catch (e) {
+        } catch (e: any) {
           console.error(e);
           setError(String(e?.message || "Delete failed"));
         }
@@ -358,7 +385,7 @@ const AttachmentsPanel = forwardRef(
     );
 
     const doDeleteAll = useCallback(
-      async (e) => {
+      async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!conversationId) return;
         if ((attachments || []).length === 0) return;
@@ -380,7 +407,7 @@ const AttachmentsPanel = forwardRef(
             new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
           );
           await refresh();
-        } catch (e) {
+        } catch (e: any) {
           console.error(e);
           setError(String(e?.message || "Delete all failed"));
         }
@@ -635,5 +662,7 @@ const AttachmentsPanel = forwardRef(
     );
   }
 );
+
+AttachmentsPanel.displayName = "AttachmentsPanel";
 
 export default AttachmentsPanel;

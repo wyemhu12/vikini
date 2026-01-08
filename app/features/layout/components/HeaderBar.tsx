@@ -40,7 +40,15 @@ const Bars3Icon = () => (
   </svg>
 );
 
-const HeaderBar = ({
+interface HeaderBarProps {
+  t: Record<string, string | any>; // Using flexible record for translations
+  language: string;
+  onLanguageChange?: (lang: string) => void;
+  onToggleSidebar?: () => void;
+  showMobileControls?: boolean;
+}
+
+const HeaderBar: React.FC<HeaderBarProps> = ({
   t,
   language,
   onLanguageChange,
@@ -51,11 +59,14 @@ const HeaderBar = ({
 
   // Group themes by category
   const groupedThemes = useMemo(() => {
-    return THEME_CONFIG.reduce((acc, theme) => {
-      if (!acc[theme.group]) acc[theme.group] = [];
-      acc[theme.group].push(theme);
-      return acc;
-    }, {});
+    return THEME_CONFIG.reduce(
+      (acc, theme) => {
+        if (!acc[theme.group]) acc[theme.group] = [];
+        acc[theme.group].push(theme);
+        return acc;
+      },
+      {} as Record<string, typeof THEME_CONFIG>
+    );
   }, []);
 
   const currentTheme = useMemo(() => THEME_CONFIG.find((x) => x.id === theme), [theme]);
@@ -159,7 +170,7 @@ const HeaderBar = ({
                 }}
               />
               <span className={triggerLabelStyles}>
-                {t?.[currentTheme?.labelKey] || currentTheme?.id || "Theme"}
+                {t?.[currentTheme?.labelKey || ""] || currentTheme?.id || "Theme"}
               </span>
               <ChevronDown className="w-3 h-3 text-[var(--text-secondary)] transition-transform group-data-[state=open]:rotate-180" />
             </button>

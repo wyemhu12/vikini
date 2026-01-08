@@ -200,7 +200,20 @@ export default function GemsManager({ language }: GemsManagerProps) {
 
               <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
                 <GemEditor
-                  gem={editingGem || undefined}
+                  gem={
+                    editingGem
+                      ? {
+                          ...editingGem,
+                          id: editingGem.id,
+                          name: editingGem.name,
+                          description: editingGem.description || undefined,
+                          instructions: editingGem.instructions || undefined,
+                          icon: editingGem.icon || undefined,
+                          color: editingGem.color || undefined,
+                          isPremade: false, // Admin can edit
+                        }
+                      : null
+                  }
                   onSave={handleSaveGem}
                   language={language}
                 />

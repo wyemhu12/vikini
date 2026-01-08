@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, RefObject } from "react";
 
-export function useFileDragDrop(attachmentsRef) {
+export function useFileDragDrop(attachmentsRef: RefObject<any>) {
   const [showFiles, setShowFiles] = useState(false);
   const [fileCount, setFileCount] = useState(0);
   const dragCounter = useRef(0);
 
   useEffect(() => {
-    const handleDragEnter = (e) => {
+    const handleDragEnter = (e: DragEvent) => {
       // Only care if dragging files
       if (e.dataTransfer?.types?.includes("Files")) {
         e.preventDefault();
@@ -18,7 +18,7 @@ export function useFileDragDrop(attachmentsRef) {
       }
     };
 
-    const handleDragLeave = (e) => {
+    const handleDragLeave = (e: DragEvent) => {
       if (e.dataTransfer?.types?.includes("Files")) {
         e.preventDefault();
         dragCounter.current -= 1;
@@ -32,15 +32,15 @@ export function useFileDragDrop(attachmentsRef) {
       }
     };
 
-    const handleDragOver = (e) => {
+    const handleDragOver = (e: DragEvent) => {
       e.preventDefault(); // Necessary to allow dropping
     };
 
-    const handleDrop = (e) => {
+    const handleDrop = (e: DragEvent) => {
       e.preventDefault();
       dragCounter.current = 0;
 
-      if (e.dataTransfer?.files?.length > 0) {
+      if (e.dataTransfer?.files?.length && e.dataTransfer.files.length > 0) {
         if (attachmentsRef.current) {
           attachmentsRef.current.uploadFiles(e.dataTransfer.files);
           // Ensure it stays open
@@ -53,18 +53,18 @@ export function useFileDragDrop(attachmentsRef) {
       }
     };
 
-    window.addEventListener("dragenter", handleDragEnter);
-    window.addEventListener("dragleave", handleDragLeave);
-    window.addEventListener("dragover", handleDragOver);
-    window.addEventListener("drop", handleDrop);
+    window.addEventListener("dragenter", handleDragEnter as any);
+    window.addEventListener("dragleave", handleDragLeave as any);
+    window.addEventListener("dragover", handleDragOver as any);
+    window.addEventListener("drop", handleDrop as any);
 
     return () => {
-      window.removeEventListener("dragenter", handleDragEnter);
-      window.removeEventListener("dragleave", handleDragLeave);
-      window.removeEventListener("dragover", handleDragOver);
-      window.removeEventListener("drop", handleDrop);
+      window.removeEventListener("dragenter", handleDragEnter as any);
+      window.removeEventListener("dragleave", handleDragLeave as any);
+      window.removeEventListener("dragover", handleDragOver as any);
+      window.removeEventListener("drop", handleDrop as any);
     };
-  }, [showFiles, fileCount, attachmentsRef]); // Added attachmentsRef to deps though usually stable
+  }, [showFiles, fileCount, attachmentsRef]);
 
   return {
     showFiles,

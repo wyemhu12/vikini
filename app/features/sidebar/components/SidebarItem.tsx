@@ -1,7 +1,7 @@
-// /app/features/sidebar/components/SidebarItem.jsx
+// /app/features/sidebar/components/SidebarItem.tsx
 "use client";
 
-import { memo, useState } from "react";
+import React, { memo, useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import TitleItem from "@/app/features/chat/components/TitleItem";
 import { downloadConversationById } from "@/lib/utils/download";
@@ -74,17 +74,25 @@ const DownloadIcon = () => (
   </svg>
 );
 
-function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }) {
+interface SidebarItemProps {
+  conversation: { id: string; title?: string };
+  isActive: boolean;
+  onSelect: (id: string) => void;
+  onRename: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }: SidebarItemProps) {
   const c = conversation;
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const handleDownloadClick = async (e) => {
+  const handleDownloadClick = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent closing immediately if needed, but Radix handles this
     if (isDownloading) return;
     try {
       setIsDownloading(true);
-      await downloadConversationById(c.id, c.title);
-    } catch (err) {
+      await downloadConversationById(c.id, c.title || "conversation");
+    } catch (err: any) {
       alert(err.message || "Lỗi khi tải xuống.");
     } finally {
       setIsDownloading(false);

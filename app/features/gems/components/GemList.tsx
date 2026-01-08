@@ -1,7 +1,18 @@
-// /app/features/gems/components/GemList.jsx
 "use client";
 
 import { useLanguage } from "../../chat/hooks/useLanguage";
+import { Gem } from "./GemPreview"; // Import shared type if possible, or redefine
+
+interface GemListProps {
+  loading: boolean;
+  premade: Gem[];
+  mine: Gem[];
+  selectedGemId: string | null;
+  onSelect: (gem: Gem) => void;
+  onEdit: (gem: Gem) => void;
+  onPreview: (gem: Gem) => void;
+  onDelete: (gem: Gem) => void;
+}
 
 export default function GemList({
   loading,
@@ -12,10 +23,10 @@ export default function GemList({
   onEdit,
   onPreview,
   onDelete,
-}) {
+}: GemListProps) {
   const { t } = useLanguage();
 
-  const renderItem = (g, readOnly) => {
+  const renderItem = (g: Gem, readOnly: boolean) => {
     const selected = selectedGemId === g.id;
 
     return (

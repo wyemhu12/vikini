@@ -4,9 +4,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Menu } from "lucide-react";
 
-export default function FloatingMenuTrigger({ onClick, className }) {
+interface FloatingMenuTriggerProps {
+  onClick?: (e: React.MouseEvent | MouseEvent | TouchEvent | PointerEvent) => void;
+  className?: string;
+}
+
+export default function FloatingMenuTrigger({ onClick, className }: FloatingMenuTriggerProps) {
   const [isIdle, setIsIdle] = useState(false);
-  const timeoutRef = useRef(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDragging = useRef(false);
 
   // Reset idle timer on interaction
@@ -32,7 +37,7 @@ export default function FloatingMenuTrigger({ onClick, className }) {
       dragElastic={0.1}
       whileDrag={{ scale: 1.1, cursor: "grabbing" }}
       whileTap={{ scale: 0.9 }}
-      onClick={(e) => {
+      onClick={(e: any) => {
         // Prevent click if we were dragging
         if (isDragging.current) return;
         resetIdleTimer();

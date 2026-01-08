@@ -1,3 +1,4 @@
+// /app/features/chat/components/ChatControls.tsx
 "use client";
 
 import { motion } from "framer-motion";
@@ -5,6 +6,34 @@ import { motion } from "framer-motion";
 import ModelSelector from "./ModelSelector";
 import AttachmentsPanel from "./AttachmentsPanel";
 import InputForm from "./InputForm";
+
+interface ChatControlsProps {
+  currentModel: any;
+  handleModelChange: (model: string) => void;
+  isModelAllowed: (model: string) => boolean;
+  t: any;
+  showFiles: boolean;
+  setShowFiles: (show: boolean) => void;
+  fileCount: number;
+  setFileCount: (count: number) => void;
+  webSearchEnabled: boolean;
+  toggleWebSearch: () => void;
+  alwaysSearch: boolean;
+  toggleAlwaysSearch: () => void;
+  currentGem: any;
+  input: string;
+  setInput: (value: string) => void;
+  handleSend: () => void;
+  handleStop: () => void;
+  isStreaming: boolean;
+  regenerating: boolean;
+  creatingConversation: boolean;
+  streamingAssistant: any;
+  attachmentsRef: any;
+  selectedConversationId: string | null;
+  showMobileControls?: boolean;
+  disabled?: boolean;
+}
 
 export default function ChatControls({
   currentModel,
@@ -35,7 +64,7 @@ export default function ChatControls({
   attachmentsRef,
   selectedConversationId,
   showMobileControls = true, // Default to true if not passed (Desktop)
-}) {
+}: ChatControlsProps) {
   return (
     <motion.div
       initial={false}

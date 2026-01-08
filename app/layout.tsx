@@ -3,18 +3,20 @@ import "@/app/features/styles/shimmer.css"; // Giữ lại style cũ của bạn
 import Providers from "@/app/features/layout/providers";
 import MainLayout from "@/app/features/layout/components/MainLayout"; // Thêm dòng này
 import LanguageUpdater from "@/app/features/layout/components/LanguageUpdater";
+import React from "react";
+import type { Metadata, Viewport } from "next";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Vikini - Gemini Chat",
   description: "Chat UI using Gemini",
 };
 
-export const viewport = {
+export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
       <head />

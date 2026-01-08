@@ -4,27 +4,31 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import GemList from "./GemList";
 import GemEditor from "./GemEditor";
-import GemPreview from "./GemPreview";
+import GemPreview, { Gem } from "./GemPreview";
 import { useGemStore } from "../stores/useGemStore";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
 
-export default function GemManager({ inModal = false }) {
+interface GemManagerProps {
+  inModal?: boolean;
+}
+
+export default function GemManager({ inModal = false }: GemManagerProps) {
   const sp = useSearchParams();
   const _router = useRouter();
   const { t, language } = useLanguage();
 
   // Lấy ID từ store (do Sidebar truyền vào) hoặc từ URL (fallback)
   const { contextConversationId, closeGemModal, triggerGemApplied } = useGemStore();
-  const urlConversationId = sp.get("conversationId");
+  const urlConversationId = sp?.get("conversationId");
   const conversationId = contextConversationId || urlConversationId;
 
-  const [gems, setGems] = useState([]);
+  const [gems, setGems] = useState<Gem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [selectedGemId, setSelectedGemId] = useState(null);
-  const [editingGem, setEditingGem] = useState(null);
-  const [previewGem, setPreviewGem] = useState(null);
+  const [selectedGemId, setSelectedGemId] = useState<string | null>(null);
+  const [editingGem, setEditingGem] = useState<Gem | null>(null);
+  const [previewGem, setPreviewGem] = useState<Gem | null>(null);
   const [status, setStatus] = useState("");
 
   const premade = useMemo(() => gems.filter((g) => g.isPremade), [gems]);
@@ -45,7 +49,7 @@ export default function GemManager({ inModal = false }) {
     refresh();
   }, []);
 
-  const applyGemToConversation = async (gemId) => {
+  const applyGemToConversation = async (gemId: string | null) => {
     if (!conversationId) {
       setStatus(`${t("error") || "Error"}: No conversation ID`);
       return;
@@ -80,7 +84,7 @@ export default function GemManager({ inModal = false }) {
       setTimeout(() => {
         closeGemModal();
       }, 300);
-    } catch (e) {
+    } catch (e: any) {
       setStatus(e?.message || "Apply gem failed");
     }
   };
@@ -90,19 +94,19 @@ export default function GemManager({ inModal = false }) {
   const onCreate = () => {
     setPreviewGem(null);
     setEditingGem({
-      id: null,
+      id: "", // new gem has temporary empty id
       name: "",
       description: "",
       instructions: "",
       icon: "",
       color: "",
       isPremade: false,
-    });
+    } as Gem);
   };
 
-  const onEdit = (gem) => setEditingGem(gem);
+  const onEdit = (gem: Gem) => setEditingGem(gem);
 
-  const onDelete = async (gem) => {
+  const onDelete = async (gem: Gem) => {
     const confirmMsg = t("gemDeleteConfirm") || "Are you sure you want to delete this Gem?";
     if (!confirm(`${confirmMsg} "${gem.name}"?`)) return;
 
@@ -118,12 +122,12 @@ export default function GemManager({ inModal = false }) {
       setStatus(t("success") || "Success");
       if (editingGem?.id === gem.id) setEditingGem(null);
       await refresh();
-    } catch (e) {
+    } catch (e: any) {
       setStatus(e?.message || "Delete failed");
     }
   };
 
-  const onSave = async (payload) => {
+  const onSave = async (payload: Partial<Gem>) => {
     setStatus(t("loading") || "Loading...");
     try {
       const isNew = !payload.id;
@@ -139,7 +143,7 @@ export default function GemManager({ inModal = false }) {
       setStatus(t("success") || "Success");
       setEditingGem(data?.gem || null);
       await refresh();
-    } catch (e) {
+    } catch (e: any) {
       setStatus(e?.message || "Save failed");
     }
   };

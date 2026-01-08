@@ -1,4 +1,4 @@
-// /app/features/sidebar/components/Sidebar.jsx
+// /app/features/sidebar/components/Sidebar.tsx
 "use client";
 
 import SidebarItem from "./SidebarItem";
@@ -13,8 +13,38 @@ import {
   Shield,
   LogOut,
   Trash2,
+  LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+
+interface Conversation {
+  id: string;
+  title?: string;
+  [key: string]: any;
+}
+
+interface SidebarProps {
+  conversations?: Conversation[];
+  selectedConversationId?: string | null;
+  onSelectConversation?: (id: string) => void;
+  onDeleteConversation?: (id: string) => void;
+  onDeleteAll?: () => void;
+  onRefresh?: () => Promise<void> | void;
+  chats?: Conversation[];
+  activeId?: string | null;
+  onSelectChat?: (id: string) => void;
+  onRenameChat?: (id: string) => void;
+  onDeleteChat?: (id: string) => void;
+  onNewChat?: () => void;
+  onLogout?: () => void;
+  t?: Record<string, any>;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
+  session?: any;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  onLogoClick?: () => void;
+}
 
 export default function Sidebar({
   conversations,
@@ -37,14 +67,18 @@ export default function Sidebar({
   collapsed = false,
   onToggleCollapse,
   onLogoClick,
-}) {
+}: SidebarProps) {
   const { openGemModal } = useGemStore();
 
-  const list = Array.isArray(chats) ? chats : Array.isArray(conversations) ? conversations : [];
+  const list = Array.isArray(chats)
+    ? chats
+    : Array.isArray(conversations)
+      ? conversations || []
+      : [];
 
   const currentId = activeId ?? selectedConversationId ?? null;
 
-  const handleSelect = (id) => {
+  const handleSelect = (id: string) => {
     (onSelectChat ?? onSelectConversation)?.(id);
     onCloseMobile?.();
   };
@@ -59,7 +93,7 @@ export default function Sidebar({
     onCloseMobile?.();
   };
 
-  const renameFallback = async (id) => {
+  const renameFallback = async (id: string) => {
     try {
       const current = list.find((c) => c?.id === id);
       const curTitle = current?.title || "";
@@ -78,7 +112,7 @@ export default function Sidebar({
     }
   };
 
-  const deleteFallback = async (id) => {
+  const deleteFallback = async (id: string) => {
     try {
       if (window.confirm("Xoá cuộc hội thoại này?")) {
         await fetch("/api/conversations", {
@@ -97,14 +131,26 @@ export default function Sidebar({
     }
   };
 
-  const handleRename = (id) =>
+  const handleRename = (id: string) =>
     typeof onRenameChat === "function" ? onRenameChat(id) : renameFallback(id);
-  const handleDelete = (id) => {
+  const handleDelete = (id: string) => {
     const fn = onDeleteChat ?? onDeleteConversation;
     return typeof fn === "function" ? fn(id) : deleteFallback(id);
   };
 
-  const SidebarButton = ({ onClick, icon: Icon, label, variant = "default", className }) => {
+  const SidebarButton = ({
+    onClick,
+    icon: Icon,
+    label,
+    variant = "default",
+    className,
+  }: {
+    onClick?: () => void;
+    icon: LucideIcon;
+    label: string;
+    variant?: "default" | "primary" | "destructive";
+    className?: string;
+  }) => {
     const button = (
       <button
         onClick={onClick}
