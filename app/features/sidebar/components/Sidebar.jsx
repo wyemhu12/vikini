@@ -2,6 +2,7 @@
 "use client";
 
 import SidebarItem from "./SidebarItem";
+import Link from "next/link";
 import { useGemStore } from "../../gems/stores/useGemStore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -35,6 +36,7 @@ export default function Sidebar({
   session,
   collapsed = false,
   onToggleCollapse,
+  onLogoClick,
 }) {
   const { openGemModal } = useGemStore();
 
@@ -264,12 +266,19 @@ export default function Sidebar({
           />
           <aside className="fixed top-0 left-0 bottom-0 z-50 w-[85vw] max-w-sm border-r border-[var(--border)] bg-[var(--surface-muted)] p-6 pb-24 shadow-2xl flex flex-col">
             <div className="mb-8 flex items-center justify-between">
-              <div className="text-lg font-black tracking-tighter text-[var(--text-primary)] flex items-center gap-3">
+              <Link
+                href="/"
+                className="text-lg font-black tracking-tighter text-[var(--text-primary)] flex items-center gap-3 active:opacity-70 transition-opacity"
+                onClick={() => {
+                  onLogoClick?.();
+                  onCloseMobile?.();
+                }}
+              >
                 <div className="h-8 w-8 rounded-lg bg-[var(--control-bg)] flex items-center justify-center border border-[var(--control-border)] text-[var(--accent)]">
                   V
                 </div>
                 {t?.appName || "Vikini"}
-              </div>
+              </Link>
               <button
                 onClick={() => onCloseMobile?.()}
                 className="p-2 rounded-full text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)] transition-colors"

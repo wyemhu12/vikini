@@ -431,6 +431,10 @@ export default function ChatApp() {
         session={session}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+        onLogoClick={() => {
+          setSelectedConversationId(null);
+          closeMobileSidebar();
+        }}
       />
 
       {/* Mobile Floating Trigger */}
@@ -503,6 +507,8 @@ export default function ChatApp() {
                   setInput(text);
                   // Optional: auto focus input
                 }}
+                lastConversation={conversations?.[0]}
+                onSelectConversation={handleSelectConversation}
               />
             </div>
           ) : (

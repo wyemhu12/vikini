@@ -22,7 +22,7 @@ const itemVariants = {
   show: { opacity: 1, y: 0 },
 };
 
-export default function DashboardView({ onPromptSelect }) {
+export default function DashboardView({ onPromptSelect, lastConversation, onSelectConversation }) {
   const { data: session } = useSession();
   const { t } = useLanguage();
   const [greeting, setGreeting] = useState("");
@@ -64,11 +64,15 @@ export default function DashboardView({ onPromptSelect }) {
       prompt: null, // Info only
     },
     {
-      title: t("recentActivity") || "Recent Activity",
-      description: t("descStatsNoData") || "No recent chats",
+      title: lastConversation
+        ? lastConversation.title || t("untitledChat")
+        : t("recentActivity") || "Recent Activity",
+      description: lastConversation
+        ? t("resumeChat") || "Click to resume"
+        : t("descStatsNoData") || "No recent chats",
       header: <Clock className="w-8 h-8 md:w-10 md:h-10 text-gray-400" />,
       className: "col-span-1",
-      prompt: null,
+      onClick: () => lastConversation && onSelectConversation?.(lastConversation.id),
     },
   ];
 
@@ -94,7 +98,9 @@ export default function DashboardView({ onPromptSelect }) {
               description={item.description}
               header={item.header}
               className="h-full"
-              onClick={() => item.prompt && onPromptSelect?.(item.prompt)}
+              onClick={() =>
+                item.onClick ? item.onClick() : item.prompt && onPromptSelect?.(item.prompt)
+              }
             />
           </motion.div>
         ))}
