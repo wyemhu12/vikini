@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useMemo, useCallback, useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 import ChatBubble from "./ChatBubble";
 import Sidebar from "../../sidebar/components/Sidebar";
@@ -61,21 +62,19 @@ export default function ChatApp() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Allowed Models (check access permissions)
-  const { allowedModelIds, loading: modelsLoading } = useAllowedModels(isAuthed); // [REFACTORED] Extracted hook
+  const { allowedModelIds, loading: modelsLoading } = useAllowedModels(isAuthed);
 
   // Function to check if a model is allowed
   const isModelAllowed = useCallback(
     (modelId) => {
-      if (modelsLoading) return true; // Allow all while loading
-      if (allowedModelIds.size === 0) return true; // Allow all if no restrictions
+      if (modelsLoading) return true;
+      if (allowedModelIds.size === 0) return true;
       return allowedModelIds.has(modelId);
     },
     [allowedModelIds, modelsLoading]
   );
 
   const attachmentsRef = useRef(null);
-
-  // [REFACTORED] Extracted Drag & Drop Logic
   const { showFiles, setShowFiles, fileCount, setFileCount } = useFileDragDrop(attachmentsRef);
 
   const t = useMemo(() => {
@@ -93,7 +92,6 @@ export default function ChatApp() {
       "deleteAll",
       "logout",
       "modelSelector",
-      "selectModel",
       "selectModel",
       "currentModel",
       "modelSelectorProviders",
@@ -151,7 +149,6 @@ export default function ChatApp() {
       "save",
       "copy",
       "copied",
-      // Modal translations
       "modalUpgradeTitle",
       "modalUpgradeRequestedModel",
       "modalUpgradeNoPermission",
@@ -161,7 +158,6 @@ export default function ChatApp() {
       "modalDeleteWarning",
       "modalDeleteConfirm",
       "modalDeleteButton",
-      // New Dashboard Descriptions
       "descSuggestionCode",
       "descSuggestionImage",
       "descSuggestionAnalyze",
@@ -199,6 +195,45 @@ export default function ChatApp() {
     setServerWebSearchAvailable,
   } = useWebSearchPreference();
 
+  // URL State Sync (Declared HERE to access useConversation hooks)
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // 1. Sync URL -> State (On Mount & PopState)
+  useEffect(() => {
+    const idFromUrl = searchParams?.get("id");
+    // Ensure we don't infinite loop if they match
+    if (idFromUrl && idFromUrl !== selectedConversationId) {
+      setSelectedConversationId(idFromUrl);
+    } else if (!idFromUrl && selectedConversationId) {
+      setSelectedConversationId(null);
+    }
+  }, [searchParams, selectedConversationId, setSelectedConversationId]);
+
+  // 2. Sync Query helper
+  const syncUrlWithId = useCallback(
+    (id) => {
+      const params = new URLSearchParams(searchParams?.toString() || "");
+      if (id) {
+        params.set("id", id);
+      } else {
+        params.delete("id");
+      }
+      router.push(`${pathname}?${params.toString()}`);
+    },
+    [searchParams, pathname, router]
+  );
+
+  // Wrapper for setting ID and URL together
+  const setSelectedConversationIdAndUrl = useCallback(
+    (id) => {
+      setSelectedConversationId(id);
+      syncUrlWithId(id);
+    },
+    [setSelectedConversationId, syncUrlWithId]
+  );
+
   const {
     renderedMessages,
     input,
@@ -221,7 +256,7 @@ export default function ChatApp() {
   } = useChatStreamController({
     isAuthed,
     selectedConversationId,
-    setSelectedConversationId,
+    setSelectedConversationId: setSelectedConversationIdAndUrl, // Pass wrapper here!
     createConversation,
     refreshConversations,
     renameConversationOptimistic,
@@ -432,7 +467,7 @@ export default function ChatApp() {
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
         onLogoClick={() => {
-          setSelectedConversationId(null);
+          handleSelectConversation(null);
           closeMobileSidebar();
         }}
       />
