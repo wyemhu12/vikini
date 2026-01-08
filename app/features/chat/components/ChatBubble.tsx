@@ -203,14 +203,22 @@ function PreBlock({ children }: any) {
     if (isJson) {
       try {
         const textContent = extractText(childProps.children);
-        if (textContent.trim().startsWith("{") && textContent.includes('"type": "chart"')) {
-          const parsed = JSON.parse(textContent);
-          if (parsed.type === "chart") {
-            return <ChartTool {...parsed} />;
+        // Robust extraction: find the outer braces to handle potential leading/trailing whitespace or text
+        const start = textContent.indexOf("{");
+        const end = textContent.lastIndexOf("}");
+
+        if (start !== -1 && end !== -1 && end > start) {
+          const potentialJson = textContent.slice(start, end + 1);
+          // Quick check before parsing
+          if (potentialJson.includes("chart")) {
+            const parsed = JSON.parse(potentialJson);
+            if (parsed.type === "chart") {
+              return <ChartTool {...parsed} />;
+            }
           }
         }
       } catch {
-        // Ignore
+        // Ignore JSON parse errors, render as code
       }
     }
 

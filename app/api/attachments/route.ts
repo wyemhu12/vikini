@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     const error = err as Error;
     routeLogger.error("GET error:", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
   }
 }
 
