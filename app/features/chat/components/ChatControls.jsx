@@ -1,5 +1,7 @@
 "use client";
 
+import { motion } from "framer-motion";
+
 import ModelSelector from "./ModelSelector";
 import AttachmentsPanel from "./AttachmentsPanel";
 import InputForm from "./InputForm";
@@ -32,11 +34,22 @@ export default function ChatControls({
   // Refs & IDs
   attachmentsRef,
   selectedConversationId,
+  showMobileControls = true, // Default to true if not passed (Desktop)
 }) {
   return (
-    <div className="w-full max-w-4xl mx-auto pb-6 px-4 md:px-6">
+    <motion.div
+      initial={false}
+      animate={{ y: showMobileControls ? 0 : "100%" }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+      className={`
+        w-full shadow-2xl md:shadow-none max-w-4xl mx-auto pb-6 px-4 md:px-6 
+        fixed bottom-0 left-0 right-0 z-40 
+        bg-surface/95 backdrop-blur-xl md:bg-transparent md:backdrop-blur-none
+        md:static md:translate-y-0
+      `}
+    >
       {/* Static Floating Controls Toolbar - Minimalist */}
-      <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center justify-center gap-2 pt-4 md:pt-0">
         <div className="flex items-center rounded-full bg-[var(--control-bg)] border border-[var(--control-border)] p-1 shadow-lg">
           <ModelSelector
             currentModelId={currentModel}
@@ -142,6 +155,6 @@ export default function ChatControls({
           {t.aiDisclaimer}
         </p>
       </div>
-    </div>
+    </motion.div>
   );
 }

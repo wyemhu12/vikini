@@ -1,5 +1,7 @@
 "use client";
 
+import { motion } from "framer-motion";
+
 import React, { useMemo } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -38,7 +40,13 @@ const Bars3Icon = () => (
   </svg>
 );
 
-const HeaderBar = ({ t, language, onLanguageChange, onToggleSidebar }) => {
+const HeaderBar = ({
+  t,
+  language,
+  onLanguageChange,
+  onToggleSidebar,
+  showMobileControls = true,
+}) => {
   const { theme, setTheme } = useTheme();
 
   // Group themes by category
@@ -67,22 +75,26 @@ const HeaderBar = ({ t, language, onLanguageChange, onToggleSidebar }) => {
     "text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors max-w-[100px] truncate";
 
   return (
-    <header
+    <motion.header
+      initial={false}
+      animate={{ y: showMobileControls ? 0 : "-100%" }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
       className="
-      sticky top-0 z-20
+      fixed top-0 left-0 right-0 z-20 
+      md:sticky md:top-0 md:translate-y-0
       flex items-center justify-between 
       bg-transparent text-[var(--text-primary)]
       px-4 py-4 sm:px-6
-      transition-all duration-300
+      transition-colors duration-300
     "
     >
       <div className="flex items-center gap-4 min-w-0">
-        {/* Mobile sidebar toggle */}
+        {/* Mobile sidebar toggle - HIDDEN in favor of Floating Bubble */}
         <button
           type="button"
           onClick={onToggleSidebar}
           className="
-            md:hidden rounded-lg p-2 -ml-2
+            hidden rounded-lg p-2 -ml-2
             text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)]
             transition-colors active:scale-95
           "
@@ -183,7 +195,7 @@ const HeaderBar = ({ t, language, onLanguageChange, onToggleSidebar }) => {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </header>
+    </motion.header>
   );
 };
 

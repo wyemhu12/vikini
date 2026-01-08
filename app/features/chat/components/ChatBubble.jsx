@@ -4,7 +4,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
-import { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import { ChevronDown, ChevronRight, Sparkles, Brain } from "lucide-react";
 
@@ -82,18 +82,28 @@ function getLang(className) {
   return m?.[1]?.toLowerCase() || "text";
 }
 
-function CodeBlock({ inline, className, children }) {
+// Helper to extract raw text for copy/collapse logic
+const extractText = (node) => {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(extractText).join("");
+  if (React.isValidElement(node)) return extractText(node.props.children);
+  return "";
+};
+
+// Custom Pre/Code logic to prevent <div> inside <p> hydration errors
+function SmartCode({ inline, className, children }) {
   const { t } = useLanguage();
-  const code = useMemo(() => {
-    const raw = Array.isArray(children) ? children.join("") : String(children || "");
-    const normalized = raw.replace(/\r\n/g, "\n").replace(/^\n+/, "").replace(/\n+$/, "");
-    return normalized;
+
+  // Extract clean text for Copy button and Line Counting
+  const codeText = useMemo(() => {
+    const raw = extractText(children);
+    return raw.replace(/\r\n/g, "\n").replace(/^\n+/, "").replace(/\n+$/, "");
   }, [children]);
 
   if (inline) {
     return (
       <code className="rounded bg-control px-1.5 py-0.5 font-mono text-[0.9em] text-[var(--primary-light)]">
-        {code}
+        {children}
       </code>
     );
   }
@@ -104,7 +114,7 @@ function CodeBlock({ inline, className, children }) {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(code);
+      await navigator.clipboard.writeText(codeText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -112,11 +122,9 @@ function CodeBlock({ inline, className, children }) {
     }
   };
 
-  const lineCount = code.split("\n").length;
+  const lineCount = codeText.split("\n").length;
   const COLLAPSE_AFTER_LINES = 20;
   const isCollapsible = lineCount > COLLAPSE_AFTER_LINES;
-
-  // Hiển thị tối đa khi collapse
   const isCollapsed = isCollapsible && !expanded;
 
   return (
@@ -200,11 +208,9 @@ function CodeBlock({ inline, className, children }) {
           <code
             className={`${className} !bg-transparent text-[13px] leading-6 font-mono !p-0 block min-w-full`}
           >
-            {code}
+            {children}
           </code>
         </pre>
-
-        {/* Gradient Fade for Collapsed State */}
         {isCollapsed && (
           <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[var(--surface)] via-[color-mix(in_srgb,var(--surface)_80%,transparent)] to-transparent pointer-events-none flex items-end justify-center pb-4">
             <div className="text-[10px] font-bold text-secondary uppercase tracking-widest">
@@ -216,6 +222,42 @@ function CodeBlock({ inline, className, children }) {
     </div>
   );
 }
+
+// Wrapper to intercept 'pre' tags (Block Code)
+function PreBlock({ children }) {
+  // Check if children is a <code> element
+  if ((React.isValidElement(children) && children.type === "code") || children?.props?.className) {
+    // Extract code content and className from the child <code>
+    // Note: if <code node={...}> is passed, we might need props
+    const childProps = children.props || {};
+    return (
+      <SmartCode inline={false} className={childProps.className} {...childProps}>
+        {childProps.children}
+      </SmartCode>
+    );
+  }
+
+  // Fallback for non-standard pre usage
+  return <pre>{children}</pre>;
+}
+
+// Wrapper for 'code' tags (Inline Code only, because blocks go to PreBlock)
+function InlineCode({ children, className, ...props }) {
+  // If this contains newlines, force it to be handled as block?
+  // No, keep strictly inline. Text selection bugs happen if we try to be too smart.
+  return (
+    <SmartCode inline={true} className={className} {...props}>
+      {children}
+    </SmartCode>
+  );
+}
+
+// ... inside ChatBubble ...
+// components={{
+//   pre: PreBlock,
+//   code: InlineCode,
+//   ...
+// }}
 
 export default function ChatBubble({
   message,
@@ -378,7 +420,8 @@ export default function ChatBubble({
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[rehypeHighlight]}
                       components={{
-                        code: CodeBlock,
+                        code: InlineCode,
+                        pre: PreBlock,
                         p: ({ children }) => (
                           <p className="mb-4 last:mb-0 leading-7 break-words">{children}</p>
                         ),

@@ -4,17 +4,15 @@ import { translations } from "@/lib/utils/config";
 
 import { useLanguageStore } from "@/lib/store/languageStore";
 
-const LANGS = ["vi", "en"] as const;
+export const LANGS = ["vi", "en"] as const;
 
 export type Language = (typeof LANGS)[number];
 
 export function useLanguage() {
   const { language, setLanguage } = useLanguageStore();
 
-  useEffect(() => {
-    const stored = localStorage.getItem("vikini-language");
-    if (stored && LANGS.includes(stored as Language)) setLanguage(stored as Language);
-  }, [setLanguage]);
+  // Removed automatic init from localStorage here to avoid infinite loops in children
+  // Initialization should be done once in the root component (ChatApp)
 
   useEffect(() => {
     localStorage.setItem("vikini-language", language);

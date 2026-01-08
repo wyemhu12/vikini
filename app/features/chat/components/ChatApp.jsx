@@ -12,9 +12,10 @@ import UpgradeModal from "@/app/components/UpgradeModal";
 import DeleteConfirmModal from "@/app/components/DeleteConfirmModal";
 import DashboardView from "./DashboardView";
 import ChatControls from "./ChatControls";
+import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 
 import { useTheme } from "../hooks/useTheme";
-import { useLanguage } from "../hooks/useLanguage";
+import { useLanguage, LANGS } from "../hooks/useLanguage";
 import { useConversation } from "../hooks/useConversation";
 import { useGemStore } from "../../gems/stores/useGemStore";
 
@@ -32,6 +33,17 @@ export default function ChatApp() {
 
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t: tRaw } = useLanguage();
+
+  // Initialize Language ONCE from localStorage (moved from hook to avoid loops)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("vikini-language");
+      // Only set if stored is valid and DIFFERENT from current default
+      if (stored && LANGS.includes(stored) && stored !== language) {
+        setLanguage(stored);
+      }
+    }
+  }, []); // Run ONCE on mount
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobileSidebar = useCallback(() => setMobileOpen(false), []);
@@ -231,6 +243,10 @@ export default function ChatApp() {
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [renderedMessages.length, isStreaming]); // Depend on length change, not content
 
+  // Auto-hide mobile controls logic (Tap to Toggle)
+  const [showMobileControls, setShowMobileControls] = useState(true);
+
+  // Restore Missing Functions
   const handleRenameFromSidebar = useCallback(
     async (id) => {
       const current = (conversations || []).find((c) => c?.id === id);
@@ -417,6 +433,9 @@ export default function ChatApp() {
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
       />
 
+      {/* Mobile Floating Trigger */}
+      <FloatingMenuTrigger onClick={() => setMobileOpen((prev) => !prev)} />
+
       <div
         className={`h-full flex flex-col relative z-10 transition-all duration-300 ${
           sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"
@@ -429,10 +448,28 @@ export default function ChatApp() {
           theme={theme}
           onThemeChange={toggleTheme}
           onToggleSidebar={toggleMobileSidebar}
+          showMobileControls={showMobileControls} // Pass visibility prop
         />
 
         {/* Chat Area */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-0 scroll-smooth relative">
+        <div
+          ref={scrollRef}
+          onClick={() => {
+            // 1. Do not toggle if on Dashboard (Landing) or Desktop
+            if (showLanding || window.innerWidth >= 768) return;
+
+            // 2. Do not toggle if user is selecting text
+            // We use a small timeout to allow the selection to update after the click/mouseup
+            setTimeout(() => {
+              const selection = window.getSelection();
+              if (selection && selection.toString().length > 0) return;
+
+              // 3. Toggle controls if no selection
+              setShowMobileControls((prev) => !prev);
+            }, 10);
+          }}
+          className="flex-1 overflow-y-auto px-4 md:px-0 scroll-smooth relative pb-32 md:pb-0" // Added pb-32 for mobile spacing
+        >
           {/* RA2 Theme Background Logos - Centered in Chat Content Area */}
           {(theme === "yuri" || theme === "allied" || theme === "soviet") && (
             <div
@@ -529,6 +566,7 @@ export default function ChatApp() {
           streamingAssistant={streamingAssistant}
           attachmentsRef={attachmentsRef}
           selectedConversationId={selectedConversationId}
+          showMobileControls={showMobileControls} // Pass visibility prop
         />
       </div>
 
