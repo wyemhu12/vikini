@@ -3,6 +3,7 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { useAttachmentStore } from "@/lib/features/attachments/store";
+import { Textarea } from "@/components/ui/textarea";
 
 const PaperAirplaneIcon = () => (
   <svg
@@ -199,7 +200,7 @@ export default function InputForm({
       />
 
       {/* Text Area */}
-      <textarea
+      <Textarea
         ref={textareaRef}
         rows={1}
         value={input}
@@ -207,7 +208,7 @@ export default function InputForm({
         onKeyDown={handleKeyDown}
         placeholder={t?.placeholder || "Message..."}
         disabled={disabled}
-        className="max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)]"
+        className="max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none"
         style={{ height: "40px" }}
       />
 

@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Settings, Loader2, Save, AlertCircle, Cpu } from "lucide-react";
 import { SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
 import { translations } from "@/lib/utils/config";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface RankConfig {
   rank: "basic" | "pro" | "admin";
@@ -150,13 +152,13 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
                 <label className="block text-sm font-medium text-gray-400 mb-2">
                   {t.dailyMessageLimit}
                 </label>
-                <input
+                <Input
                   type="number"
                   value={config.daily_message_limit}
                   onChange={(e) =>
                     updateConfig(config.rank, "daily_message_limit", parseInt(e.target.value))
                   }
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:border-blue-500/50 focus:outline-none"
+                  className="w-full bg-white/5 border-white/10 text-white focus-visible:ring-blue-500/50"
                 />
               </div>
 
@@ -165,13 +167,13 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
                 <label className="block text-sm font-medium text-gray-400 mb-2">
                   {t.maxFileSize}
                 </label>
-                <input
+                <Input
                   type="number"
                   value={config.max_file_size_mb}
                   onChange={(e) =>
                     updateConfig(config.rank, "max_file_size_mb", parseInt(e.target.value))
                   }
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:border-blue-500/50 focus:outline-none"
+                  className="w-full bg-white/5 border-white/10 text-white focus-visible:ring-blue-500/50"
                 />
               </div>
 
@@ -224,19 +226,11 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
 
       {/* Model Selection Modal */}
       {modelModalRank && currentModalConfig && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-white capitalize">
-                {modelModalRank} {t.models}
-              </h3>
-              <button
-                onClick={() => setModelModalRank(null)}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                ✕
-              </button>
-            </div>
+        <Dialog open={!!modelModalRank} onOpenChange={(open) => !open && setModelModalRank(null)}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-[#0a0a0a] border-white/10 p-6 sm:rounded-xl">
+            <DialogTitle className="text-xl font-semibold text-white capitalize mb-4">
+              {modelModalRank} {t.models}
+            </DialogTitle>
 
             <p className="text-sm text-gray-400 mb-4">{t.selectModelsForRank}</p>
 
@@ -277,8 +271,8 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
                 {t.done}
               </button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

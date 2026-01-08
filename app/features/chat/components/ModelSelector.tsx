@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Check, ChevronDown, Cpu, Zap, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { SELECTABLE_MODELS, PROVIDER_LABELS, SelectableModel } from "@/lib/core/modelRegistry";
+import { Card } from "@/components/ui/card";
 
 const PROVIDER_IDS = [
   "gemini",
@@ -126,7 +127,7 @@ export default function ModelSelector({
 
       {/* DROPDOWN CONTENT */}
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-[350px] bg-[var(--surface-muted)] border border-[var(--border)] rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100">
+        <Card className="absolute bottom-full left-0 mb-2 w-[350px] bg-[var(--surface-muted)] border border-[var(--border)] rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100">
           {/* TABS HEADER */}
           <div className="flex items-center p-1 bg-[var(--control-bg)] border-b border-[var(--border)]">
             <button
@@ -277,7 +278,7 @@ export default function ModelSelector({
               </div>
             )}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

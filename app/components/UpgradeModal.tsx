@@ -1,7 +1,7 @@
 "use client";
 
 import { Shield, X } from "lucide-react";
-import { useEffect } from "react";
+import { Dialog, DialogContent, DialogTitle, DialogClose } from "@/components/ui/dialog";
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -11,39 +11,21 @@ interface UpgradeModalProps {
 }
 
 export default function UpgradeModal({ isOpen, onClose, modelName, t }: UpgradeModalProps) {
-  // Close on Escape key
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    if (isOpen) {
-      document.addEventListener("keydown", handleEsc);
-      return () => document.removeEventListener("keydown", handleEsc);
-    }
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md border-0 bg-transparent shadow-none p-0 overflow-visible sm:max-w-md">
+        <DialogTitle className="sr-only">{t.modalUpgradeTitle}</DialogTitle>
 
-      {/* Modal */}
-      <div className="relative w-full max-w-md">
         {/* Glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 blur-3xl -z-10" />
 
         {/* Card */}
         <div className="relative bg-gradient-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
           {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
-            aria-label="Close"
-          >
+          <DialogClose className="absolute top-4 right-4 p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500">
             <X className="w-4 h-4 text-gray-400" />
-          </button>
+            <span className="sr-only">Close</span>
+          </DialogClose>
 
           {/* Icon */}
           <div className="flex justify-center pt-8 pb-4">
@@ -92,7 +74,7 @@ export default function UpgradeModal({ isOpen, onClose, modelName, t }: UpgradeM
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
