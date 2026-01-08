@@ -468,7 +468,7 @@ export default function ChatApp() {
               setShowMobileControls((prev) => !prev);
             }, 10);
           }}
-          className="flex-1 overflow-y-auto px-4 md:px-0 scroll-smooth relative pb-32 md:pb-0" // Added pb-32 for mobile spacing
+          className="flex-1 overflow-y-auto px-4 md:px-0 scroll-smooth relative pt-24 md:pt-0 pb-32 md:pb-0" // Added pt-24 (mobile header), pb-32 (mobile input)
         >
           {/* RA2 Theme Background Logos - Centered in Chat Content Area */}
           {(theme === "yuri" || theme === "allied" || theme === "soviet") && (
