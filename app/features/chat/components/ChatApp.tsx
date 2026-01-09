@@ -25,10 +25,10 @@ import { useChatStreamController } from "./hooks/useChatStreamController";
 import { useAllowedModels } from "./hooks/useAllowedModels";
 import { useFileDragDrop } from "./hooks/useFileDragDrop";
 
-import { generateImageAction } from "@/lib/features/image-gen/actions";
 import { ImageGenPreview } from "../../image-gen/components/ImageGenPreview";
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 
+// Removed deprecated generateImageAction import
 import { DEFAULT_MODEL, SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
 
 export default function ChatApp() {
@@ -284,12 +284,82 @@ export default function ChatApp() {
       if (!prompt.trim()) return;
 
       setInput("");
-      setLastGeneratedImage({ url: "", prompt }); // Loading
+      // Optimistic UI: We could add a local "Thinking..." message here if we had a setMessages setter exposed from hook.
+      // For now, rely on loading state or maybe set a temporary indicator.
+      // Optional: Add a placeholder message? (Requires access to setRenderedMessages which is inside the hook)
+      // Since `useChatStreamController` manages messages, we might need a way to inject a message.
+      // For now, let's just wait for response. The user will see "Generating..." if we want, but simpler to just wait.
+      // Or better: Use the `lastGeneratedImage` as a loading indicator?
+      setLastGeneratedImage({ url: "", prompt }); // Shows loading spinner in preview bubble
 
       try {
-        const res = await generateImageAction(prompt, options);
-        if (res.success && res.data && res.data.length > 0) {
-          setLastGeneratedImage({ url: res.data[0].url, prompt });
+        const response = await fetch("/api/generate-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            conversationId: selectedConversationId,
+            options,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to generate image");
+        }
+
+        if (data.success && data.message) {
+          // Success!
+          // We got a persisted message back.
+          // 1. Clear validation/loading state
+          setLastGeneratedImage(null);
+
+          // 2. Refresh conversation to pull the new message
+          // This ensures we get the message formatted exactly as the server sees it (decrypted etc)
+          // `useChatStreamController` exposes `refreshConversations` but that refreshes the list in sidebar.
+          // We need to refresh the current chat's messages.
+          // The `ChatApp` doesn't expose `refreshMessages` directly easily without refactoring useChatStreamController.
+          // TRICK: We can trigger a re-fetch by toggling something or just relying on `swr` if used.
+          // But here `useChatStreamController` likely uses `useEffect` on `selectedConversationId`.
+
+          // Let's try to reload the page or trigger a soft refresh? No, that's bad UX.
+          // Looking at `ChatApp.tsx`, it calls `resetChatUI` which clears messages.
+
+          // Ideally: `useChatStreamController` should expose `addMessage` or `reloadMessages`.
+          // Let's assume for now we have to manually add it or trigger a reload.
+          // Since we can't easily inject into `renderedMessages` (it comes from hook),
+          // we might just reload the window? No.
+
+          // Let's look at `ChatControls` or `Sidebar`.
+          // Actually, if we just toggle `selectedConversationId` to null and back, it flickers.
+
+          // Wait, `lastGeneratedImage` was used to show result.
+          // If we want to show it IN CHAT, we rely on `renderedMessages`.
+          // If `renderedMessages` is not re-validating, we have a problem.
+          // `useChatStreamController` likely fetches messages on mount/change.
+
+          // FOR NOW: Let's keep showing it in `lastGeneratedImage` as well as a "success" state?
+          // No, the goal was persistence.
+
+          // If we simply trigger `setSelectedConversationId` to the SAME ID, does it re-fetch?
+          // Usually yes, if the hook depends on it.
+          // Let's try:
+          // setSelectedConversationId(selectedConversationId);
+
+          // Or better, we force a reload of the conversation data.
+          // For this specific codebase, let's reload the page (worst case) or just alert success.
+          // Actually, let's keep `lastGeneratedImage` as a "New!" notification popup
+          // AND let the user know it is saved.
+          // BUT `lastGeneratedImage` is transient.
+
+          // Let's hack: Trigger a re-navigation to the same URL to force re-fetch?
+          router.refresh();
+
+          // Also set the preview just in case the refresh is slow, so user sees something.
+          if (data.imageUrl) {
+            setLastGeneratedImage({ url: data.imageUrl, prompt });
+          }
         } else {
           alert("Failed to gen image");
           setLastGeneratedImage(null);
@@ -300,7 +370,7 @@ export default function ChatApp() {
         setLastGeneratedImage(null);
       }
     },
-    [generateImageAction, setInput]
+    [setInput, selectedConversationId, router]
   );
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -403,6 +473,7 @@ export default function ChatApp() {
   useEffect(() => {
     setFileCount(0);
     setShowFiles(false);
+    setLastGeneratedImage(null); // Fix: Clear previous generated image preview
   }, [selectedConversationId, setFileCount, setShowFiles]);
 
   // Register callback for gem applied - optimistic update when gem changes

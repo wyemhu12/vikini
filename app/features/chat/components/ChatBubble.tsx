@@ -247,6 +247,7 @@ interface ChatBubbleProps {
     sources?: any[];
     urlContext?: any[];
     id?: string;
+    meta?: any;
   };
   role?: string;
   content?: string;
@@ -284,6 +285,7 @@ export default function ChatBubble({
       sources: finalSources,
       urlContext: finalUrlContext,
       id: base.id,
+      meta: base.meta || {},
     };
   }, [message, role, content, sourcesProp, urlContextProp]);
 
@@ -480,6 +482,31 @@ export default function ChatBubble({
                 )}
               </div>
             )}
+
+            {/* Image Gen Attachment Display */}
+            {isBot &&
+              safeMessage.meta?.type === "image_gen" &&
+              safeMessage.meta?.attachment?.url && (
+                <div className="mt-4 rounded-xl overflow-hidden border border-token shadow-sm max-w-sm">
+                  <img
+                    src={safeMessage.meta.attachment.url}
+                    alt={safeMessage.meta.prompt || "Generated Image"}
+                    className="w-full h-auto object-cover hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                  />
+                  <div className="bg-surface-muted px-3 py-2 text-xs text-secondary border-t border-token flex justify-between items-center">
+                    <span className="truncate max-w-[200px]">{safeMessage.meta.prompt}</span>
+                    <a
+                      href={safeMessage.meta.attachment.url}
+                      download
+                      target="_blank"
+                      className="font-bold hover:text-primary"
+                    >
+                      DOWNLOAD
+                    </a>
+                  </div>
+                </div>
+              )}
 
             {isBot && (safeMessage.sources.length > 0 || safeMessage.urlContext.length > 0) && (
               <div className="mt-6 space-y-4 border-t border-token pt-4">
