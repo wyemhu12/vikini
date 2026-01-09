@@ -4,6 +4,13 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useAttachmentStore } from "@/lib/features/attachments/store";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Plus, Image as ImageIcon, Upload, X } from "lucide-react";
 
 const PaperAirplaneIcon = () => (
   <svg
@@ -13,23 +20,6 @@ const PaperAirplaneIcon = () => (
     className="w-5 h-5"
   >
     <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
-  </svg>
-);
-
-const PaperClipIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={1.5}
-    stroke="currentColor"
-    className="w-5 h-5"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13"
-    />
   </svg>
 );
 
@@ -49,6 +39,7 @@ interface InputFormProps {
   onChangeInput: (value: string) => void;
   onSubmit: () => void;
   onStop?: () => void;
+  onImageGen?: (prompt: string) => void; // New prop
   disabled?: boolean;
   isStreaming?: boolean;
   t?: any;
@@ -59,9 +50,10 @@ export default function InputForm({
   input,
   onChangeInput,
   onSubmit,
-  onStop, // Add onStop prop
+  onStop,
+  onImageGen,
   disabled,
-  isStreaming, // Add isStreaming prop to know when to show Stop button
+  isStreaming,
   t,
   conversationId,
 }: InputFormProps) {
@@ -70,6 +62,7 @@ export default function InputForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addAttachment, attachments } = useAttachmentStore();
   const [isUploading, setIsUploading] = useState(false);
+  const [isImageMode, setIsImageMode] = useState(false);
 
   // Auto resize textarea
   useEffect(() => {
@@ -81,15 +74,26 @@ export default function InputForm({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
-      // On mobile (screen width < 768px), Enter should just be a newline
-      // Only prevent default and submit if on desktop
       if (window.innerWidth >= 768) {
         e.preventDefault();
-        if (!disabled && (input.trim() || attachments.length > 0)) {
-          onSubmit();
-          // Reset height
-          if (textareaRef.current) textareaRef.current.style.height = "auto";
-        }
+        handleSubmit();
+      }
+    }
+  };
+
+  const handleSubmit = () => {
+    if (disabled) return;
+
+    if (isImageMode && onImageGen) {
+      if (input.trim()) {
+        onImageGen(input);
+        setIsImageMode(false); // Exit mode after send
+        if (textareaRef.current) textareaRef.current.style.height = "auto";
+      }
+    } else {
+      if (input.trim() || attachments.length > 0) {
+        onSubmit();
+        if (textareaRef.current) textareaRef.current.style.height = "auto";
       }
     }
   };
@@ -106,7 +110,6 @@ export default function InputForm({
           continue;
         }
 
-        // 1. Get signed URL
         const signRes = await fetch("/api/attachments/sign-upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -125,7 +128,6 @@ export default function InputForm({
 
         const { signedUrl, path, filename, mimeType } = await signRes.json();
 
-        // 2. Upload file directly to storage
         const uploadRes = await fetch(signedUrl, {
           method: "PUT",
           headers: { "Content-Type": mimeType },
@@ -136,7 +138,6 @@ export default function InputForm({
           throw new Error(`Storage upload failed: ${uploadRes.statusText}`);
         }
 
-        // 3. Complete upload (record in DB)
         const completeRes = await fetch("/api/attachments/complete-upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -176,21 +177,43 @@ export default function InputForm({
         if (isStreaming) {
           onStop?.();
         } else {
-          onSubmit();
+          handleSubmit();
         }
       }}
-      className="relative flex w-full items-end gap-2 rounded-3xl bg-[var(--control-bg)] border border-[var(--control-border)] p-2 shadow-2xl transition-all duration-300 focus-within:border-[var(--accent)] focus-within:ring-1 focus-within:ring-[var(--accent)]/30"
+      className={`relative flex w-full items-end gap-2 rounded-3xl border p-2 shadow-2xl transition-all duration-300 ${
+        isImageMode
+          ? "bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface))] border-[var(--accent)] ring-1 ring-[var(--accent)]/50"
+          : "bg-[var(--control-bg)] border-[var(--control-border)] focus-within:border-[var(--accent)] focus-within:ring-1 focus-within:ring-[var(--accent)]/30"
+      }`}
     >
-      {/* File Upload Button */}
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={disabled || isUploading}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
-        title={t?.uploadFile || "Upload file"}
-      >
-        <PaperClipIcon />
-      </button>
+      {/* Plus Menu Trigger */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            disabled={disabled || isUploading}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
+              isImageMode
+                ? "bg-[var(--accent)] text-white hover:brightness-110"
+                : "text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)]"
+            }`}
+            title="Add..."
+          >
+            {isImageMode ? <ImageIcon className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-48">
+          <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+            <Upload className="w-4 h-4 mr-2" />
+            {t?.uploadFile || "Upload File"}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setIsImageMode(!isImageMode)}>
+            <ImageIcon className="w-4 h-4 mr-2" />
+            {isImageMode ? "Switch to Chat" : "Create Image"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       <input
         type="file"
         ref={fileInputRef}
@@ -200,24 +223,43 @@ export default function InputForm({
       />
 
       {/* Text Area */}
-      <Textarea
-        ref={textareaRef}
-        rows={1}
-        value={input}
-        onChange={(e) => onChangeInput(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={t?.placeholder || "Message..."}
-        disabled={disabled}
-        className="max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none"
-        style={{ height: "40px" }}
-      />
+      <div className="flex-1 min-w-0 relative">
+        {isImageMode && (
+          <div className="absolute -top-6 left-0 text-[10px] font-bold uppercase tracking-wider text-[var(--accent)] animate-in fade-in slide-in-from-bottom-1">
+            Image Generation Mode
+          </div>
+        )}
+        <Textarea
+          ref={textareaRef}
+          rows={1}
+          value={input}
+          onChange={(e) => onChangeInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={
+            isImageMode
+              ? "Describe the image you want to generate..."
+              : t?.placeholder || "Message..."
+          }
+          disabled={disabled}
+          className="max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none"
+          style={{ height: "40px" }}
+        />
+      </div>
 
-      {/* Send / Stop Button - THEMED */}
+      {isImageMode && (
+        <button
+          type="button"
+          onClick={() => setIsImageMode(false)}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-red-500 transition-colors"
+          title="Cancel Image Mode"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      )}
+
+      {/* Send / Stop Button */}
       <button
         type="submit"
-        // Button enabled if:
-        // 1. Streaming (to allow Stop)
-        // 2. OR Input not empty/has attachments AND not disabled/uploading
         disabled={
           !isStreaming &&
           ((!input.trim() && attachments.length === 0) || (disabled && !isUploading))
@@ -226,11 +268,19 @@ export default function InputForm({
           !isStreaming &&
           ((!input.trim() && attachments.length === 0) || (disabled && !isUploading))
             ? "bg-[var(--control-bg)] text-[var(--text-secondary)] cursor-not-allowed"
-            : "bg-[var(--accent)] text-[var(--surface)] hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--glow)]"
+            : isImageMode
+              ? "bg-[var(--accent)] text-white hover:brightness-110 shadow-[0_0_15px_var(--accent)]"
+              : "bg-[var(--accent)] text-[var(--surface)] hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--glow)]"
         }`}
         title={isStreaming ? "Stop" : t?.send || "Send"}
       >
-        {isStreaming ? <StopIcon /> : <PaperAirplaneIcon />}
+        {isStreaming ? (
+          <StopIcon />
+        ) : isImageMode ? (
+          <ImageIcon className="w-5 h-5" />
+        ) : (
+          <PaperAirplaneIcon />
+        )}
       </button>
     </form>
   );

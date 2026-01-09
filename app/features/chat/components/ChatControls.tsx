@@ -7,6 +7,8 @@ import ModelSelector from "./ModelSelector";
 import AttachmentsPanel from "./AttachmentsPanel";
 import InputForm from "./InputForm";
 
+import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
+
 interface ChatControlsProps {
   currentModel: any;
   handleModelChange: (model: string) => void;
@@ -33,6 +35,7 @@ interface ChatControlsProps {
   selectedConversationId: string | null;
   showMobileControls?: boolean;
   disabled?: boolean;
+  onImageGen: (prompt: string, options?: ImageGenOptions) => void;
 }
 
 export default function ChatControls({
@@ -56,6 +59,7 @@ export default function ChatControls({
   setInput,
   handleSend,
   handleStop,
+  onImageGen, // Updated prop logic flows through here
   isStreaming,
   regenerating,
   creatingConversation,
@@ -171,6 +175,7 @@ export default function ChatControls({
             onChangeInput={setInput}
             onSubmit={() => handleSend()}
             onStop={handleStop}
+            onImageGen={onImageGen}
             disabled={creatingConversation || regenerating} // Only disable completely if creating new conv or regenerating
             isStreaming={isStreaming} // Pass streaming state
             t={t}

@@ -25,6 +25,10 @@ import { useChatStreamController } from "./hooks/useChatStreamController";
 import { useAllowedModels } from "./hooks/useAllowedModels";
 import { useFileDragDrop } from "./hooks/useFileDragDrop";
 
+import { generateImageAction } from "@/lib/features/image-gen/actions";
+import { ImageGenPreview } from "../../image-gen/components/ImageGenPreview";
+import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
+
 import { DEFAULT_MODEL, SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
 
 export default function ChatApp() {
@@ -267,6 +271,38 @@ export default function ChatApp() {
     },
   });
 
+  // Image Gen State
+  const [lastGeneratedImage, setLastGeneratedImage] = useState<{
+    url: string;
+    prompt: string;
+  } | null>(null);
+
+  // ... (inside component)
+
+  const handleImageGen = useCallback(
+    async (prompt: string, options?: ImageGenOptions) => {
+      if (!prompt.trim()) return;
+
+      setInput("");
+      setLastGeneratedImage({ url: "", prompt }); // Loading
+
+      try {
+        const res = await generateImageAction(prompt, options);
+        if (res.success && res.data && res.data.length > 0) {
+          setLastGeneratedImage({ url: res.data[0].url, prompt });
+        } else {
+          alert("Failed to gen image");
+          setLastGeneratedImage(null);
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Error generating image");
+        setLastGeneratedImage(null);
+      }
+    },
+    [generateImageAction, setInput]
+  );
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto scroll only when NOT streaming to avoid annoying jumps
@@ -276,7 +312,7 @@ export default function ChatApp() {
 
     // Only scroll on initial load or new user message, not constantly during stream
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [renderedMessages.length, isStreaming]); // Depend on length change, not content
+  }, [renderedMessages.length, isStreaming, lastGeneratedImage]); // Added lastGeneratedImage to scroll
 
   // Auto-hide mobile controls logic (Tap to Toggle)
   const [showMobileControls, setShowMobileControls] = useState(true);
@@ -563,6 +599,26 @@ export default function ChatApp() {
                   />
                 );
               })}
+
+              {/* Generated Image Preview Bubble */}
+              {lastGeneratedImage && (
+                <div className="flex w-full flex-col gap-3 py-6">
+                  <div className="flex max-w-[95%] lg:max-w-[90%] gap-4 items-start">
+                    <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-token bg-surface-elevated text-primary text-[10px] font-black shadow-sm">
+                      AI
+                    </div>
+                    <div className="flex flex-col gap-2 w-full min-w-0">
+                      <ImageGenPreview
+                        imageUrl={lastGeneratedImage.url}
+                        isLoading={!lastGeneratedImage.url}
+                        prompt={lastGeneratedImage.prompt}
+                        onClose={() => setLastGeneratedImage(null)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Animation Bubble: Show if streaming/creating OR if we have partial content */}
               {(streamingAssistant !== null || isStreaming || creatingConversation) && (
                 <ChatBubble
@@ -609,6 +665,7 @@ export default function ChatApp() {
           attachmentsRef={attachmentsRef}
           selectedConversationId={selectedConversationId}
           showMobileControls={showMobileControls} // Pass visibility prop
+          onImageGen={handleImageGen}
         />
       </div>
 

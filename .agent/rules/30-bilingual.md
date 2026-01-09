@@ -1,33 +1,41 @@
-﻿---
+---
 trigger: always_on
 ---
 
 # Bilingual Translation Rule (Vikini)
 
-## CRITICAL: All UI text MUST be bilingual
+## 1. The Rule: "No Hardcoded English"
 
-When adding or modifying ANY user-facing text in the codebase:
+Every piece of text shown to the user must be translatable.
 
-1. **Check if text needs translation** - Any string shown to users (buttons, labels, messages, placeholders, titles, errors)
+## 2. Implementation
 
-2. **Add to BOTH languages** in `lib/utils/config.ts`:
-   - `translations.vi`: Vietnamese text
-   - `translations.en`: English text
+**Config Location**: `lib/utils/config.ts`
 
-3. **Use translation in component** - Never hardcode UI text:
-   `	sx
-const t = language === "vi" ? translations.vi : translations.en;
-<button>{t.save}</button>
-`
+**Structure**:
 
-## Enforcement
+```typescript
+export const translations = {
+  vi: { hello: "Xin chào" },
+  en: { hello: "Hello" },
+};
+```
 
-- TypeScript will error if keys don't match between vi and en
-- Run `npm run type-check` to verify
+**Usage in Component**:
 
-## When This Applies
+```tsx
+import { useLanguage } from "@/lib/store/useLanguage"; // Example hook
+import { translations } from "@/lib/utils/config";
 
-- Adding new features with UI
-- Creating new components with text
-- Adding error messages, placeholders, labels, buttons
-- Modifying existing text
+export function Welcome() {
+  const { lang } = useLanguage(); // or typically passed via props/context
+  const t = translations[lang];
+
+  return <h1>{t.hello}</h1>;
+}
+```
+
+## 3. Enforcement
+
+- **Type Check**: Ensure `translations.vi` and `translations.en` have matching keys.
+- **Review**: Reject PRs with hardcoded strings like `<button>Submit</button>`.
