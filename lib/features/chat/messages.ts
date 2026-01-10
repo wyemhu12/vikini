@@ -27,7 +27,7 @@ interface MessageRow {
 
 function mapMessageRow(row: MessageRow | null): Message | null {
   if (!row) return null;
-  
+
   // Safe Decrypt: Không bao giờ crash khi map dữ liệu
   let content = row.content;
   try {
@@ -98,7 +98,10 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
   return (data || []).map(mapMessageRow).filter((m): m is Message => m !== null);
 }
 
-export async function getRecentMessages(conversationId: string, limit: number = 50): Promise<Message[]> {
+export async function getRecentMessages(
+  conversationId: string,
+  limit: number = 50
+): Promise<Message[]> {
   const supabase = getSupabaseAdmin();
   const n = Number(limit) > 0 ? Number(limit) : 50;
 
@@ -116,7 +119,10 @@ export async function getRecentMessages(conversationId: string, limit: number = 
   return rows;
 }
 
-export async function deleteLastAssistantMessage(userId: string, conversationId: string): Promise<void> {
+export async function deleteLastAssistantMessage(
+  userId: string,
+  conversationId: string
+): Promise<void> {
   const supabase = getSupabaseAdmin();
   const { data: lastMsg } = await supabase
     .from("messages")
@@ -134,6 +140,21 @@ export async function deleteLastAssistantMessage(userId: string, conversationId:
 
 export async function deleteMessage(userId: string, messageId: string): Promise<void> {
   const supabase = getSupabaseAdmin();
+
+  // 1. Fetch message meta to check for generated images
+  const { data: msg } = await supabase.from("messages").select("meta").eq("id", messageId).single();
+
+  if (msg?.meta) {
+    const meta = msg.meta as Record<string, any>;
+    // Check if it's a generated image with a storage path
+    if (meta.type === "image_gen" && meta.attachment?.storagePath) {
+      const storagePath = meta.attachment.storagePath;
+      messagesLogger.info(`Deleting generated image from storage: ${storagePath}`);
+      await supabase.storage.from("attachments").remove([storagePath]);
+    }
+  }
+
+  // 2. Delete message from DB
   await supabase.from("messages").delete().eq("id", messageId);
 }
 
@@ -154,7 +175,30 @@ export async function deleteMessagesIncludingAndAfter(
 
   if (!targetMsg) return;
 
-  // 2. Delete target message and everything created after it in this conversation
+  // 2. Identify messages with generated images to clean up
+  const { data: messagesToDelete } = await supabase
+    .from("messages")
+    .select("meta")
+    .eq("conversation_id", conversationId)
+    .gte("created_at", targetMsg.created_at);
+
+  if (messagesToDelete && messagesToDelete.length > 0) {
+    const pathsToRemove: string[] = [];
+
+    for (const msg of messagesToDelete) {
+      const meta = msg.meta as Record<string, any>;
+      if (meta?.type === "image_gen" && meta?.attachment?.storagePath) {
+        pathsToRemove.push(meta.attachment.storagePath);
+      }
+    }
+
+    if (pathsToRemove.length > 0) {
+      messagesLogger.info(`Deleting ${pathsToRemove.length} generated images from storage`);
+      await supabase.storage.from("attachments").remove(pathsToRemove);
+    }
+  }
+
+  // 3. Delete target message and everything created after it in this conversation
   // Note: Using gte (>=) to include the message itself.
   await supabase
     .from("messages")
@@ -162,4 +206,3 @@ export async function deleteMessagesIncludingAndAfter(
     .eq("conversation_id", conversationId)
     .gte("created_at", targetMsg.created_at);
 }
-
