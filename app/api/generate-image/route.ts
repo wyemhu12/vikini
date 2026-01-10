@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const userId = session.user.id;
-    const userEmail = session.user.email;
+    // const userEmail = session.user.email; // Unused
 
     // 2. Parse Body
     const body = await req.json();
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       buffer = Buffer.from(base64Data, "base64");
     } else if (result.url.startsWith("http")) {
       // Fetch Remote URL (Gemini Temporary URL)
-      console.log("Fetching remote image:", result.url);
+      // console.log("Fetching remote image:", result.url);
       const res = await fetch(result.url);
       if (!res.ok) throw new Error("Failed to fetch image from provider");
       const arrayBuffer = await res.arrayBuffer();
@@ -80,11 +80,22 @@ export async function POST(req: NextRequest) {
         throw new Error("Failed to upload image");
       }
 
-      // Get Public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(bucket).getPublicUrl(storagePath);
-      finalUrl = publicUrl;
+      // Get Signed URL (10 years) to ensure access even if bucket is private
+      // and prevent issues with public access policies.
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(storagePath, 315360000); // 10 years in seconds
+
+      if (signedError || !signedData?.signedUrl) {
+        console.error("Failed to create signed URL:", signedError);
+        // Fallback to public URL if signing fails (though unlikely)
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from(bucket).getPublicUrl(storagePath);
+        finalUrl = publicUrl;
+      } else {
+        finalUrl = signedData.signedUrl;
+      }
     }
 
     // 5. Persist as Message (Critical for persistence)
@@ -117,21 +128,8 @@ export async function POST(req: NextRequest) {
       throw new Error("Failed to save message");
     }
 
-    // 6. Also insert into 'attachments' table to keep schema consistent
-    // The `attachments` table is for file management (expiration, list view, etc)
-    if (buffer) {
-      await supabase.from("attachments").insert({
-        id: crypto.randomUUID(), // New ID for tracking
-        conversation_id: conversationId,
-        message_id: message.id, // Link to the new message!
-        user_id: userEmail,
-        filename: filename,
-        storage_path: storagePath,
-        mime_type: mimeType,
-        size_bytes: buffer.length,
-        created_at: new Date().toISOString(),
-      });
-    }
+    // 6. Skip inserting into 'attachments' table as these are generated images, not user uploads.
+    // The message meta contains the reference.
 
     // 7. Return Success
     return NextResponse.json({
