@@ -7,7 +7,7 @@ import rehypeHighlight from "rehype-highlight";
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import dynamic from "next/dynamic";
-import { ChevronDown, ChevronRight, Sparkles, Brain } from "lucide-react";
+import { ChevronDown, ChevronRight, Sparkles, Brain, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 // Dynamic import for ChartTool
@@ -257,6 +257,7 @@ interface ChatBubbleProps {
   canRegenerate?: boolean;
   onRegenerate?: () => void;
   onEdit?: (message: any, newContent: string) => void;
+  onDelete?: (messageId: string) => void;
   regenerating?: boolean;
 }
 
@@ -270,6 +271,7 @@ export default function ChatBubble({
   canRegenerate,
   onRegenerate,
   onEdit,
+  onDelete,
   regenerating,
 }: ChatBubbleProps) {
   const { t } = useLanguage();
@@ -561,6 +563,17 @@ export default function ChatBubble({
                 >
                   <span className={regenerating ? "animate-spin" : ""}>🔄</span>
                   {regenerating ? t("thinking") : t("regenerate")}
+                </button>
+              )}
+
+              {/* Delete Button */}
+              {onDelete && safeMessage.id && (
+                <button
+                  onClick={() => onDelete(safeMessage.id!)}
+                  className="text-[10px] font-bold text-secondary hover:text-red-500 uppercase tracking-tighter transition-colors"
+                  title={t("delete")}
+                >
+                  <Trash2 className="w-3 h-3" />
                 </button>
               )}
             </div>

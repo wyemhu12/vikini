@@ -551,5 +551,6 @@ export function useChatStreamController({
     handleRegenerate,
     handleEdit,
     handleStop,
+    setMessages, // Expose setMessages
   };
 }
