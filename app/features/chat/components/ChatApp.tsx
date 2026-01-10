@@ -510,10 +510,7 @@ export default function ChatApp() {
     );
   }
 
-  // Check if user is not whitelisted (pending approval)
-  if (isAuthed && (session?.user as any)?.rank === "not_whitelisted") {
-    return <AccessPendingScreen />;
-  }
+  // Check was here, moved down
 
   const handleDeleteMessage = useCallback(
     async (messageId: string) => {
@@ -557,6 +554,12 @@ export default function ChatApp() {
   );
 
   const showLanding = !selectedConversationId || renderedMessages.length === 0;
+
+  // Check if user is not whitelisted (pending approval)
+  // MOVED HERE: Must be after all hooks
+  if (isAuthed && (session?.user as any)?.rank === "not_whitelisted") {
+    return <AccessPendingScreen />;
+  }
 
   return (
     <div className="h-screen w-screen text-primary overflow-hidden relative font-sans bg-surface">
