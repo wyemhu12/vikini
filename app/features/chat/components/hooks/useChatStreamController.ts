@@ -80,6 +80,7 @@ export function useChatStreamController({
           content: typeof m?.content === "string" ? m.content : String(m?.content ?? ""),
           sources: safeArray(m?.sources),
           urlContext: safeArray(m?.urlContext),
+          meta: m?.meta,
         })
       )
       .filter((m) => m.role === "user" || m.role === "assistant");
