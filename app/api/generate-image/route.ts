@@ -51,7 +51,17 @@ export async function POST(req: NextRequest) {
       const base64Data = parts[1];
       mimeType = parts[0].match(/:(.*?);/)?.[1] || "image/png";
       buffer = Buffer.from(base64Data, "base64");
+    } else if (result.url.startsWith("http")) {
+      // Fetch Remote URL (Gemini Temporary URL)
+      console.log("Fetching remote image:", result.url);
+      const res = await fetch(result.url);
+      if (!res.ok) throw new Error("Failed to fetch image from provider");
+      const arrayBuffer = await res.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
+      mimeType = res.headers.get("content-type") || "image/png";
+    }
 
+    if (buffer) {
       const ext = mimeType.split("/")[1] || "png";
       const uuid = crypto.randomUUID();
       filename = `gen-${Date.now()}.${ext}`;
