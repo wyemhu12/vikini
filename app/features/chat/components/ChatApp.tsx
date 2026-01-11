@@ -11,6 +11,7 @@ import HeaderBar from "../../layout/components/HeaderBar";
 import AccessPendingScreen from "@/app/components/AccessPendingScreen";
 import UpgradeModal from "@/app/components/UpgradeModal";
 import DeleteConfirmModal from "@/app/components/DeleteConfirmModal";
+import EditImagePromptModal from "@/app/components/EditImagePromptModal";
 import DashboardView from "./DashboardView";
 import ChatControls from "./ChatControls";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
@@ -433,7 +434,38 @@ export default function ChatApp() {
     refreshConversations,
     resetChatUI,
     selectedConversationId,
+    selectedConversationId,
   ]);
+
+  // Image Gen Edit State
+  const [showEditImageModal, setShowEditImageModal] = useState(false);
+  const [editingImagePrompt, setEditingImagePrompt] = useState("");
+  // const [editingImageMessageId, setEditingImageMessageId] = useState<string | null>(null); // Not strictly needed if we just regen
+
+  const handleImageRegenerate = useCallback(
+    async (message: any) => {
+      // Just call gen with same prompt
+      if (message?.meta?.prompt) {
+        await handleImageGen(message.meta.prompt);
+      }
+    },
+    [handleImageGen]
+  );
+
+  const handleImageEdit = useCallback((message: any) => {
+    if (message?.meta?.prompt) {
+      setEditingImagePrompt(message.meta.prompt);
+      setShowEditImageModal(true);
+    }
+  }, []);
+
+  const confirmImageEdit = useCallback(
+    async (newPrompt: string) => {
+      setShowEditImageModal(false);
+      await handleImageGen(newPrompt);
+    },
+    [handleImageGen]
+  );
 
   const currentConversation = useMemo(
     () => (conversations || []).find((c: any) => c?.id === selectedConversationId),
@@ -494,24 +526,6 @@ export default function ChatApp() {
     return () => setOnGemApplied(null);
   }, [setOnGemApplied, patchConversationGem, refreshConversations]);
 
-  if (isAuthLoading || !isAuthed) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-surface text-primary overflow-hidden">
-        <div className="absolute inset-0 z-0 bg-surface-muted opacity-80" />
-        <div className="relative animate-pulse flex flex-col items-center gap-6 z-10">
-          <div className="h-16 w-16 rounded-2xl border border-[var(--control-border)] bg-control backdrop-blur-xl flex items-center justify-center text-3xl font-black shadow-2xl">
-            V
-          </div>
-          <div className="text-[10px] tracking-[0.4em] text-[var(--text-secondary)] uppercase font-bold">
-            {t.loading}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Check was here, moved down
-
   const handleDeleteMessage = useCallback(
     async (messageId: string) => {
       if (!confirm(t.modalDeleteConfirm)) return;
@@ -553,6 +567,26 @@ export default function ChatApp() {
     [t, setMessages, selectedConversationId]
   );
 
+  if (isAuthLoading || !isAuthed) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-surface text-primary overflow-hidden">
+        <div className="absolute inset-0 z-0 bg-surface-muted opacity-80" />
+        <div className="relative animate-pulse flex flex-col items-center gap-6 z-10">
+          <div className="h-16 w-16 rounded-2xl border border-[var(--control-border)] bg-control backdrop-blur-xl flex items-center justify-center text-3xl font-black shadow-2xl">
+            V
+          </div>
+          <div className="text-[10px] tracking-[0.4em] text-[var(--text-secondary)] uppercase font-bold">
+            {t.loading}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Check was here, moved down
+
+  // Check was here, moved up to fix hook order
+
   const showLanding = !selectedConversationId || renderedMessages.length === 0;
 
   // Check if user is not whitelisted (pending approval)
@@ -570,35 +604,33 @@ export default function ChatApp() {
       {streamError && (
         <div className="fixed top-4 right-4 z-[100] max-w-md animate-in slide-in-from-top-2 fade-in duration-300">
           <div className="bg-red-900/90 backdrop-blur-xl border border-red-500/50 rounded-xl p-4 shadow-2xl">
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
-                <span className="text-red-400 text-lg">⚠</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-semibold text-red-200 mb-1">
-                  {streamError.isTokenLimit
-                    ? language === "vi"
-                      ? "Giới hạn Token"
-                      : "Token Limit Exceeded"
-                    : language === "vi"
-                      ? "Lỗi"
-                      : "Error"}
-                </h4>
-                <p className="text-xs text-red-300/80 break-words">
-                  {streamError.isTokenLimit && streamError.tokenInfo
-                    ? language === "vi"
-                      ? `Yêu cầu quá lớn cho model này. Giới hạn: ${streamError.tokenInfo.limit?.toLocaleString() || "?"} tokens, Yêu cầu: ${streamError.tokenInfo.requested?.toLocaleString() || "?"} tokens. Hãy thử giảm độ dài tin nhắn hoặc xóa bớt file đính kèm.`
-                      : `Request too large for this model. Limit: ${streamError.tokenInfo.limit?.toLocaleString() || "?"} tokens, Requested: ${streamError.tokenInfo.requested?.toLocaleString() || "?"} tokens. Try reducing your message size or removing attachments.`
-                    : streamError.message}
-                </p>
-              </div>
-              <button
-                onClick={clearStreamError}
-                className="flex-shrink-0 w-6 h-6 rounded-full bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center transition-colors"
-              >
-                <span className="text-red-300 text-xs">✕</span>
-              </button>
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
+              <span className="text-red-400 text-lg">⚠</span>
             </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-semibold text-red-200 mb-1">
+                {streamError.isTokenLimit
+                  ? language === "vi"
+                    ? "Giới hạn Token"
+                    : "Token Limit Exceeded"
+                  : language === "vi"
+                    ? "Lỗi"
+                    : "Error"}
+              </h4>
+              <p className="text-xs text-red-300/80 break-words">
+                {streamError.isTokenLimit && streamError.tokenInfo
+                  ? language === "vi"
+                    ? `Yêu cầu quá lớn cho model này. Giới hạn: ${streamError.tokenInfo.limit?.toLocaleString() || "?"} tokens, Yêu cầu: ${streamError.tokenInfo.requested?.toLocaleString() || "?"} tokens. Hãy thử giảm độ dài tin nhắn hoặc xóa bớt file đính kèm.`
+                    : `Request too large for this model. Limit: ${streamError.tokenInfo.limit?.toLocaleString() || "?"} tokens, Requested: ${streamError.tokenInfo.requested?.toLocaleString() || "?"} tokens. Try reducing your message size or removing attachments.`
+                  : streamError.message}
+              </p>
+            </div>
+            <button
+              onClick={clearStreamError}
+              className="flex-shrink-0 w-6 h-6 rounded-full bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center transition-colors"
+            >
+              <span className="text-red-300 text-xs">✕</span>
+            </button>
           </div>
         </div>
       )}
@@ -717,6 +749,8 @@ export default function ChatApp() {
                     onRegenerate={() => handleRegenerate(m)}
                     onEdit={handleEdit}
                     onDelete={handleDeleteMessage}
+                    onImageRegenerate={handleImageRegenerate}
+                    onImageEdit={handleImageEdit}
                     regenerating={regenerating && isLastAI}
                   />
                 );
@@ -803,10 +837,16 @@ export default function ChatApp() {
       <DeleteConfirmModal
         isOpen={showDeleteModal}
         onConfirm={confirmDelete}
-        onCancel={() => {
-          setShowDeleteModal(false);
-          setConversationToDelete(null);
-        }}
+        onCancel={() => setShowDeleteModal(false)}
+        t={t}
+      />
+
+      {/* Image Prompt Edit Modal */}
+      <EditImagePromptModal
+        isOpen={showEditImageModal}
+        onClose={() => setShowEditImageModal(false)}
+        onConfirm={confirmImageEdit}
+        initialPrompt={editingImagePrompt}
         t={t}
       />
     </div>

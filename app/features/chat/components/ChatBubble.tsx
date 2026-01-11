@@ -7,7 +7,15 @@ import rehypeHighlight from "rehype-highlight";
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import dynamic from "next/dynamic";
-import { ChevronDown, ChevronRight, Sparkles, Brain, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Sparkles,
+  Brain,
+  Trash2,
+  RefreshCw,
+  Pencil,
+} from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 // Dynamic import for ChartTool
@@ -258,6 +266,8 @@ interface ChatBubbleProps {
   onRegenerate?: () => void;
   onEdit?: (message: any, newContent: string) => void;
   onDelete?: (messageId: string) => void;
+  onImageRegenerate?: (message: any) => void;
+  onImageEdit?: (message: any) => void;
   regenerating?: boolean;
 }
 
@@ -272,6 +282,8 @@ export default function ChatBubble({
   onRegenerate,
   onEdit,
   onDelete,
+  onImageRegenerate,
+  onImageEdit,
   regenerating,
 }: ChatBubbleProps) {
   const { t } = useLanguage();
@@ -507,6 +519,30 @@ export default function ChatBubble({
                       DOWNLOAD
                     </a>
                   </div>
+
+                  {/* Action Footer for Images */}
+                  {(onImageRegenerate || onImageEdit) && (
+                    <div className="bg-surface-elevated px-2 py-1.5 border-t border-token flex justify-end gap-2">
+                      {onImageRegenerate && (
+                        <button
+                          onClick={() => onImageRegenerate(safeMessage)}
+                          className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
+                          title="Regenerate Image"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {onImageEdit && (
+                        <button
+                          onClick={() => onImageEdit(safeMessage)}
+                          className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
+                          title="Edit Prompt"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
