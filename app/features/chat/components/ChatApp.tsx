@@ -1,7 +1,5 @@
-// /app/features/chat/components/ChatApp.tsx
 "use client";
 
-import { useEffect, useRef, useMemo, useCallback, useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
@@ -10,15 +8,13 @@ import ChatBubble from "./ChatBubble";
 import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
 import AccessPendingScreen from "@/app/components/AccessPendingScreen";
-import UpgradeModal from "@/app/components/UpgradeModal";
-import DeleteConfirmModal from "@/app/components/DeleteConfirmModal";
-import EditImagePromptModal from "@/app/components/EditImagePromptModal";
 import DashboardView from "./DashboardView";
 import ChatControls from "./ChatControls";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import ToastContainer from "@/components/ui/ToastContainer";
 
-// Hooks & Stores
+import React, { useEffect, useRef, useMemo, useCallback, useState, lazy, Suspense } from "react";
+
 import { useTheme } from "../hooks/useTheme";
 import { useLanguage, LANGS } from "../hooks/useLanguage";
 import { useConversation } from "../hooks/useConversation";
@@ -33,6 +29,11 @@ import { toast } from "@/lib/store/toastStore";
 // Utils & Constants
 import { DEFAULT_MODEL, SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
 import { MODEL_IDS } from "@/lib/utils/constants";
+
+// Lazy-loaded modals for code splitting
+const UpgradeModal = lazy(() => import("@/app/components/UpgradeModal"));
+const DeleteConfirmModal = lazy(() => import("@/app/components/DeleteConfirmModal"));
+const EditImagePromptModal = lazy(() => import("@/app/components/EditImagePromptModal"));
 
 export default function ChatApp() {
   const { data: session, status } = useSession();
@@ -393,7 +394,11 @@ export default function ChatApp() {
       patchConversationGem(conversationId, gem);
       refreshConversations();
     });
-    return () => setOnGemApplied(null);
+    return () => {
+      if (useGemStore.getState().setOnGemApplied) {
+        useGemStore.getState().setOnGemApplied(null);
+      }
+    };
   }, [setOnGemApplied, patchConversationGem, refreshConversations]);
 
   const handleDeleteMessage = useCallback(
@@ -474,10 +479,13 @@ export default function ChatApp() {
       <Sidebar
         conversations={filteredConversations}
         selectedConversationId={selectedConversationId}
-        onSelectConversation={(id) => {
-          handleSelectConversation(id);
-          closeMobileSidebar();
-        }}
+        onSelectConversation={useCallback(
+          (id: string | null) => {
+            handleSelectConversation(id);
+            closeMobileSidebar();
+          },
+          [handleSelectConversation, closeMobileSidebar]
+        )}
         onNewChat={() => {
           handleNewChat();
           closeMobileSidebar();
@@ -505,7 +513,10 @@ export default function ChatApp() {
         <HeaderBar
           t={t}
           language={language}
-          onLanguageChange={(lang) => setLanguage(lang as "vi" | "en")}
+          onLanguageChange={useCallback(
+            (lang: any) => setLanguage(lang as "vi" | "en"),
+            [setLanguage]
+          )}
           onToggleSidebar={toggleMobileSidebar}
           showMobileControls={showMobileControls}
         />
@@ -621,27 +632,33 @@ export default function ChatApp() {
         />
       </div>
 
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        modelName={restrictedModel || ""}
-        t={t}
-      />
+      <Suspense fallback={null}>
+        <UpgradeModal
+          isOpen={showUpgradeModal}
+          onClose={useCallback(() => setShowUpgradeModal(false), [])}
+          modelName={restrictedModel || ""}
+          t={t}
+        />
+      </Suspense>
 
-      <DeleteConfirmModal
-        isOpen={showDeleteModal}
-        onCancel={() => setShowDeleteModal(false)}
-        onConfirm={confirmDelete}
-        t={t}
-      />
+      <Suspense fallback={null}>
+        <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          onCancel={useCallback(() => setShowDeleteModal(false), [])}
+          onConfirm={confirmDelete}
+          t={t}
+        />
+      </Suspense>
 
-      <EditImagePromptModal
-        isOpen={showEditImageModal}
-        onClose={() => setShowEditImageModal(false)}
-        initialPrompt={editingImagePrompt}
-        onConfirm={confirmImageEdit}
-        t={t}
-      />
+      <Suspense fallback={null}>
+        <EditImagePromptModal
+          isOpen={showEditImageModal}
+          onClose={useCallback(() => setShowEditImageModal(false), [])}
+          initialPrompt={editingImagePrompt}
+          onConfirm={confirmImageEdit}
+          t={t}
+        />
+      </Suspense>
     </div>
   );
 }

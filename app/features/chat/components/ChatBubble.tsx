@@ -28,7 +28,7 @@ const ChartTool = dynamic(() => import("./ChartTool"), {
   ssr: false,
 });
 
-function TypingDots() {
+const TypingDots = React.memo(function TypingDots() {
   return (
     <div className="typing-dots flex items-center gap-1 px-2 py-1">
       <span className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-bounce [animation-delay:-0.3s]" />
@@ -36,9 +36,9 @@ function TypingDots() {
       <span className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-bounce" />
     </div>
   );
-}
+});
 
-function ThinkingBlock({ content }: { content: string }) {
+const ThinkingBlock = React.memo(function ThinkingBlock({ content }: { content: string }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
@@ -63,7 +63,7 @@ function ThinkingBlock({ content }: { content: string }) {
       )}
     </div>
   );
-}
+});
 
 function extractThinking(text: string) {
   const patterns = [
@@ -271,95 +271,99 @@ interface ChatBubbleProps {
   regenerating?: boolean;
 }
 
-export default function ChatBubble({
-  message,
-  role,
-  content,
-  sources: sourcesProp,
-  urlContext: urlContextProp,
-  isLastAssistant,
-  canRegenerate,
-  onRegenerate,
-  onEdit,
-  onDelete,
-  onImageRegenerate,
-  onImageEdit,
-  regenerating,
-}: ChatBubbleProps) {
-  const { t } = useLanguage();
-  const safeMessage = useMemo(() => {
-    const base = message && typeof message === "object" ? message : ({} as any);
-    const finalRole = base.role || role || "assistant";
-    const finalContent = base.content || content || "";
-    const finalSources = base.sources || sourcesProp || [];
-    const finalUrlContext = base.urlContext || urlContextProp || [];
-    return {
-      role: finalRole,
-      content: finalContent,
-      sources: finalSources,
-      urlContext: finalUrlContext,
-      id: base.id,
-      meta: base.meta || {},
+// Memoized ChatBubble to prevent unnecessary re-renders
+const ChatBubble = React.memo(
+  function ChatBubble({
+    message,
+    role,
+    content,
+    sources: sourcesProp,
+    urlContext: urlContextProp,
+    isLastAssistant,
+    canRegenerate,
+    onRegenerate,
+    onEdit,
+    onDelete,
+    onImageRegenerate,
+    onImageEdit,
+    regenerating,
+  }: ChatBubbleProps) {
+    const { t } = useLanguage();
+    const safeMessage = useMemo(() => {
+      const base = message && typeof message === "object" ? message : ({} as any);
+      const finalRole = base.role || role || "assistant";
+      const finalContent = base.content || content || "";
+      const finalSources = base.sources || sourcesProp || [];
+      const finalUrlContext = base.urlContext || urlContextProp || [];
+      return {
+        role: finalRole,
+        content: finalContent,
+        sources: finalSources,
+        urlContext: finalUrlContext,
+        id: base.id,
+        meta: base.meta || {},
+      };
+    }, [message, role, content, sourcesProp, urlContextProp]);
+
+    const isBot = safeMessage.role === "assistant";
+    const [copied, setCopied] = useState(false);
+
+    const [isEditing, setIsEditing] = useState(false);
+    const [editContent, setEditContent] = useState(safeMessage.content);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+      setEditContent(safeMessage.content);
+    }, [safeMessage.content]);
+
+    useEffect(() => {
+      if (isEditing && textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+      }
+    }, [isEditing]);
+
+    const handleCopyMessage = async () => {
+      try {
+        await navigator.clipboard.writeText(safeMessage.content || "");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error("Failed to copy:", err);
+      }
     };
-  }, [message, role, content, sourcesProp, urlContextProp]);
 
-  const isBot = safeMessage.role === "assistant";
-  const [copied, setCopied] = useState(false);
+    const handleSaveEdit = () => {
+      if (editContent.trim() !== safeMessage.content) {
+        onEdit?.(safeMessage, editContent);
+      }
+      setIsEditing(false);
+    };
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState(safeMessage.content);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const {
+      thought,
+      rest: displayContent,
+      isThinking: isStreamThinking,
+    } = useMemo(() => {
+      if (!isBot) return { thought: null, rest: safeMessage.content, isThinking: false };
+      return extractThinking(safeMessage.content || "");
+    }, [safeMessage.content, isBot]);
 
-  useEffect(() => {
-    setEditContent(safeMessage.content);
-  }, [safeMessage.content]);
+    const hasContent = Boolean(displayContent?.trim()) || Boolean(thought?.trim());
+    const isLoading = isBot && isLastAssistant && (regenerating || !hasContent);
+    const showTyping =
+      isLoading || (isBot && isLastAssistant && isStreamThinking && !displayContent.trim());
 
-  useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      textareaRef.current.focus();
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [isEditing]);
-
-  const handleCopyMessage = async () => {
-    try {
-      await navigator.clipboard.writeText(safeMessage.content || "");
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  };
-
-  const handleSaveEdit = () => {
-    if (editContent.trim() !== safeMessage.content) {
-      onEdit?.(safeMessage, editContent);
-    }
-    setIsEditing(false);
-  };
-
-  const {
-    thought,
-    rest: displayContent,
-    isThinking: isStreamThinking,
-  } = useMemo(() => {
-    if (!isBot) return { thought: null, rest: safeMessage.content, isThinking: false };
-    return extractThinking(safeMessage.content || "");
-  }, [safeMessage.content, isBot]);
-
-  const hasContent = Boolean(displayContent?.trim()) || Boolean(thought?.trim());
-  const isLoading = isBot && isLastAssistant && (regenerating || !hasContent);
-  const showTyping =
-    isLoading || (isBot && isLastAssistant && isStreamThinking && !displayContent.trim());
-
-  return (
-    <div className={`group flex w-full flex-col gap-3 py-6 ${isBot ? "" : "items-end"}`}>
-      <div
-        className={`flex max-w-[95%] lg:max-w-[90%] gap-4 ${isBot ? "items-start" : "flex-row-reverse items-start"}`}
-      >
+    return (
+      <div className={`group flex w-full flex-col gap-3 py-6 ${isBot ? "" : "items-end"}`}>
         <div
-          className={`relative flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-lg border text-[10px] font-black tracking-tighter shadow-sm overflow-hidden transition-all duration-300
+          className={`flex max-w-[95%] lg:max-w-[90%] gap-4 ${
+            isBot ? "items-start" : "flex-row-reverse items-start"
+          }`}
+        >
+          <div
+            className={`relative flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-lg border text-[10px] font-black tracking-tighter shadow-sm overflow-hidden transition-all duration-300
           ${
             isBot
               ? isLoading
@@ -367,255 +371,288 @@ export default function ChatBubble({
                 : "border-token bg-surface-elevated text-primary"
               : "border-[var(--primary)]/20 bg-[var(--primary)] text-[var(--surface)]"
           }`}
-        >
-          {isBot ? (
-            isLoading ? (
-              <Sparkles className="w-4 h-4 text-blue-400 animate-pulse" />
-            ) : (
-              <span className="scale-100 transition-transform group-hover:scale-110">AI</span>
-            )
-          ) : (
-            "ME"
-          )}
-
-          {isBot && isLoading && (
-            <div className="absolute inset-0 border border-blue-400/30 rounded-lg animate-ping opacity-20" />
-          )}
-        </div>
-
-        <div
-          className={`flex flex-col gap-2 ${isBot ? "items-start w-full min-w-0" : "items-end max-w-full"}`}
-        >
-          <div
-            className={`relative rounded-2xl px-1 text-sm leading-relaxed transition-all
-            ${isBot ? "text-primary w-full" : "bg-[var(--primary)] px-4 py-2.5 text-[var(--surface)] shadow-lg"}`}
           >
-            {isEditing ? (
-              <div className="flex flex-col gap-2 min-w-[300px] w-full">
-                <Textarea
-                  ref={textareaRef}
-                  value={editContent}
-                  onChange={(e) => {
-                    setEditContent(e.target.value);
-                    e.target.style.height = "auto";
-                    e.target.style.height = `${e.target.scrollHeight}px`;
-                  }}
-                  className="w-full bg-surface-elevated text-primary p-3 rounded-md outline-none resize-none overflow-hidden font-mono text-sm leading-6 border border-token min-h-[40px] focus-visible:ring-0"
-                  rows={1}
-                />
-                <div className="flex justify-end gap-2 mt-2">
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-control hover:bg-control-hover rounded-md transition-colors text-secondary"
-                  >
-                    {t("cancel")}
-                  </button>
-                  <button
-                    onClick={handleSaveEdit}
-                    className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-accent text-[var(--surface)] hover:brightness-110 rounded-md transition-colors shadow-sm"
-                  >
-                    {t("save")}
-                  </button>
-                </div>
-              </div>
+            {isBot ? (
+              isLoading ? (
+                <Sparkles className="w-4 h-4 text-blue-400 animate-pulse" />
+              ) : (
+                <span className="scale-100 transition-transform group-hover:scale-110">AI</span>
+              )
             ) : (
-              <div className="flex flex-col w-full overflow-hidden">
-                {thought && typeof thought === "string" && <ThinkingBlock content={thought} />}
-
-                {(!hasContent && isLoading) || (showTyping && !displayContent.trim()) ? (
-                  <TypingDots />
-                ) : (
-                  <div className="chat-markdown-container chat-markdown w-full overflow-hidden">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[rehypeHighlight]}
-                      components={{
-                        code: InlineCode,
-                        pre: PreBlock,
-                        p: ({ children }) => (
-                          <p className="mb-4 last:mb-0 leading-7 break-words">{children}</p>
-                        ),
-                        ul: ({ children }) => (
-                          <ul className="mb-4 ml-6 list-disc space-y-2">{children}</ul>
-                        ),
-                        ol: ({ children }) => (
-                          <ol className="mb-4 ml-6 list-decimal space-y-2">{children}</ol>
-                        ),
-                        li: ({ children }) => <li className="leading-7">{children}</li>,
-                        h1: ({ children }) => (
-                          <h1 className="mt-8 mb-4 text-2xl font-bold text-primary border-b border-token pb-2">
-                            {children}
-                          </h1>
-                        ),
-                        h2: ({ children }) => (
-                          <h2 className="mt-7 mb-3 text-xl font-bold text-primary">{children}</h2>
-                        ),
-                        h3: ({ children }) => (
-                          <h3 className="mt-6 mb-2 text-lg font-bold text-primary">{children}</h3>
-                        ),
-                        blockquote: ({ children }) => (
-                          <blockquote className="border-l-4 border-token pl-4 py-1 my-4 text-secondary italic">
-                            {children}
-                          </blockquote>
-                        ),
-                        a: ({ href, children }) => (
-                          <a
-                            href={href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[var(--primary-light)] hover:underline break-all"
-                          >
-                            {children}
-                          </a>
-                        ),
-                        table: ({ children }) => (
-                          <div className="overflow-x-auto my-4 rounded-lg border border-token bg-surface-elevated">
-                            <table className="w-full text-left text-sm">{children}</table>
-                          </div>
-                        ),
-                        thead: ({ children }) => (
-                          <thead className="bg-surface-muted uppercase font-bold text-xs text-secondary">
-                            {children}
-                          </thead>
-                        ),
-                        th: ({ children }) => (
-                          <th className="px-4 py-3 border-b border-token text-primary">
-                            {children}
-                          </th>
-                        ),
-                        td: ({ children }) => (
-                          <td className="px-4 py-3 border-b border-token text-secondary">
-                            {children}
-                          </td>
-                        ),
-                      }}
-                    >
-                      {displayContent}
-                    </ReactMarkdown>
-                  </div>
-                )}
-              </div>
+              "ME"
             )}
 
-            {/* Image Gen Attachment Display */}
-            {isBot &&
-              safeMessage.meta?.type === "image_gen" &&
-              safeMessage.meta?.attachment?.url && (
-                <div className="mt-4 rounded-xl overflow-hidden border border-token shadow-sm max-w-sm">
-                  <img
-                    src={safeMessage.meta.attachment.url}
-                    alt={safeMessage.meta.prompt || "Generated Image"}
-                    className="w-full h-auto object-cover hover:scale-105 transition-transform duration-500"
-                    loading="lazy"
-                  />
-                  <div className="bg-surface-muted px-3 py-2 text-xs text-secondary border-t border-token flex justify-between items-center">
-                    <span className="truncate max-w-[200px]">{safeMessage.meta.prompt}</span>
-                    <a
-                      href={safeMessage.meta.attachment.url}
-                      download
-                      target="_blank"
-                      className="font-bold hover:text-primary"
-                    >
-                      DOWNLOAD
-                    </a>
-                  </div>
+            {isBot && isLoading && (
+              <div className="absolute inset-0 border border-blue-400/30 rounded-lg animate-ping opacity-20" />
+            )}
+          </div>
 
-                  {/* Action Footer for Images */}
-                  {(onImageRegenerate || onImageEdit) && (
-                    <div className="bg-surface-elevated px-2 py-1.5 border-t border-token flex justify-end gap-2">
-                      {onImageRegenerate && (
-                        <button
-                          onClick={() => onImageRegenerate(safeMessage)}
-                          className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
-                          title="Regenerate Image"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      {onImageEdit && (
-                        <button
-                          onClick={() => onImageEdit(safeMessage)}
-                          className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
-                          title="Edit Prompt"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+          <div
+            className={`flex flex-col gap-2 ${
+              isBot ? "items-start w-full min-w-0" : "items-end max-w-full"
+            }`}
+          >
+            <div
+              className={`relative rounded-2xl px-1 text-sm leading-relaxed transition-all
+            ${
+              isBot
+                ? "text-primary w-full"
+                : "bg-[var(--primary)] px-4 py-2.5 text-[var(--surface)] shadow-lg"
+            }`}
+            >
+              {isEditing ? (
+                <div className="flex flex-col gap-2 min-w-[300px] w-full">
+                  <Textarea
+                    ref={textareaRef}
+                    value={editContent}
+                    onChange={(e) => {
+                      setEditContent(e.target.value);
+                      e.target.style.height = "auto";
+                      e.target.style.height = `${e.target.scrollHeight}px`;
+                    }}
+                    className="w-full bg-surface-elevated text-primary p-3 rounded-md outline-none resize-none overflow-hidden font-mono text-sm leading-6 border border-token min-h-[40px] focus-visible:ring-0"
+                    rows={1}
+                  />
+                  <div className="flex justify-end gap-2 mt-2">
+                    <button
+                      onClick={() => setIsEditing(false)}
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-control hover:bg-control-hover rounded-md transition-colors text-secondary"
+                    >
+                      {t("cancel")}
+                    </button>
+                    <button
+                      onClick={handleSaveEdit}
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-accent text-[var(--surface)] hover:brightness-110 rounded-md transition-colors shadow-sm"
+                    >
+                      {t("save")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col w-full overflow-hidden">
+                  {thought && typeof thought === "string" && <ThinkingBlock content={thought} />}
+
+                  {(!hasContent && isLoading) || (showTyping && !displayContent.trim()) ? (
+                    <TypingDots />
+                  ) : (
+                    <div className="chat-markdown-container chat-markdown w-full overflow-hidden">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeHighlight]}
+                        components={useMemo(
+                          () => ({
+                            code: InlineCode,
+                            pre: PreBlock,
+                            p: ({ children }: any) => (
+                              <p className="mb-4 last:mb-0 leading-7 break-words">{children}</p>
+                            ),
+                            ul: ({ children }: any) => (
+                              <ul className="mb-4 ml-6 list-disc space-y-2">{children}</ul>
+                            ),
+                            ol: ({ children }: any) => (
+                              <ol className="mb-4 ml-6 list-decimal space-y-2">{children}</ol>
+                            ),
+                            li: ({ children }: any) => <li className="leading-7">{children}</li>,
+                            h1: ({ children }: any) => (
+                              <h1 className="mt-8 mb-4 text-2xl font-bold text-primary border-b border-token pb-2">
+                                {children}
+                              </h1>
+                            ),
+                            h2: ({ children }: any) => (
+                              <h2 className="mt-7 mb-3 text-xl font-bold text-primary">
+                                {children}
+                              </h2>
+                            ),
+                            h3: ({ children }: any) => (
+                              <h3 className="mt-6 mb-2 text-lg font-bold text-primary">
+                                {children}
+                              </h3>
+                            ),
+                            blockquote: ({ children }: any) => (
+                              <blockquote className="border-l-4 border-token pl-4 py-1 my-4 text-secondary italic">
+                                {children}
+                              </blockquote>
+                            ),
+                            a: ({ href, children }: any) => (
+                              <a
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[var(--primary-light)] hover:underline break-all"
+                              >
+                                {children}
+                              </a>
+                            ),
+                            table: ({ children }: any) => (
+                              <div className="overflow-x-auto my-4 rounded-lg border border-token bg-surface-elevated">
+                                <table className="w-full text-left text-sm">{children}</table>
+                              </div>
+                            ),
+                            thead: ({ children }: any) => (
+                              <thead className="bg-surface-muted uppercase font-bold text-xs text-secondary">
+                                {children}
+                              </thead>
+                            ),
+                            th: ({ children }: any) => (
+                              <th className="px-4 py-3 border-b border-token text-primary">
+                                {children}
+                              </th>
+                            ),
+                            td: ({ children }: any) => (
+                              <td className="px-4 py-3 border-b border-token text-secondary">
+                                {children}
+                              </td>
+                            ),
+                          }),
+                          []
+                        )}
+                      >
+                        {displayContent}
+                      </ReactMarkdown>
                     </div>
                   )}
                 </div>
               )}
 
-            {isBot && (safeMessage.sources.length > 0 || safeMessage.urlContext.length > 0) && (
-              <div className="mt-6 space-y-4 border-t border-token pt-4">
-                {safeMessage.sources.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {safeMessage.sources.slice(0, 5).map((s: any, idx: number) => (
+              {/* Image Gen Attachment Display */}
+              {isBot &&
+                safeMessage.meta?.type === "image_gen" &&
+                safeMessage.meta?.attachment?.url && (
+                  <div className="mt-4 rounded-xl overflow-hidden border border-token shadow-sm max-w-sm">
+                    <img
+                      src={safeMessage.meta.attachment.url}
+                      alt={safeMessage.meta.prompt || "Generated Image"}
+                      className="w-full h-auto object-cover hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                    <div className="bg-surface-muted px-3 py-2 text-xs text-secondary border-t border-token flex justify-between items-center">
+                      <span className="truncate max-w-[200px]">{safeMessage.meta.prompt}</span>
                       <a
-                        key={idx}
-                        href={s.uri}
+                        href={safeMessage.meta.attachment.url}
+                        download
                         target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1.5 rounded-full border border-token bg-surface-elevated px-3 py-1 text-[10px] text-secondary hover:bg-control-hover hover:text-primary transition-all max-w-[200px]"
+                        className="font-bold hover:text-primary"
                       >
-                        <span className="font-bold shrink-0">[{idx + 1}]</span>
-                        <span className="truncate">{s.title || s.uri}</span>
+                        DOWNLOAD
                       </a>
-                    ))}
+                    </div>
+
+                    {/* Action Footer for Images */}
+                    {(onImageRegenerate || onImageEdit) && (
+                      <div className="bg-surface-elevated px-2 py-1.5 border-t border-token flex justify-end gap-2">
+                        {onImageRegenerate && (
+                          <button
+                            onClick={() => onImageRegenerate(safeMessage)}
+                            className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
+                            title="Regenerate Image"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {onImageEdit && (
+                          <button
+                            onClick={() => onImageEdit(safeMessage)}
+                            className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
+                            title="Edit Prompt"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
+                )}
+
+              {isBot && (safeMessage.sources.length > 0 || safeMessage.urlContext.length > 0) && (
+                <div className="mt-6 space-y-4 border-t border-token pt-4">
+                  {safeMessage.sources.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {safeMessage.sources.slice(0, 5).map((s: any, idx: number) => (
+                        <a
+                          key={idx}
+                          href={s.uri}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 rounded-full border border-token bg-surface-elevated px-3 py-1 text-[10px] text-secondary hover:bg-control-hover hover:text-primary transition-all max-w-[200px]"
+                        >
+                          <span className="font-bold shrink-0">[{idx + 1}]</span>
+                          <span className="truncate">{s.title || s.uri}</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {!isLoading && !isEditing && (
+              <div
+                className={`flex items-center gap-4 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${
+                  isBot ? "" : "flex-row-reverse"
+                }`}
+              >
+                <button
+                  onClick={handleCopyMessage}
+                  className="text-[10px] font-bold text-secondary hover:text-primary uppercase tracking-tighter transition-colors"
+                  title={copied ? t("copied") : t("copy")}
+                >
+                  {copied ? t("copied") : t("copy")}
+                </button>
+
+                {!isBot && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="text-[10px] font-bold text-secondary hover:text-primary uppercase tracking-tighter transition-colors"
+                    title={t("edit")}
+                  >
+                    {t("edit")}
+                  </button>
+                )}
+
+                {isBot && canRegenerate && (
+                  <button
+                    onClick={onRegenerate}
+                    disabled={regenerating}
+                    className="flex items-center gap-1 text-[10px] font-bold text-secondary hover:text-primary uppercase tracking-tighter disabled:opacity-30 transition-colors"
+                    title={t("regenerate")}
+                  >
+                    <span className={regenerating ? "animate-spin" : ""}>🔄</span>
+                    {regenerating ? t("thinking") : t("regenerate")}
+                  </button>
+                )}
+
+                {/* Delete Button */}
+                {onDelete && safeMessage.id && (
+                  <button
+                    onClick={() => onDelete(safeMessage.id!)}
+                    className="text-[10px] font-bold text-secondary hover:text-red-500 uppercase tracking-tighter transition-colors"
+                    title={t("delete")}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                 )}
               </div>
             )}
           </div>
-
-          {!isLoading && !isEditing && (
-            <div
-              className={`flex items-center gap-4 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${isBot ? "" : "flex-row-reverse"}`}
-            >
-              <button
-                onClick={handleCopyMessage}
-                className="text-[10px] font-bold text-secondary hover:text-primary uppercase tracking-tighter transition-colors"
-                title={copied ? t("copied") : t("copy")}
-              >
-                {copied ? t("copied") : t("copy")}
-              </button>
-
-              {!isBot && (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="text-[10px] font-bold text-secondary hover:text-primary uppercase tracking-tighter transition-colors"
-                  title={t("edit")}
-                >
-                  {t("edit")}
-                </button>
-              )}
-
-              {isBot && canRegenerate && (
-                <button
-                  onClick={onRegenerate}
-                  disabled={regenerating}
-                  className="flex items-center gap-1 text-[10px] font-bold text-secondary hover:text-primary uppercase tracking-tighter disabled:opacity-30 transition-colors"
-                  title={t("regenerate")}
-                >
-                  <span className={regenerating ? "animate-spin" : ""}>🔄</span>
-                  {regenerating ? t("thinking") : t("regenerate")}
-                </button>
-              )}
-
-              {/* Delete Button */}
-              {onDelete && safeMessage.id && (
-                <button
-                  onClick={() => onDelete(safeMessage.id!)}
-                  className="text-[10px] font-bold text-secondary hover:text-red-500 uppercase tracking-tighter transition-colors"
-                  title={t("delete")}
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          )}
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  },
+  (prev, next) => {
+    // Custom comparison to prevent re-renders when only unrelated parent state changes
+    return (
+      prev.message === next.message &&
+      prev.isLastAssistant === next.isLastAssistant &&
+      prev.regenerating === next.regenerating &&
+      prev.canRegenerate === next.canRegenerate &&
+      // Functions are stable because of useCallback in parent
+      prev.onRegenerate === next.onRegenerate &&
+      prev.onEdit === next.onEdit &&
+      prev.onDelete === next.onDelete &&
+      prev.onImageRegenerate === next.onImageRegenerate &&
+      prev.onImageEdit === next.onImageEdit
+    );
+  }
+);
+
+export default ChatBubble;
