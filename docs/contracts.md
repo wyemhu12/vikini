@@ -276,11 +276,10 @@ interface UpdateConversationRequest {
 - **Gems list**: Cache theo userId
 - **TTL**: Vài phút, invalidate khi có thay đổi
 
-### Rate Limiting
+### 4. Hằng số dùng chung (Shared Constants)
 
-- **Engine**: Upstash Redis
-- **Scope**: Per-user (email-based)
-- **Headers**: `X-RateLimit-Remaining`, `Retry-After`
+- **Model IDs**: Các định danh như `vikini-image-studio` được tập trung tại `lib/utils/constants.ts` trong object `MODEL_IDS`.
+- **Roles**: Sử dụng `MESSAGE_ROLES` cho "user" và "assistant" để đảm bảo tính nhất quán.
 
 ---
 

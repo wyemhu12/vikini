@@ -3,6 +3,8 @@
 
 export const DEFAULT_MODEL = "gemini-2.5-flash" as const;
 
+import { MODEL_IDS } from "@/lib/utils/constants";
+
 export interface SelectableModel {
   id: string;
   descKey: string;
@@ -264,7 +266,7 @@ export const MODEL_ALIASES: Record<string, string> = {
 
 export function isSelectableModelId(modelId: unknown): boolean {
   const m = String(modelId || "").trim();
-  if (m === "vikini-image-studio") return true;
+  if (m === MODEL_IDS.IMAGE_STUDIO) return true;
   return Boolean(m) && SELECTABLE_SET.has(m);
 }
 
@@ -277,7 +279,7 @@ export function normalizeModelForApi(modelId: unknown): string {
   const raw = String(modelId || "").trim();
   if (!raw) return DEFAULT_MODEL;
 
-  if (raw === "vikini-image-studio") return raw;
+  if (raw === MODEL_IDS.IMAGE_STUDIO) return raw;
 
   // Check aliases first
   if (MODEL_ALIASES[raw]) {

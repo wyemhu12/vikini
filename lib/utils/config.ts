@@ -231,8 +231,15 @@ export const translations: TranslationSet = {
     studioReuse: "Sử dụng lại",
     studioNewProject: "Dự án mới",
     studioDeleteConfirm: "Bạn có chắc muốn xóa ảnh này?",
+    studioGeneratingStatus: "Đang tạo ảnh...",
     studioGenerateFailed: "Không thể tạo ảnh",
+    studioGenerateSuccess: "Đã tạo ảnh thành công",
+    studioErrorGenerating: "Lỗi khi tạo ảnh",
     studioShortcutHint: "Nhấn Ctrl+Enter để tạo nhanh",
+    // Token limits
+    tokenLimitTitle: "Giới hạn Token",
+    tokenLimitError:
+      "Yêu cầu quá lớn cho model này. Giới hạn: {{limit}} tokens, Yêu cầu: {{requested}} tokens. Hãy thử giảm độ dài tin nhắn hoặc xóa bớt file đính kèm.",
     studioCreateProjectFailed: "Không thể tạo dự án",
     studioMissingApiKey: "Vui lòng cấu hình API key trong Cài đặt trước khi sử dụng model này.",
     studioApiKeyRequired: "Cần API Key",
@@ -483,8 +490,15 @@ export const translations: TranslationSet = {
     studioReuse: "Reuse",
     studioNewProject: "New Project",
     studioDeleteConfirm: "Are you sure you want to delete this image?",
+    studioGeneratingStatus: "Generating image...",
     studioGenerateFailed: "Failed to generate image",
+    studioGenerateSuccess: "Image generated successfully",
+    studioErrorGenerating: "Error generating image",
     studioShortcutHint: "Press Ctrl+Enter to generate quickly",
+    // Token limits
+    tokenLimitTitle: "Token Limit Exceeded",
+    tokenLimitError:
+      "Request too large for this model. Limit: {{limit}} tokens, Requested: {{requested}} tokens. Try reducing your message size or removing attachments.",
     studioCreateProjectFailed: "Failed to create project",
     studioMissingApiKey: "Please configure your API key in Settings before using this model.",
     studioApiKeyRequired: "API Key Required",

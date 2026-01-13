@@ -1,4 +1,4 @@
-﻿---
+---
 description: Standards for UI design, Tailwind usage, Shadcn components, and theming.
 trigger: model_decision
 ---
@@ -28,3 +28,8 @@ trigger: model_decision
 
 - themes are located in pp/styles/themes/.
 - Ensure components look good in both **Light** and **Dark** modes (if applicable).
+
+## 5. Notifications & Feedback
+
+- **Toasts**: Use `useToastStore` and `ToastContainer` for non-blocking feedback (Success, Error, Info).
+- **No Native Alerts**: Do NOT use `alert()` or `confirm()` in feature components. Use custom modals or toasts.

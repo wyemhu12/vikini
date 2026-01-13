@@ -439,10 +439,10 @@ Lấy danh sách ảnh đã tạo (chỉ từ chat, không bao gồm Image Studi
 
 #### Query Parameters
 
-| Param    | Type   | Default | Mô tả            |
-| -------- | ------ | ------- | ---------------- |
-| `limit`  | number | 20      | Số ảnh mỗi trang |
-| `offset` | number | 0       | Vị trí bắt đầu   |
+| Param    | Type   | Default | Mô tả                               |
+| -------- | ------ | ------- | ----------------------------------- |
+| `limit`  | number | 20      | Số ảnh mỗi trang (Min: 1, Max: 100) |
+| `offset` | number | 0       | Vị trí bắt đầu (Phải >= 0)          |
 
 #### Response
 

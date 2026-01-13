@@ -35,3 +35,8 @@ trigger: model_decision
 - **Hooks**: `useCamelCase.ts`
 - **Functions/Vars**: `camelCase`
 - **Constants**: `UPPER_SNAKE_CASE`
+
+### Component Refactoring
+
+- **Hook Extraction**: If a component exceeds ~500 lines or manages complex state + API calls (e.g., streaming, image gen), extract the logic into a custom hook (e.g., `useFeatureController.ts`) in a `hooks/` subdirectory.
+- **Magic Strings**: Avoid hardcoded literals for IDs, URLs, or model names. Centralize them in `lib/utils/constants.ts`.
