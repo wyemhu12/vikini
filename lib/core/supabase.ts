@@ -5,11 +5,12 @@ import "@/lib/env";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 /**
+ * Global cache for Supabase admin client to implement Singleton pattern.
+ */
+let cachedAdminClient: SupabaseClient | null = null;
+
+/**
  * Picks the first available environment variable from a list of possible keys.
- * Useful for supporting multiple env var names (aliases).
- *
- * @param keys - Array of environment variable keys to check in order
- * @returns The first non-empty value found, or empty string if none found
  */
 function pickFirstEnv(keys: string[]): string {
   for (const k of keys) {
@@ -20,30 +21,11 @@ function pickFirstEnv(keys: string[]): string {
 }
 
 /**
- * Returns a Supabase admin client with service role permissions.
- *
- * This client has full database access and bypasses Row Level Security (RLS).
- * Use with caution - only for server-side operations.
- *
- * **Environment Variables:**
- * - `NEXT_PUBLIC_SUPABASE_URL` or `SUPABASE_URL` - Supabase project URL
- * - `SUPABASE_SERVICE_ROLE_KEY` (or aliases: `SUPABASE_SERVICE_KEY`, `SUPABASE_SERVICE_ROLE`, `SUPABASE_SERVICE`) - Service role key
- *
- * **Aliases Supported:**
- * The function accepts multiple env var names to avoid configuration issues
- * (e.g., Vercel may use different naming conventions).
- *
- * @returns Configured Supabase client with admin privileges
- * @throws {Error} If required environment variables are missing
- *
- * @example
- * ```typescript
- * const supabase = getSupabaseAdmin();
- * const { data } = await supabase.from('conversations').select('*');
- * ```
+ * Returns a singleton instance of Supabase admin client with service role permissions.
  */
 export function getSupabaseAdmin(): SupabaseClient {
-  // Accept common Supabase env aliases to avoid Vercel misconfig
+  if (cachedAdminClient) return cachedAdminClient;
+
   const url = pickFirstEnv(["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"]);
   const serviceKey = pickFirstEnv([
     "SUPABASE_SERVICE_ROLE_KEY",
@@ -52,9 +34,12 @@ export function getSupabaseAdmin(): SupabaseClient {
     "SUPABASE_SERVICE",
   ]);
 
-  if (!url) throw new Error("Missing Supabase URL env (NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL)");
-  if (!serviceKey)
-    throw new Error("Missing Supabase service role key env (SUPABASE_SERVICE_ROLE_KEY)");
+  if (!url) throw new Error("Missing Supabase URL");
+  if (!serviceKey) throw new Error("Missing Supabase service role key");
 
-  return createClient(url, serviceKey, { auth: { persistSession: false } });
+  cachedAdminClient = createClient(url, serviceKey, {
+    auth: { persistSession: false },
+  });
+
+  return cachedAdminClient;
 }

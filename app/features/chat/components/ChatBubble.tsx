@@ -350,6 +350,62 @@ const ChatBubble = React.memo(
       return extractThinking(safeMessage.content || "");
     }, [safeMessage.content, isBot]);
 
+    const mdComponents = useMemo(
+      () => ({
+        code: InlineCode,
+        pre: PreBlock,
+        p: ({ children }: any) => (
+          <p className="mb-4 last:mb-0 leading-7 break-words">{children}</p>
+        ),
+        ul: ({ children }: any) => <ul className="mb-4 ml-6 list-disc space-y-2">{children}</ul>,
+        ol: ({ children }: any) => <ol className="mb-4 ml-6 list-decimal space-y-2">{children}</ol>,
+        li: ({ children }: any) => <li className="leading-7">{children}</li>,
+        h1: ({ children }: any) => (
+          <h1 className="mt-8 mb-4 text-2xl font-bold text-primary border-b border-token pb-2">
+            {children}
+          </h1>
+        ),
+        h2: ({ children }: any) => (
+          <h2 className="mt-7 mb-3 text-xl font-bold text-primary">{children}</h2>
+        ),
+        h3: ({ children }: any) => (
+          <h3 className="mt-6 mb-2 text-lg font-bold text-primary">{children}</h3>
+        ),
+        blockquote: ({ children }: any) => (
+          <blockquote className="border-l-4 border-token pl-4 py-1 my-4 text-secondary italic">
+            {children}
+          </blockquote>
+        ),
+        a: ({ href, children }: any) => (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--primary-light)] hover:underline break-all"
+          >
+            {children}
+          </a>
+        ),
+        table: ({ children }: any) => (
+          <div className="overflow-x-auto my-4 rounded-lg border border-token bg-surface-elevated">
+            <table className="w-full text-left text-sm">{children}</table>
+          </div>
+        ),
+        thead: ({ children }: any) => (
+          <thead className="bg-surface-muted uppercase font-bold text-xs text-secondary">
+            {children}
+          </thead>
+        ),
+        th: ({ children }: any) => (
+          <th className="px-4 py-3 border-b border-token text-primary">{children}</th>
+        ),
+        td: ({ children }: any) => (
+          <td className="px-4 py-3 border-b border-token text-secondary">{children}</td>
+        ),
+      }),
+      []
+    );
+
     const hasContent = Boolean(displayContent?.trim()) || Boolean(thought?.trim());
     const isLoading = isBot && isLastAssistant && (regenerating || !hasContent);
     const showTyping =
@@ -439,73 +495,7 @@ const ChatBubble = React.memo(
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         rehypePlugins={[rehypeHighlight]}
-                        components={useMemo(
-                          () => ({
-                            code: InlineCode,
-                            pre: PreBlock,
-                            p: ({ children }: any) => (
-                              <p className="mb-4 last:mb-0 leading-7 break-words">{children}</p>
-                            ),
-                            ul: ({ children }: any) => (
-                              <ul className="mb-4 ml-6 list-disc space-y-2">{children}</ul>
-                            ),
-                            ol: ({ children }: any) => (
-                              <ol className="mb-4 ml-6 list-decimal space-y-2">{children}</ol>
-                            ),
-                            li: ({ children }: any) => <li className="leading-7">{children}</li>,
-                            h1: ({ children }: any) => (
-                              <h1 className="mt-8 mb-4 text-2xl font-bold text-primary border-b border-token pb-2">
-                                {children}
-                              </h1>
-                            ),
-                            h2: ({ children }: any) => (
-                              <h2 className="mt-7 mb-3 text-xl font-bold text-primary">
-                                {children}
-                              </h2>
-                            ),
-                            h3: ({ children }: any) => (
-                              <h3 className="mt-6 mb-2 text-lg font-bold text-primary">
-                                {children}
-                              </h3>
-                            ),
-                            blockquote: ({ children }: any) => (
-                              <blockquote className="border-l-4 border-token pl-4 py-1 my-4 text-secondary italic">
-                                {children}
-                              </blockquote>
-                            ),
-                            a: ({ href, children }: any) => (
-                              <a
-                                href={href}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[var(--primary-light)] hover:underline break-all"
-                              >
-                                {children}
-                              </a>
-                            ),
-                            table: ({ children }: any) => (
-                              <div className="overflow-x-auto my-4 rounded-lg border border-token bg-surface-elevated">
-                                <table className="w-full text-left text-sm">{children}</table>
-                              </div>
-                            ),
-                            thead: ({ children }: any) => (
-                              <thead className="bg-surface-muted uppercase font-bold text-xs text-secondary">
-                                {children}
-                              </thead>
-                            ),
-                            th: ({ children }: any) => (
-                              <th className="px-4 py-3 border-b border-token text-primary">
-                                {children}
-                              </th>
-                            ),
-                            td: ({ children }: any) => (
-                              <td className="px-4 py-3 border-b border-token text-secondary">
-                                {children}
-                              </td>
-                            ),
-                          }),
-                          []
-                        )}
+                        components={mdComponents}
                       >
                         {displayContent}
                       </ReactMarkdown>

@@ -8,97 +8,107 @@ import { logger } from "@/lib/utils/logger";
 const encryptionLogger = logger.withContext("encryption");
 
 // SECURITY: Encryption key MUST be set via environment variable
-// No fallback key to prevent using insecure default encryption
-// Only validate on server-side (this module should not be used on client)
 const RAW_KEY = typeof window === "undefined" ? process.env.DATA_ENCRYPTION_KEY : undefined;
 
 if (typeof window === "undefined") {
   if (!RAW_KEY || RAW_KEY.trim().length < 32) {
-    const error = new Error(
-      "DATA_ENCRYPTION_KEY is required and must be at least 32 characters. " +
-        "Please set it in your environment variables. " +
-        "Generate a secure key with: openssl rand -base64 32"
-    );
+    const error = new Error("DATA_ENCRYPTION_KEY is required and must be at least 32 characters.");
     encryptionLogger.error("Missing or invalid DATA_ENCRYPTION_KEY", error);
     throw error;
   }
 }
 
-const IV_LENGTH = 16;
+const GCM_IV_LENGTH = 12;
+const CBC_IV_LENGTH = 16;
 
-// 3. Hàm tạo key chuẩn 32 bytes (SHA-256)
+// Cache the derived key
+let cachedKey: Buffer | null = null;
+
 function getKey(): Buffer {
+  if (cachedKey) return cachedKey;
   if (!RAW_KEY) {
     throw new Error("DATA_ENCRYPTION_KEY is not available");
   }
-  return crypto.createHash("sha256").update(String(RAW_KEY)).digest();
+  cachedKey = crypto.createHash("sha256").update(String(RAW_KEY)).digest();
+  return cachedKey;
 }
 
+/**
+ * Encrypts text using AES-256-GCM (Authenticated Encryption).
+ * Returns format: iv:authTag:encryptedData (hex)
+ */
 export function encryptText(text: string | null | undefined): string {
-  if (!text) return text || "";
+  if (!text) return "";
 
-  // Server-only: This function should not be called on client-side
   if (typeof window !== "undefined") {
-    encryptionLogger.warn("encryptText called on client-side - this should not happen");
-    return String(text);
+    throw new Error("encryptText must only be called on server-side");
   }
 
-  if (!RAW_KEY) {
-    encryptionLogger.error("DATA_ENCRYPTION_KEY not available");
-    return String(text);
-  }
-
-  // Ép kiểu về String để tránh lỗi nếu text là object/null
   const textStr = String(text);
+  const key = getKey();
+  const iv = crypto.randomBytes(GCM_IV_LENGTH);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
 
-  try {
-    const iv = crypto.randomBytes(IV_LENGTH);
-    const key = getKey();
-    const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
+  let encrypted = cipher.update(textStr, "utf8");
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  const authTag = cipher.getAuthTag();
 
-    let encrypted = cipher.update(textStr, "utf8");
-    encrypted = Buffer.concat([encrypted, cipher.final()]);
-
-    return iv.toString("hex") + ":" + encrypted.toString("hex");
-  } catch (e) {
-    // QUAN TRỌNG: Nếu lỗi, chỉ in log và TRẢ VỀ TEXT GỐC (không làm sập app)
-    encryptionLogger.error("Encrypt failed, using plain text:", e);
-    return textStr;
-  }
+  return iv.toString("hex") + ":" + authTag.toString("hex") + ":" + encrypted.toString("hex");
 }
 
+/**
+ * Decrypts text. Supports both new AES-256-GCM and legacy AES-256-CBC format.
+ * Throws error if decryption fails (no silent failure to plain text).
+ */
 export function decryptText(text: string | null | undefined): string {
-  if (!text) return text || "";
+  if (!text) return "";
 
-  // Server-only: This function should not be called on client-side
   if (typeof window !== "undefined") {
-    // On client-side, return text as-is (decryption should happen server-side)
-    return String(text);
+    // Return empty on client to avoid leakage if accidentally called
+    return "";
   }
 
-  if (!RAW_KEY) {
-    encryptionLogger.error("DATA_ENCRYPTION_KEY not available");
-    return String(text);
-  }
+  const textStr = String(text);
+  const parts = textStr.split(":");
+  const key = getKey();
 
   try {
-    const textStr = String(text);
-    const parts = textStr.split(":");
+    // Format 1: GCM (New) -> iv:authTag:encrypted
+    if (parts.length === 3 && parts[0].length === GCM_IV_LENGTH * 2) {
+      const iv = Buffer.from(parts[0], "hex");
+      const authTag = Buffer.from(parts[1], "hex");
+      const encryptedText = Buffer.from(parts[2], "hex");
 
-    // Kiểm tra format: Phải có 2 phần và phần IV phải đúng 32 ký tự hex
-    if (parts.length !== 2 || parts[0].length !== 32) return textStr;
+      const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+      decipher.setAuthTag(authTag);
 
-    const iv = Buffer.from(parts[0], "hex");
-    const encryptedText = Buffer.from(parts[1], "hex");
-    const key = getKey();
+      let decrypted = decipher.update(encryptedText);
+      decrypted = Buffer.concat([decrypted, decipher.final()]);
+      return decrypted.toString("utf8");
+    }
 
-    const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    // Format 2: CBC (Legacy) -> iv:encrypted
+    if (parts.length === 2 && parts[0].length === CBC_IV_LENGTH * 2) {
+      const iv = Buffer.from(parts[0], "hex");
+      const encryptedText = Buffer.from(parts[1], "hex");
 
-    return decrypted.toString("utf8");
-  } catch {
-    // Nếu giải mã lỗi (do sai key cũ/mới), trả về text gốc để UI vẫn hiện được
-    return String(text);
+      const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+      let decrypted = decipher.update(encryptedText);
+      decrypted = Buffer.concat([decrypted, decipher.final()]);
+      return decrypted.toString("utf8");
+    }
+
+    // Invalid format OR plain text (which or should not be allowed anymore)
+    if (textStr.includes(":")) {
+      throw new Error("Invalid encryption format");
+    }
+
+    // If it's pure plain text, we return it but log a warning (transition period)
+    // In strict mode later, we should throw error here too.
+    encryptionLogger.warn("Attempted to decrypt non-encrypted text");
+    return textStr;
+  } catch (e) {
+    encryptionLogger.error("Decryption failed:", e);
+    throw new Error("Failed to decrypt data. Key might be invalid or data corrupted.");
   }
 }

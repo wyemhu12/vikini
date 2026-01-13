@@ -19,6 +19,15 @@ const routeLogger = logger.withContext("POST /api/chat-stream");
 export async function POST(req: NextRequest) {
   const perfMonitor = createPerformanceMonitor("/api/chat-stream", "POST");
 
+  // SECURITY: Check content length to prevent large payload attacks
+  const contentLength = Number(req.headers.get("content-length") || 0);
+  const MAX_PAYLOAD_SIZE = 1 * 1024 * 1024; // 1MB
+  if (contentLength > MAX_PAYLOAD_SIZE) {
+    routeLogger.warn(`Payload too large: ${contentLength} bytes`);
+    perfMonitor.end(HTTP_STATUS.BAD_REQUEST);
+    return new Response("Payload too large", { status: HTTP_STATUS.BAD_REQUEST });
+  }
+
   try {
     const session = await auth();
     if (!session?.user?.email) {
@@ -87,11 +96,11 @@ export async function POST(req: NextRequest) {
     const response = await handleChatStreamCore({ req, userId });
 
     // Increment daily message count after successful stream initiation
-    // Note: We increment immediately; ideally we'd increment only after successful completion,
-    // but for streaming that's complex. This is acceptable trade-off.
-    incrementDailyMessageCount(userId).catch((err) => {
+    try {
+      await incrementDailyMessageCount(userId);
+    } catch (err) {
       routeLogger.error("Failed to increment message count:", err);
-    });
+    }
 
     perfMonitor.end(200, { streaming: true });
     return response;

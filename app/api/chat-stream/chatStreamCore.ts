@@ -141,10 +141,23 @@ function jsonError(message: string, status: number = 500): Response {
   });
 }
 
-// Simple token estimation: 1 token ~ 4 chars
+/**
+ * Estimates the number of tokens in a string.
+ * This is a heuristic. For better accuracy, we use a more conservative
+ * estimate of ~3.2 chars per token, which is safer for Vietnamese/UTF-8.
+ */
 function estimateTokens(text: string | null | undefined): number {
   if (!text) return 0;
-  return Math.ceil(text.length / 4);
+
+  // Count non-ASCII/special characters (often multi-byte in UTF-8)
+  const nonAsciiCount = (text.match(/[^\x20-\x7E\s]/g) || []).length;
+
+  // Heuristic: Base characters / 4 + Non-ASCII * 1.5 (extra penalty)
+  // This helps account for Vietnamese tone marks and special characters
+  const baseTokens = text.length / 4;
+  const extraTokens = nonAsciiCount * 1.5;
+
+  return Math.ceil(baseTokens + extraTokens);
 }
 
 interface HandleChatStreamCoreParams {

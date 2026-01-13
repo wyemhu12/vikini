@@ -53,25 +53,39 @@ function getRedisOptional(): Redis | null {
 // ------------------------------
 const memStore = new Map<string, MemoryEntry>();
 
+// PERIODIC CLEANUP: Prevent memory leaks from stale keys
+if (typeof setInterval !== "undefined") {
+  setInterval(() => {
+    const now = Date.now();
+    const windowMs = getConfig().windowSeconds * 1000;
+    for (const [key, entry] of memStore.entries()) {
+      if (now - entry.start > windowMs) {
+        memStore.delete(key);
+      }
+    }
+  }, 60000); // Clean every minute
+}
+
 async function consumeInMemory(
   key: string,
   { windowSeconds, limit }: RateLimitConfig
 ): Promise<RateLimitResult> {
   const now = Date.now();
   const windowMs = windowSeconds * 1000;
-  const entry = memStore.get(key) || { count: 0, start: now };
+  const entry = memStore.get(key);
 
-  if (now - entry.start > windowMs) {
-    entry.count = 0;
-    entry.start = now;
+  // If entry exists but is expired, reset or delete
+  if (entry && now - entry.start > windowMs) {
+    memStore.delete(key);
   }
 
-  entry.count += 1;
-  memStore.set(key, entry);
+  const currentEntry = memStore.get(key) || { count: 0, start: now };
+  currentEntry.count += 1;
+  memStore.set(key, currentEntry);
 
-  const allowed = entry.count <= limit;
-  const resetInMs = Math.max(0, windowMs - (now - entry.start));
-  const remaining = Math.max(0, limit - entry.count);
+  const allowed = currentEntry.count <= limit;
+  const resetInMs = Math.max(0, windowMs - (now - currentEntry.start));
+  const remaining = Math.max(0, limit - currentEntry.count);
 
   return {
     allowed,
@@ -121,7 +135,10 @@ async function consumeUpstash(
   try {
     // get oldest timestamp in window to compute retry-after
     const oldest = await r.zrange(k, 0, 0, { withScores: true });
-    const score = Array.isArray(oldest) && oldest.length > 0 ? Number((oldest[0] as { score?: number })?.score) : NaN;
+    const score =
+      Array.isArray(oldest) && oldest.length > 0
+        ? Number((oldest[0] as { score?: number })?.score)
+        : NaN;
     if (Number.isFinite(score)) {
       resetInMs = Math.max(0, windowMs - (now - score));
     }
@@ -161,7 +178,8 @@ export function rateLimitHeaders(result: RateLimitResult): Record<string, string
     "X-RateLimit-Limit": String(result?.limit ?? ""),
     "X-RateLimit-Remaining": String(result?.remaining ?? ""),
     "X-RateLimit-Reset": String(resetSeconds),
-    ...(result?.allowed ? {} : { "Retry-After": String(result?.retryAfterSeconds ?? resetSeconds) }),
+    ...(result?.allowed
+      ? {}
+      : { "Retry-After": String(result?.retryAfterSeconds ?? resetSeconds) }),
   };
 }
-
