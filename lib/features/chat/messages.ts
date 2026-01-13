@@ -206,3 +206,46 @@ export async function deleteMessagesIncludingAndAfter(
     .eq("conversation_id", conversationId)
     .gte("created_at", targetMsg.created_at);
 }
+// ... existing code ...
+
+/**
+ * Deletes a SINGLE message by ID.
+ * Used for Gallery/Studio mode where we don't want to wipe future history.
+ */
+export async function deleteSingleMessage(userId: string, messageId: string) {
+  const supabase = getSupabaseAdmin();
+
+  // Verify ownership matches by joining with conversations table
+  // Since we are using admin client, we MUST manually verify user_id of the conversation
+  const { data: msg, error } = await supabase
+    .from("messages")
+    .select("conversation_id, meta, conversations!inner(user_id)")
+    .eq("id", messageId)
+    .single();
+
+  if (error || !msg) {
+    console.error("[deleteSingleMessage] Fetch Error:", error);
+    throw new Error("Message not found");
+  }
+
+  // Type assertion for joined data
+  const conversation = msg.conversations as unknown as { user_id: string };
+
+  if (conversation.user_id !== userId) {
+    console.error(
+      `[deleteSingleMessage] Unauthorized: ReqUser=${userId} vs ConvUser=${conversation.user_id}`
+    );
+    throw new Error("Unauthorized or message not found");
+  }
+
+  // 1. Delete Storage File if exists
+  if (msg.meta?.imageUrl) {
+    const path = msg.meta.imageUrl.split("/storage/v1/object/public/images/").pop();
+    if (path) {
+      await supabase.storage.from("images").remove([path]);
+    }
+  }
+
+  // 2. Delete Record
+  await supabase.from("messages").delete().eq("id", messageId);
+}

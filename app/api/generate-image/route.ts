@@ -3,7 +3,10 @@ import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase";
 import { ImageGenFactory } from "@/lib/features/image-gen/core/ImageGenFactory";
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
-import { saveMessage } from "@/lib/features/chat/messages"; // Re-use existing persistence logic
+import { saveMessage } from "@/lib/features/chat/messages";
+import { logger } from "@/lib/utils/logger";
+
+const routeLogger = logger.withContext("generate-image");
 
 export const maxDuration = 60; // Set max duration to 60s (Vercel functionality)
 
@@ -14,21 +17,84 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id || !session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const userId = session.user.id;
+    const userId = session.user.email.toLowerCase();
     // const userEmail = session.user.email; // Unused
 
     // 2. Parse Body
     const body = await req.json();
-    const { prompt, conversationId, options } = body;
+    let { prompt } = body; // Prompt is mutable
+    const { conversationId, options } = body;
 
     if (!prompt || !conversationId) {
       return NextResponse.json({ error: "Missing prompt or conversationId" }, { status: 400 });
     }
 
-    // 3. Generate Image (Gemini)
-    // Note: This step takes time (4-8s)
-    const provider = ImageGenFactory.getProvider("gemini");
-    const results = await provider.generate(prompt, options as ImageGenOptions);
+    // --- PROMPT ENHANCER LOGIC ---
+    if (options?.enhancer) {
+      routeLogger.info("[Enhancer] Original prompt:", prompt);
+      try {
+        const { getGenAIClient } = require("@/lib/core/genaiClient");
+        const genAI = getGenAIClient();
+
+        // Use latest Gemini Flash model for speed & low cost, or user's selected Gemini model
+        let enhancerModelId = "gemini-2.5-flash";
+        if (
+          options?.enhancerModel &&
+          String(options.enhancerModel).toLowerCase().includes("gemini")
+        ) {
+          enhancerModelId = options.enhancerModel;
+        }
+
+        const enhancementPrompt = `Rewrite the following image generation prompt to be more detailed, artistic, and descriptive. Keep it under 100 words. Maintain the original intent but enhance visual details, lighting, and style. Return ONLY the enhanced prompt, no intro/outro.\n\nOriginal Prompt: "${prompt}"`;
+
+        // Note: Using @google/genai SDK format
+        const result = await genAI.models.generateContent({
+          model: enhancerModelId,
+          contents: [{ role: "user", parts: [{ text: enhancementPrompt }] }],
+        });
+
+        let enhancedText = "";
+        if (typeof result.text === "function") {
+          enhancedText = result.text();
+        } else if (typeof result.text === "string") {
+          enhancedText = result.text;
+        } else {
+          enhancedText = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        }
+
+        if (enhancedText) {
+          routeLogger.info(`[Enhancer] Enhanced prompt:`, enhancedText.trim());
+          prompt = enhancedText.trim();
+        }
+      } catch (e) {
+        routeLogger.error("Prompt Enhancement Failed, using original:", e);
+      }
+    }
+    // -----------------------------
+
+    // 3. Generate Image
+    // Determine provider based on model override or default
+    let providerName = "gemini"; // Default
+    if (
+      options.model?.toLowerCase().includes("flux") ||
+      options.model?.toLowerCase().includes("replicate") ||
+      options.model?.toLowerCase().includes("schnell")
+    ) {
+      providerName = "replicate";
+    } else if (
+      options.model?.toLowerCase().includes("dall-e") ||
+      options.model?.toLowerCase().includes("gpt")
+    ) {
+      providerName = "openai";
+    }
+
+    const provider = ImageGenFactory.getProvider(providerName);
+
+    // Extract BYOK key from headers if present
+    const apiKey = req.headers.get("x-api-key") || undefined;
+
+    // Type assertion to ensure model mapping doesn't lose data
+    const results = await provider.generate(prompt, options as ImageGenOptions, apiKey);
 
     if (!results || results.length === 0) {
       throw new Error("No images generated");
@@ -103,15 +169,28 @@ export async function POST(req: NextRequest) {
     const messageContent = `Generated Image: ${prompt}`;
     const messageMeta = {
       type: "image_gen",
-      prompt: prompt,
-      provider: "gemini",
+      prompt: prompt, // This is the ENHANCED prompt (modified by enhancer if enabled)
+      imageUrl: finalUrl, // Add imageUrl at top level for easy access
+      originalOptions: options, // Add originalOptions at top level for badges
+      provider: providerName,
       attachment: {
         url: finalUrl,
         storagePath: storagePath,
         mimeType: mimeType,
         filename: filename,
       },
+      // Keep legacy metadata for backward compatibility if needed, but optional
+      metadata: {
+        imageUrl: finalUrl,
+        prompt: prompt,
+        originalOptions: options,
+      },
     };
+
+    routeLogger.info("[Image Gen] Saving message with metadata:", {
+      prompt: messageMeta.prompt,
+      imageUrl: messageMeta.imageUrl,
+    });
 
     // Save Message using existing helper
     const message = await saveMessage(
@@ -139,7 +218,7 @@ export async function POST(req: NextRequest) {
       imageUrl: finalUrl,
     });
   } catch (error) {
-    console.error("Image Gen Route Error:", error);
+    routeLogger.error("Image Gen Route Route Error:", error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Unknown error",

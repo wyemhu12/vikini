@@ -36,6 +36,7 @@ interface ChatControlsProps {
   showMobileControls?: boolean;
   disabled?: boolean;
   onImageGen: (prompt: string, options?: ImageGenOptions) => void;
+  initialImageMode?: boolean; // For remix from Gallery
 }
 
 export default function ChatControls({
@@ -68,6 +69,7 @@ export default function ChatControls({
   attachmentsRef,
   selectedConversationId,
   showMobileControls = true, // Default to true if not passed (Desktop)
+  initialImageMode = false, // For remix from Gallery
 }: ChatControlsProps) {
   return (
     <motion.div
@@ -180,6 +182,7 @@ export default function ChatControls({
             isStreaming={isStreaming} // Pass streaming state
             t={t}
             conversationId={selectedConversationId}
+            initialImageMode={initialImageMode}
           />
         </div>
       </div>

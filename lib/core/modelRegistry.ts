@@ -264,6 +264,7 @@ export const MODEL_ALIASES: Record<string, string> = {
 
 export function isSelectableModelId(modelId: unknown): boolean {
   const m = String(modelId || "").trim();
+  if (m === "vikini-image-studio") return true;
   return Boolean(m) && SELECTABLE_SET.has(m);
 }
 
@@ -275,6 +276,8 @@ export function isSelectableModelId(modelId: unknown): boolean {
 export function normalizeModelForApi(modelId: unknown): string {
   const raw = String(modelId || "").trim();
   if (!raw) return DEFAULT_MODEL;
+
+  if (raw === "vikini-image-studio") return raw;
 
   // Check aliases first
   if (MODEL_ALIASES[raw]) {

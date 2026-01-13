@@ -77,6 +77,20 @@ Separation of concerns between UI and business logic.
 - File upload and processing logic.
 - Integration with chat context.
 
+### Image Generation (Image Studio)
+
+- Multi-model support: Gemini Imagen 3, DALL-E 3, Flux Pro
+- BYOK (Bring Your Own Key) for third-party providers
+- Style presets and aspect ratio controls
+- Route: `/image-studio`
+
+### Gallery
+
+- Image management for generated images
+- Infinite scroll pagination
+- Search and filter capabilities
+- Route: `/gallery`
+
 ## 4. Data Flow
 
 1. **Client Request**: User interacts with UI (e.g., sends message).

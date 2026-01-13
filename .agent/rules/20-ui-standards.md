@@ -1,5 +1,6 @@
----
-trigger: always_on
+﻿---
+description: Standards for UI design, Tailwind usage, Shadcn components, and theming.
+trigger: model_decision
 ---
 
 # UI & UX Standards (Vikini)
@@ -12,18 +13,18 @@ trigger: always_on
 
 ## 2. Anti-Patterns (DO NOT DO)
 
-- ❌ **Fixed Widths**: Avoid `w-[500px]`. Use `w-full max-w-lg`.
-- ❌ **Heavy Borders**: Avoid thick, dark borders. Use `border-border` (subtle).
-- ❌ **Raw Colors**: Do not use `bg-blue-500`. Use semantic colors: `bg-primary`, `bg-destructive`.
-- ❌ **No Z-Index Wars**: Use configured z-indices, don't use arbitrary `z-[9999]`.
+- **Fixed Widths**: Avoid w-[500px]. Use w-full max-w-lg.
+- **Heavy Borders**: Avoid thick, dark borders. Use order-border (subtle).
+- **Raw Colors**: Do not use g-blue-500. Use semantic colors: g-primary, g-destructive.
+- **No Z-Index Wars**: Use configured z-indices, don't use arbitrary z-[9999].
 
 ## 3. Component Usage
 
-- **Shadcn/UI**: The golden standard. Check `components/ui` first.
+- **Shadcn/UI**: The golden standard. Check components/ui first.
 - **Lucide Icons**: The only icon set allowed.
-- **Tailwind**: Use utility classes. Avoid `style={{}}`.
+- **Tailwind**: Use utility classes. Avoid style={{}}.
 
 ## 4. Theme Integration
 
-- themes are located in `app/styles/themes/`.
+- themes are located in pp/styles/themes/.
 - Ensure components look good in both **Light** and **Dark** modes (if applicable).

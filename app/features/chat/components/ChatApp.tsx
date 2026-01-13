@@ -26,7 +26,6 @@ import { useChatStreamController } from "./hooks/useChatStreamController";
 import { useAllowedModels } from "./hooks/useAllowedModels";
 import { useFileDragDrop } from "./hooks/useFileDragDrop";
 
-import { ImageGenPreview } from "../../image-gen/components/ImageGenPreview";
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 
 // Removed deprecated generateImageAction import
@@ -196,6 +195,11 @@ export default function ChatApp() {
     patchConversationGem,
   } = useConversation();
 
+  // Filter out Image Studio projects from chat list
+  const filteredConversations = useMemo(() => {
+    return (conversations || []).filter((c: any) => c.model !== "vikini-image-studio");
+  }, [conversations]);
+
   const {
     webSearchEnabled,
     toggleWebSearch,
@@ -278,6 +282,23 @@ export default function ChatApp() {
     },
   });
 
+  // Check for remix prompt from Gallery (must be after useChatStreamController)
+  const [initialImageMode, setInitialImageMode] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const remixPrompt = sessionStorage.getItem("remixPrompt");
+      const remixImageMode = sessionStorage.getItem("remixImageMode");
+      if (remixPrompt) {
+        setInput(remixPrompt);
+        sessionStorage.removeItem("remixPrompt");
+      }
+      if (remixImageMode === "true") {
+        setInitialImageMode(true);
+        sessionStorage.removeItem("remixImageMode");
+      }
+    }
+  }, [setInput]);
+
   // Image Gen State
   const [lastGeneratedImage, setLastGeneratedImage] = useState<{
     url: string;
@@ -300,13 +321,30 @@ export default function ChatApp() {
       setLastGeneratedImage({ url: "", prompt }); // Shows loading spinner in preview bubble
 
       try {
+        // Auto-create conversation if none exists (for remix from Gallery)
+        let convId = selectedConversationId;
+        if (!convId) {
+          const newConv = await createConversation();
+          convId = newConv?.id || null;
+          if (convId) {
+            setSelectedConversationIdAndUrl(convId);
+          }
+        }
+
+        if (!convId) {
+          throw new Error("Failed to create conversation");
+        }
+
         const response = await fetch("/api/generate-image", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             prompt,
-            conversationId: selectedConversationId,
-            options,
+            conversationId: convId,
+            options: {
+              ...options,
+              enhancerModel: options?.enhancer ? currentModel : undefined, // Only pass if enhancer is requested
+            },
           }),
         });
 
@@ -511,7 +549,7 @@ export default function ChatApp() {
   useEffect(() => {
     setFileCount(0);
     setShowFiles(false);
-    setLastGeneratedImage(null); // Fix: Clear previous generated image preview
+    // Note: Don't reset lastGeneratedImage here - it breaks remix loading indicator
   }, [selectedConversationId, setFileCount, setShowFiles]);
 
   // Register callback for gem applied - optimistic update when gem changes
@@ -587,7 +625,9 @@ export default function ChatApp() {
 
   // Check was here, moved up to fix hook order
 
-  const showLanding = !selectedConversationId || renderedMessages.length === 0;
+  // Also check for remix mode from Gallery - don't show landing if remixing
+  const isRemixMode = searchParams?.get("mode") === "remix";
+  const showLanding = !isRemixMode && (!selectedConversationId || renderedMessages.length === 0);
 
   // Check if user is not whitelisted (pending approval)
   // MOVED HERE: Must be after all hooks
@@ -636,7 +676,7 @@ export default function ChatApp() {
       )}
 
       <Sidebar
-        conversations={conversations}
+        conversations={filteredConversations}
         selectedConversationId={selectedConversationId}
         onSelectConversation={(id) => {
           handleSelectConversation(id);
@@ -732,7 +772,7 @@ export default function ChatApp() {
                   setInput(text);
                   // Optional: auto focus input
                 }}
-                lastConversation={conversations?.[0]}
+                lastConversation={filteredConversations?.[0]}
                 onSelectConversation={handleSelectConversation}
               />
             </div>
@@ -764,12 +804,54 @@ export default function ChatApp() {
                       AI
                     </div>
                     <div className="flex flex-col gap-2 w-full min-w-0">
-                      <ImageGenPreview
-                        imageUrl={lastGeneratedImage.url}
-                        isLoading={!lastGeneratedImage.url}
-                        prompt={lastGeneratedImage.prompt}
-                        onClose={() => setLastGeneratedImage(null)}
-                      />
+                      {/* Inline Image Preview */}
+                      <div className="relative rounded-xl overflow-hidden bg-[var(--surface-muted)] border border-[var(--border)] max-w-md">
+                        {!lastGeneratedImage.url ? (
+                          <div className="aspect-square flex flex-col items-center justify-center p-8 animate-pulse">
+                            <div className="w-12 h-12 rounded-full bg-[var(--accent)]/20 flex items-center justify-center mb-4">
+                              <svg
+                                className="w-6 h-6 text-[var(--accent)] animate-spin"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                ></circle>
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                ></path>
+                              </svg>
+                            </div>
+                            <p className="text-sm text-[var(--text-secondary)] text-center">
+                              {language === "vi" ? "Đang tạo ảnh..." : "Generating image..."}
+                            </p>
+                          </div>
+                        ) : (
+                          <img
+                            src={lastGeneratedImage.url}
+                            alt={lastGeneratedImage.prompt}
+                            className="w-full h-auto"
+                          />
+                        )}
+                      </div>
+                      <p className="text-xs text-[var(--text-secondary)] italic truncate max-w-md">
+                        "{lastGeneratedImage.prompt}"
+                      </p>
+                      {lastGeneratedImage.url && (
+                        <button
+                          onClick={() => setLastGeneratedImage(null)}
+                          className="text-xs text-[var(--accent)] hover:underline self-start"
+                        >
+                          {language === "vi" ? "Đóng preview" : "Close preview"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -822,6 +904,7 @@ export default function ChatApp() {
           selectedConversationId={selectedConversationId}
           showMobileControls={showMobileControls} // Pass visibility prop
           onImageGen={handleImageGen}
+          initialImageMode={initialImageMode} // For Gallery remix
         />
       </div>
 

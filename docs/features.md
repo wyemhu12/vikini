@@ -1,23 +1,25 @@
 # Features - Vikini
 
-> **Cập nhật**: 2025-12-31
+> **Cập nhật**: 2026-01-13
 
 ---
 
 ## 1. Danh Sách Tính Năng
 
-| Tính năng                | Trạng thái    | Mô tả                             |
-| ------------------------ | ------------- | --------------------------------- |
-| **Chat Streaming**       | ✅ Hoàn thành | SSE streaming với Gemini AI       |
-| **Conversations**        | ✅ Hoàn thành | CRUD + auto-title                 |
-| **GEMs System**          | ✅ Hoàn thành | Custom AI personas với versioning |
-| **File Attachments**     | ✅ Hoàn thành | Upload, parse, 36h TTL            |
-| **Message Encryption**   | ✅ Hoàn thành | AES-256-GCM                       |
-| **Rate Limiting**        | ✅ Hoàn thành | Redis-based per user              |
-| **Daily Message Limits** | ✅ Hoàn thành | Theo rank                         |
-| **Web Search**           | ✅ Hoàn thành | Optional, rank-gated              |
-| **Admin Dashboard**      | ✅ Hoàn thành | User/GEM/Rank management          |
-| **Google OAuth**         | ✅ Hoàn thành | NextAuth v5                       |
+| Tính năng                | Trạng thái    | Mô tả                                      |
+| ------------------------ | ------------- | ------------------------------------------ |
+| **Chat Streaming**       | ✅ Hoàn thành | SSE streaming với Gemini AI                |
+| **Conversations**        | ✅ Hoàn thành | CRUD + auto-title                          |
+| **GEMs System**          | ✅ Hoàn thành | Custom AI personas với versioning          |
+| **File Attachments**     | ✅ Hoàn thành | Upload, parse, 36h TTL                     |
+| **Image Studio**         | ✅ Hoàn thành | AI Image Generation (Gemini, DALL-E, Flux) |
+| **Gallery**              | ✅ Hoàn thành | Image management với infinite scroll       |
+| **Message Encryption**   | ✅ Hoàn thành | AES-256-GCM                                |
+| **Rate Limiting**        | ✅ Hoàn thành | Redis-based per user                       |
+| **Daily Message Limits** | ✅ Hoàn thành | Theo rank                                  |
+| **Web Search**           | ✅ Hoàn thành | Optional, rank-gated                       |
+| **Admin Dashboard**      | ✅ Hoàn thành | User/GEM/Rank management                   |
+| **Google OAuth**         | ✅ Hoàn thành | NextAuth v5                                |
 
 ---
 
@@ -87,6 +89,53 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 - Cấu hình rank limits
 
 **Route**: `/admin`
+
+---
+
+### 2.5 Image Studio
+
+**Mô tả**: Công cụ tạo ảnh AI với nhiều model và style.
+
+**Models hỗ trợ**:
+
+- **Gemini Imagen 3**: Default, miễn phí
+- **DALL-E 3**: Yêu cầu OpenAI API key (BYOK)
+- **Flux Pro**: Yêu cầu Replicate API key (BYOK)
+
+**Tính năng**:
+
+- Style presets (Anime, Photorealistic, Watercolor, etc.)
+- Aspect ratio controls (1:1, 16:9, 9:16, etc.)
+- Prompt enhancement (AI cải thiện prompt)
+- Download và remix
+
+**Files**:
+
+- `/app/features/image-gen/` - UI Components
+- `/app/api/generate-image/route.ts` - API
+
+**Route**: `/image-studio`
+
+---
+
+### 2.6 Gallery
+
+**Mô tả**: Quản lý tất cả ảnh đã tạo trong chat.
+
+**Tính năng**:
+
+- Infinite scroll (20 ảnh/lần)
+- Search by prompt
+- Filter by date/model
+- Remix to chat
+- Delete với confirmation
+
+**Files**:
+
+- `/app/features/gallery/` - UI Components
+- `/app/api/gallery/route.ts` - API
+
+**Route**: `/gallery`
 
 ---
 

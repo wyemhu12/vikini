@@ -102,7 +102,7 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }: S
   return (
     <div className="relative group w-full px-2">
       <button
-        className={`relative flex w-full items-center justify-between gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm transition-all duration-300 ${
+        className={`relative flex w-full items-center justify-between gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm transition-colors duration-200 ${
           isActive
             ? "bg-[var(--control-bg-hover)] text-[var(--text-primary)] shadow-[0_0_15px_var(--glow)] border border-[var(--control-border)]"
             : "text-[var(--text-secondary)] hover:bg-[var(--control-bg)] hover:text-[var(--text-primary)] border border-transparent"

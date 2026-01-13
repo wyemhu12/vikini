@@ -59,6 +59,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   showMobileControls = true,
 }) => {
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []); // Hydration fix
 
   // Group themes by category
   const groupedThemes = useMemo(() => {
@@ -135,8 +137,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
       <div className="flex items-center gap-3 ml-auto">
         {/* DESKTOP: Separate Controls */}
-        <div className="hidden md:flex items-center gap-3">
-          {/* Language Dropdown */}
+        {/* Language Dropdown */}
+        {mounted ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -162,8 +164,18 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+        ) : (
+          <button
+            className={triggerButtonStyles}
+            aria-label={t?.selectLanguage || "Select Language"}
+          >
+            <span className={triggerLabelStyles}>{language === "vi" ? "VN" : "EN"}</span>
+            <ChevronDown className="w-3 h-3 text-[var(--text-secondary)]" />
+          </button>
+        )}
 
-          {/* Theme Dropdown */}
+        {/* Theme Dropdown */}
+        {mounted ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className={triggerButtonStyles} aria-label={t?.selectTheme || "Select Theme"}>
@@ -210,10 +222,24 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+        ) : (
+          <button className={triggerButtonStyles} aria-label={t?.selectTheme || "Select Theme"}>
+            <div
+              className="h-4 w-4 rounded-full shadow-[0_0_8px_currentColor]"
+              style={{
+                backgroundColor: "#d97706", // Default fallback
+                color: "#d97706",
+              }}
+            />
+            <span className={triggerLabelStyles}>Theme</span>
+            <ChevronDown className="w-3 h-3 text-[var(--text-secondary)]" />
+          </button>
+        )}
+      </div>
 
-        {/* MOBILE: Consolidated Menu */}
-        <div className="flex md:hidden">
+      {/* MOBILE: Consolidated Menu */}
+      <div className="flex md:hidden">
+        {mounted ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -273,7 +299,11 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+        ) : (
+          <button className={`${triggerButtonStyles} px-2`} aria-label={t?.settings || "Settings"}>
+            <Settings className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </motion.header>
   );

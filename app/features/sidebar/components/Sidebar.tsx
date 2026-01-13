@@ -3,6 +3,7 @@
 
 import SidebarItem from "./SidebarItem";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation"; // Added hooks
 import { useGemStore } from "../../gems/stores/useGemStore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -14,6 +15,8 @@ import {
   LogOut,
   Trash2,
   LucideIcon,
+  Image as ImageIcon,
+  LayoutGrid, // Icon for Gallery
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -36,6 +39,7 @@ interface SidebarProps {
   onRenameChat?: (id: string) => void;
   onDeleteChat?: (id: string) => void;
   onNewChat?: () => void;
+  newChatLabel?: string;
   onLogout?: () => void;
   t?: Record<string, any>;
   mobileOpen?: boolean;
@@ -59,6 +63,7 @@ export default function Sidebar({
   onRenameChat,
   onDeleteChat,
   onNewChat,
+  newChatLabel,
   onLogout,
   t,
   mobileOpen = false,
@@ -69,6 +74,8 @@ export default function Sidebar({
   onLogoClick,
 }: SidebarProps) {
   const { openGemModal } = useGemStore();
+  const router = useRouter(); // Initialize router
+  const pathname = usePathname(); // Get current path
 
   const list = Array.isArray(chats)
     ? chats
@@ -155,7 +162,7 @@ export default function Sidebar({
       <button
         onClick={onClick}
         className={cn(
-          "flex items-center gap-3 rounded-lg py-2.5 transition-all duration-200 group active:scale-[0.98]",
+          "flex items-center gap-3 rounded-lg py-2.5 transition-all duration-200 group",
           collapsed ? "justify-center px-0 w-full" : "justify-start px-3 w-full",
           // Colors
           variant === "primary" &&
@@ -200,13 +207,25 @@ export default function Sidebar({
         <SidebarButton
           onClick={handleNew}
           icon={Plus}
-          label={t?.newChat || "New Chat"}
+          label={newChatLabel || t?.newChat || "New Chat"}
           variant="primary"
         />
         <SidebarButton
           onClick={handleOpenGems}
           icon={Sparkles}
           label={t?.exploreGems || "Explore Gems"}
+        />
+        <SidebarButton
+          onClick={() => router.push("/images")}
+          icon={ImageIcon}
+          label="Image Studio"
+          variant={pathname?.includes("/images") ? "primary" : "default"}
+        />
+        <SidebarButton
+          onClick={() => router.push("/gallery")}
+          icon={LayoutGrid}
+          label="Gallery"
+          variant={pathname?.includes("/gallery") ? "primary" : "default"}
         />
       </div>
 
@@ -296,7 +315,7 @@ export default function Sidebar({
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden md:flex flex-col fixed top-0 left-0 bottom-0 border-r border-[var(--border)] bg-[var(--surface-muted)]/90 backdrop-blur-3xl p-4 z-30 transition-all duration-300",
+          "hidden md:flex flex-col fixed top-0 left-0 bottom-0 border-r border-[var(--border)] bg-[var(--surface-muted)]/90 backdrop-blur-3xl p-4 z-30 transition-[width] duration-300",
           collapsed ? "w-20" : "w-72 lg:w-80"
         )}
       >
@@ -343,13 +362,27 @@ export default function Sidebar({
               <SidebarButton
                 onClick={handleNew}
                 icon={Plus}
-                label={t?.newChat || "New Chat"}
+                label={newChatLabel || t?.newChat || "New Chat"}
                 variant="primary"
               />
+              <SidebarButton icon={Sparkles} label={t?.exploreGems || "Explore Gems"} />
               <SidebarButton
-                onClick={handleOpenGems}
-                icon={Sparkles}
-                label={t?.exploreGems || "Explore Gems"}
+                onClick={() => {
+                  router.push("/images");
+                  onCloseMobile?.();
+                }}
+                icon={ImageIcon}
+                label="Image Studio"
+                variant={pathname?.includes("/images") ? "primary" : "default"}
+              />
+              <SidebarButton
+                onClick={() => {
+                  router.push("/gallery");
+                  onCloseMobile?.();
+                }}
+                icon={LayoutGrid}
+                label="Gallery"
+                variant={pathname?.includes("/gallery") ? "primary" : "default"}
               />
 
               <div className="h-px bg-[var(--border)]/60 my-4 mx-2" />

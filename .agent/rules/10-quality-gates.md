@@ -1,20 +1,23 @@
----
+﻿---
 trigger: always_on
+description: Quality checklist and minimal diffs policy for all tasks.
 ---
 
-# Quality Gates (Vikini)
+# Quality Gates
 
 ## 1. Quality Checklist (Must Pass)
 
 Before finishing ANY task, you must verify:
 
-- [ ] **Scope**: Only touched files declared in the plan (or necessary dependencies)?
-- [ ] **Type Safety**: `npm run type-check` passed?
-- [ ] **Linting**: `npm run lint` passed?
-- [ ] **Tests**:
+- **Scope**: Only touched files declared in the plan (or necessary dependencies)?
+- **Type Safety**:
+  pm run type-check passed?
+- **Linting**:
+  pm run lint passed?
+- **Tests**:
   - If logic changed: Added/Updated unit tests?
-  - `npm test` passed?
-- [ ] **Visuals**: Code is clean, no "console.log" spam.
+  - pm test passed?
+- **Visuals**: Code is clean, no "console.log" spam.
 
 ## 2. Minimal Diffs Policy
 
@@ -29,11 +32,11 @@ Start your final response with a clear summary:
 
 Then list changes:
 
-- `Modified: ...`
-- `Created: ...`
+- Modified: ...
+- Created: ...
 
 Finally, confirm standard checks:
 **Verification:**
 
-- [x] Type check
-- [x] Lint
+- Type check
+- Lint

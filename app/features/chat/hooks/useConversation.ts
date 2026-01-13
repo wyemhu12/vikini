@@ -10,22 +10,33 @@ interface ConversationResponse {
   [key: string]: unknown;
 }
 
-interface FrontendConversation {
+export interface FrontendConversation {
   id: string;
   title?: string;
   createdAt?: number;
   updatedAt?: number;
   model?: string;
-  gem?: any; // Include gem in frontend model
+  gem?: { name: string; icon: string | null; color: string | null } | null;
   [key: string]: unknown;
 }
 
-interface FrontendMessage {
+export interface FrontendMessage {
   id?: string;
   role: string;
   content: string;
   sources?: unknown[];
   urlContext?: unknown[];
+  meta?: {
+    imageUrl?: string;
+    prompt?: string;
+    originalOptions?: {
+      aspectRatio?: string;
+      style?: string;
+      model?: string;
+      enhancer?: boolean;
+    };
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
@@ -126,7 +137,7 @@ interface UseConversationReturn {
   loadingMessages: boolean;
   loadConversation: (id: string) => Promise<void>;
   createConversation: (
-    options?: { title?: string } | string
+    options?: { title?: string; model?: string } | string
   ) => Promise<FrontendConversation | null>;
   renameConversation: (id: string, title: string) => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
@@ -299,17 +310,20 @@ export function useConversation(): UseConversationReturn {
   }, []);
 
   const createConversation = useCallback(
-    async (options: { title?: string } | string = {}): Promise<FrontendConversation | null> => {
+    async (
+      options: { title?: string; model?: string } | string = {}
+    ): Promise<FrontendConversation | null> => {
       if (creatingConversation) return null;
 
       const title = typeof options === "string" ? options : options.title;
+      const model = typeof options === "string" ? undefined : options.model;
 
       setCreatingConversation(true);
       try {
         const res = await fetch("/api/conversations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: title || "New Chat" }),
+          body: JSON.stringify({ title: title || "New Chat", model }),
         });
 
         if (!res.ok) throw new Error("Failed to create conversation");

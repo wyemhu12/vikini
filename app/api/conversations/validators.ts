@@ -15,13 +15,14 @@ export async function parseJsonBody<T = unknown>(
   if (options?.fallback !== undefined) {
     return await req.json().catch(() => options.fallback as T);
   }
-  return await req.json() as Promise<T>;
+  return (await req.json()) as Promise<T>;
 }
 
 // Zod schemas for validation
 
 export const createConversationSchema = z.object({
   title: z.string().max(200).optional(),
+  model: z.string().optional(),
 });
 
 export type CreateConversationRequest = z.infer<typeof createConversationSchema>;
@@ -40,4 +41,3 @@ export const deleteConversationSchema = z.object({
 });
 
 export type DeleteConversationRequest = z.infer<typeof deleteConversationSchema>;
-

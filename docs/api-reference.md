@@ -1,6 +1,6 @@
 # API Reference - Vikini
 
-> **Cập nhật**: 2025-12-31  
+> **Cập nhật**: 2026-01-13  
 > **Base URL**: `/api`  
 > **Runtime**: Node.js (Next.js App Router)
 
@@ -13,8 +13,10 @@
 3. [Conversations](#3-conversations)
 4. [GEMs](#4-gems)
 5. [Attachments](#5-attachments)
-6. [Admin APIs](#6-admin-apis)
-7. [Mã Lỗi](#7-mã-lỗi)
+6. [Image Generation](#6-image-generation)
+7. [Gallery](#7-gallery)
+8. [Admin APIs](#8-admin-apis)
+9. [Mã Lỗi](#9-mã-lỗi)
 
 ---
 
@@ -386,7 +388,96 @@ Xóa tất cả attachments của cuộc hội thoại.
 
 ---
 
-## 6. Admin APIs
+## 6. Image Generation
+
+### `POST /api/generate-image`
+
+Tạo ảnh AI từ prompt.
+
+#### Request Body
+
+```typescript
+{
+  prompt: string;              // Mô tả ảnh - Bắt buộc
+  conversationId: string;      // UUID để lưu message
+  options?: {
+    model?: string;            // "gemini-imagen-3" | "dall-e-3" | "flux-pro"
+    style?: string;            // "anime" | "photorealistic" | "watercolor" | etc.
+    aspectRatio?: string;      // "1:1" | "16:9" | "9:16" | "4:3" | "3:4"
+    enhancer?: boolean;        // AI cải thiện prompt
+    apiKey?: string;           // BYOK cho DALL-E/Flux (optional)
+  }
+}
+```
+
+#### Response
+
+```typescript
+{
+  success: boolean;
+  imageUrl?: string;        // URL ảnh đã tạo
+  message?: object;         // Message đã lưu
+  error?: string;           // Lỗi (nếu có)
+}
+```
+
+#### Models & BYOK
+
+| Model             | Provider  | Key Required                           |
+| ----------------- | --------- | -------------------------------------- |
+| `gemini-imagen-3` | Google    | Không (dùng server key)                |
+| `dall-e-3`        | OpenAI    | `vikini-openai-key` từ localStorage    |
+| `flux-pro`        | Replicate | `vikini-replicate-key` từ localStorage |
+
+---
+
+## 7. Gallery
+
+### `GET /api/gallery`
+
+Lấy danh sách ảnh đã tạo (chỉ từ chat, không bao gồm Image Studio).
+
+#### Query Parameters
+
+| Param    | Type   | Default | Mô tả            |
+| -------- | ------ | ------- | ---------------- |
+| `limit`  | number | 20      | Số ảnh mỗi trang |
+| `offset` | number | 0       | Vị trí bắt đầu   |
+
+#### Response
+
+```typescript
+{
+  images: Array<{
+    id: string;
+    url: string;
+    prompt: string;
+    createdAt: string;
+    aspectRatio?: string;
+    style?: string;
+    model?: string;
+  }>;
+  hasMore: boolean; // Còn ảnh để load không
+}
+```
+
+---
+
+### `DELETE /api/gallery/{id}`
+
+Xóa ảnh khỏi gallery.
+
+#### Response
+
+```typescript
+{
+  ok: true;
+}
+```
+
+---
+
+## 8. Admin APIs
 
 > [!WARNING]
 > Chỉ users có `rank = 'admin'` mới có quyền truy cập.
@@ -429,7 +520,7 @@ Cập nhật cấu hình rank (limits, features, allowed models).
 
 ---
 
-## 7. Mã Lỗi
+## 9. Mã Lỗi
 
 ### HTTP Status Codes
 

@@ -44,6 +44,7 @@ interface InputFormProps {
   isStreaming?: boolean;
   t?: any;
   conversationId?: string | null;
+  initialImageMode?: boolean; // For remix from Gallery
 }
 
 export default function InputForm({
@@ -56,13 +57,21 @@ export default function InputForm({
   isStreaming,
   t,
   conversationId,
+  initialImageMode = false,
 }: InputFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addAttachment, attachments } = useAttachmentStore();
   const [isUploading, setIsUploading] = useState(false);
-  const [isImageMode, setIsImageMode] = useState(false);
+  const [isImageMode, setIsImageMode] = useState(initialImageMode);
+
+  // Sync initialImageMode prop to state (for Gallery remix)
+  useEffect(() => {
+    if (initialImageMode) {
+      setIsImageMode(true);
+    }
+  }, [initialImageMode]);
 
   // Auto resize textarea
   useEffect(() => {
@@ -225,8 +234,8 @@ export default function InputForm({
       {/* Text Area */}
       <div className="flex-1 min-w-0 relative">
         {isImageMode && (
-          <div className="absolute -top-6 left-0 text-[10px] font-bold uppercase tracking-wider text-[var(--accent)] animate-in fade-in slide-in-from-bottom-1">
-            Image Generation Mode
+          <div className="absolute -top-6 left-0 text-[10px] font-bold uppercase tracking-wider text-[var(--accent)] animate-in fade-in slide-in-from-bottom-1 bg-[var(--surface-base)] px-2 py-0.5 rounded-full border border-[var(--accent)]/30 shadow-sm">
+            IMAGE GENERATION MODE
           </div>
         )}
         <Textarea
