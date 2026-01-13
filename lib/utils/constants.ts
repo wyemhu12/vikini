@@ -5,11 +5,20 @@
  * Message roles
  */
 export const MESSAGE_ROLES = {
-  USER: 'user',
-  ASSISTANT: 'assistant',
+  USER: "user",
+  ASSISTANT: "assistant",
 } as const;
 
-export type MessageRole = typeof MESSAGE_ROLES[keyof typeof MESSAGE_ROLES];
+export type MessageRole = (typeof MESSAGE_ROLES)[keyof typeof MESSAGE_ROLES];
+
+/**
+ * Model identifiers (avoid magic strings)
+ */
+export const MODEL_IDS = {
+  IMAGE_STUDIO: "vikini-image-studio",
+} as const;
+
+export type ModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];
 
 /**
  * Default limits and configurations
@@ -21,36 +30,36 @@ export const DEFAULT_LIMITS = {
   MAX_CONTENT_LENGTH: 100000,
 } as const;
 
-export type DefaultLimit = typeof DEFAULT_LIMITS[keyof typeof DEFAULT_LIMITS];
+export type DefaultLimit = (typeof DEFAULT_LIMITS)[keyof typeof DEFAULT_LIMITS];
 
 /**
  * Cache TTLs in seconds
  */
 export const CACHE_TTL = {
-  CONVERSATIONS_LIST: 60,      // 1 minute
-  GEMS_LIST: 300,              // 5 minutes
-  GEM_INSTRUCTIONS: 3600,      // 1 hour
+  CONVERSATIONS_LIST: 60, // 1 minute
+  GEMS_LIST: 300, // 5 minutes
+  GEM_INSTRUCTIONS: 3600, // 1 hour
 } as const;
 
-export type CacheTTL = typeof CACHE_TTL[keyof typeof CACHE_TTL];
+export type CacheTTL = (typeof CACHE_TTL)[keyof typeof CACHE_TTL];
 
 /**
  * Conversation default values
  */
 export const CONVERSATION_DEFAULTS = {
-  TITLE: 'New Chat',
-  TITLE_VIETNAMESE: 'New Chat', // Could be translated
+  TITLE: "New Chat",
+  TITLE_VIETNAMESE: "New Chat", // Could be translated
 } as const;
 
 /**
  * Schema format types (for database column naming)
  */
 export const SCHEMA_FORMAT = {
-  SNAKE_CASE: 'snake_case',
-  CAMEL_CASE: 'camelCase',
+  SNAKE_CASE: "snake_case",
+  CAMEL_CASE: "camelCase",
 } as const;
 
-export type SchemaFormat = typeof SCHEMA_FORMAT[keyof typeof SCHEMA_FORMAT];
+export type SchemaFormat = (typeof SCHEMA_FORMAT)[keyof typeof SCHEMA_FORMAT];
 
 /**
  * API response status codes
@@ -66,7 +75,7 @@ export const HTTP_STATUS = {
   INTERNAL_SERVER_ERROR: 500,
 } as const;
 
-export type HttpStatus = typeof HTTP_STATUS[keyof typeof HTTP_STATUS];
+export type HttpStatus = (typeof HTTP_STATUS)[keyof typeof HTTP_STATUS];
 
 /**
  * Rate limit configurations
@@ -75,4 +84,3 @@ export const RATE_LIMIT = {
   CHAT_STREAM_WINDOW_SECONDS: 60,
   CHAT_STREAM_MAX_REQUESTS: 30,
 } as const;
-

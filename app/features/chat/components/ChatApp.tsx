@@ -27,8 +27,8 @@ import { useAllowedModels } from "./hooks/useAllowedModels";
 import { useFileDragDrop } from "./hooks/useFileDragDrop";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
+import { MODEL_IDS } from "@/lib/utils/constants";
 
-// Removed deprecated generateImageAction import
 import { DEFAULT_MODEL, SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
 
 export default function ChatApp() {
@@ -36,7 +36,7 @@ export default function ChatApp() {
   const isAuthLoading = status === "loading";
   const isAuthed = status === "authenticated" && !!session?.user?.email;
 
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const { language, setLanguage, t: tRaw } = useLanguage();
 
   const [mounted, setMounted] = useState(false);
@@ -197,7 +197,7 @@ export default function ChatApp() {
 
   // Filter out Image Studio projects from chat list
   const filteredConversations = useMemo(() => {
-    return (conversations || []).filter((c: any) => c.model !== "vikini-image-studio");
+    return (conversations || []).filter((c: any) => c.model !== MODEL_IDS.IMAGE_STUDIO);
   }, [conversations]);
 
   const {
@@ -472,7 +472,6 @@ export default function ChatApp() {
     refreshConversations,
     resetChatUI,
     selectedConversationId,
-    selectedConversationId,
   ]);
 
   // Image Gen Edit State
@@ -713,11 +712,8 @@ export default function ChatApp() {
           t={t}
           language={language}
           onLanguageChange={(lang) => setLanguage(lang as "vi" | "en")}
-          // @ts-ignore
-          theme={theme}
-          onThemeChange={toggleTheme}
           onToggleSidebar={toggleMobileSidebar}
-          showMobileControls={showMobileControls} // Pass visibility prop
+          showMobileControls={showMobileControls}
         />
 
         {/* Chat Area */}
