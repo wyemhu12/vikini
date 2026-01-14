@@ -249,6 +249,8 @@ export default function ChatApp() {
     creatingConversation,
     isStreaming,
     streamingAssistant,
+    streamingSources,
+    streamingUrlContext,
     regenerating,
     resetChatUI,
     handleNewChat,
@@ -416,6 +418,23 @@ export default function ChatApp() {
     [t.modalDeleteConfirm, t.error, setMessages]
   );
 
+  const memoizedOnSelectConversation = useCallback(
+    (id: string | null) => {
+      handleSelectConversation(id);
+      closeMobileSidebar();
+    },
+    [handleSelectConversation, closeMobileSidebar]
+  );
+
+  const memoizedOnLanguageChange = useCallback(
+    (lang: any) => setLanguage(lang as "vi" | "en"),
+    [setLanguage]
+  );
+
+  const memoizedCloseUpgradeModal = useCallback(() => setShowUpgradeModal(false), []);
+  const memoizedCloseDeleteModal = useCallback(() => setShowDeleteModal(false), []);
+  const memoizedCloseEditImageModal = useCallback(() => setShowEditImageModal(false), []);
+
   if (isAuthLoading || !isAuthed) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-surface text-primary overflow-hidden">
@@ -479,13 +498,7 @@ export default function ChatApp() {
       <Sidebar
         conversations={filteredConversations}
         selectedConversationId={selectedConversationId}
-        onSelectConversation={useCallback(
-          (id: string | null) => {
-            handleSelectConversation(id);
-            closeMobileSidebar();
-          },
-          [handleSelectConversation, closeMobileSidebar]
-        )}
+        onSelectConversation={memoizedOnSelectConversation}
         onNewChat={() => {
           handleNewChat();
           closeMobileSidebar();
@@ -513,10 +526,7 @@ export default function ChatApp() {
         <HeaderBar
           t={t}
           language={language}
-          onLanguageChange={useCallback(
-            (lang: any) => setLanguage(lang as "vi" | "en"),
-            [setLanguage]
-          )}
+          onLanguageChange={memoizedOnLanguageChange}
           onToggleSidebar={toggleMobileSidebar}
           showMobileControls={showMobileControls}
         />
@@ -580,6 +590,18 @@ export default function ChatApp() {
                 );
               })}
 
+              {isStreaming && streamingAssistant !== null && (
+                <ChatBubble
+                  message={{
+                    role: "assistant",
+                    content: streamingAssistant || "",
+                    sources: streamingSources,
+                    urlContext: streamingUrlContext,
+                  }}
+                  isLastAssistant={true}
+                />
+              )}
+
               {lastGeneratedImage && (
                 <div className="flex w-full flex-col gap-3 py-6">
                   <div className="flex max-w-[95%] lg:max-w-[90%] gap-4 items-start">
@@ -635,7 +657,7 @@ export default function ChatApp() {
       <Suspense fallback={null}>
         <UpgradeModal
           isOpen={showUpgradeModal}
-          onClose={useCallback(() => setShowUpgradeModal(false), [])}
+          onClose={memoizedCloseUpgradeModal}
           modelName={restrictedModel || ""}
           t={t}
         />
@@ -644,7 +666,7 @@ export default function ChatApp() {
       <Suspense fallback={null}>
         <DeleteConfirmModal
           isOpen={showDeleteModal}
-          onCancel={useCallback(() => setShowDeleteModal(false), [])}
+          onCancel={memoizedCloseDeleteModal}
           onConfirm={confirmDelete}
           t={t}
         />
@@ -653,7 +675,7 @@ export default function ChatApp() {
       <Suspense fallback={null}>
         <EditImagePromptModal
           isOpen={showEditImageModal}
-          onClose={useCallback(() => setShowEditImageModal(false), [])}
+          onClose={memoizedCloseEditImageModal}
           initialPrompt={editingImagePrompt}
           onConfirm={confirmImageEdit}
           t={t}

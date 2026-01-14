@@ -11,6 +11,7 @@ export interface SelectableModel {
   name?: string;
   tokenLimit: number;
   contextWindow: number;
+  maxOutputTokens?: number;
   category: "reasoning" | "low-latency";
   providerId:
     | "gemini"
@@ -36,6 +37,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     name: "Gemini 2.5 Flash",
     tokenLimit: 1000000,
     contextWindow: 1000000,
+    maxOutputTokens: 65535,
     category: "low-latency",
     providerId: "gemini",
   },
@@ -45,6 +47,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     name: "Gemini 2.5 Pro",
     tokenLimit: 2000000,
     contextWindow: 2000000,
+    maxOutputTokens: 65535,
     category: "low-latency", // Or reasoning? Usually Pro is balanced. User requested Low Latency includes Flash. Assuming Pro goes here or Reasoning? User put Pro in Reasoning list implicitly? No, User listed Gemini 3 Pro in Reasoning. Let's put 2.5 Pro in Low Latency or Reasoning? Let's put in Reasoning for now as it's smarter than Flash. Wait, user list for Low Latency: "Gemini 2.5 Flash". Reasoning: "Gemini 3 Pro". I will put 2.5 Pro in Reasoning for balance or Low Latency if it's fast. Let's stick to user list strictly. User didn't mention 2.5 Pro. I'll put it in Low Latency for now as 3 Pro is the flagship Reasoning.
     providerId: "gemini",
   },
@@ -56,6 +59,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     name: "Gemini 3 Flash",
     tokenLimit: 1000000,
     contextWindow: 1000000,
+    maxOutputTokens: 32768,
     category: "low-latency",
     providerId: "gemini",
   },
@@ -65,6 +69,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     name: "Gemini 3 Pro",
     tokenLimit: 2000000,
     contextWindow: 2000000,
+    maxOutputTokens: 64000,
     category: "reasoning",
     providerId: "gemini",
   },
@@ -74,6 +79,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     name: "Gemini 3 Flash (Thinking)",
     tokenLimit: 1000000,
     contextWindow: 1000000,
+    maxOutputTokens: 32768,
     category: "reasoning", // User request
     providerId: "gemini",
   },
@@ -83,6 +89,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     name: "Gemini 3 Pro (Thinking)",
     tokenLimit: 2000000,
     contextWindow: 2000000,
+    maxOutputTokens: 64000,
     category: "reasoning",
     providerId: "gemini",
   },
@@ -92,6 +99,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     name: "Gemini 3 Pro (Research)",
     tokenLimit: 2000000,
     contextWindow: 2000000,
+    maxOutputTokens: 64000,
     category: "reasoning",
     providerId: "gemini",
   },
@@ -311,4 +319,12 @@ export function coerceStoredModel(modelId: unknown): string {
 export function getModelTokenLimit(modelId: unknown): number {
   const model = SELECTABLE_MODELS.find((m) => m.id === coerceStoredModel(modelId));
   return model?.tokenLimit || SELECTABLE_MODELS[0]?.tokenLimit || 1000000;
+}
+
+/**
+ * Get max output token limit for a model.
+ */
+export function getModelMaxOutputTokens(modelId: unknown): number | undefined {
+  const model = SELECTABLE_MODELS.find((m) => m.id === coerceStoredModel(modelId));
+  return model?.maxOutputTokens;
 }

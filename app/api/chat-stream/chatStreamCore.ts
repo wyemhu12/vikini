@@ -55,11 +55,6 @@ interface AttachmentBytes {
   [key: string]: unknown;
 }
 
-interface ZipSummary {
-  text?: string;
-  [key: string]: unknown;
-}
-
 // --- HELPERS ---
 
 function _isOfficeDocMime(m: unknown): boolean {
@@ -69,15 +64,6 @@ function _isOfficeDocMime(m: unknown): boolean {
     mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     mime === "application/vnd.ms-excel" ||
     mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  );
-}
-
-function isZipMime(m: unknown): boolean {
-  const mime = String(m || "").toLowerCase();
-  return (
-    mime === "application/zip" ||
-    mime === "application/x-zip-compressed" ||
-    mime === "multipart/x-zip"
   );
 }
 
@@ -198,14 +184,6 @@ const downloadAttachmentBytes = async (params: {
   const mod = await import("@/lib/features/attachments/attachments");
   const result = await mod.downloadAttachmentBytes(params);
   return { bytes: result.bytes, ...result.row } as AttachmentBytes;
-};
-
-const summarizeZipBytes = async (
-  bytes: Buffer,
-  options: { maxChars: number }
-): Promise<ZipSummary> => {
-  const mod = await import("@/lib/features/attachments/zip");
-  return mod.summarizeZipBytes(bytes, options) as Promise<ZipSummary>;
 };
 
 // --- EXTRACTED FUNCTIONS ---
@@ -406,22 +384,6 @@ async function processAttachments(
         continue;
       }
 
-      if (isZipMime(mime) || name.toLowerCase().endsWith(".zip")) {
-        const dl = await downloadAttachmentBytes({ userId, id: a.id });
-        const z = await summarizeZipBytes(dl.bytes, { maxChars: Math.max(0, remainingChars) });
-        const zipText = String(z?.text || "");
-        const used = Math.min(zipText.length, Math.max(0, remainingChars));
-        remainingChars -= used;
-
-        parts.push({
-          text:
-            `\n[ZIP: ${name} | ${mime}]\n<<ATTACHMENT_DATA_START>>\n` +
-            zipText.slice(0, used) +
-            `\n<<ATTACHMENT_DATA_END>>\n`,
-        });
-        continue;
-      }
-
       if (remainingChars <= 0) {
         parts.push({ text: `\n[TEXT SKIPPED: ${name} - context limit reached]\n` });
         continue;
@@ -440,7 +402,11 @@ async function processAttachments(
     }
 
     if (parts.length > 1) {
-      contents = [{ role: "user", parts: parts as unknown[] }, ...contents];
+      if (contents.length > 0 && contents[0].role === "user") {
+        contents[0].parts = [...parts, ...contents[0].parts];
+      } else {
+        contents = [{ role: "user", parts }, ...contents];
+      }
     }
 
     return { contents, sysPrompt: updatedSysPrompt };

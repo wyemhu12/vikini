@@ -1,6 +1,7 @@
 // /app/api/chat-stream/streaming.ts
 import { logger } from "@/lib/utils/logger";
 import OpenAI from "openai";
+import { getModelMaxOutputTokens } from "@/lib/core/modelRegistry";
 
 const streamLogger = logger.withContext("/api/chat-stream");
 
@@ -47,23 +48,33 @@ export function safeText(respOrChunk: unknown): string {
   try {
     if (typeof respOrChunk === "string") return respOrChunk;
 
-    const obj = respOrChunk as { text?: string | (() => string); candidates?: unknown[] };
-    if (typeof obj?.text === "function") {
-      return obj.text();
-    }
-    if (typeof obj?.text === "string") {
-      return obj.text;
-    }
+    const obj = respOrChunk as {
+      text?: string | (() => string);
+      thought?: string;
+      candidates?: unknown[];
+    };
+
+    // Handle v2 direct text
+    if (typeof obj?.text === "function") return obj.text();
+    if (typeof obj?.text === "string") return obj.text;
+    if (typeof obj?.thought === "string") return `<think>${obj.thought}</think>`;
 
     const candidates = obj?.candidates;
     if (Array.isArray(candidates) && candidates[0]) {
       const candidate = candidates[0] as { content?: { parts?: unknown[] } };
       const parts = candidate?.content?.parts;
-      if (Array.isArray(parts) && parts[0]) {
-        const part = parts[0] as { text?: string };
-        if (typeof part.text === "string") {
-          return part.text;
+      if (Array.isArray(parts)) {
+        let result = "";
+        for (const part of parts) {
+          const p = part as { text?: string; thought?: string };
+          if (typeof p.thought === "string") {
+            result += `<think>${p.thought}</think>`;
+          }
+          if (typeof p.text === "string") {
+            result += p.text;
+          }
         }
+        return result;
       }
     }
   } catch {
@@ -92,6 +103,8 @@ export interface ChatStreamParams {
           temperature?: number;
           tools?: unknown[];
           safetySettings?: unknown[];
+          maxOutputTokens?: number;
+          thinkingConfig?: unknown;
         };
       }) => Promise<AsyncGenerator<unknown, unknown, unknown>> | AsyncIterable<unknown>;
     };
@@ -246,7 +259,7 @@ async function executeStream(
     thinkingLevel?: "low" | "medium" | "high" | "minimal";
   }
 ): Promise<StreamResult> {
-  const { ai, model, contents, sysPrompt, tools, safetySettings, useTools, thinkingLevel } = params;
+  const { ai, model, contents, sysPrompt, safetySettings, thinkingLevel } = params;
 
   // Resolve Thinking Models
   let apiModel = model;
@@ -278,19 +291,37 @@ async function executeStream(
   let finishReason = "";
   let safetyRatings: unknown = null;
 
-  const config = {
-    systemInstruction: sysPrompt,
-    temperature: 0,
-    ...(useTools && Array.isArray(tools) && tools.length > 0 ? { tools } : {}),
-    ...(Array.isArray(safetySettings) && safetySettings.length > 0 ? { safetySettings } : {}),
-    ...(thinkingConfig ? { thinkingConfig } : {}),
-  };
+  const maxTokens = getModelMaxOutputTokens(model);
+  streamLogger.info(`Executing MINIMAL stream for model: ${model} with maxTokens: ${maxTokens}`);
 
-  const res = await ai.models.generateContentStream({
-    model: apiModel,
-    contents,
-    config,
-  });
+  const generationConfig: Record<string, any> = {};
+  if (typeof maxTokens === "number" && !isNaN(maxTokens)) {
+    generationConfig.maxOutputTokens = maxTokens;
+  }
+
+  let systemInstruction: any = undefined;
+  if (sysPrompt && sysPrompt.trim()) {
+    systemInstruction = {
+      role: "system",
+      parts: [{ text: sysPrompt }],
+    };
+  }
+
+  let res;
+  try {
+    res = await ai.models.generateContentStream({
+      model: apiModel,
+      contents,
+      generationConfig,
+      systemInstruction,
+      ...(Array.isArray(safetySettings) && safetySettings.length > 0 ? { safetySettings } : {}),
+      ...(thinkingConfig ? { thinkingConfig } : {}),
+    });
+  } catch (err: any) {
+    streamLogger.error("generateContentStream top-level error:", err);
+    // Rethrow to be caught by runStreamWithFallback
+    throw err;
+  }
 
   const stream = res instanceof Promise ? await res : res;
   for await (const chunk of stream) {

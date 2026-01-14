@@ -1,0 +1,8 @@
+[0m[0m
+[0m[4mC:\Users\wyemh\vikini\inspect_ai.ts[24m[0m
+[0m   [2m9:9[22m   [33mwarning[39m  Unexpected console statement. Only these console methods are allowed: warn, error  [2mno-console[22m[0m
+[0m  [2m11:13[22m  [33mwarning[39m  Unexpected console statement. Only these console methods are allowed: warn, error  [2mno-console[22m[0m
+[0m  [2m16:9[22m   [33mwarning[39m  Unexpected console statement. Only these console methods are allowed: warn, error  [2mno-console[22m[0m
+[0m[0m
+[0m[33m[1m✖ 3 problems (0 errors, 3 warnings)[22m[39m[0m
+[0m[33m[1m[22m[39m[0m
