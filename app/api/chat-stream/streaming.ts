@@ -99,7 +99,7 @@ export interface ChatStreamParams {
         model: string;
         contents: unknown[];
         config: {
-          systemInstruction?: string;
+          systemInstruction?: string | unknown;
           temperature?: number;
           tools?: unknown[];
           safetySettings?: unknown[];
@@ -294,11 +294,6 @@ async function executeStream(
   const maxTokens = getModelMaxOutputTokens(model);
   streamLogger.info(`Executing MINIMAL stream for model: ${model} with maxTokens: ${maxTokens}`);
 
-  const generationConfig: Record<string, any> = {};
-  if (typeof maxTokens === "number" && !isNaN(maxTokens)) {
-    generationConfig.maxOutputTokens = maxTokens;
-  }
-
   let systemInstruction: any = undefined;
   if (sysPrompt && sysPrompt.trim()) {
     systemInstruction = {
@@ -312,10 +307,17 @@ async function executeStream(
     res = await ai.models.generateContentStream({
       model: apiModel,
       contents,
-      generationConfig,
-      systemInstruction,
-      ...(Array.isArray(safetySettings) && safetySettings.length > 0 ? { safetySettings } : {}),
-      ...(thinkingConfig ? { thinkingConfig } : {}),
+      config: {
+        systemInstruction,
+        maxOutputTokens: typeof maxTokens === "number" && !isNaN(maxTokens) ? maxTokens : undefined,
+        safetySettings:
+          Array.isArray(safetySettings) && safetySettings.length > 0 ? safetySettings : undefined,
+        thinkingConfig,
+        tools:
+          params.useTools && Array.isArray(params.tools) && params.tools.length > 0
+            ? params.tools
+            : undefined,
+      },
     });
   } catch (err: any) {
     streamLogger.error("generateContentStream top-level error:", err);
