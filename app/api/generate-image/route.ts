@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
-import { getSupabaseAdmin } from "@/lib/core/supabase";
+import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { ImageGenFactory } from "@/lib/features/image-gen/core/ImageGenFactory";
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { saveMessage } from "@/lib/features/chat/messages";

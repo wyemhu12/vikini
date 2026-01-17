@@ -1,5 +1,5 @@
 // /lib/features/gems/gems.ts
-import { getSupabaseAdmin } from "@/lib/core/supabase";
+import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCachedGems, setCachedGems, invalidateGemsCache } from "@/lib/core/cache";
 

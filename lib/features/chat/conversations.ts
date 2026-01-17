@@ -1,5 +1,5 @@
 // /lib/features/chat/conversations.ts
-import { getSupabaseAdmin } from "@/lib/core/supabase";
+import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { deleteAttachmentsByConversation } from "@/lib/features/attachments/attachments";
 import { CONVERSATION_DEFAULTS } from "@/lib/utils/constants";
 import {

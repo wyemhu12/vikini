@@ -1,7 +1,7 @@
 // /lib/core/limits.ts
 // Centralized limit checking system with Redis caching for rank-based permissions
 
-import { getSupabaseAdmin } from "./supabase";
+import { getSupabaseAdmin } from "./supabase.server";
 import { Redis } from "@upstash/redis";
 
 // =====================================================================================

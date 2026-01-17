@@ -1,5 +1,5 @@
 // lib/features/chat/messages.ts
-import { getSupabaseAdmin } from "@/lib/core/supabase";
+import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { encryptText, decryptText } from "@/lib/core/encryption";
 import { logger } from "@/lib/utils/logger";
 

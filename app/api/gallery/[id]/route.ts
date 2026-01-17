@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
-import { getSupabaseAdmin } from "@/lib/core/supabase";
+import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import {
   UnauthorizedError,
   ValidationError,

@@ -52,3 +52,51 @@ All message `content` is encrypted before storing in DB. See `encryptText`/`decr
 ## Rate Limiting
 
 IP-based rate limiting via Upstash Redis. See `/lib/core/rateLimit.ts`.
+
+## Global Authentication Middleware
+
+> [!IMPORTANT]
+> Tất cả routes đều yêu cầu authentication mặc định (default-deny policy).
+
+### Cách hoạt động
+
+- File `/middleware.ts` wrap NextAuth `auth()` để kiểm tra session trước mỗi request
+- Người dùng chưa xác thực sẽ được redirect về `/auth/signin`
+- Middleware tự động gắn session vào request
+
+### Public Routes (không yêu cầu auth)
+
+| Route           | Mô tả             |
+| --------------- | ----------------- |
+| `/auth/signin`  | Trang đăng nhập   |
+| `/auth/error`   | Trang lỗi auth    |
+| `/auth/signout` | Trang đăng xuất   |
+| `/api/auth/*`   | NextAuth handlers |
+
+### Excluded Paths
+
+- `/_next/*` (static files, images)
+- `/favicon.ico`, `/robots.txt`, `/sitemap.xml`
+
+### Lưu ý khi thêm route mới
+
+- **API routes**: Không cần gọi `await auth()` thủ công nữa - middleware đã xử lý
+- **Thêm public route**: Cập nhật `PUBLIC_ROUTES` array trong `/middleware.ts`
+- **Session access**: Trong API route, dùng `req.auth` để lấy session (đã được inject bởi middleware)
+
+## Server-Only Files Convention
+
+> [!CAUTION]
+> Các file chứa secrets (service_role key, admin credentials) PHẢI đặt tên với suffix `.server.ts` để ngăn bundling vào client.
+
+| File                          | Mô tả                                    |
+| ----------------------------- | ---------------------------------------- |
+| `lib/core/supabase.server.ts` | Supabase admin client (service_role key) |
+
+### Tại sao quan trọng?
+
+- Next.js có thể vô tình bundle server code vào client nếu import sai
+- Suffix `.server.ts` giúp:
+  1. Next.js tự động ngăn import từ client components
+  2. Developer dễ nhận biết file chỉ dùng server-side
+  3. Giảm rủi ro leak credentials

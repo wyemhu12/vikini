@@ -1,7 +1,7 @@
 // /lib/features/attachments/attachments.ts
 
 import crypto from "crypto";
-import { getSupabaseAdmin } from "@/lib/core/supabase";
+import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Re-export for backward compatibility

@@ -7,13 +7,24 @@ import { logger } from "@/lib/utils/logger";
 
 const encryptionLogger = logger.withContext("encryption");
 
-// SECURITY: Encryption key MUST be set via environment variable
+// SECURITY: Encryption key MUST be a 64-character hex string (32 bytes)
 const RAW_KEY = typeof window === "undefined" ? process.env.DATA_ENCRYPTION_KEY : undefined;
 
+/**
+ * Validates that a key is a 64-character hexadecimal string (32 bytes).
+ */
+export function isValidHexKey(key: string | undefined): key is string {
+  if (!key) return false;
+  return /^[0-9a-fA-F]{64}$/.test(key);
+}
+
 if (typeof window === "undefined") {
-  if (!RAW_KEY || RAW_KEY.trim().length < 32) {
-    const error = new Error("DATA_ENCRYPTION_KEY is required and must be at least 32 characters.");
-    encryptionLogger.error("Missing or invalid DATA_ENCRYPTION_KEY", error);
+  if (!isValidHexKey(RAW_KEY)) {
+    const error = new Error(
+      "DATA_ENCRYPTION_KEY must be a 64-character hex string (32 bytes). " +
+        "Generate one with: openssl rand -hex 32"
+    );
+    encryptionLogger.error("Invalid DATA_ENCRYPTION_KEY", error);
     throw error;
   }
 }
@@ -21,7 +32,7 @@ if (typeof window === "undefined") {
 const GCM_IV_LENGTH = 12;
 const CBC_IV_LENGTH = 16;
 
-// Cache the derived key
+// Cache the key buffer
 let cachedKey: Buffer | null = null;
 
 function getKey(): Buffer {
@@ -29,7 +40,8 @@ function getKey(): Buffer {
   if (!RAW_KEY) {
     throw new Error("DATA_ENCRYPTION_KEY is not available");
   }
-  cachedKey = crypto.createHash("sha256").update(String(RAW_KEY)).digest();
+  // Use the hex key directly – no SHA-256 derivation
+  cachedKey = Buffer.from(RAW_KEY, "hex");
   return cachedKey;
 }
 

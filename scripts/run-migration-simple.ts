@@ -3,7 +3,7 @@
 // Run with: tsx scripts/run-migration-simple.ts
 /* eslint-disable no-console */
 
-import { getSupabaseAdmin } from "../lib/core/supabase";
+import { getSupabaseAdmin } from "../lib/core/supabase.server";
 import { readFileSync } from "fs";
 import { join } from "path";
 

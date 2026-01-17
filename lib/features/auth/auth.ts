@@ -3,7 +3,7 @@ import "@/lib/env";
 
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { getSupabaseAdmin } from "@/lib/core/supabase";
+import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,

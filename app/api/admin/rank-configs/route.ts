@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
-import { getSupabaseAdmin } from "@/lib/core/supabase";
+import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { invalidateRankConfigsCache } from "@/lib/core/limits";
 import { ForbiddenError, ValidationError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
