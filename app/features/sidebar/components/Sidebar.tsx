@@ -17,6 +17,7 @@ import {
   LucideIcon,
   Image as ImageIcon,
   LayoutGrid, // Icon for Gallery
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -211,10 +212,19 @@ export default function Sidebar({
           variant="primary"
         />
         <SidebarButton
-          onClick={handleOpenGems}
-          icon={Sparkles}
-          label={t?.exploreGems || "Explore Gems"}
+          onClick={() => router.push("/")}
+          icon={MessageSquare}
+          label="Chat"
+          variant={pathname === "/" ? "primary" : "default"}
         />
+        {pathname === "/" && (
+          <SidebarButton
+            onClick={handleOpenGems}
+            icon={Sparkles}
+            label={t?.exploreGems || "Explore Gems"}
+            className="ml-6 scale-95 origin-left opacity-80"
+          />
+        )}
         <SidebarButton
           onClick={() => router.push("/images")}
           icon={ImageIcon}
@@ -365,7 +375,22 @@ export default function Sidebar({
                 label={newChatLabel || t?.newChat || "New Chat"}
                 variant="primary"
               />
-              <SidebarButton icon={Sparkles} label={t?.exploreGems || "Explore Gems"} />
+              <SidebarButton
+                onClick={() => {
+                  router.push("/");
+                  onCloseMobile?.();
+                }}
+                icon={MessageSquare}
+                label="Chat"
+                variant={pathname === "/" ? "primary" : "default"}
+              />
+              {pathname === "/" && (
+                <SidebarButton
+                  icon={Sparkles}
+                  label={t?.exploreGems || "Explore Gems"}
+                  className="ml-6 scale-95 origin-left opacity-80"
+                />
+              )}
               <SidebarButton
                 onClick={() => {
                   router.push("/images");
