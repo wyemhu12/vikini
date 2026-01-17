@@ -107,14 +107,25 @@ interface Attachment {
 }
 ```
 
-**Định dạng hỗ trợ**:
+**File Upload Policy** (Blacklist approach):
 
-| Loại     | Extensions                | Max Size |
-| -------- | ------------------------- | -------- |
-| Ảnh      | png, jpg, jpeg, webp      | 10MB     |
-| Văn bản  | txt, js, jsx, tsx, json   | 2MB      |
-| Tài liệu | pdf, doc, docx, xls, xlsx | 20MB     |
-| Nén      | zip                       | 20MB     |
+Hệ thống cho phép hầu hết các loại file, **NGOẠI TRỪ** các file nguy hiểm sau:
+
+| Loại bị chặn     | Extensions                             | Lý do                    |
+| ---------------- | -------------------------------------- | ------------------------ |
+| Executables      | exe, bat, cmd, com, scr, msi, pif      | Nguy cơ thực thi mã độc  |
+| Scripts          | ps1, vbs, vbe, wsf, wsh, hta           | Scripts tự động thực thi |
+| System files     | dll, sys, drv, cpl, ocx, reg, inf, lnk | File hệ thống Windows    |
+| Package archives | jar, apk, deb, rpm                     | Có thể chứa executables  |
+
+**Giới hạn kích thước**: Theo rank của user (xem bảng `rank_configs`).
+
+**File types được hỗ trợ tốt nhất** (có text extraction/processing):
+
+- **Text**: txt, js, ts, tsx, jsx, json, md, csv, xml, yaml, html, css
+- **Images**: png, jpg, jpeg, webp, gif, svg, bmp
+- **Documents**: pdf, doc, docx, xls, xlsx, ppt, pptx
+- **Archives**: zip, tar, gz, 7z, rar (không chứa executables)
 
 **Vòng đời**:
 

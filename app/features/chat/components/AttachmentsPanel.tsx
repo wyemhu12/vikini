@@ -591,7 +591,6 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
                       ref={fileInputRef}
                       type="file"
                       multiple
-                      accept=".txt,.js,.jsx,.json,.png,.jpg,.jpeg,.webp,.pdf,.doc,.docx,.xls,.xlsx,.zip"
                       className="hidden"
                       onChange={onInputChange}
                     />

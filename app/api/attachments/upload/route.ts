@@ -47,8 +47,12 @@ export async function POST(req: NextRequest) {
 
     return success({ attachment });
   } catch (err: unknown) {
-    routeLogger.error("POST error:", err);
+    routeLogger.error("POST error:", {
+      error: err,
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     if (err instanceof AppError) return errorFromAppError(err);
-    return error("Upload failed", 500);
+    return error(err instanceof Error ? err.message : "Upload failed", 500);
   }
 }

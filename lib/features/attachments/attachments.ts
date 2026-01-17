@@ -22,7 +22,7 @@ interface AttachmentsConfig {
 }
 
 interface ValidateUploadResult {
-  kind: "text" | "image" | "doc" | "zip";
+  kind: "text" | "image" | "doc" | "zip" | "other";
   filename: string;
   ext: string;
   mime: string;
@@ -107,53 +107,70 @@ export function getAttachmentsConfig(): AttachmentsConfig {
   };
 }
 
-const ALLOWED_TEXT_MIMES = new Set([
-  "text/plain",
-  "text/javascript",
-  "application/javascript",
-  "application/x-javascript",
-  "text/typescript",
-  "application/typescript",
-  "video/mp2t",
-  "text/jsx",
-  "text/tsx",
-  "application/json",
-  "text/json",
+// ==============================
+// BLACKLIST: Dangerous file types
+// ==============================
+
+/**
+ * Blocked extensions - executables, scripts, system files
+ * NOTE: .js and .jsx are NOT blocked to allow code file uploads
+ */
+const BLOCKED_EXTENSIONS = new Set([
+  // Windows executables
+  "exe",
+  "bat",
+  "cmd",
+  "com",
+  "scr",
+  "msi",
+  "pif",
+  // Scripts (excluding .js/.jsx for code uploads)
+  "ps1",
+  "vbs",
+  "vbe",
+  "wsf",
+  "wsh",
+  "hta",
+  // System files
+  "dll",
+  "sys",
+  "drv",
+  "cpl",
+  "ocx",
+  // Registry/config
+  "reg",
+  "inf",
+  // Shortcuts
+  "lnk",
+  "url",
+  // Package archives that may contain executables
+  "jar",
+  "apk",
+  "deb",
+  "rpm",
 ]);
 
-const ALLOWED_IMAGE_MIMES = new Set(["image/png", "image/jpeg", "image/webp"]);
-
-const ALLOWED_DOC_MIMES = new Set([
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-]);
-
-const ALLOWED_ARCHIVE_MIMES = new Set([
-  "application/zip",
-  "application/x-zip-compressed",
-  "multipart/x-zip",
-]);
-
-const ALLOWED_EXTS = new Set([
-  "txt",
-  "js",
-  "ts",
-  "tsx",
-  "jsx",
-  "json",
-  "png",
-  "jpg",
-  "jpeg",
-  "webp",
-  "pdf",
-  "doc",
-  "docx",
-  "xls",
-  "xlsx",
-  "zip",
+/**
+ * Blocked MIME types - corresponding dangerous content types
+ */
+const BLOCKED_MIME_TYPES = new Set([
+  // Executables
+  "application/x-msdownload",
+  "application/x-msdos-program",
+  "application/x-executable",
+  "application/x-dosexec",
+  "application/x-ms-installer",
+  "application/x-msi",
+  // Scripts
+  "application/x-powershell",
+  "application/x-vbscript",
+  "application/x-hta",
+  // System
+  "application/x-ms-shortcut",
+  "application/x-winexe",
+  // Package archives
+  "application/java-archive",
+  "application/vnd.android.package-archive",
 ]);
 
 function safeLower(v: unknown): string {
@@ -308,22 +325,18 @@ export async function validateUpload({
 
   const safeName = sanitizeFilename(filename || file.name || "file");
   const ext = getExt(safeName);
-  if (!ALLOWED_EXTS.has(ext)) throw new Error("File type not allowed");
 
-  let mime = safeLower(file.type || "");
+  // BLACKLIST CHECK: Block dangerous extensions
+  if (BLOCKED_EXTENSIONS.has(ext)) {
+    throw new Error(`File type ".${ext}" is not allowed for security reasons`);
+  }
+
+  const mime = safeLower(file.type || "");
   const size = Number(file.size || 0);
 
-  // Fix: Force correct MIME type for specific extensions, overriding browser detection
-  // This is critical because browsers often misidentify .ts as video/mp2t or other non-text types
-  if (ext === "ts") mime = "text/typescript";
-  else if (ext === "tsx") mime = "text/tsx";
-  else if (ext === "jsx") mime = "text/jsx";
-  else if (ext === "json") mime = "application/json";
-  else if (ext === "js") mime = "text/javascript";
-
-  // For other text types, if missing or generic, fall back to plain text
-  if (!mime || mime === "application/octet-stream") {
-    mime = "text/plain";
+  // BLACKLIST CHECK: Block dangerous MIME types
+  if (BLOCKED_MIME_TYPES.has(mime)) {
+    throw new Error(`File type is not allowed for security reasons`);
   }
 
   // Check user's file size limit (rank-based)
@@ -335,87 +348,151 @@ export async function validateUpload({
     );
   }
 
-  const isTextExt = ["txt", "js", "ts", "jsx", "tsx", "json"].includes(ext);
-  const isImageExt = ["png", "jpg", "jpeg", "webp"].includes(ext);
-  const isDocExt = ["pdf", "doc", "docx", "xls", "xlsx"].includes(ext);
-  const isZipExt = ext === "zip";
+  // Determine file kind for downstream processing
+  const kind = determineFileKind(ext, mime);
 
-  if (isTextExt) {
-    if (mime && !ALLOWED_TEXT_MIMES.has(mime) && mime !== "application/octet-stream") {
-      throw new Error("Text MIME not allowed");
-    }
-    const defaultTextMime =
-      ext === "json"
-        ? "application/json"
-        : ext === "ts"
-          ? "text/typescript"
-          : ext === "tsx"
-            ? "text/tsx"
-            : ext === "jsx"
-              ? "text/jsx"
-              : "text/plain";
+  // Normalize MIME type based on extension
+  const effectiveMime = await normalizeOrSniffMime(file, ext, mime, kind);
 
-    return {
-      kind: "text",
-      filename: safeName,
-      ext,
-      mime: mime || defaultTextMime,
-      sizeBytes: size,
-    };
-  }
+  return {
+    kind,
+    filename: safeName,
+    ext,
+    mime: effectiveMime,
+    sizeBytes: size,
+  };
+}
 
-  if (isImageExt) {
+/**
+ * Helper: Determine file kind based on extension and MIME type
+ * This categorization is used for downstream processing (text extraction, image validation, etc.)
+ */
+function determineFileKind(ext: string, mime: string): "text" | "image" | "doc" | "zip" | "other" {
+  // Extension-based classification (primary)
+  const textExts = [
+    "txt",
+    "js",
+    "ts",
+    "tsx",
+    "jsx",
+    "json",
+    "md",
+    "csv",
+    "xml",
+    "yaml",
+    "yml",
+    "html",
+    "css",
+    "scss",
+    "less",
+  ];
+  const imageExts = ["png", "jpg", "jpeg", "webp", "gif", "svg", "bmp"];
+  const docExts = ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"];
+  const archiveExts = ["zip", "tar", "gz", "7z", "rar"];
+
+  if (textExts.includes(ext)) return "text";
+  if (imageExts.includes(ext)) return "image";
+  if (docExts.includes(ext)) return "doc";
+  if (archiveExts.includes(ext)) return "zip";
+
+  // Fallback to MIME type check
+  if (mime.startsWith("text/")) return "text";
+  if (mime.startsWith("image/")) return "image";
+  if (
+    mime.includes("pdf") ||
+    mime.includes("document") ||
+    mime.includes("spreadsheet") ||
+    mime.includes("presentation")
+  )
+    return "doc";
+  if (mime.includes("zip") || mime.includes("archive") || mime.includes("compressed")) return "zip";
+
+  return "other";
+}
+
+/**
+ * Helper: Normalize or sniff MIME type based on extension and file content
+ * - For known code extensions, force correct MIME type (browsers often misidentify .ts)
+ * - For images, perform magic byte sniffing and validation
+ * - For others, use provided MIME or fallback to octet-stream
+ */
+async function normalizeOrSniffMime(
+  file: File,
+  ext: string,
+  mime: string,
+  kind: string
+): Promise<string> {
+  if (ext === "ts") return "text/typescript";
+  if (ext === "tsx") return "text/tsx";
+  if (ext === "jsx") return "text/jsx";
+  if (ext === "json") return "application/json";
+  if (ext === "js") return "text/javascript";
+  if (ext === "md") return "text/markdown";
+  if (ext === "csv") return "text/csv";
+  if (ext === "xml") return "application/xml";
+  if (ext === "yaml" || ext === "yml") return "application/x-yaml";
+  if (ext === "log") return "text/plain"; // Log files
+  if (ext === "txt") return "text/plain";
+  if (ext === "html") return "text/html";
+  if (ext === "css") return "text/css";
+
+  // For images, sniff magic bytes and validate content
+  if (kind === "image") {
     const sniffed = await sniffImageMime(file);
     const effectiveMime = sniffed || mime;
-    if (!ALLOWED_IMAGE_MIMES.has(effectiveMime)) throw new Error("Image MIME not allowed");
 
-    // SECURITY: Validate that the file is actually a valid image (not just extension)
+    // SECURITY: Validate that the file is actually a valid image
     const isValidImage = await validateImageContent(file, effectiveMime);
     if (!isValidImage) {
       throw new Error("Invalid image file - file content does not match image format");
     }
 
-    return { kind: "image", filename: safeName, ext, mime: effectiveMime, sizeBytes: size };
+    return effectiveMime;
   }
 
-  if (isDocExt) {
-    if (mime && !ALLOWED_DOC_MIMES.has(mime) && mime !== "application/octet-stream") {
-      throw new Error("Document MIME not allowed");
-    }
-
-    const defaultDocMime =
-      ext === "pdf"
-        ? "application/pdf"
-        : ext === "doc"
-          ? "application/msword"
-          : ext === "docx"
-            ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            : ext === "xls"
-              ? "application/vnd.ms-excel"
-              : ext === "xlsx"
-                ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                : "application/octet-stream";
-
-    return { kind: "doc", filename: safeName, ext, mime: mime || defaultDocMime, sizeBytes: size };
+  // For documents, provide sensible defaults
+  if (kind === "doc") {
+    if (ext === "pdf") return "application/pdf";
+    if (ext === "doc") return "application/msword";
+    if (ext === "docx")
+      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    if (ext === "xls") return "application/vnd.ms-excel";
+    if (ext === "xlsx") return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    if (ext === "ppt") return "application/vnd.ms-powerpoint";
+    if (ext === "pptx")
+      return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
   }
 
-  if (isZipExt) {
-    if (mime && !ALLOWED_ARCHIVE_MIMES.has(mime) && mime !== "application/octet-stream") {
-      throw new Error("ZIP MIME not allowed");
-    }
-    const defaultZipMime = "application/zip";
-    const effectiveMime = mime === "application/octet-stream" ? "" : mime;
-    // Fix: If browser says octet-stream (which becomes empty string above) or is missing, use default
-    return {
-      kind: "zip",
-      filename: safeName,
-      ext,
-      mime: effectiveMime || defaultZipMime,
-      sizeBytes: size,
-    };
+  // For archives
+  if (kind === "zip") {
+    if (ext === "zip") return "application/zip";
+    if (ext === "tar") return "application/x-tar";
+    if (ext === "gz") return "application/gzip";
+    if (ext === "7z") return "application/x-7z-compressed";
+    if (ext === "rar") return "application/x-rar-compressed";
   }
 
-  throw new Error("File type not allowed");
+  // IMPORTANT: Avoid application/octet-stream as Supabase Storage rejects it
+  // Fallback based on file kind
+  if (kind === "text") {
+    return mime && mime !== "application/octet-stream" ? mime : "text/plain";
+  }
+
+  if (kind === "image") {
+    return mime && mime !== "application/octet-stream" ? mime : "image/png";
+  }
+
+  if (kind === "doc") {
+    return mime && mime !== "application/octet-stream" ? mime : "application/pdf";
+  }
+
+  if (kind === "zip") {
+    return mime && mime !== "application/octet-stream" ? mime : "application/zip";
+  }
+
+  // Final fallback: if browser provided a valid MIME (not octet-stream), use it
+  // Otherwise default to text/plain (safest)
+  return mime && mime !== "application/octet-stream" ? mime : "text/plain";
 }
 
 interface EnforceQuotasParams {

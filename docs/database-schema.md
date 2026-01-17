@@ -259,7 +259,15 @@ erDiagram
 
 ---
 
-### 2.9 `allowed_mime_types` - Định dạng file được phép
+### 2.9 `allowed_mime_types` (DEPRECATED)
+
+> [!WARNING]
+> **Deprecated**: Bảng này không còn được sử dụng. Hệ thống đã chuyển sang **blacklist approach**.
+>
+> Validation được thực hiện trong code (`lib/features/attachments/attachments.ts`) thông qua:
+>
+> - `BLOCKED_EXTENSIONS` - Extensions bị chặn (exe, bat, ps1, dll, etc.)
+> - `BLOCKED_MIME_TYPES` - MIME types nguy hiểm
 
 | Cột           | Kiểu      | Ràng buộc   | Mô tả                                |
 | ------------- | --------- | ----------- | ------------------------------------ |
