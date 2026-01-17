@@ -92,8 +92,9 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }: S
     try {
       setIsDownloading(true);
       await downloadConversationById(c.id, c.title || "conversation");
-    } catch (err: any) {
-      alert(err.message || "Lỗi khi tải xuống.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Lỗi khi tải xuống.";
+      alert(message);
     } finally {
       setIsDownloading(false);
     }

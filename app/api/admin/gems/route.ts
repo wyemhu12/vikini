@@ -45,7 +45,19 @@ export async function GET() {
       }
     }
 
-    const gems = rawData?.map((g: any) => {
+    interface GemRow {
+      id: string;
+      name: string;
+      description?: string;
+      instructions?: string;
+      instruction?: string;
+      icon?: string;
+      color?: string;
+      is_premade: boolean;
+      user_id?: string;
+    }
+
+    const gems = rawData?.map((g: GemRow) => {
       const fallback = g.instructions || g.instruction || "";
       const latest = latestByGem.get(g.id);
       return {

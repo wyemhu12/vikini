@@ -16,8 +16,12 @@ import ToastContainer from "@/components/ui/ToastContainer";
 import React, { useEffect, useRef, useMemo, useCallback, useState, lazy, Suspense } from "react";
 
 import { useTheme } from "../hooks/useTheme";
-import { useLanguage, LANGS } from "../hooks/useLanguage";
-import { useConversation } from "../hooks/useConversation";
+import { useLanguage, LANGS, type SupportedLanguage } from "../hooks/useLanguage";
+import {
+  useConversation,
+  type FrontendConversation,
+  type FrontendMessage,
+} from "../hooks/useConversation";
 import { useGemStore } from "../../gems/stores/useGemStore";
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useChatStreamController } from "./hooks/useChatStreamController";
@@ -25,10 +29,31 @@ import { useAllowedModels } from "./hooks/useAllowedModels";
 import { useFileDragDrop } from "./hooks/useFileDragDrop";
 import { useImageGenController } from "./hooks/useImageGenController";
 import { toast } from "@/lib/store/toastStore";
+import { type AttachmentsPanelRef } from "./AttachmentsPanel";
 
 // Utils & Constants
 import { DEFAULT_MODEL, SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
 import { MODEL_IDS } from "@/lib/utils/constants";
+
+// ============================================
+// Type Definitions
+// ============================================
+
+/** Gem info attached to conversation */
+interface GemInfo {
+  name: string;
+  icon: string | null;
+  color: string | null;
+}
+
+/** Extended session user with rank */
+interface SessionUser {
+  email?: string | null;
+  name?: string | null;
+  image?: string | null;
+  rank?: string;
+  id?: string;
+}
 
 // Lazy-loaded modals for code splitting
 const UpgradeModal = lazy(() => import("@/app/components/UpgradeModal"));
@@ -53,8 +78,8 @@ export default function ChatApp() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("vikini-language");
-      if (stored && LANGS.includes(stored as any) && stored !== language) {
-        setLanguage(stored as "vi" | "en");
+      if (stored && (LANGS as readonly string[]).includes(stored) && stored !== language) {
+        setLanguage(stored as SupportedLanguage);
       }
     }
   }, [language, setLanguage]);
@@ -81,10 +106,10 @@ export default function ChatApp() {
     [allowedModelIds, modelsLoading]
   );
 
-  const attachmentsRef = useRef<any>(null);
+  const attachmentsRef = useRef<AttachmentsPanelRef | null>(null);
   const { showFiles, setShowFiles, fileCount, setFileCount } = useFileDragDrop(attachmentsRef);
 
-  const t: Record<string, any> = useMemo(() => {
+  const t: Record<string, string> = useMemo(() => {
     const keys = [
       "appName",
       "whitelist",
@@ -172,7 +197,7 @@ export default function ChatApp() {
       "descStatsTokenUsage",
       "descStatsNoData",
     ];
-    const result: Record<string, any> = {};
+    const result: Record<string, string> = {};
     keys.forEach((k) => {
       result[k] = tRaw(k);
     });
@@ -195,7 +220,9 @@ export default function ChatApp() {
 
   // Filter out Image Studio projects from chat list
   const filteredConversations = useMemo(() => {
-    return (conversations || []).filter((c: any) => c.model !== MODEL_IDS.IMAGE_STUDIO);
+    return (conversations || []).filter(
+      (c: FrontendConversation) => c.model !== MODEL_IDS.IMAGE_STUDIO
+    );
   }, [conversations]);
 
   const {
@@ -276,7 +303,7 @@ export default function ChatApp() {
   });
 
   const currentConversation = useMemo(
-    () => (conversations || []).find((c: any) => c?.id === selectedConversationId),
+    () => (conversations || []).find((c: FrontendConversation) => c?.id === selectedConversationId),
     [conversations, selectedConversationId]
   );
   const currentModel = currentConversation?.model || DEFAULT_MODEL;
@@ -320,7 +347,7 @@ export default function ChatApp() {
 
   const handleRenameFromSidebar = useCallback(
     async (id: string) => {
-      const current = (conversations || []).find((c: any) => c?.id === id);
+      const current = (conversations || []).find((c: FrontendConversation) => c?.id === id);
       const nextTitle = window.prompt(t.renameChat, current?.title || "");
       if (nextTitle) {
         renameConversationOptimistic(id, nextTitle.trim());
@@ -392,7 +419,7 @@ export default function ChatApp() {
   // Gem applied callback
   const { setOnGemApplied } = useGemStore();
   useEffect(() => {
-    setOnGemApplied((conversationId: string, gem: any) => {
+    setOnGemApplied((conversationId: string, gem: GemInfo | null) => {
       patchConversationGem(conversationId, gem);
       refreshConversations();
     });
@@ -427,7 +454,7 @@ export default function ChatApp() {
   );
 
   const memoizedOnLanguageChange = useCallback(
-    (lang: any) => setLanguage(lang as "vi" | "en"),
+    (lang: string) => setLanguage(lang as SupportedLanguage),
     [setLanguage]
   );
 
@@ -454,7 +481,7 @@ export default function ChatApp() {
   const isRemixMode = searchParams?.get("mode") === "remix";
   const showLanding = !isRemixMode && (!selectedConversationId || renderedMessages.length === 0);
 
-  if (isAuthed && (session?.user as any)?.rank === "not_whitelisted") {
+  if (isAuthed && (session?.user as SessionUser | undefined)?.rank === "not_whitelisted") {
     return <AccessPendingScreen />;
   }
 
@@ -572,7 +599,7 @@ export default function ChatApp() {
             </div>
           ) : (
             <div className="max-w-3xl mx-auto w-full py-8 space-y-2">
-              {renderedMessages.map((m: any, idx: number) => {
+              {renderedMessages.map((m: FrontendMessage, idx: number) => {
                 const isLastAI = m.role === "assistant" && idx === renderedMessages.length - 1;
                 return (
                   <ChatBubble

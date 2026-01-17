@@ -18,6 +18,66 @@ import {
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
+// ============================================
+// Type Definitions
+// ============================================
+
+/** Source reference from web search */
+interface Source {
+  uri: string;
+  title?: string;
+}
+
+/** URL context from grounding */
+interface _UrlContext {
+  retrievedUrl?: string;
+  status?: string;
+}
+
+/** Message metadata for special content types */
+interface MessageMeta {
+  type?: "image_gen" | "text" | string;
+  imageUrl?: string;
+  prompt?: string;
+  attachment?: {
+    url: string;
+  };
+  [key: string]: unknown;
+}
+
+/** Chat message structure - compatible with FrontendMessage */
+interface ChatMessage {
+  role: string;
+  content: string;
+  id?: string;
+  sources?: unknown[];
+  urlContext?: unknown[];
+  meta?: MessageMeta;
+  [key: string]: unknown;
+}
+
+/** Props for markdown components */
+interface MarkdownChildrenProps {
+  children?: React.ReactNode;
+}
+
+interface MarkdownLinkProps extends MarkdownChildrenProps {
+  href?: string;
+}
+
+/** Props for code components */
+interface CodeProps {
+  inline?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+}
+
+/** Props with React element children */
+interface ReactElementProps {
+  className?: string;
+  children?: React.ReactNode;
+}
+
 // Dynamic import for ChartTool
 const ChartTool = dynamic(() => import("./ChartTool"), {
   loading: () => (
@@ -99,11 +159,14 @@ function getLang(className?: string) {
 const extractText = (node: React.ReactNode): string => {
   if (typeof node === "string" || typeof node === "number") return String(node);
   if (Array.isArray(node)) return node.map(extractText).join("");
-  if (React.isValidElement(node)) return extractText((node.props as any).children);
+  if (React.isValidElement(node)) {
+    const props = node.props as ReactElementProps;
+    return extractText(props.children);
+  }
   return "";
 };
 
-function SmartCode({ inline, className, children }: any) {
+function SmartCode({ inline, className, children }: CodeProps) {
   const { t } = useLanguage();
 
   const codeText = useMemo(() => {
@@ -199,75 +262,78 @@ function SmartCode({ inline, className, children }: any) {
   );
 }
 
-function PreBlock({ children }: any) {
-  if (
-    (React.isValidElement(children) && ((children.type === "code") as any)) ||
-    children?.props?.className
-  ) {
-    const childProps = children.props || {};
+function PreBlock({ children }: MarkdownChildrenProps) {
+  if (React.isValidElement(children)) {
+    const childProps = (children.props || {}) as ReactElementProps;
     const className = childProps.className || "";
-    const isJson = className.includes("language-json");
+    const isCodeElement = children.type === "code" || className;
 
-    if (isJson) {
-      try {
-        const textContent = extractText(childProps.children);
-        // Robust extraction: find the outer braces to handle potential leading/trailing whitespace or text
-        const start = textContent.indexOf("{");
-        const end = textContent.lastIndexOf("}");
+    if (isCodeElement) {
+      const isJson = className.includes("language-json");
 
-        if (start !== -1 && end !== -1 && end > start) {
-          const potentialJson = textContent.slice(start, end + 1);
-          // Quick check before parsing
-          if (potentialJson.includes("chart")) {
-            const parsed = JSON.parse(potentialJson);
-            if (parsed.type === "chart") {
-              return <ChartTool {...parsed} />;
+      if (isJson) {
+        try {
+          const textContent = extractText(childProps.children);
+          // Robust extraction: find the outer braces to handle potential leading/trailing whitespace or text
+          const start = textContent.indexOf("{");
+          const end = textContent.lastIndexOf("}");
+
+          if (start !== -1 && end !== -1 && end > start) {
+            const potentialJson = textContent.slice(start, end + 1);
+            // Quick check before parsing
+            if (potentialJson.includes("chart")) {
+              interface ChartData {
+                type: string;
+                chartType?: string;
+                title?: string;
+                data: Array<Record<string, string | number>>;
+                xKey: string;
+                yKeys: string[];
+                colors?: string[];
+              }
+              const parsed = JSON.parse(potentialJson) as ChartData;
+              if (parsed.type === "chart" && parsed.data && parsed.xKey && parsed.yKeys) {
+                return <ChartTool {...parsed} />;
+              }
             }
           }
+        } catch {
+          // Ignore JSON parse errors, render as code
         }
-      } catch {
-        // Ignore JSON parse errors, render as code
       }
-    }
 
-    return (
-      <SmartCode inline={false} className={childProps.className} {...childProps}>
-        {childProps.children}
-      </SmartCode>
-    );
+      return (
+        <SmartCode inline={false} className={className}>
+          {childProps.children}
+        </SmartCode>
+      );
+    }
   }
 
   return <pre>{children}</pre>;
 }
 
-function InlineCode({ children, className, ...props }: any) {
+function InlineCode({ children, className }: CodeProps) {
   return (
-    <SmartCode inline={true} className={className} {...props}>
+    <SmartCode inline={true} className={className}>
       {children}
     </SmartCode>
   );
 }
 
 interface ChatBubbleProps {
-  message: {
-    role: string;
-    content: string;
-    sources?: any[];
-    urlContext?: any[];
-    id?: string;
-    meta?: any;
-  };
+  message: ChatMessage;
   role?: string;
   content?: string;
-  sources?: any[];
-  urlContext?: any[];
+  sources?: unknown[];
+  urlContext?: unknown[];
   isLastAssistant?: boolean;
   canRegenerate?: boolean;
   onRegenerate?: () => void;
-  onEdit?: (message: any, newContent: string) => void;
+  onEdit?: (message: ChatMessage, newContent: string) => void;
   onDelete?: (messageId: string) => void;
-  onImageRegenerate?: (message: any) => void;
-  onImageEdit?: (message: any) => void;
+  onImageRegenerate?: (message: ChatMessage) => void;
+  onImageEdit?: (message: ChatMessage) => void;
   regenerating?: boolean;
 }
 
@@ -289,8 +355,9 @@ const ChatBubble = React.memo(
     regenerating,
   }: ChatBubbleProps) {
     const { t } = useLanguage();
-    const safeMessage = useMemo(() => {
-      const base = message && typeof message === "object" ? message : ({} as any);
+    const safeMessage = useMemo((): ChatMessage => {
+      const base: ChatMessage =
+        message && typeof message === "object" ? message : { role: "assistant", content: "" };
       const finalRole = base.role || role || "assistant";
       const finalContent = base.content || content || "";
       const finalSources = base.sources || sourcesProp || [];
@@ -354,29 +421,33 @@ const ChatBubble = React.memo(
       () => ({
         code: InlineCode,
         pre: PreBlock,
-        p: ({ children }: any) => (
+        p: ({ children }: MarkdownChildrenProps) => (
           <p className="mb-4 last:mb-0 leading-7 break-words">{children}</p>
         ),
-        ul: ({ children }: any) => <ul className="mb-4 ml-6 list-disc space-y-2">{children}</ul>,
-        ol: ({ children }: any) => <ol className="mb-4 ml-6 list-decimal space-y-2">{children}</ol>,
-        li: ({ children }: any) => <li className="leading-7">{children}</li>,
-        h1: ({ children }: any) => (
+        ul: ({ children }: MarkdownChildrenProps) => (
+          <ul className="mb-4 ml-6 list-disc space-y-2">{children}</ul>
+        ),
+        ol: ({ children }: MarkdownChildrenProps) => (
+          <ol className="mb-4 ml-6 list-decimal space-y-2">{children}</ol>
+        ),
+        li: ({ children }: MarkdownChildrenProps) => <li className="leading-7">{children}</li>,
+        h1: ({ children }: MarkdownChildrenProps) => (
           <h1 className="mt-8 mb-4 text-2xl font-bold text-primary border-b border-token pb-2">
             {children}
           </h1>
         ),
-        h2: ({ children }: any) => (
+        h2: ({ children }: MarkdownChildrenProps) => (
           <h2 className="mt-7 mb-3 text-xl font-bold text-primary">{children}</h2>
         ),
-        h3: ({ children }: any) => (
+        h3: ({ children }: MarkdownChildrenProps) => (
           <h3 className="mt-6 mb-2 text-lg font-bold text-primary">{children}</h3>
         ),
-        blockquote: ({ children }: any) => (
+        blockquote: ({ children }: MarkdownChildrenProps) => (
           <blockquote className="border-l-4 border-token pl-4 py-1 my-4 text-secondary italic">
             {children}
           </blockquote>
         ),
-        a: ({ href, children }: any) => (
+        a: ({ href, children }: MarkdownLinkProps) => (
           <a
             href={href}
             target="_blank"
@@ -386,20 +457,20 @@ const ChatBubble = React.memo(
             {children}
           </a>
         ),
-        table: ({ children }: any) => (
+        table: ({ children }: MarkdownChildrenProps) => (
           <div className="overflow-x-auto my-4 rounded-lg border border-token bg-surface-elevated">
             <table className="w-full text-left text-sm">{children}</table>
           </div>
         ),
-        thead: ({ children }: any) => (
+        thead: ({ children }: MarkdownChildrenProps) => (
           <thead className="bg-surface-muted uppercase font-bold text-xs text-secondary">
             {children}
           </thead>
         ),
-        th: ({ children }: any) => (
+        th: ({ children }: MarkdownChildrenProps) => (
           <th className="px-4 py-3 border-b border-token text-primary">{children}</th>
         ),
-        td: ({ children }: any) => (
+        td: ({ children }: MarkdownChildrenProps) => (
           <td className="px-4 py-3 border-b border-token text-secondary">{children}</td>
         ),
       }),
@@ -553,26 +624,31 @@ const ChatBubble = React.memo(
                   </div>
                 )}
 
-              {isBot && (safeMessage.sources.length > 0 || safeMessage.urlContext.length > 0) && (
-                <div className="mt-6 space-y-4 border-t border-token pt-4">
-                  {safeMessage.sources.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {safeMessage.sources.slice(0, 5).map((s: any, idx: number) => (
-                        <a
-                          key={idx}
-                          href={s.uri}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-1.5 rounded-full border border-token bg-surface-elevated px-3 py-1 text-[10px] text-secondary hover:bg-control-hover hover:text-primary transition-all max-w-[200px]"
-                        >
-                          <span className="font-bold shrink-0">[{idx + 1}]</span>
-                          <span className="truncate">{s.title || s.uri}</span>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              {isBot &&
+                ((safeMessage.sources?.length ?? 0) > 0 ||
+                  (safeMessage.urlContext?.length ?? 0) > 0) && (
+                  <div className="mt-6 space-y-4 border-t border-token pt-4">
+                    {(safeMessage.sources?.length ?? 0) > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {(safeMessage.sources ?? []).slice(0, 5).map((s, idx: number) => {
+                          const source = s as Source;
+                          return (
+                            <a
+                              key={idx}
+                              href={source.uri}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-1.5 rounded-full border border-token bg-surface-elevated px-3 py-1 text-[10px] text-secondary hover:bg-control-hover hover:text-primary transition-all max-w-[200px]"
+                            >
+                              <span className="font-bold shrink-0">[{idx + 1}]</span>
+                              <span className="truncate">{source.title || source.uri}</span>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
             </div>
 
             {!isLoading && !isEditing && (

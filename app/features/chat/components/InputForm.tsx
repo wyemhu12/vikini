@@ -42,7 +42,7 @@ interface InputFormProps {
   onImageGen?: (prompt: string) => void; // New prop
   disabled?: boolean;
   isStreaming?: boolean;
-  t?: any;
+  t?: Record<string, string>;
   conversationId?: string | null;
   initialImageMode?: boolean; // For remix from Gallery
 }

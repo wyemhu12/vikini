@@ -85,8 +85,9 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
       setTimeout(() => {
         closeGemModal();
       }, 300);
-    } catch (e: any) {
-      setStatus(e?.message || "Apply gem failed");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Apply gem failed";
+      setStatus(message);
     }
   };
 
@@ -123,8 +124,9 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
       setStatus(t("success") || "Success");
       if (editingGem?.id === gem.id) setEditingGem(null);
       await refresh();
-    } catch (e: any) {
-      setStatus(e?.message || "Delete failed");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Delete failed";
+      setStatus(message);
     }
   };
 
@@ -145,8 +147,9 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
       const data = json.data || json;
       setEditingGem(data?.gem || null);
       await refresh();
-    } catch (e: any) {
-      setStatus(e?.message || "Save failed");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Save failed";
+      setStatus(message);
     }
   };
 

@@ -7,6 +7,7 @@ import { useLanguageStore } from "@/lib/store/languageStore";
 export const LANGS = ["vi", "en"] as const;
 
 export type Language = (typeof LANGS)[number];
+export type SupportedLanguage = Language;
 
 export function useLanguage() {
   const { language, setLanguage } = useLanguageStore();

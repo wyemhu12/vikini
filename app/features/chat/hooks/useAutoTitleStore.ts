@@ -9,7 +9,11 @@ interface AutoTitleStore {
   loading: Record<string, boolean>;
 
   // Helpers nội bộ
-  _setMapValue: (key: "optimistic" | "final" | "loading", id: string, value: string | boolean) => void;
+  _setMapValue: (
+    key: "optimistic" | "final" | "loading",
+    id: string,
+    value: string | boolean
+  ) => void;
   _deleteMapKey: (key: "optimistic" | "final" | "loading", id: string) => void;
 
   // API công khai
@@ -106,3 +110,5 @@ const useAutoTitleStore = create<AutoTitleStore>((set, get) => ({
 
 export default useAutoTitleStore;
 
+// Export type for consumers
+export type AutoTitleState = AutoTitleStore;

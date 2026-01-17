@@ -22,12 +22,25 @@ import {
 
 const COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+/** Tooltip payload entry from recharts */
+interface TooltipPayloadEntry {
+  name: string;
+  value: number | string;
+  color: string;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadEntry[];
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-[var(--surface)] border border-[var(--border)] p-3 rounded-lg shadow-xl backdrop-blur-md">
         <p className="font-bold text-[var(--text-primary)] mb-1">{label}</p>
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry: TooltipPayloadEntry, index: number) => (
           <p key={index} style={{ color: entry.color }} className="text-sm font-medium">
             {entry.name}: {entry.value}
           </p>
@@ -38,11 +51,16 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+/** Chart data point */
+interface ChartDataPoint {
+  [key: string]: string | number;
+}
+
 interface ChartToolProps {
   type: string;
   chartType?: string;
   title?: string;
-  data: any[];
+  data: ChartDataPoint[];
   xKey: string;
   yKeys: string[];
   colors?: string[];

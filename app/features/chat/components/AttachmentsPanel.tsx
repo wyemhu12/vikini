@@ -30,7 +30,9 @@ interface Attachment {
   filename: string;
   size_bytes: number;
   mime_type: string;
-  [key: string]: any;
+  created_at?: string;
+  expires_at?: string;
+  conversation_id?: string;
 }
 
 interface AttachmentsPanelProps {
@@ -241,9 +243,10 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
             new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
           );
           await refresh();
-        } catch (e: any) {
+        } catch (e: unknown) {
           console.error(e);
-          setError(String(e?.message || "Upload failed"));
+          const message = e instanceof Error ? e.message : "Upload failed";
+          setError(message);
         } finally {
           setUploading(false);
         }
@@ -358,9 +361,10 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
         }
 
         setPreview({ kind: "other", filename: a.filename, url });
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error(e);
-        setError(String(e?.message || "Preview failed"));
+        const message = e instanceof Error ? e.message : "Preview failed";
+        setError(message);
       }
     }, []);
 
@@ -379,9 +383,10 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
             new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
           );
           await refresh();
-        } catch (e: any) {
+        } catch (e: unknown) {
           console.error(e);
-          setError(String(e?.message || "Delete failed"));
+          const message = e instanceof Error ? e.message : "Delete failed";
+          setError(message);
         }
       },
       [conversationId, refresh]
@@ -410,9 +415,10 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
             new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
           );
           await refresh();
-        } catch (e: any) {
+        } catch (e: unknown) {
           console.error(e);
-          setError(String(e?.message || "Delete all failed"));
+          const message = e instanceof Error ? e.message : "Delete all failed";
+          setError(message);
         }
       },
       [conversationId, attachments, refresh]

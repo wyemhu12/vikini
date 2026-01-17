@@ -1,8 +1,9 @@
 // app/components/Chat/TitleItem.tsx
 "use client";
 
-// @ts-ignore
-import useAutoTitleStore from "@/app/features/chat/hooks/useAutoTitleStore";
+import useAutoTitleStore, {
+  type AutoTitleState,
+} from "@/app/features/chat/hooks/useAutoTitleStore";
 
 interface TitleItemProps {
   id: string;
@@ -11,9 +12,9 @@ interface TitleItemProps {
 }
 
 export default function TitleItem({ id, defaultTitle, isActive }: TitleItemProps) {
-  const finalTitle = useAutoTitleStore((s: any) => s.final[id]);
-  const optimisticTitle = useAutoTitleStore((s: any) => s.optimistic[id]);
-  const isLoading = useAutoTitleStore((s: any) => s.loading[id]);
+  const finalTitle = useAutoTitleStore((s: AutoTitleState) => s.final[id]);
+  const optimisticTitle = useAutoTitleStore((s: AutoTitleState) => s.optimistic[id]);
+  const isLoading = useAutoTitleStore((s: AutoTitleState) => s.loading[id]);
 
   const title = finalTitle || optimisticTitle || defaultTitle || "New Chat";
 

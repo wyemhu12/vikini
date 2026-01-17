@@ -68,7 +68,7 @@ export default function GemsManager({ language }: GemsManagerProps) {
     }
   };
 
-  const handleSaveGem = async (gemData: any) => {
+  const handleSaveGem = async (gemData: Partial<PremadeGem>) => {
     try {
       const method = gemData.id ? "PUT" : "POST";
       const res = await fetch("/api/admin/gems", {

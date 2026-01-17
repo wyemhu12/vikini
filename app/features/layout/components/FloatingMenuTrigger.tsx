@@ -37,7 +37,7 @@ export default function FloatingMenuTrigger({ onClick, className }: FloatingMenu
       dragElastic={0.1}
       whileDrag={{ scale: 1.1, cursor: "grabbing" }}
       whileTap={{ scale: 0.9 }}
-      onClick={(e: any) => {
+      onClick={(e: React.MouseEvent) => {
         // Prevent click if we were dragging
         if (isDragging.current) return;
         resetIdleTimer();

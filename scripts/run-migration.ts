@@ -52,8 +52,9 @@ async function runMigration(sqlFilePath: string) {
 
       console.log(`✅ Success`);
       successCount++;
-    } catch (error: any) {
-      console.error(`❌ Error: ${error.message}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`❌ Error: ${message}`);
       errorCount++;
     }
 

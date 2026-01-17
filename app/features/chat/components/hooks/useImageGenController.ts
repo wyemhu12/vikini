@@ -4,9 +4,28 @@ import { useState, useCallback } from "react";
 import { toast } from "@/lib/store/toastStore";
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 
+/** Conversation object returned from create */
+interface ConversationResult {
+  id: string;
+  title?: string;
+  model?: string;
+}
+
+/** Image message with meta data */
+interface ImageMessage {
+  id?: string;
+  role: string;
+  content: string;
+  meta?: {
+    type?: string;
+    prompt?: string;
+    imageUrl?: string;
+  };
+}
+
 interface UseImageGenControllerProps {
   selectedConversationId: string | null;
-  createConversation: () => Promise<any>;
+  createConversation: () => Promise<ConversationResult | null>;
   setSelectedConversationIdAndUrl: (id: string | null) => void;
   currentModel: string;
   t: (key: string) => string;
@@ -87,7 +106,7 @@ export function useImageGenController({
   );
 
   const handleImageRegenerate = useCallback(
-    async (message: any) => {
+    async (message: ImageMessage) => {
       if (message?.meta?.prompt) {
         await handleImageGen(message.meta.prompt);
       }
@@ -95,7 +114,7 @@ export function useImageGenController({
     [handleImageGen]
   );
 
-  const handleImageEdit = useCallback((message: any) => {
+  const handleImageEdit = useCallback((message: ImageMessage) => {
     if (message?.meta?.prompt) {
       setEditingImagePrompt(message.meta.prompt);
       setShowEditImageModal(true);

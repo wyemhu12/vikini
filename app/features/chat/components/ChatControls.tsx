@@ -1,6 +1,7 @@
 // /app/features/chat/components/ChatControls.tsx
 "use client";
 
+import React from "react";
 import { motion } from "framer-motion";
 
 import ModelSelector from "./ModelSelector";
@@ -8,12 +9,20 @@ import AttachmentsPanel from "./AttachmentsPanel";
 import InputForm from "./InputForm";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
+import { type AttachmentsPanelRef } from "./AttachmentsPanel";
+
+/** Gem info for display */
+interface GemInfo {
+  name: string;
+  icon?: string | null;
+  color?: string | null;
+}
 
 interface ChatControlsProps {
-  currentModel: any;
+  currentModel: string;
   handleModelChange: (model: string) => void;
   isModelAllowed: (model: string) => boolean;
-  t: any;
+  t: Record<string, string>;
   showFiles: boolean;
   setShowFiles: (show: boolean) => void;
   fileCount: number;
@@ -22,7 +31,7 @@ interface ChatControlsProps {
   toggleWebSearch: () => void;
   alwaysSearch: boolean;
   toggleAlwaysSearch: () => void;
-  currentGem: any;
+  currentGem: GemInfo | null | undefined;
   input: string;
   setInput: (value: string) => void;
   handleSend: () => void;
@@ -30,8 +39,8 @@ interface ChatControlsProps {
   isStreaming: boolean;
   regenerating: boolean;
   creatingConversation: boolean;
-  streamingAssistant: any;
-  attachmentsRef: any;
+  streamingAssistant: string | null;
+  attachmentsRef: React.RefObject<AttachmentsPanelRef | null>;
   selectedConversationId: string | null;
   showMobileControls?: boolean;
   disabled?: boolean;

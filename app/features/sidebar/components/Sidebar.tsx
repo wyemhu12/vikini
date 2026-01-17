@@ -24,7 +24,24 @@ import { cn } from "@/lib/utils/cn";
 interface Conversation {
   id: string;
   title?: string;
-  [key: string]: any;
+  model?: string;
+  gem?: { name: string; icon: string | null; color: string | null } | null;
+  createdAt?: string | number;
+  updatedAt?: string | number;
+  [key: string]: unknown;
+}
+
+interface SessionUser {
+  email?: string | null;
+  name?: string | null;
+  image?: string | null;
+  rank?: string;
+  id?: string;
+}
+
+interface Session {
+  user?: SessionUser;
+  expires?: string;
 }
 
 interface SidebarProps {
@@ -42,10 +59,10 @@ interface SidebarProps {
   onNewChat?: () => void;
   newChatLabel?: string;
   onLogout?: () => void;
-  t?: Record<string, any>;
+  t?: Record<string, string>;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
-  session?: any;
+  session?: Session | null;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   onLogoClick?: () => void;
