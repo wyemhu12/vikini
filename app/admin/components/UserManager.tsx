@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Users, Loader2, AlertCircle } from "lucide-react";
 import { translations } from "@/lib/utils/config";
+import { toast } from "@/lib/store/toastStore";
 
 interface Profile {
   id: string;
@@ -56,9 +57,12 @@ export default function UserManager({ language }: UserManagerProps) {
 
       if (!res.ok) throw new Error(json?.error?.message || json?.error || "Failed to update user");
 
+      toast.success(t.userUpdated || "User updated successfully");
       await fetchUsers();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update user");
+      toast.error(
+        err instanceof Error ? err.message : t.failedUpdateUser || "Failed to update user"
+      );
     } finally {
       setUpdating(null);
     }

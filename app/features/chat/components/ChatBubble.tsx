@@ -17,6 +17,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { logger } from "@/lib/utils/logger";
 
 // ============================================
 // Type Definitions
@@ -193,7 +194,7 @@ function SmartCode({ inline, className, children }: CodeProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error("Failed to copy code to clipboard:", err);
+      logger.error("Failed to copy code to clipboard:", err);
     }
   }, [codeText]);
 
@@ -399,7 +400,7 @@ const ChatBubble = React.memo(
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch (err) {
-        console.error("Failed to copy:", err);
+        logger.error("Failed to copy:", err);
       }
     }, [safeMessage.content]);
 

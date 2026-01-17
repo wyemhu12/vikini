@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     if (options?.enhancer) {
       routeLogger.info("[Enhancer] Original prompt:", prompt);
       try {
-        const { getGenAIClient } = require("@/lib/core/genaiClient");
+        const { getGenAIClient } = await import("@/lib/core/genaiClient");
         const genAI = getGenAIClient();
 
         // Use latest Gemini Flash model for speed & low cost, or user's selected Gemini model
@@ -56,10 +56,12 @@ export async function POST(req: NextRequest) {
         });
 
         let enhancedText = "";
-        if (typeof result.text === "function") {
-          enhancedText = result.text();
-        } else if (typeof result.text === "string") {
-          enhancedText = result.text;
+        // Try to get text from the result - handle both SDK versions
+        const textValue = result.text;
+        if (typeof textValue === "function") {
+          enhancedText = (textValue as () => string)();
+        } else if (typeof textValue === "string") {
+          enhancedText = textValue;
         } else {
           enhancedText = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
         }
@@ -144,7 +146,7 @@ export async function POST(req: NextRequest) {
         });
 
       if (uploadError) {
-        console.error("Supabase Upload Error:", uploadError);
+        routeLogger.error("Supabase Upload Error:", uploadError);
         throw new Error("Failed to upload image");
       }
 
@@ -155,7 +157,7 @@ export async function POST(req: NextRequest) {
         .createSignedUrl(storagePath, 315360000); // 10 years in seconds
 
       if (signedError || !signedData?.signedUrl) {
-        console.error("Failed to create signed URL:", signedError);
+        routeLogger.warn("Failed to create signed URL:", signedError);
         // Fallback to public URL if signing fails (though unlikely)
         const {
           data: { publicUrl },

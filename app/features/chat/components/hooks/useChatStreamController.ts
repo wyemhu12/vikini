@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { logger } from "@/lib/utils/logger";
 
 interface FrontendMessage {
   id?: string;
@@ -157,7 +158,7 @@ export function useChatStreamController({
         const data = json.data || json;
         setMessages(normalizeMessages(data?.messages));
       } catch (e) {
-        console.error(e);
+        logger.error("Failed to load messages:", e);
         setMessages([]);
       }
     },
@@ -374,7 +375,7 @@ export function useChatStreamController({
         }
       } catch (reloadError) {
         // Non-critical: if reload fails, continue with local state
-        console.warn("Failed to reload messages after stream:", reloadError);
+        logger.warn("Failed to reload messages after stream:", reloadError);
       }
     },
     [normalizeMessages]
@@ -431,7 +432,7 @@ export function useChatStreamController({
       } catch (e) {
         const error = e as Error & { name?: string };
         if (error.name !== "AbortError") {
-          console.error(e);
+          logger.error("Stream error:", e);
           setStreamingAssistant(null);
         }
         // Nếu AbortError (do bấm Stop hoặc chuyển chat), ko làm gì ở đây

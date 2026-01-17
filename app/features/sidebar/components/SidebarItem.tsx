@@ -5,6 +5,7 @@ import React, { memo, useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import TitleItem from "@/app/features/chat/components/TitleItem";
 import { downloadConversationById } from "@/lib/utils/download";
+import { toast } from "@/lib/store/toastStore";
 
 const EllipsisVerticalIcon = () => (
   <svg
@@ -92,9 +93,10 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }: S
     try {
       setIsDownloading(true);
       await downloadConversationById(c.id, c.title || "conversation");
+      toast.success("Download complete");
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Lỗi khi tải xuống.";
-      alert(message);
+      const message = err instanceof Error ? err.message : "Download failed";
+      toast.error(message);
     } finally {
       setIsDownloading(false);
     }

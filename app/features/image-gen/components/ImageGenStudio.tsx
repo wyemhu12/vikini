@@ -26,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { logger } from "@/lib/utils/logger";
 
 export function ImageGenStudio() {
   const { data: session, status } = useSession();
@@ -68,6 +69,8 @@ export function ImageGenStudio() {
   const [showApiKeyWarning, setShowApiKeyWarning] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [showError, setShowError] = useState<string | null>(null);
+  const [showRenameModal, setShowRenameModal] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   // Sync selected conversation messages to generatedImages
   const generatedImages: GeneratedImage[] = useMemo(() => {
@@ -191,7 +194,7 @@ export function ImageGenStudio() {
         refreshConversations();
       }
     } catch (error) {
-      console.error("Gen Error:", error);
+      logger.error("Gen Error:", error);
       setShowError(t("studioGenerateFailed"));
     } finally {
       setGenerating(false);
@@ -218,18 +221,23 @@ export function ImageGenStudio() {
         loadConversation(selectedConversationId);
       }
     } catch (e) {
-      console.error(e);
+      logger.error("Delete error:", e);
     } finally {
       setShowDeleteConfirm(null);
     }
   };
 
-  const handleRename = async (id: string) => {
+  const handleRename = (id: string) => {
     const current = studioProjects.find((p: FrontendConversation) => p.id === id);
-    const name = window.prompt(t("renameChat"), current?.title || "");
-    if (name) {
-      renameConversation(id, name);
-    }
+    setRenameValue(current?.title || "");
+    setShowRenameModal(id);
+  };
+
+  const confirmRename = async () => {
+    if (!showRenameModal || !renameValue.trim()) return;
+    renameConversation(showRenameModal, renameValue.trim());
+    setShowRenameModal(null);
+    setRenameValue("");
   };
 
   // If not authed, show simple loader or redirect (handled by ChatApp usually, but here distinct)
@@ -355,6 +363,35 @@ export function ImageGenStudio() {
           />
         </div>
       </div>
+
+      {/* Rename Modal */}
+      <AlertDialog
+        open={!!showRenameModal}
+        onOpenChange={(open) => !open && setShowRenameModal(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("renameChat") || "Rename Project"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              <input
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && confirmRename()}
+                autoFocus
+                className="w-full mt-2 px-4 py-3 rounded-lg bg-[var(--control-bg)] border border-[var(--control-border)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                placeholder={t("renameChat") || "Enter new name"}
+              />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel") || "Cancel"}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRename} disabled={!renameValue.trim()}>
+              {t("save") || "Save"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

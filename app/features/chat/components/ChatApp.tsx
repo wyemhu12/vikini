@@ -33,6 +33,7 @@ import { type AttachmentsPanelRef } from "./AttachmentsPanel";
 
 // Utils & Constants
 import { DEFAULT_MODEL, SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
+import { logger } from "@/lib/utils/logger";
 import { MODEL_IDS } from "@/lib/utils/constants";
 
 // ============================================
@@ -94,6 +95,13 @@ export default function ChatApp() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Rename Modal
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameConversationId, setRenameConversationId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  // Delete Message Modal
+  const [showDeleteMessageModal, setShowDeleteMessageModal] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
 
   // Allowed Models
   const { allowedModelIds, loading: modelsLoading } = useAllowedModels(isAuthed);
@@ -346,16 +354,37 @@ export default function ChatApp() {
   const [showMobileControls, setShowMobileControls] = useState(true);
 
   const handleRenameFromSidebar = useCallback(
-    async (id: string) => {
+    (id: string) => {
       const current = (conversations || []).find((c: FrontendConversation) => c?.id === id);
-      const nextTitle = window.prompt(t.renameChat, current?.title || "");
-      if (nextTitle) {
-        renameConversationOptimistic(id, nextTitle.trim());
-        await renameConversation(id, nextTitle.trim());
-      }
+      setRenameConversationId(id);
+      setRenameValue(current?.title || "");
+      setShowRenameModal(true);
     },
-    [conversations, renameConversation, renameConversationOptimistic, t.renameChat]
+    [conversations]
   );
+
+  const confirmRename = useCallback(async () => {
+    if (!renameConversationId || !renameValue.trim()) return;
+    try {
+      renameConversationOptimistic(renameConversationId, renameValue.trim());
+      await renameConversation(renameConversationId, renameValue.trim());
+      toast.success(t.success || "Renamed successfully");
+    } catch (error) {
+      logger.error("Failed to rename:", error);
+      toast.error(t.error);
+    } finally {
+      setShowRenameModal(false);
+      setRenameConversationId(null);
+      setRenameValue("");
+    }
+  }, [
+    renameConversationId,
+    renameValue,
+    renameConversation,
+    renameConversationOptimistic,
+    t.success,
+    t.error,
+  ]);
 
   const handleDeleteFromSidebar = useCallback(async (id: string) => {
     setConversationToDelete(id);
@@ -371,7 +400,7 @@ export default function ChatApp() {
       }
       await refreshConversations();
     } catch (error) {
-      console.error("Failed to delete conversation:", error);
+      logger.error("Failed to delete conversation:", error);
       toast.error(t.error);
     } finally {
       setShowDeleteModal(false);
@@ -399,7 +428,7 @@ export default function ChatApp() {
         patchConversationModel?.(selectedConversationId, newModelId);
         await setConversationModel?.(selectedConversationId, newModelId);
       } catch (e) {
-        console.error(e);
+        logger.error("Failed to change model:", e);
         toast.error(t.error);
       }
     },
@@ -430,20 +459,26 @@ export default function ChatApp() {
     };
   }, [setOnGemApplied, patchConversationGem, refreshConversations]);
 
-  const handleDeleteMessage = useCallback(
-    async (messageId: string) => {
-      if (!confirm(t.modalDeleteConfirm)) return;
-      try {
-        setMessages((prev) => prev.filter((m) => m.id !== messageId));
-        const res = await fetch(`/api/messages/${messageId}`, { method: "DELETE" });
-        if (!res.ok) throw new Error("Failed to delete message");
-      } catch (e) {
-        console.error("Delete message error:", e);
-        toast.error(t.error);
-      }
-    },
-    [t.modalDeleteConfirm, t.error, setMessages]
-  );
+  const handleDeleteMessage = useCallback((messageId: string) => {
+    setMessageToDelete(messageId);
+    setShowDeleteMessageModal(true);
+  }, []);
+
+  const confirmDeleteMessage = useCallback(async () => {
+    if (!messageToDelete) return;
+    try {
+      setMessages((prev) => prev.filter((m) => m.id !== messageToDelete));
+      const res = await fetch(`/api/messages/${messageToDelete}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete message");
+      toast.success(t.success || "Message deleted");
+    } catch (e) {
+      logger.error("Delete message error:", e);
+      toast.error(t.error);
+    } finally {
+      setShowDeleteMessageModal(false);
+      setMessageToDelete(null);
+    }
+  }, [messageToDelete, t.success, t.error, setMessages]);
 
   const memoizedOnSelectConversation = useCallback(
     (id: string | null) => {
@@ -709,6 +744,77 @@ export default function ChatApp() {
           t={t}
         />
       </Suspense>
+
+      {/* Rename Modal */}
+      {showRenameModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
+              {t.renameChat || "Rename Conversation"}
+            </h3>
+            <input
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && confirmRename()}
+              autoFocus
+              className="w-full px-4 py-3 rounded-lg bg-[var(--control-bg)] border border-[var(--control-border)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 mb-6"
+              placeholder={t.renameChat || "Enter new title"}
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowRenameModal(false);
+                  setRenameConversationId(null);
+                  setRenameValue("");
+                }}
+                className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                {t.cancel || "Cancel"}
+              </button>
+              <button
+                onClick={confirmRename}
+                disabled={!renameValue.trim()}
+                className="px-4 py-2 bg-[var(--accent)] text-[var(--surface)] rounded-lg hover:brightness-110 transition-all disabled:opacity-50"
+              >
+                {t.save || "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Message Modal */}
+      {showDeleteMessageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+              {t.modalDeleteTitle || "Delete Message?"}
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-6">
+              {t.modalDeleteConfirm ||
+                "Are you sure you want to delete this message? This action cannot be undone."}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteMessageModal(false);
+                  setMessageToDelete(null);
+                }}
+                className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                {t.cancel || "Cancel"}
+              </button>
+              <button
+                onClick={confirmDeleteMessage}
+                className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 border border-red-500/30 transition-all"
+              >
+                {t.modalDeleteButton || "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

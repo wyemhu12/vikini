@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
+import { logger } from "@/lib/utils/logger";
 
 // Hook to fetch allowed models for current user
 export function useAllowedModels(isAuthed: boolean) {
@@ -30,7 +31,7 @@ export function useAllowedModels(isAuthed: boolean) {
         // Return Set of allowed model IDs for easy checking
         setAllowedModelIds(new Set(allowed));
       } catch (error) {
-        console.warn("Error fetching allowed models:", error);
+        logger.warn("Error fetching allowed models:", error);
         // Fallback to allowing all models on error
         if (!cancelled) {
           setAllowedModelIds(new Set(SELECTABLE_MODELS.map((m) => m.id)));

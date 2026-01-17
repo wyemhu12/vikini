@@ -24,6 +24,8 @@ import {
   X,
   ChevronDown,
 } from "lucide-react";
+import { toast } from "@/lib/store/toastStore";
+import { logger } from "@/lib/utils/logger";
 
 interface Attachment {
   id: string;
@@ -187,7 +189,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
         const data = json.data || json;
         setAttachments(Array.isArray(data?.attachments) ? data.attachments : []);
       } catch (e) {
-        console.error(e);
+        logger.error("Failed to load attachments:", e);
         setError("Failed to load attachments");
         setAttachments([]);
       } finally {
@@ -246,7 +248,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
           );
           await refresh();
         } catch (e: unknown) {
-          console.error(e);
+          logger.error("Upload failed:", e);
           const message = e instanceof Error ? e.message : "Upload failed";
           setError(message);
         } finally {
@@ -365,7 +367,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
 
         setPreview({ kind: "other", filename: a.filename, url });
       } catch (e: unknown) {
-        console.error(e);
+        logger.error("Preview failed:", e);
         const message = e instanceof Error ? e.message : "Preview failed";
         setError(message);
       }
@@ -387,7 +389,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
           );
           await refresh();
         } catch (e: unknown) {
-          console.error(e);
+          logger.error("Delete failed:", e);
           const message = e instanceof Error ? e.message : "Delete failed";
           setError(message);
         }
@@ -395,37 +397,46 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
       [conversationId, refresh]
     );
 
+    const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+
     const doDeleteAll = useCallback(
       async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!conversationId) return;
         if ((attachments || []).length === 0) return;
 
-        if (!window.confirm("Delete all files?")) return;
-
-        setError("");
-        try {
-          const res = await fetch(
-            `/api/attachments?conversationId=${encodeURIComponent(conversationId)}`,
-            {
-              method: "DELETE",
-            }
-          );
-          const json = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(json?.error?.message || json?.error || "Delete all failed");
-
-          window.dispatchEvent(
-            new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
-          );
-          await refresh();
-        } catch (e: unknown) {
-          console.error(e);
-          const message = e instanceof Error ? e.message : "Delete all failed";
-          setError(message);
-        }
+        setShowDeleteAllConfirm(true);
       },
-      [conversationId, attachments, refresh]
+      [conversationId, attachments]
     );
+
+    const confirmDeleteAll = useCallback(async () => {
+      if (!conversationId) return;
+
+      setShowDeleteAllConfirm(false);
+      setError("");
+      try {
+        const res = await fetch(
+          `/api/attachments?conversationId=${encodeURIComponent(conversationId)}`,
+          {
+            method: "DELETE",
+          }
+        );
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error?.message || json?.error || "Delete all failed");
+
+        toast.success("All files deleted");
+        window.dispatchEvent(
+          new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
+        );
+        await refresh();
+      } catch (e: unknown) {
+        logger.error("Delete all failed:", e);
+        const message = e instanceof Error ? e.message : "Delete all failed";
+        toast.error(message);
+        setError(message);
+      }
+    }, [conversationId, refresh]);
 
     if (!conversationId) {
       return null;
@@ -617,6 +628,40 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
             )}
           </AnimatePresence>
         </div>
+
+        {/* Delete All Confirmation Modal */}
+        <AnimatePresence>
+          {showDeleteAllConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-md p-6 shadow-2xl"
+              >
+                <h3 className="text-lg font-semibold text-white mb-2">Delete All Files?</h3>
+                <p className="text-sm text-gray-400 mb-6">
+                  This will permanently delete all {attachments.length} attached files. This action
+                  cannot be undone.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setShowDeleteAllConfirm(false)}
+                    className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDeleteAll}
+                    className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 border border-red-500/30 transition-all"
+                  >
+                    Delete All
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Preview Modal ... */}
         <AnimatePresence>

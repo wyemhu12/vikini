@@ -11,6 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Plus, Image as ImageIcon, Upload, X } from "lucide-react";
+import { toast } from "@/lib/store/toastStore";
+import { logger } from "@/lib/utils/logger";
 
 const PaperAirplaneIcon = () => (
   <svg
@@ -115,7 +117,7 @@ export default function InputForm({
     try {
       for (const f of files) {
         if (!conversationId) {
-          console.warn("No conversation ID for upload yet");
+          logger.warn("No conversation ID for upload yet");
           continue;
         }
 
@@ -173,9 +175,9 @@ export default function InputForm({
         }
       }
     } catch (err) {
-      console.error(err);
+      logger.error("Upload error:", err);
       const errorMessage = err instanceof Error ? err.message : t?.error || "Upload failed";
-      alert(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

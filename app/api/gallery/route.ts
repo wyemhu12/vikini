@@ -5,6 +5,9 @@ import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { MODEL_IDS } from "@/lib/utils/constants";
 import { UnauthorizedError, ValidationError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
+import { logger } from "@/lib/utils/logger";
+
+const routeLogger = logger.withContext("GET /api/gallery");
 
 // ============================================================================
 // Types
@@ -87,7 +90,7 @@ export async function GET(req: NextRequest) {
       .eq("user_id", userId);
 
     if (convError) {
-      console.error("Gallery: Error fetching conversations:", convError);
+      routeLogger.error("Error fetching conversations:", convError);
       throw convError;
     }
 
@@ -114,7 +117,7 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (msgError) {
-      console.error("Gallery Fetch Error:", msgError);
+      routeLogger.error("Gallery Fetch Error:", msgError);
       throw msgError;
     }
 
@@ -145,7 +148,7 @@ export async function GET(req: NextRequest) {
 
     return success({ images: paginatedImages, hasMore });
   } catch (err: unknown) {
-    console.error("Gallery API error:", err);
+    routeLogger.error("Gallery API error:", err);
     if (err instanceof AppError) return errorFromAppError(err);
     return error("Failed to fetch gallery", 500);
   }

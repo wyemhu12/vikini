@@ -5,6 +5,7 @@ import { Gem, Loader2, Plus, Edit2, Trash2, AlertCircle, X } from "lucide-react"
 import GemEditor from "@/app/features/gems/components/GemEditor";
 import { AnimatePresence, motion } from "framer-motion";
 import { translations } from "@/lib/utils/config";
+import { toast } from "@/lib/store/toastStore";
 
 interface PremadeGem {
   id: string;
@@ -50,11 +51,17 @@ export default function GemsManager({ language }: GemsManagerProps) {
     }
   };
 
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
   const deleteGem = async (gemId: string) => {
-    if (!confirm(t.confirmDeleteGem)) return;
+    setPendingDeleteId(gemId);
+  };
+
+  const confirmDeleteGem = async () => {
+    if (!pendingDeleteId) return;
 
     try {
-      const res = await fetch(`/api/admin/gems?id=${gemId}`, {
+      const res = await fetch(`/api/admin/gems?id=${pendingDeleteId}`, {
         method: "DELETE",
       });
 
@@ -62,9 +69,12 @@ export default function GemsManager({ language }: GemsManagerProps) {
 
       if (!res.ok) throw new Error(json?.error?.message || json?.error || "Failed to delete gem");
 
+      toast.success(t.gemDeleted || "Gem deleted successfully");
       await fetchGems();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete gem");
+      toast.error(err instanceof Error ? err.message : t.failedDeleteGem || "Failed to delete gem");
+    } finally {
+      setPendingDeleteId(null);
     }
   };
 
@@ -83,11 +93,12 @@ export default function GemsManager({ language }: GemsManagerProps) {
         throw new Error(json.error?.message || json.error || "Failed to save gem");
       }
 
+      toast.success(t.gemSaved || "Gem saved successfully");
       await fetchGems();
       setIsEditorOpen(false);
       setEditingGem(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to save gem");
+      toast.error(err instanceof Error ? err.message : t.failedSaveGem || "Failed to save gem");
     }
   };
 
@@ -179,6 +190,39 @@ export default function GemsManager({ language }: GemsManagerProps) {
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {pendingDeleteId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-md p-6 shadow-2xl"
+            >
+              <h3 className="text-lg font-semibold text-white mb-2">{t.confirmDeleteGem}</h3>
+              <p className="text-sm text-gray-400 mb-6">
+                {t.deleteGemWarning || "This action cannot be undone."}
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setPendingDeleteId(null)}
+                  className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  {t.cancel || "Cancel"}
+                </button>
+                <button
+                  onClick={confirmDeleteGem}
+                  className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 border border-red-500/30 transition-all"
+                >
+                  {t.deleteGem || "Delete"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Editor Modal */}
       <AnimatePresence>

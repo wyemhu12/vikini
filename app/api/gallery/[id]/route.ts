@@ -9,6 +9,9 @@ import {
   AppError,
 } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
+import { logger } from "@/lib/utils/logger";
+
+const routeLogger = logger.withContext("DELETE /api/gallery/[id]");
 
 interface MessageMeta {
   attachment?: {
@@ -69,7 +72,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         .remove([storagePath]);
 
       if (storageError) {
-        console.error("Failed to delete from storage:", storageError);
+        routeLogger.warn("Failed to delete from storage:", storageError);
         // Continue with message deletion even if storage deletion fails
       }
     }
@@ -83,7 +86,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     return success({ deleted: true });
   } catch (err: unknown) {
-    console.error("Delete error:", err);
+    routeLogger.error("Delete error:", err);
     if (err instanceof AppError) return errorFromAppError(err);
     return error("Failed to delete", 500);
   }

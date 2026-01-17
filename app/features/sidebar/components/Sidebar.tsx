@@ -20,6 +20,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { toast } from "@/lib/store/toastStore";
 
 interface Conversation {
   id: string;
@@ -74,7 +75,7 @@ export default function Sidebar({
   onSelectConversation,
   onDeleteConversation,
   onDeleteAll,
-  onRefresh,
+  onRefresh: _onRefresh,
   chats,
   activeId,
   onSelectChat,
@@ -118,42 +119,18 @@ export default function Sidebar({
     onCloseMobile?.();
   };
 
-  const renameFallback = async (id: string) => {
-    try {
-      const current = list.find((c) => c?.id === id);
-      const curTitle = current?.title || "";
-      const nextTitle = window.prompt("Đổi tên cuộc hội thoại:", curTitle);
-      if (nextTitle) {
-        const title = String(nextTitle).trim();
-        await fetch("/api/conversations", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, title }),
-        });
-        await onRefresh?.();
-      }
-    } catch (e) {
-      console.error(e);
-    }
+  const renameFallback = async (_id: string) => {
+    // Note: This fallback should ideally use a modal, but for now we use
+    // the parent's onRenameChat which has proper modal handling in ChatApp
+    // If no onRenameChat is provided, show a toast suggesting to use the main UI
+    toast.info(t?.renameChat || "Use the main interface to rename conversations");
   };
 
-  const deleteFallback = async (id: string) => {
-    try {
-      if (window.confirm("Xoá cuộc hội thoại này?")) {
-        await fetch("/api/conversations", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id }),
-        });
-        if (currentId === id) {
-          const next = list.find((c) => c?.id && c.id !== id);
-          if (next?.id) handleSelect(next.id);
-        }
-        await onRefresh?.();
-      }
-    } catch (e) {
-      console.error(e);
-    }
+  const deleteFallback = async (_id: string) => {
+    // Note: This fallback should ideally use a modal, but for now we use
+    // the parent's onDeleteChat which has proper modal handling in ChatApp
+    // If no onDeleteChat is provided, show a toast suggesting to use the main UI
+    toast.info(t?.deleteConfirm || "Use the main interface to delete conversations");
   };
 
   const handleRename = (id: string) =>

@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { toast } from "@/lib/store/toastStore";
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
+import { logger } from "@/lib/utils/logger";
 
 /** Conversation object returned from create */
 interface ConversationResult {
@@ -96,7 +97,7 @@ export function useImageGenController({
           throw new Error(t("studioGenerateFailed"));
         }
       } catch (e) {
-        console.error(e);
+        logger.error("Image generation error:", e);
         toast.error(e instanceof Error ? e.message : t("studioErrorGenerating"));
         setLastGeneratedImage(null);
         return false;

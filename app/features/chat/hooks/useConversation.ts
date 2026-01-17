@@ -4,6 +4,7 @@
 import useSWR from "swr";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Conversation } from "@/lib/features/chat/conversations";
+import { logger } from "@/lib/utils/logger";
 
 interface ConversationResponse {
   conversations?: Conversation[];
@@ -308,7 +309,7 @@ export function useConversation(): UseConversationReturn {
       setActiveId(id);
       setMessages((Array.isArray(messages) ? messages : []) as FrontendMessage[]);
     } catch (err) {
-      console.error("loadConversation error:", err);
+      logger.error("loadConversation error:", err);
     } finally {
       setLoadingMessages(false);
     }
@@ -345,7 +346,7 @@ export function useConversation(): UseConversationReturn {
         await mutate();
         return conv;
       } catch (err) {
-        console.error("createConversation error:", err);
+        logger.error("createConversation error:", err);
         return null;
       } finally {
         setCreatingConversation(false);
@@ -372,7 +373,7 @@ export function useConversation(): UseConversationReturn {
         patchConversationTitle(id, updated.title || title);
         await mutate();
       } catch (err) {
-        console.error("renameConversation error:", err);
+        logger.error("renameConversation error:", err);
       }
     },
     [mutate, patchConversationTitle]
@@ -397,7 +398,7 @@ export function useConversation(): UseConversationReturn {
         patchConversationModel(id, updated.model || model);
         await mutate();
       } catch (err) {
-        console.error("setConversationModel error:", err);
+        logger.error("setConversationModel error:", err);
         throw err;
       }
     },
@@ -426,7 +427,7 @@ export function useConversation(): UseConversationReturn {
 
         await mutate();
       } catch (err) {
-        console.error("deleteConversation error:", err);
+        logger.error("deleteConversation error:", err);
       }
     },
     [activeId, mutate]

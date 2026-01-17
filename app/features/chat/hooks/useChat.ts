@@ -3,6 +3,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import useAutoTitleStore from "@/app/features/chat/hooks/useAutoTitleStore";
+import { logger } from "@/lib/utils/logger";
 
 interface ConversationCreated {
   id: string;
@@ -249,7 +250,7 @@ export default function useChat(callbacks: UseChatCallbacks = {}) {
       } catch (err) {
         const error = err as Error & { name?: string };
         if (error?.name !== "AbortError") {
-          console.error("useChat sendMessage error:", err);
+          logger.error("useChat sendMessage error:", err);
         }
         return { ok: false, error: error?.message || "Unknown error" };
       } finally {

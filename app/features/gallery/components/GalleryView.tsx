@@ -19,6 +19,7 @@ import { useLanguage } from "../../chat/hooks/useLanguage";
 import { useConversation, FrontendConversation } from "../../chat/hooks/useConversation";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import { useRouter } from "next/navigation";
+import { logger } from "@/lib/utils/logger";
 
 interface GalleryImage {
   id: string;
@@ -97,7 +98,7 @@ export function GalleryView() {
           setOffset(currentOffset + newImages.length);
         }
       } catch (error) {
-        console.error("Failed to load gallery", error);
+        logger.error("Failed to load gallery:", error);
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -205,10 +206,10 @@ export function GalleryView() {
         setShowDeleteConfirm(false);
       } else {
         const json = await res.json();
-        console.error("Delete failed:", json.error?.message || json.error);
+        logger.error("Delete failed:", json.error?.message || json.error);
       }
     } catch (error) {
-      console.error("Delete error:", error);
+      logger.error("Delete error:", error);
     } finally {
       setDeleting(null);
     }

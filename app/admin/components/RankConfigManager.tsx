@@ -6,6 +6,7 @@ import { SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
 import { translations } from "@/lib/utils/config";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "@/lib/store/toastStore";
 
 interface RankConfig {
   rank: "basic" | "pro" | "admin";
@@ -94,9 +95,11 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
       if (!res.ok) throw new Error(json.error?.message || json.error || "Failed to save configs");
 
       await fetchConfigs();
-      alert(t.configsSaved);
+      toast.success(t.configsSaved || "Configurations saved");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to save configs");
+      toast.error(
+        err instanceof Error ? err.message : t.failedSaveConfigs || "Failed to save configs"
+      );
     } finally {
       setSaving(false);
     }
