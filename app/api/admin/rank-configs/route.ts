@@ -2,27 +2,30 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase";
 import { invalidateRankConfigsCache } from "@/lib/core/limits";
+import { ForbiddenError, ValidationError, AppError } from "@/lib/utils/errors";
+import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 // GET: List all rank configs
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
     if (!session?.user || session.user.rank !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      throw new ForbiddenError("Admin access required");
     }
 
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase.from("rank_configs").select("*").order("rank");
+    const { data, error: dbError } = await supabase.from("rank_configs").select("*").order("rank");
 
-    if (error) throw error;
+    if (dbError) throw new Error(dbError.message);
 
-    return NextResponse.json({ configs: data });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
+    return success({ configs: data });
+  } catch (err: unknown) {
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Failed to load rank configs", 500);
   }
 }
 
@@ -31,38 +34,47 @@ export async function PATCH(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user || session.user.rank !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      throw new ForbiddenError("Admin access required");
     }
 
-    const body = await req.json();
+    const body = (await req.json()) as { configs?: unknown };
     const { configs } = body;
 
     if (!Array.isArray(configs)) {
-      return NextResponse.json({ error: "Invalid configs format" }, { status: 400 });
+      throw new ValidationError("Invalid configs format - expected array");
     }
 
     const supabase = getSupabaseAdmin();
 
     // Update each config
     for (const config of configs) {
-      const { error } = await supabase
+      const configObj = config as {
+        rank?: string;
+        daily_message_limit?: number;
+        max_file_size_mb?: number;
+        features?: unknown;
+        allowed_models?: string[];
+      };
+
+      const { error: dbError } = await supabase
         .from("rank_configs")
         .update({
-          daily_message_limit: config.daily_message_limit,
-          max_file_size_mb: config.max_file_size_mb,
-          features: config.features,
-          allowed_models: config.allowed_models || [], // NEW: Include allowed_models
+          daily_message_limit: configObj.daily_message_limit,
+          max_file_size_mb: configObj.max_file_size_mb,
+          features: configObj.features,
+          allowed_models: configObj.allowed_models || [],
         })
-        .eq("rank", config.rank);
+        .eq("rank", configObj.rank);
 
-      if (error) throw error;
+      if (dbError) throw new Error(dbError.message);
     }
 
     // Invalidate cache so new configs take effect immediately
     await invalidateRankConfigsCache();
 
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
+    return success({ updated: true });
+  } catch (err: unknown) {
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Failed to update rank configs", 500);
   }
 }

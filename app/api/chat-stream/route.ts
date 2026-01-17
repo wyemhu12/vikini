@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (contentLength > MAX_PAYLOAD_SIZE) {
     routeLogger.warn(`Payload too large: ${contentLength} bytes`);
     perfMonitor.end(HTTP_STATUS.BAD_REQUEST);
-    return new Response("Payload too large", { status: HTTP_STATUS.BAD_REQUEST });
+    return error("Payload too large", HTTP_STATUS.BAD_REQUEST, "PAYLOAD_TOO_LARGE");
   }
 
   try {
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.email) {
       routeLogger.warn("Unauthorized request - no session");
       perfMonitor.end(HTTP_STATUS.UNAUTHORIZED);
-      return new Response("Unauthorized", { status: HTTP_STATUS.UNAUTHORIZED });
+      return error("Unauthorized", HTTP_STATUS.UNAUTHORIZED, "UNAUTHORIZED");
     }
 
     // Use email as userId for consistency with conversations table
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     if (!userId) {
       routeLogger.warn("No user ID available");
       perfMonitor.end(HTTP_STATUS.UNAUTHORIZED);
-      return new Response("Unauthorized", { status: HTTP_STATUS.UNAUTHORIZED });
+      return error("Unauthorized", HTTP_STATUS.UNAUTHORIZED, "UNAUTHORIZED");
     }
 
     routeLogger.debug("Processing request for user:", userId);
@@ -54,18 +54,11 @@ export async function POST(req: NextRequest) {
     if (messageLimit.rank === "not_whitelisted") {
       routeLogger.warn(`Access denied - user pending approval: ${userId}`);
       perfMonitor.end(403, { pendingApproval: true });
-      return new Response(
-        JSON.stringify({
-          error: "Access Pending Approval",
-          message:
-            "Your account is pending admin approval. Please wait for an administrator to grant you access.",
-          rank: "not_whitelisted",
-        }),
-        {
-          status: 403,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return error("Access Pending Approval", 403, "ACCESS_PENDING", {
+        message:
+          "Your account is pending admin approval. Please wait for an administrator to grant you access.",
+        rank: "not_whitelisted",
+      });
     }
 
     if (!messageLimit.canSend) {
@@ -73,17 +66,10 @@ export async function POST(req: NextRequest) {
         `Daily message limit reached for user: ${userId} (${messageLimit.count}/${messageLimit.limit})`
       );
       perfMonitor.end(429, { dailyLimitReached: true });
-      return new Response(
-        JSON.stringify({
-          error: "Daily message limit reached",
-          count: messageLimit.count,
-          limit: messageLimit.limit,
-        }),
-        {
-          status: 429,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return error("Daily message limit exceeded", 429, "DAILY_LIMIT_EXCEEDED", {
+        count: messageLimit.count,
+        limit: messageLimit.limit,
+      });
     }
 
     const rl = await consumeRateLimit(`chat-stream:${userId}`);

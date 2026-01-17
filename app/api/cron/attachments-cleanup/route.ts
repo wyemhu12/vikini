@@ -2,9 +2,11 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getAttachmentsConfig, getSupabaseAdmin } from "@/lib/features/attachments/attachments";
 import { logger } from "@/lib/utils/logger";
+import { UnauthorizedError, AppError } from "@/lib/utils/errors";
+import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 const routeLogger = logger.withContext("/api/cron/attachments-cleanup");
 
@@ -28,10 +30,6 @@ function pickFirstEnv(keys: string[]): string {
   return "";
 }
 
-function unauthorized(): NextResponse {
-  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-}
-
 async function runCleanup(): Promise<CleanupResult> {
   const supabase = getSupabaseAdmin();
   const cfg = getAttachmentsConfig();
@@ -39,14 +37,14 @@ async function runCleanup(): Promise<CleanupResult> {
 
   let deleted = 0;
   for (let i = 0; i < 10; i++) {
-    const { data: rows, error } = await supabase
+    const { data: rows, error: fetchError } = await supabase
       .from("attachments")
       .select("id,bucket,storage_path")
       .lte("expires_at", now)
       .order("expires_at", { ascending: true })
       .limit(200);
 
-    if (error) throw new Error(error.message);
+    if (fetchError) throw new Error(fetchError.message);
     if (!rows || rows.length === 0) break;
 
     const byBucket = new Map<string, string[]>();
@@ -81,18 +79,20 @@ async function runCleanup(): Promise<CleanupResult> {
 export async function GET(req: NextRequest) {
   try {
     const secret = pickFirstEnv(["ATTACHMENTS_CRON_SECRET", "CRON_SECRET"]);
-    if (!secret) return unauthorized();
+    if (!secret) throw new UnauthorizedError("Cron secret not configured");
 
     // SECURITY: Only use header, never query params (query params can be logged/exposed)
     const provided = req.headers.get("x-cron-secret") || "";
-    if (!provided || provided !== secret) return unauthorized();
+    if (!provided || provided !== secret) {
+      throw new UnauthorizedError("Invalid cron secret");
+    }
 
     const result = await runCleanup();
-    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
-  } catch (err) {
-    const error = err as Error;
-    routeLogger.error("GET error:", error);
-    return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
+    return success(result);
+  } catch (err: unknown) {
+    routeLogger.error("GET error:", err);
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Cleanup failed", 500);
   }
 }
 

@@ -21,7 +21,8 @@ export function useAllowedModels(isAuthed: boolean) {
         const res = await fetch("/api/user/allowed-models");
         if (!res.ok) throw new Error("Failed to fetch allowed models");
 
-        const data = await res.json();
+        const json = await res.json();
+        const data = json.data || json;
         const allowed = data.allowed_models || [];
 
         if (cancelled) return;

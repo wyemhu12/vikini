@@ -38,7 +38,8 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
     setLoading(true);
     try {
       const res = await fetch("/api/gems", { cache: "no-store" });
-      const data = await res.json();
+      const json = await res.json();
+      const data = json.data || json;
       setGems(Array.isArray(data?.gems) ? data.gems : []);
     } finally {
       setLoading(false);
@@ -62,8 +63,8 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: conversationId, gemId }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Apply gem failed");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message || json?.error || "Apply gem failed");
 
       setSelectedGemId(gemId);
       setStatus(t("success") || "Success");
@@ -117,8 +118,8 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: gem.id }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Delete failed");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message || json?.error || "Delete failed");
       setStatus(t("success") || "Success");
       if (editingGem?.id === gem.id) setEditingGem(null);
       await refresh();
@@ -137,10 +138,11 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Save failed");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message || json?.error || "Save failed");
 
       setStatus(t("success") || "Success");
+      const data = json.data || json;
       setEditingGem(data?.gem || null);
       await refresh();
     } catch (e: any) {

@@ -1,22 +1,36 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase";
+import {
+  UnauthorizedError,
+  ValidationError,
+  NotFoundError,
+  ForbiddenError,
+  AppError,
+} from "@/lib/utils/errors";
+import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
+
+interface MessageMeta {
+  attachment?: {
+    storagePath?: string;
+  };
+}
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  // 1. Auth Check
-  const session = await auth();
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const userId = session.user.email.toLowerCase();
-
-  const { id: messageId } = await params;
-
-  if (!messageId) {
-    return NextResponse.json({ error: "Missing message ID" }, { status: 400 });
-  }
-
   try {
+    // 1. Auth Check
+    const session = await auth();
+    if (!session?.user?.email) {
+      throw new UnauthorizedError();
+    }
+    const userId = session.user.email.toLowerCase();
+
+    const { id: messageId } = await params;
+
+    if (!messageId) {
+      throw new ValidationError("Missing message ID");
+    }
+
     const supabase = getSupabaseAdmin();
 
     // 2. Fetch the message and verify ownership via conversation
@@ -36,18 +50,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       .single();
 
     if (fetchError || !msg) {
-      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+      throw new NotFoundError("Message");
     }
 
     // Type assertion for joined data
     const conversation = msg.conversations as unknown as { user_id: string };
 
     if (conversation.user_id !== userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      throw new ForbiddenError("You don't have permission to delete this message");
     }
 
     // 3. Delete from storage if storagePath exists
-    const meta = msg.meta as Record<string, any> | null;
+    const meta = msg.meta as MessageMeta | null;
     if (meta?.attachment?.storagePath) {
       const storagePath = meta.attachment.storagePath;
       const { error: storageError } = await supabase.storage
@@ -67,12 +81,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       throw deleteError;
     }
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Delete error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to delete" },
-      { status: 500 }
-    );
+    return success({ deleted: true });
+  } catch (err: unknown) {
+    console.error("Delete error:", err);
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Failed to delete", 500);
   }
 }

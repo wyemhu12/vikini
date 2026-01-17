@@ -83,7 +83,8 @@ export function GalleryView() {
       try {
         const res = await fetch(`/api/gallery?limit=${PAGE_SIZE}&offset=${currentOffset}`);
         if (res.ok) {
-          const data = await res.json();
+          const json = await res.json();
+          const data = json.data || json;
           const newImages = data.images || [];
 
           if (isLoadMore) {
@@ -203,8 +204,8 @@ export function GalleryView() {
         setSelectedImage(null);
         setShowDeleteConfirm(false);
       } else {
-        const data = await res.json();
-        console.error("Delete failed:", data.error);
+        const json = await res.json();
+        console.error("Delete failed:", json.error?.message || json.error);
       }
     } catch (error) {
       console.error("Delete error:", error);

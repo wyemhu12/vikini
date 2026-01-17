@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
+import { error } from "@/lib/utils/apiResponse";
 
 export interface RequireUserResult {
   ok: false;
@@ -26,7 +27,7 @@ export async function requireUser(_req: NextRequest): Promise<RequireUserRespons
   if (!session?.user?.email) {
     return {
       ok: false,
-      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      response: error("Unauthorized", 401),
     };
   }
 

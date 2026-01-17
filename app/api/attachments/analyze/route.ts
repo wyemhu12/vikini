@@ -2,7 +2,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getGenAIClient } from "@/lib/core/genaiClient";
 import { DEFAULT_MODEL, normalizeModelForApi } from "@/lib/core/modelRegistry";
 import { requireUser } from "@/app/api/conversations/auth";
@@ -12,6 +12,8 @@ import { saveMessage } from "@/lib/features/chat/messages";
 import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
 import { summarizeZipBytes } from "@/lib/features/attachments/zip";
 import { logger } from "@/lib/utils/logger";
+import { ValidationError, NotFoundError, AppError } from "@/lib/utils/errors";
+import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 const routeLogger = logger.withContext("/api/attachments/analyze");
 
@@ -104,19 +106,19 @@ export async function POST(req: NextRequest) {
     const userPrompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
 
     if (!attachmentId) {
-      return NextResponse.json({ error: "Missing attachmentId" }, { status: 400 });
+      throw new ValidationError("Missing attachmentId");
     }
 
     const { row, bytes } = await downloadAttachmentBytes({ userId, id: attachmentId });
 
     const conversationId = row?.conversation_id as string | undefined;
     if (!conversationId) {
-      return NextResponse.json({ error: "Attachment missing conversation" }, { status: 400 });
+      throw new ValidationError("Attachment missing conversation");
     }
 
     const convo = await getConversation(conversationId);
     if (!convo || convo.userId !== userId) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      throw new NotFoundError("Conversation");
     }
 
     let sysPrompt = "";
@@ -129,14 +131,8 @@ export async function POST(req: NextRequest) {
     let ai: ReturnType<typeof getGenAIClient>;
     try {
       ai = getGenAIClient();
-    } catch (e) {
-      const error = e as Error;
-      // SECURITY: Sanitize error message in production
-      const isProduction = process.env.NODE_ENV === "production";
-      const errorMessage = isProduction
-        ? "AI service unavailable"
-        : error?.message || "Missing GEMINI_API_KEY/GOOGLE_API_KEY";
-      return NextResponse.json({ error: errorMessage }, { status: 500 });
+    } catch {
+      return error("AI service unavailable", 500);
     }
 
     const requestedModel = pickFirstEnv(["GEMINI_MODEL", "GOOGLE_MODEL"]) || DEFAULT_MODEL;
@@ -158,12 +154,8 @@ export async function POST(req: NextRequest) {
 
     // Office docs are allowed for upload, but not supported for server-side analysis (no converter in this app).
     if (isOfficeDocMime(mime)) {
-      return NextResponse.json(
-        {
-          error:
-            "Unsupported for analysis: DOC/DOCX/XLS/XLSX. Convert to PDF or export to text first.",
-        },
-        { status: 400 }
+      throw new ValidationError(
+        "Unsupported for analysis: DOC/DOCX/XLS/XLSX. Convert to PDF or export to text first."
       );
     }
 
@@ -247,13 +239,10 @@ export async function POST(req: NextRequest) {
     await saveMessage(userId, conversationId, "user", auditUser);
     await saveMessage(userId, conversationId, "assistant", analysisText || "(no output)");
 
-    return NextResponse.json(
-      { ok: true, analysis: analysisText || "" },
-      { headers: { "Cache-Control": "no-store" } }
-    );
-  } catch (err) {
-    const error = err as Error;
-    routeLogger.error("POST error:", error);
-    return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
+    return success({ ok: true, analysis: analysisText || "" });
+  } catch (err: unknown) {
+    routeLogger.error("POST error:", err);
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Analysis failed", 500);
   }
 }

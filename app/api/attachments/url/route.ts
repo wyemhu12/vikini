@@ -2,10 +2,12 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { requireUser } from "@/app/api/conversations/auth";
 import { createSignedUrlForAttachmentId } from "@/lib/features/attachments/attachments";
 import { logger } from "@/lib/utils/logger";
+import { ValidationError, AppError } from "@/lib/utils/errors";
+import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 const routeLogger = logger.withContext("/api/attachments/url");
 
@@ -17,13 +19,13 @@ export async function GET(req: NextRequest) {
     const { userId } = auth;
     const url = new URL(req.url);
     const id = url.searchParams.get("id");
-    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    if (!id) throw new ValidationError("Missing id");
 
     const data = await createSignedUrlForAttachmentId({ userId, id });
-    return NextResponse.json({ ...data }, { headers: { "Cache-Control": "no-store" } });
-  } catch (err) {
-    const error = err as Error;
-    routeLogger.error("GET error:", error);
-    return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
+    return success(data);
+  } catch (err: unknown) {
+    routeLogger.error("GET error:", err);
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Failed to get URL", 500);
   }
 }

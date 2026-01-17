@@ -2,34 +2,28 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase";
+import { ForbiddenError, ValidationError, AppError } from "@/lib/utils/errors";
+import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 // GET: List all premade gems
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
-    // console.log("[AdminGEMs] Session:", session); // DEBUG REMOVED
     if (!session?.user || session.user.rank !== "admin") {
-      console.warn("[AdminGEMs] Unauthorized access attempt. Rank:", session?.user?.rank);
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      throw new ForbiddenError("Admin access required");
     }
 
     const supabase = getSupabaseAdmin();
-    // Use select("*") to be robust against schema mismatches, and filter properly
-    const { data: rawData, error } = await supabase
+    const { data: rawData, error: dbError } = await supabase
       .from("gems")
       .select("*")
       .eq("is_premade", true)
       .order("name");
 
-    // console.log("[AdminGEMs] Actual columns:", rawData?.[0] ? Object.keys(rawData[0]) : "No data"); // DEBUG REMOVED
-
-    if (error) {
-      console.error("[AdminGEMs] DB Error:", error); // DEBUG
-      throw error;
-    }
+    if (dbError) throw new Error(dbError.message);
 
     // Enrich with latest gem_versions
     const ids = (rawData || []).map((g) => g.id);
@@ -44,7 +38,6 @@ export async function GET(_req: NextRequest) {
 
       if (versions) {
         for (const v of versions) {
-          // Since ordered by version desc, first one we see is latest
           if (!latestByGem.has(v.gem_id)) {
             latestByGem.set(v.gem_id, v.instructions || "");
           }
@@ -52,7 +45,6 @@ export async function GET(_req: NextRequest) {
       }
     }
 
-    // Map DB column `instruction` to Frontend field `instructions` if needed
     const gems = rawData?.map((g: any) => {
       const fallback = g.instructions || g.instruction || "";
       const latest = latestByGem.get(g.id);
@@ -62,10 +54,10 @@ export async function GET(_req: NextRequest) {
       };
     });
 
-    return NextResponse.json({ gems });
-  } catch (error: any) {
-    console.error("[AdminGEMs] Catch Error:", error); // DEBUG
-    return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
+    return success({ gems });
+  } catch (err: unknown) {
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Failed to list gems", 500);
   }
 }
 
@@ -74,25 +66,23 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user || session.user.rank !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      throw new ForbiddenError("Admin access required");
     }
 
     const json = await req.json();
     const { name, description, instructions, icon, color } = json;
 
-    // Validate inputs
     if (!name || !instructions) {
-      return NextResponse.json({ error: "Name and instructions are required" }, { status: 400 });
+      throw new ValidationError("Name and instructions are required");
     }
 
     const supabase = getSupabaseAdmin();
     // 1. Insert into gems (metadata only)
-    const { data, error } = await supabase
+    const { data, error: dbError } = await supabase
       .from("gems")
       .insert({
         name,
         description,
-        // instruction: instructions, // REMOVED: Column does not exist
         icon,
         color,
         is_premade: true,
@@ -101,14 +91,11 @@ export async function POST(req: NextRequest) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (dbError) throw new Error(dbError.message);
 
     // 2. Insert into gem_versions (content)
     let versionedInstructions = "";
     if (data?.id) {
-      // Check standard library usage for version insertion
-      // We'll reimplement simplified version here to avoid circular dependencies with `lib/features/gems` if it's client-side mixed
-      // Actually we can try to use the `gem_versions` table directly
       const { data: vData, error: vError } = await supabase
         .from("gem_versions")
         .insert({
@@ -122,22 +109,18 @@ export async function POST(req: NextRequest) {
 
       if (!vError && vData) {
         versionedInstructions = vData.instructions;
-      } else {
-        console.error("Failed to insert gem_version:", vError);
-        // Fallback? If version fails, we have a broken gem.
-        // But the user error is specifically about the COLUMN on 'gems'.
       }
     }
 
-    // Map back for response
     const gem = {
       ...data,
       instructions: versionedInstructions || instructions,
     };
 
-    return NextResponse.json({ gem });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
+    return success({ gem });
+  } catch (err: unknown) {
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Failed to create gem", 500);
   }
 }
 
@@ -146,31 +129,26 @@ export async function PUT(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user || session.user.rank !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      throw new ForbiddenError("Admin access required");
     }
 
     const json = await req.json();
     const { id, name, description, instructions, icon, color } = json;
 
     if (!id || !name || !instructions) {
-      return NextResponse.json(
-        { error: "ID, Name and instructions are required" },
-        { status: 400 }
-      );
+      throw new ValidationError("ID, Name and instructions are required");
     }
 
     const supabase = getSupabaseAdmin();
 
-    // 1. Update gems table (metadata only)
     const updatePayload = {
       name,
       description,
-      // instruction: instructions, // REMOVED
       icon,
       color,
     };
 
-    const { data, error } = await supabase
+    const { data, error: dbError } = await supabase
       .from("gems")
       .update(updatePayload)
       .eq("id", id)
@@ -178,10 +156,9 @@ export async function PUT(req: NextRequest) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (dbError) throw new Error(dbError.message);
 
     // 2. Create new gem_version
-    // Find latest version first
     const { data: latest } = await supabase
       .from("gem_versions")
       .select("version")
@@ -192,7 +169,7 @@ export async function PUT(req: NextRequest) {
 
     const nextVersion = (latest?.version || 0) + 1;
 
-    const { data: vData, error: vError } = await supabase
+    const { data: vData } = await supabase
       .from("gem_versions")
       .insert({
         gem_id: id,
@@ -203,19 +180,15 @@ export async function PUT(req: NextRequest) {
       .select()
       .single();
 
-    if (vError) {
-      console.error("Failed to insert gem_version update:", vError);
-    }
-
-    // Map back for response
     const gem = {
       ...data,
       instructions: vData?.instructions || instructions,
     };
 
-    return NextResponse.json({ gem });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
+    return success({ gem });
+  } catch (err: unknown) {
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Failed to update gem", 500);
   }
 }
 
@@ -224,23 +197,28 @@ export async function DELETE(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user || session.user.rank !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      throw new ForbiddenError("Admin access required");
     }
 
     const { searchParams } = new URL(req.url);
     const gemId = searchParams.get("id");
 
     if (!gemId) {
-      return NextResponse.json({ error: "Missing gem ID" }, { status: 400 });
+      throw new ValidationError("Missing gem ID");
     }
 
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from("gems").delete().eq("id", gemId).eq("is_premade", true); // Safety: only delete premade gems
+    const { error: dbError } = await supabase
+      .from("gems")
+      .delete()
+      .eq("id", gemId)
+      .eq("is_premade", true);
 
-    if (error) throw error;
+    if (dbError) throw new Error(dbError.message);
 
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
+    return success({ success: true });
+  } catch (err: unknown) {
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Failed to delete gem", 500);
   }
 }

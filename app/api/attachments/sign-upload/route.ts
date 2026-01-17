@@ -1,11 +1,13 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { requireUser } from "@/app/api/conversations/auth";
 import { getConversation } from "@/lib/features/chat/conversations";
 import { createSignedUploadUrl } from "@/lib/features/attachments/attachments";
 import { logger } from "@/lib/utils/logger";
+import { ValidationError, NotFoundError, AppError } from "@/lib/utils/errors";
+import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 const routeLogger = logger.withContext("/api/attachments/sign-upload");
 
@@ -23,15 +25,15 @@ export async function POST(req: NextRequest) {
     const fileSize = Number(json.fileSize || 0);
 
     if (!conversationId) {
-      return NextResponse.json({ error: "Missing conversationId" }, { status: 400 });
+      throw new ValidationError("Missing conversationId");
     }
     if (!filename || !fileSize) {
-      return NextResponse.json({ error: "Missing file metadata" }, { status: 400 });
+      throw new ValidationError("Missing file metadata");
     }
 
     const convo = await getConversation(conversationId);
     if (!convo || convo.userId !== userId) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      throw new NotFoundError("Conversation");
     }
 
     const result = await createSignedUploadUrl({
@@ -42,10 +44,10 @@ export async function POST(req: NextRequest) {
       fileSize,
     });
 
-    return NextResponse.json(result);
-  } catch (err) {
-    const error = err as Error;
-    routeLogger.error("POST error:", error);
-    return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
+    return success(result);
+  } catch (err: unknown) {
+    routeLogger.error("POST error:", err);
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Sign upload failed", 500);
   }
 }

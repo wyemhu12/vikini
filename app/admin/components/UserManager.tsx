@@ -33,7 +33,8 @@ export default function UserManager({ language }: UserManagerProps) {
       setLoading(true);
       const res = await fetch("/api/admin/users");
       if (!res.ok) throw new Error("Failed to fetch users");
-      const data = await res.json();
+      const json = await res.json();
+      const data = json.data || json;
       setUsers(data.users || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load users");
@@ -51,7 +52,9 @@ export default function UserManager({ language }: UserManagerProps) {
         body: JSON.stringify({ userId, ...updates }),
       });
 
-      if (!res.ok) throw new Error("Failed to update user");
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) throw new Error(json?.error?.message || json?.error || "Failed to update user");
 
       await fetchUsers();
     } catch (err) {

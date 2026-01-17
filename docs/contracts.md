@@ -262,6 +262,40 @@ interface UpdateConversationRequest {
 
 ---
 
+### API Response Contracts (MANDATORY)
+
+> **Standard format cho TẤT CẢ API responses**
+
+```typescript
+// SUCCESS Response
+interface SuccessResponse<T> {
+  success: true;
+  data: T;
+}
+
+// ERROR Response
+interface ErrorResponse {
+  success: false;
+  error: {
+    message: string;
+    code: string; // e.g. "VALIDATION_ERROR", "NOT_FOUND"
+  };
+}
+```
+
+**Error Codes:**
+
+| Code                  | Status | Ý nghĩa                 |
+| --------------------- | ------ | ----------------------- |
+| `VALIDATION_ERROR`    | 400    | Input không hợp lệ      |
+| `UNAUTHORIZED`        | 401    | Chưa đăng nhập          |
+| `FORBIDDEN`           | 403    | Không có quyền          |
+| `NOT_FOUND`           | 404    | Không tìm thấy resource |
+| `RATE_LIMIT_EXCEEDED` | 429    | Quá nhiều requests      |
+| `INTERNAL_ERROR`      | 500    | Lỗi server              |
+
+---
+
 ## 3. Security & Performance
 
 ### Encryption

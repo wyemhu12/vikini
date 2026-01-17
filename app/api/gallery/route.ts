@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase";
 import { MODEL_IDS } from "@/lib/utils/constants";
+import { UnauthorizedError, ValidationError, AppError } from "@/lib/utils/errors";
+import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 // ============================================================================
 // Types
@@ -55,27 +57,27 @@ const querySchema = z.object({
 // ============================================================================
 
 export async function GET(req: NextRequest) {
-  // 1. Auth Check
-  const session = await auth();
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const userId = session.user.email.toLowerCase();
-
-  // 2. Validate Input
-  const { searchParams } = new URL(req.url);
-  const parseResult = querySchema.safeParse({
-    limit: searchParams.get("limit"),
-    offset: searchParams.get("offset"),
-  });
-
-  if (!parseResult.success) {
-    return NextResponse.json({ error: "Invalid query parameters" }, { status: 400 });
-  }
-
-  const { limit, offset } = parseResult.data;
-
   try {
+    // 1. Auth Check
+    const session = await auth();
+    if (!session?.user?.email) {
+      throw new UnauthorizedError();
+    }
+    const userId = session.user.email.toLowerCase();
+
+    // 2. Validate Input
+    const { searchParams } = new URL(req.url);
+    const parseResult = querySchema.safeParse({
+      limit: searchParams.get("limit"),
+      offset: searchParams.get("offset"),
+    });
+
+    if (!parseResult.success) {
+      throw new ValidationError("Invalid query parameters");
+    }
+
+    const { limit, offset } = parseResult.data;
+
     const supabase = getSupabaseAdmin();
 
     // 3. Get ALL valid conversation IDs for this user (excluding Image Studio)
@@ -90,7 +92,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (!userConvs || userConvs.length === 0) {
-      return NextResponse.json({ images: [], hasMore: false });
+      return success({ images: [], hasMore: false });
     }
 
     const validConvIds = (userConvs as ConversationRow[])
@@ -98,22 +100,22 @@ export async function GET(req: NextRequest) {
       .map((c) => c.id);
 
     if (validConvIds.length === 0) {
-      return NextResponse.json({ images: [], hasMore: false });
+      return success({ images: [], hasMore: false });
     }
 
     // 4. Fetch Messages with image content (using DB-level filtering)
     // Note: Supabase doesn't support complex JSON filtering in .or(),
     // so we still need some client-side filtering, but we pre-filter meta != null
-    const { data, error } = await supabase
+    const { data, error: msgError } = await supabase
       .from("messages")
       .select("id, content, role, created_at, meta")
       .in("conversation_id", validConvIds)
       .not("meta", "is", null)
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Gallery Fetch Error:", error);
-      throw error;
+    if (msgError) {
+      console.error("Gallery Fetch Error:", msgError);
+      throw msgError;
     }
 
     // 5. Filter and format images
@@ -141,10 +143,10 @@ export async function GET(req: NextRequest) {
     const paginatedImages = allImages.slice(offset, offset + limit);
     const hasMore = offset + limit < allImages.length;
 
-    return NextResponse.json({ images: paginatedImages, hasMore });
-  } catch (error) {
-    // Sanitize error - don't leak internal details
-    console.error("Gallery API error:", error);
-    return NextResponse.json({ error: "Failed to fetch gallery" }, { status: 500 });
+    return success({ images: paginatedImages, hasMore });
+  } catch (err: unknown) {
+    console.error("Gallery API error:", err);
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Failed to fetch gallery", 500);
   }
 }

@@ -153,7 +153,8 @@ export function useChatStreamController({
       try {
         const res = await fetch(`/api/conversations?id=${id}`);
         if (!res.ok) throw new Error("Failed to load conversation");
-        const data = await res.json();
+        const json = await res.json();
+        const data = json.data || json;
         setMessages(normalizeMessages(data?.messages));
       } catch (e) {
         console.error(e);
@@ -365,7 +366,8 @@ export function useChatStreamController({
       try {
         const res = await fetch(`/api/conversations?id=${convId}`, { cache: "no-store" });
         if (res.ok) {
-          const data = await res.json();
+          const json = await res.json();
+          const data = json.data || json;
           if (data?.messages && Array.isArray(data.messages)) {
             setMessages(normalizeMessages(data.messages));
           }

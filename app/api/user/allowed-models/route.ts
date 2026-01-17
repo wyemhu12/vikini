@@ -2,25 +2,27 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
 import { getUserLimits } from "@/lib/core/limits";
+import { UnauthorizedError, AppError } from "@/lib/utils/errors";
+import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const userId = session.user.id;
     const limits = await getUserLimits(userId);
 
-    return NextResponse.json({
+    return success({
       allowed_models: limits.allowed_models || [],
       rank: limits.rank,
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
+  } catch (err: unknown) {
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Failed to get allowed models", 500);
   }
 }

@@ -130,12 +130,14 @@ export default function InputForm({
           }),
         });
 
+        const json = await signRes.json().catch(() => ({}));
         if (!signRes.ok) {
-          const json = await signRes.json().catch(() => ({}));
-          throw new Error(json?.error || "Upload init failed");
+          throw new Error(json?.error?.message || json?.error || "Upload init failed");
         }
 
-        const { signedUrl, path, filename, mimeType } = await signRes.json();
+        const { signedUrl, path, filename, mimeType } = json.data || json;
+
+        if (!signedUrl) throw new Error("Missing signed URL");
 
         const uploadRes = await fetch(signedUrl, {
           method: "PUT",
@@ -161,11 +163,13 @@ export default function InputForm({
 
         const completeJson = await completeRes.json().catch(() => ({}));
         if (!completeRes.ok) {
-          throw new Error(completeJson?.error || "Upload completion failed");
+          throw new Error(
+            completeJson?.error?.message || completeJson?.error || "Upload completion failed"
+          );
         }
 
-        if (completeJson?.attachment) {
-          addAttachment(completeJson.attachment);
+        if (completeJson.data?.attachment || completeJson?.attachment) {
+          addAttachment(completeJson.data?.attachment || completeJson?.attachment);
         }
       }
     } catch (err) {

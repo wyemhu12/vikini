@@ -49,7 +49,8 @@ interface ErrorPayload {
 }
 
 export default function useChat(callbacks: UseChatCallbacks = {}) {
-  const { onConversationCreated, onOptimisticTitle, onFinalTitle, onAssistantDelta, onStreamDone } = callbacks;
+  const { onConversationCreated, onOptimisticTitle, onFinalTitle, onAssistantDelta, onStreamDone } =
+    callbacks;
 
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -112,7 +113,12 @@ export default function useChat(callbacks: UseChatCallbacks = {}) {
 
         if (!res.ok || !res.body) {
           const txt = await res.text().catch(() => "");
-          throw new Error(txt || "chat-stream failed");
+          try {
+            const json = JSON.parse(txt);
+            throw new Error(json.error?.message || json.error || txt || "chat-stream failed");
+          } catch {
+            throw new Error(txt || "chat-stream failed");
+          }
         }
 
         const reader = res.body.getReader();
@@ -271,4 +277,3 @@ export default function useChat(callbacks: UseChatCallbacks = {}) {
 
   return { sendMessage, stop, isStreaming };
 }
-

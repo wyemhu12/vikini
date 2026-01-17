@@ -40,7 +40,8 @@ export default function GemsManager({ language }: GemsManagerProps) {
       setLoading(true);
       const res = await fetch("/api/admin/gems");
       if (!res.ok) throw new Error("Failed to fetch gems");
-      const data = await res.json();
+      const json = await res.json();
+      const data = json.data || json;
       setGems(data.gems || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load gems");
@@ -57,7 +58,9 @@ export default function GemsManager({ language }: GemsManagerProps) {
         method: "DELETE",
       });
 
-      if (!res.ok) throw new Error("Failed to delete gem");
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) throw new Error(json?.error?.message || json?.error || "Failed to delete gem");
 
       await fetchGems();
     } catch (err) {
@@ -74,9 +77,10 @@ export default function GemsManager({ language }: GemsManagerProps) {
         body: JSON.stringify(gemData),
       });
 
+      const json = await res.json();
+
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to save gem");
+        throw new Error(json.error?.message || json.error || "Failed to save gem");
       }
 
       await fetchGems();

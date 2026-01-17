@@ -180,7 +180,8 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
         );
         if (!res.ok) throw new Error("Failed to load attachments");
         const json = await res.json();
-        setAttachments(Array.isArray(json?.attachments) ? json.attachments : []);
+        const data = json.data || json;
+        setAttachments(Array.isArray(data?.attachments) ? data.attachments : []);
       } catch (e) {
         console.error(e);
         setError("Failed to load attachments");
@@ -233,7 +234,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
             });
 
             const json = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(json?.error || "Upload failed");
+            if (!res.ok) throw new Error(json?.error?.message || json?.error || "Upload failed");
           }
 
           window.dispatchEvent(
@@ -337,9 +338,11 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
           cache: "no-store",
         });
         const json = await res.json();
-        if (!res.ok) throw new Error(json?.error || "Failed to create signed url");
+        const data = json.data || json;
+        if (!res.ok)
+          throw new Error(json?.error?.message || json?.error || "Failed to create signed url");
 
-        const url = json?.signedUrl;
+        const url = data?.signedUrl;
         if (!url) throw new Error("Missing signed url");
 
         if (isImageMime(a.mime_type)) {
@@ -370,7 +373,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
             method: "DELETE",
           });
           const json = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(json?.error || "Delete failed");
+          if (!res.ok) throw new Error(json?.error?.message || json?.error || "Delete failed");
 
           window.dispatchEvent(
             new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
@@ -401,7 +404,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
             }
           );
           const json = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(json?.error || "Delete all failed");
+          if (!res.ok) throw new Error(json?.error?.message || json?.error || "Delete all failed");
 
           window.dispatchEvent(
             new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })

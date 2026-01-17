@@ -1,11 +1,13 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { requireUser } from "@/app/api/conversations/auth";
 import { getConversation } from "@/lib/features/chat/conversations";
 import { verifyAndCreateAttachment } from "@/lib/features/attachments/attachments";
 import { logger } from "@/lib/utils/logger";
+import { ValidationError, NotFoundError, AppError } from "@/lib/utils/errors";
+import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 const routeLogger = logger.withContext("/api/attachments/complete-upload");
 
@@ -24,12 +26,12 @@ export async function POST(req: NextRequest) {
     const mimeType = String(json.mimeType || "").trim();
 
     if (!conversationId || !path || !filename) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      throw new ValidationError("Missing required fields");
     }
 
     const convo = await getConversation(conversationId);
     if (!convo || convo.userId !== userId) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      throw new NotFoundError("Conversation");
     }
 
     const attachment = await verifyAndCreateAttachment({
@@ -41,10 +43,10 @@ export async function POST(req: NextRequest) {
       mimeType,
     });
 
-    return NextResponse.json({ attachment });
-  } catch (err) {
-    const error = err as Error;
-    routeLogger.error("POST error:", error);
-    return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
+    return success({ attachment });
+  } catch (err: unknown) {
+    routeLogger.error("POST error:", err);
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Complete upload failed", 500);
   }
 }

@@ -1,10 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase";
 import { ImageGenFactory } from "@/lib/features/image-gen/core/ImageGenFactory";
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { saveMessage } from "@/lib/features/chat/messages";
 import { logger } from "@/lib/utils/logger";
+import { UnauthorizedError, ValidationError, AppError } from "@/lib/utils/errors";
+import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 const routeLogger = logger.withContext("generate-image");
 
@@ -15,7 +17,7 @@ export async function POST(req: NextRequest) {
     // 1. Auth Check
     const session = await auth();
     if (!session?.user?.id || !session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
     const userId = session.user.email.toLowerCase();
     // const userEmail = session.user.email; // Unused
@@ -26,7 +28,7 @@ export async function POST(req: NextRequest) {
     const { conversationId, options } = body;
 
     if (!prompt || !conversationId) {
-      return NextResponse.json({ error: "Missing prompt or conversationId" }, { status: 400 });
+      throw new ValidationError("Missing prompt or conversationId");
     }
 
     // --- PROMPT ENHANCER LOGIC ---
@@ -211,19 +213,13 @@ export async function POST(req: NextRequest) {
     // The message meta contains the reference.
 
     // 7. Return Success
-    return NextResponse.json({
-      success: true,
+    return success({
       message: message,
-      // Helper legacy field if frontend needs it immediately
       imageUrl: finalUrl,
     });
-  } catch (error) {
-    routeLogger.error("Image Gen Route Route Error:", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+  } catch (err: unknown) {
+    routeLogger.error("Image Gen Route Error:", err);
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Image generation failed", 500);
   }
 }

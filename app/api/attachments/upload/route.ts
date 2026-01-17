@@ -2,11 +2,13 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { requireUser } from "@/app/api/conversations/auth";
 import { getConversation } from "@/lib/features/chat/conversations";
 import { uploadAttachment } from "@/lib/features/attachments/attachments";
 import { logger } from "@/lib/utils/logger";
+import { ValidationError, NotFoundError, AppError } from "@/lib/utils/errors";
+import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 const routeLogger = logger.withContext("/api/attachments/upload");
 
@@ -24,15 +26,15 @@ export async function POST(req: NextRequest) {
 
     const file = form.get("file");
     if (!conversationId) {
-      return NextResponse.json({ error: "Missing conversationId" }, { status: 400 });
+      throw new ValidationError("Missing conversationId");
     }
     if (!file || !(file instanceof File)) {
-      return NextResponse.json({ error: "Missing file" }, { status: 400 });
+      throw new ValidationError("Missing file");
     }
 
     const convo = await getConversation(conversationId);
     if (!convo || convo.userId !== userId) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      throw new NotFoundError("Conversation");
     }
 
     const attachment = await uploadAttachment({
@@ -43,10 +45,10 @@ export async function POST(req: NextRequest) {
       filename: file.name,
     });
 
-    return NextResponse.json({ attachment }, { headers: { "Cache-Control": "no-store" } });
-  } catch (err) {
-    const error = err as Error;
-    routeLogger.error("POST error:", error);
-    return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
+    return success({ attachment });
+  } catch (err: unknown) {
+    routeLogger.error("POST error:", err);
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Upload failed", 500);
   }
 }

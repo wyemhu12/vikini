@@ -9,14 +9,14 @@ import { AppError, sanitizeError } from "./errors";
  * Success response
  */
 export function success<T = unknown>(
-  data: T, 
+  data: T,
   statusCode: HttpStatus = HTTP_STATUS.OK
 ): NextResponse<{ success: true; data: T }> {
   return NextResponse.json(
     { success: true, data },
-    { 
+    {
       status: statusCode,
-      headers: { "Cache-Control": "no-store" }
+      headers: { "Cache-Control": "no-store" },
     }
   );
 }
@@ -26,29 +26,35 @@ export function success<T = unknown>(
  * Automatically sanitizes error messages in production
  */
 export function error(
-  message: string | unknown, 
-  statusCode: HttpStatus = HTTP_STATUS.INTERNAL_SERVER_ERROR, 
-  code: string = 'INTERNAL_ERROR'
-): NextResponse<{ success: false; error: { message: string; code: string } }> {
+  message: string | unknown,
+  statusCode: HttpStatus = HTTP_STATUS.INTERNAL_SERVER_ERROR,
+  code: string = "INTERNAL_ERROR",
+  metadata?: Record<string, unknown>
+): NextResponse<{
+  success: false;
+  error: { message: string; code: string } & Record<string, unknown>;
+}> {
   // Sanitize error message in production
-  const sanitizedMessage = typeof message === 'string' 
-    ? sanitizeError(new Error(message), process.env.NODE_ENV === 'production')
-    : sanitizeError(message, process.env.NODE_ENV === 'production');
-  
+  const sanitizedMessage =
+    typeof message === "string"
+      ? sanitizeError(new Error(message), process.env.NODE_ENV === "production")
+      : sanitizeError(message, process.env.NODE_ENV === "production");
+
   return NextResponse.json(
-    { 
-      success: false, 
-      error: { 
-        message: sanitizedMessage, 
-        code 
-      } 
+    {
+      success: false,
+      error: {
+        message: sanitizedMessage,
+        code,
+        ...(metadata || {}),
+      },
     },
-    { 
+    {
       status: statusCode,
-      headers: { 
+      headers: {
         "Cache-Control": "no-store",
-        "Content-Type": "application/json; charset=utf-8"
-      }
+        "Content-Type": "application/json; charset=utf-8",
+      },
     }
   );
 }
@@ -60,29 +66,28 @@ export function error(
 export function errorFromAppError(
   appError: AppError
 ): NextResponse<{ success: false; error: { message: string; code: string } }> {
-  const sanitizedMessage = sanitizeError(appError, process.env.NODE_ENV === 'production');
-  return error(
-    sanitizedMessage,
-    appError.statusCode as HttpStatus,
-    appError.code
-  );
+  const sanitizedMessage = sanitizeError(appError, process.env.NODE_ENV === "production");
+  return error(sanitizedMessage, appError.statusCode as HttpStatus, appError.code);
 }
 
 /**
  * Rate limit error response with retry-after header
  */
 export function rateLimitError(
-  message: string = 'Rate limit exceeded', 
+  message: string = "Rate limit exceeded",
   retryAfterSeconds: number = 60
-): NextResponse<{ success: false; error: { message: string; code: string; retryAfterSeconds: number } }> {
+): NextResponse<{
+  success: false;
+  error: { message: string; code: string; retryAfterSeconds: number };
+}> {
   return NextResponse.json(
     {
       success: false,
       error: {
         message,
-        code: 'RATE_LIMIT_EXCEEDED',
-        retryAfterSeconds
-      }
+        code: "RATE_LIMIT_EXCEEDED",
+        retryAfterSeconds,
+      },
     },
     {
       status: HTTP_STATUS.RATE_LIMIT_EXCEEDED,
@@ -90,8 +95,7 @@ export function rateLimitError(
         "Cache-Control": "no-store",
         "Content-Type": "application/json; charset=utf-8",
         "Retry-After": String(retryAfterSeconds),
-      }
+      },
     }
   );
 }
-

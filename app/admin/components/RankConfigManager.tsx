@@ -41,7 +41,8 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
       setLoading(true);
       const res = await fetch("/api/admin/rank-configs");
       if (!res.ok) throw new Error("Failed to fetch configs");
-      const data = await res.json();
+      const json = await res.json();
+      const data = json.data || json;
       setConfigs(data.configs || []);
       setEditedConfigs(data.configs || []);
     } catch (err) {
@@ -88,7 +89,9 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
         body: JSON.stringify({ configs: editedConfigs }),
       });
 
-      if (!res.ok) throw new Error("Failed to save configs");
+      const json = await res.json();
+
+      if (!res.ok) throw new Error(json.error?.message || json.error || "Failed to save configs");
 
       await fetchConfigs();
       alert(t.configsSaved);

@@ -2,7 +2,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { requireUser } from "@/app/api/conversations/auth";
 import {
   listAttachmentsForConversation,
@@ -10,6 +10,8 @@ import {
   deleteAttachmentsByConversation,
 } from "@/lib/features/attachments/attachments";
 import { logger } from "@/lib/utils/logger";
+import { ValidationError, AppError } from "@/lib/utils/errors";
+import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 const routeLogger = logger.withContext("/api/attachments");
 
@@ -23,15 +25,15 @@ export async function GET(req: NextRequest) {
     const conversationId = url.searchParams.get("conversationId");
 
     if (!conversationId) {
-      return NextResponse.json({ error: "Missing conversationId" }, { status: 400 });
+      throw new ValidationError("Missing conversationId");
     }
 
     const attachments = await listAttachmentsForConversation({ userId, conversationId });
-    return NextResponse.json({ attachments }, { headers: { "Cache-Control": "no-store" } });
-  } catch (err) {
-    const error = err as Error;
-    routeLogger.error("GET error:", error);
-    return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
+    return success({ attachments });
+  } catch (err: unknown) {
+    routeLogger.error("GET error:", err);
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Failed to list attachments", 500);
   }
 }
 
@@ -46,34 +48,33 @@ export async function DELETE(req: NextRequest) {
     const conversationId = url.searchParams.get("conversationId");
     let id = url.searchParams.get("id");
 
+    // Try to get id from request body if not in query params
     if (!id) {
       try {
         const body = (await req.json()) as { id?: string };
         id = body?.id || "";
       } catch {
-        // Ignore JSON parse errors
+        // Ignore JSON parse errors - id might be in query params only
       }
     }
 
-    // DELETE all in conversation (used by Files menu)
+    // DELETE all attachments in conversation (used by Files menu)
     if (!id && conversationId) {
       await deleteAttachmentsByConversation({ userId, conversationId });
-      return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+      return success({ ok: true });
     }
 
+    // Missing both id and conversationId - error
     if (!id) {
-      if (conversationId) {
-        await deleteAttachmentsByConversation({ userId, conversationId });
-        return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
-      }
-      return NextResponse.json({ error: "Missing id" }, { status: 400 });
+      throw new ValidationError("Missing id or conversationId");
     }
 
+    // DELETE single attachment by id
     await deleteAttachmentById({ userId, id });
-    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
-  } catch (err) {
-    const error = err as Error;
-    routeLogger.error("DELETE error:", error);
-    return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
+    return success({ ok: true });
+  } catch (err: unknown) {
+    routeLogger.error("DELETE error:", err);
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Failed to delete attachment", 500);
   }
 }

@@ -42,7 +42,11 @@ export interface FrontendMessage {
 
 const fetcher = async (url: string): Promise<ConversationResponse> => {
   const res = await fetch(url);
-  return res.json();
+  const json = await res.json();
+  if (json.success === false) {
+    throw new Error(json.error?.message || "Failed to fetch");
+  }
+  return json.data || json;
 };
 
 // ---- helpers: normalize + merge (chống SWR overwrite) ----
@@ -299,9 +303,10 @@ export function useConversation(): UseConversationReturn {
       const res = await fetch(`/api/conversations?id=${id}`);
       if (!res.ok) throw new Error("Failed to load conversation messages");
       const json = await res.json();
+      const messages = json.data?.messages || json.messages;
 
       setActiveId(id);
-      setMessages((Array.isArray(json.messages) ? json.messages : []) as FrontendMessage[]);
+      setMessages((Array.isArray(messages) ? messages : []) as FrontendMessage[]);
     } catch (err) {
       console.error("loadConversation error:", err);
     } finally {
@@ -328,7 +333,8 @@ export function useConversation(): UseConversationReturn {
 
         if (!res.ok) throw new Error("Failed to create conversation");
         const json = await res.json();
-        const backendConv = json.conversation as Conversation | undefined;
+        const conversationData = json.data?.conversation || json.conversation;
+        const backendConv = conversationData as Conversation | undefined;
         if (!backendConv?.id) return null;
 
         const conv = convertConversationToFrontend(backendConv);
@@ -359,7 +365,8 @@ export function useConversation(): UseConversationReturn {
         });
         if (!res.ok) throw new Error("Failed to rename conversation");
         const json = await res.json();
-        const backendConv = json.conversation as Conversation;
+        const conversationData = json.data?.conversation || json.conversation;
+        const backendConv = conversationData as Conversation;
         const updated = convertConversationToFrontend(backendConv);
 
         patchConversationTitle(id, updated.title || title);
@@ -383,7 +390,8 @@ export function useConversation(): UseConversationReturn {
         });
         if (!res.ok) throw new Error("Failed to set conversation model");
         const json = await res.json();
-        const backendConv = json.conversation as Conversation;
+        const conversationData = json.data?.conversation || json.conversation;
+        const backendConv = conversationData as Conversation;
         const updated = convertConversationToFrontend(backendConv);
 
         patchConversationModel(id, updated.model || model);

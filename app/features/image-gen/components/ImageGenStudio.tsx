@@ -179,10 +179,12 @@ export function ImageGenStudio() {
         }),
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error?.message || json.error || "Generation failed");
+      }
 
-      if (data.success) {
+      if (json.success) {
         // Refresh messages to show new image
         await loadConversation(targetId!);
         // Also refresh project list just in case of first message logic (preview)

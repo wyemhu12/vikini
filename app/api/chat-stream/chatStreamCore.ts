@@ -13,6 +13,7 @@ import {
 } from "@/lib/core/modelRegistry";
 import { CONVERSATION_DEFAULTS } from "@/lib/utils/constants";
 import { logger } from "@/lib/utils/logger";
+import { error } from "@/lib/utils/apiResponse";
 
 import {
   getConversation,
@@ -115,16 +116,6 @@ function stripOuterQuotes(s: unknown): string {
     }
   }
   return v;
-}
-
-function jsonError(message: string, status: number = 500): Response {
-  return new Response(JSON.stringify({ error: message }), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
-  });
 }
 
 /**
@@ -483,13 +474,13 @@ export async function handleChatStreamCore({
     const rawBody = await req.json();
     body = chatStreamRequestSchema.parse(rawBody);
   } catch (e) {
-    const error = e as { errors?: Array<{ path: string[]; message: string }>; message?: string };
-    if (error.errors) {
-      const firstError = error.errors[0];
+    const errorMsg = e as { errors?: Array<{ path: string[]; message: string }>; message?: string };
+    if (errorMsg.errors) {
+      const firstError = errorMsg.errors[0];
       const field = firstError.path.join(".");
-      return jsonError(`Validation error: ${field} - ${firstError.message}`, 400);
+      return error(`Validation error: ${field} - ${firstError.message}`, 400, "VALIDATION_ERROR");
     }
-    return jsonError(error?.message || "Invalid request body", 400);
+    return error(errorMsg?.message || "Invalid request body", 400, "VALIDATION_ERROR");
   }
 
   const {
@@ -506,9 +497,9 @@ export async function handleChatStreamCore({
   try {
     ai = getGenAIClient();
   } catch (e) {
-    const error = e as Error;
-    // jsonError will automatically sanitize the message in production
-    return jsonError(error?.message || "AI service unavailable", 500);
+    const errorMsg = e as Error;
+    // error helper will automatically sanitize the message in production
+    return error(errorMsg?.message || "AI service unavailable", 500, "AI_SERVICE_ERROR");
   }
 
   // Load or create conversation
@@ -516,8 +507,12 @@ export async function handleChatStreamCore({
   try {
     convContext = await loadOrCreateConversation(userId, conversationIdRaw);
   } catch (e) {
-    const error = e as Error;
-    return jsonError(error?.message || "Failed to load/create conversation", 500);
+    const errorMsg = e as Error;
+    return error(
+      errorMsg?.message || "Failed to load/create conversation",
+      500,
+      "CONVERSATION_ERROR"
+    );
   }
 
   const {
@@ -539,8 +534,8 @@ export async function handleChatStreamCore({
     try {
       await saveMessage(userId, conversationId, "user", content);
     } catch (e) {
-      const error = e as Error;
-      return jsonError(error?.message || "Failed to save user message", 500);
+      const errorMsg = e as Error;
+      return error(errorMsg?.message || "Failed to save user message", 500, "MESSAGE_SAVE_ERROR");
     }
   }
 
@@ -630,7 +625,10 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
   const isClaude = model.startsWith("claude-");
 
   // Route to specific client
-
+  // EXCEPTION: Using `any` here because AI clients (GenAI, OpenRouter, Groq, Claude)
+  // have incompatible interfaces. Each streaming function (createChatReadableStream,
+  // createOpenAICompatibleStream, createAnthropicStream) handles internal type casting.
+  // This is a documented exception to the no-any rule.
   let aiClient: any = ai;
 
   if (isClaude) {
@@ -640,9 +638,10 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
       aiClient = getOpenRouterClient();
     } catch (e) {
       coreLogger.error("OpenRouter Init Error (for Claude):", e);
-      return jsonError(
+      return error(
         "Claude via OpenRouter configuration missing. Add OPENROUTER_API_KEY to .env",
-        500
+        500,
+        "CONFIG_ERROR"
       );
     }
   } else if (isOpenRouter) {
@@ -650,14 +649,14 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
       aiClient = getOpenRouterClient();
     } catch (e) {
       coreLogger.error("OpenRouter Init Error:", e);
-      return jsonError("OpenRouter configuration missing", 500);
+      return error("OpenRouter configuration missing", 500, "CONFIG_ERROR");
     }
   } else if (isStandardGroq) {
     try {
       aiClient = getGroqClient();
     } catch (e) {
       coreLogger.error("Groq Init Error:", e);
-      return jsonError("Groq configuration missing", 500);
+      return error("Groq configuration missing", 500, "CONFIG_ERROR");
     }
   }
 
@@ -677,7 +676,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
       aiClient = getClaudeClient();
     } catch (e) {
       coreLogger.error("Claude Init Error:", e);
-      return jsonError("Claude configuration missing", 500);
+      return error("Claude configuration missing", 500, "CONFIG_ERROR");
     }
 
     // Map to Anthropic Model IDs
