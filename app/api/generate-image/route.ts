@@ -1,14 +1,51 @@
 import { NextRequest } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { ImageGenFactory } from "@/lib/features/image-gen/core/ImageGenFactory";
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { saveMessage } from "@/lib/features/chat/messages";
 import { logger } from "@/lib/utils/logger";
-import { UnauthorizedError, ValidationError, AppError } from "@/lib/utils/errors";
+import {
+  UnauthorizedError,
+  ValidationError,
+  ForbiddenError,
+  NotFoundError,
+  AppError,
+} from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 const routeLogger = logger.withContext("generate-image");
+
+// Zod schema for image generation request validation
+const imageGenOptionsSchema = z
+  .object({
+    aspectRatio: z.enum(["1:1", "16:9", "9:16", "4:3", "3:4"]).optional(),
+    numberOfImages: z.number().int().min(1).max(4).optional(),
+    style: z
+      .enum([
+        "none",
+        "photorealistic",
+        "sketch",
+        "cartoon",
+        "digital_art",
+        "anime",
+        "digital-art",
+        "cinematic",
+        "3d-render",
+      ])
+      .optional(),
+    enhancer: z.boolean().optional(),
+    enhancerModel: z.string().max(100).optional(),
+    model: z.string().max(100).optional(),
+  })
+  .optional();
+
+const imageGenRequestSchema = z.object({
+  prompt: z.string().min(1, "Prompt is required").max(2000, "Prompt too long"),
+  conversationId: z.string().uuid("Invalid conversation ID"),
+  options: imageGenOptionsSchema,
+});
 
 export const maxDuration = 60; // Set max duration to 60s (Vercel functionality)
 
@@ -22,13 +59,36 @@ export async function POST(req: NextRequest) {
     const userId = session.user.email.toLowerCase();
     // const userEmail = session.user.email; // Unused
 
-    // 2. Parse Body
-    const body = await req.json();
-    let { prompt } = body; // Prompt is mutable
-    const { conversationId, options } = body;
+    // 2. Parse & Validate Body
+    const rawBody = await req.json();
+    let parsed;
+    try {
+      parsed = imageGenRequestSchema.parse(rawBody);
+    } catch (e: unknown) {
+      if (e instanceof z.ZodError) {
+        const firstIssue = e.issues[0];
+        throw new ValidationError(`${firstIssue.path.join(".")}: ${firstIssue.message}`);
+      }
+      throw new ValidationError("Invalid request body");
+    }
 
-    if (!prompt || !conversationId) {
-      throw new ValidationError("Missing prompt or conversationId");
+    let { prompt } = parsed; // Prompt is mutable
+    const { conversationId, options } = parsed;
+
+    // 2.5 Verify conversation ownership
+    const supabaseCheck = getSupabaseAdmin();
+    const { data: conversation, error: convError } = await supabaseCheck
+      .from("conversations")
+      .select("id, user_id")
+      .eq("id", conversationId)
+      .single();
+
+    if (convError || !conversation) {
+      throw new NotFoundError("Conversation");
+    }
+
+    if (conversation.user_id !== userId) {
+      throw new ForbiddenError("You don't have permission to add images to this conversation");
     }
 
     // --- PROMPT ENHANCER LOGIC ---
@@ -79,16 +139,14 @@ export async function POST(req: NextRequest) {
     // 3. Generate Image
     // Determine provider based on model override or default
     let providerName = "gemini"; // Default
+    const modelName = options?.model?.toLowerCase();
     if (
-      options.model?.toLowerCase().includes("flux") ||
-      options.model?.toLowerCase().includes("replicate") ||
-      options.model?.toLowerCase().includes("schnell")
+      modelName?.includes("flux") ||
+      modelName?.includes("replicate") ||
+      modelName?.includes("schnell")
     ) {
       providerName = "replicate";
-    } else if (
-      options.model?.toLowerCase().includes("dall-e") ||
-      options.model?.toLowerCase().includes("gpt")
-    ) {
+    } else if (modelName?.includes("dall-e") || modelName?.includes("gpt")) {
       providerName = "openai";
     }
 

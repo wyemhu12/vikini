@@ -30,6 +30,16 @@ import { getMessages } from "@/lib/features/chat/messages";
 
 const routeLogger = logger.withContext("/api/conversations");
 
+// Type guard for Zod-like validation errors
+interface ZodLikeError {
+  errors?: Array<{ path: string[]; message: string }>;
+  message?: string;
+}
+
+function isZodLikeError(e: unknown): e is ZodLikeError {
+  return typeof e === "object" && e !== null && ("errors" in e || "message" in e);
+}
+
 // ------------------------------
 // GET
 // - /api/conversations            => list conversations
@@ -162,17 +172,14 @@ export async function PATCH(req: NextRequest) {
     let body;
     try {
       body = updateConversationSchema.parse(rawBody);
-    } catch (e) {
-      const error = e as {
-        errors?: Array<{ path: string[]; message: string }>;
-        message?: string;
-      };
-      if (error.errors) {
-        const firstError = error.errors[0];
+    } catch (e: unknown) {
+      if (isZodLikeError(e) && e.errors) {
+        const firstError = e.errors[0];
         const field = firstError.path.join(".");
         return errorFromAppError(new ValidationError(`${field}: ${firstError.message}`));
       }
-      return errorFromAppError(new ValidationError(error?.message || "Invalid request body"));
+      const message = isZodLikeError(e) ? e.message : "Invalid request body";
+      return errorFromAppError(new ValidationError(message || "Invalid request body"));
     }
 
     const { id, title, gemId, model } = body;
@@ -244,17 +251,14 @@ export async function DELETE(req: NextRequest) {
     let body;
     try {
       body = deleteConversationSchema.parse(rawBody);
-    } catch (e) {
-      const error = e as {
-        errors?: Array<{ path: string[]; message: string }>;
-        message?: string;
-      };
-      if (error.errors) {
-        const firstError = error.errors[0];
+    } catch (e: unknown) {
+      if (isZodLikeError(e) && e.errors) {
+        const firstError = e.errors[0];
         const field = firstError.path.join(".");
         return errorFromAppError(new ValidationError(`${field}: ${firstError.message}`));
       }
-      return errorFromAppError(new ValidationError(error?.message || "Invalid request body"));
+      const message = isZodLikeError(e) ? e.message : "Invalid request body";
+      return errorFromAppError(new ValidationError(message || "Invalid request body"));
     }
 
     const { id } = body;

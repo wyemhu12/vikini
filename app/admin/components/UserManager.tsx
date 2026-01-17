@@ -68,21 +68,6 @@ export default function UserManager({ language }: UserManagerProps) {
     }
   };
 
-  const _getRankLabel = (rank: string) => {
-    switch (rank) {
-      case "not_whitelisted":
-        return t.userNotWhitelisted;
-      case "basic":
-        return t.userBasic;
-      case "pro":
-        return t.userPro;
-      case "admin":
-        return t.userAdmin;
-      default:
-        return rank;
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">

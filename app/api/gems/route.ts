@@ -13,6 +13,16 @@ import { HTTP_STATUS } from "@/lib/utils/constants";
 
 const routeLogger = logger.withContext("/api/gems");
 
+// Type guard for Zod-like validation errors
+interface ZodLikeError {
+  errors?: Array<{ path: string[]; message: string }>;
+  message?: string;
+}
+
+function isZodLikeError(e: unknown): e is ZodLikeError {
+  return typeof e === "object" && e !== null && ("errors" in e || "message" in e);
+}
+
 interface GemRow {
   id: string;
   slug?: string | null;
@@ -79,9 +89,8 @@ export async function GET() {
 
     return success({ gems: mapped });
   } catch (e: unknown) {
-    const err = e as Error;
-    routeLogger.error("GET error:", err);
-    if (err instanceof AppError) return errorFromAppError(err);
+    routeLogger.error("GET error:", e);
+    if (e instanceof AppError) return errorFromAppError(e);
     return error("Failed to load gems", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
@@ -99,25 +108,21 @@ export async function POST(req: NextRequest) {
     let body;
     try {
       body = createGemSchema.parse(rawBody);
-    } catch (e) {
-      const validationError = e as {
-        errors?: Array<{ path: string[]; message: string }>;
-        message?: string;
-      };
-      if (validationError.errors) {
-        const firstError = validationError.errors[0];
+    } catch (e: unknown) {
+      if (isZodLikeError(e) && e.errors) {
+        const firstError = e.errors[0];
         const field = firstError.path.join(".");
         throw new ValidationError(`${field}: ${firstError.message}`);
       }
-      throw new ValidationError(validationError?.message || "Invalid request body");
+      const message = isZodLikeError(e) ? e.message : "Invalid request body";
+      throw new ValidationError(message || "Invalid request body");
     }
 
     const gem = await createGem(userId, body);
     return success({ gem: mapGemForClient(gem as GemRow) });
   } catch (e: unknown) {
-    const err = e as Error;
-    routeLogger.error("POST error:", err);
-    if (err instanceof AppError) return errorFromAppError(err);
+    routeLogger.error("POST error:", e);
+    if (e instanceof AppError) return errorFromAppError(e);
     return error("Failed to create gem", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
@@ -135,17 +140,14 @@ export async function PATCH(req: NextRequest) {
     let body;
     try {
       body = updateGemSchema.parse(rawBody);
-    } catch (e) {
-      const validationError = e as {
-        errors?: Array<{ path: string[]; message: string }>;
-        message?: string;
-      };
-      if (validationError.errors) {
-        const firstError = validationError.errors[0];
+    } catch (e: unknown) {
+      if (isZodLikeError(e) && e.errors) {
+        const firstError = e.errors[0];
         const field = firstError.path.join(".");
         throw new ValidationError(`${field}: ${firstError.message}`);
       }
-      throw new ValidationError(validationError?.message || "Invalid request body");
+      const message = isZodLikeError(e) ? e.message : "Invalid request body";
+      throw new ValidationError(message || "Invalid request body");
     }
 
     const { id, ...rest } = body;
@@ -153,9 +155,8 @@ export async function PATCH(req: NextRequest) {
     const gem = await updateGem(userId, id, rest);
     return success({ gem: mapGemForClient(gem as GemRow) });
   } catch (e: unknown) {
-    const err = e as Error;
-    routeLogger.error("PATCH error:", err);
-    if (err instanceof AppError) return errorFromAppError(err);
+    routeLogger.error("PATCH error:", e);
+    if (e instanceof AppError) return errorFromAppError(e);
     return error("Failed to update gem", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
@@ -173,17 +174,14 @@ export async function DELETE(req: NextRequest) {
     let body;
     try {
       body = deleteGemSchema.parse(rawBody);
-    } catch (e) {
-      const validationError = e as {
-        errors?: Array<{ path: string[]; message: string }>;
-        message?: string;
-      };
-      if (validationError.errors) {
-        const firstError = validationError.errors[0];
+    } catch (e: unknown) {
+      if (isZodLikeError(e) && e.errors) {
+        const firstError = e.errors[0];
         const field = firstError.path.join(".");
         throw new ValidationError(`${field}: ${firstError.message}`);
       }
-      throw new ValidationError(validationError?.message || "Invalid request body");
+      const message = isZodLikeError(e) ? e.message : "Invalid request body";
+      throw new ValidationError(message || "Invalid request body");
     }
 
     const { id } = body;
@@ -191,9 +189,8 @@ export async function DELETE(req: NextRequest) {
     await deleteGem(userId, id);
     return success({ ok: true });
   } catch (e: unknown) {
-    const err = e as Error;
-    routeLogger.error("DELETE error:", err);
-    if (err instanceof AppError) return errorFromAppError(err);
+    routeLogger.error("DELETE error:", e);
+    if (e instanceof AppError) return errorFromAppError(e);
     return error("Failed to delete gem", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }

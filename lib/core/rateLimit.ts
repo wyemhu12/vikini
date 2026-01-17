@@ -56,7 +56,7 @@ const memStore = new Map<string, MemoryEntry>();
 // Maximum entries to prevent unbounded memory growth in serverless
 const MAX_MEM_STORE_ENTRIES = 10000;
 let lastCleanupTime = 0;
-const CLEANUP_INTERVAL_MS = 60000; // 1 minute
+const CLEANUP_INTERVAL_MS = 30000; // 30 seconds - more aggressive cleanup for high-traffic
 
 /**
  * Lazy cleanup: runs during consumeInMemory calls instead of setInterval.

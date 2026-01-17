@@ -140,26 +140,28 @@ export default function Sidebar({
     return typeof fn === "function" ? fn(id) : deleteFallback(id);
   };
 
+  // Extracted SidebarButton component
   const SidebarButton = ({
     onClick,
     icon: Icon,
     label,
     variant = "default",
     className,
+    isCollapsed = false,
   }: {
     onClick?: () => void;
     icon: LucideIcon;
     label: string;
     variant?: "default" | "primary" | "destructive";
     className?: string;
+    isCollapsed?: boolean;
   }) => {
     const button = (
       <button
         onClick={onClick}
         className={cn(
           "flex items-center gap-3 rounded-lg py-2.5 transition-all duration-200 group",
-          collapsed ? "justify-center px-0 w-full" : "justify-start px-3 w-full",
-          // Colors
+          isCollapsed ? "justify-center px-0 w-full" : "justify-start px-3 w-full",
           variant === "primary" &&
             "bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] border border-[var(--control-border)] text-[var(--accent)] font-bold shadow-sm",
           variant === "default" &&
@@ -178,11 +180,11 @@ export default function Sidebar({
         >
           <Icon className="w-5 h-5" />
         </span>
-        {!collapsed && <span className="text-sm font-medium truncate">{label}</span>}
+        {!isCollapsed && <span className="text-sm font-medium truncate">{label}</span>}
       </button>
     );
 
-    if (collapsed) {
+    if (isCollapsed) {
       return (
         <Tooltip>
           <TooltipTrigger asChild>{button}</TooltipTrigger>
@@ -195,124 +197,144 @@ export default function Sidebar({
     return button;
   };
 
-  const content = (
-    <div className="flex flex-col h-full text-[var(--text-primary)]">
-      {/* Actions */}
-      <div className="mb-4 space-y-2">
-        <SidebarButton
-          onClick={handleNew}
-          icon={Plus}
-          label={newChatLabel || t?.newChat || "New Chat"}
-          variant="primary"
-        />
-        <SidebarButton
-          onClick={() => router.push("/")}
-          icon={MessageSquare}
-          label="Chat"
-          variant={pathname === "/" ? "primary" : "default"}
-        />
-        {pathname === "/" && (
+  // Extracted SidebarContent - shared between desktop and mobile
+  const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => {
+    const isCollapsed = isMobile ? false : collapsed;
+
+    const handleNavigation = (path: string) => {
+      router.push(path);
+      if (isMobile) onCloseMobile?.();
+    };
+
+    return (
+      <div className="flex flex-col h-full text-[var(--text-primary)]">
+        {/* Actions */}
+        <div className="mb-4 space-y-2">
           <SidebarButton
-            onClick={handleOpenGems}
-            icon={Sparkles}
-            label={t?.exploreGems || "Explore Gems"}
-            className="ml-6 scale-95 origin-left opacity-80"
+            onClick={handleNew}
+            icon={Plus}
+            label={newChatLabel || t?.newChat || "New Chat"}
+            variant="primary"
+            isCollapsed={isCollapsed}
           />
-        )}
-        <SidebarButton
-          onClick={() => router.push("/images")}
-          icon={ImageIcon}
-          label="Image Studio"
-          variant={pathname?.includes("/images") ? "primary" : "default"}
-        />
-        <SidebarButton
-          onClick={() => router.push("/gallery")}
-          icon={LayoutGrid}
-          label="Gallery"
-          variant={pathname?.includes("/gallery") ? "primary" : "default"}
-        />
-      </div>
-
-      <div className={cn("h-px bg-[var(--border)]/60 mb-4 mx-2", collapsed && "hidden")} />
-
-      {/* Chat list */}
-      <div
-        className={cn(
-          "flex-1 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-[var(--control-border)] hover:scrollbar-thumb-[var(--border)]",
-          collapsed && "hidden" // Hide list when collapsed for simplicity
-        )}
-      >
-        {!collapsed &&
-          list.map((c) => (
-            <SidebarItem
-              key={c.id}
-              conversation={c}
-              isActive={c.id === currentId}
-              onSelect={handleSelect}
-              onRename={handleRename}
-              onDelete={handleDelete}
+          <SidebarButton
+            onClick={() => handleNavigation("/")}
+            icon={MessageSquare}
+            label="Chat"
+            variant={pathname === "/" ? "primary" : "default"}
+            isCollapsed={isCollapsed}
+          />
+          {pathname === "/" && (
+            <SidebarButton
+              onClick={handleOpenGems}
+              icon={Sparkles}
+              label={t?.exploreGems || "Explore Gems"}
+              className="ml-6 scale-95 origin-left opacity-80"
+              isCollapsed={isCollapsed}
             />
-          ))}
-        {!collapsed && list.length === 0 && (
-          <div className="text-center py-10 text-[10px] font-bold text-[var(--text-secondary)] opacity-60 select-none">
-            {t?.noConversations || "No conversations"}
-          </div>
-        )}
-      </div>
-
-      {/* Icon-only recent list if collapsed? Maybe just show New Chat icon is enough. */}
-      {collapsed && (
-        <div className="flex-1 flex flex-col items-center pt-4 border-t border-[var(--border)] gap-2">
-          {/* Minimal placeholders or just empty space */}
-        </div>
-      )}
-
-      {/* FOOTER ACTIONS */}
-      <div
-        className={cn("mt-auto pt-4 space-y-2", !collapsed && "border-t border-[var(--border)]")}
-      >
-        {onDeleteAll && !collapsed && (
+          )}
           <SidebarButton
-            onClick={() => onDeleteAll?.()}
-            icon={Trash2}
-            label={t?.deleteAll || "Clear History"}
-            variant="destructive"
-            className="text-[10px]"
+            onClick={() => handleNavigation("/images")}
+            icon={ImageIcon}
+            label="Image Studio"
+            variant={pathname?.includes("/images") ? "primary" : "default"}
+            isCollapsed={isCollapsed}
           />
-        )}
-        {/* Toggle Button for Desktop */}
-        <div className="hidden md:block">
           <SidebarButton
-            onClick={onToggleCollapse}
-            icon={collapsed ? PanelLeftOpen : PanelLeftClose}
-            label={collapsed ? "Expand" : "Collapse"}
+            onClick={() => handleNavigation("/gallery")}
+            icon={LayoutGrid}
+            label="Gallery"
+            variant={pathname?.includes("/gallery") ? "primary" : "default"}
+            isCollapsed={isCollapsed}
           />
         </div>
 
-        {/* ADMIN */}
-        {session?.user?.rank === "admin" && (
-          <SidebarButton
-            onClick={() => (window.location.href = "/admin")}
-            icon={Shield}
-            label={t?.adminManagement || "Admin Management"}
-          />
+        <div className={cn("h-px bg-[var(--border)]/60 mb-4 mx-2", isCollapsed && "hidden")} />
+
+        {/* Chat list */}
+        <div
+          className={cn(
+            "flex-1 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-[var(--control-border)] hover:scrollbar-thumb-[var(--border)]",
+            isCollapsed && "hidden"
+          )}
+        >
+          {!isCollapsed &&
+            list.map((c) => (
+              <SidebarItem
+                key={c.id}
+                conversation={c}
+                isActive={c.id === currentId}
+                onSelect={handleSelect}
+                onRename={handleRename}
+                onDelete={handleDelete}
+              />
+            ))}
+          {!isCollapsed && list.length === 0 && (
+            <div className="text-center py-10 text-[10px] font-bold text-[var(--text-secondary)] opacity-60 select-none">
+              {t?.noConversations || "No conversations"}
+            </div>
+          )}
+        </div>
+
+        {/* Placeholder when collapsed */}
+        {isCollapsed && (
+          <div className="flex-1 flex flex-col items-center pt-4 border-t border-[var(--border)] gap-2" />
         )}
 
-        {/* LOGOUT */}
-        {onLogout && (
-          <SidebarButton
-            onClick={() => {
-              onLogout?.();
-              onCloseMobile?.();
-            }}
-            icon={LogOut}
-            label={t?.signOut || t?.logout || "Sign Out"}
-            variant="destructive"
-          />
-        )}
+        {/* Footer Actions */}
+        <div
+          className={cn(
+            "mt-auto pt-4 space-y-2",
+            !isCollapsed && "border-t border-[var(--border)]"
+          )}
+        >
+          {onDeleteAll && !isCollapsed && (
+            <SidebarButton
+              onClick={() => onDeleteAll?.()}
+              icon={Trash2}
+              label={t?.deleteAll || "Clear History"}
+              variant="destructive"
+              className="text-[10px]"
+              isCollapsed={isCollapsed}
+            />
+          )}
+          {/* Toggle Button - Desktop only */}
+          {!isMobile && (
+            <div className="hidden md:block">
+              <SidebarButton
+                onClick={onToggleCollapse}
+                icon={isCollapsed ? PanelLeftOpen : PanelLeftClose}
+                label={isCollapsed ? "Expand" : "Collapse"}
+                isCollapsed={isCollapsed}
+              />
+            </div>
+          )}
+          {/* Admin */}
+          {session?.user?.rank === "admin" && (
+            <SidebarButton
+              onClick={() => (window.location.href = "/admin")}
+              icon={Shield}
+              label={t?.adminManagement || "Admin Management"}
+              isCollapsed={isCollapsed}
+            />
+          )}
+          {/* Logout */}
+          {onLogout && (
+            <SidebarButton
+              onClick={() => {
+                onLogout?.();
+                if (isMobile) onCloseMobile?.();
+              }}
+              icon={LogOut}
+              label={t?.signOut || t?.logout || "Sign Out"}
+              variant="destructive"
+              isCollapsed={isCollapsed}
+            />
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -323,10 +345,10 @@ export default function Sidebar({
           collapsed ? "w-20" : "w-72 lg:w-80"
         )}
       >
-        {content}
+        <SidebarContent />
       </aside>
 
-      {/* Mobile drawer (Keeps original width/layout) */}
+      {/* Mobile drawer */}
       {mobileOpen && (
         <div className="md:hidden">
           <div
@@ -334,6 +356,7 @@ export default function Sidebar({
             onClick={() => onCloseMobile?.()}
           />
           <aside className="fixed top-0 left-0 bottom-0 z-50 w-[85vw] max-w-sm border-r border-[var(--border)] bg-[var(--surface-muted)] p-6 pb-24 shadow-2xl flex flex-col">
+            {/* Mobile header */}
             <div className="mb-8 flex items-center justify-between">
               <Link
                 href="/"
@@ -355,99 +378,8 @@ export default function Sidebar({
                 ✕
               </button>
             </div>
-            {/* Render content with collapsed=false prop override for mobile */}
-            <div className="flex flex-col h-full text-[var(--text-primary)]">
-              {/* Re-render logic for mobile or reuse helper? 
-                   Reusing 'content' variable might be tricky if it strictly respects 'collapsed' prop 
-                   which is derived from parent state for desktop.
-                   Mobile should NEVER be collapsed.
-               */}
-              {/* Quick Fix: Force expanded content for mobile */}
-              <SidebarButton
-                onClick={handleNew}
-                icon={Plus}
-                label={newChatLabel || t?.newChat || "New Chat"}
-                variant="primary"
-              />
-              <SidebarButton
-                onClick={() => {
-                  router.push("/");
-                  onCloseMobile?.();
-                }}
-                icon={MessageSquare}
-                label="Chat"
-                variant={pathname === "/" ? "primary" : "default"}
-              />
-              {pathname === "/" && (
-                <SidebarButton
-                  icon={Sparkles}
-                  label={t?.exploreGems || "Explore Gems"}
-                  className="ml-6 scale-95 origin-left opacity-80"
-                />
-              )}
-              <SidebarButton
-                onClick={() => {
-                  router.push("/images");
-                  onCloseMobile?.();
-                }}
-                icon={ImageIcon}
-                label="Image Studio"
-                variant={pathname?.includes("/images") ? "primary" : "default"}
-              />
-              <SidebarButton
-                onClick={() => {
-                  router.push("/gallery");
-                  onCloseMobile?.();
-                }}
-                icon={LayoutGrid}
-                label="Gallery"
-                variant={pathname?.includes("/gallery") ? "primary" : "default"}
-              />
-
-              <div className="h-px bg-[var(--border)]/60 my-4 mx-2" />
-
-              <div className="flex-1 overflow-y-auto space-y-1">
-                {list.map((c) => (
-                  <SidebarItem
-                    key={c.id}
-                    conversation={c}
-                    isActive={c.id === currentId}
-                    onSelect={handleSelect}
-                    onRename={handleRename}
-                    onDelete={handleDelete}
-                  />
-                ))}
-              </div>
-
-              <div className="mt-auto pt-4 border-t border-[var(--border)] space-y-2">
-                {onDeleteAll && (
-                  <SidebarButton
-                    onClick={() => onDeleteAll?.()}
-                    icon={Trash2}
-                    label={t?.deleteAll || "Clear History"}
-                    variant="destructive"
-                  />
-                )}
-                {session?.user?.rank === "admin" && (
-                  <SidebarButton
-                    onClick={() => (window.location.href = "/admin")}
-                    icon={Shield}
-                    label={t?.adminManagement || "Admin Management"}
-                  />
-                )}
-                {onLogout && (
-                  <SidebarButton
-                    onClick={() => {
-                      onLogout?.();
-                      onCloseMobile?.();
-                    }}
-                    icon={LogOut}
-                    label={t?.signOut || t?.logout || "Sign Out"}
-                    variant="destructive"
-                  />
-                )}
-              </div>
-            </div>
+            {/* Reuse SidebarContent with isMobile=true (never collapsed) */}
+            <SidebarContent isMobile />
           </aside>
         </div>
       )}
