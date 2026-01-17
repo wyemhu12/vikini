@@ -16,9 +16,32 @@ export type MessageRole = (typeof MESSAGE_ROLES)[keyof typeof MESSAGE_ROLES];
  */
 export const MODEL_IDS = {
   IMAGE_STUDIO: "vikini-image-studio",
+  // Gemini models
+  GEMINI_3_PRO_RESEARCH: "gemini-3-pro-research",
+  GEMINI_3_PRO_THINKING: "gemini-3-pro-thinking",
+  GEMINI_3_FLASH_THINKING: "gemini-3-flash-thinking",
+  // Claude models
+  CLAUDE_SONNET_45: "claude-sonnet-4.5",
+  CLAUDE_HAIKU_45: "claude-haiku-4.5",
 } as const;
 
 export type ModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];
+
+/**
+ * Claude model mapping to API formats
+ */
+export const CLAUDE_API_MODELS = {
+  // OpenRouter format
+  OPENROUTER: {
+    [MODEL_IDS.CLAUDE_SONNET_45]: "anthropic/claude-sonnet-4",
+    [MODEL_IDS.CLAUDE_HAIKU_45]: "anthropic/claude-haiku-4",
+  },
+  // Native Anthropic format
+  ANTHROPIC: {
+    [MODEL_IDS.CLAUDE_SONNET_45]: "claude-3-5-sonnet-latest",
+    [MODEL_IDS.CLAUDE_HAIKU_45]: "claude-3-5-haiku-latest",
+  },
+} as const;
 
 /**
  * Default limits and configurations

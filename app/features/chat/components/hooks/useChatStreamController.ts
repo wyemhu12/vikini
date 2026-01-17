@@ -59,6 +59,7 @@ export function useChatStreamController({
   const [messages, setMessages] = useState<FrontendMessage[]>([]);
   const [input, setInput] = useState("");
   const [creatingConversation, setCreatingConversation] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingAssistant, setStreamingAssistant] = useState<string | null>(null);
@@ -148,9 +149,11 @@ export function useChatStreamController({
 
       if (!id) {
         setMessages([]);
+        setLoadingMessages(false);
         return;
       }
 
+      setLoadingMessages(true);
       try {
         const res = await fetch(`/api/conversations?id=${id}`);
         if (!res.ok) throw new Error("Failed to load conversation");
@@ -160,6 +163,8 @@ export function useChatStreamController({
       } catch (e) {
         logger.error("Failed to load messages:", e);
         setMessages([]);
+      } finally {
+        setLoadingMessages(false);
       }
     },
     [normalizeMessages, setSelectedConversationId, cancelStream]
@@ -540,6 +545,7 @@ export function useChatStreamController({
     input,
     setInput,
     creatingConversation,
+    loadingMessages,
     isStreaming,
     streamingAssistant,
     streamingSources,
@@ -554,6 +560,6 @@ export function useChatStreamController({
     handleRegenerate,
     handleEdit,
     handleStop,
-    setMessages, // Expose setMessages
+    setMessages,
   };
 }

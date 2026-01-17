@@ -9,6 +9,7 @@ import AttachmentsPanel, { type AttachmentsPanelRef } from "./AttachmentsPanel";
 import InputForm from "./InputForm";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
+import { MODEL_IDS } from "@/lib/utils/constants";
 
 /** Gem info for display */
 interface GemInfo {
@@ -121,7 +122,7 @@ export default function ChatControls({
           </button>
           <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
           <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
-          {currentModel === "gemini-3-pro-research" ? (
+          {currentModel === MODEL_IDS.GEMINI_3_PRO_RESEARCH ? (
             <button
               disabled
               className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full text-[var(--text-secondary)] bg-[var(--control-bg)] cursor-not-allowed border border-[var(--control-border)]"

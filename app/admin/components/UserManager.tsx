@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Users, Loader2, AlertCircle } from "lucide-react";
 import { translations } from "@/lib/utils/config";
 import { toast } from "@/lib/store/toastStore";
+import { formatDate } from "@/lib/utils/dateFormat";
 
 interface Profile {
   id: string;
@@ -159,7 +160,7 @@ export default function UserManager({ language }: UserManagerProps) {
                   </span>
                 </td>
                 <td className="py-3 px-4 text-sm text-gray-400">
-                  {new Date(user.created_at).toLocaleDateString()}
+                  {formatDate(user.created_at, language === "vi" ? "vi-VN" : "en-GB")}
                 </td>
                 <td className="py-3 px-4 text-right">
                   <button

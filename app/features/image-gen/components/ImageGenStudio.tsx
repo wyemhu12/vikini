@@ -27,12 +27,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { logger } from "@/lib/utils/logger";
+import { formatDate } from "@/lib/utils/dateFormat";
 
 export function ImageGenStudio() {
   const { data: session, status } = useSession();
   const isAuthed = status === "authenticated";
   const { theme: _theme, toggleTheme: _toggleTheme } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   // Use shared conversation hook
   const {
@@ -149,7 +150,10 @@ export function ImageGenStudio() {
     // Auto-create project if none selected
     if (!targetId) {
       const newProj = await createConversation({
-        title: t("studioNewProject") + " " + new Date().toLocaleDateString(),
+        title:
+          t("studioNewProject") +
+          " " +
+          formatDate(new Date(), language === "vi" ? "vi-VN" : "en-GB"),
         model: "vikini-image-studio",
       });
       if (newProj) {

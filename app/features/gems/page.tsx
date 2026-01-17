@@ -2,6 +2,7 @@
 
 import { Suspense } from "react";
 import GemManager from "./components/GemManager";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 // Tạo component loading đơn giản
 function GemLoading() {
@@ -15,9 +16,11 @@ function GemLoading() {
 export default function GemsPage() {
   return (
     <div className="h-[100dvh] w-full bg-neutral-950">
-      <Suspense fallback={<GemLoading />}>
-        <GemManager />
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={<GemLoading />}>
+          <GemManager />
+        </Suspense>
+      </ErrorBoundary>
     </div>
   );
 }

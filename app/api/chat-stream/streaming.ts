@@ -1,5 +1,6 @@
 // /app/api/chat-stream/streaming.ts
 import { logger } from "@/lib/utils/logger";
+import { MODEL_IDS } from "@/lib/utils/constants";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { getModelMaxOutputTokens } from "@/lib/core/modelRegistry";
@@ -333,13 +334,13 @@ async function executeStream(
   let apiModel = model;
   let thinkingConfig: { thinkingLevel: string } | undefined;
 
-  if (model === "gemini-3-flash-thinking") {
+  if (model === MODEL_IDS.GEMINI_3_FLASH_THINKING) {
     apiModel = "gemini-3-flash-preview";
     thinkingConfig = { thinkingLevel: "low" }; // Default for Flash Thinking variant
-  } else if (model === "gemini-3-pro-thinking") {
+  } else if (model === MODEL_IDS.GEMINI_3_PRO_THINKING) {
     apiModel = "gemini-3-pro-preview";
     thinkingConfig = { thinkingLevel: "high" }; // Default for Pro Thinking variant
-  } else if (model === "gemini-3-pro-research") {
+  } else if (model === MODEL_IDS.GEMINI_3_PRO_RESEARCH) {
     apiModel = "gemini-3-pro-preview";
     // Research mode uses forced tools (configured in chatStreamCore), no special thinking level needed by default,
     // unless we want to combine them. For now, just Thinking High + Search?

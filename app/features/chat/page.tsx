@@ -3,7 +3,7 @@
 
 import React, { Suspense } from "react";
 import ChatApp from "./components/ChatApp";
-import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function HomePage() {
   return (

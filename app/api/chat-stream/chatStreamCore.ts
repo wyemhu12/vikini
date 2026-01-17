@@ -13,7 +13,7 @@ import {
   coerceStoredModel,
   getModelTokenLimit,
 } from "@/lib/core/modelRegistry";
-import { CONVERSATION_DEFAULTS } from "@/lib/utils/constants";
+import { CONVERSATION_DEFAULTS, MODEL_IDS, CLAUDE_API_MODELS } from "@/lib/utils/constants";
 import { logger } from "@/lib/utils/logger";
 import { error } from "@/lib/utils/apiResponse";
 
@@ -483,7 +483,7 @@ function setupToolsAndSafety(
     [];
 
   // Special case for Gemini 3 Pro Research: Force Dynamic Retrieval (Threshold 0 = Always)
-  if (model === "gemini-3-pro-research") {
+  if (model === MODEL_IDS.GEMINI_3_PRO_RESEARCH) {
     tools.push({
       googleSearch: {},
     });
@@ -703,9 +703,8 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
 
   // Map Claude model IDs to OpenRouter format
   const apiModel = isClaude
-    ? model === "claude-sonnet-4.5"
-      ? "anthropic/claude-sonnet-4"
-      : "anthropic/claude-haiku-4"
+    ? CLAUDE_API_MODELS.OPENROUTER[model as keyof typeof CLAUDE_API_MODELS.OPENROUTER] ||
+      CLAUDE_API_MODELS.OPENROUTER[MODEL_IDS.CLAUDE_HAIKU_45]
     : model;
 
   // Create appropriate stream based on client type
@@ -721,9 +720,9 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
     }
 
     // Map to Anthropic Model IDs
-    // Assuming "latest" alias is safe, or specific versions
     const claudeModel =
-      model === "claude-sonnet-4.5" ? "claude-3-5-sonnet-latest" : "claude-3-5-haiku-latest";
+      CLAUDE_API_MODELS.ANTHROPIC[model as keyof typeof CLAUDE_API_MODELS.ANTHROPIC] ||
+      CLAUDE_API_MODELS.ANTHROPIC[MODEL_IDS.CLAUDE_HAIKU_45];
 
     stream = createAnthropicStream({
       ai: aiClient as unknown as Anthropic,

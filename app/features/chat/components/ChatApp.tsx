@@ -282,6 +282,7 @@ export default function ChatApp() {
     input,
     setInput,
     creatingConversation,
+    loadingMessages,
     isStreaming,
     streamingAssistant,
     streamingSources,
@@ -631,6 +632,13 @@ export default function ChatApp() {
                 lastConversation={filteredConversations?.[0]}
                 onSelectConversation={handleSelectConversation}
               />
+            </div>
+          ) : loadingMessages ? (
+            <div className="max-w-3xl mx-auto w-full py-8 flex flex-col items-center justify-center gap-4 min-h-[200px]">
+              <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm text-[var(--text-secondary)]">
+                {t.loading || "Loading..."}
+              </span>
             </div>
           ) : (
             <div className="max-w-3xl mx-auto w-full py-8 space-y-2">

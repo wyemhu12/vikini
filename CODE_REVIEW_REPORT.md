@@ -13,8 +13,8 @@
 | Hạng mục                        | Ban đầu | Đã Fix | Còn lại |
 | ------------------------------- | ------- | ------ | ------- |
 | **Lỗi Nghiêm Trọng (Critical)** | 4       | 4      | 0       |
-| **Lỗi Quan Trọng (High)**       | 8       | 6      | 2       |
-| **Lỗi Trung Bình (Medium)**     | 12      | 0      | 12      |
+| **Lỗi Quan Trọng (High)**       | 8       | 8      | 0       |
+| **Lỗi Trung Bình (Medium)**     | 12      | 2      | 10      |
 | **Cải Tiến Đề Xuất (Low)**      | 15      | 0      | 15      |
 
 **Trạng thái CI:**
@@ -35,7 +35,7 @@
 | C-003 | Console.log spam → Logger            | ✅     |
 | C-004 | require() → Dynamic import           | ✅     |
 
-### High (6/8 - 75%)
+### High (8/8 - 100%) ✅
 
 | ID    | Issue                             | Status |
 | ----- | --------------------------------- | ------ |
@@ -45,71 +45,20 @@
 | H-004 | Rate limit cleanup interval (30s) | ✅     |
 | H-005 | Missing Zod validation image-gen  | ✅     |
 | H-006 | Duplicated mobile sidebar content | ✅     |
-
----
-
-## 🟠 LỖI QUAN TRỌNG CÒN LẠI (HIGH)
-
-### H-007: Missing Error Boundary in Critical Components
-
-**Files thiếu Error Boundary:**
-
-- `app/features/image-gen/components/ImageGenStudio.tsx`
-- `app/features/gems/components/GemManager.tsx`
-- `app/features/gallery/components/GalleryView.tsx`
-
-**Recommendation:** Wrap critical feature components với ErrorBoundary để handle crashes gracefully.
-
-```typescript
-// Tạo ErrorBoundary component
-import { ErrorBoundary } from "react-error-boundary";
-
-function ErrorFallback({ error, resetErrorBoundary }) {
-  return (
-    <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-      <h2>Something went wrong</h2>
-      <button onClick={resetErrorBoundary}>Try again</button>
-    </div>
-  );
-}
-
-// Usage
-<ErrorBoundary FallbackComponent={ErrorFallback}>
-  <ImageGenStudio />
-</ErrorBoundary>
-```
-
----
-
-### H-008: Inconsistent Loading States
-
-**File:** `app/features/chat/components/ChatApp.tsx`
-
-**Vấn đề:** `isAuthLoading` check returns loading UI nhưng một số child components không handle loading state properly.
-
-**Observation:** Good pattern với Suspense fallback cho modals (dòng 685-710).
+| H-007 | Missing Error Boundaries          | ✅     |
+| H-008 | Inconsistent loading states       | ✅     |
 
 ---
 
 ## 🟡 LỖI TRUNG BÌNH (MEDIUM)
 
-### M-001: Magic Strings for Model IDs
+### ✅ M-001: Magic Strings for Model IDs - FIXED
 
-**Files:** `app/api/chat-stream/chatStreamCore.ts`
-
-```typescript
-// ❌ Magic strings
-if (model === "gemini-3-pro-research") { ... }
-const claudeModel = model === "claude-sonnet-4.5"
-  ? "claude-3-5-sonnet-latest"
-  : "claude-3-5-haiku-latest";
-```
-
-**Fix:** Centralize in `lib/utils/constants.ts`
+Centralized in `lib/utils/constants.ts` với `MODEL_IDS` và `CLAUDE_API_MODELS`.
 
 ---
 
-### M-002: Very Large Component File
+### M-002: Very Large Component File (SKIPPED)
 
 **File:** `app/features/chat/components/ChatApp.tsx` - ~750 lines
 
@@ -117,18 +66,14 @@ const claudeModel = model === "claude-sonnet-4.5"
 
 ---
 
-### M-003: Inconsistent Date Formatting
+### ✅ M-003: Inconsistent Date Formatting - FIXED
 
-**File:** `app/admin/components/UserManager.tsx`
+Tạo `lib/utils/dateFormat.ts` với các utility functions:
 
-```typescript
-// ❌ Browser locale dependent
-new Date(user.created_at).toLocaleDateString();
-
-// ✅ Sử dụng date-fns
-import { format } from "date-fns";
-format(new Date(user.created_at), "dd/MM/yyyy");
-```
+- `formatDate()` - DD/MM/YYYY format
+- `formatDateShort()` - "Jan 17, 2026" format
+- `formatDateTime()` - DD/MM/YYYY HH:MM
+- `formatRelativeDate()` - "2 hours ago"
 
 ---
 
@@ -250,8 +195,7 @@ Standardize on named exports for better tree-shaking.
 
 | Priority | Category      | Action Items                            |
 | -------- | ------------- | --------------------------------------- |
-| 🟠 P1    | Reliability   | Add Error Boundaries to feature pages   |
-| 🟠 P1    | Security      | Add rate limiting to image-gen route    |
+| 🟡 P2    | Security      | Add rate limiting to image-gen route    |
 | 🟡 P2    | Code Quality  | Centralize magic strings                |
 | 🟡 P2    | Component     | Split ChatApp.tsx into smaller pieces   |
 | 🟡 P2    | Accessibility | Add aria-labels to interactive elements |

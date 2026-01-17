@@ -20,6 +20,7 @@ import { useConversation, FrontendConversation } from "../../chat/hooks/useConve
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import { useRouter } from "next/navigation";
 import { logger } from "@/lib/utils/logger";
+import { formatDateShort } from "@/lib/utils/dateFormat";
 
 interface GalleryImage {
   id: string;
@@ -35,7 +36,7 @@ type DateFilter = "all" | "today" | "week" | "month";
 
 export function GalleryView() {
   const { theme: _theme } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const router = useRouter();
 
   // Fetch main chat conversations for the Sidebar
@@ -414,7 +415,10 @@ export function GalleryView() {
                         {t("galleryDate")}
                       </label>
                       <p className="text-sm">
-                        {new Date(selectedImage.createdAt).toLocaleDateString()}
+                        {formatDateShort(
+                          selectedImage.createdAt,
+                          language === "vi" ? "vi-VN" : "en-US"
+                        )}
                       </p>
                     </div>
                     <div>
