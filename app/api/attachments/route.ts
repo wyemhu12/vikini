@@ -15,6 +15,12 @@ import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 const routeLogger = logger.withContext("/api/attachments");
 
+// SECURITY: UUID validation
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function isValidUUID(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
+
 export async function GET(req: NextRequest) {
   try {
     const auth = await requireUser(req);
@@ -26,6 +32,11 @@ export async function GET(req: NextRequest) {
 
     if (!conversationId) {
       throw new ValidationError("Missing conversationId");
+    }
+
+    // SECURITY: Validate UUID format
+    if (!isValidUUID(conversationId)) {
+      throw new ValidationError("Invalid conversationId format");
     }
 
     const attachments = await listAttachmentsForConversation({ userId, conversationId });
@@ -60,6 +71,10 @@ export async function DELETE(req: NextRequest) {
 
     // DELETE all attachments in conversation (used by Files menu)
     if (!id && conversationId) {
+      // SECURITY: Validate UUID format
+      if (!isValidUUID(conversationId)) {
+        throw new ValidationError("Invalid conversationId format");
+      }
       await deleteAttachmentsByConversation({ userId, conversationId });
       return success({ ok: true });
     }
@@ -67,6 +82,11 @@ export async function DELETE(req: NextRequest) {
     // Missing both id and conversationId - error
     if (!id) {
       throw new ValidationError("Missing id or conversationId");
+    }
+
+    // SECURITY: Validate UUID format
+    if (!isValidUUID(id)) {
+      throw new ValidationError("Invalid attachment id format");
     }
 
     // DELETE single attachment by id

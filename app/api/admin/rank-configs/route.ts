@@ -9,6 +9,16 @@ import { invalidateRankConfigsCache } from "@/lib/core/limits";
 import { ForbiddenError, ValidationError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
+// ============================================
+// Security: Valid ranks whitelist
+// ============================================
+const VALID_RANKS = ["not_whitelisted", "basic", "pro", "admin"] as const;
+type ValidRank = (typeof VALID_RANKS)[number];
+
+function isValidRank(rank: unknown): rank is ValidRank {
+  return typeof rank === "string" && VALID_RANKS.includes(rank as ValidRank);
+}
+
 // GET: List all rank configs
 export async function GET() {
   try {
@@ -46,7 +56,7 @@ export async function PATCH(req: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    // Update each config
+    // Update each config with validation
     for (const config of configs) {
       const configObj = config as {
         rank?: string;
@@ -55,6 +65,22 @@ export async function PATCH(req: NextRequest) {
         features?: unknown;
         allowed_models?: string[];
       };
+
+      // SECURITY: Validate rank is in allowed list (prevents SQL injection)
+      if (!isValidRank(configObj.rank)) {
+        throw new ValidationError(
+          `Invalid rank: ${configObj.rank}. Must be one of: ${VALID_RANKS.join(", ")}`
+        );
+      }
+
+      // Validate numeric fields
+      if (typeof configObj.daily_message_limit !== "number" || configObj.daily_message_limit < 0) {
+        throw new ValidationError("daily_message_limit must be a non-negative number");
+      }
+
+      if (typeof configObj.max_file_size_mb !== "number" || configObj.max_file_size_mb < 0) {
+        throw new ValidationError("max_file_size_mb must be a non-negative number");
+      }
 
       const { error: dbError } = await supabase
         .from("rank_configs")

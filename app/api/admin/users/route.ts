@@ -16,6 +16,13 @@ function isValidRank(rank: unknown): rank is UserRank {
   return typeof rank === "string" && VALID_RANKS.includes(rank as UserRank);
 }
 
+// SECURITY: UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isValidUUID(id: unknown): boolean {
+  return typeof id === "string" && UUID_REGEX.test(id);
+}
+
 // Type for profile updates
 interface ProfileUpdates {
   rank?: UserRank;
@@ -58,6 +65,11 @@ export async function PATCH(req: NextRequest) {
 
     if (!userId || typeof userId !== "string") {
       throw new ValidationError("Missing or invalid userId");
+    }
+
+    // SECURITY: Validate userId is a valid UUID
+    if (!isValidUUID(userId)) {
+      throw new ValidationError("Invalid userId format - must be a valid UUID");
     }
 
     // SECURITY: Validate rank against whitelist to prevent injection

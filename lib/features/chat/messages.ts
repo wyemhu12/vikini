@@ -224,7 +224,7 @@ export async function deleteSingleMessage(userId: string, messageId: string) {
     .single();
 
   if (error || !msg) {
-    console.error("[deleteSingleMessage] Fetch Error:", error);
+    messagesLogger.error("deleteSingleMessage Fetch Error:", error);
     throw new Error("Message not found");
   }
 
@@ -232,8 +232,8 @@ export async function deleteSingleMessage(userId: string, messageId: string) {
   const conversation = msg.conversations as unknown as { user_id: string };
 
   if (conversation.user_id !== userId) {
-    console.error(
-      `[deleteSingleMessage] Unauthorized: ReqUser=${userId} vs ConvUser=${conversation.user_id}`
+    messagesLogger.error(
+      `deleteSingleMessage Unauthorized: ReqUser=${userId} vs ConvUser=${conversation.user_id}`
     );
     throw new Error("Unauthorized or message not found");
   }

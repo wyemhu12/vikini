@@ -3,6 +3,9 @@
 
 import { getSupabaseAdmin } from "./supabase.server";
 import { Redis } from "@upstash/redis";
+import { logger } from "@/lib/utils/logger";
+
+const limitsLogger = logger.withContext("limits");
 
 // =====================================================================================
 // Types & Interfaces
@@ -73,7 +76,7 @@ async function getRankConfigs(): Promise<Map<string, RankConfig>> {
         return map;
       }
     } catch (err) {
-      console.warn("Redis cache read error:", err);
+      limitsLogger.warn("Redis cache read error:", err);
     }
   }
 
@@ -97,7 +100,7 @@ async function getRankConfigs(): Promise<Map<string, RankConfig>> {
     try {
       await r.setex(RANK_CONFIGS_CACHE_KEY, RANK_CONFIGS_TTL_SECONDS, configs);
     } catch (err) {
-      console.warn("Redis cache write error:", err);
+      limitsLogger.warn("Redis cache write error:", err);
     }
   }
 
@@ -148,7 +151,7 @@ export async function getUserProfile(userId: string): Promise<{
     .maybeSingle();
 
   if (error) {
-    console.warn("Error fetching user profile:", error);
+    limitsLogger.warn("Error fetching user profile:", error);
     return null;
   }
 
@@ -208,7 +211,7 @@ export async function getDailyMessageCount(userId: string): Promise<number> {
     .maybeSingle();
 
   if (error) {
-    console.warn("Error fetching daily message count:", error);
+    limitsLogger.warn("Error fetching daily message count:", error);
     return 0;
   }
 
@@ -245,7 +248,7 @@ export async function incrementDailyMessageCount(userId: string): Promise<void> 
   });
 
   if (error) {
-    console.warn("Error incrementing message count:", error);
+    limitsLogger.warn("Error incrementing message count:", error);
   }
 }
 
@@ -310,7 +313,7 @@ export async function invalidateRankConfigsCache(): Promise<void> {
     try {
       await r.del(RANK_CONFIGS_CACHE_KEY);
     } catch (err) {
-      console.warn("Failed to invalidate cache:", err);
+      limitsLogger.warn("Failed to invalidate cache:", err);
     }
   }
 }

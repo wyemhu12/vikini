@@ -1,4 +1,7 @@
 // /lib/utils/download.ts
+import { logger } from "@/lib/utils/logger";
+
+const downloadLogger = logger.withContext("download");
 
 interface Message {
   role: string;
@@ -9,7 +12,10 @@ interface Message {
 /**
  * Hàm nội bộ: Xử lý việc tạo file Blob và kích hoạt tải xuống
  */
-export function downloadConversationAsTxt(messages: Message[], title: string = "conversation"): void {
+export function downloadConversationAsTxt(
+  messages: Message[],
+  title: string = "conversation"
+): void {
   if (!messages || messages.length === 0) {
     throw new Error("Nội dung trống, không thể tải về.");
   }
@@ -31,14 +37,17 @@ export function downloadConversationAsTxt(messages: Message[], title: string = "
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  
+
   // Tên file an toàn (Sanitize filename)
-  const safeTitle = String(title).replace(/[^a-z0-9\u00C0-\u024F\s-]/gi, "").trim() || "chat";
+  const safeTitle =
+    String(title)
+      .replace(/[^a-z0-9\u00C0-\u024F\s-]/gi, "")
+      .trim() || "chat";
   link.download = `${safeTitle}_${Date.now()}.txt`;
-  
+
   document.body.appendChild(link);
   link.click();
-  
+
   // Dọn dẹp
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
@@ -55,7 +64,7 @@ export async function downloadConversationById(
   try {
     // 1. Gọi API lấy tin nhắn
     const res = await fetch(`/api/conversations?id=${conversationId}`);
-    
+
     if (!res.ok) {
       throw new Error(`Lỗi kết nối: ${res.status} ${res.statusText}`);
     }
@@ -70,8 +79,7 @@ export async function downloadConversationById(
     downloadConversationAsTxt(data.messages, conversationTitle);
     return true; // Báo thành công
   } catch (err) {
-    console.error("[Download Error]", err);
+    downloadLogger.error("Download Error:", err);
     throw err; // Ném lỗi ra để Component hiển thị Alert nếu cần
   }
 }
-

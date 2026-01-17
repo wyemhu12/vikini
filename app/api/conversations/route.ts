@@ -52,6 +52,15 @@ export async function GET(req: NextRequest) {
 
     // ✅ If id provided => return messages
     if (id) {
+      // SECURITY: Validate UUID format to prevent injection
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(id)) {
+        routeLogger.warn(`Invalid UUID format: ${id}`);
+        perfMonitor.end(400, { operation: "getMessages", error: "invalid-uuid" });
+        return errorFromAppError(new ValidationError("Invalid conversation ID format"));
+      }
+
       const convo = await getConversation(id);
       if (!convo || convo.userId !== userId) {
         routeLogger.warn(`Conversation not found or access denied: ${id} for user: ${userId}`);

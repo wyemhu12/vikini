@@ -4,6 +4,9 @@ import "@/lib/env";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
+import { logger } from "@/lib/utils/logger";
+
+const authLogger = logger.withContext("auth");
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -71,14 +74,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         .maybeSingle();
 
       if (fetchError) {
-        console.warn("Error checking profile:", fetchError);
+        authLogger.warn("Error checking profile:", fetchError);
         return false;
       }
 
       // If profile exists, check if blocked
       if (profile) {
         if (profile.is_blocked) {
-          console.warn(`Blocked user attempted login: ${email}`);
+          authLogger.warn(`Blocked user attempted login: ${email}`);
           return false;
         }
         // Allow login for existing users (even if not_whitelisted - they can see pending message)
@@ -90,7 +93,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const userId = account?.providerAccountId || user?.id;
 
       if (!userId) {
-        console.warn("No user ID available for profile creation");
+        authLogger.warn("No user ID available for profile creation");
         return false;
       }
 
@@ -103,11 +106,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       });
 
       if (insertError) {
-        console.warn("Error creating profile:", insertError);
+        authLogger.warn("Error creating profile:", insertError);
         return false;
       }
 
-      console.warn(`New user pending approval: ${email}`);
+      authLogger.info(`New user pending approval: ${email}`);
       return true; // Allow login but restrict access via rank
     },
 

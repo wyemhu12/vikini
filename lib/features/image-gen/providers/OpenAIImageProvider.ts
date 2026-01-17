@@ -1,5 +1,8 @@
 import OpenAI from "openai";
 import { ImageGenProvider, ImageGenOptions, ImageGenResult } from "../core/types";
+import { logger } from "@/lib/utils/logger";
+
+const imageGenLogger = logger.withContext("image-gen");
 
 export class OpenAIImageProvider implements ImageGenProvider {
   id = "openai";
@@ -56,7 +59,7 @@ export class OpenAIImageProvider implements ImageGenProvider {
         },
       ];
     } catch (error: unknown) {
-      console.error("OpenAI Gen Error:", error);
+      imageGenLogger.error("OpenAI Gen Error:", error);
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(message || "Failed to generate image with OpenAI");
     }
