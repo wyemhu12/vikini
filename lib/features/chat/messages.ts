@@ -5,13 +5,29 @@ import { logger } from "@/lib/utils/logger";
 
 const messagesLogger = logger.withContext("messages");
 
+/**
+ * Typed metadata for messages - used for image generation and other features.
+ * Avoids `any` type for type safety.
+ */
+export interface MessageMeta {
+  type?: "image_gen" | "text" | "chart";
+  imageUrl?: string;
+  prompt?: string;
+  attachment?: {
+    storagePath: string;
+    mimeType?: string;
+    filename?: string;
+  };
+  [key: string]: unknown; // Allow additional properties
+}
+
 export interface Message {
   id: string;
   conversationId: string;
   role: string;
   content: string;
   createdAt: string | null;
-  meta: Record<string, unknown>;
+  meta: MessageMeta;
 }
 
 interface MessageRow {
@@ -145,7 +161,7 @@ export async function deleteMessage(userId: string, messageId: string): Promise<
   const { data: msg } = await supabase.from("messages").select("meta").eq("id", messageId).single();
 
   if (msg?.meta) {
-    const meta = msg.meta as Record<string, any>;
+    const meta = msg.meta as MessageMeta;
     // Check if it's a generated image with a storage path
     if (meta.type === "image_gen" && meta.attachment?.storagePath) {
       const storagePath = meta.attachment.storagePath;
@@ -186,7 +202,7 @@ export async function deleteMessagesIncludingAndAfter(
     const pathsToRemove: string[] = [];
 
     for (const msg of messagesToDelete) {
-      const meta = msg.meta as Record<string, any>;
+      const meta = msg.meta as MessageMeta;
       if (meta?.type === "image_gen" && meta?.attachment?.storagePath) {
         pathsToRemove.push(meta.attachment.storagePath);
       }

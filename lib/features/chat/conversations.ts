@@ -16,6 +16,31 @@ import {
 } from "@/lib/core/cache";
 
 // ------------------------------
+// Deduplication: Prevent race conditions when creating conversations
+// ------------------------------
+
+interface PendingCreate {
+  promise: Promise<Conversation | null>;
+  timestamp: number;
+}
+
+// Map of userId -> pending conversation creation promise
+// This prevents duplicate conversations when users spam-click "New Chat"
+const pendingCreates = new Map<string, PendingCreate>();
+
+// Cleanup stale pending entries (older than 30 seconds)
+const PENDING_TTL_MS = 30000;
+
+function cleanupPendingCreates(): void {
+  const now = Date.now();
+  for (const [key, entry] of pendingCreates.entries()) {
+    if (now - entry.timestamp > PENDING_TTL_MS) {
+      pendingCreates.delete(key);
+    }
+  }
+}
+
+// ------------------------------
 // Constants (single source of truth: /lib/core/modelRegistry.ts)
 // ------------------------------
 
@@ -122,28 +147,82 @@ export async function getConversationSafe(conversationId: string): Promise<Conve
   return mapConversationRow(q2.data);
 }
 
-async function listConversationsSafe(userId: string): Promise<Conversation[]> {
+// Pagination options for listing conversations
+export interface ListConversationsOptions {
+  limit?: number;
+  offset?: number;
+}
+
+// Default pagination values
+const DEFAULT_CONVERSATIONS_LIMIT = 50;
+const MAX_CONVERSATIONS_LIMIT = 200;
+
+// Result type for paginated conversations
+export interface PaginatedConversations {
+  conversations: Conversation[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+async function listConversationsSafe(
+  userId: string,
+  options: ListConversationsOptions = {}
+): Promise<PaginatedConversations> {
   const supabase = getSupabaseAdmin();
 
-  // Try primary schema: user_id
+  // Validate and clamp pagination values
+  const limit = Math.min(
+    Math.max(1, options.limit || DEFAULT_CONVERSATIONS_LIMIT),
+    MAX_CONVERSATIONS_LIMIT
+  );
+  const offset = Math.max(0, options.offset || 0);
+
+  // Try primary schema: user_id with pagination
   const q1 = await supabase
     .from("conversations")
-    .select("*,gems(name,icon,color)")
+    .select("*,gems(name,icon,color)", { count: "exact" })
     .eq("user_id", userId)
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .range(offset, offset + limit - 1);
 
-  if (!q1.error)
-    return (q1.data || []).map(mapConversationRow).filter((c): c is Conversation => c !== null);
+  if (!q1.error) {
+    const conversations = (q1.data || [])
+      .map(mapConversationRow)
+      .filter((c): c is Conversation => c !== null);
+    const total = q1.count || 0;
+    return {
+      conversations,
+      total,
+      limit,
+      offset,
+      hasMore: offset + conversations.length < total,
+    };
+  }
 
-  // Fallback schema: userId
+  // Fallback schema: userId with pagination
   const q2 = await supabase
     .from("conversations")
-    .select("*,gems(name,icon,color)")
+    .select("*,gems(name,icon,color)", { count: "exact" })
     .eq("userId", userId)
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (q2.error) throw new Error(`listConversations failed: ${q2.error.message}`);
-  return (q2.data || []).map(mapConversationRow).filter((c): c is Conversation => c !== null);
+
+  const conversations = (q2.data || [])
+    .map(mapConversationRow)
+    .filter((c): c is Conversation => c !== null);
+  const total = q2.count || 0;
+
+  return {
+    conversations,
+    total,
+    limit,
+    offset,
+    hasMore: offset + conversations.length < total,
+  };
 }
 
 // ------------------------------
@@ -199,6 +278,53 @@ export async function saveConversation(
   userId: string,
   payload: ConversationPayload = {}
 ): Promise<Conversation | null> {
+  // Cleanup stale pending entries
+  cleanupPendingCreates();
+
+  // Generate a deduplication key based on userId and title
+  // This prevents duplicate "New Chat" creations when users spam-click
+  const title = typeof payload?.title === "string" ? payload.title : CONVERSATION_DEFAULTS.TITLE;
+  const isDefaultTitle = title === CONVERSATION_DEFAULTS.TITLE;
+
+  // Only deduplicate for default-titled conversations (new chat scenario)
+  // Custom-titled conversations should always be created
+  if (isDefaultTitle) {
+    const dedupKey = `${userId}:new-chat`;
+    const pending = pendingCreates.get(dedupKey);
+
+    if (pending) {
+      // Return the existing pending promise to avoid duplicate creation
+      return pending.promise;
+    }
+
+    // Create the promise and store it before execution
+    const createPromise = doSaveConversation(userId, payload);
+    pendingCreates.set(dedupKey, {
+      promise: createPromise,
+      timestamp: Date.now(),
+    });
+
+    try {
+      const result = await createPromise;
+      return result;
+    } finally {
+      // Clean up after completion (success or failure)
+      pendingCreates.delete(dedupKey);
+    }
+  }
+
+  // For custom-titled conversations, create directly
+  return doSaveConversation(userId, payload);
+}
+
+/**
+ * Internal function that performs the actual conversation creation.
+ * Separated from saveConversation to enable deduplication logic.
+ */
+async function doSaveConversation(
+  userId: string,
+  payload: ConversationPayload = {}
+): Promise<Conversation | null> {
   const supabase = getSupabaseAdmin();
   const title = typeof payload?.title === "string" ? payload.title : CONVERSATION_DEFAULTS.TITLE;
   const model = coerceStoredModel(payload?.model);
@@ -222,7 +348,7 @@ export async function saveConversation(
   if (!attempt1.error) {
     result = mapConversationRow(attempt1.data);
   } else {
-    // Fallback
+    // Fallback for different schema
     const attempt2 = await supabase
       .from("conversations")
       .insert({
@@ -357,6 +483,11 @@ export async function deleteConversation(
 // ------------------------------
 // Compatibility exports (expected by your routes)
 // ------------------------------
+
+/**
+ * Get user's conversations (backward compatible - returns all conversations).
+ * Uses caching for performance.
+ */
 export async function getUserConversations(userId: string): Promise<Conversation[]> {
   // Try to get from cache first
   const cached = await getCachedConversations<Conversation[]>(userId);
@@ -364,13 +495,28 @@ export async function getUserConversations(userId: string): Promise<Conversation
     return cached;
   }
 
-  // Cache miss: fetch from database
-  const conversations = await listConversationsSafe(userId);
+  // Cache miss: fetch from database (get all for caching)
+  const result = await listConversationsSafe(userId, { limit: MAX_CONVERSATIONS_LIMIT });
 
-  // Store in cache (non-blocking)
-  await setCachedConversations(userId, conversations);
+  // Store in cache (non-blocking) - only cache the conversations array
+  await setCachedConversations(userId, result.conversations);
 
-  return conversations;
+  return result.conversations;
+}
+
+/**
+ * Get user's conversations with pagination.
+ * Does not use caching to ensure accurate counts.
+ *
+ * @param userId - The user's ID
+ * @param options - Pagination options (limit, offset)
+ * @returns Paginated conversations with metadata
+ */
+export async function getUserConversationsPaginated(
+  userId: string,
+  options: ListConversationsOptions = {}
+): Promise<PaginatedConversations> {
+  return listConversationsSafe(userId, options);
 }
 
 export async function updateConversationTitle(

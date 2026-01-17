@@ -21,7 +21,7 @@ export interface ImageGenOptions {
 export interface ImageGenResult {
   url: string; // URL or Base64 data URI
   provider: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ImageGenProvider {

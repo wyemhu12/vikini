@@ -172,8 +172,9 @@ export async function getGemInstructionsForConversation(
     .eq("id", conversationId)
     .maybeSingle();
 
-  if (convoErr)
+  if (convoErr) {
     throw new Error(`getGemInstructionsForConversation convo failed: ${convoErr.message}`);
+  }
   if (!convo) return "";
 
   // If user_id exists on the row, enforce ownership (defense-in-depth; chat route already authenticates).

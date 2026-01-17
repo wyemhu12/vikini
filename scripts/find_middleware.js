@@ -10,7 +10,7 @@ function findMiddleware(dir) {
     if (stat.isDirectory()) {
       findMiddleware(fullPath);
     } else if (file.startsWith("middleware") && (file.endsWith(".ts") || file.endsWith(".js"))) {
-      console.log("FOUND:", fullPath);
+      console.warn("FOUND:", fullPath);
     }
   }
 }

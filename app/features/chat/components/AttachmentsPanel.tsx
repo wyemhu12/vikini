@@ -85,8 +85,9 @@ function getFileIcon(mime?: string, filename?: string) {
     m.includes("tar") ||
     f.endsWith(".zip") ||
     f.endsWith(".rar")
-  )
+  ) {
     return <FileArchive className="w-4 h-4 text-yellow-500" />;
+  }
   if (m.includes("pdf")) return <FileText className="w-4 h-4 text-red-400" />;
   if (
     m.includes("javascript") ||
@@ -95,8 +96,9 @@ function getFileIcon(mime?: string, filename?: string) {
     m.includes("css") ||
     f.endsWith(".js") ||
     f.endsWith(".jsx")
-  )
+  ) {
     return <FileCode className="w-4 h-4 text-blue-400" />;
+  }
   if (m.startsWith("text/")) return <FileText className="w-4 h-4 text-gray-400" />;
 
   return <FileIcon className="w-4 h-4 text-gray-400" />;
@@ -342,8 +344,9 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
         });
         const json = await res.json();
         const data = json.data || json;
-        if (!res.ok)
+        if (!res.ok) {
           throw new Error(json?.error?.message || json?.error || "Failed to create signed url");
+        }
 
         const url = data?.signedUrl;
         if (!url) throw new Error("Missing signed url");

@@ -403,8 +403,9 @@ function determineFileKind(ext: string, mime: string): "text" | "image" | "doc" 
     mime.includes("document") ||
     mime.includes("spreadsheet") ||
     mime.includes("presentation")
-  )
+  ) {
     return "doc";
+  }
   if (mime.includes("zip") || mime.includes("archive") || mime.includes("compressed")) return "zip";
 
   return "other";
@@ -454,13 +455,15 @@ async function normalizeOrSniffMime(
   if (kind === "doc") {
     if (ext === "pdf") return "application/pdf";
     if (ext === "doc") return "application/msword";
-    if (ext === "docx")
+    if (ext === "docx") {
       return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    }
     if (ext === "xls") return "application/vnd.ms-excel";
     if (ext === "xlsx") return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     if (ext === "ppt") return "application/vnd.ms-powerpoint";
-    if (ext === "pptx")
+    if (ext === "pptx") {
       return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    }
   }
 
   // For archives
@@ -686,14 +689,90 @@ export async function downloadAttachmentBytes({
   const bucket = (row?.bucket || getAttachmentsConfig().bucket) as string;
 
   const { data, error } = await supabase.storage.from(bucket).download(row.storage_path as string);
-  if (error)
+  if (error) {
     throw new Error(
       `Download failed: ${(error as { error?: { message?: string } }).error?.message || error.message}`
     );
+  }
   if (!data) throw new Error("Download missing");
 
   const bytes = Buffer.from(await data.arrayBuffer());
   return { row, bytes };
+}
+
+/**
+ * Batch download attachments with concurrency limiting.
+ * Prevents N+1 query problem and limits parallel connections.
+ *
+ * @param userId - User ID for authorization
+ * @param attachmentRows - Array of attachment rows (already fetched)
+ * @param concurrencyLimit - Max parallel downloads (default: 3)
+ * @returns Array of download results with attachment metadata
+ */
+export async function batchDownloadAttachments({
+  userId: _userId,
+  attachmentRows,
+  concurrencyLimit = 3,
+}: {
+  userId: string;
+  attachmentRows: AttachmentRow[];
+  concurrencyLimit?: number;
+}): Promise<Array<{ attachment: AttachmentRow; bytes: Buffer; error?: string }>> {
+  // Note: _userId kept for API consistency but not needed since rows already contain user context
+  if (!attachmentRows.length) return [];
+
+  const supabase = getSupabaseAdmin();
+  const cfg = getAttachmentsConfig();
+  const results: Array<{ attachment: AttachmentRow; bytes: Buffer; error?: string }> = [];
+
+  // Simple concurrency limiter using Promise chunking
+  const chunks: AttachmentRow[][] = [];
+  for (let i = 0; i < attachmentRows.length; i += concurrencyLimit) {
+    chunks.push(attachmentRows.slice(i, i + concurrencyLimit));
+  }
+
+  for (const chunk of chunks) {
+    const chunkResults = await Promise.all(
+      chunk.map(async (row) => {
+        try {
+          const bucket = (row?.bucket || cfg.bucket) as string;
+          const storagePath = row?.storage_path as string;
+
+          if (!storagePath) {
+            return { attachment: row, bytes: Buffer.alloc(0), error: "Missing storage path" };
+          }
+
+          const { data, error } = await supabase.storage.from(bucket).download(storagePath);
+
+          if (error) {
+            return {
+              attachment: row,
+              bytes: Buffer.alloc(0),
+              error: `Download failed: ${error.message}`,
+            };
+          }
+
+          if (!data) {
+            return { attachment: row, bytes: Buffer.alloc(0), error: "Download returned no data" };
+          }
+
+          const bytes = Buffer.from(await data.arrayBuffer());
+          return { attachment: row, bytes };
+        } catch (e) {
+          const err = e as Error;
+          return {
+            attachment: row,
+            bytes: Buffer.alloc(0),
+            error: err?.message || "Unknown download error",
+          };
+        }
+      })
+    );
+
+    results.push(...chunkResults);
+  }
+
+  return results;
 }
 
 export async function deleteAttachmentById({
@@ -730,10 +809,11 @@ export async function deleteAttachmentsByConversation({
     .eq("conversation_id", conversationId)
     .eq("user_id", userId);
 
-  if (error)
+  if (error) {
     throw new Error(
       `List attachments failed: ${(error as { error?: { message?: string } }).error?.message || error.message}`
     );
+  }
 
   const byBucket = new Map<string, string[]>();
   for (const r of rows || []) {

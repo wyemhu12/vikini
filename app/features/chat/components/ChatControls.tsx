@@ -5,11 +5,10 @@ import React from "react";
 import { motion } from "framer-motion";
 
 import ModelSelector from "./ModelSelector";
-import AttachmentsPanel from "./AttachmentsPanel";
+import AttachmentsPanel, { type AttachmentsPanelRef } from "./AttachmentsPanel";
 import InputForm from "./InputForm";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
-import { type AttachmentsPanelRef } from "./AttachmentsPanel";
 
 /** Gem info for display */
 interface GemInfo {

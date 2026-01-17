@@ -1,7 +1,6 @@
 // Test file for conversations.ts
 import { describe, it, expect } from "vitest";
-import { mapConversationRow } from "./conversations";
-import { DEFAULT_MODEL } from "./conversations";
+import { mapConversationRow, DEFAULT_MODEL } from "./conversations";
 
 describe("Conversations", () => {
   describe("mapConversationRow", () => {

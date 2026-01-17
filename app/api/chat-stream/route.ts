@@ -16,12 +16,27 @@ import { createPerformanceMonitor } from "@/lib/utils/performance";
 
 const routeLogger = logger.withContext("POST /api/chat-stream");
 
+// Configurable payload size limit (default: 1MB)
+// Can be overridden via MAX_PAYLOAD_SIZE_MB environment variable
+const DEFAULT_MAX_PAYLOAD_SIZE_MB = 1;
+
+function getMaxPayloadSize(): number {
+  const envValue = process.env.MAX_PAYLOAD_SIZE_MB;
+  if (envValue) {
+    const parsed = parseFloat(envValue);
+    if (!isNaN(parsed) && parsed > 0 && parsed <= 10) {
+      return Math.floor(parsed * 1024 * 1024);
+    }
+  }
+  return DEFAULT_MAX_PAYLOAD_SIZE_MB * 1024 * 1024;
+}
+
 export async function POST(req: NextRequest) {
   const perfMonitor = createPerformanceMonitor("/api/chat-stream", "POST");
 
   // SECURITY: Check content length to prevent large payload attacks
   const contentLength = Number(req.headers.get("content-length") || 0);
-  const MAX_PAYLOAD_SIZE = 1 * 1024 * 1024; // 1MB
+  const MAX_PAYLOAD_SIZE = getMaxPayloadSize();
   if (contentLength > MAX_PAYLOAD_SIZE) {
     routeLogger.warn(`Payload too large: ${contentLength} bytes`);
     perfMonitor.end(HTTP_STATUS.BAD_REQUEST);

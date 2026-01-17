@@ -21,6 +21,58 @@ interface SystemInstruction {
 
 const streamLogger = logger.withContext("/api/chat-stream");
 
+// =====================================================
+// TIMEOUT CONFIGURATION
+// =====================================================
+
+/**
+ * Default timeout for AI API calls in milliseconds.
+ * Set to 25 seconds to provide safety margin for Vercel's 30s limit.
+ * Can be overridden via STREAM_TIMEOUT_MS environment variable.
+ */
+const DEFAULT_STREAM_TIMEOUT_MS = 25000;
+
+function getStreamTimeout(): number {
+  const envTimeout = process.env.STREAM_TIMEOUT_MS;
+  if (envTimeout) {
+    const parsed = parseInt(envTimeout, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return DEFAULT_STREAM_TIMEOUT_MS;
+}
+
+/**
+ * Custom error for stream timeout
+ */
+class StreamTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`AI stream timed out after ${timeoutMs}ms`);
+    this.name = "StreamTimeoutError";
+  }
+}
+
+/**
+ * Creates a promise that rejects after the specified timeout.
+ * Used to race against async operations.
+ */
+function createTimeoutPromise<T>(timeoutMs: number): Promise<T> {
+  return new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new StreamTimeoutError(timeoutMs));
+    }, timeoutMs);
+  });
+}
+
+/**
+ * Wraps an async operation with a timeout.
+ * If the operation doesn't complete within the timeout, throws StreamTimeoutError.
+ */
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([promise, createTimeoutPromise<T>(timeoutMs)]);
+}
+
 interface Message {
   role: string;
   content: string;
@@ -308,7 +360,10 @@ async function executeStream(
   let safetyRatings: unknown = null;
 
   const maxTokens = getModelMaxOutputTokens(model);
-  streamLogger.info(`Executing MINIMAL stream for model: ${model} with maxTokens: ${maxTokens}`);
+  const timeoutMs = getStreamTimeout();
+  streamLogger.info(
+    `Executing stream for model: ${model} with maxTokens: ${maxTokens}, timeout: ${timeoutMs}ms`
+  );
 
   let systemInstruction: SystemInstruction | undefined = undefined;
   if (sysPrompt && sysPrompt.trim()) {
@@ -318,9 +373,10 @@ async function executeStream(
     };
   }
 
-  let res;
+  let stream: AsyncIterable<unknown>;
   try {
-    res = await ai.models.generateContentStream({
+    // Call the API and handle both Promise and direct AsyncIterable returns
+    const streamResult = ai.models.generateContentStream({
       model: apiModel,
       contents,
       config: {
@@ -335,13 +391,30 @@ async function executeStream(
             : undefined,
       },
     });
+
+    // If it's a Promise, wrap with timeout. Otherwise use directly.
+    if (streamResult instanceof Promise) {
+      stream = await withTimeout(streamResult, timeoutMs);
+    } else {
+      // For direct AsyncIterable, we can't timeout the initial call,
+      // but we'll get fast failure if the service is down
+      stream = streamResult;
+    }
   } catch (err: unknown) {
-    streamLogger.error("generateContentStream top-level error:", err);
+    // Handle timeout specifically
+    if (err instanceof StreamTimeoutError) {
+      streamLogger.error(`Stream timeout after ${timeoutMs}ms for model: ${apiModel}`);
+      sendEvent(controller, "error", {
+        message: `Request timed out after ${Math.round(timeoutMs / 1000)} seconds. Please try again.`,
+        code: "STREAM_TIMEOUT",
+        isTimeout: true,
+      });
+    } else {
+      streamLogger.error("generateContentStream top-level error:", err);
+    }
     // Rethrow to be caught by runStreamWithFallback
     throw err;
   }
-
-  const stream = res instanceof Promise ? await res : res;
   for await (const chunk of stream) {
     const pf = pick(chunk, ["promptFeedback", "prompt_feedback"]);
     if (pf) promptFeedback = pf;
@@ -793,13 +866,16 @@ export function createOpenAICompatibleStream(params: {
           })),
         ] as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
 
-        const stream = await ai.chat.completions.create({
+        const timeoutMs = getStreamTimeout();
+        const streamPromise = ai.chat.completions.create({
           model: model,
           messages: openAIMessages,
           stream: true,
-          temperature: 0.7, // Slightly higher for creativity? Default is 1 usually. Ill stick to 0.7 for "average" or 0 as generic. Original code was 0.
+          temperature: 0.7,
           max_tokens: 8192,
         });
+
+        const stream = await withTimeout(streamPromise, timeoutMs);
 
         for await (const chunk of stream) {
           const text = chunk.choices[0]?.delta?.content || "";
@@ -809,39 +885,50 @@ export function createOpenAICompatibleStream(params: {
           }
         }
       } catch (e) {
-        streamLogger.error("OpenAI/Groq stream error:", e);
+        // Handle timeout specifically
+        if (e instanceof StreamTimeoutError) {
+          const timeoutMs = getStreamTimeout();
+          streamLogger.error(`OpenAI/Groq stream timeout after ${timeoutMs}ms`);
+          sendEvent(controller, "error", {
+            message: `Request timed out after ${Math.round(timeoutMs / 1000)} seconds. Please try again.`,
+            code: "STREAM_TIMEOUT",
+            isTimeout: true,
+          });
+        } else {
+          streamLogger.error("OpenAI/Groq stream error:", e);
 
-        // Extract detailed error info for frontend
-        const err = e as {
-          status?: number;
-          code?: string;
-          message?: string;
-          error?: { message?: string };
-        };
+          // Extract detailed error info for frontend
+          const err = e as {
+            status?: number;
+            code?: string;
+            message?: string;
+            error?: { message?: string };
+          };
 
-        const isTokenLimit = err.status === 413 || err.code === "rate_limit_exceeded";
-        const errorMessage = err.error?.message || err.message || "Stream error";
+          const isTokenLimit = err.status === 413 || err.code === "rate_limit_exceeded";
+          const errorMessage = err.error?.message || err.message || "Stream error";
 
-        // Parse token info from error message if available
-        let tokenInfo: { limit?: number; requested?: number } | null = null;
-        if (isTokenLimit && errorMessage) {
-          const limitMatch = errorMessage.match(/Limit (\d+)/);
-          const requestedMatch = errorMessage.match(/Requested (\d+)/);
-          if (limitMatch || requestedMatch) {
-            tokenInfo = {
-              limit: limitMatch ? parseInt(limitMatch[1], 10) : undefined,
-              requested: requestedMatch ? parseInt(requestedMatch[1], 10) : undefined,
-            };
+          // Parse token info from error message if available
+          let tokenInfo: { limit?: number; requested?: number } | null = null;
+          if (isTokenLimit && errorMessage) {
+            const limitMatch = errorMessage.match(/Limit (\d+)/);
+            const requestedMatch = errorMessage.match(/Requested (\d+)/);
+            if (limitMatch || requestedMatch) {
+              tokenInfo = {
+                limit: limitMatch ? parseInt(limitMatch[1], 10) : undefined,
+                requested: requestedMatch ? parseInt(requestedMatch[1], 10) : undefined,
+              };
+            }
           }
-        }
 
-        sendEvent(controller, "error", {
-          message: errorMessage,
-          code: err.code || (isTokenLimit ? "token_limit_exceeded" : "stream_error"),
-          status: err.status || 500,
-          isTokenLimit,
-          tokenInfo,
-        });
+          sendEvent(controller, "error", {
+            message: errorMessage,
+            code: err.code || (isTokenLimit ? "token_limit_exceeded" : "stream_error"),
+            status: err.status || 500,
+            isTokenLimit,
+            tokenInfo,
+          });
+        }
       }
 
       // 3. Post Stream Processing
@@ -932,7 +1019,8 @@ export function createAnthropicStream({
           content: m.parts.map((p) => p.text || "").join(""),
         }));
 
-        const stream = await ai.messages.create({
+        const timeoutMs = getStreamTimeout();
+        const streamPromise = ai.messages.create({
           model: model, // e.g. "claude-3-5-sonnet-20240620"
           system: sysPrompt,
           messages: anthropicMessages,
@@ -940,6 +1028,8 @@ export function createAnthropicStream({
           max_tokens: 8192,
           temperature: 0.7,
         });
+
+        const stream = await withTimeout(streamPromise, timeoutMs);
 
         for await (const chunk of stream) {
           if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
@@ -951,20 +1041,31 @@ export function createAnthropicStream({
           }
         }
       } catch (e: unknown) {
-        streamLogger.error("Anthropic stream error:", e);
+        // Handle timeout specifically
+        if (e instanceof StreamTimeoutError) {
+          const timeoutMs = getStreamTimeout();
+          streamLogger.error(`Anthropic stream timeout after ${timeoutMs}ms`);
+          sendEvent(controller, "error", {
+            message: `Request timed out after ${Math.round(timeoutMs / 1000)} seconds. Please try again.`,
+            code: "STREAM_TIMEOUT",
+            isTimeout: true,
+          });
+        } else {
+          streamLogger.error("Anthropic stream error:", e);
 
-        // Extract detailed error info
-        const err = e as { status?: number; message?: string; code?: string };
-        const status = err.status || 500;
-        const errorMessage = err.message || "Stream error";
-        const isTokenLimit = status === 429 || errorMessage.includes("rate_limit");
+          // Extract detailed error info
+          const err = e as { status?: number; message?: string; code?: string };
+          const status = err.status || 500;
+          const errorMessage = err.message || "Stream error";
+          const isTokenLimit = status === 429 || errorMessage.includes("rate_limit");
 
-        sendEvent(controller, "error", {
-          message: errorMessage,
-          code: err.code || (isTokenLimit ? "rate_limit_exceeded" : "stream_error"),
-          status: status,
-          isTokenLimit,
-        });
+          sendEvent(controller, "error", {
+            message: errorMessage,
+            code: err.code || (isTokenLimit ? "rate_limit_exceeded" : "stream_error"),
+            status: status,
+            isTokenLimit,
+          });
+        }
       }
 
       // 3. Post Stream Processing

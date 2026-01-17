@@ -233,12 +233,13 @@ export function ImageGenStudio() {
   };
 
   // If not authed, show simple loader or redirect (handled by ChatApp usually, but here distinct)
-  if (status === "loading")
+  if (status === "loading") {
     return (
       <div className="h-screen flex items-center justify-center bg-surface text-primary">
         {t("loading")}
       </div>
     );
+  }
   if (!isAuthed) {
     signIn();
     return null;

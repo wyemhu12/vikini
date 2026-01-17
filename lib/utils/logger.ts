@@ -25,6 +25,40 @@ function getLogLevel(): LogLevel {
 
 const currentLogLevel = getLogLevel();
 const isDevelopment = process.env.NODE_ENV === "development";
+const isProduction = process.env.NODE_ENV === "production";
+
+/**
+ * Error tracking callback type.
+ * Set this to integrate with Sentry, LogRocket, or other error tracking services.
+ *
+ * @example
+ * ```typescript
+ * import * as Sentry from "@sentry/nextjs";
+ * import { setErrorTracker } from "@/lib/utils/logger";
+ *
+ * setErrorTracker((error, context) => {
+ *   Sentry.captureException(error, { extra: { context } });
+ * });
+ * ```
+ */
+export type ErrorTracker = (error: Error, context?: string) => void;
+
+let errorTracker: ErrorTracker | null = null;
+
+/**
+ * Set the error tracking callback for production error reporting.
+ * Call this once during app initialization to integrate with Sentry, etc.
+ */
+export function setErrorTracker(tracker: ErrorTracker | null): void {
+  errorTracker = tracker;
+}
+
+/**
+ * Get the current error tracker (for testing purposes).
+ */
+export function getErrorTracker(): ErrorTracker | null {
+  return errorTracker;
+}
 
 /**
  * Logger interface
@@ -69,17 +103,28 @@ export const logger: Logger & { withContext: (context: string) => Logger } = {
   },
 
   /**
-   * Error logs - always shown
+   * Error logs - always shown and sent to error tracker in production
    */
   error: (...args: unknown[]): void => {
     if (currentLogLevel <= LOG_LEVELS.ERROR) {
       console.error("[ERROR]", ...args);
 
-      // TODO: In production, consider sending to error tracking service
-      // e.g., Sentry, LogRocket, etc.
-      // if (!isDevelopment) {
-      //   errorTrackingService.captureException(...args);
-      // }
+      // Send to error tracking service in production
+      if (isProduction && errorTracker) {
+        try {
+          const firstArg = args[0];
+          const error =
+            firstArg instanceof Error
+              ? firstArg
+              : new Error(typeof firstArg === "string" ? firstArg : JSON.stringify(firstArg));
+
+          // Include additional context from remaining args
+          const context = args.length > 1 ? JSON.stringify(args.slice(1)) : undefined;
+          errorTracker(error, context);
+        } catch {
+          // Silently fail to avoid infinite loops
+        }
+      }
     }
   },
 
@@ -93,3 +138,19 @@ export const logger: Logger & { withContext: (context: string) => Logger } = {
     error: (...args: unknown[]) => logger.error(`[${context}]`, ...args),
   }),
 };
+
+/**
+ * Utility to capture exceptions directly to error tracker.
+ * Use this for caught errors that should be reported but not re-thrown.
+ */
+export function captureException(error: Error, context?: string): void {
+  if (isProduction && errorTracker) {
+    try {
+      errorTracker(error, context);
+    } catch {
+      // Silently fail
+    }
+  }
+  // Always log to console
+  logger.error(context ? `[${context}]` : "", error);
+}

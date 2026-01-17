@@ -44,7 +44,7 @@ const Bars3Icon = () => (
 );
 
 interface HeaderBarProps {
-  t: Record<string, string | any>; // Using flexible record for translations
+  t: Record<string, string>; // Translation strings
   language: string;
   onLanguageChange?: (lang: string) => void;
   onToggleSidebar?: () => void;

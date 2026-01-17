@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, RefObject } from "react";
+import type { AttachmentsPanelRef } from "../AttachmentsPanel";
 
-export function useFileDragDrop(attachmentsRef: RefObject<any>) {
+export function useFileDragDrop(attachmentsRef: RefObject<AttachmentsPanelRef | null>) {
   const [showFiles, setShowFiles] = useState(false);
   const [fileCount, setFileCount] = useState(0);
   const dragCounter = useRef(0);
@@ -53,16 +54,17 @@ export function useFileDragDrop(attachmentsRef: RefObject<any>) {
       }
     };
 
-    window.addEventListener("dragenter", handleDragEnter as any);
-    window.addEventListener("dragleave", handleDragLeave as any);
-    window.addEventListener("dragover", handleDragOver as any);
-    window.addEventListener("drop", handleDrop as any);
+    // Using proper event handler types - DragEvent handlers are compatible with EventListener
+    window.addEventListener("dragenter", handleDragEnter);
+    window.addEventListener("dragleave", handleDragLeave);
+    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener("drop", handleDrop);
 
     return () => {
-      window.removeEventListener("dragenter", handleDragEnter as any);
-      window.removeEventListener("dragleave", handleDragLeave as any);
-      window.removeEventListener("dragover", handleDragOver as any);
-      window.removeEventListener("drop", handleDrop as any);
+      window.removeEventListener("dragenter", handleDragEnter);
+      window.removeEventListener("dragleave", handleDragLeave);
+      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener("drop", handleDrop);
     };
   }, [showFiles, fileCount, attachmentsRef]);
 

@@ -53,23 +53,48 @@ function getRedisOptional(): Redis | null {
 // ------------------------------
 const memStore = new Map<string, MemoryEntry>();
 
-// PERIODIC CLEANUP: Prevent memory leaks from stale keys
-if (typeof setInterval !== "undefined") {
-  setInterval(() => {
-    const now = Date.now();
-    const windowMs = getConfig().windowSeconds * 1000;
-    for (const [key, entry] of memStore.entries()) {
-      if (now - entry.start > windowMs) {
-        memStore.delete(key);
-      }
+// Maximum entries to prevent unbounded memory growth in serverless
+const MAX_MEM_STORE_ENTRIES = 10000;
+let lastCleanupTime = 0;
+const CLEANUP_INTERVAL_MS = 60000; // 1 minute
+
+/**
+ * Lazy cleanup: runs during consumeInMemory calls instead of setInterval.
+ * This avoids memory leaks from orphaned intervals in serverless environments.
+ */
+function cleanupExpiredEntries(): void {
+  const now = Date.now();
+
+  // Only cleanup once per minute to avoid performance overhead
+  if (now - lastCleanupTime < CLEANUP_INTERVAL_MS) return;
+  lastCleanupTime = now;
+
+  const windowMs = getConfig().windowSeconds * 1000;
+
+  for (const [key, entry] of memStore.entries()) {
+    if (now - entry.start > windowMs) {
+      memStore.delete(key);
     }
-  }, 60000); // Clean every minute
+  }
+
+  // If still too many entries after cleanup, remove oldest ones
+  if (memStore.size > MAX_MEM_STORE_ENTRIES) {
+    const entries = Array.from(memStore.entries());
+    entries.sort((a, b) => a[1].start - b[1].start);
+    const toRemove = entries.slice(0, memStore.size - MAX_MEM_STORE_ENTRIES);
+    for (const [key] of toRemove) {
+      memStore.delete(key);
+    }
+  }
 }
 
 async function consumeInMemory(
   key: string,
   { windowSeconds, limit }: RateLimitConfig
 ): Promise<RateLimitResult> {
+  // Lazy cleanup - runs periodically during normal operations
+  cleanupExpiredEntries();
+
   const now = Date.now();
   const windowMs = windowSeconds * 1000;
   const entry = memStore.get(key);

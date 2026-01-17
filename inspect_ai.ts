@@ -2,12 +2,16 @@ import { getGenAIClient } from "./lib/core/genaiClient";
 import dotenv from "dotenv";
 dotenv.config();
 
+interface AIClientWithModels {
+  models?: Record<string, unknown>;
+}
+
 async function test() {
   try {
-    const ai = getGenAIClient();
+    const ai = getGenAIClient() as unknown as AIClientWithModels;
     console.warn("AI Client Structure:", Object.keys(ai));
-    if ((ai as any).models) {
-      console.warn("AI Models Structure:", Object.keys((ai as any).models));
+    if (ai.models) {
+      console.warn("AI Models Structure:", Object.keys(ai.models));
     }
 
     // Testing getModelMaxOutputTokens
