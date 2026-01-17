@@ -678,6 +678,7 @@ export default function ChatApp() {
           attachmentsRef={attachmentsRef}
           onImageGen={handleImageGen}
           selectedConversationId={selectedConversationId}
+          showMobileControls={showMobileControls}
         />
       </div>
 
