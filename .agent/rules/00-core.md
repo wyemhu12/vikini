@@ -49,7 +49,7 @@ Before starting a task, identify which domain it touches and load only the relev
 | **Conversations**    | app/api/conversations/, lib/features/conversations/    | docs/contracts.md (Conversation/message shapes)            |
 | **GEMs**             | app/api/gems/, lib/features/gems/                      | docs/contracts.md (GEMs CRUD + prompt composition rules)   |
 | **Attachments**      | app/api/attachments/, lib/features/attachments/        | docs/contracts.md (Attachment lifecycle + parsing)         |
-| **Auth & Security**  | app/auth/, lib/core/rateLimit.ts, auth middleware      | docs/security.md                                           |
+| **Auth & Security**  | app/auth/, lib/core/rateLimit.ts, auth proxy           | docs/security.md                                           |
 | **Database**         | database-schema.md, migrations                         | database-schema.md + relevant section in docs/contracts.md |
 | **UI Components**    | feature UI under app/, components/ui/, components.json | .agent/rules/20-ui-standards.md                            |
 | **Testing**          | ests/, itest.config.ts                                 | .agent/rules/10-quality-gates.md                           |

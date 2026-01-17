@@ -53,16 +53,16 @@ All message `content` is encrypted before storing in DB. See `encryptText`/`decr
 
 IP-based rate limiting via Upstash Redis. See `/lib/core/rateLimit.ts`.
 
-## Global Authentication Middleware
+## Global Authentication Proxy (formerly Middleware)
 
 > [!IMPORTANT]
 > Tất cả routes đều yêu cầu authentication mặc định (default-deny policy).
 
 ### Cách hoạt động
 
-- File `/middleware.ts` wrap NextAuth `auth()` để kiểm tra session trước mỗi request
+- File `/proxy.ts` (Next.js 16 convention) wrap NextAuth `auth()` để kiểm tra session trước mỗi request
 - Người dùng chưa xác thực sẽ được redirect về `/auth/signin`
-- Middleware tự động gắn session vào request
+- Proxy tự động gắn session vào request
 
 ### Public Routes (không yêu cầu auth)
 
@@ -80,9 +80,9 @@ IP-based rate limiting via Upstash Redis. See `/lib/core/rateLimit.ts`.
 
 ### Lưu ý khi thêm route mới
 
-- **API routes**: Không cần gọi `await auth()` thủ công nữa - middleware đã xử lý
-- **Thêm public route**: Cập nhật `PUBLIC_ROUTES` array trong `/middleware.ts`
-- **Session access**: Trong API route, dùng `req.auth` để lấy session (đã được inject bởi middleware)
+- **API routes**: Không cần gọi `await auth()` thủ công nữa - proxy đã xử lý
+- **Thêm public route**: Cập nhật `PUBLIC_ROUTES` array trong `/proxy.ts`
+- **Session access**: Trong API route, dùng `req.auth` để lấy session (đã được inject bởi proxy)
 
 ## Server-Only Files Convention
 

@@ -97,7 +97,7 @@ Separation of concerns between UI and business logic.
 2. **Next.js API Route**: request handled by `app/api/`.
 3. **Logic Layer**: `lib/features/` handles validation and logic.
 4. **Services**:
-   - **Auth**: Verified via Supabase Middleware.
+   - **Auth**: Verified via Supabase Proxy (NextAuth).
    - **Data**: Persisted to Supabase PostgreSQL.
    - **AI**: Prompt constructed and sent to Google Gemini.
 5. **Response**: Streamed back to client and state updated via SWR/Zustand.
