@@ -4,7 +4,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import dynamic from "next/dynamic";
 import {
@@ -186,7 +186,8 @@ function SmartCode({ inline, className, children }: CodeProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = async () => {
+  // PERFORMANCE: Memoize handler to prevent recreation on every render
+  const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(codeText);
       setCopied(true);
@@ -194,7 +195,7 @@ function SmartCode({ inline, className, children }: CodeProps) {
     } catch (err) {
       console.error("Failed to copy code to clipboard:", err);
     }
-  };
+  }, [codeText]);
 
   const lineCount = codeText.split("\n").length;
   const COLLAPSE_AFTER_LINES = 20;
@@ -391,7 +392,8 @@ const ChatBubble = React.memo(
       }
     }, [isEditing]);
 
-    const handleCopyMessage = async () => {
+    // PERFORMANCE: Memoize handler to prevent recreation on every render
+    const handleCopyMessage = useCallback(async () => {
       try {
         await navigator.clipboard.writeText(safeMessage.content || "");
         setCopied(true);
@@ -399,7 +401,7 @@ const ChatBubble = React.memo(
       } catch (err) {
         console.error("Failed to copy:", err);
       }
-    };
+    }, [safeMessage.content]);
 
     const handleSaveEdit = () => {
       if (editContent.trim() !== safeMessage.content) {

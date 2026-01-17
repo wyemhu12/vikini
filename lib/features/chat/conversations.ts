@@ -258,17 +258,20 @@ export async function setConversationGem(
   if (!current) throw new Error("Conversation not found");
   if (current.userId !== userId) throw new Error("Forbidden");
 
-  const { error } = await supabase
+  // PERFORMANCE: Use RETURNING clause to avoid extra query
+  const { data, error } = await supabase
     .from("conversations")
     .update({ gem_id: gemId || null, updated_at: new Date().toISOString() })
-    .eq("id", conversationId);
+    .eq("id", conversationId)
+    .select("*,gems(name,icon,color)")
+    .single();
 
   if (error) throw new Error(`setConversationGem failed: ${error.message}`);
 
   // Invalidate cache after update
   await invalidateConversationsCache(userId);
 
-  return getConversationSafe(conversationId);
+  return mapConversationRow(data);
 }
 
 // NEW: Set model for a conversation
@@ -286,17 +289,20 @@ export async function setConversationModel(
   // Validate model is in allowed list
   const finalModel = isSelectableModelId(model) ? model : DEFAULT_MODEL;
 
-  const { error } = await supabase
+  // PERFORMANCE: Use RETURNING clause to avoid extra query
+  const { data, error } = await supabase
     .from("conversations")
     .update({ model: finalModel, updated_at: new Date().toISOString() })
-    .eq("id", conversationId);
+    .eq("id", conversationId)
+    .select("*,gems(name,icon,color)")
+    .single();
 
   if (error) throw new Error(`setConversationModel failed: ${error.message}`);
 
   // Invalidate cache after update
   await invalidateConversationsCache(userId);
 
-  return getConversationSafe(conversationId);
+  return mapConversationRow(data);
 }
 
 export async function renameConversation(
@@ -310,17 +316,20 @@ export async function renameConversation(
   if (!current) throw new Error("Conversation not found");
   if (current.userId !== userId) throw new Error("Forbidden");
 
-  const { error } = await supabase
+  // PERFORMANCE: Use RETURNING clause to avoid extra query
+  const { data, error } = await supabase
     .from("conversations")
     .update({ title, updated_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .select("*,gems(name,icon,color)")
+    .single();
 
   if (error) throw new Error(`renameConversation failed: ${error.message}`);
 
   // Invalidate cache after update
   await invalidateConversationsCache(userId);
 
-  return getConversationSafe(id);
+  return mapConversationRow(data);
 }
 
 export async function deleteConversation(
