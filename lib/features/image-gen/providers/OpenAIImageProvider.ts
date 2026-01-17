@@ -55,9 +55,10 @@ export class OpenAIImageProvider implements ImageGenProvider {
           },
         },
       ];
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("OpenAI Gen Error:", error);
-      throw new Error(error.message || "Failed to generate image with OpenAI");
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(message || "Failed to generate image with OpenAI");
     }
   }
 }

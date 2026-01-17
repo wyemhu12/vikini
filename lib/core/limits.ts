@@ -152,7 +152,12 @@ export async function getUserProfile(userId: string): Promise<{
     return null;
   }
 
-  return data as any;
+  return data as {
+    id: string;
+    email: string;
+    rank: string;
+    is_blocked: boolean;
+  } | null;
 }
 
 /**

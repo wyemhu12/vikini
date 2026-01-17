@@ -1,6 +1,8 @@
 // /app/api/chat-stream/chatStreamCore.ts
 
 import { NextRequest } from "next/server";
+import type OpenAI from "openai";
+import type Anthropic from "@anthropic-ai/sdk";
 import { getGenAIClient } from "@/lib/core/genaiClient";
 import { getGroqClient } from "@/lib/core/groqClient";
 import { getOpenRouterClient } from "@/lib/core/openRouterClient";
@@ -625,11 +627,9 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
   const isClaude = model.startsWith("claude-");
 
   // Route to specific client
-  // EXCEPTION: Using `any` here because AI clients (GenAI, OpenRouter, Groq, Claude)
-  // have incompatible interfaces. Each streaming function (createChatReadableStream,
-  // createOpenAICompatibleStream, createAnthropicStream) handles internal type casting.
-  // This is a documented exception to the no-any rule.
-  let aiClient: any = ai;
+  // AI clients have incompatible interfaces - we use unknown with explicit casts
+  // at each streaming call site for type safety without losing flexibility
+  let aiClient: unknown = ai;
 
   if (isClaude) {
     // Claude uses OpenAI-compatible streaming via OpenRouter for simplicity
@@ -685,7 +685,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
       model === "claude-sonnet-4.5" ? "claude-3-5-sonnet-latest" : "claude-3-5-haiku-latest";
 
     stream = createAnthropicStream({
-      ai: aiClient,
+      ai: aiClient as unknown as Anthropic,
       model: claudeModel,
       contents,
       sysPrompt: finalSysPromptWithCharts,
@@ -725,7 +725,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
   } else if (isOpenRouter || isStandardGroq || isClaude) {
     // OpenRouter / Groq / Claude(via OpenRouter)
     stream = createOpenAICompatibleStream({
-      ai: aiClient,
+      ai: aiClient as unknown as OpenAI,
       model: apiModel,
       contents,
       sysPrompt: finalSysPromptWithCharts,

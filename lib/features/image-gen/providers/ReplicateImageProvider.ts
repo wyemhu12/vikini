@@ -29,7 +29,8 @@ export class ReplicateImageProvider implements ImageGenProvider {
       // Add style to prompt if provided
       const finalPrompt = options?.style ? `${prompt}. Style: ${options.style}` : prompt;
 
-      const output = await replicate.run(this.defaultModel as any, {
+      // NOTE: Model ID format requires type assertion for Replicate SDK
+      const output = await replicate.run(this.defaultModel as `${string}/${string}`, {
         input: {
           prompt: finalPrompt,
           aspect_ratio: options?.aspectRatio || "1:1", // Flux supports aspect_ratio directly usually, but we set w/h to be safe or use its mapping if supported
@@ -49,9 +50,10 @@ export class ReplicateImageProvider implements ImageGenProvider {
         url,
         provider: "replicate",
       }));
-    } catch (error: any) {
+    } catch (error: unknown) {
       providerLogger.error("Generation Error:", error);
-      throw new Error(`Replicate Error: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Replicate Error: ${message}`);
     }
   }
 }

@@ -1,7 +1,23 @@
 // /app/api/chat-stream/streaming.ts
 import { logger } from "@/lib/utils/logger";
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { getModelMaxOutputTokens } from "@/lib/core/modelRegistry";
+
+// Type definitions for conversation objects
+interface CreatedConversation {
+  id: string;
+  title?: string;
+  model?: string;
+  gemId?: string | null;
+  [key: string]: unknown;
+}
+
+// System instruction type for Gemini API
+interface SystemInstruction {
+  role: "system";
+  parts: { text: string }[];
+}
 
 const streamLogger = logger.withContext("/api/chat-stream");
 
@@ -294,7 +310,7 @@ async function executeStream(
   const maxTokens = getModelMaxOutputTokens(model);
   streamLogger.info(`Executing MINIMAL stream for model: ${model} with maxTokens: ${maxTokens}`);
 
-  let systemInstruction: any = undefined;
+  let systemInstruction: SystemInstruction | undefined = undefined;
   if (sysPrompt && sysPrompt.trim()) {
     systemInstruction = {
       role: "system",
@@ -319,7 +335,7 @@ async function executeStream(
             : undefined,
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     streamLogger.error("generateContentStream top-level error:", err);
     // Rethrow to be caught by runStreamWithFallback
     throw err;
@@ -870,8 +886,8 @@ export function createAnthropicStream({
   saveMessage,
   setConversationAutoTitle,
   generateFinalTitle,
-}: ChatStreamParams & {
-  ai: any;
+}: Omit<ChatStreamParams, "ai"> & {
+  ai: Anthropic;
   enableWebSearch: boolean;
   WEB_SEARCH_AVAILABLE: boolean;
   cookieWeb: string;
@@ -880,18 +896,18 @@ export function createAnthropicStream({
   conversationId: string;
   userId: string;
   contextMessages: { role: string; content: string }[];
-  appendToContext: any;
-  saveMessage: any;
-  setConversationAutoTitle: any;
-  generateFinalTitle: any;
+  appendToContext: ChatStreamParams["appendToContext"];
+  saveMessage: ChatStreamParams["saveMessage"];
+  setConversationAutoTitle: ChatStreamParams["setConversationAutoTitle"];
+  generateFinalTitle: ChatStreamParams["generateFinalTitle"];
 }): ReadableStream {
   return new ReadableStream({
     async start(controller) {
       // 1. Send Initial Metadata
-      const convAny = createdConversation as any;
+      const conv = createdConversation as CreatedConversation | null;
       const meta = {
         conversationId,
-        title: convAny?.title ?? null,
+        title: conv?.title ?? null,
         isNew: Boolean(createdConversation),
         model: modelMeta,
         gem: gemMeta,
@@ -934,17 +950,18 @@ export function createAnthropicStream({
             }
           }
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         streamLogger.error("Anthropic stream error:", e);
 
         // Extract detailed error info
-        const status = e.status || 500;
-        const errorMessage = e.message || "Stream error";
+        const err = e as { status?: number; message?: string; code?: string };
+        const status = err.status || 500;
+        const errorMessage = err.message || "Stream error";
         const isTokenLimit = status === 429 || errorMessage.includes("rate_limit");
 
         sendEvent(controller, "error", {
           message: errorMessage,
-          code: e.code || (isTokenLimit ? "rate_limit_exceeded" : "stream_error"),
+          code: err.code || (isTokenLimit ? "rate_limit_exceeded" : "stream_error"),
           status: status,
           isTokenLimit,
         });

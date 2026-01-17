@@ -17,15 +17,31 @@ export class GeminiImageProvider implements ImageGenProvider {
     const key = apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
 
     // Instantate client with v1alpha to access Imagen 3/4
-    // FIX: The property name is 'apiVersion', not 'version'
-    const clientAlpha = new GoogleGenAI({ apiKey: key, apiVersion: "v1alpha" } as any);
+    // NOTE: apiVersion is not in official types yet - using type assertion for alpha features
+    const clientAlpha = new GoogleGenAI({
+      apiKey: key,
+      apiVersion: "v1alpha",
+    } as Parameters<typeof GoogleGenAI>[0] & { apiVersion: string });
 
     providerLogger.info(`Generating with model: ${this.modelId} (Alpha Client)`);
 
     try {
       const finalPrompt = options?.style ? `${prompt}. Style: ${options.style}` : prompt;
 
-      const response = await (clientAlpha.models as any).generateImages({
+      // NOTE: generateImages is an alpha feature not in official types
+      const models = clientAlpha.models as typeof clientAlpha.models & {
+        generateImages: (params: {
+          model: string;
+          prompt: string;
+          config: { numberOfImages: number; aspectRatio: string };
+        }) => Promise<{
+          generatedImages: Array<{
+            image: { imageUri?: string; imageBytes?: string; mimeType?: string };
+          }>;
+        }>;
+      };
+
+      const response = await models.generateImages({
         model: this.modelId,
         prompt: finalPrompt,
         config: {
@@ -40,7 +56,16 @@ export class GeminiImageProvider implements ImageGenProvider {
         throw new Error("No images returned from Gemini");
       }
 
-      return response.generatedImages.map((img: any) => ({
+      // Define the expected image structure from Gemini API
+      interface GeminiImage {
+        image: {
+          imageUri?: string;
+          imageBytes?: string;
+          mimeType?: string;
+        };
+      }
+
+      return response.generatedImages.map((img: GeminiImage) => ({
         url: img.image.imageUri || `data:image/png;base64,${img.image.imageBytes}`,
         provider: this.id,
         metadata: {

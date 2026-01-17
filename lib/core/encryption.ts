@@ -18,17 +18,6 @@ export function isValidHexKey(key: string | undefined): key is string {
   return /^[0-9a-fA-F]{64}$/.test(key);
 }
 
-if (typeof window === "undefined") {
-  if (!isValidHexKey(RAW_KEY)) {
-    const error = new Error(
-      "DATA_ENCRYPTION_KEY must be a 64-character hex string (32 bytes). " +
-        "Generate one with: openssl rand -hex 32"
-    );
-    encryptionLogger.error("Invalid DATA_ENCRYPTION_KEY", error);
-    throw error;
-  }
-}
-
 const GCM_IV_LENGTH = 12;
 const CBC_IV_LENGTH = 16;
 
@@ -37,9 +26,21 @@ let cachedKey: Buffer | null = null;
 
 function getKey(): Buffer {
   if (cachedKey) return cachedKey;
+
+  // Lazy validation: Only check when we actually need the key
   if (!RAW_KEY) {
-    throw new Error("DATA_ENCRYPTION_KEY is not available");
+    throw new Error("DATA_ENCRYPTION_KEY is not defined");
   }
+
+  if (!isValidHexKey(RAW_KEY)) {
+    const error = new Error(
+      "DATA_ENCRYPTION_KEY must be a 64-character hex string (32 bytes). " +
+        "Generate one with: openssl rand -hex 32"
+    );
+    encryptionLogger.error("Invalid DATA_ENCRYPTION_KEY", error);
+    throw error;
+  }
+
   // Use the hex key directly – no SHA-256 derivation
   cachedKey = Buffer.from(RAW_KEY, "hex");
   return cachedKey;
