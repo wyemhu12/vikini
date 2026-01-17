@@ -928,7 +928,7 @@ export function createAnthropicStream({
         const anthropicMessages = (
           contents as Array<{ role: string; parts: Array<{ text?: string }> }>
         ).map((m) => ({
-          role: m.role === "model" ? "assistant" : m.role,
+          role: (m.role === "model" ? "assistant" : m.role) as "user" | "assistant",
           content: m.parts.map((p) => p.text || "").join(""),
         }));
 

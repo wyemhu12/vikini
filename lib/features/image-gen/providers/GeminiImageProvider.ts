@@ -21,7 +21,7 @@ export class GeminiImageProvider implements ImageGenProvider {
     const clientAlpha = new GoogleGenAI({
       apiKey: key,
       apiVersion: "v1alpha",
-    } as Parameters<typeof GoogleGenAI>[0] & { apiVersion: string });
+    } as { apiKey: string; apiVersion: string });
 
     providerLogger.info(`Generating with model: ${this.modelId} (Alpha Client)`);
 
@@ -29,19 +29,27 @@ export class GeminiImageProvider implements ImageGenProvider {
       const finalPrompt = options?.style ? `${prompt}. Style: ${options.style}` : prompt;
 
       // NOTE: generateImages is an alpha feature not in official types
-      const models = clientAlpha.models as typeof clientAlpha.models & {
-        generateImages: (params: {
-          model: string;
-          prompt: string;
-          config: { numberOfImages: number; aspectRatio: string };
-        }) => Promise<{
-          generatedImages: Array<{
-            image: { imageUri?: string; imageBytes?: string; mimeType?: string };
-          }>;
-        }>;
-      };
+      // Define the expected return type for this alpha API
+      interface GeneratedImageItem {
+        image: {
+          imageUri?: string;
+          imageBytes?: string;
+          mimeType?: string;
+        };
+      }
 
-      const response = await models.generateImages({
+      interface GenerateImagesResponse {
+        generatedImages: GeneratedImageItem[];
+      }
+
+      // Call the alpha API with proper typing
+      const generateImages = clientAlpha.models.generateImages as unknown as (params: {
+        model: string;
+        prompt: string;
+        config: { numberOfImages: number; aspectRatio: string };
+      }) => Promise<GenerateImagesResponse>;
+
+      const response = await generateImages({
         model: this.modelId,
         prompt: finalPrompt,
         config: {
@@ -56,22 +64,18 @@ export class GeminiImageProvider implements ImageGenProvider {
         throw new Error("No images returned from Gemini");
       }
 
-      // Define the expected image structure from Gemini API
-      interface GeminiImage {
-        image: {
-          imageUri?: string;
-          imageBytes?: string;
-          mimeType?: string;
-        };
-      }
-
-      return response.generatedImages.map((img: GeminiImage) => ({
-        url: img.image.imageUri || `data:image/png;base64,${img.image.imageBytes}`,
-        provider: this.id,
-        metadata: {
-          mimeType: img.image.mimeType,
-        },
-      }));
+      return response.generatedImages
+        .filter(
+          (img): img is GeneratedImageItem & { image: NonNullable<GeneratedImageItem["image"]> } =>
+            Boolean(img.image)
+        )
+        .map((img) => ({
+          url: img.image.imageUri || `data:image/png;base64,${img.image.imageBytes}`,
+          provider: this.id,
+          metadata: {
+            mimeType: img.image.mimeType,
+          },
+        }));
     } catch (error) {
       providerLogger.error("Gemini Image Gen Error:", error);
       throw new Error(
