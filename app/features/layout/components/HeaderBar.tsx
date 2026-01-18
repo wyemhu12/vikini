@@ -119,7 +119,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           <Bars3Icon />
         </button>
 
-        {/* Chữ Vikini Chat được redesign */}
+        {/* App Title with Logo */}
         <div className="min-w-0 flex flex-col">
           <Link
             href="/"
@@ -129,7 +129,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               V
             </div>
             <span className="bg-clip-text text-transparent bg-linear-to-r from-(--text-primary) via-(--text-primary) to-[color-mix(in_srgb,var(--text-primary)_70%,transparent)]">
-              Vikini Chat
+              {t?.appName || "Vikini Chat"}
             </span>
           </Link>
         </div>

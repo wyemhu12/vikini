@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// @ts-ignore
 import { useLanguage } from "../../features/chat/hooks/useLanguage";
 // @ts-ignore
 import { handleGoogleSignIn } from "./actions";
@@ -12,7 +11,7 @@ import { handleGoogleSignIn } from "./actions";
  */
 
 export default function SignInPage() {
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -71,10 +70,10 @@ export default function SignInPage() {
 
           <div className="space-y-4">
             <h1 className="text-5xl font-black tracking-tight text-white sm:text-6xl bg-clip-text text-transparent bg-linear-to-b from-white to-white/50 font-sans">
-              Vikini Chat
+              {t("appName")}
             </h1>
             <p className="text-[11px] font-bold uppercase tracking-[0.6em] text-white/40">
-              {language === "vi" ? "TRUY CẬP ĐƯỢC CẤP PHÉP" : "AUTHORIZED ACCESS ONLY"}
+              {t("authorizedAccess")}
             </p>
           </div>
         </div>
@@ -83,9 +82,7 @@ export default function SignInPage() {
         <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
           <div className="rounded-[3rem] border border-white/5 bg-white/2 p-10 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
             <p className="mb-10 text-base font-medium tracking-tight text-white/60 max-w-[300px] mx-auto leading-relaxed">
-              {language === "vi"
-                ? "Ít kiểm duyệt hơn. AI được mã hóa."
-                : "Less censored. Encrypted AI."}
+              {t("signinTagline")}
             </p>
 
             <button
@@ -110,7 +107,7 @@ export default function SignInPage() {
                   fill="#EA4335"
                 />
               </svg>
-              {language === "vi" ? "ĐĂNG NHẬP VỚI GOOGLE" : "SIGN IN WITH GOOGLE"}
+              {t("signInWithGoogle")}
             </button>
           </div>
         </div>
@@ -118,7 +115,7 @@ export default function SignInPage() {
         {/* Footer Info */}
         <div className="pt-12 animate-in fade-in duration-1000 delay-500">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/5 bg-white/5 text-[10px] font-bold text-white/20 tracking-[0.3em] uppercase">
-            ENCRYPTED END-TO-END
+            {t("encryptedE2E")}
           </div>
         </div>
       </div>

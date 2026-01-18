@@ -63,8 +63,13 @@ Separation of concerns between UI and business logic.
 - **Component Architecture**:
   - `ChatApp.tsx`: Main container and state orchestrator (~450 lines).
   - `ChatControls.tsx`: Isolated input and model selection UI.
-  - `ChatBubble.tsx`: Message rendering with Markdown support.
+  - `ChatBubble.tsx`: Message rendering (~400 lines, refactored).
   - `StreamErrorBanner.tsx`: Error display with accessibility.
+- **ChatBubble Sub-components** (extracted for maintainability):
+  - `SmartCode.tsx`: Code blocks with syntax highlighting, copy, expand/collapse.
+  - `MessageActions.tsx`: Copy, edit, regenerate, delete buttons.
+  - `SourceLinks.tsx`: Web search source display.
+  - `ImageGenPreview.tsx`: Generated image preview with actions.
 - **Custom Hooks** (located in `app/features/chat/components/hooks/`):
   - `useChatStreamController`: Core streaming logic.
   - `useChatModals`: Modal state management (Upgrade, Delete, Rename).
