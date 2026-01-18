@@ -224,7 +224,7 @@ export function GalleryView() {
   ];
 
   return (
-    <div className="h-screen w-screen text-[var(--text-primary)] overflow-hidden relative font-sans bg-[var(--surface-base)] flex">
+    <div className="h-screen w-screen text-(--text-primary) overflow-hidden relative font-sans bg-(--surface-base) flex">
       <Sidebar
         conversations={mainChats}
         onSelectConversation={(id) => router.push(`/?id=${id}`)}
@@ -255,11 +255,11 @@ export function GalleryView() {
               <div className="flex flex-col md:flex-row gap-4">
                 {/* Search */}
                 <div className="relative flex-1 max-w-xl">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-(--text-secondary)" />
                   <input
                     type="text"
                     placeholder={t("gallerySearch")}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--surface-muted)] border border-[var(--control-border)] focus:ring-2 focus:ring-[var(--accent)] focus:outline-none transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none transition-all"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
@@ -269,11 +269,11 @@ export function GalleryView() {
                 <div className="flex gap-2 flex-wrap">
                   {/* Date Filter */}
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)] pointer-events-none" />
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--text-secondary) pointer-events-none" />
                     <select
                       value={dateFilter}
                       onChange={(e) => setDateFilter(e.target.value as DateFilter)}
-                      className="pl-9 pr-8 py-2.5 rounded-xl bg-[var(--surface-muted)] border border-[var(--control-border)] focus:ring-2 focus:ring-[var(--accent)] focus:outline-none appearance-none cursor-pointer text-sm"
+                      className="pl-9 pr-8 py-2.5 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none appearance-none cursor-pointer text-sm"
                     >
                       {dateFilterOptions.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -286,11 +286,11 @@ export function GalleryView() {
                   {/* Model Filter */}
                   {availableModels.length > 0 && (
                     <div className="relative">
-                      <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)] pointer-events-none" />
+                      <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--text-secondary) pointer-events-none" />
                       <select
                         value={modelFilter}
                         onChange={(e) => setModelFilter(e.target.value)}
-                        className="pl-9 pr-8 py-2.5 rounded-xl bg-[var(--surface-muted)] border border-[var(--control-border)] focus:ring-2 focus:ring-[var(--accent)] focus:outline-none appearance-none cursor-pointer text-sm"
+                        className="pl-9 pr-8 py-2.5 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none appearance-none cursor-pointer text-sm"
                       >
                         <option value="all">{t("galleryAllModels")}</option>
                         {availableModels.map((model) => (
@@ -307,7 +307,7 @@ export function GalleryView() {
 
             {/* Results Count */}
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-[var(--text-secondary)]">
+              <h2 className="text-lg font-semibold text-(--text-secondary)">
                 {t("galleryYourCreations")}
                 {!loading && (
                   <span className="ml-2 text-sm font-normal">({filteredImages.length} images)</span>
@@ -318,10 +318,10 @@ export function GalleryView() {
             {/* Grid */}
             {loading ? (
               <div className="flex justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
+                <Loader2 className="w-8 h-8 animate-spin text-(--accent)" />
               </div>
             ) : filteredImages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 text-[var(--text-secondary)]">
+              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 text-(--text-secondary)">
                 <ImageIcon className="w-16 h-16 opacity-20" />
                 <p>{t("galleryNoImages")}</p>
               </div>
@@ -331,7 +331,7 @@ export function GalleryView() {
                   <div
                     key={img.id}
                     onClick={() => setSelectedImage(img)}
-                    className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-[var(--surface-muted)] border border-[var(--border)] hover:border-[var(--accent)] transition-all"
+                    className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-(--surface-muted) border border-(--border) hover:border-(--accent) transition-all"
                   >
                     <Image
                       src={img.url}
@@ -340,7 +340,7 @@ export function GalleryView() {
                       className="object-cover transition-transform duration-500 group-hover:scale-110"
                       unoptimized // For external URLs
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end">
+                    <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end">
                       <p className="text-white text-xs line-clamp-2 font-medium">{img.prompt}</p>
                     </div>
                   </div>
@@ -352,9 +352,9 @@ export function GalleryView() {
             {!loading && hasMore && (
               <div ref={loadMoreRef} className="flex justify-center py-8">
                 {loadingMore ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-[var(--accent)]" />
+                  <Loader2 className="w-6 h-6 animate-spin text-(--accent)" />
                 ) : (
-                  <p className="text-sm text-[var(--text-secondary)]">Scroll to load more...</p>
+                  <p className="text-sm text-(--text-secondary)">Scroll to load more...</p>
                 )}
               </div>
             )}
@@ -368,7 +368,7 @@ export function GalleryView() {
             onClick={() => setSelectedImage(null)}
           >
             <div
-              className="bg-[var(--surface-base)] rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col md:flex-row shadow-2xl border border-[var(--border)]"
+              className="bg-(--surface-base) rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col md:flex-row shadow-2xl border border-(--border)"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex-1 relative bg-black/50 flex items-center justify-center min-h-[300px] md:min-h-0">
@@ -382,12 +382,12 @@ export function GalleryView() {
                   />
                 </div>
               </div>
-              <div className="w-full md:w-96 p-6 flex flex-col border-l border-[var(--border)] bg-[var(--surface-base)]">
+              <div className="w-full md:w-96 p-6 flex flex-col border-l border-(--border) bg-(--surface-base)">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-lg">{t("galleryImageDetails")}</h3>
                   <button
                     onClick={() => setSelectedImage(null)}
-                    className="p-2 hover:bg-[var(--surface-muted)] rounded-full"
+                    className="p-2 hover:bg-(--surface-muted) rounded-full"
                   >
                     ✕
                   </button>
@@ -395,23 +395,23 @@ export function GalleryView() {
 
                 <div className="flex-1 space-y-6 overflow-y-auto">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">
+                    <label className="text-xs font-bold text-(--text-secondary) uppercase">
                       {t("galleryPrompt")}
                     </label>
-                    <p className="text-sm leading-relaxed p-3 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)]">
+                    <p className="text-sm leading-relaxed p-3 rounded-lg bg-(--surface-muted) border border-(--border)">
                       {selectedImage.prompt}
                     </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">
+                      <label className="text-xs font-bold text-(--text-secondary) uppercase">
                         {t("galleryModel")}
                       </label>
                       <p className="text-sm">{selectedImage.model || "Unknown"}</p>
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">
+                      <label className="text-xs font-bold text-(--text-secondary) uppercase">
                         {t("galleryDate")}
                       </label>
                       <p className="text-sm">
@@ -422,7 +422,7 @@ export function GalleryView() {
                       </p>
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">
+                      <label className="text-xs font-bold text-(--text-secondary) uppercase">
                         {t("galleryRatio")}
                       </label>
                       <p className="text-sm">{selectedImage.aspectRatio || "1:1"}</p>
@@ -431,17 +431,17 @@ export function GalleryView() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="pt-6 border-t border-[var(--border)] space-y-3">
+                <div className="pt-6 border-t border-(--border) space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => window.open(selectedImage.url, "_blank")}
-                      className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] border border-[var(--control-border)] font-medium transition-colors"
+                      className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) font-medium transition-colors"
                     >
                       <Download className="w-4 h-4" /> {t("studioDownload")}
                     </button>
                     <button
                       onClick={() => handleRemix(selectedImage.prompt)}
-                      className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-[var(--accent)] text-white hover:opacity-90 font-bold shadow-lg shadow-[var(--accent)]/20 transition-all"
+                      className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--accent) text-white hover:opacity-90 font-bold shadow-lg shadow-(--accent)/20 transition-all"
                     >
                       <Sparkles className="w-4 h-4" /> {t("galleryRemix")}
                     </button>
@@ -459,7 +459,7 @@ export function GalleryView() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => setShowDeleteConfirm(false)}
-                        className="flex-1 py-2.5 px-4 rounded-lg bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] border border-[var(--control-border)] font-medium transition-colors"
+                        className="flex-1 py-2.5 px-4 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) font-medium transition-colors"
                       >
                         {t("cancel")}
                       </button>

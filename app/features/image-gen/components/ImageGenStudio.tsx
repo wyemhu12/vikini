@@ -258,7 +258,7 @@ export function ImageGenStudio() {
   }
 
   return (
-    <div className="h-screen w-screen text-[var(--text-primary)] overflow-hidden relative font-sans bg-[var(--surface-base)] flex">
+    <div className="h-screen w-screen text-(--text-primary) overflow-hidden relative font-sans bg-(--surface-base) flex">
       {/* API Key Warning Modal */}
       <AlertDialog open={showApiKeyWarning} onOpenChange={setShowApiKeyWarning}>
         <AlertDialogContent>
@@ -341,9 +341,9 @@ export function ImageGenStudio() {
         />
 
         {/* Decoration */}
-        <div className="absolute inset-0 left-0 w-80 bg-[var(--surface-muted)] border-r border-[var(--border)] pointer-events-none -z-10 hidden lg:block"></div>
+        <div className="absolute inset-0 left-0 w-80 bg-(--surface-muted) border-r border-(--border) pointer-events-none -z-10 hidden lg:block"></div>
 
-        <div className="flex h-full w-full relative overflow-hidden bg-[var(--surface-base)]">
+        <div className="flex h-full w-full relative overflow-hidden bg-(--surface-base)">
           <ControlPanel
             prompt={prompt}
             setPrompt={setPrompt}
@@ -383,7 +383,7 @@ export function ImageGenStudio() {
                 onChange={(e) => setRenameValue(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && confirmRename()}
                 autoFocus
-                className="w-full mt-2 px-4 py-3 rounded-lg bg-[var(--control-bg)] border border-[var(--control-border)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                className="w-full mt-2 px-4 py-3 rounded-lg bg-(--control-bg) border border-(--control-border) text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:ring-2 focus:ring-(--accent)/50"
                 placeholder={t("renameChat") || "Enter new name"}
               />
             </AlertDialogDescription>

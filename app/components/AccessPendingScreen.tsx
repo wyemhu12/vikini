@@ -4,7 +4,7 @@ import { Shield, Clock, Mail } from "lucide-react";
 
 export default function AccessPendingScreen() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4">
       {/* Glass container */}
       <div className="max-w-md w-full">
         {/* Icon */}
@@ -18,7 +18,7 @@ export default function AccessPendingScreen() {
         </div>
 
         {/* Main card */}
-        <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+        <div className="bg-white/3 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
           <h1 className="text-3xl font-bold text-white text-center mb-3">Truy Cập Bị Từ Chối</h1>
           <p className="text-lg text-purple-300 text-center mb-6">Access Pending Approval</p>
 

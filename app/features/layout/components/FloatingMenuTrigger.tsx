@@ -59,9 +59,9 @@ export default function FloatingMenuTrigger({ onClick, className }: FloatingMenu
         fixed z-50 bottom-24 left-4 md:hidden
         flex items-center justify-center
         w-12 h-12 rounded-full
-        bg-[var(--accent)] text-[var(--surface)]
+        bg-(--accent) text-(--surface)
         shadow-lg backdrop-blur-sm
-        border border-[var(--accent)]/20
+        border border-(--accent)/20
         transition-opacity duration-500
         ${className}
       `}

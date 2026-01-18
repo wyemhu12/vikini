@@ -164,16 +164,16 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-transparent text-[var(--text-primary)] overflow-hidden">
+    <div className="flex flex-col h-full bg-transparent text-(--text-primary) overflow-hidden">
       <div
         className={cn(
-          "flex-none py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface)]/80 backdrop-blur-md sticky top-0 z-10",
+          "flex-none py-4 border-b border-(--border) flex items-center justify-between bg-(--surface)/80 backdrop-blur-md sticky top-0 z-10",
           inModal ? "pl-6 pr-14" : "px-6"
         )}
       >
         <div>
           <h1 className="text-xl font-semibold">{t("gemsTitle") || "Gems Manager"}</h1>
-          <p className="text-xs text-[var(--text-secondary)] truncate max-w-md">
+          <p className="text-xs text-(--text-secondary) truncate max-w-md">
             {conversationId
               ? `${t("appliedGem") || "Applied Gem"}: ${conversationId.slice(0, 8)}...`
               : "Global Mode"}
@@ -183,7 +183,7 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
         <div className="flex gap-2">
           <button
             onClick={onCreate}
-            className="rounded-lg bg-[var(--primary)] px-3 py-1.5 text-sm text-black font-medium hover:brightness-110 transition-all active:scale-95"
+            className="rounded-lg bg-(--primary) px-3 py-1.5 text-sm text-black font-medium hover:brightness-110 transition-all active:scale-95"
           >
             + {t("createGem") || "New Gem"}
           </button>
@@ -192,18 +192,18 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
 
       <div className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin scrollbar-thumb-[var(--border)]">
         {status && (
-          <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+          <div className="mb-4 rounded-lg border border-(--border) bg-(--surface-muted) px-3 py-2 text-xs text-(--text-secondary)">
             {status}
           </div>
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_1fr]">
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)]/50 p-3 h-fit">
+          <div className="rounded-xl border border-(--border) bg-(--surface-muted)/50 p-3 h-fit">
             <div className="mb-3 flex items-center justify-between">
               <div className="text-sm font-medium">{t("myGems") || "My Gems"}</div>
               <button
                 onClick={clearGem}
-                className="rounded-md border border-[var(--control-border)] px-2 py-1 text-[10px] text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] transition-colors"
+                className="rounded-md border border-(--control-border) px-2 py-1 text-[10px] text-(--text-secondary) hover:bg-(--control-bg-hover) transition-colors"
               >
                 Reset Default
               </button>
@@ -229,12 +229,12 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-1">
             {editingGem ? (
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="rounded-xl border border-(--border) bg-(--surface) p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-medium">Editor</h3>
                   <button
                     onClick={() => setEditingGem(null)}
-                    className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    className="text-xs text-(--text-secondary) hover:text-(--text-primary)"
                   >
                     {t("cancel") || "Cancel"}
                   </button>
@@ -242,11 +242,11 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
                 <GemEditor gem={editingGem} onSave={onSave} />
               </div>
             ) : previewGem ? (
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)]/50 h-full">
+              <div className="rounded-xl border border-(--border) bg-(--surface-muted)/50 h-full">
                 <GemPreview gem={previewGem} />
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-muted)]/20 p-8 flex flex-col items-center justify-center text-center text-[var(--text-secondary)] min-h-[300px]">
+              <div className="rounded-xl border border-dashed border-(--border) bg-(--surface-muted)/20 p-8 flex flex-col items-center justify-center text-center text-(--text-secondary) min-h-[300px]">
                 <p className="text-sm">
                   {language === "vi"
                     ? 'Chọn "Tạo Gem mới" để bắt đầu hoặc chọn Gem từ danh sách.'
@@ -261,18 +261,18 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
       {/* Delete Confirmation Modal */}
       {pendingDeleteGem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+          <div className="bg-(--surface) border border-(--border) rounded-xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-semibold text-(--text-primary) mb-2">
               {t("gemDeleteConfirm") || "Delete Gem?"}
             </h3>
-            <p className="text-sm text-[var(--text-secondary)] mb-6">
+            <p className="text-sm text-(--text-secondary) mb-6">
               {t("gemDeleteWarning") ||
                 `Are you sure you want to delete "${pendingDeleteGem.name}"? This action cannot be undone.`}
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setPendingDeleteGem(null)}
-                className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                className="px-4 py-2 text-sm text-(--text-secondary) hover:text-(--text-primary) transition-colors"
               >
                 {t("cancel") || "Cancel"}
               </button>

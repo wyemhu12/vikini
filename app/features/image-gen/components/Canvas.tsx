@@ -24,7 +24,7 @@ export default function Canvas({ images, generating, onRemix, onDelete }: Canvas
   const { t } = useLanguage();
 
   return (
-    <div className="flex-1 bg-[var(--surface-base)] h-full pt-4 px-8 pb-8 flex flex-col gap-6 overflow-y-auto">
+    <div className="flex-1 bg-(--surface-base) h-full pt-4 px-8 pb-8 flex flex-col gap-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">{t("studioResults")}</h3>
         <span className="text-sm text-muted-foreground">
@@ -34,7 +34,7 @@ export default function Canvas({ images, generating, onRemix, onDelete }: Canvas
 
       <div className="flex-1 columns-1 md:columns-2 xl:columns-3 gap-6 space-y-6 pb-20">
         {generating && (
-          <div className="break-inside-avoid mb-6 aspect-square rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] flex flex-col items-center justify-center animate-pulse">
+          <div className="break-inside-avoid mb-6 aspect-square rounded-xl bg-(--surface-elevated) border border-(--border) flex flex-col items-center justify-center animate-pulse">
             <ImageIcon className="w-12 h-12 text-muted-foreground/50 mb-2" />
             <span className="text-muted-foreground text-sm">{t("studioGenerating")}</span>
           </div>
@@ -43,7 +43,7 @@ export default function Canvas({ images, generating, onRemix, onDelete }: Canvas
         {images.map((item, idx) => (
           <div
             key={idx}
-            className="break-inside-avoid mb-6 group relative rounded-xl overflow-hidden border border-[var(--border)] bg-black shadow-sm hover:shadow-xl transition-all duration-300"
+            className="break-inside-avoid mb-6 group relative rounded-xl overflow-hidden border border-(--border) bg-black shadow-sm hover:shadow-xl transition-all duration-300"
           >
             <img
               src={item.url}
@@ -53,7 +53,7 @@ export default function Canvas({ images, generating, onRemix, onDelete }: Canvas
             />
 
             {/* Overlay with Controls */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-4">
+            <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/40 to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-4">
               {/* Top Metadata Badges */}
               <div className="flex flex-wrap gap-2 transform -translate-y-2 group-hover:translate-y-0 transition-transform duration-300 content-start relative w-full">
                 {item.model && (
@@ -67,7 +67,7 @@ export default function Canvas({ images, generating, onRemix, onDelete }: Canvas
                   </span>
                 )}
                 {item.enhancer && (
-                  <span className="text-[10px] font-bold px-2 py-1 rounded bg-gradient-to-r from-pink-500 to-purple-500 text-white border border-white/10 backdrop-blur-md flex items-center gap-1">
+                  <span className="text-[10px] font-bold px-2 py-1 rounded bg-linear-to-r from-pink-500 to-purple-500 text-white border border-white/10 backdrop-blur-md flex items-center gap-1">
                     <Sparkles className="w-3 h-3" /> Magic
                   </span>
                 )}
@@ -136,8 +136,8 @@ export default function Canvas({ images, generating, onRemix, onDelete }: Canvas
         ))}
 
         {!generating && images.length === 0 && (
-          <div className="col-span-full h-96 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-[var(--border)] rounded-xl bg-[var(--surface-muted)]/50">
-            <div className="w-16 h-16 rounded-full bg-[var(--surface-elevated)] flex items-center justify-center mb-4">
+          <div className="col-span-full h-96 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-(--border) rounded-xl bg-(--surface-muted)/50">
+            <div className="w-16 h-16 rounded-full bg-(--surface-elevated) flex items-center justify-center mb-4">
               <ImageIcon className="w-8 h-8 opacity-50" />
             </div>
             <p className="font-medium">{t("studioNoImages")}</p>

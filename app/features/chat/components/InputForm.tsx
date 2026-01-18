@@ -197,8 +197,8 @@ export default function InputForm({
       }}
       className={`relative flex w-full items-end gap-2 rounded-3xl border p-2 shadow-2xl transition-all duration-300 ${
         isImageMode
-          ? "bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface))] border-[var(--accent)] ring-1 ring-[var(--accent)]/50"
-          : "bg-[var(--control-bg)] border-[var(--control-border)] focus-within:border-[var(--accent)] focus-within:ring-1 focus-within:ring-[var(--accent)]/30"
+          ? "bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface))] border-(--accent) ring-1 ring-(--accent)/50"
+          : "bg-(--control-bg) border-(--control-border) focus-within:border-(--accent) focus-within:ring-1 focus-within:ring-(--accent)/30"
       }`}
     >
       {/* Plus Menu Trigger */}
@@ -209,8 +209,8 @@ export default function InputForm({
             disabled={disabled || isUploading}
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
               isImageMode
-                ? "bg-[var(--accent)] text-white hover:brightness-110"
-                : "text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)]"
+                ? "bg-(--accent) text-white hover:brightness-110"
+                : "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)"
             }`}
             title="Add..."
             aria-label={t?.addAttachment || "Add attachment or switch mode"}
@@ -243,7 +243,7 @@ export default function InputForm({
       {/* Text Area */}
       <div className="flex-1 min-w-0 relative">
         {isImageMode && (
-          <div className="absolute -top-6 left-0 text-[10px] font-bold uppercase tracking-wider text-[var(--accent)] animate-in fade-in slide-in-from-bottom-1 bg-[var(--surface-base)] px-2 py-0.5 rounded-full border border-[var(--accent)]/30 shadow-sm">
+          <div className="absolute -top-6 left-0 text-[10px] font-bold uppercase tracking-wider text-(--accent) animate-in fade-in slide-in-from-bottom-1 bg-(--surface-base) px-2 py-0.5 rounded-full border border-(--accent)/30 shadow-sm">
             IMAGE GENERATION MODE
           </div>
         )}
@@ -259,7 +259,7 @@ export default function InputForm({
               : t?.placeholder || "Message..."
           }
           disabled={disabled}
-          className="max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none"
+          className="max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] text-(--text-primary) placeholder:text-(--text-secondary) outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none"
           style={{ height: "40px" }}
         />
       </div>
@@ -268,7 +268,7 @@ export default function InputForm({
         <button
           type="button"
           onClick={() => setIsImageMode(false)}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-red-500 transition-colors"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-red-500 transition-colors"
           title="Cancel Image Mode"
           aria-label={t?.cancelImageMode || "Cancel image mode"}
         >
@@ -286,10 +286,10 @@ export default function InputForm({
         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 shadow-lg ${
           !isStreaming &&
           ((!input.trim() && attachments.length === 0) || (disabled && !isUploading))
-            ? "bg-[var(--control-bg)] text-[var(--text-secondary)] cursor-not-allowed"
+            ? "bg-(--control-bg) text-(--text-secondary) cursor-not-allowed"
             : isImageMode
-              ? "bg-[var(--accent)] text-white hover:brightness-110 shadow-[0_0_15px_var(--accent)]"
-              : "bg-[var(--accent)] text-[var(--surface)] hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--glow)]"
+              ? "bg-(--accent) text-white hover:brightness-110 shadow-[0_0_15px_var(--accent)]"
+              : "bg-(--accent) text-(--surface) hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--glow)]"
         }`}
         title={isStreaming ? "Stop" : t?.send || "Send"}
         aria-label={isStreaming ? t?.stop || "Stop generation" : t?.send || "Send message"}

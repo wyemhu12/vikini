@@ -120,7 +120,7 @@ export default function UserManager({ language }: UserManagerProps) {
           </thead>
           <tbody>
             {users.map((user) => (
-              <tr key={user.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+              <tr key={user.id} className="border-b border-white/5 hover:bg-white/2">
                 <td className="py-3 px-4 text-sm text-white">{user.email}</td>
                 <td className="py-3 px-4">
                   <select

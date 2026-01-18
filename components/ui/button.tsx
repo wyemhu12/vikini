@@ -16,7 +16,7 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
         // Vikini specific variants
         glass:
-          "bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] border border-[var(--control-border)] text-[var(--text-primary)] shadow-sm backdrop-blur-md",
+          "bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-(--text-primary) shadow-sm backdrop-blur-md",
         island:
           "bg-white/10 hover:bg-white/20 text-white backdrop-blur-xl border border-white/20 shadow-xl",
       },

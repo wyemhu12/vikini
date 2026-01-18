@@ -34,7 +34,7 @@ export default function StyleSelector({ selectedStyle, onSelect }: StyleSelector
               "group flex flex-col items-center justify-between p-3 rounded-xl border transition-all duration-200 h-24 relative overflow-hidden",
               isSelected
                 ? "border-primary bg-primary/5 ring-1 ring-primary shadow-md"
-                : "border-[var(--border)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[var(--control-border)]"
+                : "border-(--border) bg-(--surface-elevated) hover:bg-(--surface-hover) hover:border-(--control-border)"
             )}
           >
             <div
@@ -48,7 +48,7 @@ export default function StyleSelector({ selectedStyle, onSelect }: StyleSelector
             <span
               className={cn(
                 "text-xs font-medium w-full text-center transition-colors",
-                isSelected ? "text-primary" : "text-[var(--text-secondary)]"
+                isSelected ? "text-primary" : "text-(--text-secondary)"
               )}
             >
               {t(s.labelKey)}

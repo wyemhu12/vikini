@@ -163,18 +163,18 @@ export default function Sidebar({
           "flex items-center gap-3 rounded-lg py-2.5 transition-all duration-200 group",
           isCollapsed ? "justify-center px-0 w-full" : "justify-start px-3 w-full",
           variant === "primary" &&
-            "bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] border border-[var(--control-border)] text-[var(--accent)] font-bold shadow-sm",
+            "bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-(--accent) font-bold shadow-sm",
           variant === "default" &&
-            "text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)]",
+            "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)",
           variant === "destructive" &&
-            "text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-red-500",
+            "text-(--text-secondary) hover:bg-red-500/10 hover:text-red-500",
           className
         )}
         type="button"
       >
         <span
           className={cn(
-            "flex-shrink-0 transition-transform duration-300",
+            "shrink-0 transition-transform duration-300",
             variant === "primary" && "group-hover:rotate-90"
           )}
         >
@@ -207,7 +207,7 @@ export default function Sidebar({
     };
 
     return (
-      <div className="flex flex-col h-full text-[var(--text-primary)]">
+      <div className="flex flex-col h-full text-(--text-primary)">
         {/* Actions */}
         <div className="mb-4 space-y-2">
           <SidebarButton
@@ -249,7 +249,7 @@ export default function Sidebar({
           />
         </div>
 
-        <div className={cn("h-px bg-[var(--border)]/60 mb-4 mx-2", isCollapsed && "hidden")} />
+        <div className={cn("h-px bg-(--border)/60 mb-4 mx-2", isCollapsed && "hidden")} />
 
         {/* Chat list */}
         <div
@@ -270,7 +270,7 @@ export default function Sidebar({
               />
             ))}
           {!isCollapsed && list.length === 0 && (
-            <div className="text-center py-10 text-[10px] font-bold text-[var(--text-secondary)] opacity-60 select-none">
+            <div className="text-center py-10 text-[10px] font-bold text-(--text-secondary) opacity-60 select-none">
               {t?.noConversations || "No conversations"}
             </div>
           )}
@@ -278,16 +278,11 @@ export default function Sidebar({
 
         {/* Placeholder when collapsed */}
         {isCollapsed && (
-          <div className="flex-1 flex flex-col items-center pt-4 border-t border-[var(--border)] gap-2" />
+          <div className="flex-1 flex flex-col items-center pt-4 border-t border-(--border) gap-2" />
         )}
 
         {/* Footer Actions */}
-        <div
-          className={cn(
-            "mt-auto pt-4 space-y-2",
-            !isCollapsed && "border-t border-[var(--border)]"
-          )}
-        >
+        <div className={cn("mt-auto pt-4 space-y-2", !isCollapsed && "border-t border-(--border)")}>
           {onDeleteAll && !isCollapsed && (
             <SidebarButton
               onClick={() => onDeleteAll?.()}
@@ -341,7 +336,7 @@ export default function Sidebar({
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden md:flex flex-col fixed top-0 left-0 bottom-0 border-r border-[var(--border)] bg-[var(--surface-muted)]/90 backdrop-blur-3xl p-4 z-30 transition-[width] duration-300",
+          "hidden md:flex flex-col fixed top-0 left-0 bottom-0 border-r border-(--border) bg-(--surface-muted)/90 backdrop-blur-3xl p-4 z-30 transition-[width] duration-300",
           collapsed ? "w-20" : "w-72 lg:w-80"
         )}
       >
@@ -352,28 +347,28 @@ export default function Sidebar({
       {mobileOpen && (
         <div className="md:hidden">
           <div
-            className="fixed inset-0 z-40 bg-[var(--surface-muted)]/80 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 z-40 bg-(--surface-muted)/80 backdrop-blur-sm transition-opacity"
             onClick={() => onCloseMobile?.()}
           />
-          <aside className="fixed top-0 left-0 bottom-0 z-50 w-[85vw] max-w-sm border-r border-[var(--border)] bg-[var(--surface-muted)] p-6 pb-24 shadow-2xl flex flex-col">
+          <aside className="fixed top-0 left-0 bottom-0 z-50 w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-6 pb-24 shadow-2xl flex flex-col">
             {/* Mobile header */}
             <div className="mb-8 flex items-center justify-between">
               <Link
                 href="/"
-                className="text-lg font-black tracking-tighter text-[var(--text-primary)] flex items-center gap-3 active:opacity-70 transition-opacity"
+                className="text-lg font-black tracking-tighter text-(--text-primary) flex items-center gap-3 active:opacity-70 transition-opacity"
                 onClick={() => {
                   onLogoClick?.();
                   onCloseMobile?.();
                 }}
               >
-                <div className="h-8 w-8 rounded-lg bg-[var(--control-bg)] flex items-center justify-center border border-[var(--control-border)] text-[var(--accent)]">
+                <div className="h-8 w-8 rounded-lg bg-(--control-bg) flex items-center justify-center border border-(--control-border) text-(--accent)">
                   V
                 </div>
                 {t?.appName || "Vikini"}
               </Link>
               <button
                 onClick={() => onCloseMobile?.()}
-                className="p-2 rounded-full text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)] transition-colors"
+                className="p-2 rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors"
               >
                 ✕
               </button>

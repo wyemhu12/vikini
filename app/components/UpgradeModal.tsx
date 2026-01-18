@@ -17,10 +17,10 @@ export default function UpgradeModal({ isOpen, onClose, modelName, t }: UpgradeM
         <DialogTitle className="sr-only">{t.modalUpgradeTitle}</DialogTitle>
 
         {/* Glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 blur-3xl -z-10" />
+        <div className="absolute inset-0 bg-linear-to-r from-purple-500/20 to-blue-500/20 blur-3xl -z-10" />
 
         {/* Card */}
-        <div className="relative bg-gradient-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+        <div className="relative bg-linear-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
           {/* Close button */}
           <DialogClose className="absolute top-4 right-4 p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500">
             <X className="w-4 h-4 text-gray-400" />
@@ -68,7 +68,7 @@ export default function UpgradeModal({ isOpen, onClose, modelName, t }: UpgradeM
             {/* Button */}
             <button
               onClick={onClose}
-              className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-lg text-white font-medium transition-all shadow-lg shadow-purple-500/20"
+              className="w-full py-3 px-4 bg-linear-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-lg text-white font-medium transition-all shadow-lg shadow-purple-500/20"
             >
               {t.modalUpgradeGotIt}
             </button>

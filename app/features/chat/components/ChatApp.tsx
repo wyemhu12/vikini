@@ -315,10 +315,10 @@ export default function ChatApp() {
       <div className="h-screen w-screen flex items-center justify-center bg-surface text-primary overflow-hidden">
         <div className="absolute inset-0 z-0 bg-surface-muted opacity-80" />
         <div className="relative animate-pulse flex flex-col items-center gap-6 z-10">
-          <div className="h-16 w-16 rounded-2xl border border-[var(--control-border)] bg-control backdrop-blur-xl flex items-center justify-center text-3xl font-black shadow-2xl">
+          <div className="h-16 w-16 rounded-2xl border border-(--control-border) bg-control backdrop-blur-xl flex items-center justify-center text-3xl font-black shadow-2xl">
             V
           </div>
-          <div className="text-[10px] tracking-[0.4em] text-[var(--text-secondary)] uppercase font-bold">
+          <div className="text-[10px] tracking-[0.4em] text-(--text-secondary) uppercase font-bold">
             {t.loading}
           </div>
         </div>
@@ -398,7 +398,7 @@ export default function ChatApp() {
           {/* RA2 Theme Backgrounds */}
           {mounted && (theme === "yuri" || theme === "allied" || theme === "soviet") && (
             <div
-              className={`fixed top-0 left-0 right-0 bottom-0 z-[0] pointer-events-none transition-all duration-300 ${sidebarCollapsed ? "md:left-20" : "md:left-72 lg:left-80"}`}
+              className={`fixed top-0 left-0 right-0 bottom-0 z-0 pointer-events-none transition-all duration-300 ${sidebarCollapsed ? "md:left-20" : "md:left-72 lg:left-80"}`}
               style={{
                 backgroundImage: `url('/assets/themes/${theme}.png')`,
                 backgroundSize: theme === "allied" ? "38%" : "35%",
@@ -426,10 +426,8 @@ export default function ChatApp() {
             </div>
           ) : loadingMessages ? (
             <div className="max-w-3xl mx-auto w-full py-8 flex flex-col items-center justify-center gap-4 min-h-[200px]">
-              <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-[var(--text-secondary)]">
-                {t.loading || "Loading..."}
-              </span>
+              <div className="w-8 h-8 border-2 border-(--accent) border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm text-(--text-secondary)">{t.loading || "Loading..."}</span>
             </div>
           ) : (
             <div className="max-w-3xl mx-auto w-full py-8 space-y-2">
@@ -548,8 +546,8 @@ export default function ChatApp() {
       {/* Rename Modal */}
       {modals.showRenameModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
+          <div className="bg-(--surface) border border-(--border) rounded-xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-semibold text-(--text-primary) mb-4">
               {t.renameChat || "Rename Conversation"}
             </h3>
             <input
@@ -558,20 +556,20 @@ export default function ChatApp() {
               onChange={(e) => modals.setRenameValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && modals.confirmRename()}
               autoFocus
-              className="w-full px-4 py-3 rounded-lg bg-[var(--control-bg)] border border-[var(--control-border)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 mb-6"
+              className="w-full px-4 py-3 rounded-lg bg-(--control-bg) border border-(--control-border) text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:ring-2 focus:ring-(--accent)/50 mb-6"
               placeholder={t.renameChat || "Enter new title"}
             />
             <div className="flex justify-end gap-3">
               <button
                 onClick={modals.closeRenameModal}
-                className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                className="px-4 py-2 text-sm text-(--text-secondary) hover:text-(--text-primary) transition-colors"
               >
                 {t.cancel || "Cancel"}
               </button>
               <button
                 onClick={modals.confirmRename}
                 disabled={!modals.renameValue.trim()}
-                className="px-4 py-2 bg-[var(--accent)] text-[var(--surface)] rounded-lg hover:brightness-110 transition-all disabled:opacity-50"
+                className="px-4 py-2 bg-(--accent) text-(--surface) rounded-lg hover:brightness-110 transition-all disabled:opacity-50"
               >
                 {t.save || "Save"}
               </button>
@@ -583,18 +581,18 @@ export default function ChatApp() {
       {/* Delete Message Modal */}
       {modals.showDeleteMessageModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+          <div className="bg-(--surface) border border-(--border) rounded-xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-semibold text-(--text-primary) mb-2">
               {t.modalDeleteTitle || "Delete Message?"}
             </h3>
-            <p className="text-sm text-[var(--text-secondary)] mb-6">
+            <p className="text-sm text-(--text-secondary) mb-6">
               {t.modalDeleteConfirm ||
                 "Are you sure you want to delete this message? This action cannot be undone."}
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={modals.closeDeleteMessageModal}
-                className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                className="px-4 py-2 text-sm text-(--text-secondary) hover:text-(--text-primary) transition-colors"
               >
                 {t.cancel || "Cancel"}
               </button>

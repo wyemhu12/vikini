@@ -94,7 +94,7 @@ export default function ChatControls({
     >
       {/* Static Floating Controls Toolbar - Minimalist */}
       <div className="mb-4 flex flex-wrap items-center justify-center gap-2 pt-4 md:pt-0">
-        <div className="flex items-center rounded-full bg-[var(--control-bg)] border border-[var(--control-border)] p-1 shadow-lg">
+        <div className="flex items-center rounded-full bg-(--control-bg) border border-(--control-border) p-1 shadow-lg">
           <ModelSelector
             currentModelId={currentModel}
             onSelectModel={handleModelChange}
@@ -102,30 +102,30 @@ export default function ChatControls({
             t={t}
             disabled={isStreaming || regenerating}
           />
-          <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
+          <div className="h-3 w-px bg-(--border) mx-1" />
           <button
             onClick={() => setShowFiles(!showFiles)}
             className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full flex items-center gap-1 ${
               showFiles || fileCount > 0
-                ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                ? "text-(--accent) bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]"
+                : "text-(--text-secondary) hover:text-(--text-primary)"
             }`}
           >
             FILES{" "}
             {fileCount > 0 ? (
-              <span className="text-[9px] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] px-1 rounded-sm ml-0.5 text-[var(--text-primary)]">
+              <span className="text-[9px] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] px-1 rounded-sm ml-0.5 text-(--text-primary)">
                 {fileCount}
               </span>
             ) : (
               ""
             )}
           </button>
-          <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
-          <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
+          <div className="h-3 w-px bg-(--border) mx-1" />
+          <div className="h-3 w-px bg-(--border) mx-1" />
           {currentModel === MODEL_IDS.GEMINI_3_PRO_RESEARCH ? (
             <button
               disabled
-              className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full text-[var(--text-secondary)] bg-[var(--control-bg)] cursor-not-allowed border border-[var(--control-border)]"
+              className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full text-(--text-secondary) bg-(--control-bg) cursor-not-allowed border border-(--control-border)"
               title="Research Mode always searches"
             >
               RESEARCH MODE (SEARCH ON)
@@ -135,8 +135,8 @@ export default function ChatControls({
               onClick={toggleWebSearch}
               className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full ${
                 webSearchEnabled
-                  ? "text-[var(--accent)] bg-[var(--control-bg-hover)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  ? "text-(--accent) bg-(--control-bg-hover)"
+                  : "text-(--text-secondary) hover:text-(--text-primary)"
               }`}
             >
               WEB {webSearchEnabled ? t.webSearchOn : t.webSearchOff}
@@ -144,13 +144,13 @@ export default function ChatControls({
           )}
           {currentModel && currentModel.startsWith("gemini") && (
             <>
-              <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
+              <div className="h-3 w-px bg-(--border) mx-1" />
               <button
                 onClick={toggleAlwaysSearch}
                 className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full ${
                   alwaysSearch
-                    ? "text-[var(--accent)] bg-[var(--control-bg-hover)]"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    ? "text-(--accent) bg-(--control-bg-hover)"
+                    : "text-(--text-secondary) hover:text-(--text-primary)"
                 }`}
                 title={t.alwaysSearchTooltip}
               >
@@ -160,8 +160,8 @@ export default function ChatControls({
           )}
           {currentGem && (
             <>
-              <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
-              <div className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 text-[var(--accent)]">
+              <div className="h-3 w-px bg-(--border) mx-1" />
+              <div className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 text-(--accent)">
                 {currentGem.icon} {currentGem.name}
               </div>
             </>
@@ -171,7 +171,7 @@ export default function ChatControls({
 
       {/* Input Box Wrapper */}
       <div className="relative group">
-        <div className="absolute -inset-0.5 bg-[var(--accent)] rounded-[2rem] opacity-0 group-focus-within:opacity-20 transition-opacity duration-500 blur-lg" />
+        <div className="absolute -inset-0.5 bg-(--accent) rounded-4xl opacity-0 group-focus-within:opacity-20 transition-opacity duration-500 blur-lg" />
         <div className="relative">
           <AttachmentsPanel
             ref={attachmentsRef}
@@ -197,7 +197,7 @@ export default function ChatControls({
       </div>
 
       <div className="mt-3 text-center">
-        <p className="text-[9px] font-bold text-[var(--text-secondary)] tracking-widest uppercase hover:text-[var(--text-primary)] transition-colors cursor-default">
+        <p className="text-[9px] font-bold text-(--text-secondary) tracking-widest uppercase hover:text-(--text-primary) transition-colors cursor-default">
           {t.aiDisclaimer}
         </p>
       </div>

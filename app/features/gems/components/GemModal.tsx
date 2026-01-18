@@ -10,7 +10,7 @@ export default function GemModal() {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && closeGemModal()}>
-      <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 bg-[var(--surface)]/95 backdrop-blur-xl border border-[var(--border)] overflow-hidden sm:rounded-2xl">
+      <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 bg-(--surface)/95 backdrop-blur-xl border border-(--border) overflow-hidden sm:rounded-2xl">
         <DialogTitle className="sr-only">Gem Manager</DialogTitle>
         <div className="w-full h-full flex flex-col relative">
           <ErrorBoundary>

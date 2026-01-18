@@ -150,7 +150,7 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
 
       <div className="space-y-6">
         {editedConfigs.map((config) => (
-          <div key={config.rank} className="p-5 rounded-lg bg-white/[0.02] border border-white/10">
+          <div key={config.rank} className="p-5 rounded-lg bg-white/2 border border-white/10">
             <h3 className="text-lg font-semibold text-white capitalize mb-4">{config.rank}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Daily Message Limit */}
@@ -249,7 +249,7 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
                     className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all ${
                       isSelected
                         ? "bg-blue-500/20 border border-blue-500/30"
-                        : "bg-white/[0.02] border border-white/10 hover:bg-white/[0.05]"
+                        : "bg-white/2 border border-white/10 hover:bg-white/5"
                     }`}
                   >
                     <input

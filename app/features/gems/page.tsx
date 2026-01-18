@@ -15,7 +15,7 @@ function GemLoading() {
 
 export default function GemsPage() {
   return (
-    <div className="h-[100dvh] w-full bg-neutral-950">
+    <div className="h-dvh w-full bg-neutral-950">
       <ErrorBoundary>
         <Suspense fallback={<GemLoading />}>
           <GemManager />

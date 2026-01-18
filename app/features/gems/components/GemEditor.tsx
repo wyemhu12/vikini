@@ -94,15 +94,13 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
       <div className="space-y-3">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <div className="md:col-span-2">
-            <label className="mb-1 block text-xs text-[var(--text-secondary)]">
-              {t("gemName")}
-            </label>
+            <label className="mb-1 block text-xs text-(--text-secondary)">{t("gemName")}</label>
             <Input
               value={name}
               onChange={handleChange(setName)}
               disabled={isReadOnly}
               placeholder={t("gemPlaceholderName")}
-              className="w-full bg-[var(--control-bg)] border-[var(--border)] focus-visible:ring-1 focus-visible:ring-[var(--primary)] text-[var(--text-primary)] px-3 py-2 text-sm disabled:opacity-60"
+              className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm disabled:opacity-60"
             />
           </div>
           <div>
@@ -112,13 +110,13 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
               onChange={handleChange(setIcon)}
               disabled={isReadOnly}
               placeholder="💡"
-              className="w-full bg-[var(--control-bg)] border-[var(--border)] focus-visible:ring-1 focus-visible:ring-[var(--primary)] text-[var(--text-primary)] px-3 py-2 text-sm disabled:opacity-60"
+              className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm disabled:opacity-60"
             />
           </div>
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+          <label className="mb-1 block text-xs text-(--text-secondary)">
             {t("gemDescription")}
           </label>
           <Input
@@ -126,23 +124,23 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
             onChange={handleChange(setDescription)}
             disabled={isReadOnly}
             placeholder={t("gemPlaceholderDesc")}
-            className="w-full bg-[var(--control-bg)] border-[var(--border)] focus-visible:ring-1 focus-visible:ring-[var(--primary)] text-[var(--text-primary)] px-3 py-2 text-sm disabled:opacity-60"
+            className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm disabled:opacity-60"
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-[var(--text-secondary)]">{t("themes")}</label>
+          <label className="mb-1 block text-xs text-(--text-secondary)">{t("themes")}</label>
           <Input
             value={color}
             onChange={handleChange(setColor)}
             disabled={isReadOnly}
             placeholder="amber | indigo | charcoal | ..."
-            className="w-full bg-[var(--control-bg)] border-[var(--border)] focus-visible:ring-1 focus-visible:ring-[var(--primary)] text-[var(--text-primary)] px-3 py-2 text-sm disabled:opacity-60"
+            className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm disabled:opacity-60"
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+          <label className="mb-1 block text-xs text-(--text-secondary)">
             {t("gemInstructions")}
           </label>
           <Textarea
@@ -151,7 +149,7 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
             disabled={isReadOnly}
             rows={14}
             placeholder={t("gemPlaceholderInst")}
-            className="w-full resize-y bg-[var(--control-bg)] border-[var(--border)] focus-visible:ring-1 focus-visible:ring-[var(--primary)] text-[var(--text-primary)] px-3 py-2 text-sm leading-6 disabled:opacity-60"
+            className="w-full resize-y bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm leading-6 disabled:opacity-60"
           />
         </div>
       </div>

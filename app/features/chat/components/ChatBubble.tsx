@@ -92,9 +92,9 @@ const ChartTool = dynamic(() => import("./ChartTool"), {
 const TypingDots = React.memo(function TypingDots() {
   return (
     <div className="typing-dots flex items-center gap-1 px-2 py-1">
-      <span className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-bounce [animation-delay:-0.3s]" />
-      <span className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-bounce [animation-delay:-0.15s]" />
-      <span className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-bounce" />
+      <span className="w-1.5 h-1.5 bg-(--text-secondary) rounded-full animate-bounce [animation-delay:-0.3s]" />
+      <span className="w-1.5 h-1.5 bg-(--text-secondary) rounded-full animate-bounce [animation-delay:-0.15s]" />
+      <span className="w-1.5 h-1.5 bg-(--text-secondary) rounded-full animate-bounce" />
     </div>
   );
 });
@@ -177,7 +177,7 @@ function SmartCode({ inline, className, children }: CodeProps) {
 
   if (inline) {
     return (
-      <code className="rounded bg-control px-1.5 py-0.5 font-mono text-[0.9em] text-[var(--primary-light)]">
+      <code className="rounded bg-control px-1.5 py-0.5 font-mono text-[0.9em] text-(--primary-light)">
         {children}
       </code>
     );
@@ -247,13 +247,13 @@ function SmartCode({ inline, className, children }: CodeProps) {
       <div className={`relative ${isCollapsed ? "max-h-[320px]" : ""} transition-all duration-300`}>
         <pre className="p-4 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
           <code
-            className={`${className} !bg-transparent text-[13px] leading-6 font-mono !p-0 block min-w-full`}
+            className={`${className} bg-transparent! text-[13px] leading-6 font-mono p-0! block min-w-full`}
           >
             {children}
           </code>
         </pre>
         {isCollapsed && (
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[var(--surface)] via-[color-mix(in_srgb,var(--surface)_80%,transparent)] to-transparent pointer-events-none flex items-end justify-center pb-4">
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-(--surface) via-[color-mix(in_srgb,var(--surface)_80%,transparent)] to-transparent pointer-events-none flex items-end justify-center pb-4">
             <div className="text-[10px] font-bold text-secondary uppercase tracking-widest">
               {lineCount - COLLAPSE_AFTER_LINES} more lines...
             </div>
@@ -425,7 +425,7 @@ const ChatBubble = React.memo(
         code: InlineCode,
         pre: PreBlock,
         p: ({ children }: MarkdownChildrenProps) => (
-          <p className="mb-4 last:mb-0 leading-7 break-words">{children}</p>
+          <p className="mb-4 last:mb-0 leading-7 wrap-break-word">{children}</p>
         ),
         ul: ({ children }: MarkdownChildrenProps) => (
           <ul className="mb-4 ml-6 list-disc space-y-2">{children}</ul>
@@ -455,7 +455,7 @@ const ChatBubble = React.memo(
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[var(--primary-light)] hover:underline break-all"
+            className="text-(--primary-light) hover:underline break-all"
           >
             {children}
           </a>
@@ -499,7 +499,7 @@ const ChatBubble = React.memo(
               ? isLoading
                 ? "border-blue-500/50 bg-blue-500/10 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
                 : "border-token bg-surface-elevated text-primary"
-              : "border-[var(--primary)]/20 bg-[var(--primary)] text-[var(--surface)]"
+              : "border-(--primary)/20 bg-(--primary) text-(--surface)"
           }`}
           >
             {isBot ? (
@@ -527,7 +527,7 @@ const ChatBubble = React.memo(
             ${
               isBot
                 ? "text-primary w-full"
-                : "bg-[var(--primary)] px-4 py-2.5 text-[var(--surface)] shadow-lg"
+                : "bg-(--primary) px-4 py-2.5 text-(--surface) shadow-lg"
             }`}
             >
               {isEditing ? (
@@ -552,7 +552,7 @@ const ChatBubble = React.memo(
                     </button>
                     <button
                       onClick={handleSaveEdit}
-                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-accent text-[var(--surface)] hover:brightness-110 rounded-md transition-colors shadow-sm"
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-accent text-(--surface) hover:brightness-110 rounded-md transition-colors shadow-sm"
                     >
                       {t("save")}
                     </button>

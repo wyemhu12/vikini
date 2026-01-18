@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-surface text-primary" suppressHydrationWarning>
         <a
           href="#main"
-          className="sr-only focus:not-sr-only absolute left-4 top-4 z-50 rounded bg-[var(--control-bg)] px-3 py-2 text-[var(--text-primary)] shadow-lg hover:bg-[var(--control-bg-hover)]"
+          className="sr-only focus:not-sr-only absolute left-4 top-4 z-50 rounded bg-(--control-bg) px-3 py-2 text-(--text-primary) shadow-lg hover:bg-(--control-bg-hover)"
         >
           Skip to main content
         </a>

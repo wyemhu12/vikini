@@ -27,7 +27,7 @@ export default function SignInPage() {
       <div className="absolute inset-0 z-0">
         <div className="flowing-gradient absolute inset-0 opacity-50" />
         {/* Vignette effect for focus */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#020617_85%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#020617_85%)]" />
       </div>
 
       {/* Language Toggle */}
@@ -70,7 +70,7 @@ export default function SignInPage() {
           </div>
 
           <div className="space-y-4">
-            <h1 className="text-5xl font-black tracking-tight text-white sm:text-6xl bg-clip-text text-transparent bg-gradient-to-b from-white to-white/50 font-sans">
+            <h1 className="text-5xl font-black tracking-tight text-white sm:text-6xl bg-clip-text text-transparent bg-linear-to-b from-white to-white/50 font-sans">
               Vikini Chat
             </h1>
             <p className="text-[11px] font-bold uppercase tracking-[0.6em] text-white/40">
@@ -81,7 +81,7 @@ export default function SignInPage() {
 
         {/* Action Area */}
         <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-          <div className="rounded-[3rem] border border-white/5 bg-white/[0.02] p-10 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+          <div className="rounded-[3rem] border border-white/5 bg-white/2 p-10 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
             <p className="mb-10 text-base font-medium tracking-tight text-white/60 max-w-[300px] mx-auto leading-relaxed">
               {language === "vi"
                 ? "Ít kiểm duyệt hơn. AI được mã hóa."

@@ -48,21 +48,21 @@ export const BentoGridItem = ({
         }
       }}
       className={cn(
-        "row-span-1 rounded-xl group/bento transition duration-200 justify-start flex flex-row items-center gap-3 p-3 md:flex-col md:justify-between md:items-start md:space-y-4 md:p-4 cursor-pointer relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-[var(--accent)]",
+        "row-span-1 rounded-xl group/bento transition duration-200 justify-start flex flex-row items-center gap-3 p-3 md:flex-col md:justify-between md:items-start md:space-y-4 md:p-4 cursor-pointer relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-(--accent)",
         // Glassmorphism 2.0
-        "bg-[var(--surface-muted)]/40 backdrop-blur-xl border border-[var(--border)]",
-        "hover:bg-[var(--control-bg-hover)] hover:border-[var(--accent)]/30 hover:shadow-2xl hover:-translate-y-1",
-        "before:absolute before:inset-0 before:bg-gradient-to-b before:from-white/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity",
+        "bg-(--surface-muted)/40 backdrop-blur-xl border border-(--border)",
+        "hover:bg-(--control-bg-hover) hover:border-(--accent)/30 hover:shadow-2xl hover:-translate-y-1",
+        "before:absolute before:inset-0 before:bg-linear-to-b before:from-white/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity",
         className
       )}
     >
       <div className="shrink-0 flex items-center justify-center">{header}</div>
       <div className="group-hover/bento:translate-x-2 transition duration-200 min-w-0 flex-1">
         {icon}
-        <div className="font-sans font-bold text-[var(--text-primary)] text-sm md:text-base mb-0.5 md:mb-2 md:mt-2 truncate">
+        <div className="font-sans font-bold text-(--text-primary) text-sm md:text-base mb-0.5 md:mb-2 md:mt-2 truncate">
           {title}
         </div>
-        <div className="font-sans font-normal text-[var(--text-secondary)] text-xs truncate">
+        <div className="font-sans font-normal text-(--text-secondary) text-xs truncate">
           {description}
         </div>
       </div>

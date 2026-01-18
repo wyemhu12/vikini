@@ -38,8 +38,8 @@ interface CustomTooltipProps {
 const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-[var(--surface)] border border-[var(--border)] p-3 rounded-lg shadow-xl backdrop-blur-md">
-        <p className="font-bold text-[var(--text-primary)] mb-1">{label}</p>
+      <div className="bg-(--surface) border border-(--border) p-3 rounded-lg shadow-xl backdrop-blur-md">
+        <p className="font-bold text-(--text-primary) mb-1">{label}</p>
         {payload.map((entry: TooltipPayloadEntry, index: number) => (
           <p key={index} style={{ color: entry.color }} className="text-sm font-medium">
             {entry.name}: {entry.value}
@@ -214,16 +214,16 @@ export default function ChartTool({
 
   if (!chartContent) {
     return (
-      <div className="w-full max-w-2xl mx-auto my-4 bg-[var(--surface-muted)]/30 border border-red-500/20 rounded-xl p-4 text-center text-red-400">
+      <div className="w-full max-w-2xl mx-auto my-4 bg-(--surface-muted)/30 border border-red-500/20 rounded-xl p-4 text-center text-red-400">
         Unsupported chart type: {vizType || type}
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto my-4 bg-[var(--surface-muted)]/30 border border-[var(--border)] rounded-xl p-4 shadow-sm backdrop-blur-sm overflow-hidden">
+    <div className="w-full max-w-2xl mx-auto my-4 bg-(--surface-muted)/30 border border-(--border) rounded-xl p-4 shadow-sm backdrop-blur-sm overflow-hidden">
       {title && (
-        <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4 text-center">{title}</h3>
+        <h3 className="text-lg font-bold text-(--text-primary) mb-4 text-center">{title}</h3>
       )}
       <div className="w-full h-[300px]">
         <ResponsiveContainer width="100%" height="100%">

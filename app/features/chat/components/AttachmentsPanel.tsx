@@ -514,11 +514,11 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        <div className="w-px h-3 bg-[var(--border)] mx-1" />
+                        <div className="w-px h-3 bg-(--border) mx-1" />
                         <button
                           onClick={onPickFiles}
                           disabled={uploading}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-accent hover:brightness-110 text-[var(--surface)] text-xs font-semibold transition-colors disabled:opacity-50 shadow-[0_0_10px_var(--glow)]"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-accent hover:brightness-110 text-(--surface) text-xs font-semibold transition-colors disabled:opacity-50 shadow-[0_0_10px_var(--glow)]"
                         >
                           {uploading ? (
                             <>
@@ -566,7 +566,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
                               </div>
                               <div className="flex items-center gap-2 text-[10px] text-secondary">
                                 <span>{formatBytes(a.size_bytes)}</span>
-                                <span className="w-0.5 h-0.5 rounded-full bg-[var(--border)]" />
+                                <span className="w-0.5 h-0.5 rounded-full bg-(--border)" />
                                 <span className="uppercase">
                                   {a.mime_type.split("/")[1] || "FILE"}
                                 </span>
@@ -693,7 +693,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
                       className="max-w-full h-auto mx-auto rounded-lg"
                     />
                   ) : preview.kind === "text" ? (
-                    <pre className="whitespace-pre-wrap break-words text-xs text-secondary font-mono bg-surface p-4 rounded-lg border border-token">
+                    <pre className="whitespace-pre-wrap wrap-break-word text-xs text-secondary font-mono bg-surface p-4 rounded-lg border border-token">
                       {preview.text}
                     </pre>
                   ) : (
@@ -703,7 +703,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
                         href={preview.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-4 py-2 rounded-lg bg-accent text-[var(--surface)] text-xs font-bold hover:brightness-110 transition-colors"
+                        className="px-4 py-2 rounded-lg bg-accent text-(--surface) text-xs font-bold hover:brightness-110 transition-colors"
                       >
                         Download / Open File
                       </a>

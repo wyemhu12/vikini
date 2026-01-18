@@ -50,7 +50,7 @@ export default function DashboardView({
     {
       title: t("suggestionCode") || "Code Review",
       description: t("descSuggestionCode") || "Analyze & refactor code snippets",
-      header: <CodeXml className="w-8 h-8 md:w-10 md:h-10 text-[var(--accent)]" />,
+      header: <CodeXml className="w-8 h-8 md:w-10 md:h-10 text-(--accent)" />,
       className: "col-span-1",
       prompt: "Review this code for best practices and potential bugs:",
       onClick: undefined,
@@ -101,10 +101,10 @@ export default function DashboardView({
       className="max-w-4xl mx-auto px-2 py-4 pb-48 md:p-6"
     >
       <motion.div variants={itemVariants} className="mb-4">
-        <h1 className="text-3xl md:text-5xl font-bold text-[var(--text-primary)] mb-2">
+        <h1 className="text-3xl md:text-5xl font-bold text-(--text-primary) mb-2">
           {t(greeting)}, {session?.user?.name || "User"}
         </h1>
-        <p className="text-[var(--text-secondary)] text-lg h-full">{t("landingMessage")}</p>
+        <p className="text-(--text-secondary) text-lg h-full">{t("landingMessage")}</p>
       </motion.div>
 
       <BentoGrid className="max-w-4xl mx-auto grid-cols-1 md:grid-cols-3">

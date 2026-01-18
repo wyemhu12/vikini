@@ -32,10 +32,10 @@ export default function EditImagePromptModal({
         <DialogTitle className="sr-only">{t.editGem || "Edit Prompt"}</DialogTitle>
 
         {/* Glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-3xl -z-10" />
+        <div className="absolute inset-0 bg-linear-to-r from-blue-500/20 to-purple-500/20 blur-3xl -z-10" />
 
         {/* Card */}
-        <div className="relative bg-gradient-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+        <div className="relative bg-linear-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
           {/* Close button */}
           <DialogClose className="absolute top-4 right-4 p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
             <X className="w-4 h-4 text-gray-400" />
@@ -78,7 +78,7 @@ export default function EditImagePromptModal({
               <button
                 onClick={() => onConfirm(prompt)}
                 disabled={!prompt.trim() || prompt === initialPrompt}
-                className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white font-medium transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
+                className="flex-1 py-3 px-4 bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white font-medium transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
                 <span>{t.regenerate || "Regenerate"}</span>

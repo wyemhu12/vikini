@@ -107,8 +107,8 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }: S
       <button
         className={`relative flex w-full items-center justify-between gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm transition-colors duration-200 ${
           isActive
-            ? "bg-[var(--control-bg-hover)] text-[var(--text-primary)] shadow-[0_0_15px_var(--glow)] border border-[var(--control-border)]"
-            : "text-[var(--text-secondary)] hover:bg-[var(--control-bg)] hover:text-[var(--text-primary)] border border-transparent"
+            ? "bg-(--control-bg-hover) text-(--text-primary) shadow-[0_0_15px_var(--glow)] border border-(--control-border)"
+            : "text-(--text-secondary) hover:bg-(--control-bg) hover:text-(--text-primary) border border-transparent"
         }`}
         onClick={() => onSelect?.(c.id)}
         type="button"
@@ -122,10 +122,10 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }: S
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
           <div
-            className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-[var(--control-bg-hover)] cursor-pointer transition-opacity duration-200 z-10 ${
+            className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-(--control-bg-hover) cursor-pointer transition-opacity duration-200 z-10 ${
               isActive
-                ? "opacity-100 text-[var(--text-primary)]"
-                : "opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                ? "opacity-100 text-(--text-primary)"
+                : "opacity-0 group-hover:opacity-100 text-(--text-secondary) hover:text-(--text-primary)"
             }`}
             role="button"
             title="Tùy chọn"
@@ -137,7 +137,7 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }: S
 
         <DropdownMenu.Portal>
           <DropdownMenu.Content
-            className="z-[9999] min-w-[12rem] rounded-xl bg-[var(--surface-muted)]/95 backdrop-blur-xl border border-[var(--border)] shadow-2xl overflow-hidden ring-1 ring-[var(--border)] py-1.5 animate-in fade-in zoom-in-95 duration-200"
+            className="z-9999 min-w-48 rounded-xl bg-(--surface-muted)/95 backdrop-blur-xl border border-(--border) shadow-2xl overflow-hidden ring-1 ring-(--border) py-1.5 animate-in fade-in zoom-in-95 duration-200"
             align="end"
             sideOffset={5}
           >
@@ -145,7 +145,7 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }: S
               onClick={(_e) => {
                 if (typeof onRename === "function") onRename(c.id);
               }}
-              className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg)] transition-colors cursor-pointer outline-none data-[highlighted]:bg-[var(--control-bg)] data-[highlighted]:text-[var(--text-primary)]"
+              className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary)"
             >
               <PencilIcon />
               Rename
@@ -154,19 +154,19 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }: S
             <DropdownMenu.Item
               onClick={handleDownloadClick}
               disabled={isDownloading}
-              className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg)] transition-colors cursor-pointer outline-none data-[highlighted]:bg-[var(--control-bg)] data-[highlighted]:text-[var(--text-primary)] disabled:opacity-50"
+              className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary) disabled:opacity-50"
             >
               <DownloadIcon />
               {isDownloading ? "Downloading..." : "Export .txt"}
             </DropdownMenu.Item>
 
-            <DropdownMenu.Separator className="h-px bg-[var(--border)] my-1 mx-2" />
+            <DropdownMenu.Separator className="h-px bg-(--border) my-1 mx-2" />
 
             <DropdownMenu.Item
               onClick={(_e) => {
                 if (typeof onDelete === "function") onDelete(c.id);
               }}
-              className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer outline-none data-[highlighted]:bg-red-500/10 data-[highlighted]:text-red-300"
+              className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer outline-none data-highlighted:bg-red-500/10 data-highlighted:text-red-300"
             >
               <TrashIcon />
               Delete
