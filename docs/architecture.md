@@ -61,11 +61,19 @@ Separation of concerns between UI and business logic.
 
 - **Real-time Streaming**: Custom implementation for streaming AI responses.
 - **Component Architecture**:
-  - `ChatApp.jsx`: Main container and state orchestrator.
-  - `ChatControls.jsx`: Isolated input and model selection UI.
-  - `ChatBubble.jsx`: Message rendering.
-  - Custom hooks (`useChatStreamController`, `useAllowedModels`) to separate logic.
-- **Message Handling**: Supports diverse content types (Text, Code, Attachments).
+  - `ChatApp.tsx`: Main container and state orchestrator (~450 lines).
+  - `ChatControls.tsx`: Isolated input and model selection UI.
+  - `ChatBubble.tsx`: Message rendering with Markdown support.
+  - `StreamErrorBanner.tsx`: Error display with accessibility.
+- **Custom Hooks** (located in `app/features/chat/components/hooks/`):
+  - `useChatStreamController`: Core streaming logic.
+  - `useChatModals`: Modal state management (Upgrade, Delete, Rename).
+  - `useChatTranslations`: Memoized translation lookup.
+  - `useUrlSync`: URL ↔ state synchronization.
+  - `useAllowedModels`: Model permission checking.
+  - `useWebSearchPreference`: Web search toggle state.
+  - `useImageGenController`: Image generation flow.
+- **Message Handling**: Supports diverse content types (Text, Code, Attachments, Images).
 
 ### Gems (AI Assistants)
 

@@ -25,7 +25,7 @@ interface UseChatStreamControllerParams {
   onStreamError?: (error: StreamError) => void;
 }
 
-interface StreamError {
+export interface StreamError {
   message: string;
   code?: string;
   status?: number;
