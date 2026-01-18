@@ -253,11 +253,14 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
             });
 
             const json = await signRes.json().catch(() => ({}));
-            if (!signRes.ok)
+            if (!signRes.ok) {
               throw new Error(json?.error?.message || json?.error || "Upload init failed");
+            }
 
             const { signedUrl, path, filename, mimeType } = json.data || json;
-            if (!signedUrl) throw new Error("Missing signed URL");
+            if (!signedUrl) {
+              throw new Error("Missing signed URL");
+            }
 
             // 2. Direct Upload to Storage
             const uploadRes = await fetch(signedUrl, {
@@ -349,6 +352,12 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
       if (disabled || uploading || !conversationId) return;
 
       dragCounterRef.current += 1;
+
+      // Only expand if we are dragging over the container
+      if (!isExpanded && onToggle) {
+        onToggle(true);
+      }
+
       setDragOver(true);
     };
 
@@ -356,7 +365,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
       e.preventDefault();
       e.stopPropagation();
       if (disabled || uploading || !conversationId) return;
-      setDragOver(true);
+      // Crucial: This is needed to allow dropping
     };
 
     const onDragLeave = (e: React.DragEvent) => {
@@ -365,7 +374,15 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
       if (disabled || uploading || !conversationId) return;
 
       dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
-      if (dragCounterRef.current === 0) setDragOver(false);
+
+      // Delay closing or check if related target is inside
+      if (dragCounterRef.current === 0) {
+        setDragOver(false);
+        // Auto-close if no files in the list
+        if (attachments.length === 0 && onToggle) {
+          onToggle(false);
+        }
+      }
     };
 
     const onPaste = useCallback(
@@ -532,7 +549,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-neutral-950/80 backdrop-blur-sm border-2 border-purple-500/50"
+                        className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-2xl bg-neutral-950/90 backdrop-blur-sm border-2 border-purple-500 pointer-events-none"
                       >
                         <UploadCloud className="w-10 h-10 text-purple-400 mb-2 animate-bounce" />
                         <span className="text-sm font-semibold text-purple-100">
