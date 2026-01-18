@@ -63,14 +63,18 @@ export default function IconPicker({ onSelect, disabled }: IconPickerProps) {
     if (!isOpen) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node) &&
-        buttonRef.current &&
-        !buttonRef.current.contains(e.target as Node)
-      ) {
-        setIsOpen(false);
-      }
+      const target = e.target as Node;
+      // Use setTimeout to let click handlers fire first
+      setTimeout(() => {
+        if (
+          dropdownRef.current &&
+          !dropdownRef.current.contains(target) &&
+          buttonRef.current &&
+          !buttonRef.current.contains(target)
+        ) {
+          setIsOpen(false);
+        }
+      }, 0);
     };
 
     document.addEventListener("mousedown", handleClickOutside);
