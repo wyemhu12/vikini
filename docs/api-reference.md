@@ -1,6 +1,6 @@
 # API Reference - Vikini
 
-> **Cập nhật**: 2026-01-13  
+> **Cập nhật**: 2026-01-18  
 > **Base URL**: `/api`  
 > **Runtime**: Node.js (Next.js App Router)
 
@@ -11,12 +11,15 @@
 1. [Xác thực](#1-xác-thực)
 2. [Chat Streaming](#2-chat-streaming)
 3. [Conversations](#3-conversations)
-4. [GEMs](#4-gems)
-5. [Attachments](#5-attachments)
-6. [Image Generation](#6-image-generation)
-7. [Gallery](#7-gallery)
-8. [Admin APIs](#8-admin-apis)
-9. [Mã Lỗi](#9-mã-lỗi)
+4. [Messages](#4-messages)
+5. [GEMs](#5-gems)
+6. [Attachments](#6-attachments)
+7. [User](#7-user)
+8. [Image Generation](#8-image-generation)
+9. [Gallery](#9-gallery)
+10. [Admin APIs](#10-admin-apis)
+11. [Cron Jobs](#11-cron-jobs)
+12. [Mã Lỗi](#12-mã-lỗi)
 
 ---
 
@@ -162,6 +165,39 @@ Lấy chi tiết cuộc hội thoại kèm tin nhắn.
 
 ---
 
+## 4. Messages
+
+### `DELETE /api/messages/{id}`
+
+Xóa một tin nhắn cụ thể.
+
+#### Path Parameters
+
+| Param | Type | Mô tả           |
+| ----- | ---- | --------------- |
+| `id`  | UUID | ID của tin nhắn |
+
+#### Response
+
+```typescript
+{
+  success: true;
+}
+```
+
+#### Errors
+
+| Status | Lỗi          | Mô tả                   |
+| ------ | ------------ | ----------------------- |
+| 400    | Validation   | Thiếu ID                |
+| 401    | Unauthorized | Chưa đăng nhập          |
+| 403    | Forbidden    | Không phải chủ tin nhắn |
+| 500    | Internal     | Lỗi server              |
+
+---
+
+## 5. GEMs
+
 ### `POST /api/conversations`
 
 Tạo cuộc hội thoại mới.
@@ -240,8 +276,6 @@ Xóa cuộc hội thoại (kèm messages và attachments).
 ```
 
 ---
-
-## 4. GEMs
 
 ### `GET /api/gems`
 
@@ -331,7 +365,7 @@ Xóa GEM (chỉ custom GEMs).
 
 ---
 
-## 5. Attachments
+## 6. Attachments
 
 ### `POST /api/attachments/upload`
 
@@ -388,7 +422,39 @@ Xóa tất cả attachments của cuộc hội thoại.
 
 ---
 
-## 6. Image Generation
+## 7. User
+
+### `GET /api/user/allowed-models`
+
+Lấy danh sách các model AI mà user được phép sử dụng (theo rank).
+
+#### Response
+
+```typescript
+{
+  success: true;
+  data: {
+    allowed_models: string[];  // Danh sách model IDs
+    rank: string;              // Rank hiện tại của user
+  }
+}
+```
+
+#### Ví dụ Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "allowed_models": ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"],
+    "rank": "pro"
+  }
+}
+```
+
+---
+
+## 8. Image Generation
 
 ### `POST /api/generate-image`
 
@@ -431,7 +497,7 @@ Tạo ảnh AI từ prompt.
 
 ---
 
-## 7. Gallery
+## 9. Gallery
 
 ### `GET /api/gallery`
 
@@ -477,7 +543,7 @@ Xóa ảnh khỏi gallery.
 
 ---
 
-## 8. Admin APIs
+## 10. Admin APIs
 
 > [!WARNING]
 > Chỉ users có `rank = 'admin'` mới có quyền truy cập.
@@ -520,7 +586,43 @@ Cập nhật cấu hình rank (limits, features, allowed models).
 
 ---
 
-## 9. Mã Lỗi
+## 11. Cron Jobs
+
+> [!NOTE]
+> Các endpoint này được gọi bởi cron scheduler (ví dụ: Vercel Cron), yêu cầu secret key.
+
+### `GET /api/cron/attachments-cleanup`
+
+Dọn dẹp các attachments đã hết hạn (36h TTL).
+
+#### Headers
+
+| Header          | Mô tả                           |
+| --------------- | ------------------------------- |
+| `x-cron-secret` | Secret key từ env `CRON_SECRET` |
+
+#### Response
+
+```typescript
+{
+  success: true;
+  data: {
+    ok: boolean;
+    deleted: number; // Số attachments đã xóa
+  }
+}
+```
+
+#### Errors
+
+| Status | Lỗi          | Mô tả                      |
+| ------ | ------------ | -------------------------- |
+| 401    | Unauthorized | Thiếu hoặc sai cron secret |
+| 500    | Internal     | Lỗi cleanup                |
+
+---
+
+## 12. Mã Lỗi
 
 ### HTTP Status Codes
 

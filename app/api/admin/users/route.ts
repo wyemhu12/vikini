@@ -7,6 +7,7 @@ import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { ForbiddenError, ValidationError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
+import { logger } from "@/lib/utils/logger";
 
 // SECURITY: Whitelist of valid user ranks - prevents rank injection attacks
 const VALID_RANKS = ["basic", "pro", "admin", "not_whitelisted"] as const;
@@ -62,6 +63,7 @@ export async function PATCH(req: NextRequest) {
 
     const body = (await req.json()) as { userId?: string; rank?: unknown; is_blocked?: unknown };
     const { userId, rank, is_blocked } = body;
+    const loggerWithContext = logger.withContext("AdminUserUpdate");
 
     if (!userId || typeof userId !== "string") {
       throw new ValidationError("Missing or invalid userId");
@@ -94,6 +96,11 @@ export async function PATCH(req: NextRequest) {
     const { error: dbError } = await supabase.from("profiles").update(updates).eq("id", userId);
 
     if (dbError) throw new Error(dbError.message);
+
+    loggerWithContext.audit("ADMIN_UPDATE_USER", session.user.id, {
+      targetUserId: userId,
+      updates,
+    });
 
     return success({ success: true });
   } catch (err: unknown) {

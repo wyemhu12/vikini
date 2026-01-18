@@ -2,6 +2,7 @@
 "use client";
 
 import React from "react";
+import { sanitizeUrl } from "@/lib/utils/xssProtection";
 
 // ============================================
 // Type Definitions
@@ -32,7 +33,7 @@ function SourceLinks({ sources, maxDisplay = 5 }: SourceLinksProps) {
           return (
             <a
               key={idx}
-              href={source.uri}
+              href={sanitizeUrl(source.uri)}
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1.5 rounded-full border border-token bg-surface-elevated px-3 py-1 text-[10px] text-secondary hover:bg-control-hover hover:text-primary transition-all max-w-[200px]"

@@ -7,6 +7,7 @@ import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { ForbiddenError, ValidationError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
+import { logger } from "@/lib/utils/logger";
 
 // GET: List all premade gems
 export async function GET() {
@@ -83,6 +84,7 @@ export async function POST(req: NextRequest) {
 
     const json = await req.json();
     const { name, description, instructions, icon, color } = json;
+    const loggerWithContext = logger.withContext("AdminGemCreate");
 
     if (!name || !instructions) {
       throw new ValidationError("Name and instructions are required");
@@ -128,6 +130,11 @@ export async function POST(req: NextRequest) {
       ...data,
       instructions: versionedInstructions || instructions,
     };
+
+    loggerWithContext.audit("ADMIN_CREATE_GEM", session.user.id, {
+      gemId: data.id,
+      name,
+    });
 
     return success({ gem });
   } catch (err: unknown) {
@@ -197,6 +204,12 @@ export async function PUT(req: NextRequest) {
       instructions: vData?.instructions || instructions,
     };
 
+    logger.withContext("AdminGemUpdate").audit("ADMIN_UPDATE_GEM", session.user.id, {
+      gemId: id,
+      updates: updatePayload,
+      version: nextVersion,
+    });
+
     return success({ gem });
   } catch (err: unknown) {
     if (err instanceof AppError) return errorFromAppError(err);
@@ -227,6 +240,10 @@ export async function DELETE(req: NextRequest) {
       .eq("is_premade", true);
 
     if (dbError) throw new Error(dbError.message);
+
+    logger.withContext("AdminGemDelete").audit("ADMIN_DELETE_GEM", session.user.id, {
+      gemId,
+    });
 
     return success({ success: true });
   } catch (err: unknown) {

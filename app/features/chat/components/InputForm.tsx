@@ -13,6 +13,7 @@ import {
 import { Plus, Image as ImageIcon, Upload, X } from "lucide-react";
 import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
+import { useDebounceCallback } from "@/lib/hooks/useDebounceCallback";
 
 const PaperAirplaneIcon = () => (
   <svg
@@ -92,6 +93,15 @@ export default function InputForm({
     }
   };
 
+  /*
+   * Debounce submit to prevent accidental double-clicks or rapid-fire submissions.
+   * 500ms delay ensures user intent and reduces server load.
+   */
+  const debouncedSubmit = useDebounceCallback(() => {
+    onSubmit();
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
+  }, 500);
+
   const handleSubmit = () => {
     if (disabled) return;
 
@@ -103,8 +113,8 @@ export default function InputForm({
       }
     } else {
       if (input.trim() || attachments.length > 0) {
-        onSubmit();
-        if (textareaRef.current) textareaRef.current.style.height = "auto";
+        // Use debounced submit for regular messages
+        debouncedSubmit();
       }
     }
   };

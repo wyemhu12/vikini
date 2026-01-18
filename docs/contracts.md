@@ -1,6 +1,6 @@
 ﻿# Data Contracts & Protocols - Vikini
 
-> **Cập nhật**: 2025-12-31  
+> **Cập nhật**: 2026-01-18  
 > **Mục đích**: Định nghĩa các cấu trúc dữ liệu (Interfaces) và giao thức truyền tải giữa các thành phần của hệ thống Vikini.
 
 ---

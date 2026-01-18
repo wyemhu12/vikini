@@ -1,6 +1,6 @@
 # Features - Vikini
 
-> **Cập nhật**: 2026-01-13
+> **Cập nhật**: 2026-01-18
 
 ---
 
@@ -157,6 +157,8 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 graph TD
     Auth[Google OAuth] --> Chat
     Auth --> Admin
+    Auth --> ImageStudio
+    Auth --> Gallery
 
     Chat --> Conversations
     Chat --> Messages
@@ -166,6 +168,11 @@ graph TD
     Conversations --> Attachments
 
     Messages --> Encryption
+    Messages --> ImageGen[Image Generation]
+
+    ImageGen --> Gallery
+
+    ImageStudio[Image Studio] --> ImageGen
 
     Admin --> UserManagement
     Admin --> GEMManagement
@@ -174,4 +181,5 @@ graph TD
     RankConfig --> DailyLimits
     RankConfig --> RateLimiting
     RankConfig --> WebSearch
+    RankConfig --> AllowedModels[Allowed Models]
 ```

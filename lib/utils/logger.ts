@@ -68,6 +68,7 @@ export interface Logger {
   info: (...args: unknown[]) => void;
   warn: (...args: unknown[]) => void;
   error: (...args: unknown[]) => void;
+  audit: (action: string, actorId: string, details?: Record<string, unknown>) => void;
   withContext?: (context: string) => Logger;
 }
 
@@ -136,7 +137,26 @@ export const logger: Logger & { withContext: (context: string) => Logger } = {
     info: (...args: unknown[]) => logger.info(`[${context}]`, ...args),
     warn: (...args: unknown[]) => logger.warn(`[${context}]`, ...args),
     error: (...args: unknown[]) => logger.error(`[${context}]`, ...args),
+    audit: (action: string, actorId: string, details?: Record<string, unknown>) =>
+      logger.audit(action, actorId, details),
   }),
+
+  /**
+   * Audit logs - security relevant actions
+   * Always logged to console and potentially persisted
+   */
+  audit: (action: string, actorId: string, details?: Record<string, unknown>): void => {
+    const timestamp = new Date().toISOString();
+    const detailsStr = details ? ` | Details: ${JSON.stringify(details)}` : "";
+    const logMessage = `[AUDIT] [${timestamp}] Action: ${action} | Actor: ${actorId}${detailsStr}`;
+
+    console.log(logMessage);
+
+    // In production, you might also want to send this to structured logging or DB
+    if (isProduction && errorTracker) {
+      // Optional: track as info/message events in tracking tool
+    }
+  },
 };
 
 /**

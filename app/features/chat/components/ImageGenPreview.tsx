@@ -3,6 +3,7 @@
 
 import React from "react";
 import { RefreshCw, Pencil } from "lucide-react";
+import { sanitizeImageUrl, sanitizeUrl } from "@/lib/utils/xssProtection";
 
 // ============================================
 // Type Definitions
@@ -43,7 +44,7 @@ function ImageGenPreview({ message, onRegenerate, onEdit }: ImageGenPreviewProps
   return (
     <div className="mt-4 rounded-xl overflow-hidden border border-token shadow-sm max-w-sm">
       <img
-        src={imageUrl}
+        src={sanitizeImageUrl(imageUrl)}
         alt={prompt || "Generated Image"}
         className="w-full h-auto object-cover hover:scale-105 transition-transform duration-500"
         loading="lazy"
@@ -52,7 +53,12 @@ function ImageGenPreview({ message, onRegenerate, onEdit }: ImageGenPreviewProps
       {/* Info Footer */}
       <div className="bg-surface-muted px-3 py-2 text-xs text-secondary border-t border-token flex justify-between items-center">
         <span className="truncate max-w-[200px]">{prompt}</span>
-        <a href={imageUrl} download target="_blank" className="font-bold hover:text-primary">
+        <a
+          href={sanitizeUrl(imageUrl)}
+          download
+          target="_blank"
+          className="font-bold hover:text-primary"
+        >
           DOWNLOAD
         </a>
       </div>
