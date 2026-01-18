@@ -58,29 +58,6 @@ export default function IconPicker({ onSelect, disabled }: IconPickerProps) {
     }
   }, [isOpen]);
 
-  // Close on click outside
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      // Use setTimeout to let click handlers fire first
-      setTimeout(() => {
-        if (
-          dropdownRef.current &&
-          !dropdownRef.current.contains(target) &&
-          buttonRef.current &&
-          !buttonRef.current.contains(target)
-        ) {
-          setIsOpen(false);
-        }
-      }, 0);
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
-
   const handleSelect = (icon: string) => {
     onSelect(icon);
     setIsOpen(false);
@@ -101,24 +78,30 @@ export default function IconPicker({ onSelect, disabled }: IconPickerProps) {
 
       {isOpen &&
         ReactDOM.createPortal(
-          <div
-            ref={dropdownRef}
-            className="fixed z-[9999] p-2 rounded-lg bg-neutral-900 border border-neutral-700 shadow-xl"
-            style={{ top: position.top, left: position.left }}
-          >
-            <div className="grid grid-cols-6 gap-1">
-              {ICON_LIST.map((icon) => (
-                <button
-                  key={icon}
-                  type="button"
-                  onClick={() => handleSelect(icon)}
-                  className="w-8 h-8 flex items-center justify-center text-lg rounded hover:bg-white/10 transition-colors"
-                >
-                  {icon}
-                </button>
-              ))}
+          <>
+            <div className="fixed inset-0 z-[9998]" onClick={() => setIsOpen(false)} />
+            <div
+              ref={dropdownRef}
+              className="fixed z-[9999] p-2 rounded-lg bg-neutral-900 border border-neutral-700 shadow-xl"
+              style={{ top: position.top, left: position.left }}
+            >
+              <div className="grid grid-cols-6 gap-1">
+                {ICON_LIST.map((icon) => (
+                  <button
+                    key={icon}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelect(icon);
+                    }}
+                    className="w-8 h-8 flex items-center justify-center text-lg rounded hover:bg-white/10 transition-colors"
+                  >
+                    {icon}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>,
+          </>,
           document.body
         )}
     </>

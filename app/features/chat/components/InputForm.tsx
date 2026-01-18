@@ -14,6 +14,7 @@ import { Plus, Image as ImageIcon, Upload, X } from "lucide-react";
 import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
 import { useDebounceCallback } from "@/lib/hooks/useDebounceCallback";
+import { VoiceButton } from "./VoiceButton";
 
 const PaperAirplaneIcon = () => (
   <svg
@@ -68,6 +69,7 @@ export default function InputForm({
   const { addAttachment, attachments } = useAttachmentStore();
   const [isUploading, setIsUploading] = useState(false);
   const [isImageMode, setIsImageMode] = useState(initialImageMode);
+  const [_voiceTranscript, setVoiceTranscript] = useState("");
 
   // Sync initialImageMode prop to state (for Gallery remix)
   useEffect(() => {
@@ -284,6 +286,17 @@ export default function InputForm({
         >
           <X className="w-5 h-5" />
         </button>
+      )}
+
+      {/* Voice Input Button */}
+      {!isImageMode && (
+        <VoiceButton
+          onTranscript={setVoiceTranscript}
+          onFinalTranscript={(text) => onChangeInput(input + (input ? " " : "") + text)}
+          disabled={disabled || isStreaming}
+          language="vi-VN"
+          t={t}
+        />
       )}
 
       {/* Send / Stop Button */}
