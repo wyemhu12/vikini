@@ -56,11 +56,6 @@ export function VoiceButton({
     },
   });
 
-  // Debug: log isListening changes
-  useEffect(() => {
-    console.log("[VoiceButton] isListening changed:", isListening, "sttSupported:", sttSupported);
-  }, [isListening, sttSupported]);
-
   // Speech Synthesis (TTS)
   const {
     isSpeaking,
@@ -89,7 +84,6 @@ export function VoiceButton({
 
   // Handle click - toggle listening
   const handleClick = useCallback(() => {
-    console.log("[VoiceButton] handleClick, disabled:", disabled);
     if (disabled) return;
 
     // If speaking, stop first
@@ -97,7 +91,6 @@ export function VoiceButton({
       stopSpeaking();
     }
 
-    console.log("[VoiceButton] calling toggleListening");
     toggleListening();
   }, [disabled, isSpeaking, stopSpeaking, toggleListening]);
 

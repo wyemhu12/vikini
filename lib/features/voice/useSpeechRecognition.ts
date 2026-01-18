@@ -144,11 +144,8 @@ export function useSpeechRecognition(
 
   // Start listening
   const startListening = useCallback(async () => {
-    console.log("[Voice] startListening called, isSupported:", isSupported);
-
     if (!isSupported) {
       const msg = "Speech recognition is not supported in this browser";
-      console.error("[Voice]", msg);
       setError(msg);
       onError?.(msg);
       return;
@@ -166,9 +163,7 @@ export function useSpeechRecognition(
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // Immediately stop the stream - we just needed the permission
       stream.getTracks().forEach((track) => track.stop());
-      console.log("[Voice] Microphone permission granted via getUserMedia");
-    } catch (err) {
-      console.error("[Voice] Failed to get microphone permission:", err);
+    } catch (_err) {
       const msg = "Microphone access denied. Please allow microphone access.";
       setError(msg);
       setStatus("error");
@@ -179,7 +174,6 @@ export function useSpeechRecognition(
     // Create recognition instance
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    console.log("[Voice] Created SpeechRecognition instance");
 
     // Configure
     recognition.lang = language || navigator.language || "vi-VN";
@@ -189,7 +183,6 @@ export function useSpeechRecognition(
 
     // Event handlers
     recognition.onstart = () => {
-      console.log("[Voice] Recognition started, listening...");
       setStatus("listening");
       resetSilenceTimer();
     };
@@ -232,8 +225,6 @@ export function useSpeechRecognition(
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.error("[Voice] onerror fired! error type:", event.error, "message:", event.message);
-
       // Clear timer on error
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
@@ -256,8 +247,6 @@ export function useSpeechRecognition(
     };
 
     recognition.onend = () => {
-      console.log("[Voice] onend fired - recognition stopped");
-
       // Clear timer on end
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
@@ -270,11 +259,8 @@ export function useSpeechRecognition(
     try {
       recognition.start();
       recognitionRef.current = recognition;
-      console.log("[Voice] recognition.start() called successfully");
-      // Set status immediately (don't wait for onstart which may not fire on some browsers)
       setStatus("listening");
     } catch (err) {
-      console.error("[Voice] recognition.start() failed:", err);
       const msg = err instanceof Error ? err.message : "Failed to start speech recognition";
       setError(msg);
       setStatus("error");

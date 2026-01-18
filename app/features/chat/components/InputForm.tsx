@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Image as ImageIcon, Upload, X } from "lucide-react";
+import { Plus, Image as ImageIcon, Upload, X, Loader2 } from "lucide-react";
 import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
 import { useDebounceCallback } from "@/lib/hooks/useDebounceCallback";
@@ -70,6 +70,7 @@ export default function InputForm({
   const [isUploading, setIsUploading] = useState(false);
   const [isImageMode, setIsImageMode] = useState(initialImageMode);
   const [_voiceTranscript, setVoiceTranscript] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
 
   // Sync initialImageMode prop to state (for Gallery remix)
   useEffect(() => {
@@ -121,8 +122,7 @@ export default function InputForm({
     }
   };
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+  const uploadFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
     setIsUploading(true);
@@ -160,7 +160,15 @@ export default function InputForm({
         });
 
         if (!uploadRes.ok) {
-          throw new Error(`Storage upload failed: ${uploadRes.statusText}`);
+          const errorText = await uploadRes.text();
+          logger.error("Upload response error:", {
+            status: uploadRes.status,
+            statusText: uploadRes.statusText,
+            body: errorText,
+          });
+          throw new Error(
+            `Storage upload failed: ${uploadRes.statusText} - ${errorText.substring(0, 100)}`
+          );
         }
 
         const completeRes = await fetch("/api/attachments/complete-upload", {
@@ -186,6 +194,13 @@ export default function InputForm({
           addAttachment(completeJson.data?.attachment || completeJson?.attachment);
         }
       }
+
+      // Notify other components (like AttachmentsPanel) to refresh
+      if (conversationId) {
+        window.dispatchEvent(
+          new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
+        );
+      }
     } catch (err) {
       logger.error("Upload error:", err);
       const errorMessage = err instanceof Error ? err.message : t?.error || "Upload failed";
@@ -196,9 +211,105 @@ export default function InputForm({
     }
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    await uploadFiles(files);
+  };
+
+  // Global Paste Handler
+  useEffect(() => {
+    const handleGlobalPaste = async (e: ClipboardEvent) => {
+      if (disabled || isUploading) return;
+
+      // Identify if we have interaction with another input/textarea (except our own)
+      const target = e.target as HTMLElement;
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA") &&
+        !formRef.current?.contains(target)
+      ) {
+        return; // Don't interfere with other inputs
+      }
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const files: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === "file") {
+          const file = item.getAsFile();
+          if (file) {
+            // Fix for screenshots having generic "image" name or missing extension
+            if (
+              file.type.startsWith("image/") &&
+              (file.name === "image" || !file.name.includes("."))
+            ) {
+              const ext = file.type.split("/")[1] || "png";
+              const newName = `screenshot-${Date.now()}.${ext}`;
+              files.push(new File([file], newName, { type: file.type }));
+            } else {
+              files.push(file);
+            }
+          }
+        }
+      }
+
+      if (files.length > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        await uploadFiles(files);
+      }
+    };
+
+    window.addEventListener("paste", handleGlobalPaste);
+    return () => window.removeEventListener("paste", handleGlobalPaste);
+  }, [disabled, isUploading]); // Dependencies
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (disabled || isUploading) return;
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Verify we're actually leaving the form, not just entering a child
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (disabled || isUploading) return;
+    setIsDragging(true);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (disabled || isUploading) return;
+
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length > 0) {
+      await uploadFiles(files);
+    }
+  };
+
   return (
     <form
       ref={formRef}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       onSubmit={(e) => {
         e.preventDefault();
         if (isStreaming) {
@@ -210,9 +321,20 @@ export default function InputForm({
       className={`relative flex w-full items-end gap-2 rounded-3xl border p-2 shadow-2xl transition-all duration-300 ${
         isImageMode
           ? "bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface))] border-(--accent) ring-1 ring-(--accent)/50"
-          : "bg-(--control-bg) border-(--control-border) focus-within:border-(--accent) focus-within:ring-1 focus-within:ring-(--accent)/30"
+          : isDragging
+            ? "bg-(--control-bg) border-(--accent) ring-2 ring-(--accent)/50 scale-[1.02]"
+            : "bg-(--control-bg) border-(--control-border) focus-within:border-(--accent) focus-within:ring-1 focus-within:ring-(--accent)/30"
       }`}
     >
+      {/* Drag Overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center rounded-3xl bg-(--surface)/80 backdrop-blur-sm border-2 border-dashed border-(--accent)">
+          <div className="flex flex-col items-center gap-2 text-(--accent) font-semibold animate-bounce">
+            <Upload className="w-8 h-8" />
+            <span>Drop files to upload</span>
+          </div>
+        </div>
+      )}
       {/* Plus Menu Trigger */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -241,6 +363,13 @@ export default function InputForm({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Loading Indicator */}
+      {isUploading && (
+        <div className="absolute left-[3.2rem] top-1/2 -translate-y-1/2 z-10 animate-fade-in">
+          <Loader2 className="w-5 h-5 animate-spin text-(--accent)" />
+        </div>
+      )}
 
       <input
         type="file"

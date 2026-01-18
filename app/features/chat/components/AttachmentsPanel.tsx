@@ -230,17 +230,73 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
 
         try {
           for (const f of arr) {
-            const form = new FormData();
-            form.set("conversationId", conversationId);
-            form.set("file", f);
+            // Normalize filename for screenshots (if name is generic or missing ext)
+            let fileToUpload = f;
+            if (f.type.startsWith("image/") && (f.name === "image" || !f.name.includes("."))) {
+              const ext = f.type.split("/")[1] || "png";
+              const timestamp = Date.now();
+              const random = Math.floor(Math.random() * 1000);
+              const newName = `screenshot-${timestamp}-${random}.${ext}`;
+              fileToUpload = new File([f], newName, { type: f.type });
+            }
 
-            const res = await fetch("/api/attachments/upload", {
+            // 1. Get Signed URL
+            const signRes = await fetch("/api/attachments/sign-upload", {
               method: "POST",
-              body: form,
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                conversationId,
+                filename: fileToUpload.name,
+                fileType: fileToUpload.type,
+                fileSize: fileToUpload.size,
+              }),
             });
 
-            const json = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(json?.error?.message || json?.error || "Upload failed");
+            const json = await signRes.json().catch(() => ({}));
+            if (!signRes.ok)
+              throw new Error(json?.error?.message || json?.error || "Upload init failed");
+
+            const { signedUrl, path, filename, mimeType } = json.data || json;
+            if (!signedUrl) throw new Error("Missing signed URL");
+
+            // 2. Direct Upload to Storage
+            const uploadRes = await fetch(signedUrl, {
+              method: "PUT",
+              headers: { "Content-Type": mimeType },
+              body: fileToUpload,
+            });
+
+            if (!uploadRes.ok) {
+              const errorText = await uploadRes.text();
+              logger.error("Upload response error:", {
+                status: uploadRes.status,
+                statusText: uploadRes.statusText,
+                body: errorText,
+              });
+              throw new Error(
+                `Storage upload failed: ${uploadRes.statusText} - ${errorText.substring(0, 100)}`
+              );
+            }
+
+            // 3. Complete Upload
+            const completeRes = await fetch("/api/attachments/complete-upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                conversationId,
+                path,
+                filename,
+                sizeBytes: fileToUpload.size,
+                mimeType,
+              }),
+            });
+
+            const completeJson = await completeRes.json().catch(() => ({}));
+            if (!completeRes.ok) {
+              throw new Error(
+                completeJson?.error?.message || completeJson?.error || "Upload completion failed"
+              );
+            }
           }
 
           window.dispatchEvent(

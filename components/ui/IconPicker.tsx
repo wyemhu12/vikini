@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import ReactDOM from "react-dom";
+import { useState } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface IconPickerProps {
   onSelect: (icon: string) => void;
@@ -42,68 +42,39 @@ const ICON_LIST = [
 ];
 
 export default function IconPicker({ onSelect, disabled }: IconPickerProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Calculate position when opening
-  useEffect(() => {
-    if (isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setPosition({
-        top: rect.bottom + 4,
-        left: rect.left,
-      });
-    }
-  }, [isOpen]);
+  const [open, setOpen] = useState(false);
 
   const handleSelect = (icon: string) => {
     onSelect(icon);
-    setIsOpen(false);
+    setOpen(false);
   };
 
   return (
-    <>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        disabled={disabled}
-        className="ml-1.5 px-1.5 py-0.5 text-xs rounded bg-white/5 hover:bg-white/10 border border-white/10 text-(--text-secondary) transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        title="Select Icon"
-      >
-        ▼
-      </button>
-
-      {isOpen &&
-        ReactDOM.createPortal(
-          <>
-            <div className="fixed inset-0 z-[9998]" onClick={() => setIsOpen(false)} />
-            <div
-              ref={dropdownRef}
-              className="fixed z-[9999] p-2 rounded-lg bg-neutral-900 border border-neutral-700 shadow-xl"
-              style={{ top: position.top, left: position.left }}
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          className="ml-1.5 px-1.5 py-0.5 text-xs rounded bg-white/5 hover:bg-white/10 border border-white/10 text-(--text-secondary) transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Select Icon"
+        >
+          ▼
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-2" align="start">
+        <div className="grid grid-cols-6 gap-1">
+          {ICON_LIST.map((icon) => (
+            <button
+              key={icon}
+              type="button"
+              onClick={() => handleSelect(icon)}
+              className="w-8 h-8 flex items-center justify-center text-lg rounded hover:bg-white/10 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-(--primary)"
             >
-              <div className="grid grid-cols-6 gap-1">
-                {ICON_LIST.map((icon) => (
-                  <button
-                    key={icon}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelect(icon);
-                    }}
-                    className="w-8 h-8 flex items-center justify-center text-lg rounded hover:bg-white/10 transition-colors"
-                  >
-                    {icon}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </>,
-          document.body
-        )}
-    </>
+              {icon}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
