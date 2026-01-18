@@ -14,7 +14,7 @@
 | ------------------------------- | ------- | ------ | ------- |
 | **Lỗi Nghiêm Trọng (Critical)** | 4       | 4      | 0       |
 | **Lỗi Quan Trọng (High)**       | 8       | 8      | 0       |
-| **Lỗi Trung Bình (Medium)**     | 12      | 2      | 10      |
+| **Lỗi Trung Bình (Medium)**     | 12      | 5      | 7       |
 | **Cải Tiến Đề Xuất (Low)**      | 15      | 0      | 15      |
 
 **Trạng thái CI:**
@@ -114,25 +114,15 @@ Add debounce to prevent duplicate submissions.
 
 ---
 
-### M-008: File Input Not Type-Restricted
+### ✅ M-008: File Input Not Type-Restricted - FIXED
 
-**File:** `app/features/chat/components/InputForm.tsx`
-
-```typescript
-// ❌ Accepts all file types
-<input type="file" ... />
-
-// ✅ Restrict types
-<input type="file" accept="image/*,.pdf,.doc,.docx,.txt" ... />
-```
+Added `accept` attribute với comprehensive file types.
 
 ---
 
-### M-009: Missing aria-label on Interactive Elements
+### ✅ M-009: Missing aria-label on Interactive Elements - FIXED
 
-**File:** `app/features/chat/components/InputForm.tsx`
-
-Add `aria-label` for accessibility.
+Thêm `aria-label` cho tất cả buttons trong InputForm.
 
 ---
 
@@ -142,11 +132,9 @@ Audit `ChatBubble` component for XSS vulnerabilities when rendering user content
 
 ---
 
-### M-011: Missing Rate Limit on Image Generation
+### ✅ M-011: Missing Rate Limit on Image Generation - FIXED
 
-**File:** `app/api/generate-image/route.ts`
-
-Add `consumeRateLimit` like chat-stream route.
+Thêm `consumeRateLimit` với bucket riêng `image-gen:${userId}`.
 
 ---
 

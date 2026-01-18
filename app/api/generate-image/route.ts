@@ -6,11 +6,13 @@ import { ImageGenFactory } from "@/lib/features/image-gen/core/ImageGenFactory";
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { saveMessage } from "@/lib/features/chat/messages";
 import { logger } from "@/lib/utils/logger";
+import { consumeRateLimit } from "@/lib/core/rateLimit";
 import {
   UnauthorizedError,
   ValidationError,
   ForbiddenError,
   NotFoundError,
+  RateLimitError,
   AppError,
 } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
@@ -57,7 +59,13 @@ export async function POST(req: NextRequest) {
       throw new UnauthorizedError();
     }
     const userId = session.user.email.toLowerCase();
-    // const userEmail = session.user.email; // Unused
+
+    // 1.5 Rate Limiting (uses same window as chat, but separate bucket for image gen)
+    const rl = await consumeRateLimit(`image-gen:${userId}`);
+    if (!rl.allowed) {
+      routeLogger.warn(`Rate limit exceeded for image generation: ${userId}`);
+      throw new RateLimitError("Too many image generation requests. Please wait.");
+    }
 
     // 2. Parse & Validate Body
     const rawBody = await req.json();

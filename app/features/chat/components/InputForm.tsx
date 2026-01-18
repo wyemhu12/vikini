@@ -213,6 +213,7 @@ export default function InputForm({
                 : "text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)]"
             }`}
             title="Add..."
+            aria-label={t?.addAttachment || "Add attachment or switch mode"}
           >
             {isImageMode ? <ImageIcon className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
           </button>
@@ -235,6 +236,8 @@ export default function InputForm({
         onChange={handleFileSelect}
         className="hidden"
         multiple
+        accept="image/*,.pdf,.doc,.docx,.txt,.md,.json,.csv,.xml,.html,.css,.js,.ts,.jsx,.tsx,.py,.java,.c,.cpp,.h,.hpp,.go,.rs,.rb,.php,.sql,.sh,.yaml,.yml,.toml,.ini,.cfg,.log,.zip"
+        aria-label={t?.uploadFile || "Upload file"}
       />
 
       {/* Text Area */}
@@ -267,6 +270,7 @@ export default function InputForm({
           onClick={() => setIsImageMode(false)}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)] hover:text-red-500 transition-colors"
           title="Cancel Image Mode"
+          aria-label={t?.cancelImageMode || "Cancel image mode"}
         >
           <X className="w-5 h-5" />
         </button>
@@ -288,6 +292,7 @@ export default function InputForm({
               : "bg-[var(--accent)] text-[var(--surface)] hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--glow)]"
         }`}
         title={isStreaming ? "Stop" : t?.send || "Send"}
+        aria-label={isStreaming ? t?.stop || "Stop generation" : t?.send || "Send message"}
       >
         {isStreaming ? (
           <StopIcon />
