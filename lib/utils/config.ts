@@ -118,6 +118,7 @@ export const translations: TranslationSet = {
     gemPlaceholderDesc: "Mô tả ngắn gọn chức năng của Gem",
     gemPlaceholderInst: "Nhập hướng dẫn chi tiết cho AI...",
     gemDeleteConfirm: "Bạn có chắc chắn muốn xóa Gem này?",
+    selectIcon: "Chọn Icon",
     backToChat: "Quay lại Chat",
     // Sidebar & Conversations
     history: "Lịch sử trò chuyện",
@@ -384,6 +385,7 @@ export const translations: TranslationSet = {
     gemPlaceholderDesc: "Brief description of the Gem's function",
     gemPlaceholderInst: "Enter detailed instructions for AI...",
     gemDeleteConfirm: "Are you sure you want to delete this Gem?",
+    selectIcon: "Select Icon",
     backToChat: "Back to Chat",
     history: "Chat History",
     noConversations: "No conversations yet",

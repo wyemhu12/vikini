@@ -6,6 +6,7 @@ import { translations } from "@/lib/utils/config";
 import { Gem } from "./GemPreview";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import IconPicker from "@/components/ui/IconPicker";
 
 interface GemEditorProps {
   gem: Gem | null;
@@ -104,7 +105,16 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-neutral-400">Icon</label>
+            <label className="mb-1 flex items-center gap-1 text-xs text-neutral-400">
+              Icon
+              <IconPicker
+                onSelect={(emoji) => {
+                  setIcon(emoji);
+                  setDirty(true);
+                }}
+                disabled={isReadOnly}
+              />
+            </label>
             <Input
               value={icon}
               onChange={handleChange(setIcon)}
