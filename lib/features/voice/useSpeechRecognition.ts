@@ -143,7 +143,7 @@ export function useSpeechRecognition(
   }, [silenceTimeout, stopListening]);
 
   // Start listening
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
     console.log("[Voice] startListening called, isSupported:", isSupported);
 
     if (!isSupported) {
@@ -158,6 +158,23 @@ export function useSpeechRecognition(
     setError(null);
     setTranscript("");
     finalTranscriptRef.current = "";
+
+    try {
+      // Explicitly request microphone access first
+      // This fixes "not-allowed" errors in some browsers where SpeechRecognition
+      // fails to prompt for permission properly
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Immediately stop the stream - we just needed the permission
+      stream.getTracks().forEach((track) => track.stop());
+      console.log("[Voice] Microphone permission granted via getUserMedia");
+    } catch (err) {
+      console.error("[Voice] Failed to get microphone permission:", err);
+      const msg = "Microphone access denied. Please allow microphone access.";
+      setError(msg);
+      setStatus("error");
+      onError?.(msg);
+      return;
+    }
 
     // Create recognition instance
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
