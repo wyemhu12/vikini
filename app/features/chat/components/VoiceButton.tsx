@@ -118,6 +118,9 @@ export function VoiceButton({
           </TooltipTrigger>
           <TooltipContent>
             <p>{t?.voiceNotSupported || "Voice input not supported in this browser"}</p>
+            <p className="text-xs text-yellow-500 mt-1">
+              {t?.useChromeOrEdge || "Use Chrome or Edge for voice features"}
+            </p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -184,6 +187,11 @@ export function VoiceButton({
             </TooltipContent>
           </Tooltip>
         )}
+      </div>
+
+      {/* ARIA Live Region for screen readers */}
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {isListening ? t?.listeningAnnouncement || `Listening: ${transcript}` : ""}
       </div>
     </TooltipProvider>
   );

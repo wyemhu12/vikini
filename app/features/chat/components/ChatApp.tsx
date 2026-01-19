@@ -32,6 +32,7 @@ import { useChatModals } from "./hooks/useChatModals";
 import { useChatTranslations, useLanguage } from "./hooks/useChatTranslations";
 import { useUrlSync } from "./hooks/useUrlSync";
 import { type AttachmentsPanelRef } from "./AttachmentsPanel";
+import { useTTS } from "../hooks/useTTS";
 
 // Utils & Constants
 import { DEFAULT_MODEL, SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
@@ -204,6 +205,9 @@ export default function ChatApp() {
     setMessages,
     t,
   });
+
+  // TTS Hook for reading AI responses aloud
+  const tts = useTTS();
 
   // Image Generation Controller Hook
   const {
@@ -445,6 +449,8 @@ export default function ChatApp() {
                     onImageRegenerate={handleImageRegenerate}
                     onImageEdit={handleImageEdit}
                     regenerating={regenerating && isLastAI}
+                    onSpeak={m.id ? () => tts.speakMessage(m.id!, m.content || "") : undefined}
+                    isSpeaking={m.id ? tts.isMessageSpeaking(m.id) : false}
                   />
                 );
               })}

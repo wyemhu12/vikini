@@ -217,6 +217,10 @@ interface ChatBubbleProps {
   onImageRegenerate?: (message: ChatMessage) => void;
   onImageEdit?: (message: ChatMessage) => void;
   regenerating?: boolean;
+  /** TTS callback */
+  onSpeak?: () => void;
+  /** Is TTS currently speaking this message */
+  isSpeaking?: boolean;
 }
 
 // ============================================
@@ -238,6 +242,8 @@ const ChatBubble = React.memo(
     onImageRegenerate,
     onImageEdit,
     regenerating,
+    onSpeak,
+    isSpeaking,
   }: ChatBubbleProps) {
     const { t } = useLanguage();
 
@@ -481,10 +487,12 @@ const ChatBubble = React.memo(
                 copied={copied}
                 canRegenerate={canRegenerate}
                 regenerating={regenerating}
+                isSpeaking={isSpeaking}
                 onCopy={handleCopyMessage}
                 onEdit={!isBot ? () => setIsEditing(true) : undefined}
                 onRegenerate={onRegenerate}
                 onDelete={onDelete}
+                onSpeak={isBot ? onSpeak : undefined}
               />
             )}
           </div>
@@ -502,7 +510,9 @@ const ChatBubble = React.memo(
       prev.onEdit === next.onEdit &&
       prev.onDelete === next.onDelete &&
       prev.onImageRegenerate === next.onImageRegenerate &&
-      prev.onImageEdit === next.onImageEdit
+      prev.onImageEdit === next.onImageEdit &&
+      prev.isSpeaking === next.isSpeaking &&
+      prev.onSpeak === next.onSpeak
     );
   }
 );
