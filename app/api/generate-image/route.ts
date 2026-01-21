@@ -237,11 +237,28 @@ export async function POST(req: NextRequest) {
     // 5. Persist as Message (Critical for persistence)
     // We create a message of role 'assistant'
     const messageContent = `Generated Image: ${prompt}`;
+
+    // Ensure model is always present in originalOptions
+    const effectiveModel =
+      options?.model ||
+      (providerName === "gemini"
+        ? "Imagen 4"
+        : providerName === "openai"
+          ? "DALL-E 3"
+          : providerName === "replicate"
+            ? "Flux"
+            : "Unknown");
+
+    const savedOptions = {
+      ...options,
+      model: effectiveModel,
+    };
+
     const messageMeta = {
       type: "image_gen",
       prompt: prompt, // This is the ENHANCED prompt (modified by enhancer if enabled)
       imageUrl: finalUrl, // Add imageUrl at top level for easy access
-      originalOptions: options, // Add originalOptions at top level for badges
+      originalOptions: savedOptions, // Now always includes model
       provider: providerName,
       attachment: {
         url: finalUrl,
@@ -253,7 +270,7 @@ export async function POST(req: NextRequest) {
       metadata: {
         imageUrl: finalUrl,
         prompt: prompt,
-        originalOptions: options,
+        originalOptions: savedOptions,
       },
     };
 

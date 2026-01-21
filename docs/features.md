@@ -1,6 +1,6 @@
 # Features - Vikini
 
-> **Cập nhật**: 2026-01-18
+> **Cập nhật**: 2026-01-22
 
 ---
 
@@ -14,12 +14,16 @@
 | **File Attachments**     | ✅ Hoàn thành | Upload, parse, 36h TTL                     |
 | **Image Studio**         | ✅ Hoàn thành | AI Image Generation (Gemini, DALL-E, Flux) |
 | **Gallery**              | ✅ Hoàn thành | Image management với infinite scroll       |
+| **Image Lightbox**       | ✅ Hoàn thành | Fullscreen view + zoom controls            |
+| **Image Compare**        | ✅ Hoàn thành | Side-by-side & overlay comparison          |
 | **Message Encryption**   | ✅ Hoàn thành | AES-256-GCM                                |
 | **Rate Limiting**        | ✅ Hoàn thành | Redis-based per user                       |
 | **Daily Message Limits** | ✅ Hoàn thành | Theo rank                                  |
 | **Web Search**           | ✅ Hoàn thành | Optional, rank-gated                       |
 | **Admin Dashboard**      | ✅ Hoàn thành | User/GEM/Rank management                   |
 | **Google OAuth**         | ✅ Hoàn thành | NextAuth v5                                |
+| **Voice Input (STT)**    | ✅ Hoàn thành | Web Speech API + waveform                  |
+| **TTS Playback**         | ✅ Hoàn thành | Read AI responses aloud                    |
 
 ---
 
@@ -129,25 +133,46 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 - Filter by date/model
 - Remix to chat
 - Delete với confirmation
+- **Image Lightbox**: Fullscreen view với zoom controls
+- **Image Compare**: So sánh 2 ảnh (side-by-side hoặc overlay slider)
+- Navigation arrows (prev/next) với keyboard support
 
 **Files**:
 
 - `/app/features/gallery/` - UI Components
+- `/app/features/gallery/components/ImageCompareModal.tsx` - Compare modal
 - `/app/api/gallery/route.ts` - API
 
 **Route**: `/gallery`
 
 ---
 
+### 2.7 Voice Features
+
+**Mô tả**: Speech-to-Text input và Text-to-Speech playback.
+
+**Tính năng**:
+
+- Voice input với waveform indicator
+- TTS button trên tất cả AI messages
+- Auto language detection (VN/EN/DE)
+- Browser compatibility warnings
+
+**Files**:
+
+- `/app/features/chat/components/VoiceButton.tsx` - Voice input
+- `/app/features/chat/hooks/useTTS.ts` - TTS hook
+
+---
+
 ## 3. Roadmap (Dự kiến)
 
-| Tính năng            | Priority | Effort    | Notes                       |
-| -------------------- | -------- | --------- | --------------------------- |
-| Multi-model support  | High     | Medium    | Thêm Claude, GPT            |
-| Code Artifacts       | High     | High      | Render HTML/React real-time |
-| Knowledge Base       | Medium   | High      | Persistent document context |
-| Voice Chat (TTS/STT) | Medium   | Medium    | Web Speech API              |
-| Plugin System        | Low      | Very High | Extensibility               |
+| Tính năng           | Priority | Effort    | Notes                       |
+| ------------------- | -------- | --------- | --------------------------- |
+| Multi-model support | High     | Medium    | Thêm Claude, GPT            |
+| Code Artifacts      | High     | High      | Render HTML/React real-time |
+| Knowledge Base      | Medium   | High      | Persistent document context |
+| Plugin System       | Low      | Very High | Extensibility               |
 
 ---
 

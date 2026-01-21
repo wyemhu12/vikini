@@ -40,6 +40,23 @@ interface MessageMeta {
   attachmentIds?: string[]; // IDs tệp đính kèm
   modelUsed?: string; // Model thực tế được sử dụng
   tokensUsed?: number; // Token count
+
+  // Image Generation (type = "image_gen")
+  type?: "image_gen"; // Indicates this is a generated image message
+  prompt?: string; // Original prompt used for generation
+  imageUrl?: string; // Public URL of generated image
+  attachment?: {
+    url: string; // Storage URL
+    storagePath: string; // Supabase storage path
+    mimeType: string; // "image/png" etc.
+    filename: string; // Original filename
+  };
+  originalOptions?: {
+    aspectRatio?: string; // "1:1", "16:9", etc.
+    style?: string; // Style preset used
+    enhancer?: boolean; // AI prompt enhancement enabled
+    model?: string; // Image model used (imagen-4, flux, dall-e)
+  };
 }
 
 interface WebSearchSource {
