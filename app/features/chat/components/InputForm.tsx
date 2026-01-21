@@ -111,6 +111,7 @@ export default function InputForm({
     if (isImageMode && onImageGen) {
       if (input.trim()) {
         onImageGen(input);
+        onChangeInput(""); // Clear input after sending
         setIsImageMode(false); // Exit mode after send
         if (textareaRef.current) textareaRef.current.style.height = "auto";
       }

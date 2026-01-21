@@ -7,7 +7,7 @@ import rehypeHighlight from "rehype-highlight";
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import dynamic from "next/dynamic";
-import { ChevronDown, ChevronRight, Sparkles, Brain } from "lucide-react";
+import { ChevronDown, ChevronRight, Sparkles, Brain, ImageIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { logger } from "@/lib/utils/logger";
 
@@ -465,13 +465,23 @@ const ChatBubble = React.memo(
               {/* Image Gen Preview */}
               {isBot &&
                 safeMessage.meta?.type === "image_gen" &&
-                safeMessage.meta?.attachment?.url && (
+                (safeMessage.meta?.attachment?.url ? (
                   <ImageGenPreview
                     message={safeMessage}
                     onRegenerate={onImageRegenerate}
                     onEdit={onImageEdit}
                   />
-                )}
+                ) : (
+                  /* Skeleton loader khi đang generate */
+                  <div className="mt-4 rounded-xl overflow-hidden border border-token max-w-sm animate-pulse">
+                    <div className="aspect-square bg-surface-muted flex items-center justify-center">
+                      <ImageIcon className="w-12 h-12 text-secondary/40" />
+                    </div>
+                    <div className="px-3 py-2 bg-surface-elevated border-t border-token">
+                      <div className="h-3 bg-surface-muted rounded w-3/4"></div>
+                    </div>
+                  </div>
+                ))}
 
               {/* Source Links */}
               {isBot && (safeMessage.sources?.length ?? 0) > 0 && (
@@ -479,8 +489,8 @@ const ChatBubble = React.memo(
               )}
             </div>
 
-            {/* Actions */}
-            {!isLoading && !isEditing && (
+            {/* Actions - Hide for image_gen messages since ImageGenPreview has its own actions */}
+            {!isLoading && !isEditing && safeMessage.meta?.type !== "image_gen" && (
               <MessageActions
                 isBot={isBot}
                 messageId={safeMessage.id}

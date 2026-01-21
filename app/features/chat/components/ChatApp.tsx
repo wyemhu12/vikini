@@ -212,6 +212,7 @@ export default function ChatApp() {
   // Image Generation Controller Hook
   const {
     lastGeneratedImage,
+    setLastGeneratedImage,
     showEditImageModal,
     setShowEditImageModal,
     editingImagePrompt,
@@ -225,6 +226,14 @@ export default function ChatApp() {
     setSelectedConversationIdAndUrl,
     currentModel,
     t: tRaw,
+    onSuccess: () => {
+      // Reload messages to show the generated image
+      if (selectedConversationId) {
+        handleSelectConversation(selectedConversationId);
+      }
+      // Clear temporary state
+      setLastGeneratedImage(null);
+    },
   });
 
   // Remix prompt logic

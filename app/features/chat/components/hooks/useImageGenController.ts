@@ -30,6 +30,7 @@ interface UseImageGenControllerProps {
   setSelectedConversationIdAndUrl: (id: string | null) => void;
   currentModel: string;
   t: (key: string) => string;
+  onSuccess?: () => void; // Callback to refresh messages after generation
 }
 
 export function useImageGenController({
@@ -38,6 +39,7 @@ export function useImageGenController({
   setSelectedConversationIdAndUrl,
   currentModel,
   t,
+  onSuccess,
 }: UseImageGenControllerProps) {
   const [lastGeneratedImage, setLastGeneratedImage] = useState<{
     url: string;
@@ -86,15 +88,18 @@ export function useImageGenController({
           throw new Error(data.error || t("studioGenerateFailed"));
         }
 
-        if (data.success && data.message) {
-          if (data.imageUrl) {
-            setLastGeneratedImage({ url: data.imageUrl, prompt });
+        // API returns { success: true, data: { message, imageUrl } }
+        if (data.success && data.data) {
+          const { imageUrl } = data.data;
+          if (imageUrl) {
+            setLastGeneratedImage({ url: imageUrl, prompt });
           }
           toast.success(t("studioGenerateSuccess"));
-          // Note: ChatApp handles router.refresh() if needed
+          // Refresh messages to show the generated image
+          onSuccess?.();
           return true;
         } else {
-          throw new Error(t("studioGenerateFailed"));
+          throw new Error(data.error?.message || t("studioGenerateFailed"));
         }
       } catch (e) {
         logger.error("Image generation error:", e);

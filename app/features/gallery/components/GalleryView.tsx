@@ -10,6 +10,11 @@ import {
   Loader2,
   Calendar,
   Filter,
+  GitCompare,
+  Check,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import Image from "next/image";
 import Sidebar from "../../sidebar/components/Sidebar";
@@ -21,6 +26,7 @@ import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import { useRouter } from "next/navigation";
 import { logger } from "@/lib/utils/logger";
 import { formatDateShort } from "@/lib/utils/dateFormat";
+import ImageCompareModal from "./ImageCompareModal";
 
 interface GalleryImage {
   id: string;
@@ -62,6 +68,14 @@ export function GalleryView() {
   // Sidebar State
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Compare Mode State
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareImages, setCompareImages] = useState<[GalleryImage | null, GalleryImage | null]>([
+    null,
+    null,
+  ]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
 
   // Infinite Scroll State
   const [offset, setOffset] = useState(0);
@@ -184,6 +198,82 @@ export function GalleryView() {
 
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
 
+  // Compare Mode Handlers
+  const handleToggleCompareMode = useCallback(() => {
+    setCompareMode((prev) => !prev);
+    setCompareImages([null, null]);
+  }, []);
+
+  const handleToggleCompareImage = useCallback((img: GalleryImage) => {
+    setCompareImages((prev) => {
+      // If image already selected, remove it
+      if (prev[0]?.id === img.id) return [null, prev[1]];
+      if (prev[1]?.id === img.id) return [prev[0], null];
+
+      // Add to first empty slot
+      if (!prev[0]) return [img, prev[1]];
+      if (!prev[1]) return [prev[0], img];
+
+      // Both slots full, replace second
+      return [prev[0], img];
+    });
+  }, []);
+
+  const handleOpenCompare = useCallback(() => {
+    if (compareImages[0] && compareImages[1]) {
+      setShowCompareModal(true);
+    }
+  }, [compareImages]);
+
+  const handleSwapCompareImages = useCallback(() => {
+    setCompareImages((prev) => [prev[1], prev[0]]);
+  }, []);
+
+  const isImageSelectedForCompare = useCallback(
+    (imgId: string) => compareImages[0]?.id === imgId || compareImages[1]?.id === imgId,
+    [compareImages]
+  );
+
+  // Navigation handlers for modal
+  const currentImageIndex = useMemo(() => {
+    if (!selectedImage) return -1;
+    return filteredImages.findIndex((img) => img.id === selectedImage.id);
+  }, [selectedImage, filteredImages]);
+
+  const handlePrevImage = useCallback(() => {
+    if (currentImageIndex > 0) {
+      setSelectedImage(filteredImages[currentImageIndex - 1]);
+      setShowDeleteConfirm(false);
+    }
+  }, [currentImageIndex, filteredImages]);
+
+  const handleNextImage = useCallback(() => {
+    if (currentImageIndex < filteredImages.length - 1) {
+      setSelectedImage(filteredImages[currentImageIndex + 1]);
+      setShowDeleteConfirm(false);
+    }
+  }, [currentImageIndex, filteredImages]);
+
+  // Keyboard navigation for modal
+  useEffect(() => {
+    if (!selectedImage) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        handlePrevImage();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        handleNextImage();
+      } else if (e.key === "Escape") {
+        setSelectedImage(null);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectedImage, handlePrevImage, handleNextImage]);
+
   // Remix Handler
   const handleRemix = (prompt: string) => {
     // Store prompt and image mode flag in sessionStorage for ChatApp to read
@@ -305,7 +395,7 @@ export function GalleryView() {
               </div>
             </div>
 
-            {/* Results Count */}
+            {/* Results Count + Compare Button */}
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-(--text-secondary)">
                 {t("galleryYourCreations")}
@@ -313,6 +403,47 @@ export function GalleryView() {
                   <span className="ml-2 text-sm font-normal">({filteredImages.length} images)</span>
                 )}
               </h2>
+
+              {/* Compare Mode Toggle */}
+              <div className="flex items-center gap-2">
+                {compareMode && (
+                  <>
+                    <span className="text-sm text-(--text-secondary)">
+                      {[compareImages[0], compareImages[1]].filter(Boolean).length}/2{" "}
+                      {t("compareSelected") || "selected"}
+                    </span>
+                    {compareImages[0] && compareImages[1] && (
+                      <button
+                        onClick={handleOpenCompare}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--accent) text-white font-bold shadow-lg shadow-(--accent)/20 hover:opacity-90 transition-all"
+                      >
+                        <GitCompare className="w-4 h-4" />
+                        {t("compareNow") || "Compare"}
+                      </button>
+                    )}
+                  </>
+                )}
+                <button
+                  onClick={handleToggleCompareMode}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                    compareMode
+                      ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
+                      : "bg-(--surface-muted) border border-(--control-border) hover:bg-(--surface-hover)"
+                  }`}
+                >
+                  {compareMode ? (
+                    <>
+                      <X className="w-4 h-4" />
+                      {t("cancel") || "Cancel"}
+                    </>
+                  ) : (
+                    <>
+                      <GitCompare className="w-4 h-4" />
+                      {t("compareImages") || "Compare"}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Grid */}
@@ -327,24 +458,62 @@ export function GalleryView() {
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {filteredImages.map((img) => (
-                  <div
-                    key={img.id}
-                    onClick={() => setSelectedImage(img)}
-                    className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-(--surface-muted) border border-(--border) hover:border-(--accent) transition-all"
-                  >
-                    <Image
-                      src={img.url}
-                      alt={img.prompt}
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-110"
-                      unoptimized // For external URLs
-                    />
-                    <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end">
-                      <p className="text-white text-xs line-clamp-2 font-medium">{img.prompt}</p>
+                {filteredImages.map((img) => {
+                  const isSelectedForCompare = isImageSelectedForCompare(img.id);
+                  return (
+                    <div
+                      key={img.id}
+                      onClick={() => {
+                        if (compareMode) {
+                          handleToggleCompareImage(img);
+                        } else {
+                          setSelectedImage(img);
+                        }
+                      }}
+                      className={`group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-(--surface-muted) border-2 transition-all ${
+                        isSelectedForCompare
+                          ? "border-purple-500 ring-2 ring-purple-500/30"
+                          : "border-(--border) hover:border-(--accent)"
+                      }`}
+                    >
+                      <Image
+                        src={img.url}
+                        alt={img.prompt}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        unoptimized
+                      />
+
+                      {/* Compare Mode Selection Indicator */}
+                      {compareMode && (
+                        <div
+                          className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                            isSelectedForCompare
+                              ? "bg-purple-500 text-white"
+                              : "bg-black/50 text-white/70 border border-white/30"
+                          }`}
+                        >
+                          {isSelectedForCompare ? (
+                            <Check className="w-4 h-4" />
+                          ) : (
+                            <span className="text-xs font-bold">
+                              {compareImages[0] === null
+                                ? "1"
+                                : compareImages[1] === null
+                                  ? "2"
+                                  : ""}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Hover Overlay */}
+                      <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end">
+                        <p className="text-white text-xs line-clamp-2 font-medium">{img.prompt}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -364,25 +533,61 @@ export function GalleryView() {
         {/* Modal Detail View */}
         {selectedImage && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
             onClick={() => setSelectedImage(null)}
           >
+            {/* Image Counter - Top center */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full text-white/80 text-sm font-medium border border-white/10">
+              {currentImageIndex + 1} / {filteredImages.length}
+            </div>
+
             <div
-              className="bg-(--surface-base) rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col md:flex-row shadow-2xl border border-(--border)"
+              className="bg-(--surface-base) rounded-2xl max-w-7xl w-full max-h-[95vh] overflow-hidden flex flex-col lg:flex-row shadow-2xl border border-(--border)"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex-1 relative bg-black/50 flex items-center justify-center min-h-[300px] md:min-h-0">
-                <div className="relative w-full h-full p-4">
+              {/* Image Area with hover navigation */}
+              <div className="flex-1 relative bg-black flex items-center justify-center min-h-[400px] lg:min-h-[600px] group">
+                <div className="relative w-full h-full p-6">
                   <Image
                     src={selectedImage.url}
                     alt={selectedImage.prompt}
                     fill
                     className="object-contain"
                     unoptimized
+                    priority
                   />
                 </div>
+
+                {/* Previous Arrow - Inside image, visible on hover */}
+                {currentImageIndex > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePrevImage();
+                    }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-all shadow-lg opacity-0 group-hover:opacity-100"
+                    title={t("galleryPrev") || "Previous"}
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </button>
+                )}
+
+                {/* Next Arrow - Inside image, visible on hover */}
+                {currentImageIndex < filteredImages.length - 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNextImage();
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-all shadow-lg opacity-0 group-hover:opacity-100"
+                    title={t("galleryNext") || "Next"}
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </button>
+                )}
               </div>
-              <div className="w-full md:w-96 p-6 flex flex-col border-l border-(--border) bg-(--surface-base)">
+              {/* Details Sidebar - Slightly narrower */}
+              <div className="w-full lg:w-80 p-6 flex flex-col border-l border-(--border) bg-(--surface-base) max-h-[95vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-lg">{t("galleryImageDetails")}</h3>
                   <button
@@ -481,6 +686,15 @@ export function GalleryView() {
             </div>
           </div>
         )}
+
+        {/* Image Compare Modal */}
+        <ImageCompareModal
+          isOpen={showCompareModal}
+          onClose={() => setShowCompareModal(false)}
+          leftImage={compareImages[0]}
+          rightImage={compareImages[1]}
+          onSwap={handleSwapCompareImages}
+        />
       </div>
     </div>
   );
