@@ -28,10 +28,10 @@ const streamLogger = logger.withContext("/api/chat-stream");
 
 /**
  * Default timeout for AI API calls in milliseconds.
- * Set to 25 seconds to provide safety margin for Vercel's 30s limit.
+ * Set to 60 seconds (1 minute) for complex model responses.
  * Can be overridden via STREAM_TIMEOUT_MS environment variable.
  */
-const DEFAULT_STREAM_TIMEOUT_MS = 25000;
+const DEFAULT_STREAM_TIMEOUT_MS = 60000;
 
 function getStreamTimeout(): number {
   const envTimeout = process.env.STREAM_TIMEOUT_MS;
