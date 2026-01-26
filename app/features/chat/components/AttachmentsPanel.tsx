@@ -23,9 +23,15 @@ import {
   FileText,
   X,
   ChevronDown,
+  HelpCircle,
+  CheckCircle,
+  Circle,
 } from "lucide-react";
 import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FileTypesHelp } from "./FileTypesHelp";
+import { getFileSupportLevel } from "@/lib/features/attachments/attachments";
 
 interface Attachment {
   id: string;
@@ -104,6 +110,26 @@ function getFileIcon(mime?: string, filename?: string) {
   if (m.startsWith("text/")) return <FileText className="w-4 h-4 text-gray-400" />;
 
   return <FileIcon className="w-4 h-4 text-gray-400" />;
+}
+
+function getSupportBadge(filename: string): React.ReactNode {
+  const level = getFileSupportLevel(filename);
+  switch (level) {
+    case "best":
+      return (
+        <span title="Best support">
+          <CheckCircle className="w-3 h-3 text-green-400" />
+        </span>
+      );
+    case "basic":
+      return (
+        <span title="Basic support">
+          <Circle className="w-3 h-3 text-blue-400" />
+        </span>
+      );
+    default:
+      return null;
+  }
 }
 
 function extractClipboardImages(clipboardData: DataTransfer) {
@@ -578,6 +604,24 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
                         >
                           <RefreshCw className="w-3.5 h-3.5" />
                         </button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
+                              >
+                                <HelpCircle className="w-3.5 h-3.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="top"
+                              className="p-3 max-w-xs bg-neutral-900 border border-neutral-700 shadow-xl rounded-lg"
+                            >
+                              <FileTypesHelp compact />
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         {hasFiles && (
                           <button
                             onClick={doDeleteAll}
@@ -634,8 +678,9 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
 
                             {/* Info */}
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-xs font-medium text-secondary group-hover:text-primary transition-colors">
-                                {a.filename}
+                              <div className="truncate text-xs font-medium text-secondary group-hover:text-primary transition-colors flex items-center gap-1.5">
+                                <span className="truncate">{a.filename}</span>
+                                {getSupportBadge(a.filename)}
                               </div>
                               <div className="flex items-center gap-2 text-[10px] text-secondary">
                                 <span>{formatBytes(a.size_bytes)}</span>

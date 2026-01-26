@@ -18,6 +18,7 @@ export interface MessageMeta {
     mimeType?: string;
     filename?: string;
   };
+  thoughtSignature?: string; // Gemini 3 thought signature for reasoning continuity
   [key: string]: unknown; // Allow additional properties
 }
 

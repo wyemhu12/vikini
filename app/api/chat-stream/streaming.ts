@@ -77,6 +77,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
 interface Message {
   role: string;
   content: string;
+  thoughtSignature?: string;
   [key: string]: unknown;
 }
 
@@ -86,6 +87,7 @@ interface MessagePart {
     data: string;
     mimeType: string;
   };
+  thoughtSignature?: string;
 }
 
 interface MappedMessage {
@@ -94,10 +96,17 @@ interface MappedMessage {
 }
 
 export function mapMessages(messages: Message[]): MappedMessage[] {
-  return messages.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
-  }));
+  return messages.map((m) => {
+    const part: MessagePart = { text: m.content };
+    // Include thoughtSignature for Gemini 3 models (only for model/assistant messages)
+    if (m.role === "assistant" && m.thoughtSignature) {
+      part.thoughtSignature = m.thoughtSignature;
+    }
+    return {
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [part],
+    };
+  });
 }
 
 export function sendEvent(
@@ -119,13 +128,18 @@ export function safeText(respOrChunk: unknown): string {
 
     const obj = respOrChunk as {
       text?: string | (() => string);
-      thought?: string;
+      thought?: boolean | string;
       candidates?: unknown[];
     };
 
     // Handle v2 direct text
     if (typeof obj?.text === "function") return obj.text();
-    if (typeof obj?.text === "string") return obj.text;
+    if (typeof obj?.text === "string" && !obj?.thought) return obj.text;
+    // Handle direct thought content (if thought is boolean true, text contains the thought)
+    if (obj?.thought === true && typeof obj?.text === "string") {
+      return `<think>${obj.text}</think>`;
+    }
+    // Legacy: thought as string
     if (typeof obj?.thought === "string") return `<think>${obj.thought}</think>`;
 
     const candidates = obj?.candidates;
@@ -135,11 +149,14 @@ export function safeText(respOrChunk: unknown): string {
       if (Array.isArray(parts)) {
         let result = "";
         for (const part of parts) {
-          const p = part as { text?: string; thought?: string };
-          if (typeof p.thought === "string") {
+          const p = part as { text?: string; thought?: boolean | string };
+          // Gemini API: thought is boolean, text contains the thought content
+          if (p.thought === true && typeof p.text === "string") {
+            result += `<think>${p.text}</think>`;
+          } else if (typeof p.thought === "string") {
+            // Legacy format: thought as string
             result += `<think>${p.thought}</think>`;
-          }
-          if (typeof p.text === "string") {
+          } else if (typeof p.text === "string") {
             result += p.text;
           }
         }
@@ -150,6 +167,62 @@ export function safeText(respOrChunk: unknown): string {
     // Ignore errors
   }
   return "";
+}
+
+/**
+ * Check if a model is Gemini 3 series (requires thoughtSignature handling)
+ */
+export function isGemini3Model(model: string): boolean {
+  const gemini3Identifiers = [
+    "gemini-3-pro",
+    "gemini-3-flash",
+    "gemini-3-pro-preview",
+    "gemini-3-flash-preview",
+    "gemini-3-pro-image",
+    "gemini-3-pro-image-preview",
+    "gemini-3-pro-thinking",
+    "gemini-3-pro-research",
+    "gemini-3-flash-thinking",
+  ];
+  return gemini3Identifiers.some((id) => model.includes(id) || model.startsWith(id));
+}
+
+/**
+ * Extract thoughtSignature from Gemini API response.
+ * For streaming, the signature may come in the final chunk.
+ * Returns the last found signature (most recent).
+ */
+export function extractThoughtSignature(respOrChunk: unknown): string | undefined {
+  try {
+    const obj = respOrChunk as {
+      thoughtSignature?: string;
+      candidates?: unknown[];
+    };
+
+    // Direct signature on response
+    if (typeof obj?.thoughtSignature === "string" && obj.thoughtSignature) {
+      return obj.thoughtSignature;
+    }
+
+    // Check in candidates -> content -> parts
+    const candidates = obj?.candidates;
+    if (Array.isArray(candidates) && candidates[0]) {
+      const candidate = candidates[0] as { content?: { parts?: unknown[] } };
+      const parts = candidate?.content?.parts;
+      if (Array.isArray(parts)) {
+        // Get the last signature found in parts
+        for (let i = parts.length - 1; i >= 0; i--) {
+          const p = parts[i] as { thoughtSignature?: string };
+          if (typeof p.thoughtSignature === "string" && p.thoughtSignature) {
+            return p.thoughtSignature;
+          }
+        }
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+  return undefined;
 }
 
 function pick<T = unknown>(obj: unknown, keys: string[]): T | undefined {
@@ -208,13 +281,14 @@ export interface ChatStreamParams {
   contextMessages: Message[];
   appendToContext: (
     conversationId: string,
-    message: { role: string; content: string }
+    message: { role: string; content: string; thoughtSignature?: string }
   ) => Promise<void>;
   saveMessage: (params: {
     conversationId: string;
     userId: string;
     role: string;
     content: string;
+    meta?: { thoughtSignature?: string };
   }) => Promise<unknown>;
   setConversationAutoTitle: (
     userId: string,
@@ -313,6 +387,7 @@ interface StreamResult {
   promptFeedback: unknown;
   finishReason: string;
   safetyRatings: unknown;
+  thoughtSignature?: string;
 }
 
 async function executeStream(
@@ -332,25 +407,25 @@ async function executeStream(
 
   // Resolve Thinking Models
   let apiModel = model;
-  let thinkingConfig: { thinkingLevel: string } | undefined;
+  let thinkingConfig: { thinkingLevel: string; includeThoughts?: boolean } | undefined;
 
   if (model === MODEL_IDS.GEMINI_3_FLASH_THINKING) {
     apiModel = "gemini-3-flash-preview";
-    thinkingConfig = { thinkingLevel: "low" }; // Default for Flash Thinking variant
+    thinkingConfig = { thinkingLevel: "low", includeThoughts: true }; // Default for Flash Thinking variant
   } else if (model === MODEL_IDS.GEMINI_3_PRO_THINKING) {
     apiModel = "gemini-3-pro-preview";
-    thinkingConfig = { thinkingLevel: "high" }; // Default for Pro Thinking variant
+    thinkingConfig = { thinkingLevel: "high", includeThoughts: true }; // Default for Pro Thinking variant
   } else if (model === MODEL_IDS.GEMINI_3_PRO_RESEARCH) {
     apiModel = "gemini-3-pro-preview";
     // Research mode uses forced tools (configured in chatStreamCore), no special thinking level needed by default,
     // unless we want to combine them. For now, just Thinking High + Search?
     // User requested "Thinking" model + Search. So let's enable thinking too.
-    thinkingConfig = { thinkingLevel: "high" };
+    thinkingConfig = { thinkingLevel: "high", includeThoughts: true };
   }
 
   // Override if manually provided (future proofing)
   if (thinkingLevel) {
-    thinkingConfig = { thinkingLevel };
+    thinkingConfig = { thinkingLevel, includeThoughts: true };
   }
 
   let full = "";
@@ -359,6 +434,7 @@ async function executeStream(
   let promptFeedback: unknown = null;
   let finishReason = "";
   let safetyRatings: unknown = null;
+  let thoughtSignature: string | undefined = undefined;
 
   const maxTokens = getModelMaxOutputTokens(model);
   const timeoutMs = getStreamTimeout();
@@ -426,6 +502,10 @@ async function executeStream(
       sendEvent(controller, "token", { t });
     }
 
+    // Extract thoughtSignature from chunk (Gemini 3)
+    const sig = extractThoughtSignature(chunk);
+    if (sig) thoughtSignature = sig;
+
     const cand = (chunk as { candidates?: unknown[] })?.candidates?.[0] as
       | {
           groundingMetadata?: unknown;
@@ -459,6 +539,7 @@ async function executeStream(
     promptFeedback,
     finishReason,
     safetyRatings,
+    thoughtSignature,
   };
 }
 
@@ -476,6 +557,54 @@ async function runStreamWithFallback(
 ): Promise<StreamResult> {
   const { ai, model, contents, sysPrompt, tools, safetySettings, thinkingLevel } = params;
 
+  // Helper to extract detailed error info from Gemini API errors
+  const extractGeminiErrorInfo = (
+    err: unknown
+  ): {
+    message: string;
+    code: string;
+    status: number;
+    isRateLimit: boolean;
+    retryAfter?: number;
+  } => {
+    const e = err as {
+      status?: number;
+      code?: number;
+      message?: string;
+      error?: { message?: string; code?: number; status?: string };
+    };
+
+    // Try to extract status code
+    const status = e.status || e.code || e.error?.code || 500;
+    const isRateLimit = status === 429;
+
+    // Try to extract message
+    const message = e.message || e.error?.message || "Stream error";
+
+    // For 429 errors, try to parse the nested JSON message
+    if (isRateLimit && message.includes("exceeded your current quota")) {
+      // Extract retry delay if present
+      const retryMatch = message.match(/retry in ([\d.]+)s/i);
+      const retryAfter = retryMatch ? parseFloat(retryMatch[1]) : undefined;
+
+      return {
+        message: "API quota exceeded. Please try again later or switch to a different model.",
+        code: "RATE_LIMIT_EXCEEDED",
+        status: 429,
+        isRateLimit: true,
+        retryAfter,
+      };
+    }
+
+    // For other errors
+    return {
+      message: message.length > 200 ? message.substring(0, 200) + "..." : message,
+      code: isRateLimit ? "RATE_LIMIT_EXCEEDED" : "STREAM_ERROR",
+      status,
+      isRateLimit,
+    };
+  };
+
   try {
     return await executeStream(controller, {
       ai,
@@ -489,6 +618,22 @@ async function runStreamWithFallback(
     });
   } catch (err) {
     streamLogger.error("stream error (with tools):", err);
+
+    // Extract error info before trying fallback
+    const errorInfo = extractGeminiErrorInfo(err);
+
+    // For rate limit errors, don't retry - just send error immediately
+    if (errorInfo.isRateLimit) {
+      sendEvent(controller, "error", {
+        message: errorInfo.message,
+        code: errorInfo.code,
+        status: errorInfo.status,
+        isRateLimit: true,
+        retryAfter: errorInfo.retryAfter,
+      });
+      throw err;
+    }
+
     try {
       // If we failed with tools, retry without tools (BUT keep thinking config if present)
       if (Array.isArray(tools) && tools.length > 0) {
@@ -507,12 +652,23 @@ async function runStreamWithFallback(
           thinkingLevel,
         });
       } else {
-        sendEvent(controller, "error", { message: "Stream error" });
+        sendEvent(controller, "error", {
+          message: errorInfo.message,
+          code: errorInfo.code,
+          status: errorInfo.status,
+        });
         throw err;
       }
     } catch (err2) {
       streamLogger.error("stream error (fallback):", err2);
-      sendEvent(controller, "error", { message: "Stream error" });
+      const fallbackErrorInfo = extractGeminiErrorInfo(err2);
+      sendEvent(controller, "error", {
+        message: fallbackErrorInfo.message,
+        code: fallbackErrorInfo.code,
+        status: fallbackErrorInfo.status,
+        isRateLimit: fallbackErrorInfo.isRateLimit,
+        retryAfter: fallbackErrorInfo.retryAfter,
+      });
       throw err2;
     }
   }
@@ -630,6 +786,7 @@ async function processPostStream(
     saveMessage: ChatStreamParams["saveMessage"];
     setConversationAutoTitle: ChatStreamParams["setConversationAutoTitle"];
     generateFinalTitle: ChatStreamParams["generateFinalTitle"];
+    thoughtSignature?: string;
   }
 ): Promise<void> {
   const {
@@ -644,6 +801,7 @@ async function processPostStream(
     saveMessage,
     setConversationAutoTitle,
     generateFinalTitle,
+    thoughtSignature,
   } = params;
 
   const trimmed = full.trim();
@@ -654,12 +812,14 @@ async function processPostStream(
       appendToContext(conversationId, {
         role: "assistant",
         content: trimmed,
+        ...(thoughtSignature ? { thoughtSignature } : {}),
       }),
       saveMessage({
         conversationId,
         userId,
         role: "assistant",
         content: trimmed,
+        ...(thoughtSignature ? { meta: { thoughtSignature } } : {}),
       }),
     ]);
 
@@ -720,67 +880,76 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
 
   return new ReadableStream({
     async start(controller) {
-      // Send initial meta events
-      sendInitialMetaEvents(controller, {
-        createdConversation,
-        enableWebSearch,
-        WEB_SEARCH_AVAILABLE,
-        cookieWeb,
-        gemMeta,
-        modelMeta,
-        model,
-      });
+      try {
+        // Send initial meta events
+        sendInitialMetaEvents(controller, {
+          createdConversation,
+          enableWebSearch,
+          WEB_SEARCH_AVAILABLE,
+          cookieWeb,
+          gemMeta,
+          modelMeta,
+          model,
+        });
 
-      // Generate optimistic title if needed
-      await generateAndSendOptimisticTitle(
-        controller,
-        shouldGenerateTitle,
-        content,
-        conversationId,
-        generateOptimisticTitle
-      );
+        // Generate optimistic title if needed
+        await generateAndSendOptimisticTitle(
+          controller,
+          shouldGenerateTitle,
+          content,
+          conversationId,
+          generateOptimisticTitle
+        );
 
-      // Execute stream with fallback
-      const streamResult = await runStreamWithFallback(controller, {
-        ai,
-        model,
-        contents,
-        sysPrompt,
-        tools,
-        safetySettings,
-        thinkingLevel,
-      });
+        // Execute stream with fallback
+        const streamResult = await runStreamWithFallback(controller, {
+          ai,
+          model,
+          contents,
+          sysPrompt,
+          tools,
+          safetySettings,
+          thinkingLevel,
+        });
 
-      // Handle safety blocking
-      const { full: finalFull, isActuallyBlocked } = handleSafetyBlocking(
-        controller,
-        streamResult.full,
-        streamResult.promptFeedback,
-        streamResult.finishReason,
-        streamResult.safetyRatings
-      );
+        // Handle safety blocking
+        const { full: finalFull, isActuallyBlocked } = handleSafetyBlocking(
+          controller,
+          streamResult.full,
+          streamResult.promptFeedback,
+          streamResult.finishReason,
+          streamResult.safetyRatings
+        );
 
-      // Process metadata
-      processGroundingMetadata(controller, streamResult.groundingMetadata);
-      processUrlContextMetadata(controller, streamResult.urlContextMetadata);
+        // Process metadata
+        processGroundingMetadata(controller, streamResult.groundingMetadata);
+        processUrlContextMetadata(controller, streamResult.urlContextMetadata);
 
-      // Post-stream processing
-      await processPostStream(controller, {
-        full: finalFull,
-        isActuallyBlocked,
-        shouldGenerateTitle,
-        conversationId,
-        userId,
-        contextMessages,
-        content,
-        appendToContext,
-        saveMessage,
-        setConversationAutoTitle,
-        generateFinalTitle,
-      });
+        // Post-stream processing
+        await processPostStream(controller, {
+          full: finalFull,
+          isActuallyBlocked,
+          shouldGenerateTitle,
+          conversationId,
+          userId,
+          contextMessages,
+          content,
+          appendToContext,
+          saveMessage,
+          setConversationAutoTitle,
+          generateFinalTitle,
+          thoughtSignature: streamResult.thoughtSignature,
+        });
 
-      sendEvent(controller, "done", { ok: true });
-      controller.close();
+        sendEvent(controller, "done", { ok: true });
+      } catch (err) {
+        // Error event was already sent by runStreamWithFallback
+        // Just log and close the stream gracefully
+        streamLogger.error("createChatReadableStream error:", err);
+        sendEvent(controller, "done", { ok: false });
+      } finally {
+        controller.close();
+      }
     },
   });
 }

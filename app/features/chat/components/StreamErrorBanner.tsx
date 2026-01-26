@@ -25,8 +25,14 @@ interface StreamErrorBannerProps {
 const StreamErrorBanner: React.FC<StreamErrorBannerProps> = ({ error, onDismiss, t }) => {
   if (!error) return null;
 
-  const title = error.isTokenLimit ? t.tokenLimitTitle : t.error;
+  // Determine title based on error type
+  const title = error.isTokenLimit
+    ? t.tokenLimitTitle
+    : (error as { isRateLimit?: boolean }).isRateLimit
+      ? t.rateLimitTitle || "Quota Exceeded"
+      : t.error;
 
+  // Determine message based on error type
   let message: string;
   if (error.isTokenLimit && error.tokenInfo) {
     message = (t.tokenLimitError || "Token limit exceeded: {{limit}} / {{requested}}")
@@ -34,6 +40,12 @@ const StreamErrorBanner: React.FC<StreamErrorBannerProps> = ({ error, onDismiss,
       .replace("{{requested}}", error.tokenInfo.requested?.toLocaleString() || "?");
   } else {
     message = error.message;
+  }
+
+  // Add retry info for rate limit errors
+  const retryAfter = (error as { retryAfter?: number }).retryAfter;
+  if (retryAfter && retryAfter > 0) {
+    message += ` (Retry in ${Math.ceil(retryAfter)}s)`;
   }
 
   return (

@@ -89,10 +89,10 @@ const ThinkingBlock = React.memo(function ThinkingBlock({ content }: { content: 
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <div className="mb-4 rounded-lg border card-surface overflow-hidden">
+    <div className="mb-4 rounded-lg border border-white/10 overflow-hidden bg-white/3">
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary hover:text-primary hover:bg-control-hover transition-colors"
+        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary hover:text-primary hover:bg-white/5 transition-colors"
       >
         <Brain className="w-3 h-3" />
         <span>Thinking Process</span>
@@ -104,7 +104,7 @@ const ThinkingBlock = React.memo(function ThinkingBlock({ content }: { content: 
       </button>
 
       {!isCollapsed && (
-        <div className="px-3 py-3 border-t border-token text-sm text-secondary font-mono leading-relaxed bg-surface whitespace-pre-wrap animate-in slide-in-from-top-2 duration-200">
+        <div className="px-3 py-3 border-t border-white/10 text-sm text-secondary font-mono leading-relaxed bg-white/2 whitespace-pre-wrap animate-in slide-in-from-top-2 duration-200">
           {content}
         </div>
       )}
@@ -122,21 +122,45 @@ function extractThinking(text: string) {
     { start: "<thought>", end: "</thought>" },
   ];
 
+  const thoughts: string[] = [];
+  let rest = text;
+  let isThinking = false;
+
   for (const { start, end } of patterns) {
-    const startIndex = text.indexOf(start);
+    // Handle all complete blocks first
+    const completeRegex = new RegExp(
+      `${start.replace(/</g, "&lt;").replace(/>/g, "&gt;")}([\\s\\S]*?)${end.replace(/</g, "&lt;").replace(/>/g, "&gt;")}|${start}([\\s\\S]*?)${end}`,
+      "gi"
+    );
+
+    let match;
+    while ((match = completeRegex.exec(rest)) !== null) {
+      const thought = match[1] || match[2] || "";
+      if (thought.trim()) thoughts.push(thought.trim());
+    }
+
+    // Remove all complete blocks
+    rest = rest.replace(new RegExp(`${escapeRegex(start)}[\\s\\S]*?${escapeRegex(end)}`, "gi"), "");
+
+    // Handle incomplete block (no closing tag - streaming)
+    const startIndex = rest.indexOf(start);
     if (startIndex !== -1) {
-      const endIndex = text.indexOf(end, startIndex);
-      if (endIndex !== -1) {
-        const thought = text.slice(startIndex + start.length, endIndex);
-        const rest = text.slice(0, startIndex) + text.slice(endIndex + end.length);
-        return { thought, rest, isThinking: false };
-      }
-      const thought = text.slice(startIndex + start.length);
-      const rest = text.slice(0, startIndex);
-      return { thought, rest, isThinking: true };
+      const incompleteThought = rest.slice(startIndex + start.length);
+      if (incompleteThought.trim()) thoughts.push(incompleteThought.trim());
+      rest = rest.slice(0, startIndex);
+      isThinking = true;
     }
   }
-  return { thought: null, rest: text, isThinking: false };
+
+  return {
+    thought: thoughts.length > 0 ? thoughts.join("\n\n") : null,
+    rest: rest.trim(),
+    isThinking,
+  };
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\<>]/g, "\\$&");
 }
 
 // ============================================

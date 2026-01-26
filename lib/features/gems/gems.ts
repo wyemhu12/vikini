@@ -329,7 +329,6 @@ export async function createGem(userId: string, payload: unknown): Promise<GemRo
       user_id: userId,
       name: body.name,
       description: body.description,
-      instruction: body.instruction,
       icon: body.icon,
       color: body.color,
     })
@@ -345,7 +344,6 @@ export async function createGem(userId: string, payload: unknown): Promise<GemRo
         userId,
         name: body.name,
         description: body.description,
-        instruction: body.instruction,
         icon: body.icon,
         color: body.color,
       })
@@ -408,13 +406,12 @@ export async function updateGem(userId: string, gemId: string, payload: unknown)
     "";
   if (owner && owner !== userId) throw new Error("Forbidden");
 
-  // Update metadata on gems table (instructions are versioned; still keep legacy columns updated as fallback)
+  // Update metadata on gems table (instructions are versioned in gem_versions)
   const patch = {
     name: body.name,
     description: body.description,
     icon: body.icon,
     color: body.color,
-    instruction: body.instruction,
   };
 
   let updated: GemRow | null = null;

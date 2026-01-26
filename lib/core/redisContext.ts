@@ -23,6 +23,7 @@ export const CONTEXT_TTL_SECONDS = 45 * 60; // 45 phút
 interface ContextMessage {
   role: string;
   content: string;
+  thoughtSignature?: string; // Gemini 3 thought signature for reasoning continuity
 }
 
 interface RemoveResult {
@@ -38,13 +39,17 @@ function summaryKey(conversationId: string): string {
 }
 
 // 🔒 ALWAYS stringify + hard cap + refresh TTL
-export async function appendToContext(conversationId: string, message: ContextMessage): Promise<void> {
+export async function appendToContext(
+  conversationId: string,
+  message: ContextMessage
+): Promise<void> {
   const r = getRedis();
   const k = bufferKey(conversationId);
 
   const payload = JSON.stringify({
     role: message.role,
     content: message.content,
+    ...(message.thoughtSignature ? { thoughtSignature: message.thoughtSignature } : {}),
   });
 
   await r.rpush(k, payload);
@@ -102,7 +107,12 @@ export async function getContext(
     .map((x) => {
       try {
         const parsed = typeof x === "string" ? JSON.parse(x) : x;
-        if (typeof parsed === "object" && parsed !== null && "role" in parsed && "content" in parsed) {
+        if (
+          typeof parsed === "object" &&
+          parsed !== null &&
+          "role" in parsed &&
+          "content" in parsed
+        ) {
           return parsed as ContextMessage;
         }
         return null;
@@ -145,7 +155,12 @@ export async function getOverflowForSummary(
     .map((x) => {
       try {
         const parsed = typeof x === "string" ? JSON.parse(x) : x;
-        if (typeof parsed === "object" && parsed !== null && "role" in parsed && "content" in parsed) {
+        if (
+          typeof parsed === "object" &&
+          parsed !== null &&
+          "role" in parsed &&
+          "content" in parsed
+        ) {
           return parsed as ContextMessage;
         }
         return null;
@@ -197,4 +212,3 @@ export async function setSummary(conversationId: string, summaryText: string): P
     // Ignore errors
   }
 }
-

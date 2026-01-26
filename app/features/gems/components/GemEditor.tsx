@@ -139,17 +139,6 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-(--text-secondary)">{t("themes")}</label>
-          <Input
-            value={color}
-            onChange={handleChange(setColor)}
-            disabled={isReadOnly}
-            placeholder="amber | indigo | charcoal | ..."
-            className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm disabled:opacity-60"
-          />
-        </div>
-
-        <div>
           <label className="mb-1 block text-xs text-(--text-secondary)">
             {t("gemInstructions")}
           </label>

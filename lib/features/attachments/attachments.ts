@@ -174,6 +174,99 @@ const BLOCKED_MIME_TYPES = new Set([
   "application/vnd.android.package-archive",
 ]);
 
+// ==============================
+// FILE CATEGORIES: For UI display
+// ==============================
+
+/**
+ * File type categories for user-facing UI
+ * Used by AttachmentsPanel to show what file types are supported
+ */
+export const FILE_CATEGORIES = {
+  BEST_SUPPORT: {
+    labelKey: "fileTypesBestSupport",
+    descriptionKey: "fileTypesBestSupportDesc",
+    extensions: [
+      "pdf",
+      "txt",
+      "md",
+      "json",
+      "js",
+      "ts",
+      "tsx",
+      "jsx",
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "gif",
+      "svg",
+    ],
+    icon: "check-circle",
+  },
+  BASIC_SUPPORT: {
+    labelKey: "fileTypesBasicSupport",
+    descriptionKey: "fileTypesBasicSupportDesc",
+    extensions: [
+      "zip",
+      "doc",
+      "docx",
+      "xls",
+      "xlsx",
+      "ppt",
+      "pptx",
+      "csv",
+      "xml",
+      "yaml",
+      "html",
+      "css",
+    ],
+    icon: "info",
+  },
+  BLOCKED: {
+    labelKey: "fileTypesBlocked",
+    descriptionKey: "fileTypesBlockedDesc",
+    extensions: Array.from(BLOCKED_EXTENSIONS),
+    icon: "x-circle",
+  },
+} as const;
+
+export type FileSupportLevel = "best" | "basic" | "blocked" | "unknown";
+
+/**
+ * Get support level for a file based on extension
+ */
+export function getFileSupportLevel(filename: string): FileSupportLevel {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+
+  if (BLOCKED_EXTENSIONS.has(ext)) return "blocked";
+  if ((FILE_CATEGORIES.BEST_SUPPORT.extensions as readonly string[]).includes(ext)) return "best";
+  if ((FILE_CATEGORIES.BASIC_SUPPORT.extensions as readonly string[]).includes(ext)) return "basic";
+
+  return "unknown";
+}
+
+/**
+ * Get human-readable reason why a file type is blocked
+ */
+export function getBlockedReason(ext: string): string | null {
+  const e = ext.toLowerCase().replace(/^\./, "");
+  if (!BLOCKED_EXTENSIONS.has(e)) return null;
+
+  // Categorize blocked types
+  const executables = ["exe", "bat", "cmd", "com", "scr", "msi", "pif"];
+  const scripts = ["ps1", "vbs", "vbe", "wsf", "wsh", "hta"];
+  const systemFiles = ["dll", "sys", "drv", "cpl", "ocx", "reg", "inf", "lnk", "url"];
+  const packages = ["jar", "apk", "deb", "rpm"];
+
+  if (executables.includes(e)) return "executable";
+  if (scripts.includes(e)) return "script";
+  if (systemFiles.includes(e)) return "system";
+  if (packages.includes(e)) return "package";
+
+  return "security";
+}
+
 function safeLower(v: unknown): string {
   return String(v || "")
     .trim()
