@@ -202,6 +202,7 @@ interface ChatStreamRequest {
   regenerate?: boolean; // Tạo lại response
   truncateMessageId?: string; // Xóa messages sau ID này
   skipSaveUserMessage?: boolean; // Không lưu tin nhắn user
+  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal"; // Gemini 3 thinking mode
 }
 ```
 

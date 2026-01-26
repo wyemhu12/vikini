@@ -473,8 +473,7 @@ function getWebSearchConfig(cookies: Record<string, string>): {
 
 function setupToolsAndSafety(
   enableWebSearch: boolean,
-  WEB_SEARCH_AVAILABLE: boolean,
-  model: string // Added model param
+  WEB_SEARCH_AVAILABLE: boolean
 ): {
   tools: Array<{ googleSearch?: Record<string, never>; googleSearchRetrieval?: unknown }>;
   safetySettings: unknown[] | null;
@@ -482,14 +481,8 @@ function setupToolsAndSafety(
   const tools: Array<{ googleSearch?: Record<string, never>; googleSearchRetrieval?: unknown }> =
     [];
 
-  // Special case for Gemini 3 Pro Research: Force Dynamic Retrieval (Threshold 0 = Always)
-  if (model === MODEL_IDS.GEMINI_3_PRO_RESEARCH) {
-    tools.push({
-      googleSearch: {},
-    });
-  }
-  // Standard logic for other models
-  else if (enableWebSearch && WEB_SEARCH_AVAILABLE) {
+  // Web search logic
+  if (enableWebSearch && WEB_SEARCH_AVAILABLE) {
     tools.push({ googleSearch: {} });
   }
 
@@ -641,11 +634,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
   const cookies = parseCookieHeader(req?.headers?.get?.("cookie") || undefined);
   const { enableWebSearch, WEB_SEARCH_AVAILABLE } = getWebSearchConfig(cookies);
   const cookieWeb = cookies?.webSearchEnabled ?? cookies?.webSearch ?? "";
-  const { tools, safetySettings } = setupToolsAndSafety(
-    enableWebSearch,
-    WEB_SEARCH_AVAILABLE,
-    model
-  );
+  const { tools, safetySettings } = setupToolsAndSafety(enableWebSearch, WEB_SEARCH_AVAILABLE);
 
   // Create stream
   const saveMessageCompat = async ({

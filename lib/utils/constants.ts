@@ -16,8 +16,6 @@ export type MessageRole = (typeof MESSAGE_ROLES)[keyof typeof MESSAGE_ROLES];
  */
 export const MODEL_IDS = {
   IMAGE_STUDIO: "vikini-image-studio",
-  // Gemini models
-  GEMINI_3_PRO_RESEARCH: "gemini-3-pro-research",
   // Claude models
   CLAUDE_SONNET_45: "claude-sonnet-4.5",
   CLAUDE_HAIKU_45: "claude-haiku-4.5",

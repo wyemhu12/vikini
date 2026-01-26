@@ -1,6 +1,5 @@
 // /app/api/chat-stream/streaming.ts
 import { logger } from "@/lib/utils/logger";
-import { MODEL_IDS } from "@/lib/utils/constants";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { getModelMaxOutputTokens } from "@/lib/core/modelRegistry";
@@ -215,7 +214,6 @@ export function isGemini3Model(model: string): boolean {
     "gemini-3-pro-image",
     "gemini-3-pro-image-preview",
     "gemini-3-pro-thinking",
-    "gemini-3-pro-research",
     "gemini-3-flash-thinking",
   ];
   return gemini3Identifiers.some((id) => model.includes(id) || model.startsWith(id));
@@ -503,14 +501,8 @@ async function executeStream(
   const { ai, model, contents, sysPrompt, safetySettings, thinkingLevel } = params;
 
   // Resolve Thinking Models
-  let apiModel = model;
+  const apiModel = model;
   let thinkingConfig: { thinkingLevel: string; includeThoughts?: boolean } | undefined;
-
-  // Research mode forces high thinking (search enabled separately in chatStreamCore)
-  if (model === MODEL_IDS.GEMINI_3_PRO_RESEARCH) {
-    apiModel = "gemini-3-pro-preview";
-    thinkingConfig = { thinkingLevel: "high", includeThoughts: true };
-  }
 
   // Apply user-selected thinking level (if not "off")
   // Works for ALL Gemini 3 models with universal dropdown

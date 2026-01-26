@@ -59,7 +59,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     name: "Gemini 3 Flash",
     tokenLimit: 1000000,
     contextWindow: 1000000,
-    maxOutputTokens: 32768,
+    maxOutputTokens: 65536,
     category: "low-latency",
     providerId: "gemini",
   },
@@ -69,18 +69,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     name: "Gemini 3 Pro",
     tokenLimit: 2000000,
     contextWindow: 2000000,
-    maxOutputTokens: 64000,
-    category: "reasoning",
-    providerId: "gemini",
-  },
-  // Research variant kept - has forced web search
-  {
-    id: "gemini-3-pro-research",
-    descKey: "modelDescPro3",
-    name: "Gemini 3 Pro (Research)",
-    tokenLimit: 2000000,
-    contextWindow: 2000000,
-    maxOutputTokens: 64000,
+    maxOutputTokens: 65536,
     category: "reasoning",
     providerId: "gemini",
   },
@@ -211,7 +200,6 @@ const API_ALLOWED = new Set([
   "gemini-3-flash-preview",
   "gemini-3-pro-preview",
   "gemini-3-pro-image-preview",
-  "gemini-3-pro-research",
 
   // Llama via Groq
   "llama-3.3-70b-versatile",

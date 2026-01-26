@@ -9,13 +9,7 @@ import AttachmentsPanel, { type AttachmentsPanelRef } from "./AttachmentsPanel";
 import InputForm from "./InputForm";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
-import { MODEL_IDS } from "@/lib/utils/constants";
-import {
-  type ThinkingLevel,
-  isGemini3Model,
-  isGemini3FlashModel,
-  isResearchModel,
-} from "./hooks/useThinkingLevel";
+import { type ThinkingLevel, isGemini3Model, isGemini3FlashModel } from "./hooks/useThinkingLevel";
 
 /** Gem info for display */
 interface GemInfo {
@@ -134,27 +128,16 @@ export default function ChatControls({
             )}
           </button>
           <div className="h-3 w-px bg-(--border) mx-1" />
-          <div className="h-3 w-px bg-(--border) mx-1" />
-          {currentModel === MODEL_IDS.GEMINI_3_PRO_RESEARCH ? (
-            <button
-              disabled
-              className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full text-(--text-secondary) bg-(--control-bg) cursor-not-allowed border border-(--control-border)"
-              title="Research Mode always searches"
-            >
-              RESEARCH MODE (SEARCH ON)
-            </button>
-          ) : (
-            <button
-              onClick={toggleWebSearch}
-              className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full ${
-                webSearchEnabled
-                  ? "text-(--accent) bg-(--control-bg-hover)"
-                  : "text-(--text-secondary) hover:text-(--text-primary)"
-              }`}
-            >
-              WEB {webSearchEnabled ? t.webSearchOn : t.webSearchOff}
-            </button>
-          )}
+          <button
+            onClick={toggleWebSearch}
+            className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full ${
+              webSearchEnabled
+                ? "text-(--accent) bg-(--control-bg-hover)"
+                : "text-(--text-secondary) hover:text-(--text-primary)"
+            }`}
+          >
+            WEB {webSearchEnabled ? t.webSearchOn : t.webSearchOff}
+          </button>
           {currentModel && currentModel.startsWith("gemini") && (
             <>
               <div className="h-3 w-px bg-(--border) mx-1" />
@@ -179,17 +162,8 @@ export default function ChatControls({
                 <select
                   value={thinkingLevel}
                   onChange={(e) => setThinkingLevel(e.target.value as ThinkingLevel)}
-                  disabled={isResearchModel(currentModel)}
-                  className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full bg-(--control-bg) border border-(--control-border) text-(--text-primary) appearance-none pr-6 focus:outline-none focus:ring-1 focus:ring-(--accent) ${
-                    isResearchModel(currentModel)
-                      ? "cursor-not-allowed opacity-70"
-                      : "cursor-pointer"
-                  }`}
-                  title={
-                    isResearchModel(currentModel)
-                      ? "Research mode uses high thinking"
-                      : t.thinkingLevelTooltip
-                  }
+                  className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full bg-(--control-bg) border border-(--control-border) text-(--text-primary) appearance-none pr-6 focus:outline-none focus:ring-1 focus:ring-(--accent) cursor-pointer"
+                  title={t.thinkingLevelTooltip}
                 >
                   <option value="off">
                     {t.thinkingLevel}: {t.webSearchOff}

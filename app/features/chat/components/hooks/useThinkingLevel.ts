@@ -2,7 +2,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { MODEL_IDS } from "@/lib/utils/constants";
 
 /**
  * Thinking levels supported by Gemini 3 models.
@@ -28,13 +27,6 @@ export function isGemini3FlashModel(model: string): boolean {
   return model.includes("gemini-3-flash");
 }
 
-/**
- * Check if model is Research mode (forced thinking high)
- */
-export function isResearchModel(model: string): boolean {
-  return model === MODEL_IDS.GEMINI_3_PRO_RESEARCH;
-}
-
 interface UseThinkingLevelResult {
   /** Current thinking level preference */
   thinkingLevel: ThinkingLevel;
@@ -46,8 +38,6 @@ interface UseThinkingLevelResult {
   hasExtendedLevels: boolean;
   /** Available options for current model */
   availableLevels: ThinkingLevel[];
-  /** Whether dropdown should be disabled (e.g., Research mode = forced high) */
-  isDropdownDisabled: boolean;
 }
 
 /**
@@ -61,10 +51,6 @@ export function useThinkingLevel(currentModel: string): UseThinkingLevelResult {
 
   const isThinkingEnabled = isGemini3Model(currentModel);
   const hasExtendedLevels = isGemini3FlashModel(currentModel);
-  const isResearch = isResearchModel(currentModel);
-
-  // Research mode has forced high thinking
-  const isDropdownDisabled = isResearch;
 
   // Available levels based on model
   const availableLevels: ThinkingLevel[] = hasExtendedLevels
@@ -93,11 +79,10 @@ export function useThinkingLevel(currentModel: string): UseThinkingLevelResult {
   }, []);
 
   return {
-    thinkingLevel: isResearch ? "high" : thinkingLevel, // Force high for Research
+    thinkingLevel,
     setThinkingLevel,
     isThinkingEnabled,
     hasExtendedLevels,
     availableLevels,
-    isDropdownDisabled,
   };
 }
