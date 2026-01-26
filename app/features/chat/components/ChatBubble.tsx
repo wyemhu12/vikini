@@ -439,7 +439,7 @@ const ChatBubble = React.memo(
               ${isBot ? "text-primary w-full" : "bg-(--primary) px-4 py-2.5 text-(--surface) shadow-lg"}`}
             >
               {isEditing ? (
-                <div className="flex flex-col gap-2 min-w-[300px] w-full">
+                <div className="flex flex-col gap-2 w-full min-w-[60vw] md:min-w-[400px]">
                   <Textarea
                     ref={textareaRef}
                     value={editContent}
@@ -472,7 +472,7 @@ const ChatBubble = React.memo(
 
                   {(!hasContent && isLoading) || (showTyping && !displayContent.trim()) ? (
                     <TypingDots />
-                  ) : (
+                  ) : isBot ? (
                     <div className="chat-markdown-container chat-markdown w-full overflow-hidden">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
@@ -482,6 +482,8 @@ const ChatBubble = React.memo(
                         {displayContent}
                       </ReactMarkdown>
                     </div>
+                  ) : (
+                    <span className="whitespace-pre-wrap wrap-break-word">{displayContent}</span>
                   )}
                 </div>
               )}
