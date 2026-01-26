@@ -23,7 +23,10 @@ export const CONTEXT_TTL_SECONDS = 45 * 60; // 45 phút
 interface ContextMessage {
   role: string;
   content: string;
-  thoughtSignature?: string; // Gemini 3 thought signature for reasoning continuity
+  /** @deprecated Use thoughtSignatures array instead for multi-step function calling */
+  thoughtSignature?: string;
+  /** Gemini 3 thought signatures for multi-step reasoning continuity */
+  thoughtSignatures?: string[];
 }
 
 interface RemoveResult {
@@ -46,10 +49,15 @@ export async function appendToContext(
   const r = getRedis();
   const k = bufferKey(conversationId);
 
+  // Support both legacy single signature and new multi-signature array
+  const signatures =
+    message.thoughtSignatures ??
+    (message.thoughtSignature ? [message.thoughtSignature] : undefined);
+
   const payload = JSON.stringify({
     role: message.role,
     content: message.content,
-    ...(message.thoughtSignature ? { thoughtSignature: message.thoughtSignature } : {}),
+    ...(signatures && signatures.length > 0 ? { thoughtSignatures: signatures } : {}),
   });
 
   await r.rpush(k, payload);

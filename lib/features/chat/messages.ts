@@ -18,7 +18,10 @@ export interface MessageMeta {
     mimeType?: string;
     filename?: string;
   };
-  thoughtSignature?: string; // Gemini 3 thought signature for reasoning continuity
+  /** @deprecated Use thoughtSignatures array instead for multi-step function calling */
+  thoughtSignature?: string;
+  /** Gemini 3 thought signatures for multi-step reasoning continuity */
+  thoughtSignatures?: string[];
   [key: string]: unknown; // Allow additional properties
 }
 

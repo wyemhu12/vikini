@@ -73,26 +73,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     category: "reasoning",
     providerId: "gemini",
   },
-  {
-    id: "gemini-3-flash-thinking",
-    descKey: "modelDescFlash3",
-    name: "Gemini 3 Flash (Thinking)",
-    tokenLimit: 1000000,
-    contextWindow: 1000000,
-    maxOutputTokens: 32768,
-    category: "reasoning", // User request
-    providerId: "gemini",
-  },
-  {
-    id: "gemini-3-pro-thinking",
-    descKey: "modelDescPro3",
-    name: "Gemini 3 Pro (Thinking)",
-    tokenLimit: 2000000,
-    contextWindow: 2000000,
-    maxOutputTokens: 64000,
-    category: "reasoning",
-    providerId: "gemini",
-  },
+  // Research variant kept - has forced web search
   {
     id: "gemini-3-pro-research",
     descKey: "modelDescPro3",
@@ -230,8 +211,6 @@ const API_ALLOWED = new Set([
   "gemini-3-flash-preview",
   "gemini-3-pro-preview",
   "gemini-3-pro-image-preview",
-  "gemini-3-flash-thinking",
-  "gemini-3-pro-thinking",
   "gemini-3-pro-research",
 
   // Llama via Groq

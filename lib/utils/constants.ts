@@ -18,8 +18,6 @@ export const MODEL_IDS = {
   IMAGE_STUDIO: "vikini-image-studio",
   // Gemini models
   GEMINI_3_PRO_RESEARCH: "gemini-3-pro-research",
-  GEMINI_3_PRO_THINKING: "gemini-3-pro-thinking",
-  GEMINI_3_FLASH_THINKING: "gemini-3-flash-thinking",
   // Claude models
   CLAUDE_SONNET_45: "claude-sonnet-4.5",
   CLAUDE_HAIKU_45: "claude-haiku-4.5",

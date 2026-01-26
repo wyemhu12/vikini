@@ -8,7 +8,7 @@ export const chatStreamRequestSchema = z.object({
   regenerate: z.boolean().optional(),
   truncateMessageId: z.string().uuid().optional().nullable(),
   skipSaveUserMessage: z.boolean().optional(),
-  thinkingLevel: z.enum(["low", "medium", "high", "minimal"]).optional(),
+  thinkingLevel: z.enum(["off", "low", "medium", "high", "minimal"]).optional(),
 });
 
 export type ChatStreamRequest = z.infer<typeof chatStreamRequestSchema>;

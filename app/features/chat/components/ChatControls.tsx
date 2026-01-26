@@ -10,6 +10,12 @@ import InputForm from "./InputForm";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { MODEL_IDS } from "@/lib/utils/constants";
+import {
+  type ThinkingLevel,
+  isGemini3Model,
+  isGemini3FlashModel,
+  isResearchModel,
+} from "./hooks/useThinkingLevel";
 
 /** Gem info for display */
 interface GemInfo {
@@ -31,6 +37,10 @@ interface ChatControlsProps {
   toggleWebSearch: () => void;
   alwaysSearch: boolean;
   toggleAlwaysSearch: () => void;
+  // Thinking Level
+  thinkingLevel: ThinkingLevel;
+  setThinkingLevel: (level: ThinkingLevel) => void;
+  // UI state
   currentGem: GemInfo | null | undefined;
   input: string;
   setInput: (value: string) => void;
@@ -63,6 +73,9 @@ export default function ChatControls({
   toggleWebSearch,
   alwaysSearch,
   toggleAlwaysSearch,
+  // Thinking Level
+  thinkingLevel,
+  setThinkingLevel,
   // UI state
   currentGem,
   input,
@@ -156,6 +169,64 @@ export default function ChatControls({
               >
                 {t.alwaysSearch} {alwaysSearch ? t.webSearchOn : t.webSearchOff}
               </button>
+            </>
+          )}
+          {/* Thinking Level Selector - For ALL Gemini 3 models */}
+          {isGemini3Model(currentModel) && (
+            <>
+              <div className="h-3 w-px bg-(--border) mx-1" />
+              <div className="relative">
+                <select
+                  value={thinkingLevel}
+                  onChange={(e) => setThinkingLevel(e.target.value as ThinkingLevel)}
+                  disabled={isResearchModel(currentModel)}
+                  className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full bg-(--control-bg) border border-(--control-border) text-(--text-primary) appearance-none pr-6 focus:outline-none focus:ring-1 focus:ring-(--accent) ${
+                    isResearchModel(currentModel)
+                      ? "cursor-not-allowed opacity-70"
+                      : "cursor-pointer"
+                  }`}
+                  title={
+                    isResearchModel(currentModel)
+                      ? "Research mode uses high thinking"
+                      : t.thinkingLevelTooltip
+                  }
+                >
+                  <option value="off">
+                    {t.thinkingLevel}: {t.webSearchOff}
+                  </option>
+                  {isGemini3FlashModel(currentModel) && (
+                    <option value="minimal">
+                      {t.thinkingLevel}: {t.thinkingLevelMinimal}
+                    </option>
+                  )}
+                  <option value="low">
+                    {t.thinkingLevel}: {t.thinkingLevelLow}
+                  </option>
+                  {isGemini3FlashModel(currentModel) && (
+                    <option value="medium">
+                      {t.thinkingLevel}: {t.thinkingLevelMedium}
+                    </option>
+                  )}
+                  <option value="high">
+                    {t.thinkingLevel}: {t.thinkingLevelHigh}
+                  </option>
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg
+                    className="w-3 h-3 text-(--text-secondary)"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
             </>
           )}
           {currentGem && (

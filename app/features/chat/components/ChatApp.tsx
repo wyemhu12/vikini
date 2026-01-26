@@ -24,6 +24,7 @@ import {
 } from "../hooks/useConversation";
 import { useGemStore } from "../../gems/stores/useGemStore";
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
+import { useThinkingLevel } from "./hooks/useThinkingLevel";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 import { useAllowedModels } from "./hooks/useAllowedModels";
 import { useFileDragDrop } from "./hooks/useFileDragDrop";
@@ -192,6 +193,9 @@ export default function ChatApp() {
     [conversations, selectedConversationId]
   );
   const currentModel = currentConversation?.model || DEFAULT_MODEL;
+
+  // Thinking Level Preference (Gemini 3 Thinking models)
+  const { thinkingLevel, setThinkingLevel } = useThinkingLevel(currentModel);
 
   // Modal Management Hook
   const modals = useChatModals({
@@ -513,6 +517,8 @@ export default function ChatApp() {
           toggleWebSearch={toggleWebSearch}
           alwaysSearch={alwaysSearch}
           toggleAlwaysSearch={toggleAlwaysSearch}
+          thinkingLevel={thinkingLevel}
+          setThinkingLevel={setThinkingLevel}
           currentModel={currentModel}
           handleModelChange={handleModelChange}
           isModelAllowed={isModelAllowed}

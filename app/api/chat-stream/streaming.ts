@@ -74,10 +74,20 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
   return Promise.race([promise, createTimeoutPromise<T>(timeoutMs)]);
 }
 
+/**
+ * Dummy signature for model migration scenarios.
+ * Per Gemini 3 docs: use this when migrating from Gemini 2.5 or injecting custom function calls.
+ * @see https://ai.google.dev/gemini-api/docs/gemini-3#thought_signatures
+ */
+export const DUMMY_THOUGHT_SIGNATURE = "context_engineering_is_the_way_to_go";
+
 interface Message {
   role: string;
   content: string;
+  /** @deprecated Use thoughtSignatures array instead */
   thoughtSignature?: string;
+  /** Gemini 3 thought signatures for multi-step reasoning */
+  thoughtSignatures?: string[];
   [key: string]: unknown;
 }
 
@@ -95,13 +105,37 @@ interface MappedMessage {
   parts: MessagePart[];
 }
 
-export function mapMessages(messages: Message[]): MappedMessage[] {
+/**
+ * Maps context messages to Gemini API format.
+ * Handles Gemini 3 thought signatures for multi-turn reasoning continuity.
+ *
+ * Per Gemini 3 docs:
+ * - Text/Chat: signatures not strictly validated but improve reasoning quality
+ * - Function Calling: strictly validated, missing = 400 error
+ * - Image Generation: strictly validated on all parts
+ */
+export function mapMessages(
+  messages: Message[],
+  useGemini3Fallback: boolean = false
+): MappedMessage[] {
   return messages.map((m) => {
     const part: MessagePart = { text: m.content };
-    // Include thoughtSignature for Gemini 3 models (only for model/assistant messages)
-    if (m.role === "assistant" && m.thoughtSignature) {
-      part.thoughtSignature = m.thoughtSignature;
+
+    // Only inject signatures for model/assistant messages
+    if (m.role === "assistant") {
+      // Priority: new array format > legacy single > fallback dummy
+      const signatures =
+        m.thoughtSignatures ?? (m.thoughtSignature ? [m.thoughtSignature] : undefined);
+
+      if (signatures && signatures.length > 0) {
+        // Use the last signature for the text part (most recent reasoning chain)
+        part.thoughtSignature = signatures[signatures.length - 1];
+      } else if (useGemini3Fallback) {
+        // Fallback for model migration: inject dummy signature to bypass strict validation
+        part.thoughtSignature = DUMMY_THOUGHT_SIGNATURE;
+      }
     }
+
     return {
       role: m.role === "assistant" ? "model" : "user",
       parts: [part],
@@ -191,6 +225,7 @@ export function isGemini3Model(model: string): boolean {
  * Extract thoughtSignature from Gemini API response.
  * For streaming, the signature may come in the final chunk.
  * Returns the last found signature (most recent).
+ * @deprecated Use extractAllThoughtSignatures for multi-step function calling support
  */
 export function extractThoughtSignature(respOrChunk: unknown): string | undefined {
   try {
@@ -223,6 +258,60 @@ export function extractThoughtSignature(respOrChunk: unknown): string | undefine
     // Ignore errors
   }
   return undefined;
+}
+
+/**
+ * Extract ALL thoughtSignatures from Gemini API response chunk.
+ * For multi-step function calling (sequential), multiple signatures may exist.
+ * Per Gemini 3 docs: parallel calls only have signature on first functionCall,
+ * but sequential calls have signatures on each step.
+ *
+ * @returns Array of unique signatures found in the chunk (preserves order)
+ */
+export function extractAllThoughtSignatures(respOrChunk: unknown): string[] {
+  const signatures: string[] = [];
+  const seen = new Set<string>();
+
+  try {
+    const obj = respOrChunk as {
+      thoughtSignature?: string;
+      candidates?: unknown[];
+    };
+
+    // Direct signature on response
+    if (
+      typeof obj?.thoughtSignature === "string" &&
+      obj.thoughtSignature &&
+      !seen.has(obj.thoughtSignature)
+    ) {
+      signatures.push(obj.thoughtSignature);
+      seen.add(obj.thoughtSignature);
+    }
+
+    // Check in candidates -> content -> parts (collect ALL signatures)
+    const candidates = obj?.candidates;
+    if (Array.isArray(candidates) && candidates[0]) {
+      const candidate = candidates[0] as { content?: { parts?: unknown[] } };
+      const parts = candidate?.content?.parts;
+      if (Array.isArray(parts)) {
+        for (const part of parts) {
+          const p = part as { thoughtSignature?: string };
+          if (
+            typeof p.thoughtSignature === "string" &&
+            p.thoughtSignature &&
+            !seen.has(p.thoughtSignature)
+          ) {
+            signatures.push(p.thoughtSignature);
+            seen.add(p.thoughtSignature);
+          }
+        }
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+
+  return signatures;
 }
 
 function pick<T = unknown>(obj: unknown, keys: string[]): T | undefined {
@@ -281,14 +370,19 @@ export interface ChatStreamParams {
   contextMessages: Message[];
   appendToContext: (
     conversationId: string,
-    message: { role: string; content: string; thoughtSignature?: string }
+    message: {
+      role: string;
+      content: string;
+      thoughtSignature?: string;
+      thoughtSignatures?: string[];
+    }
   ) => Promise<void>;
   saveMessage: (params: {
     conversationId: string;
     userId: string;
     role: string;
     content: string;
-    meta?: { thoughtSignature?: string };
+    meta?: { thoughtSignature?: string; thoughtSignatures?: string[] };
   }) => Promise<unknown>;
   setConversationAutoTitle: (
     userId: string,
@@ -301,7 +395,7 @@ export interface ChatStreamParams {
     conversationId: string;
     messages: Message[];
   }) => Promise<string | null>;
-  thinkingLevel?: "low" | "medium" | "high" | "minimal";
+  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
 }
 
 // --- EXTRACTED FUNCTIONS ---
@@ -387,7 +481,10 @@ interface StreamResult {
   promptFeedback: unknown;
   finishReason: string;
   safetyRatings: unknown;
+  /** @deprecated Use thoughtSignatures array instead */
   thoughtSignature?: string;
+  /** All thought signatures collected during streaming (for multi-step function calling) */
+  thoughtSignatures: string[];
 }
 
 async function executeStream(
@@ -400,7 +497,7 @@ async function executeStream(
     tools: unknown[];
     safetySettings: unknown[] | null;
     useTools: boolean;
-    thinkingLevel?: "low" | "medium" | "high" | "minimal";
+    thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
   }
 ): Promise<StreamResult> {
   const { ai, model, contents, sysPrompt, safetySettings, thinkingLevel } = params;
@@ -409,22 +506,15 @@ async function executeStream(
   let apiModel = model;
   let thinkingConfig: { thinkingLevel: string; includeThoughts?: boolean } | undefined;
 
-  if (model === MODEL_IDS.GEMINI_3_FLASH_THINKING) {
-    apiModel = "gemini-3-flash-preview";
-    thinkingConfig = { thinkingLevel: "low", includeThoughts: true }; // Default for Flash Thinking variant
-  } else if (model === MODEL_IDS.GEMINI_3_PRO_THINKING) {
+  // Research mode forces high thinking (search enabled separately in chatStreamCore)
+  if (model === MODEL_IDS.GEMINI_3_PRO_RESEARCH) {
     apiModel = "gemini-3-pro-preview";
-    thinkingConfig = { thinkingLevel: "high", includeThoughts: true }; // Default for Pro Thinking variant
-  } else if (model === MODEL_IDS.GEMINI_3_PRO_RESEARCH) {
-    apiModel = "gemini-3-pro-preview";
-    // Research mode uses forced tools (configured in chatStreamCore), no special thinking level needed by default,
-    // unless we want to combine them. For now, just Thinking High + Search?
-    // User requested "Thinking" model + Search. So let's enable thinking too.
     thinkingConfig = { thinkingLevel: "high", includeThoughts: true };
   }
 
-  // Override if manually provided (future proofing)
-  if (thinkingLevel) {
+  // Apply user-selected thinking level (if not "off")
+  // Works for ALL Gemini 3 models with universal dropdown
+  if (thinkingLevel && thinkingLevel !== "off") {
     thinkingConfig = { thinkingLevel, includeThoughts: true };
   }
 
@@ -434,7 +524,9 @@ async function executeStream(
   let promptFeedback: unknown = null;
   let finishReason = "";
   let safetyRatings: unknown = null;
-  let thoughtSignature: string | undefined = undefined;
+  // Collect ALL signatures during streaming for multi-step function calling
+  const thoughtSignatures: string[] = [];
+  const seenSignatures = new Set<string>();
 
   const maxTokens = getModelMaxOutputTokens(model);
   const timeoutMs = getStreamTimeout();
@@ -502,9 +594,14 @@ async function executeStream(
       sendEvent(controller, "token", { t });
     }
 
-    // Extract thoughtSignature from chunk (Gemini 3)
-    const sig = extractThoughtSignature(chunk);
-    if (sig) thoughtSignature = sig;
+    // Extract ALL thoughtSignatures from chunk (Gemini 3 multi-step support)
+    const chunkSignatures = extractAllThoughtSignatures(chunk);
+    for (const sig of chunkSignatures) {
+      if (!seenSignatures.has(sig)) {
+        thoughtSignatures.push(sig);
+        seenSignatures.add(sig);
+      }
+    }
 
     const cand = (chunk as { candidates?: unknown[] })?.candidates?.[0] as
       | {
@@ -539,7 +636,10 @@ async function executeStream(
     promptFeedback,
     finishReason,
     safetyRatings,
-    thoughtSignature,
+    // Legacy: provide last signature for backward compatibility
+    thoughtSignature:
+      thoughtSignatures.length > 0 ? thoughtSignatures[thoughtSignatures.length - 1] : undefined,
+    thoughtSignatures,
   };
 }
 
@@ -552,7 +652,7 @@ async function runStreamWithFallback(
     sysPrompt: string;
     tools: unknown[];
     safetySettings: unknown[] | null;
-    thinkingLevel?: "low" | "medium" | "high" | "minimal";
+    thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
   }
 ): Promise<StreamResult> {
   const { ai, model, contents, sysPrompt, tools, safetySettings, thinkingLevel } = params;
@@ -786,7 +886,10 @@ async function processPostStream(
     saveMessage: ChatStreamParams["saveMessage"];
     setConversationAutoTitle: ChatStreamParams["setConversationAutoTitle"];
     generateFinalTitle: ChatStreamParams["generateFinalTitle"];
+    /** @deprecated Use thoughtSignatures instead */
     thoughtSignature?: string;
+    /** All collected signatures from the stream */
+    thoughtSignatures?: string[];
   }
 ): Promise<void> {
   const {
@@ -802,24 +905,33 @@ async function processPostStream(
     setConversationAutoTitle,
     generateFinalTitle,
     thoughtSignature,
+    thoughtSignatures,
   } = params;
 
   const trimmed = full.trim();
   if (!trimmed) return;
+
+  // Use array if available, fallback to single signature
+  const signatures =
+    thoughtSignatures && thoughtSignatures.length > 0
+      ? thoughtSignatures
+      : thoughtSignature
+        ? [thoughtSignature]
+        : undefined;
 
   try {
     await Promise.all([
       appendToContext(conversationId, {
         role: "assistant",
         content: trimmed,
-        ...(thoughtSignature ? { thoughtSignature } : {}),
+        ...(signatures && signatures.length > 0 ? { thoughtSignatures: signatures } : {}),
       }),
       saveMessage({
         conversationId,
         userId,
         role: "assistant",
         content: trimmed,
-        ...(thoughtSignature ? { meta: { thoughtSignature } } : {}),
+        ...(signatures && signatures.length > 0 ? { meta: { thoughtSignatures: signatures } } : {}),
       }),
     ]);
 
@@ -938,7 +1050,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           saveMessage,
           setConversationAutoTitle,
           generateFinalTitle,
-          thoughtSignature: streamResult.thoughtSignature,
+          thoughtSignatures: streamResult.thoughtSignatures,
         });
 
         sendEvent(controller, "done", { ok: true });

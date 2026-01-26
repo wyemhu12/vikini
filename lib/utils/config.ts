@@ -102,6 +102,13 @@ export const translations: TranslationSet = {
     webSearchOff: "TẮT",
     alwaysSearch: "Luôn tìm kiếm",
     alwaysSearchTooltip: "AI luôn tìm kiếm web trước khi trả lời (chỉ Gemini)",
+    // Thinking Level
+    thinkingLevel: "Suy luận",
+    thinkingLevelHigh: "Sâu",
+    thinkingLevelMedium: "Vừa",
+    thinkingLevelLow: "Nhanh",
+    thinkingLevelMinimal: "Tối thiểu",
+    thinkingLevelTooltip: "Điều chỉnh độ sâu suy luận của AI",
     // Gems Manager
     gemsTitle: "Quản lý Gems",
     myGems: "Gems của tôi",
@@ -400,6 +407,13 @@ export const translations: TranslationSet = {
     webSearchOff: "OFF",
     alwaysSearch: "Always Search",
     alwaysSearchTooltip: "AI always searches web before answering (Gemini only)",
+    // Thinking Level
+    thinkingLevel: "Thinking",
+    thinkingLevelHigh: "Deep",
+    thinkingLevelMedium: "Balanced",
+    thinkingLevelLow: "Fast",
+    thinkingLevelMinimal: "Minimal",
+    thinkingLevelTooltip: "Adjust AI reasoning depth",
     gemsTitle: "Manage Gems",
     myGems: "My Gems",
     premadeGems: "System Gems",

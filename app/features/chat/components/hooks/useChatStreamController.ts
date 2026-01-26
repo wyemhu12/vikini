@@ -400,6 +400,17 @@ export function useChatStreamController({
       const convId = await ensureConversationExists();
 
       try {
+        // Read thinkingLevel from localStorage (set by useThinkingLevel hook)
+        let thinkingLevel: string | undefined;
+        try {
+          const stored = localStorage.getItem("vikini.thinkingLevel");
+          if (stored && ["off", "high", "low", "medium", "minimal"].includes(stored)) {
+            thinkingLevel = stored;
+          }
+        } catch {
+          // Ignore localStorage errors
+        }
+
         const res = await fetch("/api/chat-stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -410,6 +421,7 @@ export function useChatStreamController({
             regenerate,
             truncateMessageId,
             skipSaveUserMessage,
+            ...(thinkingLevel ? { thinkingLevel } : {}),
           }),
           signal,
         });

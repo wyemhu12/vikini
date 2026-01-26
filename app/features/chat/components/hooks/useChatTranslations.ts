@@ -97,6 +97,13 @@ const CHAT_TRANSLATION_KEYS = [
   "tokenLimitTitle",
   "tokenLimitError",
   "studioGeneratingStatus",
+  // Thinking Level
+  "thinkingLevel",
+  "thinkingLevelHigh",
+  "thinkingLevelMedium",
+  "thinkingLevelLow",
+  "thinkingLevelMinimal",
+  "thinkingLevelTooltip",
 ] as const;
 
 // ============================================
