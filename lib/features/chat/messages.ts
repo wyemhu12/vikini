@@ -22,6 +22,14 @@ export interface MessageMeta {
   thoughtSignature?: string;
   /** Gemini 3 thought signatures for multi-step reasoning continuity */
   thoughtSignatures?: string[];
+  /** Token count from Gemini API (input tokens) */
+  promptTokenCount?: number;
+  /** Token count from Gemini API (output tokens) */
+  candidatesTokenCount?: number;
+  /** Token count from reasoning/thinking */
+  thoughtsTokenCount?: number;
+  /** Total tokens used in this response */
+  totalTokenCount?: number;
   [key: string]: unknown; // Allow additional properties
 }
 

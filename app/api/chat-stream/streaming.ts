@@ -488,6 +488,17 @@ async function generateAndSendOptimisticTitle(
   }
 }
 
+/**
+ * Token usage metadata from Gemini API response.
+ * @see https://ai.google.dev/gemini-api/docs/gemini-3
+ */
+interface UsageMetadata {
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  thoughtsTokenCount?: number;
+  totalTokenCount?: number;
+}
+
 interface StreamResult {
   full: string;
   groundingMetadata: unknown;
@@ -499,6 +510,8 @@ interface StreamResult {
   thoughtSignature?: string;
   /** All thought signatures collected during streaming (for multi-step function calling) */
   thoughtSignatures: string[];
+  /** Token usage metadata from Gemini API */
+  usageMetadata?: UsageMetadata;
 }
 
 async function executeStream(
@@ -535,6 +548,8 @@ async function executeStream(
   // Collect ALL signatures during streaming for multi-step function calling
   const thoughtSignatures: string[] = [];
   const seenSignatures = new Set<string>();
+  // Token usage metadata (usually in final chunk)
+  let usageMetadata: UsageMetadata | undefined;
 
   const maxTokens = getModelMaxOutputTokens(model);
   const timeoutMs = getStreamTimeout(model);
@@ -635,6 +650,24 @@ async function executeStream(
       const sr = pick(cand, ["safetyRatings", "safety_ratings"]);
       if (sr) safetyRatings = sr;
     }
+
+    // Extract usageMetadata (typically in final chunk)
+    const rawUsage = (chunk as { usageMetadata?: unknown })?.usageMetadata as
+      | {
+          promptTokenCount?: number;
+          candidatesTokenCount?: number;
+          thoughtsTokenCount?: number;
+          totalTokenCount?: number;
+        }
+      | undefined;
+    if (rawUsage) {
+      usageMetadata = {
+        promptTokenCount: rawUsage.promptTokenCount,
+        candidatesTokenCount: rawUsage.candidatesTokenCount,
+        thoughtsTokenCount: rawUsage.thoughtsTokenCount,
+        totalTokenCount: rawUsage.totalTokenCount,
+      };
+    }
   }
 
   return {
@@ -648,6 +681,7 @@ async function executeStream(
     thoughtSignature:
       thoughtSignatures.length > 0 ? thoughtSignatures[thoughtSignatures.length - 1] : undefined,
     thoughtSignatures,
+    usageMetadata,
   };
 }
 
@@ -898,6 +932,8 @@ async function processPostStream(
     thoughtSignature?: string;
     /** All collected signatures from the stream */
     thoughtSignatures?: string[];
+    /** Token usage metadata from Gemini API */
+    usageMetadata?: UsageMetadata;
   }
 ): Promise<void> {
   const {
@@ -914,6 +950,7 @@ async function processPostStream(
     generateFinalTitle,
     thoughtSignature,
     thoughtSignatures,
+    usageMetadata,
   } = params;
 
   const trimmed = full.trim();
@@ -939,7 +976,22 @@ async function processPostStream(
         userId,
         role: "assistant",
         content: trimmed,
-        ...(signatures && signatures.length > 0 ? { meta: { thoughtSignatures: signatures } } : {}),
+        meta: {
+          ...(signatures && signatures.length > 0 ? { thoughtSignatures: signatures } : {}),
+          // Include token usage metadata if available
+          ...(usageMetadata?.promptTokenCount !== undefined
+            ? { promptTokenCount: usageMetadata.promptTokenCount }
+            : {}),
+          ...(usageMetadata?.candidatesTokenCount !== undefined
+            ? { candidatesTokenCount: usageMetadata.candidatesTokenCount }
+            : {}),
+          ...(usageMetadata?.thoughtsTokenCount !== undefined
+            ? { thoughtsTokenCount: usageMetadata.thoughtsTokenCount }
+            : {}),
+          ...(usageMetadata?.totalTokenCount !== undefined
+            ? { totalTokenCount: usageMetadata.totalTokenCount }
+            : {}),
+        },
       }),
     ]);
 
@@ -1059,7 +1111,19 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           setConversationAutoTitle,
           generateFinalTitle,
           thoughtSignatures: streamResult.thoughtSignatures,
+          usageMetadata: streamResult.usageMetadata,
         });
+
+        // Send usage metadata SSE event (for client display)
+        if (streamResult.usageMetadata) {
+          sendEvent(controller, "meta", {
+            type: "usageMetadata",
+            promptTokenCount: streamResult.usageMetadata.promptTokenCount,
+            candidatesTokenCount: streamResult.usageMetadata.candidatesTokenCount,
+            thoughtsTokenCount: streamResult.usageMetadata.thoughtsTokenCount,
+            totalTokenCount: streamResult.usageMetadata.totalTokenCount,
+          });
+        }
 
         sendEvent(controller, "done", { ok: true });
       } catch (err) {

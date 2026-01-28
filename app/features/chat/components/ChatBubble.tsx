@@ -16,6 +16,7 @@ import SmartCode, { extractText } from "./SmartCode";
 import MessageActions from "./MessageActions";
 import SourceLinks from "./SourceLinks";
 import ImageGenPreview from "./ImageGenPreview";
+import TokenBadge from "./TokenBadge";
 
 // ============================================
 // Type Definitions
@@ -26,6 +27,11 @@ interface MessageMeta {
   imageUrl?: string;
   prompt?: string;
   attachment?: { url: string };
+  // Token usage fields
+  totalTokenCount?: number;
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  thoughtsTokenCount?: number;
   [key: string]: unknown;
 }
 
@@ -439,7 +445,7 @@ const ChatBubble = React.memo(
               ${isBot ? "text-primary w-full" : "bg-(--primary) px-4 py-2.5 text-(--surface) shadow-lg"}`}
             >
               {isEditing ? (
-                <div className="flex flex-col gap-2 w-full min-w-[60vw] md:min-w-[400px]">
+                <div className="flex flex-col gap-2 w-full min-w-[60vw] md:min-w-[600px]">
                   <Textarea
                     ref={textareaRef}
                     value={editContent}
@@ -512,6 +518,20 @@ const ChatBubble = React.memo(
               {/* Source Links */}
               {isBot && (safeMessage.sources?.length ?? 0) > 0 && (
                 <SourceLinks sources={safeMessage.sources ?? []} />
+              )}
+
+              {/* Token Usage Badge */}
+              {isBot && !isLoading && safeMessage.meta?.totalTokenCount && (
+                <div className="mt-2 flex justify-end">
+                  <TokenBadge
+                    totalTokenCount={safeMessage.meta.totalTokenCount as number}
+                    promptTokenCount={safeMessage.meta.promptTokenCount as number | undefined}
+                    candidatesTokenCount={
+                      safeMessage.meta.candidatesTokenCount as number | undefined
+                    }
+                    thoughtsTokenCount={safeMessage.meta.thoughtsTokenCount as number | undefined}
+                  />
+                </div>
               )}
             </div>
 
