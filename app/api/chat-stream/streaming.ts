@@ -26,13 +26,18 @@ const streamLogger = logger.withContext("/api/chat-stream");
 // =====================================================
 
 /**
- * Default timeout for AI API calls in milliseconds.
- * Set to 60 seconds (1 minute) for complex model responses.
+ * Model-specific timeouts for AI API calls in milliseconds.
+ * Pro models need more time for complex reasoning.
  * Can be overridden via STREAM_TIMEOUT_MS environment variable.
  */
-const DEFAULT_STREAM_TIMEOUT_MS = 60000;
+const TIMEOUT_CONFIG = {
+  PRO: 300000, // 5 minutes for Pro models (gemini-3-pro-*)
+  FLASH: 240000, // 4 minutes for Flash models (gemini-3-flash-*)
+  DEFAULT: 180000, // 3 minutes for other models
+} as const;
 
-function getStreamTimeout(): number {
+function getStreamTimeout(model?: string): number {
+  // Environment variable override takes priority
   const envTimeout = process.env.STREAM_TIMEOUT_MS;
   if (envTimeout) {
     const parsed = parseInt(envTimeout, 10);
@@ -40,7 +45,18 @@ function getStreamTimeout(): number {
       return parsed;
     }
   }
-  return DEFAULT_STREAM_TIMEOUT_MS;
+
+  // Model-specific timeouts
+  if (model) {
+    if (model.includes("pro")) {
+      return TIMEOUT_CONFIG.PRO;
+    }
+    if (model.includes("flash")) {
+      return TIMEOUT_CONFIG.FLASH;
+    }
+  }
+
+  return TIMEOUT_CONFIG.DEFAULT;
 }
 
 /**
@@ -521,7 +537,7 @@ async function executeStream(
   const seenSignatures = new Set<string>();
 
   const maxTokens = getModelMaxOutputTokens(model);
-  const timeoutMs = getStreamTimeout();
+  const timeoutMs = getStreamTimeout(model);
   streamLogger.info(
     `Executing stream for model: ${model} with maxTokens: ${maxTokens}, timeout: ${timeoutMs}ms`
   );
@@ -1140,7 +1156,7 @@ export function createOpenAICompatibleStream(params: {
           })),
         ] as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
 
-        const timeoutMs = getStreamTimeout();
+        const timeoutMs = getStreamTimeout(model);
         const streamPromise = ai.chat.completions.create({
           model: model,
           messages: openAIMessages,
@@ -1293,7 +1309,7 @@ export function createAnthropicStream({
           content: m.parts.map((p) => p.text || "").join(""),
         }));
 
-        const timeoutMs = getStreamTimeout();
+        const timeoutMs = getStreamTimeout(model);
         const streamPromise = ai.messages.create({
           model: model, // e.g. "claude-3-5-sonnet-20240620"
           system: sysPrompt,
