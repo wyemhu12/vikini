@@ -1,6 +1,6 @@
 # Features - Vikini
 
-> **Cập nhật**: 2026-01-22
+> **Cập nhật**: 2026-01-30
 
 ---
 
@@ -16,6 +16,7 @@
 | **Gallery**              | ✅ Hoàn thành | Image management với infinite scroll       |
 | **Image Lightbox**       | ✅ Hoàn thành | Fullscreen view + zoom controls            |
 | **Image Compare**        | ✅ Hoàn thành | Side-by-side & overlay comparison          |
+| **Token Count Display**  | ✅ Hoàn thành | Hiển thị token usage per message           |
 | **Message Encryption**   | ✅ Hoàn thành | AES-256-GCM                                |
 | **Rate Limiting**        | ✅ Hoàn thành | Redis-based per user                       |
 | **Daily Message Limits** | ✅ Hoàn thành | Theo rank                                  |
@@ -162,6 +163,38 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 
 - `/app/features/chat/components/VoiceButton.tsx` - Voice input
 - `/app/features/chat/hooks/useTTS.ts` - TTS hook
+
+---
+
+### 2.8 Token Count Display
+
+**Mô tả**: Hiển thị token usage từ Gemini API cho mỗi AI message.
+
+**Tính năng**:
+
+- Badge hiển thị total tokens ở góc dưới-phải của message
+- Tooltip breakdown: Input / Output / Thinking tokens
+- Format số lớn (1.2K, 1.5M)
+- Lưu vào DB trong `messages.meta`
+
+**Data Flow**:
+
+```
+Gemini API Response → usageMetadata → SSE event → Save to DB → Load với messages → TokenBadge UI
+```
+
+**Token Types**:
+
+- **Input**: Prompt + system instructions + conversation history
+- **Output**: Tokens AI đã generate
+- **Thinking**: Internal reasoning (Gemini 3 với thinking enabled)
+
+**Files**:
+
+- `/app/api/chat-stream/streaming.ts` - Extract usageMetadata
+- `/app/features/chat/components/TokenBadge.tsx` - UI component
+- `/app/features/chat/components/ChatBubble.tsx` - Integration
+- `/lib/features/chat/messages.ts` - MessageMeta interface
 
 ---
 

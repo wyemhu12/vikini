@@ -396,7 +396,7 @@ export interface ChatStreamParams {
     userId: string;
     role: string;
     content: string;
-    meta?: { thoughtSignature?: string; thoughtSignatures?: string[] };
+    meta?: Record<string, unknown>;
   }) => Promise<unknown>;
   setConversationAutoTitle: (
     userId: string,

@@ -642,13 +642,15 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
     userId,
     role,
     content,
+    meta,
   }: {
     conversationId: string;
     userId: string;
     role: string;
     content: string;
+    meta?: Record<string, unknown>;
   }) => {
-    return saveMessage(userId, conversationId, role, content);
+    return saveMessage(userId, conversationId, role, content, meta);
   };
 
   // Detect model provider
