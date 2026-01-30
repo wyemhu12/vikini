@@ -7,9 +7,10 @@ import rehypeHighlight from "rehype-highlight";
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import dynamic from "next/dynamic";
-import { ChevronDown, ChevronRight, Sparkles, Brain, ImageIcon } from "lucide-react";
+import { ChevronDown, Sparkles, Brain, ImageIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { logger } from "@/lib/utils/logger";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Sub-components
 import SmartCode, { extractText } from "./SmartCode";
@@ -91,8 +92,30 @@ const TypingDots = React.memo(function TypingDots() {
   );
 });
 
+// Typing cursor for streaming text - blinking animation
+const TypingCursor = React.memo(function TypingCursor() {
+  return (
+    <motion.span
+      initial={{ opacity: 1 }}
+      animate={{ opacity: [1, 0.3, 1] }}
+      transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut" }}
+      className="inline-block w-0.5 h-4 bg-(--primary) ml-0.5 align-middle rounded-sm"
+      aria-hidden="true"
+    />
+  );
+});
+
 const ThinkingBlock = React.memo(function ThinkingBlock({ content }: { content: string }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Default to collapsed per user request
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when content changes (while expanded)
+  useEffect(() => {
+    if (!isCollapsed && contentRef.current) {
+      contentRef.current.scrollTop = contentRef.current.scrollHeight;
+    }
+  }, [content, isCollapsed]);
 
   return (
     <div className="mb-4 rounded-lg border border-white/10 overflow-hidden bg-white/3">
@@ -102,18 +125,33 @@ const ThinkingBlock = React.memo(function ThinkingBlock({ content }: { content: 
       >
         <Brain className="w-3 h-3" />
         <span>Thinking Process</span>
-        {isCollapsed ? (
-          <ChevronRight className="w-3 h-3 ml-auto opacity-50" />
-        ) : (
-          <ChevronDown className="w-3 h-3 ml-auto opacity-50" />
-        )}
+        <motion.div
+          className="ml-auto"
+          animate={{ rotate: isCollapsed ? -90 : 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <ChevronDown className="w-3 h-3 opacity-50" />
+        </motion.div>
       </button>
 
-      {!isCollapsed && (
-        <div className="px-3 py-3 border-t border-white/10 text-sm text-secondary font-mono leading-relaxed bg-white/2 whitespace-pre-wrap animate-in slide-in-from-top-2 duration-200">
-          {content}
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {!isCollapsed && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div
+              ref={contentRef}
+              className="px-3 py-3 border-t border-white/10 text-sm text-secondary font-mono leading-relaxed bg-white/2 whitespace-pre-wrap max-h-96 overflow-y-auto"
+            >
+              {content}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });
@@ -247,6 +285,8 @@ interface ChatBubbleProps {
   onImageRegenerate?: (message: ChatMessage) => void;
   onImageEdit?: (message: ChatMessage) => void;
   regenerating?: boolean;
+  /** Is currently streaming response */
+  isStreaming?: boolean;
   /** TTS callback */
   onSpeak?: () => void;
   /** Is TTS currently speaking this message */
@@ -272,6 +312,7 @@ const ChatBubble = React.memo(
     onImageRegenerate,
     onImageEdit,
     regenerating,
+    isStreaming,
     onSpeak,
     isSpeaking,
   }: ChatBubbleProps) {
@@ -407,7 +448,12 @@ const ChatBubble = React.memo(
       isLoading || (isBot && isLastAssistant && isStreamThinking && !displayContent.trim());
 
     return (
-      <div className={`group flex w-full flex-col gap-3 py-6 ${isBot ? "" : "items-end"}`}>
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+        className={`group flex w-full flex-col gap-3 py-6 ${isBot ? "" : "items-end"}`}
+      >
         <div
           className={`flex max-w-[95%] lg:max-w-[90%] gap-4 ${isBot ? "items-start" : "flex-row-reverse items-start"}`}
         >
@@ -487,6 +533,8 @@ const ChatBubble = React.memo(
                       >
                         {displayContent}
                       </ReactMarkdown>
+                      {/* Typing cursor when streaming */}
+                      {isStreaming && isLastAssistant && displayContent.trim() && <TypingCursor />}
                     </div>
                   ) : (
                     <span className="whitespace-pre-wrap wrap-break-word">{displayContent}</span>
@@ -553,7 +601,7 @@ const ChatBubble = React.memo(
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   },
   (prev, next) => {
@@ -561,6 +609,7 @@ const ChatBubble = React.memo(
       prev.message === next.message &&
       prev.isLastAssistant === next.isLastAssistant &&
       prev.regenerating === next.regenerating &&
+      prev.isStreaming === next.isStreaming &&
       prev.canRegenerate === next.canRegenerate &&
       prev.onRegenerate === next.onRegenerate &&
       prev.onEdit === next.onEdit &&

@@ -97,7 +97,7 @@ export default function ModelSelector({
 
   if (disabled) {
     return (
-      <div className="flex items-center rounded-full bg-(--control-bg) border border-(--control-border) p-1 px-4 py-1.5 opacity-50 cursor-not-allowed">
+      <div className="flex items-center rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 p-1 px-4 py-1.5 opacity-50 cursor-not-allowed">
         <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary)">
           {currentModel?.name || currentModelId}
         </span>
@@ -110,7 +110,7 @@ export default function ModelSelector({
       {/* TRIGGER BUTTON */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) hover:border-(--border) p-1 px-4 py-1.5 transition-all shadow-lg group text-(--text-primary)"
+        className="flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 md:hover:bg-(--control-bg) p-1 px-4 py-1.5 transition-all md:shadow-none shadow-lg group text-(--text-primary)"
       >
         <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">
           {currentModel?.name || currentModelId}

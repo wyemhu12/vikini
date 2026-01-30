@@ -72,6 +72,16 @@ export function useChatStreamController({
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingAssistantRef = useRef<string | null>(streamingAssistant);
 
+  // Typewriter buffer: decouple network streaming từ visual streaming
+  // Network tokens → buffer → display (smooth animation)
+  const typewriterBufferRef = useRef<string>("");
+  const typewriterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isTypewriterActiveRef = useRef(false);
+
+  // Typewriter config: Fast speed (~333 chars/second)
+  const TYPEWRITER_INTERVAL_MS = 15; // tick every 15ms
+  const TYPEWRITER_CHARS_PER_TICK = 5; // 5 chars per tick
+
   const normalizeMessages = useCallback((arr: FrontendMessage[] | unknown): FrontendMessage[] => {
     const safe = safeArray<FrontendMessage>(arr);
     return safe
@@ -97,6 +107,52 @@ export function useChatStreamController({
     streamingAssistantRef.current = streamingAssistant;
   }, [streamingAssistant]);
 
+  // Typewriter: Start the interval that drains buffer to display
+  const startTypewriter = useCallback(() => {
+    if (isTypewriterActiveRef.current) return;
+    isTypewriterActiveRef.current = true;
+
+    typewriterIntervalRef.current = setInterval(() => {
+      if (typewriterBufferRef.current.length > 0) {
+        // Take TYPEWRITER_CHARS_PER_TICK characters from buffer
+        const chunk = typewriterBufferRef.current.slice(0, TYPEWRITER_CHARS_PER_TICK);
+        typewriterBufferRef.current = typewriterBufferRef.current.slice(TYPEWRITER_CHARS_PER_TICK);
+
+        setStreamingAssistant((prev) => (prev || "") + chunk);
+      }
+    }, TYPEWRITER_INTERVAL_MS);
+  }, [TYPEWRITER_INTERVAL_MS, TYPEWRITER_CHARS_PER_TICK]);
+
+  // Typewriter: Stop interval and flush remaining buffer immediately
+  const stopTypewriter = useCallback((flush = true) => {
+    if (typewriterIntervalRef.current) {
+      clearInterval(typewriterIntervalRef.current);
+      typewriterIntervalRef.current = null;
+    }
+    isTypewriterActiveRef.current = false;
+
+    // Flush remaining buffer to display
+    if (flush && typewriterBufferRef.current.length > 0) {
+      const remaining = typewriterBufferRef.current;
+      typewriterBufferRef.current = "";
+      setStreamingAssistant((prev) => (prev || "") + remaining);
+    }
+  }, []);
+
+  // Typewriter: Add tokens to buffer (called when SSE tokens arrive)
+  const appendToTypewriterBuffer = useCallback((token: string) => {
+    typewriterBufferRef.current += token;
+  }, []);
+
+  // Cleanup typewriter on unmount
+  useEffect(() => {
+    return () => {
+      if (typewriterIntervalRef.current) {
+        clearInterval(typewriterIntervalRef.current);
+      }
+    };
+  }, []);
+
   // Hủy request và tùy chọn lưu lại nội dung đang stream dở
   const cancelStream = useCallback(
     (commitPartial = false) => {
@@ -104,6 +160,9 @@ export function useChatStreamController({
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
+
+      // Stop typewriter and flush remaining buffer
+      stopTypewriter(commitPartial);
 
       // Nếu được yêu cầu lưu nội dung dở dang và có nội dung
       if (commitPartial && streamingAssistantRef.current) {
@@ -118,13 +177,16 @@ export function useChatStreamController({
         ]);
       }
 
+      // Clear typewriter buffer
+      typewriterBufferRef.current = "";
+
       setIsStreaming(false);
       setRegenerating(false);
       setStreamingAssistant(null);
       setStreamingSources([]);
       setStreamingUrlContext([]);
     },
-    [normalizeMessages]
+    [normalizeMessages, stopTypewriter]
   );
 
   const resetChatUI = useCallback(() => {
@@ -169,6 +231,40 @@ export function useChatStreamController({
     },
     [normalizeMessages, setSelectedConversationId, cancelStream]
   );
+
+  // Auto-load messages when selectedConversationId changes (e.g., from URL sync on page reload)
+  // This handles the case where URL has conversation ID but messages aren't loaded yet
+  const prevConversationIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    // Skip if no conversation selected or already loading
+    if (!selectedConversationId || loadingMessages || isStreaming) return;
+
+    // Skip if same conversation (already loaded)
+    if (prevConversationIdRef.current === selectedConversationId) return;
+
+    // Skip if messages already loaded for this conversation
+    if (messages.length > 0 && prevConversationIdRef.current === selectedConversationId) return;
+
+    // Load messages for this conversation
+    const loadMessages = async () => {
+      setLoadingMessages(true);
+      try {
+        const res = await fetch(`/api/conversations?id=${selectedConversationId}`);
+        if (!res.ok) throw new Error("Failed to load conversation");
+        const json = await res.json();
+        const data = json.data || json;
+        setMessages(normalizeMessages(data?.messages));
+      } catch (e) {
+        logger.error("Auto-load messages failed:", e);
+        setMessages([]);
+      } finally {
+        setLoadingMessages(false);
+      }
+    };
+
+    loadMessages();
+    prevConversationIdRef.current = selectedConversationId;
+  }, [selectedConversationId, loadingMessages, isStreaming, messages.length, normalizeMessages]);
 
   // --- EXTRACTED FUNCTIONS ---
 
@@ -322,6 +418,7 @@ export function useChatStreamController({
     ): Promise<void> => {
       const decoder = new TextDecoder();
       let buffer = "";
+      let isFirstToken = true;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -340,7 +437,15 @@ export function useChatStreamController({
 
           if (event === "token") {
             const tok = data?.t || "";
-            if (tok) setStreamingAssistant((prev) => (prev || "") + tok);
+            if (tok) {
+              // Start typewriter on first token
+              if (isFirstToken) {
+                isFirstToken = false;
+                startTypewriter();
+              }
+              // Add to buffer instead of direct state update
+              appendToTypewriterBuffer(tok);
+            }
           }
 
           if (event === "meta") {
@@ -362,7 +467,7 @@ export function useChatStreamController({
         }
       }
     },
-    [handleStreamMetaEvent, onStreamError]
+    [handleStreamMetaEvent, onStreamError, startTypewriter, appendToTypewriterBuffer]
   );
 
   const reloadMessagesAfterStream = useCallback(
@@ -434,6 +539,25 @@ export function useChatStreamController({
 
         await processStreamResponse(reader, localSources, localUrlContext);
 
+        // Wait for typewriter buffer to drain naturally (smooth finish)
+        // Only force-flush if buffer is too large (>2k chars) to avoid long waits
+        const maxWaitMs = 3000; // Max 3 seconds wait
+        const startWait = Date.now();
+        while (typewriterBufferRef.current.length > 0 && Date.now() - startWait < maxWaitMs) {
+          // If buffer is very large, flush immediately to avoid long wait
+          if (typewriterBufferRef.current.length > 2000) {
+            stopTypewriter(true);
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+
+        // Stop typewriter (don't flush - buffer should be empty or we already flushed)
+        stopTypewriter(false);
+
+        // Small delay to ensure final state update
+        await new Promise((resolve) => setTimeout(resolve, 30));
+
         const finalAssistant = streamingAssistantRef.current || "";
         const assistantMsg: FrontendMessage = {
           role: "assistant",
@@ -467,6 +591,8 @@ export function useChatStreamController({
       processStreamResponse,
       reloadMessagesAfterStream,
       normalizeMessages,
+      stopTypewriter,
+      TYPEWRITER_INTERVAL_MS,
     ]
   );
 

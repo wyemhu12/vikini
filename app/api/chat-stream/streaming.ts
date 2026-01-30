@@ -28,15 +28,20 @@ const streamLogger = logger.withContext("/api/chat-stream");
 /**
  * Model-specific timeouts for AI API calls in milliseconds.
  * Pro models need more time for complex reasoning.
+ * Deep Thinking (thinkingLevel: "high") requires significantly longer timeouts.
  * Can be overridden via STREAM_TIMEOUT_MS environment variable.
  */
 const TIMEOUT_CONFIG = {
-  PRO: 300000, // 5 minutes for Pro models (gemini-3-pro-*)
-  FLASH: 240000, // 4 minutes for Flash models (gemini-3-flash-*)
+  PRO: 300000, // 5 minutes for Pro models
+  PRO_DEEP_THINKING: 600000, // 10 minutes for Pro + Deep Thinking
+  FLASH: 240000, // 4 minutes for Flash models
+  FLASH_DEEP_THINKING: 480000, // 8 minutes for Flash + Deep Thinking
   DEFAULT: 180000, // 3 minutes for other models
 } as const;
 
-function getStreamTimeout(model?: string): number {
+type ThinkingLevel = "off" | "low" | "medium" | "high" | "minimal";
+
+function getStreamTimeout(model?: string, thinkingLevel?: ThinkingLevel): number {
   // Environment variable override takes priority
   const envTimeout = process.env.STREAM_TIMEOUT_MS;
   if (envTimeout) {
@@ -46,13 +51,16 @@ function getStreamTimeout(model?: string): number {
     }
   }
 
-  // Model-specific timeouts
+  // Deep thinking requires longer timeouts (high = maximum reasoning depth)
+  const isDeepThinking = thinkingLevel === "high";
+
+  // Model-specific timeouts with thinking level consideration
   if (model) {
     if (model.includes("pro")) {
-      return TIMEOUT_CONFIG.PRO;
+      return isDeepThinking ? TIMEOUT_CONFIG.PRO_DEEP_THINKING : TIMEOUT_CONFIG.PRO;
     }
     if (model.includes("flash")) {
-      return TIMEOUT_CONFIG.FLASH;
+      return isDeepThinking ? TIMEOUT_CONFIG.FLASH_DEEP_THINKING : TIMEOUT_CONFIG.FLASH;
     }
   }
 
@@ -552,9 +560,9 @@ async function executeStream(
   let usageMetadata: UsageMetadata | undefined;
 
   const maxTokens = getModelMaxOutputTokens(model);
-  const timeoutMs = getStreamTimeout(model);
+  const timeoutMs = getStreamTimeout(model, thinkingLevel);
   streamLogger.info(
-    `Executing stream for model: ${model} with maxTokens: ${maxTokens}, timeout: ${timeoutMs}ms`
+    `Executing stream for model: ${model} with maxTokens: ${maxTokens}, timeout: ${timeoutMs}ms, thinkingLevel: ${thinkingLevel || "off"}`
   );
 
   let systemInstruction: SystemInstruction | undefined = undefined;

@@ -251,11 +251,52 @@ export default function ChatApp() {
     }
   }, [setInput]);
 
-  // Scroll handling
+  // Smart Auto-Scroll: scroll during streaming, cancel if user scrolls up
   const scrollRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScrollRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
+
+  // Detect user scroll: if user scrolls UP, disable auto-scroll
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const currentScrollTop = el.scrollTop;
+    const maxScrollTop = el.scrollHeight - el.clientHeight;
+
+    // User scrolled UP (away from bottom)
+    if (currentScrollTop < lastScrollTopRef.current && currentScrollTop < maxScrollTop - 50) {
+      shouldAutoScrollRef.current = false;
+    }
+
+    // User scrolled back to bottom (within 50px threshold)
+    if (maxScrollTop - currentScrollTop < 50) {
+      shouldAutoScrollRef.current = true;
+    }
+
+    lastScrollTopRef.current = currentScrollTop;
+  }, []);
+
+  // Reset auto-scroll when starting a new stream or new message
   useEffect(() => {
-    if (!scrollRef.current || isStreaming) return;
+    if (isStreaming && streamingAssistant === "") {
+      shouldAutoScrollRef.current = true;
+    }
+  }, [isStreaming, streamingAssistant]);
+
+  // Auto-scroll during streaming (if enabled)
+  useEffect(() => {
+    if (!scrollRef.current || !isStreaming || !shouldAutoScrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [streamingAssistant, isStreaming]);
+
+  // Scroll to bottom when stream ends (if auto-scroll was not cancelled)
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    // Only scroll when NOT streaming (stream just ended or new messages loaded)
+    if (!isStreaming && shouldAutoScrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
   }, [renderedMessages.length, isStreaming, lastGeneratedImage]);
 
   // Model Change Handler
@@ -402,6 +443,7 @@ export default function ChatApp() {
 
         <div
           ref={scrollRef}
+          onScroll={handleScroll}
           onClick={() => {
             if (showLanding || window.innerWidth >= 768) return;
             setTimeout(() => {

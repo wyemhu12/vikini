@@ -6,25 +6,26 @@
 
 ## 1. Danh Sách Tính Năng
 
-| Tính năng                | Trạng thái    | Mô tả                                      |
-| ------------------------ | ------------- | ------------------------------------------ |
-| **Chat Streaming**       | ✅ Hoàn thành | SSE streaming với Gemini AI                |
-| **Conversations**        | ✅ Hoàn thành | CRUD + auto-title                          |
-| **GEMs System**          | ✅ Hoàn thành | Custom AI personas với versioning          |
-| **File Attachments**     | ✅ Hoàn thành | Upload, parse, 36h TTL                     |
-| **Image Studio**         | ✅ Hoàn thành | AI Image Generation (Gemini, DALL-E, Flux) |
-| **Gallery**              | ✅ Hoàn thành | Image management với infinite scroll       |
-| **Image Lightbox**       | ✅ Hoàn thành | Fullscreen view + zoom controls            |
-| **Image Compare**        | ✅ Hoàn thành | Side-by-side & overlay comparison          |
-| **Token Count Display**  | ✅ Hoàn thành | Hiển thị token usage per message           |
-| **Message Encryption**   | ✅ Hoàn thành | AES-256-GCM                                |
-| **Rate Limiting**        | ✅ Hoàn thành | Redis-based per user                       |
-| **Daily Message Limits** | ✅ Hoàn thành | Theo rank                                  |
-| **Web Search**           | ✅ Hoàn thành | Optional, rank-gated                       |
-| **Admin Dashboard**      | ✅ Hoàn thành | User/GEM/Rank management                   |
-| **Google OAuth**         | ✅ Hoàn thành | NextAuth v5                                |
-| **Voice Input (STT)**    | ✅ Hoàn thành | Web Speech API + waveform                  |
-| **TTS Playback**         | ✅ Hoàn thành | Read AI responses aloud                    |
+| Tính năng                 | Trạng thái    | Mô tả                                      |
+| ------------------------- | ------------- | ------------------------------------------ |
+| **Chat Streaming**        | ✅ Hoàn thành | SSE streaming với Gemini AI                |
+| **Enhanced Streaming UX** | ✅ Hoàn thành | Typewriter, auto-scroll, animations        |
+| **Conversations**         | ✅ Hoàn thành | CRUD + auto-title + URL sync               |
+| **GEMs System**           | ✅ Hoàn thành | Custom AI personas với versioning          |
+| **File Attachments**      | ✅ Hoàn thành | Upload, parse, 36h TTL                     |
+| **Image Studio**          | ✅ Hoàn thành | AI Image Generation (Gemini, DALL-E, Flux) |
+| **Gallery**               | ✅ Hoàn thành | Image management với infinite scroll       |
+| **Image Lightbox**        | ✅ Hoàn thành | Fullscreen view + zoom controls            |
+| **Image Compare**         | ✅ Hoàn thành | Side-by-side & overlay comparison          |
+| **Token Count Display**   | ✅ Hoàn thành | Hiển thị token usage per message           |
+| **Message Encryption**    | ✅ Hoàn thành | AES-256-GCM                                |
+| **Rate Limiting**         | ✅ Hoàn thành | Redis-based per user                       |
+| **Daily Message Limits**  | ✅ Hoàn thành | Theo rank                                  |
+| **Web Search**            | ✅ Hoàn thành | Optional, rank-gated                       |
+| **Admin Dashboard**       | ✅ Hoàn thành | User/GEM/Rank management                   |
+| **Google OAuth**          | ✅ Hoàn thành | NextAuth v5                                |
+| **Voice Input (STT)**     | ✅ Hoàn thành | Web Speech API + waveform                  |
+| **TTS Playback**          | ✅ Hoàn thành | Read AI responses aloud                    |
 
 ---
 
@@ -197,6 +198,61 @@ Gemini API Response → usageMetadata → SSE event → Save to DB → Load vớ
 - `/lib/features/chat/messages.ts` - MessageMeta interface
 
 ---
+
+### 2.9 Enhanced Streaming UX
+
+**Mô tả**: Cải thiện trải nghiệm streaming để đạt tiêu chuẩn tương tự ChatGPT/Gemini.
+
+#### Typewriter Buffer
+
+Decouple network streaming từ visual rendering để text xuất hiện mượt mà:
+
+- Buffer tokens từ SSE → drain theo tốc độ ~333 chars/giây
+- Khi stream xong, đợi buffer drain tự nhiên (max 3s)
+- Flush ngay nếu buffer > 2000 chars
+
+#### Smart Auto-Scroll
+
+Logic thông minh cho auto-scroll trong chat:
+
+- **Scroll during streaming**: Tự động scroll xuống khi AI đang stream
+- **Cancel on user scroll up**: Nếu user scroll lên, auto-scroll bị hủy
+- **Re-enable on scroll back**: Khi user scroll lại xuống cuối (within 50px), auto-scroll được bật lại
+- **Scroll to bottom when done**: Scroll xuống cuối khi stream hoàn thành (nếu chưa bị cancel)
+
+#### ThinkingBlock Animation
+
+Hiển thị AI thinking process (Gemini 3 models):
+
+- Default collapsed (click để expand)
+- Smooth collapse/expand animation với Framer Motion
+- Auto-scroll content khi expanded và đang streaming
+- Max height 384px với scroll overflow
+
+#### Typing Cursor
+
+- Blinking cursor ở cuối text khi đang streaming
+- Chỉ hiển thị cho message cuối cùng khi streaming
+
+#### Message Entry Animation
+
+- Fade + slide animation khi message xuất hiện trong chat
+
+#### Deep Thinking Timeout
+
+Extended timeouts cho Deep Thinking mode:
+
+| Model | Normal | Deep Thinking |
+| ----- | ------ | ------------- |
+| Pro   | 5 min  | 10 min        |
+| Flash | 4 min  | 8 min         |
+
+**Files**:
+
+- `/app/features/chat/components/hooks/useChatStreamController.ts` - Typewriter buffer, auto-load
+- `/app/features/chat/components/ChatBubble.tsx` - ThinkingBlock, TypingCursor, animations
+- `/app/features/chat/components/ChatApp.tsx` - Smart auto-scroll
+- `/app/api/chat-stream/streaming.ts` - Deep thinking timeout
 
 ## 3. Roadmap (Dự kiến)
 
