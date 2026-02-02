@@ -33,19 +33,33 @@ npm run test:watch
 
 ## 📁 Cấu Trúc Testing
 
+Tests are **colocated** with source files inside `src/`:
+
 ```
 vikini/
 ├── tests/
 │   └── setup.ts              # Test environment setup
-├── lib/
-│   ├── features/
-│   │   └── chat/
-│   │       └── conversations.test.ts
-│   ├── utils/
-│   │   ├── logger.test.ts
-│   │   └── errors.test.ts
-│   └── core/
-│       └── cache.test.ts
+├── src/
+│   ├── app/
+│   │   └── features/
+│   │       └── layout/
+│   │           └── HeaderBar.test.tsx
+│   ├── lib/
+│   │   ├── features/
+│   │   │   ├── attachments/
+│   │   │   │   └── attachments.test.ts
+│   │   │   ├── chat/
+│   │   │   │   └── conversations.test.ts
+│   │   │   └── gems/
+│   │   │       └── gems.test.ts
+│   │   ├── utils/
+│   │   │   ├── logger.test.ts
+│   │   │   ├── errors.test.ts
+│   │   │   └── xssProtection.test.ts
+│   │   └── core/
+│   │       ├── cache.test.ts
+│   │       ├── limits.test.ts
+│   │       └── encryption.test.ts
 └── vitest.config.ts          # Vitest configuration
 ```
 

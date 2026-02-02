@@ -34,7 +34,9 @@
 
 ## 2. Project Structure
 
-### `app/` (Application Layer)
+All source code is organized under the `src/` directory.
+
+### `src/app/` (Application Layer)
 
 Follows the Next.js App Router conventions.
 
@@ -43,7 +45,7 @@ Follows the Next.js App Router conventions.
 - `features/`: Feature-specific UI Layouts and Components (Chat, Gems, Sidebar).
 - `globals.css`: Global styles and Tailwind directives.
 
-### `lib/` (Logic Layer)
+### `src/lib/` (Logic Layer)
 
 Separation of concerns between UI and business logic.
 
@@ -51,9 +53,17 @@ Separation of concerns between UI and business logic.
 - `features/`: Business logic, hooks, and types for specific domains (Chat, Attachments, Gems).
 - `utils/`: Shared utility functions.
 
-### `components/` (Shared UI)
+### `src/components/` (Shared UI)
 
-- `ui/`: Reusable primitive components (likely shadcn/ui based).
+- `ui/`: Reusable primitive components (shadcn/ui based).
+
+### `src/types/` (Type Definitions)
+
+- Centralized TypeScript interfaces and type declarations.
+
+### Test Organization
+
+Tests are colocated with source files using the `.test.ts` / `.test.tsx` suffix.
 
 ## 3. Key Features
 
