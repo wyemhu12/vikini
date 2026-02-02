@@ -1,6 +1,9 @@
+// src/types/image-gen.d.ts
+// Centralized type definitions for image generation feature
+
 export interface ImageGenOptions {
   aspectRatio?: "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
-  numberOfImages?: number; // Default 1
+  numberOfImages?: number;
   style?:
     | "none"
     | "photorealistic"
@@ -11,21 +14,19 @@ export interface ImageGenOptions {
     | "digital-art"
     | "cinematic"
     | "3d-render";
-  // Enhancer options
   enhancer?: boolean;
   enhancerModel?: string;
-  // Model selection
   model?: string;
 }
 
 export interface ImageGenResult {
-  url: string; // URL or Base64 data URI
+  url: string;
   provider: string;
   metadata?: Record<string, unknown>;
 }
 
 export interface ImageGenProvider {
-  id: string; // e.g., 'gemini', 'openai'
+  id: string;
 
   /**
    * Generates images based on the provided prompt and options.
