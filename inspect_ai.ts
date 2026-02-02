@@ -1,4 +1,4 @@
-import { getGenAIClient } from "./lib/core/genaiClient";
+import { getGenAIClient } from "@/lib/core/genaiClient";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -15,7 +15,7 @@ async function test() {
     }
 
     // Testing getModelMaxOutputTokens
-    const { getModelMaxOutputTokens } = require("./lib/core/modelRegistry");
+    const { getModelMaxOutputTokens } = require("@/lib/core/modelRegistry");
     console.warn("Max tokens for gemini-2.5-flash:", getModelMaxOutputTokens("gemini-2.5-flash"));
   } catch (e) {
     console.error("Test failed:", e);
