@@ -23,6 +23,7 @@ export async function parseJsonBody<T = unknown>(
 export const createConversationSchema = z.object({
   title: z.string().max(200).optional(),
   model: z.string().optional(),
+  projectId: z.string().uuid().nullable().optional(),
 });
 
 export type CreateConversationRequest = z.infer<typeof createConversationSchema>;
@@ -32,6 +33,7 @@ export const updateConversationSchema = z.object({
   title: z.string().max(200).optional(),
   gemId: z.string().uuid().nullable().optional(),
   model: z.string().nullable().optional(),
+  projectId: z.string().uuid().nullable().optional(),
 });
 
 export type UpdateConversationRequest = z.infer<typeof updateConversationSchema>;

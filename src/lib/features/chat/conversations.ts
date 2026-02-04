@@ -61,6 +61,7 @@ export interface Conversation {
   lastMessagePreview: string | null;
   gemId: string | null;
   model: string;
+  projectId: string | null;
   gem: {
     name: string;
     icon: string | null;
@@ -85,6 +86,8 @@ interface ConversationRow {
   gem_id?: string | null;
   gemId?: string | null;
   model?: string;
+  project_id?: string | null;
+  projectId?: string | null;
   gems?: {
     name: string;
     icon: string | null;
@@ -97,6 +100,7 @@ interface ConversationPayload {
   model?: string;
   lastMessagePreview?: string | null;
   gemId?: string | null;
+  projectId?: string | null;
 }
 
 // ------------------------------
@@ -115,6 +119,8 @@ export function mapConversationRow(row: ConversationRow | null): Conversation | 
     gemId: row.gem_id ?? row.gemId ?? null,
     // NEW: model field for per-chat model selection
     model: coerceStoredModel(row.model ?? DEFAULT_MODEL),
+    // NEW: project_id for RAG knowledge base
+    projectId: row.project_id ?? row.projectId ?? null,
     gem: row.gems
       ? {
           name: row.gems.name,
@@ -340,6 +346,7 @@ async function doSaveConversation(
       updated_at: now,
       last_message_preview: payload?.lastMessagePreview ?? null,
       gem_id: payload?.gemId ?? null,
+      project_id: payload?.projectId ?? null,
     })
     .select("*")
     .single();
@@ -359,6 +366,7 @@ async function doSaveConversation(
         updatedAt: now,
         lastMessagePreview: payload?.lastMessagePreview ?? null,
         gemId: payload?.gemId ?? null,
+        projectId: payload?.projectId ?? null,
       })
       .select("*")
       .single();
@@ -424,6 +432,34 @@ export async function setConversationModel(
     .single();
 
   if (error) throw new Error(`setConversationModel failed: ${error.message}`);
+
+  // Invalidate cache after update
+  await invalidateConversationsCache(userId);
+
+  return mapConversationRow(data);
+}
+
+// NEW: Set project for a conversation (links KB for RAG)
+export async function setConversationProject(
+  userId: string,
+  conversationId: string,
+  projectId: string | null
+): Promise<Conversation | null> {
+  const supabase = getSupabaseAdmin();
+
+  const current = await getConversationSafe(conversationId);
+  if (!current) throw new Error("Conversation not found");
+  if (current.userId !== userId) throw new Error("Forbidden");
+
+  // PERFORMANCE: Use RETURNING clause to avoid extra query
+  const { data, error } = await supabase
+    .from("conversations")
+    .update({ project_id: projectId, updated_at: new Date().toISOString() })
+    .eq("id", conversationId)
+    .select("*,gems(name,icon,color)")
+    .single();
+
+  if (error) throw new Error(`setConversationProject failed: ${error.message}`);
 
   // Invalidate cache after update
   await invalidateConversationsCache(userId);

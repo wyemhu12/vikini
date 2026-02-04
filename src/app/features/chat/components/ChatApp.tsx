@@ -12,6 +12,8 @@ import ChatControls from "./ChatControls";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import ToastContainer from "@/components/ui/ToastContainer";
 import StreamErrorBanner from "./StreamErrorBanner";
+import ProjectChatView from "../../projects/components/ProjectChatView";
+import { ProjectSettingsModal } from "@/components/features/projects/ProjectSettingsModal";
 
 import React, { useEffect, useRef, useMemo, useCallback, useState, lazy, Suspense } from "react";
 
@@ -40,6 +42,7 @@ import { DEFAULT_MODEL, SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
 import { logger } from "@/lib/utils/logger";
 import { MODEL_IDS } from "@/lib/utils/constants";
 import { toast } from "@/lib/store/toastStore";
+import { useProjectStore } from "@/lib/store/projectStore";
 
 // ============================================
 // Type Definitions
@@ -99,6 +102,11 @@ export default function ChatApp() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showMobileControls, setShowMobileControls] = useState(true);
 
+  // Project State
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [showProjectSettingsModal, setShowProjectSettingsModal] = useState(false);
+  const { projects } = useProjectStore();
+
   // Allowed Models
   const { allowedModelIds, loading: modelsLoading } = useAllowedModels(isAuthed);
   const isModelAllowed = useCallback(
@@ -117,6 +125,7 @@ export default function ChatApp() {
   // Conversation Management
   const {
     conversations,
+    personalConversations,
     selectedConversationId,
     setSelectedConversationId,
     createConversation,
@@ -135,12 +144,12 @@ export default function ChatApp() {
     setSelectedConversationId,
   });
 
-  // Filter out Image Studio projects from chat list
+  // Filter: only personal chats (no project) and exclude Image Studio
   const filteredConversations = useMemo(() => {
-    return (conversations || []).filter(
+    return (personalConversations || []).filter(
       (c: FrontendConversation) => c.model !== MODEL_IDS.IMAGE_STUDIO
     );
-  }, [conversations]);
+  }, [personalConversations]);
 
   // Web Search Preferences
   const {
@@ -394,7 +403,15 @@ export default function ChatApp() {
   // ============================================
   // Render: Main App
   // ============================================
-  const showLanding = !isRemixMode && (!selectedConversationId || renderedMessages.length === 0);
+  const showProjectView = selectedProjectId && !selectedConversationId;
+  const selectedProject = selectedProjectId
+    ? projects.find((p) => p.id === selectedProjectId)
+    : null;
+  const projectConversations = selectedProjectId
+    ? conversations.filter((c) => c.projectId === selectedProjectId)
+    : [];
+  const showLanding =
+    !isRemixMode && !showProjectView && (!selectedConversationId || renderedMessages.length === 0);
 
   return (
     <div className="h-screen w-screen text-primary overflow-hidden relative font-sans bg-surface">
@@ -424,7 +441,28 @@ export default function ChatApp() {
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
         onLogoClick={() => {
           handleSelectConversation(null);
+          setSelectedProjectId(null);
           closeMobileSidebar();
+        }}
+        allConversations={conversations}
+        onCreateProjectChat={async (projectId) => {
+          const conv = await createConversation({ title: "", projectId });
+          if (conv) {
+            setSelectedConversationIdAndUrl(conv.id);
+            setSelectedProjectId(null);
+            closeMobileSidebar();
+          }
+        }}
+        onSelectProject={(projectId) => {
+          setSelectedProjectId(projectId);
+          handleSelectConversation(null); // Clear any selected conversation
+          closeMobileSidebar();
+        }}
+        onRenameProjectConversation={(id) => {
+          modals.openRenameModal(id, "");
+        }}
+        onDeleteProjectConversation={(id) => {
+          modals.openDeleteModal(id);
         }}
       />
 
@@ -475,7 +513,32 @@ export default function ChatApp() {
           )}
 
           {/* Chat Content */}
-          {showLanding ? (
+          {showProjectView && selectedProject ? (
+            <ProjectChatView
+              project={selectedProject}
+              conversations={projectConversations}
+              onNewChat={async () => {
+                const conv = await createConversation({ title: "", projectId: selectedProjectId! });
+                if (conv) {
+                  setSelectedConversationIdAndUrl(conv.id);
+                  setSelectedProjectId(null);
+                }
+              }}
+              onSelectConversation={(id) => {
+                handleSelectConversation(id);
+                setSelectedProjectId(null);
+              }}
+              onOpenSettings={() => {
+                setShowProjectSettingsModal(true);
+              }}
+              onRenameConversation={(id) => {
+                modals.openRenameModal(id, "");
+              }}
+              onDeleteConversation={(id) => {
+                modals.openDeleteModal(id);
+              }}
+            />
+          ) : showLanding ? (
             <div className="min-h-full flex flex-col justify-center py-4 animate-in fade-in zoom-in duration-500">
               <DashboardView
                 onPromptSelect={setInput}
@@ -545,36 +608,38 @@ export default function ChatApp() {
           )}
         </div>
 
-        <ChatControls
-          input={input}
-          setInput={setInput}
-          handleSend={handleSend}
-          handleStop={handleStop}
-          isStreaming={isStreaming}
-          creatingConversation={creatingConversation}
-          regenerating={regenerating}
-          streamingAssistant={streamingAssistant}
-          disabled={creatingConversation}
-          webSearchEnabled={webSearchEnabled}
-          toggleWebSearch={toggleWebSearch}
-          alwaysSearch={alwaysSearch}
-          toggleAlwaysSearch={toggleAlwaysSearch}
-          thinkingLevel={thinkingLevel}
-          setThinkingLevel={setThinkingLevel}
-          currentModel={currentModel}
-          handleModelChange={handleModelChange}
-          isModelAllowed={isModelAllowed}
-          currentGem={currentConversation?.gem}
-          t={t}
-          showFiles={showFiles}
-          setShowFiles={setShowFiles}
-          fileCount={fileCount}
-          setFileCount={setFileCount}
-          attachmentsRef={attachmentsRef}
-          onImageGen={handleImageGen}
-          selectedConversationId={selectedConversationId}
-          showMobileControls={showMobileControls}
-        />
+        {!showProjectView && (
+          <ChatControls
+            input={input}
+            setInput={setInput}
+            handleSend={handleSend}
+            handleStop={handleStop}
+            isStreaming={isStreaming}
+            creatingConversation={creatingConversation}
+            regenerating={regenerating}
+            streamingAssistant={streamingAssistant}
+            disabled={creatingConversation}
+            webSearchEnabled={webSearchEnabled}
+            toggleWebSearch={toggleWebSearch}
+            alwaysSearch={alwaysSearch}
+            toggleAlwaysSearch={toggleAlwaysSearch}
+            thinkingLevel={thinkingLevel}
+            setThinkingLevel={setThinkingLevel}
+            currentModel={currentModel}
+            handleModelChange={handleModelChange}
+            isModelAllowed={isModelAllowed}
+            currentGem={currentConversation?.gem}
+            t={t}
+            showFiles={showFiles}
+            setShowFiles={setShowFiles}
+            fileCount={fileCount}
+            setFileCount={setFileCount}
+            attachmentsRef={attachmentsRef}
+            onImageGen={handleImageGen}
+            selectedConversationId={selectedConversationId}
+            showMobileControls={showMobileControls}
+          />
+        )}
       </div>
 
       {/* Modals */}
@@ -668,6 +733,26 @@ export default function ChatApp() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Project Settings Modal */}
+      {selectedProjectId && (
+        <ProjectSettingsModal
+          projectId={selectedProjectId}
+          isOpen={showProjectSettingsModal}
+          onClose={() => setShowProjectSettingsModal(false)}
+          onNewChat={async (projectId) => {
+            const conv = await createConversation({ title: "", projectId });
+            if (conv) {
+              setSelectedConversationIdAndUrl(conv.id);
+              setSelectedProjectId(null);
+            }
+          }}
+          onSelectChat={(chatId) => {
+            handleSelectConversation(chatId);
+            setSelectedProjectId(null);
+          }}
+        />
       )}
     </div>
   );

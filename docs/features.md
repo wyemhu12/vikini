@@ -1,6 +1,6 @@
 # Features - Vikini
 
-> **Cập nhật**: 2026-01-30
+> **Cập nhật**: 2026-02-04
 
 ---
 
@@ -17,6 +17,7 @@
 | **Gallery**               | ✅ Hoàn thành | Image management với infinite scroll       |
 | **Image Lightbox**        | ✅ Hoàn thành | Fullscreen view + zoom controls            |
 | **Image Compare**         | ✅ Hoàn thành | Side-by-side & overlay comparison          |
+| **Projects**              | ✅ Hoàn thành | Knowledge Base theo project                |
 | **Token Count Display**   | ✅ Hoàn thành | Hiển thị token usage per message           |
 | **Message Encryption**    | ✅ Hoàn thành | AES-256-GCM                                |
 | **Rate Limiting**         | ✅ Hoàn thành | Redis-based per user                       |
@@ -26,6 +27,7 @@
 | **Google OAuth**          | ✅ Hoàn thành | NextAuth v5                                |
 | **Voice Input (STT)**     | ✅ Hoàn thành | Web Speech API + waveform                  |
 | **TTS Playback**          | ✅ Hoàn thành | Read AI responses aloud                    |
+| **Bilingual UI**          | ✅ Hoàn thành | Vietnamese/English support                 |
 
 ---
 
@@ -254,13 +256,44 @@ Extended timeouts cho Deep Thinking mode:
 - `/app/features/chat/components/ChatApp.tsx` - Smart auto-scroll
 - `/app/api/chat-stream/streaming.ts` - Deep thinking timeout
 
+---
+
+### 2.10 Projects (Knowledge Base)
+
+**Mô tả**: Tổ chức conversations theo project với Knowledge Base riêng.
+
+**Tính năng**:
+
+- Tạo project với icon/màu tùy chọn
+- Upload documents để tạo knowledge base (5MB limit)
+- Auto-chunking với text-embedding-004
+- RAG search khi chat trong project context
+- Project settings modal với delete confirmation đẹp
+- Bilingual support (Vietnamese/English)
+
+**UI Improvements**:
+
+- ChatGPT-style project view layout
+- DeleteConfirmModal thay thế native confirm()
+- Projects visible trên Chat và Gallery, ẩn trên Image Studio
+- Auto-refresh UI sau khi delete chat
+
+**Files**:
+
+- `/app/features/projects/` - UI Components
+- `/components/features/projects/` - Shared components
+- `/app/api/projects/` - API routes
+- `/lib/features/projects/` - Business logic
+
+**Route**: Click project trong sidebar
+
 ## 3. Roadmap (Dự kiến)
 
 | Tính năng           | Priority | Effort    | Notes                       |
 | ------------------- | -------- | --------- | --------------------------- |
 | Multi-model support | High     | Medium    | Thêm Claude, GPT            |
 | Code Artifacts      | High     | High      | Render HTML/React real-time |
-| Knowledge Base      | Medium   | High      | Persistent document context |
+| ~~Knowledge Base~~  | ~~Done~~ | ~~Done~~  | ✅ Implemented via Projects |
 | Plugin System       | Low      | Very High | Extensibility               |
 
 ---

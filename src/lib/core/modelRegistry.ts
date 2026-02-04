@@ -295,3 +295,16 @@ export function getModelMaxOutputTokens(modelId: unknown): number | undefined {
   const model = SELECTABLE_MODELS.find((m) => m.id === coerceStoredModel(modelId));
   return model?.maxOutputTokens;
 }
+
+/**
+ * Check if a model supports thinking mode (thinkingConfig with thinkingLevel).
+ *
+ * IMPORTANT: Only Gemini 3+ models support the `thinkingLevel` parameter.
+ * Gemini 2.5 uses `thinkingBudget` (number) which has a different API format.
+ * Sending `thinkingLevel` to Gemini 2.5 causes "Thinking level is not supported" error.
+ */
+export function modelSupportsThinking(modelId: unknown): boolean {
+  const normalized = normalizeModelForApi(modelId);
+  // Only Gemini 3+ supports thinkingLevel parameter
+  return normalized.startsWith("gemini-3");
+}

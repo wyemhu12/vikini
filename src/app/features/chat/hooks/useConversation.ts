@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Conversation } from "@/lib/features/chat/conversations";
 import { logger } from "@/lib/utils/logger";
+import { useProjectStore } from "@/lib/store/projectStore";
 
 interface ConversationResponse {
   conversations?: Conversation[];
@@ -18,6 +19,7 @@ export interface FrontendConversation {
   updatedAt?: number;
   model?: string;
   gem?: { name: string; icon: string | null; color: string | null } | null;
+  projectId?: string | null;
   [key: string]: unknown;
 }
 
@@ -73,7 +75,8 @@ function convertConversationToFrontend(conv: Conversation): FrontendConversation
     createdAt: convertDate(conv.createdAt),
     updatedAt: convertDate(conv.updatedAt),
     model: conv.model,
-    gem: conv.gem, // Map gem field
+    gem: conv.gem,
+    projectId: conv.projectId, // Include project association
   };
 }
 
@@ -135,6 +138,10 @@ function mergeConversations(
 interface UseConversationReturn {
   // core
   conversations: FrontendConversation[];
+  /** Conversations without a project (personal chats) */
+  personalConversations: FrontendConversation[];
+  /** Get conversations for a specific project */
+  getProjectConversations: (projectId: string) => FrontendConversation[];
   activeId: string | null;
   setActiveId: (id: string | null) => void;
   messages: FrontendMessage[];
@@ -142,7 +149,7 @@ interface UseConversationReturn {
   loadingMessages: boolean;
   loadConversation: (id: string) => Promise<void>;
   createConversation: (
-    options?: { title?: string; model?: string } | string
+    options?: { title?: string; model?: string; projectId?: string | null } | string
   ) => Promise<FrontendConversation | null>;
   renameConversation: (id: string, title: string) => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
@@ -315,21 +322,27 @@ export function useConversation(): UseConversationReturn {
     }
   }, []);
 
+  // Get current project ID from store to link new conversations with KB
+  const currentProjectId = useProjectStore((s) => s.currentProjectId);
+
   const createConversation = useCallback(
     async (
-      options: { title?: string; model?: string } | string = {}
+      options: { title?: string; model?: string; projectId?: string | null } | string = {}
     ): Promise<FrontendConversation | null> => {
       if (creatingConversation) return null;
 
       const title = typeof options === "string" ? options : options.title;
       const model = typeof options === "string" ? undefined : options.model;
+      // Use projectId from options if provided, otherwise use currentProjectId from store
+      const projectId =
+        typeof options === "string" ? currentProjectId : (options.projectId ?? currentProjectId);
 
       setCreatingConversation(true);
       try {
         const res = await fetch("/api/conversations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: title || "New Chat", model }),
+          body: JSON.stringify({ title: title || "New Chat", model, projectId }),
         });
 
         if (!res.ok) throw new Error("Failed to create conversation");
@@ -352,7 +365,7 @@ export function useConversation(): UseConversationReturn {
         setCreatingConversation(false);
       }
     },
-    [creatingConversation, mutate, upsertConversation]
+    [creatingConversation, mutate, upsertConversation, currentProjectId]
   );
 
   const renameConversation = useCallback(
@@ -472,9 +485,18 @@ export function useConversation(): UseConversationReturn {
     await mutate();
   }, [conversations, deleteConversation, mutate]);
 
+  // Computed: personal chats (no project) and project chats getter
+  const personalConversations = conversations.filter((c) => !c.projectId);
+  const getProjectConversations = useCallback(
+    (projectId: string) => conversations.filter((c) => c.projectId === projectId),
+    [conversations]
+  );
+
   return {
     // core
     conversations,
+    personalConversations,
+    getProjectConversations,
     activeId,
     setActiveId,
     messages,

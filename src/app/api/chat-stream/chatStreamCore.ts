@@ -33,6 +33,11 @@ import {
   type Message,
 } from "@/lib/features/chat/messages";
 import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
+import {
+  buildRAGContext,
+  injectRAGIntoSystemPrompt,
+  type RAGContext,
+} from "@/lib/features/projects/ragContext.server";
 
 import { generateOptimisticTitle, generateFinalTitle } from "@/lib/core/autoTitleEngine";
 
@@ -591,6 +596,26 @@ export async function handleChatStreamCore({
   } catch (e) {
     const error = e as Error;
     gemLoadError = String(error?.message || "");
+  }
+
+  // === RAG: Inject project knowledge base context ===
+  let ragContext: RAGContext = {
+    contextChunks: "",
+    sources: [],
+    ragEnabled: false,
+    projectId: null,
+  };
+  try {
+    ragContext = await buildRAGContext(userId, conversationId, content);
+    if (ragContext.ragEnabled && ragContext.sources.length > 0) {
+      coreLogger.info(
+        `[RAG ACTIVE] ${ragContext.sources.length} KB chunks injected for conversation ${conversationId}`
+      );
+      sysPrompt = injectRAGIntoSystemPrompt(sysPrompt, ragContext);
+    }
+  } catch (ragError) {
+    coreLogger.error("RAG context injection failed:", ragError);
+    // Continue without RAG - non-blocking
   }
 
   // Build message context with smart token window

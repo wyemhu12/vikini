@@ -10,7 +10,7 @@ import AttachmentsPanel, { type AttachmentsPanelRef } from "./AttachmentsPanel";
 import InputForm from "./InputForm";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
-import { type ThinkingLevel, isGemini3Model } from "./hooks/useThinkingLevel";
+import { type ThinkingLevel, modelSupportsThinkingUI } from "./hooks/useThinkingLevel";
 
 /** Gem info for display */
 interface GemInfo {
@@ -157,8 +157,8 @@ export default function ChatControls({
               </button>
             </>
           )}
-          {/* Thinking Level Selector - For ALL Gemini 3 models */}
-          {isGemini3Model(currentModel) && (
+          {/* Thinking Level Selector - For Gemini 2.5+ and 3+ models */}
+          {modelSupportsThinkingUI(currentModel) && (
             <>
               <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
               <ThinkingLevelSelector

@@ -2,7 +2,11 @@
 import { logger } from "@/lib/utils/logger";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
-import { getModelMaxOutputTokens } from "@/lib/core/modelRegistry";
+import {
+  getModelMaxOutputTokens,
+  modelSupportsThinking,
+  normalizeModelForApi,
+} from "@/lib/core/modelRegistry";
 
 // Type definitions for conversation objects
 interface CreatedConversation {
@@ -539,12 +543,25 @@ async function executeStream(
 
   // Resolve Thinking Models
   const apiModel = model;
-  let thinkingConfig: { thinkingLevel: string; includeThoughts?: boolean } | undefined;
+  const normalized = normalizeModelForApi(model);
 
-  // Apply user-selected thinking level (if not "off")
-  // Works for ALL Gemini 3 models with universal dropdown
+  // Thinking config - different API format for different model families
+  // Gemini 3: uses thinkingLevel (string: "low", "medium", "high")
+  // Gemini 2.5: uses thinkingBudget (number: 0 = off, -1 = dynamic, or specific token count)
+  let thinkingConfig:
+    | { thinkingLevel?: string; thinkingBudget?: number; includeThoughts?: boolean }
+    | undefined;
+
   if (thinkingLevel && thinkingLevel !== "off") {
-    thinkingConfig = { thinkingLevel, includeThoughts: true };
+    if (modelSupportsThinking(model)) {
+      // Gemini 3+: use thinkingLevel (string)
+      thinkingConfig = { thinkingLevel, includeThoughts: true };
+    } else if (normalized.startsWith("gemini-2.5")) {
+      // Gemini 2.5: use thinkingBudget (number)
+      // Map thinkingLevel to thinkingBudget: -1 = dynamic (auto-adjust based on complexity)
+      thinkingConfig = { thinkingBudget: -1, includeThoughts: true };
+    }
+    // Other models: no thinking config (would cause API error)
   }
 
   let full = "";

@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 /**
- * Thinking levels supported by Gemini 3 models.
+ * Thinking levels supported by Gemini models.
  * - "off" (default): No thinking mode
  * - "low": Faster responses, less reasoning
  * - "medium": Balanced (Flash only)
@@ -14,10 +14,17 @@ import { useCallback, useEffect, useState } from "react";
 export type ThinkingLevel = "off" | "high" | "low" | "medium" | "minimal";
 
 /**
- * Check if a model is a Gemini 3 model (supports thinking config)
+ * Check if a model is a Gemini 3 model (supports thinkingLevel config)
  */
 export function isGemini3Model(model: string): boolean {
   return model.includes("gemini-3");
+}
+
+/**
+ * Check if a model is a Gemini 2.5 model (supports thinkingBudget config)
+ */
+export function isGemini25Model(model: string): boolean {
+  return model.includes("gemini-2.5");
 }
 
 /**
@@ -25,6 +32,14 @@ export function isGemini3Model(model: string): boolean {
  */
 export function isGemini3FlashModel(model: string): boolean {
   return model.includes("gemini-3-flash");
+}
+
+/**
+ * Check if a model supports thinking UI toggle (Gemini 2.5+ or Gemini 3+)
+ * Backend will handle API format differences (thinkingBudget vs thinkingLevel)
+ */
+export function modelSupportsThinkingUI(model: string): boolean {
+  return isGemini25Model(model) || isGemini3Model(model);
 }
 
 interface UseThinkingLevelResult {
@@ -43,16 +58,21 @@ interface UseThinkingLevelResult {
 /**
  * Client-side preference store for Thinking Level.
  * - Persists to localStorage key: vikini.thinkingLevel
- * - Active for ALL Gemini 3 models
+ * - Active for Gemini 2.5+ and Gemini 3+ models
  * - Default: "off" (no thinking mode)
  */
 export function useThinkingLevel(currentModel: string): UseThinkingLevelResult {
   const [thinkingLevel, setThinkingLevelState] = useState<ThinkingLevel>("off");
 
-  const isThinkingEnabled = isGemini3Model(currentModel);
+  // Thinking toggle visible for both Gemini 2.5 and Gemini 3
+  const isThinkingEnabled = modelSupportsThinkingUI(currentModel);
+  // Extended levels only for Gemini 3 Flash
   const hasExtendedLevels = isGemini3FlashModel(currentModel);
 
   // Available levels based on model
+  // Gemini 2.5: simple on/off (high = dynamic thinkingBudget)
+  // Gemini 3 Flash: full range
+  // Gemini 3 Pro: basic levels
   const availableLevels: ThinkingLevel[] = hasExtendedLevels
     ? ["off", "minimal", "low", "medium", "high"]
     : ["off", "low", "high"];

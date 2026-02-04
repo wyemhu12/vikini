@@ -317,12 +317,14 @@ export function GalleryView() {
     <div className="h-screen w-screen text-(--text-primary) overflow-hidden relative font-sans bg-(--surface-base) flex">
       <Sidebar
         conversations={mainChats}
+        allConversations={conversations || []}
         onSelectConversation={(id) => router.push(`/?id=${id}`)}
         onNewChat={() => router.push("/")}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
+        t={t as unknown as Record<string, string>}
       />
 
       <FloatingMenuTrigger onClick={() => setMobileOpen(true)} />

@@ -25,6 +25,7 @@ import {
   deleteConversation,
   setConversationGem,
   setConversationModel,
+  setConversationProject,
 } from "@/lib/features/chat/conversations";
 import { getMessages } from "@/lib/features/chat/messages";
 
@@ -126,8 +127,9 @@ export async function POST(req: NextRequest) {
     const body = createConversationSchema.parse(rawBody);
     const title = body.title || CONVERSATION_DEFAULTS.TITLE;
     const model = body.model;
+    const projectId = body.projectId;
 
-    const conversation = await saveConversation(userId, { title, model });
+    const conversation = await saveConversation(userId, { title, model, projectId });
     routeLogger.info(`Created conversation ${conversation?.id} for user: ${userId}`);
 
     perfMonitor.end(HTTP_STATUS.CREATED, {
@@ -182,9 +184,10 @@ export async function PATCH(req: NextRequest) {
       return errorFromAppError(new ValidationError(message || "Invalid request body"));
     }
 
-    const { id, title, gemId, model } = body;
+    const { id, title, gemId, model, projectId } = body;
     const hasGemId = Object.prototype.hasOwnProperty.call(rawBody, "gemId");
     const hasModel = Object.prototype.hasOwnProperty.call(rawBody, "model");
+    const hasProjectId = Object.prototype.hasOwnProperty.call(rawBody, "projectId");
 
     let conversation = null;
 
@@ -200,6 +203,11 @@ export async function PATCH(req: NextRequest) {
     // ✅ NEW: Handle model update
     if (hasModel && model) {
       conversation = await setConversationModel(userId, id, model);
+    }
+
+    // ✅ NEW: Handle project update (for RAG)
+    if (hasProjectId) {
+      conversation = await setConversationProject(userId, id, projectId ?? null);
     }
 
     // fallback: return current
