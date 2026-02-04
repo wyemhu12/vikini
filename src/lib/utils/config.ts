@@ -96,6 +96,7 @@ export const translations: TranslationSet = {
     modelDescMistralSmall: "Mistral Small 3.1 (Miễn phí)",
     modelDescClaudeHaiku: "Claude 4.5 nhanh nhất",
     modelDescClaudeSonnet: "Claude 4.5 thông minh",
+    modelDescDeepSeekV32: "DeepSeek V3.2 thông minh (~$0.28/M tokens)",
     // Web search
     webSearch: "Tìm kiếm Web",
     webSearchOn: "BẬT",
@@ -423,6 +424,7 @@ export const translations: TranslationSet = {
     modelDescMistralSmall: "Mistral Small 3.1 (Free)",
     modelDescClaudeHaiku: "Claude 4.5 fastest",
     modelDescClaudeSonnet: "Claude 4.5 intelligent",
+    modelDescDeepSeekV32: "DeepSeek V3.2 intelligent (~$0.28/M tokens)",
     webSearch: "Web Search",
     webSearchOn: "ON",
     webSearchOff: "OFF",

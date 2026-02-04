@@ -175,6 +175,21 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     category: "reasoning",
     providerId: "anthropic",
   },
+
+  // ═══════════════════════════════════════════════════════════
+  // DEEPSEEK MODELS (via OpenRouter - Cheapest Provider)
+  // :floor suffix = auto-route to lowest price provider
+  // ═══════════════════════════════════════════════════════════
+  {
+    id: "deepseek/deepseek-v3.2:floor",
+    name: "DeepSeek V3.2",
+    descKey: "modelDescDeepSeekV32",
+    tokenLimit: 128000,
+    contextWindow: 128000,
+    maxOutputTokens: 16384,
+    category: "reasoning",
+    providerId: "deepseek",
+  },
 ] as const;
 
 export const PROVIDER_LABELS: Record<string, string> = {
@@ -215,6 +230,9 @@ const API_ALLOWED = new Set([
   // Claude (Anthropic)
   "claude-haiku-4.5",
   "claude-sonnet-4.5",
+
+  // DeepSeek via OpenRouter
+  "deepseek/deepseek-v3.2:floor",
 ]);
 
 // Back-compat aliases and deprecations.

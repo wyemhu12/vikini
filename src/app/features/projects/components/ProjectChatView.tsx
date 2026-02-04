@@ -60,8 +60,9 @@ export function ProjectChatView({
 
     if (diffDays === 0) return language === "vi" ? "Hôm nay" : "Today";
     if (diffDays === 1) return language === "vi" ? "Hôm qua" : "Yesterday";
-    if (diffDays < 7)
+    if (diffDays < 7) {
       return date.toLocaleDateString(language === "vi" ? "vi-VN" : "en-US", { weekday: "short" });
+    }
     return date.toLocaleDateString(language === "vi" ? "vi-VN" : "en-US", {
       month: "short",
       day: "numeric",

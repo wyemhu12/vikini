@@ -1,7 +1,7 @@
 # Danh sách Model và Tính năng - Vikini
 
-> **Cập nhật**: 2026-01-26  
-> **Nguồn**: [Google AI - Gemini Models](https://ai.google.dev/gemini-api/docs/models)
+> **Cập nhật**: 2026-02-04  
+> **Nguồn**: [Google AI - Gemini Models](https://ai.google.dev/gemini-api/docs/models), [OpenRouter](https://openrouter.ai)
 
 ---
 
@@ -108,6 +108,31 @@
 | **Category**           | Low-latency / Reasoning |
 
 ---
+
+## DeepSeek Models (via OpenRouter)
+
+### deepseek/deepseek-v3.2:floor
+
+| Thuộc tính             | Giá trị                         |
+| ---------------------- | ------------------------------- |
+| **Tên hiển thị**       | DeepSeek V3.2                   |
+| **Input token limit**  | 128,000                         |
+| **Output token limit** | 16,384                          |
+| **Category**           | Reasoning                       |
+| **Provider**           | OpenRouter (auto cheapest)      |
+| **Pricing**            | ~$0.28/M input, ~$0.40/M output |
+
+**Supported Features:**
+| Feature | Status |
+|---------|--------|
+| Reasoning | ✅ Strong reasoning capability |
+| Tool Use | ✅ Supported |
+| DSA (Sparse Attention) | ✅ Efficient long-context |
+| Thinking Mode | ❌ Not supported |
+| Image Generation | ❌ Not supported |
+
+> [!NOTE]
+> `:floor` suffix = OpenRouter tự động route tới provider có giá thấp nhất.
 
 ## Thinking Mode (Gemini 3 Only)
 
