@@ -1250,11 +1250,17 @@ export function createOpenAICompatibleStream(params: {
           model: model,
           messages: openAIMessages,
           stream: true,
+          stream_options: { include_usage: true }, // Enable usage in stream
           temperature: 0.7,
           max_tokens: 8192,
         });
 
         const stream = await withTimeout(streamPromise, timeoutMs);
+
+        // Track usage from final chunk
+        let promptTokens: number | undefined;
+        let completionTokens: number | undefined;
+        let totalTokens: number | undefined;
 
         for await (const chunk of stream) {
           const text = chunk.choices[0]?.delta?.content || "";
@@ -1262,6 +1268,23 @@ export function createOpenAICompatibleStream(params: {
             full += text;
             sendEvent(controller, "token", { t: text });
           }
+
+          // OpenAI/OpenRouter returns usage in final chunk when stream_options.include_usage is true
+          if (chunk.usage) {
+            promptTokens = chunk.usage.prompt_tokens;
+            completionTokens = chunk.usage.completion_tokens;
+            totalTokens = chunk.usage.total_tokens;
+          }
+        }
+
+        // Send usage metadata if available
+        if (totalTokens !== undefined) {
+          sendEvent(controller, "meta", {
+            type: "usageMetadata",
+            promptTokenCount: promptTokens,
+            candidatesTokenCount: completionTokens,
+            totalTokenCount: totalTokens,
+          });
         }
       } catch (e) {
         // Handle timeout specifically
