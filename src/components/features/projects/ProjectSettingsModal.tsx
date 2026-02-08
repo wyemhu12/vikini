@@ -100,7 +100,7 @@ export function ProjectSettingsModal({
       body: JSON.stringify({
         filename: file.name,
         content,
-        mime_type: file.type || "text/plain",
+        mimeType: file.type || "text/plain",
       }),
     });
 

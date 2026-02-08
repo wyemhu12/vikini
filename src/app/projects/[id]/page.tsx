@@ -71,7 +71,7 @@ export default function ProjectPage() {
       body: JSON.stringify({
         filename: file.name,
         content,
-        mime_type: file.type || "text/plain",
+        mimeType: file.type || "text/plain",
       }),
     });
 
