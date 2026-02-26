@@ -63,10 +63,12 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     category: "low-latency",
     providerId: "gemini",
   },
+
+  // Gemini 3.1 Series (March 2026 - replaces Gemini 3 Pro)
   {
-    id: "gemini-3-pro-preview",
-    descKey: "modelDescPro3",
-    name: "Gemini 3 Pro",
+    id: "gemini-3.1-pro-preview",
+    descKey: "modelDescPro31",
+    name: "Gemini 3.1 Pro",
     tokenLimit: 2000000,
     contextWindow: 2000000,
     maxOutputTokens: 65536,
@@ -213,8 +215,10 @@ const API_ALLOWED = new Set([
 
   // Gemini 3 official IDs (with -preview suffix)
   "gemini-3-flash-preview",
-  "gemini-3-pro-preview",
   "gemini-3-pro-image-preview",
+
+  // Gemini 3.1 (March 2026)
+  "gemini-3.1-pro-preview",
 
   // Llama via Groq
   "llama-3.3-70b-versatile",
@@ -247,8 +251,12 @@ export const MODEL_ALIASES: Record<string, string> = {
 
   // Gemini 3 aliases → official preview IDs
   "gemini-3-flash": "gemini-3-flash-preview",
-  "gemini-3-pro": "gemini-3-pro-preview",
   "gemini-3-pro-image": "gemini-3-pro-image-preview",
+
+  // Gemini 3.1 aliases (+ deprecated Gemini 3 Pro → 3.1)
+  "gemini-3.1-pro": "gemini-3.1-pro-preview",
+  "gemini-3-pro": "gemini-3.1-pro-preview",
+  "gemini-3-pro-preview": "gemini-3.1-pro-preview",
 
   // Legacy Groq Llama models
   "llama3-70b-8192": "llama-3.3-70b-versatile",
@@ -323,6 +331,6 @@ export function getModelMaxOutputTokens(modelId: unknown): number | undefined {
  */
 export function modelSupportsThinking(modelId: unknown): boolean {
   const normalized = normalizeModelForApi(modelId);
-  // Only Gemini 3+ supports thinkingLevel parameter
-  return normalized.startsWith("gemini-3");
+  // Gemini 3+ and 3.1+ support thinkingLevel parameter
+  return normalized.startsWith("gemini-3") || normalized.startsWith("gemini-3.");
 }

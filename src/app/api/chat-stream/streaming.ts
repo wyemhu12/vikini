@@ -243,6 +243,9 @@ export function isGemini3Model(model: string): boolean {
     "gemini-3-pro-image-preview",
     "gemini-3-pro-thinking",
     "gemini-3-flash-thinking",
+    // Gemini 3.1 series (March 2026)
+    "gemini-3.1-pro",
+    "gemini-3.1-pro-preview",
   ];
   return gemini3Identifiers.some((id) => model.includes(id) || model.startsWith(id));
 }

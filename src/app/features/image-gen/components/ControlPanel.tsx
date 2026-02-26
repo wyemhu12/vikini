@@ -139,6 +139,8 @@ export default function ControlPanel({
           </SelectTrigger>
           <SelectContent className="bg-(--surface-elevated) border border-(--border) shadow-xl z-100">
             <SelectItem value="imagen-4.0-generate-001">Imagen 4.0 (Gemini)</SelectItem>
+            <SelectItem value="gemini-3.1-flash-image-preview">Nano Banana 2 (Gemini)</SelectItem>
+            <SelectItem value="gemini-3-pro-image-preview">Nano Banana Pro (Gemini)</SelectItem>
             <SelectItem value="black-forest-labs/flux-schnell">Flux Schnell (Replicate)</SelectItem>
             <SelectItem value="dall-e-3">DALL-E 3 (OpenAI)</SelectItem>
           </SelectContent>

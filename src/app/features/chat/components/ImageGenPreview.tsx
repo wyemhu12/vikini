@@ -50,6 +50,8 @@ function formatModelName(model?: string): string {
   if (!model) return "";
   // Shorten common model names
   if (model.includes("imagen-4")) return "Imagen 4";
+  if (model.includes("gemini-3.1-flash-image")) return "Nano Banana 2";
+  if (model.includes("gemini-3-pro-image")) return "Nano Banana Pro";
   if (model.includes("flux-schnell")) return "Flux";
   if (model.includes("dall-e")) return "DALL·E 3";
   return model;

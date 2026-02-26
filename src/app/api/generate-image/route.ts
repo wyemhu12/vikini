@@ -146,9 +146,14 @@ export async function POST(req: NextRequest) {
 
     // 3. Generate Image
     // Determine provider based on model override or default
-    let providerName = "gemini"; // Default
+    let providerName = "gemini"; // Default (Imagen 4)
     const modelName = options?.model?.toLowerCase();
     if (
+      modelName?.includes("gemini-3.1-flash-image") ||
+      modelName?.includes("gemini-3-pro-image")
+    ) {
+      providerName = "gemini-native";
+    } else if (
       modelName?.includes("flux") ||
       modelName?.includes("replicate") ||
       modelName?.includes("schnell")
@@ -243,11 +248,13 @@ export async function POST(req: NextRequest) {
       options?.model ||
       (providerName === "gemini"
         ? "Imagen 4"
-        : providerName === "openai"
-          ? "DALL-E 3"
-          : providerName === "replicate"
-            ? "Flux"
-            : "Unknown");
+        : providerName === "gemini-native"
+          ? "Nano Banana"
+          : providerName === "openai"
+            ? "DALL-E 3"
+            : providerName === "replicate"
+              ? "Flux"
+              : "Unknown");
 
     const savedOptions = {
       ...options,

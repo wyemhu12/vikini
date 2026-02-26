@@ -17,7 +17,7 @@ export type ThinkingLevel = "off" | "high" | "low" | "medium" | "minimal";
  * Check if a model is a Gemini 3 model (supports thinkingLevel config)
  */
 export function isGemini3Model(model: string): boolean {
-  return model.includes("gemini-3");
+  return model.includes("gemini-3") || model.includes("gemini-3.");
 }
 
 /**

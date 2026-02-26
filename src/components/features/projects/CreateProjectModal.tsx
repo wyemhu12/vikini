@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   Loader2,
@@ -68,12 +68,19 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState("folder");
   const [color, setColor] = useState("#6366f1");
-  const [embeddingModel, setEmbeddingModel] = useState<EmbeddingModel>("gemini-embedding-001");
+  const [embeddingModel, setEmbeddingModel] = useState<EmbeddingModel>("text-embedding-004");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const availableModels = limits?.availableModels ?? ["text-embedding-004"];
   const canUseGemini = availableModels.includes("gemini-embedding-001");
+
+  // Auto-select best available model when tier limits load
+  useEffect(() => {
+    if (canUseGemini) {
+      setEmbeddingModel("gemini-embedding-001");
+    }
+  }, [canUseGemini]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

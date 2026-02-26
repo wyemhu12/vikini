@@ -21,7 +21,7 @@ const projectLogger = logger.withContext("projects");
 export async function getUserTier(userId: string): Promise<UserTier> {
   const supabase = getSupabaseAdmin();
 
-  const { data } = await supabase.from("users").select("rank").eq("email", userId).single();
+  const { data } = await supabase.from("profiles").select("rank").eq("email", userId).single();
 
   if (!data?.rank) return "basic";
 
@@ -129,7 +129,7 @@ export async function createProject(userId: string, input: CreateProjectInput): 
   }
 
   // Validate embedding model for tier
-  const embeddingModel = input.embedding_model || "gemini-embedding-001";
+  const embeddingModel = input.embedding_model || "text-embedding-004";
   if (!(limits.embeddingModels as readonly string[]).includes(embeddingModel)) {
     throw new Error(`Embedding model ${embeddingModel} not available for ${tier} tier`);
   }

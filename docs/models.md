@@ -1,18 +1,22 @@
 # Danh sách Model và Tính năng - Vikini
 
-> **Cập nhật**: 2026-02-04  
+> **Cập nhật**: 2026-02-26  
 > **Nguồn**: [Google AI - Gemini Models](https://ai.google.dev/gemini-api/docs/models), [OpenRouter](https://openrouter.ai)
 
 ---
 
-## Gemini 3 Series (Latest)
+## Gemini 3.1 Series
 
-### gemini-3-pro-preview
+> [!IMPORTANT]
+> **Migration Notice (March 2026)**: `gemini-3-pro-preview` sẽ bị discontinue ngày 9/3/2026.
+> Vikini đã migrate sang `gemini-3.1-pro-preview`. Alias cũ (`gemini-3-pro`, `gemini-3-pro-preview`) tự động redirect.
+
+### gemini-3.1-pro-preview
 
 | Thuộc tính             | Giá trị                        |
 | ---------------------- | ------------------------------ |
-| **Tên hiển thị**       | Gemini 3 Pro                   |
-| **Input token limit**  | 1,048,576 (1M)                 |
+| **Tên hiển thị**       | Gemini 3.1 Pro                 |
+| **Input token limit**  | 2,000,000 (2M)                 |
 | **Output token limit** | 65,536 (65K)                   |
 | **Inputs**             | Text, Image, Video, Audio, PDF |
 | **Outputs**            | Text                           |
