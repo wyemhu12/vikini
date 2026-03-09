@@ -301,6 +301,28 @@ export async function hasUnlimitedGems(userId: string): Promise<boolean> {
 }
 
 // =====================================================================================
+// Conversation Storage Limit (Rank-Based)
+// =====================================================================================
+
+const CONVERSATION_STORAGE_MULTIPLIER = 5;
+
+/**
+ * Get max total bytes allowed per conversation based on user's rank.
+ * Derived from rank's max_file_size_mb × multiplier.
+ * If env var ATTACH_MAX_TOTAL_BYTES_PER_CONV is set, it acts as an absolute override.
+ */
+export async function getConversationStorageLimit(userId: string): Promise<number> {
+  const envOverride = process.env.ATTACH_MAX_TOTAL_BYTES_PER_CONV;
+  if (envOverride) {
+    const n = Number(envOverride);
+    if (Number.isFinite(n) && n > 0) return Math.floor(n);
+  }
+
+  const limits = await getUserLimits(userId);
+  return limits.max_file_size_mb * CONVERSATION_STORAGE_MULTIPLIER * 1024 * 1024;
+}
+
+// =====================================================================================
 // Cache Invalidation
 // =====================================================================================
 

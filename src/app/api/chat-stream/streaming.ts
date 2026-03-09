@@ -1237,15 +1237,42 @@ export function createOpenAICompatibleStream(params: {
       let full = "";
 
       try {
-        // Map contents to OpenAI format
-        // contents from chatStreamCore is [{ role: "user", parts: [{text: ""}] }]
-        // OpenAI expects: [{ role: "user", content: "" }]
+        // Map contents to OpenAI format with multimodal support
+        // contents from chatStreamCore is [{ role: "user", parts: [{text: ""}, {inlineData: {data, mimeType}}] }]
+        // OpenAI expects: [{ role: "user", content: [{type: "text", text: ""}, {type: "image_url", image_url: {url: "data:..."}}] }]
+        type GeminiPart = { text?: string; inlineData?: { data: string; mimeType: string } };
         const openAIMessages = [
-          { role: "system", content: sysPrompt },
-          ...(contents as Array<{ role: string; parts: Array<{ text?: string }> }>).map((m) => ({
-            role: m.role === "model" ? "assistant" : m.role,
-            content: m.parts.map((p) => p.text || "").join(""),
-          })),
+          { role: "system" as const, content: sysPrompt },
+          ...(contents as Array<{ role: string; parts: GeminiPart[] }>).map((m) => {
+            const hasImages = m.parts.some((p) => p.inlineData);
+            if (hasImages) {
+              // Multimodal message: use content array format
+              const contentParts: Array<
+                { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
+              > = [];
+              for (const p of m.parts) {
+                if (p.inlineData) {
+                  contentParts.push({
+                    type: "image_url" as const,
+                    image_url: {
+                      url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}`,
+                    },
+                  });
+                } else if (p.text) {
+                  contentParts.push({ type: "text" as const, text: p.text });
+                }
+              }
+              return {
+                role: m.role === "model" ? "assistant" : m.role,
+                content: contentParts,
+              };
+            }
+            // Text-only message: use simple string content
+            return {
+              role: m.role === "model" ? "assistant" : m.role,
+              content: m.parts.map((p) => p.text || "").join(""),
+            };
+          }),
         ] as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
 
         const timeoutMs = getStreamTimeout(model);
@@ -1414,15 +1441,47 @@ export function createAnthropicStream({
       let full = "";
 
       try {
-        // Map contents to Anthropic format
-        // contents: [{ role: "user", parts: [{text: ""}] }]
-        // Anthropic: [{ role: "user" | "assistant", content: string }]
-        const anthropicMessages = (
-          contents as Array<{ role: string; parts: Array<{ text?: string }> }>
-        ).map((m) => ({
-          role: (m.role === "model" ? "assistant" : m.role) as "user" | "assistant",
-          content: m.parts.map((p) => p.text || "").join(""),
-        }));
+        // Map contents to Anthropic format with multimodal support
+        // contents: [{ role: "user", parts: [{text: ""}, {inlineData: {data, mimeType}}] }]
+        // Anthropic: [{ role: "user", content: [{type: "text", text: ""}, {type: "image", source: {...}}] }]
+        type AnthropicMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+        type GeminiPartA = { text?: string; inlineData?: { data: string; mimeType: string } };
+        const anthropicMessages = (contents as Array<{ role: string; parts: GeminiPartA[] }>).map(
+          (m) => {
+            const hasImages = m.parts.some((p) => p.inlineData);
+            if (hasImages) {
+              const contentBlocks: Array<
+                | { type: "text"; text: string }
+                | {
+                    type: "image";
+                    source: { type: "base64"; media_type: AnthropicMediaType; data: string };
+                  }
+              > = [];
+              for (const p of m.parts) {
+                if (p.inlineData) {
+                  contentBlocks.push({
+                    type: "image" as const,
+                    source: {
+                      type: "base64" as const,
+                      media_type: p.inlineData.mimeType as AnthropicMediaType,
+                      data: p.inlineData.data,
+                    },
+                  });
+                } else if (p.text) {
+                  contentBlocks.push({ type: "text" as const, text: p.text });
+                }
+              }
+              return {
+                role: (m.role === "model" ? "assistant" : m.role) as "user" | "assistant",
+                content: contentBlocks,
+              };
+            }
+            return {
+              role: (m.role === "model" ? "assistant" : m.role) as "user" | "assistant",
+              content: m.parts.map((p) => p.text || "").join(""),
+            };
+          }
+        );
 
         const timeoutMs = getStreamTimeout(model);
         const streamPromise = ai.messages.create({

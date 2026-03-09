@@ -647,7 +647,11 @@ export async function enforceConversationQuotas({
     throw new Error("Too many files in this conversation");
   }
 
-  if (total + Number(addBytes || 0) > cfg.maxTotalBytesPerConversation) {
+  // Rank-aware storage limit
+  const { getConversationStorageLimit } = await import("@/lib/core/limits");
+  const maxBytes = await getConversationStorageLimit(userId);
+
+  if (total + Number(addBytes || 0) > maxBytes) {
     throw new Error("Conversation storage quota exceeded");
   }
 }
