@@ -669,7 +669,9 @@ export async function listAttachmentsForConversation({
 
   const { data, error } = await supabase
     .from("attachments")
-    .select("id,conversation_id,message_id,filename,mime_type,size_bytes,created_at,expires_at")
+    .select(
+      "id,conversation_id,message_id,bucket,storage_path,filename,mime_type,size_bytes,created_at,expires_at"
+    )
     .eq("conversation_id", conversationId)
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
