@@ -651,6 +651,12 @@ export async function enforceConversationQuotas({
   const { getConversationStorageLimit } = await import("@/lib/core/limits");
   const maxBytes = await getConversationStorageLimit(userId);
 
+  logger.debug(
+    `[QUOTA CHECK] userId=${userId}, convId=${conversationId}, ` +
+      `alive=${count}, totalBytes=${total}, addBytes=${addBytes}, ` +
+      `maxBytes=${maxBytes} (${Math.round(maxBytes / 1024 / 1024)}MB)`
+  );
+
   if (total + Number(addBytes || 0) > maxBytes) {
     throw new Error("Conversation storage quota exceeded");
   }

@@ -57,6 +57,7 @@ export function useChatStreamController({
   onStreamError,
 }: UseChatStreamControllerParams) {
   const [messages, setMessages] = useState<FrontendMessage[]>([]);
+  const messagesRef = useRef<FrontendMessage[]>([]);
   const [input, setInput] = useState("");
   const [creatingConversation, setCreatingConversation] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -106,6 +107,11 @@ export function useChatStreamController({
   useEffect(() => {
     streamingAssistantRef.current = streamingAssistant;
   }, [streamingAssistant]);
+
+  // Keep messagesRef always in sync with latest messages state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Typewriter: Start the interval that drains buffer to display
   const startTypewriter = useCallback(() => {
@@ -609,7 +615,8 @@ export function useChatStreamController({
       setRegenerating(true);
 
       try {
-        const currentMsgs = normalizeMessages(messages);
+        // Use messagesRef to always get the latest messages (avoid stale closure)
+        const currentMsgs = normalizeMessages(messagesRef.current);
         let targetIndex = -1;
 
         if (specificMessage) {
@@ -646,14 +653,17 @@ export function useChatStreamController({
         setRegenerating(false);
       }
     },
-    [coreSend, isStreaming, messages, normalizeMessages]
+    [coreSend, isStreaming, normalizeMessages]
   );
 
   const handleEdit = useCallback(
     async (originalMessage: FrontendMessage, newContent: string) => {
       if (isStreaming) return;
 
-      const currentMsgs = normalizeMessages(messages);
+      // Use messagesRef to always get the latest messages (avoid stale closure)
+      // This fixes the bug where 2nd edit finds index === -1 because
+      // messages in the closure was stale after the 1st edit's stream cycle.
+      const currentMsgs = normalizeMessages(messagesRef.current);
       const index = currentMsgs.findIndex(
         (m) => m === originalMessage || (m.id && m.id === originalMessage.id)
       );
@@ -667,7 +677,7 @@ export function useChatStreamController({
         skipSaveUserMessage: false,
       });
     },
-    [coreSend, isStreaming, messages, normalizeMessages]
+    [coreSend, isStreaming, normalizeMessages]
   );
 
   const handleStop = useCallback(() => {

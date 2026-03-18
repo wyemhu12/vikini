@@ -29,13 +29,13 @@ export type ModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];
 export const CLAUDE_API_MODELS = {
   // OpenRouter format
   OPENROUTER: {
-    [MODEL_IDS.CLAUDE_SONNET_45]: "anthropic/claude-sonnet-4",
-    [MODEL_IDS.CLAUDE_HAIKU_45]: "anthropic/claude-haiku-4",
+    [MODEL_IDS.CLAUDE_SONNET_45]: "anthropic/claude-sonnet-4-6",
+    [MODEL_IDS.CLAUDE_HAIKU_45]: "anthropic/claude-haiku-4-5",
   },
   // Native Anthropic format
   ANTHROPIC: {
-    [MODEL_IDS.CLAUDE_SONNET_45]: "claude-3-5-sonnet-latest",
-    [MODEL_IDS.CLAUDE_HAIKU_45]: "claude-3-5-haiku-latest",
+    [MODEL_IDS.CLAUDE_SONNET_45]: "claude-sonnet-4-6",
+    [MODEL_IDS.CLAUDE_HAIKU_45]: "claude-haiku-4-5",
   },
 } as const;
 

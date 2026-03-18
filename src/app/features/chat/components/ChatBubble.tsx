@@ -497,8 +497,15 @@ const ChatBubble = React.memo(
                     value={editContent}
                     onChange={(e) => {
                       setEditContent(e.target.value);
+                      // Save parent scroll position before resize to prevent mobile viewport jump
+                      const scrollParent = e.target.closest(".overflow-y-auto");
+                      const savedScrollTop = scrollParent?.scrollTop ?? 0;
                       e.target.style.height = "auto";
                       e.target.style.height = `${e.target.scrollHeight}px`;
+                      // Restore scroll position immediately after resize
+                      if (scrollParent) {
+                        scrollParent.scrollTop = savedScrollTop;
+                      }
                     }}
                     className="w-full bg-surface-elevated text-primary p-3 rounded-md outline-none resize-none overflow-hidden font-mono text-sm leading-6 border border-token min-h-[40px] focus-visible:ring-0"
                     rows={1}
