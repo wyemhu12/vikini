@@ -53,27 +53,27 @@ export default function Canvas({ images, generating, onRemix, onDelete }: Canvas
             />
 
             {/* Overlay with Controls */}
-            <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/40 to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-4">
+            <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/40 to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3 overflow-y-auto overflow-x-hidden">
               {/* Top Metadata Badges */}
-              <div className="flex flex-wrap gap-2 transform -translate-y-2 group-hover:translate-y-0 transition-transform duration-300 content-start relative w-full">
+              <div className="flex flex-wrap gap-1.5 transform -translate-y-2 group-hover:translate-y-0 transition-transform duration-300 content-start relative w-full shrink-0">
                 {item.model && (
-                  <span className="text-[10px] font-bold px-2 py-1 rounded bg-blue-500/80 text-white border border-white/10 backdrop-blur-md">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/80 text-white border border-white/10 backdrop-blur-md">
                     {item.model}
                   </span>
                 )}
                 {item.aspectRatio && (
-                  <span className="text-[10px] font-bold px-2 py-1 rounded bg-black/60 text-white border border-white/10 backdrop-blur-md">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-black/60 text-white border border-white/10 backdrop-blur-md">
                     {item.aspectRatio}
                   </span>
                 )}
                 {item.enhancer && (
-                  <span className="text-[10px] font-bold px-2 py-1 rounded bg-linear-to-r from-pink-500 to-purple-500 text-white border border-white/10 backdrop-blur-md flex items-center gap-1">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-linear-to-r from-pink-500 to-purple-500 text-white border border-white/10 backdrop-blur-md flex items-center gap-1">
                     <Sparkles className="w-3 h-3" /> Magic
                   </span>
                 )}
 
                 {/* Top Right Actions */}
-                <div className="ml-auto flex gap-2">
+                <div className="ml-auto flex gap-1.5">
                   {item.id && (
                     <button
                       onClick={() => onDelete(item.id!)}
@@ -87,25 +87,25 @@ export default function Canvas({ images, generating, onRemix, onDelete }: Canvas
               </div>
 
               {/* Bottom Controls Area */}
-              <div className="flex flex-col gap-3 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                {/* Scrollable Prompt */}
-                <div className="max-h-[140px] overflow-y-auto custom-scrollbar bg-black/60 backdrop-blur-md p-3 rounded-lg border border-white/10 shadow-lg">
-                  <p className="text-white/90 text-xs font-medium leading-relaxed font-mono">
-                    "{item.prompt}"
+              <div className="flex flex-col gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 mt-auto shrink-0">
+                {/* Scrollable Prompt - capped shorter so buttons always visible */}
+                <div className="max-h-[80px] overflow-y-auto custom-scrollbar bg-black/60 backdrop-blur-md p-2 rounded-lg border border-white/10 shadow-lg">
+                  <p className="text-white/90 text-[11px] font-medium leading-relaxed font-mono">
+                    &quot;{item.prompt}&quot;
                   </p>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center justify-between">
+                {/* Action Buttons - always visible */}
+                <div className="flex items-center justify-between gap-2">
                   <button
                     onClick={() => onRemix(item)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/80 hover:bg-purple-600 text-white backdrop-blur-md transition-colors border border-purple-400/30 text-xs font-bold shadow-lg shadow-purple-900/40"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/80 hover:bg-purple-600 text-white backdrop-blur-md transition-colors border border-purple-400/30 text-xs font-bold shadow-lg shadow-purple-900/40 shrink-0"
                     title={t("studioReuse")}
                   >
                     <RefreshCcw className="w-3 h-3" /> {t("studioReuse")}
                   </button>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5 shrink-0">
                     <button
                       onClick={() => {
                         const link = document.createElement("a");
@@ -116,17 +116,17 @@ export default function Canvas({ images, generating, onRemix, onDelete }: Canvas
                         link.click();
                         document.body.removeChild(link);
                       }}
-                      className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/5"
+                      className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/5"
                       title={t("studioDownload")}
                     >
-                      <Download className="w-4 h-4" />
+                      <Download className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => window.open(item.url, "_blank")}
-                      className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/5"
+                      className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/5"
                       title={t("studioFullscreen")}
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <ExternalLink className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
