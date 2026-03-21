@@ -159,6 +159,27 @@ export function useChatStreamController({
     };
   }, []);
 
+  const reloadMessagesAfterStream = useCallback(
+    async (convId: string | null) => {
+      if (!convId) return;
+
+      try {
+        const res = await fetch(`/api/conversations?id=${convId}`, { cache: "no-store" });
+        if (res.ok) {
+          const json = await res.json();
+          const data = json.data || json;
+          if (data?.messages && Array.isArray(data.messages)) {
+            setMessages(normalizeMessages(data.messages));
+          }
+        }
+      } catch (reloadError) {
+        // Non-critical: if reload fails, continue with local state
+        logger.warn("Failed to reload messages after stream:", reloadError);
+      }
+    },
+    [normalizeMessages]
+  );
+
   // Hủy request và tùy chọn lưu lại nội dung đang stream dở
   const cancelStream = useCallback(
     (commitPartial = false) => {
@@ -191,8 +212,14 @@ export function useChatStreamController({
       setStreamingAssistant(null);
       setStreamingSources([]);
       setStreamingUrlContext([]);
+
+      // Reload messages from server to ensure all messages have proper IDs
+      // This fixes the edit-after-stop bug where handleEdit can't find messages
+      if (commitPartial && selectedConversationId) {
+        reloadMessagesAfterStream(selectedConversationId);
+      }
     },
-    [normalizeMessages, stopTypewriter]
+    [normalizeMessages, stopTypewriter, selectedConversationId, reloadMessagesAfterStream]
   );
 
   const resetChatUI = useCallback(() => {
@@ -474,27 +501,6 @@ export function useChatStreamController({
       }
     },
     [handleStreamMetaEvent, onStreamError, startTypewriter, appendToTypewriterBuffer]
-  );
-
-  const reloadMessagesAfterStream = useCallback(
-    async (convId: string | null) => {
-      if (!convId) return;
-
-      try {
-        const res = await fetch(`/api/conversations?id=${convId}`, { cache: "no-store" });
-        if (res.ok) {
-          const json = await res.json();
-          const data = json.data || json;
-          if (data?.messages && Array.isArray(data.messages)) {
-            setMessages(normalizeMessages(data.messages));
-          }
-        }
-      } catch (reloadError) {
-        // Non-critical: if reload fails, continue with local state
-        logger.warn("Failed to reload messages after stream:", reloadError);
-      }
-    },
-    [normalizeMessages]
   );
 
   const coreSend = useCallback(
