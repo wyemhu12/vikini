@@ -54,6 +54,8 @@ interface ModelSelectorProps {
   isModelAllowed: (id: string) => boolean;
   t: Record<string, string>;
   disabled: boolean;
+  /** If true, dropdown expands downward (landing page). Default: upward (chat view). */
+  expandDown?: boolean;
 }
 
 export default function ModelSelector({
@@ -62,10 +64,11 @@ export default function ModelSelector({
   isModelAllowed,
   t,
   disabled,
+  expandDown = false,
 }: ModelSelectorProps) {
   // ... (keep state)
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"service" | "providers">("service");
+  const [activeTab, setActiveTab] = useState<"service" | "providers">("providers");
   const [activeProviderFilter, setActiveProviderFilter] = useState<string>("gemini");
 
   const currentModel = useMemo(
@@ -127,9 +130,11 @@ export default function ModelSelector({
 
       {/* DROPDOWN CONTENT */}
       {isOpen && (
-        <Card className="absolute bottom-full left-0 mb-2 w-[350px] bg-(--surface-muted) border border-(--border) rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100">
+        <Card
+          className={`absolute ${expandDown ? "top-full mt-2" : "bottom-full mb-2"} left-0 w-[350px] max-h-[min(450px,50vh)] bg-(--surface-muted) border border-(--border) rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100`}
+        >
           {/* TABS HEADER */}
-          <div className="flex items-center p-1 bg-(--control-bg) border-b border-(--border)">
+          <div className="flex items-center p-1 bg-(--control-bg) border-b border-(--border) shrink-0">
             <button
               onClick={() => setActiveTab("providers")}
               className={`flex-1 text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all ${
@@ -152,7 +157,7 @@ export default function ModelSelector({
             </button>
           </div>
 
-          <div className="max-h-[450px] overflow-y-auto custom-scrollbar bg-(--surface-muted)">
+          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-(--surface-muted)">
             {/* --- PROVIDERS VIEW --- */}
             {activeTab === "providers" && (
               <div className="flex flex-col">

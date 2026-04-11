@@ -86,16 +86,25 @@ export function useChatStreamController({
   const normalizeMessages = useCallback((arr: FrontendMessage[] | unknown): FrontendMessage[] => {
     const safe = safeArray<FrontendMessage>(arr);
     return safe
-      .map(
-        (m): FrontendMessage => ({
+      .map((m): FrontendMessage => {
+        // Sources/urlContext can be top-level (from streaming) or inside meta (from DB reload)
+        const meta = m?.meta as Record<string, unknown> | undefined;
+        const sources =
+          safeArray(m?.sources).length > 0 ? safeArray(m?.sources) : safeArray(meta?.sources);
+        const urlContext =
+          safeArray(m?.urlContext).length > 0
+            ? safeArray(m?.urlContext)
+            : safeArray(meta?.urlContext);
+
+        return {
           id: m?.id,
           role: m?.role || "",
           content: typeof m?.content === "string" ? m.content : String(m?.content ?? ""),
-          sources: safeArray(m?.sources),
-          urlContext: safeArray(m?.urlContext),
+          sources,
+          urlContext,
           meta: m?.meta,
-        })
-      )
+        };
+      })
       .filter((m) => m.role === "user" || m.role === "assistant");
   }, []);
 

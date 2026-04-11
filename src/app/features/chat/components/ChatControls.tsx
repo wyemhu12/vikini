@@ -127,6 +127,7 @@ export default function ChatControls({
             isModelAllowed={isModelAllowed}
             t={t}
             disabled={isStreaming || regenerating}
+            expandDown={isLanding}
           />
           <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
           <button

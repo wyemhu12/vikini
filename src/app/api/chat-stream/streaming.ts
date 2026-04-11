@@ -877,7 +877,7 @@ function handleSafetyBlocking(
 function processGroundingMetadata(
   controller: ReadableStreamDefaultController<Uint8Array>,
   groundingMetadata: unknown
-): void {
+): Array<{ uri: string; title: string }> {
   const grounding = groundingMetadata as {
     groundingChunks?: Array<{
       web?: {
@@ -894,15 +894,17 @@ function processGroundingMetadata(
 
     if (sources.length) {
       sendEvent(controller, "meta", { type: "sources", sources });
+      return sources;
     }
   }
+  return [];
 }
 
 function processUrlContextMetadata(
   controller: ReadableStreamDefaultController<Uint8Array>,
   urlContextMetadata: unknown
-): void {
-  if (!urlContextMetadata) return;
+): Array<{ retrievedUrl: string; status: string }> {
+  if (!urlContextMetadata) return [];
 
   const urlMeta =
     (
@@ -933,13 +935,17 @@ function processUrlContextMetadata(
     )?.url_metadata ||
     [];
 
+  const urls = urlMeta.map((u) => ({
+    retrievedUrl: u.retrievedUrl || u.retrieved_url || "",
+    status: u.urlRetrievalStatus || u.url_retrieval_status || "",
+  }));
+
   sendEvent(controller, "meta", {
     type: "urlContext",
-    urls: urlMeta.map((u) => ({
-      retrievedUrl: u.retrievedUrl || u.retrieved_url || "",
-      status: u.urlRetrievalStatus || u.url_retrieval_status || "",
-    })),
+    urls,
   });
+
+  return urls;
 }
 
 async function processPostStream(
@@ -962,6 +968,10 @@ async function processPostStream(
     thoughtSignatures?: string[];
     /** Token usage metadata from Gemini API */
     usageMetadata?: UsageMetadata;
+    /** Web search sources from grounding metadata */
+    sources?: Array<{ uri: string; title: string }>;
+    /** URL context metadata */
+    urlContext?: Array<{ retrievedUrl: string; status: string }>;
   }
 ): Promise<void> {
   const {
@@ -979,6 +989,8 @@ async function processPostStream(
     thoughtSignature,
     thoughtSignatures,
     usageMetadata,
+    sources,
+    urlContext,
   } = params;
 
   const trimmed = full.trim();
@@ -1019,6 +1031,9 @@ async function processPostStream(
           ...(usageMetadata?.totalTokenCount !== undefined
             ? { totalTokenCount: usageMetadata.totalTokenCount }
             : {}),
+          // Persist web search sources and URL context so they survive page reload
+          ...(sources && sources.length > 0 ? { sources } : {}),
+          ...(urlContext && urlContext.length > 0 ? { urlContext } : {}),
         },
       }),
     ]);
@@ -1121,9 +1136,9 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           streamResult.safetyRatings
         );
 
-        // Process metadata
-        processGroundingMetadata(controller, streamResult.groundingMetadata);
-        processUrlContextMetadata(controller, streamResult.urlContextMetadata);
+        // Process metadata — collect sources/urlContext for DB persistence
+        const sources = processGroundingMetadata(controller, streamResult.groundingMetadata);
+        const urlContext = processUrlContextMetadata(controller, streamResult.urlContextMetadata);
 
         // Post-stream processing
         await processPostStream(controller, {
@@ -1140,6 +1155,8 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           generateFinalTitle,
           thoughtSignatures: streamResult.thoughtSignatures,
           usageMetadata: streamResult.usageMetadata,
+          sources,
+          urlContext,
         });
 
         // Send usage metadata SSE event (for client display)
