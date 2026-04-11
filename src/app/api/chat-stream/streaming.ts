@@ -670,6 +670,7 @@ async function executeStream(
     const cand = (chunk as { candidates?: unknown[] })?.candidates?.[0] as
       | {
           groundingMetadata?: unknown;
+          grounding_metadata?: unknown;
           urlContextMetadata?: unknown;
           url_context_metadata?: unknown;
           finishReason?: string;
@@ -680,7 +681,9 @@ async function executeStream(
       | undefined;
 
     if (cand) {
-      if (cand.groundingMetadata) groundingMetadata = cand.groundingMetadata;
+      if (cand.groundingMetadata || cand.grounding_metadata) {
+        groundingMetadata = cand.groundingMetadata || cand.grounding_metadata;
+      }
       if (cand.urlContextMetadata || cand.url_context_metadata) {
         urlContextMetadata = cand.urlContextMetadata || cand.url_context_metadata;
       }
@@ -955,10 +958,19 @@ function processGroundingMetadata(
         title?: string;
       };
     }>;
+    // snake_case variant from some SDK versions
+    grounding_chunks?: Array<{
+      web?: {
+        uri?: string;
+        title?: string;
+      };
+    }>;
   } | null;
 
-  if (grounding?.groundingChunks) {
-    const sources = grounding.groundingChunks
+  const chunks = grounding?.groundingChunks || grounding?.grounding_chunks;
+
+  if (chunks) {
+    const sources = chunks
       .map((c) => (c?.web?.uri ? { uri: c.web.uri, title: c.web.title || c.web.uri } : null))
       .filter((s): s is { uri: string; title: string } => s !== null);
 
@@ -967,6 +979,13 @@ function processGroundingMetadata(
       return sources;
     }
   }
+
+  // Debug: log when grounding metadata exists but no chunks found
+  if (groundingMetadata) {
+    const keys = Object.keys(groundingMetadata as Record<string, unknown>);
+    streamLogger.info(`Grounding metadata keys: ${keys.join(", ")}`);
+  }
+
   return [];
 }
 
@@ -1588,7 +1607,6 @@ export function createAnthropicStream({
         anthropicTools.push({
           type: "web_fetch_20250910",
           name: "web_fetch",
-          max_content_size: 50000, // 50K tokens max per fetch
         });
 
         // Web Search — native web search
