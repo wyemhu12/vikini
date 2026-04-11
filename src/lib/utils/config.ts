@@ -233,6 +233,45 @@ export const translations: TranslationSet = {
     descSuggestionChat: "Trò chuyện giải trí",
     descStatsTokenUsage: "12,450 / 50,000 (Giả lập)",
     descStatsNoData: "Chưa có dữ liệu hội thoại",
+    // Landing Page - Centered
+    landingHeadline: "Hôm nay bạn cần gì?",
+    landingSubtitle: "Hỏi bất cứ điều gì để bắt đầu cuộc trò chuyện mới.",
+    // Suggestion Categories
+    catWrite: "Viết",
+    catLearn: "Học",
+    catCode: "Code",
+    catAnalyze: "Phân tích",
+    catCreate: "Sáng tạo",
+    // Write suggestions
+    sugWriteEmail: "Soạn email chuyên nghiệp",
+    sugWriteEssay: "Viết bài luận hoặc blog",
+    sugWriteStory: "Sáng tác câu chuyện ngắn",
+    sugWriteSummary: "Tóm tắt tài liệu dài",
+    sugWriteProduct: "Viết mô tả sản phẩm",
+    // Learn suggestions
+    sugLearnExplain: "Giải thích một khái niệm phức tạp",
+    sugLearnBooks: "Tìm sách hay về chủ đề",
+    sugLearnLesson: "Thiết kế bài giảng hoặc giáo trình",
+    sugLearnQuiz: "Tạo câu hỏi ôn tập",
+    sugLearnLanguage: "Luyện tập ngoại ngữ",
+    // Code suggestions
+    sugCodeReview: "Review và tối ưu code",
+    sugCodeDebug: "Debug lỗi trong code",
+    sugCodeArchitecture: "Thiết kế kiến trúc hệ thống",
+    sugCodeAlgorithm: "Giải thích thuật toán",
+    sugCodeApi: "Thiết kế REST API",
+    // Analyze suggestions
+    sugAnalyzeData: "Phân tích dữ liệu và tìm insight",
+    sugAnalyzeDecision: "Phân tích quyết định",
+    sugAnalyzeMarket: "Nghiên cứu thị trường",
+    sugAnalyzeCompare: "So sánh các phương án",
+    sugAnalyzeTrend: "Phân tích xu hướng",
+    // Create suggestions
+    sugCreateImage: "Tạo hình ảnh với AI",
+    sugCreateBrand: "Xây dựng thương hiệu",
+    sugCreateIdea: "Brainstorm ý tưởng mới",
+    sugCreatePlan: "Lập kế hoạch dự án",
+    sugCreatePresentation: "Tạo nội dung thuyết trình",
     // Image Studio
     studioTitle: "Studio",
     studioPromptLabel: "Prompt",
@@ -555,6 +594,45 @@ export const translations: TranslationSet = {
     descSuggestionChat: "Casual conversation",
     descStatsTokenUsage: "12,450 / 50,000 (Mock)",
     descStatsNoData: "No recent chats",
+    // Landing Page - Centered
+    landingHeadline: "What can I help you with?",
+    landingSubtitle: "Ask anything to start a new conversation.",
+    // Suggestion Categories
+    catWrite: "Write",
+    catLearn: "Learn",
+    catCode: "Code",
+    catAnalyze: "Analyze",
+    catCreate: "Create",
+    // Write suggestions
+    sugWriteEmail: "Draft a professional email",
+    sugWriteEssay: "Write an essay or blog post",
+    sugWriteStory: "Create a short story",
+    sugWriteSummary: "Summarize a long document",
+    sugWriteProduct: "Write product descriptions",
+    // Learn suggestions
+    sugLearnExplain: "Explain a complex concept",
+    sugLearnBooks: "Find the best books on a subject",
+    sugLearnLesson: "Design a lesson or curriculum",
+    sugLearnQuiz: "Create review questions",
+    sugLearnLanguage: "Practice a foreign language",
+    // Code suggestions
+    sugCodeReview: "Review and optimize code",
+    sugCodeDebug: "Debug errors in code",
+    sugCodeArchitecture: "Design system architecture",
+    sugCodeAlgorithm: "Explain an algorithm",
+    sugCodeApi: "Design a REST API",
+    // Analyze suggestions
+    sugAnalyzeData: "Analyze data and find insights",
+    sugAnalyzeDecision: "Analyze decision-making frameworks",
+    sugAnalyzeMarket: "Research market trends",
+    sugAnalyzeCompare: "Compare different approaches",
+    sugAnalyzeTrend: "Analyze trends and patterns",
+    // Create suggestions
+    sugCreateImage: "Generate images with AI",
+    sugCreateBrand: "Build a brand identity",
+    sugCreateIdea: "Brainstorm new ideas",
+    sugCreatePlan: "Create a project plan",
+    sugCreatePresentation: "Create presentation content",
     // Image Studio
     studioTitle: "Studio",
     studioPromptLabel: "Prompt",

@@ -102,6 +102,16 @@ export default function ChatApp() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showMobileControls, setShowMobileControls] = useState(true);
 
+  // Image Mode State (activated from DashboardView)
+  const [pendingImageMode, setPendingImageMode] = useState(false);
+  const activateImageMode = useCallback(() => setPendingImageMode(true), []);
+
+  // Prompt Preview State (hover suggestion → preview in input)
+  const [previewPrompt, setPreviewPrompt] = useState<string | null>(null);
+  const handlePromptPreview = useCallback((prompt: string | null) => {
+    setPreviewPrompt(prompt);
+  }, []);
+
   // Project State
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showProjectSettingsModal, setShowProjectSettingsModal] = useState(false);
@@ -562,12 +572,48 @@ export default function ChatApp() {
               }}
             />
           ) : showLanding ? (
-            <div className="min-h-full flex flex-col justify-center py-4 animate-in fade-in zoom-in duration-500">
+            <div className="min-h-full flex flex-col items-center justify-center pb-[25vh] animate-in fade-in zoom-in duration-500">
               <DashboardView
                 onPromptSelect={setInput}
-                lastConversation={filteredConversations?.[0]}
-                onSelectConversation={handleSelectConversation}
-              />
+                onPromptPreview={handlePromptPreview}
+                onActivateImageMode={activateImageMode}
+              >
+                {/* ChatControls rendered between greeting and chips */}
+                <ChatControls
+                  input={input}
+                  setInput={setInput}
+                  handleSend={handleSend}
+                  handleStop={handleStop}
+                  isStreaming={isStreaming}
+                  creatingConversation={creatingConversation}
+                  regenerating={regenerating}
+                  streamingAssistant={streamingAssistant}
+                  disabled={creatingConversation}
+                  webSearchEnabled={webSearchEnabled}
+                  toggleWebSearch={toggleWebSearch}
+                  alwaysSearch={alwaysSearch}
+                  toggleAlwaysSearch={toggleAlwaysSearch}
+                  thinkingLevel={thinkingLevel}
+                  setThinkingLevel={setThinkingLevel}
+                  currentModel={currentModel}
+                  handleModelChange={handleModelChange}
+                  isModelAllowed={isModelAllowed}
+                  currentGem={currentConversation?.gem}
+                  t={t}
+                  showFiles={showFiles}
+                  setShowFiles={setShowFiles}
+                  fileCount={fileCount}
+                  setFileCount={setFileCount}
+                  attachmentsRef={attachmentsRef}
+                  onImageGen={handleImageGen}
+                  selectedConversationId={selectedConversationId}
+                  showMobileControls={showMobileControls}
+                  initialImageMode={pendingImageMode || isRemixMode}
+                  onImageModeConsumed={() => setPendingImageMode(false)}
+                  isLanding={true}
+                  previewPrompt={previewPrompt}
+                />
+              </DashboardView>
             </div>
           ) : loadingMessages ? (
             <div className="max-w-3xl mx-auto w-full py-8 flex flex-col items-center justify-center gap-4 min-h-[200px]">
@@ -631,7 +677,8 @@ export default function ChatApp() {
           )}
         </div>
 
-        {!showProjectView && (
+        {/* ChatControls at bottom - only when NOT landing and NOT project view */}
+        {!showProjectView && !showLanding && (
           <ChatControls
             input={input}
             setInput={setInput}
@@ -661,9 +708,23 @@ export default function ChatApp() {
             onImageGen={handleImageGen}
             selectedConversationId={selectedConversationId}
             showMobileControls={showMobileControls}
+            initialImageMode={pendingImageMode || isRemixMode}
+            onImageModeConsumed={() => setPendingImageMode(false)}
+            previewPrompt={previewPrompt}
           />
         )}
       </div>
+
+      {/* Landing Disclaimer - fixed at page bottom, sidebar-aware */}
+      {showLanding && (
+        <div
+          className={`fixed bottom-2 inset-x-0 text-center z-30 pointer-events-none transition-all duration-300 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
+        >
+          <p className="text-[9px] font-bold text-(--text-secondary) tracking-widest uppercase">
+            {t.aiDisclaimer}
+          </p>
+        </div>
+      )}
 
       {/* Modals */}
       <Suspense fallback={null}>

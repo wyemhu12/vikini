@@ -51,6 +51,10 @@ interface ChatControlsProps {
   disabled?: boolean;
   onImageGen: (prompt: string, options?: ImageGenOptions) => void;
   initialImageMode?: boolean; // For remix from Gallery
+  onImageModeConsumed?: () => void; // Reset pending image mode in parent
+  // Landing mode
+  isLanding?: boolean;
+  previewPrompt?: string | null;
 }
 
 export default function ChatControls({
@@ -87,21 +91,33 @@ export default function ChatControls({
   selectedConversationId,
   showMobileControls = true, // Default to true if not passed (Desktop)
   initialImageMode = false, // For remix from Gallery
+  onImageModeConsumed,
+  // Landing mode
+  isLanding = false,
+  previewPrompt = null,
 }: ChatControlsProps) {
+  // Display value: show preview prompt when hovering, otherwise show actual input
+  const displayValue = previewPrompt !== null ? previewPrompt : input;
+  const isShowingPreview = previewPrompt !== null && previewPrompt !== "";
+
   return (
     <motion.div
       initial={false}
       animate={{ y: showMobileControls ? 0 : "100%" }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
       className={`
-        w-full shadow-2xl md:shadow-none max-w-4xl mx-auto pb-6 px-4 md:px-6 
-        fixed bottom-0 left-0 right-0 z-40 
-        bg-surface/95 backdrop-blur-xl md:bg-transparent md:backdrop-blur-none
-        md:static md:translate-y-0
+        w-full max-w-4xl mx-auto px-4 md:px-6
+        ${
+          isLanding
+            ? "relative z-40"
+            : "pb-6 shadow-2xl md:shadow-none fixed bottom-0 left-0 right-0 z-40 bg-surface/95 backdrop-blur-xl md:bg-transparent md:backdrop-blur-none md:static md:translate-y-0"
+        }
       `}
     >
-      {/* Static Floating Controls Toolbar - Minimalist */}
-      <div className="mb-4 flex flex-wrap items-center justify-center gap-2 pt-4 md:pt-0">
+      {/* Static Floating Controls Toolbar */}
+      <div
+        className={`flex flex-wrap items-center justify-center gap-2 ${isLanding ? "mb-2 pt-0" : "mb-4 pt-4 md:pt-0"}`}
+      >
         {/* Mobile: no container border, each button is a separate chip */}
         {/* Desktop: unified toolbar with border */}
         <div className="flex flex-wrap items-center justify-center gap-2 md:gap-0 md:rounded-full md:bg-(--control-bg) md:border md:border-(--control-border) md:p-1 md:shadow-lg">
@@ -193,7 +209,7 @@ export default function ChatControls({
             onCountChange={setFileCount}
           />
           <InputForm
-            input={input}
+            input={isShowingPreview ? displayValue : input}
             onChangeInput={setInput}
             onSubmit={() => handleSend()}
             onStop={handleStop}
@@ -203,15 +219,19 @@ export default function ChatControls({
             t={t}
             conversationId={selectedConversationId}
             initialImageMode={initialImageMode}
+            onImageModeConsumed={onImageModeConsumed}
+            isPreview={isShowingPreview}
           />
         </div>
       </div>
 
-      <div className="mt-3 text-center">
-        <p className="text-[9px] font-bold text-(--text-secondary) tracking-widest uppercase hover:text-(--text-primary) transition-colors cursor-default">
-          {t.aiDisclaimer}
-        </p>
-      </div>
+      {!isLanding && (
+        <div className="mt-3 text-center">
+          <p className="text-[9px] font-bold text-(--text-secondary) tracking-widest uppercase hover:text-(--text-primary) transition-colors cursor-default">
+            {t.aiDisclaimer}
+          </p>
+        </div>
+      )}
     </motion.div>
   );
 }

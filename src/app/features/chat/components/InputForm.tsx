@@ -49,6 +49,8 @@ interface InputFormProps {
   t?: Record<string, string>;
   conversationId?: string | null;
   initialImageMode?: boolean; // For remix from Gallery
+  onImageModeConsumed?: () => void; // Reset pending image mode in parent
+  isPreview?: boolean; // When true, input shows a hover preview prompt
 }
 
 export default function InputForm({
@@ -62,6 +64,8 @@ export default function InputForm({
   t,
   conversationId,
   initialImageMode = false,
+  onImageModeConsumed,
+  isPreview = false,
 }: InputFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -72,12 +76,13 @@ export default function InputForm({
   const [_voiceTranscript, setVoiceTranscript] = useState("");
   const [isDragging, setIsDragging] = useState(false);
 
-  // Sync initialImageMode prop to state (for Gallery remix)
+  // Sync initialImageMode prop to state (for Gallery remix or Dashboard card)
   useEffect(() => {
     if (initialImageMode) {
       setIsImageMode(true);
+      onImageModeConsumed?.();
     }
-  }, [initialImageMode]);
+  }, [initialImageMode, onImageModeConsumed]);
 
   // Auto resize textarea
   useEffect(() => {
@@ -401,7 +406,7 @@ export default function InputForm({
               : t?.placeholder || "Message..."
           }
           disabled={disabled}
-          className="max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] text-(--text-primary) placeholder:text-(--text-secondary) outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none"
+          className={`max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] placeholder:text-(--text-secondary) outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--text-secondary) italic" : "text-(--text-primary)"}`}
           style={{ height: "40px" }}
         />
       </div>
