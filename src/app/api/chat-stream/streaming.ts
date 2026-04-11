@@ -1575,12 +1575,23 @@ export function createAnthropicStream({
           }
         );
 
-        // Build tools array — include web_search when enabled
-        const anthropicTools: Array<{
-          type: "web_search_20250305";
-          name: "web_search";
-          max_uses?: number;
-        }> = [];
+        // Build tools array for Beta API — code execution, web fetch, web search, function calling
+        const anthropicTools: Array<Record<string, unknown>> = [];
+
+        // Code Execution — Claude runs Python/JS in a sandboxed container
+        anthropicTools.push({
+          type: "code_execution_20250522",
+          name: "code_execution",
+        });
+
+        // Web Fetch — Claude can fetch URLs for real-time data
+        anthropicTools.push({
+          type: "web_fetch_20250910",
+          name: "web_fetch",
+          max_content_size: 50000, // 50K tokens max per fetch
+        });
+
+        // Web Search — native web search
         if (enableWebSearch && WEB_SEARCH_AVAILABLE) {
           anthropicTools.push({
             type: "web_search_20250305",
@@ -1588,6 +1599,23 @@ export function createAnthropicStream({
             max_uses: 5,
           });
         }
+
+        // Function Calling — get_current_time
+        anthropicTools.push({
+          name: "get_current_time",
+          description:
+            "Get the current date and time. Use this when the user asks about the current time, date, day of week, or anything time-related.",
+          input_schema: {
+            type: "object",
+            properties: {
+              timezone: {
+                type: "string",
+                description:
+                  'IANA timezone identifier (e.g. "Asia/Ho_Chi_Minh", "America/New_York"). Defaults to UTC.',
+              },
+            },
+          },
+        });
 
         // Build thinking config for Claude Extended Thinking
         const isClaudeThinking =
@@ -1597,7 +1625,9 @@ export function createAnthropicStream({
         const claudeBudgetTokens = 10240; // ~10K thinking budget
 
         const timeoutMs = getStreamTimeout(model, thinkingLevel);
-        const streamPromise = ai.messages.create({
+
+        // Use Beta API for code execution + web fetch support
+        const streamPromise = ai.beta.messages.create({
           model: model,
           // Prompt caching: wrap system prompt with cache_control for cost savings (~90%)
           system: [
@@ -1617,15 +1647,26 @@ export function createAnthropicStream({
                 temperature: 1,
               }
             : { temperature: 0.7 }),
-          ...(anthropicTools.length > 0 ? { tools: anthropicTools } : {}),
-        });
+          tools: anthropicTools,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any);
 
-        const stream = await withTimeout(streamPromise, timeoutMs);
+        const stream = (await withTimeout(streamPromise, timeoutMs)) as unknown as AsyncIterable<{
+          type: string;
+          delta: { type: string; text?: string; thinking?: string; partial_json?: string };
+          content_block: Record<string, unknown>;
+          usage?: { output_tokens?: number };
+        }>;
+
+        // Track tool_use blocks for function calling
+        let currentToolUseId = "";
+        let currentToolName = "";
+        let currentToolInput = "";
 
         for await (const chunk of stream) {
           // Handle text token deltas
           if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
-            const text = chunk.delta.text;
+            const text = (chunk.delta as { text?: string }).text;
             if (text) {
               full += text;
               sendEvent(controller, "token", { t: text });
@@ -1660,6 +1701,100 @@ export function createAnthropicStream({
             sendEvent(controller, "token", { t: closeTag });
           }
 
+          // Handle tool_use blocks for function calling (get_current_time)
+          if (chunk.type === "content_block_start") {
+            const block = chunk.content_block as { type?: string; id?: string; name?: string };
+            if (block.type === "tool_use") {
+              currentToolUseId = block.id || "";
+              currentToolName = block.name || "";
+              currentToolInput = "";
+            }
+          }
+
+          // Accumulate tool input JSON
+          if (chunk.type === "content_block_delta" && chunk.delta.type === "input_json_delta") {
+            const partial = (chunk.delta as { partial_json?: string }).partial_json;
+            if (partial) currentToolInput += partial;
+          }
+
+          // Tool use complete — execute and resume
+          if (chunk.type === "content_block_stop" && currentToolName && currentToolUseId) {
+            // Only handle our custom functions (not server tools like web_search)
+            if (currentToolName === "get_current_time") {
+              try {
+                const args = currentToolInput ? JSON.parse(currentToolInput) : {};
+                sendEvent(controller, "meta", {
+                  type: "functionCall",
+                  name: currentToolName,
+                  args,
+                });
+                const result = executeFunctionCall(currentToolName, args);
+
+                // Resume conversation with tool result
+                const resumeMessages = [
+                  ...anthropicMessages,
+                  {
+                    role: "assistant" as const,
+                    content: [
+                      {
+                        type: "tool_use" as const,
+                        id: currentToolUseId,
+                        name: currentToolName,
+                        input: args,
+                      },
+                    ],
+                  },
+                  {
+                    role: "user" as const,
+                    content: [
+                      {
+                        type: "tool_result" as const,
+                        tool_use_id: currentToolUseId,
+                        content: result.error || result.result,
+                      },
+                    ],
+                  },
+                ];
+
+                const resumeStream = await ai.beta.messages.create({
+                  model,
+                  system: [
+                    {
+                      type: "text" as const,
+                      text: sysPrompt,
+                      cache_control: { type: "ephemeral" as const },
+                    },
+                  ],
+                  messages: resumeMessages as unknown[],
+                  stream: true,
+                  max_tokens: 4096,
+                  temperature: 0.7,
+                  tools: anthropicTools,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                } as any);
+
+                for await (const rChunk of resumeStream as unknown as AsyncIterable<{
+                  type: string;
+                  delta: { type: string; text?: string };
+                }>) {
+                  if (rChunk.type === "content_block_delta" && rChunk.delta.type === "text_delta") {
+                    const t = (rChunk.delta as { text?: string }).text;
+                    if (t) {
+                      full += t;
+                      sendEvent(controller, "token", { t });
+                    }
+                  }
+                }
+              } catch (fnErr: unknown) {
+                streamLogger.error("Claude function call error:", fnErr);
+              }
+            }
+            // Reset
+            currentToolUseId = "";
+            currentToolName = "";
+            currentToolInput = "";
+          }
+
           // Handle token usage from message_delta event
           if (chunk.type === "message_delta") {
             const usage = (chunk as { usage?: { output_tokens?: number } }).usage;
@@ -1671,9 +1806,9 @@ export function createAnthropicStream({
             }
           }
 
-          // Handle content_block_start — extract web search results
+          // Handle content_block_start — extract web search results + code execution results
           if (chunk.type === "content_block_start") {
-            const block = chunk.content_block;
+            const block = chunk.content_block as Record<string, unknown>;
 
             // web_search_tool_result contains the actual search results with URLs
             if (block.type === "web_search_tool_result") {
@@ -1703,15 +1838,45 @@ export function createAnthropicStream({
               }
             }
 
-            // server_tool_use — Claude deciding to search (log for debugging)
-            if (
-              block.type === "server_tool_use" &&
-              (block as { name?: string }).name === "web_search"
-            ) {
-              sendEvent(controller, "meta", {
-                type: "webSearchStatus",
-                status: "searching",
-              });
+            // Code execution result — extract stdout/stderr and render as code blocks
+            if (block.type === "code_execution_result") {
+              const ceResult = block as {
+                type: "code_execution_result";
+                stdout?: string;
+                stderr?: string;
+                return_code?: number;
+              };
+              if (ceResult.stdout) {
+                const output = `\n**Code Output:**\n\`\`\`\n${ceResult.stdout}\n\`\`\`\n`;
+                full += output;
+                sendEvent(controller, "token", { t: output });
+              }
+              if (ceResult.stderr) {
+                const errOutput = `\n**Error Output:**\n\`\`\`\n${ceResult.stderr}\n\`\`\`\n`;
+                full += errOutput;
+                sendEvent(controller, "token", { t: errOutput });
+              }
+            }
+
+            // server_tool_use — Claude deciding to use a tool (log for debugging)
+            if (block.type === "server_tool_use") {
+              const toolName = (block as { name?: string }).name;
+              if (toolName === "web_search") {
+                sendEvent(controller, "meta", {
+                  type: "webSearchStatus",
+                  status: "searching",
+                });
+              } else if (toolName === "code_execution") {
+                sendEvent(controller, "meta", {
+                  type: "codeExecutionStatus",
+                  status: "running",
+                });
+              } else if (toolName === "web_fetch") {
+                sendEvent(controller, "meta", {
+                  type: "webFetchStatus",
+                  status: "fetching",
+                });
+              }
             }
           }
         }
