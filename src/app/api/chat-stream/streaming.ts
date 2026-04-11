@@ -212,7 +212,29 @@ export function safeText(respOrChunk: unknown): string {
       if (Array.isArray(parts)) {
         let result = "";
         for (const part of parts) {
-          const p = part as { text?: string; thought?: boolean | string };
+          const p = part as {
+            text?: string;
+            thought?: boolean | string;
+            functionCall?: unknown;
+            functionResponse?: unknown;
+            executableCode?: { code?: string; language?: string };
+            codeExecutionResult?: { output?: string; outcome?: string };
+          };
+
+          // Skip function call/response parts — they contain raw metadata, not display text
+          if (p.functionCall || p.functionResponse) continue;
+
+          // Handle Gemini Code Execution parts (render as markdown)
+          if (p.executableCode?.code) {
+            const lang = p.executableCode.language?.toLowerCase() || "python";
+            result += `\n\`\`\`${lang}\n${p.executableCode.code}\n\`\`\`\n`;
+            continue;
+          }
+          if (p.codeExecutionResult?.output) {
+            result += `\n**Output:**\n\`\`\`\n${p.codeExecutionResult.output}\n\`\`\`\n`;
+            continue;
+          }
+
           // Gemini API: thought is boolean, text contains the thought content
           if (p.thought === true && typeof p.text === "string") {
             result += `<think>${p.text}</think>`;
@@ -221,17 +243,6 @@ export function safeText(respOrChunk: unknown): string {
             result += `<think>${p.thought}</think>`;
           } else if (typeof p.text === "string") {
             result += p.text;
-          }
-
-          // Handle Gemini Code Execution parts
-          const ep = part as { executableCode?: { code?: string; language?: string } };
-          if (ep.executableCode?.code) {
-            const lang = ep.executableCode.language?.toLowerCase() || "python";
-            result += `\n\`\`\`${lang}\n${ep.executableCode.code}\n\`\`\`\n`;
-          }
-          const rp = part as { codeExecutionResult?: { output?: string; outcome?: string } };
-          if (rp.codeExecutionResult?.output) {
-            result += `\n**Output:**\n\`\`\`\n${rp.codeExecutionResult.output}\n\`\`\`\n`;
           }
         }
         return result;
