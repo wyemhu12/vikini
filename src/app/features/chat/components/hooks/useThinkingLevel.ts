@@ -35,11 +35,22 @@ export function isGemini3FlashModel(model: string): boolean {
 }
 
 /**
- * Check if a model supports thinking UI toggle (Gemini 2.5+ or Gemini 3+)
- * Backend will handle API format differences (thinkingBudget vs thinkingLevel)
+ * Check if a model is a Claude model that supports extended thinking
+ * (Sonnet, Opus — Haiku does NOT support thinking)
+ */
+export function isClaudeThinkingModel(model: string): boolean {
+  const lower = model.toLowerCase();
+  return lower.includes("claude-sonnet") || lower.includes("claude-opus");
+}
+
+/**
+ * Check if a model supports thinking UI toggle
+ * - Gemini 2.5+: thinkingBudget
+ * - Gemini 3+: thinkingLevel
+ * - Claude Sonnet/Opus: extended thinking (budget_tokens)
  */
 export function modelSupportsThinkingUI(model: string): boolean {
-  return isGemini25Model(model) || isGemini3Model(model);
+  return isGemini25Model(model) || isGemini3Model(model) || isClaudeThinkingModel(model);
 }
 
 interface UseThinkingLevelResult {
@@ -64,18 +75,23 @@ interface UseThinkingLevelResult {
 export function useThinkingLevel(currentModel: string): UseThinkingLevelResult {
   const [thinkingLevel, setThinkingLevelState] = useState<ThinkingLevel>("off");
 
-  // Thinking toggle visible for both Gemini 2.5 and Gemini 3
+  // Thinking toggle visible for Gemini 2.5, Gemini 3, and Claude Sonnet/Opus
   const isThinkingEnabled = modelSupportsThinkingUI(currentModel);
   // Extended levels only for Gemini 3 Flash
   const hasExtendedLevels = isGemini3FlashModel(currentModel);
+  // Claude models only support on/off (high)
+  const isClaudeModel = isClaudeThinkingModel(currentModel);
 
   // Available levels based on model
+  // Claude Sonnet/Opus: simple on/off (high = budget_tokens)
   // Gemini 2.5: simple on/off (high = dynamic thinkingBudget)
   // Gemini 3 Flash: full range
   // Gemini 3 Pro: basic levels
-  const availableLevels: ThinkingLevel[] = hasExtendedLevels
-    ? ["off", "minimal", "low", "medium", "high"]
-    : ["off", "low", "high"];
+  const availableLevels: ThinkingLevel[] = isClaudeModel
+    ? ["off", "high"] // Claude: only on/off
+    : hasExtendedLevels
+      ? ["off", "minimal", "low", "medium", "high"]
+      : ["off", "low", "high"];
 
   // Load from localStorage on mount
   useEffect(() => {

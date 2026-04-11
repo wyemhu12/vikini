@@ -40,6 +40,7 @@ import {
 } from "@/lib/features/projects/ragContext.server";
 
 import { generateOptimisticTitle, generateFinalTitle } from "@/lib/core/autoTitleEngine";
+import { BUILT_IN_FUNCTIONS } from "@/lib/features/chat/functions";
 
 import {
   createChatReadableStream,
@@ -295,7 +296,7 @@ async function buildMessageContext(
   let currentTokenCount = estimateTokens(content) + estimateTokens(sysPrompt);
 
   try {
-    const fetchLimit = 100;
+    const fetchLimit = 200; // Increased for long-context models
     const rows = await getRecentMessages(conversationId, fetchLimit);
 
     const validRows = (Array.isArray(rows) ? rows : []).filter(
@@ -306,7 +307,8 @@ async function buildMessageContext(
     );
 
     const messagesToKeep: Array<{ role: string; content: string }> = [];
-    const safetyBuffer = 4000;
+    // Adaptive safety buffer: smaller for large context models (1M+)
+    const safetyBuffer = modelLimitTokens >= 500000 ? 2000 : 4000;
 
     // Process from newest to oldest
     for (let i = validRows.length - 1; i >= 0; i--) {
@@ -480,16 +482,26 @@ function setupToolsAndSafety(
   enableWebSearch: boolean,
   WEB_SEARCH_AVAILABLE: boolean
 ): {
-  tools: Array<{ googleSearch?: Record<string, never>; googleSearchRetrieval?: unknown }>;
+  tools: Array<Record<string, unknown>>;
   safetySettings: unknown[] | null;
 } {
-  const tools: Array<{ googleSearch?: Record<string, never>; googleSearchRetrieval?: unknown }> =
-    [];
+  const tools: Array<Record<string, unknown>> = [];
 
   // Web search logic
   if (enableWebSearch && WEB_SEARCH_AVAILABLE) {
     tools.push({ googleSearch: {} });
   }
+
+  // Code execution — allows Gemini to run Python code for data analysis, charts, math
+  tools.push({ codeExecution: {} });
+
+  // Google Maps grounding — location-aware responses (Gemini 3+ only)
+  if (enableWebSearch && WEB_SEARCH_AVAILABLE) {
+    tools.push({ googleMaps: {} });
+  }
+
+  // Function calling — built-in functions (get_current_time, etc.)
+  tools.push({ functionDeclarations: BUILT_IN_FUNCTIONS });
 
   let safetySettings: unknown[] | null = null;
   const safetyJson = pickFirstEnv(["GEMINI_SAFETY_SETTINGS_JSON"]);
@@ -745,7 +757,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
       model: claudeModel,
       contents,
       sysPrompt: finalSysPromptWithCharts,
-      tools: [], // Anthropic tools not yet implemented
+      tools: [], // Web search tools handled inside createAnthropicStream based on enableWebSearch
       safetySettings: null,
       gemMeta: {
         gemId: conversation?.gemId ?? null,
@@ -777,6 +789,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
       },
       generateOptimisticTitle,
       generateFinalTitle,
+      thinkingLevel,
     });
   } else if (isOpenRouter || isStandardGroq || isClaude) {
     // OpenRouter / Groq / Claude(via OpenRouter)

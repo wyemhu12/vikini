@@ -5,8 +5,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import {
   getModelMaxOutputTokens,
   modelSupportsThinking,
+  modelSupportsClaudeThinking,
   normalizeModelForApi,
 } from "@/lib/core/modelRegistry";
+import { executeFunctionCall } from "@/lib/features/chat/functions";
 
 // Type definitions for conversation objects
 interface CreatedConversation {
@@ -219,6 +221,17 @@ export function safeText(respOrChunk: unknown): string {
             result += `<think>${p.thought}</think>`;
           } else if (typeof p.text === "string") {
             result += p.text;
+          }
+
+          // Handle Gemini Code Execution parts
+          const ep = part as { executableCode?: { code?: string; language?: string } };
+          if (ep.executableCode?.code) {
+            const lang = ep.executableCode.language?.toLowerCase() || "python";
+            result += `\n\`\`\`${lang}\n${ep.executableCode.code}\n\`\`\`\n`;
+          }
+          const rp = part as { codeExecutionResult?: { output?: string; outcome?: string } };
+          if (rp.codeExecutionResult?.output) {
+            result += `\n**Output:**\n\`\`\`\n${rp.codeExecutionResult.output}\n\`\`\`\n`;
           }
         }
         return result;
@@ -695,6 +708,63 @@ async function executeStream(
         thoughtsTokenCount: rawUsage.thoughtsTokenCount,
         totalTokenCount: rawUsage.totalTokenCount,
       };
+    }
+
+    // Detect function calls from Gemini
+    const fcCand = (chunk as { candidates?: unknown[] })?.candidates?.[0] as
+      | { content?: { parts?: unknown[] }; finishReason?: string }
+      | undefined;
+    const fcFinish = fcCand?.finishReason;
+    if (fcFinish === "FUNCTION_CALL" || fcFinish === "function_call") {
+      const fcParts = (fcCand?.content?.parts || []) as Array<{
+        functionCall?: { name: string; args: Record<string, unknown> };
+      }>;
+      const functionResponses: Array<{ name: string; response: Record<string, unknown> }> = [];
+
+      for (const part of fcParts) {
+        if (part.functionCall) {
+          const { name, args } = part.functionCall;
+          streamLogger.info(`Function call: ${name}`);
+          sendEvent(controller, "meta", { type: "functionCall", name, args });
+          const result = executeFunctionCall(name, args || {});
+          functionResponses.push({
+            name,
+            response: result.error ? { error: result.error } : { result: result.result },
+          });
+        }
+      }
+
+      // Make continuation call with function responses
+      if (functionResponses.length > 0) {
+        try {
+          const contContents = [
+            ...contents,
+            { role: "model", parts: fcParts },
+            { role: "user", parts: functionResponses.map((fr) => ({ functionResponse: fr })) },
+          ];
+          const contResult = params.ai.models.generateContentStream({
+            model: params.model,
+            contents: contContents as unknown[],
+            config: {
+              systemInstruction,
+              tools:
+                params.useTools && Array.isArray(params.tools) && params.tools.length > 0
+                  ? params.tools
+                  : undefined,
+            },
+          });
+          const contStream = contResult instanceof Promise ? await contResult : contResult;
+          for await (const contChunk of contStream) {
+            const ct = safeText(contChunk);
+            if (ct) {
+              full += ct;
+              sendEvent(controller, "token", { t: ct });
+            }
+          }
+        } catch (contErr: unknown) {
+          streamLogger.error("Function call continuation error:", contErr);
+        }
+      }
     }
   }
 
@@ -1422,6 +1492,7 @@ export function createAnthropicStream({
   saveMessage,
   setConversationAutoTitle,
   generateFinalTitle,
+  thinkingLevel,
 }: Omit<ChatStreamParams, "ai"> & {
   ai: Anthropic;
   enableWebSearch: boolean;
@@ -1436,6 +1507,7 @@ export function createAnthropicStream({
   saveMessage: ChatStreamParams["saveMessage"];
   setConversationAutoTitle: ChatStreamParams["setConversationAutoTitle"];
   generateFinalTitle: ChatStreamParams["generateFinalTitle"];
+  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
 }): ReadableStream {
   return new ReadableStream({
     async start(controller) {
@@ -1456,6 +1528,8 @@ export function createAnthropicStream({
       sendEvent(controller, "meta", meta);
 
       let full = "";
+      // Collect sources from web search results for persistence
+      const collectedSources: Array<{ uri: string; title: string }> = [];
 
       try {
         // Map contents to Anthropic format with multimodal support
@@ -1500,19 +1574,55 @@ export function createAnthropicStream({
           }
         );
 
-        const timeoutMs = getStreamTimeout(model);
+        // Build tools array — include web_search when enabled
+        const anthropicTools: Array<{
+          type: "web_search_20250305";
+          name: "web_search";
+          max_uses?: number;
+        }> = [];
+        if (enableWebSearch && WEB_SEARCH_AVAILABLE) {
+          anthropicTools.push({
+            type: "web_search_20250305",
+            name: "web_search",
+            max_uses: 5,
+          });
+        }
+
+        // Build thinking config for Claude Extended Thinking
+        const isClaudeThinking =
+          modelSupportsClaudeThinking(model) && thinkingLevel && thinkingLevel !== "off";
+        // Budget tokens: min 1024, must be less than max_tokens
+        const claudeMaxTokens = isClaudeThinking ? 16384 : 8192;
+        const claudeBudgetTokens = 10240; // ~10K thinking budget
+
+        const timeoutMs = getStreamTimeout(model, thinkingLevel);
         const streamPromise = ai.messages.create({
-          model: model, // e.g. "claude-3-5-sonnet-20240620"
-          system: sysPrompt,
+          model: model,
+          // Prompt caching: wrap system prompt with cache_control for cost savings (~90%)
+          system: [
+            {
+              type: "text" as const,
+              text: sysPrompt,
+              cache_control: { type: "ephemeral" as const },
+            },
+          ],
           messages: anthropicMessages,
           stream: true,
-          max_tokens: 8192,
-          temperature: 0.7,
+          max_tokens: claudeMaxTokens,
+          // Extended thinking requires temperature = 1 (Anthropic requirement)
+          ...(isClaudeThinking
+            ? {
+                thinking: { type: "enabled" as const, budget_tokens: claudeBudgetTokens },
+                temperature: 1,
+              }
+            : { temperature: 0.7 }),
+          ...(anthropicTools.length > 0 ? { tools: anthropicTools } : {}),
         });
 
         const stream = await withTimeout(streamPromise, timeoutMs);
 
         for await (const chunk of stream) {
+          // Handle text token deltas
           if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
             const text = chunk.delta.text;
             if (text) {
@@ -1520,6 +1630,82 @@ export function createAnthropicStream({
               sendEvent(controller, "token", { t: text });
             }
           }
+
+          // Handle thinking deltas (Claude Extended Thinking)
+          if (chunk.type === "content_block_delta" && chunk.delta.type === "thinking_delta") {
+            const thinkingText = (chunk.delta as { thinking?: string }).thinking;
+            if (thinkingText) {
+              sendEvent(controller, "meta", { type: "thinking", text: thinkingText });
+            }
+          }
+
+          // Handle token usage from message_delta event
+          if (chunk.type === "message_delta") {
+            const usage = (chunk as { usage?: { output_tokens?: number } }).usage;
+            if (usage) {
+              sendEvent(controller, "meta", {
+                type: "usageMetadata",
+                outputTokens: usage.output_tokens || 0,
+              });
+            }
+          }
+
+          // Handle content_block_start — extract web search results
+          if (chunk.type === "content_block_start") {
+            const block = chunk.content_block;
+
+            // web_search_tool_result contains the actual search results with URLs
+            if (block.type === "web_search_tool_result") {
+              const resultBlock = block as {
+                type: "web_search_tool_result";
+                content:
+                  | Array<{
+                      type: "web_search_result";
+                      url: string;
+                      title: string;
+                      page_age?: string | null;
+                      encrypted_content?: string;
+                    }>
+                  | { type: "web_search_tool_result_error"; error_code: string };
+              };
+
+              // Only process successful results (array), not errors (object)
+              if (Array.isArray(resultBlock.content)) {
+                for (const result of resultBlock.content) {
+                  if (result.type === "web_search_result" && result.url) {
+                    collectedSources.push({
+                      uri: result.url,
+                      title: result.title || result.url,
+                    });
+                  }
+                }
+              }
+            }
+
+            // server_tool_use — Claude deciding to search (log for debugging)
+            if (
+              block.type === "server_tool_use" &&
+              (block as { name?: string }).name === "web_search"
+            ) {
+              sendEvent(controller, "meta", {
+                type: "webSearchStatus",
+                status: "searching",
+              });
+            }
+          }
+        }
+
+        // Send collected sources as SSE event (same format as Gemini grounding)
+        if (collectedSources.length > 0) {
+          // Deduplicate sources by URL
+          const seen = new Set<string>();
+          const uniqueSources = collectedSources.filter((s) => {
+            if (seen.has(s.uri)) return false;
+            seen.add(s.uri);
+            return true;
+          });
+
+          sendEvent(controller, "meta", { type: "sources", sources: uniqueSources });
         }
       } catch (e: unknown) {
         // Handle timeout specifically
@@ -1549,7 +1735,15 @@ export function createAnthropicStream({
         }
       }
 
-      // 3. Post Stream Processing
+      // 3. Post Stream Processing — include sources for DB persistence
+      // Deduplicate sources before persisting
+      const seen = new Set<string>();
+      const uniqueSources = collectedSources.filter((s) => {
+        if (seen.has(s.uri)) return false;
+        seen.add(s.uri);
+        return true;
+      });
+
       await processPostStream(controller, {
         full,
         isActuallyBlocked: false,
@@ -1562,6 +1756,7 @@ export function createAnthropicStream({
         saveMessage,
         setConversationAutoTitle,
         generateFinalTitle,
+        sources: uniqueSources.length > 0 ? uniqueSources : undefined,
       });
 
       sendEvent(controller, "done", { ok: true });

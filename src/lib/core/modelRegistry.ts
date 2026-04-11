@@ -334,3 +334,13 @@ export function modelSupportsThinking(modelId: unknown): boolean {
   // Gemini 3+ and 3.1+ support thinkingLevel parameter
   return normalized.startsWith("gemini-3") || normalized.startsWith("gemini-3.");
 }
+
+/**
+ * Check if a Claude model supports extended thinking.
+ * Claude Sonnet 4.5+ supports extended thinking with budget_tokens.
+ * Haiku does NOT support extended thinking.
+ */
+export function modelSupportsClaudeThinking(modelId: unknown): boolean {
+  const normalized = String(modelId || "").toLowerCase();
+  return normalized.includes("claude-sonnet") || normalized.includes("claude-opus");
+}
