@@ -1530,7 +1530,8 @@ export function createAnthropicStream({
       let full = "";
       // Collect sources from web search results for persistence
       const collectedSources: Array<{ uri: string; title: string }> = [];
-
+      // Track Claude Extended Thinking state for <think> tag injection
+      let isInThinkingBlock = false;
       try {
         // Map contents to Anthropic format with multimodal support
         // contents: [{ role: "user", parts: [{text: ""}, {inlineData: {data, mimeType}}] }]
@@ -1632,11 +1633,31 @@ export function createAnthropicStream({
           }
 
           // Handle thinking deltas (Claude Extended Thinking)
+          // Inject as <think> tags so existing frontend ThinkingBlock renders it
           if (chunk.type === "content_block_delta" && chunk.delta.type === "thinking_delta") {
             const thinkingText = (chunk.delta as { thinking?: string }).thinking;
             if (thinkingText) {
-              sendEvent(controller, "meta", { type: "thinking", text: thinkingText });
+              if (!isInThinkingBlock) {
+                isInThinkingBlock = true;
+                const openTag = "<think>";
+                full += openTag;
+                sendEvent(controller, "token", { t: openTag });
+              }
+              full += thinkingText;
+              sendEvent(controller, "token", { t: thinkingText });
             }
+          }
+
+          // Close thinking block when a text block starts
+          if (
+            chunk.type === "content_block_start" &&
+            (chunk.content_block as { type?: string })?.type === "text" &&
+            isInThinkingBlock
+          ) {
+            isInThinkingBlock = false;
+            const closeTag = "</think>";
+            full += closeTag;
+            sendEvent(controller, "token", { t: closeTag });
           }
 
           // Handle token usage from message_delta event
@@ -1693,6 +1714,14 @@ export function createAnthropicStream({
               });
             }
           }
+        }
+
+        // Close any still-open thinking block
+        if (isInThinkingBlock) {
+          isInThinkingBlock = false;
+          const closeTag = "</think>";
+          full += closeTag;
+          sendEvent(controller, "token", { t: closeTag });
         }
 
         // Send collected sources as SSE event (same format as Gemini grounding)
