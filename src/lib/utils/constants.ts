@@ -19,6 +19,9 @@ export const MODEL_IDS = {
   // Claude models
   CLAUDE_SONNET_45: "claude-sonnet-4.5",
   CLAUDE_HAIKU_45: "claude-haiku-4.5",
+  // DeepSeek V4 models (Direct API)
+  DEEPSEEK_V4_FLASH: "deepseek-v4-flash",
+  DEEPSEEK_V4_PRO: "deepseek-v4-pro",
 } as const;
 
 export type ModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];

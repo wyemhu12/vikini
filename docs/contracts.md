@@ -1,7 +1,8 @@
-﻿# Data Contracts & Protocols - Vikini
+# Data Contracts & Protocols - Vikini
 
-> **Cập nhật**: 2026-01-18  
-> **Mục đích**: Định nghĩa các cấu trúc dữ liệu (Interfaces) và giao thức truyền tải giữa các thành phần của hệ thống Vikini.
+> **Updated**: 2026-05-03  
+> **Purpose**: Single source of truth for data shapes, API protocols, and endpoint contracts.  
+> **Note**: This file merges the former `api-reference.md`. All endpoint info lives here now.
 
 ---
 
@@ -14,7 +15,7 @@ interface Conversation {
   id: string; // UUID
   userId: string; // Email người dùng (lowercase)
   title: string; // Tiêu đề (mặc định: "New Chat")
-  model: string; // Model AI (e.g. "gemini-1.5-flash")
+  model: string; // Model AI (e.g. "gemini-3-flash-preview")
   gemId: string | null; // GEM đang áp dụng
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
@@ -190,6 +191,45 @@ interface RankFeatures {
 
 ---
 
+### Project (Dự án)
+
+```typescript
+interface Project {
+  id: string; // UUID
+  userId: string; // Email người dùng
+  name: string; // Tên project (unique per user)
+  description: string | null; // Mô tả
+  icon: string; // Emoji (default: 📁)
+  color: string; // Hex color (default: #6366f1)
+  embeddingModel: string; // "text-embedding-004" | "gemini-embedding-001"
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+---
+
+### KnowledgeDocument (Tài liệu Knowledge Base)
+
+```typescript
+interface KnowledgeDocument {
+  id: string; // UUID
+  projectId: string; // FK → Project
+  userId: string; // Email owner
+  filename: string; // Tên file gốc
+  mimeType: string | null; // MIME type
+  sizeBytes: number; // Kích thước
+  totalChunks: number; // Số chunks sau khi chia
+  embeddingModel: string | null; // Model dùng để embed
+  status: "processing" | "ready" | "error"; // Trạng thái
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+---
+
 ## 2. API Request/Response Schemas
 
 ### Chat Stream Request
@@ -291,6 +331,45 @@ interface UpdateConversationRequest {
 
 ---
 
+### Project Operations
+
+```typescript
+// POST /api/projects (Create)
+interface CreateProjectRequest {
+  name: string; // Bắt buộc (max 100)
+  description?: string; // Max 500
+  icon?: string; // Emoji
+  color?: string; // Hex color (#xxxxxx)
+  embedding_model?: "text-embedding-004" | "gemini-embedding-001";
+}
+
+// PATCH /api/projects/[id] (Update)
+interface UpdateProjectRequest {
+  name?: string;
+  description?: string | null;
+  icon?: string;
+  color?: string;
+  embedding_model?: "text-embedding-004" | "gemini-embedding-001";
+}
+
+// POST /api/projects/[id]/knowledge (Upload document)
+interface UploadDocumentRequest {
+  filename: string; // Bắt buộc
+  content: string; // Text content - Bắt buộc
+  mimeType?: string;
+  embedding_model?: "text-embedding-004" | "gemini-embedding-001";
+}
+
+// POST /api/projects/[id]/knowledge/search (RAG search)
+interface KnowledgeSearchRequest {
+  query: string; // Search query
+  matchThreshold?: number; // Default 0.7
+  matchCount?: number; // Default 5
+}
+```
+
+---
+
 ### API Response Contracts (MANDATORY)
 
 > **Standard format cho TẤT CẢ API responses**
@@ -346,8 +425,48 @@ interface ErrorResponse {
 
 ---
 
-## 4. Liên kết tài liệu
+## 5. API Endpoints Reference
 
-- [Database Schema](./database-schema.md) - Chi tiết bảng và ERD
-- [API Reference](./api-reference.md) - Chi tiết endpoints
-- [Security](./security.md) - RLS và encryption
+### Authentication
+
+All API routes require NextAuth session (cookie-based). No Bearer tokens.
+Public routes: `/auth/signin`, `/auth/error`, `/auth/signout`, `/api/auth/*`.
+
+### Key Endpoints
+
+| Method                | Endpoint                              | Description                                                  |
+| --------------------- | ------------------------------------- | ------------------------------------------------------------ |
+| POST                  | `/api/chat-stream`                    | Send message, receive SSE stream                             |
+| GET                   | `/api/conversations`                  | List all user conversations                                  |
+| GET                   | `/api/conversations?id={uuid}`        | Get conversation with messages                               |
+| POST/PATCH/DELETE     | `/api/conversations`                  | CRUD operations                                              |
+| GET/POST/PATCH/DELETE | `/api/gems`                           | GEM CRUD operations                                          |
+| POST                  | `/api/attachments/upload`             | Upload file (FormData)                                       |
+| GET/DELETE            | `/api/attachments`                    | List/delete attachments                                      |
+| DELETE                | `/api/messages/[id]`                  | Delete a single message                                      |
+| POST                  | `/api/generate-image`                 | AI image generation                                          |
+| GET/DELETE            | `/api/gallery`                        | Gallery CRUD                                                 |
+| GET                   | `/api/user/allowed-models`            | Get user's allowed models by rank                            |
+| GET/POST              | `/api/projects`                       | List/create projects                                         |
+| GET/PATCH/DELETE      | `/api/projects/[id]`                  | Single project CRUD                                          |
+| GET/POST/DELETE       | `/api/projects/[id]/knowledge`        | Knowledge document management                                |
+| POST                  | `/api/projects/[id]/knowledge/search` | RAG similarity search                                        |
+| GET/PATCH             | `/api/admin/users`                    | Admin: user management                                       |
+| GET/POST              | `/api/admin/gems`                     | Admin: premade GEM management                                |
+| GET/PATCH             | `/api/admin/rank-configs`             | Admin: rank configuration                                    |
+| GET                   | `/api/cron/attachments-cleanup`       | Cron: cleanup expired attachments (requires `x-cron-secret`) |
+
+### Rate Limiting
+
+- `/api/chat-stream`: Per-user limits based on rank config
+- All APIs: IP-based rate limiting via Upstash Redis
+- Headers: `X-RateLimit-Remaining`, `Retry-After`
+
+---
+
+## 6. Related Documentation
+
+- [Database Schema](./database-schema.md) -- Table details and ERD
+- [Security](./security.md) -- RLS and encryption
+- [Features](./features.md) -- Feature details and file locations
+- [Models](./models.md) -- AI model specifications

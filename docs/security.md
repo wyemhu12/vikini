@@ -1,4 +1,4 @@
-﻿# docs/security.md
+# docs/security.md
 
 ## Supabase & Row Level Security (RLS)
 
@@ -8,7 +8,7 @@
 - `service_role` key **bypasses RLS** completely
 - App handles authorization in application code (checking `userId` before operations)
 
-### RLS Status (Updated 2025-12-31)
+### RLS Status (Updated 2026-05-03)
 
 RLS has been **enabled** on all tables. However, most user data tables have **no SELECT/INSERT/UPDATE/DELETE policies** for `authenticated` or `anon` roles - only `service_role` can access them.
 
@@ -19,18 +19,21 @@ Config tables (`allowed_mime_types`, `rank_configs`) have read-only policies for
 
 ### Tables with RLS Enabled
 
-| Table                  | Has Policies | Notes                        |
-| ---------------------- | ------------ | ---------------------------- |
-| `profiles`             | ❌           | Access via service_role only |
-| `conversations`        | ❌           | Access via service_role only |
-| `messages`             | ❌           | Access via service_role only |
-| `gems`                 | ❌           | Access via service_role only |
-| `gem_versions`         | ❌           | Access via service_role only |
-| `gem_runs`             | ❌           | Access via service_role only |
-| `daily_message_counts` | ❌           | Access via service_role only |
-| `temp_user_ranks`      | ❌           | Access via service_role only |
-| `allowed_mime_types`   | ✅           | Read-only for authenticated  |
-| `rank_configs`         | ✅           | Read-only for authenticated  |
+| Table                  | Has Policies | Notes                             |
+| ---------------------- | ------------ | --------------------------------- |
+| `profiles`             | ❌           | Access via service_role only      |
+| `conversations`        | ❌           | Access via service_role only      |
+| `messages`             | ❌           | Access via service_role only      |
+| `gems`                 | ❌           | Access via service_role only      |
+| `gem_versions`         | ❌           | Access via service_role only      |
+| `gem_runs`             | ❌           | Access via service_role only      |
+| `daily_message_counts` | ❌           | Access via service_role only      |
+| `temp_user_ranks`      | ❌           | Access via service_role only      |
+| `projects`             | ✅           | Users manage own projects         |
+| `knowledge_documents`  | ✅           | Users manage own knowledge docs   |
+| `knowledge_chunks`     | ✅           | Users manage own knowledge chunks |
+| `allowed_mime_types`   | ✅           | Read-only for authenticated       |
+| `rank_configs`         | ✅           | Read-only for authenticated       |
 
 ### Adding Client-Side Supabase Access
 
@@ -53,16 +56,17 @@ All message `content` is encrypted before storing in DB. See `encryptText`/`decr
 
 IP-based rate limiting via Upstash Redis. See `/lib/core/rateLimit.ts`.
 
-## Global Authentication Proxy (formerly Middleware)
+## Authentication (NextAuth v5)
 
 > [!IMPORTANT]
-> Tất cả routes đều yêu cầu authentication mặc định (default-deny policy).
+> Tất cả API routes đều yêu cầu authentication. Mỗi route **PHẢI** gọi `await auth()` để kiểm tra session.
 
 ### Cách hoạt động
 
-- File `/proxy.ts` (Next.js 16 convention) wrap NextAuth `auth()` để kiểm tra session trước mỗi request
-- Người dùng chưa xác thực sẽ được redirect về `/auth/signin`
-- Proxy tự động gắn session vào request
+- Auth config tại `lib/features/auth/auth.ts` — export `{ handlers, auth, signIn, signOut }` từ NextAuth v5
+- Mỗi API route gọi `const session = await auth()` và kiểm tra `session?.user?.email`
+- Auth routes handler: `app/api/auth/[...nextauth]/route.ts`
+- Google OAuth là provider duy nhất
 
 ### Public Routes (không yêu cầu auth)
 
@@ -73,16 +77,11 @@ IP-based rate limiting via Upstash Redis. See `/lib/core/rateLimit.ts`.
 | `/auth/signout` | Trang đăng xuất   |
 | `/api/auth/*`   | NextAuth handlers |
 
-### Excluded Paths
-
-- `/_next/*` (static files, images)
-- `/favicon.ico`, `/robots.txt`, `/sitemap.xml`
-
 ### Lưu ý khi thêm route mới
 
-- **API routes**: Không cần gọi `await auth()` thủ công nữa - proxy đã xử lý
-- **Thêm public route**: Cập nhật `PUBLIC_ROUTES` array trong `/proxy.ts`
-- **Session access**: Trong API route, dùng `req.auth` để lấy session (đã được inject bởi proxy)
+- **API routes**: PHẢI gọi `await auth()` từ `@/lib/features/auth/auth` trong mỗi handler
+- **Session access**: `const session = await auth(); const email = session?.user?.email`
+- **Helper**: Một số routes dùng `requireUser()` helper từ `app/api/conversations/auth.ts`
 
 ## Server-Only Files Convention
 

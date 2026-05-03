@@ -1,4 +1,4 @@
-﻿# Architecture & System Overview
+# Architecture & System Overview
 
 ## 1. Technology Stack
 
@@ -24,7 +24,8 @@
 
 ### AI & Intelligence
 
-- **LLM Provider**: [Google Gemini](https://ai.google.dev/) (`@google/genai`)
+- **Primary LLM**: [Google Gemini](https://ai.google.dev/) (`@google/genai`)
+- **Additional Providers**: Anthropic Claude (`claudeClient.ts`), Groq (`groqClient.ts`), OpenRouter (`openRouterClient.ts`)
 - **Orchestration**: Custom streaming implementation
 
 ### State Management
@@ -56,6 +57,13 @@ Separation of concerns between UI and business logic.
 ### `src/components/` (Shared UI)
 
 - `ui/`: Reusable primitive components (shadcn/ui based).
+- `features/`: Feature-specific shared components (e.g., `projects/`).
+
+### `src/lib/store/` (Global State)
+
+- `languageStore.ts`: Bilingual language preference.
+- `projectStore.ts`: Active project state.
+- `toastStore.ts`: Toast notification state.
 
 ### `src/types/` (Type Definitions)
 
@@ -113,6 +121,12 @@ Tests are colocated with source files using the `.test.ts` / `.test.tsx` suffix.
 - Infinite scroll pagination
 - Search and filter capabilities
 - Route: `/gallery`
+
+### Voice Features
+
+- **Speech-to-Text**: Web Speech API with waveform indicator (`lib/features/voice/useSpeechRecognition.ts`)
+- **Text-to-Speech**: Read AI responses aloud (`lib/features/voice/useSpeechSynthesis.ts`)
+- Auto language detection (VN/EN/DE)
 
 ## 4. Data Flow
 

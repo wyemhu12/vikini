@@ -7,11 +7,13 @@ import { getGenAIClient } from "@/lib/core/genaiClient";
 import { getGroqClient } from "@/lib/core/groqClient";
 import { getOpenRouterClient } from "@/lib/core/openRouterClient";
 import { getClaudeClient } from "@/lib/core/claudeClient";
+import { getDeepSeekClient } from "@/lib/core/deepseekClient";
 import {
   DEFAULT_MODEL,
   normalizeModelForApi,
   coerceStoredModel,
   getModelTokenLimit,
+  isDeepSeekDirectModel,
 } from "@/lib/core/modelRegistry";
 import { CONVERSATION_DEFAULTS, MODEL_IDS, CLAUDE_API_MODELS } from "@/lib/utils/constants";
 import { logger } from "@/lib/utils/logger";
@@ -45,6 +47,7 @@ import { BUILT_IN_FUNCTIONS } from "@/lib/features/chat/functions";
 import {
   createChatReadableStream,
   createOpenAICompatibleStream,
+  createDeepSeekStream,
   createAnthropicStream,
   mapMessages,
   type ChatStreamParams,
@@ -691,6 +694,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
   };
 
   // Detect model provider
+  const isDeepSeekDirect = isDeepSeekDirectModel(model);
   const isStandardGroq = model.includes("llama") && !model.includes("/");
   const isOpenRouter = model.includes("/") || model.includes(":free");
   const isClaude = model.startsWith("claude-");
@@ -700,7 +704,18 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
   // at each streaming call site for type safety without losing flexibility
   let aiClient: unknown = ai;
 
-  if (isClaude) {
+  if (isDeepSeekDirect) {
+    try {
+      aiClient = getDeepSeekClient();
+    } catch (e) {
+      coreLogger.error("DeepSeek Init Error:", e);
+      return error(
+        "DeepSeek API configuration missing. Add DEEPSEEK_API_KEY to .env",
+        500,
+        "CONFIG_ERROR"
+      );
+    }
+  } else if (isClaude) {
     // Claude uses OpenAI-compatible streaming via OpenRouter for simplicity
     // Direct Claude API integration would require different streaming format
     try {
@@ -738,7 +753,45 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
   // Create appropriate stream based on client type
   let stream: ReadableStream;
 
-  if (isClaude && process.env.ANTHROPIC_API_KEY) {
+  if (isDeepSeekDirect) {
+    // DeepSeek V4 Direct API with native thinking mode
+    stream = createDeepSeekStream({
+      ai: aiClient as unknown as OpenAI,
+      model: apiModel,
+      contents,
+      sysPrompt: finalSysPromptWithCharts,
+      thinkingLevel,
+      gemMeta: {
+        gemId: conversation?.gemId ?? null,
+        hasSystemInstruction: Boolean(finalSysPrompt && String(finalSysPrompt).trim()),
+        systemInstructionChars: typeof finalSysPrompt === "string" ? finalSysPrompt.length : 0,
+        error: gemLoadError || "",
+      },
+      modelMeta: {
+        model: coerceStoredModel(requestedModel),
+        requestedModel,
+        apiModel: apiModel,
+        normalized: normalizeModelForApi(requestedModel) !== coerceStoredModel(requestedModel),
+        isDefault: normalizeModelForApi(requestedModel) === normalizeModelForApi(DEFAULT_MODEL),
+      },
+      createdConversation,
+      shouldGenerateTitle: finalShouldGenerateTitle,
+      enableWebSearch,
+      WEB_SEARCH_AVAILABLE,
+      cookieWeb,
+      userId,
+      conversationId,
+      content,
+      contextMessages: messageContext.contextMessages,
+      appendToContext: async () => {},
+      saveMessage: saveMessageCompat,
+      setConversationAutoTitle: async (userId: string, conversationId: string, title: string) => {
+        await setConversationAutoTitle(userId, conversationId, title);
+      },
+      generateOptimisticTitle,
+      generateFinalTitle,
+    });
+  } else if (isClaude && process.env.ANTHROPIC_API_KEY) {
     // Direct Anthropic API (for Free Tier $5/mo or paid)
     try {
       aiClient = getClaudeClient();

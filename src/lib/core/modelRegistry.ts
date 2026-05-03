@@ -179,7 +179,32 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
   },
 
   // ═══════════════════════════════════════════════════════════
-  // DEEPSEEK MODELS (via OpenRouter - Cheapest Provider)
+  // DEEPSEEK V4 MODELS (Direct API - May 2026)
+  // Thinking mode built-in, reasoning_content support
+  // ═══════════════════════════════════════════════════════════
+  {
+    id: "deepseek-v4-flash",
+    name: "DeepSeek V4 Flash",
+    descKey: "modelDescDeepSeekV4Flash",
+    tokenLimit: 128000,
+    contextWindow: 128000,
+    maxOutputTokens: 8192,
+    category: "low-latency",
+    providerId: "deepseek",
+  },
+  {
+    id: "deepseek-v4-pro",
+    name: "DeepSeek V4 Pro",
+    descKey: "modelDescDeepSeekV4Pro",
+    tokenLimit: 128000,
+    contextWindow: 128000,
+    maxOutputTokens: 8192,
+    category: "reasoning",
+    providerId: "deepseek",
+  },
+
+  // ═══════════════════════════════════════════════════════════
+  // DEEPSEEK LEGACY (via OpenRouter - Cheapest Provider)
   // :floor suffix = auto-route to lowest price provider
   // ═══════════════════════════════════════════════════════════
   {
@@ -235,7 +260,11 @@ const API_ALLOWED = new Set([
   "claude-haiku-4.5",
   "claude-sonnet-4.5",
 
-  // DeepSeek via OpenRouter
+  // DeepSeek V4 Direct API
+  "deepseek-v4-flash",
+  "deepseek-v4-pro",
+
+  // DeepSeek Legacy via OpenRouter
   "deepseek/deepseek-v3.2:floor",
 ]);
 
@@ -263,6 +292,10 @@ export const MODEL_ALIASES: Record<string, string> = {
   "llama3-8b-8192": "llama-3.1-8b-instant",
   "llama-3.1-70b-versatile": "llama-3.3-70b-versatile", // Deprecated Dec 2024
   "llama-3.1-70b-specdec": "llama-3.3-70b-versatile",
+
+  // DeepSeek legacy aliases (deprecated 2026/07/24)
+  "deepseek-chat": "deepseek-v4-flash",
+  "deepseek-reasoner": "deepseek-v4-flash", // Maps to thinking mode of V4 Flash
 } as const;
 
 export function isSelectableModelId(modelId: unknown): boolean {
@@ -343,4 +376,21 @@ export function modelSupportsThinking(modelId: unknown): boolean {
 export function modelSupportsClaudeThinking(modelId: unknown): boolean {
   const normalized = String(modelId || "").toLowerCase();
   return normalized.includes("claude-sonnet") || normalized.includes("claude-opus");
+}
+
+/**
+ * Check if a model is a DeepSeek V4 model using direct API.
+ * These models support native thinking mode with reasoning_content.
+ */
+export function isDeepSeekDirectModel(modelId: unknown): boolean {
+  const normalized = String(modelId || "").trim();
+  return normalized.startsWith("deepseek-v4");
+}
+
+/**
+ * Check if a DeepSeek model supports thinking mode.
+ * All DeepSeek V4 models have thinking enabled by default.
+ */
+export function modelSupportsDeepSeekThinking(modelId: unknown): boolean {
+  return isDeepSeekDirectModel(modelId);
 }

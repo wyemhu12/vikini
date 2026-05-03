@@ -1,6 +1,6 @@
 # Database Schema - Vikini
 
-> **Cập nhật**: 2025-12-31  
+> **Updated**: 2026-05-03  
 > **Database**: Supabase PostgreSQL
 
 ---
@@ -12,12 +12,14 @@ erDiagram
     profiles ||--o{ conversations : "owns"
     profiles ||--o{ gems : "creates"
     profiles ||--o{ daily_message_counts : "tracks"
+    profiles ||--o{ projects : "owns"
     profiles }o--|| rank_configs : "has rank"
     profiles }o--o| temp_user_ranks : "mapped from"
 
     conversations ||--o{ messages : "contains"
     conversations ||--o{ attachments : "has"
     conversations }o--o| gems : "uses"
+    conversations }o--o| projects : "belongs to"
 
     gems ||--o{ gem_versions : "has versions"
     gems ||--o{ gem_runs : "tracks usage"
@@ -48,6 +50,7 @@ erDiagram
         text title
         text model
         uuid gem_id FK
+        uuid project_id FK
         timestamptz created_at
         timestamptz updated_at
     }
@@ -121,6 +124,49 @@ erDiagram
         text mime_type PK
         text category
         integer max_size_mb
+    }
+
+    projects ||--o{ knowledge_documents : "has docs"
+    projects ||--o{ conversations : "groups"
+    knowledge_documents ||--o{ knowledge_chunks : "has chunks"
+
+    projects {
+        uuid id PK
+        text user_id FK
+        text name
+        text description
+        text icon
+        text color
+        text embedding_model
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    knowledge_documents {
+        uuid id PK
+        uuid project_id FK
+        text user_id FK
+        text filename
+        text mime_type
+        integer size_bytes
+        integer total_chunks
+        text embedding_model
+        text status
+        text error_message
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    knowledge_chunks {
+        uuid id PK
+        uuid document_id FK
+        uuid project_id FK
+        text user_id FK
+        integer chunk_index
+        text content
+        jsonb metadata
+        vector embedding
+        timestamptz created_at
     }
 ```
 
@@ -277,18 +323,82 @@ erDiagram
 
 ---
 
+### 2.10 `projects` - Dự án
+
+| Cột               | Kiểu          | Ràng buộc                      | Mô tả              |
+| ----------------- | ------------- | ------------------------------ | ------------------ |
+| `id`              | `UUID`        | PRIMARY KEY                    | ID dự án           |
+| `user_id`         | `TEXT`        | NOT NULL                       | Email người dùng   |
+| `name`            | `TEXT`        | NOT NULL                       | Tên dự án          |
+| `description`     | `TEXT`        |                                | Mô tả              |
+| `icon`            | `TEXT`        | DEFAULT '📁'                   | Emoji icon         |
+| `color`           | `TEXT`        | DEFAULT '#6366f1'              | Mã màu hex         |
+| `embedding_model` | `TEXT`        | DEFAULT 'gemini-embedding-001' | Model embedding    |
+| `created_at`      | `TIMESTAMPTZ` | DEFAULT now()                  | Thời gian tạo      |
+| `updated_at`      | `TIMESTAMPTZ` | DEFAULT now()                  | Thời gian cập nhật |
+
+**Unique**: `(user_id, name)`  
+**Index**: `projects_user_id_idx`
+
+---
+
+### 2.11 `knowledge_documents` - Tài liệu Knowledge Base
+
+| Cột               | Kiểu          | Ràng buộc                 | Mô tả                             |
+| ----------------- | ------------- | ------------------------- | --------------------------------- |
+| `id`              | `UUID`        | PRIMARY KEY               | ID tài liệu                       |
+| `project_id`      | `UUID`        | FK → projects(id) CASCADE | Dự án chứa tài liệu               |
+| `user_id`         | `TEXT`        | NOT NULL                  | Email người upload                |
+| `filename`        | `TEXT`        | NOT NULL                  | Tên file gốc                      |
+| `mime_type`       | `TEXT`        |                           | Loại file                         |
+| `size_bytes`      | `INTEGER`     | DEFAULT 0                 | Kích thước file                   |
+| `total_chunks`    | `INTEGER`     | DEFAULT 0                 | Số chunks sau khi chia            |
+| `embedding_model` | `TEXT`        |                           | Model dùng để embed               |
+| `status`          | `TEXT`        | DEFAULT 'processing'      | `processing`, `ready`, `error`    |
+| `error_message`   | `TEXT`        |                           | Chi tiết lỗi (nếu status = error) |
+| `created_at`      | `TIMESTAMPTZ` | DEFAULT now()             | Thời gian tạo                     |
+| `updated_at`      | `TIMESTAMPTZ` | DEFAULT now()             | Thời gian cập nhật                |
+
+**Index**: `knowledge_documents_project_id_idx`, `knowledge_documents_user_id_idx`
+
+---
+
+### 2.12 `knowledge_chunks` - Chunks với embeddings
+
+| Cột           | Kiểu          | Ràng buộc                            | Mô tả                           |
+| ------------- | ------------- | ------------------------------------ | ------------------------------- |
+| `id`          | `UUID`        | PRIMARY KEY                          | ID chunk                        |
+| `document_id` | `UUID`        | FK → knowledge_documents(id) CASCADE | Tài liệu gốc                    |
+| `project_id`  | `UUID`        | NOT NULL                             | ID dự án (denormalized)         |
+| `user_id`     | `TEXT`        | NOT NULL                             | Email owner                     |
+| `chunk_index` | `INTEGER`     | NOT NULL                             | Vị trí chunk trong tài liệu     |
+| `content`     | `TEXT`        | NOT NULL                             | Nội dung text chunk             |
+| `metadata`    | `JSONB`       | DEFAULT '{}'                         | Metadata bổ sung                |
+| `embedding`   | `VECTOR`      |                                      | Vector embedding (no fixed dim) |
+| `created_at`  | `TIMESTAMPTZ` | DEFAULT now()                        | Thời gian tạo                   |
+
+**Index**: `knowledge_chunks_project_id_idx`, `knowledge_chunks_document_id_idx`
+
+> [!NOTE]
+> Cột `embedding` không có fixed dimension — hỗ trợ cả `text-embedding-004` (768d) và `gemini-embedding-001` (3072d). Dùng exact cosine similarity search (fine cho <100k chunks/project).
+
+---
+
 ## 3. Row Level Security (RLS)
 
-| Bảng                 | RLS Enabled | Policies | Ghi chú                     |
-| -------------------- | ----------- | -------- | --------------------------- |
-| `profiles`           | ✅          | ❌       | Chỉ service_role truy cập   |
-| `conversations`      | ✅          | ❌       | Chỉ service_role truy cập   |
-| `messages`           | ✅          | ❌       | Chỉ service_role truy cập   |
-| `gems`               | ✅          | ❌       | Chỉ service_role truy cập   |
-| `gem_versions`       | ✅          | ❌       | Chỉ service_role truy cập   |
-| `attachments`        | ✅          | ❌       | Chỉ service_role truy cập   |
-| `allowed_mime_types` | ✅          | ✅       | Read-only cho authenticated |
-| `rank_configs`       | ✅          | ✅       | Read-only cho authenticated |
+| Bảng                  | RLS Enabled | Policies | Ghi chú                           |
+| --------------------- | ----------- | -------- | --------------------------------- |
+| `profiles`            | ✅          | ❌       | Chỉ service_role truy cập         |
+| `conversations`       | ✅          | ❌       | Chỉ service_role truy cập         |
+| `messages`            | ✅          | ❌       | Chỉ service_role truy cập         |
+| `gems`                | ✅          | ❌       | Chỉ service_role truy cập         |
+| `gem_versions`        | ✅          | ❌       | Chỉ service_role truy cập         |
+| `attachments`         | ✅          | ❌       | Chỉ service_role truy cập         |
+| `projects`            | ✅          | ✅       | Users manage own projects         |
+| `knowledge_documents` | ✅          | ✅       | Users manage own knowledge docs   |
+| `knowledge_chunks`    | ✅          | ✅       | Users manage own knowledge chunks |
+| `allowed_mime_types`  | ✅          | ✅       | Read-only cho authenticated       |
+| `rank_configs`        | ✅          | ✅       | Read-only cho authenticated       |
 
 > [!WARNING]
 > Nếu thêm client-side Supabase queries trong tương lai, **PHẢI** tạo RLS policies!

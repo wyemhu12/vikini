@@ -1,6 +1,6 @@
 # Features - Vikini
 
-> **Cập nhật**: 2026-02-04
+> **Updated**: 2026-05-03
 
 ---
 

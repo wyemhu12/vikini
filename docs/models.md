@@ -1,6 +1,6 @@
 # Danh sách Model và Tính năng - Vikini
 
-> **Cập nhật**: 2026-02-26  
+> **Updated**: 2026-05-03  
 > **Nguồn**: [Google AI - Gemini Models](https://ai.google.dev/gemini-api/docs/models), [OpenRouter](https://openrouter.ai)
 
 ---

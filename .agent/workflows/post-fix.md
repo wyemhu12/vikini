@@ -1,34 +1,38 @@
 ---
-description: After fixing a bug, record the lesson learned to prevent recurrence
+description: After fixing a bug, record the lesson and run verification.
 ---
 
 # /post-fix Workflow
 
-Run this after every bug fix to build institutional memory.
+Run this after every bug fix to build institutional memory and verify quality.
 
 ## Steps
 
-1. **Identify the lesson** — Determine:
-   - What was the symptom?
-   - What was the root cause?
-   - What rule would have prevented this?
+1. **Run verification** -- Confirm the fix works:
 
-2. **Update lessons file** — Add a new entry at the TOP of `.agent/rules/99-lessons-learned.md` (below the header) using this format:
-
-   ```markdown
-   ## YYYY-MM-DD: [Short description]
-
-   - **Symptom**: [What went wrong]
-   - **Root Cause**: [Why it happened]
-   - **Fix**: [What was changed]
-   - **Rule**: [Permanent rule to prevent recurrence]
+   ```bash
+   npm run type-check && npm run lint && npm test
    ```
 
-3. **Check for rule promotion** — If the same category of mistake appears **3+ times**, extract a formal rule into the appropriate `.agent/rules/` file:
-   - Type safety issues → `11-coding-standards.md`
-   - UI/styling issues → `20-ui-standards.md`
-   - API/streaming issues → `00-core.md` (or create a new domain-specific file)
-   - Translation issues → `30-bilingual.md`
+2. **Record the lesson** -- Add a new entry to `docs/lessons-learned.md` under the appropriate category:
 
-4. **Confirm** — End with a short summary:
-   > ✅ Lesson recorded in `99-lessons-learned.md`: [one-line description]
+   ```markdown
+   ### YYYY-MM-DD: [Short description]
+
+   - **Symptom**: What went wrong
+   - **Root Cause**: Why it happened
+   - **Fix**: What was changed
+   - **Prevention Rule**: How to avoid this in the future
+   ```
+
+3. **Check for pattern promotion** -- If the same category of mistake appears 3 or more times:
+   - Extract a formal rule into the appropriate `.agent/rules/` file
+   - Type safety issues go to `01-coding.md`
+   - UI/styling issues go to `03-ui.md`
+   - API/streaming issues go to `00-core.md`
+   - Translation issues go to `04-bilingual.md`
+
+4. **Update CHANGELOG** -- Add the fix to `docs/CHANGELOG.md`
+
+5. **Confirm** -- End with:
+   > Lesson recorded in `docs/lessons-learned.md`: [one-line description]
