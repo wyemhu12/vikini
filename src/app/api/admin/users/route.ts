@@ -17,11 +17,12 @@ function isValidRank(rank: unknown): rank is UserRank {
   return typeof rank === "string" && VALID_RANKS.includes(rank as UserRank);
 }
 
-// SECURITY: UUID validation regex
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// SECURITY: Validate userId format - accepts both UUID and Google numeric IDs
+const SAFE_ID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const GOOGLE_ID_REGEX = /^\d{10,30}$/;
 
-function isValidUUID(id: unknown): boolean {
-  return typeof id === "string" && UUID_REGEX.test(id);
+function isValidUserId(id: unknown): boolean {
+  return typeof id === "string" && (SAFE_ID_REGEX.test(id) || GOOGLE_ID_REGEX.test(id));
 }
 
 // Type for profile updates
@@ -68,9 +69,9 @@ export async function PATCH(req: NextRequest) {
       throw new ValidationError("Missing or invalid userId");
     }
 
-    // SECURITY: Validate userId is a valid UUID
-    if (!isValidUUID(userId)) {
-      throw new ValidationError("Invalid userId format - must be a valid UUID");
+    // SECURITY: Validate userId format
+    if (!isValidUserId(userId)) {
+      throw new ValidationError("Invalid userId format");
     }
 
     // SECURITY: Validate rank against whitelist to prevent injection

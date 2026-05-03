@@ -236,26 +236,42 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
         <select
           value={rankFilter}
           onChange={(e) => setRankFilter(e.target.value as RankFilter)}
-          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 focus:outline-none cursor-pointer"
+          className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 focus:outline-none cursor-pointer"
           style={{ colorScheme: "dark" }}
         >
-          <option value="all">{t.adminFilterAllRanks}</option>
-          <option value="not_whitelisted">{t.userNotWhitelisted}</option>
-          <option value="basic">{t.userBasic}</option>
-          <option value="pro">{t.userPro}</option>
-          <option value="admin">{t.userAdmin}</option>
+          <option value="all" className="bg-[#1a1a1a] text-white">
+            {t.adminFilterAllRanks}
+          </option>
+          <option value="not_whitelisted" className="bg-[#1a1a1a] text-white">
+            {t.userNotWhitelisted}
+          </option>
+          <option value="basic" className="bg-[#1a1a1a] text-white">
+            {t.userBasic}
+          </option>
+          <option value="pro" className="bg-[#1a1a1a] text-white">
+            {t.userPro}
+          </option>
+          <option value="admin" className="bg-[#1a1a1a] text-white">
+            {t.userAdmin}
+          </option>
         </select>
 
         {/* Status Filter */}
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 focus:outline-none cursor-pointer"
+          className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 focus:outline-none cursor-pointer"
           style={{ colorScheme: "dark" }}
         >
-          <option value="all">{t.adminFilterAllStatus}</option>
-          <option value="active">{t.userActive}</option>
-          <option value="blocked">{t.userBlocked}</option>
+          <option value="all" className="bg-[#1a1a1a] text-white">
+            {t.adminFilterAllStatus}
+          </option>
+          <option value="active" className="bg-[#1a1a1a] text-white">
+            {t.userActive}
+          </option>
+          <option value="blocked" className="bg-[#1a1a1a] text-white">
+            {t.userBlocked}
+          </option>
         </select>
       </div>
 
@@ -273,16 +289,22 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
                   e.target.value = "";
                 }
               }}
-              className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white cursor-pointer"
+              className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white cursor-pointer"
               style={{ colorScheme: "dark" }}
               defaultValue=""
             >
-              <option value="" disabled>
+              <option value="" disabled className="bg-[#1a1a1a] text-white">
                 {t.adminBulkSetRank}
               </option>
-              <option value="not_whitelisted">{t.userNotWhitelisted}</option>
-              <option value="basic">{t.userBasic}</option>
-              <option value="pro">{t.userPro}</option>
+              <option value="not_whitelisted" className="bg-[#1a1a1a] text-white">
+                {t.userNotWhitelisted}
+              </option>
+              <option value="basic" className="bg-[#1a1a1a] text-white">
+                {t.userBasic}
+              </option>
+              <option value="pro" className="bg-[#1a1a1a] text-white">
+                {t.userPro}
+              </option>
             </select>
             <button
               onClick={() => bulkUpdate({ is_blocked: true })}

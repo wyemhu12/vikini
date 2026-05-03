@@ -54,6 +54,13 @@
 - **Fix**: Migration `20260204180000` removed dimension constraint, using generic `VECTOR` type
 - **Prevention Rule**: When supporting multiple embedding models, never fix vector dimensions
 
+### 2026-05: User ID is NOT UUID — it's a Google numeric ID ⚠️ RECURRING
+
+- **Symptom**: Admin rank change silently failed (400 "Invalid userId format - must be a valid UUID"). User selected a new rank → dropdown reverted to old value.
+- **Root Cause**: `isValidUUID()` regex only accepted UUID format (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`). But Vikini uses **Google OAuth**, so `profiles.id` is a **Google numeric ID** (e.g., `111673153137785334295`), not a UUID.
+- **Fix**: Replaced `isValidUUID()` with `isValidUserId()` that accepts both UUID and Google numeric ID (`/^\d{10,30}$/`).
+- **Prevention Rule**: **NEVER assume user IDs are UUIDs in this project.** Vikini uses Google OAuth — user IDs are long numeric strings. Any validation that touches `userId` or `profiles.id` must accept this format. When writing ID validators, always check the actual data format in the DB first.
+
 ---
 
 ## Translation and Bilingual
