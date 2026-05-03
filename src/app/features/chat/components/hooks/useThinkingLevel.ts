@@ -4,12 +4,12 @@
 import { useCallback, useEffect, useState } from "react";
 
 /**
- * Thinking levels supported by Gemini models.
+ * Thinking levels supported by AI models.
  * - "off" (default): No thinking mode
  * - "low": Faster responses, less reasoning
- * - "medium": Balanced (Flash only)
+ * - "medium": Balanced (Gemini Flash only)
  * - "high": Maximum reasoning depth
- * - "minimal": Near-zero thinking (Flash only)
+ * - "minimal": Near-zero thinking (Gemini Flash only)
  */
 export type ThinkingLevel = "off" | "high" | "low" | "medium" | "minimal";
 
@@ -44,13 +44,27 @@ export function isClaudeThinkingModel(model: string): boolean {
 }
 
 /**
+ * Check if a model is a DeepSeek V4 model (supports thinking via reasoning_content)
+ * DeepSeek V4 supports: off, high (default), max
+ */
+export function isDeepSeekV4Model(model: string): boolean {
+  return model.startsWith("deepseek-v4");
+}
+
+/**
  * Check if a model supports thinking UI toggle
  * - Gemini 2.5+: thinkingBudget
  * - Gemini 3+: thinkingLevel
  * - Claude Sonnet/Opus: extended thinking (budget_tokens)
+ * - DeepSeek V4: reasoning_content (high/max)
  */
 export function modelSupportsThinkingUI(model: string): boolean {
-  return isGemini25Model(model) || isGemini3Model(model) || isClaudeThinkingModel(model);
+  return (
+    isGemini25Model(model) ||
+    isGemini3Model(model) ||
+    isClaudeThinkingModel(model) ||
+    isDeepSeekV4Model(model)
+  );
 }
 
 interface UseThinkingLevelResult {
@@ -75,23 +89,28 @@ interface UseThinkingLevelResult {
 export function useThinkingLevel(currentModel: string): UseThinkingLevelResult {
   const [thinkingLevel, setThinkingLevelState] = useState<ThinkingLevel>("off");
 
-  // Thinking toggle visible for Gemini 2.5, Gemini 3, and Claude Sonnet/Opus
+  // Thinking toggle visible for Gemini 2.5, Gemini 3, Claude Sonnet/Opus, and DeepSeek V4
   const isThinkingEnabled = modelSupportsThinkingUI(currentModel);
   // Extended levels only for Gemini 3 Flash
   const hasExtendedLevels = isGemini3FlashModel(currentModel);
   // Claude models only support on/off (high)
   const isClaudeModel = isClaudeThinkingModel(currentModel);
+  // DeepSeek V4 supports off/low(high)/high(max) — 3 levels
+  const isDeepSeek = isDeepSeekV4Model(currentModel);
 
   // Available levels based on model
   // Claude Sonnet/Opus: simple on/off (high = budget_tokens)
+  // DeepSeek V4: off/low(=high effort)/high(=max effort) — 3 options
   // Gemini 2.5: simple on/off (high = dynamic thinkingBudget)
   // Gemini 3 Flash: full range
   // Gemini 3 Pro: basic levels
   const availableLevels: ThinkingLevel[] = isClaudeModel
     ? ["off", "high"] // Claude: only on/off
-    : hasExtendedLevels
-      ? ["off", "minimal", "low", "medium", "high"]
-      : ["off", "low", "high"];
+    : isDeepSeek
+      ? ["off", "low", "high"] // DeepSeek V4: off / standard(high) / deep(max)
+      : hasExtendedLevels
+        ? ["off", "minimal", "low", "medium", "high"]
+        : ["off", "low", "high"];
 
   // Load from localStorage on mount
   useEffect(() => {

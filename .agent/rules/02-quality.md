@@ -31,7 +31,7 @@ After every code change, verify ALL of the following:
 - Run `npm run lint` -- must pass
 - Run `npm test` -- must pass. If logic changed, add or update tests.
 - Update `docs/CHANGELOG.md` with a summary of what changed
-- Update related docs if any interface, API, or schema changed
+- Update related docs if any interface, API, models or schema changed
 
 ## After Fixing a Bug (ADDITIONAL)
 

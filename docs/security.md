@@ -56,6 +56,26 @@ All message `content` is encrypted before storing in DB. See `encryptText`/`decr
 
 IP-based rate limiting via Upstash Redis. See `/lib/core/rateLimit.ts`.
 
+- `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_SECONDS` are configured as **Vercel Environment Variables**.
+- Additional per-rank daily message limits are configured via the Admin Dashboard (`/admin` → Limits tab) and stored in the `rank_configs` DB table.
+
+## Environment Variables & Secrets (Vercel)
+
+> [!IMPORTANT]
+> All API keys and secrets are managed exclusively through the **Vercel Dashboard** (`Project Settings → Environment Variables`). Never commit secrets to the repository.
+
+### Security Rules
+
+1. **Sensitive variables** (e.g., `DEEPSEEK_API_KEY`) should be marked as `Sensitive` in Vercel — they won't be readable after creation.
+2. **Scope control**: Use `Production and Preview` for keys that should not leak to development builds.
+3. **"Needs Attention" flag**: Vercel flags variables that may have issues (e.g., expired, empty). Monitor these in the dashboard regularly.
+4. **Rotation**: When rotating API keys, update via Vercel Dashboard and trigger a redeployment.
+
+### What is NOT on Vercel
+
+- **Per-rank limits** (daily messages, file size, features, allowed models) → managed via Admin Dashboard UI → stored in Supabase `rank_configs` table
+- **User management** (ranks, block/unblock) → managed via Admin Dashboard UI → stored in Supabase `profiles` table
+
 ## Authentication (NextAuth v5)
 
 > [!IMPORTANT]

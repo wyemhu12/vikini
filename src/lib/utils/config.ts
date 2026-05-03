@@ -172,6 +172,7 @@ export const translations: TranslationSet = {
     // Admin Dashboard
     adminDashboard: "Bảng điều khiển Admin",
     adminDescription: "Quản lý người dùng, giới hạn và cấu hình hệ thống",
+    adminBackToHome: "Trang chủ",
     adminUsers: "Người dùng",
     adminLimits: "Giới hạn",
     adminGlobalGems: "GEMs hệ thống",
@@ -192,6 +193,39 @@ export const translations: TranslationSet = {
     userBlock: "Khóa",
     userUnblock: "Mở khóa",
     userLoadingUsers: "Đang tải người dùng...",
+    // Admin Search & Filter
+    adminSearchPlaceholder: "Tìm theo email...",
+    adminFilterAllRanks: "Tất cả xếp hạng",
+    adminFilterAllStatus: "Tất cả trạng thái",
+    adminSelfLabel: "Bạn",
+    // Bulk Actions
+    adminBulkSelected: "đã chọn",
+    adminBulkSetRank: "Đặt xếp hạng",
+    adminBulkBlock: "Khóa tất cả",
+    adminBulkUnblock: "Mở khóa tất cả",
+    adminBulkSuccess: "Đã cập nhật thành công",
+    // Statistics
+    adminStats: "Thống kê",
+    adminStatsTotal: "Tổng người dùng",
+    adminStatsActive: "Đang hoạt động",
+    adminStatsBlocked: "Đã khóa",
+    adminStatsConversations: "Hội thoại",
+    adminStatsMessagesToday: "Tin nhắn hôm nay",
+    adminStatsToday: "hôm nay",
+    adminStatsRankDist: "Phân bố xếp hạng",
+    // User Detail
+    adminUserDetail: "Chi tiết người dùng",
+    adminUserConvs: "Số hội thoại",
+    adminUserMsgs: "Số tin nhắn",
+    adminUserJoined: "Ngày tham gia",
+    // Audit Log
+    adminAuditLog: "Nhật ký",
+    adminAuditLoading: "Đang tải nhật ký...",
+    adminAuditNoLogs: "Chưa có nhật ký hoạt động",
+    adminAuditBy: "Bởi",
+    adminAuditMigrationNeeded: "Cần chạy migration",
+    adminAuditMigrationHint:
+      "Chạy file supabase/migrations/20260503_add_audit_logs.sql trong Supabase SQL Editor để bật tính năng này.",
     // GEMs Manager
     globalGemsManagement: "Quản lý GEMs hệ thống",
     addGem: "Thêm GEM",
@@ -535,6 +569,7 @@ export const translations: TranslationSet = {
     // Admin Dashboard
     adminDashboard: "Admin Dashboard",
     adminDescription: "Manage users, limits, and system configuration",
+    adminBackToHome: "Home",
     adminUsers: "Users",
     adminLimits: "Limits",
     adminGlobalGems: "Global GEMs",
@@ -555,6 +590,39 @@ export const translations: TranslationSet = {
     userBlock: "Block",
     userUnblock: "Unblock",
     userLoadingUsers: "Loading users...",
+    // Admin Search & Filter
+    adminSearchPlaceholder: "Search by email...",
+    adminFilterAllRanks: "All Ranks",
+    adminFilterAllStatus: "All Status",
+    adminSelfLabel: "You",
+    // Bulk Actions
+    adminBulkSelected: "selected",
+    adminBulkSetRank: "Set Rank",
+    adminBulkBlock: "Block All",
+    adminBulkUnblock: "Unblock All",
+    adminBulkSuccess: "Updated successfully",
+    // Statistics
+    adminStats: "Statistics",
+    adminStatsTotal: "Total Users",
+    adminStatsActive: "Active",
+    adminStatsBlocked: "Blocked",
+    adminStatsConversations: "Conversations",
+    adminStatsMessagesToday: "Messages Today",
+    adminStatsToday: "today",
+    adminStatsRankDist: "Rank Distribution",
+    // User Detail
+    adminUserDetail: "User Details",
+    adminUserConvs: "Conversations",
+    adminUserMsgs: "Messages",
+    adminUserJoined: "Joined",
+    // Audit Log
+    adminAuditLog: "Audit Log",
+    adminAuditLoading: "Loading audit logs...",
+    adminAuditNoLogs: "No audit logs yet",
+    adminAuditBy: "By",
+    adminAuditMigrationNeeded: "Migration required",
+    adminAuditMigrationHint:
+      "Run supabase/migrations/20260503_add_audit_logs.sql in Supabase SQL Editor to enable this feature.",
     // GEMs Manager
     globalGemsManagement: "Global GEMs Management",
     addGem: "Add GEM",

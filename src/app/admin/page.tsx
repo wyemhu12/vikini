@@ -15,5 +15,5 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  return <AdminDashboard />;
+  return <AdminDashboard currentUserId={session.user.id} />;
 }

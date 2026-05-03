@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-05-03: Admin Dashboard Major Overhaul
+
+- **What changed**: Comprehensive upgrade to Admin Management panel with 8 new features.
+- **Why**: Admin panel needed better UX for user management and system monitoring.
+- **Details**:
+  - **Search & Filter**: Email search with rank/status dropdown filters in User Manager
+  - **Self-protection**: Admin cannot modify their own rank or block themselves (disabled controls + badge)
+  - **Bulk Actions**: Select multiple users + bulk set rank/block/unblock
+  - **User Detail Modal**: Click email → modal with user stats (conversations, messages, joined date)
+  - **Statistics Tab**: Cards showing total/active/blocked users, conversations, messages + rank distribution bar
+  - **Audit Log Tab**: Admin action history viewer with color-coded events + migration hint
+  - **Vercel/Supabase Quick Links**: External links to Vercel and Supabase dashboards in header
+  - New API routes: `/api/admin/stats`, `/api/admin/audit-log`
+  - Audit logger helper: `lib/features/admin/auditLog.ts` (writes to DB + console)
+  - DB migration: `supabase/migrations/20260503_add_audit_logs.sql`
+  - 35+ new bilingual translation keys
+  - Docs updated: architecture.md, security.md, features.md
+
+---
+
+## 2026-05-03: Admin Dashboard UX + Docs Infrastructure Update
+
+- **What changed**: Added "Back to Home" navigation button to Admin Dashboard header; updated architecture, security, and features docs with Vercel deployment and environment variable management details.
+- **Why**: Admin panel had no way to navigate back to vikini.net; docs lacked documentation about where env vars and limits are managed.
+- **Details**:
+  - `AdminDashboard.tsx`: Added `Link` to `/` with `ArrowLeft` icon, bilingual translation
+  - `config.ts`: Added `adminBackToHome` key (VN: "Trang chủ", EN: "Home")
+  - `architecture.md`: New section 5 "Deployment & Infrastructure" (Vercel, env vars table, limits config)
+  - `security.md`: New "Environment Variables & Secrets (Vercel)" section with security rules
+  - `features.md`: Expanded Admin Dashboard section with operational boundaries table
+
+---
+
 ## 2026-05-03: DeepSeek V4 Flash & Pro Integration
 
 - **What changed**: Added DeepSeek V4 Flash and V4 Pro models via direct DeepSeek API.

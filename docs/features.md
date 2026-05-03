@@ -90,11 +90,37 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 
 ### 2.4 Admin Dashboard
 
-**Capabilities**:
+**Mô tả**: Bảng điều khiển quản trị hệ thống, truy cập tại `/admin` (chỉ user rank `admin`).
 
-- Quản lý users (rank, block)
-- Quản lý premade GEMs
-- Cấu hình rank limits
+**Capabilities (trong Admin panel)**:
+
+- Quản lý users: thay đổi rank, block/unblock
+- Quản lý premade GEMs: CRUD hệ thống GEMs
+- Cấu hình rank limits: daily messages, max file size, features, allowed models
+- Song ngữ VN/EN
+- Nút quay lại trang chủ Vikini
+
+**Managed ngoài Admin panel**:
+
+| Cấu hình                                              | Quản lý tại                  | Lý do                                           |
+| ----------------------------------------------------- | ---------------------------- | ----------------------------------------------- |
+| API Keys (Gemini, Claude, OpenRouter, DeepSeek, Groq) | Vercel Dashboard             | Bảo mật, không expose trên UI                   |
+| Rate Limiting (`RATE_LIMIT_MAX`)                      | Vercel Environment Variables | Áp dụng global, không cần thay đổi thường xuyên |
+| Attachment limits (`ATTACH_MAX_*`)                    | Vercel Environment Variables | Áp dụng global                                  |
+| Whitelist emails                                      | Vercel Environment Variables | Quyết định ai được đăng ký                      |
+| Database schema, RLS policies                         | Supabase Dashboard           | DBA level                                       |
+| Cron jobs                                             | Vercel Cron                  | Attachment cleanup                              |
+
+**Files**:
+
+- `/app/admin/page.tsx` - Server component với auth guard
+- `/app/admin/components/AdminDashboard.tsx` - Main layout + tabs
+- `/app/admin/components/UserManager.tsx` - User CRUD
+- `/app/admin/components/RankConfigManager.tsx` - Limits config
+- `/app/admin/components/GemsManager.tsx` - System GEMs
+- `/app/api/admin/users/route.ts` - User API
+- `/app/api/admin/rank-configs/route.ts` - Rank config API
+- `/app/api/admin/gems/route.ts` - GEMs API
 
 **Route**: `/admin`
 

@@ -1,7 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Users, Loader2, AlertCircle } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  Users,
+  Loader2,
+  AlertCircle,
+  Search,
+  ShieldAlert,
+  CheckSquare,
+  Square,
+  X,
+} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { translations } from "@/lib/utils/config";
 import { toast } from "@/lib/store/toastStore";
 import { formatDate } from "@/lib/utils/dateFormat";
@@ -14,15 +24,35 @@ interface Profile {
   created_at: string;
 }
 
+type RankFilter = "all" | Profile["rank"];
+type StatusFilter = "all" | "active" | "blocked";
+
 interface UserManagerProps {
   language: "vi" | "en";
+  currentUserId: string;
 }
 
-export default function UserManager({ language }: UserManagerProps) {
+export default function UserManager({ language, currentUserId }: UserManagerProps) {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
+
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [rankFilter, setRankFilter] = useState<RankFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // User detail modal
+  const [detailUser, setDetailUser] = useState<Profile | null>(null);
+  const [detailStats, setDetailStats] = useState<{
+    conversations: number;
+    messages: number;
+  } | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const t = language === "vi" ? translations.vi : translations.en;
 
@@ -45,7 +75,47 @@ export default function UserManager({ language }: UserManagerProps) {
     }
   };
 
+  // Filtered users
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      // Search filter
+      if (searchQuery && !user.email.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      // Rank filter
+      if (rankFilter !== "all" && user.rank !== rankFilter) {
+        return false;
+      }
+      // Status filter
+      if (statusFilter === "active" && user.is_blocked) return false;
+      if (statusFilter === "blocked" && !user.is_blocked) return false;
+      return true;
+    });
+  }, [users, searchQuery, rankFilter, statusFilter]);
+
+  const isSelf = (userId: string) => userId === currentUserId;
+
+  const openUserDetail = useCallback(async (user: Profile) => {
+    setDetailUser(user);
+    setDetailStats(null);
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/admin/stats?userId=${user.id}`);
+      if (res.ok) {
+        const json = await res.json();
+        setDetailStats(json.data || json);
+      }
+    } catch {
+      // Non-critical, just show empty stats
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
   const updateUser = async (userId: string, updates: Partial<Profile>) => {
+    // Self-protection: prevent modifying own account
+    if (isSelf(userId)) return;
+
     try {
       setUpdating(userId);
       const res = await fetch("/api/admin/users", {
@@ -64,6 +134,56 @@ export default function UserManager({ language }: UserManagerProps) {
       toast.error(
         err instanceof Error ? err.message : t.failedUpdateUser || "Failed to update user"
       );
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  // Bulk actions
+  const selectableUsers = filteredUsers.filter((u) => !isSelf(u.id));
+  const allSelectableSelected =
+    selectableUsers.length > 0 && selectableUsers.every((u) => selectedIds.has(u.id));
+
+  const toggleSelect = (userId: string) => {
+    if (isSelf(userId)) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allSelectableSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(selectableUsers.map((u) => u.id)));
+    }
+  };
+
+  const bulkUpdate = async (updates: Partial<Profile>) => {
+    const ids = Array.from(selectedIds).filter((id) => !isSelf(id));
+    if (ids.length === 0) return;
+
+    try {
+      setUpdating("bulk");
+      for (const userId of ids) {
+        const res = await fetch("/api/admin/users", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, ...updates }),
+        });
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          throw new Error(json?.error?.message || "Failed to update user");
+        }
+      }
+      toast.success(t.adminBulkSuccess || "Updated successfully");
+      setSelectedIds(new Set());
+      await fetchUsers();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update users");
     } finally {
       setUpdating(null);
     }
@@ -89,18 +209,117 @@ export default function UserManager({ language }: UserManagerProps) {
 
   return (
     <div>
+      {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <Users className="w-5 h-5 text-blue-400" />
         <h2 className="text-xl font-semibold text-white">{t.userManagement}</h2>
         <span className="text-sm text-gray-500">
-          ({users.length} {t.userUsers})
+          ({filteredUsers.length}/{users.length} {t.userUsers})
         </span>
       </div>
 
+      {/* Search & Filter Bar */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t.adminSearchPlaceholder}
+            className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:border-blue-500/50 focus:outline-none transition-colors"
+          />
+        </div>
+
+        {/* Rank Filter */}
+        <select
+          value={rankFilter}
+          onChange={(e) => setRankFilter(e.target.value as RankFilter)}
+          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 focus:outline-none cursor-pointer"
+          style={{ colorScheme: "dark" }}
+        >
+          <option value="all">{t.adminFilterAllRanks}</option>
+          <option value="not_whitelisted">{t.userNotWhitelisted}</option>
+          <option value="basic">{t.userBasic}</option>
+          <option value="pro">{t.userPro}</option>
+          <option value="admin">{t.userAdmin}</option>
+        </select>
+
+        {/* Status Filter */}
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 focus:outline-none cursor-pointer"
+          style={{ colorScheme: "dark" }}
+        >
+          <option value="all">{t.adminFilterAllStatus}</option>
+          <option value="active">{t.userActive}</option>
+          <option value="blocked">{t.userBlocked}</option>
+        </select>
+      </div>
+
+      {/* Bulk Actions Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+          <span className="text-sm text-blue-400">
+            {selectedIds.size} {t.adminBulkSelected}
+          </span>
+          <div className="flex gap-2 ml-auto">
+            <select
+              onChange={(e) => {
+                if (e.target.value) {
+                  bulkUpdate({ rank: e.target.value as Profile["rank"] });
+                  e.target.value = "";
+                }
+              }}
+              className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white cursor-pointer"
+              style={{ colorScheme: "dark" }}
+              defaultValue=""
+            >
+              <option value="" disabled>
+                {t.adminBulkSetRank}
+              </option>
+              <option value="not_whitelisted">{t.userNotWhitelisted}</option>
+              <option value="basic">{t.userBasic}</option>
+              <option value="pro">{t.userPro}</option>
+            </select>
+            <button
+              onClick={() => bulkUpdate({ is_blocked: true })}
+              disabled={updating === "bulk"}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 transition-all disabled:opacity-50"
+            >
+              {t.adminBulkBlock}
+            </button>
+            <button
+              onClick={() => bulkUpdate({ is_blocked: false })}
+              disabled={updating === "bulk"}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30 transition-all disabled:opacity-50"
+            >
+              {t.adminBulkUnblock}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-white/10">
+              {/* Bulk select header */}
+              <th className="py-3 px-2 w-8">
+                <button
+                  onClick={toggleSelectAll}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  {allSelectableSelected ? (
+                    <CheckSquare className="w-4 h-4 text-blue-400" />
+                  ) : (
+                    <Square className="w-4 h-4" />
+                  )}
+                </button>
+              </th>
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
                 {t.userEmail}
               </th>
@@ -119,73 +338,191 @@ export default function UserManager({ language }: UserManagerProps) {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
-              <tr key={user.id} className="border-b border-white/5 hover:bg-white/2">
-                <td className="py-3 px-4 text-sm text-white">{user.email}</td>
-                <td className="py-3 px-4">
-                  <select
-                    value={user.rank}
-                    onChange={(e) =>
-                      updateUser(user.id, { rank: e.target.value as Profile["rank"] })
-                    }
-                    disabled={updating === user.id}
-                    className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:border-blue-500/50 focus:outline-none disabled:opacity-50 cursor-pointer"
-                    style={{
-                      colorScheme: "dark",
-                    }}
-                  >
-                    <option value="not_whitelisted" className="bg-[#1a1a1a] text-white">
-                      {t.userNotWhitelisted}
-                    </option>
-                    <option value="basic" className="bg-[#1a1a1a] text-white">
-                      {t.userBasic}
-                    </option>
-                    <option value="pro" className="bg-[#1a1a1a] text-white">
-                      {t.userPro}
-                    </option>
-                    <option value="admin" className="bg-[#1a1a1a] text-white">
-                      {t.userAdmin}
-                    </option>
-                  </select>
-                </td>
-                <td className="py-3 px-4">
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                      user.is_blocked
-                        ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                        : "bg-green-500/20 text-green-400 border border-green-500/30"
-                    }`}
-                  >
-                    {user.is_blocked ? t.userBlocked : t.userActive}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-sm text-gray-400">
-                  {formatDate(user.created_at, language === "vi" ? "vi-VN" : "en-GB")}
-                </td>
-                <td className="py-3 px-4 text-right">
-                  <button
-                    onClick={() => updateUser(user.id, { is_blocked: !user.is_blocked })}
-                    disabled={updating === user.id}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 ${
-                      user.is_blocked
-                        ? "bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30"
-                        : "bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30"
-                    }`}
-                  >
-                    {updating === user.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin inline" />
-                    ) : user.is_blocked ? (
-                      t.userUnblock
-                    ) : (
-                      t.userBlock
+            {filteredUsers.map((user) => {
+              const self = isSelf(user.id);
+              return (
+                <tr
+                  key={user.id}
+                  className={`border-b border-white/5 hover:bg-white/2 ${self ? "opacity-70" : ""}`}
+                >
+                  {/* Bulk select checkbox */}
+                  <td className="py-3 px-2">
+                    {!self && (
+                      <button
+                        onClick={() => toggleSelect(user.id)}
+                        className="text-gray-400 hover:text-white transition-colors"
+                      >
+                        {selectedIds.has(user.id) ? (
+                          <CheckSquare className="w-4 h-4 text-blue-400" />
+                        ) : (
+                          <Square className="w-4 h-4" />
+                        )}
+                      </button>
                     )}
-                  </button>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="py-3 px-4 text-sm text-white">
+                    <button
+                      onClick={() => openUserDetail(user)}
+                      className="flex items-center gap-2 hover:text-blue-400 transition-colors text-left"
+                    >
+                      {user.email}
+                      {self && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                          <ShieldAlert className="w-3 h-3" />
+                          {t.adminSelfLabel}
+                        </span>
+                      )}
+                    </button>
+                  </td>
+                  <td className="py-3 px-4">
+                    <select
+                      value={user.rank}
+                      onChange={(e) =>
+                        updateUser(user.id, { rank: e.target.value as Profile["rank"] })
+                      }
+                      disabled={self || updating === user.id}
+                      className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:border-blue-500/50 focus:outline-none disabled:opacity-50 cursor-pointer"
+                      style={{
+                        colorScheme: "dark",
+                      }}
+                    >
+                      <option value="not_whitelisted" className="bg-[#1a1a1a] text-white">
+                        {t.userNotWhitelisted}
+                      </option>
+                      <option value="basic" className="bg-[#1a1a1a] text-white">
+                        {t.userBasic}
+                      </option>
+                      <option value="pro" className="bg-[#1a1a1a] text-white">
+                        {t.userPro}
+                      </option>
+                      <option value="admin" className="bg-[#1a1a1a] text-white">
+                        {t.userAdmin}
+                      </option>
+                    </select>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                        user.is_blocked
+                          ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                          : "bg-green-500/20 text-green-400 border border-green-500/30"
+                      }`}
+                    >
+                      {user.is_blocked ? t.userBlocked : t.userActive}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-sm text-gray-400">
+                    {formatDate(user.created_at, language === "vi" ? "vi-VN" : "en-GB")}
+                  </td>
+                  <td className="py-3 px-4 text-right">
+                    <button
+                      onClick={() => updateUser(user.id, { is_blocked: !user.is_blocked })}
+                      disabled={self || updating === user.id}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 ${
+                        user.is_blocked
+                          ? "bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30"
+                          : "bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30"
+                      }`}
+                    >
+                      {updating === user.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin inline" />
+                      ) : user.is_blocked ? (
+                        t.userUnblock
+                      ) : (
+                        t.userBlock
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+
+      {/* User Detail Modal */}
+      <AnimatePresence>
+        {detailUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-md p-6 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">{t.adminUserDetail}</h3>
+                <button
+                  onClick={() => setDetailUser(null)}
+                  className="p-1 rounded-full hover:bg-white/10 transition-colors"
+                >
+                  <X className="w-5 h-5 text-neutral-400" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-3 rounded-lg bg-white/3 border border-white/10">
+                  <div className="text-xs text-gray-500 mb-1">{t.userEmail}</div>
+                  <div className="text-sm text-white font-medium">{detailUser.email}</div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-white/3 border border-white/10">
+                    <div className="text-xs text-gray-500 mb-1">{t.userRank}</div>
+                    <div className="text-sm text-white font-medium capitalize">
+                      {detailUser.rank === "not_whitelisted"
+                        ? t.userNotWhitelisted
+                        : detailUser.rank}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-white/3 border border-white/10">
+                    <div className="text-xs text-gray-500 mb-1">{t.userStatus}</div>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        detailUser.is_blocked
+                          ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                          : "bg-green-500/20 text-green-400 border border-green-500/30"
+                      }`}
+                    >
+                      {detailUser.is_blocked ? t.userBlocked : t.userActive}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-white/3 border border-white/10">
+                    <div className="text-xs text-gray-500 mb-1">{t.adminUserConvs}</div>
+                    <div className="text-sm text-white font-medium">
+                      {detailLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        (detailStats?.conversations ?? "—")
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-white/3 border border-white/10">
+                    <div className="text-xs text-gray-500 mb-1">{t.adminUserMsgs}</div>
+                    <div className="text-sm text-white font-medium">
+                      {detailLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        (detailStats?.messages ?? "—")
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg bg-white/3 border border-white/10">
+                  <div className="text-xs text-gray-500 mb-1">{t.adminUserJoined}</div>
+                  <div className="text-sm text-white font-medium">
+                    {formatDate(detailUser.created_at, language === "vi" ? "vi-VN" : "en-GB")}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

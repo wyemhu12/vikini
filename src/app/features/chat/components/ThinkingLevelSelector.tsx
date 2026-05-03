@@ -3,7 +3,11 @@
 
 import { useState } from "react";
 import { ChevronDown, Check, Brain } from "lucide-react";
-import { type ThinkingLevel, isGemini3FlashModel } from "./hooks/useThinkingLevel";
+import {
+  type ThinkingLevel,
+  isGemini3FlashModel,
+  isDeepSeekV4Model,
+} from "./hooks/useThinkingLevel";
 
 interface ThinkingLevelSelectorProps {
   thinkingLevel: ThinkingLevel;
@@ -28,31 +32,39 @@ export default function ThinkingLevelSelector({
   const [isOpen, setIsOpen] = useState(false);
 
   const isFlashModel = isGemini3FlashModel(currentModel);
+  const isDeepSeek = isDeepSeekV4Model(currentModel);
 
   // Build options based on model
-  const options: ThinkingOption[] = [
-    { value: "off", label: t.webSearchOff || "OFF" },
-    ...(isFlashModel
-      ? [
-          {
-            value: "minimal" as ThinkingLevel,
-            label: t.thinkingLevelMinimal || "MINIMAL",
-            flashOnly: true,
-          },
-        ]
-      : []),
-    { value: "low", label: t.thinkingLevelLow || "LOW" },
-    ...(isFlashModel
-      ? [
-          {
-            value: "medium" as ThinkingLevel,
-            label: t.thinkingLevelMedium || "MEDIUM",
-            flashOnly: true,
-          },
-        ]
-      : []),
-    { value: "high", label: t.thinkingLevelHigh || "HIGH" },
-  ];
+  // DeepSeek V4: off / low(=reasoning_effort:high) / high(=reasoning_effort:max)
+  const options: ThinkingOption[] = isDeepSeek
+    ? [
+        { value: "off", label: t.webSearchOff || "OFF" },
+        { value: "low", label: t.thinkingLevelLow || "STANDARD" },
+        { value: "high", label: t.thinkingLevelHigh || "DEEP" },
+      ]
+    : [
+        { value: "off", label: t.webSearchOff || "OFF" },
+        ...(isFlashModel
+          ? [
+              {
+                value: "minimal" as ThinkingLevel,
+                label: t.thinkingLevelMinimal || "MINIMAL",
+                flashOnly: true,
+              },
+            ]
+          : []),
+        { value: "low", label: t.thinkingLevelLow || "LOW" },
+        ...(isFlashModel
+          ? [
+              {
+                value: "medium" as ThinkingLevel,
+                label: t.thinkingLevelMedium || "MEDIUM",
+                flashOnly: true,
+              },
+            ]
+          : []),
+        { value: "high", label: t.thinkingLevelHigh || "HIGH" },
+      ];
 
   const currentOption = options.find((o) => o.value === thinkingLevel) || options[0];
   const displayLabel = `${t.thinkingLevel || "THINKING"}: ${currentOption.label}`;

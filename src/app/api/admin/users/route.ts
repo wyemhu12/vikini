@@ -7,7 +7,7 @@ import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { ForbiddenError, ValidationError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
-import { logger } from "@/lib/utils/logger";
+import { logAuditEvent } from "@/lib/features/admin/auditLog";
 
 // SECURITY: Whitelist of valid user ranks - prevents rank injection attacks
 const VALID_RANKS = ["basic", "pro", "admin", "not_whitelisted"] as const;
@@ -63,7 +63,6 @@ export async function PATCH(req: NextRequest) {
 
     const body = (await req.json()) as { userId?: string; rank?: unknown; is_blocked?: unknown };
     const { userId, rank, is_blocked } = body;
-    const loggerWithContext = logger.withContext("AdminUserUpdate");
 
     if (!userId || typeof userId !== "string") {
       throw new ValidationError("Missing or invalid userId");
@@ -97,9 +96,25 @@ export async function PATCH(req: NextRequest) {
 
     if (dbError) throw new Error(dbError.message);
 
-    loggerWithContext.audit("ADMIN_UPDATE_USER", session.user.id, {
-      targetUserId: userId,
-      updates,
+    // Resolve target email for audit log
+    const { data: targetProfile } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("id", userId)
+      .single();
+
+    // Determine audit action
+    let action = "UPDATE_USER_RANK";
+    if (updates.is_blocked === true) action = "BLOCK_USER";
+    else if (updates.is_blocked === false) action = "UNBLOCK_USER";
+
+    await logAuditEvent({
+      action,
+      adminId: session.user.id,
+      adminEmail: session.user.email || undefined,
+      targetId: userId,
+      targetEmail: targetProfile?.email || undefined,
+      details: updates as Record<string, unknown>,
     });
 
     return success({ success: true });

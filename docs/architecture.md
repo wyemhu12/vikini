@@ -138,3 +138,41 @@ Tests are colocated with source files using the `.test.ts` / `.test.tsx` suffix.
    - **Data**: Persisted to Supabase PostgreSQL.
    - **AI**: Prompt constructed and sent to Google Gemini.
 5. **Response**: Streamed back to client and state updated via SWR/Zustand.
+
+## 5. Deployment & Infrastructure
+
+### Hosting
+
+- **Platform**: [Vercel](https://vercel.com/) (Production & Preview)
+- **Domain**: `vikini.net`
+- **Runtime**: Serverless Functions (Node.js)
+
+### Environment Variables (Managed via Vercel Dashboard)
+
+All API keys, secrets, and configuration variables are managed through the **Vercel Environment Variables** UI at `Project Settings → Environment Variables`. They are NOT stored in `.env` files in production.
+
+| Variable                                              | Category           | Scope                |
+| ----------------------------------------------------- | ------------------ | -------------------- |
+| `GEMINI_API_KEY`                                      | AI Provider        | All Environments     |
+| `ANTHROPIC_API_KEY`                                   | AI Provider        | All Environments     |
+| `OPENROUTER_API_KEY`                                  | AI Provider        | All Environments     |
+| `DEEPSEEK_API_KEY`                                    | AI Provider        | Production & Preview |
+| `LLAMA3_API_KEY`                                      | AI Provider (Groq) | All Environments     |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`           | Auth               | All Environments     |
+| `NEXTAUTH_URL` / `NEXTAUTH_SECRET`                    | Auth               | All Environments     |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`          | Database           | All Environments     |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Cache/Rate Limit   | All Environments     |
+| `DATA_ENCRYPTION_KEY`                                 | Security           | All Environments     |
+| `WHITELIST_EMAILS`                                    | Access Control     | All Environments     |
+| `RATE_LIMIT_MAX`                                      | Rate Limiting      | All Environments     |
+| `ATTACHMENTS_CRON_SECRET`                             | Cron Jobs          | All Environments     |
+
+> [!IMPORTANT]
+> **Adding/rotating API keys**: Always use Vercel Dashboard. Never commit secrets to the repository. Local development uses `.env.local` (see `env.local.example`).
+
+### Limits Configuration
+
+Limits are managed at **two levels**:
+
+1. **Vercel Environment Variables**: Rate limiting (`RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_SECONDS`), attachment limits (`ATTACH_MAX_*`)
+2. **Admin Dashboard (`/admin` → Limits tab)**: Per-rank daily message limits, max file size, feature toggles, allowed models — stored in `rank_configs` table in Supabase
