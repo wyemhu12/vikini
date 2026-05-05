@@ -77,11 +77,12 @@
 
 ## Configuration and Environment
 
-### 2026-05: `googleMaps` tool silently broke web search for ALL models ⚠️
+### 2026-05: Incompatible tool combinations silently broke web search ⚠️ RECURRING
 
-- **Symptom**: Gemini models said "I can't search the internet" despite WEB ON, `WEB_SEARCH_ENABLED=true`, and `googleSearch` tool being injected. No visible error in UI.
-- **Root Cause**: `setupToolsAndSafety()` always injected `{ googleMaps: {} }` alongside `{ googleSearch: {} }`. But `googleMaps` only supports Gemini 3 family. When used with Gemini 2.5 or 3.1 Pro, the API call **failed** → `runStreamWithFallback` retried **without ANY tools** (including `googleSearch`) → model responded successfully but without search capability. The meta event `"webSearchFallback"` was sent but not prominently displayed in UI.
-- **Fix**: Removed `googleMaps` from the default tools list. Only add model-specific tools after checking model compatibility.
-- **Prevention Rule**: **NEVER add model-family-specific tools unconditionally.** Always gate tools behind model-family checks (e.g., `if (model.startsWith("gemini-3"))`) before adding them to the tools array. The fallback retry mechanism can silently mask tool incompatibility errors.
+- **Symptom**: Gemini 2.5 models said "I can't search the internet" despite WEB ON and `googleSearch` tool being injected. No visible error in UI.
+- **Root Cause (Layer 1)**: `googleMaps` tool (Gemini 3 only) was always injected → API 400 error → fallback stripped ALL tools.
+- **Root Cause (Layer 2)**: Even after removing `googleMaps`, combining `googleSearch` + `codeExecution` + `functionDeclarations` is **NOT supported on Gemini 2.5**. Only Gemini 3+ can mix built-in tools with function declarations. The API silently fails → fallback retries without any tools.
+- **Fix**: When `googleSearch` is active on non-Gemini-3 models, send `googleSearch` ALONE (no `codeExecution`, no `functionDeclarations`). On Gemini 3+, all tools can be combined freely.
+- **Prevention Rule**: **Gemini 2.5 only supports ONE tool category at a time.** When web search is enabled, prioritize `googleSearch` over other tools. Always check the [Gemini API tool combination docs](https://ai.google.dev/) for model-specific compatibility before adding tools.
 
 ---

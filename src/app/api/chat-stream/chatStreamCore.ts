@@ -487,27 +487,30 @@ function getWebSearchConfig(cookies: Record<string, string>): {
 
 function setupToolsAndSafety(
   enableWebSearch: boolean,
-  WEB_SEARCH_AVAILABLE: boolean
+  WEB_SEARCH_AVAILABLE: boolean,
+  model: string
 ): {
   tools: Array<Record<string, unknown>>;
   safetySettings: unknown[] | null;
 } {
   const tools: Array<Record<string, unknown>> = [];
+  const isGemini3 = model.startsWith("gemini-3");
+  const useGoogleSearch = enableWebSearch && WEB_SEARCH_AVAILABLE;
 
-  // Web search logic
-  if (enableWebSearch && WEB_SEARCH_AVAILABLE) {
+  if (useGoogleSearch) {
     tools.push({ googleSearch: {} });
   }
 
-  // Code execution — allows Gemini to run Python code for data analysis, charts, math
-  tools.push({ codeExecution: {} });
+  // Gemini 2.5 CANNOT combine googleSearch with codeExecution or functionDeclarations.
+  // Doing so causes a 400 error → fallback strips ALL tools → web search silently broken.
+  // Gemini 3+ supports mixing all tools freely.
+  if (isGemini3 || !useGoogleSearch) {
+    // Code execution — allows Gemini to run Python code for data analysis, charts, math
+    tools.push({ codeExecution: {} });
 
-  // NOTE: googleMaps tool removed — it only supports Gemini 3 family models.
-  // Including it for Gemini 2.5 or 3.1 models causes API errors,
-  // triggering the fallback that silently strips ALL tools (including googleSearch).
-
-  // Function calling — built-in functions (get_current_time, etc.)
-  tools.push({ functionDeclarations: BUILT_IN_FUNCTIONS });
+    // Function calling — built-in functions (get_current_time, etc.)
+    tools.push({ functionDeclarations: BUILT_IN_FUNCTIONS });
+  }
 
   let safetySettings: unknown[] | null = null;
   const safetyJson = pickFirstEnv(["GEMINI_SAFETY_SETTINGS_JSON"]);
@@ -677,7 +680,11 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
   const cookies = parseCookieHeader(req?.headers?.get?.("cookie") || undefined);
   const { enableWebSearch, WEB_SEARCH_AVAILABLE } = getWebSearchConfig(cookies);
   const cookieWeb = cookies?.webSearchEnabled ?? cookies?.webSearch ?? "";
-  const { tools, safetySettings } = setupToolsAndSafety(enableWebSearch, WEB_SEARCH_AVAILABLE);
+  const { tools, safetySettings } = setupToolsAndSafety(
+    enableWebSearch,
+    WEB_SEARCH_AVAILABLE,
+    model
+  );
 
   // Debug: Log web search configuration
   coreLogger.info(
