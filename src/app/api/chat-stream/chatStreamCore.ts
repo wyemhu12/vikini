@@ -16,6 +16,7 @@ import {
   isDeepSeekDirectModel,
 } from "@/lib/core/modelRegistry";
 import { CONVERSATION_DEFAULTS, MODEL_IDS, CLAUDE_API_MODELS } from "@/lib/utils/constants";
+import { getOrCreateSystemCache } from "@/lib/core/contextCache";
 import { logger } from "@/lib/utils/logger";
 import { error } from "@/lib/utils/apiResponse";
 
@@ -42,7 +43,7 @@ import {
 } from "@/lib/features/projects/ragContext.server";
 
 import { generateOptimisticTitle, generateFinalTitle } from "@/lib/core/autoTitleEngine";
-import { BUILT_IN_FUNCTIONS } from "@/lib/features/chat/functions";
+import { getAllDeclarations } from "@/lib/features/chat/functionRegistry";
 
 import {
   createChatReadableStream,
@@ -507,7 +508,10 @@ function setupToolsAndSafety(
   // Gemini 2.5 CANNOT mix googleSearch with codeExecution/functionDeclarations — send search alone.
   if (isGemini3 || !useGoogleSearch) {
     tools.push({ codeExecution: {} });
-    tools.push({ functionDeclarations: BUILT_IN_FUNCTIONS });
+    const declarations = getAllDeclarations();
+    if (declarations.length > 0) {
+      tools.push({ functionDeclarations: declarations });
+    }
   }
 
   // Enable Tool Context Circulation for Gemini 3 when mixing built-in + custom tools
@@ -901,6 +905,21 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
     });
   } else {
     // Gemini Native
+    // Attempt explicit context caching for long system instructions (GEM personas)
+    let cachedContent: string | undefined;
+    try {
+      const cacheResult = await getOrCreateSystemCache(model, finalSysPromptWithCharts);
+      if (cacheResult) {
+        cachedContent = cacheResult.cacheName;
+        coreLogger.info(
+          `[CONTEXT CACHE] ${cacheResult.cacheHit ? "HIT" : "CREATED"}: ${cachedContent}`
+        );
+      }
+    } catch (cacheErr) {
+      coreLogger.error("Context cache error (non-fatal):", cacheErr);
+      // Continue without cache — standard request
+    }
+
     stream = createChatReadableStream({
       ai: ai as unknown as ChatStreamParams["ai"],
       model,
@@ -909,6 +928,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
       tools,
       safetySettings,
       toolConfig,
+      cachedContent,
       gemMeta: {
         gemId: conversation?.gemId ?? null,
         hasSystemInstruction: Boolean(finalSysPrompt && String(finalSysPrompt).trim()),

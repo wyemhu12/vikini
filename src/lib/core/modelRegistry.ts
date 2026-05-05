@@ -75,6 +75,16 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     category: "reasoning",
     providerId: "gemini",
   },
+  {
+    id: "gemini-3.1-flash-lite-preview",
+    descKey: "modelDescFlashLite31",
+    name: "Gemini 3.1 Flash-Lite",
+    tokenLimit: 1000000,
+    contextWindow: 1000000,
+    maxOutputTokens: 65536,
+    category: "low-latency",
+    providerId: "gemini",
+  },
 
   // ═══════════════════════════════════════════════════════════
   // GROQ MODELS (Llama via Groq API)
@@ -244,6 +254,7 @@ const API_ALLOWED = new Set([
 
   // Gemini 3.1 (March 2026)
   "gemini-3.1-pro-preview",
+  "gemini-3.1-flash-lite-preview",
 
   // Llama via Groq
   "llama-3.3-70b-versatile",
@@ -285,6 +296,7 @@ export const MODEL_ALIASES: Record<string, string> = {
   // Gemini 3.1 aliases (+ deprecated Gemini 3 Pro → 3.1)
   "gemini-3.1-pro": "gemini-3.1-pro-preview",
   "gemini-3-pro": "gemini-3.1-pro-preview",
+  "gemini-3.1-flash-lite": "gemini-3.1-flash-lite-preview",
   "gemini-3-pro-preview": "gemini-3.1-pro-preview",
 
   // Legacy Groq Llama models

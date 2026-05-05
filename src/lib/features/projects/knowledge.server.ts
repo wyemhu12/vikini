@@ -15,6 +15,8 @@ import {
   generateEmbedding,
   generateEmbeddingsBatch,
   getValidatedEmbeddingModel,
+  formatQueryForRAG,
+  formatDocumentForRAG,
 } from "./embedding.server";
 import { chunkContent } from "./chunking";
 import { logger } from "@/lib/utils/logger";
@@ -170,7 +172,11 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Knowle
     }
 
     // Generate embeddings in batch
-    const chunkTexts = chunks.map((c) => c.content);
+    // For gemini-embedding-2, format chunks with document title prefix for asymmetric retrieval
+    const chunkTexts =
+      embeddingModel === "gemini-embedding-2"
+        ? chunks.map((c) => formatDocumentForRAG(c.content, input.filename))
+        : chunks.map((c) => c.content);
     const embeddings = await generateEmbeddingsBatch(chunkTexts, embeddingModel);
 
     // Insert chunks with embeddings
@@ -259,7 +265,9 @@ export async function searchKnowledge(
   kbLogger.info(`Search: project=${projectId}, model=${embeddingModel}, threshold=${threshold}`);
 
   // Generate query embedding
-  const queryEmbedding = await generateEmbedding(query, embeddingModel);
+  // For gemini-embedding-2, use task prefix for optimal asymmetric retrieval
+  const formattedQuery = embeddingModel === "gemini-embedding-2" ? formatQueryForRAG(query) : query;
+  const queryEmbedding = await generateEmbedding(formattedQuery, embeddingModel);
   kbLogger.info(`Query embedding generated: ${queryEmbedding.length} dimensions`);
 
   // First check if project has any chunks with embeddings

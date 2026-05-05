@@ -55,6 +55,8 @@ const CHAT_TRANSLATION_KEYS = [
   "modelDescPro25",
   "modelDescFlash3",
   "modelDescPro31",
+  "modelDescFlashLite31",
+  "gemini-3.1-flash-lite-preview",
   "blueprint",
   "amber",
   "indigo",

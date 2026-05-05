@@ -23,11 +23,36 @@ function getClient(): GoogleGenAI {
   return client;
 }
 
-// Model dimensions
+// Model dimensions (default output)
 const MODEL_DIMENSIONS: Record<EmbeddingModel, number> = {
   "text-embedding-004": 768,
   "gemini-embedding-001": 3072,
+  "gemini-embedding-2": 3072, // supports 768, 1536, 3072 via outputDimensionality
 };
+
+/**
+ * Whether a model is the new gemini-embedding-2 (uses task prefix format).
+ */
+function isEmbedding2(model: EmbeddingModel): boolean {
+  return model === "gemini-embedding-2";
+}
+
+/**
+ * Format content with task prefix for gemini-embedding-2 RAG queries.
+ * Embedding-2 uses inline text prefixes instead of task_type config.
+ * @see https://ai.google.dev/gemini-api/docs/embeddings#task-types-embeddings-2
+ */
+export function formatQueryForRAG(query: string): string {
+  return `task: question answering | query: ${query}`;
+}
+
+/**
+ * Format document content with title prefix for gemini-embedding-2 indexing.
+ */
+export function formatDocumentForRAG(content: string, title?: string): string {
+  const safeTitle = title || "none";
+  return `title: ${safeTitle} | text: ${content}`;
+}
 
 /**
  * Get the default embedding model for a user tier
@@ -35,6 +60,9 @@ const MODEL_DIMENSIONS: Record<EmbeddingModel, number> = {
 export function getDefaultEmbeddingModel(tier: UserTier): EmbeddingModel {
   const models = PROJECT_LIMITS[tier].embeddingModels as readonly string[];
   // Default to best available model for the tier
+  if (models.includes("gemini-embedding-2")) {
+    return "gemini-embedding-2";
+  }
   if (models.includes("gemini-embedding-001")) {
     return "gemini-embedding-001";
   }
@@ -62,9 +90,15 @@ export async function generateEmbedding(content: string, model: EmbeddingModel):
   const client = getClient();
 
   try {
+    // Build config for embedding-2 (supports outputDimensionality)
+    const config = isEmbedding2(model)
+      ? { outputDimensionality: MODEL_DIMENSIONS[model] }
+      : undefined;
+
     const result = await client.models.embedContent({
       model,
       contents: content,
+      ...(config ? { config } : {}),
     });
 
     if (!result.embeddings || result.embeddings.length === 0) {

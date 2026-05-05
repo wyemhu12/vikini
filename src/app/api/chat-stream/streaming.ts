@@ -9,7 +9,7 @@ import {
   normalizeModelForApi,
   isDeepSeekV32Model,
 } from "@/lib/core/modelRegistry";
-import { executeFunctionCall } from "@/lib/features/chat/functions";
+import { executeFunction } from "@/lib/features/chat/functionRegistry";
 
 // Type definitions for conversation objects
 interface CreatedConversation {
@@ -271,6 +271,8 @@ export function isGemini3Model(model: string): boolean {
     // Gemini 3.1 series (March 2026)
     "gemini-3.1-pro",
     "gemini-3.1-pro-preview",
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-flash-lite-preview",
   ];
   return gemini3Identifiers.some((id) => model.includes(id) || model.startsWith(id));
 }
@@ -391,6 +393,7 @@ export interface ChatStreamParams {
           safetySettings?: unknown[];
           maxOutputTokens?: number;
           thinkingConfig?: unknown;
+          cachedContent?: string;
         };
       }) => Promise<AsyncGenerator<unknown, unknown, unknown>> | AsyncIterable<unknown>;
     };
@@ -453,6 +456,8 @@ export interface ChatStreamParams {
     messages: Message[];
   }) => Promise<string | null>;
   thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
+  /** Explicit context cache name (from contextCache.ts). When set, system instruction is omitted (it's in the cache). */
+  cachedContent?: string;
 }
 
 // --- EXTRACTED FUNCTIONS ---
@@ -571,6 +576,7 @@ async function executeStream(
     toolConfig?: Record<string, unknown>;
     useTools: boolean;
     thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
+    cachedContent?: string;
   }
 ): Promise<StreamResult> {
   const { ai, model, contents, sysPrompt, safetySettings, thinkingLevel } = params;
@@ -619,7 +625,8 @@ async function executeStream(
   );
 
   let systemInstruction: SystemInstruction | undefined = undefined;
-  if (sysPrompt && sysPrompt.trim()) {
+  // When cachedContent is active, system instruction is already in the cache — skip it
+  if (!params.cachedContent && sysPrompt && sysPrompt.trim()) {
     systemInstruction = {
       role: "system",
       parts: [{ text: sysPrompt }],
@@ -644,6 +651,8 @@ async function executeStream(
             : undefined,
         // Gemini 3 Tool Context Circulation: enables combining built-in + custom tools
         toolConfig: params.useTools ? params.toolConfig : undefined,
+        // Explicit context caching: reference cached system instruction
+        cachedContent: params.cachedContent,
       },
     });
 
@@ -764,7 +773,7 @@ async function executeStream(
           const { name, args, id } = part.functionCall;
           streamLogger.info(`Function call: ${name}${id ? ` (id: ${id})` : ""}`);
           sendEvent(controller, "meta", { type: "functionCall", name, args });
-          const result = executeFunctionCall(name, args || {});
+          const result = await executeFunction(name, args || {});
           functionResponses.push({
             name,
             // Critical: id must match functionCall.id for tool context circulation
@@ -841,10 +850,20 @@ async function runStreamWithFallback(
     safetySettings: unknown[] | null;
     toolConfig?: Record<string, unknown>;
     thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
+    cachedContent?: string;
   }
 ): Promise<StreamResult> {
-  const { ai, model, contents, sysPrompt, tools, safetySettings, toolConfig, thinkingLevel } =
-    params;
+  const {
+    ai,
+    model,
+    contents,
+    sysPrompt,
+    tools,
+    safetySettings,
+    toolConfig,
+    thinkingLevel,
+    cachedContent,
+  } = params;
 
   // Helper to extract detailed error info from Gemini API errors
   const extractGeminiErrorInfo = (
@@ -905,6 +924,7 @@ async function runStreamWithFallback(
       toolConfig,
       useTools: true,
       thinkingLevel,
+      cachedContent,
     });
   } catch (err) {
     const toolNames = (tools as Array<Record<string, unknown>>)
@@ -1266,6 +1286,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           safetySettings,
           toolConfig,
           thinkingLevel,
+          cachedContent: params.cachedContent,
         });
 
         // Handle safety blocking
@@ -2120,7 +2141,7 @@ export function createAnthropicStream({
                   name: currentToolName,
                   args,
                 });
-                const result = executeFunctionCall(currentToolName, args);
+                const result = await executeFunction(currentToolName, args);
 
                 // Resume conversation with tool result
                 const resumeMessages = [
