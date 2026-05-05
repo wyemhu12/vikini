@@ -81,8 +81,8 @@
 
 - **Symptom**: Gemini 2.5 models said "I can't search the internet" despite WEB ON and `googleSearch` tool being injected. No visible error in UI.
 - **Root Cause (Layer 1)**: `googleMaps` tool (Gemini 3 only) was always injected → API 400 error → fallback stripped ALL tools.
-- **Root Cause (Layer 2)**: Even after removing `googleMaps`, combining `googleSearch` + `codeExecution` + `functionDeclarations` is **NOT supported on Gemini 2.5**. Only Gemini 3+ can mix built-in tools with function declarations. The API silently fails → fallback retries without any tools.
-- **Fix**: When `googleSearch` is active on non-Gemini-3 models, send `googleSearch` ALONE (no `codeExecution`, no `functionDeclarations`). On Gemini 3+, all tools can be combined freely.
-- **Prevention Rule**: **Gemini 2.5 only supports ONE tool category at a time.** When web search is enabled, prioritize `googleSearch` over other tools. Always check the [Gemini API tool combination docs](https://ai.google.dev/) for model-specific compatibility before adding tools.
+- **Root Cause (Layer 2)**: Even after removing `googleMaps`, combining `googleSearch` + `codeExecution` + `functionDeclarations` is **NOT supported on Gemini 2.5**. Gemini 3+ CAN mix them, but ONLY with `toolConfig: { includeServerSideToolInvocations: true }` ([docs](https://ai.google.dev/gemini-api/docs/tool-combination)). Without this flag, the API silently fails → fallback retries without any tools.
+- **Fix**: Gemini 2.5: send `googleSearch` ALONE. Gemini 3+: send all tools combined WITH `includeServerSideToolInvocations: true` flag. Also fixed `functionCall.id` passthrough in `functionResponse` for proper tool context mapping.
+- **Prevention Rule**: **Gemini 2.5 only supports ONE tool category at a time.** Gemini 3+ supports mixing but REQUIRES `includeServerSideToolInvocations: true` and proper `functionCall.id` → `functionResponse.id` mapping. Always check the [tool combination docs](https://ai.google.dev/gemini-api/docs/tool-combination) before adding tools.
 
 ---

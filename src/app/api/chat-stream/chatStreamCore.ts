@@ -488,29 +488,32 @@ function getWebSearchConfig(cookies: Record<string, string>): {
 function setupToolsAndSafety(
   enableWebSearch: boolean,
   WEB_SEARCH_AVAILABLE: boolean,
-  _model: string
+  model: string
 ): {
   tools: Array<Record<string, unknown>>;
   safetySettings: unknown[] | null;
+  toolConfig: Record<string, unknown> | undefined;
 } {
   const tools: Array<Record<string, unknown>> = [];
+  const isGemini3 = model.startsWith("gemini-3");
   const useGoogleSearch = enableWebSearch && WEB_SEARCH_AVAILABLE;
 
   if (useGoogleSearch) {
     tools.push({ googleSearch: {} });
   }
 
-  // When googleSearch is active, send it ALONE — do not mix with other tools.
-  // Gemini 2.5 does NOT support combining googleSearch with codeExecution/functionDeclarations.
-  // Gemini 3 preview models also fail in practice despite docs claiming support.
-  // When web search is OFF, include code execution and function calling normally.
-  if (!useGoogleSearch) {
-    // Code execution — allows Gemini to run Python code for data analysis, charts, math
+  // Gemini 3+ supports combining googleSearch with other tools via Tool Context Circulation.
+  // Requires includeServerSideToolInvocations: true in toolConfig.
+  // Gemini 2.5 CANNOT mix googleSearch with codeExecution/functionDeclarations — send search alone.
+  if (isGemini3 || !useGoogleSearch) {
     tools.push({ codeExecution: {} });
-
-    // Function calling — built-in functions (get_current_time, etc.)
     tools.push({ functionDeclarations: BUILT_IN_FUNCTIONS });
   }
+
+  // Enable Tool Context Circulation for Gemini 3 when mixing built-in + custom tools
+  // https://ai.google.dev/gemini-api/docs/tool-combination
+  const toolConfig =
+    isGemini3 && useGoogleSearch ? { includeServerSideToolInvocations: true } : undefined;
 
   let safetySettings: unknown[] | null = null;
   const safetyJson = pickFirstEnv(["GEMINI_SAFETY_SETTINGS_JSON"]);
@@ -523,7 +526,7 @@ function setupToolsAndSafety(
     }
   }
 
-  return { tools, safetySettings };
+  return { tools, safetySettings, toolConfig };
 }
 
 export async function handleChatStreamCore({
@@ -680,7 +683,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
   const cookies = parseCookieHeader(req?.headers?.get?.("cookie") || undefined);
   const { enableWebSearch, WEB_SEARCH_AVAILABLE } = getWebSearchConfig(cookies);
   const cookieWeb = cookies?.webSearchEnabled ?? cookies?.webSearch ?? "";
-  const { tools, safetySettings } = setupToolsAndSafety(
+  const { tools, safetySettings, toolConfig } = setupToolsAndSafety(
     enableWebSearch,
     WEB_SEARCH_AVAILABLE,
     model
@@ -905,6 +908,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
       sysPrompt: finalSysPromptWithCharts,
       tools,
       safetySettings,
+      toolConfig,
       gemMeta: {
         gemId: conversation?.gemId ?? null,
         hasSystemInstruction: Boolean(finalSysPrompt && String(finalSysPrompt).trim()),

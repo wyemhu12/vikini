@@ -387,6 +387,7 @@ export interface ChatStreamParams {
           systemInstruction?: string | unknown;
           temperature?: number;
           tools?: unknown[];
+          toolConfig?: unknown;
           safetySettings?: unknown[];
           maxOutputTokens?: number;
           thinkingConfig?: unknown;
@@ -399,6 +400,8 @@ export interface ChatStreamParams {
   sysPrompt: string;
   tools: unknown[];
   safetySettings: unknown[] | null;
+  /** Tool config for Gemini 3 Tool Context Circulation */
+  toolConfig?: Record<string, unknown>;
   gemMeta: {
     gemId?: string | null;
     hasSystemInstruction?: boolean;
@@ -552,6 +555,8 @@ interface StreamResult {
   thoughtSignatures: string[];
   /** Token usage metadata from Gemini API */
   usageMetadata?: UsageMetadata;
+  /** All response parts from Gemini 3 tool context circulation (toolCall, toolResponse, etc.) */
+  allResponseParts?: unknown[];
 }
 
 async function executeStream(
@@ -563,6 +568,7 @@ async function executeStream(
     sysPrompt: string;
     tools: unknown[];
     safetySettings: unknown[] | null;
+    toolConfig?: Record<string, unknown>;
     useTools: boolean;
     thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
   }
@@ -603,6 +609,8 @@ async function executeStream(
   const seenSignatures = new Set<string>();
   // Token usage metadata (usually in final chunk)
   let usageMetadata: UsageMetadata | undefined;
+  // Collect all response parts for Gemini 3 tool context circulation
+  const allResponseParts: unknown[] = [];
 
   const maxTokens = getModelMaxOutputTokens(model);
   const timeoutMs = getStreamTimeout(model, thinkingLevel);
@@ -634,6 +642,8 @@ async function executeStream(
           params.useTools && Array.isArray(params.tools) && params.tools.length > 0
             ? params.tools
             : undefined,
+        // Gemini 3 Tool Context Circulation: enables combining built-in + custom tools
+        toolConfig: params.useTools ? params.toolConfig : undefined,
       },
     });
 
@@ -729,21 +739,36 @@ async function executeStream(
     const fcCand = (chunk as { candidates?: unknown[] })?.candidates?.[0] as
       | { content?: { parts?: unknown[] }; finishReason?: string }
       | undefined;
+
+    // Collect ALL parts from response for Gemini 3 tool context circulation
+    // Parts may include: text, toolCall, toolResponse, functionCall, thought_signature, etc.
+    if (fcCand?.content?.parts) {
+      for (const part of fcCand.content.parts) {
+        allResponseParts.push(part);
+      }
+    }
+
     const fcFinish = fcCand?.finishReason;
     if (fcFinish === "FUNCTION_CALL" || fcFinish === "function_call") {
       const fcParts = (fcCand?.content?.parts || []) as Array<{
-        functionCall?: { name: string; args: Record<string, unknown> };
+        functionCall?: { name: string; args: Record<string, unknown>; id?: string };
       }>;
-      const functionResponses: Array<{ name: string; response: Record<string, unknown> }> = [];
+      const functionResponses: Array<{
+        name: string;
+        id?: string;
+        response: Record<string, unknown>;
+      }> = [];
 
       for (const part of fcParts) {
         if (part.functionCall) {
-          const { name, args } = part.functionCall;
-          streamLogger.info(`Function call: ${name}`);
+          const { name, args, id } = part.functionCall;
+          streamLogger.info(`Function call: ${name}${id ? ` (id: ${id})` : ""}`);
           sendEvent(controller, "meta", { type: "functionCall", name, args });
           const result = executeFunctionCall(name, args || {});
           functionResponses.push({
             name,
+            // Critical: id must match functionCall.id for tool context circulation
+            ...(id ? { id } : {}),
             response: result.error ? { error: result.error } : { result: result.result },
           });
         }
@@ -752,9 +777,13 @@ async function executeStream(
       // Make continuation call with function responses
       if (functionResponses.length > 0) {
         try {
+          // For Gemini 3 tool context circulation, include ALL response parts (toolCall,
+          // toolResponse, text, functionCall) in the model turn, not just functionCall parts.
+          // This preserves the context of server-side tool invocations (e.g., googleSearch).
+          const modelParts = allResponseParts.length > 0 ? allResponseParts : fcParts;
           const contContents = [
             ...contents,
-            { role: "model", parts: fcParts },
+            { role: "model", parts: modelParts },
             { role: "user", parts: functionResponses.map((fr) => ({ functionResponse: fr })) },
           ];
           const contResult = params.ai.models.generateContentStream({
@@ -766,6 +795,8 @@ async function executeStream(
                 params.useTools && Array.isArray(params.tools) && params.tools.length > 0
                   ? params.tools
                   : undefined,
+              // Preserve toolConfig for continuation calls
+              toolConfig: params.useTools ? params.toolConfig : undefined,
             },
           });
           const contStream = contResult instanceof Promise ? await contResult : contResult;
@@ -795,6 +826,7 @@ async function executeStream(
       thoughtSignatures.length > 0 ? thoughtSignatures[thoughtSignatures.length - 1] : undefined,
     thoughtSignatures,
     usageMetadata,
+    allResponseParts: allResponseParts.length > 0 ? allResponseParts : undefined,
   };
 }
 
@@ -807,10 +839,12 @@ async function runStreamWithFallback(
     sysPrompt: string;
     tools: unknown[];
     safetySettings: unknown[] | null;
+    toolConfig?: Record<string, unknown>;
     thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
   }
 ): Promise<StreamResult> {
-  const { ai, model, contents, sysPrompt, tools, safetySettings, thinkingLevel } = params;
+  const { ai, model, contents, sysPrompt, tools, safetySettings, toolConfig, thinkingLevel } =
+    params;
 
   // Helper to extract detailed error info from Gemini API errors
   const extractGeminiErrorInfo = (
@@ -868,6 +902,7 @@ async function runStreamWithFallback(
       sysPrompt,
       tools,
       safetySettings,
+      toolConfig,
       useTools: true,
       thinkingLevel,
     });
@@ -1177,6 +1212,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
     sysPrompt,
     tools,
     safetySettings,
+    toolConfig,
     gemMeta,
     modelMeta,
     createdConversation,
@@ -1228,6 +1264,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           sysPrompt,
           tools,
           safetySettings,
+          toolConfig,
           thinkingLevel,
         });
 

@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-05-05: Gemini 3 Tool Context Circulation — Combined Web Search + Function Calling
+
+- **What changed**: Gemini 3+ models can now use `googleSearch` + `codeExecution` + `functionDeclarations` simultaneously in a single request.
+- **Why**: Gemini 3 supports [Tool Context Circulation](https://ai.google.dev/gemini-api/docs/tool-combination) — mixing built-in tools with custom functions. Gemini 2.5 does NOT support this and keeps `googleSearch` isolated.
+- **Details**:
+  - `chatStreamCore.ts`: `setupToolsAndSafety()` now returns `toolConfig` with `includeServerSideToolInvocations: true` for Gemini 3 + web search ON
+  - `streaming.ts`: `executeStream()` passes `toolConfig` to `generateContentStream` config
+  - `streaming.ts`: Collects ALL response parts (`toolCall`, `toolResponse`, `functionCall`) for context circulation in function call continuations
+  - `streaming.ts`: Fixed `functionCall.id` — now properly passed in `functionResponse` for correct call-response mapping
+  - `streaming.ts`: `runStreamWithFallback()` forwards `toolConfig` through the pipeline
+
 ## 2026-05-05: DeepSeek Web Search — V4 Disabled, V3.2 Enabled via OpenRouter
 
 - **What changed**: WEB search disabled for DeepSeek V4 (direct API). Enabled for V3.2 via OpenRouter `openrouter:web_search` server tool.
