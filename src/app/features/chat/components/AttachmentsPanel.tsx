@@ -26,6 +26,9 @@ import {
   HelpCircle,
   CheckCircle,
   Circle,
+  Video,
+  Music,
+  Zap,
 } from "lucide-react";
 import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
@@ -38,9 +41,11 @@ interface Attachment {
   filename: string;
   size_bytes: number;
   mime_type: string;
+  kind?: string;
   created_at?: string;
   expires_at?: string;
   conversation_id?: string;
+  gemini_ready?: boolean;
 }
 
 interface AttachmentsPanelProps {
@@ -87,6 +92,8 @@ function getFileIcon(mime?: string, filename?: string) {
   const f = String(filename || "").toLowerCase();
 
   if (m.startsWith("image/")) return <ImageIcon className="w-4 h-4 text-purple-400" />;
+  if (m.startsWith("video/")) return <Video className="w-4 h-4 text-pink-400" />;
+  if (m.startsWith("audio/")) return <Music className="w-4 h-4 text-cyan-400" />;
   if (
     m.includes("zip") ||
     m.includes("compressed") ||
@@ -204,19 +211,48 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(
-          `/api/attachments?conversationId=${encodeURIComponent(conversationId)}`,
-          {
-            cache: "no-store",
+        // Try new /api/files endpoint first, fallback to legacy /api/attachments
+        let items: Attachment[] = [];
+
+        try {
+          const res = await fetch(
+            `/api/files?conversationId=${encodeURIComponent(conversationId)}`,
+            { cache: "no-store" }
+          );
+          if (res.ok) {
+            const json = await res.json();
+            const data = json.data || json;
+            items = Array.isArray(data?.files) ? data.files : [];
           }
-        );
-        if (!res.ok) throw new Error("Failed to load attachments");
-        const json = await res.json();
-        const data = json.data || json;
-        setAttachments(Array.isArray(data?.attachments) ? data.attachments : []);
+        } catch {
+          // New API not available yet
+        }
+
+        // Also load legacy attachments
+        try {
+          const res = await fetch(
+            `/api/attachments?conversationId=${encodeURIComponent(conversationId)}`,
+            { cache: "no-store" }
+          );
+          if (res.ok) {
+            const json = await res.json();
+            const data = json.data || json;
+            const legacy = Array.isArray(data?.attachments) ? data.attachments : [];
+            // Merge, avoiding duplicates by filename + size
+            const existingKeys = new Set(items.map((i) => `${i.filename}-${i.size_bytes}`));
+            for (const la of legacy) {
+              const key = `${la.filename}-${la.size_bytes}`;
+              if (!existingKeys.has(key)) items.push(la);
+            }
+          }
+        } catch {
+          // Legacy API not available
+        }
+
+        setAttachments(items);
       } catch (e) {
-        logger.error("Failed to load attachments:", e);
-        setError("Failed to load attachments");
+        logger.error("Failed to load files:", e);
+        setError("Failed to load files");
         setAttachments([]);
       } finally {
         setLoading(false);
@@ -256,7 +292,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
 
         try {
           for (const f of arr) {
-            // Normalize filename for screenshots (if name is generic or missing ext)
+            // Normalize filename for screenshots
             let fileToUpload = f;
             if (f.type.startsWith("image/") && (f.name === "image" || !f.name.includes("."))) {
               const ext = f.type.split("/")[1] || "png";
@@ -266,65 +302,19 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
               fileToUpload = new File([f], newName, { type: f.type });
             }
 
-            // 1. Get Signed URL
-            const signRes = await fetch("/api/attachments/sign-upload", {
+            // Single-step FormData upload to new /api/files/upload
+            const formData = new FormData();
+            formData.append("file", fileToUpload);
+            formData.append("conversationId", conversationId);
+
+            const res = await fetch("/api/files/upload", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                conversationId,
-                filename: fileToUpload.name,
-                fileType: fileToUpload.type,
-                fileSize: fileToUpload.size,
-              }),
+              body: formData,
             });
 
-            const json = await signRes.json().catch(() => ({}));
-            if (!signRes.ok) {
-              throw new Error(json?.error?.message || json?.error || "Upload init failed");
-            }
-
-            const { signedUrl, path, filename, mimeType } = json.data || json;
-            if (!signedUrl) {
-              throw new Error("Missing signed URL");
-            }
-
-            // 2. Direct Upload to Storage
-            const uploadRes = await fetch(signedUrl, {
-              method: "PUT",
-              headers: { "Content-Type": mimeType },
-              body: fileToUpload,
-            });
-
-            if (!uploadRes.ok) {
-              const errorText = await uploadRes.text();
-              logger.error("Upload response error:", {
-                status: uploadRes.status,
-                statusText: uploadRes.statusText,
-                body: errorText,
-              });
-              throw new Error(
-                `Storage upload failed: ${uploadRes.statusText} - ${errorText.substring(0, 100)}`
-              );
-            }
-
-            // 3. Complete Upload
-            const completeRes = await fetch("/api/attachments/complete-upload", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                conversationId,
-                path,
-                filename,
-                sizeBytes: fileToUpload.size,
-                mimeType,
-              }),
-            });
-
-            const completeJson = await completeRes.json().catch(() => ({}));
-            if (!completeRes.ok) {
-              throw new Error(
-                completeJson?.error?.message || completeJson?.error || "Upload completion failed"
-              );
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              throw new Error(json?.error?.message || json?.error || "Upload failed");
             }
           }
 
@@ -440,16 +430,30 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
       if (!a?.id) return;
       setError("");
       try {
-        const res = await fetch(`/api/attachments/url?id=${encodeURIComponent(a.id)}`, {
-          cache: "no-store",
-        });
-        const json = await res.json();
-        const data = json.data || json;
-        if (!res.ok) {
-          throw new Error(json?.error?.message || json?.error || "Failed to create signed url");
+        // Try new API first, fallback to legacy
+        let url = "";
+        try {
+          const res = await fetch(`/api/files/${encodeURIComponent(a.id)}/url`, {
+            cache: "no-store",
+          });
+          if (res.ok) {
+            const json = await res.json();
+            url = (json.data || json)?.signedUrl || "";
+          }
+        } catch {
+          /* fallback */
         }
 
-        const url = data?.signedUrl;
+        if (!url) {
+          const res = await fetch(`/api/attachments/url?id=${encodeURIComponent(a.id)}`, {
+            cache: "no-store",
+          });
+          const json = await res.json();
+          if (!res.ok)
+            throw new Error(json?.error?.message || json?.error || "Failed to create signed url");
+          url = (json.data || json)?.signedUrl || "";
+        }
+
         if (!url) throw new Error("Missing signed url");
 
         if (isImageMime(a.mime_type)) {
@@ -477,11 +481,24 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
         if (!a?.id) return;
         setError("");
         try {
-          const res = await fetch(`/api/attachments?id=${encodeURIComponent(a.id)}`, {
-            method: "DELETE",
-          });
-          const json = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(json?.error?.message || json?.error || "Delete failed");
+          // Try new API first
+          let ok = false;
+          try {
+            const res = await fetch(`/api/files?id=${encodeURIComponent(a.id)}`, {
+              method: "DELETE",
+            });
+            if (res.ok) ok = true;
+          } catch {
+            /* fallback */
+          }
+
+          if (!ok) {
+            const res = await fetch(`/api/attachments?id=${encodeURIComponent(a.id)}`, {
+              method: "DELETE",
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json?.error?.message || json?.error || "Delete failed");
+          }
 
           window.dispatchEvent(
             new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
@@ -515,14 +532,16 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
       setShowDeleteAllConfirm(false);
       setError("");
       try {
-        const res = await fetch(
-          `/api/attachments?conversationId=${encodeURIComponent(conversationId)}`,
-          {
+        // Delete from both new and legacy APIs
+        const promises = [
+          fetch(`/api/files?conversationId=${encodeURIComponent(conversationId)}`, {
             method: "DELETE",
-          }
-        );
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json?.error?.message || json?.error || "Delete all failed");
+          }),
+          fetch(`/api/attachments?conversationId=${encodeURIComponent(conversationId)}`, {
+            method: "DELETE",
+          }),
+        ];
+        await Promise.allSettled(promises);
 
         toast.success("All files deleted");
         window.dispatchEvent(
@@ -686,8 +705,13 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
                                 <span>{formatBytes(a.size_bytes)}</span>
                                 <span className="w-0.5 h-0.5 rounded-full bg-(--border)" />
                                 <span className="uppercase">
-                                  {a.mime_type.split("/")[1] || "FILE"}
+                                  {a.kind || a.mime_type.split("/")[1] || "FILE"}
                                 </span>
+                                {a.gemini_ready && (
+                                  <span title="Gemini-ready">
+                                    <Zap className="w-3 h-3 text-amber-400" />
+                                  </span>
+                                )}
                               </div>
                             </div>
 

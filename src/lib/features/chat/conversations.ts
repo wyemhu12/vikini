@@ -504,7 +504,13 @@ export async function deleteConversation(
   if (!current) throw new Error("Conversation not found");
   if (current.userId !== userId) throw new Error("Forbidden");
 
-  // Delete attachments (storage + db) before deleting conversation row
+  // Delete files (new system: dual storage) + attachments (legacy) before deleting conversation row
+  try {
+    const { deleteFilesByConversation } = await import("@/lib/features/files/fileService.server");
+    await deleteFilesByConversation(userId, conversationId);
+  } catch {
+    /* new files table may not exist yet */
+  }
   await deleteAttachmentsByConversation({ userId, conversationId });
 
   const { error } = await supabase.from("conversations").delete().eq("id", conversationId);
