@@ -11,7 +11,7 @@ import InputForm from "./InputForm";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { type ThinkingLevel, modelSupportsThinkingUI } from "./hooks/useThinkingLevel";
-import { modelSupportsWebSearch } from "@/lib/core/modelRegistry";
+import { modelSupportsWebSearch, isDeepSeekV32Model } from "@/lib/core/modelRegistry";
 
 /** Gem info for display */
 interface GemInfo {
@@ -101,6 +101,7 @@ export default function ChatControls({
   const displayValue = previewPrompt !== null ? previewPrompt : input;
   const isShowingPreview = previewPrompt !== null && previewPrompt !== "";
   const canWebSearch = modelSupportsWebSearch(currentModel);
+  const isV32 = isDeepSeekV32Model(currentModel);
 
   return (
     <motion.div
@@ -168,6 +169,11 @@ export default function ChatControls({
           >
             WEB {!canWebSearch ? t.webSearchOff : webSearchEnabled ? t.webSearchOn : t.webSearchOff}
           </button>
+          {isV32 && webSearchEnabled && (
+            <span className="hidden md:inline text-[8px] text-amber-400/80 font-medium ml-0.5 whitespace-nowrap">
+              {t.webSearchPricingNote}
+            </span>
+          )}
           {canWebSearch && currentModel && currentModel.startsWith("gemini") && (
             <>
               <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />

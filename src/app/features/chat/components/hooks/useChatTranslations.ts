@@ -50,6 +50,7 @@ const CHAT_TRANSLATION_KEYS = [
   "alwaysSearch",
   "alwaysSearchTooltip",
   "webSearchNotSupported",
+  "webSearchPricingNote",
   "modelDescFlash25",
   "modelDescPro25",
   "modelDescFlash3",

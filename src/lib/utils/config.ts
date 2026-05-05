@@ -106,6 +106,7 @@ export const translations: TranslationSet = {
     alwaysSearch: "Luôn tìm kiếm",
     alwaysSearchTooltip: "AI luôn tìm kiếm web trước khi trả lời (chỉ Gemini)",
     webSearchNotSupported: "Model này không hỗ trợ tìm kiếm web",
+    webSearchPricingNote: "~$0.02/lần tìm kiếm (OpenRouter)",
     // Thinking Level
     thinkingLevel: "Suy luận",
     thinkingLevelHigh: "Sâu",
@@ -509,6 +510,7 @@ export const translations: TranslationSet = {
     alwaysSearch: "Always Search",
     alwaysSearchTooltip: "AI always searches web before answering (Gemini only)",
     webSearchNotSupported: "Web search is not supported by this model",
+    webSearchPricingNote: "~$0.02/search query (OpenRouter)",
     // Thinking Level
     thinkingLevel: "Thinking",
     thinkingLevelHigh: "Deep",

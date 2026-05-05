@@ -7,6 +7,7 @@ import {
   modelSupportsThinking,
   modelSupportsClaudeThinking,
   normalizeModelForApi,
+  isDeepSeekV32Model,
 } from "@/lib/core/modelRegistry";
 import { executeFunctionCall } from "@/lib/features/chat/functions";
 
@@ -1393,14 +1394,36 @@ export function createOpenAICompatibleStream(params: {
         ] as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
 
         const timeoutMs = getStreamTimeout(model);
-        const streamPromise = ai.chat.completions.create({
+
+        // Inject OpenRouter web_search server tool for DeepSeek V3.2
+        const useOpenRouterWebSearch = isDeepSeekV32Model(model) && enableWebSearch;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const createParams: Record<string, any> = {
           model: model,
           messages: openAIMessages,
           stream: true,
-          stream_options: { include_usage: true }, // Enable usage in stream
+          stream_options: { include_usage: true },
           temperature: 0.7,
           max_tokens: 8192,
-        });
+        };
+
+        if (useOpenRouterWebSearch) {
+          createParams.tools = [
+            {
+              type: "openrouter:web_search",
+              parameters: {
+                max_results: 5,
+                search_context_size: "low",
+              },
+            },
+          ];
+          streamLogger.info(`[WEB SEARCH] OpenRouter web_search tool injected for model: ${model}`);
+        }
+
+        const streamPromise = ai.chat.completions.create(
+          createParams as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
+        );
 
         const stream = await withTimeout(streamPromise, timeoutMs);
 

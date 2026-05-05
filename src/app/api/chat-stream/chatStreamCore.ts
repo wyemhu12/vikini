@@ -502,10 +502,9 @@ function setupToolsAndSafety(
   // Code execution — allows Gemini to run Python code for data analysis, charts, math
   tools.push({ codeExecution: {} });
 
-  // Google Maps grounding — location-aware responses (Gemini 3+ only)
-  if (enableWebSearch && WEB_SEARCH_AVAILABLE) {
-    tools.push({ googleMaps: {} });
-  }
+  // NOTE: googleMaps tool removed — it only supports Gemini 3 family models.
+  // Including it for Gemini 2.5 or 3.1 models causes API errors,
+  // triggering the fallback that silently strips ALL tools (including googleSearch).
 
   // Function calling — built-in functions (get_current_time, etc.)
   tools.push({ functionDeclarations: BUILT_IN_FUNCTIONS });

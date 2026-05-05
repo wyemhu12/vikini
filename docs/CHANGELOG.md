@@ -5,14 +5,28 @@
 
 ---
 
-## 2026-05-05: Disable Web Search for DeepSeek Models
+## 2026-05-05: DeepSeek Web Search — V4 Disabled, V3.2 Enabled via OpenRouter
 
-- **What changed**: WEB search button is now disabled when a DeepSeek model (V4 Flash, V4 Pro, V3.2) is selected.
-- **Why**: DeepSeek API has no built-in web search tool (unlike Gemini's `googleSearch` or Claude's `web_search`). Previously, users could toggle WEB ON but it had no effect — misleading UX.
+- **What changed**: WEB search disabled for DeepSeek V4 (direct API). Enabled for V3.2 via OpenRouter `openrouter:web_search` server tool.
+- **Why**: V4 has no web search capability. V3.2 via OpenRouter supports the new server tools API for real-time grounding (~$0.02/query via Exa).
 - **Details**:
-  - New helper: `modelSupportsWebSearch()` in `modelRegistry.ts` — returns `false` for all `deepseek*` model IDs
-  - `ChatControls.tsx`: WEB button disabled with `opacity-40` + `cursor-not-allowed` + tooltip; Always Search hidden
-  - Bilingual tooltip: `webSearchNotSupported` key added to `config.ts` + `useChatTranslations.ts`
+  - `modelRegistry.ts`: `modelSupportsWebSearch()` now returns `true` for V3.2, `false` only for V4 direct
+  - `modelRegistry.ts`: New `isDeepSeekV32Model()` helper
+  - `constants.ts`: Added `MODEL_IDS.DEEPSEEK_V32`
+  - `streaming.ts`: Injects `{ type: "openrouter:web_search", parameters: { max_results: 5, search_context_size: "low" } }` into V3.2 request when WEB ON
+  - `ChatControls.tsx`: Shows amber pricing note `~$0.02/search query` when V3.2 + WEB ON
+  - `config.ts`: Bilingual `webSearchPricingNote` key
+
+## 2026-05-05: Fix Gemini Web Search Not Working (Critical)
+
+- **What changed**: Removed `googleMaps` tool from default tools array; updated `@google/genai` SDK 1.38→1.52.
+- **Why**: `googleMaps` tool only supports Gemini 3 family. When sent to Gemini 2.5 or 3.1 Pro models, the entire API call **failed**, triggering the fallback which silently retried **without ANY tools** — including `googleSearch`. This made web search appear broken for ALL Gemini models.
+- **Root cause**: `setupToolsAndSafety()` always injected `{ googleMaps: {} }` when web search was enabled, regardless of model family.
+- **Details**:
+  - Removed `googleMaps` from `chatStreamCore.ts` `setupToolsAndSafety()`
+  - Hardened `envFlag()` to strip surrounding quotes from env values
+  - Added `[WEB SEARCH]` debug logging for easier diagnosis
+  - Updated `@google/genai` SDK from 1.38.0 → 1.52.0
 
 ---
 

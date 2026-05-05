@@ -77,4 +77,11 @@
 
 ## Configuration and Environment
 
+### 2026-05: `googleMaps` tool silently broke web search for ALL models ⚠️
+
+- **Symptom**: Gemini models said "I can't search the internet" despite WEB ON, `WEB_SEARCH_ENABLED=true`, and `googleSearch` tool being injected. No visible error in UI.
+- **Root Cause**: `setupToolsAndSafety()` always injected `{ googleMaps: {} }` alongside `{ googleSearch: {} }`. But `googleMaps` only supports Gemini 3 family. When used with Gemini 2.5 or 3.1 Pro, the API call **failed** → `runStreamWithFallback` retried **without ANY tools** (including `googleSearch`) → model responded successfully but without search capability. The meta event `"webSearchFallback"` was sent but not prominently displayed in UI.
+- **Fix**: Removed `googleMaps` from the default tools list. Only add model-specific tools after checking model compatibility.
+- **Prevention Rule**: **NEVER add model-family-specific tools unconditionally.** Always gate tools behind model-family checks (e.g., `if (model.startsWith("gemini-3"))`) before adding them to the tools array. The fallback retry mechanism can silently mask tool incompatibility errors.
+
 ---
