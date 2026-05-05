@@ -31,7 +31,7 @@ export function isGemini25Model(model: string): boolean {
  * Check if a model is a Gemini 3 Flash variant (supports extended levels)
  */
 export function isGemini3FlashModel(model: string): boolean {
-  return model.includes("gemini-3-flash");
+  return model.includes("gemini-3-flash") || model.includes("gemini-3.1-flash");
 }
 
 /**

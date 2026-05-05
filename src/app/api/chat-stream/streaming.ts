@@ -253,13 +253,12 @@ export function safeText(respOrChunk: unknown): string {
             continue;
           }
 
-          // Gemini API: thought is boolean, text contains the thought content
-          if (p.thought === true && typeof p.text === "string") {
-            result += `<think>${p.text}</think>`;
-          } else if (typeof p.thought === "string") {
-            // Legacy format: thought as string
-            result += `<think>${p.thought}</think>`;
-          } else if (typeof p.text === "string") {
+          // Skip thought parts here — they are handled by executeStream's
+          // state machine to ensure correct ordering (thoughts before text)
+          if (p.thought === true) continue;
+          if (typeof p.thought === "string") continue;
+
+          if (typeof p.text === "string") {
             result += p.text;
           }
         }
@@ -696,14 +695,72 @@ async function executeStream(
     // Rethrow to be caught by runStreamWithFallback
     throw err;
   }
+
+  // State machine for thinking/text separation.
+  // Ensures thoughts are emitted BEFORE text, never interleaved.
+  let isInThinkingBlock = false;
+
   for await (const chunk of stream) {
     const pf = pick(chunk, ["promptFeedback", "prompt_feedback"]);
     if (pf) promptFeedback = pf;
 
-    const t = safeText(chunk);
-    if (t) {
-      full += t;
-      sendEvent(controller, "token", { t });
+    // Extract thought and text parts separately from the chunk
+    const candidates = (chunk as { candidates?: unknown[] })?.candidates;
+    const parts = (candidates?.[0] as { content?: { parts?: unknown[] } } | undefined)?.content
+      ?.parts;
+
+    if (Array.isArray(parts)) {
+      for (const rawPart of parts) {
+        const part = rawPart as {
+          text?: string;
+          thought?: boolean | string;
+          functionCall?: unknown;
+          functionResponse?: unknown;
+        };
+
+        // Skip function call/response — handled separately below
+        if (part.functionCall || part.functionResponse) continue;
+
+        // Handle THOUGHT parts
+        if (
+          (part.thought === true && typeof part.text === "string") ||
+          typeof part.thought === "string"
+        ) {
+          const thoughtText =
+            typeof part.thought === "string" ? part.thought : (part.text as string);
+          if (!isInThinkingBlock) {
+            isInThinkingBlock = true;
+            full += "<think>";
+            sendEvent(controller, "token", { t: "<think>" });
+          }
+          full += thoughtText;
+          sendEvent(controller, "token", { t: thoughtText });
+          continue;
+        }
+
+        // Handle TEXT parts — close thinking block first if open
+        if (typeof part.text === "string") {
+          if (isInThinkingBlock) {
+            isInThinkingBlock = false;
+            full += "</think>";
+            sendEvent(controller, "token", { t: "</think>" });
+          }
+          full += part.text;
+          sendEvent(controller, "token", { t: part.text });
+        }
+      }
+    } else {
+      // Fallback for non-candidates responses (v2 direct text, etc.)
+      const t = safeText(chunk);
+      if (t) {
+        if (isInThinkingBlock) {
+          isInThinkingBlock = false;
+          full += "</think>";
+          sendEvent(controller, "token", { t: "</think>" });
+        }
+        full += t;
+        sendEvent(controller, "token", { t });
+      }
     }
 
     // Extract ALL thoughtSignatures from chunk (Gemini 3 multi-step support)
@@ -849,6 +906,12 @@ async function executeStream(
         }
       }
     }
+  }
+
+  // Close any remaining thinking block
+  if (isInThinkingBlock) {
+    full += "</think>";
+    sendEvent(controller, "token", { t: "</think>" });
   }
 
   return {
