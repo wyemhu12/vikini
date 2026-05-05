@@ -775,10 +775,21 @@ async function executeStream(
     }
 
     const fcFinish = fcCand?.finishReason;
-    if (fcFinish === "FUNCTION_CALL" || fcFinish === "function_call") {
-      const fcParts = (fcCand?.content?.parts || []) as Array<{
-        functionCall?: { name: string; args: Record<string, unknown>; id?: string };
-      }>;
+
+    // Detect function calls: primary via finishReason, fallback via parts content.
+    // Some models (e.g., Flash-Lite) may return functionCall parts with finishReason "STOP"
+    // instead of "FUNCTION_CALL".
+    const fcParts = (fcCand?.content?.parts || []) as Array<{
+      functionCall?: { name: string; args: Record<string, unknown>; id?: string };
+    }>;
+    const hasFunctionCalls = fcParts.some((p) => p.functionCall);
+
+    if (fcFinish === "FUNCTION_CALL" || fcFinish === "function_call" || hasFunctionCalls) {
+      if (hasFunctionCalls && fcFinish !== "FUNCTION_CALL" && fcFinish !== "function_call") {
+        streamLogger.info(
+          `Function call detected via parts content (finishReason was "${fcFinish || "undefined"}")`
+        );
+      }
       const functionResponses: Array<{
         name: string;
         id?: string;
