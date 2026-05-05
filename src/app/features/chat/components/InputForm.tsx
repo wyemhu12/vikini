@@ -77,7 +77,7 @@ export default function InputForm({
   const [_voiceTranscript, setVoiceTranscript] = useState("");
   const [isDragging, setIsDragging] = useState(false);
 
-  // Track uploaded file chips for inline display
+  // Synced file chips: fetch from API and listen to shared events
   const [uploadedFiles, setUploadedFiles] = useState<
     Array<{
       id: string;
@@ -90,15 +90,54 @@ export default function InputForm({
     }>
   >([]);
 
-  // Clear chips when conversation changes
-  useEffect(() => {
-    setUploadedFiles([]);
+  // Fetch files from API
+  const fetchFileChips = useCallback(async () => {
+    if (!conversationId) {
+      setUploadedFiles([]);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/files?conversationId=${encodeURIComponent(conversationId)}`);
+      if (!res.ok) return;
+      const json = await res.json();
+      const files = json?.data?.files || json?.files || [];
+      setUploadedFiles(
+        files.map((f: Record<string, unknown>) => ({
+          id: f.id as string,
+          filename: f.filename as string,
+          size_bytes: f.size_bytes as number,
+          mime_type: f.mime_type as string,
+          kind: f.kind as string | undefined,
+          gemini_ready: f.gemini_ready as boolean | undefined,
+          status: "ready" as const,
+        }))
+      );
+    } catch {
+      /* silent */
+    }
   }, [conversationId]);
+
+  // Initial fetch + refetch when conversation changes
+  useEffect(() => {
+    fetchFileChips();
+  }, [fetchFileChips]);
+
+  // Sync with AttachmentsPanel via shared event
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const cid = (ev as CustomEvent)?.detail?.conversationId;
+      if (cid && conversationId && cid === conversationId) {
+        fetchFileChips();
+      }
+    };
+    window.addEventListener("vikini:attachments-changed", handler);
+    return () => window.removeEventListener("vikini:attachments-changed", handler);
+  }, [conversationId, fetchFileChips]);
 
   const removeFileChip = useCallback(
     async (id: string) => {
+      // Optimistic removal
       setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
-      // Delete from server
       try {
         await fetch(`/api/files?id=${encodeURIComponent(id)}`, { method: "DELETE" });
         if (conversationId) {
@@ -107,10 +146,11 @@ export default function InputForm({
           );
         }
       } catch {
-        /* best-effort */
+        // Rollback on failure
+        fetchFileChips();
       }
     },
-    [conversationId]
+    [conversationId, fetchFileChips]
   );
 
   // Sync initialImageMode prop to state (for Gallery remix or Dashboard card)
@@ -194,19 +234,7 @@ export default function InputForm({
         const fileData = json.data?.file || json?.file;
         if (fileData) {
           addAttachment(fileData);
-          // Add to inline chips
-          setUploadedFiles((prev) => [
-            ...prev,
-            {
-              id: fileData.id,
-              filename: fileData.filename,
-              size_bytes: fileData.size_bytes,
-              mime_type: fileData.mime_type,
-              kind: fileData.kind,
-              gemini_ready: fileData.gemini_ready,
-              status: "ready" as const,
-            },
-          ]);
+          // Chips auto-sync via vikini:attachments-changed event
         }
       }
 

@@ -2,6 +2,7 @@
 "use client";
 
 import React, { memo, useState } from "react";
+import { motion } from "framer-motion";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import TitleItem from "@/app/features/chat/components/TitleItem";
 import { downloadConversationById } from "@/lib/utils/download";
@@ -78,12 +79,20 @@ const DownloadIcon = () => (
 interface SidebarItemProps {
   conversation: { id: string; title?: string };
   isActive: boolean;
+  isDeleting?: boolean;
   onSelect: (id: string) => void;
   onRename: (id: string) => void;
   onDelete: (id: string) => void;
 }
 
-function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }: SidebarItemProps) {
+function SidebarItem({
+  conversation,
+  isActive,
+  isDeleting = false,
+  onSelect,
+  onRename,
+  onDelete,
+}: SidebarItemProps) {
   const c = conversation;
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -103,7 +112,14 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }: S
   };
 
   return (
-    <div className="relative group w-full px-2">
+    <motion.div
+      layout
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: isDeleting ? 0.4 : 1, x: 0, scale: isDeleting ? 0.97 : 1 }}
+      exit={{ opacity: 0, x: -60, scale: 0.9, transition: { duration: 0.3, ease: "easeIn" } }}
+      transition={{ duration: 0.2 }}
+      className={`relative group w-full px-2 ${isDeleting ? "pointer-events-none" : ""}`}
+    >
       <button
         className={`relative flex w-full items-center justify-between gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm transition-colors duration-200 ${
           isActive
@@ -174,7 +190,7 @@ function SidebarItem({ conversation, isActive, onSelect, onRename, onDelete }: S
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
-    </div>
+    </motion.div>
   );
 }
 

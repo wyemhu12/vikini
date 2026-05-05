@@ -190,6 +190,7 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
       text?: string;
     } | null>(null);
     const [error, setError] = useState("");
+    const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const totalBytes = useMemo(
@@ -449,8 +450,9 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
             cache: "no-store",
           });
           const json = await res.json();
-          if (!res.ok)
+          if (!res.ok) {
             throw new Error(json?.error?.message || json?.error || "Failed to create signed url");
+          }
           url = (json.data || json)?.signedUrl || "";
         }
 
@@ -480,6 +482,13 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
       async (a: Attachment) => {
         if (!a?.id) return;
         setError("");
+        setDeletingIds((prev) => new Set(prev).add(a.id));
+
+        // Optimistic removal with animation delay
+        setTimeout(() => {
+          setAttachments((prev) => prev.filter((item) => item.id !== a.id));
+        }, 200);
+
         try {
           // Try new API first
           let ok = false;
@@ -503,11 +512,18 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
           window.dispatchEvent(
             new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
           );
-          await refresh();
         } catch (e: unknown) {
           logger.error("Delete failed:", e);
           const message = e instanceof Error ? e.message : "Delete failed";
           setError(message);
+          // Rollback: refresh to restore the item
+          await refresh();
+        } finally {
+          setDeletingIds((prev) => {
+            const next = new Set(prev);
+            next.delete(a.id);
+            return next;
+          });
         }
       },
       [conversationId, refresh]
@@ -681,59 +697,79 @@ const AttachmentsPanel = forwardRef<AttachmentsPanelRef, AttachmentsPanelProps>(
                     {/* File Grid */}
                     {hasFiles ? (
                       <div className="space-y-1 max-h-[240px] overflow-y-auto custom-scrollbar pr-1">
-                        {attachments.map((a) => (
-                          <motion.div
-                            key={a.id}
-                            layout
-                            initial={{ opacity: 0, y: 5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="group flex items-center gap-3 p-2.5 rounded-xl border border-transparent hover:border-token bg-surface-elevated hover:bg-control-hover transition-all"
-                          >
-                            {/* Icon */}
-                            <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-surface border border-token shadow-sm">
-                              {getFileIcon(a.mime_type, a.filename)}
-                            </div>
-
-                            {/* Info */}
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate text-xs font-medium text-secondary group-hover:text-primary transition-colors flex items-center gap-1.5">
-                                <span className="truncate">{a.filename}</span>
-                                {getSupportBadge(a.filename)}
-                              </div>
-                              <div className="flex items-center gap-2 text-[10px] text-secondary">
-                                <span>{formatBytes(a.size_bytes)}</span>
-                                <span className="w-0.5 h-0.5 rounded-full bg-(--border)" />
-                                <span className="uppercase">
-                                  {a.kind || a.mime_type.split("/")[1] || "FILE"}
-                                </span>
-                                {a.gemini_ready && (
-                                  <span title="Gemini-ready">
-                                    <Zap className="w-3 h-3 text-amber-400" />
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => doPreview(a)}
-                                className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
-                                title="Preview"
+                        <AnimatePresence mode="popLayout">
+                          {attachments.map((a) => {
+                            const isDeleting = deletingIds.has(a.id);
+                            return (
+                              <motion.div
+                                key={a.id}
+                                layout
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{
+                                  opacity: isDeleting ? 0.4 : 1,
+                                  y: 0,
+                                  scale: isDeleting ? 0.95 : 1,
+                                }}
+                                exit={{
+                                  opacity: 0,
+                                  x: -40,
+                                  scale: 0.9,
+                                  transition: { duration: 0.25, ease: "easeIn" },
+                                }}
+                                transition={{ duration: 0.2 }}
+                                className={`group flex items-center gap-3 p-2.5 rounded-xl border border-transparent hover:border-token bg-surface-elevated hover:bg-control-hover transition-all ${isDeleting ? "pointer-events-none" : ""}`}
                               >
-                                <Eye className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => doDelete(a)}
-                                className="p-1.5 rounded-md hover:bg-red-900/20 text-secondary hover:text-red-400 transition-colors"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </motion.div>
-                        ))}
+                                {/* Icon */}
+                                <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-surface border border-token shadow-sm">
+                                  {getFileIcon(a.mime_type, a.filename)}
+                                </div>
+
+                                {/* Info */}
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate text-xs font-medium text-secondary group-hover:text-primary transition-colors flex items-center gap-1.5">
+                                    <span className="truncate">{a.filename}</span>
+                                    {getSupportBadge(a.filename)}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-[10px] text-secondary">
+                                    <span>{formatBytes(a.size_bytes)}</span>
+                                    <span className="w-0.5 h-0.5 rounded-full bg-(--border)" />
+                                    <span className="uppercase">
+                                      {a.kind || a.mime_type.split("/")[1] || "FILE"}
+                                    </span>
+                                    {a.gemini_ready && (
+                                      <span title="Gemini-ready">
+                                        <Zap className="w-3 h-3 text-amber-400" />
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => doPreview(a)}
+                                    className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
+                                    title="Preview"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => doDelete(a)}
+                                    disabled={isDeleting}
+                                    className="p-1.5 rounded-md hover:bg-red-900/20 text-secondary hover:text-red-400 transition-colors disabled:opacity-50"
+                                    title="Delete"
+                                  >
+                                    {isDeleting ? (
+                                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        </AnimatePresence>
                       </div>
                     ) : (
                       <div

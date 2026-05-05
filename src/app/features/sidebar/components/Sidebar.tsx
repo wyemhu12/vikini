@@ -2,6 +2,7 @@
 "use client";
 
 import React from "react";
+import { AnimatePresence } from "framer-motion";
 import SidebarItem from "./SidebarItem";
 import SidebarSection from "./SidebarSection";
 import ProjectNode from "./ProjectNode";
@@ -118,6 +119,7 @@ export default function Sidebar({
   const pathname = usePathname();
   const { projects, fetchProjects } = useProjectStore();
   const [showCreateProject, setShowCreateProject] = React.useState(false);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
 
   // Fetch projects on mount
   React.useEffect(() => {
@@ -165,7 +167,17 @@ export default function Sidebar({
     typeof onRenameChat === "function" ? onRenameChat(id) : renameFallback(id);
   const handleDelete = (id: string) => {
     const fn = onDeleteChat ?? onDeleteConversation;
-    return typeof fn === "function" ? fn(id) : deleteFallback(id);
+    if (typeof fn === "function") {
+      setDeletingId(id);
+      // Give animation time to play, then call actual delete
+      setTimeout(() => {
+        fn(id);
+        // Clear after a delay (parent will remove from list)
+        setTimeout(() => setDeletingId(null), 500);
+      }, 250);
+    } else {
+      deleteFallback(id);
+    }
   };
 
   // Extracted SidebarButton component
@@ -350,16 +362,19 @@ export default function Sidebar({
                   {t?.noConversations || "No conversations"}
                 </div>
               ) : (
-                list.map((c) => (
-                  <SidebarItem
-                    key={c.id}
-                    conversation={c}
-                    isActive={c.id === currentId}
-                    onSelect={handleSelect}
-                    onRename={handleRename}
-                    onDelete={handleDelete}
-                  />
-                ))
+                <AnimatePresence mode="popLayout">
+                  {list.map((c) => (
+                    <SidebarItem
+                      key={c.id}
+                      conversation={c}
+                      isActive={c.id === currentId}
+                      isDeleting={c.id === deletingId}
+                      onSelect={handleSelect}
+                      onRename={handleRename}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </AnimatePresence>
               )}
             </SidebarSection>
           )}
