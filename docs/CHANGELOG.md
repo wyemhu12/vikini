@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-05-05: Disable Web Search for DeepSeek Models
+
+- **What changed**: WEB search button is now disabled when a DeepSeek model (V4 Flash, V4 Pro, V3.2) is selected.
+- **Why**: DeepSeek API has no built-in web search tool (unlike Gemini's `googleSearch` or Claude's `web_search`). Previously, users could toggle WEB ON but it had no effect — misleading UX.
+- **Details**:
+  - New helper: `modelSupportsWebSearch()` in `modelRegistry.ts` — returns `false` for all `deepseek*` model IDs
+  - `ChatControls.tsx`: WEB button disabled with `opacity-40` + `cursor-not-allowed` + tooltip; Always Search hidden
+  - Bilingual tooltip: `webSearchNotSupported` key added to `config.ts` + `useChatTranslations.ts`
+
+---
+
 ## 2026-05-03: Admin Dashboard Major Overhaul
 
 - **What changed**: Comprehensive upgrade to Admin Management panel with 8 new features.

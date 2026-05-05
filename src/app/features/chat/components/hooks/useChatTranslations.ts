@@ -49,6 +49,7 @@ const CHAT_TRANSLATION_KEYS = [
   "modelDescClaudeSonnet",
   "alwaysSearch",
   "alwaysSearchTooltip",
+  "webSearchNotSupported",
   "modelDescFlash25",
   "modelDescPro25",
   "modelDescFlash3",

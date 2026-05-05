@@ -11,6 +11,7 @@ import InputForm from "./InputForm";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { type ThinkingLevel, modelSupportsThinkingUI } from "./hooks/useThinkingLevel";
+import { modelSupportsWebSearch } from "@/lib/core/modelRegistry";
 
 /** Gem info for display */
 interface GemInfo {
@@ -99,6 +100,7 @@ export default function ChatControls({
   // Display value: show preview prompt when hovering, otherwise show actual input
   const displayValue = previewPrompt !== null ? previewPrompt : input;
   const isShowingPreview = previewPrompt !== null && previewPrompt !== "";
+  const canWebSearch = modelSupportsWebSearch(currentModel);
 
   return (
     <motion.div
@@ -149,16 +151,24 @@ export default function ChatControls({
           </button>
           <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
           <button
-            onClick={toggleWebSearch}
+            onClick={canWebSearch ? toggleWebSearch : undefined}
+            disabled={!canWebSearch}
+            title={
+              !canWebSearch
+                ? t.webSearchNotSupported || "Web search is not supported by this model"
+                : undefined
+            }
             className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 ${
-              webSearchEnabled
-                ? "text-(--accent) md:bg-(--control-bg-hover)"
-                : "text-(--text-secondary) hover:text-(--text-primary)"
+              !canWebSearch
+                ? "text-(--text-secondary) opacity-40 cursor-not-allowed"
+                : webSearchEnabled
+                  ? "text-(--accent) md:bg-(--control-bg-hover)"
+                  : "text-(--text-secondary) hover:text-(--text-primary)"
             }`}
           >
-            WEB {webSearchEnabled ? t.webSearchOn : t.webSearchOff}
+            WEB {!canWebSearch ? t.webSearchOff : webSearchEnabled ? t.webSearchOn : t.webSearchOff}
           </button>
-          {currentModel && currentModel.startsWith("gemini") && (
+          {canWebSearch && currentModel && currentModel.startsWith("gemini") && (
             <>
               <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
               <button

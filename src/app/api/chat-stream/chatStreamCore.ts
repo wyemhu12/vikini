@@ -100,7 +100,11 @@ function parseCookieHeader(cookieHeader: string | null | undefined): Record<stri
 
 function envFlag(value: unknown, defaultValue: boolean = false): boolean {
   if (value === undefined || value === null) return defaultValue;
-  const v = String(value).trim().toLowerCase();
+  let v = String(value).trim().toLowerCase();
+  // Strip surrounding quotes (common in .env files / Vercel config)
+  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+    v = v.slice(1, -1).trim();
+  }
   if (["1", "true", "yes", "y", "on"].includes(v)) return true;
   if (["0", "false", "no", "n", "off"].includes(v)) return false;
   return defaultValue;
@@ -675,6 +679,11 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
   const { enableWebSearch, WEB_SEARCH_AVAILABLE } = getWebSearchConfig(cookies);
   const cookieWeb = cookies?.webSearchEnabled ?? cookies?.webSearch ?? "";
   const { tools, safetySettings } = setupToolsAndSafety(enableWebSearch, WEB_SEARCH_AVAILABLE);
+
+  // Debug: Log web search configuration
+  coreLogger.info(
+    `[WEB SEARCH] env.WEB_SEARCH_ENABLED=${JSON.stringify(process.env.WEB_SEARCH_ENABLED)} | available=${WEB_SEARCH_AVAILABLE} | enabled=${enableWebSearch} | cookie=${cookieWeb} | tools=${tools.map((t) => Object.keys(t).join(",")).join("; ")}`
+  );
 
   // Create stream
   const saveMessageCompat = async ({
