@@ -27,7 +27,7 @@ const createProjectSchema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/, "Invalid color format")
     .optional(),
-  embedding_model: z.enum(["text-embedding-004", "gemini-embedding-001"]).optional(),
+  embedding_model: z.enum(["text-embedding-004", "gemini-embedding-2"]).optional(),
 });
 
 /**

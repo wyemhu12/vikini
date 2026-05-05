@@ -1,6 +1,6 @@
 /**
  * Embedding Service - Tier-based embedding generation
- * Uses text-embedding-004 (free) for Basic, gemini-embedding-001 for Pro/Admin
+ * Uses text-embedding-004 (free/768d) and gemini-embedding-2 (3072d/multimodal)
  */
 import { GoogleGenAI } from "@google/genai";
 import { EmbeddingModel, PROJECT_LIMITS, UserTier } from "@/types/projects";
@@ -26,7 +26,6 @@ function getClient(): GoogleGenAI {
 // Model dimensions (default output)
 const MODEL_DIMENSIONS: Record<EmbeddingModel, number> = {
   "text-embedding-004": 768,
-  "gemini-embedding-001": 3072,
   "gemini-embedding-2": 3072, // supports 768, 1536, 3072 via outputDimensionality
 };
 
@@ -62,9 +61,6 @@ export function getDefaultEmbeddingModel(tier: UserTier): EmbeddingModel {
   // Default to best available model for the tier
   if (models.includes("gemini-embedding-2")) {
     return "gemini-embedding-2";
-  }
-  if (models.includes("gemini-embedding-001")) {
-    return "gemini-embedding-001";
   }
   return "text-embedding-004";
 }

@@ -73,14 +73,35 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const availableModels = limits?.availableModels ?? ["text-embedding-004"];
-  const canUseGemini = availableModels.includes("gemini-embedding-001");
+
+  // Embedding model metadata for display
+  const EMBEDDING_MODEL_INFO: Record<
+    EmbeddingModel,
+    { label: string; dims: number; desc: string; descLocked: string }
+  > = {
+    "text-embedding-004": {
+      label: "text-embedding-004",
+      dims: 768,
+      desc: "Free • 768 dimensions • Good quality",
+      descLocked: "Free • 768 dimensions • Good quality",
+    },
+    "gemini-embedding-2": {
+      label: "gemini-embedding-2",
+      dims: 3072,
+      desc: "All tiers • 3072 dimensions • Best quality • Multimodal",
+      descLocked: "Not available for your tier",
+    },
+  };
 
   // Auto-select best available model when tier limits load
   useEffect(() => {
-    if (canUseGemini) {
-      setEmbeddingModel("gemini-embedding-001");
+    if (availableModels.includes("gemini-embedding-2")) {
+      setEmbeddingModel("gemini-embedding-2");
     }
-  }, [canUseGemini]);
+  }, [availableModels]);
+
+  // All models in display order
+  const allModels: EmbeddingModel[] = ["text-embedding-004", "gemini-embedding-2"];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -227,59 +248,39 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
           <div>
             <label className="block text-sm font-medium mb-1.5">Embedding Model</label>
             <div className="space-y-2">
-              <label
-                className={cn(
-                  "flex items-center gap-3 p-3 rounded-lg border cursor-pointer",
-                  "hover:bg-muted/50 transition-colors",
-                  embeddingModel === "text-embedding-004"
-                    ? "border-primary bg-primary/5"
-                    : "border-border"
-                )}
-              >
-                <input
-                  type="radio"
-                  name="embedding"
-                  value="text-embedding-004"
-                  checked={embeddingModel === "text-embedding-004"}
-                  onChange={() => setEmbeddingModel("text-embedding-004")}
-                  className="accent-primary"
-                />
-                <div>
-                  <div className="text-sm font-medium">text-embedding-004</div>
-                  <div className="text-xs text-muted-foreground">
-                    Free • 768 dimensions • Good quality
-                  </div>
-                </div>
-              </label>
-
-              <label
-                className={cn(
-                  "flex items-center gap-3 p-3 rounded-lg border cursor-pointer",
-                  "transition-colors",
-                  !canUseGemini && "opacity-50 cursor-not-allowed",
-                  embeddingModel === "gemini-embedding-001"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:bg-muted/50"
-                )}
-              >
-                <input
-                  type="radio"
-                  name="embedding"
-                  value="gemini-embedding-001"
-                  checked={embeddingModel === "gemini-embedding-001"}
-                  onChange={() => canUseGemini && setEmbeddingModel("gemini-embedding-001")}
-                  disabled={!canUseGemini}
-                  className="accent-primary"
-                />
-                <div>
-                  <div className="text-sm font-medium">gemini-embedding-001</div>
-                  <div className="text-xs text-muted-foreground">
-                    {canUseGemini
-                      ? "Pro/Admin • 3072 dimensions • Best quality"
-                      : "Requires Pro tier"}
-                  </div>
-                </div>
-              </label>
+              {allModels.map((modelId) => {
+                const info = EMBEDDING_MODEL_INFO[modelId];
+                const isAvailable = availableModels.includes(modelId);
+                return (
+                  <label
+                    key={modelId}
+                    className={cn(
+                      "flex items-center gap-3 p-3 rounded-lg border cursor-pointer",
+                      "transition-colors",
+                      !isAvailable && "opacity-50 cursor-not-allowed",
+                      embeddingModel === modelId
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-muted/50"
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="embedding"
+                      value={modelId}
+                      checked={embeddingModel === modelId}
+                      onChange={() => isAvailable && setEmbeddingModel(modelId)}
+                      disabled={!isAvailable}
+                      className="accent-primary"
+                    />
+                    <div>
+                      <div className="text-sm font-medium">{info.label}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {isAvailable ? info.desc : info.descLocked}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           </div>
 

@@ -260,7 +260,7 @@ export async function searchKnowledge(
 
   const embeddingModel = (project?.embedding_model ||
     options?.embeddingModel ||
-    "gemini-embedding-001") as EmbeddingModel;
+    "gemini-embedding-2") as EmbeddingModel;
 
   kbLogger.info(`Search: project=${projectId}, model=${embeddingModel}, threshold=${threshold}`);
 

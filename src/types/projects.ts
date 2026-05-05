@@ -16,18 +16,18 @@ export const PROJECT_LIMITS = {
     maxProjects: 10,
     maxDocsPerProject: 50,
     maxStorageBytesPerProject: 5 * 1024 * 1024, // 5MB
-    embeddingModels: ["text-embedding-004", "gemini-embedding-001", "gemini-embedding-2"] as const,
+    embeddingModels: ["text-embedding-004", "gemini-embedding-2"] as const,
   },
   admin: {
     maxProjects: 99,
     maxDocsPerProject: 50,
     maxStorageBytesPerProject: 100 * 1024 * 1024, // 100MB
-    embeddingModels: ["text-embedding-004", "gemini-embedding-001", "gemini-embedding-2"] as const,
+    embeddingModels: ["text-embedding-004", "gemini-embedding-2"] as const,
   },
 } as const;
 
 export type UserTier = keyof typeof PROJECT_LIMITS;
-export type EmbeddingModel = "text-embedding-004" | "gemini-embedding-001" | "gemini-embedding-2";
+export type EmbeddingModel = "text-embedding-004" | "gemini-embedding-2";
 
 // ============================================
 // PROJECT

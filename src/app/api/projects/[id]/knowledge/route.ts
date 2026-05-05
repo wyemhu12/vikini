@@ -60,7 +60,7 @@ const uploadSchema = z.object({
   filename: z.string().min(1),
   content: z.string().min(1),
   mimeType: z.string().optional(),
-  embedding_model: z.enum(["text-embedding-004", "gemini-embedding-001"]).optional(),
+  embedding_model: z.enum(["text-embedding-004", "gemini-embedding-2"]).optional(),
 });
 
 /**
