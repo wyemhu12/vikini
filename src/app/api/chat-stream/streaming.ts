@@ -194,7 +194,24 @@ export function safeText(respOrChunk: unknown): string {
       text?: string | (() => string);
       thought?: boolean | string;
       candidates?: unknown[];
+      functionCalls?: unknown[];
     };
+
+    // Guard: skip chunks that contain functionCall parts BEFORE accessing .text
+    // The @google/genai SDK logs a noisy warning when .text is accessed on
+    // responses containing non-text parts (functionCall, codeExecution result, etc.)
+    if (Array.isArray(obj?.functionCalls) && obj.functionCalls.length > 0) {
+      return "";
+    }
+    // Also check candidates[0] for functionCall finishReason
+    const firstCandidate = (obj?.candidates as Array<{ finishReason?: string }> | undefined)?.[0];
+    if (
+      firstCandidate?.finishReason === "FUNCTION_CALL" ||
+      firstCandidate?.finishReason === "function_call"
+    ) {
+      // Let the caller handle function calls — don't extract text
+      return "";
+    }
 
     // Handle v2 direct text
     if (typeof obj?.text === "function") return obj.text();
