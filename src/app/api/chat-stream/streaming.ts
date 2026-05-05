@@ -872,7 +872,10 @@ async function runStreamWithFallback(
       thinkingLevel,
     });
   } catch (err) {
-    streamLogger.error("stream error (with tools):", err);
+    const toolNames = (tools as Array<Record<string, unknown>>)
+      .map((t) => Object.keys(t).join(","))
+      .join("; ");
+    streamLogger.error(`[TOOLS FALLBACK] model=${model} tools=[${toolNames}] error:`, err);
 
     // Extract error info before trying fallback
     const errorInfo = extractGeminiErrorInfo(err);

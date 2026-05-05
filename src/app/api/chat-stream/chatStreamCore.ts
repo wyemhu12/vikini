@@ -488,23 +488,23 @@ function getWebSearchConfig(cookies: Record<string, string>): {
 function setupToolsAndSafety(
   enableWebSearch: boolean,
   WEB_SEARCH_AVAILABLE: boolean,
-  model: string
+  _model: string
 ): {
   tools: Array<Record<string, unknown>>;
   safetySettings: unknown[] | null;
 } {
   const tools: Array<Record<string, unknown>> = [];
-  const isGemini3 = model.startsWith("gemini-3");
   const useGoogleSearch = enableWebSearch && WEB_SEARCH_AVAILABLE;
 
   if (useGoogleSearch) {
     tools.push({ googleSearch: {} });
   }
 
-  // Gemini 2.5 CANNOT combine googleSearch with codeExecution or functionDeclarations.
-  // Doing so causes a 400 error → fallback strips ALL tools → web search silently broken.
-  // Gemini 3+ supports mixing all tools freely.
-  if (isGemini3 || !useGoogleSearch) {
+  // When googleSearch is active, send it ALONE — do not mix with other tools.
+  // Gemini 2.5 does NOT support combining googleSearch with codeExecution/functionDeclarations.
+  // Gemini 3 preview models also fail in practice despite docs claiming support.
+  // When web search is OFF, include code execution and function calling normally.
+  if (!useGoogleSearch) {
     // Code execution — allows Gemini to run Python code for data analysis, charts, math
     tools.push({ codeExecution: {} });
 
