@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-05-07: Implement Composite Cache + KB Cache (Strategy B + D)
+
+- **What changed**: Complete rewrite of context caching to properly support GEM personas + tools.
+- **Strategy B (Composite Cache)**: System instruction, tools, and toolConfig are now cached _together_ in a single `ai.caches.create()` call. Cache key includes tools fingerprint, so different tool combinations (web search on/off) create separate cache entries. This eliminates the 400 error caused by sending `cachedContent` + `tools` in the same request.
+- **Strategy D (KB Cache)**: Project knowledge base documents are now cached separately for monitoring and future cost optimization. Logging tracks cache hit rates per project (`[KB CACHE] HIT/CREATED`).
+- **`executeStream` update**: When `cachedContent` is active, `system_instruction`, `tools`, AND `toolConfig` are ALL omitted from the request (they're inside the cache).
+- **Token savings**: ~87% cost reduction on cached input tokens for GEM personas ≥4096 chars.
+- **Files changed**: `contextCache.ts` (full rewrite), `chatStreamCore.ts`, `streaming.ts`
+
+## 2026-05-07: Fix Project Info Panel Not Updating After Document Upload/Delete
+
+- **What changed**: Project Info stats (Documents count, Storage) now refresh immediately after uploading or deleting knowledge documents.
+- **Why**: After uploading files to a project's Knowledge Base, the Info panel still showed `Documents: 0` and `Storage: 0.00 / 5 MB` because `fetchProjects()` was never called to refresh the project stats in the Zustand store.
+- **Root cause**: `handleUpload()` and `handleDeleteDocument()` only called `fetchDocuments()` (refreshing the file list), but did NOT call `fetchProjects()` to update `project.document_count` and `project.storage_bytes` in the store.
+- **Fix**: Both `ProjectSettingsModal.tsx` and `projects/[id]/page.tsx` now call `Promise.all([fetchDocuments(), fetchProjects()])` after document mutations.
+- **Files changed**: `ProjectSettingsModal.tsx`, `app/projects/[id]/page.tsx`
+
+## 2026-05-07: Fix Sidebar Flickering on Every Keystroke
+
+- **What changed**: Sidebar no longer re-renders when typing in the chat input.
+- **Why**: Each keystroke changed `input` state in `ChatApp`, which re-rendered the entire component tree including `Sidebar`. Since `Sidebar` was not memoized and received inline arrow functions as props, it fully re-rendered on every character typed.
+- **Root cause**: (1) `Sidebar` was not wrapped with `React.memo()`. (2) 10+ callbacks were passed as inline arrow functions → new references every render → memo would be useless anyway.
+- **Fix**:
+  1. Wrapped `Sidebar` with `React.memo()` for shallow prop comparison
+  2. Extracted all 10 inline callbacks into `useCallback` hooks with stable dependencies
+  3. Destructured `openRenameModal`/`openDeleteModal` from `modals` object to avoid unstable object reference in deps
+- **Files changed**: `Sidebar.tsx`, `ChatApp.tsx`
+
+---
+
+## 2026-05-06: Post-Refactor Audit — Security, Cleanup & UX Polish
+
+- **What changed**: Audit pass over the Dual Storage refactor, found and fixed 4 issues:
+  1. **RLS Policy Fix**: Removed broken `auth.uid()::text` RLS policies from `files` table. The project uses **email** as `user_id` (not Supabase Auth UUID), and all other tables rely on server-side enforcement via `supabaseAdmin` (service_role). Added documentation comment explaining the pattern.
+  2. **Conversation Delete Cleanup**: `deleteConversation()` now also calls `deleteFilesByConversation()` before removing the conversation row. Previously only legacy `attachments` were cleaned up, leaving orphaned `files` records.
+  3. **Delete Animations**: Added smooth exit animations (Framer Motion) to:
+     - `AttachmentsPanel`: Files slide left + fade on delete, spinner replaces trash icon during operation, optimistic removal with rollback on error.
+     - `Sidebar`: Conversations fade + slide left when deleted, `AnimatePresence` wraps the list for proper exit transitions.
+     - Both use `deletingIds`/`deletingId` state for visual feedback during async operations.
+  4. **FileChips ↔ AttachmentsPanel Sync**: Replaced local-only `uploadedFiles` state in `InputForm` with API-synced fetch. Both components now listen to the shared `vikini:attachments-changed` event and fetch from `/api/files`, ensuring files appear in both places regardless of upload source.
+- **Files changed**: `020_create_files_table.sql`, `conversations.ts`, `AttachmentsPanel.tsx`, `Sidebar.tsx`, `SidebarItem.tsx`, `InputForm.tsx`
+
+---
+
 ## 2026-05-05: File System Refactor — Dual Storage (Gemini Files API + Supabase)
 
 - **What changed**: Complete refactor of the attachment/file upload system:

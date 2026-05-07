@@ -405,6 +405,61 @@ export default function ChatApp() {
     [setLanguage]
   );
 
+  // Sidebar-specific memoized callbacks (prevent re-renders via React.memo)
+  const memoizedOnNewChat = useCallback(() => {
+    handleNewChat();
+    closeMobileSidebar();
+  }, [handleNewChat, closeMobileSidebar]);
+
+  // Extract stable refs from modals (these are useCallback-wrapped, so stable)
+  const { openRenameModal, openDeleteModal } = modals;
+
+  const memoizedOnRenameChat = useCallback(
+    (id: string) => openRenameModal(id, ""),
+    [openRenameModal]
+  );
+
+  const memoizedOnLogout = useCallback(() => signOut(), []);
+
+  const memoizedOnToggleCollapse = useCallback(() => setSidebarCollapsed((prev) => !prev), []);
+
+  const memoizedOnLogoClick = useCallback(() => {
+    handleSelectConversation(null);
+    setSelectedProjectId(null);
+    closeMobileSidebar();
+  }, [handleSelectConversation, closeMobileSidebar]);
+
+  const memoizedOnCreateProjectChat = useCallback(
+    async (projectId: string) => {
+      const conv = await createConversation({ title: "", projectId });
+      if (conv) {
+        setSelectedConversationIdAndUrl(conv.id);
+        setSelectedProjectId(null);
+        closeMobileSidebar();
+      }
+    },
+    [createConversation, setSelectedConversationIdAndUrl, closeMobileSidebar]
+  );
+
+  const memoizedOnSelectProject = useCallback(
+    (projectId: string) => {
+      setSelectedProjectId(projectId);
+      handleSelectConversation(null);
+      closeMobileSidebar();
+    },
+    [handleSelectConversation, closeMobileSidebar]
+  );
+
+  const memoizedOnRenameProjectConversation = useCallback(
+    (id: string) => openRenameModal(id, ""),
+    [openRenameModal]
+  );
+
+  const memoizedOnDeleteProjectConversation = useCallback(
+    (id: string) => openDeleteModal(id),
+    [openDeleteModal]
+  );
+
   // ============================================
   // Render: Loading State
   // ============================================
@@ -457,44 +512,22 @@ export default function ChatApp() {
         conversations={filteredConversations}
         selectedConversationId={selectedConversationId}
         onSelectConversation={memoizedOnSelectConversation}
-        onNewChat={() => {
-          handleNewChat();
-          closeMobileSidebar();
-        }}
-        onDeleteConversation={modals.openDeleteModal}
-        onRenameChat={(id) => modals.openRenameModal(id, "")}
-        onLogout={() => signOut()}
+        onNewChat={memoizedOnNewChat}
+        onDeleteConversation={openDeleteModal}
+        onRenameChat={memoizedOnRenameChat}
+        onLogout={memoizedOnLogout}
         t={t}
         mobileOpen={mobileOpen}
         onCloseMobile={closeMobileSidebar}
         session={session}
         collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
-        onLogoClick={() => {
-          handleSelectConversation(null);
-          setSelectedProjectId(null);
-          closeMobileSidebar();
-        }}
+        onToggleCollapse={memoizedOnToggleCollapse}
+        onLogoClick={memoizedOnLogoClick}
         allConversations={conversations}
-        onCreateProjectChat={async (projectId) => {
-          const conv = await createConversation({ title: "", projectId });
-          if (conv) {
-            setSelectedConversationIdAndUrl(conv.id);
-            setSelectedProjectId(null);
-            closeMobileSidebar();
-          }
-        }}
-        onSelectProject={(projectId) => {
-          setSelectedProjectId(projectId);
-          handleSelectConversation(null); // Clear any selected conversation
-          closeMobileSidebar();
-        }}
-        onRenameProjectConversation={(id) => {
-          modals.openRenameModal(id, "");
-        }}
-        onDeleteProjectConversation={(id) => {
-          modals.openDeleteModal(id);
-        }}
+        onCreateProjectChat={memoizedOnCreateProjectChat}
+        onSelectProject={memoizedOnSelectProject}
+        onRenameProjectConversation={memoizedOnRenameProjectConversation}
+        onDeleteProjectConversation={memoizedOnDeleteProjectConversation}
       />
 
       <FloatingMenuTrigger onClick={() => setMobileOpen((prev) => !prev)} />

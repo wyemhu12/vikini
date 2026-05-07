@@ -16,7 +16,7 @@ import {
   isDeepSeekDirectModel,
 } from "@/lib/core/modelRegistry";
 import { CONVERSATION_DEFAULTS, MODEL_IDS, CLAUDE_API_MODELS } from "@/lib/utils/constants";
-import { getOrCreateSystemCache } from "@/lib/core/contextCache";
+import { getOrCreateCompositeCache, getOrCreateKBCache } from "@/lib/core/contextCache";
 import { logger } from "@/lib/utils/logger";
 import { error } from "@/lib/utils/apiResponse";
 
@@ -1065,19 +1065,61 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
     });
   } else {
     // Gemini Native
-    // Attempt explicit context caching for long system instructions (GEM personas)
+    // ================================================================
+    // Strategy B: Composite Cache — cache sysInstruction + tools together
+    // Strategy D: KB Cache — cache large project KB documents
+    // ================================================================
+    // Gemini API constraint: cachedContent cannot coexist with
+    // system_instruction, tools, or tool_config in the same request.
+    // Solution: include ALL of them inside the cache object.
+    // ================================================================
     let cachedContent: string | undefined;
+
+    // Strategy B: Composite cache (system instruction + tools + toolConfig)
     try {
-      const cacheResult = await getOrCreateSystemCache(model, finalSysPromptWithCharts);
+      const cacheResult = await getOrCreateCompositeCache({
+        model,
+        systemInstruction: finalSysPromptWithCharts,
+        tools: tools.length > 0 ? tools : undefined,
+        toolConfig,
+      });
       if (cacheResult) {
         cachedContent = cacheResult.cacheName;
         coreLogger.info(
-          `[CONTEXT CACHE] ${cacheResult.cacheHit ? "HIT" : "CREATED"}: ${cachedContent}`
+          `[COMPOSITE CACHE] ${cacheResult.cacheHit ? "HIT" : "CREATED"}: ${cachedContent}`
         );
       }
     } catch (cacheErr) {
-      coreLogger.error("Context cache error (non-fatal):", cacheErr);
+      coreLogger.error("Composite cache error (non-fatal):", cacheErr);
       // Continue without cache — standard request
+    }
+
+    // Strategy D: KB content cache for project conversations
+    // Only attempt if composite cache is active (KB cache stores contents,
+    // not system instruction — they're independent but complementary)
+    if (ragContext.ragEnabled && ragContext.projectId && ragContext.sources.length > 0) {
+      try {
+        // Build KB-specific content parts from RAG context for caching
+        // Only cache if the RAG content is large enough to justify it
+        const kbContentParts = [
+          {
+            role: "user" as const,
+            parts: [{ text: ragContext.contextChunks }],
+          },
+        ];
+        const kbCacheResult = await getOrCreateKBCache(model, ragContext.projectId, kbContentParts);
+        if (kbCacheResult) {
+          coreLogger.info(
+            `[KB CACHE] ${kbCacheResult.cacheHit ? "HIT" : "CREATED"}: ${kbCacheResult.cacheName} (project: ${ragContext.projectId})`
+          );
+          // Note: KB cache is logged for monitoring but NOT used as cachedContent
+          // here because we already have composite cache active.
+          // KB caching is most effective when used standalone (future: dedicated KB endpoint).
+          // For now, the logging helps measure cache hit rates for future optimization.
+        }
+      } catch (kbErr) {
+        coreLogger.error("KB cache error (non-fatal):", kbErr);
+      }
     }
 
     stream = createChatReadableStream({

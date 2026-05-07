@@ -61,6 +61,20 @@
 - **Fix**: Replaced `isValidUUID()` with `isValidUserId()` that accepts both UUID and Google numeric ID (`/^\d{10,30}$/`).
 - **Prevention Rule**: **NEVER assume user IDs are UUIDs in this project.** Vikini uses Google OAuth — user IDs are long numeric strings. Any validation that touches `userId` or `profiles.id` must accept this format. When writing ID validators, always check the actual data format in the DB first.
 
+### 2026-05: auth.uid() RLS policies are WRONG for this project ⚠️
+
+- **Symptom**: Attempted to add Row Level Security to `files` table using `auth.uid()::text` — would have blocked all file operations via non-admin clients.
+- **Root Cause**: `requireUser()` returns `session.user.email.toLowerCase()` as `userId`. The `user_id` column stores **email strings**, not Supabase Auth UUIDs. `auth.uid()` returns a UUID from `auth.users` that never matches email strings. Additionally, all existing tables (`conversations`, `messages`, `attachments`) have NO RLS — security is enforced server-side via `supabaseAdmin` (service_role key).
+- **Fix**: Removed all RLS policies. Added documentation comment in migration explaining the architecture.
+- **Prevention Rule**: **DO NOT add `auth.uid()` based RLS policies.** This project uses email as `user_id` and `supabaseAdmin` for all queries. RLS with `auth.uid()` would silently break operations. Security is enforced at the application layer (every query filters by `userId`).
+
+### 2026-05: Stale project stats after Knowledge Base mutations
+
+- **Symptom**: After uploading documents to a project, Info panel showed Documents: 0 and Storage: 0.00 / 5 MB.
+- **Root Cause**: `handleUpload()` and `handleDeleteDocument()` only called `fetchDocuments()` (local component state) but never `fetchProjects()` (Zustand store). The Info panel reads `project.document_count` / `project.storage_bytes` from the store, which stayed stale.
+- **Fix**: Added `fetchProjects()` alongside `fetchDocuments()` via `Promise.all()` in both `ProjectSettingsModal.tsx` and `projects/[id]/page.tsx`.
+- **Prevention Rule**: **When mutating child data (documents, conversations), always refresh the parent store (projects).** Stats like counts and storage are computed server-side — they won't update unless the parent is re-fetched.
+
 ---
 
 ## Translation and Bilingual
@@ -84,5 +98,13 @@
 - **Root Cause (Layer 2)**: Even after removing `googleMaps`, combining `googleSearch` + `codeExecution` + `functionDeclarations` is **NOT supported on Gemini 2.5**. Gemini 3+ CAN mix them, but ONLY with `toolConfig: { includeServerSideToolInvocations: true }` ([docs](https://ai.google.dev/gemini-api/docs/tool-combination)). Without this flag, the API silently fails → fallback retries without any tools.
 - **Fix**: Gemini 2.5: send `googleSearch` ALONE. Gemini 3+: send all tools combined WITH `includeServerSideToolInvocations: true` flag. Also fixed `functionCall.id` passthrough in `functionResponse` for proper tool context mapping.
 - **Prevention Rule**: **Gemini 2.5 only supports ONE tool category at a time.** Gemini 3+ supports mixing but REQUIRES `includeServerSideToolInvocations: true` and proper `functionCall.id` → `functionResponse.id` mapping. Always check the [tool combination docs](https://ai.google.dev/gemini-api/docs/tool-combination) before adding tools.
+
+### 2026-05: CachedContent cannot coexist with tools/tool_config ⚠️
+
+- **Symptom**: All Gemini requests with GEM personas (>4096 chars system instruction) failed with 400 `INVALID_ARGUMENT`: "CachedContent can not be used with GenerateContent request setting system_instruction, tools or tool_config."
+- **Root Cause**: Context cache was created with only `systemInstruction`, but the `generateContentStream` call also sent `tools` and `toolConfig` alongside `cachedContent`. Gemini API requires ALL of these to be inside the cache or none at all.
+- **Fix (Strategy B: Composite Cache)**: Include `tools` + `toolConfig` in `ai.caches.create()` alongside `systemInstruction`. Cache key includes tools fingerprint so different tool combos (web search on/off) get separate caches. At request time, when `cachedContent` is active, `system_instruction`, `tools`, AND `toolConfig` are ALL omitted — they're in the cache.
+- **Prevention Rule**: **NEVER send `tools`, `tool_config`, or `system_instruction` in a `generateContentStream` request that references `cachedContent`.** Always include them in the cache object via `ai.caches.create()`. Use a composite cache key that hashes the tool configuration to handle dynamic tool changes.
+- **Additional (Strategy D: KB Cache)**: For project conversations, large KB documents can also be cached separately via `getOrCreateKBCache()` to reduce token costs on repeated queries.
 
 ---

@@ -80,8 +80,8 @@ export default function ProjectPage() {
       throw new Error(data.error?.message || "Upload failed");
     }
 
-    // Refresh list
-    await fetchDocuments();
+    // Refresh both document list and project stats (document_count, storage_bytes)
+    await Promise.all([fetchDocuments(), fetchProjects()]);
   };
 
   // Delete document
@@ -95,8 +95,8 @@ export default function ProjectPage() {
       throw new Error(data.error?.message || "Delete failed");
     }
 
-    // Refresh list
-    await fetchDocuments();
+    // Refresh both document list and project stats (document_count, storage_bytes)
+    await Promise.all([fetchDocuments(), fetchProjects()]);
   };
 
   // Delete project

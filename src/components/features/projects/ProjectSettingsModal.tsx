@@ -109,7 +109,8 @@ export function ProjectSettingsModal({
       throw new Error(data.error?.message || "Upload failed");
     }
 
-    await fetchDocuments();
+    // Refresh both document list and project stats (document_count, storage_bytes)
+    await Promise.all([fetchDocuments(), fetchProjects()]);
   };
 
   // Delete document
@@ -123,7 +124,8 @@ export function ProjectSettingsModal({
       throw new Error(data.error?.message || "Delete failed");
     }
 
-    await fetchDocuments();
+    // Refresh both document list and project stats (document_count, storage_bytes)
+    await Promise.all([fetchDocuments(), fetchProjects()]);
   };
 
   // Delete project - opens modal

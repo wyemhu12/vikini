@@ -86,7 +86,7 @@ interface SidebarProps {
   onDeleteProjectConversation?: (id: string) => void;
 }
 
-export default function Sidebar({
+function Sidebar({
   conversations,
   selectedConversationId,
   onSelectConversation,
@@ -494,3 +494,5 @@ export default function Sidebar({
     </>
   );
 }
+
+export default React.memo(Sidebar);

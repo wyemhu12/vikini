@@ -641,7 +641,8 @@ async function executeStream(
   );
 
   let systemInstruction: SystemInstruction | undefined = undefined;
-  // When cachedContent is active, system instruction is already in the cache — skip it
+  // When cachedContent is active, system instruction + tools + toolConfig
+  // are already in the cache (Strategy B: Composite Cache) — skip them all
   if (!params.cachedContent && sysPrompt && sysPrompt.trim()) {
     systemInstruction = {
       role: "system",
@@ -661,13 +662,16 @@ async function executeStream(
         safetySettings:
           Array.isArray(safetySettings) && safetySettings.length > 0 ? safetySettings : undefined,
         thinkingConfig,
+        // When cachedContent is active, tools + toolConfig are IN the cache — don't send separately
         tools:
-          params.useTools && Array.isArray(params.tools) && params.tools.length > 0
+          !params.cachedContent &&
+          params.useTools &&
+          Array.isArray(params.tools) &&
+          params.tools.length > 0
             ? params.tools
             : undefined,
-        // Gemini 3 Tool Context Circulation: enables combining built-in + custom tools
-        toolConfig: params.useTools ? params.toolConfig : undefined,
-        // Explicit context caching: reference cached system instruction
+        toolConfig: !params.cachedContent && params.useTools ? params.toolConfig : undefined,
+        // Explicit context caching: reference composite cache (sysInstruction + tools)
         cachedContent: params.cachedContent,
       },
     });
