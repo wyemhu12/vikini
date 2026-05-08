@@ -2,7 +2,7 @@
 "use client";
 
 import useSWR from "swr";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Conversation } from "@/lib/features/chat/conversations";
 import { logger } from "@/lib/utils/logger";
 import { useProjectStore } from "@/lib/store/projectStore";
@@ -486,7 +486,13 @@ export function useConversation(): UseConversationReturn {
   }, [conversations, deleteConversation, mutate]);
 
   // Computed: personal chats (no project) and project chats getter
-  const personalConversations = conversations.filter((c) => !c.projectId);
+  // ✅ FIX: useMemo to stabilize reference — prevents Sidebar re-render cascade
+  // Without this, every ChatApp render (typing, streaming) creates a new array,
+  // which busts React.memo on Sidebar and causes visible flickering.
+  const personalConversations = useMemo(
+    () => conversations.filter((c) => !c.projectId),
+    [conversations]
+  );
   const getProjectConversations = useCallback(
     (projectId: string) => conversations.filter((c) => c.projectId === projectId),
     [conversations]

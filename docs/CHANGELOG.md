@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-05-08: Fix Sidebar Chat List Flickering During Streaming & Typing
+
+- **What changed**: Chat list in sidebar no longer flickers continuously during streaming or when typing in the input field.
+- **Why**: Despite `Sidebar` being wrapped with `React.memo` and all callback props being stabilized with `useCallback` (previous fix on 2026-05-07), the `personalConversations` array returned by `useConversation()` was computed inline without `useMemo`. Every re-render of `ChatApp` (triggered by typing/streaming state changes) created a new array reference → `filteredConversations` changed → `React.memo` on `Sidebar` was bypassed → entire sidebar re-rendered every 15ms during streaming (typewriter tick) and every keystroke.
+- **Root cause**: `conversations.filter((c) => !c.projectId)` on line 489 of `useConversation.ts` was NOT wrapped in `useMemo`, creating a new array reference on every hook invocation.
+- **Fix**: Wrapped `personalConversations` with `useMemo([conversations])` to stabilize the reference.
+- **Files changed**: `useConversation.ts`
+
+---
+
 ## 2026-05-07: Implement Composite Cache + KB Cache (Strategy B + D)
 
 - **What changed**: Complete rewrite of context caching to properly support GEM personas + tools.

@@ -32,6 +32,13 @@
 - **Fix**: Added `onCompositionStart` / `onCompositionEnd` guards to defer state updates
 - **Prevention Rule**: Always use composition event guards for text inputs that support CJK/Vietnamese
 
+### 2026-05: Sidebar flickering — unstable computed array busting React.memo ⚠️ RECURRING
+
+- **Symptom**: Sidebar chat list flickers continuously during streaming (every 15ms) and on every keystroke.
+- **Root Cause**: `personalConversations = conversations.filter(...)` was computed inline (no `useMemo`) in `useConversation()`. Every `ChatApp` re-render (triggered by typing or streaming state) called the hook → created a new array reference → `filteredConversations` useMemo dep changed → new prop to `Sidebar` → `React.memo` bypassed → full sidebar re-render including Framer Motion layout animations.
+- **Fix**: Wrapped `personalConversations` with `useMemo([conversations])`.
+- **Prevention Rule**: **Any `.filter()`, `.map()`, or `.reduce()` result that flows to a memoized component as a prop MUST be wrapped in `useMemo`.** This is the 2nd occurrence of sidebar flickering (1st was unmemoized callbacks, now unstable arrays). Always audit props passed to `React.memo` components for referential stability.
+
 ---
 
 ## API and Streaming
