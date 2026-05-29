@@ -18,6 +18,7 @@ import {
 import { CONVERSATION_DEFAULTS, MODEL_IDS, CLAUDE_API_MODELS } from "@/lib/utils/constants";
 import { getOrCreateCompositeCache, getOrCreateKBCache } from "@/lib/core/contextCache";
 import { logger } from "@/lib/utils/logger";
+import { pickFirstEnv } from "@/lib/utils/config";
 import { error } from "@/lib/utils/apiResponse";
 
 import {
@@ -103,14 +104,6 @@ function envFlag(value: unknown, defaultValue: boolean = false): boolean {
   return defaultValue;
 }
 
-function pickFirstEnv(keys: string[]): string {
-  for (const k of keys) {
-    const v = process.env[k];
-    if (v && String(v).trim()) return String(v).trim();
-  }
-  return "";
-}
-
 function stripOuterQuotes(s: unknown): string {
   const v = String(s || "").trim();
   if (v.length >= 2) {
@@ -189,6 +182,7 @@ import {
   refreshGeminiUri,
   downloadFileBytes,
 } from "@/lib/features/files/fileService.server";
+import { extractTextContent } from "@/lib/features/files/fileProcessors";
 
 // --- EXTRACTED FUNCTIONS ---
 
@@ -494,19 +488,27 @@ async function processAttachments(
       if (!text) {
         try {
           const result = await downloadFileBytes({ userId, id: f.id });
-          text = result.bytes.toString("utf8");
+          // Use extractTextContent for PDF-aware parsing (pdf-parse for PDFs, UTF-8 for text)
+          const extracted = await extractTextContent(result.bytes, mime, name);
+          text = extracted || "";
 
           // Lazy cache: save extracted text for future requests (non-blocking)
           if (text.length > 0 && text.length < 500_000) {
             const { getSupabaseAdmin } = await import("@/lib/core/supabase.server");
-            void getSupabaseAdmin()
-              .from("files")
-              .update({
-                extracted_text: text,
-                text_extracted_at: new Date().toISOString(),
-              })
-              .eq("id", f.id)
-              .then(() => coreLogger.debug(`[FILES] Cached text for ${name}`));
+            void Promise.resolve(
+              getSupabaseAdmin()
+                .from("files")
+                .update({
+                  extracted_text: text,
+                  text_extracted_at: new Date().toISOString(),
+                })
+                .eq("id", f.id)
+            )
+              .then(() => coreLogger.debug(`[FILES] Cached text for ${name}`))
+              .catch((cacheErr: unknown) => {
+                const msg = cacheErr instanceof Error ? cacheErr.message : "Unknown";
+                coreLogger.warn(`[FILES] Failed to cache text for ${name}: ${msg}`);
+              });
           }
         } catch {
           parts.push({ text: `\n[FILE SKIPPED: ${name} — download failed]\n` });

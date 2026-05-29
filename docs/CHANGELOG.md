@@ -5,6 +5,45 @@
 
 ---
 
+## 2026-05-29: Audit Fix Batch — 16 issues resolved
+
+### 🔴 Critical Bug Fixes
+
+- **FileInMessage onClick not wired** — ChatBubble.tsx now passes `onClick={setLightboxFile}` + renders FileLightbox for in-message file preview
+- **Duplicate `validateFile`** — Removed 63-line local copy from fileService.server.ts, imports from fileValidation.ts
+- **PDF text extraction for non-Gemini** — Added `pdf-parse` for server-side PDF text extraction; non-Gemini providers (Claude, DeepSeek) can now read PDF content
+
+### 🟡 UX Improvements
+
+- **FileLightbox error state** — Signed URL fetch failure now shows error UI + retry button (was infinite spinner)
+- **Filename truncation preserves extension** — `report-final-v2.pdf` → `report-fi…v2.pdf` (was `report-final-v...`)
+- **File navigation in lightbox** — Prev/Next arrows + keyboard (←/→) + file counter "2 / 5"
+- **Upload retry** — 1 automatic retry on network error/timeout with 1s delay
+
+### ♿ Accessibility
+
+- **FilePreviewCard** — Added keyboard handler (Enter/Space), aria-label on card
+- **FileLightbox** — Focus trap, focusable container, Tab wrapping
+- **FilePreviewCard aria-label** — Screen reader announces "Preview filename.pdf"
+
+### 🔧 Code Quality
+
+- **Shared utils** — Created `lib/utils/fileDisplayUtils.ts` with `formatFileSize`, `KIND_ICONS`, `KIND_COLORS`, `truncateFilename` (eliminated 4× duplication)
+- **`pickFirstEnv` consolidated** — Removed 3 local copies, all import from `lib/utils/config.ts`
+- **`toInt`/`toBytes` dedup** — Removed identical `toBytes()`, unified to `toInt()`
+- **`token_count` populated** — File upload now estimates and stores token count
+- **Bilingual strings** — FileLightbox translated, all hardcoded English replaced with `t?.key` pattern
+- **FileInMessage colors** — Replaced hardcoded `bg-white/10` with theme-aware `bg-[var(--surface)]/15`
+- **FileManagerPanel** — `console.error` → `logger.error`
+
+### Files changed
+
+- **New**: `lib/utils/fileDisplayUtils.ts`
+- **Modified**: ChatBubble.tsx, FileLightbox.tsx, FilePreviewCard.tsx, FileInMessage.tsx, FileManagerPanel.tsx, useFileUpload.ts, fileService.server.ts, fileProcessors.ts, chatStreamCore.ts, config.ts
+- **Deps**: Added `pdf-parse` + `@types/pdf-parse`
+
+---
+
 ## 2026-05-29: Fix — Files persisting in input + File Manager dropdown redesign
 
 - **Bug: Files stayed in input after send**

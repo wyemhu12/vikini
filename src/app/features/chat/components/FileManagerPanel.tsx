@@ -3,20 +3,12 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  FileText,
-  Image as ImageIcon,
-  Film,
-  Music,
-  Archive,
-  File,
-  X,
-  Trash2,
-  Loader2,
-} from "lucide-react";
+import { File, X, Trash2, Loader2 } from "lucide-react";
 
 import { useFiles } from "@/lib/features/files/useFiles";
-import type { FileItem, FileKind } from "@/types/files";
+import type { FileItem } from "@/types/files";
+import { formatFileSize, KIND_ICONS, KIND_COLORS } from "@/lib/utils/fileDisplayUtils";
+import { logger } from "@/lib/utils/logger";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -27,35 +19,7 @@ interface FileManagerPanelProps {
   t?: Record<string, string>;
 }
 
-// ─── Constants ───────────────────────────────────────────────────────
-
-const KIND_ICONS: Record<FileKind, React.ElementType> = {
-  image: ImageIcon,
-  video: Film,
-  audio: Music,
-  document: FileText,
-  text: FileText,
-  archive: Archive,
-  other: File,
-};
-
-const KIND_COLORS: Record<FileKind, string> = {
-  image: "text-pink-400",
-  video: "text-purple-400",
-  audio: "text-amber-400",
-  document: "text-red-400",
-  text: "text-blue-400",
-  archive: "text-green-400",
-  other: "text-[var(--text-secondary)]",
-};
-
 // ─── Helpers ─────────────────────────────────────────────────────────
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 function formatRelativeDate(isoDate: string): string {
   const now = Date.now();
@@ -123,7 +87,7 @@ export default function FileManagerPanel({
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Failed to delete file";
-        console.error("[FileManagerPanel] delete error:", message);
+        logger.error("[FileManagerPanel] delete error:", message);
       } finally {
         setDeletingId(null);
       }

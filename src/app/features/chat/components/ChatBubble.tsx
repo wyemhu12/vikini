@@ -10,6 +10,7 @@ import dynamic from "next/dynamic";
 import { ChevronDown, Sparkles, Brain, ImageIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { logger } from "@/lib/utils/logger";
+import type { FileItem } from "@/types/files";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Sub-components
@@ -79,6 +80,8 @@ const ChartTool = dynamic(() => import("./ChartTool"), {
   ),
   ssr: false,
 });
+
+const FileLightbox = dynamic(() => import("./FileLightbox"), { ssr: false });
 
 // ============================================
 // Helper Components
@@ -344,6 +347,7 @@ const ChatBubble = React.memo(
     const [editContent, setEditContent] = useState(safeMessage.content);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [copied, setCopied] = useState(false);
+    const [lightboxFile, setLightboxFile] = useState<FileItem | null>(null);
 
     useEffect(() => {
       setEditContent(safeMessage.content);
@@ -558,6 +562,7 @@ const ChatBubble = React.memo(
                           <FileInMessage
                             conversationId={conversationId}
                             fileIds={safeMessage.meta.fileIds as string[]}
+                            onClick={setLightboxFile}
                           />
                         )}
                       <span className="whitespace-pre-wrap wrap-break-word">{displayContent}</span>
@@ -625,6 +630,9 @@ const ChatBubble = React.memo(
             )}
           </div>
         </div>
+
+        {/* File lightbox for user message attachments */}
+        {lightboxFile && <FileLightbox file={lightboxFile} onClose={() => setLightboxFile(null)} />}
       </motion.div>
     );
   },

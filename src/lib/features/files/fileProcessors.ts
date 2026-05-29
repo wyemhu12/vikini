@@ -5,6 +5,7 @@ import { createInflateRaw } from "zlib";
 import { getGenAIClient } from "@/lib/core/genaiClient";
 import { DEFAULT_MODEL, normalizeModelForApi } from "@/lib/core/modelRegistry";
 import { logger } from "@/lib/utils/logger";
+import { pickFirstEnv } from "@/lib/utils/config";
 
 const processorLogger = logger.withContext("fileProcessors");
 
@@ -364,22 +365,66 @@ export async function summarizeZip(
 const DEFAULT_MAX_CHARS = 120_000;
 
 /**
- * Extract text content from raw file bytes via UTF-8 decoding.
+ * Extract text from a PDF file using pdf-parse.
  *
- * Used when processing text/code files for AI context windows.
+ * @param bytes - Raw PDF file bytes
+ * @param maxChars - Maximum characters to return
+ * @returns Extracted text, or `null` if parsing fails
+ */
+async function extractPdfText(bytes: Uint8Array, maxChars: number): Promise<string | null> {
+  try {
+    // Dynamic require to avoid bundling pdf-parse on client (CJS module)
+    const pdfParse = require("pdf-parse") as (
+      buf: Buffer,
+      opts?: { max?: number }
+    ) => Promise<{ text: string; numpages: number }>;
+    const buffer = Buffer.from(bytes);
+    const result = await pdfParse(buffer, {
+      // Limit pages to avoid excessive processing
+      max: 200,
+    });
+    let text = result.text || "";
+    if (text.length > maxChars) {
+      text = text.slice(0, maxChars);
+    }
+    return text.length > 0 ? text : null;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    processorLogger.warn(`extractPdfText failed: ${message}`);
+    return null;
+  }
+}
+
+/**
+ * Extract text content from raw file bytes.
+ *
+ * Routes by MIME type:
+ * - `application/pdf` → pdf-parse library
+ * - Everything else → UTF-8 decoding
+ *
+ * Used when processing files for AI context windows (especially non-Gemini providers).
  *
  * @param bytes    - Raw file bytes
- * @param mimeType - MIME type of the file (currently unused, reserved for future routing)
- * @param filename - Original filename (currently unused, reserved for future routing)
+ * @param mimeType - MIME type of the file
+ * @param filename - Original filename (used for extension-based routing)
  * @param maxChars - Maximum characters to return (default 120 000)
- * @returns Decoded text, or `null` if decoding fails
+ * @returns Decoded text, or `null` if decoding/parsing fails
  */
 export async function extractTextContent(
   bytes: Uint8Array,
-  _mimeType: string,
-  _filename: string,
+  mimeType: string,
+  filename: string,
   maxChars: number = DEFAULT_MAX_CHARS
 ): Promise<string | null> {
+  const mime = (mimeType || "").toLowerCase();
+  const ext = (filename || "").toLowerCase().split(".").pop() || "";
+
+  // PDF: use dedicated parser
+  if (mime === "application/pdf" || ext === "pdf") {
+    return extractPdfText(bytes, maxChars);
+  }
+
+  // Default: UTF-8 text decode
   try {
     const decoder = new TextDecoder("utf-8", { fatal: true });
     let text = decoder.decode(bytes);
@@ -396,14 +441,6 @@ export async function extractTextContent(
 // ═══════════════════════════════════════════════════════════
 // AI ANALYSIS (extracted from app/api/attachments/analyze)
 // ═══════════════════════════════════════════════════════════
-
-function pickFirstEnv(keys: string[]): string {
-  for (const k of keys) {
-    const v = process.env[k];
-    if (v && String(v).trim()) return String(v).trim();
-  }
-  return "";
-}
 
 function getAnalyzeMaxChars(): number {
   const n = Number(process.env.ATTACH_ANALYZE_MAX_CHARS);

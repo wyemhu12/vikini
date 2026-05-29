@@ -19,22 +19,13 @@ import { logger } from "@/lib/utils/logger";
 import { pickFirstEnv } from "@/lib/utils/config";
 import type {
   FileRow,
-  FileKind,
   UploadFileParams,
   ListFilesParams,
   GetFileParams,
   FilesConfig,
   CleanupResult,
 } from "@/types/files";
-import {
-  BLOCKED_EXTENSIONS,
-  BLOCKED_MIME_TYPES,
-  sanitizeFilename,
-  getExtension,
-  normalizeMimeType,
-  classifyFile as classifyFileShared,
-  validateImageContent,
-} from "./fileValidation";
+import { classifyFile as classifyFileShared, validateFile } from "./fileValidation";
 
 const fileLogger = logger.withContext("fileService");
 
@@ -43,11 +34,6 @@ const fileLogger = logger.withContext("fileService");
 // ============================================
 
 function toInt(v: unknown, fallback: number): number {
-  const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
-}
-
-function toBytes(v: unknown, fallback: number): number {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
@@ -61,7 +47,7 @@ export function getFilesConfig(): FilesConfig {
       pickFirstEnv(["FILES_MAX_PER_CONV", "ATTACH_MAX_FILES_PER_CONV"]),
       30
     ),
-    maxTotalBytesPerConversation: toBytes(
+    maxTotalBytesPerConversation: toInt(
       pickFirstEnv(["FILES_MAX_BYTES_PER_CONV", "ATTACH_MAX_TOTAL_BYTES_PER_CONV"]),
       100 * 1024 * 1024 // 100MB
     ),
@@ -73,79 +59,14 @@ export function getFilesConfig(): FilesConfig {
   };
 }
 
-// BLOCKED_EXTENSIONS, BLOCKED_MIME_TYPES imported from ./fileValidation
-
 // ============================================
 // FILE CLASSIFICATION
 // ============================================
 
-// classifyFile, getExtension, sanitizeFilename, normalizeMimeType
-// imported from ./fileValidation (single source of truth)
+// classifyFile imported from ./fileValidation (single source of truth)
 export { classifyFileShared as classifyFile };
 
-// ============================================
-// VALIDATION
-// ============================================
-
-interface ValidatedFile {
-  filename: string;
-  ext: string;
-  mime: string;
-  kind: FileKind;
-  sizeBytes: number;
-}
-
-async function validateFile(
-  file: File,
-  filename: string | undefined,
-  userId: string
-): Promise<ValidatedFile> {
-  if (!file) throw new Error("Missing file");
-
-  const safeName = sanitizeFilename(filename || file.name || "file");
-  const ext = getExtension(safeName);
-
-  // Security: block dangerous extensions
-  if (BLOCKED_EXTENSIONS.has(ext)) {
-    throw new Error(`File type ".${ext}" is not allowed for security reasons`);
-  }
-
-  const browserMime = String(file.type || "")
-    .trim()
-    .toLowerCase();
-  if (BLOCKED_MIME_TYPES.has(browserMime)) {
-    throw new Error("File type is not allowed for security reasons");
-  }
-
-  const size = Number(file.size || 0);
-
-  // Rank-based file size check
-  const { checkFileSize } = await import("@/lib/core/limits");
-  const sizeCheck = await checkFileSize(userId, size);
-  if (!sizeCheck.allowed) {
-    throw new Error(
-      `File too large (${sizeCheck.fileSizeMB}MB). Your limit is ${sizeCheck.maxSizeMB}MB`
-    );
-  }
-
-  // Magic bytes validation for images (ported from legacy)
-  const mime = normalizeMimeType(ext, browserMime);
-  const kind = classifyFileShared(ext, mime);
-
-  if (kind === "image") {
-    try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      if (!validateImageContent(bytes, mime)) {
-        throw new Error("File content does not match declared image type");
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes("does not match")) throw err;
-      // If arrayBuffer fails, continue — validation is best-effort
-    }
-  }
-
-  return { filename: safeName, ext, mime, kind, sizeBytes: size };
-}
+// validateFile imported from ./fileValidation (single source of truth)
 
 // ============================================
 // QUOTA ENFORCEMENT
@@ -341,7 +262,22 @@ export async function uploadFile({
   // 5. Upload to Gemini Files API (non-blocking, best-effort)
   const gemini = await uploadToGemini(bytes, v.filename, v.mime);
 
-  // 6. Insert DB record
+  // 6. Extract text + estimate tokens for text-kind files
+  let extractedText: string | null = null;
+  let tokenCount: number | null = null;
+  if (v.kind === "text" || v.kind === "document") {
+    try {
+      const text = bytes.toString("utf8");
+      if (text.length > 0 && text.length < 500_000) {
+        extractedText = text;
+        tokenCount = Math.ceil(text.length / 4);
+      }
+    } catch {
+      // Non-text content — skip extraction
+    }
+  }
+
+  // 7. Insert DB record
   const { data: row, error: insertError } = await supabase
     .from("files")
     .insert({
@@ -358,6 +294,9 @@ export async function uploadFile({
       storage_path: storagePath,
       bucket: cfg.bucket,
       expires_at: new Date(Date.now() + cfg.ttlDays * 24 * 60 * 60 * 1000).toISOString(),
+      extracted_text: extractedText,
+      text_extracted_at: extractedText ? new Date().toISOString() : null,
+      token_count: tokenCount,
     })
     .select("*")
     .single();

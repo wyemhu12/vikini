@@ -11,19 +11,14 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import {
-  FileText,
-  Image as ImageIcon,
-  Film,
-  Music,
-  Archive,
-  File,
-  X,
-  AlertCircle,
-  Loader2,
-  Zap,
-} from "lucide-react";
+import { Image as ImageIcon, X, AlertCircle, Loader2, Zap } from "lucide-react";
 import type { FileItem, FileKind, FileUploadProgress } from "@/types/files";
+import {
+  formatFileSize,
+  KIND_ICONS,
+  KIND_COLORS,
+  truncateFilename,
+} from "@/lib/utils/fileDisplayUtils";
 
 interface FilePreviewCardProps {
   /** Uploaded file data */
@@ -38,32 +33,6 @@ interface FilePreviewCardProps {
   compact?: boolean;
   /** Disabled state */
   disabled?: boolean;
-}
-
-const KIND_ICONS: Record<FileKind, React.ElementType> = {
-  image: ImageIcon,
-  video: Film,
-  audio: Music,
-  document: FileText,
-  text: FileText,
-  archive: Archive,
-  other: File,
-};
-
-const KIND_COLORS: Record<FileKind, string> = {
-  image: "text-pink-500",
-  video: "text-purple-500",
-  audio: "text-amber-500",
-  document: "text-red-500",
-  text: "text-blue-500",
-  archive: "text-green-500",
-  other: "text-(--text-secondary)",
-};
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function FilePreviewCard({
@@ -85,7 +54,6 @@ export function FilePreviewCard({
   const iconColor = KIND_COLORS[kind];
 
   const isImage = kind === "image";
-  const _signedUrlBase = file ? `/api/files/${file.id}/url` : null;
 
   const cardSize = compact ? "w-28 h-20" : "w-36 h-24";
   const iconSize = compact ? "w-6 h-6" : "w-8 h-8";
@@ -103,8 +71,15 @@ export function FilePreviewCard({
           : "border-(--control-border) bg-(--surface-base) hover:border-(--accent)/50 hover:shadow-md"
       } ${!isUploading && file ? "cursor-pointer" : ""}`}
       onClick={() => !isUploading && file && onClick?.(file)}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !isUploading && file) {
+          e.preventDefault();
+          onClick?.(file);
+        }
+      }}
       role={!isUploading && file ? "button" : undefined}
       tabIndex={!isUploading && file ? 0 : undefined}
+      aria-label={!isUploading && file ? `Preview ${filename}` : undefined}
     >
       {/* Content area */}
       <div className="flex flex-col items-center justify-center h-full px-2 py-1.5 gap-0.5">
@@ -122,7 +97,7 @@ export function FilePreviewCard({
           className="text-[10px] text-(--text-secondary) truncate w-full text-center leading-tight"
           title={filename}
         >
-          {filename.length > 18 ? filename.slice(0, 15) + "..." : filename}
+          {truncateFilename(filename)}
         </span>
 
         {/* Size + status */}

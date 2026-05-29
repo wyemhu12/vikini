@@ -13,6 +13,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { logger } from "@/lib/utils/logger";
 import { useFileStore } from "./store";
 import type { FileItem, FileKind, FileUploadProgress } from "@/types/files";
 
@@ -175,60 +176,104 @@ export function useFileUpload({
         formData.append("conversationId", conversationId);
 
         try {
-          await new Promise<void>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
+          const MAX_RETRIES = 1;
+          let lastError: Error | null = null;
 
-            xhr.upload.onprogress = (e: ProgressEvent) => {
-              if (e.lengthComputable) {
-                updateProgress(tempId, Math.round((e.loaded / e.total) * 100));
-              }
-            };
+          for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            // Reset progress and add delay before retry
+            if (attempt > 0) {
+              logger.info(
+                `[useFileUpload] Retrying upload for ${file.name} (attempt ${attempt + 1})`
+              );
+              updateProgress(tempId, 0);
+              await new Promise((r) => setTimeout(r, 1000));
+            }
 
-            xhr.onload = () => {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                setStatus(tempId, "ready");
+            // Rebuild FormData for retry (XHR consumes the stream)
+            const fd =
+              attempt === 0
+                ? formData
+                : (() => {
+                    const f = new FormData();
+                    f.append("file", file);
+                    f.append("conversationId", conversationId);
+                    return f;
+                  })();
 
-                // Parse response to get uploaded file data
-                let uploadedFile: FileItem | null = null;
-                try {
-                  const body: unknown = JSON.parse(xhr.responseText);
-                  if (typeof body === "object" && body !== null) {
-                    const d = body as { data?: { file?: FileItem }; file?: FileItem };
-                    uploadedFile = d.data?.file ?? d.file ?? null;
+            try {
+              await new Promise<void>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+
+                xhr.upload.onprogress = (e: ProgressEvent) => {
+                  if (e.lengthComputable) {
+                    updateProgress(tempId, Math.round((e.loaded / e.total) * 100));
                   }
-                } catch {
-                  /* response parsing failed — will fall back to SWR refetch */
-                }
+                };
 
-                // Notify parent with file data (for optimistic SWR update)
-                if (uploadedFile) {
-                  onUploadComplete?.(uploadedFile);
-                }
+                xhr.onload = () => {
+                  if (xhr.status >= 200 && xhr.status < 300) {
+                    setStatus(tempId, "ready");
 
-                // Remove from upload queue after parent has data
-                setTimeout(() => removeFromQueue(tempId), 800);
-                resolve();
-              } else {
-                let msg = "Upload failed";
-                try {
-                  const body: unknown = JSON.parse(xhr.responseText);
-                  if (typeof body === "object" && body !== null && "error" in body) {
-                    msg = String((body as { error: string }).error);
+                    // Parse response to get uploaded file data
+                    let uploadedFile: FileItem | null = null;
+                    try {
+                      const body: unknown = JSON.parse(xhr.responseText);
+                      if (typeof body === "object" && body !== null) {
+                        const d = body as { data?: { file?: FileItem }; file?: FileItem };
+                        uploadedFile = d.data?.file ?? d.file ?? null;
+                      }
+                    } catch {
+                      /* response parsing failed — will fall back to SWR refetch */
+                    }
+
+                    // Notify parent with file data (for optimistic SWR update)
+                    if (uploadedFile) {
+                      onUploadComplete?.(uploadedFile);
+                    }
+
+                    // Remove from upload queue after parent has data
+                    setTimeout(() => removeFromQueue(tempId), 800);
+                    resolve();
+                  } else {
+                    // Server error (4xx/5xx) — do NOT retry
+                    let msg = "Upload failed";
+                    try {
+                      const body: unknown = JSON.parse(xhr.responseText);
+                      if (typeof body === "object" && body !== null && "error" in body) {
+                        msg = String((body as { error: string }).error);
+                      }
+                    } catch {
+                      /* use default */
+                    }
+                    reject(new Error(msg));
                   }
-                } catch {
-                  /* use default */
-                }
-                reject(new Error(msg));
+                };
+
+                // Network/timeout errors are retryable
+                xhr.onerror = () => reject(new Error("Network error"));
+                xhr.ontimeout = () => reject(new Error("Upload timed out"));
+                xhr.timeout = 120_000; // 2 minutes
+
+                xhr.open("POST", "/api/files/upload");
+                xhr.send(fd);
+              });
+              // Upload succeeded — break out of retry loop
+              lastError = null;
+              break;
+            } catch (retryErr: unknown) {
+              lastError = retryErr instanceof Error ? retryErr : new Error("Upload failed");
+              const isRetryable =
+                lastError.message === "Network error" || lastError.message === "Upload timed out";
+              if (!isRetryable || attempt >= MAX_RETRIES) {
+                break; // Non-retryable error or exhausted retries
               }
-            };
+            }
+          }
 
-            xhr.onerror = () => reject(new Error("Network error"));
-            xhr.ontimeout = () => reject(new Error("Upload timed out"));
-            xhr.timeout = 120_000; // 2 minutes
-
-            xhr.open("POST", "/api/files/upload");
-            xhr.send(formData);
-          });
+          // If we still have an error after retries, surface it
+          if (lastError) {
+            throw lastError;
+          }
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : "Upload failed";
           setStatus(tempId, "error", msg);

@@ -424,6 +424,18 @@ export const translations: TranslationSet = {
     kbUploadHint: "Tải file để xây dựng kho kiến thức",
     kbChunks: "phần",
     kbDeleteDocument: "Xóa tài liệu",
+    // FileLightbox
+    fileDownload: "Tải xuống",
+    fileOpen: "Mở",
+    fileOpenInNewTab: "Mở trong tab mới",
+    fileLoadingPreview: "Đang tải xem trước...",
+    fileLoadFailed: "Không thể tải tệp",
+    fileRetry: "Thử lại",
+    filePrev: "Tệp trước",
+    fileNext: "Tệp sau",
+    fileClosePreview: "Đóng xem trước",
+    fileOf: "của",
+    uploadRetrying: "Đang thử lại...",
   },
   en: {
     appName: "Vikini Chat",
@@ -825,6 +837,18 @@ export const translations: TranslationSet = {
     kbUploadHint: "Upload files to build your knowledge base",
     kbChunks: "chunks",
     kbDeleteDocument: "Delete document",
+    // FileLightbox
+    fileDownload: "Download",
+    fileOpen: "Open",
+    fileOpenInNewTab: "Open in new tab",
+    fileLoadingPreview: "Loading preview...",
+    fileLoadFailed: "Failed to load file",
+    fileRetry: "Retry",
+    filePrev: "Previous file",
+    fileNext: "Next file",
+    fileClosePreview: "Close preview",
+    fileOf: "of",
+    uploadRetrying: "Retrying...",
   },
 };
 
