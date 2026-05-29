@@ -13,8 +13,24 @@ import type { FileItem } from "@/types/files";
 const fetcher = async (url: string): Promise<FileItem[]> => {
   const res = await fetch(url);
   if (!res.ok) return [];
-  const data: unknown = await res.json();
-  return Array.isArray(data) ? (data as FileItem[]) : [];
+  const json: unknown = await res.json();
+
+  // API returns { data: { files: [...] } } via success() helper
+  if (typeof json === "object" && json !== null) {
+    const obj = json as Record<string, unknown>;
+    // Unwrap: { data: { files: [...] } }
+    if (typeof obj.data === "object" && obj.data !== null) {
+      const inner = obj.data as Record<string, unknown>;
+      if (Array.isArray(inner.files)) return inner.files as FileItem[];
+    }
+    // Fallback: { files: [...] }
+    if (Array.isArray(obj.files)) return obj.files as FileItem[];
+    // Fallback: { data: [...] }
+    if (Array.isArray(obj.data)) return obj.data as FileItem[];
+  }
+  // Fallback: plain array
+  if (Array.isArray(json)) return json as FileItem[];
+  return [];
 };
 
 export function useFiles(conversationId: string | null) {
