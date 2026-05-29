@@ -90,7 +90,10 @@ export default function InputForm({
   } = useFileUpload({
     conversationId: conversationId ?? null,
     disabled: disabled || false,
-    onUploadComplete: () => void mutate(),
+    onUploadComplete: (uploadedFile) => {
+      // Optimistic SWR update: immediately add file to cache
+      void mutate((current) => [...(current ?? []), uploadedFile], { revalidate: true });
+    },
   });
 
   // === File removal ===

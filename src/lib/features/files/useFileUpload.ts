@@ -14,13 +14,13 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useFileStore } from "./store";
-import type { FileKind, FileUploadProgress } from "@/types/files";
+import type { FileItem, FileKind, FileUploadProgress } from "@/types/files";
 
 interface UseFileUploadOptions {
   conversationId: string | null;
   disabled?: boolean;
-  /** Called after each successful upload — typically triggers SWR mutate */
-  onUploadComplete?: () => void;
+  /** Called after each successful upload with the file data from server */
+  onUploadComplete?: (uploadedFile: FileItem) => void;
 }
 
 /** Client-side file kind classification for immediate UI feedback */
@@ -187,8 +187,26 @@ export function useFileUpload({
             xhr.onload = () => {
               if (xhr.status >= 200 && xhr.status < 300) {
                 setStatus(tempId, "ready");
-                // Brief "ready" flash before removing from queue
-                setTimeout(() => removeFromQueue(tempId), 600);
+
+                // Parse response to get uploaded file data
+                let uploadedFile: FileItem | null = null;
+                try {
+                  const body: unknown = JSON.parse(xhr.responseText);
+                  if (typeof body === "object" && body !== null) {
+                    const d = body as { data?: { file?: FileItem }; file?: FileItem };
+                    uploadedFile = d.data?.file ?? d.file ?? null;
+                  }
+                } catch {
+                  /* response parsing failed — will fall back to SWR refetch */
+                }
+
+                // Notify parent with file data (for optimistic SWR update)
+                if (uploadedFile) {
+                  onUploadComplete?.(uploadedFile);
+                }
+
+                // Remove from upload queue after parent has data
+                setTimeout(() => removeFromQueue(tempId), 800);
                 resolve();
               } else {
                 let msg = "Upload failed";
@@ -218,7 +236,6 @@ export function useFileUpload({
           setTimeout(() => removeFromQueue(tempId), 5000);
         }
       }
-      onUploadComplete?.();
     },
     [
       conversationId,
