@@ -194,13 +194,27 @@ export default function ChatControls({
           {fileCount > 0 && (
             <>
               <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
-              <button
-                onClick={() => setShowFileManager(true)}
-                className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 text-(--text-secondary) hover:text-(--accent) flex items-center gap-1.5"
-              >
-                <FolderOpen className="w-3.5 h-3.5" />
-                {t.files ?? "Files"} ({fileCount})
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowFileManager((v) => !v)}
+                  className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1.5 ${
+                    showFileManager
+                      ? "text-(--accent) md:bg-(--control-bg-hover)"
+                      : "text-(--text-secondary) hover:text-(--accent)"
+                  }`}
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  {t.files ?? "Files"} ({fileCount})
+                </button>
+                {conversationId && (
+                  <FileManagerPanel
+                    conversationId={conversationId}
+                    isOpen={showFileManager}
+                    onClose={() => setShowFileManager(false)}
+                    t={t}
+                  />
+                )}
+              </div>
             </>
           )}
         </div>
@@ -233,15 +247,6 @@ export default function ChatControls({
             {t.aiDisclaimer}
           </p>
         </div>
-      )}
-      {/* File Manager Panel */}
-      {conversationId && (
-        <FileManagerPanel
-          conversationId={conversationId}
-          isOpen={showFileManager}
-          onClose={() => setShowFileManager(false)}
-          t={t}
-        />
       )}
     </motion.div>
   );

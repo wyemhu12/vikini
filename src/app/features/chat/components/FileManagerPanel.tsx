@@ -1,7 +1,7 @@
 // /app/features/chat/components/FileManagerPanel.tsx
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FileText,
@@ -13,7 +13,6 @@ import {
   X,
   Trash2,
   Loader2,
-  FolderOpen,
 } from "lucide-react";
 
 import { useFiles } from "@/lib/features/files/useFiles";
@@ -41,13 +40,13 @@ const KIND_ICONS: Record<FileKind, React.ElementType> = {
 };
 
 const KIND_COLORS: Record<FileKind, string> = {
-  image: "text-pink-500",
-  video: "text-purple-500",
-  audio: "text-amber-500",
-  document: "text-red-500",
-  text: "text-blue-500",
-  archive: "text-green-500",
-  other: "text-(--text-secondary)",
+  image: "text-pink-400",
+  video: "text-purple-400",
+  audio: "text-amber-400",
+  document: "text-red-400",
+  text: "text-blue-400",
+  archive: "text-green-400",
+  other: "text-[var(--text-secondary)]",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -84,6 +83,35 @@ export default function FileManagerPanel({
 }: FileManagerPanelProps) {
   const { files, isLoading, mutate } = useFiles(conversationId);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Close on click outside
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    // Delay listener to avoid instant close from toggle button click
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+    }, 50);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onClose]);
 
   const handleDelete = useCallback(
     async (fileId: string) => {
@@ -106,70 +134,54 @@ export default function FileManagerPanel({
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
-          {/* Backdrop overlay */}
-          <motion.div
-            key="file-manager-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
-            onClick={onClose}
-          />
+        <motion.div
+          ref={panelRef}
+          key="file-manager-dropdown"
+          initial={{ opacity: 0, y: -8, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -8, scale: 0.95 }}
+          transition={{ duration: 0.15, ease: "easeOut" }}
+          className="absolute bottom-full right-0 mb-2 w-72 sm:w-80 max-h-80 z-50 rounded-2xl bg-[var(--surface)] border border-[var(--control-border)] shadow-2xl shadow-black/30 backdrop-blur-xl overflow-hidden flex flex-col"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--control-border)]">
+            <span className="text-xs font-bold text-[var(--text-primary)] tracking-wide uppercase">
+              {t?.files ?? "Files"}{" "}
+              <span className="text-[var(--text-secondary)] font-normal">({files.length})</span>
+            </span>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-[var(--control-bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-          {/* Slide-in panel */}
-          <motion.aside
-            key="file-manager-panel"
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 400, damping: 35 }}
-            className="fixed top-0 right-0 z-50 h-full w-80 flex flex-col bg-[var(--surface)]/95 backdrop-blur-xl border-l border-(--control-border) shadow-2xl"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-(--control-border)">
-              <h2 className="text-sm font-bold text-(--text-primary) tracking-wide uppercase flex items-center gap-2">
-                <FolderOpen className="w-4 h-4 text-(--accent)" />
-                {t?.files ?? "Files"}{" "}
-                <span className="text-(--text-secondary) font-normal">({files.length})</span>
-              </h2>
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-(--control-bg-hover) text-(--text-secondary) hover:text-(--text-primary) transition-colors"
-                aria-label="Close file manager"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* File list */}
-            <div className="flex-1 overflow-y-auto px-3 py-2 scrollbar-thin">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-32">
-                  <Loader2 className="w-5 h-5 animate-spin text-(--accent)" />
-                </div>
-              ) : files.length === 0 ? (
-                /* Empty state */
-                <div className="flex flex-col items-center justify-center h-48 gap-3 text-(--text-secondary)">
-                  <FolderOpen className="w-10 h-10 opacity-30" />
-                  <p className="text-xs font-medium">{t?.noFilesUploaded ?? "No files uploaded"}</p>
-                </div>
-              ) : (
-                <AnimatePresence mode="popLayout">
-                  {files.map((file) => (
-                    <FileListItem
-                      key={file.id}
-                      file={file}
-                      isDeleting={deletingId === file.id}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-                </AnimatePresence>
-              )}
-            </div>
-          </motion.aside>
-        </>
+          {/* File list */}
+          <div className="flex-1 overflow-y-auto overscroll-contain px-1.5 py-1.5 scrollbar-thin">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-4 h-4 animate-spin text-[var(--accent)]" />
+              </div>
+            ) : files.length === 0 ? (
+              <div className="flex items-center justify-center py-6 text-[var(--text-secondary)]">
+                <p className="text-[11px]">{t?.noFilesUploaded ?? "No files in this chat"}</p>
+              </div>
+            ) : (
+              <AnimatePresence mode="popLayout">
+                {files.map((file) => (
+                  <FileListItem
+                    key={file.id}
+                    file={file}
+                    isDeleting={deletingId === file.id}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </AnimatePresence>
+            )}
+          </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );
@@ -181,35 +193,37 @@ interface FileListItemProps {
   file: FileItem;
   isDeleting: boolean;
   onDelete: (id: string) => void;
-  onClick?: (file: FileItem) => void;
 }
 
-function FileListItem({ file, isDeleting, onDelete, onClick }: FileListItemProps) {
+function FileListItem({ file, isDeleting, onDelete }: FileListItemProps) {
   const Icon = KIND_ICONS[file.kind] ?? File;
-  const iconColor = KIND_COLORS[file.kind] ?? "text-(--text-secondary)";
+  const iconColor = KIND_COLORS[file.kind] ?? "text-[var(--text-secondary)]";
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 40, transition: { duration: 0.2 } }}
-      className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-(--control-bg) transition-colors mb-1"
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: 20, transition: { duration: 0.15 } }}
+      className="group flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-[var(--control-bg)] transition-colors"
     >
       {/* Kind icon */}
       <div className="shrink-0">
-        <Icon className={`w-5 h-5 ${iconColor}`} />
+        <Icon className={`w-4 h-4 ${iconColor}`} />
       </div>
 
       {/* File info */}
-      <button type="button" className="flex-1 min-w-0 text-left" onClick={() => onClick?.(file)}>
-        <p className="text-xs font-medium text-(--text-primary) truncate" title={file.filename}>
+      <div className="flex-1 min-w-0">
+        <p
+          className="text-[11px] font-medium text-[var(--text-primary)] truncate"
+          title={file.filename}
+        >
           {file.filename}
         </p>
-        <p className="text-[10px] text-(--text-secondary) mt-0.5">
+        <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
           {formatFileSize(file.size_bytes)} · {formatRelativeDate(file.created_at)}
         </p>
-      </button>
+      </div>
 
       {/* Delete button */}
       <button
@@ -219,10 +233,14 @@ function FileListItem({ file, isDeleting, onDelete, onClick }: FileListItemProps
           onDelete(file.id);
         }}
         disabled={isDeleting}
-        className="shrink-0 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500/15 text-(--text-secondary) hover:text-red-500 disabled:opacity-50"
+        className="shrink-0 p-1 rounded-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all hover:bg-red-500/15 text-[var(--text-secondary)] hover:text-red-500 disabled:opacity-50"
         aria-label={`Delete ${file.filename}`}
       >
-        {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+        {isDeleting ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <Trash2 className="w-3.5 h-3.5" />
+        )}
       </button>
     </motion.div>
   );

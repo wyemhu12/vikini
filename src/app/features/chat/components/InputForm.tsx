@@ -1,7 +1,7 @@
 // /app/features/chat/components/InputForm.tsx
 "use client";
 
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useFileUpload } from "@/lib/features/files/useFileUpload";
 import { useFiles } from "@/lib/features/files/useFiles";
 import { useFileStore } from "@/lib/features/files/store";
@@ -78,8 +78,18 @@ export default function InputForm({
   const [lightboxFile, setLightboxFile] = useState<FileItem | null>(null);
 
   // === Unified file management ===
-  const { files, fileCount, mutate } = useFiles(conversationId ?? null);
+  const { files: allFiles, mutate } = useFiles(conversationId ?? null);
   const uploadQueue = useFileStore((s) => s.uploadQueue);
+  const sentFileIds = useFileStore((s) => s.sentFileIds);
+  const markAsSent = useFileStore((s) => s.markAsSent);
+  const clearSentFileIds = useFileStore((s) => s.clearSentFileIds);
+
+  // Filter out files already sent with messages (they now live in ChatBubble)
+  const files = useMemo(
+    () => allFiles.filter((f) => !sentFileIds.has(f.id)),
+    [allFiles, sentFileIds]
+  );
+  const fileCount = files.length;
   const {
     openFilePicker,
     isDragging,
@@ -131,6 +141,11 @@ export default function InputForm({
     }
   }, [initialImageMode, onImageModeConsumed]);
 
+  // Clear sent tracking when switching conversations
+  useEffect(() => {
+    clearSentFileIds();
+  }, [conversationId, clearSentFileIds]);
+
   // Auto resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -149,13 +164,13 @@ export default function InputForm({
   };
 
   const debouncedSubmit = useDebounceCallback(() => {
-    // Collect current file IDs before clearing
+    // Collect current pending file IDs before marking as sent
     const currentFileIds = files.map((f) => f.id);
     onSubmit(currentFileIds.length > 0 ? currentFileIds : undefined);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
-    // Clear files from input preview (they now belong to the message)
+    // Mark files as sent so they disappear from input preview
     if (currentFileIds.length > 0) {
-      void mutate([], { revalidate: false });
+      markAsSent(currentFileIds);
     }
   }, 500);
 
