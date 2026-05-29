@@ -97,7 +97,11 @@ export function ImageGenStudio() {
 
   // Phase 4: Batch Generation
   const [numberOfImages, setNumberOfImages] = useState(1);
-  const [batchQuota, setBatchQuota] = useState<BatchQuotaInfo | null>(null);
+  const [batchQuota, setBatchQuota] = useState<BatchQuotaInfo>({
+    rank: "basic",
+    maxBatchSize: 2,
+    quotas: { 2: { limit: 10, used: 0, remaining: 10 } },
+  });
   const [generatingLabel, setGeneratingLabel] = useState<string | null>(null);
 
   // Sync selected conversation messages to generatedImages
