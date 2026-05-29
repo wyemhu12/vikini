@@ -46,9 +46,32 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
         };
       }
 
+      // Build contents with optional reference image
+      let contentParts: Array<
+        { text: string } | { inlineData: { data: string; mimeType: string } }
+      >;
+
+      if (options?.referenceImage) {
+        // Parse data URL: "data:<mimeType>;base64,<data>"
+        const dataUrlMatch = options.referenceImage.match(/^data:([\w/+.-]+);base64,(.+)$/);
+        if (dataUrlMatch) {
+          const refMimeType = dataUrlMatch[1];
+          const refBase64 = dataUrlMatch[2];
+          contentParts = [
+            { inlineData: { data: refBase64, mimeType: refMimeType } },
+            { text: finalPrompt },
+          ];
+        } else {
+          providerLogger.warn("Invalid referenceImage data URL format, using text-only prompt");
+          contentParts = [{ text: finalPrompt }];
+        }
+      } else {
+        contentParts = [{ text: finalPrompt }];
+      }
+
       const response = await ai.models.generateContent({
         model: modelId,
-        contents: [{ role: "user", parts: [{ text: finalPrompt }] }],
+        contents: [{ role: "user", parts: contentParts }],
         config,
       });
 

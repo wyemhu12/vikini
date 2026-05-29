@@ -19,6 +19,7 @@ export interface ImageGenOptions {
   enhancer?: boolean;
   enhancerModel?: string;
   model?: string;
+  referenceImage?: string;
 }
 
 export interface ImageGenResult {
@@ -33,4 +34,11 @@ export interface ImageGenResult {
 export interface ImageGenProvider {
   id: string;
   generate(prompt: string, options?: ImageGenOptions, apiKey?: string): Promise<ImageGenResult[]>;
+}
+
+export interface ImageEditOptions {
+  sourceImageUrl: string;
+  editPrompt: string;
+  model?: string;
+  aspectRatio?: string;
 }

@@ -9,6 +9,7 @@ import {
   Trash2,
   Lightbulb,
   Clock,
+  Pencil,
 } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { motion, AnimatePresence } from "framer-motion";
@@ -51,6 +52,8 @@ interface CanvasProps {
   generating: boolean;
   onRemix: (image: GeneratedImage) => void;
   onDelete: (id: string) => void;
+  onEdit?: (image: GeneratedImage) => void;
+  onImageClick?: (image: GeneratedImage, index: number) => void;
   onSuggestPrompt?: (prompt: string) => void;
   className?: string;
 }
@@ -60,6 +63,8 @@ export default function Canvas({
   generating,
   onRemix,
   onDelete,
+  onEdit,
+  onImageClick,
   onSuggestPrompt,
   className,
 }: CanvasProps) {
@@ -91,7 +96,7 @@ export default function Canvas({
 
   return (
     <div
-      className={`flex-1 bg-(--surface-base) h-full pt-4 px-4 md:px-6 lg:px-8 pb-8 flex flex-col gap-4 md:gap-6 overflow-y-auto ${className || ""}`}
+      className={`flex-1 min-h-0 bg-(--surface-base) pt-4 px-4 md:px-6 lg:px-8 pb-8 flex flex-col gap-4 md:gap-6 overflow-y-auto ${className || ""}`}
     >
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">{t("studioResults")}</h3>
@@ -141,8 +146,9 @@ export default function Canvas({
               <img
                 src={item.url}
                 alt={`Generated ${item.prompt}`}
-                className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
+                className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer"
                 loading="lazy"
+                onClick={() => onImageClick?.(item, idx)}
               />
 
               {/* Overlay with Controls */}
@@ -197,6 +203,16 @@ export default function Canvas({
                     >
                       <RefreshCcw className="w-3 h-3" /> {t("studioReuse")}
                     </button>
+
+                    {onEdit && (
+                      <button
+                        onClick={() => onEdit(item)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/80 hover:bg-blue-600 text-white backdrop-blur-md transition-colors border border-blue-400/30 text-xs font-bold shadow-lg shadow-blue-900/40 shrink-0"
+                        title={t("studioEdit")}
+                      >
+                        <Pencil className="w-3 h-3" /> {t("studioEdit")}
+                      </button>
+                    )}
 
                     <div className="flex gap-1.5 shrink-0">
                       <button

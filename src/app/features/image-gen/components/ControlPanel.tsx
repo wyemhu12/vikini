@@ -12,11 +12,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import StyleSelector from "./StyleSelector";
-import { Sparkles, Wand2, Settings } from "lucide-react";
-import { useState } from "react";
+import { Sparkles, Wand2, Settings, Upload, X, Image as ImageIcon, Info } from "lucide-react";
+import React, { useState, useRef, useCallback, useMemo } from "react";
 import SettingsModal from "./SettingsModal";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "../../chat/hooks/useLanguage";
+
+export interface BatchQuotaInfo {
+  rank: string;
+  maxBatchSize: number;
+  quotas: Record<number, { limit: number; used: number; remaining: number }>;
+}
 
 interface ControlPanelProps {
   prompt: string;
@@ -32,6 +38,14 @@ interface ControlPanelProps {
   onGenerate: () => void;
   generating: boolean;
   className?: string;
+  // Phase 2: Reference Image
+  referenceImage: File | null;
+  setReferenceImage: (f: File | null) => void;
+  // Phase 4: Batch Generation
+  numberOfImages: number;
+  setNumberOfImages: (n: number) => void;
+  batchQuota: BatchQuotaInfo | null;
+  generatingLabel?: string;
 }
 
 export default function ControlPanel({
@@ -48,13 +62,41 @@ export default function ControlPanel({
   onGenerate,
   generating,
   className,
+  referenceImage,
+  setReferenceImage,
+  numberOfImages,
+  setNumberOfImages,
+  batchQuota,
+  generatingLabel,
 }: ControlPanelProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tooltipBatch, setTooltipBatch] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
+
+  const referencePreview = useMemo(() => {
+    if (!referenceImage) return null;
+    return URL.createObjectURL(referenceImage);
+  }, [referenceImage]);
+
+  const handleRefUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file && file.type.startsWith("image/")) {
+        setReferenceImage(file);
+      }
+      // Reset input so same file can be re-selected
+      e.target.value = "";
+    },
+    [setReferenceImage]
+  );
+
+  const isGeminiNative = model.includes("gemini-3") || model.includes("gemini-3.1");
+  const showRefWarning = referenceImage && !isGeminiNative && !model.includes("imagen");
 
   return (
     <aside
-      className={`w-full md:w-80 border-r border-(--border) h-full flex-col bg-(--surface-base) relative z-20 shadow-xl overflow-hidden pt-4 overflow-y-auto ${className || "flex"}`}
+      className={`w-full md:w-80 border-r border-(--border) flex-1 min-h-0 md:h-full flex-col bg-(--surface-base) relative z-20 shadow-xl overflow-hidden pt-4 overflow-y-auto ${className || "flex"}`}
     >
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
       {/* Header */}
@@ -182,7 +224,109 @@ export default function ControlPanel({
         <StyleSelector selectedStyle={style} onSelect={setStyle} />
       </div>
 
-      <div className="mt-auto px-4 md:px-6 pb-6">
+      {/* Reference Image (Phase 2) */}
+      <div className="space-y-2 px-4 md:px-6 mt-4">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {t("studioReferenceImage")}
+        </Label>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleRefUpload}
+        />
+        {referenceImage && referencePreview ? (
+          <div className="relative group/ref rounded-lg overflow-hidden border border-(--border) bg-(--surface-elevated)">
+            <img src={referencePreview} alt="Reference" className="w-full h-24 object-cover" />
+            <button
+              onClick={() => setReferenceImage(null)}
+              className="absolute top-1 right-1 p-1 rounded-full bg-black/60 hover:bg-red-500/80 text-white transition-colors"
+              title={t("studioRemoveRef")}
+            >
+              <X className="w-3 h-3" />
+            </button>
+            {showRefWarning && (
+              <div className="absolute bottom-0 inset-x-0 bg-amber-500/90 text-white text-[9px] font-medium px-2 py-1 text-center">
+                {t("studioRefOnlyGemini")}
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full flex items-center gap-3 p-3 rounded-lg border border-dashed border-(--border) hover:border-purple-500/30 hover:bg-purple-500/5 transition-all text-left"
+          >
+            <div className="p-2 rounded-lg bg-(--surface-muted) text-(--text-secondary)">
+              <Upload className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium text-(--text-primary)">
+                {t("studioUploadRef")}
+              </div>
+              <div className="text-[10px] text-(--text-secondary)">{t("studioRefDesc")}</div>
+            </div>
+          </button>
+        )}
+      </div>
+
+      {/* Number of Images (Phase 4 - Batch Gen) */}
+      {batchQuota && batchQuota.maxBatchSize > 1 && (
+        <div className="space-y-2 px-6 mt-4">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {t("studioNumberOfImages")}
+          </Label>
+          <div className="grid grid-cols-4 gap-2">
+            {[1, 2, 3, 4].map((num) => {
+              const isAvailable = num <= batchQuota.maxBatchSize;
+              const quota = num > 1 ? batchQuota.quotas[num] : null;
+              const isExhausted = quota ? quota.remaining <= 0 : false;
+              const isDisabled = !isAvailable || (num > 1 && isExhausted);
+
+              return (
+                <div key={num} className="relative">
+                  <button
+                    onClick={() => !isDisabled && setNumberOfImages(num)}
+                    onMouseEnter={() => num > 1 && setTooltipBatch(num)}
+                    onMouseLeave={() => setTooltipBatch(null)}
+                    onTouchStart={() => num > 1 && setTooltipBatch(num)}
+                    onTouchEnd={() => setTimeout(() => setTooltipBatch(null), 2000)}
+                    disabled={isDisabled}
+                    className={cn(
+                      "w-full px-2 py-2 rounded-md text-xs font-medium border transition-all flex items-center justify-center gap-1",
+                      numberOfImages === num
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : isDisabled
+                          ? "bg-(--surface-muted) border-(--border) text-(--text-secondary)/40 cursor-not-allowed opacity-50"
+                          : "bg-(--surface-elevated) border-(--border) hover:bg-(--surface-hover)"
+                    )}
+                  >
+                    <ImageIcon className="w-3 h-3" />
+                    {num}
+                  </button>
+                  {/* Quota tooltip */}
+                  {tooltipBatch === num && quota && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg bg-(--surface-elevated) border border-(--border) shadow-xl text-[10px] font-medium whitespace-nowrap z-50 animate-in fade-in slide-in-from-bottom-1">
+                      <div className="flex items-center gap-1.5">
+                        <Info className="w-3 h-3 text-(--text-secondary)" />
+                        {isExhausted
+                          ? t("studioBatchQuotaExhausted")
+                          : t("studioBatchQuotaRemaining").replace(
+                              "{remaining}",
+                              String(quota.remaining)
+                            )}
+                      </div>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-(--surface-elevated) border-r border-b border-(--border) rotate-45 -mt-1" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-auto sticky bottom-0 px-4 md:px-6 pb-4 pt-3 bg-(--surface-base) border-t border-(--border) md:border-t-0 z-10">
         <Button
           onClick={onGenerate}
           disabled={generating || !prompt.trim()}
@@ -190,7 +334,9 @@ export default function ControlPanel({
           size="lg"
         >
           {generating ? (
-            <span className="animate-pulse">{t("studioGenerating")}</span>
+            <span className="animate-pulse">{generatingLabel || t("studioGenerating")}</span>
+          ) : numberOfImages > 1 ? (
+            `${t("studioGenerate")} (${numberOfImages} ${t("studioBatchImages")})`
           ) : (
             t("studioGenerate")
           )}

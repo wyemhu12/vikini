@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import ControlPanel from "./ControlPanel";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import ControlPanel, { type BatchQuotaInfo } from "./ControlPanel";
 import Canvas, { GeneratedImage } from "./Canvas";
+import EditImageModal from "./EditImageModal";
+import ImageLightbox from "./ImageLightbox";
 import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
@@ -84,6 +86,20 @@ export function ImageGenStudio() {
   const [showRenameModal, setShowRenameModal] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
+  // Phase 1: Edit Image
+  const [editingImage, setEditingImage] = useState<GeneratedImage | null>(null);
+
+  // Phase 2: Reference Image
+  const [referenceImage, setReferenceImage] = useState<File | null>(null);
+
+  // Phase 3: Lightbox
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  // Phase 4: Batch Generation
+  const [numberOfImages, setNumberOfImages] = useState(1);
+  const [batchQuota, setBatchQuota] = useState<BatchQuotaInfo | null>(null);
+  const [generatingLabel, setGeneratingLabel] = useState<string | null>(null);
+
   // Sync selected conversation messages to generatedImages
   const generatedImages: GeneratedImage[] = useMemo(() => {
     return messages
@@ -119,6 +135,25 @@ export function ImageGenStudio() {
       loadConversation(selectedConversationId);
     }
   }, [selectedConversationId, loadConversation]);
+
+  // Phase 4: Fetch batch gen quota on mount and after generating
+  const fetchBatchQuota = useCallback(async () => {
+    try {
+      const res = await fetch("/api/batch-gen-quota");
+      if (res.ok) {
+        const data = await res.json();
+        setBatchQuota(data);
+      }
+    } catch (e) {
+      logger.warn("Failed to fetch batch quota:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAuthed) {
+      fetchBatchQuota();
+    }
+  }, [isAuthed, fetchBatchQuota]);
 
   const handleCreateProject = async () => {
     const newProj = await createConversation({
@@ -180,41 +215,81 @@ export function ImageGenStudio() {
     // Auto-switch to results tab on mobile when generating starts
     setMobileTab("results");
 
-    try {
-      const response = await fetch("/api/generate-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": key,
-        },
-        body: JSON.stringify({
-          prompt,
-          conversationId: targetId,
-          options: {
-            model,
-            aspectRatio,
-            style: style === "none" ? undefined : style,
-            enhancer: isEnhancerOn,
-          },
-        }),
-      });
-
-      const json = await response.json();
-      if (!response.ok) {
-        throw new Error(json.error?.message || json.error || "Generation failed");
+    // Phase 2: Convert reference image to base64 if present
+    let referenceImageBase64: string | undefined;
+    if (referenceImage) {
+      try {
+        const reader = new FileReader();
+        referenceImageBase64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(referenceImage);
+        });
+      } catch (e) {
+        logger.warn("Failed to convert reference image:", e);
       }
+    }
 
-      if (json.success) {
-        // Refresh messages to show new image
-        await loadConversation(targetId!);
-        // Also refresh project list just in case of first message logic (preview)
-        refreshConversations();
+    // Phase 4: Batch generation - sequential to avoid rate limits
+    const totalImages = numberOfImages;
+    let successCount = 0;
+
+    try {
+      for (let i = 0; i < totalImages; i++) {
+        if (totalImages > 1) {
+          setGeneratingLabel(
+            t("studioGeneratingProgress")
+              .replace("{current}", String(i + 1))
+              .replace("{total}", String(totalImages))
+          );
+        }
+
+        const response = await fetch("/api/generate-image", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": key,
+          },
+          body: JSON.stringify({
+            prompt,
+            conversationId: targetId,
+            options: {
+              model,
+              aspectRatio,
+              style: style === "none" ? undefined : style,
+              enhancer: isEnhancerOn,
+              referenceImage: referenceImageBase64,
+            },
+            batchSize: totalImages > 1 ? totalImages : undefined,
+          }),
+        });
+
+        const json = await response.json();
+        if (!response.ok) {
+          throw new Error(json.error?.message || json.error || "Generation failed");
+        }
+
+        if (json.success) {
+          successCount++;
+          // Refresh messages to show new image immediately
+          await loadConversation(targetId!);
+          if (i === 0) {
+            refreshConversations();
+          }
+        }
       }
     } catch (error) {
       logger.error("Gen Error:", error);
-      setShowError(t("studioGenerateFailed"));
+      if (successCount === 0) {
+        setShowError(t("studioGenerateFailed"));
+      }
     } finally {
       setGenerating(false);
+      setGeneratingLabel(null);
+      // Refresh batch quota after generation
+      if (totalImages > 1) {
+        fetchBatchQuota();
+      }
     }
   };
 
@@ -232,6 +307,23 @@ export function ImageGenStudio() {
     setPrompt(suggestedPrompt);
     // Switch to studio tab so user can see the prompt filled in
     setMobileTab("studio");
+  };
+
+  // Phase 1: Edit handlers
+  const handleEdit = (image: GeneratedImage) => {
+    setEditingImage(image);
+  };
+
+  const handleEditComplete = async () => {
+    setEditingImage(null);
+    if (selectedConversationId) {
+      await loadConversation(selectedConversationId);
+    }
+  };
+
+  // Phase 3: Lightbox handlers
+  const handleImageClick = (_image: GeneratedImage, index: number) => {
+    setLightboxIndex(index);
   };
 
   const handleDeleteRequest = (id: string) => {
@@ -362,9 +454,9 @@ export function ImageGenStudio() {
         />
 
         {/* Main content area - side by side on desktop, tabbed on mobile */}
-        <div className="flex flex-col md:flex-row h-full w-full relative overflow-hidden bg-(--surface-base) pt-16 md:pt-0">
-          {/* Mobile Tab Bar */}
-          <div className="md:hidden flex border-b border-(--border) bg-(--surface-muted)/50 shrink-0">
+        <div className="flex flex-col md:flex-row flex-1 min-h-0 w-full relative bg-(--surface-base) pt-14 md:pt-0">
+          {/* Mobile Tab Bar - sticky so it stays visible during scroll */}
+          <div className="md:hidden flex border-b border-(--border) bg-(--surface-base)/95 backdrop-blur-md shrink-0 sticky top-0 z-30">
             <button
               onClick={() => setMobileTab("studio")}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-all relative ${
@@ -424,6 +516,12 @@ export function ImageGenStudio() {
               onGenerate={handleGenerate}
               generating={generating}
               className={mobileTab !== "studio" ? "hidden md:flex" : "flex"}
+              referenceImage={referenceImage}
+              setReferenceImage={setReferenceImage}
+              numberOfImages={numberOfImages}
+              setNumberOfImages={setNumberOfImages}
+              batchQuota={batchQuota}
+              generatingLabel={generatingLabel || undefined}
             />
 
             {/* Canvas - always visible on md+, conditionally on mobile */}
@@ -433,11 +531,49 @@ export function ImageGenStudio() {
               generating={generating}
               onRemix={handleRemix}
               onDelete={handleDeleteRequest}
+              onEdit={handleEdit}
+              onImageClick={handleImageClick}
               onSuggestPrompt={handleSuggestPrompt}
               className={mobileTab !== "results" ? "hidden md:flex" : "flex"}
             />
           </AnimatePresence>
         </div>
+
+        {/* Phase 1: Edit Image Modal */}
+        <EditImageModal
+          image={editingImage}
+          open={!!editingImage}
+          onOpenChange={(open) => !open && setEditingImage(null)}
+          onEditComplete={handleEditComplete}
+          conversationId={selectedConversationId}
+        />
+
+        {/* Phase 3: Image Lightbox */}
+        {lightboxIndex !== null && (
+          <ImageLightbox
+            images={generatedImages}
+            currentIndex={lightboxIndex}
+            onClose={() => setLightboxIndex(null)}
+            onNavigate={setLightboxIndex}
+            onRemix={(img) => {
+              setLightboxIndex(null);
+              handleRemix(img);
+            }}
+            onEdit={(img) => {
+              setLightboxIndex(null);
+              handleEdit(img);
+            }}
+            onDelete={(id) => {
+              handleDeleteRequest(id);
+              // Move to adjacent image or close
+              if (generatedImages.length <= 1) {
+                setLightboxIndex(null);
+              } else if (lightboxIndex >= generatedImages.length - 1) {
+                setLightboxIndex(lightboxIndex - 1);
+              }
+            }}
+          />
+        )}
       </div>
 
       {/* Rename Modal */}

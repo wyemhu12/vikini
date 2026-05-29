@@ -16,6 +16,7 @@ import {
   AppError,
 } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
+import { incrementBatchGenUsage } from "@/lib/core/batchGenQuota";
 
 const routeLogger = logger.withContext("generate-image");
 
@@ -40,6 +41,7 @@ const imageGenOptionsSchema = z
     enhancer: z.boolean().optional(),
     enhancerModel: z.string().max(100).optional(),
     model: z.string().max(100).optional(),
+    referenceImage: z.string().optional(),
   })
   .optional();
 
@@ -47,6 +49,7 @@ const imageGenRequestSchema = z.object({
   prompt: z.string().min(1, "Prompt is required").max(2000, "Prompt too long"),
   conversationId: z.string().uuid("Invalid conversation ID"),
   options: imageGenOptionsSchema,
+  batchSize: z.number().int().min(1).max(4).optional(),
 });
 
 export const maxDuration = 60; // Set max duration to 60s (Vercel functionality)
@@ -81,7 +84,7 @@ export async function POST(req: NextRequest) {
     }
 
     let { prompt } = parsed; // Prompt is mutable
-    const { conversationId, options } = parsed;
+    const { conversationId, options, batchSize } = parsed;
 
     // 2.5 Verify conversation ownership
     const supabaseCheck = getSupabaseAdmin();
@@ -148,7 +151,11 @@ export async function POST(req: NextRequest) {
     // Determine provider based on model override or default
     let providerName = "gemini"; // Default (Imagen 4)
     const modelName = options?.model?.toLowerCase();
-    if (
+
+    // Auto-route to gemini-native when referenceImage is provided
+    if (options?.referenceImage) {
+      providerName = "gemini-native";
+    } else if (
       modelName?.includes("gemini-3.1-flash-image") ||
       modelName?.includes("gemini-3-pro-image")
     ) {
@@ -299,6 +306,11 @@ export async function POST(req: NextRequest) {
 
     if (!message) {
       throw new Error("Failed to save message");
+    }
+
+    // 6. Track batch gen usage if applicable
+    if (batchSize && batchSize > 1) {
+      await incrementBatchGenUsage(userId, batchSize);
     }
 
     // 6. Skip inserting into 'attachments' table as these are generated images, not user uploads.
