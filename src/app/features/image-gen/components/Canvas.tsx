@@ -96,7 +96,7 @@ export default function Canvas({
 
   return (
     <div
-      className={`flex-1 min-h-0 bg-(--surface-base) pt-4 px-4 md:px-6 lg:px-8 pb-8 flex flex-col gap-4 md:gap-6 overflow-y-auto ${className || ""}`}
+      className={`flex-1 bg-(--surface-base) h-full pt-4 px-4 md:px-6 lg:px-8 pb-8 flex flex-col gap-4 md:gap-6 overflow-y-auto ${className || ""}`}
     >
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">{t("studioResults")}</h3>

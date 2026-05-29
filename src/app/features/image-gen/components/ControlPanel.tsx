@@ -96,7 +96,7 @@ export default function ControlPanel({
 
   return (
     <aside
-      className={`w-full md:w-80 border-r border-(--border) flex-1 min-h-0 md:h-full flex-col bg-(--surface-base) relative z-20 shadow-xl overflow-hidden pt-4 overflow-y-auto ${className || "flex"}`}
+      className={`w-full md:w-80 border-r border-(--border) h-full flex-col bg-(--surface-base) relative z-20 shadow-xl overflow-hidden pt-4 overflow-y-auto ${className || "flex"}`}
     >
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
       {/* Header */}
@@ -326,7 +326,7 @@ export default function ControlPanel({
         </div>
       )}
 
-      <div className="mt-auto sticky bottom-0 px-4 md:px-6 pb-4 pt-3 bg-(--surface-base) border-t border-(--border) md:border-t-0 z-10">
+      <div className="mt-auto px-4 md:px-6 pb-6">
         <Button
           onClick={onGenerate}
           disabled={generating || !prompt.trim()}

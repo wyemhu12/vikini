@@ -442,7 +442,7 @@ export function ImageGenStudio() {
       <FloatingMenuTrigger onClick={() => setMobileOpen(true)} />
 
       <div
-        className={`flex-1 flex flex-col h-full transition-all duration-300 relative z-10 ${
+        className={`flex-1 flex flex-col h-full transition-all duration-300 relative z-10 pt-14 md:pt-0 ${
           sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"
         }`}
       >
@@ -454,9 +454,9 @@ export function ImageGenStudio() {
         />
 
         {/* Main content area - side by side on desktop, tabbed on mobile */}
-        <div className="flex flex-col md:flex-row flex-1 min-h-0 w-full relative bg-(--surface-base) pt-14 md:pt-0">
-          {/* Mobile Tab Bar - sticky so it stays visible during scroll */}
-          <div className="md:hidden flex border-b border-(--border) bg-(--surface-base)/95 backdrop-blur-md shrink-0 sticky top-0 z-30">
+        <div className="flex flex-col md:flex-row h-full w-full relative overflow-hidden bg-(--surface-base)">
+          {/* Mobile Tab Bar */}
+          <div className="md:hidden flex border-b border-(--border) bg-(--surface-base) shrink-0 z-10">
             <button
               onClick={() => setMobileTab("studio")}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-all relative ${

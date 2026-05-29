@@ -5,6 +5,43 @@
 
 ---
 
+## 2026-05-29: Image Studio — Major Augmentation (4 Phases)
+
+### 🟢 Phase 1: Image Editing (Inpainting / Style Transfer / Extend)
+
+- **New `/api/edit-image` endpoint** — Accepts source image + edit prompt → Gemini Native Image Gen → returns edited image saved as new message.
+- **New `EditImageModal` component** — Dialog with source preview, edit prompt textarea, model selector (Flash/Pro), aspect ratio, 6 suggestion chips with stagger animation.
+- **Canvas "Edit" button** — Blue pill button with Pencil icon appears on image hover overlay.
+
+### 🟢 Phase 2: Image-to-Image (Reference Upload)
+
+- **ControlPanel reference image section** — Drag-and-drop / click-to-upload with thumbnail preview + remove button.
+- **Auto-routing** — When reference image present, generate-image API auto-routes to `gemini-native` provider.
+- **GeminiNativeImageProvider update** — Supports `referenceImage` in options, sends as `inlineData` part alongside text prompt.
+
+### 🟢 Phase 3: Lightbox trong Studio
+
+- **New `ImageLightbox` component** — Fullscreen overlay (z-50) with zoom (scroll wheel, +/- buttons, 1x-5x), pan (mouse drag when zoomed), keyboard navigation (←→, Esc, +/-), mobile swipe via Framer Motion drag, bottom info bar with prompt/badges, action buttons (Remix/Edit/Download/Delete), double-click zoom toggle.
+- **Canvas click handler** — Click image opens lightbox at that index.
+
+### 🟢 Phase 4: Batch Generation
+
+- **Rank-based quota system** — basic: 2 images/10 uses, pro: 2-3 images/10+10 uses, admin: 2-4 images/999 uses. Daily tracking via Upstash Redis.
+- **New `batchGenQuota.ts` module** — Config, Redis helpers, `incrementBatchGenUsage()`.
+- **New `/api/batch-gen-quota` endpoint** — Returns user's quota status per batch size.
+- **ControlPanel batch selector** — 4-button grid with hover/longpress tooltip showing remaining daily uses, disabled state when exhausted.
+- **Sequential batch generation** — ImageGenStudio generates N images sequentially with "Generating 2/4..." progress label, refreshes after each.
+- **Quota refresh** — Auto-refetch after batch generation completes.
+
+### 🔧 Code Quality
+
+- 32 new bilingual translation keys (vi+en) for editing, reference, lightbox, batch gen.
+- TypeScript strict: 0 errors. ESLint: 0 errors.
+- New files: 5 (EditImageModal, ImageLightbox, edit-image route, batch-gen-quota route, batchGenQuota module).
+- Modified: 6 (config.ts, Canvas.tsx, ControlPanel.tsx, ImageGenStudio.tsx, generate-image route, GeminiNativeImageProvider).
+
+---
+
 ## 2026-05-29: Image Studio — Mobile Layout Fix + UX Overhaul
 
 ### 🔴 Critical Fix
