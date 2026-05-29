@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-05-29: File UX Overhaul — Message-attached Files + File Manager
+
+- **Files sent with messages** (Claude-style): Files now appear inside user message bubbles instead of persisting on the input bar. After sending, file preview clears and file chips appear inline in the bubble.
+- **AI file priority**: Newly attached files are labeled `[NEWLY ATTACHED]` and sorted first in context. AI is instructed to prioritize reading them.
+- **File Manager Panel**: New slide-out panel (📁 Files button in toolbar) lists all conversation files with kind icons, size, relative dates, and delete functionality.
+- **Delete animations**: File cards now show a spinner when deleting, with smooth exit animations via Framer Motion.
+- **Backend**: `fileIds` added to chat stream request schema, saved in user message meta, passed through to `processAttachments()` for priority ordering.
+- **Files affected**: validators.ts, chatStreamCore.ts, useChatStreamController.ts, ChatControls.tsx, InputForm.tsx, ChatBubble.tsx, FileInMessage.tsx, FilePreviewCard.tsx, FileManagerPanel.tsx (new), ChatApp.tsx
+
+## 2026-05-29: Fix — Files not showing in UI after upload
+
+- **Root cause**: SWR fetcher expected plain array but API returned `{ data: { files: [...] } }`. `Array.isArray()` returned false → empty file list.
+- **Fix**: Properly unwrap nested API response in `useFiles.ts` fetcher.
+- **Also fixed**: Upload race condition — optimistic SWR update now passes file data from XHR response to prevent gap between queue removal and SWR refetch.
+
+---
+
 ## 2026-05-28: Unified File System Refactor — Single Table + Inline-first UX
 
 - **What changed**: Complete rewrite of the file upload system. Consolidated dual-table architecture (attachments + files) into a single unified `files` table with 30-day TTL. Replaced 903-line `AttachmentsPanel` with clean inline-first design.
