@@ -163,15 +163,15 @@ export default function InputForm({
     }
   };
 
+  // Ref to hold fileIds snapshot between handleSubmit (sync) and debouncedSubmit (async)
+  const pendingFileIdsRef = useRef<string[]>([]);
+
   const debouncedSubmit = useDebounceCallback(() => {
-    // Collect current pending file IDs before marking as sent
-    const currentFileIds = files.map((f) => f.id);
-    onSubmit(currentFileIds.length > 0 ? currentFileIds : undefined);
+    // Use fileIds snapshot from handleSubmit (files are already marked as sent)
+    const fileIds = pendingFileIdsRef.current;
+    pendingFileIdsRef.current = [];
+    onSubmit(fileIds.length > 0 ? fileIds : undefined);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
-    // Mark files as sent so they disappear from input preview
-    if (currentFileIds.length > 0) {
-      markAsSent(currentFileIds);
-    }
   }, 500);
 
   const handleSubmit = () => {
@@ -186,6 +186,12 @@ export default function InputForm({
       }
     } else {
       if (input.trim() || fileCount > 0) {
+        // Snapshot fileIds and mark as sent IMMEDIATELY (before debounce delay)
+        const currentFileIds = files.map((f) => f.id);
+        pendingFileIdsRef.current = currentFileIds;
+        if (currentFileIds.length > 0) {
+          markAsSent(currentFileIds);
+        }
         debouncedSubmit();
       }
     }
