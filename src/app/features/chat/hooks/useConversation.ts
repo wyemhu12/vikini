@@ -193,6 +193,7 @@ export function useConversation(): UseConversationReturn {
   const { data, mutate } = useSWR<ConversationResponse>("/api/conversations", fetcher, {
     dedupingInterval: 3000,
     revalidateOnFocus: false,
+    revalidateOnReconnect: false,
   });
 
   // ✅ FIX: SWR về thì MERGE, không overwrite

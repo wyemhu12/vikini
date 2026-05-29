@@ -1,7 +1,7 @@
 // /app/features/sidebar/components/SidebarItem.tsx
 "use client";
 
-import React, { memo, useState } from "react";
+import React, { memo, useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import TitleItem from "@/app/features/chat/components/TitleItem";
@@ -96,6 +96,12 @@ function SidebarItem({
   const c = conversation;
   const [isDownloading, setIsDownloading] = useState(false);
 
+  // Track first mount to skip initial animation on re-renders (prevents flicker)
+  const hasMountedRef = useRef(false);
+  useEffect(() => {
+    hasMountedRef.current = true;
+  }, []);
+
   const handleDownloadClick = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent closing immediately if needed, but Radix handles this
     if (isDownloading) return;
@@ -114,7 +120,7 @@ function SidebarItem({
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, x: -10 }}
+      initial={hasMountedRef.current ? false : { opacity: 0, x: -10 }}
       animate={{ opacity: isDeleting ? 0.4 : 1, x: 0, scale: isDeleting ? 0.97 : 1 }}
       exit={{ opacity: 0, x: -60, scale: 0.9, transition: { duration: 0.3, ease: "easeIn" } }}
       transition={{ duration: 0.2 }}

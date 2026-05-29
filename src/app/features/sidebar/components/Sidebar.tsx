@@ -237,8 +237,8 @@ function Sidebar({
     return button;
   };
 
-  // Extracted SidebarContent - shared between desktop and mobile
-  const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => {
+  // Render function (NOT a component) — prevents remount/flicker on each Sidebar re-render
+  const renderSidebarContent = (isMobile = false) => {
     const isCollapsed = isMobile ? false : collapsed;
 
     const handleNavigation = (path: string) => {
@@ -445,7 +445,7 @@ function Sidebar({
             collapsed ? "w-20" : "w-72 lg:w-80"
           )}
         >
-          <SidebarContent />
+          {renderSidebarContent()}
         </aside>
 
         {/* Mobile drawer */}
@@ -479,7 +479,7 @@ function Sidebar({
                 </button>
               </div>
               {/* Reuse SidebarContent with isMobile=true (never collapsed) */}
-              <SidebarContent isMobile />
+              {renderSidebarContent(true)}
             </aside>
           </div>
         )}

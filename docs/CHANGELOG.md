@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-05-29: Fix — Sidebar Chat List Flicker on Every Interaction
+
+- **Symptom**: Chat list flickered (flash/remount) on every click, button press, or window minimize/restore.
+- **Root causes**:
+  1. `SidebarContent` was an inline component inside `Sidebar` — React treated it as a new component type each render → full unmount/remount of all children including `AnimatePresence` + `SidebarItem` animations.
+  2. `SidebarItem` `initial={{ opacity: 0, x: -10 }}` replayed on every remount.
+  3. SWR `revalidateOnReconnect` was default `true` — refetched on window restore.
+- **Fixes**:
+  1. Converted `SidebarContent` from inline component to render function (`renderSidebarContent`) — React now reconciles stably by key.
+  2. Added `hasMountedRef` to skip initial animation on re-renders (entrance animation still plays on first mount).
+  3. Added `revalidateOnReconnect: false` to SWR config.
+- **Files changed**: `Sidebar.tsx`, `SidebarItem.tsx`, `useConversation.ts`
+
+---
+
 ## 2026-05-29: Image Studio — Major Augmentation (4 Phases)
 
 ### 🟢 Phase 1: Image Editing (Inpainting / Style Transfer / Extend)
