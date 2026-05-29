@@ -1,6 +1,6 @@
 # Database Schema - Vikini
 
-> **Updated**: 2026-05-03  
+> **Updated**: 2026-05-28  
 > **Database**: Supabase PostgreSQL
 
 ---
@@ -17,14 +17,14 @@ erDiagram
     profiles }o--o| temp_user_ranks : "mapped from"
 
     conversations ||--o{ messages : "contains"
-    conversations ||--o{ attachments : "has"
+    conversations ||--o{ files : "has"
     conversations }o--o| gems : "uses"
     conversations }o--o| projects : "belongs to"
 
     gems ||--o{ gem_versions : "has versions"
     gems ||--o{ gem_runs : "tracks usage"
 
-    messages }o--o{ attachments : "references"
+
 
     profiles {
         uuid id PK
@@ -94,17 +94,21 @@ erDiagram
         timestamptz created_at
     }
 
-    attachments {
+    files {
         uuid id PK
         uuid conversation_id FK
-        uuid message_id FK
         text user_id
         text filename
         text storage_path
         text mime_type
+        text kind
         integer size_bytes
         text extracted_text
         integer token_count
+        text gemini_file_name
+        text gemini_file_uri
+        timestamptz gemini_expires_at
+        boolean gemini_ready
         timestamptz expires_at
         timestamptz created_at
     }
@@ -118,12 +122,6 @@ erDiagram
     temp_user_ranks {
         text email PK
         text rank
-    }
-
-    allowed_mime_types {
-        text mime_type PK
-        text category
-        integer max_size_mb
     }
 
     projects ||--o{ knowledge_documents : "has docs"
@@ -274,22 +272,26 @@ erDiagram
 
 ---
 
-### 2.7 `attachments` - Tệp đính kèm
+### 2.7 `files` - Tệp đính kèm
 
-| Cột               | Kiểu          | Ràng buộc              | Mô tả                              |
-| ----------------- | ------------- | ---------------------- | ---------------------------------- |
-| `id`              | `UUID`        | PRIMARY KEY            | ID attachment                      |
-| `conversation_id` | `UUID`        | FK → conversations(id) | Cuộc hội thoại                     |
-| `message_id`      | `UUID`        | FK → messages(id)      | Tin nhắn (nullable)                |
-| `user_id`         | `TEXT`        | NOT NULL               | Email người upload                 |
-| `filename`        | `TEXT`        | NOT NULL               | Tên file gốc                       |
-| `storage_path`    | `TEXT`        | NOT NULL               | Path trong Supabase Storage        |
-| `mime_type`       | `TEXT`        |                        | Loại file (image/png, etc.)        |
-| `size_bytes`      | `INTEGER`     |                        | Kích thước file                    |
-| `extracted_text`  | `TEXT`        |                        | Nội dung trích xuất (cho PDF/text) |
-| `token_count`     | `INTEGER`     |                        | Số token ước tính                  |
-| `expires_at`      | `TIMESTAMPTZ` |                        | Thời gian hết hạn (36h mặc định)   |
-| `created_at`      | `TIMESTAMPTZ` | DEFAULT now()          | Thời gian tạo                      |
+| Cột                 | Kiểu          | Ràng buộc              | Mô tả                                                                        |
+| ------------------- | ------------- | ---------------------- | ---------------------------------------------------------------------------- |
+| `id`                | `UUID`        | PRIMARY KEY            | ID file                                                                      |
+| `conversation_id`   | `UUID`        | FK → conversations(id) | Cuộc hội thoại chứa file                                                     |
+| `user_id`           | `TEXT`        | NOT NULL               | Email người upload                                                           |
+| `filename`          | `TEXT`        | NOT NULL               | Tên file gốc                                                                 |
+| `storage_path`      | `TEXT`        | NOT NULL               | Path trong Supabase Storage                                                  |
+| `mime_type`         | `TEXT`        |                        | Loại file (image/png, etc.)                                                  |
+| `kind`              | `TEXT`        |                        | Phân loại: `image`, `video`, `audio`, `document`, `text`, `archive`, `other` |
+| `size_bytes`        | `INTEGER`     |                        | Kích thước file                                                              |
+| `extracted_text`    | `TEXT`        |                        | Nội dung trích xuất (cho PDF/text)                                           |
+| `token_count`       | `INTEGER`     |                        | Số token ước tính                                                            |
+| `gemini_file_name`  | `TEXT`        |                        | Tên file trên Gemini File API                                                |
+| `gemini_file_uri`   | `TEXT`        |                        | URI file trên Gemini File API                                                |
+| `gemini_expires_at` | `TIMESTAMPTZ` |                        | Thời gian hết hạn Gemini file (48h)                                          |
+| `gemini_ready`      | `BOOLEAN`     | DEFAULT false          | File đã sẵn sàng trên Gemini                                                 |
+| `expires_at`        | `TIMESTAMPTZ` |                        | Thời gian hết hạn (TTL 30 ngày)                                              |
+| `created_at`        | `TIMESTAMPTZ` | DEFAULT now()          | Thời gian tạo                                                                |
 
 **Storage Path Format**: `{userId}/{conversationId}/{uuid}-{filename}`
 
@@ -305,21 +307,13 @@ erDiagram
 
 ---
 
-### 2.9 `allowed_mime_types` (DEPRECATED)
+### 2.9 `attachments` & `allowed_mime_types` (DELETED)
 
-> [!WARNING]
-> **Deprecated**: Bảng này không còn được sử dụng. Hệ thống đã chuyển sang **blacklist approach**.
+> [!CAUTION]
+> **Đã xóa**: Cả hai bảng `attachments` và `allowed_mime_types` đã được drop trong **migration 021** (unified file system refactor).
 >
-> Validation được thực hiện trong code (`lib/features/attachments/attachments.ts`) thông qua:
->
-> - `BLOCKED_EXTENSIONS` - Extensions bị chặn (exe, bat, ps1, dll, etc.)
-> - `BLOCKED_MIME_TYPES` - MIME types nguy hiểm
-
-| Cột           | Kiểu      | Ràng buộc   | Mô tả                                |
-| ------------- | --------- | ----------- | ------------------------------------ |
-| `mime_type`   | `TEXT`    | PRIMARY KEY | MIME type (image/png, etc.)          |
-| `category`    | `TEXT`    |             | Nhóm: image, text, document, archive |
-| `max_size_mb` | `INTEGER` |             | Kích thước tối đa (MB)               |
+> - Bảng `attachments` được thay thế bởi `files` (section 2.7).
+> - Validation file được thực hiện trong `lib/features/files/fileValidation.ts` thông qua blacklist approach (`BLOCKED_EXTENSIONS`, `BLOCKED_MIME_TYPES`).
 
 ---
 
@@ -393,11 +387,10 @@ erDiagram
 | `messages`            | ✅          | ❌       | Chỉ service_role truy cập         |
 | `gems`                | ✅          | ❌       | Chỉ service_role truy cập         |
 | `gem_versions`        | ✅          | ❌       | Chỉ service_role truy cập         |
-| `attachments`         | ✅          | ❌       | Chỉ service_role truy cập         |
+| `files`               | ✅          | ❌       | UNRESTRICTED - chỉ service_role   |
 | `projects`            | ✅          | ✅       | Users manage own projects         |
 | `knowledge_documents` | ✅          | ✅       | Users manage own knowledge docs   |
 | `knowledge_chunks`    | ✅          | ✅       | Users manage own knowledge chunks |
-| `allowed_mime_types`  | ✅          | ✅       | Read-only cho authenticated       |
 | `rank_configs`        | ✅          | ✅       | Read-only cho authenticated       |
 
 > [!WARNING]
@@ -421,9 +414,10 @@ CREATE INDEX idx_conversations_updated_at ON conversations(updated_at DESC);
 CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX idx_messages_created_at ON messages(created_at);
 
--- Attachments
-CREATE INDEX idx_attachments_conversation_id ON attachments(conversation_id);
-CREATE INDEX idx_attachments_expires_at ON attachments(expires_at);
+-- Files
+CREATE INDEX idx_files_conversation_id ON files(conversation_id);
+CREATE INDEX idx_files_expires_at ON files(expires_at);
+CREATE INDEX idx_files_user_id ON files(user_id);
 
 -- Daily counts
 CREATE INDEX idx_daily_message_counts_user_date ON daily_message_counts(user_id, date);

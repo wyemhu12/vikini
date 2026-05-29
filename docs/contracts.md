@@ -38,7 +38,7 @@ interface Message {
 
 interface MessageMeta {
   sources?: WebSearchSource[]; // Kết quả web search
-  attachmentIds?: string[]; // IDs tệp đính kèm
+  fileIds?: string[]; // IDs file đính kèm
   modelUsed?: string; // Model thực tế được sử dụng
   tokensUsed?: number; // Token count
 
@@ -46,7 +46,7 @@ interface MessageMeta {
   type?: "image_gen"; // Indicates this is a generated image message
   prompt?: string; // Original prompt used for generation
   imageUrl?: string; // Public URL of generated image
-  attachment?: {
+  file?: {
     url: string; // Storage URL
     storagePath: string; // Supabase storage path
     mimeType: string; // "image/png" etc.
@@ -106,23 +106,29 @@ interface GemForClient {
 
 ---
 
-### Attachment (Tệp đính kèm)
+### FileItem (File đính kèm)
 
 ```typescript
-interface Attachment {
+interface FileItem {
   id: string; // UUID
   conversationId: string; // FK → Conversation
-  messageId: string | null; // FK → Message (optional)
   userId: string; // Email owner
   filename: string; // Tên file gốc
   storagePath: string; // Path trong Supabase Storage
   mimeType: string; // MIME type (image/png, etc.)
+  kind: FileKind; // image|video|audio|document|text|archive|other
   sizeBytes: number; // Kích thước
-  extractedText: string | null; // Nội dung trích xuất
-  tokenCount: number | null; // Token ước tính
-  expiresAt: string; // ISO timestamp (36h TTL)
+  extractedText?: string; // Nội dung trích xuất
+  tokenCount?: number; // Token ước tính
+  geminiFileName?: string; // Gemini File API name
+  geminiFileUri?: string; // Gemini File API URI
+  geminiExpiresAt?: string; // Gemini file expiration
+  geminiReady: boolean; // Gemini file processing status
+  expiresAt?: string; // ISO timestamp (30-day TTL)
   createdAt: string;
 }
+
+type FileKind = "image" | "video" | "audio" | "document" | "text" | "archive" | "other";
 ```
 
 **File Upload Policy** (Blacklist approach):
@@ -148,7 +154,7 @@ Hệ thống cho phép hầu hết các loại file, **NGOẠI TRỪ** các file
 **Vòng đời**:
 
 1. **Upload** → Supabase Storage: `{userId}/{conversationId}/{uuid}-{filename}`
-2. **Metadata** → DB `attachments` table kèm `expires_at` (36h)
+2. **Metadata** → DB `files` table kèm `expires_at` (30 ngày)
 3. **Context** → Nội dung trích xuất đưa vào AI prompt
 4. **Cleanup** → Cron job xóa sau khi hết hạn
 
@@ -434,27 +440,29 @@ Public routes: `/auth/signin`, `/auth/error`, `/auth/signout`, `/api/auth/*`.
 
 ### Key Endpoints
 
-| Method                | Endpoint                              | Description                                                  |
-| --------------------- | ------------------------------------- | ------------------------------------------------------------ |
-| POST                  | `/api/chat-stream`                    | Send message, receive SSE stream                             |
-| GET                   | `/api/conversations`                  | List all user conversations                                  |
-| GET                   | `/api/conversations?id={uuid}`        | Get conversation with messages                               |
-| POST/PATCH/DELETE     | `/api/conversations`                  | CRUD operations                                              |
-| GET/POST/PATCH/DELETE | `/api/gems`                           | GEM CRUD operations                                          |
-| POST                  | `/api/attachments/upload`             | Upload file (FormData)                                       |
-| GET/DELETE            | `/api/attachments`                    | List/delete attachments                                      |
-| DELETE                | `/api/messages/[id]`                  | Delete a single message                                      |
-| POST                  | `/api/generate-image`                 | AI image generation                                          |
-| GET/DELETE            | `/api/gallery`                        | Gallery CRUD                                                 |
-| GET                   | `/api/user/allowed-models`            | Get user's allowed models by rank                            |
-| GET/POST              | `/api/projects`                       | List/create projects                                         |
-| GET/PATCH/DELETE      | `/api/projects/[id]`                  | Single project CRUD                                          |
-| GET/POST/DELETE       | `/api/projects/[id]/knowledge`        | Knowledge document management                                |
-| POST                  | `/api/projects/[id]/knowledge/search` | RAG similarity search                                        |
-| GET/PATCH             | `/api/admin/users`                    | Admin: user management                                       |
-| GET/POST              | `/api/admin/gems`                     | Admin: premade GEM management                                |
-| GET/PATCH             | `/api/admin/rank-configs`             | Admin: rank configuration                                    |
-| GET                   | `/api/cron/attachments-cleanup`       | Cron: cleanup expired attachments (requires `x-cron-secret`) |
+| Method                | Endpoint                              | Description                              |
+| --------------------- | ------------------------------------- | ---------------------------------------- |
+| POST                  | `/api/chat-stream`                    | Send message, receive SSE stream         |
+| GET                   | `/api/conversations`                  | List all user conversations              |
+| GET                   | `/api/conversations?id={uuid}`        | Get conversation with messages           |
+| POST/PATCH/DELETE     | `/api/conversations`                  | CRUD operations                          |
+| GET/POST/PATCH/DELETE | `/api/gems`                           | GEM CRUD operations                      |
+| POST                  | `/api/files/upload`                   | Upload file (FormData)                   |
+| GET/DELETE            | `/api/files`                          | List/delete files                        |
+| GET                   | `/api/files/[id]/url`                 | Get signed download URL                  |
+| POST                  | `/api/files/[id]/analyze`             | AI-powered file analysis                 |
+| DELETE                | `/api/messages/[id]`                  | Delete a single message                  |
+| POST                  | `/api/generate-image`                 | AI image generation                      |
+| GET/DELETE            | `/api/gallery`                        | Gallery CRUD                             |
+| GET                   | `/api/user/allowed-models`            | Get user's allowed models by rank        |
+| GET/POST              | `/api/projects`                       | List/create projects                     |
+| GET/PATCH/DELETE      | `/api/projects/[id]`                  | Single project CRUD                      |
+| GET/POST/DELETE       | `/api/projects/[id]/knowledge`        | Knowledge document management            |
+| POST                  | `/api/projects/[id]/knowledge/search` | RAG similarity search                    |
+| GET/PATCH             | `/api/admin/users`                    | Admin: user management                   |
+| GET/POST              | `/api/admin/gems`                     | Admin: premade GEM management            |
+| GET/PATCH             | `/api/admin/rank-configs`             | Admin: rank configuration                |
+| GET                   | `/api/files/cleanup`                  | Cron: cleanup expired files (30-day TTL) |
 
 ### Rate Limiting
 

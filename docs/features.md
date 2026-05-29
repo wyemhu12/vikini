@@ -6,28 +6,28 @@
 
 ## 1. Danh Sách Tính Năng
 
-| Tính năng                 | Trạng thái    | Mô tả                                      |
-| ------------------------- | ------------- | ------------------------------------------ |
-| **Chat Streaming**        | ✅ Hoàn thành | SSE streaming với Gemini AI                |
-| **Enhanced Streaming UX** | ✅ Hoàn thành | Typewriter, auto-scroll, animations        |
-| **Conversations**         | ✅ Hoàn thành | CRUD + auto-title + URL sync               |
-| **GEMs System**           | ✅ Hoàn thành | Custom AI personas với versioning          |
-| **File Attachments**      | ✅ Hoàn thành | Upload, parse, 36h TTL                     |
-| **Image Studio**          | ✅ Hoàn thành | AI Image Generation (Gemini, DALL-E, Flux) |
-| **Gallery**               | ✅ Hoàn thành | Image management với infinite scroll       |
-| **Image Lightbox**        | ✅ Hoàn thành | Fullscreen view + zoom controls            |
-| **Image Compare**         | ✅ Hoàn thành | Side-by-side & overlay comparison          |
-| **Projects**              | ✅ Hoàn thành | Knowledge Base theo project                |
-| **Token Count Display**   | ✅ Hoàn thành | Hiển thị token usage per message           |
-| **Message Encryption**    | ✅ Hoàn thành | AES-256-GCM                                |
-| **Rate Limiting**         | ✅ Hoàn thành | Redis-based per user                       |
-| **Daily Message Limits**  | ✅ Hoàn thành | Theo rank                                  |
-| **Web Search**            | ✅ Hoàn thành | Optional, rank-gated                       |
-| **Admin Dashboard**       | ✅ Hoàn thành | User/GEM/Rank management                   |
-| **Google OAuth**          | ✅ Hoàn thành | NextAuth v5                                |
-| **Voice Input (STT)**     | ✅ Hoàn thành | Web Speech API + waveform                  |
-| **TTS Playback**          | ✅ Hoàn thành | Read AI responses aloud                    |
-| **Bilingual UI**          | ✅ Hoàn thành | Vietnamese/English support                 |
+| Tính năng                 | Trạng thái    | Mô tả                                        |
+| ------------------------- | ------------- | -------------------------------------------- |
+| **Chat Streaming**        | ✅ Hoàn thành | SSE streaming với Gemini AI                  |
+| **Enhanced Streaming UX** | ✅ Hoàn thành | Typewriter, auto-scroll, animations          |
+| **Conversations**         | ✅ Hoàn thành | CRUD + auto-title + URL sync                 |
+| **GEMs System**           | ✅ Hoàn thành | Custom AI personas với versioning            |
+| **File System**           | ✅ Hoàn thành | Upload, preview, 30-day TTL, inline-first UX |
+| **Image Studio**          | ✅ Hoàn thành | AI Image Generation (Gemini, DALL-E, Flux)   |
+| **Gallery**               | ✅ Hoàn thành | Image management với infinite scroll         |
+| **Image Lightbox**        | ✅ Hoàn thành | Fullscreen view + zoom controls              |
+| **Image Compare**         | ✅ Hoàn thành | Side-by-side & overlay comparison            |
+| **Projects**              | ✅ Hoàn thành | Knowledge Base theo project                  |
+| **Token Count Display**   | ✅ Hoàn thành | Hiển thị token usage per message             |
+| **Message Encryption**    | ✅ Hoàn thành | AES-256-GCM                                  |
+| **Rate Limiting**         | ✅ Hoàn thành | Redis-based per user                         |
+| **Daily Message Limits**  | ✅ Hoàn thành | Theo rank                                    |
+| **Web Search**            | ✅ Hoàn thành | Optional, rank-gated                         |
+| **Admin Dashboard**       | ✅ Hoàn thành | User/GEM/Rank management                     |
+| **Google OAuth**          | ✅ Hoàn thành | NextAuth v5                                  |
+| **Voice Input (STT)**     | ✅ Hoàn thành | Web Speech API + waveform                    |
+| **TTS Playback**          | ✅ Hoàn thành | Read AI responses aloud                      |
+| **Bilingual UI**          | ✅ Hoàn thành | Vietnamese/English support                   |
 
 ---
 
@@ -69,7 +69,7 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 
 ---
 
-### 2.3 Attachments
+### 2.3 File System
 
 **Quy trình**:
 
@@ -77,14 +77,18 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 2. Upload lên Supabase Storage
 3. Parse/extract text (PDF, text files)
 4. Đếm tokens
-5. Đưa vào context khi chat
+5. Đưa vào context khi chat (inline-first UX)
 
-**TTL**: 36 giờ (cleanup via cron)
+**TTL**: 30 ngày (cleanup via cron)
+
+**Lưu trữ**: Single `files` table (thay thế dual storage cũ)
 
 **Files**:
 
-- `/app/api/attachments/upload/route.ts`
-- `/lib/features/attachments/attachments.ts`
+- `/app/api/files/upload/route.ts`
+- `/lib/features/files/fileService.server.ts`
+- `/lib/features/files/fileValidation.ts`
+- Components: `FilePreviewCard`, `FilePreviewArea`, `FileLightbox`, `FileInMessage`
 
 ---
 
@@ -102,14 +106,14 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 
 **Managed ngoài Admin panel**:
 
-| Cấu hình                                              | Quản lý tại                  | Lý do                                           |
-| ----------------------------------------------------- | ---------------------------- | ----------------------------------------------- |
-| API Keys (Gemini, Claude, OpenRouter, DeepSeek, Groq) | Vercel Dashboard             | Bảo mật, không expose trên UI                   |
-| Rate Limiting (`RATE_LIMIT_MAX`)                      | Vercel Environment Variables | Áp dụng global, không cần thay đổi thường xuyên |
-| Attachment limits (`ATTACH_MAX_*`)                    | Vercel Environment Variables | Áp dụng global                                  |
-| Whitelist emails                                      | Vercel Environment Variables | Quyết định ai được đăng ký                      |
-| Database schema, RLS policies                         | Supabase Dashboard           | DBA level                                       |
-| Cron jobs                                             | Vercel Cron                  | Attachment cleanup                              |
+| Cấu hình                                               | Quản lý tại                  | Lý do                                           |
+| ------------------------------------------------------ | ---------------------------- | ----------------------------------------------- |
+| API Keys (Gemini, Claude, OpenRouter, DeepSeek, Groq)  | Vercel Dashboard             | Bảo mật, không expose trên UI                   |
+| Rate Limiting (`RATE_LIMIT_MAX`)                       | Vercel Environment Variables | Áp dụng global, không cần thay đổi thường xuyên |
+| File size limits (`FILE_MAX_SIZE_MB` / `rank_configs`) | Vercel Env / Admin Dashboard | Theo rank trong `rank_configs`                  |
+| Whitelist emails                                       | Vercel Environment Variables | Quyết định ai được đăng ký                      |
+| Database schema, RLS policies                          | Supabase Dashboard           | DBA level                                       |
+| Cron jobs                                              | Vercel Cron                  | File cleanup (30-day TTL)                       |
 
 **Files**:
 
@@ -338,7 +342,7 @@ graph TD
     Chat --> Streaming
 
     Conversations --> GEMs
-    Conversations --> Attachments
+    Conversations --> Files[File System]
 
     Messages --> Encryption
     Messages --> ImageGen[Image Generation]

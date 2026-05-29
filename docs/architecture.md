@@ -51,7 +51,7 @@ Follows the Next.js App Router conventions.
 Separation of concerns between UI and business logic.
 
 - `core/`: Singleton clients and core infrastructure (Supabase, Gemini, Redis wrappers).
-- `features/`: Business logic, hooks, and types for specific domains (Chat, Attachments, Gems).
+- `features/`: Business logic, hooks, and types for specific domains (Chat, Files, Gems).
 - `utils/`: Shared utility functions.
 
 ### `src/components/` (Shared UI)
@@ -96,17 +96,20 @@ Tests are colocated with source files using the `.test.ts` / `.test.tsx` suffix.
   - `useAllowedModels`: Model permission checking.
   - `useWebSearchPreference`: Web search toggle state.
   - `useImageGenController`: Image generation flow.
-- **Message Handling**: Supports diverse content types (Text, Code, Attachments, Images).
+- **Message Handling**: Supports diverse content types (Text, Code, Files, Images).
 
 ### Gems (AI Assistants)
 
 - Specialized AI personas or tools configured for specific tasks.
 - CRUD operations for managing user-defined Gems.
 
-### Attachments
+### File System
 
-- File upload and processing logic.
-- Integration with chat context.
+- Single `files` table with 30-day TTL for automatic cleanup.
+- Unified file service (`fileService.server.ts`) handles upload, parsing, and provider formatting.
+- Inline-first UX via `FilePreviewArea` and `FileLightbox` components.
+- Supports: images, video, audio, documents, text, archives.
+- Provider-aware: Gemini uses `fileUri`, others use base64/text extraction.
 
 ### Image Generation (Image Studio)
 
@@ -165,7 +168,7 @@ All API keys, secrets, and configuration variables are managed through the **Ver
 | `DATA_ENCRYPTION_KEY`                                 | Security           | All Environments     |
 | `WHITELIST_EMAILS`                                    | Access Control     | All Environments     |
 | `RATE_LIMIT_MAX`                                      | Rate Limiting      | All Environments     |
-| `ATTACHMENTS_CRON_SECRET`                             | Cron Jobs          | All Environments     |
+| `FILES_CRON_SECRET`                                   | Cron Jobs          | All Environments     |
 
 > [!IMPORTANT]
 > **Adding/rotating API keys**: Always use Vercel Dashboard. Never commit secrets to the repository. Local development uses `.env.local` (see `env.local.example`).
@@ -174,5 +177,5 @@ All API keys, secrets, and configuration variables are managed through the **Ver
 
 Limits are managed at **two levels**:
 
-1. **Vercel Environment Variables**: Rate limiting (`RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_SECONDS`), attachment limits (`ATTACH_MAX_*`)
+1. **Vercel Environment Variables**: Rate limiting (`RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_SECONDS`), file limits (via `rank_configs.max_file_size_mb`)
 2. **Admin Dashboard (`/admin` → Limits tab)**: Per-rank daily message limits, max file size, feature toggles, allowed models — stored in `rank_configs` table in Supabase

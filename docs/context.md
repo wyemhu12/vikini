@@ -21,8 +21,8 @@
 
 ### B. Research and Development
 
-- Brainstorming technical solutions, researching project documents, summarizing attachments.
-- Attachment parsing (PDF/Docx) must be accurate for research workflows.
+- Brainstorming technical solutions, researching project documents, summarizing uploaded files.
+- File parsing (PDF/Docx) must be accurate for research workflows.
 - Data encryption is mandatory since the tool contains internal project ideas.
 
 ### C. Gaming and Lifestyle Consulting
@@ -40,9 +40,9 @@ User sends message (often long prompts or with files) -> Encrypt message -> Save
 
 Users create multiple Custom GEMs for different purposes. Versioning is critical: users must not lose the AI "personality" they have carefully crafted.
 
-### Attachments
+### File System
 
-Files are primarily reference documents (lore books, technical docs). 36-hour TTL keeps costs low. Text extraction (parsing) must be highly accurate.
+Unified file management via a single `files` table with 30-day TTL. Supports images, video, audio, documents, text, and archives. Inline-first UX with `FilePreviewArea` and `FileLightbox`. Text extraction (parsing) must be highly accurate for research workflows.
 
 ## 4. Architecture Principle
 
