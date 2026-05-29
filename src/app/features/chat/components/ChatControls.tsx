@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 
 import ModelSelector from "./ModelSelector";
 import ThinkingLevelSelector from "./ThinkingLevelSelector";
-import AttachmentsPanel, { type AttachmentsPanelRef } from "./AttachmentsPanel";
 import InputForm from "./InputForm";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
@@ -25,10 +24,6 @@ interface ChatControlsProps {
   handleModelChange: (model: string) => void;
   isModelAllowed: (model: string) => boolean;
   t: Record<string, string>;
-  showFiles: boolean;
-  setShowFiles: (show: boolean) => void;
-  fileCount: number;
-  setFileCount: (count: number) => void;
   webSearchEnabled: boolean;
   toggleWebSearch: () => void;
   alwaysSearch: boolean;
@@ -46,13 +41,12 @@ interface ChatControlsProps {
   regenerating: boolean;
   creatingConversation: boolean;
   streamingAssistant: string | null;
-  attachmentsRef: React.RefObject<AttachmentsPanelRef | null>;
   selectedConversationId: string | null;
   showMobileControls?: boolean;
   disabled?: boolean;
   onImageGen: (prompt: string, options?: ImageGenOptions) => void;
-  initialImageMode?: boolean; // For remix from Gallery
-  onImageModeConsumed?: () => void; // Reset pending image mode in parent
+  initialImageMode?: boolean;
+  onImageModeConsumed?: () => void;
   // Landing mode
   isLanding?: boolean;
   previewPrompt?: string | null;
@@ -63,11 +57,6 @@ export default function ChatControls({
   handleModelChange,
   isModelAllowed,
   t,
-  // File panel state
-  showFiles,
-  setShowFiles,
-  fileCount,
-  setFileCount,
   // Web search state
   webSearchEnabled,
   toggleWebSearch,
@@ -82,16 +71,15 @@ export default function ChatControls({
   setInput,
   handleSend,
   handleStop,
-  onImageGen, // Updated prop logic flows through here
+  onImageGen,
   isStreaming,
   regenerating,
   creatingConversation,
-  streamingAssistant,
-  // Refs & IDs
-  attachmentsRef,
+  streamingAssistant: _streamingAssistant,
+  // IDs
   selectedConversationId,
-  showMobileControls = true, // Default to true if not passed (Desktop)
-  initialImageMode = false, // For remix from Gallery
+  showMobileControls = true,
+  initialImageMode = false,
   onImageModeConsumed,
   // Landing mode
   isLanding = false,
@@ -132,24 +120,7 @@ export default function ChatControls({
             disabled={isStreaming || regenerating}
             expandDown={isLanding}
           />
-          <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
-          <button
-            onClick={() => setShowFiles(!showFiles)}
-            className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full flex items-center gap-1 bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 ${
-              showFiles || fileCount > 0
-                ? "text-(--accent) md:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]"
-                : "text-(--text-secondary) hover:text-(--text-primary)"
-            }`}
-          >
-            FILES{" "}
-            {fileCount > 0 ? (
-              <span className="text-[9px] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] px-1 rounded-sm ml-0.5 text-(--text-primary)">
-                {fileCount}
-              </span>
-            ) : (
-              ""
-            )}
-          </button>
+
           <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
           <button
             onClick={canWebSearch ? toggleWebSearch : undefined}
@@ -217,14 +188,6 @@ export default function ChatControls({
       <div className="relative group">
         <div className="absolute -inset-0.5 bg-(--accent) rounded-4xl opacity-0 group-focus-within:opacity-20 transition-opacity duration-500 blur-lg" />
         <div className="relative">
-          <AttachmentsPanel
-            ref={attachmentsRef}
-            conversationId={selectedConversationId}
-            disabled={creatingConversation || (isStreaming && !streamingAssistant) || regenerating}
-            isExpanded={showFiles}
-            onToggle={setShowFiles}
-            onCountChange={setFileCount}
-          />
           <InputForm
             input={isShowingPreview ? displayValue : input}
             onChangeInput={setInput}

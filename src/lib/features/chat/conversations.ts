@@ -1,6 +1,6 @@
 // /lib/features/chat/conversations.ts
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
-import { deleteAttachmentsByConversation } from "@/lib/features/attachments/attachments";
+import { deleteFilesByConversation } from "@/lib/features/files/fileService.server";
 import { CONVERSATION_DEFAULTS } from "@/lib/utils/constants";
 import {
   DEFAULT_MODEL,
@@ -504,14 +504,12 @@ export async function deleteConversation(
   if (!current) throw new Error("Conversation not found");
   if (current.userId !== userId) throw new Error("Forbidden");
 
-  // Delete files (new system: dual storage) + attachments (legacy) before deleting conversation row
+  // Delete all files (dual storage: Supabase + Gemini) before deleting conversation row
   try {
-    const { deleteFilesByConversation } = await import("@/lib/features/files/fileService.server");
     await deleteFilesByConversation(userId, conversationId);
   } catch {
-    /* new files table may not exist yet */
+    /* file cleanup is best-effort */
   }
-  await deleteAttachmentsByConversation({ userId, conversationId });
 
   const { error } = await supabase.from("conversations").delete().eq("id", conversationId);
   if (error) throw new Error(`deleteConversation failed: ${error.message}`);

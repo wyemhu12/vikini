@@ -2,8 +2,11 @@
 "use client";
 
 import React, { useRef, useEffect, useState, useCallback } from "react";
-import { useAttachmentStore } from "@/lib/features/attachments/store";
-import FileChips from "./FileChips";
+import { useFileUpload } from "@/lib/features/files/useFileUpload";
+import { useFiles } from "@/lib/features/files/useFiles";
+import { useFileStore } from "@/lib/features/files/store";
+import { FilePreviewArea } from "./FilePreviewArea";
+import { FileLightbox } from "./FileLightbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
@@ -11,11 +14,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Image as ImageIcon, Upload, X, Loader2 } from "lucide-react";
+import { Plus, Image as ImageIcon, Upload, X } from "lucide-react";
 import { toast } from "@/lib/store/toastStore";
-import { logger } from "@/lib/utils/logger";
 import { useDebounceCallback } from "@/lib/hooks/useDebounceCallback";
 import { VoiceButton } from "./VoiceButton";
+import type { FileItem } from "@/types/files";
 
 const PaperAirplaneIcon = () => (
   <svg
@@ -44,14 +47,14 @@ interface InputFormProps {
   onChangeInput: (value: string) => void;
   onSubmit: () => void;
   onStop?: () => void;
-  onImageGen?: (prompt: string) => void; // New prop
+  onImageGen?: (prompt: string) => void;
   disabled?: boolean;
   isStreaming?: boolean;
   t?: Record<string, string>;
   conversationId?: string | null;
-  initialImageMode?: boolean; // For remix from Gallery
-  onImageModeConsumed?: () => void; // Reset pending image mode in parent
-  isPreview?: boolean; // When true, input shows a hover preview prompt
+  initialImageMode?: boolean;
+  onImageModeConsumed?: () => void;
+  isPreview?: boolean;
 }
 
 export default function InputForm({
@@ -70,90 +73,54 @@ export default function InputForm({
 }: InputFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { addAttachment, attachments } = useAttachmentStore();
-  const [isUploading, setIsUploading] = useState(false);
   const [isImageMode, setIsImageMode] = useState(initialImageMode);
   const [_voiceTranscript, setVoiceTranscript] = useState("");
-  const [isDragging, setIsDragging] = useState(false);
+  const [lightboxFile, setLightboxFile] = useState<FileItem | null>(null);
 
-  // Synced file chips: fetch from API and listen to shared events
-  const [uploadedFiles, setUploadedFiles] = useState<
-    Array<{
-      id: string;
-      filename: string;
-      size_bytes: number;
-      mime_type: string;
-      kind?: string;
-      gemini_ready?: boolean;
-      status?: "uploading" | "processing" | "ready" | "error";
-    }>
-  >([]);
+  // === Unified file management ===
+  const { files, fileCount, mutate } = useFiles(conversationId ?? null);
+  const uploadQueue = useFileStore((s) => s.uploadQueue);
+  const {
+    openFilePicker,
+    isDragging,
+    fileInputRef,
+    fileAccept,
+    handleFileInputChange,
+    isUploading,
+  } = useFileUpload({
+    conversationId: conversationId ?? null,
+    disabled: disabled || false,
+    onUploadComplete: () => void mutate(),
+  });
 
-  // Fetch files from API
-  const fetchFileChips = useCallback(async () => {
-    if (!conversationId) {
-      setUploadedFiles([]);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/files?conversationId=${encodeURIComponent(conversationId)}`);
-      if (!res.ok) return;
-      const json = await res.json();
-      const files = json?.data?.files || json?.files || [];
-      setUploadedFiles(
-        files.map((f: Record<string, unknown>) => ({
-          id: f.id as string,
-          filename: f.filename as string,
-          size_bytes: f.size_bytes as number,
-          mime_type: f.mime_type as string,
-          kind: f.kind as string | undefined,
-          gemini_ready: f.gemini_ready as boolean | undefined,
-          status: "ready" as const,
-        }))
-      );
-    } catch {
-      /* silent */
-    }
-  }, [conversationId]);
-
-  // Initial fetch + refetch when conversation changes
-  useEffect(() => {
-    fetchFileChips();
-  }, [fetchFileChips]);
-
-  // Sync with AttachmentsPanel via shared event
-  useEffect(() => {
-    const handler = (ev: Event) => {
-      const cid = (ev as CustomEvent)?.detail?.conversationId;
-      if (cid && conversationId && cid === conversationId) {
-        fetchFileChips();
-      }
-    };
-    window.addEventListener("vikini:attachments-changed", handler);
-    return () => window.removeEventListener("vikini:attachments-changed", handler);
-  }, [conversationId, fetchFileChips]);
-
-  const removeFileChip = useCallback(
+  // === File removal ===
+  const handleRemoveFile = useCallback(
     async (id: string) => {
-      // Optimistic removal
-      setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
       try {
         await fetch(`/api/files?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-        if (conversationId) {
-          window.dispatchEvent(
-            new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
-          );
-        }
+        void mutate();
       } catch {
-        // Rollback on failure
-        fetchFileChips();
+        toast.error(t?.uploadFailed || "Failed to remove file");
       }
     },
-    [conversationId, fetchFileChips]
+    [mutate, t]
   );
 
-  // Sync initialImageMode prop to state (for Gallery remix or Dashboard card)
+  const handleClearAll = useCallback(async () => {
+    try {
+      for (const f of files) {
+        await fetch(`/api/files?id=${encodeURIComponent(f.id)}`, { method: "DELETE" });
+      }
+      void mutate();
+      toast.success(
+        (t?.filesCleared || "{count} files cleared").replace("{count}", String(files.length))
+      );
+    } catch {
+      toast.error(t?.uploadFailed || "Failed to clear files");
+    }
+  }, [files, mutate, t]);
+
+  // Sync initialImageMode prop
   useEffect(() => {
     if (initialImageMode) {
       setIsImageMode(true);
@@ -178,10 +145,6 @@ export default function InputForm({
     }
   };
 
-  /*
-   * Debounce submit to prevent accidental double-clicks or rapid-fire submissions.
-   * 500ms delay ensures user intent and reduces server load.
-   */
   const debouncedSubmit = useDebounceCallback(() => {
     onSubmit();
     if (textareaRef.current) textareaRef.current.style.height = "auto";
@@ -193,320 +156,169 @@ export default function InputForm({
     if (isImageMode && onImageGen) {
       if (input.trim()) {
         onImageGen(input);
-        onChangeInput(""); // Clear input after sending
-        setIsImageMode(false); // Exit mode after send
+        onChangeInput("");
+        setIsImageMode(false);
         if (textareaRef.current) textareaRef.current.style.height = "auto";
       }
     } else {
-      if (input.trim() || attachments.length > 0) {
-        // Use debounced submit for regular messages
+      if (input.trim() || fileCount > 0) {
         debouncedSubmit();
       }
     }
   };
 
-  const uploadFiles = async (files: File[]) => {
-    if (files.length === 0) return;
-
-    setIsUploading(true);
-    try {
-      for (const f of files) {
-        if (!conversationId) {
-          logger.warn("No conversation ID for upload yet");
-          continue;
-        }
-
-        // Single-step FormData upload to new /api/files/upload
-        const formData = new FormData();
-        formData.append("file", f);
-        formData.append("conversationId", conversationId);
-
-        const res = await fetch("/api/files/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(json?.error?.message || json?.error || "Upload failed");
-        }
-
-        const fileData = json.data?.file || json?.file;
-        if (fileData) {
-          addAttachment(fileData);
-          // Chips auto-sync via vikini:attachments-changed event
-        }
-      }
-
-      // Notify other components (like AttachmentsPanel) to refresh
-      if (conversationId) {
-        window.dispatchEvent(
-          new CustomEvent("vikini:attachments-changed", { detail: { conversationId } })
-        );
-      }
-    } catch (err) {
-      logger.error("Upload error:", err);
-      const errorMessage = err instanceof Error ? err.message : t?.error || "Upload failed";
-      toast.error(errorMessage);
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    await uploadFiles(files);
-  };
-
-  // Global Paste Handler
-  useEffect(() => {
-    const handleGlobalPaste = async (e: ClipboardEvent) => {
-      if (disabled || isUploading) return;
-
-      // Identify if we have interaction with another input/textarea (except our own)
-      const target = e.target as HTMLElement;
-      if (
-        target &&
-        (target.tagName === "INPUT" || target.tagName === "TEXTAREA") &&
-        !formRef.current?.contains(target)
-      ) {
-        return; // Don't interfere with other inputs
-      }
-
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      const files: File[] = [];
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.kind === "file") {
-          const file = item.getAsFile();
-          if (file) {
-            // Fix for screenshots having generic "image" name or missing extension
-            if (
-              file.type.startsWith("image/") &&
-              (file.name === "image" || !file.name.includes("."))
-            ) {
-              const ext = file.type.split("/")[1] || "png";
-              const newName = `screenshot-${Date.now()}.${ext}`;
-              files.push(new File([file], newName, { type: file.type }));
-            } else {
-              files.push(file);
-            }
-          }
-        }
-      }
-
-      if (files.length > 0) {
-        e.preventDefault();
-        e.stopPropagation();
-        await uploadFiles(files);
-      }
-    };
-
-    window.addEventListener("paste", handleGlobalPaste);
-    return () => window.removeEventListener("paste", handleGlobalPaste);
-  }, [disabled, isUploading]); // Dependencies
-
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (disabled || isUploading) return;
-    if (e.dataTransfer.types.includes("Files")) {
-      setIsDragging(true);
-    }
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Verify we're actually leaving the form, not just entering a child
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-    setIsDragging(false);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (disabled || isUploading) return;
-    setIsDragging(true);
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    if (disabled || isUploading) return;
-
-    const files = Array.from(e.dataTransfer.files || []);
-    if (files.length > 0) {
-      await uploadFiles(files);
-    }
-  };
-
   return (
-    <form
-      ref={formRef}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (isStreaming) {
-          onStop?.();
-        } else {
-          handleSubmit();
-        }
-      }}
-      className={`relative flex flex-col w-full rounded-3xl border shadow-2xl transition-all duration-300 ${
-        isImageMode
-          ? "bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface))] border-(--accent) ring-1 ring-(--accent)/50"
-          : isDragging
-            ? "bg-(--control-bg) border-(--accent) ring-2 ring-(--accent)/50 scale-[1.02]"
-            : "bg-(--control-bg) border-(--control-border) focus-within:border-(--accent) focus-within:ring-1 focus-within:ring-(--accent)/30"
-      }`}
-    >
-      {/* Inline File Chips */}
-      <FileChips
-        files={uploadedFiles}
-        onRemove={removeFileChip}
-        disabled={disabled || isUploading}
-      />
-
-      {/* Input row */}
-      <div className={`flex items-end gap-2 p-2 ${uploadedFiles.length > 0 ? "pt-0" : ""}`}>
-        {/* Drag Overlay */}
-        {isDragging && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center rounded-3xl bg-(--surface)/80 backdrop-blur-sm border-2 border-dashed border-(--accent)">
-            <div className="flex flex-col items-center gap-2 text-(--accent) font-semibold animate-bounce">
-              <Upload className="w-8 h-8" />
-              <span>Drop files to upload</span>
-            </div>
-          </div>
-        )}
-        {/* Plus Menu Trigger */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              disabled={disabled || isUploading}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
-                isImageMode
-                  ? "bg-(--accent) text-white hover:brightness-110"
-                  : "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)"
-              }`}
-              title="Add..."
-              aria-label={t?.addAttachment || "Add attachment or switch mode"}
-            >
-              {isImageMode ? <ImageIcon className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-              <Upload className="w-4 h-4 mr-2" />
-              {t?.uploadFile || "Upload File"}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setIsImageMode(!isImageMode)}>
-              <ImageIcon className="w-4 h-4 mr-2" />
-              {isImageMode ? "Switch to Chat" : "Create Image"}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Loading Indicator */}
-        {isUploading && (
-          <div className="absolute left-[3.2rem] top-1/2 -translate-y-1/2 z-10 animate-fade-in">
-            <Loader2 className="w-5 h-5 animate-spin text-(--accent)" />
-          </div>
-        )}
-
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileSelect}
-          className="hidden"
-          multiple
-          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.md,.json,.csv,.xml,.html,.css,.js,.ts,.jsx,.tsx,.py,.java,.c,.cpp,.h,.hpp,.go,.rs,.rb,.php,.sql,.sh,.yaml,.yml,.toml,.ini,.cfg,.log,.zip,.mp4,.mov,.webm,.mp3,.wav,.ogg,.m4a"
-          aria-label={t?.uploadFile || "Upload file"}
+    <>
+      <form
+        ref={formRef}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (isStreaming) {
+            onStop?.();
+          } else {
+            handleSubmit();
+          }
+        }}
+        className={`relative flex flex-col w-full rounded-3xl border shadow-2xl transition-all duration-300 ${
+          isImageMode
+            ? "bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface))] border-(--accent) ring-1 ring-(--accent)/50"
+            : isDragging
+              ? "bg-(--control-bg) border-(--accent) ring-2 ring-(--accent)/50 scale-[1.02]"
+              : "bg-(--control-bg) border-(--control-border) focus-within:border-(--accent) focus-within:ring-1 focus-within:ring-(--accent)/30"
+        }`}
+      >
+        {/* Inline File Preview Area (replaces AttachmentsPanel + FileChips) */}
+        <FilePreviewArea
+          files={files}
+          uploadQueue={uploadQueue}
+          onRemoveFile={handleRemoveFile}
+          onClearAll={handleClearAll}
+          onClickFile={setLightboxFile}
+          isDragging={isDragging}
+          disabled={disabled || isUploading}
+          t={t}
         />
 
-        {/* Text Area */}
-        <div className="flex-1 min-w-0 relative">
-          {isImageMode && (
-            <div className="absolute -top-6 left-0 text-[10px] font-bold uppercase tracking-wider text-(--accent) animate-in fade-in slide-in-from-bottom-1 bg-(--surface-base) px-2 py-0.5 rounded-full border border-(--accent)/30 shadow-sm">
-              IMAGE GENERATION MODE
-            </div>
-          )}
-          <Textarea
-            ref={textareaRef}
-            rows={1}
-            value={input}
-            onChange={(e) => onChangeInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              isImageMode
-                ? "Describe the image you want to generate..."
-                : t?.placeholder || "Message..."
-            }
-            disabled={disabled}
-            className={`max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] placeholder:text-(--text-secondary) outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--text-secondary) italic" : "text-(--text-primary)"}`}
-            style={{ height: "40px" }}
-          />
-        </div>
-
-        {isImageMode && (
-          <button
-            type="button"
-            onClick={() => setIsImageMode(false)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-red-500 transition-colors"
-            title="Cancel Image Mode"
-            aria-label={t?.cancelImageMode || "Cancel image mode"}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        )}
-
-        {/* Voice Input Button */}
-        {!isImageMode && (
-          <VoiceButton
-            onTranscript={setVoiceTranscript}
-            onFinalTranscript={(text) => onChangeInput(input + (input ? " " : "") + text)}
-            disabled={disabled || isStreaming}
-            language="vi-VN"
-            t={t}
-          />
-        )}
-
-        {/* Send / Stop Button */}
-        <button
-          type="submit"
-          disabled={
-            !isStreaming &&
-            ((!input.trim() && attachments.length === 0) || (disabled && !isUploading))
-          }
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 shadow-lg ${
-            !isStreaming &&
-            ((!input.trim() && attachments.length === 0) || (disabled && !isUploading))
-              ? "bg-(--control-bg) text-(--text-secondary) cursor-not-allowed"
-              : isImageMode
-                ? "bg-(--accent) text-white hover:brightness-110 shadow-[0_0_15px_var(--accent)]"
-                : "bg-(--accent) text-(--surface) hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--glow)]"
-          }`}
-          title={isStreaming ? "Stop" : t?.send || "Send"}
-          aria-label={isStreaming ? t?.stop || "Stop generation" : t?.send || "Send message"}
+        {/* Input row */}
+        <div
+          className={`flex items-end gap-2 p-2 ${fileCount > 0 || uploadQueue.length > 0 ? "pt-0" : ""}`}
         >
-          {isStreaming ? (
-            <StopIcon />
-          ) : isImageMode ? (
-            <ImageIcon className="w-5 h-5" />
-          ) : (
-            <PaperAirplaneIcon />
+          {/* Plus Menu Trigger */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                disabled={disabled || isUploading}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
+                  isImageMode
+                    ? "bg-(--accent) text-white hover:brightness-110"
+                    : "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)"
+                }`}
+                title="Add..."
+                aria-label={t?.addAttachment || "Add attachment or switch mode"}
+              >
+                {isImageMode ? <ImageIcon className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem onClick={openFilePicker}>
+                <Upload className="w-4 h-4 mr-2" />
+                {t?.uploadFile || "Upload File"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsImageMode(!isImageMode)}>
+                <ImageIcon className="w-4 h-4 mr-2" />
+                {isImageMode ? "Switch to Chat" : "Create Image"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Hidden file input — controlled by useFileUpload */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileInputChange}
+            className="hidden"
+            multiple
+            accept={fileAccept}
+            aria-label={t?.uploadFile || "Upload file"}
+          />
+
+          {/* Text Area */}
+          <div className="flex-1 min-w-0 relative">
+            {isImageMode && (
+              <div className="absolute -top-6 left-0 text-[10px] font-bold uppercase tracking-wider text-(--accent) animate-in fade-in slide-in-from-bottom-1 bg-(--surface-base) px-2 py-0.5 rounded-full border border-(--accent)/30 shadow-sm">
+                IMAGE GENERATION MODE
+              </div>
+            )}
+            <Textarea
+              ref={textareaRef}
+              rows={1}
+              value={input}
+              onChange={(e) => onChangeInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                isImageMode
+                  ? "Describe the image you want to generate..."
+                  : t?.placeholder || "Message..."
+              }
+              disabled={disabled}
+              className={`max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] placeholder:text-(--text-secondary) outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--text-secondary) italic" : "text-(--text-primary)"}`}
+              style={{ height: "40px" }}
+            />
+          </div>
+
+          {isImageMode && (
+            <button
+              type="button"
+              onClick={() => setIsImageMode(false)}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-red-500 transition-colors"
+              title="Cancel Image Mode"
+              aria-label={t?.cancelImageMode || "Cancel image mode"}
+            >
+              <X className="w-5 h-5" />
+            </button>
           )}
-        </button>
-      </div>
-    </form>
+
+          {/* Voice Input Button */}
+          {!isImageMode && (
+            <VoiceButton
+              onTranscript={setVoiceTranscript}
+              onFinalTranscript={(text) => onChangeInput(input + (input ? " " : "") + text)}
+              disabled={disabled || isStreaming}
+              language="vi-VN"
+              t={t}
+            />
+          )}
+
+          {/* Send / Stop Button */}
+          <button
+            type="submit"
+            disabled={
+              !isStreaming && ((!input.trim() && fileCount === 0) || (disabled && !isUploading))
+            }
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 shadow-lg ${
+              !isStreaming && ((!input.trim() && fileCount === 0) || (disabled && !isUploading))
+                ? "bg-(--control-bg) text-(--text-secondary) cursor-not-allowed"
+                : isImageMode
+                  ? "bg-(--accent) text-white hover:brightness-110 shadow-[0_0_15px_var(--accent)]"
+                  : "bg-(--accent) text-(--surface) hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--glow)]"
+            }`}
+            title={isStreaming ? "Stop" : t?.send || "Send"}
+            aria-label={isStreaming ? t?.stop || "Stop generation" : t?.send || "Send message"}
+          >
+            {isStreaming ? (
+              <StopIcon />
+            ) : isImageMode ? (
+              <ImageIcon className="w-5 h-5" />
+            ) : (
+              <PaperAirplaneIcon />
+            )}
+          </button>
+        </div>
+      </form>
+
+      {/* File Lightbox */}
+      <FileLightbox file={lightboxFile} onClose={() => setLightboxFile(null)} />
+    </>
   );
 }

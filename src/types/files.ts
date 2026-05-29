@@ -33,6 +33,10 @@ export interface FileRow {
   extracted_text: string | null;
   text_extracted_at: string | null;
 
+  // TTL
+  expires_at?: string | null;
+  token_count?: number | null;
+
   // Lifecycle
   created_at: string;
   updated_at: string;
@@ -78,6 +82,7 @@ export interface FilesConfig {
   maxFilesPerConversation: number;
   maxTotalBytesPerConversation: number;
   signedUrlSeconds: number;
+  ttlDays: number;
 }
 
 // ============================================
@@ -93,4 +98,47 @@ export interface FileItem {
   created_at: string;
   conversation_id: string;
   gemini_ready: boolean;
+}
+
+// ============================================
+// Added in Phase 1: Unified File System
+// ============================================
+
+/** File validation result (returned by validateFile on success; throws on failure). */
+export interface FileValidationResult {
+  filename: string;
+  ext: string;
+  mime: string;
+  kind: FileKind;
+  sizeBytes: number;
+}
+
+/** File support level for UI display */
+export type FileSupportLevel = "best" | "basic" | "blocked" | "unknown";
+
+/** File category for UI help tooltip. */
+export interface FileCategory {
+  labelKey: string;
+  descriptionKey: string;
+  extensions: readonly string[];
+  icon: string;
+}
+
+/** Upload progress tracking (client-side) */
+export interface FileUploadProgress {
+  tempId: string;
+  file: File;
+  filename: string;
+  size: number;
+  kind: FileKind;
+  progress: number;
+  status: "queued" | "uploading" | "processing" | "ready" | "error";
+  error?: string;
+  result?: FileItem;
+}
+
+/** Cleanup result from cron */
+export interface CleanupResult {
+  deleted: number;
+  errors: number;
 }

@@ -29,12 +29,10 @@ import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useThinkingLevel } from "./hooks/useThinkingLevel";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 import { useAllowedModels } from "./hooks/useAllowedModels";
-import { useFileDragDrop } from "./hooks/useFileDragDrop";
 import { useImageGenController } from "./hooks/useImageGenController";
 import { useChatModals } from "./hooks/useChatModals";
 import { useChatTranslations, useLanguage } from "./hooks/useChatTranslations";
 import { useUrlSync } from "./hooks/useUrlSync";
-import { type AttachmentsPanelRef } from "./AttachmentsPanel";
 import { useTTS } from "../hooks/useTTS";
 
 // Utils & Constants
@@ -127,10 +125,6 @@ export default function ChatApp() {
     },
     [allowedModelIds, modelsLoading]
   );
-
-  // Attachments
-  const attachmentsRef = useRef<AttachmentsPanelRef | null>(null);
-  const { showFiles, setShowFiles, fileCount, setFileCount } = useFileDragDrop(attachmentsRef);
 
   // Conversation Management
   const {
@@ -370,12 +364,6 @@ export default function ChatApp() {
   useEffect(() => {
     if (!isAuthLoading && !isAuthed) signIn();
   }, [isAuthed, isAuthLoading]);
-
-  // Reset file count when conversation changes
-  useEffect(() => {
-    setFileCount(0);
-    setShowFiles(false);
-  }, [selectedConversationId, setFileCount, setShowFiles]);
 
   // Gem applied callback
   const { setOnGemApplied } = useGemStore();
@@ -633,11 +621,6 @@ export default function ChatApp() {
                   isModelAllowed={isModelAllowed}
                   currentGem={currentConversation?.gem}
                   t={t}
-                  showFiles={showFiles}
-                  setShowFiles={setShowFiles}
-                  fileCount={fileCount}
-                  setFileCount={setFileCount}
-                  attachmentsRef={attachmentsRef}
                   onImageGen={handleImageGen}
                   selectedConversationId={selectedConversationId}
                   showMobileControls={showMobileControls}
@@ -733,11 +716,6 @@ export default function ChatApp() {
             isModelAllowed={isModelAllowed}
             currentGem={currentConversation?.gem}
             t={t}
-            showFiles={showFiles}
-            setShowFiles={setShowFiles}
-            fileCount={fileCount}
-            setFileCount={setFileCount}
-            attachmentsRef={attachmentsRef}
             onImageGen={handleImageGen}
             selectedConversationId={selectedConversationId}
             showMobileControls={showMobileControls}

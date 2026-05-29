@@ -55,14 +55,6 @@ import {
 } from "./streaming";
 import { chatStreamRequestSchema, type ChatStreamRequest } from "./validators";
 
-interface AttachmentRow {
-  id: string;
-  mime_type?: string;
-  filename?: string;
-  expires_at?: string;
-  [key: string]: unknown;
-}
-
 // AttachmentBytes interface removed - now using batchDownloadAttachments which returns Buffer directly
 
 // --- HELPERS ---
@@ -191,39 +183,12 @@ interface MessageContext {
   currentTokenCount: number;
 }
 
-// Dynamic imports for file service (new dual-storage) + legacy attachments
-const loadFilesForConversation = async (userId: string, conversationId: string) => {
-  const mod = await import("@/lib/features/files/fileService.server");
-  return mod.listFiles({ userId, conversationId });
-};
-
-const refreshFileGeminiUri = async (fileId: string, userId: string) => {
-  const mod = await import("@/lib/features/files/fileService.server");
-  return mod.refreshGeminiUri(fileId, userId);
-};
-
-const downloadFileBytesById = async (userId: string, id: string) => {
-  const mod = await import("@/lib/features/files/fileService.server");
-  return mod.downloadFileBytes({ userId, id });
-};
-
-// Legacy: keep old attachment loader for backward compatibility during migration
-const listAttachmentsForConversation = async (params: {
-  userId: string;
-  conversationId: string;
-}): Promise<AttachmentRow[]> => {
-  const mod = await import("@/lib/features/attachments/attachments");
-  return mod.listAttachmentsForConversation(params) as Promise<AttachmentRow[]>;
-};
-
-const batchDownloadAttachments = async (params: {
-  userId: string;
-  attachmentRows: AttachmentRow[];
-  concurrencyLimit?: number;
-}): Promise<Array<{ attachment: AttachmentRow; bytes: Buffer; error?: string }>> => {
-  const mod = await import("@/lib/features/attachments/attachments");
-  return mod.batchDownloadAttachments(params);
-};
+// File service imports (unified — no legacy)
+import {
+  listFiles,
+  refreshGeminiUri,
+  downloadFileBytes,
+} from "@/lib/features/files/fileService.server";
 
 // --- EXTRACTED FUNCTIONS ---
 
@@ -369,7 +334,6 @@ async function buildMessageContext(
  * Provider-aware file context injection.
  * - Gemini models: use Files API URI (zero re-download, native processing)
  * - Non-Gemini models: use base64 images + text extraction from Supabase
- * - Also reads legacy 'attachments' table for backward compatibility
  */
 async function processAttachments(
   userId: string,
@@ -384,41 +348,25 @@ async function processAttachments(
     // Determine if current model is Gemini (can use Files API URIs)
     const isGemini = model.startsWith("gemini-");
 
-    // --- Load files from NEW 'files' table ---
-    let newFiles: Array<{
+    // --- Load files from unified 'files' table ---
+    let fileRows: Array<{
       id: string;
       filename: string;
       mime_type: string;
       kind: string;
-      gemini_file_uri: string | null;
-      gemini_expires_at: string | null;
-      storage_path: string | null;
-      extracted_text: string | null;
+      gemini_file_uri?: string | null;
+      gemini_expires_at?: string | null;
+      storage_path?: string | null;
+      extracted_text?: string | null;
       size_bytes: number;
     }> = [];
     try {
-      newFiles = await loadFilesForConversation(userId, conversationId);
+      fileRows = await listFiles({ userId, conversationId });
     } catch (e) {
-      coreLogger.warn("Failed to load new files table:", e);
+      coreLogger.warn("Failed to load files:", e);
     }
 
-    // --- Load files from LEGACY 'attachments' table ---
-    let legacyAttachments: AttachmentRow[] = [];
-    try {
-      const rowsA = await listAttachmentsForConversation({ userId, conversationId });
-      const nowA = Date.now();
-      legacyAttachments = (Array.isArray(rowsA) ? rowsA : []).filter((r): r is AttachmentRow => {
-        const exp = r?.expires_at ? Date.parse(r.expires_at) : Infinity;
-        return Number.isFinite(exp) ? exp > nowA : true;
-      });
-    } catch {
-      // Legacy table may not exist yet — ignore
-    }
-
-    const hasNewFiles = newFiles.length > 0;
-    const hasLegacy = legacyAttachments.length > 0;
-
-    if (!hasNewFiles && !hasLegacy) {
+    if (fileRows.length === 0) {
       return { contents, sysPrompt };
     }
 
@@ -445,7 +393,7 @@ async function processAttachments(
     // ==============================
     // Process NEW files (dual-storage)
     // ==============================
-    for (const f of newFiles.slice(0, 30)) {
+    for (const f of fileRows.slice(0, 30)) {
       const name = f.filename || "file";
       const mime = f.mime_type || "";
       const kind = f.kind || "other";
@@ -459,7 +407,7 @@ async function processAttachments(
           if (expiresAt < Date.now() + 60 * 60 * 1000) {
             // URI expired or expiring soon — refresh
             coreLogger.info(`Refreshing Gemini URI for ${name} (expired)`);
-            const refreshed = await refreshFileGeminiUri(f.id, userId);
+            const refreshed = await refreshGeminiUri(f.id, userId);
             uri = refreshed?.gemini_file_uri || "";
           }
         }
@@ -484,9 +432,9 @@ async function processAttachments(
         } else {
           // Gemini but no URI — try to download and send inline (rare fallback)
           try {
-            const { bytes } = await downloadFileBytesById(userId, f.id);
-            if (bytes.length <= maxImageBytes) {
-              parts.push({ inlineData: { data: bytes.toString("base64"), mimeType: mime } });
+            const result = await downloadFileBytes({ userId, id: f.id });
+            if (result.bytes.length <= maxImageBytes) {
+              parts.push({ inlineData: { data: result.bytes.toString("base64"), mimeType: mime } });
             } else {
               parts.push({
                 text: `\n[${kind.toUpperCase()} SKIPPED: ${name} — too large for inline]\n`,
@@ -506,14 +454,14 @@ async function processAttachments(
           continue;
         }
         try {
-          const { bytes } = await downloadFileBytesById(userId, f.id);
-          if (bytes.length > maxImageBytes) {
+          const result = await downloadFileBytes({ userId, id: f.id });
+          if (result.bytes.length > maxImageBytes) {
             parts.push({ text: `\n[IMAGE SKIPPED: ${name} — too large]\n` });
             continue;
           }
           imgCount += 1;
           parts.push({ text: `\n[IMAGE: ${name} | ${mime}]\n` });
-          parts.push({ inlineData: { data: bytes.toString("base64"), mimeType: mime } });
+          parts.push({ inlineData: { data: result.bytes.toString("base64"), mimeType: mime } });
         } catch {
           parts.push({ text: `\n[IMAGE SKIPPED: ${name} — download failed]\n` });
         }
@@ -529,8 +477,8 @@ async function processAttachments(
       let text = f.extracted_text || "";
       if (!text) {
         try {
-          const { bytes } = await downloadFileBytesById(userId, f.id);
-          text = bytes.toString("utf8");
+          const result = await downloadFileBytes({ userId, id: f.id });
+          text = result.bytes.toString("utf8");
 
           // Lazy cache: save extracted text for future requests (non-blocking)
           if (text.length > 0 && text.length < 500_000) {
@@ -558,54 +506,6 @@ async function processAttachments(
       parts.push({
         text: `\n[FILE: ${name} | ${mime || "text/plain"}]\n<<<ATTACHMENT_DATA_START>>>\n${text}\n<<<ATTACHMENT_DATA_END>>>\n`,
       });
-    }
-
-    // ==============================
-    // Process LEGACY attachments (backward compat)
-    // ==============================
-    if (hasLegacy) {
-      const MAX_LEGACY = 30 - newFiles.length;
-      const legacyToProcess = legacyAttachments.slice(0, Math.max(0, MAX_LEGACY));
-
-      if (legacyToProcess.length > 0) {
-        const downloadResults = await batchDownloadAttachments({
-          userId,
-          attachmentRows: legacyToProcess,
-          concurrencyLimit: 3,
-        });
-
-        for (const { attachment: a, bytes: dlBytes, error: dlError } of downloadResults) {
-          if (dlError) {
-            parts.push({
-              text: `\n[FILE SKIPPED: ${String(a?.filename || "file")} — ${dlError}]\n`,
-            });
-            continue;
-          }
-
-          const mime = String(a?.mime_type || "");
-          const name = String(a?.filename || "file");
-
-          if (mime.startsWith("image/")) {
-            if (imgCount >= maxImages) continue;
-            if (dlBytes.length > maxImageBytes) continue;
-            imgCount += 1;
-            parts.push({ text: `\n[IMAGE: ${name} | ${mime}]\n` });
-            parts.push({ inlineData: { data: dlBytes.toString("base64"), mimeType: mime } });
-            continue;
-          }
-
-          if (remainingChars <= 0) continue;
-
-          let text = dlBytes.toString("utf8");
-          if (text.length > remainingChars) {
-            text = text.slice(0, remainingChars) + "\n...[truncated]...\n";
-          }
-          remainingChars -= text.length;
-          parts.push({
-            text: `\n[FILE: ${name} | ${mime || "text/plain"}]\n<<<ATTACHMENT_DATA_START>>>\n${text}\n<<<ATTACHMENT_DATA_END>>>\n`,
-          });
-        }
-      }
     }
 
     // Inject parts into contents

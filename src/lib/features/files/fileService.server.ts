@@ -1,11 +1,11 @@
 /**
- * File Service — Dual Storage (Gemini Files API + Supabase Storage)
+ * Unified File Service — Dual Storage (Gemini Files API + Supabase Storage)
  *
  * Upload flow:
- *   1. Validate file (ext, mime, size, security)
+ *   1. Validate file (ext, mime, size, security, magic bytes)
  *   2. Upload to Supabase Storage (permanent)
  *   3. Upload to Gemini Files API (48h, for native Gemini processing)
- *   4. Insert DB record with both references
+ *   4. Insert DB record with both references + TTL (30 days default)
  *
  * Chat integration:
  *   - Gemini models: use gemini_file_uri (zero re-download)
@@ -24,7 +24,17 @@ import type {
   ListFilesParams,
   GetFileParams,
   FilesConfig,
+  CleanupResult,
 } from "@/types/files";
+import {
+  BLOCKED_EXTENSIONS,
+  BLOCKED_MIME_TYPES,
+  sanitizeFilename,
+  getExtension,
+  normalizeMimeType,
+  classifyFile as classifyFileShared,
+  validateImageContent,
+} from "./fileValidation";
 
 const fileLogger = logger.withContext("fileService");
 
@@ -59,179 +69,19 @@ export function getFilesConfig(): FilesConfig {
       pickFirstEnv(["FILES_SIGNED_URL_SECONDS", "ATTACH_SIGNED_URL_SECONDS"]),
       5 * 60
     ),
+    ttlDays: toInt(pickFirstEnv(["FILES_TTL_DAYS"]), 30),
   };
 }
 
-// ============================================
-// BLOCKED EXTENSIONS & MIME TYPES
-// ============================================
-
-const BLOCKED_EXTENSIONS = new Set([
-  "exe",
-  "bat",
-  "cmd",
-  "com",
-  "scr",
-  "msi",
-  "pif",
-  "ps1",
-  "vbs",
-  "vbe",
-  "wsf",
-  "wsh",
-  "hta",
-  "dll",
-  "sys",
-  "drv",
-  "cpl",
-  "ocx",
-  "reg",
-  "inf",
-  "lnk",
-  "url",
-  "jar",
-  "apk",
-  "deb",
-  "rpm",
-]);
-
-const BLOCKED_MIME_TYPES = new Set([
-  "application/x-msdownload",
-  "application/x-msdos-program",
-  "application/x-executable",
-  "application/x-dosexec",
-  "application/x-ms-installer",
-  "application/x-msi",
-  "application/x-powershell",
-  "application/x-vbscript",
-  "application/x-hta",
-  "application/x-ms-shortcut",
-  "application/java-archive",
-  "application/vnd.android.package-archive",
-]);
+// BLOCKED_EXTENSIONS, BLOCKED_MIME_TYPES imported from ./fileValidation
 
 // ============================================
 // FILE CLASSIFICATION
 // ============================================
 
-export function classifyFile(ext: string, mime: string): FileKind {
-  const textExts = [
-    "txt",
-    "js",
-    "ts",
-    "tsx",
-    "jsx",
-    "json",
-    "md",
-    "csv",
-    "xml",
-    "yaml",
-    "yml",
-    "html",
-    "css",
-    "scss",
-    "less",
-    "py",
-    "rs",
-    "go",
-    "java",
-    "c",
-    "cpp",
-    "h",
-    "rb",
-    "php",
-    "sh",
-    "log",
-    "env",
-    "toml",
-    "ini",
-    "cfg",
-  ];
-  const imageExts = ["png", "jpg", "jpeg", "webp", "gif", "svg", "bmp", "ico"];
-  const videoExts = ["mp4", "mov", "webm", "avi", "mkv", "flv"];
-  const audioExts = ["mp3", "wav", "ogg", "m4a", "flac", "aac", "wma"];
-  const docExts = ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"];
-  const archiveExts = ["zip", "tar", "gz", "7z", "rar"];
-
-  if (textExts.includes(ext)) return "text";
-  if (imageExts.includes(ext)) return "image";
-  if (videoExts.includes(ext)) return "video";
-  if (audioExts.includes(ext)) return "audio";
-  if (docExts.includes(ext)) return "document";
-  if (archiveExts.includes(ext)) return "archive";
-
-  // MIME fallback
-  if (mime.startsWith("text/")) return "text";
-  if (mime.startsWith("image/")) return "image";
-  if (mime.startsWith("video/")) return "video";
-  if (mime.startsWith("audio/")) return "audio";
-  if (
-    mime.includes("pdf") ||
-    mime.includes("document") ||
-    mime.includes("spreadsheet") ||
-    mime.includes("presentation")
-  )
-    return "document";
-  if (mime.includes("zip") || mime.includes("archive") || mime.includes("compressed"))
-    return "archive";
-
-  return "other";
-}
-
-function getExt(filename: string): string {
-  const idx = filename.lastIndexOf(".");
-  if (idx === -1) return "";
-  return filename.slice(idx + 1).toLowerCase();
-}
-
-function sanitizeFilename(name: unknown): string {
-  const raw = String(name || "file").trim();
-  const cleaned = raw
-    .replace(/[\\/]+/g, "_")
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x1F\x7F]/g, "")
-    .slice(0, 200)
-    .trim();
-  return cleaned || "file";
-}
-
-/**
- * Normalize MIME type based on extension (browsers often misidentify code files).
- */
-function normalizeMime(ext: string, browserMime: string): string {
-  const mimeMap: Record<string, string> = {
-    ts: "text/typescript",
-    tsx: "text/tsx",
-    jsx: "text/jsx",
-    js: "text/javascript",
-    json: "application/json",
-    md: "text/markdown",
-    csv: "text/csv",
-    xml: "application/xml",
-    yaml: "application/x-yaml",
-    yml: "application/x-yaml",
-    txt: "text/plain",
-    html: "text/html",
-    css: "text/css",
-    py: "text/x-python",
-    log: "text/plain",
-    pdf: "application/pdf",
-    svg: "image/svg+xml",
-    mp4: "video/mp4",
-    mov: "video/quicktime",
-    webm: "video/webm",
-    mp3: "audio/mpeg",
-    wav: "audio/wav",
-    ogg: "audio/ogg",
-    m4a: "audio/mp4",
-  };
-
-  if (mimeMap[ext]) return mimeMap[ext];
-
-  // Avoid application/octet-stream
-  if (browserMime && browserMime !== "application/octet-stream") return browserMime;
-  return "text/plain";
-}
+// classifyFile, getExtension, sanitizeFilename, normalizeMimeType
+// imported from ./fileValidation (single source of truth)
+export { classifyFileShared as classifyFile };
 
 // ============================================
 // VALIDATION
@@ -253,7 +103,7 @@ async function validateFile(
   if (!file) throw new Error("Missing file");
 
   const safeName = sanitizeFilename(filename || file.name || "file");
-  const ext = getExt(safeName);
+  const ext = getExtension(safeName);
 
   // Security: block dangerous extensions
   if (BLOCKED_EXTENSIONS.has(ext)) {
@@ -278,8 +128,21 @@ async function validateFile(
     );
   }
 
-  const mime = normalizeMime(ext, browserMime);
-  const kind = classifyFile(ext, mime);
+  // Magic bytes validation for images (ported from legacy)
+  const mime = normalizeMimeType(ext, browserMime);
+  const kind = classifyFileShared(ext, mime);
+
+  if (kind === "image") {
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      if (!validateImageContent(bytes, mime)) {
+        throw new Error("File content does not match declared image type");
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes("does not match")) throw err;
+      // If arrayBuffer fails, continue — validation is best-effort
+    }
+  }
 
   return { filename: safeName, ext, mime, kind, sizeBytes: size };
 }
@@ -494,6 +357,7 @@ export async function uploadFile({
       gemini_expires_at: gemini?.expiresAt || null,
       storage_path: storagePath,
       bucket: cfg.bucket,
+      expires_at: new Date(Date.now() + cfg.ttlDays * 24 * 60 * 60 * 1000).toISOString(),
     })
     .select("*")
     .single();
@@ -701,4 +565,134 @@ export async function downloadFileBytes({
 
   const bytes = Buffer.from(await data.arrayBuffer());
   return { row, bytes };
+}
+
+// ============================================
+// BATCH DOWNLOAD (ported from legacy batchDownloadAttachments)
+// ============================================
+
+/**
+ * Download multiple files with concurrency control.
+ */
+export async function batchDownloadFiles({
+  userId,
+  rows,
+  concurrency = 3,
+}: {
+  userId: string;
+  rows: FileRow[];
+  concurrency?: number;
+}): Promise<Array<{ row: FileRow; bytes: Uint8Array | null }>> {
+  const results: Array<{ row: FileRow; bytes: Uint8Array | null }> = [];
+
+  for (let i = 0; i < rows.length; i += concurrency) {
+    const batch = rows.slice(i, i + concurrency);
+    const batchResults = await Promise.allSettled(
+      batch.map(async (row) => {
+        try {
+          const { bytes } = await downloadFileBytes({ userId, id: row.id });
+          return { row, bytes: new Uint8Array(bytes) };
+        } catch {
+          return { row, bytes: null };
+        }
+      })
+    );
+
+    for (const result of batchResults) {
+      if (result.status === "fulfilled") {
+        results.push(result.value);
+      }
+    }
+  }
+
+  return results;
+}
+
+// ============================================
+// CLEANUP (TTL enforcement)
+// ============================================
+
+/**
+ * Delete expired files (called by cron job).
+ * Processes in batches of 200, up to 10 iterations.
+ */
+export async function cleanupExpiredFiles(): Promise<CleanupResult> {
+  const supabase = getSupabaseAdmin();
+  const cfg = getFilesConfig();
+  let totalDeleted = 0;
+  let totalErrors = 0;
+
+  for (let i = 0; i < 10; i++) {
+    const { data: rows, error } = await supabase
+      .from("files")
+      .select("id,storage_path,bucket,gemini_file_name")
+      .lte("expires_at", new Date().toISOString())
+      .limit(200);
+
+    if (error) {
+      fileLogger.error(`Cleanup query failed: ${error.message}`);
+      totalErrors++;
+      break;
+    }
+
+    if (!rows || rows.length === 0) break;
+
+    const files = rows as Array<{
+      id: string;
+      storage_path?: string;
+      bucket?: string;
+      gemini_file_name?: string;
+    }>;
+
+    // Batch delete from Supabase Storage (group by bucket)
+    const byBucket = new Map<string, string[]>();
+    for (const f of files) {
+      if (f.storage_path) {
+        const bucket = f.bucket || cfg.bucket;
+        if (!byBucket.has(bucket)) byBucket.set(bucket, []);
+        byBucket.get(bucket)!.push(f.storage_path);
+      }
+    }
+
+    for (const [bucket, paths] of byBucket) {
+      try {
+        await supabase.storage.from(bucket).remove(paths);
+      } catch (err: unknown) {
+        fileLogger.warn(
+          `Cleanup storage delete failed for bucket ${bucket}: ${err instanceof Error ? err.message : "unknown"}`
+        );
+        totalErrors++;
+      }
+    }
+
+    // Delete from Gemini
+    const ai = getGenAIClient();
+    for (const f of files) {
+      if (f.gemini_file_name) {
+        try {
+          await ai.files.delete({ name: f.gemini_file_name });
+        } catch {
+          /* ignore — Gemini may have already auto-deleted */
+        }
+      }
+    }
+
+    // Delete DB records
+    const ids = files.map((f) => f.id);
+    const { error: delError } = await supabase.from("files").delete().in("id", ids);
+
+    if (delError) {
+      fileLogger.error(`Cleanup DB delete failed: ${delError.message}`);
+      totalErrors++;
+    } else {
+      totalDeleted += files.length;
+    }
+
+    fileLogger.info(`Cleanup iteration ${i + 1}: deleted ${files.length} files`);
+
+    if (files.length < 200) break; // Last batch
+  }
+
+  fileLogger.info(`Cleanup complete: deleted=${totalDeleted}, errors=${totalErrors}`);
+  return { deleted: totalDeleted, errors: totalErrors };
 }

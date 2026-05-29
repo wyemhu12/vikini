@@ -5,6 +5,35 @@
 
 ---
 
+## 2026-05-28: Unified File System Refactor — Single Table + Inline-first UX
+
+- **What changed**: Complete rewrite of the file upload system. Consolidated dual-table architecture (attachments + files) into a single unified `files` table with 30-day TTL. Replaced 903-line `AttachmentsPanel` with clean inline-first design.
+- **Why**: Legacy system had 6 API routes, 2 DB tables, 3 separate upload paths, and an AttachmentsPanel that duplicated logic with InputForm. Users found the UX confusing compared to ChatGPT/Gemini.
+- **Backend changes**:
+  - New DB migration: `021_unify_files_system.sql` — drops legacy `attachments` table, adds `expires_at` column with 30-day TTL
+  - Shared validation: `fileValidation.ts` — magic bytes, MIME normalization, blocked extensions
+  - File processors: `fileProcessors.ts` — ZIP listing, text extraction, AI analysis
+  - Unified service: `fileService.server.ts` — TTL, batch download, cleanup, Gemini URI refresh
+  - New API routes: `/api/files/[id]/analyze`, `/api/files/cleanup` (cron)
+  - `conversations.ts`: simplified `deleteConversation()` to use unified `deleteFilesByConversation`
+  - `chatStreamCore.ts`: removed all legacy attachment code, uses static imports from `fileService.server`
+- **Client state**:
+  - `store.ts` (Zustand): per-file upload queue with progress tracking
+  - `useFiles.ts` (SWR): single source of truth for file data
+  - `useFileUpload.ts`: unified hook — drag/drop (1 window handler), paste (1 global handler), file picker, XHR progress
+- **UI components**:
+  - `FilePreviewCard.tsx`: thumbnail/icon card with upload progress animation
+  - `FilePreviewArea.tsx`: horizontal scrolling inline preview above textarea
+  - `FileLightbox.tsx`: full-screen file preview (images, video, audio, text, documents)
+  - `FileInMessage.tsx`: collapsible file indicator in chat bubbles
+  - `InputForm.tsx`: rewritten 513→280 lines, integrates all new hooks/components
+  - `ChatControls.tsx`: removed FILES button, AttachmentsPanel import
+  - `ChatApp.tsx`: removed useFileDragDrop, attachmentsRef, file state
+- **Deleted files**: `AttachmentsPanel.tsx` (903 lines), `FileChips.tsx`, `FileTypesHelp.tsx`, `useFileDragDrop.ts`, `lib/features/attachments/` (entire directory), `app/api/attachments/` (6 routes), `app/api/cron/attachments-cleanup/`, `types/attachments.ts`, `lib/features/attachments/store.ts`
+- **Verification**: `npm run type-check` ✅, `npm run lint` ✅ (0 errors, 0 warnings)
+
+---
+
 ## 2026-05-08: Fix Sidebar Chat List Flickering During Streaming & Typing
 
 - **What changed**: Chat list in sidebar no longer flickers continuously during streaming or when typing in the input field.
