@@ -1,7 +1,18 @@
 "use client";
 
-import { Download, ExternalLink, ImageIcon, Sparkles, RefreshCcw, Trash2 } from "lucide-react";
+import {
+  Download,
+  ExternalLink,
+  ImageIcon,
+  Sparkles,
+  RefreshCcw,
+  Trash2,
+  Lightbulb,
+  Clock,
+} from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
+import { motion, AnimatePresence } from "framer-motion";
+import { useMemo } from "react";
 
 export interface GeneratedImage {
   id?: string;
@@ -13,18 +24,75 @@ export interface GeneratedImage {
   enhancer?: boolean;
 }
 
+// Curated prompt suggestions by category - rotates based on time
+const PROMPT_SUGGESTIONS = [
+  {
+    prompt: "A serene Japanese garden at golden hour with koi fish swimming in a crystal pond",
+    icon: "🏯",
+  },
+  { prompt: "Cyberpunk cityscape with neon signs reflected in rain puddles at night", icon: "🌃" },
+  { prompt: "A fluffy cat wearing a tiny astronaut helmet floating in space", icon: "🐱" },
+  { prompt: "Ethereal watercolor painting of northern lights over snow mountains", icon: "🎨" },
+  { prompt: "Macro photography of a dewdrop on a rose petal with bokeh background", icon: "📸" },
+  {
+    prompt: "Steampunk mechanical owl perched on ancient books in a candlelit library",
+    icon: "🦉",
+  },
+  { prompt: "Minimalist flat design of a futuristic smart home interior", icon: "🏠" },
+  { prompt: "Underwater scene with bioluminescent jellyfish in deep ocean", icon: "🪼" },
+  { prompt: "A cozy cabin in the woods during autumn with warm light from windows", icon: "🍂" },
+  { prompt: "Fantasy dragon made of clouds soaring through a sunset sky", icon: "🐉" },
+  { prompt: "Vintage film photography style portrait of a woman in 1960s Paris", icon: "🎞️" },
+  { prompt: "Isometric 3D render of a tiny floating island with a treehouse", icon: "🏝️" },
+];
+
 interface CanvasProps {
   images: GeneratedImage[];
   generating: boolean;
   onRemix: (image: GeneratedImage) => void;
   onDelete: (id: string) => void;
+  onSuggestPrompt?: (prompt: string) => void;
+  className?: string;
 }
 
-export default function Canvas({ images, generating, onRemix, onDelete }: CanvasProps) {
+export default function Canvas({
+  images,
+  generating,
+  onRemix,
+  onDelete,
+  onSuggestPrompt,
+  className,
+}: CanvasProps) {
   const { t } = useLanguage();
 
+  // Dynamic suggestions: pick 4 based on current hour (rotates every 6 hours)
+  const suggestions = useMemo(() => {
+    const hourBlock = Math.floor(new Date().getHours() / 6);
+    const startIdx = (hourBlock * 4) % PROMPT_SUGGESTIONS.length;
+    const result = [];
+    for (let i = 0; i < 4; i++) {
+      result.push(PROMPT_SUGGESTIONS[(startIdx + i) % PROMPT_SUGGESTIONS.length]);
+    }
+    return result;
+  }, []);
+
+  // Get recent unique prompts from generated images (up to 3)
+  const recentPrompts = useMemo(() => {
+    const seen = new Set<string>();
+    return images
+      .filter((img) => {
+        if (seen.has(img.prompt)) return false;
+        seen.add(img.prompt);
+        return true;
+      })
+      .slice(0, 3)
+      .map((img) => img.prompt);
+  }, [images]);
+
   return (
-    <div className="flex-1 bg-(--surface-base) h-full pt-4 px-8 pb-8 flex flex-col gap-6 overflow-y-auto">
+    <div
+      className={`flex-1 bg-(--surface-base) h-full pt-4 px-4 md:px-6 lg:px-8 pb-8 flex flex-col gap-4 md:gap-6 overflow-y-auto ${className || ""}`}
+    >
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">{t("studioResults")}</h3>
         <span className="text-sm text-muted-foreground">
@@ -32,18 +100,41 @@ export default function Canvas({ images, generating, onRemix, onDelete }: Canvas
         </span>
       </div>
 
-      <div className="flex-1 columns-1 md:columns-2 xl:columns-3 gap-6 space-y-6 pb-20">
-        {generating && (
-          <div className="break-inside-avoid mb-6 aspect-square rounded-xl bg-(--surface-elevated) border border-(--border) flex flex-col items-center justify-center animate-pulse">
-            <ImageIcon className="w-12 h-12 text-muted-foreground/50 mb-2" />
-            <span className="text-muted-foreground text-sm">{t("studioGenerating")}</span>
-          </div>
-        )}
+      <div className="flex-1 columns-1 md:columns-2 xl:columns-3 gap-4 md:gap-6 space-y-4 md:space-y-6 pb-20">
+        {/* Generating skeleton with shimmer */}
+        <AnimatePresence>
+          {generating && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="break-inside-avoid mb-4 md:mb-6 aspect-square rounded-xl border border-(--border) flex flex-col items-center justify-center overflow-hidden relative"
+            >
+              {/* Shimmer background */}
+              <div className="absolute inset-0 shimmer-block" />
+              <div className="relative z-10 flex flex-col items-center">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                >
+                  <Sparkles className="w-10 h-10 text-purple-400 mb-3" />
+                </motion.div>
+                <span className="text-muted-foreground text-sm font-medium">
+                  {t("studioGenerating")}
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
+        {/* Image cards with stagger animation */}
         {images.map((item, idx) => (
-          <div
-            key={idx}
-            className="break-inside-avoid mb-6 group relative rounded-xl overflow-hidden border border-(--border) bg-black shadow-sm hover:shadow-xl transition-all duration-300"
+          <motion.div
+            key={item.id || idx}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: Math.min(idx * 0.08, 0.4) }}
+            className="break-inside-avoid mb-4 md:mb-6 group relative rounded-xl overflow-hidden border border-(--border) bg-(--surface-elevated) shadow-sm hover:shadow-xl transition-all duration-300"
           >
             <img
               src={item.url}
@@ -88,14 +179,14 @@ export default function Canvas({ images, generating, onRemix, onDelete }: Canvas
 
               {/* Bottom Controls Area */}
               <div className="flex flex-col gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 mt-auto shrink-0">
-                {/* Scrollable Prompt - capped shorter so buttons always visible */}
+                {/* Scrollable Prompt */}
                 <div className="max-h-[80px] overflow-y-auto custom-scrollbar bg-black/60 backdrop-blur-md p-2 rounded-lg border border-white/10 shadow-lg">
                   <p className="text-white/90 text-[11px] font-medium leading-relaxed font-mono">
                     &quot;{item.prompt}&quot;
                   </p>
                 </div>
 
-                {/* Action Buttons - always visible */}
+                {/* Action Buttons */}
                 <div className="flex items-center justify-between gap-2">
                   <button
                     onClick={() => onRemix(item)}
@@ -132,17 +223,94 @@ export default function Canvas({ images, generating, onRemix, onDelete }: Canvas
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         ))}
 
+        {/* Empty state - redesigned */}
         {!generating && images.length === 0 && (
-          <div className="col-span-full h-96 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-(--border) rounded-xl bg-(--surface-muted)/50">
-            <div className="w-16 h-16 rounded-full bg-(--surface-elevated) flex items-center justify-center mb-4">
-              <ImageIcon className="w-8 h-8 opacity-50" />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="w-full flex flex-col items-center justify-center py-12 md:py-20"
+          >
+            {/* Glassmorphism card */}
+            <div className="relative max-w-md w-full mx-auto">
+              {/* Gradient glow behind card */}
+              <div className="absolute -inset-4 bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-pink-500/20 rounded-3xl blur-2xl opacity-60" />
+
+              <div className="relative bg-(--surface-elevated)/80 backdrop-blur-xl border border-(--border) rounded-2xl p-8 md:p-10 text-center shadow-2xl">
+                {/* Animated icon */}
+                <motion.div
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  className="mx-auto mb-6 w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/20 flex items-center justify-center"
+                >
+                  <ImageIcon className="w-10 h-10 text-purple-400" />
+                </motion.div>
+
+                <h3 className="text-xl font-bold text-(--text-primary) mb-2">
+                  {t("studioEmptyTitle")}
+                </h3>
+                <p className="text-sm text-(--text-secondary) mb-8 leading-relaxed">
+                  {t("studioEmptyDesc")}
+                </p>
+
+                {/* Recent prompts section */}
+                {recentPrompts.length > 0 && (
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-3 justify-center">
+                      <Clock className="w-3.5 h-3.5 text-(--text-secondary)" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-(--text-secondary)">
+                        {t("studioRecentPrompts")}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {recentPrompts.map((prompt, i) => (
+                        <motion.button
+                          key={`recent-${i}`}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.1 + i * 0.1 }}
+                          onClick={() => onSuggestPrompt?.(prompt)}
+                          className="group/chip text-left w-full px-4 py-2.5 rounded-xl bg-(--surface-muted)/60 hover:bg-purple-500/10 border border-(--border) hover:border-purple-500/30 transition-all text-xs text-(--text-secondary) hover:text-(--text-primary) truncate"
+                        >
+                          <span className="truncate">&ldquo;{prompt}&rdquo;</span>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Suggested prompts */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3 justify-center">
+                    <Lightbulb className="w-3.5 h-3.5 text-(--text-secondary)" />
+                    <span className="text-xs font-semibold uppercase tracking-wider text-(--text-secondary)">
+                      {t("studioSuggestedPrompts")}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {suggestions.map((sug, i) => (
+                      <motion.button
+                        key={`sug-${i}`}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 + i * 0.1 }}
+                        onClick={() => onSuggestPrompt?.(sug.prompt)}
+                        className="group/chip flex items-center gap-3 w-full px-4 py-2.5 rounded-xl bg-(--surface-muted)/60 hover:bg-purple-500/10 border border-(--border) hover:border-purple-500/30 transition-all text-left"
+                      >
+                        <span className="text-base shrink-0">{sug.icon}</span>
+                        <span className="text-xs text-(--text-secondary) group-hover/chip:text-(--text-primary) transition-colors line-clamp-2">
+                          {sug.prompt}
+                        </span>
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
-            <p className="font-medium">{t("studioNoImages")}</p>
-            <p className="text-sm opacity-70">{t("studioNoImagesDesc")}</p>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

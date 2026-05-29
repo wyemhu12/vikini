@@ -359,6 +359,14 @@ export const translations: TranslationSet = {
     studioSettingsFailed: "Không thể lưu cài đặt.",
     studioAllKeysCleared: "Đã xóa tất cả keys.",
     studioClearKeysConfirm: "Bạn có chắc muốn xóa tất cả API keys đã lưu?",
+    // Image Studio Mobile & Empty State
+    studioTabStudio: "Tùy chỉnh",
+    studioTabResults: "Kết quả",
+    studioEmptyTitle: "Sẵn sàng sáng tạo",
+    studioEmptyDesc: "Nhập prompt hoặc chọn một gợi ý bên dưới để bắt đầu tạo ảnh AI.",
+    studioTryPrompt: "Thử ngay",
+    studioRecentPrompts: "Prompt gần đây",
+    studioSuggestedPrompts: "Gợi ý cho bạn",
     // Style names
     styleNone: "Không",
     stylePhoto: "Ảnh thật",
@@ -772,6 +780,14 @@ export const translations: TranslationSet = {
     studioSettingsFailed: "Failed to save settings.",
     studioAllKeysCleared: "All keys cleared.",
     studioClearKeysConfirm: "Are you sure you want to clear all saved API keys?",
+    // Image Studio Mobile & Empty State
+    studioTabStudio: "Studio",
+    studioTabResults: "Results",
+    studioEmptyTitle: "Ready to create",
+    studioEmptyDesc: "Enter a prompt or pick a suggestion below to start generating AI images.",
+    studioTryPrompt: "Try this",
+    studioRecentPrompts: "Recent prompts",
+    studioSuggestedPrompts: "Suggestions for you",
     // Style names
     styleNone: "None",
     stylePhoto: "Photo",

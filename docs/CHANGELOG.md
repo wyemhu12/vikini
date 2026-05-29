@@ -5,6 +5,30 @@
 
 ---
 
+## 2026-05-29: Image Studio — Mobile Layout Fix + UX Overhaul
+
+### 🔴 Critical Fix
+
+- **Mobile layout completely broken** — ControlPanel used `w-full` on mobile, pushing Canvas (Results) off-screen. Added mobile tab system (Studio/Results) with animated indicator, auto-switch to Results after generation.
+
+### 🟡 UX Improvements
+
+- **Empty state redesigned** — Glassmorphism card with animated floating icon, gradient glow, prompt suggestions (rotating curated + recent prompts).
+- **Framer Motion animations** — Image cards stagger in, shimmer skeleton loading, smooth empty state fade-in.
+- **HeaderBar props fixed** — Was `t={}` + `language="en"` hardcoded, now receives proper translation dict and language handler.
+- **Responsive padding** — Canvas `px-4 md:px-6 lg:px-8`, ControlPanel `px-4 md:px-6`.
+
+### 🔧 Code Quality
+
+- Removed `bg-black` hardcode → `bg-(--surface-elevated)`, removed broken `col-span-full` + decoration div.
+- 7 new bilingual keys: `studioTabStudio/Results`, `studioEmptyTitle/Desc`, `studioTryPrompt`, `studioRecentPrompts`, `studioSuggestedPrompts`.
+
+### Files changed
+
+- **Modified**: ImageGenStudio.tsx, Canvas.tsx, ControlPanel.tsx, config.ts
+
+---
+
 ## 2026-05-29: Audit Fix Batch — 16 issues resolved
 
 ### 🔴 Critical Bug Fixes

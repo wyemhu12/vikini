@@ -31,6 +31,7 @@ interface ControlPanelProps {
   setIsEnhancerOn: (v: boolean) => void;
   onGenerate: () => void;
   generating: boolean;
+  className?: string;
 }
 
 export default function ControlPanel({
@@ -46,12 +47,15 @@ export default function ControlPanel({
   setIsEnhancerOn,
   onGenerate,
   generating,
+  className,
 }: ControlPanelProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { t } = useLanguage();
 
   return (
-    <aside className="w-full md:w-80 border-r border-(--border) h-full flex flex-col bg-(--surface-base) relative z-20 shadow-xl overflow-hidden pt-4 overflow-y-auto">
+    <aside
+      className={`w-full md:w-80 border-r border-(--border) h-full flex-col bg-(--surface-base) relative z-20 shadow-xl overflow-hidden pt-4 overflow-y-auto ${className || "flex"}`}
+    >
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
       {/* Header */}
       <div className="px-6 mb-6 flex items-center justify-between">
@@ -67,7 +71,7 @@ export default function ControlPanel({
       </div>
 
       {/* Prompt */}
-      <div className="space-y-2 px-6">
+      <div className="space-y-2 px-4 md:px-6">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t("studioPromptLabel")}
         </Label>
@@ -90,7 +94,7 @@ export default function ControlPanel({
       </div>
 
       {/* Magic Enhance Toggle */}
-      <div className="space-y-2 px-6 mt-4">
+      <div className="space-y-2 px-4 md:px-6 mt-4">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t("studioEnhancement")}
         </Label>
@@ -178,7 +182,7 @@ export default function ControlPanel({
         <StyleSelector selectedStyle={style} onSelect={setStyle} />
       </div>
 
-      <div className="mt-auto px-6 pb-6">
+      <div className="mt-auto px-4 md:px-6 pb-6">
         <Button
           onClick={onGenerate}
           disabled={generating || !prompt.trim()}

@@ -8,7 +8,8 @@ import HeaderBar from "../../layout/components/HeaderBar";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 
 import { useTheme } from "../../chat/hooks/useTheme";
-import { useLanguage } from "../../chat/hooks/useLanguage";
+import { useLanguage, type SupportedLanguage } from "../../chat/hooks/useLanguage";
+import { translations } from "@/lib/utils/config";
 import {
   useConversation,
   FrontendConversation,
@@ -28,12 +29,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { logger } from "@/lib/utils/logger";
 import { formatDate } from "@/lib/utils/dateFormat";
+import { motion, AnimatePresence } from "framer-motion";
+import { Wand2, Images } from "lucide-react";
 
 export function ImageGenStudio() {
   const { data: session, status } = useSession();
   const isAuthed = status === "authenticated";
   const { theme: _theme, toggleTheme: _toggleTheme } = useTheme();
-  const { t, language } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
+
+  // Create translation dict for HeaderBar (needs Record<string, string>)
+  const tDict = useMemo(() => {
+    return (translations?.[language] || translations?.en || {}) as Record<string, string>;
+  }, [language]);
 
   // Use shared conversation hook
   const {
@@ -65,6 +73,9 @@ export function ImageGenStudio() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Mobile tab state
+  const [mobileTab, setMobileTab] = useState<"studio" | "results">("studio");
 
   // Modal States
   const [showApiKeyWarning, setShowApiKeyWarning] = useState(false);
@@ -166,6 +177,8 @@ export function ImageGenStudio() {
     }
 
     setGenerating(true);
+    // Auto-switch to results tab on mobile when generating starts
+    setMobileTab("results");
 
     try {
       const response = await fetch("/api/generate-image", {
@@ -211,6 +224,14 @@ export function ImageGenStudio() {
     if (image.style) setStyle(image.style);
     if (image.model) setModel(image.model);
     if (image.enhancer !== undefined) setIsEnhancerOn(image.enhancer);
+    // Switch to studio tab on mobile to edit the prompt
+    setMobileTab("studio");
+  };
+
+  const handleSuggestPrompt = (suggestedPrompt: string) => {
+    setPrompt(suggestedPrompt);
+    // Switch to studio tab so user can see the prompt filled in
+    setMobileTab("studio");
   };
 
   const handleDeleteRequest = (id: string) => {
@@ -334,37 +355,88 @@ export function ImageGenStudio() {
         }`}
       >
         <HeaderBar
-          t={{}}
-          language="en"
-          onLanguageChange={() => {}}
+          t={tDict}
+          language={language}
+          onLanguageChange={(lang) => setLanguage(lang as SupportedLanguage)}
           onToggleSidebar={() => setMobileOpen(true)}
         />
 
-        {/* Decoration */}
-        <div className="absolute inset-0 left-0 w-80 bg-(--surface-muted) border-r border-(--border) pointer-events-none -z-10 hidden lg:block"></div>
+        {/* Main content area - side by side on desktop, tabbed on mobile */}
+        <div className="flex flex-col md:flex-row h-full w-full relative overflow-hidden bg-(--surface-base)">
+          {/* Mobile Tab Bar */}
+          <div className="md:hidden flex border-b border-(--border) bg-(--surface-muted)/50 shrink-0">
+            <button
+              onClick={() => setMobileTab("studio")}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-all relative ${
+                mobileTab === "studio"
+                  ? "text-(--text-primary)"
+                  : "text-(--text-secondary) hover:text-(--text-primary)"
+              }`}
+            >
+              <Wand2 className="w-4 h-4" />
+              {t("studioTabStudio")}
+              {mobileTab === "studio" && (
+                <motion.div
+                  layoutId="mobileTabIndicator"
+                  className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                />
+              )}
+            </button>
+            <button
+              onClick={() => setMobileTab("results")}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-all relative ${
+                mobileTab === "results"
+                  ? "text-(--text-primary)"
+                  : "text-(--text-secondary) hover:text-(--text-primary)"
+              }`}
+            >
+              <Images className="w-4 h-4" />
+              {t("studioTabResults")}
+              {generatedImages.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-purple-500/20 text-purple-400">
+                  {generatedImages.length}
+                </span>
+              )}
+              {mobileTab === "results" && (
+                <motion.div
+                  layoutId="mobileTabIndicator"
+                  className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                />
+              )}
+            </button>
+          </div>
 
-        <div className="flex h-full w-full relative overflow-hidden bg-(--surface-base)">
-          <ControlPanel
-            prompt={prompt}
-            setPrompt={setPrompt}
-            model={model}
-            setModel={setModel}
-            aspectRatio={aspectRatio}
-            setAspectRatio={setAspectRatio}
-            style={style}
-            setStyle={setStyle}
-            isEnhancerOn={isEnhancerOn}
-            setIsEnhancerOn={setIsEnhancerOn}
-            onGenerate={handleGenerate}
-            generating={generating}
-          />
+          {/* Content panels with AnimatePresence for mobile */}
+          <AnimatePresence mode="wait" initial={false}>
+            {/* ControlPanel - always visible on md+, conditionally on mobile */}
+            <ControlPanel
+              key="control-panel"
+              prompt={prompt}
+              setPrompt={setPrompt}
+              model={model}
+              setModel={setModel}
+              aspectRatio={aspectRatio}
+              setAspectRatio={setAspectRatio}
+              style={style}
+              setStyle={setStyle}
+              isEnhancerOn={isEnhancerOn}
+              setIsEnhancerOn={setIsEnhancerOn}
+              onGenerate={handleGenerate}
+              generating={generating}
+              className={mobileTab !== "studio" ? "hidden md:flex" : "flex"}
+            />
 
-          <Canvas
-            images={generatedImages}
-            generating={generating}
-            onRemix={handleRemix}
-            onDelete={handleDeleteRequest}
-          />
+            {/* Canvas - always visible on md+, conditionally on mobile */}
+            <Canvas
+              key="canvas"
+              images={generatedImages}
+              generating={generating}
+              onRemix={handleRemix}
+              onDelete={handleDeleteRequest}
+              onSuggestPrompt={handleSuggestPrompt}
+              className={mobileTab !== "results" ? "hidden md:flex" : "flex"}
+            />
+          </AnimatePresence>
         </div>
       </div>
 
