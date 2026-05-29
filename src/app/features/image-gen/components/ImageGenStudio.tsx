@@ -362,7 +362,7 @@ export function ImageGenStudio() {
         />
 
         {/* Main content area - side by side on desktop, tabbed on mobile */}
-        <div className="flex flex-col md:flex-row h-full w-full relative overflow-hidden bg-(--surface-base)">
+        <div className="flex flex-col md:flex-row h-full w-full relative overflow-hidden bg-(--surface-base) pt-16 md:pt-0">
           {/* Mobile Tab Bar */}
           <div className="md:hidden flex border-b border-(--border) bg-(--surface-muted)/50 shrink-0">
             <button
