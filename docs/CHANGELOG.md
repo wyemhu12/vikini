@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-05-29: Fix — Files persisting in input + File Manager dropdown redesign
+
+- **Bug: Files stayed in input after send**
+  - Root cause: `markAsSent()` was inside `useDebounceCallback` (500ms delay), so files remained visible during debounce window
+  - Fix: Snapshot fileIds and call `markAsSent()` synchronously in `handleSubmit` before debounce fires
+- **Bug: `[object Object]` rendering in file cards**
+  - Root cause: Zustand store used `Set<string>` for `sentFileIds`. React can't serialize Sets properly → renders `[object Object]`
+  - Fix: Changed `Set<string>` → `string[]` with `[...new Set([...old, ...new])]` for dedup
+- **UX: File Manager redesigned as dropdown**
+  - Replaced full-screen slide-out panel with compact dropdown anchored above "📁 Files" button
+  - Click-outside and Escape to close, toggle behavior, mobile-friendly width
+- **Files affected**: store.ts, InputForm.tsx, FileManagerPanel.tsx, ChatControls.tsx
+
 ## 2026-05-29: File UX Overhaul — Message-attached Files + File Manager
 
 - **Files sent with messages** (Claude-style): Files now appear inside user message bubbles instead of persisting on the input bar. After sending, file preview clears and file chips appear inline in the bubble.

@@ -39,6 +39,20 @@
 - **Fix**: Wrapped `personalConversations` with `useMemo([conversations])`.
 - **Prevention Rule**: **Any `.filter()`, `.map()`, or `.reduce()` result that flows to a memoized component as a prop MUST be wrapped in `useMemo`.** This is the 2nd occurrence of sidebar flickering (1st was unmemoized callbacks, now unstable arrays). Always audit props passed to `React.memo` components for referential stability.
 
+### 2026-05: Side effects inside useDebounceCallback are delayed — mark state changes synchronously
+
+- **Symptom**: After clicking Send, uploaded files stayed visible in input preview for 500ms before disappearing
+- **Root Cause**: `markAsSent(fileIds)` was called inside `useDebounceCallback(() => { ... }, 500)`. The entire callback body — including the state update — was delayed by 500ms. UI didn't reflect the change until after the debounce fired.
+- **Fix**: Moved `markAsSent()` to `handleSubmit()` (synchronous), stored fileIds in a `useRef` for the debounced `onSubmit` to use later.
+- **Prevention Rule**: **Never put synchronous UI state changes inside debounced callbacks.** If a side effect must happen immediately (hide elements, show loading), call it outside the debounce. Only the actual async operation (API call, message send) should be debounced.
+
+### 2026-05: Zustand + Set causes `[object Object]` render
+
+- **Symptom**: File preview card showed `[object Object]` text where file size should be, with red error border
+- **Root Cause**: `sentFileIds: Set<string>` in Zustand store. `Set` objects don't serialize to JSON — when React/Zustand tried to compare or render the state, it became `[object Object]`. Zustand's shallow equality check may not handle `Set` correctly.
+- **Fix**: Changed `Set<string>` → `string[]`. Dedup via `[...new Set([...old, ...new])]`.
+- **Prevention Rule**: **Do NOT use `Set`, `Map`, or other non-serializable types in Zustand state.** Use plain arrays/objects. For dedup, use `[...new Set(arr)]` pattern on write.
+
 ---
 
 ## API and Streaming
