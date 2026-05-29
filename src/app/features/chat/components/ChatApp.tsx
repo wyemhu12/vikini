@@ -211,6 +211,21 @@ export default function ChatApp() {
   // File count for file manager button
   const { fileCount } = useFiles(selectedConversationId);
 
+  // Compute which files have already been sent in messages (survives reload)
+  const sentMessageFileIds = useMemo(() => {
+    const ids: string[] = [];
+    for (const m of renderedMessages) {
+      if (m.role === "user" && m.meta) {
+        const meta = m.meta as Record<string, unknown>;
+        const fIds = meta["fileIds"];
+        if (Array.isArray(fIds)) {
+          ids.push(...(fIds as string[]));
+        }
+      }
+    }
+    return ids;
+  }, [renderedMessages]);
+
   // Thinking Level Preference (Gemini 3 Thinking models)
   const { thinkingLevel, setThinkingLevel } = useThinkingLevel(currentModel);
 
@@ -634,6 +649,7 @@ export default function ChatApp() {
                   previewPrompt={previewPrompt}
                   fileCount={fileCount}
                   conversationId={selectedConversationId}
+                  sentMessageFileIds={sentMessageFileIds}
                 />
               </DashboardView>
             </div>
@@ -732,6 +748,7 @@ export default function ChatApp() {
             previewPrompt={previewPrompt}
             fileCount={fileCount}
             conversationId={selectedConversationId}
+            sentMessageFileIds={sentMessageFileIds}
           />
         )}
       </div>

@@ -55,6 +55,7 @@ interface ChatControlsProps {
   // File manager
   fileCount?: number;
   conversationId?: string | null;
+  sentMessageFileIds?: string[];
 }
 
 export default function ChatControls({
@@ -92,6 +93,7 @@ export default function ChatControls({
   // File manager
   fileCount = 0,
   conversationId = null,
+  sentMessageFileIds = [],
 }: ChatControlsProps) {
   // Display value: show preview prompt when hovering, otherwise show actual input
   const displayValue = previewPrompt !== null ? previewPrompt : input;
@@ -237,6 +239,7 @@ export default function ChatControls({
             initialImageMode={initialImageMode}
             onImageModeConsumed={onImageModeConsumed}
             isPreview={isShowingPreview}
+            sentMessageFileIds={sentMessageFileIds}
           />
         </div>
       </div>

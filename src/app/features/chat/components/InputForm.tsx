@@ -55,6 +55,8 @@ interface InputFormProps {
   initialImageMode?: boolean;
   onImageModeConsumed?: () => void;
   isPreview?: boolean;
+  /** File IDs already referenced in sent messages (from message meta, survives reload) */
+  sentMessageFileIds?: string[];
 }
 
 export default function InputForm({
@@ -70,6 +72,7 @@ export default function InputForm({
   initialImageMode = false,
   onImageModeConsumed,
   isPreview = false,
+  sentMessageFileIds = [],
 }: InputFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -82,13 +85,14 @@ export default function InputForm({
   const uploadQueue = useFileStore((s) => s.uploadQueue);
   const sentFileIds = useFileStore((s) => s.sentFileIds);
   const markAsSent = useFileStore((s) => s.markAsSent);
-  const clearSentFileIds = useFileStore((s) => s.clearSentFileIds);
 
-  // Filter out files already sent with messages (they now live in ChatBubble)
-  const files = useMemo(
-    () => allFiles.filter((f) => !sentFileIds.includes(f.id)),
-    [allFiles, sentFileIds]
-  );
+  // Filter out files already sent — combine:
+  // 1. sentMessageFileIds (from message meta, persistent/survives reload)
+  // 2. sentFileIds (Zustand, optimistic/instant UI update before message is saved)
+  const files = useMemo(() => {
+    const allSent = new Set([...sentMessageFileIds, ...sentFileIds]);
+    return allFiles.filter((f) => !allSent.has(f.id));
+  }, [allFiles, sentMessageFileIds, sentFileIds]);
   const fileCount = files.length;
   const {
     openFilePicker,
@@ -141,17 +145,11 @@ export default function InputForm({
     }
   }, [initialImageMode, onImageModeConsumed]);
 
-  // Clear sent tracking only when switching between different conversations
-  // NOT on initial mount or when conversationId goes null→value (new conv created)
-  const prevConvIdRef = useRef<string | null | undefined>(undefined);
+  // Clear Zustand optimistic sentFileIds when switching conversations
+  // (sentMessageFileIds from props handles the persistent/reload case)
+  const clearSentFileIds = useFileStore((s) => s.clearSentFileIds);
   useEffect(() => {
-    const prev = prevConvIdRef.current;
-    prevConvIdRef.current = conversationId ?? null;
-
-    // Only clear when navigating FROM an existing conversation TO a different one
-    if (prev !== undefined && prev !== null && prev !== (conversationId ?? null)) {
-      clearSentFileIds();
-    }
+    clearSentFileIds();
   }, [conversationId, clearSentFileIds]);
 
   // Auto resize textarea
