@@ -1,12 +1,14 @@
 // /app/features/chat/components/ChatControls.tsx
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { FolderOpen } from "lucide-react";
 
 import ModelSelector from "./ModelSelector";
 import ThinkingLevelSelector from "./ThinkingLevelSelector";
 import InputForm from "./InputForm";
+import FileManagerPanel from "./FileManagerPanel";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { type ThinkingLevel, modelSupportsThinkingUI } from "./hooks/useThinkingLevel";
@@ -35,7 +37,7 @@ interface ChatControlsProps {
   currentGem: GemInfo | null | undefined;
   input: string;
   setInput: (value: string) => void;
-  handleSend: () => void;
+  handleSend: (text?: string, fileIds?: string[]) => void;
   handleStop: () => void;
   isStreaming: boolean;
   regenerating: boolean;
@@ -50,6 +52,9 @@ interface ChatControlsProps {
   // Landing mode
   isLanding?: boolean;
   previewPrompt?: string | null;
+  // File manager
+  fileCount?: number;
+  conversationId?: string | null;
 }
 
 export default function ChatControls({
@@ -84,12 +89,17 @@ export default function ChatControls({
   // Landing mode
   isLanding = false,
   previewPrompt = null,
+  // File manager
+  fileCount = 0,
+  conversationId = null,
 }: ChatControlsProps) {
   // Display value: show preview prompt when hovering, otherwise show actual input
   const displayValue = previewPrompt !== null ? previewPrompt : input;
   const isShowingPreview = previewPrompt !== null && previewPrompt !== "";
   const canWebSearch = modelSupportsWebSearch(currentModel);
   const isV32 = isDeepSeekV32Model(currentModel);
+
+  const [showFileManager, setShowFileManager] = useState(false);
 
   return (
     <motion.div
@@ -181,6 +191,18 @@ export default function ChatControls({
               </div>
             </>
           )}
+          {fileCount > 0 && (
+            <>
+              <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
+              <button
+                onClick={() => setShowFileManager(true)}
+                className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 text-(--text-secondary) hover:text-(--accent) flex items-center gap-1.5"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                {t.files ?? "Files"} ({fileCount})
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -191,7 +213,7 @@ export default function ChatControls({
           <InputForm
             input={isShowingPreview ? displayValue : input}
             onChangeInput={setInput}
-            onSubmit={() => handleSend()}
+            onSubmit={(fileIds) => handleSend(undefined, fileIds)}
             onStop={handleStop}
             onImageGen={onImageGen}
             disabled={creatingConversation || regenerating} // Only disable completely if creating new conv or regenerating
@@ -211,6 +233,15 @@ export default function ChatControls({
             {t.aiDisclaimer}
           </p>
         </div>
+      )}
+      {/* File Manager Panel */}
+      {conversationId && (
+        <FileManagerPanel
+          conversationId={conversationId}
+          isOpen={showFileManager}
+          onClose={() => setShowFileManager(false)}
+          t={t}
+        />
       )}
     </motion.div>
   );

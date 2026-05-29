@@ -39,6 +39,7 @@ interface CoreSendOptions {
   truncateFromIndex?: number;
   truncateMessageId?: string;
   skipSaveUserMessage?: boolean;
+  fileIds?: string[];
 }
 
 function safeArray<T>(v: T[] | unknown): T[] {
@@ -331,6 +332,7 @@ export function useChatStreamController({
       const truncateFromIndex = options?.truncateFromIndex;
       const truncateMessageId = options?.truncateMessageId;
       const skipSaveUserMessage = options?.skipSaveUserMessage;
+      const optFileIds = options?.fileIds;
 
       // Hủy request cũ nếu đang chạy
       if (abortControllerRef.current) {
@@ -350,7 +352,11 @@ export function useChatStreamController({
       }
 
       if (!skipUserAppend) {
-        const userMsg: FrontendMessage = { role: "user", content: text };
+        const userMsg: FrontendMessage = {
+          role: "user",
+          content: text,
+          meta: optFileIds && optFileIds.length > 0 ? { fileIds: optFileIds } : undefined,
+        };
         setMessages((prev) => {
           let current = normalizeMessages(prev);
           if (typeof truncateFromIndex === "number") {
@@ -524,6 +530,7 @@ export function useChatStreamController({
       );
 
       const convId = await ensureConversationExists();
+      const fileIds = options.fileIds;
 
       try {
         // Read thinkingLevel from localStorage (set by useThinkingLevel hook)
@@ -548,6 +555,7 @@ export function useChatStreamController({
             truncateMessageId,
             skipSaveUserMessage,
             ...(thinkingLevel ? { thinkingLevel } : {}),
+            ...(fileIds && fileIds.length > 0 ? { fileIds } : {}),
           }),
           signal,
         });
@@ -618,8 +626,8 @@ export function useChatStreamController({
   );
 
   const handleSend = useCallback(
-    (text?: string) => {
-      coreSend(text ?? input);
+    (text?: string, fileIds?: string[]) => {
+      coreSend(text ?? input, fileIds ? { fileIds } : {});
     },
     [coreSend, input]
   );

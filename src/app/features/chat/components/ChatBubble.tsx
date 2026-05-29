@@ -18,6 +18,7 @@ import MessageActions from "./MessageActions";
 import SourceLinks from "./SourceLinks";
 import ImageGenPreview from "./ImageGenPreview";
 import TokenBadge from "./TokenBadge";
+import { FileInMessage } from "./FileInMessage";
 
 // ============================================
 // Type Definitions
@@ -28,6 +29,7 @@ interface MessageMeta {
   imageUrl?: string;
   prompt?: string;
   attachment?: { url: string };
+  fileIds?: string[];
   // Token usage fields
   totalTokenCount?: number;
   promptTokenCount?: number;
@@ -291,6 +293,8 @@ interface ChatBubbleProps {
   onSpeak?: () => void;
   /** Is TTS currently speaking this message */
   isSpeaking?: boolean;
+  /** Conversation ID for file lookups */
+  conversationId?: string;
 }
 
 // ============================================
@@ -315,6 +319,7 @@ const ChatBubble = React.memo(
     isStreaming,
     onSpeak,
     isSpeaking,
+    conversationId,
   }: ChatBubbleProps) {
     const { t } = useLanguage();
 
@@ -544,7 +549,19 @@ const ChatBubble = React.memo(
                       {isStreaming && isLastAssistant && displayContent.trim() && <TypingCursor />}
                     </div>
                   ) : (
-                    <span className="whitespace-pre-wrap wrap-break-word">{displayContent}</span>
+                    <>
+                      {/* File attachments in user messages */}
+                      {!isBot &&
+                        safeMessage.meta?.fileIds &&
+                        safeMessage.meta.fileIds.length > 0 &&
+                        conversationId && (
+                          <FileInMessage
+                            conversationId={conversationId}
+                            fileIds={safeMessage.meta.fileIds as string[]}
+                          />
+                        )}
+                      <span className="whitespace-pre-wrap wrap-break-word">{displayContent}</span>
+                    </>
                   )}
                 </div>
               )}
@@ -624,7 +641,8 @@ const ChatBubble = React.memo(
       prev.onImageRegenerate === next.onImageRegenerate &&
       prev.onImageEdit === next.onImageEdit &&
       prev.isSpeaking === next.isSpeaking &&
-      prev.onSpeak === next.onSpeak
+      prev.onSpeak === next.onSpeak &&
+      prev.conversationId === next.conversationId
     );
   }
 );

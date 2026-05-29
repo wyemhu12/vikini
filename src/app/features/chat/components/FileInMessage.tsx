@@ -1,67 +1,62 @@
 /**
  * FileInMessage — Compact file indicator for chat bubbles.
  *
- * Shows a collapsible "📎 N files attached" bar in user messages.
- * Expandable to show file cards with preview/click capabilities.
+ * Shows file cards inline within user messages.
+ * Filters by specific fileIds attached to that message.
  */
 "use client";
 
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Paperclip, ChevronDown, ChevronUp } from "lucide-react";
-import { FilePreviewCard } from "./FilePreviewCard";
+import React from "react";
+import { FileText, Image, Video, Music, Archive, File } from "lucide-react";
 import { useFiles } from "@/lib/features/files/useFiles";
 import type { FileItem } from "@/types/files";
 
 interface FileInMessageProps {
   conversationId: string;
+  fileIds?: string[];
   onClick?: (file: FileItem) => void;
-  t?: Record<string, string>;
 }
 
-export function FileInMessage({ conversationId, onClick, t }: FileInMessageProps) {
-  const { files, fileCount } = useFiles(conversationId);
-  const [expanded, setExpanded] = useState(false);
+const KIND_ICONS: Record<string, React.ElementType> = {
+  document: FileText,
+  text: FileText,
+  image: Image,
+  video: Video,
+  audio: Music,
+  archive: Archive,
+};
 
-  if (fileCount === 0) return null;
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function FileInMessage({ conversationId, fileIds, onClick }: FileInMessageProps) {
+  const { files } = useFiles(conversationId);
+
+  // Filter files by IDs attached to this specific message
+  const messageFiles = fileIds ? files.filter((f) => fileIds.includes(f.id)) : [];
+
+  if (messageFiles.length === 0) return null;
 
   return (
-    <div className="mb-2 w-full">
-      {/* Compact bar */}
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) text-(--text-secondary) text-xs transition-colors w-full"
-      >
-        <Paperclip className="w-3.5 h-3.5" />
-        <span>
-          {fileCount} {t?.filesAttached || (fileCount === 1 ? "file attached" : "files attached")}
-        </span>
-        {expanded ? (
-          <ChevronUp className="w-3.5 h-3.5 ml-auto" />
-        ) : (
-          <ChevronDown className="w-3.5 h-3.5 ml-auto" />
-        )}
-      </button>
-
-      {/* Expanded file cards */}
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="overflow-hidden"
+    <div className="flex flex-wrap gap-1.5 mb-2">
+      {messageFiles.map((file) => {
+        const Icon = KIND_ICONS[file.kind] ?? File;
+        return (
+          <button
+            key={file.id}
+            type="button"
+            onClick={() => onClick?.(file)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] transition-colors max-w-[200px] group"
           >
-            <div className="flex gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-[var(--control-border)] pt-2 pb-1 snap-x snap-mandatory">
-              {files.map((file) => (
-                <FilePreviewCard key={file.id} file={file} onClick={onClick} compact disabled />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <Icon className="w-3.5 h-3.5 shrink-0 opacity-70" />
+            <span className="truncate">{file.filename}</span>
+            <span className="shrink-0 opacity-50 text-[9px]">{formatSize(file.size_bytes)}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

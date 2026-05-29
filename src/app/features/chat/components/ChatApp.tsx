@@ -41,6 +41,7 @@ import { logger } from "@/lib/utils/logger";
 import { MODEL_IDS } from "@/lib/utils/constants";
 import { toast } from "@/lib/store/toastStore";
 import { useProjectStore } from "@/lib/store/projectStore";
+import { useFiles } from "@/lib/features/files/useFiles";
 
 // ============================================
 // Type Definitions
@@ -206,6 +207,9 @@ export default function ChatApp() {
     [conversations, selectedConversationId]
   );
   const currentModel = currentConversation?.model || DEFAULT_MODEL;
+
+  // File count for file manager button
+  const { fileCount } = useFiles(selectedConversationId);
 
   // Thinking Level Preference (Gemini 3 Thinking models)
   const { thinkingLevel, setThinkingLevel } = useThinkingLevel(currentModel);
@@ -628,6 +632,8 @@ export default function ChatApp() {
                   onImageModeConsumed={() => setPendingImageMode(false)}
                   isLanding={true}
                   previewPrompt={previewPrompt}
+                  fileCount={fileCount}
+                  conversationId={selectedConversationId}
                 />
               </DashboardView>
             </div>
@@ -652,8 +658,10 @@ export default function ChatApp() {
                     onImageRegenerate={handleImageRegenerate}
                     onImageEdit={handleImageEdit}
                     regenerating={regenerating && isLastAI}
+                    isStreaming={isStreaming && isLastAI}
                     onSpeak={m.id ? () => tts.speakMessage(m.id!, m.content || "") : undefined}
                     isSpeaking={m.id ? tts.isMessageSpeaking(m.id) : false}
+                    conversationId={selectedConversationId ?? undefined}
                   />
                 );
               })}
@@ -722,6 +730,8 @@ export default function ChatApp() {
             initialImageMode={pendingImageMode || isRemixMode}
             onImageModeConsumed={() => setPendingImageMode(false)}
             previewPrompt={previewPrompt}
+            fileCount={fileCount}
+            conversationId={selectedConversationId}
           />
         )}
       </div>

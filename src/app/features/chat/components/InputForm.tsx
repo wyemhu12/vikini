@@ -45,7 +45,7 @@ const StopIcon = () => (
 interface InputFormProps {
   input: string;
   onChangeInput: (value: string) => void;
-  onSubmit: () => void;
+  onSubmit: (fileIds?: string[]) => void;
   onStop?: () => void;
   onImageGen?: (prompt: string) => void;
   disabled?: boolean;
@@ -149,8 +149,14 @@ export default function InputForm({
   };
 
   const debouncedSubmit = useDebounceCallback(() => {
-    onSubmit();
+    // Collect current file IDs before clearing
+    const currentFileIds = files.map((f) => f.id);
+    onSubmit(currentFileIds.length > 0 ? currentFileIds : undefined);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
+    // Clear files from input preview (they now belong to the message)
+    if (currentFileIds.length > 0) {
+      void mutate([], { revalidate: false });
+    }
   }, 500);
 
   const handleSubmit = () => {

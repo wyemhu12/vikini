@@ -9,7 +9,7 @@
  */
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import {
   FileText,
@@ -31,7 +31,7 @@ interface FilePreviewCardProps {
   /** In-progress upload data */
   upload?: FileUploadProgress;
   /** Remove handler (only for uploaded files) */
-  onRemove?: (id: string) => void;
+  onRemove?: (id: string) => void | Promise<void>;
   /** Click handler for preview */
   onClick?: (file: FileItem) => void;
   /** Compact mode for in-message display */
@@ -74,6 +74,7 @@ export function FilePreviewCard({
   compact = false,
   disabled = false,
 }: FilePreviewCardProps) {
+  const [deleting, setDeleting] = useState(false);
   const isUploading = !!upload;
   const isError = upload?.status === "error";
 
@@ -94,8 +95,8 @@ export function FilePreviewCard({
       layout
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.15 } }}
-      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      exit={{ opacity: 0, scale: 0.8, x: -20 }}
+      transition={{ type: "spring", stiffness: 300, damping: 25 }}
       className={`group relative ${cardSize} shrink-0 rounded-xl border transition-all duration-200 overflow-hidden ${
         isError
           ? "border-red-500/50 bg-red-500/5"
@@ -168,12 +169,19 @@ export function FilePreviewCard({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
+            if (deleting) return;
+            setDeleting(true);
             onRemove(file.id);
           }}
           className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-full bg-(--surface-base)/90 hover:bg-red-500/20 text-(--text-secondary) hover:text-red-500"
           aria-label={`Remove ${filename}`}
+          disabled={deleting}
         >
-          <X className="w-3.5 h-3.5" />
+          {deleting ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <X className="w-3.5 h-3.5" />
+          )}
         </button>
       )}
     </motion.div>
