@@ -86,7 +86,7 @@ export default function InputForm({
 
   // Filter out files already sent with messages (they now live in ChatBubble)
   const files = useMemo(
-    () => allFiles.filter((f) => !sentFileIds.has(f.id)),
+    () => allFiles.filter((f) => !sentFileIds.includes(f.id)),
     [allFiles, sentFileIds]
   );
   const fileCount = files.length;

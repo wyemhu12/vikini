@@ -13,7 +13,7 @@ interface FileState {
   uploadQueue: FileUploadProgress[];
 
   /** IDs of files that have been sent with a message (hide from input preview) */
-  sentFileIds: Set<string>;
+  sentFileIds: string[];
 
   /** Add a new file to the upload queue */
   addToQueue: (item: FileUploadProgress) => void;
@@ -39,7 +39,7 @@ interface FileState {
 
 export const useFileStore = create<FileState>((set) => ({
   uploadQueue: [],
-  sentFileIds: new Set<string>(),
+  sentFileIds: [],
 
   addToQueue: (item) => set((s) => ({ uploadQueue: [...s.uploadQueue, item] })),
 
@@ -61,11 +61,9 @@ export const useFileStore = create<FileState>((set) => ({
   clearQueue: () => set({ uploadQueue: [] }),
 
   markAsSent: (ids) =>
-    set((s) => {
-      const next = new Set(s.sentFileIds);
-      ids.forEach((id) => next.add(id));
-      return { sentFileIds: next };
-    }),
+    set((s) => ({
+      sentFileIds: [...new Set([...s.sentFileIds, ...ids])],
+    })),
 
-  clearSentFileIds: () => set({ sentFileIds: new Set<string>() }),
+  clearSentFileIds: () => set({ sentFileIds: [] }),
 }));
