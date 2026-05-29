@@ -141,9 +141,17 @@ export default function InputForm({
     }
   }, [initialImageMode, onImageModeConsumed]);
 
-  // Clear sent tracking when switching conversations
+  // Clear sent tracking only when switching between different conversations
+  // NOT on initial mount or when conversationId goes null→value (new conv created)
+  const prevConvIdRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    clearSentFileIds();
+    const prev = prevConvIdRef.current;
+    prevConvIdRef.current = conversationId ?? null;
+
+    // Only clear when navigating FROM an existing conversation TO a different one
+    if (prev !== undefined && prev !== null && prev !== (conversationId ?? null)) {
+      clearSentFileIds();
+    }
   }, [conversationId, clearSentFileIds]);
 
   // Auto resize textarea
