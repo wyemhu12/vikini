@@ -145,8 +145,12 @@ export function ImageGenStudio() {
     try {
       const res = await fetch("/api/batch-gen-quota");
       if (res.ok) {
-        const data = await res.json();
-        setBatchQuota(data);
+        const json = await res.json();
+        // API uses success() wrapper: { success: true, data: { rank, maxBatchSize, quotas } }
+        const payload = json.data ?? json;
+        if (payload.maxBatchSize) {
+          setBatchQuota(payload);
+        }
       }
     } catch (e) {
       logger.warn("Failed to fetch batch quota:", e);
