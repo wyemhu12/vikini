@@ -47,7 +47,7 @@ function MessageActions({
 
   return (
     <div
-      className={`flex items-center gap-3 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${
+      className={`flex items-center gap-3 px-2 py-1 opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 ${
         isBot ? "" : "flex-row-reverse"
       }`}
     >
