@@ -309,15 +309,15 @@ export default function ChatApp() {
     const distanceFromBottom = maxScrollTop - currentScrollTop;
 
     // User scrolled UP (away from bottom) - use larger threshold for touch
-    const scrollUpThreshold = isTouchingRef.current ? 100 : 50;
+    const scrollUpThreshold = isTouchingRef.current ? 150 : 80;
     if (currentScrollTop < lastScrollTopRef.current && distanceFromBottom > scrollUpThreshold) {
       shouldAutoScrollRef.current = false;
       userScrollTimestampRef.current = Date.now();
     }
 
     // User scrolled back to bottom (within threshold)
-    const bottomThreshold = isTouchingRef.current ? 100 : 50;
-    if (distanceFromBottom < bottomThreshold) {
+    const bottomThreshold = isTouchingRef.current ? 80 : 30;
+    if (distanceFromBottom <= bottomThreshold) {
       shouldAutoScrollRef.current = true;
     }
 

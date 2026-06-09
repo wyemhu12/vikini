@@ -77,12 +77,13 @@ export function useChatStreamController({
   // Typewriter buffer: decouple network streaming từ visual streaming
   // Network tokens → buffer → display (smooth animation)
   const typewriterBufferRef = useRef<string>("");
-  const typewriterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const lastTickRef = useRef<number>(0);
   const isTypewriterActiveRef = useRef(false);
 
-  // Typewriter config: Fast speed (~333 chars/second)
-  const TYPEWRITER_INTERVAL_MS = 15; // tick every 15ms
-  const TYPEWRITER_CHARS_PER_TICK = 5; // 5 chars per tick
+  // Typewriter config: Throttle state updates to keep Main Thread free
+  const MIN_INTERVAL_MS = 30; // Target ~30fps for UI updates
+  const BASE_CHARS_PER_TICK = 2;
 
   const normalizeMessages = useCallback((arr: FrontendMessage[] | unknown): FrontendMessage[] => {
     const safe = safeArray<FrontendMessage>(arr);
@@ -123,27 +124,44 @@ export function useChatStreamController({
     messagesRef.current = messages;
   }, [messages]);
 
-  // Typewriter: Start the interval that drains buffer to display
+  // Typewriter: Start the RAF loop that drains buffer to display
   const startTypewriter = useCallback(() => {
     if (isTypewriterActiveRef.current) return;
     isTypewriterActiveRef.current = true;
+    lastTickRef.current = performance.now();
 
-    typewriterIntervalRef.current = setInterval(() => {
-      if (typewriterBufferRef.current.length > 0) {
-        // Take TYPEWRITER_CHARS_PER_TICK characters from buffer
-        const chunk = typewriterBufferRef.current.slice(0, TYPEWRITER_CHARS_PER_TICK);
-        typewriterBufferRef.current = typewriterBufferRef.current.slice(TYPEWRITER_CHARS_PER_TICK);
+    const tick = (now: number) => {
+      if (!isTypewriterActiveRef.current) return;
 
-        setStreamingAssistant((prev) => (prev || "") + chunk);
+      const elapsed = now - lastTickRef.current;
+
+      if (elapsed >= MIN_INTERVAL_MS) {
+        if (typewriterBufferRef.current.length > 0) {
+          const bufferLen = typewriterBufferRef.current.length;
+          // Dynamic chunking: adjust chunk size based on buffer backlog
+          let charsToTake = BASE_CHARS_PER_TICK;
+          if (bufferLen > 200) charsToTake = Math.floor(bufferLen / 3);
+          else if (bufferLen > 80) charsToTake = 12;
+          else if (bufferLen > 30) charsToTake = 6;
+
+          const chunk = typewriterBufferRef.current.slice(0, charsToTake);
+          typewriterBufferRef.current = typewriterBufferRef.current.slice(charsToTake);
+
+          setStreamingAssistant((prev) => (prev || "") + chunk);
+        }
+        lastTickRef.current = now;
       }
-    }, TYPEWRITER_INTERVAL_MS);
-  }, [TYPEWRITER_INTERVAL_MS, TYPEWRITER_CHARS_PER_TICK]);
+      rafIdRef.current = requestAnimationFrame(tick);
+    };
+
+    rafIdRef.current = requestAnimationFrame(tick);
+  }, []);
 
   // Typewriter: Stop interval and flush remaining buffer immediately
   const stopTypewriter = useCallback((flush = true) => {
-    if (typewriterIntervalRef.current) {
-      clearInterval(typewriterIntervalRef.current);
-      typewriterIntervalRef.current = null;
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
     }
     isTypewriterActiveRef.current = false;
 
@@ -163,8 +181,8 @@ export function useChatStreamController({
   // Cleanup typewriter on unmount
   useEffect(() => {
     return () => {
-      if (typewriterIntervalRef.current) {
-        clearInterval(typewriterIntervalRef.current);
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
       }
     };
   }, []);
@@ -621,7 +639,6 @@ export function useChatStreamController({
       reloadMessagesAfterStream,
       normalizeMessages,
       stopTypewriter,
-      TYPEWRITER_INTERVAL_MS,
     ]
   );
 

@@ -4,7 +4,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
-import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import React, { useMemo, useState, useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import dynamic from "next/dynamic";
 import { ChevronDown, Sparkles, Brain, ImageIcon } from "lucide-react";
@@ -88,12 +88,32 @@ const FileLightbox = dynamic(() => import("./FileLightbox"), { ssr: false });
 // ============================================
 
 const TypingDots = React.memo(function TypingDots() {
+  const dotVariants = {
+    initial: { y: 0, opacity: 0.4 },
+    animate: { y: -4, opacity: 1 },
+  };
+
   return (
-    <div className="typing-dots flex items-center gap-1 px-2 py-1">
-      <span className="w-1.5 h-1.5 bg-(--text-secondary) rounded-full animate-bounce [animation-delay:-0.3s]" />
-      <span className="w-1.5 h-1.5 bg-(--text-secondary) rounded-full animate-bounce [animation-delay:-0.15s]" />
-      <span className="w-1.5 h-1.5 bg-(--text-secondary) rounded-full animate-bounce" />
-    </div>
+    <motion.div
+      className="typing-dots flex items-center gap-1.5 px-2 py-2"
+      initial="initial"
+      animate="animate"
+      transition={{ staggerChildren: 0.15 }}
+    >
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          variants={dotVariants}
+          transition={{
+            duration: 0.5,
+            repeat: Infinity,
+            repeatType: "reverse",
+            ease: "easeInOut",
+          }}
+          className="w-1.5 h-1.5 bg-secondary rounded-full"
+        />
+      ))}
+    </motion.div>
   );
 });
 
@@ -450,6 +470,9 @@ const ChatBubble = React.memo(
       []
     );
 
+    // Sử dụng useDeferredValue để ưu tiên mượt mà của scroll/UI hơn là render Markdown liên tục
+    const deferredDisplayContent = useDeferredValue(displayContent);
+
     // Loading states
     const hasContent = Boolean(displayContent?.trim()) || Boolean(thought?.trim());
     const isLoading = isBot && isLastAssistant && (regenerating || !hasContent);
@@ -458,9 +481,9 @@ const ChatBubble = React.memo(
 
     return (
       <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, ease: "easeOut" }}
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 400, damping: 30 }}
         className={`group flex w-full flex-col gap-3 py-6 ${isBot ? "" : "items-end"}`}
       >
         <div
@@ -472,22 +495,40 @@ const ChatBubble = React.memo(
             ${
               isBot
                 ? isLoading
-                  ? "border-blue-500/50 bg-blue-500/10 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+                  ? "border-blue-500/20 bg-blue-500/5 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
                   : "border-token bg-surface-elevated text-primary"
                 : "border-(--primary)/20 bg-(--primary) text-(--surface)"
             }`}
           >
             {isBot ? (
               isLoading ? (
-                <Sparkles className="w-4 h-4 text-blue-400 animate-pulse" />
+                <motion.div
+                  className="relative flex items-center justify-center w-full h-full"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <motion.div
+                    className="absolute inset-0 bg-blue-500/10"
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      opacity: [0.5, 0.8, 0.5],
+                    }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                  <Sparkles className="w-4 h-4 text-blue-400 z-10" />
+                  <motion.div
+                    className="absolute inset-0"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                  >
+                    <div className="w-full h-full rounded-lg border-2 border-transparent border-t-blue-400/30 border-r-blue-400/30" />
+                  </motion.div>
+                </motion.div>
               ) : (
                 <span className="scale-100 transition-transform group-hover:scale-110">AI</span>
               )
             ) : (
               "ME"
-            )}
-            {isBot && isLoading && (
-              <div className="absolute inset-0 border border-blue-400/30 rounded-lg animate-ping opacity-20" />
             )}
           </div>
 
@@ -547,7 +588,7 @@ const ChatBubble = React.memo(
                         rehypePlugins={[rehypeHighlight]}
                         components={mdComponents}
                       >
-                        {displayContent}
+                        {deferredDisplayContent}
                       </ReactMarkdown>
                       {/* Typing cursor when streaming */}
                       {isStreaming && isLastAssistant && displayContent.trim() && <TypingCursor />}
@@ -565,7 +606,9 @@ const ChatBubble = React.memo(
                             onClick={setLightboxFile}
                           />
                         )}
-                      <span className="whitespace-pre-wrap wrap-break-word">{displayContent}</span>
+                      <span className="whitespace-pre-wrap wrap-break-word">
+                        {deferredDisplayContent}
+                      </span>
                     </>
                   )}
                 </div>
