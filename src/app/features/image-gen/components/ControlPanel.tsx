@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import StyleSelector from "./StyleSelector";
 import { Sparkles, Wand2, Settings, Upload, X, Image as ImageIcon, Info } from "lucide-react";
-import React, { useState, useRef, useCallback, useMemo } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import SettingsModal from "./SettingsModal";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "../../chat/hooks/useLanguage";
@@ -74,9 +74,16 @@ export default function ControlPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
 
-  const referencePreview = useMemo(() => {
-    if (!referenceImage) return null;
-    return URL.createObjectURL(referenceImage);
+  const [referencePreview, setReferencePreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!referenceImage) {
+      setReferencePreview(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setReferencePreview(reader.result as string);
+    reader.readAsDataURL(referenceImage);
   }, [referenceImage]);
 
   const handleRefUpload = useCallback(
