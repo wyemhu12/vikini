@@ -195,9 +195,8 @@ export default function ControlPanel({
               <SelectValue placeholder={t("studioSelectModel")} />
             </SelectTrigger>
             <SelectContent className="bg-(--surface-elevated) border border-(--border) shadow-xl z-100">
-              <SelectItem value="imagen-4.0-generate-001">Imagen 4.0 (Gemini)</SelectItem>
-              <SelectItem value="gemini-3.1-flash-image-preview">Nano Banana 2 (Gemini)</SelectItem>
-              <SelectItem value="gemini-3-pro-image-preview">Nano Banana Pro (Gemini)</SelectItem>
+              <SelectItem value="gemini-3.1-flash-image-preview">Gemini Image Flash</SelectItem>
+              <SelectItem value="gemini-3-pro-image-preview">Gemini Image Pro</SelectItem>
               <SelectItem value="black-forest-labs/flux-schnell">
                 Flux Schnell (Replicate)
               </SelectItem>

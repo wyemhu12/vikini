@@ -69,7 +69,7 @@ export function ImageGenStudio() {
 
   // UI States
   const [prompt, setPrompt] = useState("");
-  const [model, setModel] = useState("imagen-4.0-generate-001");
+  const [model, setModel] = useState("gemini-3.1-flash-image-preview");
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [style, setStyle] = useState("none");
   const [isEnhancerOn, setIsEnhancerOn] = useState(false);

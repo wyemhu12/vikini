@@ -56,7 +56,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       vi: "Biến ảnh thành hình nặn đất sét",
     },
     previewUrl:
-      "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&h=400&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1581783898377-1c85bf937427?w=400&h=400&fit=crop&q=80",
     requiresPhoto: true,
     style: "3d-render",
   },
@@ -70,7 +70,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       vi: "Cảnh cyberpunk ánh đèn neon",
     },
     previewUrl:
-      "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400&h=400&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1514905552197-0610a4d8fd73?w=400&h=400&fit=crop&q=80",
     requiresPhoto: false,
     style: "digital-art",
   },
@@ -156,7 +156,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       vi: "Nghệ thuật gấp giấy origami",
     },
     previewUrl:
-      "https://images.unsplash.com/photo-1614036634955-ae5e90f9b9eb?w=400&h=400&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1589632862779-fe7ac6e41860?w=400&h=400&fit=crop&q=80",
     requiresPhoto: false,
     style: "3d-render",
   },
@@ -170,7 +170,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       vi: "Hóa thân thành tượng đồng bất tử",
     },
     previewUrl:
-      "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&h=400&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1525909002-1b05e0c869d8?w=400&h=400&fit=crop&q=80",
     requiresPhoto: true,
     style: "photorealistic",
   },

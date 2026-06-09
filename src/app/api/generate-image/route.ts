@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
 
     // 3. Generate Image
     // Determine provider based on model override or default
-    let providerName = "gemini"; // Default (Imagen 4)
+    let providerName = "gemini-native"; // Default (Gemini Image Flash)
     const modelName = options?.model?.toLowerCase();
 
     // Auto-route to gemini-native when referenceImage is provided
@@ -157,7 +157,8 @@ export async function POST(req: NextRequest) {
       providerName = "gemini-native";
     } else if (
       modelName?.includes("gemini-3.1-flash-image") ||
-      modelName?.includes("gemini-3-pro-image")
+      modelName?.includes("gemini-3-pro-image") ||
+      modelName?.includes("imagen")
     ) {
       providerName = "gemini-native";
     } else if (
