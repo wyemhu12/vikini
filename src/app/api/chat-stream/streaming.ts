@@ -1226,6 +1226,8 @@ async function processPostStream(
     sources?: Array<{ uri: string; title: string }>;
     /** URL context metadata */
     urlContext?: Array<{ retrievedUrl: string; status: string }>;
+    /** Model used for the generation */
+    model?: string;
   }
 ): Promise<void> {
   const {
@@ -1245,6 +1247,7 @@ async function processPostStream(
     usageMetadata,
     sources,
     urlContext,
+    model,
   } = params;
 
   const trimmed = full.trim();
@@ -1288,6 +1291,7 @@ async function processPostStream(
           // Persist web search sources and URL context so they survive page reload
           ...(sources && sources.length > 0 ? { sources } : {}),
           ...(urlContext && urlContext.length > 0 ? { urlContext } : {}),
+          ...(model ? { model } : {}),
         },
       }),
     ]);
@@ -1414,6 +1418,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           usageMetadata: streamResult.usageMetadata,
           sources,
           urlContext,
+          model,
         });
 
         // Send usage metadata SSE event (for client display)
@@ -1672,6 +1677,7 @@ export function createOpenAICompatibleStream(params: {
         saveMessage,
         setConversationAutoTitle,
         generateFinalTitle,
+        model,
       });
 
       sendEvent(controller, "done", { ok: true });
@@ -1972,6 +1978,7 @@ export function createDeepSeekStream(params: {
         saveMessage,
         setConversationAutoTitle,
         generateFinalTitle,
+        model,
       });
 
       sendEvent(controller, "done", { ok: true });
@@ -2459,6 +2466,7 @@ export function createAnthropicStream({
         setConversationAutoTitle,
         generateFinalTitle,
         sources: uniqueSources.length > 0 ? uniqueSources : undefined,
+        model,
       });
 
       sendEvent(controller, "done", { ok: true });

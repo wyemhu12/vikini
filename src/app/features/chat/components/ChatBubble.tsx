@@ -20,6 +20,7 @@ import SourceLinks from "./SourceLinks";
 import ImageGenPreview from "./ImageGenPreview";
 import TokenBadge from "./TokenBadge";
 import { FileInMessage } from "./FileInMessage";
+import { ModelAvatar } from "./ModelAvatar";
 
 // ============================================
 // Type Definitions
@@ -525,7 +526,12 @@ const ChatBubble = React.memo(
                   </motion.div>
                 </motion.div>
               ) : (
-                <span className="scale-100 transition-transform group-hover:scale-110">AI</span>
+                <div
+                  className="scale-100 transition-transform group-hover:scale-110 flex items-center justify-center w-full h-full"
+                  title={(safeMessage.meta?.model as string) || "AI"}
+                >
+                  <ModelAvatar modelName={safeMessage.meta?.model as string} />
+                </div>
               )
             ) : (
               "ME"
