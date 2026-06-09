@@ -586,21 +586,9 @@ export function useChatStreamController({
 
         await processStreamResponse(reader, localSources, localUrlContext);
 
-        // Wait for typewriter buffer to drain naturally (smooth finish)
-        // Only force-flush if buffer is too large (>2k chars) to avoid long waits
-        const maxWaitMs = 3000; // Max 3 seconds wait
-        const startWait = Date.now();
-        while (typewriterBufferRef.current.length > 0 && Date.now() - startWait < maxWaitMs) {
-          // If buffer is very large, flush immediately to avoid long wait
-          if (typewriterBufferRef.current.length > 2000) {
-            stopTypewriter(true);
-            break;
-          }
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-
-        // Stop typewriter (don't flush - buffer should be empty or we already flushed)
-        stopTypewriter(false);
+        // Ngay khi network stream kết thúc, lập tức flush toàn bộ buffer còn lại ra màn hình
+        // Không bắt người dùng phải chờ hiệu ứng gõ chữ "diễn" nốt nữa.
+        stopTypewriter(true);
 
         // Small delay to ensure final state update
         await new Promise((resolve) => setTimeout(resolve, 30));
@@ -660,9 +648,30 @@ export function useChatStreamController({
         let targetIndex = -1;
 
         if (specificMessage) {
-          targetIndex = currentMsgs.findIndex(
-            (m) => m === specificMessage || (m.id && m.id === specificMessage.id)
-          );
+          targetIndex = currentMsgs.findIndex((m) => {
+            if (m === specificMessage) return true;
+            if (m.id && specificMessage.id && m.id === specificMessage.id) return true;
+            if (
+              !m.id &&
+              !specificMessage.id &&
+              m.role === specificMessage.role &&
+              m.content === specificMessage.content
+            )
+              return true;
+            return false;
+          });
+
+          if (targetIndex === -1 && !specificMessage.id) {
+            for (let i = currentMsgs.length - 1; i >= 0; i--) {
+              if (
+                currentMsgs[i].role === specificMessage.role &&
+                currentMsgs[i].content === specificMessage.content
+              ) {
+                targetIndex = i;
+                break;
+              }
+            }
+          }
         } else {
           for (let i = currentMsgs.length - 1; i >= 0; i--) {
             if (currentMsgs[i].role === "assistant") {
@@ -683,11 +692,15 @@ export function useChatStreamController({
           return newMsgs.slice(0, targetIndex);
         });
 
+        const meta = prevUserMsg.meta as Record<string, unknown> | undefined;
+        const fileIds = Array.isArray(meta?.fileIds) ? (meta.fileIds as string[]) : undefined;
+
         await coreSend(prevUserMsg.content, {
           regenerate: true,
           skipUserAppend: true,
           truncateMessageId: assistantMsg.id,
           skipSaveUserMessage: true,
+          fileIds,
         });
       } finally {
         setRegenerating(false);
@@ -704,17 +717,42 @@ export function useChatStreamController({
       // This fixes the bug where 2nd edit finds index === -1 because
       // messages in the closure was stale after the 1st edit's stream cycle.
       const currentMsgs = normalizeMessages(messagesRef.current);
-      const index = currentMsgs.findIndex(
-        (m) => m === originalMessage || (m.id && m.id === originalMessage.id)
-      );
+      let index = currentMsgs.findIndex((m) => {
+        if (m === originalMessage) return true;
+        if (m.id && originalMessage.id && m.id === originalMessage.id) return true;
+        if (
+          !m.id &&
+          !originalMessage.id &&
+          m.role === originalMessage.role &&
+          m.content === originalMessage.content
+        )
+          return true;
+        return false;
+      });
+
+      if (index === -1 && !originalMessage.id) {
+        for (let i = currentMsgs.length - 1; i >= 0; i--) {
+          if (
+            currentMsgs[i].role === originalMessage.role &&
+            currentMsgs[i].content === originalMessage.content
+          ) {
+            index = i;
+            break;
+          }
+        }
+      }
 
       if (index === -1) return;
+
+      const meta = originalMessage.meta as Record<string, unknown> | undefined;
+      const fileIds = Array.isArray(meta?.fileIds) ? (meta.fileIds as string[]) : undefined;
 
       await coreSend(newContent, {
         truncateFromIndex: index,
         regenerate: true,
         truncateMessageId: originalMessage.id,
         skipSaveUserMessage: false,
+        fileIds,
       });
     },
     [coreSend, isStreaming, normalizeMessages]

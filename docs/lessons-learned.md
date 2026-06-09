@@ -57,7 +57,12 @@
 
 ## API and Streaming
 
-### 2026-03: Auth proxy documentation mismatch
+### 2026-06-09: Array mapping breaks object reference equality checks
+
+- **Symptom**: "Regenerate" and "Edit" buttons silently failed for newly generated messages that didn't have an ID yet.
+- **Root Cause**: The UI matched the clicked message against the messages array using object reference equality (`m === specificMessage`). However, the messages array was passed through a `normalizeMessages` function that returned _new_ object references on every render. Thus, the reference equality check always failed. Since the message didn't have an ID yet (was just streamed), the ID fallback also failed.
+- **Fix**: Added a fallback check that compares `role` and `content` when both IDs are missing, and ensured that `fileIds` are preserved when extracting the previous user message for regeneration.
+- **Prevention Rule**: **Do NOT rely purely on object reference equality (`===`) for array items if the array is mapped/normalized.** If a component maps over an array and creates new objects, any event handler that tries to find the item in the original array by reference will fail. Always use a robust unique identifier (like an ID) or a deep structural comparison fallback.
 
 - **Symptom**: Agent skipped `await auth()` in API routes believing proxy handled it
 - **Root Cause**: `docs/security.md` documented a non-existent `proxy.ts` mechanism

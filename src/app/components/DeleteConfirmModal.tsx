@@ -1,11 +1,12 @@
 "use client";
 
-import { Trash2, X, AlertTriangle } from "lucide-react";
+import { useState } from "react";
+import { Trash2, X, AlertTriangle, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogClose } from "@/components/ui/dialog";
 
 interface DeleteConfirmModalProps {
   isOpen: boolean;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void> | void;
   onCancel: () => void;
   title?: string;
   message?: string;
@@ -20,9 +21,20 @@ export default function DeleteConfirmModal({
   message,
   t,
 }: DeleteConfirmModalProps) {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConfirm = async () => {
+    setIsDeleting(true);
+    try {
+      await onConfirm();
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="max-w-md border-0 bg-transparent shadow-none p-0 overflow-visible sm:max-w-md">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isDeleting && onCancel()}>
+      <DialogContent className="max-w-md border-0 bg-transparent shadow-none p-0 overflow-visible sm:max-w-md [&>button]:hidden">
         <DialogTitle className="sr-only">{title || t.modalDeleteTitle}</DialogTitle>
 
         {/* Glow effect */}
@@ -31,7 +43,10 @@ export default function DeleteConfirmModal({
         {/* Card */}
         <div className="relative bg-linear-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
           {/* Close button */}
-          <DialogClose className="absolute top-4 right-4 p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500">
+          <DialogClose
+            className="absolute top-4 right-4 p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isDeleting}
+          >
             <X className="w-4 h-4 text-gray-400" />
             <span className="sr-only">Close</span>
           </DialogClose>
@@ -80,15 +95,24 @@ export default function DeleteConfirmModal({
             <div className="flex gap-3">
               <button
                 onClick={onCancel}
-                className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white font-medium transition-all"
+                disabled={isDeleting}
+                className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {t.cancel}
               </button>
               <button
-                onClick={onConfirm}
-                className="flex-1 py-3 px-4 bg-linear-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-lg text-white font-medium transition-all shadow-lg shadow-red-500/20"
+                onClick={handleConfirm}
+                disabled={isDeleting}
+                className="flex-1 py-3 px-4 flex justify-center items-center gap-2 bg-linear-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-lg text-white font-medium transition-all shadow-lg shadow-red-500/20 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {t.modalDeleteButton}
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>{t.deleting || "Deleting..."}</span>
+                  </>
+                ) : (
+                  t.modalDeleteButton
+                )}
               </button>
             </div>
           </div>

@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-06-09: Fix Regenerate and Edit Buttons Failing Silently & Delete Modal Improvements
+
+- **Symptom**:
+  - The "Regenerate" and "Edit" buttons in the chat interface sometimes failed silently for newly generated messages.
+  - The Delete Conversation modal had two overlapping "X" close buttons and lacked visual feedback when clicking "Delete".
+- **Root causes**:
+  1. `handleRegenerate` and `handleEdit` attempted to find the message index using object reference equality (`m === specificMessage`) on an array returned by `normalizeMessages`, which created new object references.
+  2. Fallback matching logic relied on `specificMessage.id`, which could be missing if the background reload from the server hadn't finished.
+  3. Original user message attachments (`fileIds`) were lost on regenerate/edit because they weren't passed down to `coreSend`.
+  4. The custom `DeleteConfirmModal` card wrapper was inside `DialogContent` which rendered its own default close button underneath the custom one.
+  5. The `onConfirm` action in `DeleteConfirmModal` lacked a loading state to show processing status.
+- **Fixes**:
+  1. Added fallback matching logic to compare `role` and `content` when the ID is missing for regenerate/edit.
+  2. Extracted `fileIds` from the `meta` of the user message and passed them to `coreSend` to preserve attachments.
+  3. Added `[&>button]:hidden` to `DialogContent` to hide the default unstyled close button.
+  4. Added `isDeleting` state in `DeleteConfirmModal` with a `Loader2` spinner and disabled buttons during deletion.
+- **Files changed**: `useChatStreamController.ts`, `DeleteConfirmModal.tsx`
+
+---
+
 ## 2026-05-29: Fix — Sidebar Chat List Flicker on Every Interaction
 
 - **Symptom**: Chat list flickered (flash/remount) on every click, button press, or window minimize/restore.
