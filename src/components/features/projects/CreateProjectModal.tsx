@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useProjectStore } from "@/lib/store/projectStore";
+import { toast } from "@/lib/store/toastStore";
 import type { EmbeddingModel } from "@/types/projects";
 
 interface CreateProjectModalProps {
@@ -126,8 +127,10 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
       // Reset form
       setName("");
       setDescription("");
-      setIcon("📁");
+      setIcon("folder");
       setColor("#6366f1");
+
+      toast.success(`Đã tạo dự án "${name.trim()}" thành công`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create project");
     } finally {

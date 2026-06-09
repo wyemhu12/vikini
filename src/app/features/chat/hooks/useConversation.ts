@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Conversation } from "@/lib/features/chat/conversations";
 import { logger } from "@/lib/utils/logger";
 import { useProjectStore } from "@/lib/store/projectStore";
+import { toast } from "@/lib/store/toastStore";
 
 interface ConversationResponse {
   conversations?: Conversation[];
@@ -361,6 +362,7 @@ export function useConversation(): UseConversationReturn {
         return conv;
       } catch (err) {
         logger.error("createConversation error:", err);
+        toast.error("Không thể tạo cuộc hội thoại mới. Vui lòng thử lại!");
         return null;
       } finally {
         setCreatingConversation(false);
@@ -386,8 +388,11 @@ export function useConversation(): UseConversationReturn {
 
         patchConversationTitle(id, updated.title || title);
         await mutate();
+        toast.success("Đã đổi tên đoạn chat thành công!");
       } catch (err) {
         logger.error("renameConversation error:", err);
+        toast.error("Không thể đổi tên đoạn chat");
+        await mutate();
       }
     },
     [mutate, patchConversationTitle]
@@ -439,9 +444,11 @@ export function useConversation(): UseConversationReturn {
           setMessages([]);
         }
 
+        toast.success("Đã xóa đoạn chat thành công!");
         await mutate();
       } catch (err) {
         logger.error("deleteConversation error:", err);
+        toast.error("Không thể xóa đoạn chat");
       }
     },
     [activeId, mutate]

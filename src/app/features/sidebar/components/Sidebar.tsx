@@ -22,6 +22,7 @@ import {
   Image as ImageIcon,
   LayoutGrid,
   MessageSquare,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { toast } from "@/lib/store/toastStore";
@@ -84,6 +85,8 @@ interface SidebarProps {
   onRenameProjectConversation?: (id: string) => void;
   /** Callback to delete a project conversation */
   onDeleteProjectConversation?: (id: string) => void;
+  /** Indicates if a new chat is currently being created */
+  isCreatingChat?: boolean;
 }
 
 function Sidebar({
@@ -113,6 +116,7 @@ function Sidebar({
   onSelectProject,
   onRenameProjectConversation,
   onDeleteProjectConversation,
+  isCreatingChat = false,
 }: SidebarProps) {
   const { openGemModal } = useGemStore();
   const router = useRouter();
@@ -140,6 +144,7 @@ function Sidebar({
   };
 
   const handleNew = () => {
+    if (isCreatingChat) return;
     onNewChat?.();
     onCloseMobile?.();
   };
@@ -188,6 +193,7 @@ function Sidebar({
     variant = "default",
     className,
     isCollapsed = false,
+    isLoading = false,
   }: {
     onClick?: () => void;
     icon: LucideIcon;
@@ -195,10 +201,12 @@ function Sidebar({
     variant?: "default" | "primary" | "destructive";
     className?: string;
     isCollapsed?: boolean;
+    isLoading?: boolean;
   }) => {
     const button = (
       <button
-        onClick={onClick}
+        onClick={isLoading ? undefined : onClick}
+        disabled={isLoading}
         className={cn(
           "flex items-center gap-3 rounded-lg py-2.5 transition-all duration-200 group",
           isCollapsed ? "justify-center px-0 w-full" : "justify-start px-3 w-full",
@@ -208,6 +216,7 @@ function Sidebar({
             "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)",
           variant === "destructive" &&
             "text-(--text-secondary) hover:bg-red-500/10 hover:text-red-500",
+          isLoading && "opacity-70 cursor-not-allowed",
           className
         )}
         type="button"
@@ -215,10 +224,10 @@ function Sidebar({
         <span
           className={cn(
             "shrink-0 transition-transform duration-300",
-            variant === "primary" && "group-hover:rotate-90"
+            variant === "primary" && !isLoading && "group-hover:rotate-90"
           )}
         >
-          <Icon className="w-5 h-5" />
+          {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Icon className="w-5 h-5" />}
         </span>
         {!isCollapsed && <span className="text-sm font-medium truncate">{label}</span>}
       </button>
@@ -256,6 +265,7 @@ function Sidebar({
             label={newChatLabel || t?.newChat || "New Chat"}
             variant="primary"
             isCollapsed={isCollapsed}
+            isLoading={isCreatingChat}
           />
           <SidebarButton
             onClick={() => handleNavigation("/")}

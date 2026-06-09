@@ -141,6 +141,7 @@ export default function ChatApp() {
     setConversationModel,
     patchConversationModel,
     patchConversationGem,
+    creatingConversation: isCreatingChatMode,
   } = useConversation();
 
   // URL Sync Hook
@@ -535,6 +536,7 @@ export default function ChatApp() {
         onSelectProject={memoizedOnSelectProject}
         onRenameProjectConversation={memoizedOnRenameProjectConversation}
         onDeleteProjectConversation={memoizedOnDeleteProjectConversation}
+        isCreatingChat={isCreatingChatMode}
       />
 
       <FloatingMenuTrigger onClick={() => setMobileOpen((prev) => !prev)} />
