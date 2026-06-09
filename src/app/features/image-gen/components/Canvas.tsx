@@ -7,13 +7,14 @@ import {
   Sparkles,
   RefreshCcw,
   Trash2,
-  Lightbulb,
-  Clock,
   Pencil,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { motion, AnimatePresence } from "framer-motion";
-import { useMemo } from "react";
+import { IMAGE_TEMPLATES, type ImageTemplate } from "@/lib/features/image-gen/templates";
+import { useState } from "react";
 
 export interface GeneratedImage {
   id?: string;
@@ -25,28 +26,6 @@ export interface GeneratedImage {
   enhancer?: boolean;
 }
 
-// Curated prompt suggestions by category - rotates based on time
-const PROMPT_SUGGESTIONS = [
-  {
-    prompt: "A serene Japanese garden at golden hour with koi fish swimming in a crystal pond",
-    icon: "🏯",
-  },
-  { prompt: "Cyberpunk cityscape with neon signs reflected in rain puddles at night", icon: "🌃" },
-  { prompt: "A fluffy cat wearing a tiny astronaut helmet floating in space", icon: "🐱" },
-  { prompt: "Ethereal watercolor painting of northern lights over snow mountains", icon: "🎨" },
-  { prompt: "Macro photography of a dewdrop on a rose petal with bokeh background", icon: "📸" },
-  {
-    prompt: "Steampunk mechanical owl perched on ancient books in a candlelit library",
-    icon: "🦉",
-  },
-  { prompt: "Minimalist flat design of a futuristic smart home interior", icon: "🏠" },
-  { prompt: "Underwater scene with bioluminescent jellyfish in deep ocean", icon: "🪼" },
-  { prompt: "A cozy cabin in the woods during autumn with warm light from windows", icon: "🍂" },
-  { prompt: "Fantasy dragon made of clouds soaring through a sunset sky", icon: "🐉" },
-  { prompt: "Vintage film photography style portrait of a woman in 1960s Paris", icon: "🎞️" },
-  { prompt: "Isometric 3D render of a tiny floating island with a treehouse", icon: "🏝️" },
-];
-
 interface CanvasProps {
   images: GeneratedImage[];
   generating: boolean;
@@ -54,7 +33,7 @@ interface CanvasProps {
   onDelete: (id: string) => void;
   onEdit?: (image: GeneratedImage) => void;
   onImageClick?: (image: GeneratedImage, index: number) => void;
-  onSuggestPrompt?: (prompt: string) => void;
+  onSelectTemplate?: (template: ImageTemplate) => void;
   className?: string;
 }
 
@@ -65,34 +44,11 @@ export default function Canvas({
   onDelete,
   onEdit,
   onImageClick,
-  onSuggestPrompt,
+  onSelectTemplate,
   className,
 }: CanvasProps) {
-  const { t } = useLanguage();
-
-  // Dynamic suggestions: pick 4 based on current hour (rotates every 6 hours)
-  const suggestions = useMemo(() => {
-    const hourBlock = Math.floor(new Date().getHours() / 6);
-    const startIdx = (hourBlock * 4) % PROMPT_SUGGESTIONS.length;
-    const result = [];
-    for (let i = 0; i < 4; i++) {
-      result.push(PROMPT_SUGGESTIONS[(startIdx + i) % PROMPT_SUGGESTIONS.length]);
-    }
-    return result;
-  }, []);
-
-  // Get recent unique prompts from generated images (up to 3)
-  const recentPrompts = useMemo(() => {
-    const seen = new Set<string>();
-    return images
-      .filter((img) => {
-        if (seen.has(img.prompt)) return false;
-        seen.add(img.prompt);
-        return true;
-      })
-      .slice(0, 3)
-      .map((img) => img.prompt);
-  }, [images]);
+  const { t, language } = useLanguage();
+  const [templatesExpanded, setTemplatesExpanded] = useState(false);
 
   return (
     <div
@@ -246,90 +202,95 @@ export default function Canvas({
         </div>
       )}
 
-      {/* Empty state - outside columns layout so it doesn't get split */}
+      {/* Empty state — Template Gallery */}
       {!generating && images.length === 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="flex-1 flex flex-col items-center justify-center py-8 md:py-16"
+          className="flex-1 flex flex-col py-4"
         >
-          {/* Glassmorphism card */}
-          <div className="relative w-full max-w-sm mx-auto">
-            {/* Gradient glow behind card */}
-            <div className="absolute -inset-4 bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-pink-500/20 rounded-3xl blur-2xl opacity-60" />
-
-            <div className="relative bg-(--surface-elevated)/80 backdrop-blur-xl border border-(--border) rounded-2xl p-6 md:p-8 text-center shadow-2xl">
-              {/* Animated icon */}
-              <motion.div
-                animate={{ y: [0, -8, 0] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                className="mx-auto mb-5 w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/20 flex items-center justify-center"
-              >
-                <ImageIcon className="w-8 h-8 text-purple-400" />
-              </motion.div>
-
-              <h3 className="text-lg font-bold text-(--text-primary) mb-2">
-                {t("studioEmptyTitle")}
-              </h3>
-              <p className="text-sm text-(--text-secondary) mb-6 leading-relaxed">
-                {t("studioEmptyDesc")}
-              </p>
-
-              {/* Recent prompts section */}
-              {recentPrompts.length > 0 && (
-                <div className="mb-5">
-                  <div className="flex items-center gap-2 mb-2.5 justify-center">
-                    <Clock className="w-3.5 h-3.5 text-(--text-secondary)" />
-                    <span className="text-xs font-semibold uppercase tracking-wider text-(--text-secondary)">
-                      {t("studioRecentPrompts")}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {recentPrompts.map((prompt, i) => (
-                      <motion.button
-                        key={`recent-${i}`}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 + i * 0.1 }}
-                        onClick={() => onSuggestPrompt?.(prompt)}
-                        className="group/chip text-left w-full px-3 py-2 rounded-xl bg-(--surface-muted)/60 hover:bg-purple-500/10 border border-(--border) hover:border-purple-500/30 transition-all text-xs text-(--text-secondary) hover:text-(--text-primary) truncate"
-                      >
-                        <span className="truncate">&ldquo;{prompt}&rdquo;</span>
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Suggested prompts */}
-              <div>
-                <div className="flex items-center gap-2 mb-2.5 justify-center">
-                  <Lightbulb className="w-3.5 h-3.5 text-(--text-secondary)" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-(--text-secondary)">
-                    {t("studioSuggestedPrompts")}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {suggestions.map((sug, i) => (
-                    <motion.button
-                      key={`sug-${i}`}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.3 + i * 0.1 }}
-                      onClick={() => onSuggestPrompt?.(sug.prompt)}
-                      className="group/chip flex items-center gap-2.5 w-full px-3 py-2 rounded-xl bg-(--surface-muted)/60 hover:bg-purple-500/10 border border-(--border) hover:border-purple-500/30 transition-all text-left"
-                    >
-                      <span className="text-sm shrink-0">{sug.icon}</span>
-                      <span className="text-xs text-(--text-secondary) group-hover/chip:text-(--text-primary) transition-colors line-clamp-2">
-                        {sug.prompt}
-                      </span>
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
-            </div>
+          {/* Header */}
+          <div className="text-center mb-6">
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              className="mx-auto mb-3 w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/20 flex items-center justify-center"
+            >
+              <ImageIcon className="w-7 h-7 text-purple-400" />
+            </motion.div>
+            <h3 className="text-lg font-bold text-(--text-primary) mb-1">
+              {t("studioEmptyTitle")}
+            </h3>
+            <p className="text-sm text-(--text-secondary)">
+              {language === "vi"
+                ? "Chọn template hoặc mô tả ý tưởng của bạn"
+                : "Pick a template or describe your idea"}
+            </p>
           </div>
+
+          {/* Template grid */}
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+            {(templatesExpanded ? IMAGE_TEMPLATES : IMAGE_TEMPLATES.slice(0, 6)).map(
+              (tmpl, idx) => (
+                <motion.button
+                  key={tmpl.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: idx * 0.04, duration: 0.3 }}
+                  onClick={() => onSelectTemplate?.(tmpl)}
+                  className="group relative aspect-[3/4] rounded-2xl overflow-hidden border border-(--border) hover:border-purple-500/40 transition-all hover:shadow-lg hover:shadow-purple-500/10 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                >
+                  {/* Preview image */}
+                  <img
+                    src={tmpl.previewUrl}
+                    alt={tmpl.name[language]}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    loading="lazy"
+                  />
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  {/* Name label */}
+                  <div className="absolute bottom-0 inset-x-0 p-2.5">
+                    <span className="text-white text-xs font-bold drop-shadow-lg">
+                      {tmpl.name[language]}
+                    </span>
+                    {tmpl.requiresPhoto && (
+                      <div className="mt-1 flex items-center gap-1 text-white/60 text-[9px]">
+                        <ImageIcon className="w-2.5 h-2.5" />
+                        {language === "vi" ? "Cần ảnh" : "Needs photo"}
+                      </div>
+                    )}
+                  </div>
+                  {/* Hover border glow */}
+                  <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 group-hover:ring-purple-400/30 transition-all" />
+                </motion.button>
+              )
+            )}
+          </div>
+
+          {/* Expand / Collapse button */}
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            onClick={() => setTemplatesExpanded(!templatesExpanded)}
+            className="mx-auto mt-4 flex items-center gap-1.5 px-4 py-2 rounded-full bg-(--surface-elevated) border border-(--border) hover:border-purple-500/30 hover:bg-purple-500/5 transition-all text-xs font-medium text-(--text-secondary) hover:text-(--text-primary)"
+          >
+            {templatesExpanded ? (
+              <>
+                <ChevronUp className="w-3.5 h-3.5" />
+                {language === "vi" ? "Thu gọn" : "Show less"}
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-3.5 h-3.5" />
+                {language === "vi"
+                  ? `Xem thêm ${IMAGE_TEMPLATES.length - 6} template`
+                  : `Show ${IMAGE_TEMPLATES.length - 6} more templates`}
+              </>
+            )}
+          </motion.button>
         </motion.div>
       )}
     </div>

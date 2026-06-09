@@ -5,6 +5,8 @@ import ControlPanel, { type BatchQuotaInfo } from "./ControlPanel";
 import Canvas, { GeneratedImage } from "./Canvas";
 import EditImageModal from "./EditImageModal";
 import ImageLightbox from "./ImageLightbox";
+import TemplateModal from "./TemplateModal";
+import type { ImageTemplate } from "@/lib/features/image-gen/templates";
 import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
@@ -94,6 +96,9 @@ export function ImageGenStudio() {
 
   // Phase 3: Lightbox
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  // Template Gallery
+  const [templateModalTarget, setTemplateModalTarget] = useState<ImageTemplate | null>(null);
 
   // Phase 4: Batch Generation
   const [numberOfImages, setNumberOfImages] = useState(1);
@@ -311,9 +316,29 @@ export function ImageGenStudio() {
     setMobileTab("studio");
   };
 
-  const handleSuggestPrompt = (suggestedPrompt: string) => {
-    setPrompt(suggestedPrompt);
-    // Switch to studio tab so user can see the prompt filled in
+  // Template selection handler
+  const handleSelectTemplate = (template: ImageTemplate) => {
+    if (template.requiresPhoto) {
+      // Open modal to ask for photo
+      setTemplateModalTarget(template);
+    } else {
+      // Fill prompt + style directly
+      setPrompt(template.prompt);
+      if (template.style && template.style !== "none") {
+        setStyle(template.style);
+      }
+      setMobileTab("studio");
+    }
+  };
+
+  // Template photo chosen (from TemplateModal)
+  const handleTemplatePhoto = (template: ImageTemplate, file: File) => {
+    setPrompt(template.prompt);
+    if (template.style && template.style !== "none") {
+      setStyle(template.style);
+    }
+    setReferenceImage(file);
+    setTemplateModalTarget(null);
     setMobileTab("studio");
   };
 
@@ -541,7 +566,7 @@ export function ImageGenStudio() {
               onDelete={handleDeleteRequest}
               onEdit={handleEdit}
               onImageClick={handleImageClick}
-              onSuggestPrompt={handleSuggestPrompt}
+              onSelectTemplate={handleSelectTemplate}
               className={mobileTab !== "results" ? "hidden md:flex" : "flex"}
             />
           </AnimatePresence>
@@ -554,6 +579,14 @@ export function ImageGenStudio() {
           onOpenChange={(open) => !open && setEditingImage(null)}
           onEditComplete={handleEditComplete}
           conversationId={selectedConversationId}
+        />
+
+        {/* Template Modal (for transform templates) */}
+        <TemplateModal
+          template={templateModalTarget}
+          open={!!templateModalTarget}
+          onOpenChange={(open) => !open && setTemplateModalTarget(null)}
+          onChoosePhoto={handleTemplatePhoto}
         />
 
         {/* Phase 3: Image Lightbox */}
