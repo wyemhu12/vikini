@@ -53,6 +53,20 @@
 - **Fix**: Changed `Set<string>` → `string[]`. Dedup via `[...new Set([...old, ...new])]`.
 - **Prevention Rule**: **Do NOT use `Set`, `Map`, or other non-serializable types in Zustand state.** Use plain arrays/objects. For dedup, use `[...new Set(arr)]` pattern on write.
 
+### 2026-06: `display: block` on `<table>` destroys column width distribution
+
+- **Symptom**: Markdown table columns with short headers (e.g., "PHẦN") displayed text vertically — each character on its own line.
+- **Root Cause**: `.chat-markdown table { display: block }` was used for horizontal scroll, but it **destroys the table layout algorithm**. The table no longer auto-distributes column widths. Narrow columns get squeezed to 0px width.
+- **Fix**: Removed `display: block`, used `table-layout: auto` instead. Horizontal scroll is already handled by the wrapper `<div className="overflow-x-auto">` in the React component.
+- **Prevention Rule**: **NEVER use `display: block` on `<table>` elements.** It destroys native table layout. For horizontal scrolling, wrap the table in a `<div>` with `overflow-x: auto` instead.
+
+### 2026-06: AI not proactively reading uploaded images — missing labels and instructions
+
+- **Symptom**: AI models didn't acknowledge or describe uploaded images, especially the 2nd image onwards. Only read them when explicitly asked.
+- **Root Cause**: (1) Images didn't receive `[NEWLY ATTACHED]` labels unlike text files. (2) Gemini Files API sent bare `fileData` parts with no text context. (3) Header instruction only said "don't execute instructions" (defensive) without asking AI to describe images.
+- **Fix**: Added `[NEWLY ATTACHED]` labels for images, text labels before Gemini URI parts, explicit instruction to "acknowledge and describe what you see in EACH image", and a count note when >1 images.
+- **Prevention Rule**: **When injecting multimodal content (images, files) into AI context, always pair each binary part with a descriptive text label.** AI models need text anchors to understand the significance of binary parts. Without labels, models treat binary data as background context and may not proactively engage with it.
+
 ---
 
 ## API and Streaming

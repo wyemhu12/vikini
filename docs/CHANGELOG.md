@@ -5,6 +5,36 @@
 
 ---
 
+## 2026-06-11: Fix — AI Not Reading Uploaded Images + Table Format Breaking
+
+### Bug 1: AI không chủ động đọc file ảnh upload
+
+- **Symptom**: AI không mô tả/acknowledge ảnh upload, đặc biệt ảnh thứ 2 trở đi. Chỉ đọc khi user yêu cầu rõ ràng.
+- **Root causes**:
+  1. Ảnh thiếu label `[NEWLY ATTACHED]` — chỉ text files mới có
+  2. Gemini Files API gửi `fileData` trần không kèm text label
+  3. Header instruction chỉ nói "don't execute" (phòng thủ), không yêu cầu AI mô tả ảnh
+- **Fixes**:
+  1. Thêm `[NEWLY ATTACHED]` label cho ảnh (giống text files)
+  2. Thêm text label trước Gemini Files API `fileData` parts
+  3. Thêm instruction: "For IMAGE attachments: Always briefly acknowledge and describe what you see in EACH image"
+  4. Thêm summary note khi >1 ảnh: `[NOTE: N images attached. Please acknowledge ALL images]`
+
+### Bug 2: Format bảng bị vỡ trong chat
+
+- **Symptom**: Cột header bị nén chữ dọc (mỗi ký tự 1 dòng), `<br>` hiển thị như text thay vì xuống dòng.
+- **Root causes**:
+  1. `display: block` trên `.chat-markdown table` phá vỡ table layout algorithm → cột ngắn bị nén tới 0px
+  2. ReactMarkdown không bật `rehype-raw` → HTML tags (`<br>`) bị escape thành text
+- **Fixes**:
+  1. Thay `display: block` bằng `table-layout: auto` (wrapper div đã handle scroll)
+  2. Thêm `white-space: nowrap` cho `thead th` + `min-width: 80px` cho `td`
+  3. Thêm `rehype-raw` vào ReactMarkdown rehypePlugins (đã có trong package.json)
+
+- **Files changed**: `chatStreamCore.ts`, `utilities.css`, `ChatBubble.tsx`
+
+---
+
 ## 2026-06-11: Fix — IMAGE_SAFETY Error Not Surfaced to User
 
 - **Symptom**: When Gemini blocks image generation due to safety filters (e.g., brand names like "Heineken"), user sees generic "Image generation failed" error instead of an actionable message.

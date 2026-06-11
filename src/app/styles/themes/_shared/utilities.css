@@ -53,16 +53,17 @@
 
 .chat-markdown table {
   @apply my-6 w-full border-collapse text-sm overflow-hidden rounded-xl border border-white/10;
-  display: block;
-  overflow-x: auto;
+  table-layout: auto;
 }
 
 .chat-markdown thead th {
   @apply bg-white/5 text-neutral-100 font-bold px-4 py-3 border-b border-white/10;
+  white-space: nowrap;
 }
 
 .chat-markdown td {
   @apply border-b border-white/5 px-4 py-3 text-neutral-300;
+  min-width: 80px;
 }
 
 .chat-markdown blockquote {
