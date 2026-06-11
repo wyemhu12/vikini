@@ -127,6 +127,19 @@ export default function ChatApp() {
     [allowedModelIds, modelsLoading]
   );
 
+  // Landing Page Model State
+  const [landingModel, setLandingModel] = useState<string>(DEFAULT_MODEL);
+
+  // Initialize Landing Model
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedModel = localStorage.getItem("vikini-landing-model");
+      if (savedModel && SELECTABLE_MODELS.some((m) => m.id === savedModel)) {
+        setLandingModel(savedModel);
+      }
+    }
+  }, []);
+
   // Conversation Management
   const {
     conversations,
@@ -193,7 +206,10 @@ export default function ChatApp() {
     isAuthed,
     selectedConversationId,
     setSelectedConversationId: setSelectedConversationIdAndUrl,
-    createConversation,
+    createConversation: useCallback(
+      () => createConversation({ model: landingModel }),
+      [createConversation, landingModel]
+    ),
     refreshConversations,
     renameConversationOptimistic,
     onWebSearchMeta: ({ enabled, available }: { enabled?: boolean; available?: boolean }) => {
@@ -207,7 +223,7 @@ export default function ChatApp() {
     () => (conversations || []).find((c: FrontendConversation) => c?.id === selectedConversationId),
     [conversations, selectedConversationId]
   );
-  const currentModel = currentConversation?.model || DEFAULT_MODEL;
+  const currentModel = currentConversation?.model || landingModel;
 
   // File count for file manager button
   const { fileCount } = useFiles(selectedConversationId);
@@ -361,7 +377,13 @@ export default function ChatApp() {
         modals.openUpgradeModal(model?.name || newModelId);
         return;
       }
-      if (!selectedConversationId) return;
+      if (!selectedConversationId) {
+        setLandingModel(newModelId);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("vikini-landing-model", newModelId);
+        }
+        return;
+      }
       try {
         patchConversationModel?.(selectedConversationId, newModelId);
         await setConversationModel?.(selectedConversationId, newModelId);
@@ -439,7 +461,7 @@ export default function ChatApp() {
 
   const memoizedOnCreateProjectChat = useCallback(
     async (projectId: string) => {
-      const conv = await createConversation({ title: "", projectId });
+      const conv = await createConversation({ title: "", projectId, model: landingModel });
       if (conv) {
         setSelectedConversationIdAndUrl(conv.id);
         setSelectedProjectId(null);
@@ -593,7 +615,11 @@ export default function ChatApp() {
               project={selectedProject}
               conversations={projectConversations}
               onNewChat={async () => {
-                const conv = await createConversation({ title: "", projectId: selectedProjectId! });
+                const conv = await createConversation({
+                  title: "",
+                  projectId: selectedProjectId!,
+                  model: landingModel,
+                });
                 if (conv) {
                   setSelectedConversationIdAndUrl(conv.id);
                   setSelectedProjectId(null);
@@ -866,7 +892,7 @@ export default function ChatApp() {
           isOpen={showProjectSettingsModal}
           onClose={() => setShowProjectSettingsModal(false)}
           onNewChat={async (projectId) => {
-            const conv = await createConversation({ title: "", projectId });
+            const conv = await createConversation({ title: "", projectId, model: landingModel });
             if (conv) {
               setSelectedConversationIdAndUrl(conv.id);
               setSelectedProjectId(null);
