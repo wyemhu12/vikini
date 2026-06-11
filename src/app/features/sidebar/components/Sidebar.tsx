@@ -372,7 +372,7 @@ function Sidebar({
                   {t?.noConversations || "No conversations"}
                 </div>
               ) : (
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence mode="sync">
                   {list.map((c) => (
                     <SidebarItem
                       key={c.id}
