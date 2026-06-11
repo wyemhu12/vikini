@@ -34,9 +34,15 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
       const finalPrompt =
         options?.style && options.style !== "none" ? `${prompt}. Style: ${options.style}` : prompt;
 
-      // Build config with responseModalities and imageConfig
+      // Build config with responseModalities, imageConfig, and safetySettings to disable filters
       const config: Record<string, unknown> = {
         responseModalities: ["Image"],
+        safetySettings: [
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        ],
       };
 
       // Aspect ratio via imageConfig (supported by gemini-3.1-flash-image-preview and gemini-3-pro-image-preview)
@@ -82,7 +88,40 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
         throw new Error("No image generated from Gemini");
       }
 
-      const candidate = candidates[0] as { content?: { parts?: unknown[] } };
+      const candidate = candidates[0] as {
+        content?: { parts?: unknown[] };
+        finishReason?: string;
+      };
+
+      // Check finishReason for safety or other blocking reasons
+      const frValue =
+        candidate?.finishReason || (candidate as Record<string, unknown>)?.finish_reason;
+      const finishReason = frValue ? String(frValue).toUpperCase() : "";
+
+      if (
+        finishReason &&
+        finishReason !== "STOP" &&
+        finishReason !== "MAX_TOKENS" &&
+        finishReason !== "UNDEFINED"
+      ) {
+        providerLogger.warn(`Gemini blocked image generation. finishReason: ${finishReason}`);
+
+        if (finishReason.includes("SAFETY") || finishReason === "IMAGE_SAFETY") {
+          throw new Error(
+            "Image generation was blocked by safety filters. Try rephrasing your prompt — avoid brand names, celebrities, or potentially sensitive content."
+          );
+        }
+        if (finishReason === "RECITATION") {
+          throw new Error(
+            "Image generation was blocked due to content policy (recitation). Try a more original or creative prompt."
+          );
+        }
+        // Generic blocked reason
+        throw new Error(
+          `Image generation was blocked by Gemini (reason: ${finishReason}). Try modifying your prompt.`
+        );
+      }
+
       const parts = candidate?.content?.parts;
       if (!Array.isArray(parts) || parts.length === 0) {
         providerLogger.error("No parts in response:", response);

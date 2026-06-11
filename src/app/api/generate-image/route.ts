@@ -325,6 +325,17 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     routeLogger.error("Image Gen Route Error:", err);
     if (err instanceof AppError) return errorFromAppError(err);
+
+    // Surface safety/content-policy errors to user with specific message
+    const errMsg = err instanceof Error ? err.message : String(err);
+    if (
+      errMsg.includes("blocked by safety") ||
+      errMsg.includes("content policy") ||
+      errMsg.includes("blocked by Gemini")
+    ) {
+      return error(errMsg, 422);
+    }
+
     return error("Image generation failed", 500);
   }
 }

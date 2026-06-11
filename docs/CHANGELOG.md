@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-06-11: Fix — IMAGE_SAFETY Error Not Surfaced to User
+
+- **Symptom**: When Gemini blocks image generation due to safety filters (e.g., brand names like "Heineken"), user sees generic "Image generation failed" error instead of an actionable message.
+- **Root cause**: `GeminiNativeImageProvider` didn't check `finishReason` on candidates. When `finishReason` was `IMAGE_SAFETY`, `content.parts` was empty, triggering generic "No image parts in Gemini response" error. Route handler then masked it with generic 500.
+- **Fixes**:
+  1. `GeminiNativeImageProvider.ts`: Check `finishReason` before parts — detect `IMAGE_SAFETY`, `SAFETY`, `RECITATION` and throw user-friendly messages with guidance.
+  2. `route.ts`: Surface safety-related errors with 422 status instead of generic 500.
+  3. `ImageGenStudio.tsx`: Display API error message in error modal instead of generic translation.
+  4. `useImageGenController.ts`: Fix `data.error` extraction (was passing whole object → `[object Object]`).
+  5. `constants.ts`: Added `UNPROCESSABLE_ENTITY: 422` to `HTTP_STATUS`.
+- **Files changed**: `GeminiNativeImageProvider.ts`, `route.ts`, `ImageGenStudio.tsx`, `useImageGenController.ts`, `constants.ts`
+
+---
+
 ## 2026-06-09: Fix Regenerate and Edit Buttons Failing Silently & Delete Modal Improvements
 
 - **Symptom**:

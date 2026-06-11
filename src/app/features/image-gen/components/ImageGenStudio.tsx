@@ -291,10 +291,11 @@ export function ImageGenStudio() {
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Gen Error:", error);
       if (successCount === 0) {
-        setShowError(t("studioGenerateFailed"));
+        const errMsg = error instanceof Error ? error.message : "";
+        setShowError(errMsg || t("studioGenerateFailed"));
       }
     } finally {
       setGenerating(false);

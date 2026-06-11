@@ -85,7 +85,7 @@ export function useImageGenController({
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || t("studioGenerateFailed"));
+          throw new Error(data.error?.message || data.error || t("studioGenerateFailed"));
         }
 
         // API returns { success: true, data: { message, imageUrl } }
