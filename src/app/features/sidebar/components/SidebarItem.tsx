@@ -119,7 +119,6 @@ function SidebarItem({
 
   return (
     <motion.div
-      layout
       initial={hasMountedRef.current ? false : { opacity: 0, x: -10 }}
       animate={{ opacity: isDeleting ? 0.4 : 1, x: 0, scale: isDeleting ? 0.97 : 1 }}
       exit={{ opacity: 0, x: -60, scale: 0.9, transition: { duration: 0.3, ease: "easeIn" } }}
