@@ -25,6 +25,20 @@
 
 ## UI and Styling
 
+### 2026-06: Dead shadcn token layer under Tailwind v4
+
+- **Symptom**: `components/ui/` primitives (Dialog, Button, Input, Select, Dropdown…) rendered with no background / wrong colors; features compensated by hardcoding `--surface`/`white/X` glass, causing visual drift across the app.
+- **Root Cause**: Primitives used shadcn token classes (`bg-background`, `bg-destructive`, `text-muted-foreground`, `border-input`, `ring-ring`, `bg-popover`, `--radius`) whose CSS variables are **defined nowhere**. Under Tailwind v4 the project has **no `@config`**, so `tailwind.config.ts`'s color map never loads — those utilities compile to empty styles.
+- **Fix**: Rewrote primitives onto the live Vikini token vocabulary (`--surface*`, `--text-*`, `--control-*`, `--border`, `--accent`) via `bg-(--token)` arbitrary syntax; added semantic state tokens (`--danger/--success/--warning`, `--ring/--radius/--overlay`) in `base.css`.
+- **Prevention Rule**: Promoted to `rules/03-ui.md` — dead shadcn token classes are BANNED; use the token table. (Corrects the old rule that wrongly recommended `bg-primary`/`bg-destructive`.)
+
+### 2026-06: Hand-rolled modals missing focus-trap / ESC
+
+- **Symptom**: Custom `fixed inset-0` modal `div`s (ChatApp rename/delete) and native `confirm()` (projects page) — inconsistent look, no keyboard trap, no `role="dialog"`.
+- **Root Cause**: Same primitive built four different ways across the app; no canonical confirm component.
+- **Fix**: Added imperative `confirm()` (`lib/store/confirmStore.ts`) + global `ConfirmDialogHost` on Radix Dialog; migrated offenders. Focus-trap/ESC/ARIA now come for free.
+- **Prevention Rule**: `rules/03-ui.md` — hand-rolled modal `div`s banned; use `Dialog` primitive / `confirm()`.
+
 ### 2026-04: Vietnamese diacritics input bug in search
 
 - **Symptom**: Search input dropped characters during IME composition (Vietnamese with diacritics)

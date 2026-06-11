@@ -25,6 +25,8 @@ import { useConversation, FrontendConversation } from "../../chat/hooks/useConve
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import { useRouter } from "next/navigation";
 import { logger } from "@/lib/utils/logger";
+import { confirm } from "@/lib/store/confirmStore";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateShort } from "@/lib/utils/dateFormat";
 import ImageCompareModal from "./ImageCompareModal";
 
@@ -63,7 +65,6 @@ export function GalleryView() {
 
   // Delete State
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Sidebar State
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -243,14 +244,12 @@ export function GalleryView() {
   const handlePrevImage = useCallback(() => {
     if (currentImageIndex > 0) {
       setSelectedImage(filteredImages[currentImageIndex - 1]);
-      setShowDeleteConfirm(false);
     }
   }, [currentImageIndex, filteredImages]);
 
   const handleNextImage = useCallback(() => {
     if (currentImageIndex < filteredImages.length - 1) {
       setSelectedImage(filteredImages[currentImageIndex + 1]);
-      setShowDeleteConfirm(false);
     }
   }, [currentImageIndex, filteredImages]);
 
@@ -285,6 +284,14 @@ export function GalleryView() {
 
   // Delete Handler
   const handleDelete = async (imageId: string) => {
+    const ok = await confirm({
+      title: t("galleryDeleteImage"),
+      variant: "danger",
+      confirmLabel: t("galleryConfirmDelete"),
+      cancelLabel: t("cancel"),
+    });
+    if (!ok) return;
+
     setDeleting(imageId);
     try {
       const res = await fetch(`/api/gallery/${imageId}`, {
@@ -294,7 +301,6 @@ export function GalleryView() {
         // Remove from local state
         setImages((prev) => prev.filter((img) => img.id !== imageId));
         setSelectedImage(null);
-        setShowDeleteConfirm(false);
       } else {
         const json = await res.json();
         logger.error("Delete failed:", json.error?.message || json.error);
@@ -450,8 +456,10 @@ export function GalleryView() {
 
             {/* Grid */}
             {loading ? (
-              <div className="flex justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-(--accent)" />
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <Skeleton key={i} className="aspect-square w-full rounded-xl" />
+                ))}
               </div>
             ) : filteredImages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 text-(--text-secondary)">
@@ -655,34 +663,19 @@ export function GalleryView() {
                   </div>
 
                   {/* Delete Button */}
-                  {!showDeleteConfirm ? (
-                    <button
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-red-500 hover:bg-red-500/10 border border-red-500/30 font-medium transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" /> {t("galleryDeleteImage")}
-                    </button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setShowDeleteConfirm(false)}
-                        className="flex-1 py-2.5 px-4 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) font-medium transition-colors"
-                      >
-                        {t("cancel")}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(selectedImage.id)}
-                        disabled={deleting === selectedImage.id}
-                        className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-red-500 text-white hover:bg-red-600 font-bold transition-colors disabled:opacity-50"
-                      >
-                        {deleting === selectedImage.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <>{t("galleryConfirmDelete")}</>
-                        )}
-                      </button>
-                    </div>
-                  )}
+                  <button
+                    onClick={() => handleDelete(selectedImage.id)}
+                    disabled={deleting === selectedImage.id}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-(--danger) hover:bg-(--danger)/10 border border-(--danger)/30 font-medium transition-colors disabled:opacity-50"
+                  >
+                    {deleting === selectedImage.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" /> {t("galleryDeleteImage")}
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>

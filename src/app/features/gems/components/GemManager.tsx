@@ -9,6 +9,7 @@ import { useGemStore } from "../stores/useGemStore";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
 import { toast } from "@/lib/store/toastStore";
+import { confirm } from "@/lib/store/confirmStore";
 
 interface GemManagerProps {
   inModal?: boolean;
@@ -109,34 +110,35 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
 
   const onEdit = (gem: Gem) => setEditingGem(gem);
 
-  const [pendingDeleteGem, setPendingDeleteGem] = useState<Gem | null>(null);
-
   const onDelete = async (gem: Gem) => {
-    setPendingDeleteGem(gem);
-  };
-
-  const confirmDelete = async () => {
-    if (!pendingDeleteGem) return;
+    const ok = await confirm({
+      title: t("gemDeleteConfirm") || "Delete Gem?",
+      description:
+        t("gemDeleteWarning") ||
+        `Are you sure you want to delete "${gem.name}"? This action cannot be undone.`,
+      variant: "danger",
+      confirmLabel: t("deleteGem") || "Delete",
+      cancelLabel: t("cancel") || "Cancel",
+    });
+    if (!ok) return;
 
     setStatus(t("loading") || "Loading...");
     try {
       const res = await fetch("/api/gems", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: pendingDeleteGem.id }),
+        body: JSON.stringify({ id: gem.id }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error?.message || json?.error || "Delete failed");
       toast.success(t("gemDeleted") || "Gem deleted successfully");
       setStatus("");
-      if (editingGem?.id === pendingDeleteGem.id) setEditingGem(null);
+      if (editingGem?.id === gem.id) setEditingGem(null);
       await refresh();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Delete failed";
       toast.error(message);
       setStatus(message);
-    } finally {
-      setPendingDeleteGem(null);
     }
   };
 
@@ -267,35 +269,6 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
           </div>
         </div>
       </div>
-
-      {/* Delete Confirmation Modal */}
-      {pendingDeleteGem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-(--surface) border border-(--border) rounded-xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-semibold text-(--text-primary) mb-2">
-              {t("gemDeleteConfirm") || "Delete Gem?"}
-            </h3>
-            <p className="text-sm text-(--text-secondary) mb-6">
-              {t("gemDeleteWarning") ||
-                `Are you sure you want to delete "${pendingDeleteGem.name}"? This action cannot be undone.`}
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setPendingDeleteGem(null)}
-                className="px-4 py-2 text-sm text-(--text-secondary) hover:text-(--text-primary) transition-colors"
-              >
-                {t("cancel") || "Cancel"}
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 border border-red-500/30 transition-all"
-              >
-                {t("deleteGem") || "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -56,14 +56,35 @@ Separation of concerns between UI and business logic.
 
 ### `src/components/` (Shared UI)
 
-- `ui/`: Reusable primitive components (shadcn/ui based).
+- `ui/`: Reusable primitive components (shadcn/ui based, themed via Vikini tokens — see Design System below).
 - `features/`: Feature-specific shared components (e.g., `projects/`).
+
+### Design System (Tokens & Primitives)
+
+> Single source of truth for the visual language. See `rules/03-ui.md` for the enforced standards.
+
+- **Token vocabulary** (defined in `app/styles/themes/_shared/base.css`, overridden per theme in
+  `app/styles/themes/`): surfaces (`--surface`, `--surface-muted`, `--surface-elevated`), text
+  (`--text-primary`, `--text-secondary`), controls (`--control-bg`, `--control-bg-hover`,
+  `--control-border`), `--border`, brand `--accent` (+ `--accent-foreground`), state colors
+  (`--danger`, `--success`, `--warning`), and shared `--ring` / `--radius` / `--overlay`.
+- **Tailwind v4 note**: there is **no `@config`**, so `tailwind.config.ts` color names
+  (`bg-primary`, `bg-destructive`, `bg-background`, …) are **inert and must not be used**.
+  Reference tokens with the arbitrary syntax instead: `bg-(--surface-elevated)`,
+  `text-(--text-primary)`, `border-(--border)`, `ring-(--ring)`.
+- **Canonical primitives** (`components/ui/`): `Button`, `Dialog`/`AlertDialog` (Radix —
+  focus-trap + ESC built in), `Input`, `Textarea`, `Card`, `Select`, `Switch`, `Popover`,
+  `DropdownMenu`, `Skeleton` (loading), and the global `ConfirmDialogHost`.
+- **Feedback**: `toast` (`lib/store/toastStore.ts`) for non-blocking messages; `confirm()`
+  (`lib/store/confirmStore.ts`) for confirmations. Native `alert()`/`confirm()` and hand-rolled
+  modal `div`s are banned.
 
 ### `src/lib/store/` (Global State)
 
 - `languageStore.ts`: Bilingual language preference.
 - `projectStore.ts`: Active project state.
-- `toastStore.ts`: Toast notification state.
+- `toastStore.ts`: Toast notification state (non-blocking feedback).
+- `confirmStore.ts`: Imperative `confirm()` API backing the global confirm dialog (replaces `window.confirm()`).
 
 ### `src/types/` (Type Definitions)
 

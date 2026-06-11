@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils/cn";
 import { KnowledgePanel } from "@/components/features/projects";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { useConversation } from "@/app/features/chat/hooks/useConversation";
+import { confirm } from "@/lib/store/confirmStore";
 import type { KnowledgeDocument, ProjectWithStats } from "@/types/projects";
 
 export default function ProjectPage() {
@@ -101,9 +102,13 @@ export default function ProjectPage() {
 
   // Delete project
   const handleDeleteProject = async () => {
-    if (!confirm("Delete this project? All documents and conversations will be lost.")) {
-      return;
-    }
+    const ok = await confirm({
+      title: "Delete this project?",
+      description: "All documents and conversations will be permanently lost.",
+      variant: "danger",
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
 
     setIsDeleting(true);
     try {
@@ -296,13 +301,16 @@ export default function ProjectPage() {
                         <span className="text-sm truncate">{conv.title || "New conversation"}</span>
                       </div>
                       <button
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          if (confirm("Delete this conversation?")) {
-                            deleteConversation(conv.id);
-                          }
+                          const ok = await confirm({
+                            title: "Delete this conversation?",
+                            variant: "danger",
+                            confirmLabel: "Delete",
+                          });
+                          if (ok) deleteConversation(conv.id);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all"
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-(--danger) transition-all"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

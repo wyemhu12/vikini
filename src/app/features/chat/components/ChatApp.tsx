@@ -14,6 +14,16 @@ import ToastContainer from "@/components/ui/ToastContainer";
 import StreamErrorBanner from "./StreamErrorBanner";
 import ProjectChatView from "../../projects/components/ProjectChatView";
 import { ProjectSettingsModal } from "@/components/features/projects/ProjectSettingsModal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 import React, { useEffect, useRef, useMemo, useCallback, useState, lazy, Suspense } from "react";
 
@@ -822,68 +832,61 @@ export default function ChatApp() {
       </Suspense>
 
       {/* Rename Modal */}
-      {modals.showRenameModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-(--surface) border border-(--border) rounded-xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-semibold text-(--text-primary) mb-4">
-              {t.renameChat || "Rename Conversation"}
-            </h3>
-            <input
-              type="text"
-              value={modals.renameValue}
-              onChange={(e) => modals.setRenameValue(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && modals.confirmRename()}
-              autoFocus
-              className="w-full px-4 py-3 rounded-lg bg-(--control-bg) border border-(--control-border) text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:ring-2 focus:ring-(--accent)/50 mb-6"
-              placeholder={t.renameChat || "Enter new title"}
-            />
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={modals.closeRenameModal}
-                className="px-4 py-2 text-sm text-(--text-secondary) hover:text-(--text-primary) transition-colors"
-              >
-                {t.cancel || "Cancel"}
-              </button>
-              <button
-                onClick={modals.confirmRename}
-                disabled={!modals.renameValue.trim()}
-                className="px-4 py-2 bg-(--accent) text-(--surface) rounded-lg hover:brightness-110 transition-all disabled:opacity-50"
-              >
-                {t.save || "Save"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog
+        open={modals.showRenameModal}
+        onOpenChange={(open) => !open && modals.closeRenameModal()}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t.renameChat || "Rename Conversation"}</DialogTitle>
+          </DialogHeader>
+          <Input
+            type="text"
+            value={modals.renameValue}
+            onChange={(e) => modals.setRenameValue(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && modals.confirmRename()}
+            autoFocus
+            className="h-11"
+            placeholder={t.renameChat || "Enter new title"}
+          />
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={modals.closeRenameModal}>
+              {t.cancel || "Cancel"}
+            </Button>
+            <Button onClick={modals.confirmRename} disabled={!modals.renameValue.trim()}>
+              {t.save || "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Message Modal */}
-      {modals.showDeleteMessageModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-(--surface) border border-(--border) rounded-xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-semibold text-(--text-primary) mb-2">
-              {t.modalDeleteTitle || "Delete Message?"}
-            </h3>
-            <p className="text-sm text-(--text-secondary) mb-6">
+      <Dialog
+        open={modals.showDeleteMessageModal}
+        onOpenChange={(open) => !open && modals.closeDeleteMessageModal()}
+      >
+        <DialogContent className="max-w-md ring-(--danger)/20">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -inset-px -z-10 rounded-(--radius) bg-(--danger)/15 blur-2xl"
+          />
+          <DialogHeader>
+            <DialogTitle>{t.modalDeleteTitle || "Delete Message?"}</DialogTitle>
+            <DialogDescription className="pt-1">
               {t.modalDeleteConfirm ||
                 "Are you sure you want to delete this message? This action cannot be undone."}
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={modals.closeDeleteMessageModal}
-                className="px-4 py-2 text-sm text-(--text-secondary) hover:text-(--text-primary) transition-colors"
-              >
-                {t.cancel || "Cancel"}
-              </button>
-              <button
-                onClick={modals.confirmDeleteMessage}
-                className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 border border-red-500/30 transition-all"
-              >
-                {t.modalDeleteButton || "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={modals.closeDeleteMessageModal}>
+              {t.cancel || "Cancel"}
+            </Button>
+            <Button variant="destructive" onClick={modals.confirmDeleteMessage}>
+              {t.modalDeleteButton || "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Project Settings Modal */}
       {selectedProjectId && (

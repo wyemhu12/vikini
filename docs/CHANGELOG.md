@@ -5,6 +5,89 @@
 
 ---
 
+## 2026-06-12: Refactor — UI/UX Phase 3 (Migrate surfaces to canonical primitives)
+
+> Builds on Phase 1. Unifies confirmation dialogs and loading states across features.
+
+### Migrated confirmations → imperative `confirm()`
+
+- `features/gems/components/GemManager.tsx` — removed `pendingDeleteGem` state + hand-rolled
+  `fixed inset-0` modal; `onDelete` now calls `confirm({ variant: "danger" })`. Bilingual
+  labels preserved via `t()`.
+- `admin/components/GemsManager.tsx` — removed `pendingDeleteId` state + custom modal; same pattern.
+- `features/gallery/components/GalleryView.tsx` — replaced the 2-step inline delete
+  (`showDeleteConfirm`) with a single button + `confirm()`; removed the now-dead state and its
+  resets in `handlePrev/NextImage`. Hardcoded `red-500` swapped for `--danger` token.
+
+### Loading states → `Skeleton`
+
+- `GalleryView` — initial grid load now shows a 10-cell `Skeleton` grid matching the image
+  layout instead of a lone centered spinner.
+
+### Verification
+
+- `type-check` ✅, `lint` ✅, `build` ✅.
+- Tests: 100 passed; 2 pre-existing env failures in `limits.test.ts`, unrelated.
+
+- **Files changed**: `features/gems/components/GemManager.tsx`, `admin/components/GemsManager.tsx`, `features/gallery/components/GalleryView.tsx`
+
+### Docs / standards
+
+- Corrected `rules/03-ui.md`: documented the live token vocabulary; banned the dead shadcn
+  token classes (`bg-primary`, `bg-destructive`, `bg-popover`, …) that compile to empty styles
+  under Tailwind v4; added accessibility + min-font + no-hand-rolled-modal standards.
+- `docs/architecture.md`: added a Design System (Tokens & Primitives) section + `confirmStore`.
+- `docs/lessons-learned.md`: recorded the dead-token and hand-rolled-modal lessons.
+
+---
+
+## 2026-06-12: Refactor — UI/UX Phase 1 (Primitives + Design Tokens)
+
+> Direction A (refine current look) with C accents (glow on destructive surfaces).
+> Foundational pass from the UX/UI audit (`docs/ux-ui-audit.md`).
+
+### Root cause fixed: dead shadcn token layer
+
+- **Symptom**: `components/ui/` primitives (Button, Dialog, Input, Card, Select, Switch,
+  Popover, Dropdown) referenced shadcn tokens (`--background`, `--destructive`, `--ring`,
+  `--radius`, `--muted-foreground`, …) that are **defined nowhere**, and `tailwind.config.ts`
+  is **not loaded** under Tailwind v4 (no `@config`). The utilities resolved to empty styles,
+  so dialogs rendered transparent and dropdowns had no background. Features worked around this
+  by hardcoding `--surface`/`white/X` glass on top — the source of the design drift.
+- **Fix**: rewrote all primitives onto the live Vikini token vocabulary
+  (`--surface`, `--surface-elevated`, `--text-primary`, `--border`, `--control-bg`,
+  `--control-border`, `--accent`). Added semantic state tokens.
+
+### Added — design tokens (`styles/themes/_shared/base.css`)
+
+- `--danger` / `--danger-hover` / `--danger-foreground`, `--success`, `--warning`
+- `--accent-foreground` (near-black, readable on all 15 theme accents)
+- `--ring`, `--radius`, `--overlay`
+
+### Added — primitives
+
+- `components/ui/skeleton.tsx` — canonical loading placeholder.
+- `lib/store/confirmStore.ts` + `components/ui/confirm-dialog.tsx` — imperative
+  `confirm()` API (replaces `window.confirm()`), async in-dialog loading, `danger` glow
+  variant. Host mounted globally in `MainLayout`. Focus-trap / ESC / `role="dialog"`
+  come from Radix.
+
+### Migrated
+
+- `projects/[id]/page.tsx` — 2 native `confirm()` → `confirm()` store.
+- `chat/components/ChatApp.tsx` — 2 hand-rolled modal `div`s (rename, delete message)
+  → `Dialog` primitive (now with focus-trap + ESC).
+
+### Verification
+
+- `type-check` ✅, `lint` ✅, `build` ✅ (no errors/warnings).
+- Tests: 100 passed; 2 pre-existing env failures in `limits.test.ts`
+  ("Missing Supabase service role key"), unrelated to this change.
+
+- **Files changed**: `styles/themes/_shared/base.css`, `components/ui/{button,dialog,alert-dialog,input,textarea,card,select,switch,popover,dropdown-menu,skeleton,confirm-dialog}.tsx`, `lib/store/confirmStore.ts`, `app/features/layout/components/MainLayout.tsx`, `app/projects/[id]/page.tsx`, `app/features/chat/components/ChatApp.tsx`
+
+---
+
 ## 2026-06-11: Fix — AI Not Reading Uploaded Images + Table Format Breaking
 
 ### Bug 1: AI không chủ động đọc file ảnh upload

@@ -34,6 +34,22 @@
   --accent: #60a5fa;
   --glow: rgba(96, 165, 250, 0.2);
 
+  /* Foreground placed on top of an --accent fill.
+     Near-black gives good contrast on every theme accent (all are mid/bright). */
+  --accent-foreground: #0a0a0a;
+
+  /* Semantic state colors (theme-independent) */
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --danger-foreground: #ffffff;
+  --success: #22c55e;
+  --warning: #f59e0b;
+
+  /* Shared primitives */
+  --ring: var(--accent);
+  --radius: 0.75rem;
+  --overlay: rgba(0, 0, 0, 0.7);
+
   /* Legacy aliases */
   --primary: var(--accent);
   --primary-light: color-mix(in srgb, var(--accent) 75%, white 25%);

@@ -6,6 +6,7 @@ import GemEditor from "@/app/features/gems/components/GemEditor";
 import { AnimatePresence, motion } from "framer-motion";
 import { translations } from "@/lib/utils/config";
 import { toast } from "@/lib/store/toastStore";
+import { confirm } from "@/lib/store/confirmStore";
 
 interface PremadeGem {
   id: string;
@@ -51,17 +52,18 @@ export default function GemsManager({ language }: GemsManagerProps) {
     }
   };
 
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-
   const deleteGem = async (gemId: string) => {
-    setPendingDeleteId(gemId);
-  };
-
-  const confirmDeleteGem = async () => {
-    if (!pendingDeleteId) return;
+    const ok = await confirm({
+      title: t.confirmDeleteGem || "Delete Gem?",
+      description: t.deleteGemWarning || "This action cannot be undone.",
+      variant: "danger",
+      confirmLabel: t.deleteGem || "Delete",
+      cancelLabel: t.cancel || "Cancel",
+    });
+    if (!ok) return;
 
     try {
-      const res = await fetch(`/api/admin/gems?id=${pendingDeleteId}`, {
+      const res = await fetch(`/api/admin/gems?id=${gemId}`, {
         method: "DELETE",
       });
 
@@ -73,8 +75,6 @@ export default function GemsManager({ language }: GemsManagerProps) {
       await fetchGems();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t.failedDeleteGem || "Failed to delete gem");
-    } finally {
-      setPendingDeleteId(null);
     }
   };
 
@@ -190,39 +190,6 @@ export default function GemsManager({ language }: GemsManagerProps) {
           ))}
         </div>
       )}
-
-      {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {pendingDeleteId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-md p-6 shadow-2xl"
-            >
-              <h3 className="text-lg font-semibold text-white mb-2">{t.confirmDeleteGem}</h3>
-              <p className="text-sm text-gray-400 mb-6">
-                {t.deleteGemWarning || "This action cannot be undone."}
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setPendingDeleteId(null)}
-                  className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
-                >
-                  {t.cancel || "Cancel"}
-                </button>
-                <button
-                  onClick={confirmDeleteGem}
-                  className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 border border-red-500/30 transition-all"
-                >
-                  {t.deleteGem || "Delete"}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Editor Modal */}
       <AnimatePresence>
