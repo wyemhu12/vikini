@@ -15,6 +15,8 @@ export interface ImageTemplate {
  * 18 curated templates, first 6 shown by default.
  * Style templates: click → fill prompt + auto-set style
  * Transform templates: click → modal asks for photo → fill prompt + reference + style
+ *
+ * Preview images are AI-generated and stored in public/templates/
  */
 export const IMAGE_TEMPLATES: ImageTemplate[] = [
   // --- Row 1: Featured (shown by default) ---
@@ -27,8 +29,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Transform your photo into anime style",
       vi: "Biến ảnh thành phong cách anime",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_anime.png",
     requiresPhoto: true,
     style: "anime",
   },
@@ -41,8 +42,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Create epic cinematic scenes",
       vi: "Tạo cảnh phim điện ảnh hoành tráng",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_cinematic.png",
     requiresPhoto: false,
     style: "cinematic",
   },
@@ -55,8 +55,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Turn your photo into a clay figure",
       vi: "Biến ảnh thành hình nặn đất sét",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1581783898377-1c85bf937427?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_clay.png",
     requiresPhoto: true,
     style: "3d-render",
   },
@@ -69,8 +68,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Neon-lit cyberpunk scenes",
       vi: "Cảnh cyberpunk ánh đèn neon",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1514905552197-0610a4d8fd73?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_neon.png",
     requiresPhoto: false,
     style: "digital-art",
   },
@@ -83,8 +81,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Professional headshot from your selfie",
       vi: "Ảnh chân dung chuyên nghiệp từ selfie",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_headshot.png",
     requiresPhoto: true,
     style: "photorealistic",
   },
@@ -97,8 +94,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Delicate watercolor paintings",
       vi: "Tranh màu nước tinh tế",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_watercolor.png",
     requiresPhoto: false,
     style: "none",
   },
@@ -113,8 +109,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Become a cute chibi character",
       vi: "Biến thành nhân vật chibi dễ thương",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1608889175123-8ee362201f81?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_chibi.png",
     requiresPhoto: true,
     style: "anime",
   },
@@ -127,8 +122,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Classical oil painting masterpiece",
       vi: "Kiệt tác tranh sơn dầu cổ điển",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1578301978693-85fa9fd0c9d3?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_oil_painting.png",
     requiresPhoto: false,
     style: "none",
   },
@@ -141,8 +135,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Bold pop art illustrations",
       vi: "Tranh pop art đậm nét",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1561214115-f2f134cc4912?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_pop_art.png",
     requiresPhoto: false,
     style: "digital-art",
   },
@@ -155,8 +148,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Delicate paper origami art",
       vi: "Nghệ thuật gấp giấy origami",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1589632862779-fe7ac6e41860?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_origami.png",
     requiresPhoto: false,
     style: "3d-render",
   },
@@ -169,8 +161,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Become an immortal bronze statue",
       vi: "Hóa thân thành tượng đồng bất tử",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1525909002-1b05e0c869d8?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_bronze.png",
     requiresPhoto: true,
     style: "photorealistic",
   },
@@ -183,8 +174,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Adorable plushie characters",
       vi: "Nhân vật thú bông đáng yêu",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1559715541-5daf8a0296d0?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_plushie.png",
     requiresPhoto: false,
     style: "3d-render",
   },
@@ -197,8 +187,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Retro 16-bit pixel art",
       vi: "Pixel art phong cách retro 16-bit",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_pixel_art.png",
     requiresPhoto: false,
     style: "digital-art",
   },
@@ -211,8 +200,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Become an elegant marble sculpture",
       vi: "Hóa thân thành tượng cẩm thạch",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1589182337358-2cb63099350c?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_marble.png",
     requiresPhoto: true,
     style: "photorealistic",
   },
@@ -225,8 +213,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Soft dreamy pastel illustrations",
       vi: "Tranh pastel mơ mộng nhẹ nhàng",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_pastel.png",
     requiresPhoto: false,
     style: "none",
   },
@@ -239,8 +226,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Turn your photo into a cute sticker",
       vi: "Biến ảnh thành sticker dễ thương",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1572375992501-4b0892d50c69?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_sticker.png",
     requiresPhoto: true,
     style: "anime",
   },
@@ -253,8 +239,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Isometric 3D rendered scenes",
       vi: "Cảnh 3D isometric chi tiết",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_3d_render.png",
     requiresPhoto: false,
     style: "3d-render",
   },
@@ -267,8 +252,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
       en: "Vintage pulp fiction magazine style",
       vi: "Phong cách tạp chí pulp thập niên 50",
     },
-    previewUrl:
-      "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=400&fit=crop&q=80",
+    previewUrl: "/templates/template_pulp.png",
     requiresPhoto: false,
     style: "cinematic",
   },
