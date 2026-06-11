@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { logger } from "@/lib/utils/logger";
+import { confirm } from "@/lib/store/confirmStore";
 import { formatDate } from "@/lib/utils/dateFormat";
 import { motion, AnimatePresence } from "framer-motion";
 import { Wand2, Images } from "lucide-react";
@@ -432,7 +433,7 @@ export function ImageGenStudio() {
             <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-(--danger) text-(--danger-foreground) hover:bg-(--danger-hover)"
             >
               {t("modalDeleteButton")}
             </AlertDialogAction>
@@ -463,7 +464,18 @@ export function ImageGenStudio() {
         }}
         onNewChat={handleCreateProject}
         newChatLabel={t("studioNewProject")}
-        onDeleteConversation={(id) => deleteConversation(id)}
+        onDeleteConversation={async (id) => {
+          const ok = await confirm({
+            title: t("deleteConfirm") || "Delete this project?",
+            description:
+              t("studioDeleteProjectDesc") ||
+              "All generated images in this project will be permanently deleted.",
+            variant: "danger",
+            confirmLabel: t("modalDeleteButton") || "Delete",
+            cancelLabel: t("cancel") || "Cancel",
+          });
+          if (ok) deleteConversation(id);
+        }}
         onRenameChat={handleRename}
         onLogout={() => {}} // Handle in ChatApp mainly
         mobileOpen={mobileOpen}

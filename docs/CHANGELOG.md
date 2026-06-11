@@ -5,6 +5,34 @@
 
 ---
 
+## 2026-06-12: Fix — GemManager Scroll + Image Studio Delete Confirm + Token Cleanup
+
+### Bug Fixes
+
+- **GemManager scroll lost**: Gem list container used `lg:overflow-y-visible` which
+  killed vertical scroll on desktop. Changed to keep `overflow-y-auto` with
+  `max-h-[60vh]` at all breakpoints. Added `min-h-0` on flex parent for proper
+  flex-scroll containment.
+- **Image Studio delete without confirm**: Sidebar `onDeleteConversation` called
+  `deleteConversation()` directly without user confirmation. Added `confirm({ variant: "danger" })`
+  from `confirmStore`.
+
+### Token & Standards Cleanup
+
+- **GemList**: `red-900/50`, `red-300`, `red-950/40` → `--danger` tokens; `text-neutral-*`
+  → `text-(--text-secondary)`; all `text-[10px]`/`text-[11px]` → `text-xs`.
+- **GemManager**: `text-[10px]` on Reset Default button → `text-xs`.
+- **ImageGenStudio**: Dead `bg-destructive text-destructive-foreground` → `bg-(--danger)
+text-(--danger-foreground)`.
+
+### Verification
+
+- `type-check` ✅, `lint` ✅.
+
+- **Files changed**: `GemManager.tsx`, `GemList.tsx`, `ImageGenStudio.tsx`
+
+---
+
 ## 2026-06-12: Refactor — UI/UX Phase 3 (Migrate surfaces to canonical primitives)
 
 > Builds on Phase 1. Unifies confirmation dialogs and loading states across features.

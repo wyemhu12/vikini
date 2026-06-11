@@ -44,13 +44,13 @@ export default function GemList({
               <span className="text-sm">{g.icon || "◆"}</span>
               <div className="truncate text-sm font-medium">{g.name}</div>
               {g.isPremade ? (
-                <span className="rounded bg-(--control-bg) px-1.5 py-0.5 text-[10px] text-(--text-secondary)">
+                <span className="rounded bg-(--control-bg) px-1.5 py-0.5 text-xs text-(--text-secondary)">
                   {t("premadeGems")}
                 </span>
               ) : null}
             </div>
             {g.description ? (
-              <div className="mt-1 line-clamp-2 text-[11px] text-(--text-secondary)">
+              <div className="mt-1 line-clamp-2 text-xs text-(--text-secondary)">
                 {g.description}
               </div>
             ) : null}
@@ -59,14 +59,14 @@ export default function GemList({
           <div className="flex flex-col gap-1">
             <button
               onClick={() => onSelect?.(g)}
-              className="rounded-md bg-(--primary) px-2 py-1 text-[11px] text-black transition-all hover:brightness-110 active:scale-95"
+              className="rounded-md bg-(--primary) px-2 py-1 text-xs text-black transition-all hover:brightness-110 active:scale-95"
             >
               {t("select")}
             </button>
 
             <button
               onClick={() => onPreview?.(g)}
-              className="rounded-md border border-(--border) px-2 py-1 text-[11px] text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-all active:scale-95 flex items-center justify-center gap-1"
+              className="rounded-md border border-(--border) px-2 py-1 text-xs text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-all active:scale-95 flex items-center justify-center gap-1"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -89,13 +89,13 @@ export default function GemList({
               <>
                 <button
                   onClick={() => onEdit?.(g)}
-                  className="rounded-md border border-(--border) px-2 py-1 text-[11px] text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-all active:scale-95"
+                  className="rounded-md border border-(--border) px-2 py-1 text-xs text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-all active:scale-95"
                 >
                   {t("editGem")}
                 </button>
                 <button
                   onClick={() => onDelete?.(g)}
-                  className="rounded-md border border-red-900/50 px-2 py-1 text-[11px] text-red-300 hover:bg-red-950/40 transition-all active:scale-95"
+                  className="rounded-md border border-(--danger)/30 px-2 py-1 text-xs text-(--danger) hover:bg-(--danger)/10 transition-all active:scale-95"
                 >
                   {t("deleteGem")}
                 </button>
@@ -108,29 +108,29 @@ export default function GemList({
   };
 
   if (loading) {
-    return <div className="text-xs text-neutral-400">{t("loading")}</div>;
+    return <div className="text-xs text-(--text-secondary)">{t("loading")}</div>;
   }
 
   return (
     <div className="space-y-4">
       <div>
-        <div className="mb-2 text-xs font-semibold text-neutral-300">{t("premadeGems")}</div>
+        <div className="mb-2 text-xs font-semibold text-(--text-secondary)">{t("premadeGems")}</div>
         <div className="space-y-2">
           {premade?.length ? (
             premade.map((g) => renderItem(g, true))
           ) : (
-            <div className="text-xs text-neutral-500">---</div>
+            <div className="text-xs text-(--text-secondary)">---</div>
           )}
         </div>
       </div>
 
       <div>
-        <div className="mb-2 text-xs font-semibold text-neutral-300">{t("myGems")}</div>
+        <div className="mb-2 text-xs font-semibold text-(--text-secondary)">{t("myGems")}</div>
         <div className="space-y-2">
           {mine?.length ? (
             mine.map((g) => renderItem(g, false))
           ) : (
-            <div className="text-xs text-neutral-500">---</div>
+            <div className="text-xs text-(--text-secondary)">---</div>
           )}
         </div>
       </div>

@@ -193,7 +193,7 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
       </div>
 
       <div
-        className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin scrollbar-thumb-[var(--border)]"
+        className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 scrollbar-thin scrollbar-thumb-[var(--border)]"
         style={{
           WebkitOverflowScrolling: "touch",
           touchAction: "pan-y",
@@ -208,14 +208,14 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_1fr]">
           <div
-            className="rounded-xl border border-(--border) bg-(--surface-muted)/50 p-3 max-h-[60vh] overflow-y-auto lg:max-h-none lg:overflow-y-visible h-fit"
+            className="rounded-xl border border-(--border) bg-(--surface-muted)/50 p-3 max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--control-border)] hover:scrollbar-thumb-[var(--border)]"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             <div className="mb-3 flex items-center justify-between">
               <div className="text-sm font-medium">{t("myGems") || "My Gems"}</div>
               <button
                 onClick={clearGem}
-                className="rounded-md border border-(--control-border) px-2 py-1 text-[10px] text-(--text-secondary) hover:bg-(--control-bg-hover) transition-colors"
+                className="rounded-md border border-(--control-border) px-2 py-1 text-xs text-(--text-secondary) hover:bg-(--control-bg-hover) transition-colors"
               >
                 Reset Default
               </button>
