@@ -145,7 +145,7 @@ export default function Canvas({
                 <div className="flex flex-col gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 mt-auto shrink-0">
                   {/* Scrollable Prompt */}
                   <div className="max-h-[80px] overflow-y-auto custom-scrollbar bg-black/60 backdrop-blur-md p-2 rounded-lg border border-white/10 shadow-lg">
-                    <p className="text-white/90 text-[11px] font-medium leading-relaxed font-mono">
+                    <p className="text-white/90 text-xs font-medium leading-relaxed font-mono">
                       &quot;{item.prompt}&quot;
                     </p>
                   </div>

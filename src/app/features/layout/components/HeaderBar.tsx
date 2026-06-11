@@ -156,7 +156,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                   onClick={() => onLanguageChange?.(lang.id)}
                   className="flex items-center justify-between cursor-pointer"
                 >
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                  <span className="text-xs font-bold uppercase tracking-wider">
                     {lang.id === "vi" ? "VN" : "EN"}
                   </span>
                   {language === lang.id && <Check className="w-3 h-3 text-(--accent)" />}
@@ -182,8 +182,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                 <div
                   className="h-4 w-4 rounded-full shadow-[0_0_8px_currentColor]"
                   style={{
-                    backgroundColor: currentTheme?.swatch ?? "#d97706",
-                    color: currentTheme?.swatch ?? "#d97706",
+                    backgroundColor: currentTheme?.swatch ?? "var(--accent)",
+                    color: currentTheme?.swatch ?? "var(--accent)",
                   }}
                 />
                 <span className={triggerLabelStyles}>
@@ -211,7 +211,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                         className="h-3 w-3 rounded-full shrink-0"
                         style={{ backgroundColor: tItem.swatch }}
                       />
-                      <span className="flex-1 text-[11px] font-medium truncate">
+                      <span className="flex-1 text-xs font-medium truncate">
                         {t?.[tItem.labelKey] ?? tItem.id}
                       </span>
                       {theme === tItem.id && <Check className="w-3 h-3 text-blue-400" />}
@@ -227,8 +227,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             <div
               className="h-4 w-4 rounded-full shadow-[0_0_8px_currentColor]"
               style={{
-                backgroundColor: "#d97706", // Default fallback
-                color: "#d97706",
+                backgroundColor: "var(--accent)",
+                color: "var(--accent)",
               }}
             />
             <span className={triggerLabelStyles}>Theme</span>
@@ -260,7 +260,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                   onClick={() => onLanguageChange?.(lang.id)}
                   className="flex items-center justify-between cursor-pointer"
                 >
-                  <span className="text-[11px] font-medium">
+                  <span className="text-xs font-medium">
                     {lang.label} ({lang.id === "vi" ? "VN" : "EN"})
                   </span>
                   {language === lang.id && <Check className="w-3 h-3 text-(--accent)" />}
@@ -275,7 +275,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               </DropdownMenuLabel>
               {Object.entries(groupedThemes).map(([group, themes]) => (
                 <DropdownMenuGroup key={`mobile-${group}`}>
-                  <DropdownMenuLabel className="text-[9px] font-bold uppercase tracking-widest text-(--text-secondary)/70 px-2 py-1">
+                  <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-(--text-secondary)/70 px-2 py-1">
                     {group}
                   </DropdownMenuLabel>
                   {themes.map((tItem) => (
@@ -288,7 +288,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                         className="h-3 w-3 rounded-full shrink-0"
                         style={{ backgroundColor: tItem.swatch }}
                       />
-                      <span className="flex-1 text-[11px] font-medium truncate">
+                      <span className="flex-1 text-xs font-medium truncate">
                         {t?.[tItem.labelKey] ?? tItem.id}
                       </span>
                       {theme === tItem.id && <Check className="w-3 h-3 text-blue-400" />}

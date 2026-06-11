@@ -27,6 +27,7 @@ import { useRouter } from "next/navigation";
 import { logger } from "@/lib/utils/logger";
 import { confirm } from "@/lib/store/confirmStore";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { formatDateShort } from "@/lib/utils/dateFormat";
 import ImageCompareModal from "./ImageCompareModal";
 
@@ -541,146 +542,146 @@ export function GalleryView() {
         </main>
 
         {/* Modal Detail View */}
-        {selectedImage && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
-            onClick={() => setSelectedImage(null)}
-          >
-            {/* Image Counter - Top center */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full text-white/80 text-sm font-medium border border-white/10">
-              {currentImageIndex + 1} / {filteredImages.length}
-            </div>
+        <Dialog open={!!selectedImage} onOpenChange={(open) => !open && setSelectedImage(null)}>
+          <DialogContent className="max-w-7xl w-full max-h-[95vh] p-0 gap-0 overflow-hidden border-(--border) [&>button]:hidden">
+            <DialogTitle className="sr-only">{t("galleryImageDetails")}</DialogTitle>
 
-            <div
-              className="bg-(--surface-base) rounded-2xl max-w-7xl w-full max-h-[95vh] overflow-hidden flex flex-col lg:flex-row shadow-2xl border border-(--border)"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Image Area with hover navigation */}
-              <div className="flex-1 relative bg-black flex items-center justify-center min-h-[400px] lg:min-h-[600px] group">
-                <div className="relative w-full h-full p-6">
-                  <Image
-                    src={selectedImage.url}
-                    alt={selectedImage.prompt}
-                    fill
-                    className="object-contain"
-                    unoptimized
-                    priority
-                  />
+            {selectedImage && (
+              <>
+                {/* Image Counter - Top center */}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full text-white/80 text-sm font-medium border border-white/10">
+                  {currentImageIndex + 1} / {filteredImages.length}
                 </div>
 
-                {/* Previous Arrow - Inside image, visible on hover */}
-                {currentImageIndex > 0 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePrevImage();
-                    }}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-all shadow-lg opacity-0 group-hover:opacity-100"
-                    title={t("galleryPrev") || "Previous"}
-                  >
-                    <ChevronLeft className="w-6 h-6" />
-                  </button>
-                )}
-
-                {/* Next Arrow - Inside image, visible on hover */}
-                {currentImageIndex < filteredImages.length - 1 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleNextImage();
-                    }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-all shadow-lg opacity-0 group-hover:opacity-100"
-                    title={t("galleryNext") || "Next"}
-                  >
-                    <ChevronRight className="w-6 h-6" />
-                  </button>
-                )}
-              </div>
-              {/* Details Sidebar - Slightly narrower */}
-              <div className="w-full lg:w-80 p-6 flex flex-col border-l border-(--border) bg-(--surface-base) max-h-[95vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-lg">{t("galleryImageDetails")}</h3>
-                  <button
-                    onClick={() => setSelectedImage(null)}
-                    className="p-2 hover:bg-(--surface-muted) rounded-full"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="flex-1 space-y-6 overflow-y-auto">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-(--text-secondary) uppercase">
-                      {t("galleryPrompt")}
-                    </label>
-                    <p className="text-sm leading-relaxed p-3 rounded-lg bg-(--surface-muted) border border-(--border)">
-                      {selectedImage.prompt}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-bold text-(--text-secondary) uppercase">
-                        {t("galleryModel")}
-                      </label>
-                      <p className="text-sm">{selectedImage.model || "Unknown"}</p>
+                <div className="flex flex-col lg:flex-row w-full max-h-[95vh] overflow-hidden">
+                  {/* Image Area with hover navigation */}
+                  <div className="flex-1 relative bg-black flex items-center justify-center min-h-[400px] lg:min-h-[600px] group">
+                    <div className="relative w-full h-full p-6">
+                      <Image
+                        src={selectedImage.url}
+                        alt={selectedImage.prompt}
+                        fill
+                        className="object-contain"
+                        unoptimized
+                        priority
+                      />
                     </div>
-                    <div>
-                      <label className="text-xs font-bold text-(--text-secondary) uppercase">
-                        {t("galleryDate")}
-                      </label>
-                      <p className="text-sm">
-                        {formatDateShort(
-                          selectedImage.createdAt,
-                          language === "vi" ? "vi-VN" : "en-US"
-                        )}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-(--text-secondary) uppercase">
-                        {t("galleryRatio")}
-                      </label>
-                      <p className="text-sm">{selectedImage.aspectRatio || "1:1"}</p>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Action Buttons */}
-                <div className="pt-6 border-t border-(--border) space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => window.open(selectedImage.url, "_blank")}
-                      className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) font-medium transition-colors"
-                    >
-                      <Download className="w-4 h-4" /> {t("studioDownload")}
-                    </button>
-                    <button
-                      onClick={() => handleRemix(selectedImage.prompt)}
-                      className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--accent) text-white hover:opacity-90 font-bold shadow-lg shadow-(--accent)/20 transition-all"
-                    >
-                      <Sparkles className="w-4 h-4" /> {t("galleryRemix")}
-                    </button>
-                  </div>
-
-                  {/* Delete Button */}
-                  <button
-                    onClick={() => handleDelete(selectedImage.id)}
-                    disabled={deleting === selectedImage.id}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-(--danger) hover:bg-(--danger)/10 border border-(--danger)/30 font-medium transition-colors disabled:opacity-50"
-                  >
-                    {deleting === selectedImage.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Trash2 className="w-4 h-4" /> {t("galleryDeleteImage")}
-                      </>
+                    {/* Previous Arrow - Inside image, visible on hover */}
+                    {currentImageIndex > 0 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePrevImage();
+                        }}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-all shadow-lg opacity-0 group-hover:opacity-100"
+                        title={t("galleryPrev") || "Previous"}
+                      >
+                        <ChevronLeft className="w-6 h-6" />
+                      </button>
                     )}
-                  </button>
+
+                    {/* Next Arrow - Inside image, visible on hover */}
+                    {currentImageIndex < filteredImages.length - 1 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNextImage();
+                        }}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-all shadow-lg opacity-0 group-hover:opacity-100"
+                        title={t("galleryNext") || "Next"}
+                      >
+                        <ChevronRight className="w-6 h-6" />
+                      </button>
+                    )}
+                  </div>
+                  {/* Details Sidebar - Slightly narrower */}
+                  <div className="w-full lg:w-80 p-6 flex flex-col border-l border-(--border) bg-(--surface-base) max-h-[95vh] overflow-y-auto">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-bold text-lg">{t("galleryImageDetails")}</h3>
+                      <button
+                        onClick={() => setSelectedImage(null)}
+                        className="p-2 hover:bg-(--surface-muted) rounded-full"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="flex-1 space-y-6 overflow-y-auto">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-(--text-secondary) uppercase">
+                          {t("galleryPrompt")}
+                        </label>
+                        <p className="text-sm leading-relaxed p-3 rounded-lg bg-(--surface-muted) border border-(--border)">
+                          {selectedImage.prompt}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-bold text-(--text-secondary) uppercase">
+                            {t("galleryModel")}
+                          </label>
+                          <p className="text-sm">{selectedImage.model || "Unknown"}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-(--text-secondary) uppercase">
+                            {t("galleryDate")}
+                          </label>
+                          <p className="text-sm">
+                            {formatDateShort(
+                              selectedImage.createdAt,
+                              language === "vi" ? "vi-VN" : "en-US"
+                            )}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-(--text-secondary) uppercase">
+                            {t("galleryRatio")}
+                          </label>
+                          <p className="text-sm">{selectedImage.aspectRatio || "1:1"}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-6 border-t border-(--border) space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={() => window.open(selectedImage.url, "_blank")}
+                          className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) font-medium transition-colors"
+                        >
+                          <Download className="w-4 h-4" /> {t("studioDownload")}
+                        </button>
+                        <button
+                          onClick={() => handleRemix(selectedImage.prompt)}
+                          className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--accent) text-white hover:opacity-90 font-bold shadow-lg shadow-(--accent)/20 transition-all"
+                        >
+                          <Sparkles className="w-4 h-4" /> {t("galleryRemix")}
+                        </button>
+                      </div>
+
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => handleDelete(selectedImage.id)}
+                        disabled={deleting === selectedImage.id}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-(--danger) hover:bg-(--danger)/10 border border-(--danger)/30 font-medium transition-colors disabled:opacity-50"
+                      >
+                        {deleting === selectedImage.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Trash2 className="w-4 h-4" /> {t("galleryDeleteImage")}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Image Compare Modal */}
         <ImageCompareModal

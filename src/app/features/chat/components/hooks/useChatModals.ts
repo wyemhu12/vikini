@@ -3,6 +3,7 @@
 
 import { useState, useCallback, type Dispatch, type SetStateAction } from "react";
 import { toast } from "@/lib/store/toastStore";
+import { confirm } from "@/lib/store/confirmStore";
 import { logger } from "@/lib/utils/logger";
 import type { FrontendConversation, FrontendMessage } from "../../hooks/useConversation";
 
@@ -17,12 +18,8 @@ export interface UseChatModalsReturn {
   openUpgradeModal: (modelName: string) => void;
   closeUpgradeModal: () => void;
 
-  // Delete Conversation Modal
-  showDeleteModal: boolean;
-  conversationToDelete: string | null;
+  // Delete Conversation (imperative confirm)
   openDeleteModal: (id: string) => void;
-  closeDeleteModal: () => void;
-  confirmDelete: () => Promise<void>;
 
   // Rename Modal
   showRenameModal: boolean;
@@ -84,44 +81,41 @@ export function useChatModals({
   }, []);
 
   // ============================================
-  // Delete Conversation Modal State
+  // Delete Conversation (imperative confirm)
   // ============================================
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
-
-  const openDeleteModal = useCallback((id: string) => {
-    setConversationToDelete(id);
-    setShowDeleteModal(true);
-  }, []);
-
-  const closeDeleteModal = useCallback(() => {
-    setShowDeleteModal(false);
-    setConversationToDelete(null);
-  }, []);
-
-  const confirmDelete = useCallback(async () => {
-    if (!conversationToDelete) return;
-    try {
-      await deleteConversation(conversationToDelete);
-      if (conversationToDelete === selectedConversationId) {
-        resetChatUI();
+  const openDeleteModal = useCallback(
+    async (id: string) => {
+      const ok = await confirm({
+        title: t.modalDeleteTitle || "Delete Conversation",
+        description: t.modalDeleteConfirm || "Are you sure you want to delete this conversation?",
+        variant: "danger",
+        confirmLabel: t.modalDeleteButton || "Delete",
+        cancelLabel: t.cancel || "Cancel",
+      });
+      if (!ok) return;
+      try {
+        await deleteConversation(id);
+        if (id === selectedConversationId) {
+          resetChatUI();
+        }
+        await refreshConversations();
+      } catch (error) {
+        logger.error("Failed to delete conversation:", error);
+        toast.error(t.error);
       }
-      await refreshConversations();
-    } catch (error) {
-      logger.error("Failed to delete conversation:", error);
-      toast.error(t.error);
-    } finally {
-      setShowDeleteModal(false);
-      setConversationToDelete(null);
-    }
-  }, [
-    conversationToDelete,
-    deleteConversation,
-    refreshConversations,
-    resetChatUI,
-    selectedConversationId,
-    t.error,
-  ]);
+    },
+    [
+      deleteConversation,
+      refreshConversations,
+      resetChatUI,
+      selectedConversationId,
+      t.modalDeleteTitle,
+      t.modalDeleteConfirm,
+      t.modalDeleteButton,
+      t.cancel,
+      t.error,
+    ]
+  );
 
   // ============================================
   // Rename Modal State
@@ -211,12 +205,8 @@ export function useChatModals({
     openUpgradeModal,
     closeUpgradeModal,
 
-    // Delete Conversation Modal
-    showDeleteModal,
-    conversationToDelete,
+    // Delete Conversation (imperative)
     openDeleteModal,
-    closeDeleteModal,
-    confirmDelete,
 
     // Rename Modal
     showRenameModal,

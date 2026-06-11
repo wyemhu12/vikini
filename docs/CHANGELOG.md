@@ -5,6 +5,40 @@
 
 ---
 
+## 2026-06-12: Refactor — UX/UI Audit Phase 4 (Waves 1-2)
+
+### Wave 1: Font Sizes & Token Cleanup
+
+- **`text-[11px]` → `text-xs`**: Swept all 66 violations. Option B: kept `text-[10px]` on
+  VN/EN toggles, group labels, dropdown headers, small badges.
+- **`#d97706` × 4**: HeaderBar theme swatch fallback → `var(--accent)`.
+- **`bg-neutral-800`**: `base.css` scrollbar thumb + `GemPreview` → `var(--control-border)`.
+- **`text-[9px]`**: HeaderBar mobile group label → `text-[10px]` (below floor).
+- **Files**: HeaderBar, ModelSelector, SmartCode, ThinkingLevelSelector, FileInMessage,
+  FileManagerPanel, FilePreviewArea, Canvas, signin/page, GemPreview, base.css
+
+### Wave 2: Modal Migration
+
+- **`DeleteConfirmModal` → DELETED**: Replaced with imperative `confirm()` from `confirmStore`.
+  - `ChatApp.tsx`: Removed lazy import + `<Suspense>` render block.
+  - `useChatModals.ts`: `openDeleteModal` now calls `confirm({ variant: "danger" })` directly;
+    removed 4 state variables (`showDeleteModal`, `conversationToDelete`, etc.).
+  - `ProjectSettingsModal.tsx`: 2 × `<DeleteConfirmModal>` → 2 × `confirm()` calls; also
+    fixed dead tokens (`bg-primary`, `text-primary-foreground`, `red-500`) → Vikini tokens.
+  - **Deleted**: `src/app/components/DeleteConfirmModal.tsx` (124 lines).
+- **`CreateProjectModal` → Radix Dialog**: Replaced `div fixed inset-0` with `<Dialog>` +
+  `<DialogContent>`. Dead tokens (`bg-muted/50`, `text-muted-foreground`, `bg-primary`,
+  `text-destructive`, `border-border`) → Vikini tokens. Now has focus trap + ESC.
+- **Gallery Detail Modal → Dialog**: Wrapped with `<Dialog>` + `<DialogContent>`, added
+  `<DialogTitle>` for accessibility. Focus trap + ESC free from Radix.
+
+### Verification
+
+- `type-check` ✅, `lint` ✅.
+- **Files changed**: 15 files modified, 1 file deleted.
+
+---
+
 ## 2026-06-12: Fix — GemManager Scroll + Image Studio Delete Confirm + Token Cleanup
 
 ### Bug Fixes

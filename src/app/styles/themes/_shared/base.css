@@ -120,5 +120,5 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-neutral-800 rounded-full;
+  @apply bg-[var(--control-border)] rounded-full;
 }

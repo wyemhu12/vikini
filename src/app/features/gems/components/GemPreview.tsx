@@ -38,7 +38,7 @@ export default function GemPreview({ gem }: GemPreviewProps) {
         </div>
       </div>
 
-      <div className="space-y-4 flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-neutral-800">
+      <div className="space-y-4 flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[var(--control-border)]">
         <div>
           <label className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider block mb-1">
             {t("gemDescription") || "Description"}

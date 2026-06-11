@@ -130,7 +130,7 @@ export default function FileManagerPanel({
               </div>
             ) : files.length === 0 ? (
               <div className="flex items-center justify-center py-6 text-[var(--text-secondary)]">
-                <p className="text-[11px]">{t?.noFilesUploaded ?? "No files in this chat"}</p>
+                <p className="text-xs">{t?.noFilesUploaded ?? "No files in this chat"}</p>
               </div>
             ) : (
               <AnimatePresence mode="popLayout">
@@ -179,7 +179,7 @@ function FileListItem({ file, isDeleting, onDelete }: FileListItemProps) {
       {/* File info */}
       <div className="flex-1 min-w-0">
         <p
-          className="text-[11px] font-medium text-[var(--text-primary)] truncate"
+          className="text-xs font-medium text-[var(--text-primary)] truncate"
           title={file.filename}
         >
           {file.filename}

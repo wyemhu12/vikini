@@ -91,7 +91,7 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
             <div className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
             <div className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
           </div>
-          <span className="ml-3 text-[11px] font-mono font-medium text-secondary uppercase tracking-wider">
+          <span className="ml-3 text-xs font-mono font-medium text-secondary uppercase tracking-wider">
             {lang}
           </span>
         </div>

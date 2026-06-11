@@ -72,7 +72,7 @@ export default function SignInPage() {
             <h1 className="text-5xl font-black tracking-tight text-white sm:text-6xl bg-clip-text text-transparent bg-linear-to-b from-white to-white/50 font-sans">
               {t("appName")}
             </h1>
-            <p className="text-[11px] font-bold uppercase tracking-[0.6em] text-white/40">
+            <p className="text-xs font-bold uppercase tracking-[0.6em] text-white/40">
               {t("authorizedAccess")}
             </p>
           </div>

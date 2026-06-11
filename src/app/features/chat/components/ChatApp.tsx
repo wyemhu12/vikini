@@ -75,7 +75,6 @@ interface SessionUser {
 
 // Lazy-loaded modals for code splitting
 const UpgradeModal = lazy(() => import("@/app/components/UpgradeModal"));
-const DeleteConfirmModal = lazy(() => import("@/app/components/DeleteConfirmModal"));
 const EditImagePromptModal = lazy(() => import("@/app/components/EditImagePromptModal"));
 
 // ============================================
@@ -808,15 +807,6 @@ export default function ChatApp() {
           isOpen={modals.showUpgradeModal}
           onClose={modals.closeUpgradeModal}
           modelName={modals.restrictedModel || ""}
-          t={t}
-        />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <DeleteConfirmModal
-          isOpen={modals.showDeleteModal}
-          onCancel={modals.closeDeleteModal}
-          onConfirm={modals.confirmDelete}
           t={t}
         />
       </Suspense>

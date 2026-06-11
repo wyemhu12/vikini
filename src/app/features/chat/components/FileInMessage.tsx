@@ -35,7 +35,7 @@ export function FileInMessage({ conversationId, fileIds, onClick }: FileInMessag
             key={file.id}
             type="button"
             onClick={() => onClick?.(file)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--surface)]/15 hover:bg-[var(--surface)]/25 text-[11px] transition-colors max-w-[200px] group"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--surface)]/15 hover:bg-[var(--surface)]/25 text-xs transition-colors max-w-[200px] group"
           >
             <Icon className="w-3.5 h-3.5 shrink-0 opacity-70" />
             <span className="truncate">{file.filename}</span>

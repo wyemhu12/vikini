@@ -20,6 +20,10 @@ import {
 import { cn } from "@/lib/utils/cn";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { toast } from "@/lib/store/toastStore";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import type { EmbeddingModel } from "@/types/projects";
 
 interface CreateProjectModalProps {
@@ -60,7 +64,7 @@ const COLORS = [
 ];
 
 /**
- * Modal to create a new project
+ * Modal to create a new project — uses Radix Dialog for focus trap + ESC
  */
 export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
   const { createProject, limits, isLoading: _isLoading } = useProjectStore();
@@ -138,27 +142,19 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md p-0 gap-0 [&>button]:hidden">
+        <DialogTitle className="sr-only">Create New Project</DialogTitle>
 
-      {/* Modal */}
-      <div
-        className={cn(
-          "relative w-full max-w-md mx-4",
-          "bg-[color-mix(in_srgb,var(--surface)_98%,transparent)] backdrop-blur-xl",
-          "border border-(--border) rounded-xl shadow-2xl",
-          "animate-in fade-in-0 zoom-in-95 duration-200"
-        )}
-      >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-(--border)">
           <h2 className="text-lg font-semibold">Create New Project</h2>
-          <button onClick={onClose} className="p-1 hover:bg-muted rounded-lg transition-colors">
-            <X className="h-5 w-5 text-muted-foreground" />
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-(--control-bg-hover) rounded-lg transition-colors"
+          >
+            <X className="h-5 w-5 text-(--text-secondary)" />
           </button>
         </div>
 
@@ -167,19 +163,13 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
           {/* Project Name */}
           <div>
             <label className="block text-sm font-medium mb-1.5">
-              Project Name <span className="text-destructive">*</span>
+              Project Name <span className="text-(--danger)">*</span>
             </label>
-            <input
+            <Input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="My Research Project"
-              className={cn(
-                "w-full px-3 py-2 rounded-lg",
-                "bg-muted/50 border border-border",
-                "focus:outline-none focus:ring-2 focus:ring-primary/50",
-                "text-sm placeholder:text-muted-foreground"
-              )}
               maxLength={50}
               autoFocus
             />
@@ -188,18 +178,13 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
           {/* Description */}
           <div>
             <label className="block text-sm font-medium mb-1.5">Description (optional)</label>
-            <textarea
+            <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief description of this project..."
               rows={2}
-              className={cn(
-                "w-full px-3 py-2 rounded-lg resize-none",
-                "bg-muted/50 border border-border",
-                "focus:outline-none focus:ring-2 focus:ring-primary/50",
-                "text-sm placeholder:text-muted-foreground"
-              )}
               maxLength={200}
+              className="resize-none"
             />
           </div>
 
@@ -238,7 +223,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                     className={cn(
                       "w-6 h-6 rounded-full transition-transform",
                       "hover:scale-110",
-                      color === c && "ring-2 ring-offset-2 ring-offset-background ring-primary"
+                      color === c && "ring-2 ring-offset-2 ring-offset-(--surface) ring-(--accent)"
                     )}
                     style={{ backgroundColor: c }}
                   />
@@ -262,8 +247,8 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                       "transition-colors",
                       !isAvailable && "opacity-50 cursor-not-allowed",
                       embeddingModel === modelId
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:bg-muted/50"
+                        ? "border-(--accent) bg-(--accent)/5"
+                        : "border-(--border) hover:bg-(--control-bg)"
                     )}
                   >
                     <input
@@ -273,11 +258,11 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                       checked={embeddingModel === modelId}
                       onChange={() => isAvailable && setEmbeddingModel(modelId)}
                       disabled={!isAvailable}
-                      className="accent-primary"
+                      className="accent-[var(--accent)]"
                     />
                     <div>
                       <div className="text-sm font-medium">{info.label}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-(--text-secondary)">
                         {isAvailable ? info.desc : info.descLocked}
                       </div>
                     </div>
@@ -289,42 +274,23 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
 
           {/* Error */}
           {error && (
-            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+            <div className="p-3 rounded-lg bg-(--danger)/10 border border-(--danger)/20 text-sm text-(--danger)">
               {error}
             </div>
           )}
 
           {/* Actions */}
           <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className={cn(
-                "flex-1 px-4 py-2 rounded-lg",
-                "border border-border hover:bg-muted transition-colors",
-                "text-sm font-medium"
-              )}
-            >
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || !name.trim()}
-              className={cn(
-                "flex-1 px-4 py-2 rounded-lg",
-                "bg-primary text-primary-foreground",
-                "hover:bg-primary/90 transition-colors",
-                "text-sm font-medium",
-                "disabled:opacity-50 disabled:cursor-not-allowed",
-                "flex items-center justify-center gap-2"
-              )}
-            >
+            </Button>
+            <Button type="submit" disabled={isSubmitting || !name.trim()} className="flex-1">
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
               Create Project
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

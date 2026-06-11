@@ -9,7 +9,7 @@ import { useProjectStore } from "@/lib/store/projectStore";
 import { useConversation } from "@/app/features/chat/hooks/useConversation";
 import { useLanguageStore } from "@/lib/store/languageStore";
 import { translations } from "@/lib/utils/config";
-import DeleteConfirmModal from "@/app/components/DeleteConfirmModal";
+import { confirm } from "@/lib/store/confirmStore";
 import type { KnowledgeDocument, ProjectWithStats } from "@/types/projects";
 
 interface ProjectSettingsModalProps {
@@ -45,11 +45,6 @@ export function ProjectSettingsModal({
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Delete confirmation modals
-  const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false);
-  const [showDeleteChatModal, setShowDeleteChatModal] = useState(false);
-  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
 
   // Get conversations for this project
   const projectConversations = getProjectConversations(projectId);
@@ -128,14 +123,19 @@ export function ProjectSettingsModal({
     await Promise.all([fetchDocuments(), fetchProjects()]);
   };
 
-  // Delete project - opens modal
-  const handleDeleteProject = () => {
-    setShowDeleteProjectModal(true);
-  };
-
-  // Confirm delete project
-  const confirmDeleteProject = async () => {
-    setShowDeleteProjectModal(false);
+  // Delete project - imperative confirm
+  const handleDeleteProject = async () => {
+    const ok = await confirm({
+      title: language === "vi" ? "Xóa dự án" : "Delete Project",
+      description:
+        language === "vi"
+          ? "Xóa dự án này? Tất cả tài liệu và hội thoại sẽ bị mất."
+          : "Delete this project? All documents and conversations will be lost.",
+      variant: "danger",
+      confirmLabel: t.modalDeleteButton,
+      cancelLabel: t.cancel,
+    });
+    if (!ok) return;
     setIsDeleting(true);
     try {
       await deleteProject(projectId);
@@ -146,19 +146,18 @@ export function ProjectSettingsModal({
     }
   };
 
-  // Delete chat - opens modal
-  const handleDeleteChat = (chatId: string) => {
-    setChatToDelete(chatId);
-    setShowDeleteChatModal(true);
-  };
-
-  // Confirm delete chat
-  const confirmDeleteChat = async () => {
-    if (!chatToDelete) return;
-    setShowDeleteChatModal(false);
-    await deleteConversation(chatToDelete);
+  // Delete chat - imperative confirm
+  const handleDeleteChat = async (chatId: string) => {
+    const ok = await confirm({
+      title: language === "vi" ? "Xóa hội thoại" : "Delete Conversation",
+      description: t.modalDeleteConfirm,
+      variant: "danger",
+      confirmLabel: t.modalDeleteButton,
+      cancelLabel: t.cancel,
+    });
+    if (!ok) return;
+    await deleteConversation(chatId);
     await refreshConversations();
-    setChatToDelete(null);
   };
 
   if (!isOpen) return null;
@@ -197,7 +196,7 @@ export function ProjectSettingsModal({
                 disabled={isDeleting}
                 className={cn(
                   "p-2 rounded-lg transition-colors",
-                  "hover:bg-red-500/10 text-red-500"
+                  "hover:bg-(--danger)/10 text-(--danger)"
                 )}
                 title={language === "vi" ? "Xóa dự án" : "Delete project"}
               >
@@ -219,7 +218,7 @@ export function ProjectSettingsModal({
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
             {error && (
-              <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500">
+              <div className="mb-6 p-4 rounded-lg bg-(--danger)/10 border border-(--danger)/20 text-(--danger)">
                 {error}
               </div>
             )}
@@ -295,7 +294,7 @@ export function ProjectSettingsModal({
                         }}
                         className={cn(
                           "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium",
-                          "bg-primary text-primary-foreground hover:bg-primary/90",
+                          "bg-(--accent) text-black hover:brightness-110",
                           "transition-colors"
                         )}
                       >
@@ -333,7 +332,7 @@ export function ProjectSettingsModal({
                               e.stopPropagation();
                               handleDeleteChat(conv.id);
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all"
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:text-(--danger) transition-all"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -347,32 +346,6 @@ export function ProjectSettingsModal({
           </div>
         </div>
       </div>
-
-      {/* Delete Project Modal */}
-      <DeleteConfirmModal
-        isOpen={showDeleteProjectModal}
-        onConfirm={confirmDeleteProject}
-        onCancel={() => setShowDeleteProjectModal(false)}
-        title={language === "vi" ? "Xóa dự án" : "Delete Project"}
-        message={
-          language === "vi"
-            ? "Xóa dự án này? Tất cả tài liệu và hội thoại sẽ bị mất."
-            : "Delete this project? All documents and conversations will be lost."
-        }
-        t={t}
-      />
-
-      {/* Delete Chat Modal */}
-      <DeleteConfirmModal
-        isOpen={showDeleteChatModal}
-        onConfirm={confirmDeleteChat}
-        onCancel={() => {
-          setShowDeleteChatModal(false);
-          setChatToDelete(null);
-        }}
-        title={language === "vi" ? "Xóa hội thoại" : "Delete Conversation"}
-        t={t}
-      />
     </>
   );
 }

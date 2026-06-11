@@ -108,9 +108,7 @@ export default function ThinkingLevelSelector({
                     : "text-(--text-secondary) hover:bg-(--control-bg) hover:text-(--text-primary)"
                 }`}
               >
-                <span className="text-[11px] font-bold uppercase tracking-wider">
-                  {option.label}
-                </span>
+                <span className="text-xs font-bold uppercase tracking-wider">{option.label}</span>
                 {thinkingLevel === option.value && (
                   <div className="bg-(--accent) rounded-full p-0.5">
                     <Check className="w-2.5 h-2.5 text-(--surface)" />
