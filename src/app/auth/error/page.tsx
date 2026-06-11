@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// @ts-ignore
+import { useRouter } from "next/navigation";
 import { useLanguage } from "../../features/chat/hooks/useLanguage";
 
 function AuthErrorContent() {
   const { language, setLanguage } = useLanguage();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -95,7 +96,7 @@ function AuthErrorContent() {
         {/* Back Button */}
         <div className="pt-4">
           <button
-            onClick={() => (window.location.href = "/auth/signin")}
+            onClick={() => router.push("/auth/signin")}
             className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-full border border-white/20 bg-white/5 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-white/10 hover:scale-[1.02] active:scale-[0.98]"
           >
             {language === "vi" ? "Quay Lại Đăng Nhập" : "Back to Sign In"}

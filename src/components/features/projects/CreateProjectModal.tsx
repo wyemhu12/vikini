@@ -221,12 +221,15 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                     type="button"
                     onClick={() => setColor(c)}
                     className={cn(
-                      "w-6 h-6 rounded-full transition-transform",
+                      "w-7 h-7 rounded-full transition-transform cursor-pointer",
                       "hover:scale-110",
-                      color === c && "ring-2 ring-offset-2 ring-offset-(--surface) ring-(--accent)"
+                      color === c &&
+                        "ring-2 ring-offset-2 ring-offset-[var(--surface)] ring-[var(--accent)] scale-110"
                     )}
                     style={{ backgroundColor: c }}
-                  />
+                  >
+                    <span className="sr-only">{c}</span>
+                  </button>
                 ))}
               </div>
             </div>

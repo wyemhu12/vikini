@@ -477,6 +477,14 @@ export const translations: TranslationSet = {
     fileClosePreview: "Đóng xem trước",
     fileOf: "của",
     uploadRetrying: "Đang thử lại...",
+    // Access Pending Screen
+    accessDenied: "Truy Cập Bị Từ Chối",
+    accessPending: "Đang chờ phê duyệt",
+    accessAccountPending: "Tài khoản đang chờ duyệt",
+    accessWhitelistOnly: "Chỉ tài khoản được phê duyệt mới có thể truy cập",
+    accessWaitApproval: "Vui lòng đợi quản trị viên phê duyệt tài khoản của bạn.",
+    accessContactAdmin: "Nếu bạn nghĩ đây là lỗi, vui lòng liên hệ quản trị viên.",
+    accessSignOut: "Quay Lại Đăng Nhập",
   },
   en: {
     appName: "Vikini Chat",
@@ -931,6 +939,14 @@ export const translations: TranslationSet = {
     fileClosePreview: "Close preview",
     fileOf: "of",
     uploadRetrying: "Retrying...",
+    // Access Pending Screen
+    accessDenied: "Access Denied",
+    accessPending: "Access Pending Approval",
+    accessAccountPending: "Account pending approval",
+    accessWhitelistOnly: "Only approved accounts can access this application",
+    accessWaitApproval: "Please wait for an administrator to approve your account.",
+    accessContactAdmin: "If you believe this is an error, please contact the administrator.",
+    accessSignOut: "Back to Sign In",
   },
 };
 

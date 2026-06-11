@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useConfirmStore } from "@/lib/store/confirmStore";
-// @ts-ignore - JS hook without type declarations
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 /**

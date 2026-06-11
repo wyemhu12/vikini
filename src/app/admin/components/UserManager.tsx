@@ -15,6 +15,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import { translations } from "@/lib/utils/config";
 import { toast } from "@/lib/store/toastStore";
 import { formatDate } from "@/lib/utils/dateFormat";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 interface Profile {
   id: string;
@@ -233,46 +240,30 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
         </div>
 
         {/* Rank Filter */}
-        <select
-          value={rankFilter}
-          onChange={(e) => setRankFilter(e.target.value as RankFilter)}
-          className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 focus:outline-none cursor-pointer"
-          style={{ colorScheme: "dark" }}
-        >
-          <option value="all" className="bg-[#1a1a1a] text-white">
-            {t.adminFilterAllRanks}
-          </option>
-          <option value="not_whitelisted" className="bg-[#1a1a1a] text-white">
-            {t.userNotWhitelisted}
-          </option>
-          <option value="basic" className="bg-[#1a1a1a] text-white">
-            {t.userBasic}
-          </option>
-          <option value="pro" className="bg-[#1a1a1a] text-white">
-            {t.userPro}
-          </option>
-          <option value="admin" className="bg-[#1a1a1a] text-white">
-            {t.userAdmin}
-          </option>
-        </select>
+        <Select value={rankFilter} onValueChange={(v) => setRankFilter(v as RankFilter)}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t.adminFilterAllRanks}</SelectItem>
+            <SelectItem value="not_whitelisted">{t.userNotWhitelisted}</SelectItem>
+            <SelectItem value="basic">{t.userBasic}</SelectItem>
+            <SelectItem value="pro">{t.userPro}</SelectItem>
+            <SelectItem value="admin">{t.userAdmin}</SelectItem>
+          </SelectContent>
+        </Select>
 
         {/* Status Filter */}
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-          className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 focus:outline-none cursor-pointer"
-          style={{ colorScheme: "dark" }}
-        >
-          <option value="all" className="bg-[#1a1a1a] text-white">
-            {t.adminFilterAllStatus}
-          </option>
-          <option value="active" className="bg-[#1a1a1a] text-white">
-            {t.userActive}
-          </option>
-          <option value="blocked" className="bg-[#1a1a1a] text-white">
-            {t.userBlocked}
-          </option>
-        </select>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t.adminFilterAllStatus}</SelectItem>
+            <SelectItem value="active">{t.userActive}</SelectItem>
+            <SelectItem value="blocked">{t.userBlocked}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Bulk Actions Bar */}
@@ -282,30 +273,16 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
             {selectedIds.size} {t.adminBulkSelected}
           </span>
           <div className="flex gap-2 ml-auto">
-            <select
-              onChange={(e) => {
-                if (e.target.value) {
-                  bulkUpdate({ rank: e.target.value as Profile["rank"] });
-                  e.target.value = "";
-                }
-              }}
-              className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white cursor-pointer"
-              style={{ colorScheme: "dark" }}
-              defaultValue=""
-            >
-              <option value="" disabled className="bg-[#1a1a1a] text-white">
-                {t.adminBulkSetRank}
-              </option>
-              <option value="not_whitelisted" className="bg-[#1a1a1a] text-white">
-                {t.userNotWhitelisted}
-              </option>
-              <option value="basic" className="bg-[#1a1a1a] text-white">
-                {t.userBasic}
-              </option>
-              <option value="pro" className="bg-[#1a1a1a] text-white">
-                {t.userPro}
-              </option>
-            </select>
+            <Select onValueChange={(v) => bulkUpdate({ rank: v as Profile["rank"] })}>
+              <SelectTrigger className="w-[160px] h-auto py-1.5">
+                <SelectValue placeholder={t.adminBulkSetRank} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="not_whitelisted">{t.userNotWhitelisted}</SelectItem>
+                <SelectItem value="basic">{t.userBasic}</SelectItem>
+                <SelectItem value="pro">{t.userPro}</SelectItem>
+              </SelectContent>
+            </Select>
             <button
               onClick={() => bulkUpdate({ is_blocked: true })}
               disabled={updating === "bulk"}
@@ -397,30 +374,21 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
                     </button>
                   </td>
                   <td className="py-3 px-4">
-                    <select
+                    <Select
                       value={user.rank}
-                      onChange={(e) =>
-                        updateUser(user.id, { rank: e.target.value as Profile["rank"] })
-                      }
+                      onValueChange={(v) => updateUser(user.id, { rank: v as Profile["rank"] })}
                       disabled={self || updating === user.id}
-                      className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:border-blue-500/50 focus:outline-none disabled:opacity-50 cursor-pointer"
-                      style={{
-                        colorScheme: "dark",
-                      }}
                     >
-                      <option value="not_whitelisted" className="bg-[#1a1a1a] text-white">
-                        {t.userNotWhitelisted}
-                      </option>
-                      <option value="basic" className="bg-[#1a1a1a] text-white">
-                        {t.userBasic}
-                      </option>
-                      <option value="pro" className="bg-[#1a1a1a] text-white">
-                        {t.userPro}
-                      </option>
-                      <option value="admin" className="bg-[#1a1a1a] text-white">
-                        {t.userAdmin}
-                      </option>
-                    </select>
+                      <SelectTrigger className="w-[140px] h-auto py-1.5">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="not_whitelisted">{t.userNotWhitelisted}</SelectItem>
+                        <SelectItem value="basic">{t.userBasic}</SelectItem>
+                        <SelectItem value="pro">{t.userPro}</SelectItem>
+                        <SelectItem value="admin">{t.userAdmin}</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </td>
                   <td className="py-3 px-4">
                     <span

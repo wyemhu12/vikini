@@ -32,10 +32,29 @@
 - **Gallery Detail Modal → Dialog**: Wrapped with `<Dialog>` + `<DialogContent>`, added
   `<DialogTitle>` for accessibility. Focus trap + ESC free from Radix.
 
+### Wave 3: Admin & Gallery Polish
+
+- **UserManager**: 4 × native `<select>` → Radix `<Select>` primitive. Removed all
+  `bg-[#1a1a1a]`, `colorScheme: "dark"` inline styles.
+- **GalleryView compare mode**: `purple-500` → `--accent` token (border, ring, indicator).
+- **ImageCompareModal**: `purple-500` → `--accent` token (overlay toggle, model badge).
+
+### Wave 4: Auth Pages
+
+- **@ts-ignore × 3 REMOVED**: signin/page.tsx, error/page.tsx, confirm-dialog.tsx.
+- **`window.location.href`** → `useRouter().push()` in error/page.tsx.
+- **AccessPendingScreen** → bilingual with `useLanguage()` + 7 new translation keys.
+- **`#020617`**: Kept per decision (login pages always dark).
+
 ### Verification
 
-- `type-check` ✅, `lint` ✅.
-- **Files changed**: 15 files modified, 1 file deleted.
+- `type-check` ✅, `lint` ✅, `test` ✅ (2 pre-existing env failures).
+- **Total files changed**: 22+ files modified, 1 file deleted across all 4 waves.
+
+### Bug Fix (mid-wave)
+
+- **CreateProjectModal color picker**: Fixed self-closing `<button />` + TW v4 arbitrary
+  value syntax (`ring-offset-[var(--surface)]`).
 
 ---
 

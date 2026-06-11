@@ -120,7 +120,7 @@ export function ImageCompareModal({
           onClick={() => setOverlayMode(!overlayMode)}
           className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
             overlayMode
-              ? "bg-purple-500/80 text-white"
+              ? "bg-(--accent)/80 text-white"
               : "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
           }`}
         >
@@ -255,7 +255,7 @@ export function ImageCompareModal({
                 />
               </div>
               <div className="text-center max-w-md">
-                <div className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-full text-xs font-bold inline-block mb-2">
+                <div className="px-3 py-1.5 bg-(--accent)/20 text-(--accent) rounded-full text-xs font-bold inline-block mb-2">
                   {rightImage.model || "Image B"}
                 </div>
                 <p className="text-white/70 text-sm line-clamp-2">{rightImage.prompt}</p>

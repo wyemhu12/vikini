@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useLanguage } from "../../features/chat/hooks/useLanguage";
-// @ts-ignore
 import { handleGoogleSignIn } from "./actions";
 
 /**

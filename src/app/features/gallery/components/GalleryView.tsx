@@ -483,7 +483,7 @@ export function GalleryView() {
                       }}
                       className={`group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-(--surface-muted) border-2 transition-all ${
                         isSelectedForCompare
-                          ? "border-purple-500 ring-2 ring-purple-500/30"
+                          ? "border-(--accent) ring-2 ring-(--accent)/30"
                           : "border-(--border) hover:border-(--accent)"
                       }`}
                     >
@@ -500,7 +500,7 @@ export function GalleryView() {
                         <div
                           className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
                             isSelectedForCompare
-                              ? "bg-purple-500 text-white"
+                              ? "bg-(--accent) text-white"
                               : "bg-black/50 text-white/70 border border-white/30"
                           }`}
                         >
