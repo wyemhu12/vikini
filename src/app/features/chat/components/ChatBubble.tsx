@@ -4,6 +4,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeHighlight from "rehype-highlight";
 import React, { useMemo, useState, useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { useLanguage } from "../hooks/useLanguage";
@@ -592,7 +593,26 @@ const ChatBubble = React.memo(
                     <div className="chat-markdown-container chat-markdown w-full overflow-hidden">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                        rehypePlugins={[
+                          rehypeRaw,
+                          [
+                            rehypeSanitize,
+                            {
+                              ...defaultSchema,
+                              tagNames: [
+                                ...(defaultSchema.tagNames || []),
+                                "mark",
+                                "u",
+                                "br",
+                                "b",
+                                "i",
+                                "sub",
+                                "sup",
+                              ],
+                            },
+                          ],
+                          rehypeHighlight,
+                        ]}
                         components={mdComponents}
                       >
                         {deferredDisplayContent}
