@@ -9,6 +9,7 @@ import { useFiles } from "@/lib/features/files/useFiles";
 import type { FileItem } from "@/types/files";
 import { formatFileSize, KIND_ICONS, KIND_COLORS } from "@/lib/utils/fileDisplayUtils";
 import { logger } from "@/lib/utils/logger";
+import { toast } from "@/lib/store/toastStore";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -84,15 +85,19 @@ export default function FileManagerPanel({
         const res = await fetch(`/api/files?id=${fileId}`, { method: "DELETE" });
         if (res.ok) {
           await mutate();
+        } else {
+          const msg = t?.deleteFileFailed || "Failed to delete file";
+          toast.error(msg);
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Failed to delete file";
         logger.error("[FileManagerPanel] delete error:", message);
+        toast.error(t?.deleteFileFailed || message);
       } finally {
         setDeletingId(null);
       }
     },
-    [mutate]
+    [mutate, t]
   );
 
   return (

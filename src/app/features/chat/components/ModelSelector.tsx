@@ -131,7 +131,7 @@ export default function ModelSelector({
       {/* DROPDOWN CONTENT */}
       {isOpen && (
         <Card
-          className={`absolute ${expandDown ? "top-full mt-2" : "bottom-full mb-2"} left-0 w-[350px] max-h-[min(450px,50vh)] bg-(--surface-muted) border border-(--border) rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100`}
+          className={`absolute ${expandDown ? "top-full mt-2" : "bottom-full mb-2"} left-0 w-[min(350px,calc(100vw-2rem))] max-h-[min(450px,50vh)] bg-(--surface-muted) border border-(--border) rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100`}
         >
           {/* TABS HEADER */}
           <div className="flex items-center p-1 bg-(--control-bg) border-b border-(--border) shrink-0">

@@ -82,7 +82,7 @@ export default function GemList({
                 <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
-              Preview
+              {t("preview")}
             </button>
 
             {!readOnly && (
@@ -119,7 +119,7 @@ export default function GemList({
           {premade?.length ? (
             premade.map((g) => renderItem(g, true))
           ) : (
-            <div className="text-xs text-(--text-secondary)">---</div>
+            <div className="text-xs text-(--text-secondary)">{t("noDescription")}</div>
           )}
         </div>
       </div>
@@ -130,7 +130,7 @@ export default function GemList({
           {mine?.length ? (
             mine.map((g) => renderItem(g, false))
           ) : (
-            <div className="text-xs text-(--text-secondary)">---</div>
+            <div className="text-xs text-(--text-secondary)">{t("noDescription")}</div>
           )}
         </div>
       </div>

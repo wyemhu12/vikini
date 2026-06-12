@@ -23,6 +23,8 @@ import {
   Image as ImageIcon,
   LayoutGrid,
   MessageSquare,
+  MessageSquarePlus,
+  FolderPlus,
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
@@ -276,13 +278,34 @@ function Sidebar({
             isCollapsed={isCollapsed}
           />
           {pathname === "/" && (
-            <SidebarButton
-              onClick={handleOpenGems}
-              icon={Sparkles}
-              label={t?.exploreGems || "Explore Gems"}
-              className="ml-6 scale-95 origin-left opacity-80"
-              isCollapsed={isCollapsed}
-            />
+            <>
+              <SidebarButton
+                onClick={handleOpenGems}
+                icon={Sparkles}
+                label={t?.exploreGems || "Explore Gems"}
+                className="ml-6 scale-95 origin-left opacity-80"
+                isCollapsed={isCollapsed}
+              />
+              {isCollapsed && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={handleOpenGems}
+                      className="flex items-center justify-center w-full py-2 text-(--text-secondary) hover:text-(--accent) transition-colors"
+                      type="button"
+                    >
+                      <Sparkles className="w-5 h-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-[200px]">
+                    <p className="font-medium">GEMs</p>
+                    <p className="text-xs text-(--text-secondary)">
+                      Custom AI personas with specialized instructions and knowledge
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </>
           )}
           <SidebarButton
             onClick={() => handleNavigation("/images")}
@@ -324,7 +347,13 @@ function Sidebar({
               }}
             >
               {projects.length === 0 ? (
-                <div className="px-3 py-2 text-xs text-(--text-muted)">No projects yet</div>
+                <div className="flex flex-col items-center gap-2 py-4 text-center">
+                  <FolderPlus className="w-6 h-6 text-(--text-secondary) opacity-50" />
+                  <span className="text-xs text-(--text-secondary)">No projects yet</span>
+                  <span className="text-[10px] text-(--text-muted)">
+                    Create a project to organize your chats
+                  </span>
+                </div>
               ) : (
                 projects.map((project) => {
                   // Get conversations for this project
@@ -369,8 +398,12 @@ function Sidebar({
               count={list.length}
             >
               {list.length === 0 ? (
-                <div className="px-3 py-4 text-xs text-(--text-muted) text-center">
-                  {t?.noConversations || "No conversations"}
+                <div className="flex flex-col items-center gap-2 py-4 text-center">
+                  <MessageSquarePlus className="w-6 h-6 text-(--text-secondary) opacity-50" />
+                  <span className="text-xs text-(--text-secondary)">
+                    {t?.noConversations || "No conversations"}
+                  </span>
+                  <span className="text-[10px] text-(--text-muted)">Start a new chat to begin</span>
                 </div>
               ) : (
                 <AnimatePresence mode="sync">
@@ -404,7 +437,7 @@ function Sidebar({
               icon={Trash2}
               label={t?.deleteAll || "Clear History"}
               variant="destructive"
-              className="text-[10px]"
+              className="text-xs"
               isCollapsed={isCollapsed}
             />
           )}

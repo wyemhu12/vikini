@@ -114,7 +114,9 @@ function SidebarItem({
 
   return (
     <motion.div
-      initial={false}
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       exit={{ opacity: 0, x: -60, scale: 0.9, transition: { duration: 0.3, ease: "easeIn" } }}
       className={cn(
         "relative group w-full px-2 transition-[opacity,transform] duration-200",
@@ -138,18 +140,17 @@ function SidebarItem({
       {/* Radix Dropdown */}
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
-          <div
+          <button
             className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-(--control-bg-hover) cursor-pointer transition-opacity duration-200 z-10 ${
               isActive
                 ? "opacity-100 text-(--text-primary)"
                 : "opacity-0 group-hover:opacity-100 text-(--text-secondary) hover:text-(--text-primary)"
             }`}
-            role="button"
-            title="Tùy chọn"
-            onClick={(e) => e.stopPropagation()} // Stop propagation to prevent selecting chat when clicking menu
+            aria-label="Options"
+            onClick={(e) => e.stopPropagation()}
           >
             <EllipsisVerticalIcon />
-          </div>
+          </button>
         </DropdownMenu.Trigger>
 
         <DropdownMenu.Portal>

@@ -26,22 +26,9 @@ const Settings = dynamic(() => import("lucide-react").then((mod) => mod.Settings
   ssr: false,
 });
 
-const Bars3Icon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={1.5}
-    stroke="currentColor"
-    className="w-6 h-6"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-    />
-  </svg>
-);
+const Menu = dynamic(() => import("lucide-react").then((mod) => mod.Menu), {
+  ssr: false,
+});
 
 interface HeaderBarProps {
   t: Record<string, string>; // Translation strings
@@ -116,7 +103,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           "
           aria-label={t?.openSidebar || "Open sidebar"}
         >
-          <Bars3Icon />
+          <Menu className="w-6 h-6" />
         </button>
 
         {/* App Title with Logo */}
@@ -135,7 +122,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 ml-auto">
+      <div className="hidden md:flex items-center gap-3 ml-auto">
         {/* DESKTOP: Separate Controls */}
         {/* Language Dropdown */}
         {mounted ? (

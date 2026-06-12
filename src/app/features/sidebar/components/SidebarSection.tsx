@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -21,6 +22,10 @@ interface SidebarSectionProps {
   };
   /** Whether to show count badge */
   count?: number;
+  /** Icon to show in empty state */
+  emptyIcon?: React.ReactNode;
+  /** Message to show in empty state */
+  emptyMessage?: string;
 }
 
 /**
@@ -33,6 +38,8 @@ export function SidebarSection({
   children,
   action,
   count,
+  _emptyIcon,
+  _emptyMessage,
 }: SidebarSectionProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -52,6 +59,8 @@ export function SidebarSection({
 
   return (
     <div className="mb-2">
+      {/* Screen-reader heading */}
+      <h2 className="sr-only">{label}</h2>
       {/* Header */}
       <button
         onClick={toggle}
@@ -76,29 +85,34 @@ export function SidebarSection({
       </button>
 
       {/* Content */}
-      <div
-        className={cn(
-          "overflow-hidden transition-all duration-200",
-          isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
-        )}
-      >
-        {/* Optional action button */}
-        {action && (
-          <button
-            onClick={action.onClick}
-            className={cn(
-              "w-full flex items-center gap-2 px-3 py-2 text-sm",
-              "text-(--text-secondary) hover:text-(--text-primary)",
-              "hover:bg-(--control-bg-hover) rounded-lg transition-colors"
-            )}
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
+            className="overflow-hidden"
           >
-            {action.icon}
-            {action.label}
-          </button>
+            {/* Optional action button */}
+            {action && (
+              <button
+                onClick={action.onClick}
+                className={cn(
+                  "w-full flex items-center gap-2 px-3 py-2 text-sm",
+                  "text-(--text-secondary) hover:text-(--text-primary)",
+                  "hover:bg-(--control-bg-hover) rounded-lg transition-colors"
+                )}
+              >
+                {action.icon}
+                {action.label}
+              </button>
+            )}
+            {/* Children */}
+            <div className="space-y-0.5">{children}</div>
+          </motion.div>
         )}
-        {/* Children */}
-        <div className="space-y-0.5">{children}</div>
-      </div>
+      </AnimatePresence>
     </div>
   );
 }

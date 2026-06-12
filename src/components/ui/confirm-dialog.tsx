@@ -24,14 +24,13 @@ import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
  */
 export default function ConfirmDialogHost() {
   const { open, loading, options, settle } = useConfirmStore();
-  const { language } = useLanguage();
-  const vi = language === "vi";
+  const { t } = useLanguage();
 
   const variant = options?.variant ?? "default";
   const isDanger = variant === "danger";
 
-  const confirmLabel = options?.confirmLabel ?? (vi ? "Xác nhận" : "Confirm");
-  const cancelLabel = options?.cancelLabel ?? (vi ? "Huỷ" : "Cancel");
+  const confirmLabel = options?.confirmLabel ?? t("confirmAction");
+  const cancelLabel = options?.cancelLabel ?? t("cancel");
 
   const handleConfirm = async () => {
     try {
@@ -83,7 +82,7 @@ export default function ConfirmDialogHost() {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {vi ? "Đang xử lý…" : "Working…"}
+                {t("working")}
               </>
             ) : (
               confirmLabel

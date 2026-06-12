@@ -558,6 +558,22 @@ export const translations: TranslationSet = {
     deleteDocFailed: "Không thể xóa tài liệu",
     rankChangeConfirm: "Thay đổi cấp bậc user này?",
     rankChangeDesc: "Thay đổi này sẽ có hiệu lực ngay lập tức.",
+    // ErrorBoundary
+    errorBoundaryTitle: "Đã xảy ra lỗi",
+    tryAgain: "Thử lại",
+    reloadPage: "Tải lại trang",
+    errorBoundaryDescription: "Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.",
+    // ConfirmDialog
+    confirmAction: "Xác nhận",
+    working: "Đang xử lý…",
+    // GemList
+    noDescription: "Chưa có mô tả",
+    preview: "Xem trước",
+    // Canvas empty state
+    studioEmptySubtitle: "Chọn template hoặc mô tả ý tưởng của bạn",
+    studioNeedsPhoto: "Cần ảnh",
+    studioShowLess: "Thu gọn",
+    studioShowMore: "Xem thêm {count} template",
   },
   en: {
     appName: "Vikini Chat",
@@ -1093,6 +1109,22 @@ export const translations: TranslationSet = {
     deleteDocFailed: "Failed to delete document",
     rankChangeConfirm: "Change this user's rank?",
     rankChangeDesc: "This will immediately change the user's access level.",
+    // ErrorBoundary
+    errorBoundaryTitle: "Something went wrong",
+    tryAgain: "Try Again",
+    reloadPage: "Reload Page",
+    errorBoundaryDescription: "An unexpected error occurred. Please try again.",
+    // ConfirmDialog
+    confirmAction: "Confirm",
+    working: "Working…",
+    // GemList
+    noDescription: "No description available",
+    preview: "Preview",
+    // Canvas empty state
+    studioEmptySubtitle: "Pick a template or describe your idea",
+    studioNeedsPhoto: "Needs photo",
+    studioShowLess: "Show less",
+    studioShowMore: "Show {count} more templates",
   },
 };
 

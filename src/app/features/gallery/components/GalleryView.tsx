@@ -26,6 +26,7 @@ import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import { useRouter } from "next/navigation";
 import { logger } from "@/lib/utils/logger";
 import { confirm } from "@/lib/store/confirmStore";
+import { toast } from "@/lib/store/toastStore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { formatDateShort } from "@/lib/utils/dateFormat";
@@ -305,9 +306,11 @@ export function GalleryView() {
       } else {
         const json = await res.json();
         logger.error("Delete failed:", json.error?.message || json.error);
+        toast.error("Failed to delete image");
       }
     } catch (error) {
       logger.error("Delete error:", error);
+      toast.error("Failed to delete image");
     } finally {
       setDeleting(null);
     }

@@ -6,6 +6,8 @@ import { FilePlus, Plus, MoreHorizontal, Pencil, Download, Trash2 } from "lucide
 import { cn } from "@/lib/utils/cn";
 import type { ProjectWithStats } from "@/types/projects";
 import type { FrontendConversation } from "@/app/features/chat/hooks/useConversation";
+import { downloadConversationById } from "@/lib/utils/download";
+import { toast } from "@/lib/store/toastStore";
 import { ProjectIcon } from "@/components/features/projects/ProjectIcon";
 import { translations } from "@/lib/utils/config";
 import { useLanguageStore } from "@/lib/store/languageStore";
@@ -69,15 +71,13 @@ export function ProjectChatView({
     });
   };
 
-  const handleExport = (conv: FrontendConversation) => {
-    const content = `# ${conv.title || "Conversation"}\n\nExported from Vikini Chat`;
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${conv.title || "conversation"}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExport = async (conv: FrontendConversation) => {
+    try {
+      await downloadConversationById(conv.id, conv.title || "conversation");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Export failed";
+      toast.error(message);
+    }
   };
 
   return (

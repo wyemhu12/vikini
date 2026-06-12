@@ -597,6 +597,9 @@ export default function ChatApp() {
             }, 10);
           }}
           className="flex-1 overflow-y-auto px-4 md:px-0 scroll-smooth relative pt-24 md:pt-0 pb-32 md:pb-0 cursor-pointer md:cursor-auto"
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions"
         >
           {/* RA2 Theme Backgrounds */}
           {mounted && (theme === "yuri" || theme === "allied" || theme === "soviet") && (

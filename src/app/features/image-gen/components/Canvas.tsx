@@ -222,11 +222,7 @@ export default function Canvas({
             <h3 className="text-lg font-bold text-(--text-primary) mb-1">
               {t("studioEmptyTitle")}
             </h3>
-            <p className="text-sm text-(--text-secondary)">
-              {language === "vi"
-                ? "Chọn template hoặc mô tả ý tưởng của bạn"
-                : "Pick a template or describe your idea"}
-            </p>
+            <p className="text-sm text-(--text-secondary)">{t("studioEmptySubtitle")}</p>
           </div>
 
           {/* Template grid */}
@@ -258,7 +254,7 @@ export default function Canvas({
                     {tmpl.requiresPhoto && (
                       <div className="mt-1 flex items-center gap-1 text-white/60 text-[9px]">
                         <ImageIcon className="w-2.5 h-2.5" />
-                        {language === "vi" ? "Cần ảnh" : "Needs photo"}
+                        {t("studioNeedsPhoto")}
                       </div>
                     )}
                   </div>
@@ -280,14 +276,12 @@ export default function Canvas({
             {templatesExpanded ? (
               <>
                 <ChevronUp className="w-3.5 h-3.5" />
-                {language === "vi" ? "Thu gọn" : "Show less"}
+                {t("studioShowLess")}
               </>
             ) : (
               <>
                 <ChevronDown className="w-3.5 h-3.5" />
-                {language === "vi"
-                  ? `Xem thêm ${IMAGE_TEMPLATES.length - 6} template`
-                  : `Show ${IMAGE_TEMPLATES.length - 6} more templates`}
+                {t("studioShowMore").replace("{count}", String(IMAGE_TEMPLATES.length - 6))}
               </>
             )}
           </motion.button>

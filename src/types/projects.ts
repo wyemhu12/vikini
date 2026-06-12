@@ -147,8 +147,6 @@ export const SUPPORTED_FILE_TYPES = {
     ".toml",
     ".sql",
     ".sh",
-    ".bat",
-    ".ps1",
   ],
 } as const;
 

@@ -64,7 +64,7 @@ const TokenBadge = memo(function TokenBadge({
   if (tooltipLines.length === 0) {
     return (
       <span
-        className={`inline-flex items-center gap-1 text-xs text-secondary/60 select-none ${className}`}
+        className={`inline-flex items-center gap-1 text-xs text-secondary/60 select-none opacity-50 hover:opacity-100 transition-opacity ${className}`}
       >
         <Sparkles className="w-3 h-3" />
         <span>
@@ -79,7 +79,7 @@ const TokenBadge = memo(function TokenBadge({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`inline-flex items-center gap-1 text-xs text-secondary/60 hover:text-secondary active:text-secondary transition-colors select-none ${className}`}
+          className={`inline-flex items-center gap-1 text-xs text-secondary/60 hover:text-secondary active:text-secondary transition-colors select-none opacity-50 hover:opacity-100 transition-opacity ${className}`}
           onClick={() => setOpen(!open)}
         >
           <Sparkles className="w-3 h-3" />
