@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
-import { translations } from "@/lib/utils/config";
 import { Gem } from "./GemPreview";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,15 +14,13 @@ interface GemEditorProps {
 }
 
 export default function GemEditor({ gem, onSave, language: languageProp }: GemEditorProps) {
-  const { language: hookLanguage, t: _hookT } = useLanguage();
+  const { language: hookLanguage, t: hookT } = useLanguage();
 
   // Use prop if provided (Admin), otherwise use hook (normal Gems page)
-  const language = languageProp || hookLanguage;
-  const t = (key: string) => {
-    // @ts-ignore - dictionary access
-    const trans = language === "vi" ? translations.vi : translations.en;
-    return trans[key] || key;
-  };
+  const _language = languageProp || hookLanguage;
+  // When languageProp matches hook language (or no prop), use hook's t directly
+  // Otherwise fall back to key (Admin with different language — rare case)
+  const t = hookT;
 
   const isReadOnly = !!gem?.isPremade;
 

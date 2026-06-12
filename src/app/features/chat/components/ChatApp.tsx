@@ -265,7 +265,6 @@ export default function ChatApp() {
     refreshConversations,
     resetChatUI,
     setMessages,
-    t,
   });
 
   // TTS Hook for reading AI responses aloud
@@ -439,11 +438,6 @@ export default function ChatApp() {
     [handleSelectConversation, closeMobileSidebar]
   );
 
-  const memoizedOnLanguageChange = useCallback(
-    (lang: string) => setLanguage(lang as SupportedLanguage),
-    [setLanguage]
-  );
-
   // Sidebar-specific memoized callbacks (prevent re-renders via React.memo)
   const memoizedOnNewChat = useCallback(() => {
     handleNewChat();
@@ -544,7 +538,7 @@ export default function ChatApp() {
       <div className="absolute inset-0 z-0 static-depth-bg pointer-events-none" />
 
       {/* Stream Error Banner */}
-      <StreamErrorBanner error={streamError} onDismiss={clearStreamError} t={t} />
+      <StreamErrorBanner error={streamError} onDismiss={clearStreamError} />
 
       {/* Sidebar */}
       <Sidebar
@@ -575,13 +569,7 @@ export default function ChatApp() {
       <div
         className={`h-full flex flex-col relative z-10 transition-all duration-300 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
       >
-        <HeaderBar
-          t={t}
-          language={language}
-          onLanguageChange={memoizedOnLanguageChange}
-          onToggleSidebar={toggleMobileSidebar}
-          showMobileControls={showMobileControls}
-        />
+        <HeaderBar onToggleSidebar={toggleMobileSidebar} showMobileControls={showMobileControls} />
 
         <div
           ref={scrollRef}
@@ -679,7 +667,6 @@ export default function ChatApp() {
                   handleModelChange={handleModelChange}
                   isModelAllowed={isModelAllowed}
                   currentGem={currentConversation?.gem}
-                  t={t}
                   onImageGen={handleImageGen}
                   selectedConversationId={selectedConversationId}
                   showMobileControls={showMobileControls}
@@ -779,7 +766,6 @@ export default function ChatApp() {
             handleModelChange={handleModelChange}
             isModelAllowed={isModelAllowed}
             currentGem={currentConversation?.gem}
-            t={t}
             onImageGen={handleImageGen}
             selectedConversationId={selectedConversationId}
             showMobileControls={showMobileControls}
@@ -810,7 +796,6 @@ export default function ChatApp() {
           isOpen={modals.showUpgradeModal}
           onClose={modals.closeUpgradeModal}
           modelName={modals.restrictedModel || ""}
-          t={t}
         />
       </Suspense>
 
@@ -820,7 +805,6 @@ export default function ChatApp() {
           onClose={() => setShowEditImageModal(false)}
           initialPrompt={editingImagePrompt}
           onConfirm={confirmImageEdit}
-          t={t}
         />
       </Suspense>
 

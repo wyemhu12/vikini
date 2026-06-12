@@ -4,6 +4,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { FolderOpen } from "lucide-react";
+import { useLanguage } from "../hooks/useLanguage";
 
 import ModelSelector from "./ModelSelector";
 import ThinkingLevelSelector from "./ThinkingLevelSelector";
@@ -25,7 +26,6 @@ interface ChatControlsProps {
   currentModel: string;
   handleModelChange: (model: string) => void;
   isModelAllowed: (model: string) => boolean;
-  t: Record<string, string>;
   webSearchEnabled: boolean;
   toggleWebSearch: () => void;
   alwaysSearch: boolean;
@@ -62,7 +62,6 @@ export default function ChatControls({
   currentModel,
   handleModelChange,
   isModelAllowed,
-  t,
   // Web search state
   webSearchEnabled,
   toggleWebSearch,
@@ -101,6 +100,8 @@ export default function ChatControls({
   const canWebSearch = modelSupportsWebSearch(currentModel);
   const isV32 = isDeepSeekV32Model(currentModel);
 
+  const { t } = useLanguage();
+
   const [showFileManager, setShowFileManager] = useState(false);
 
   return (
@@ -128,7 +129,6 @@ export default function ChatControls({
             currentModelId={currentModel}
             onSelectModel={handleModelChange}
             isModelAllowed={isModelAllowed}
-            t={t}
             disabled={isStreaming || regenerating}
             expandDown={isLanding}
           />
@@ -137,11 +137,7 @@ export default function ChatControls({
           <button
             onClick={canWebSearch ? toggleWebSearch : undefined}
             disabled={!canWebSearch}
-            title={
-              !canWebSearch
-                ? t.webSearchNotSupported || "Web search is not supported by this model"
-                : undefined
-            }
+            title={!canWebSearch ? t("webSearchNotSupported") : undefined}
             className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 ${
               !canWebSearch
                 ? "text-(--text-secondary) opacity-40 cursor-not-allowed"
@@ -150,11 +146,16 @@ export default function ChatControls({
                   : "text-(--text-secondary) hover:text-(--text-primary)"
             }`}
           >
-            WEB {!canWebSearch ? t.webSearchOff : webSearchEnabled ? t.webSearchOn : t.webSearchOff}
+            WEB{" "}
+            {!canWebSearch
+              ? t("webSearchOff")
+              : webSearchEnabled
+                ? t("webSearchOn")
+                : t("webSearchOff")}
           </button>
           {isV32 && webSearchEnabled && (
             <span className="hidden md:inline text-[8px] text-(--warning)/80 font-medium ml-0.5 whitespace-nowrap">
-              {t.webSearchPricingNote}
+              {t("webSearchPricingNote")}
             </span>
           )}
           {canWebSearch && currentModel && currentModel.startsWith("gemini") && (
@@ -167,9 +168,9 @@ export default function ChatControls({
                     ? "text-(--accent) md:bg-(--control-bg-hover)"
                     : "text-(--text-secondary) hover:text-(--text-primary)"
                 }`}
-                title={t.alwaysSearchTooltip}
+                title={t("alwaysSearchTooltip")}
               >
-                {t.alwaysSearch} {alwaysSearch ? t.webSearchOn : t.webSearchOff}
+                {t("alwaysSearch")} {alwaysSearch ? t("webSearchOn") : t("webSearchOff")}
               </button>
             </>
           )}
@@ -181,7 +182,6 @@ export default function ChatControls({
                 thinkingLevel={thinkingLevel}
                 setThinkingLevel={setThinkingLevel}
                 currentModel={currentModel}
-                t={t}
               />
             </>
           )}
@@ -210,14 +210,13 @@ export default function ChatControls({
                   }`}
                 >
                   <FolderOpen className="w-3.5 h-3.5" />
-                  {t.files ?? "Files"} ({fileCount})
+                  {t("files")} ({fileCount})
                 </button>
                 {conversationId && (
                   <FileManagerPanel
                     conversationId={conversationId}
                     isOpen={showFileManager}
                     onClose={() => setShowFileManager(false)}
-                    t={t}
                   />
                 )}
               </div>
@@ -238,7 +237,6 @@ export default function ChatControls({
             onImageGen={onImageGen}
             disabled={creatingConversation || regenerating} // Only disable completely if creating new conv or regenerating
             isStreaming={isStreaming} // Pass streaming state
-            t={t}
             conversationId={selectedConversationId}
             initialImageMode={initialImageMode}
             onImageModeConsumed={onImageModeConsumed}
@@ -251,7 +249,7 @@ export default function ChatControls({
       {!isLanding && (
         <div className="mt-3 text-center">
           <p className="text-[9px] font-bold text-(--text-secondary) tracking-widest uppercase hover:text-(--text-primary) transition-colors cursor-default">
-            {t.aiDisclaimer}
+            {t("aiDisclaimer")}
           </p>
         </div>
       )}

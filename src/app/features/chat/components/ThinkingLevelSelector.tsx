@@ -2,6 +2,7 @@
 "use client";
 
 import { Brain, Check, ChevronDown } from "lucide-react";
+import { useLanguage } from "../hooks/useLanguage";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +19,6 @@ interface ThinkingLevelSelectorProps {
   thinkingLevel: ThinkingLevel;
   setThinkingLevel: (level: ThinkingLevel) => void;
   currentModel: string;
-  t: Record<string, string>;
 }
 
 interface ThinkingOption {
@@ -31,8 +31,8 @@ export default function ThinkingLevelSelector({
   thinkingLevel,
   setThinkingLevel,
   currentModel,
-  t,
 }: ThinkingLevelSelectorProps) {
+  const { t } = useLanguage();
   const isFlashModel = isGemini3FlashModel(currentModel);
   const isDeepSeek = isDeepSeekV4Model(currentModel);
 
@@ -40,44 +40,44 @@ export default function ThinkingLevelSelector({
   // DeepSeek V4: off / low(=reasoning_effort:high) / high(=reasoning_effort:max)
   const options: ThinkingOption[] = isDeepSeek
     ? [
-        { value: "off", label: t.webSearchOff || "OFF" },
-        { value: "low", label: t.thinkingLevelLow || "STANDARD" },
-        { value: "high", label: t.thinkingLevelHigh || "DEEP" },
+        { value: "off", label: t("webSearchOff") },
+        { value: "low", label: t("thinkingLevelLow") || "STANDARD" },
+        { value: "high", label: t("thinkingLevelHigh") || "DEEP" },
       ]
     : [
-        { value: "off", label: t.webSearchOff || "OFF" },
+        { value: "off", label: t("webSearchOff") },
         ...(isFlashModel
           ? [
               {
                 value: "minimal" as ThinkingLevel,
-                label: t.thinkingLevelMinimal || "MINIMAL",
+                label: t("thinkingLevelMinimal") || "MINIMAL",
                 flashOnly: true,
               },
             ]
           : []),
-        { value: "low", label: t.thinkingLevelLow || "LOW" },
+        { value: "low", label: t("thinkingLevelLow") || "LOW" },
         ...(isFlashModel
           ? [
               {
                 value: "medium" as ThinkingLevel,
-                label: t.thinkingLevelMedium || "MEDIUM",
+                label: t("thinkingLevelMedium") || "MEDIUM",
                 flashOnly: true,
               },
             ]
           : []),
-        { value: "high", label: t.thinkingLevelHigh || "HIGH" },
+        { value: "high", label: t("thinkingLevelHigh") || "HIGH" },
       ];
 
   const currentOption = options.find((o) => o.value === thinkingLevel) || options[0];
-  const displayLabel = `${t.thinkingLevel || "THINKING"}: ${currentOption.label}`;
+  const displayLabel = `${t("thinkingLevel") || "THINKING"}: ${currentOption.label}`;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          aria-label={t.thinkingLevelTooltip || "Select thinking level"}
+          aria-label={t("thinkingLevelTooltip")}
           className="flex items-center gap-1.5 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 px-4 py-1.5 transition-all group text-(--text-primary) hover:bg-(--control-bg)"
-          title={t.thinkingLevelTooltip}
+          title={t("thinkingLevelTooltip")}
         >
           <Brain className="w-3 h-3 text-(--text-secondary) md:hidden" />
           <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">

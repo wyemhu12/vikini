@@ -557,4 +557,13 @@ export const en = {
   projectDeleteChatTitle: "Delete Conversation",
   projectInfoTitle: "Info",
   projectConversationsShort: "Conversations",
+  // HeaderBar / Layout
+  settings: "Settings",
+  theme: "Theme",
+  // File manager
+  files: "Files",
+  // Stream errors
+  rateLimitTitle: "Quota Exceeded",
+  // Template modal
+  choosePhoto: "Choose photo",
 } as const;

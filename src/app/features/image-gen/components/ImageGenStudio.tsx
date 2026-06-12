@@ -12,8 +12,8 @@ import HeaderBar from "../../layout/components/HeaderBar";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 
 import { useTheme } from "../../chat/hooks/useTheme";
-import { useLanguage, type SupportedLanguage } from "../../chat/hooks/useLanguage";
-import { translations } from "@/lib/utils/config";
+import { useLanguage } from "../../chat/hooks/useLanguage";
+
 import {
   useConversation,
   FrontendConversation,
@@ -41,12 +41,7 @@ export function ImageGenStudio() {
   const { data: session, status } = useSession();
   const isAuthed = status === "authenticated";
   const { theme: _theme, toggleTheme: _toggleTheme } = useTheme();
-  const { t, language, setLanguage } = useLanguage();
-
-  // Create translation dict for HeaderBar (needs Record<string, string>)
-  const tDict = useMemo(() => {
-    return (translations?.[language] || translations?.en || {}) as Record<string, string>;
-  }, [language]);
+  const { t, language, setLanguage: _setLanguage } = useLanguage();
 
   // Use shared conversation hook
   const {
@@ -492,12 +487,7 @@ export function ImageGenStudio() {
           sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"
         }`}
       >
-        <HeaderBar
-          t={tDict}
-          language={language}
-          onLanguageChange={(lang) => setLanguage(lang as SupportedLanguage)}
-          onToggleSidebar={() => setMobileOpen(true)}
-        />
+        <HeaderBar onToggleSidebar={() => setMobileOpen(true)} />
 
         {/* Main content area - side by side on desktop, tabbed on mobile */}
         <div className="flex flex-col md:flex-row h-full w-full relative overflow-hidden bg-(--surface-base)">

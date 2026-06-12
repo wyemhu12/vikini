@@ -27,7 +27,7 @@ export default function TemplateModal({
   onOpenChange,
   onChoosePhoto,
 }: TemplateModalProps) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!template) return null;
@@ -92,7 +92,7 @@ export default function TemplateModal({
               size="lg"
             >
               <Camera className="w-4 h-4 mr-2" />
-              {language === "vi" ? "Chọn ảnh" : "Choose photo"}
+              {t("choosePhoto")}
             </Button>
             <Button
               variant="outline"
@@ -101,7 +101,7 @@ export default function TemplateModal({
               size="lg"
             >
               <X className="w-4 h-4 mr-2" />
-              {language === "vi" ? "Hủy" : "Cancel"}
+              {t("cancel")}
             </Button>
           </div>
         </div>

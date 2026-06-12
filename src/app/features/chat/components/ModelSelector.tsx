@@ -1,8 +1,11 @@
+"use client";
+
 import { useState, useMemo } from "react";
 import { Check, ChevronDown, Cpu, Zap, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { SELECTABLE_MODELS, PROVIDER_LABELS, SelectableModel } from "@/lib/core/modelRegistry";
 import { Card } from "@/components/ui/card";
+import { useLanguage } from "../hooks/useLanguage";
 
 const PROVIDER_IDS = [
   "gemini",
@@ -52,7 +55,6 @@ interface ModelSelectorProps {
   currentModelId: string;
   onSelectModel: (id: string) => void;
   isModelAllowed: (id: string) => boolean;
-  t: Record<string, string>;
   disabled: boolean;
   /** If true, dropdown expands downward (landing page). Default: upward (chat view). */
   expandDown?: boolean;
@@ -62,10 +64,10 @@ export default function ModelSelector({
   currentModelId,
   onSelectModel,
   isModelAllowed,
-  t,
   disabled,
   expandDown = false,
 }: ModelSelectorProps) {
+  const { t } = useLanguage();
   // ... (keep state)
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"service" | "providers">("providers");
@@ -143,7 +145,7 @@ export default function ModelSelector({
                   : "text-(--text-secondary) hover:text-(--text-primary)"
               }`}
             >
-              {t.modelSelectorProviders || "Providers"}
+              {t("modelSelectorProviders") || "Providers"}
             </button>
             <button
               onClick={() => setActiveTab("service")}
@@ -153,7 +155,7 @@ export default function ModelSelector({
                   : "text-(--text-secondary) hover:text-(--text-primary)"
               }`}
             >
-              {t.modelSelectorService || "Service"}
+              {t("modelSelectorService") || "Service"}
             </button>
           </div>
 
@@ -206,12 +208,12 @@ export default function ModelSelector({
                 <div className="p-2 space-y-1">
                   <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-(--text-secondary)">
                     {PROVIDER_LABELS[activeProviderFilter]}{" "}
-                    {t.modelSelectorModelsSuffix || "MODELS"}
+                    {t("modelSelectorModelsSuffix") || "MODELS"}
                   </div>
 
                   {filteredModelsByProvider.length === 0 ? (
                     <div className="px-4 py-8 text-center text-xs text-(--text-secondary) opacity-60 italic">
-                      {t.modelSelectorAvailableLater || "Available later"}
+                      {t("modelSelectorAvailableLater") || "Available later"}
                     </div>
                   ) : (
                     filteredModelsByProvider.map((model) => (
@@ -224,7 +226,6 @@ export default function ModelSelector({
                           onSelectModel(model.id);
                           setIsOpen(false);
                         }}
-                        t={t}
                       />
                     ))
                   )}
@@ -239,7 +240,7 @@ export default function ModelSelector({
                 <div>
                   <div className="flex items-center gap-2 px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-(--accent) sticky top-0 bg-(--surface-muted) z-10">
                     <Cpu className="w-3 h-3" />
-                    {t.modelCategoryReasoning || "Reasoning"}
+                    {t("modelCategoryReasoning") || "Reasoning"}
                   </div>
                   <div className="space-y-1">
                     {modelsByCategory.reasoning.map((model) => (
@@ -252,7 +253,6 @@ export default function ModelSelector({
                           onSelectModel(model.id);
                           setIsOpen(false);
                         }}
-                        t={t}
                       />
                     ))}
                   </div>
@@ -262,7 +262,7 @@ export default function ModelSelector({
                 <div>
                   <div className="flex items-center gap-2 px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-(--text-secondary) sticky top-0 bg-(--surface-muted) z-10">
                     <Zap className="w-3 h-3" />
-                    {t.modelCategoryLowLatency || "Low Latency"}
+                    {t("modelCategoryLowLatency") || "Low Latency"}
                   </div>
                   <div className="space-y-1">
                     {modelsByCategory["low-latency"].map((model) => (
@@ -275,7 +275,6 @@ export default function ModelSelector({
                           onSelectModel(model.id);
                           setIsOpen(false);
                         }}
-                        t={t}
                       />
                     ))}
                   </div>
@@ -294,10 +293,10 @@ interface ModelItemProps {
   isActive: boolean;
   isAllowed: boolean;
   onSelect: () => void;
-  t: Record<string, string>;
 }
 
-function ModelItem({ model, isActive, isAllowed, onSelect, t }: ModelItemProps) {
+function ModelItem({ model, isActive, isAllowed, onSelect }: ModelItemProps) {
+  const { t } = useLanguage();
   return (
     <button
       onClick={() => onSelect()}
@@ -314,8 +313,8 @@ function ModelItem({ model, isActive, isAllowed, onSelect, t }: ModelItemProps) 
           </span>
           {!isAllowed && <span className="text-[10px] text-(--text-secondary) opacity-70">🔒</span>}
         </div>
-        {model.descKey && t[model.descKey] && (
-          <div className="text-xs text-(--text-secondary) line-clamp-1">{t[model.descKey]}</div>
+        {model.descKey && t(model.descKey) && (
+          <div className="text-xs text-(--text-secondary) line-clamp-1">{t(model.descKey)}</div>
         )}
       </div>
       {isActive && (

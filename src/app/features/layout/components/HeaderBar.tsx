@@ -6,6 +6,7 @@ import React, { useMemo } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTheme } from "next-themes";
+import { useLanguage } from "../../chat/hooks/useLanguage";
 import { THEME_CONFIG } from "@/lib/config/theme-config";
 import {
   DropdownMenu,
@@ -31,21 +32,13 @@ const Menu = dynamic(() => import("lucide-react").then((mod) => mod.Menu), {
 });
 
 interface HeaderBarProps {
-  t: Record<string, string>; // Translation strings
-  language: string;
-  onLanguageChange?: (lang: string) => void;
   onToggleSidebar?: () => void;
   showMobileControls?: boolean;
 }
 
-const HeaderBar: React.FC<HeaderBarProps> = ({
-  t,
-  language,
-  onLanguageChange,
-  onToggleSidebar,
-  showMobileControls = true,
-}) => {
+const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileControls = true }) => {
   const { theme, setTheme } = useTheme();
+  const { t, language, setLanguage } = useLanguage();
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []); // Hydration fix
 
@@ -65,8 +58,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const languageOptions = useMemo(
     () => [
-      { id: "vi", label: t?.vi ?? "Tiếng Việt" },
-      { id: "en", label: t?.en ?? "English" },
+      { id: "vi", label: t("vi") },
+      { id: "en", label: t("en") },
     ],
     [t]
   );
@@ -101,7 +94,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             text-(--text-secondary) hover:bg-(--control-bg-hover)
             transition-colors active:scale-95
           "
-          aria-label={t?.openSidebar || "Open sidebar"}
+          aria-label={t("openSidebar")}
         >
           <Menu className="w-6 h-6" />
         </button>
@@ -116,7 +109,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               V
             </div>
             <span className="bg-clip-text text-transparent bg-linear-to-r from-(--text-primary) via-(--text-primary) to-[color-mix(in_srgb,var(--text-primary)_70%,transparent)]">
-              {t?.appName || "Vikini Chat"}
+              {t("appName")}
             </span>
           </Link>
         </div>
@@ -128,10 +121,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         {mounted ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button
-                className={triggerButtonStyles}
-                aria-label={t?.selectLanguage || "Select Language"}
-              >
+              <button className={triggerButtonStyles} aria-label={t("selectLanguage")}>
                 <span className={triggerLabelStyles}>{language === "vi" ? "VN" : "EN"}</span>
                 <ChevronDown className="w-3 h-3 text-(--text-secondary) transition-transform group-data-[state=open]:rotate-180" />
               </button>
@@ -140,7 +130,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               {languageOptions.map((lang) => (
                 <DropdownMenuItem
                   key={lang.id}
-                  onClick={() => onLanguageChange?.(lang.id)}
+                  onClick={() => setLanguage(lang.id as "vi" | "en")}
                   className="flex items-center justify-between cursor-pointer"
                 >
                   <span className="text-xs font-bold uppercase tracking-wider">
@@ -152,10 +142,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <button
-            className={triggerButtonStyles}
-            aria-label={t?.selectLanguage || "Select Language"}
-          >
+          <button className={triggerButtonStyles} aria-label={t("selectLanguage")}>
             <span className={triggerLabelStyles}>{language === "vi" ? "VN" : "EN"}</span>
             <ChevronDown className="w-3 h-3 text-(--text-secondary)" />
           </button>
@@ -165,7 +152,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         {mounted ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className={triggerButtonStyles} aria-label={t?.selectTheme || "Select Theme"}>
+              <button className={triggerButtonStyles} aria-label={t("selectTheme")}>
                 <div
                   className="h-4 w-4 rounded-full shadow-[0_0_8px_currentColor]"
                   style={{
@@ -174,7 +161,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                   }}
                 />
                 <span className={triggerLabelStyles}>
-                  {t?.[currentTheme?.labelKey || ""] || currentTheme?.id || "Theme"}
+                  {t(currentTheme?.labelKey || "") || currentTheme?.id || "Theme"}
                 </span>
                 <ChevronDown className="w-3 h-3 text-(--text-secondary) transition-transform group-data-[state=open]:rotate-180" />
               </button>
@@ -199,7 +186,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                         style={{ backgroundColor: tItem.swatch }}
                       />
                       <span className="flex-1 text-xs font-medium truncate">
-                        {t?.[tItem.labelKey] ?? tItem.id}
+                        {t(tItem.labelKey) || tItem.id}
                       </span>
                       {theme === tItem.id && <Check className="w-3 h-3 text-(--accent)" />}
                     </DropdownMenuItem>
@@ -210,7 +197,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <button className={triggerButtonStyles} aria-label={t?.selectTheme || "Select Theme"}>
+          <button className={triggerButtonStyles} aria-label={t("selectTheme")}>
             <div
               className="h-4 w-4 rounded-full shadow-[0_0_8px_currentColor]"
               style={{
@@ -229,22 +216,19 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         {mounted ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button
-                className={`${triggerButtonStyles} px-2`}
-                aria-label={t?.settings || "Settings"}
-              >
+              <button className={`${triggerButtonStyles} px-2`} aria-label={t("settings")}>
                 <Settings className="w-4 h-4" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 overflow-y-auto max-h-[80vh]">
               {/* Language Section */}
               <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-(--text-secondary) px-2 py-1.5">
-                {t?.language || "Language"}
+                {t("language")}
               </DropdownMenuLabel>
               {languageOptions.map((lang) => (
                 <DropdownMenuItem
                   key={`mobile-${lang.id}`}
-                  onClick={() => onLanguageChange?.(lang.id)}
+                  onClick={() => setLanguage(lang.id as "vi" | "en")}
                   className="flex items-center justify-between cursor-pointer"
                 >
                   <span className="text-xs font-medium">
@@ -258,7 +242,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
               {/* Theme Section */}
               <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-(--text-secondary) px-2 py-1.5">
-                {t?.theme || "Theme"}
+                {t("theme")}
               </DropdownMenuLabel>
               {Object.entries(groupedThemes).map(([group, themes]) => (
                 <DropdownMenuGroup key={`mobile-${group}`}>
@@ -276,7 +260,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                         style={{ backgroundColor: tItem.swatch }}
                       />
                       <span className="flex-1 text-xs font-medium truncate">
-                        {t?.[tItem.labelKey] ?? tItem.id}
+                        {t(tItem.labelKey) || tItem.id}
                       </span>
                       {theme === tItem.id && <Check className="w-3 h-3 text-(--accent)" />}
                     </DropdownMenuItem>
@@ -287,7 +271,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <button className={`${triggerButtonStyles} px-2`} aria-label={t?.settings || "Settings"}>
+          <button className={`${triggerButtonStyles} px-2`} aria-label={t("settings")}>
             <Settings className="w-4 h-4" />
           </button>
         )}

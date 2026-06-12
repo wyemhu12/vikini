@@ -342,12 +342,7 @@ export function GalleryView() {
       <div
         className={`flex-1 flex flex-col h-full transition-all duration-300 relative z-10 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
       >
-        <HeaderBar
-          t={{}}
-          language="en"
-          onLanguageChange={() => {}}
-          onToggleSidebar={() => setMobileOpen(true)}
-        />
+        <HeaderBar onToggleSidebar={() => setMobileOpen(true)} />
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-7xl mx-auto space-y-6">

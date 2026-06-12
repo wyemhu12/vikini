@@ -22,30 +22,36 @@ vi.mock("lucide-react", () => ({
   Circle: () => <svg data-testid="circle" />,
 }));
 
-// Mock translations
-const mockT = {
-  vi: "Tiếng Việt",
-  en: "English",
-  language: "Ngôn ngữ",
-  themes: "Giao diện",
-  openSidebar: "Mở thanh bên",
-  selectLanguage: "Chọn ngôn ngữ",
-  selectTheme: "Chọn giao diện",
-  // Theme keys
-  blueprint: "Xanh Dịu",
-};
+// Mock useLanguage hook
+const mockSetLanguage = vi.fn();
+vi.mock("../../chat/hooks/useLanguage", () => ({
+  useLanguage: () => ({
+    language: "vi",
+    setLanguage: mockSetLanguage,
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        vi: "Tiếng Việt",
+        en: "English",
+        language: "Ngôn ngữ",
+        theme: "Giao diện",
+        openSidebar: "Mở thanh bên",
+        selectLanguage: "Chọn ngôn ngữ",
+        selectTheme: "Chọn giao diện",
+        appName: "Vikini Chat",
+        settings: "Cài đặt",
+        blueprint: "Xanh Dịu",
+      };
+      return translations[key] || key;
+    },
+    langs: ["vi", "en"] as const,
+  }),
+}));
 
 describe("HeaderBar", () => {
   const renderHeader = (props = {}) => {
     return render(
       <ThemeProvider>
-        <HeaderBar
-          t={mockT}
-          language="en"
-          onLanguageChange={vi.fn()}
-          onToggleSidebar={vi.fn()}
-          {...props}
-        />
+        <HeaderBar onToggleSidebar={vi.fn()} {...props} />
       </ThemeProvider>
     );
   };
@@ -58,7 +64,8 @@ describe("HeaderBar", () => {
   });
 
   it("displays current language code", () => {
-    renderHeader({ language: "vi" });
+    renderHeader();
+    // Mock language is "vi", so should show "VN"
     expect(screen.getByText("VN")).toBeInTheDocument();
   });
 
@@ -66,16 +73,7 @@ describe("HeaderBar", () => {
     const onToggleSidebar = vi.fn();
     renderHeader({ onToggleSidebar });
 
-    const sidebarBtn = screen.getByLabelText("Mở thanh bên"); // using mockT translation or fallback?
-    // In our component logic: `aria-label={t?.openSidebar || "Open sidebar"}`
-    // If we pass mockT, it should find "Mở thanh bên" if mapped correctly?
-    // Wait, the component uses keys. Let's check if the aria-label is set correctly.
-    // Actually, screen.getByLabelText looks for aria-label.
-    // If t is passed, it uses t.openSidebar ("Mở thanh bên").
-
-    // Note: The HeaderBar uses 't' as an object containing keys.
-    // If we pass mockT as a map of key->value, we should expect "Mở thanh bên".
-
+    const sidebarBtn = screen.getByLabelText("Mở thanh bên");
     expect(sidebarBtn).toBeInTheDocument();
     fireEvent.click(sidebarBtn);
     expect(onToggleSidebar).toHaveBeenCalledTimes(1);

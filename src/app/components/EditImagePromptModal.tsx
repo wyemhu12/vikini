@@ -4,13 +4,13 @@ import { useState, useEffect } from "react";
 import { PenTool, X, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 interface EditImagePromptModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (newPrompt: string) => void;
   initialPrompt: string;
-  t: Record<string, string>;
 }
 
 export default function EditImagePromptModal({
@@ -18,8 +18,8 @@ export default function EditImagePromptModal({
   onClose,
   onConfirm,
   initialPrompt,
-  t,
 }: EditImagePromptModalProps) {
+  const { t } = useLanguage();
   const [prompt, setPrompt] = useState(initialPrompt);
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export default function EditImagePromptModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-lg border-0 bg-transparent shadow-none p-0 overflow-visible">
-        <DialogTitle className="sr-only">{t.editGem || "Edit Prompt"}</DialogTitle>
+        <DialogTitle className="sr-only">{t("editGem")}</DialogTitle>
 
         {/* Glow effect */}
         <div className="absolute inset-0 bg-linear-to-r from-blue-500/20 to-purple-500/20 blur-3xl -z-10" />
@@ -48,7 +48,7 @@ export default function EditImagePromptModal({
               <PenTool className="w-6 h-6 text-(--accent)" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">{t.edit || "Edit Prompt"}</h2>
+              <h2 className="text-xl font-bold text-white">{t("edit")}</h2>
               <p className="text-sm text-gray-400">Refine your prompt for better results</p>
             </div>
           </div>
@@ -73,7 +73,7 @@ export default function EditImagePromptModal({
                 onClick={onClose}
                 className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-medium transition-all"
               >
-                {t.cancel || "Cancel"}
+                {t("cancel")}
               </button>
               <button
                 onClick={() => onConfirm(prompt)}
@@ -81,7 +81,7 @@ export default function EditImagePromptModal({
                 className="flex-1 py-3 px-4 bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white font-medium transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>{t.regenerate || "Regenerate"}</span>
+                <span>{t("regenerate")}</span>
               </button>
             </div>
           </div>

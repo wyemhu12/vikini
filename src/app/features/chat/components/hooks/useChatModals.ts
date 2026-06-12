@@ -5,6 +5,7 @@ import { useState, useCallback, type Dispatch, type SetStateAction } from "react
 import { toast } from "@/lib/store/toastStore";
 import { confirm } from "@/lib/store/confirmStore";
 import { logger } from "@/lib/utils/logger";
+import { useLanguage } from "../../hooks/useLanguage";
 import type { FrontendConversation, FrontendMessage } from "../../hooks/useConversation";
 
 // ============================================
@@ -47,7 +48,6 @@ interface UseChatModalsOptions {
   refreshConversations: () => Promise<void>;
   resetChatUI: () => void;
   setMessages: Dispatch<SetStateAction<FrontendMessage[]>>;
-  t: Record<string, string>;
 }
 
 // ============================================
@@ -63,8 +63,8 @@ export function useChatModals({
   refreshConversations,
   resetChatUI,
   setMessages,
-  t,
 }: UseChatModalsOptions): UseChatModalsReturn {
+  const { t } = useLanguage();
   // ============================================
   // Upgrade Modal State
   // ============================================
@@ -86,11 +86,11 @@ export function useChatModals({
   const openDeleteModal = useCallback(
     async (id: string) => {
       const ok = await confirm({
-        title: t.modalDeleteTitle || "Delete Conversation",
-        description: t.modalDeleteConfirm || "Are you sure you want to delete this conversation?",
+        title: t("modalDeleteTitle"),
+        description: t("modalDeleteConfirm"),
         variant: "danger",
-        confirmLabel: t.modalDeleteButton || "Delete",
-        cancelLabel: t.cancel || "Cancel",
+        confirmLabel: t("modalDeleteButton"),
+        cancelLabel: t("cancel"),
       });
       if (!ok) return;
       try {
@@ -101,20 +101,10 @@ export function useChatModals({
         await refreshConversations();
       } catch (error) {
         logger.error("Failed to delete conversation:", error);
-        toast.error(t.error);
+        toast.error(t("error"));
       }
     },
-    [
-      deleteConversation,
-      refreshConversations,
-      resetChatUI,
-      selectedConversationId,
-      t.modalDeleteTitle,
-      t.modalDeleteConfirm,
-      t.modalDeleteButton,
-      t.cancel,
-      t.error,
-    ]
+    [deleteConversation, refreshConversations, resetChatUI, selectedConversationId, t]
   );
 
   // ============================================
@@ -145,23 +135,16 @@ export function useChatModals({
     try {
       renameConversationOptimistic(renameConversationId, renameValue.trim());
       await renameConversation(renameConversationId, renameValue.trim());
-      toast.success(t.success || "Renamed successfully");
+      toast.success(t("success"));
     } catch (error) {
       logger.error("Failed to rename:", error);
-      toast.error(t.error);
+      toast.error(t("error"));
     } finally {
       setShowRenameModal(false);
       setRenameConversationId(null);
       setRenameValue("");
     }
-  }, [
-    renameConversationId,
-    renameValue,
-    renameConversation,
-    renameConversationOptimistic,
-    t.success,
-    t.error,
-  ]);
+  }, [renameConversationId, renameValue, renameConversation, renameConversationOptimistic, t]);
 
   // ============================================
   // Delete Message Modal State
@@ -185,15 +168,15 @@ export function useChatModals({
       setMessages((prev) => prev.filter((m) => m.id !== messageToDelete));
       const res = await fetch(`/api/messages/${messageToDelete}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete message");
-      toast.success(t.success || "Message deleted");
+      toast.success(t("success"));
     } catch (e) {
       logger.error("Delete message error:", e);
-      toast.error(t.error);
+      toast.error(t("error"));
     } finally {
       setShowDeleteMessageModal(false);
       setMessageToDelete(null);
     }
-  }, [messageToDelete, t.success, t.error, setMessages]);
+  }, [messageToDelete, t, setMessages]);
 
   // ============================================
   // Return

@@ -567,4 +567,13 @@ export const vi = {
   projectDeleteChatTitle: "Xóa hội thoại",
   projectInfoTitle: "Thông tin",
   projectConversationsShort: "Hội thoại",
+  // HeaderBar / Layout
+  settings: "Cài đặt",
+  theme: "Giao diện",
+  // File manager
+  files: "Tệp",
+  // Stream errors
+  rateLimitTitle: "Vượt hạn mức",
+  // Template modal
+  choosePhoto: "Chọn ảnh",
 } as const;

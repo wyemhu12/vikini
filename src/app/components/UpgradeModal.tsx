@@ -2,19 +2,20 @@
 
 import { Shield, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
   modelName: string | null;
-  t: Record<string, string>; // Translation object
 }
 
-export default function UpgradeModal({ isOpen, onClose, modelName, t }: UpgradeModalProps) {
+export default function UpgradeModal({ isOpen, onClose, modelName }: UpgradeModalProps) {
+  const { t } = useLanguage();
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md border-0 bg-transparent shadow-none p-0 overflow-visible sm:max-w-md">
-        <DialogTitle className="sr-only">{t.modalUpgradeTitle}</DialogTitle>
+        <DialogTitle className="sr-only">{t("modalUpgradeTitle")}</DialogTitle>
 
         {/* Glow effect */}
         <div className="absolute inset-0 bg-linear-to-r from-purple-500/20 to-blue-500/20 blur-3xl -z-10" />
@@ -40,7 +41,7 @@ export default function UpgradeModal({ isOpen, onClose, modelName, t }: UpgradeM
           {/* Content */}
           <div className="px-8 pb-8">
             <h2 className="text-2xl font-bold text-white text-center mb-6">
-              {t.modalUpgradeTitle}
+              {t("modalUpgradeTitle")}
             </h2>
 
             <div className="space-y-4 mb-6">
@@ -48,7 +49,7 @@ export default function UpgradeModal({ isOpen, onClose, modelName, t }: UpgradeM
               {modelName && (
                 <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
                   <div className="text-sm font-medium text-blue-300 mb-1">
-                    {t.modalUpgradeRequestedModel}
+                    {t("modalUpgradeRequestedModel")}
                   </div>
                   <div className="text-white font-semibold">🔒 {modelName}</div>
                 </div>
@@ -56,12 +57,12 @@ export default function UpgradeModal({ isOpen, onClose, modelName, t }: UpgradeM
 
               {/* Message */}
               <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-                <div className="text-sm text-gray-300">{t.modalUpgradeNoPermission}</div>
+                <div className="text-sm text-gray-300">{t("modalUpgradeNoPermission")}</div>
               </div>
 
               {/* Action */}
               <div className="p-4 bg-(--success)/10 border border-(--success)/30 rounded-xl">
-                <div className="text-sm text-gray-300">{t.modalUpgradeContactAdmin}</div>
+                <div className="text-sm text-gray-300">{t("modalUpgradeContactAdmin")}</div>
               </div>
             </div>
 
@@ -70,7 +71,7 @@ export default function UpgradeModal({ isOpen, onClose, modelName, t }: UpgradeM
               onClick={onClose}
               className="w-full py-3 px-4 bg-linear-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-lg text-white font-medium transition-all shadow-lg shadow-purple-500/20"
             >
-              {t.modalUpgradeGotIt}
+              {t("modalUpgradeGotIt")}
             </button>
           </div>
         </div>

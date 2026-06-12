@@ -3,6 +3,7 @@
 
 import React from "react";
 import { StreamError } from "./hooks/useChatStreamController";
+import { useLanguage } from "../hooks/useLanguage";
 
 // ============================================
 // Type Definitions
@@ -11,7 +12,6 @@ import { StreamError } from "./hooks/useChatStreamController";
 interface StreamErrorBannerProps {
   error: StreamError | null;
   onDismiss: () => void;
-  t: Record<string, string>;
 }
 
 // ============================================
@@ -22,20 +22,21 @@ interface StreamErrorBannerProps {
  * A floating error banner that displays stream errors including token limit errors.
  * Positioned fixed at top-right corner.
  */
-const StreamErrorBanner: React.FC<StreamErrorBannerProps> = ({ error, onDismiss, t }) => {
+const StreamErrorBanner: React.FC<StreamErrorBannerProps> = ({ error, onDismiss }) => {
+  const { t } = useLanguage();
   if (!error) return null;
 
   // Determine title based on error type
   const title = error.isTokenLimit
-    ? t.tokenLimitTitle
+    ? t("tokenLimitTitle")
     : (error as { isRateLimit?: boolean }).isRateLimit
-      ? t.rateLimitTitle || "Quota Exceeded"
-      : t.error;
+      ? t("rateLimitTitle")
+      : t("error");
 
   // Determine message based on error type
   let message: string;
   if (error.isTokenLimit && error.tokenInfo) {
-    message = (t.tokenLimitError || "Token limit exceeded: {{limit}} / {{requested}}")
+    message = t("tokenLimitError")
       .replace("{{limit}}", error.tokenInfo.limit?.toLocaleString() || "?")
       .replace("{{requested}}", error.tokenInfo.requested?.toLocaleString() || "?");
   } else {
@@ -67,7 +68,7 @@ const StreamErrorBanner: React.FC<StreamErrorBannerProps> = ({ error, onDismiss,
         <button
           onClick={onDismiss}
           className="shrink-0 w-6 h-6 rounded-full bg-(--danger)/20 hover:bg-(--danger)/40 flex items-center justify-center transition-colors"
-          aria-label={t.cancel || "Dismiss"}
+          aria-label={t("cancel")}
         >
           <span className="text-(--danger) text-xs">✕</span>
         </button>
