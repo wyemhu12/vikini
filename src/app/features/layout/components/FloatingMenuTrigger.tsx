@@ -32,6 +32,7 @@ export default function FloatingMenuTrigger({ onClick, className }: FloatingMenu
 
   return (
     <motion.button
+      aria-label="Open menu"
       drag
       dragMomentum={false}
       dragElastic={0.1}

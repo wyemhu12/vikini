@@ -3,6 +3,7 @@
 import { memo, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sparkles } from "lucide-react";
+import { useLanguage } from "../hooks/useLanguage";
 
 interface TokenBadgeProps {
   totalTokenCount?: number;
@@ -39,20 +40,25 @@ const TokenBadge = memo(function TokenBadge({
   className = "",
 }: TokenBadgeProps) {
   const [open, setOpen] = useState(false);
+  const { t } = useLanguage();
 
   // Don't render if no token data
   if (!totalTokenCount || totalTokenCount <= 0) return null;
 
   const tooltipLines: string[] = [];
   if (promptTokenCount !== undefined && promptTokenCount > 0) {
-    tooltipLines.push(`Input: ${formatTokenCount(promptTokenCount)}`);
+    tooltipLines.push(`${t("tokenInput") || "Input"}: ${formatTokenCount(promptTokenCount)}`);
   }
   if (candidatesTokenCount !== undefined && candidatesTokenCount > 0) {
-    tooltipLines.push(`Output: ${formatTokenCount(candidatesTokenCount)}`);
+    tooltipLines.push(`${t("tokenOutput") || "Output"}: ${formatTokenCount(candidatesTokenCount)}`);
   }
   if (thoughtsTokenCount !== undefined && thoughtsTokenCount > 0) {
-    tooltipLines.push(`Thinking: ${formatTokenCount(thoughtsTokenCount)}`);
+    tooltipLines.push(
+      `${t("tokenThinking") || "Thinking"}: ${formatTokenCount(thoughtsTokenCount)}`
+    );
   }
+
+  const tokenLabel = t("tokenUnit") || "tokens";
 
   // If no breakdown available, just show the badge without popover
   if (tooltipLines.length === 0) {
@@ -61,7 +67,9 @@ const TokenBadge = memo(function TokenBadge({
         className={`inline-flex items-center gap-1 text-xs text-secondary/60 select-none ${className}`}
       >
         <Sparkles className="w-3 h-3" />
-        <span>{formatTokenCount(totalTokenCount)} tokens</span>
+        <span>
+          {formatTokenCount(totalTokenCount)} {tokenLabel}
+        </span>
       </span>
     );
   }
@@ -75,7 +83,9 @@ const TokenBadge = memo(function TokenBadge({
           onClick={() => setOpen(!open)}
         >
           <Sparkles className="w-3 h-3" />
-          <span>{formatTokenCount(totalTokenCount)} tokens</span>
+          <span>
+            {formatTokenCount(totalTokenCount)} {tokenLabel}
+          </span>
         </button>
       </PopoverTrigger>
       <PopoverContent

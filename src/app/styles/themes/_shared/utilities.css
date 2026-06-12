@@ -19,7 +19,7 @@
 .chat-markdown h2,
 .chat-markdown h3,
 .chat-markdown h4 {
-  @apply mt-8 mb-4 font-bold text-white;
+  @apply mt-8 mb-4 font-bold text-(--text-primary);
 }
 
 .chat-markdown h1 {
@@ -52,26 +52,26 @@
 }
 
 .chat-markdown table {
-  @apply my-6 w-full border-collapse text-sm overflow-hidden rounded-xl border border-white/10;
+  @apply my-6 w-full border-collapse text-sm overflow-hidden rounded-xl border border-(--border);
   table-layout: auto;
 }
 
 .chat-markdown thead th {
-  @apply bg-white/5 text-neutral-100 font-bold px-4 py-3 border-b border-white/10;
+  @apply bg-(--control-bg) text-(--text-primary) font-bold px-4 py-3 border-b border-(--border);
   white-space: nowrap;
 }
 
 .chat-markdown td {
-  @apply border-b border-white/5 px-4 py-3 text-neutral-300;
+  @apply border-b border-(--border)/50 px-4 py-3 text-(--text-secondary);
   min-width: 80px;
 }
 
 .chat-markdown blockquote {
-  @apply my-6 border-l-4 border-(--primary) bg-white/3 py-3 pl-5 pr-4 rounded-r-lg italic text-neutral-300;
+  @apply my-6 border-l-4 border-(--primary) bg-(--control-bg) py-3 pl-5 pr-4 rounded-r-lg italic text-(--text-secondary);
 }
 
 .chat-markdown code:not(pre code) {
-  @apply rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-[0.85em] text-(--primary-light);
+  @apply rounded-md bg-(--control-bg-hover) px-1.5 py-0.5 font-mono text-[0.85em] text-(--primary-light);
 }
 
 .chat-markdown pre {

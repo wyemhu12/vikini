@@ -14,5 +14,7 @@
   --text-primary: #ffecec;
   --text-secondary: #f8c7c7;
   --accent: #ef4444;
+  --danger: #b91c1c;
+  --danger-hover: #991b1b;
   --glow: rgba(239, 68, 68, 0.18);
 }

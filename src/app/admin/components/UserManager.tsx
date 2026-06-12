@@ -14,6 +14,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { translations } from "@/lib/utils/config";
 import { toast } from "@/lib/store/toastStore";
+import { confirm } from "@/lib/store/confirmStore";
 import { formatDate } from "@/lib/utils/dateFormat";
 import {
   Select,
@@ -144,6 +145,19 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
     } finally {
       setUpdating(null);
     }
+  };
+
+  const handleRankChange = async (userId: string, newRank: string) => {
+    const ok = await confirm({
+      title: t.rankChangeConfirm || "Change user rank?",
+      description:
+        t.rankChangeDesc || "This will immediately change the user's access level and permissions.",
+      variant: "danger",
+      confirmLabel: t.confirm || "Confirm",
+      cancelLabel: t.cancel || "Cancel",
+    });
+    if (!ok) return;
+    await updateUser(userId, { rank: newRank as Profile["rank"] });
   };
 
   // Bulk actions
@@ -376,7 +390,7 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
                   <td className="py-3 px-4">
                     <Select
                       value={user.rank}
-                      onValueChange={(v) => updateUser(user.id, { rank: v as Profile["rank"] })}
+                      onValueChange={(v) => handleRankChange(user.id, v)}
                       disabled={self || updating === user.id}
                     >
                       <SelectTrigger className="w-[140px] h-auto py-1.5">

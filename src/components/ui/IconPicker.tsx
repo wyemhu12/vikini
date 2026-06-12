@@ -55,7 +55,7 @@ export default function IconPicker({ onSelect, disabled }: IconPickerProps) {
         <button
           type="button"
           disabled={disabled}
-          className="ml-1.5 px-1.5 py-0.5 text-xs rounded bg-white/5 hover:bg-white/10 border border-white/10 text-(--text-secondary) transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="ml-1.5 px-1.5 py-0.5 text-xs rounded bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-(--text-secondary) transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Select Icon"
         >
           ▼
@@ -68,7 +68,7 @@ export default function IconPicker({ onSelect, disabled }: IconPickerProps) {
               key={icon}
               type="button"
               onClick={() => handleSelect(icon)}
-              className="w-8 h-8 flex items-center justify-center text-lg rounded hover:bg-white/10 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-(--primary)"
+              className="w-8 h-8 flex items-center justify-center text-lg rounded hover:bg-(--control-bg-hover) transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-(--primary)"
             >
               {icon}
             </button>

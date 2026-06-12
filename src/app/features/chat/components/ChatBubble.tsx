@@ -133,7 +133,13 @@ const TypingCursor = React.memo(function TypingCursor() {
   );
 });
 
-const ThinkingBlock = React.memo(function ThinkingBlock({ content }: { content: string }) {
+const ThinkingBlock = React.memo(function ThinkingBlock({
+  content,
+  t,
+}: {
+  content: string;
+  t: (key: string) => string;
+}) {
   // Default to collapsed per user request
   const [isCollapsed, setIsCollapsed] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -146,13 +152,13 @@ const ThinkingBlock = React.memo(function ThinkingBlock({ content }: { content: 
   }, [content, isCollapsed]);
 
   return (
-    <div className="mb-4 rounded-lg border border-white/10 overflow-hidden bg-white/3">
+    <div className="mb-4 rounded-lg border border-(--border) overflow-hidden bg-(--control-bg)">
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary hover:text-primary hover:bg-white/5 transition-colors"
+        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary hover:text-primary hover:bg-(--control-bg-hover) transition-colors"
       >
         <Brain className="w-3 h-3" />
-        <span>Thinking Process</span>
+        <span>{t("thinkingProcess") || "Thinking Process"}</span>
         <motion.div
           className="ml-auto"
           animate={{ rotate: isCollapsed ? -90 : 0 }}
@@ -173,7 +179,7 @@ const ThinkingBlock = React.memo(function ThinkingBlock({ content }: { content: 
           >
             <div
               ref={contentRef}
-              className="px-3 py-3 border-t border-white/10 text-sm text-secondary font-mono leading-relaxed bg-white/2 whitespace-pre-wrap max-h-96 overflow-y-auto"
+              className="px-3 py-3 border-t border-(--border) text-sm text-secondary font-mono leading-relaxed bg-(--surface-muted)/50 whitespace-pre-wrap max-h-96 overflow-y-auto"
             >
               {content}
             </div>
@@ -536,7 +542,7 @@ const ChatBubble = React.memo(
                 </div>
               )
             ) : (
-              "ME"
+              t("me") || "ME"
             )}
           </div>
 
@@ -585,7 +591,9 @@ const ChatBubble = React.memo(
                 </div>
               ) : (
                 <div className="flex flex-col w-full overflow-hidden">
-                  {thought && typeof thought === "string" && <ThinkingBlock content={thought} />}
+                  {thought && typeof thought === "string" && (
+                    <ThinkingBlock content={thought} t={t} />
+                  )}
 
                   {(!hasContent && isLoading) || (showTyping && !displayContent.trim()) ? (
                     <TypingDots />

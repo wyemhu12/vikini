@@ -465,6 +465,8 @@ export const translations: TranslationSet = {
     kbUploadHint: "Tải file để xây dựng kho kiến thức",
     kbChunks: "phần",
     kbDeleteDocument: "Xóa tài liệu",
+    kbDeleteConfirm: "Xóa tài liệu?",
+    kbDeleteConfirmDesc: "Tài liệu này và tất cả các phần đã phân tích sẽ bị xóa vĩnh viễn.",
     // FileLightbox
     fileDownload: "Tải xuống",
     fileOpen: "Mở",
@@ -526,6 +528,34 @@ export const translations: TranslationSet = {
     accessWaitApproval: "Vui lòng đợi quản trị viên phê duyệt tài khoản của bạn.",
     accessContactAdmin: "Nếu bạn nghĩ đây là lỗi, vui lòng liên hệ quản trị viên.",
     accessSignOut: "Quay Lại Đăng Nhập",
+    // Conversation CRUD
+    createChatFailed: "Không thể tạo cuộc hội thoại mới. Vui lòng thử lại!",
+    renameChatSuccess: "Đã đổi tên đoạn chat thành công!",
+    renameChatFailed: "Không thể đổi tên đoạn chat",
+    deleteChatSuccess: "Đã xóa đoạn chat thành công!",
+    deleteChatFailed2: "Không thể xóa đoạn chat",
+    // Thinking & Charts
+    thinkingProcess: "Quá trình suy nghĩ",
+    loadingChart: "Đang tải biểu đồ...",
+    // Image Mode
+    imageModeLabel: "CHẾ ĐỘ TẠO ẢNH",
+    switchToChat: "Chuyển sang Chat",
+    createImage: "Tạo ảnh",
+    cancelImageMode: "Hủy chế độ tạo ảnh",
+    imagePlaceholder: "Mô tả hình ảnh bạn muốn tạo...",
+    // Input actions
+    addAttachment: "Thêm...",
+    stopGeneration: "Dừng tạo",
+    stopBtn: "Dừng",
+    // Token display
+    tokenInput: "Đầu vào",
+    tokenOutput: "Đầu ra",
+    tokenThinking: "Suy nghĩ",
+    tokenUnit: "tokens",
+    // Document & Admin
+    deleteDocFailed: "Không thể xóa tài liệu",
+    rankChangeConfirm: "Thay đổi cấp bậc user này?",
+    rankChangeDesc: "Thay đổi này sẽ có hiệu lực ngay lập tức.",
   },
   en: {
     appName: "Vikini Chat",
@@ -968,6 +998,8 @@ export const translations: TranslationSet = {
     kbUploadHint: "Upload files to build your knowledge base",
     kbChunks: "chunks",
     kbDeleteDocument: "Delete document",
+    kbDeleteConfirm: "Delete document?",
+    kbDeleteConfirmDesc: "This document and all its chunks will be permanently removed.",
     // FileLightbox
     fileDownload: "Download",
     fileOpen: "Open",
@@ -1029,6 +1061,34 @@ export const translations: TranslationSet = {
     accessWaitApproval: "Please wait for an administrator to approve your account.",
     accessContactAdmin: "If you believe this is an error, please contact the administrator.",
     accessSignOut: "Back to Sign In",
+    // Conversation CRUD
+    createChatFailed: "Failed to create conversation. Please try again!",
+    renameChatSuccess: "Chat renamed successfully!",
+    renameChatFailed: "Failed to rename chat",
+    deleteChatSuccess: "Chat deleted successfully!",
+    deleteChatFailed2: "Failed to delete chat",
+    // Thinking & Charts
+    thinkingProcess: "Thinking Process",
+    loadingChart: "Loading Chart...",
+    // Image Mode
+    imageModeLabel: "IMAGE GENERATION MODE",
+    switchToChat: "Switch to Chat",
+    createImage: "Create Image",
+    cancelImageMode: "Cancel Image Mode",
+    imagePlaceholder: "Describe the image you want to generate...",
+    // Input actions
+    addAttachment: "Add...",
+    stopGeneration: "Stop generation",
+    stopBtn: "Stop",
+    // Token display
+    tokenInput: "Input",
+    tokenOutput: "Output",
+    tokenThinking: "Thinking",
+    tokenUnit: "tokens",
+    // Document & Admin
+    deleteDocFailed: "Failed to delete document",
+    rankChangeConfirm: "Change this user's rank?",
+    rankChangeDesc: "This will immediately change the user's access level.",
   },
 };
 

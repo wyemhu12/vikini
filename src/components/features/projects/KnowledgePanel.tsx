@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils/cn";
 import type { KnowledgeDocument } from "@/types/projects";
 import { useLanguageStore } from "@/lib/store/languageStore";
 import { translations } from "@/lib/utils/config";
+import { confirm } from "@/lib/store/confirmStore";
 
 interface KnowledgePanelProps {
   projectId: string;
@@ -77,6 +78,16 @@ export function KnowledgePanel({
   );
 
   const handleDelete = async (documentId: string) => {
+    const ok = await confirm({
+      title: t.kbDeleteConfirm || "Delete document?",
+      description:
+        t.kbDeleteConfirmDesc || "This document and all its chunks will be permanently removed.",
+      variant: "danger",
+      confirmLabel: t.modalDeleteButton,
+      cancelLabel: t.cancel,
+    });
+    if (!ok) return;
+
     setDeletingId(documentId);
     try {
       await onDelete(documentId);

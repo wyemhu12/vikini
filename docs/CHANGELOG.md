@@ -5,6 +5,40 @@
 
 ---
 
+## 2026-06-12: Fix — UX/UI Audit Major Batch (15+ issues)
+
+### Theme Token Migration
+
+- **ToastContainer**: Migrated from hardcoded dark (`bg-green-950/90` etc.) to semantic tokens (`--success`, `--danger`, `--warning`, `--accent`). Added `role="alert"` + `aria-live="polite"`.
+- **Chat Markdown**: Replaced `text-white`, `bg-white/5`, `border-white/10`, `text-neutral-100/300` with `--text-primary`, `--control-bg`, `--border`, `--text-secondary`.
+- **ThinkingBlock**: `border-white/10 bg-white/3` → `border-(--border) bg-(--control-bg)`.
+- **StreamErrorBanner**: `bg-red-900/90 border-red-500/50 text-red-200` → `bg-(--danger)/10 border-(--danger)/30 text-(--text-primary)`.
+- **Switch**: Thumb `bg-white` → `bg-(--text-primary)`.
+- **Button island**: `bg-white/10 text-white border-white/20` → `bg-(--control-bg) text-(--text-primary) border-(--control-border)`.
+- **IconPicker**: `bg-white/5 hover:bg-white/10 border-white/10` → `bg-(--control-bg) hover:bg-(--control-bg-hover)`.
+- **Soviet theme**: Added distinct `--danger: #b91c1c` to differentiate from `--accent: #ef4444`.
+
+### Bilingual (21 new keys, ~30 hardcoded strings replaced)
+
+- **useConversation.ts**: 5 hardcoded Vietnamese toasts → `t()` calls.
+- **InputForm.tsx**: 8 hardcoded English strings (IMAGE MODE, Add..., Stop, etc.) → `t?.key` pattern.
+- **TokenBadge.tsx**: 4 hardcoded labels (Input/Output/Thinking/tokens) → `t()` calls.
+- **ChatBubble.tsx**: "Thinking Process", "ME" → `t()` calls.
+
+### UX Safety
+
+- **KnowledgePanel**: Delete document now requires confirmation via `confirm()` store.
+- **UserManager**: Rank change now requires confirmation dialog before executing.
+
+### Accessibility
+
+- **FloatingMenuTrigger**: Added `aria-label="Open menu"`.
+- **ToastContainer**: Added `role="region" aria-label="Notifications" aria-live="polite"`, `role="alert"` per toast, `aria-label` on dismiss button.
+
+**Files**: ToastContainer, utilities.css, ChatBubble, StreamErrorBanner, switch, button, IconPicker, soviet.css, FloatingMenuTrigger, useConversation, InputForm, TokenBadge, KnowledgePanel, UserManager, config.ts
+
+---
+
 ## 2026-06-12: Fix — UX/UI Audit Critical Batch (10 issues)
 
 ### Phase 1: CSS/Theming

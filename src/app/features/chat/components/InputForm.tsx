@@ -250,7 +250,7 @@ export default function InputForm({
                     ? "bg-(--accent) text-white hover:brightness-110"
                     : "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)"
                 }`}
-                title="Add..."
+                title={t?.addAttachment || "Add..."}
                 aria-label={t?.addAttachment || "Add attachment or switch mode"}
               >
                 {isImageMode ? <ImageIcon className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
@@ -263,7 +263,9 @@ export default function InputForm({
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsImageMode(!isImageMode)}>
                 <ImageIcon className="w-4 h-4 mr-2" />
-                {isImageMode ? "Switch to Chat" : "Create Image"}
+                {isImageMode
+                  ? t?.switchToChat || "Switch to Chat"
+                  : t?.createImage || "Create Image"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -283,7 +285,7 @@ export default function InputForm({
           <div className="flex-1 min-w-0 relative">
             {isImageMode && (
               <div className="absolute -top-6 left-0 text-[10px] font-bold uppercase tracking-wider text-(--accent) animate-in fade-in slide-in-from-bottom-1 bg-(--surface-base) px-2 py-0.5 rounded-full border border-(--accent)/30 shadow-sm">
-                IMAGE GENERATION MODE
+                {t?.imageModeLabel || "IMAGE GENERATION MODE"}
               </div>
             )}
             <Textarea
@@ -294,7 +296,7 @@ export default function InputForm({
               onKeyDown={handleKeyDown}
               placeholder={
                 isImageMode
-                  ? "Describe the image you want to generate..."
+                  ? t?.imagePlaceholder || "Describe the image you want to generate..."
                   : t?.placeholder || "Message..."
               }
               disabled={disabled}
@@ -308,7 +310,7 @@ export default function InputForm({
               type="button"
               onClick={() => setIsImageMode(false)}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-red-500 transition-colors"
-              title="Cancel Image Mode"
+              title={t?.cancelImageMode || "Cancel Image Mode"}
               aria-label={t?.cancelImageMode || "Cancel image mode"}
             >
               <X className="w-5 h-5" />
@@ -339,8 +341,10 @@ export default function InputForm({
                   ? "bg-(--accent) text-white hover:brightness-110 shadow-[0_0_15px_var(--accent)]"
                   : "bg-(--accent) text-(--surface) hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--glow)]"
             }`}
-            title={isStreaming ? "Stop" : t?.send || "Send"}
-            aria-label={isStreaming ? t?.stop || "Stop generation" : t?.send || "Send message"}
+            title={isStreaming ? t?.stopBtn || "Stop" : t?.send || "Send"}
+            aria-label={
+              isStreaming ? t?.stopGeneration || "Stop generation" : t?.send || "Send message"
+            }
           >
             {isStreaming ? (
               <StopIcon />

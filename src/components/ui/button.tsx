@@ -22,7 +22,7 @@ const buttonVariants = cva(
         glass:
           "bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-(--text-primary) shadow-sm backdrop-blur-md",
         island:
-          "bg-white/10 hover:bg-white/20 text-white backdrop-blur-xl border border-white/20 shadow-xl",
+          "bg-(--control-bg) hover:bg-(--control-bg-hover) text-(--text-primary) backdrop-blur-xl border border-(--control-border) shadow-xl",
       },
       size: {
         default: "h-10 px-4 py-2",
