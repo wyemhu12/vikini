@@ -58,11 +58,11 @@ function MessageActions({
         title={copied ? t("copied") : t("copy")}
       >
         {copied ? (
-          <Check className="w-3.5 h-3.5 text-green-500 animate-bounce-once" />
+          <Check className="w-3.5 h-3.5 text-(--success) animate-bounce-once" />
         ) : (
           <Copy className="w-3 h-3 group-hover/copy:scale-110 transition-transform duration-200" />
         )}
-        <span className={copied ? "text-green-500" : ""}>{copied ? t("copied") : t("copy")}</span>
+        <span className={copied ? "text-(--success)" : ""}>{copied ? t("copied") : t("copy")}</span>
       </button>
 
       {/* Edit Button (User messages only) */}
@@ -93,7 +93,7 @@ function MessageActions({
       {onDelete && messageId && (
         <button
           onClick={() => onDelete(messageId)}
-          className="group-del-hover flex items-center text-secondary hover:text-red-500 transition-colors"
+          className="group-del-hover flex items-center text-secondary hover:text-(--danger) transition-colors"
           title={t("delete")}
         >
           <Trash2 className="w-3 h-3 wiggle-on-hover" />

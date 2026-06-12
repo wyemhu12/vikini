@@ -112,8 +112,8 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
               <div
                 className={`p-3 rounded-lg flex items-center gap-2 text-sm font-medium animate-in fade-in slide-in-from-top-1 ${
                   feedback.type === "success"
-                    ? "bg-green-500/10 text-green-500 border border-green-500/20"
-                    : "bg-red-500/10 text-red-500 border border-red-500/20"
+                    ? "bg-(--success)/10 text-(--success) border border-(--success)/20"
+                    : "bg-(--danger)/10 text-(--danger) border border-(--danger)/20"
                 }`}
               >
                 {feedback.type === "success" ? (

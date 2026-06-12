@@ -214,7 +214,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                       <span className="flex-1 text-xs font-medium truncate">
                         {t?.[tItem.labelKey] ?? tItem.id}
                       </span>
-                      {theme === tItem.id && <Check className="w-3 h-3 text-blue-400" />}
+                      {theme === tItem.id && <Check className="w-3 h-3 text-(--accent)" />}
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
@@ -291,7 +291,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                       <span className="flex-1 text-xs font-medium truncate">
                         {t?.[tItem.labelKey] ?? tItem.id}
                       </span>
-                      {theme === tItem.id && <Check className="w-3 h-3 text-blue-400" />}
+                      {theme === tItem.id && <Check className="w-3 h-3 text-(--accent)" />}
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator className="last:hidden" />

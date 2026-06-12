@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import * as Dialog from "@radix-ui/react-dialog";
 import SidebarItem from "./SidebarItem";
 import SidebarSection from "./SidebarSection";
@@ -216,7 +216,7 @@ function Sidebar({
           variant === "default" &&
             "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)",
           variant === "destructive" &&
-            "text-(--text-secondary) hover:bg-red-500/10 hover:text-red-500",
+            "text-(--text-secondary) hover:bg-(--danger)/10 hover:text-(--danger)",
           isLoading && "opacity-70 cursor-not-allowed",
           className
         )}
@@ -468,43 +468,61 @@ function Sidebar({
             if (!open) onCloseMobile?.();
           }}
         >
-          <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 z-40 bg-(--surface-muted)/80 backdrop-blur-sm md:hidden" />
-            <Dialog.Content asChild>
-              <aside
-                aria-label="Main navigation"
-                role="navigation"
-                className="fixed top-0 left-0 bottom-0 z-50 w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-6 pb-24 shadow-2xl flex flex-col md:hidden"
-              >
-                <Dialog.Title className="sr-only">Navigation</Dialog.Title>
-                {/* Mobile header */}
-                <div className="mb-8 flex items-center justify-between">
-                  <Link
-                    href="/"
-                    className="text-lg font-black tracking-tighter text-(--text-primary) flex items-center gap-3 active:opacity-70 transition-opacity"
-                    onClick={() => {
-                      onLogoClick?.();
-                      onCloseMobile?.();
-                    }}
-                  >
-                    <div className="h-8 w-8 rounded-lg bg-(--control-bg) flex items-center justify-center border border-(--control-border) text-(--accent)">
-                      V
-                    </div>
-                    {t?.appName || "Vikini"}
-                  </Link>
-                  <Dialog.Close asChild>
-                    <button
-                      aria-label="Close sidebar"
-                      className="p-2 rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors"
+          <Dialog.Portal forceMount>
+            <AnimatePresence>
+              {mobileOpen && (
+                <>
+                  <Dialog.Overlay asChild forceMount>
+                    <motion.div
+                      className="fixed inset-0 z-40 bg-(--surface-muted)/80 backdrop-blur-sm md:hidden"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                    />
+                  </Dialog.Overlay>
+                  <Dialog.Content asChild forceMount>
+                    <motion.aside
+                      aria-label="Main navigation"
+                      role="navigation"
+                      className="fixed top-0 left-0 bottom-0 z-50 w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-6 pb-24 shadow-2xl flex flex-col md:hidden"
+                      initial={{ x: "-100%" }}
+                      animate={{ x: 0 }}
+                      exit={{ x: "-100%" }}
+                      transition={{ duration: 0.25, ease: [0.0, 0.0, 0.2, 1.0] }}
                     >
-                      ✕
-                    </button>
-                  </Dialog.Close>
-                </div>
-                {/* Reuse SidebarContent with isMobile=true (never collapsed) */}
-                {renderSidebarContent(true)}
-              </aside>
-            </Dialog.Content>
+                      <Dialog.Title className="sr-only">Navigation</Dialog.Title>
+                      {/* Mobile header */}
+                      <div className="mb-8 flex items-center justify-between">
+                        <Link
+                          href="/"
+                          className="text-lg font-black tracking-tighter text-(--text-primary) flex items-center gap-3 active:opacity-70 transition-opacity"
+                          onClick={() => {
+                            onLogoClick?.();
+                            onCloseMobile?.();
+                          }}
+                        >
+                          <div className="h-8 w-8 rounded-lg bg-(--control-bg) flex items-center justify-center border border-(--control-border) text-(--accent)">
+                            V
+                          </div>
+                          {t?.appName || "Vikini"}
+                        </Link>
+                        <Dialog.Close asChild>
+                          <button
+                            aria-label="Close sidebar"
+                            className="p-2 rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors"
+                          >
+                            ✕
+                          </button>
+                        </Dialog.Close>
+                      </div>
+                      {/* Reuse SidebarContent with isMobile=true (never collapsed) */}
+                      {renderSidebarContent(true)}
+                    </motion.aside>
+                  </Dialog.Content>
+                </>
+              )}
+            </AnimatePresence>
           </Dialog.Portal>
         </Dialog.Root>
       </TooltipProvider>

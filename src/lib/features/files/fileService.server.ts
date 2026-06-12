@@ -26,6 +26,7 @@ import type {
   CleanupResult,
 } from "@/types/files";
 import { classifyFile as classifyFileShared, validateFile } from "./fileValidation";
+import { NotFoundError, ValidationError, DatabaseError } from "@/lib/utils/errors";
 
 const fileLogger = logger.withContext("fileService");
 
@@ -86,11 +87,11 @@ async function enforceQuotas(
     .eq("conversation_id", conversationId)
     .eq("user_id", userId);
 
-  if (error) throw new Error(`Quota check failed: ${error.message}`);
+  if (error) throw new DatabaseError(`Quota check failed: ${error.message}`);
 
   const alive = rows || [];
   if (alive.length + 1 > cfg.maxFilesPerConversation) {
-    throw new Error("Too many files in this conversation");
+    throw new ValidationError("Too many files in this conversation");
   }
 
   const total = alive.reduce(
@@ -103,7 +104,7 @@ async function enforceQuotas(
   const maxBytes = await getConversationStorageLimit(userId);
 
   if (total + addBytes > maxBytes) {
-    throw new Error("Conversation storage quota exceeded");
+    throw new ValidationError("Conversation storage quota exceeded");
   }
 }
 
@@ -257,7 +258,7 @@ export async function uploadFile({
     upsert: false,
   });
 
-  if (upError) throw new Error(`Storage upload failed: ${upError.message}`);
+  if (upError) throw new DatabaseError(`Storage upload failed: ${upError.message}`);
 
   // 5. Upload to Gemini Files API (non-blocking, best-effort)
   const gemini = await uploadToGemini(bytes, v.filename, v.mime);
@@ -308,7 +309,7 @@ export async function uploadFile({
     } catch {
       /* ignore cleanup errors */
     }
-    throw new Error(`DB insert failed: ${insertError.message}`);
+    throw new DatabaseError(`DB insert failed: ${insertError.message}`);
   }
 
   fileLogger.info(`Uploaded: ${v.filename} (${v.kind}, ${v.sizeBytes}B) gemini=${!!gemini}`);
@@ -332,7 +333,7 @@ export async function listFiles({ userId, conversationId }: ListFilesParams): Pr
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
-  if (error) throw new Error(`List files failed: ${error.message}`);
+  if (error) throw new DatabaseError(`List files failed: ${error.message}`);
   return (data || []) as FileRow[];
 }
 
@@ -349,8 +350,8 @@ export async function getFile({ userId, id }: GetFileParams): Promise<FileRow> {
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (error) throw new Error(`Get file failed: ${error.message}`);
-  if (!data) throw new Error("File not found");
+  if (error) throw new DatabaseError(`Get file failed: ${error.message}`);
+  if (!data) throw new NotFoundError("File");
   return data as FileRow;
 }
 
@@ -387,7 +388,7 @@ export async function deleteFile({ userId, id }: GetFileParams): Promise<{ ok: b
 
   // Delete DB record
   const { error } = await supabase.from("files").delete().eq("id", id).eq("user_id", userId);
-  if (error) throw new Error(`DB delete failed: ${error.message}`);
+  if (error) throw new DatabaseError(`DB delete failed: ${error.message}`);
 
   return { ok: true };
 }
@@ -408,7 +409,7 @@ export async function deleteFilesByConversation(
     .eq("conversation_id", conversationId)
     .eq("user_id", userId);
 
-  if (error) throw new Error(`List files for delete failed: ${error.message}`);
+  if (error) throw new DatabaseError(`List files for delete failed: ${error.message}`);
 
   const files = (rows || []) as Array<{
     id: string;
@@ -449,7 +450,7 @@ export async function deleteFilesByConversation(
     .eq("conversation_id", conversationId)
     .eq("user_id", userId);
 
-  if (delError) throw new Error(`DB delete failed: ${delError.message}`);
+  if (delError) throw new DatabaseError(`DB delete failed: ${delError.message}`);
 
   return { ok: true, deleted: files.length };
 }
@@ -466,14 +467,14 @@ export async function createSignedUrl({ userId, id }: GetFileParams): Promise<{
   const row = await getFile({ userId, id });
   const cfg = getFilesConfig();
 
-  if (!row.storage_path) throw new Error("File has no storage path");
+  if (!row.storage_path) throw new ValidationError("File has no storage path");
 
   const { data, error } = await supabase.storage
     .from(row.bucket || cfg.bucket)
     .createSignedUrl(row.storage_path, cfg.signedUrlSeconds);
 
-  if (error) throw new Error(`Signed URL failed: ${error.message}`);
-  if (!data?.signedUrl) throw new Error("Signed URL missing");
+  if (error) throw new DatabaseError(`Signed URL failed: ${error.message}`);
+  if (!data?.signedUrl) throw new DatabaseError("Signed URL missing");
 
   return {
     signedUrl: data.signedUrl,
@@ -493,14 +494,14 @@ export async function downloadFileBytes({
   const row = await getFile({ userId, id });
   const cfg = getFilesConfig();
 
-  if (!row.storage_path) throw new Error("File has no storage path");
+  if (!row.storage_path) throw new ValidationError("File has no storage path");
 
   const { data, error } = await supabase.storage
     .from(row.bucket || cfg.bucket)
     .download(row.storage_path);
 
-  if (error) throw new Error(`Download failed: ${error.message}`);
-  if (!data) throw new Error("Download returned no data");
+  if (error) throw new DatabaseError(`Download failed: ${error.message}`);
+  if (!data) throw new DatabaseError("Download returned no data");
 
   const bytes = Buffer.from(await data.arrayBuffer());
   return { row, bytes };

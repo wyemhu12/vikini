@@ -5,6 +5,41 @@
 
 ---
 
+## 2026-06-12: Fix — UX/UI Audit Final Major Batch (13/13 remaining issues)
+
+### CSS Foundation
+
+- **tailwind.config.ts**: Redirected 14+ dead shadcn HSL variables to live custom properties (`--card` → `--surface-elevated`, `--destructive` → `--danger`, etc.). Removed `hsl()` wrappers. Deleted dead `chart.*` and `sidebar.*` mappings.
+- **motion.ts** [NEW]: Centralized animation constants (`DURATION`, `EASE`, `TRANSITION` presets) for consistent motion across all components.
+
+### Theme Token Migration (27 files, 80+ replacements)
+
+- **AdminDashboard.tsx**: Full migration from hardcoded dark theme (`from-gray-900 via-black`, `text-white`, `bg-white/3`) → design system tokens.
+- **27 component files**: Batch replaced `text-red-*` → `--danger`, `text-green-*` → `--success`, `text-amber-*` → `--warning`, `text-blue-*` → `--accent` across chat, gallery, image-gen, projects, sidebar, auth, admin.
+- **ProjectSettingsModal**: Overlay `bg-black/60` → `bg-(--overlay)`.
+
+### Accessibility (3 modals migrated to Radix Dialog)
+
+- **ImageCompareModal**: `<div fixed>` → Radix Dialog with focus trap, ESC, `aria-label`, `sr-only` title.
+- **GemsManager**: Custom modal → Radix Dialog + theme tokens.
+- **UserManager**: Custom modal → Radix Dialog + theme tokens.
+
+### UX Improvements
+
+- **Mobile sidebar**: Added slide-in/slide-out animation (Framer Motion + AnimatePresence).
+- **GEM indicator**: Upgraded from `text-[10px]` plain text → prominent accent badge with icon + name.
+- **Breadcrumbs**: Added navigation breadcrumb to Project detail page (`Home / Projects / Name`).
+- **Client-side file validation**: Added pre-upload checks for file size (50MB), blocked extensions, blocked MIME types with toast feedback.
+
+### Code Quality
+
+- **Cron route**: Moved `/api/files/cleanup` → `/api/cron/cleanup` (Next.js convention).
+- **Typed errors**: Migrated 50 `throw new Error()` → `NotFoundError`, `ForbiddenError`, `ValidationError`, `DatabaseError` across conversations.ts, fileService.server.ts, gems.ts.
+
+**Files**: 40 files changed (38 modified, 1 new, 1 moved)
+
+---
+
 ## 2026-06-12: Fix — UX/UI Audit Major Batch (15+ issues)
 
 ### Theme Token Migration

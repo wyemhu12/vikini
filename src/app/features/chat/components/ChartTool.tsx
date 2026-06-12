@@ -214,7 +214,7 @@ export default function ChartTool({
 
   if (!chartContent) {
     return (
-      <div className="w-full max-w-2xl mx-auto my-4 bg-(--surface-muted)/30 border border-red-500/20 rounded-xl p-4 text-center text-red-400">
+      <div className="w-full max-w-2xl mx-auto my-4 bg-(--surface-muted)/30 border border-(--danger)/20 rounded-xl p-4 text-center text-(--danger)">
         Unsupported chart type: {vizType || type}
       </div>
     );

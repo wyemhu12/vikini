@@ -194,7 +194,7 @@ export function ProjectNode({
 
                           <DropdownMenu.Item
                             onClick={() => onDeleteConversation(conv.id)}
-                            className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer outline-none data-highlighted:bg-red-500/10 data-highlighted:text-red-300"
+                            className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--danger) hover:text-(--danger) hover:bg-(--danger)/10 transition-colors cursor-pointer outline-none data-highlighted:bg-(--danger)/10 data-highlighted:text-(--danger)"
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
                             {t.projectDelete}

@@ -361,7 +361,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
             {/* Error state */}
             {fetchError && !signedUrl && (
               <div className="flex flex-col items-center gap-4 p-12 bg-(--surface-base) rounded-2xl shadow-2xl">
-                <AlertCircle className="w-12 h-12 text-red-500" />
+                <AlertCircle className="w-12 h-12 text-(--danger)" />
                 <span className="text-sm text-(--text-secondary)">
                   {t?.fileLoadFailed ?? "Failed to load file"}
                 </span>

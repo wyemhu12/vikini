@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { Gem, Loader2, Plus, Edit2, Trash2, AlertCircle, X } from "lucide-react";
 import GemEditor from "@/app/features/gems/components/GemEditor";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
+import * as Dialog from "@radix-ui/react-dialog";
 import { translations } from "@/lib/utils/config";
 import { toast } from "@/lib/store/toastStore";
 import { confirm } from "@/lib/store/confirmStore";
@@ -192,25 +193,27 @@ export default function GemsManager({ language }: GemsManagerProps) {
       )}
 
       {/* Editor Modal */}
-      <AnimatePresence>
-        {isEditorOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <Dialog.Root open={isEditorOpen} onOpenChange={setIsEditorOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-(--overlay) backdrop-blur-sm" />
+          <Dialog.Content
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+            aria-label="Gem editor"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 0 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 0 }}
-              className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl relative my-auto"
+              className="bg-(--surface-elevated) text-(--text-primary) border border-(--border) rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl relative my-auto pointer-events-auto"
             >
-              <div className="flex-none flex items-center justify-between p-4 border-b border-neutral-800 bg-neutral-900 rounded-t-xl z-20">
-                <h3 className="text-lg font-semibold text-white">
+              <div className="flex-none flex items-center justify-between p-4 border-b border-(--border) bg-(--surface-elevated) rounded-t-xl z-20">
+                <Dialog.Title className="text-lg font-semibold">
                   {editingGem ? t.editGlobalGem : t.createGlobalGem}
-                </h3>
-                <button
-                  onClick={() => setIsEditorOpen(false)}
-                  className="p-1 rounded-full hover:bg-white/10 transition-colors"
-                >
-                  <X className="w-5 h-5 text-neutral-400" />
-                </button>
+                </Dialog.Title>
+                <Dialog.Close asChild>
+                  <button className="p-1 rounded-full hover:bg-white/10 transition-colors">
+                    <X className="w-5 h-5 text-neutral-400" />
+                  </button>
+                </Dialog.Close>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
@@ -234,9 +237,9 @@ export default function GemsManager({ language }: GemsManagerProps) {
                 />
               </div>
             </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

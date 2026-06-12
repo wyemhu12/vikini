@@ -15,6 +15,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { logger } from "@/lib/utils/logger";
 import { useFileStore } from "./store";
+import { BLOCKED_EXTENSIONS, BLOCKED_MIME_TYPES } from "./fileValidation";
+import { toast } from "@/lib/store/toastStore";
 import type { FileItem, FileKind, FileUploadProgress } from "@/types/files";
 
 interface UseFileUploadOptions {
@@ -132,6 +134,9 @@ const FILE_ACCEPT = [
   ".m4a",
 ].join(",");
 
+/** Client-side max file size (50MB). Server enforces rank-specific limits. */
+const CLIENT_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
 export function useFileUpload({
   conversationId,
   disabled,
@@ -156,8 +161,27 @@ export function useFileUpload({
       const fileArray = Array.from(files);
 
       for (const file of fileArray) {
-        const tempId = crypto.randomUUID();
+        // --- Client-side validation (fast-fail before upload) ---
         const ext = file.name.split(".").pop()?.toLowerCase() || "";
+
+        if (BLOCKED_EXTENSIONS.has(ext)) {
+          toast.error(`File "${file.name}" rejected: .${ext} files are not allowed`);
+          continue;
+        }
+
+        const lowerMime = (file.type || "").toLowerCase();
+        if (BLOCKED_MIME_TYPES.has(lowerMime)) {
+          toast.error(`File "${file.name}" rejected: this file type is not allowed`);
+          continue;
+        }
+
+        if (file.size > CLIENT_MAX_FILE_SIZE_BYTES) {
+          const sizeMB = Math.round(file.size / 1024 / 1024);
+          toast.error(`File "${file.name}" rejected: ${sizeMB}MB exceeds the 50MB limit`);
+          continue;
+        }
+
+        const tempId = crypto.randomUUID();
         const kind = classifyClientSide(ext, file.type);
 
         const queueItem: FileUploadProgress = {

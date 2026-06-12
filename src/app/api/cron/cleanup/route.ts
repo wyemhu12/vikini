@@ -1,6 +1,6 @@
 /**
- * Files API — Cleanup expired files (cron job)
- * GET/POST /api/files/cleanup — Delete files past their TTL
+ * Cron API — Cleanup expired files
+ * GET/POST /api/cron/cleanup — Delete files past their TTL
  *
  * Protected by x-cron-secret header. Called by Vercel Cron or external scheduler.
  */
@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cleanupExpiredFiles } from "@/lib/features/files/fileService.server";
 import { logger } from "@/lib/utils/logger";
 
-const routeLogger = logger.withContext("/api/files/cleanup");
+const routeLogger = logger.withContext("/api/cron/cleanup");
 
 function verifyCronSecret(req: NextRequest): boolean {
   const secret = req.headers.get("x-cron-secret") || req.headers.get("authorization");

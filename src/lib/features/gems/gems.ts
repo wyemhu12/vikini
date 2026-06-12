@@ -2,6 +2,7 @@
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCachedGems, setCachedGems, invalidateGemsCache } from "@/lib/core/cache";
+import { NotFoundError, ForbiddenError, DatabaseError } from "@/lib/utils/errors";
 
 interface GemPayload {
   name?: string;
@@ -154,7 +155,7 @@ export async function listGems(): Promise<GemRow[]> {
     .from("gems")
     .select("*")
     .order("name", { ascending: true });
-  if (error) throw new Error(`listGems failed: ${error.message}`);
+  if (error) throw new DatabaseError(`listGems failed: ${error.message}`);
   return (data || []) as GemRow[];
 }
 
@@ -173,14 +174,14 @@ export async function getGemInstructionsForConversation(
     .maybeSingle();
 
   if (convoErr) {
-    throw new Error(`getGemInstructionsForConversation convo failed: ${convoErr.message}`);
+    throw new DatabaseError(`getGemInstructionsForConversation convo failed: ${convoErr.message}`);
   }
   if (!convo) return "";
 
   // If user_id exists on the row, enforce ownership (defense-in-depth; chat route already authenticates).
   const convoRow = convo as { user_id?: string; gem_id?: string };
   if (typeof convoRow.user_id === "string" && convoRow.user_id !== userId) {
-    throw new Error("Forbidden");
+    throw new ForbiddenError();
   }
 
   const gemId = convoRow?.gem_id;
@@ -197,7 +198,8 @@ export async function getGemInstructionsForConversation(
     .eq("id", gemId)
     .maybeSingle();
 
-  if (gemErr) throw new Error(`getGemInstructionsForConversation gem failed: ${gemErr.message}`);
+  if (gemErr)
+    throw new DatabaseError(`getGemInstructionsForConversation gem failed: ${gemErr.message}`);
 
   const gemRow = gem as { instruction?: string; instructions?: string } | null;
   const ins =
@@ -249,7 +251,7 @@ export async function getGemsForUser(userId: string): Promise<GemRow[]> {
     if (!q1.error) gems = (q1.data || []) as GemRow[];
     else {
       const q2 = await supabase.from("gems").select("*").order("name", { ascending: true });
-      if (q2.error) throw new Error(`getGemsForUser failed: ${q2.error.message}`);
+      if (q2.error) throw new DatabaseError(`getGemsForUser failed: ${q2.error.message}`);
       gems = (q2.data || []) as GemRow[];
     }
   }
@@ -350,7 +352,7 @@ export async function createGem(userId: string, payload: unknown): Promise<GemRo
       .select("*")
       .single();
 
-    if (attempt2.error) throw new Error(`createGem failed: ${attempt2.error.message}`);
+    if (attempt2.error) throw new DatabaseError(`createGem failed: ${attempt2.error.message}`);
     created = attempt2.data as GemRow;
   }
 
@@ -393,18 +395,18 @@ export async function updateGem(userId: string, gemId: string, payload: unknown)
     .eq("id", gemId)
     .maybeSingle();
 
-  if (existingErr) throw new Error(`updateGem read failed: ${existingErr.message}`);
-  if (!existing) throw new Error("Gem not found");
+  if (existingErr) throw new DatabaseError(`updateGem read failed: ${existingErr.message}`);
+  if (!existing) throw new NotFoundError("Gem");
 
   const existingRow = existing as GemRow;
   const isPremade = existingRow?.is_premade === true || existingRow?.isPremade === true;
-  if (isPremade) throw new Error("Premade gem is read-only");
+  if (isPremade) throw new ForbiddenError("Premade gem is read-only");
 
   const owner =
     (typeof existingRow?.user_id === "string" && existingRow.user_id) ||
     (typeof existingRow?.userId === "string" && existingRow.userId) ||
     "";
-  if (owner && owner !== userId) throw new Error("Forbidden");
+  if (owner && owner !== userId) throw new ForbiddenError();
 
   // Update metadata on gems table (instructions are versioned in gem_versions)
   const patch = {
@@ -435,7 +437,7 @@ export async function updateGem(userId: string, gemId: string, payload: unknown)
       .select("*")
       .single();
 
-    if (attempt2.error) throw new Error(`updateGem failed: ${attempt2.error.message}`);
+    if (attempt2.error) throw new DatabaseError(`updateGem failed: ${attempt2.error.message}`);
     updated = attempt2.data as GemRow;
   }
 
@@ -490,18 +492,18 @@ export async function deleteGem(userId: string, gemId: string): Promise<{ ok: bo
     .eq("id", gemId)
     .maybeSingle();
 
-  if (existingErr) throw new Error(`deleteGem read failed: ${existingErr.message}`);
+  if (existingErr) throw new DatabaseError(`deleteGem read failed: ${existingErr.message}`);
   if (!existing) return { ok: true };
 
   const existingRow = existing as GemRow;
   const isPremade = existingRow?.is_premade === true || existingRow?.isPremade === true;
-  if (isPremade) throw new Error("Premade gem is read-only");
+  if (isPremade) throw new ForbiddenError("Premade gem is read-only");
 
   const owner =
     (typeof existingRow?.user_id === "string" && existingRow.user_id) ||
     (typeof existingRow?.userId === "string" && existingRow.userId) ||
     "";
-  if (owner && owner !== userId) throw new Error("Forbidden");
+  if (owner && owner !== userId) throw new ForbiddenError();
 
   const attempt1 = await supabase.from("gems").delete().eq("id", gemId).eq("user_id", userId);
   if (!attempt1.error) {
@@ -511,7 +513,7 @@ export async function deleteGem(userId: string, gemId: string): Promise<{ ok: bo
   }
 
   const attempt2 = await supabase.from("gems").delete().eq("id", gemId).eq("userId", userId);
-  if (attempt2.error) throw new Error(`deleteGem failed: ${attempt2.error.message}`);
+  if (attempt2.error) throw new DatabaseError(`deleteGem failed: ${attempt2.error.message}`);
 
   // Invalidate cache after deleting gem
   await invalidateGemsCache(userId);

@@ -14,6 +14,7 @@ import {
   setCachedConversations,
   invalidateConversationsCache,
 } from "@/lib/core/cache";
+import { NotFoundError, ForbiddenError, DatabaseError } from "@/lib/utils/errors";
 
 // ------------------------------
 // Deduplication: Prevent race conditions when creating conversations
@@ -149,7 +150,7 @@ export async function getConversationSafe(conversationId: string): Promise<Conve
     .select("*")
     .eq("id", conversationId)
     .maybeSingle();
-  if (q2.error) throw new Error(`getConversation failed: ${q2.error.message}`);
+  if (q2.error) throw new DatabaseError(`getConversation failed: ${q2.error.message}`);
   return mapConversationRow(q2.data);
 }
 
@@ -215,7 +216,7 @@ async function listConversationsSafe(
     .order("updated_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (q2.error) throw new Error(`listConversations failed: ${q2.error.message}`);
+  if (q2.error) throw new DatabaseError(`listConversations failed: ${q2.error.message}`);
 
   const conversations = (q2.data || [])
     .map(mapConversationRow)
@@ -371,7 +372,8 @@ async function doSaveConversation(
       .select("*")
       .single();
 
-    if (attempt2.error) throw new Error(`saveConversation failed: ${attempt2.error.message}`);
+    if (attempt2.error)
+      throw new DatabaseError(`saveConversation failed: ${attempt2.error.message}`);
     result = mapConversationRow(attempt2.data);
   }
 
@@ -389,8 +391,8 @@ export async function setConversationGem(
   const supabase = getSupabaseAdmin();
 
   const current = await getConversationSafe(conversationId);
-  if (!current) throw new Error("Conversation not found");
-  if (current.userId !== userId) throw new Error("Forbidden");
+  if (!current) throw new NotFoundError("Conversation");
+  if (current.userId !== userId) throw new ForbiddenError();
 
   // PERFORMANCE: Use RETURNING clause to avoid extra query
   const { data, error } = await supabase
@@ -400,7 +402,7 @@ export async function setConversationGem(
     .select("*,gems(name,icon,color)")
     .single();
 
-  if (error) throw new Error(`setConversationGem failed: ${error.message}`);
+  if (error) throw new DatabaseError(`setConversationGem failed: ${error.message}`);
 
   // Invalidate cache after update
   await invalidateConversationsCache(userId);
@@ -417,8 +419,8 @@ export async function setConversationModel(
   const supabase = getSupabaseAdmin();
 
   const current = await getConversationSafe(conversationId);
-  if (!current) throw new Error("Conversation not found");
-  if (current.userId !== userId) throw new Error("Forbidden");
+  if (!current) throw new NotFoundError("Conversation");
+  if (current.userId !== userId) throw new ForbiddenError();
 
   // Validate model is in allowed list
   const finalModel = isSelectableModelId(model) ? model : DEFAULT_MODEL;
@@ -431,7 +433,7 @@ export async function setConversationModel(
     .select("*,gems(name,icon,color)")
     .single();
 
-  if (error) throw new Error(`setConversationModel failed: ${error.message}`);
+  if (error) throw new DatabaseError(`setConversationModel failed: ${error.message}`);
 
   // Invalidate cache after update
   await invalidateConversationsCache(userId);
@@ -448,8 +450,8 @@ export async function setConversationProject(
   const supabase = getSupabaseAdmin();
 
   const current = await getConversationSafe(conversationId);
-  if (!current) throw new Error("Conversation not found");
-  if (current.userId !== userId) throw new Error("Forbidden");
+  if (!current) throw new NotFoundError("Conversation");
+  if (current.userId !== userId) throw new ForbiddenError();
 
   // PERFORMANCE: Use RETURNING clause to avoid extra query
   const { data, error } = await supabase
@@ -459,7 +461,7 @@ export async function setConversationProject(
     .select("*,gems(name,icon,color)")
     .single();
 
-  if (error) throw new Error(`setConversationProject failed: ${error.message}`);
+  if (error) throw new DatabaseError(`setConversationProject failed: ${error.message}`);
 
   // Invalidate cache after update
   await invalidateConversationsCache(userId);
@@ -475,8 +477,8 @@ export async function renameConversation(
   const supabase = getSupabaseAdmin();
 
   const current = await getConversationSafe(id);
-  if (!current) throw new Error("Conversation not found");
-  if (current.userId !== userId) throw new Error("Forbidden");
+  if (!current) throw new NotFoundError("Conversation");
+  if (current.userId !== userId) throw new ForbiddenError();
 
   // PERFORMANCE: Use RETURNING clause to avoid extra query
   const { data, error } = await supabase
@@ -486,7 +488,7 @@ export async function renameConversation(
     .select("*,gems(name,icon,color)")
     .single();
 
-  if (error) throw new Error(`renameConversation failed: ${error.message}`);
+  if (error) throw new DatabaseError(`renameConversation failed: ${error.message}`);
 
   // Invalidate cache after update
   await invalidateConversationsCache(userId);
@@ -501,8 +503,8 @@ export async function deleteConversation(
   const supabase = getSupabaseAdmin();
 
   const current = await getConversationSafe(conversationId);
-  if (!current) throw new Error("Conversation not found");
-  if (current.userId !== userId) throw new Error("Forbidden");
+  if (!current) throw new NotFoundError("Conversation");
+  if (current.userId !== userId) throw new ForbiddenError();
 
   // Delete all files (dual storage: Supabase + Gemini) before deleting conversation row
   try {
@@ -512,7 +514,7 @@ export async function deleteConversation(
   }
 
   const { error } = await supabase.from("conversations").delete().eq("id", conversationId);
-  if (error) throw new Error(`deleteConversation failed: ${error.message}`);
+  if (error) throw new DatabaseError(`deleteConversation failed: ${error.message}`);
 
   // Invalidate cache after deletion
   await invalidateConversationsCache(userId);

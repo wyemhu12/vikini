@@ -309,7 +309,7 @@ export default function InputForm({
             <button
               type="button"
               onClick={() => setIsImageMode(false)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-red-500 transition-colors"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--danger) transition-colors"
               title={t?.cancelImageMode || "Cancel Image Mode"}
               aria-label={t?.cancelImageMode || "Cancel image mode"}
             >

@@ -39,17 +39,17 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
   const t = language === "vi" ? translations.vi : translations.en;
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-900 via-black to-gray-900">
+    <div className="min-h-screen bg-(--surface)">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-white/3 border border-white/10 backdrop-blur-3xl">
-              <Shield className="w-8 h-8 text-blue-400" />
+            <div className="p-3 rounded-xl bg-(--control-bg) border border-(--border) backdrop-blur-3xl">
+              <Shield className="w-8 h-8 text-(--accent)" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">{t.adminDashboard}</h1>
-              <p className="text-gray-400 text-sm">{t.adminDescription}</p>
+              <h1 className="text-3xl font-bold text-(--text-primary)">{t.adminDashboard}</h1>
+              <p className="text-(--text-secondary) text-sm">{t.adminDescription}</p>
             </div>
           </div>
 
@@ -58,7 +58,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             {/* Back to Home */}
             <Link
               href="/"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/3 border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 hover:border-white/20 transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--control-bg) border border-(--border) text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) hover:border-(--border) transition-all"
             >
               <ArrowLeft className="w-4 h-4" />
               <span className="text-sm font-medium">{t.adminBackToHome}</span>
@@ -70,7 +70,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 href="https://vercel.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-all text-xs"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-all text-xs"
                 title="Vercel Dashboard"
               >
                 <ExternalLink className="w-3 h-3" />
@@ -80,7 +80,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 href="https://supabase.com/dashboard"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-all text-xs"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-all text-xs"
                 title="Supabase Dashboard"
               >
                 <ExternalLink className="w-3 h-3" />
@@ -89,13 +89,13 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             </div>
 
             {/* Language Selector */}
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-white/3 border border-white/10">
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-(--control-bg) border border-(--border)">
               <button
                 onClick={() => toggleLanguage("vi")}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                   language === "vi"
-                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                    ? "bg-(--warning)/20 text-(--warning) border border-(--warning)/30"
+                    : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
                 }`}
               >
                 VN
@@ -104,8 +104,8 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 onClick={() => toggleLanguage("en")}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                   language === "en"
-                    ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                    ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
+                    : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
                 }`}
               >
                 EN
@@ -115,13 +115,13 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
         </div>
 
         {/* Tab Navigation */}
-        <div className="mb-6 flex gap-2 p-1 rounded-xl bg-white/3 border border-white/10 backdrop-blur-3xl w-fit">
+        <div className="mb-6 flex gap-2 p-1 rounded-xl bg-(--control-bg) border border-(--border) backdrop-blur-3xl w-fit">
           <button
             onClick={() => setActiveTab("users")}
             className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
               activeTab === "users"
-                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
+                ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
+                : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
             }`}
           >
             {t.adminUsers}
@@ -130,8 +130,8 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             onClick={() => setActiveTab("limits")}
             className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
               activeTab === "limits"
-                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
+                ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
+                : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
             }`}
           >
             {t.adminLimits}
@@ -140,8 +140,8 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             onClick={() => setActiveTab("gems")}
             className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
               activeTab === "gems"
-                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
+                ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
+                : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
             }`}
           >
             {t.adminGlobalGems}
@@ -150,8 +150,8 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             onClick={() => setActiveTab("stats")}
             className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
               activeTab === "stats"
-                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
+                ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
+                : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
             }`}
           >
             {t.adminStats}
@@ -160,8 +160,8 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             onClick={() => setActiveTab("audit")}
             className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
               activeTab === "audit"
-                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
+                ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
+                : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
             }`}
           >
             {t.adminAuditLog}
@@ -169,7 +169,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
         </div>
 
         {/* Tab Content */}
-        <div className="rounded-xl bg-white/3 border border-white/10 backdrop-blur-3xl p-6">
+        <div className="rounded-xl bg-(--control-bg) border border-(--border) backdrop-blur-3xl p-6">
           {activeTab === "users" && (
             <UserManager language={language} currentUserId={currentUserId} />
           )}

@@ -217,7 +217,7 @@ function DocumentItem({
   const getStatusIcon = () => {
     switch (document.status) {
       case "ready":
-        return <CheckCircle className="h-3.5 w-3.5 text-green-500" />;
+        return <CheckCircle className="h-3.5 w-3.5 text-(--success)" />;
       case "processing":
         return <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />;
       case "error":

@@ -44,8 +44,8 @@ export default function EditImagePromptModal({
 
           {/* Header */}
           <div className="flex items-center gap-3 px-8 pt-8 pb-4 border-b border-white/5">
-            <div className="relative bg-blue-500/10 backdrop-blur-xl border border-blue-500/30 rounded-full p-3">
-              <PenTool className="w-6 h-6 text-blue-400" />
+            <div className="relative bg-(--accent)/10 backdrop-blur-xl border border-(--accent)/30 rounded-full p-3">
+              <PenTool className="w-6 h-6 text-(--accent)" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-white">{t.edit || "Edit Prompt"}</h2>

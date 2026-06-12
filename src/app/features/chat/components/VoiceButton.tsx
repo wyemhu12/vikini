@@ -118,7 +118,7 @@ export function VoiceButton({
           </TooltipTrigger>
           <TooltipContent>
             <p>{t?.voiceNotSupported || "Voice input not supported in this browser"}</p>
-            <p className="text-xs text-yellow-500 mt-1">
+            <p className="text-xs text-(--warning) mt-1">
               {t?.useChromeOrEdge || "Use Chrome or Edge for voice features"}
             </p>
           </TooltipContent>
@@ -139,7 +139,7 @@ export function VoiceButton({
               disabled={disabled}
               className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 ${
                 isListening
-                  ? "bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/50"
+                  ? "bg-(--danger) text-white animate-pulse shadow-lg shadow-(--danger)/50"
                   : "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--accent)"
               } disabled:opacity-50 disabled:cursor-not-allowed`}
               aria-label={
@@ -152,7 +152,7 @@ export function VoiceButton({
                 <>
                   <Mic className="w-5 h-5" />
                   {/* Listening indicator rings */}
-                  <span className="absolute inset-0 rounded-full border-2 border-red-400 animate-ping opacity-75" />
+                  <span className="absolute inset-0 rounded-full border-2 border-(--danger) animate-ping opacity-75" />
                 </>
               ) : (
                 <Mic className="w-5 h-5" />
@@ -165,7 +165,7 @@ export function VoiceButton({
                 ? t?.clickToStop || "Click to stop"
                 : t?.clickToSpeak || "Click to speak"}
             </p>
-            {sttError && <p className="text-red-400 text-xs">{sttError}</p>}
+            {sttError && <p className="text-(--danger) text-xs">{sttError}</p>}
           </TooltipContent>
         </Tooltip>
 

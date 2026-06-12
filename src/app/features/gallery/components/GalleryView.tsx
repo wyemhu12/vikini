@@ -436,7 +436,7 @@ export function GalleryView() {
                   onClick={handleToggleCompareMode}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
                     compareMode
-                      ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
+                      ? "bg-(--danger)/20 text-(--danger) border border-(--danger)/30 hover:bg-(--danger)/30"
                       : "bg-(--surface-muted) border border-(--control-border) hover:bg-(--surface-hover)"
                   }`}
                 >

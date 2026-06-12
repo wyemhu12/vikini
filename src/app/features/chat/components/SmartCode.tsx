@@ -113,7 +113,7 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
               text-[10px] font-bold uppercase tracking-wider
               ${
                 copied
-                  ? "bg-green-500/10 text-green-400"
+                  ? "bg-(--success)/10 text-(--success)"
                   : "text-secondary hover:text-primary hover:bg-control-hover"
               }
             `}

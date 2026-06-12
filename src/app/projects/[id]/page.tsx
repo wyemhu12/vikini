@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { ArrowLeft, Settings, Trash2, Loader2, MessageSquare, Plus } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { KnowledgePanel } from "@/components/features/projects";
@@ -137,6 +138,26 @@ export default function ProjectPage() {
 
   return (
     <div className="min-h-screen bg-(--surface-muted)">
+      {/* Breadcrumb */}
+      <nav
+        aria-label="Breadcrumb"
+        className="bg-(--surface)/80 backdrop-blur-sm border-b border-(--border)/50"
+      >
+        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center gap-1.5 text-xs text-(--text-secondary)">
+          <Link href="/" className="hover:text-(--text-primary) transition-colors">
+            {t("home") || "Home"}
+          </Link>
+          <span className="opacity-40">/</span>
+          <Link href="/" className="hover:text-(--text-primary) transition-colors">
+            {t("projects") || "Projects"}
+          </Link>
+          <span className="opacity-40">/</span>
+          <span className="text-(--text-primary) font-medium truncate max-w-[200px]">
+            {project?.name || "..."}
+          </span>
+        </div>
+      </nav>
+
       {/* Header */}
       <header className="sticky top-0 z-10 bg-(--surface)/90 backdrop-blur-xl border-b border-(--border)">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
@@ -168,7 +189,10 @@ export default function ProjectPage() {
             <button
               onClick={handleDeleteProject}
               disabled={isDeleting}
-              className={cn("p-2 rounded-lg transition-colors", "hover:bg-red-500/10 text-red-500")}
+              className={cn(
+                "p-2 rounded-lg transition-colors",
+                "hover:bg-(--danger)/10 text-(--danger)"
+              )}
               title={t("deleteProject")}
             >
               {isDeleting ? (
@@ -184,7 +208,7 @@ export default function ProjectPage() {
       {/* Content */}
       <main className="max-w-4xl mx-auto px-4 py-8">
         {error && (
-          <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500">
+          <div className="mb-6 p-4 rounded-lg bg-(--danger)/10 border border-(--danger)/20 text-(--danger)">
             {error}
           </div>
         )}

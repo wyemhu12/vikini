@@ -153,7 +153,7 @@ export default function ChatControls({
             WEB {!canWebSearch ? t.webSearchOff : webSearchEnabled ? t.webSearchOn : t.webSearchOff}
           </button>
           {isV32 && webSearchEnabled && (
-            <span className="hidden md:inline text-[8px] text-amber-400/80 font-medium ml-0.5 whitespace-nowrap">
+            <span className="hidden md:inline text-[8px] text-(--warning)/80 font-medium ml-0.5 whitespace-nowrap">
               {t.webSearchPricingNote}
             </span>
           )}
@@ -188,8 +188,12 @@ export default function ChatControls({
           {currentGem && (
             <>
               <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
-              <div className="text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 text-(--accent)">
-                {currentGem.icon} {currentGem.name}
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-(--accent)/15 text-(--accent) border border-(--accent)/20"
+                title={currentGem.name}
+              >
+                <span className="text-sm">{currentGem.icon}</span>
+                <span className="max-w-[120px] truncate">{currentGem.name}</span>
               </div>
             </>
           )}

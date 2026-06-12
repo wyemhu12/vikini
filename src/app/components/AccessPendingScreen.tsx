@@ -27,15 +27,17 @@ export default function AccessPendingScreen() {
 
           <div className="space-y-4 mb-8">
             {/* Status */}
-            <div className="flex items-start gap-3 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-              <Clock className="w-5 h-5 text-yellow-400 mt-0.5" />
-              <div className="text-sm font-medium text-yellow-300">{t("accessAccountPending")}</div>
+            <div className="flex items-start gap-3 p-4 bg-(--warning)/10 border border-(--warning)/30 rounded-xl">
+              <Clock className="w-5 h-5 text-(--warning) mt-0.5" />
+              <div className="text-sm font-medium text-(--warning)">
+                {t("accessAccountPending")}
+              </div>
             </div>
 
             {/* Info */}
-            <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
-              <Mail className="w-5 h-5 text-blue-400 mt-0.5" />
-              <div className="text-sm font-medium text-blue-300">{t("accessWhitelistOnly")}</div>
+            <div className="flex items-start gap-3 p-4 bg-(--accent)/10 border border-(--accent)/30 rounded-xl">
+              <Mail className="w-5 h-5 text-(--accent) mt-0.5" />
+              <div className="text-sm font-medium text-(--accent)">{t("accessWhitelistOnly")}</div>
             </div>
           </div>
 

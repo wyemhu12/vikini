@@ -141,7 +141,7 @@ function ImageGenPreview({ message, onRegenerate, onEdit }: ImageGenPreviewProps
         {hasOptions && (
           <div className="flex flex-wrap gap-1.5 px-3 py-2 border-b border-token bg-surface-muted/50">
             {options.model && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-(--accent)/20 text-(--accent) border border-(--accent)/30">
                 {formatModelName(options.model)}
               </span>
             )}

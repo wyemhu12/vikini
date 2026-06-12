@@ -165,7 +165,7 @@ export function ProjectSettingsModal({
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-(--overlay) backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
       <div className="fixed inset-4 md:inset-8 lg:inset-16 z-50 flex items-center justify-center">

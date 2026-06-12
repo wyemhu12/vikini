@@ -60,7 +60,7 @@ export default function UpgradeModal({ isOpen, onClose, modelName, t }: UpgradeM
               </div>
 
               {/* Action */}
-              <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
+              <div className="p-4 bg-(--success)/10 border border-(--success)/30 rounded-xl">
                 <div className="text-sm text-gray-300">{t.modalUpgradeContactAdmin}</div>
               </div>
             </div>

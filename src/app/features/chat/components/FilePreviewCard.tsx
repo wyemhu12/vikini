@@ -67,7 +67,7 @@ export function FilePreviewCard({
       transition={{ type: "spring", stiffness: 300, damping: 25 }}
       className={`group relative ${cardSize} shrink-0 rounded-xl border transition-all duration-200 overflow-hidden ${
         isError
-          ? "border-red-500/50 bg-red-500/5"
+          ? "border-(--danger)/50 bg-(--danger)/5"
           : "border-(--control-border) bg-(--surface-base) hover:border-(--accent)/50 hover:shadow-md"
       } ${!isUploading && file ? "cursor-pointer" : ""}`}
       onClick={() => !isUploading && file && onClick?.(file)}
@@ -105,11 +105,11 @@ export function FilePreviewCard({
           {isUploading ? (
             <>
               {isError ? (
-                <AlertCircle className="w-3 h-3 text-red-500" />
+                <AlertCircle className="w-3 h-3 text-(--danger)" />
               ) : (
                 <Loader2 className="w-3 h-3 animate-spin text-(--accent)" />
               )}
-              <span className={isError ? "text-red-500" : ""}>
+              <span className={isError ? "text-(--danger)" : ""}>
                 {isError ? (upload.error || "Error").slice(0, 20) : `${upload.progress}%`}
               </span>
             </>
@@ -118,7 +118,7 @@ export function FilePreviewCard({
               <span>{formatFileSize(size)}</span>
               {file && "gemini_ready" in file && file.gemini_ready && (
                 <span title="Gemini ready">
-                  <Zap className="w-3 h-3 text-yellow-500" />
+                  <Zap className="w-3 h-3 text-(--warning)" />
                 </span>
               )}
             </>
@@ -148,7 +148,7 @@ export function FilePreviewCard({
             setDeleting(true);
             onRemove(file.id);
           }}
-          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-full bg-(--surface-base)/90 hover:bg-red-500/20 text-(--text-secondary) hover:text-red-500"
+          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-full bg-(--surface-base)/90 hover:bg-(--danger)/20 text-(--text-secondary) hover:text-(--danger)"
           aria-label={`Remove ${filename}`}
           disabled={deleting}
         >

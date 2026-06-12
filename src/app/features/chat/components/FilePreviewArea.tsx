@@ -115,8 +115,8 @@ export function FilePreviewArea({
                 disabled={disabled}
                 className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-all ${
                   showClearConfirm
-                    ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
-                    : "text-(--text-secondary) hover:text-red-500 hover:bg-red-500/5"
+                    ? "bg-(--danger)/10 text-(--danger) hover:bg-(--danger)/20"
+                    : "text-(--text-secondary) hover:text-(--danger) hover:bg-(--danger)/5"
                 } disabled:opacity-50`}
               >
                 <Trash2 className="w-3 h-3" />

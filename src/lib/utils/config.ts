@@ -455,6 +455,8 @@ export const translations: TranslationSet = {
     projectDelete: "Xóa",
     newProject: "Dự án mới",
     projects: "Dự án",
+    home: "Trang chủ",
+    me: "TÔI",
     yourChats: "Chat của bạn",
     // Knowledge Base
     knowledgeBase: "Kho kiến thức",
@@ -988,6 +990,8 @@ export const translations: TranslationSet = {
     projectDelete: "Delete",
     newProject: "New project",
     projects: "Projects",
+    home: "Home",
+    me: "ME",
     yourChats: "Your chats",
     // Knowledge Base
     knowledgeBase: "Knowledge Base",

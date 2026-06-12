@@ -49,10 +49,10 @@ function AuthErrorContent() {
       <div className="relative z-10 w-full max-w-md px-6 space-y-8 text-center">
         {/* Error Icon */}
         <div className="mx-auto h-24 w-24 relative flex items-center justify-center">
-          <div className="absolute inset-0 bg-red-500/10 blur-3xl rounded-full" />
-          <div className="relative flex h-full w-full items-center justify-center rounded-4xl border border-red-500/20 bg-red-500/5 backdrop-blur-sm overflow-hidden shadow-2xl">
+          <div className="absolute inset-0 bg-(--danger)/10 blur-3xl rounded-full" />
+          <div className="relative flex h-full w-full items-center justify-center rounded-4xl border border-(--danger)/20 bg-(--danger)/5 backdrop-blur-sm overflow-hidden shadow-2xl">
             <svg
-              className="h-12 w-12 text-red-400"
+              className="h-12 w-12 text-(--danger)"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -73,7 +73,7 @@ function AuthErrorContent() {
             {language === "vi" ? "Truy Cập Bị Từ Chối" : "Access Denied"}
           </h1>
 
-          <div className="rounded-4xl border border-red-500/20 bg-red-500/5 p-6 backdrop-blur-sm">
+          <div className="rounded-4xl border border-(--danger)/20 bg-(--danger)/5 p-6 backdrop-blur-sm">
             <p className="text-base font-medium text-white/80 leading-relaxed mb-4">
               {language === "vi"
                 ? "Email của bạn chưa được cấp phép truy cập ứng dụng này."
