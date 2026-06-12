@@ -20,16 +20,34 @@ export const translations = {
 };
 ```
 
-**Usage in components**:
+**Usage in components** — Use the `useLanguage()` hook exclusively:
 
 ```tsx
-import { translations } from "@/lib/utils/config";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
-export function Welcome({ lang }: { lang: "vi" | "en" }) {
-  const t = translations[lang];
-  return <h1>{t.greeting}</h1>;
+export function Welcome() {
+  const { t } = useLanguage();
+  return <h1>{t("greeting")}</h1>;
 }
 ```
+
+## Anti-Patterns (BANNED)
+
+<important>
+The following patterns are BANNED. Only `useLanguage()` + `t("key")` is allowed.
+
+- ❌ Inline ternaries: `language === "vi" ? "Xin chào" : "Hello"`
+- ❌ Direct dict access: `t.greeting` (use `t("greeting")` instead)
+- ❌ Prop drilling translations: passing `t` as a Record<string, string> prop from parent to child
+- ❌ Direct store import: `useLanguageStore()` + `translations[language]`
+
+REQUIRED: `const { t, language } = useLanguage();` then `t("key")`.
+</important>
+
+## Class Components Exception
+
+Class components cannot use hooks. Pass `t` as a prop typed as `(key: string) => string`, and
+the parent (a function component) calls `useLanguage()` and passes `t` down.
 
 ## Enforcement
 

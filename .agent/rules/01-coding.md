@@ -40,6 +40,21 @@ catch (error: unknown) {
 - All API routes must use standardized error classes from `lib/utils/errors.ts`.
 - Read `skills/api-patterns.md` for full patterns and examples.
 
+<important>
+BANNED: Silent `catch` blocks that only call `console.error()` or `logger.error()`.
+REQUIRED: Every user-initiated action (delete, export, save, upload) MUST show
+`toast.error()` on failure. Log the error AND notify the user.
+</important>
+
+```typescript
+// REQUIRED pattern for UI error feedback
+catch (error: unknown) {
+  const message = error instanceof Error ? error.message : "Unknown error";
+  logger.error("[Component] action failed:", message);
+  toast.error(t("actionFailed") || message); // User sees feedback
+}
+```
+
 ## Naming
 
 - **Components**: PascalCase.tsx
@@ -51,3 +66,8 @@ catch (error: unknown) {
 
 - If a component exceeds 500 lines or manages complex state plus API calls, extract logic into a custom hook (e.g., `useFeatureController.ts`) in a `hooks/` subdirectory.
 - Avoid hardcoded literals for IDs, URLs, or model names. Centralize in `lib/utils/constants.ts`.
+
+## Infrastructure vs UI Separation
+
+- Infrastructure hooks (e.g., `useSpeechRecognition`, `useWebSocket`) must NOT import i18n or UI stores.
+- They should return error codes or throw typed errors. The calling UI component is responsible for translating errors and showing feedback (toast, banner, etc.).
