@@ -326,15 +326,9 @@ function Sidebar({
         {/* Divider */}
         <div className={cn("h-px bg-(--border)/60 mb-2 mx-2", isCollapsed && "hidden")} />
 
-        {/* Scrollable sections container */}
-        <div
-          className={cn(
-            "flex-1 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[var(--control-border)] hover:scrollbar-thumb-[var(--border)]",
-            isCollapsed && "hidden"
-          )}
-        >
-          {/* Projects Section - Hide only on Image Studio */}
-          {!isCollapsed && !pathname?.includes("/images") && (
+        {/* Projects Section - own scroll area */}
+        {!isCollapsed && !pathname?.includes("/images") && (
+          <div className="max-h-[40%] overflow-y-auto pr-1 shrink-0 scrollbar-thin scrollbar-thumb-[var(--control-border)] hover:scrollbar-thumb-[var(--border)]">
             <SidebarSection
               label={t?.projects || "Projects"}
               storageKey="projects"
@@ -384,13 +378,15 @@ function Sidebar({
                 })
               )}
             </SidebarSection>
-          )}
+          </div>
+        )}
 
-          {/* Divider */}
-          <div className={cn("h-px bg-(--border)/40 my-2 mx-2", isCollapsed && "hidden")} />
+        {/* Divider */}
+        <div className={cn("h-px bg-(--border)/40 my-2 mx-2", isCollapsed && "hidden")} />
 
-          {/* Your chats Section */}
-          {!isCollapsed && (
+        {/* Your chats Section - own scroll area, fills remaining space */}
+        {!isCollapsed && (
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[var(--control-border)] hover:scrollbar-thumb-[var(--border)]">
             <SidebarSection
               label={t?.yourChats || "Your chats"}
               storageKey="your-chats"
@@ -421,8 +417,8 @@ function Sidebar({
                 </AnimatePresence>
               )}
             </SidebarSection>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Placeholder when collapsed */}
         {isCollapsed && (
