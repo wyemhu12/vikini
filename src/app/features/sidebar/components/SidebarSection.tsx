@@ -38,8 +38,9 @@ export function SidebarSection({
   children,
   action,
   count,
-  _emptyIcon,
-  _emptyMessage,
+  // emptyIcon and emptyMessage are accepted but handled by parent (Sidebar.tsx)
+  emptyIcon: _emptyIcon,
+  emptyMessage: _emptyMessage,
 }: SidebarSectionProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
