@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Shield, ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import UserManager from "./UserManager";
@@ -8,9 +8,7 @@ import RankConfigManager from "./RankConfigManager";
 import GemsManager from "./GemsManager";
 import StatisticsOverview from "./StatisticsOverview";
 import AuditLogViewer from "./AuditLogViewer";
-import { translations } from "@/lib/utils/config";
-
-type Language = "vi" | "en";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 interface AdminDashboardProps {
   currentUserId: string;
@@ -20,23 +18,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<"users" | "limits" | "gems" | "stats" | "audit">(
     "users"
   );
-  const [language, setLanguage] = useState<Language>("vi");
-
-  // Load language preference from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("vikini-lang") as Language;
-    if (saved === "vi" || saved === "en") {
-      setLanguage(saved);
-    }
-  }, []);
-
-  // Save language preference
-  const toggleLanguage = (lang: Language) => {
-    setLanguage(lang);
-    localStorage.setItem("vikini-lang", lang);
-  };
-
-  const t = language === "vi" ? translations.vi : translations.en;
+  const { t, language, setLanguage } = useLanguage();
 
   return (
     <div className="min-h-screen bg-(--surface)">
@@ -48,8 +30,8 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
               <Shield className="w-8 h-8 text-(--accent)" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-(--text-primary)">{t.adminDashboard}</h1>
-              <p className="text-(--text-secondary) text-sm">{t.adminDescription}</p>
+              <h1 className="text-3xl font-bold text-(--text-primary)">{t("adminDashboard")}</h1>
+              <p className="text-(--text-secondary) text-sm">{t("adminDescription")}</p>
             </div>
           </div>
 
@@ -61,7 +43,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--control-bg) border border-(--border) text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) hover:border-(--border) transition-all"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm font-medium">{t.adminBackToHome}</span>
+              <span className="text-sm font-medium">{t("adminBackToHome")}</span>
             </Link>
 
             {/* Quick Links */}
@@ -91,7 +73,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             {/* Language Selector */}
             <div className="flex items-center gap-1 p-1 rounded-lg bg-(--control-bg) border border-(--border)">
               <button
-                onClick={() => toggleLanguage("vi")}
+                onClick={() => setLanguage("vi")}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                   language === "vi"
                     ? "bg-(--warning)/20 text-(--warning) border border-(--warning)/30"
@@ -101,7 +83,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 VN
               </button>
               <button
-                onClick={() => toggleLanguage("en")}
+                onClick={() => setLanguage("en")}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                   language === "en"
                     ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
@@ -124,7 +106,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
             }`}
           >
-            {t.adminUsers}
+            {t("adminUsers")}
           </button>
           <button
             onClick={() => setActiveTab("limits")}
@@ -134,7 +116,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
             }`}
           >
-            {t.adminLimits}
+            {t("adminLimits")}
           </button>
           <button
             onClick={() => setActiveTab("gems")}
@@ -144,7 +126,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
             }`}
           >
-            {t.adminGlobalGems}
+            {t("adminGlobalGems")}
           </button>
           <button
             onClick={() => setActiveTab("stats")}
@@ -154,7 +136,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
             }`}
           >
-            {t.adminStats}
+            {t("adminStats")}
           </button>
           <button
             onClick={() => setActiveTab("audit")}
@@ -164,19 +146,17 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
             }`}
           >
-            {t.adminAuditLog}
+            {t("adminAuditLog")}
           </button>
         </div>
 
         {/* Tab Content */}
         <div className="rounded-xl bg-(--control-bg) border border-(--border) backdrop-blur-3xl p-6">
-          {activeTab === "users" && (
-            <UserManager language={language} currentUserId={currentUserId} />
-          )}
-          {activeTab === "limits" && <RankConfigManager language={language} />}
-          {activeTab === "gems" && <GemsManager language={language} />}
-          {activeTab === "stats" && <StatisticsOverview language={language} />}
-          {activeTab === "audit" && <AuditLogViewer language={language} />}
+          {activeTab === "users" && <UserManager currentUserId={currentUserId} />}
+          {activeTab === "limits" && <RankConfigManager />}
+          {activeTab === "gems" && <GemsManager />}
+          {activeTab === "stats" && <StatisticsOverview />}
+          {activeTab === "audit" && <AuditLogViewer />}
         </div>
       </div>
     </div>

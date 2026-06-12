@@ -5,7 +5,7 @@ import { Gem, Loader2, Plus, Edit2, Trash2, AlertCircle, X } from "lucide-react"
 import GemEditor from "@/app/features/gems/components/GemEditor";
 import { motion } from "framer-motion";
 import * as Dialog from "@radix-ui/react-dialog";
-import { translations } from "@/lib/utils/config";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { toast } from "@/lib/store/toastStore";
 import { confirm } from "@/lib/store/confirmStore";
 
@@ -19,11 +19,9 @@ interface PremadeGem {
   is_premade: boolean;
 }
 
-interface GemsManagerProps {
-  language: "vi" | "en";
-}
+// No props needed — language comes from useLanguage() hook
 
-export default function GemsManager({ language }: GemsManagerProps) {
+export default function GemsManager() {
   const [gems, setGems] = useState<PremadeGem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -32,7 +30,7 @@ export default function GemsManager({ language }: GemsManagerProps) {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingGem, setEditingGem] = useState<PremadeGem | null>(null);
 
-  const t = language === "vi" ? translations.vi : translations.en;
+  const { t } = useLanguage();
 
   useEffect(() => {
     fetchGems();
@@ -55,11 +53,11 @@ export default function GemsManager({ language }: GemsManagerProps) {
 
   const deleteGem = async (gemId: string) => {
     const ok = await confirm({
-      title: t.confirmDeleteGem || "Delete Gem?",
-      description: t.deleteGemWarning || "This action cannot be undone.",
+      title: t("confirmDeleteGem") || "Delete Gem?",
+      description: t("deleteGemWarning") || "This action cannot be undone.",
       variant: "danger",
-      confirmLabel: t.deleteGem || "Delete",
-      cancelLabel: t.cancel || "Cancel",
+      confirmLabel: t("deleteGem") || "Delete",
+      cancelLabel: t("cancel") || "Cancel",
     });
     if (!ok) return;
 
@@ -72,10 +70,12 @@ export default function GemsManager({ language }: GemsManagerProps) {
 
       if (!res.ok) throw new Error(json?.error?.message || json?.error || "Failed to delete gem");
 
-      toast.success(t.gemDeleted || "Gem deleted successfully");
+      toast.success(t("gemDeleted") || "Gem deleted successfully");
       await fetchGems();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t.failedDeleteGem || "Failed to delete gem");
+      toast.error(
+        err instanceof Error ? err.message : t("failedDeleteGem") || "Failed to delete gem"
+      );
     }
   };
 
@@ -94,12 +94,12 @@ export default function GemsManager({ language }: GemsManagerProps) {
         throw new Error(json.error?.message || json.error || "Failed to save gem");
       }
 
-      toast.success(t.gemSaved || "Gem saved successfully");
+      toast.success(t("gemSaved") || "Gem saved successfully");
       await fetchGems();
       setIsEditorOpen(false);
       setEditingGem(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t.failedSaveGem || "Failed to save gem");
+      toast.error(err instanceof Error ? err.message : t("failedSaveGem") || "Failed to save gem");
     }
   };
 
@@ -117,7 +117,7 @@ export default function GemsManager({ language }: GemsManagerProps) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-gray-400">{t.loadingGems}</span>
+        <span className="ml-2 text-gray-400">{t("loadingGems")}</span>
       </div>
     );
   }
@@ -136,9 +136,9 @@ export default function GemsManager({ language }: GemsManagerProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Gem className="w-5 h-5 text-blue-400" />
-          <h2 className="text-xl font-semibold text-white">{t.globalGemsManagement}</h2>
+          <h2 className="text-xl font-semibold text-white">{t("globalGemsManagement")}</h2>
           <span className="text-sm text-gray-500">
-            ({gems.length} {t.gems})
+            ({gems.length} {t("gems")})
           </span>
         </div>
         <button
@@ -146,14 +146,14 @@ export default function GemsManager({ language }: GemsManagerProps) {
           className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-all"
         >
           <Plus className="w-4 h-4" />
-          {t.addGem}
+          {t("addGem")}
         </button>
       </div>
 
       {gems.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <Gem className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>{t.noGlobalGems}</p>
+          <p>{t("noGlobalGems")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -171,14 +171,14 @@ export default function GemsManager({ language }: GemsManagerProps) {
                   <button
                     onClick={() => openEditModal(gem)}
                     className="p-1.5 rounded hover:bg-white/10 transition-all"
-                    title={t.edit}
+                    title={t("edit")}
                   >
                     <Edit2 className="w-4 h-4 text-gray-400 hover:text-white" />
                   </button>
                   <button
                     onClick={() => deleteGem(gem.id)}
                     className="p-1.5 rounded hover:bg-red-500/20 transition-all"
-                    title={t.deleteGem}
+                    title={t("deleteGem")}
                   >
                     <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-400" />
                   </button>
@@ -207,7 +207,7 @@ export default function GemsManager({ language }: GemsManagerProps) {
             >
               <div className="flex-none flex items-center justify-between p-4 border-b border-(--border) bg-(--surface-elevated) rounded-t-xl z-20">
                 <Dialog.Title className="text-lg font-semibold">
-                  {editingGem ? t.editGlobalGem : t.createGlobalGem}
+                  {editingGem ? t("editGlobalGem") : t("createGlobalGem")}
                 </Dialog.Title>
                 <Dialog.Close asChild>
                   <button className="p-1 rounded-full hover:bg-white/10 transition-colors">
@@ -233,7 +233,6 @@ export default function GemsManager({ language }: GemsManagerProps) {
                       : null
                   }
                   onSave={handleSaveGem}
-                  language={language}
                 />
               </div>
             </motion.div>

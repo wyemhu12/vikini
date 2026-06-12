@@ -9,7 +9,7 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
-import { translations } from "@/lib/utils/config";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 interface Stats {
   users: {
@@ -27,16 +27,14 @@ interface Stats {
   messages: { today: number };
 }
 
-interface StatisticsOverviewProps {
-  language: "vi" | "en";
-}
+// No props needed — language comes from useLanguage() hook
 
-export default function StatisticsOverview({ language }: StatisticsOverviewProps) {
+export default function StatisticsOverview() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const t = language === "vi" ? translations.vi : translations.en;
+  const { t } = useLanguage();
 
   useEffect(() => {
     fetchStats();
@@ -60,7 +58,7 @@ export default function StatisticsOverview({ language }: StatisticsOverviewProps
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-gray-400">{t.loading}</span>
+        <span className="ml-2 text-gray-400">{t("loading")}</span>
       </div>
     );
   }
@@ -77,36 +75,36 @@ export default function StatisticsOverview({ language }: StatisticsOverviewProps
   const cards = [
     {
       icon: Users,
-      label: t.adminStatsTotal,
+      label: t("adminStatsTotal"),
       value: stats.users.total,
       color: "text-blue-400",
       bgColor: "bg-blue-500/10 border-blue-500/20",
     },
     {
       icon: Users,
-      label: t.adminStatsActive,
+      label: t("adminStatsActive"),
       value: stats.users.active,
       color: "text-green-400",
       bgColor: "bg-green-500/10 border-green-500/20",
     },
     {
       icon: Users,
-      label: t.adminStatsBlocked,
+      label: t("adminStatsBlocked"),
       value: stats.users.blocked,
       color: "text-red-400",
       bgColor: "bg-red-500/10 border-red-500/20",
     },
     {
       icon: MessagesSquare,
-      label: t.adminStatsConversations,
+      label: t("adminStatsConversations"),
       value: stats.conversations.total,
       color: "text-purple-400",
       bgColor: "bg-purple-500/10 border-purple-500/20",
-      sub: `${stats.conversations.today} ${t.adminStatsToday}`,
+      sub: `${stats.conversations.today} ${t("adminStatsToday")}`,
     },
     {
       icon: MessageSquare,
-      label: t.adminStatsMessagesToday,
+      label: t("adminStatsMessagesToday"),
       value: stats.messages.today,
       color: "text-amber-400",
       bgColor: "bg-amber-500/10 border-amber-500/20",
@@ -117,7 +115,7 @@ export default function StatisticsOverview({ language }: StatisticsOverviewProps
     <div>
       <div className="flex items-center gap-2 mb-6">
         <BarChart3 className="w-5 h-5 text-blue-400" />
-        <h2 className="text-xl font-semibold text-white">{t.adminStats}</h2>
+        <h2 className="text-xl font-semibold text-white">{t("adminStats")}</h2>
       </div>
 
       {/* Stats Cards */}
@@ -139,14 +137,14 @@ export default function StatisticsOverview({ language }: StatisticsOverviewProps
 
       {/* Rank Distribution */}
       <div className="p-5 rounded-xl bg-white/2 border border-white/10">
-        <h3 className="text-sm font-medium text-gray-400 mb-4">{t.adminStatsRankDist}</h3>
+        <h3 className="text-sm font-medium text-gray-400 mb-4">{t("adminStatsRankDist")}</h3>
         <div className="space-y-3">
           {(
             [
-              { rank: "admin", label: t.userAdmin, color: "bg-amber-500" },
-              { rank: "pro", label: t.userPro, color: "bg-purple-500" },
-              { rank: "basic", label: t.userBasic, color: "bg-blue-500" },
-              { rank: "not_whitelisted", label: t.userNotWhitelisted, color: "bg-gray-500" },
+              { rank: "admin", label: t("userAdmin"), color: "bg-amber-500" },
+              { rank: "pro", label: t("userPro"), color: "bg-purple-500" },
+              { rank: "basic", label: t("userBasic"), color: "bg-blue-500" },
+              { rank: "not_whitelisted", label: t("userNotWhitelisted"), color: "bg-gray-500" },
             ] as const
           ).map(({ rank, label, color }) => {
             const count = stats.users.byRank[rank];

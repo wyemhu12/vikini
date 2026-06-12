@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import * as Dialog from "@radix-ui/react-dialog";
-import { translations } from "@/lib/utils/config";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { toast } from "@/lib/store/toastStore";
 import { confirm } from "@/lib/store/confirmStore";
 import { formatDate } from "@/lib/utils/dateFormat";
@@ -37,11 +37,10 @@ type RankFilter = "all" | Profile["rank"];
 type StatusFilter = "all" | "active" | "blocked";
 
 interface UserManagerProps {
-  language: "vi" | "en";
   currentUserId: string;
 }
 
-export default function UserManager({ language, currentUserId }: UserManagerProps) {
+export default function UserManager({ currentUserId }: UserManagerProps) {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -63,7 +62,7 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
   } | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  const t = language === "vi" ? translations.vi : translations.en;
+  const { t, language } = useLanguage();
 
   useEffect(() => {
     fetchUsers();
@@ -137,11 +136,11 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
 
       if (!res.ok) throw new Error(json?.error?.message || json?.error || "Failed to update user");
 
-      toast.success(t.userUpdated || "User updated successfully");
+      toast.success(t("userUpdated") || "User updated successfully");
       await fetchUsers();
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : t.failedUpdateUser || "Failed to update user"
+        err instanceof Error ? err.message : t("failedUpdateUser") || "Failed to update user"
       );
     } finally {
       setUpdating(null);
@@ -150,12 +149,13 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
 
   const handleRankChange = async (userId: string, newRank: string) => {
     const ok = await confirm({
-      title: t.rankChangeConfirm || "Change user rank?",
+      title: t("rankChangeConfirm") || "Change user rank?",
       description:
-        t.rankChangeDesc || "This will immediately change the user's access level and permissions.",
+        t("rankChangeDesc") ||
+        "This will immediately change the user's access level and permissions.",
       variant: "danger",
-      confirmLabel: t.confirm || "Confirm",
-      cancelLabel: t.cancel || "Cancel",
+      confirmLabel: t("confirm") || "Confirm",
+      cancelLabel: t("cancel") || "Cancel",
     });
     if (!ok) return;
     await updateUser(userId, { rank: newRank as Profile["rank"] });
@@ -201,7 +201,7 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
           throw new Error(json?.error?.message || "Failed to update user");
         }
       }
-      toast.success(t.adminBulkSuccess || "Updated successfully");
+      toast.success(t("adminBulkSuccess") || "Updated successfully");
       setSelectedIds(new Set());
       await fetchUsers();
     } catch (err) {
@@ -215,7 +215,7 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-gray-400">{t.userLoadingUsers}</span>
+        <span className="ml-2 text-gray-400">{t("userLoadingUsers")}</span>
       </div>
     );
   }
@@ -234,9 +234,9 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <Users className="w-5 h-5 text-blue-400" />
-        <h2 className="text-xl font-semibold text-white">{t.userManagement}</h2>
+        <h2 className="text-xl font-semibold text-white">{t("userManagement")}</h2>
         <span className="text-sm text-gray-500">
-          ({filteredUsers.length}/{users.length} {t.userUsers})
+          ({filteredUsers.length}/{users.length} {t("userUsers")})
         </span>
       </div>
 
@@ -249,7 +249,7 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t.adminSearchPlaceholder}
+            placeholder={t("adminSearchPlaceholder")}
             className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:border-blue-500/50 focus:outline-none transition-colors"
           />
         </div>
@@ -260,11 +260,11 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{t.adminFilterAllRanks}</SelectItem>
-            <SelectItem value="not_whitelisted">{t.userNotWhitelisted}</SelectItem>
-            <SelectItem value="basic">{t.userBasic}</SelectItem>
-            <SelectItem value="pro">{t.userPro}</SelectItem>
-            <SelectItem value="admin">{t.userAdmin}</SelectItem>
+            <SelectItem value="all">{t("adminFilterAllRanks")}</SelectItem>
+            <SelectItem value="not_whitelisted">{t("userNotWhitelisted")}</SelectItem>
+            <SelectItem value="basic">{t("userBasic")}</SelectItem>
+            <SelectItem value="pro">{t("userPro")}</SelectItem>
+            <SelectItem value="admin">{t("userAdmin")}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -274,9 +274,9 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{t.adminFilterAllStatus}</SelectItem>
-            <SelectItem value="active">{t.userActive}</SelectItem>
-            <SelectItem value="blocked">{t.userBlocked}</SelectItem>
+            <SelectItem value="all">{t("adminFilterAllStatus")}</SelectItem>
+            <SelectItem value="active">{t("userActive")}</SelectItem>
+            <SelectItem value="blocked">{t("userBlocked")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -285,17 +285,17 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
           <span className="text-sm text-blue-400">
-            {selectedIds.size} {t.adminBulkSelected}
+            {selectedIds.size} {t("adminBulkSelected")}
           </span>
           <div className="flex gap-2 ml-auto">
             <Select onValueChange={(v) => bulkUpdate({ rank: v as Profile["rank"] })}>
               <SelectTrigger className="w-[160px] h-auto py-1.5">
-                <SelectValue placeholder={t.adminBulkSetRank} />
+                <SelectValue placeholder={t("adminBulkSetRank")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="not_whitelisted">{t.userNotWhitelisted}</SelectItem>
-                <SelectItem value="basic">{t.userBasic}</SelectItem>
-                <SelectItem value="pro">{t.userPro}</SelectItem>
+                <SelectItem value="not_whitelisted">{t("userNotWhitelisted")}</SelectItem>
+                <SelectItem value="basic">{t("userBasic")}</SelectItem>
+                <SelectItem value="pro">{t("userPro")}</SelectItem>
               </SelectContent>
             </Select>
             <button
@@ -303,14 +303,14 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
               disabled={updating === "bulk"}
               className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 transition-all disabled:opacity-50"
             >
-              {t.adminBulkBlock}
+              {t("adminBulkBlock")}
             </button>
             <button
               onClick={() => bulkUpdate({ is_blocked: false })}
               disabled={updating === "bulk"}
               className="px-3 py-1.5 rounded-lg text-sm font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30 transition-all disabled:opacity-50"
             >
-              {t.adminBulkUnblock}
+              {t("adminBulkUnblock")}
             </button>
           </div>
         </div>
@@ -335,19 +335,19 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
                 </button>
               </th>
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
-                {t.userEmail}
+                {t("userEmail")}
               </th>
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
-                {t.userRank}
+                {t("userRank")}
               </th>
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
-                {t.userStatus}
+                {t("userStatus")}
               </th>
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
-                {t.userCreated}
+                {t("userCreated")}
               </th>
               <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">
-                {t.userActions}
+                {t("userActions")}
               </th>
             </tr>
           </thead>
@@ -383,7 +383,7 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
                       {self && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30">
                           <ShieldAlert className="w-3 h-3" />
-                          {t.adminSelfLabel}
+                          {t("adminSelfLabel")}
                         </span>
                       )}
                     </button>
@@ -398,10 +398,10 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="not_whitelisted">{t.userNotWhitelisted}</SelectItem>
-                        <SelectItem value="basic">{t.userBasic}</SelectItem>
-                        <SelectItem value="pro">{t.userPro}</SelectItem>
-                        <SelectItem value="admin">{t.userAdmin}</SelectItem>
+                        <SelectItem value="not_whitelisted">{t("userNotWhitelisted")}</SelectItem>
+                        <SelectItem value="basic">{t("userBasic")}</SelectItem>
+                        <SelectItem value="pro">{t("userPro")}</SelectItem>
+                        <SelectItem value="admin">{t("userAdmin")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </td>
@@ -413,7 +413,7 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
                           : "bg-green-500/20 text-green-400 border border-green-500/30"
                       }`}
                     >
-                      {user.is_blocked ? t.userBlocked : t.userActive}
+                      {user.is_blocked ? t("userBlocked") : t("userActive")}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-400">
@@ -432,9 +432,9 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
                       {updating === user.id ? (
                         <Loader2 className="w-4 h-4 animate-spin inline" />
                       ) : user.is_blocked ? (
-                        t.userUnblock
+                        t("userUnblock")
                       ) : (
-                        t.userBlock
+                        t("userBlock")
                       )}
                     </button>
                   </td>
@@ -464,7 +464,9 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
               className="bg-(--surface-elevated) text-(--text-primary) border border-(--border) rounded-xl w-full max-w-md p-6 shadow-2xl pointer-events-auto"
             >
               <div className="flex items-center justify-between mb-4">
-                <Dialog.Title className="text-lg font-semibold">{t.adminUserDetail}</Dialog.Title>
+                <Dialog.Title className="text-lg font-semibold">
+                  {t("adminUserDetail")}
+                </Dialog.Title>
                 <Dialog.Close asChild>
                   <button className="p-1 rounded-full hover:bg-white/10 transition-colors">
                     <X className="w-5 h-5 text-neutral-400" />
@@ -474,21 +476,21 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
 
               <div className="space-y-4">
                 <div className="p-3 rounded-lg bg-white/3 border border-white/10">
-                  <div className="text-xs text-gray-500 mb-1">{t.userEmail}</div>
+                  <div className="text-xs text-gray-500 mb-1">{t("userEmail")}</div>
                   <div className="text-sm font-medium">{detailUser?.email}</div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-lg bg-white/3 border border-white/10">
-                    <div className="text-xs text-gray-500 mb-1">{t.userRank}</div>
+                    <div className="text-xs text-gray-500 mb-1">{t("userRank")}</div>
                     <div className="text-sm font-medium capitalize">
                       {detailUser?.rank === "not_whitelisted"
-                        ? t.userNotWhitelisted
+                        ? t("userNotWhitelisted")
                         : detailUser?.rank}
                     </div>
                   </div>
                   <div className="p-3 rounded-lg bg-white/3 border border-white/10">
-                    <div className="text-xs text-gray-500 mb-1">{t.userStatus}</div>
+                    <div className="text-xs text-gray-500 mb-1">{t("userStatus")}</div>
                     <span
                       className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         detailUser?.is_blocked
@@ -496,14 +498,14 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
                           : "bg-green-500/20 text-green-400 border border-green-500/30"
                       }`}
                     >
-                      {detailUser?.is_blocked ? t.userBlocked : t.userActive}
+                      {detailUser?.is_blocked ? t("userBlocked") : t("userActive")}
                     </span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-lg bg-white/3 border border-white/10">
-                    <div className="text-xs text-gray-500 mb-1">{t.adminUserConvs}</div>
+                    <div className="text-xs text-gray-500 mb-1">{t("adminUserConvs")}</div>
                     <div className="text-sm font-medium">
                       {detailLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -513,7 +515,7 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
                     </div>
                   </div>
                   <div className="p-3 rounded-lg bg-white/3 border border-white/10">
-                    <div className="text-xs text-gray-500 mb-1">{t.adminUserMsgs}</div>
+                    <div className="text-xs text-gray-500 mb-1">{t("adminUserMsgs")}</div>
                     <div className="text-sm font-medium">
                       {detailLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -525,7 +527,7 @@ export default function UserManager({ language, currentUserId }: UserManagerProp
                 </div>
 
                 <div className="p-3 rounded-lg bg-white/3 border border-white/10">
-                  <div className="text-xs text-gray-500 mb-1">{t.adminUserJoined}</div>
+                  <div className="text-xs text-gray-500 mb-1">{t("adminUserJoined")}</div>
                   <div className="text-sm font-medium">
                     {formatDate(
                       detailUser?.created_at ?? "",

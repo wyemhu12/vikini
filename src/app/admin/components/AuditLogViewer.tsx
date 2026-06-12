@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ScrollText, Loader2, AlertCircle, Info } from "lucide-react";
-import { translations } from "@/lib/utils/config";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { formatDate } from "@/lib/utils/dateFormat";
 
 interface AuditLog {
@@ -16,9 +16,7 @@ interface AuditLog {
   created_at: string;
 }
 
-interface AuditLogViewerProps {
-  language: "vi" | "en";
-}
+// No props needed — language comes from useLanguage() hook
 
 // Human-readable action labels
 const ACTION_LABELS: Record<string, { vi: string; en: string; color: string }> = {
@@ -32,13 +30,13 @@ const ACTION_LABELS: Record<string, { vi: string; en: string; color: string }> =
   BULK_UPDATE_USERS: { vi: "Cập nhật hàng loạt", en: "Bulk Update", color: "text-purple-400" },
 };
 
-export default function AuditLogViewer({ language }: AuditLogViewerProps) {
+export default function AuditLogViewer() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tableExists, setTableExists] = useState(true);
 
-  const t = language === "vi" ? translations.vi : translations.en;
+  const { t, language } = useLanguage();
 
   useEffect(() => {
     fetchLogs();
@@ -70,7 +68,7 @@ export default function AuditLogViewer({ language }: AuditLogViewerProps) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-gray-400">{t.adminAuditLoading}</span>
+        <span className="ml-2 text-gray-400">{t("adminAuditLoading")}</span>
       </div>
     );
   }
@@ -88,7 +86,7 @@ export default function AuditLogViewer({ language }: AuditLogViewerProps) {
     <div>
       <div className="flex items-center gap-2 mb-4">
         <ScrollText className="w-5 h-5 text-blue-400" />
-        <h2 className="text-xl font-semibold text-white">{t.adminAuditLog}</h2>
+        <h2 className="text-xl font-semibold text-white">{t("adminAuditLog")}</h2>
         <span className="text-sm text-gray-500">({logs.length})</span>
       </div>
 
@@ -96,8 +94,8 @@ export default function AuditLogViewer({ language }: AuditLogViewerProps) {
         <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 mb-4">
           <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm text-amber-400 font-medium">{t.adminAuditMigrationNeeded}</p>
-            <p className="text-xs text-gray-400 mt-1">{t.adminAuditMigrationHint}</p>
+            <p className="text-sm text-amber-400 font-medium">{t("adminAuditMigrationNeeded")}</p>
+            <p className="text-xs text-gray-400 mt-1">{t("adminAuditMigrationHint")}</p>
           </div>
         </div>
       )}
@@ -105,7 +103,7 @@ export default function AuditLogViewer({ language }: AuditLogViewerProps) {
       {logs.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <ScrollText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>{t.adminAuditNoLogs}</p>
+          <p>{t("adminAuditNoLogs")}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -124,7 +122,7 @@ export default function AuditLogViewer({ language }: AuditLogViewerProps) {
                 </div>
                 <div className="flex items-center gap-4 text-xs text-gray-400">
                   <span>
-                    {t.adminAuditBy}:{" "}
+                    {t("adminAuditBy")}:{" "}
                     <span className="text-gray-300">{log.admin_email || log.admin_id}</span>
                   </span>
                   {log.target_email && (

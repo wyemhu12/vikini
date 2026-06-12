@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Settings, Loader2, Save, AlertCircle, Cpu } from "lucide-react";
 import { SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
-import { translations } from "@/lib/utils/config";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/lib/store/toastStore";
@@ -19,11 +19,9 @@ interface RankConfig {
   allowed_models?: string[];
 }
 
-interface RankConfigManagerProps {
-  language: "vi" | "en";
-}
+// No props needed — language comes from useLanguage() hook
 
-export default function RankConfigManager({ language }: RankConfigManagerProps) {
+export default function RankConfigManager() {
   const [configs, setConfigs] = useState<RankConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,7 +29,7 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
   const [editedConfigs, setEditedConfigs] = useState<RankConfig[]>([]);
   const [modelModalRank, setModelModalRank] = useState<string | null>(null);
 
-  const t = language === "vi" ? translations.vi : translations.en;
+  const { t } = useLanguage();
 
   useEffect(() => {
     fetchConfigs();
@@ -95,10 +93,10 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
       if (!res.ok) throw new Error(json.error?.message || json.error || "Failed to save configs");
 
       await fetchConfigs();
-      toast.success(t.configsSaved || "Configurations saved");
+      toast.success(t("configsSaved") || "Configurations saved");
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : t.failedSaveConfigs || "Failed to save configs"
+        err instanceof Error ? err.message : t("failedSaveConfigs") || "Failed to save configs"
       );
     } finally {
       setSaving(false);
@@ -111,7 +109,7 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-gray-400">{t.loadingConfigs}</span>
+        <span className="ml-2 text-gray-400">{t("loadingConfigs")}</span>
       </div>
     );
   }
@@ -134,7 +132,7 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Settings className="w-5 h-5 text-blue-400" />
-          <h2 className="text-xl font-semibold text-white">{t.globalLimitConfig}</h2>
+          <h2 className="text-xl font-semibold text-white">{t("globalLimitConfig")}</h2>
         </div>
         {hasChanges && (
           <button
@@ -143,7 +141,7 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
             className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-all disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {t.saveChanges}
+            {t("saveChanges")}
           </button>
         )}
       </div>
@@ -156,7 +154,7 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
               {/* Daily Message Limit */}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2">
-                  {t.dailyMessageLimit}
+                  {t("dailyMessageLimit")}
                 </label>
                 <Input
                   type="number"
@@ -171,7 +169,7 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
               {/* Max File Size */}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2">
-                  {t.maxFileSize}
+                  {t("maxFileSize")}
                 </label>
                 <Input
                   type="number"
@@ -185,7 +183,9 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
 
               {/* Features */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-400 mb-2">{t.features}</label>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  {t("features")}
+                </label>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -196,7 +196,7 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
                       }
                       className="w-4 h-4 rounded bg-white/5 border-white/10 text-blue-500 focus:ring-blue-500/50"
                     />
-                    <span className="text-sm text-gray-300">{t.webSearch}</span>
+                    <span className="text-sm text-gray-300">{t("webSearch")}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -207,7 +207,7 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
                       }
                       className="w-4 h-4 rounded bg-white/5 border-white/10 text-blue-500 focus:ring-blue-500/50"
                     />
-                    <span className="text-sm text-gray-300">{t.unlimitedGems}</span>
+                    <span className="text-sm text-gray-300">{t("unlimitedGems")}</span>
                   </label>
                 </div>
               </div>
@@ -215,14 +215,14 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
               {/* Allowed Models Button */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-400 mb-2">
-                  {t.allowedModels}
+                  {t("allowedModels")}
                 </label>
                 <button
                   onClick={() => setModelModalRank(config.rank)}
                   className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 border border-purple-500/30 transition-all"
                 >
                   <Cpu className="w-4 h-4" />
-                  {t.configureModels} ({config.allowed_models?.length || 0})
+                  {t("configureModels")} ({config.allowed_models?.length || 0})
                 </button>
               </div>
             </div>
@@ -235,10 +235,10 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
         <Dialog open={!!modelModalRank} onOpenChange={(open) => !open && setModelModalRank(null)}>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-[#0a0a0a] border-white/10 p-6 sm:rounded-xl">
             <DialogTitle className="text-xl font-semibold text-white capitalize mb-4">
-              {modelModalRank} {t.models}
+              {modelModalRank} {t("models")}
             </DialogTitle>
 
-            <p className="text-sm text-gray-400 mb-4">{t.selectModelsForRank}</p>
+            <p className="text-sm text-gray-400 mb-4">{t("selectModelsForRank")}</p>
 
             <div className="space-y-2">
               {SELECTABLE_MODELS.map((model) => {
@@ -261,7 +261,8 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
                     <div className="flex-1">
                       <div className="font-medium text-white">{model.name || model.id}</div>
                       <div className="text-xs text-gray-400">
-                        {t.contextTokens}: {(model.contextWindow / 1000).toFixed(0)}K {t.tokens}
+                        {t("contextTokens")}: {(model.contextWindow / 1000).toFixed(0)}K{" "}
+                        {t("tokens")}
                       </div>
                     </div>
                   </label>
@@ -274,7 +275,7 @@ export default function RankConfigManager({ language }: RankConfigManagerProps) 
                 onClick={() => setModelModalRank(null)}
                 className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-all"
               >
-                {t.done}
+                {t("done")}
               </button>
             </div>
           </DialogContent>
