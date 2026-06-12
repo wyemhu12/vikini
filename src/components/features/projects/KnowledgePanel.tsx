@@ -13,8 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { KnowledgeDocument } from "@/types/projects";
-import { useLanguageStore } from "@/lib/store/languageStore";
-import { translations } from "@/lib/utils/config";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { confirm } from "@/lib/store/confirmStore";
 
 interface KnowledgePanelProps {
@@ -47,8 +46,7 @@ export function KnowledgePanel({
   const [isUploading, setIsUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const language = useLanguageStore((state) => state.language);
-  const t = translations[language];
+  const { t } = useLanguage();
 
   const storagePercent = Math.round((storageUsedBytes / storageMaxBytes) * 100);
   const storageUsedMB = (storageUsedBytes / (1024 * 1024)).toFixed(2);
@@ -79,12 +77,12 @@ export function KnowledgePanel({
 
   const handleDelete = async (documentId: string) => {
     const ok = await confirm({
-      title: t.kbDeleteConfirm || "Delete document?",
+      title: t("kbDeleteConfirm") || "Delete document?",
       description:
-        t.kbDeleteConfirmDesc || "This document and all its chunks will be permanently removed.",
+        t("kbDeleteConfirmDesc") || "This document and all its chunks will be permanently removed.",
       variant: "danger",
-      confirmLabel: t.modalDeleteButton,
-      cancelLabel: t.cancel,
+      confirmLabel: t("modalDeleteButton"),
+      cancelLabel: t("cancel"),
     });
     if (!ok) return;
 
@@ -102,7 +100,7 @@ export function KnowledgePanel({
     <div className={cn("flex flex-col h-full", className)}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <h3 className="font-semibold">{t.knowledgeBase}</h3>
+        <h3 className="font-semibold">{t("knowledgeBase")}</h3>
         <button
           onClick={onRefresh}
           disabled={isLoading}
@@ -116,7 +114,7 @@ export function KnowledgePanel({
       {/* Storage Bar */}
       <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-          <span>{t.kbStorage}</span>
+          <span>{t("kbStorage")}</span>
           <span>
             {storageUsedMB} / {storageMaxMB} MB
           </span>
@@ -149,7 +147,7 @@ export function KnowledgePanel({
             <Upload className="h-4 w-4" />
           )}
           <span className="text-sm font-medium">
-            {isUploading ? t.kbUploading : t.kbUploadDocument}
+            {isUploading ? t("kbUploading") : t("kbUploadDocument")}
           </span>
           <input
             type="file"
@@ -177,8 +175,8 @@ export function KnowledgePanel({
         {documents.length === 0 ? (
           <div className="text-center py-8 text-sm text-muted-foreground">
             <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>{t.kbNoDocuments}</p>
-            <p className="text-xs">{t.kbUploadHint}</p>
+            <p>{t("kbNoDocuments")}</p>
+            <p className="text-xs">{t("kbUploadHint")}</p>
           </div>
         ) : (
           documents.map((doc) => (
@@ -187,8 +185,8 @@ export function KnowledgePanel({
               document={doc}
               isDeleting={deletingId === doc.id}
               onDelete={() => handleDelete(doc.id)}
-              chunksLabel={t.kbChunks}
-              deleteLabel={t.kbDeleteDocument}
+              chunksLabel={t("kbChunks")}
+              deleteLabel={t("kbDeleteDocument")}
             />
           ))
         )}

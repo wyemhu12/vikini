@@ -548,4 +548,13 @@ export const en = {
   studioNeedsPhoto: "Needs photo",
   studioShowLess: "Show less",
   studioShowMore: "Show {count} more templates",
+  // Project i18n keys (extracted from inline ternaries)
+  projectDateToday: "Today",
+  projectDateYesterday: "Yesterday",
+  projectAddFilesSettings: "Add files & Settings",
+  projectDeleteProjectTitle: "Delete Project",
+  projectDeleteProjectDesc: "Delete this project? All documents and conversations will be lost.",
+  projectDeleteChatTitle: "Delete Conversation",
+  projectInfoTitle: "Info",
+  projectConversationsShort: "Conversations",
 } as const;

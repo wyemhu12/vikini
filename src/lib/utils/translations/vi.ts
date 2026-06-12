@@ -558,4 +558,13 @@ export const vi = {
   studioNeedsPhoto: "Cần ảnh",
   studioShowLess: "Thu gọn",
   studioShowMore: "Xem thêm {count} template",
+  // Project i18n keys (extracted from inline ternaries)
+  projectDateToday: "Hôm nay",
+  projectDateYesterday: "Hôm qua",
+  projectAddFilesSettings: "Thêm files & Cài đặt",
+  projectDeleteProjectTitle: "Xóa dự án",
+  projectDeleteProjectDesc: "Xóa dự án này? Tất cả tài liệu và hội thoại sẽ bị mất.",
+  projectDeleteChatTitle: "Xóa hội thoại",
+  projectInfoTitle: "Thông tin",
+  projectConversationsShort: "Hội thoại",
 } as const;

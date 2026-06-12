@@ -9,8 +9,7 @@ import type { FrontendConversation } from "@/app/features/chat/hooks/useConversa
 import { downloadConversationById } from "@/lib/utils/download";
 import { toast } from "@/lib/store/toastStore";
 import { ProjectIcon } from "@/components/features/projects/ProjectIcon";
-import { translations } from "@/lib/utils/config";
-import { useLanguageStore } from "@/lib/store/languageStore";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 interface ProjectChatViewProps {
   /** Current project */
@@ -41,8 +40,7 @@ export function ProjectChatView({
   onRenameConversation,
   onDeleteConversation,
 }: ProjectChatViewProps) {
-  const language = useLanguageStore((state) => state.language);
-  const t = translations[language];
+  const { t, language } = useLanguage();
 
   // Sort conversations by updatedAt (newest first)
   const sortedConversations = useMemo(() => {
@@ -60,8 +58,8 @@ export function ProjectChatView({
     const now = new Date();
     const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return language === "vi" ? "Hôm nay" : "Today";
-    if (diffDays === 1) return language === "vi" ? "Hôm qua" : "Yesterday";
+    if (diffDays === 0) return t("projectDateToday");
+    if (diffDays === 1) return t("projectDateYesterday");
     if (diffDays < 7) {
       return date.toLocaleDateString(language === "vi" ? "vi-VN" : "en-US", { weekday: "short" });
     }
@@ -103,7 +101,7 @@ export function ProjectChatView({
               )}
             >
               <FilePlus className="h-4 w-4" />
-              {language === "vi" ? "Thêm files & Cài đặt" : "Add files & Settings"}
+              {t("projectAddFilesSettings")}
             </button>
           </div>
 
@@ -127,7 +125,7 @@ export function ProjectChatView({
               <Plus className="h-4 w-4 text-(--text-secondary) group-hover:text-(--primary)" />
             </div>
             <span className="text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">
-              {t.projectNewChatIn} {project.name}
+              {t("projectNewChatIn")} {project.name}
             </span>
           </button>
 
@@ -147,7 +145,7 @@ export function ProjectChatView({
                   {/* Chat title */}
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate text-(--text-primary) group-hover:text-(--primary) transition-colors">
-                      {conv.title || t.newChat}
+                      {conv.title || t("newChat")}
                     </div>
                   </div>
 
@@ -183,7 +181,7 @@ export function ProjectChatView({
                             className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary)"
                           >
                             <Pencil className="w-4 h-4 mr-2" />
-                            {t.projectRename}
+                            {t("projectRename")}
                           </DropdownMenu.Item>
                         )}
 
@@ -192,7 +190,7 @@ export function ProjectChatView({
                           className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary)"
                         >
                           <Download className="w-4 h-4 mr-2" />
-                          {t.projectExport}
+                          {t("projectExport")}
                         </DropdownMenu.Item>
 
                         {onDeleteConversation && (
@@ -204,7 +202,7 @@ export function ProjectChatView({
                               className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--danger) hover:text-(--danger) hover:bg-(--danger)/10 transition-colors cursor-pointer outline-none data-highlighted:bg-(--danger)/10 data-highlighted:text-(--danger)"
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
-                              {t.projectDelete}
+                              {t("projectDelete")}
                             </DropdownMenu.Item>
                           </>
                         )}
@@ -227,8 +225,8 @@ export function ProjectChatView({
               >
                 <ProjectIcon icon={project.icon} color={project.color} size="lg" />
               </div>
-              <p className="text-(--text-secondary) mb-1">{t.projectNoChats}</p>
-              <p className="text-sm text-(--text-muted)">{t.projectStartChat}</p>
+              <p className="text-(--text-secondary) mb-1">{t("projectNoChats")}</p>
+              <p className="text-sm text-(--text-muted)">{t("projectStartChat")}</p>
             </div>
           )}
         </div>

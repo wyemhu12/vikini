@@ -7,8 +7,7 @@ import { cn } from "@/lib/utils/cn";
 import type { ProjectWithStats } from "@/types/projects";
 import type { FrontendConversation } from "@/app/features/chat/hooks/useConversation";
 import { ProjectIcon } from "@/components/features/projects/ProjectIcon";
-import { useLanguageStore } from "@/lib/store/languageStore";
-import { translations } from "@/lib/utils/config";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 interface ProjectNodeProps {
   /** Project data */
@@ -43,8 +42,7 @@ export function ProjectNode({
   onDeleteConversation,
 }: ProjectNodeProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const language = useLanguageStore((state) => state.language);
-  const t = translations[language];
+  const { t } = useLanguage();
 
   // Load expanded state from localStorage
   useEffect(() => {
@@ -116,7 +114,7 @@ export function ProjectNode({
               onNewChat(project.id);
             }}
             className="p-1 hover:bg-(--control-bg) rounded text-(--text-secondary) hover:text-(--text-primary)"
-            title={t.newChat}
+            title={t("newChat")}
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
@@ -127,7 +125,7 @@ export function ProjectNode({
       {isExpanded && (
         <div className="ml-4 mt-0.5 space-y-0.5 border-l border-(--border)/40 pl-2">
           {conversations.length === 0 ? (
-            <div className="px-2 py-2 text-xs text-(--text-muted)">{t.projectNoChatsYet}</div>
+            <div className="px-2 py-2 text-xs text-(--text-muted)">{t("projectNoChatsYet")}</div>
           ) : (
             conversations.map((conv) => (
               <div
@@ -146,7 +144,7 @@ export function ProjectNode({
                     conv.id === activeConversationId && "font-medium"
                   )}
                 >
-                  {conv.title || t.newChat}
+                  {conv.title || t("newChat")}
                 </button>
 
                 {/* Radix Dropdown Menu */}
@@ -176,7 +174,7 @@ export function ProjectNode({
                           className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary)"
                         >
                           <Pencil className="w-4 h-4 mr-2" />
-                          {t.projectRename}
+                          {t("projectRename")}
                         </DropdownMenu.Item>
                       )}
 
@@ -185,7 +183,7 @@ export function ProjectNode({
                         className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary)"
                       >
                         <Download className="w-4 h-4 mr-2" />
-                        {t.projectExport}
+                        {t("projectExport")}
                       </DropdownMenu.Item>
 
                       {onDeleteConversation && (
@@ -197,7 +195,7 @@ export function ProjectNode({
                             className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--danger) hover:text-(--danger) hover:bg-(--danger)/10 transition-colors cursor-pointer outline-none data-highlighted:bg-(--danger)/10 data-highlighted:text-(--danger)"
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
-                            {t.projectDelete}
+                            {t("projectDelete")}
                           </DropdownMenu.Item>
                         </>
                       )}

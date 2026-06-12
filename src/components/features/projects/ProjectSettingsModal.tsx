@@ -7,8 +7,7 @@ import { KnowledgePanel } from "@/components/features/projects";
 import { ProjectIcon } from "@/components/features/projects/ProjectIcon";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { useConversation } from "@/app/features/chat/hooks/useConversation";
-import { useLanguageStore } from "@/lib/store/languageStore";
-import { translations } from "@/lib/utils/config";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { confirm } from "@/lib/store/confirmStore";
 import type { KnowledgeDocument, ProjectWithStats } from "@/types/projects";
 
@@ -35,8 +34,7 @@ export function ProjectSettingsModal({
   onNewChat,
   onSelectChat,
 }: ProjectSettingsModalProps) {
-  const language = useLanguageStore((state) => state.language);
-  const t = translations[language];
+  const { t, language } = useLanguage();
 
   const { projects, deleteProject, fetchProjects } = useProjectStore();
   const { getProjectConversations, deleteConversation, refreshConversations } = useConversation();
@@ -126,14 +124,11 @@ export function ProjectSettingsModal({
   // Delete project - imperative confirm
   const handleDeleteProject = async () => {
     const ok = await confirm({
-      title: language === "vi" ? "Xóa dự án" : "Delete Project",
-      description:
-        language === "vi"
-          ? "Xóa dự án này? Tất cả tài liệu và hội thoại sẽ bị mất."
-          : "Delete this project? All documents and conversations will be lost.",
+      title: t("projectDeleteProjectTitle"),
+      description: t("projectDeleteProjectDesc"),
       variant: "danger",
-      confirmLabel: t.modalDeleteButton,
-      cancelLabel: t.cancel,
+      confirmLabel: t("modalDeleteButton"),
+      cancelLabel: t("cancel"),
     });
     if (!ok) return;
     setIsDeleting(true);
@@ -149,11 +144,11 @@ export function ProjectSettingsModal({
   // Delete chat - imperative confirm
   const handleDeleteChat = async (chatId: string) => {
     const ok = await confirm({
-      title: language === "vi" ? "Xóa hội thoại" : "Delete Conversation",
-      description: t.modalDeleteConfirm,
+      title: t("projectDeleteChatTitle"),
+      description: t("modalDeleteConfirm"),
       variant: "danger",
-      confirmLabel: t.modalDeleteButton,
-      cancelLabel: t.cancel,
+      confirmLabel: t("modalDeleteButton"),
+      cancelLabel: t("cancel"),
     });
     if (!ok) return;
     await deleteConversation(chatId);
@@ -198,7 +193,7 @@ export function ProjectSettingsModal({
                   "p-2 rounded-lg transition-colors",
                   "hover:bg-(--danger)/10 text-(--danger)"
                 )}
-                title={language === "vi" ? "Xóa dự án" : "Delete project"}
+                title={t("deleteProject")}
               >
                 {isDeleting ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -244,19 +239,15 @@ export function ProjectSettingsModal({
                 <div className="bg-(--surface-muted) rounded-xl border border-(--border) p-5">
                   <h3 className="font-semibold mb-4 flex items-center gap-2">
                     <FileText className="h-4 w-4" />
-                    {language === "vi" ? "Thông tin" : "Info"}
+                    {t("projectInfoTitle")}
                   </h3>
                   <dl className="space-y-3 text-sm">
                     <div className="flex justify-between">
-                      <dt className="text-(--text-secondary)">
-                        {language === "vi" ? "Tài liệu" : "Documents"}
-                      </dt>
+                      <dt className="text-(--text-secondary)">{t("projectDocuments")}</dt>
                       <dd className="font-medium">{project?.document_count || 0}</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-(--text-secondary)">
-                        {language === "vi" ? "Hội thoại" : "Conversations"}
-                      </dt>
+                      <dt className="text-(--text-secondary)">{t("projectConversationsShort")}</dt>
                       <dd className="font-medium">{project?.conversation_count || 0}</dd>
                     </div>
                     <div className="flex justify-between">
@@ -264,9 +255,7 @@ export function ProjectSettingsModal({
                       <dd className="font-mono text-xs">{project?.embedding_model || "-"}</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-(--text-secondary)">
-                        {language === "vi" ? "Ngày tạo" : "Created"}
-                      </dt>
+                      <dt className="text-(--text-secondary)">{t("projectCreated")}</dt>
                       <dd className="font-medium">
                         {project?.created_at
                           ? new Date(project.created_at).toLocaleDateString(
@@ -283,8 +272,7 @@ export function ProjectSettingsModal({
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold flex items-center gap-2">
                       <MessageSquare className="h-4 w-4" />
-                      {language === "vi" ? "Hội thoại" : "Conversations"} (
-                      {projectConversations.length})
+                      {t("projectConversationsShort")} ({projectConversations.length})
                     </h3>
                     {onNewChat && (
                       <button
@@ -299,14 +287,14 @@ export function ProjectSettingsModal({
                         )}
                       >
                         <Plus className="h-4 w-4" />
-                        {t.newChat}
+                        {t("newChat")}
                       </button>
                     )}
                   </div>
 
                   {projectConversations.length === 0 ? (
                     <p className="text-sm text-(--text-secondary) text-center py-4">
-                      {t.projectNoChatsYet}
+                      {t("projectNoChatsYet")}
                     </p>
                   ) : (
                     <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -325,7 +313,7 @@ export function ProjectSettingsModal({
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             <MessageSquare className="h-4 w-4 text-(--text-secondary) shrink-0" />
-                            <span className="text-sm truncate">{conv.title || t.newChat}</span>
+                            <span className="text-sm truncate">{conv.title || t("newChat")}</span>
                           </div>
                           <button
                             onClick={(e) => {
