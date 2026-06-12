@@ -5,6 +5,47 @@
 
 ---
 
+## 2026-06-12: Fix — UX/UI Audit Minor Batch (27 issues)
+
+### Animation
+
+- **SidebarSection**: Replaced `max-h-[2000px]` CSS hack with Framer Motion `height: "auto"` for smooth collapse
+- **SidebarItem**: Added enter animation (`opacity: 0, x: -10` → `1, 0`)
+
+### Visual & A11y
+
+- **Empty states**: Enhanced sidebar empty states with icons + descriptive text
+- **Charcoal theme**: Accent color `#9ca3af` → `#8ba3be` (more visible blue-gray)
+- **TokenBadge**: Reduced prominence with `opacity-50 hover:opacity-100`
+- **ModelSelector**: Dropdown `w-[350px]` → `w-[min(350px,calc(100vw-2rem))]` (mobile safe)
+- **SidebarItem**: `div[role="button"]` → native `<button>` for a11y
+- **SidebarSection**: Added `<h2 className="sr-only">` + `aria-expanded`
+- **Chat scroll**: Added `role="log"` + `aria-live="polite"`
+- **HeaderBar**: Hid desktop Language/Theme controls on mobile (duplicate)
+- **HeaderBar**: Custom `Bars3Icon` SVG → Lucide `Menu`
+
+### UX Fixes
+
+- **FileManager + Gallery**: Added `toast.error()` for delete failures (was silent)
+- **ProjectChat export**: Fixed empty export — now uses `downloadConversationById()` with full messages
+- **GEMs tooltip**: Added descriptive tooltip for collapsed sidebar
+
+### i18n
+
+- **ErrorBoundary**: 4 hardcoded English strings → translation keys
+- **ConfirmDialog**: Inline ternaries → `t()` calls
+- **Canvas.tsx**: 4 inline bilingual checks → translation keys
+- **GemList**: `"---"` → `t("noDescription")`
+
+### Code Quality
+
+- Deleted redundant `functions.ts` (duplicate of `functionRegistry.ts`)
+- Removed `.bat`, `.ps1` from `SUPPORTED_FILE_TYPES` (conflicts with BLOCKED list)
+
+**Files**: 19 files changed (17 modified, 1 deleted, 1 CSS)
+
+---
+
 ## 2026-06-12: Fix — UX/UI Audit Final Major Batch (13/13 remaining issues)
 
 ### CSS Foundation
