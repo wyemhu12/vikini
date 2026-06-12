@@ -4,6 +4,7 @@ import React from "react";
 
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
+import { MotionConfig } from "framer-motion";
 import { THEME_CONFIG } from "@/lib/config/theme-config";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -25,7 +26,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         disableTransitionOnChange
         value={themeMap}
       >
-        {children}
+        <MotionConfig reducedMotion="user">{children}</MotionConfig>
       </ThemeProvider>
     </SessionProvider>
   );

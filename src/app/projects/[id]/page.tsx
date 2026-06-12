@@ -7,12 +7,14 @@ import { cn } from "@/lib/utils/cn";
 import { KnowledgePanel } from "@/components/features/projects";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { useConversation } from "@/app/features/chat/hooks/useConversation";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { confirm } from "@/lib/store/confirmStore";
 import type { KnowledgeDocument, ProjectWithStats } from "@/types/projects";
 
 export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
+  const { t } = useLanguage();
   const projectId = params.id as string;
 
   const { projects, deleteProject, fetchProjects } = useProjectStore();
@@ -47,12 +49,12 @@ export default function ProjectPage() {
       const data = await res.json();
 
       if (!data.success) {
-        throw new Error(data.error?.message || "Failed to fetch documents");
+        throw new Error(data.error?.message || t("fetchDocsFailed"));
       }
 
       setDocuments(data.data.documents);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch documents");
+      setError(err instanceof Error ? err.message : t("fetchDocsFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +80,7 @@ export default function ProjectPage() {
 
     const data = await res.json();
     if (!data.success) {
-      throw new Error(data.error?.message || "Upload failed");
+      throw new Error(data.error?.message || t("uploadFailed"));
     }
 
     // Refresh both document list and project stats (document_count, storage_bytes)
@@ -93,7 +95,7 @@ export default function ProjectPage() {
 
     const data = await res.json();
     if (!data.success) {
-      throw new Error(data.error?.message || "Delete failed");
+      throw new Error(data.error?.message || t("deleteFailed"));
     }
 
     // Refresh both document list and project stats (document_count, storage_bytes)
@@ -103,10 +105,10 @@ export default function ProjectPage() {
   // Delete project
   const handleDeleteProject = async () => {
     const ok = await confirm({
-      title: "Delete this project?",
-      description: "All documents and conversations will be permanently lost.",
+      title: t("deleteProjectQuestion"),
+      description: t("deleteProjectConfirm"),
       variant: "danger",
-      confirmLabel: "Delete",
+      confirmLabel: t("modalDeleteButton"),
     });
     if (!ok) return;
 
@@ -115,7 +117,7 @@ export default function ProjectPage() {
       await deleteProject(projectId);
       router.push("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(err instanceof Error ? err.message : t("deleteFailed"));
       setIsDeleting(false);
     }
   };
@@ -124,9 +126,9 @@ export default function ProjectPage() {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <h1 className="text-xl font-bold mb-2">Project not found</h1>
+          <h1 className="text-xl font-bold mb-2">{t("projectNotFound")}</h1>
           <button onClick={() => router.push("/")} className="text-primary hover:underline">
-            Go back home
+            {t("goBackHome")}
           </button>
         </div>
       </div>
@@ -167,7 +169,7 @@ export default function ProjectPage() {
               onClick={handleDeleteProject}
               disabled={isDeleting}
               className={cn("p-2 rounded-lg transition-colors", "hover:bg-red-500/10 text-red-500")}
-              title="Delete project"
+              title={t("deleteProject")}
             >
               {isDeleting ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -208,23 +210,23 @@ export default function ProjectPage() {
             <div className="bg-(--surface) rounded-xl border border-(--border) p-6">
               <h2 className="font-semibold mb-4 flex items-center gap-2">
                 <Settings className="h-4 w-4" />
-                Project Info
+                {t("projectInfo")}
               </h2>
               <dl className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-(--text-secondary)">Documents</dt>
+                  <dt className="text-(--text-secondary)">{t("projectDocuments")}</dt>
                   <dd className="font-medium">{project?.document_count || 0}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-(--text-secondary)">Conversations</dt>
+                  <dt className="text-(--text-secondary)">{t("projectConversations")}</dt>
                   <dd className="font-medium">{project?.conversation_count || 0}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-(--text-secondary)">Embedding Model</dt>
+                  <dt className="text-(--text-secondary)">{t("projectEmbeddingModel")}</dt>
                   <dd className="font-mono text-xs">{project?.embedding_model || "-"}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-(--text-secondary)">Created</dt>
+                  <dt className="text-(--text-secondary)">{t("projectCreated")}</dt>
                   <dd className="font-medium">
                     {project?.created_at ? new Date(project.created_at).toLocaleDateString() : "-"}
                   </dd>
@@ -234,11 +236,11 @@ export default function ProjectPage() {
 
             {/* Usage Tips */}
             <div className="bg-(--surface) rounded-xl border border-(--border) p-6">
-              <h2 className="font-semibold mb-3">How to use</h2>
+              <h2 className="font-semibold mb-3">{t("projectHowToUse")}</h2>
               <ul className="text-sm text-(--text-secondary) space-y-2">
-                <li>• Upload documents to build your knowledge base</li>
-                <li>• Start a new chat in this project</li>
-                <li>• AI will search your documents for relevant context</li>
+                <li>{t("projectHint1")}</li>
+                <li>{t("projectHint2")}</li>
+                <li>{t("projectHint3")}</li>
               </ul>
             </div>
 
@@ -247,7 +249,7 @@ export default function ProjectPage() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold flex items-center gap-2">
                   <MessageSquare className="h-4 w-4" />
-                  Conversations ({projectConversations.length})
+                  {t("projectConversations")} ({projectConversations.length})
                 </h2>
                 <button
                   onClick={async () => {
@@ -276,13 +278,13 @@ export default function ProjectPage() {
                   ) : (
                     <Plus className="h-4 w-4" />
                   )}
-                  New Chat
+                  {t("newChatBtn")}
                 </button>
               </div>
 
               {projectConversations.length === 0 ? (
                 <p className="text-sm text-(--text-secondary) text-center py-4">
-                  No conversations yet. Start a new chat!
+                  {t("noConversationsYet")}
                 </p>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -298,15 +300,17 @@ export default function ProjectPage() {
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <MessageSquare className="h-4 w-4 text-(--text-secondary) shrink-0" />
-                        <span className="text-sm truncate">{conv.title || "New conversation"}</span>
+                        <span className="text-sm truncate">
+                          {conv.title || t("newConversation")}
+                        </span>
                       </div>
                       <button
                         onClick={async (e) => {
                           e.stopPropagation();
                           const ok = await confirm({
-                            title: "Delete this conversation?",
+                            title: t("deleteConversationQuestion"),
                             variant: "danger",
-                            confirmLabel: "Delete",
+                            confirmLabel: t("modalDeleteButton"),
                           });
                           if (ok) deleteConversation(conv.id);
                         }}

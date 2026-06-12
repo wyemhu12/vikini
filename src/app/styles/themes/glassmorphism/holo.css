@@ -11,6 +11,7 @@
     radial-gradient(circle at 0% 100%, rgba(59, 130, 246, 0.6) 0%, transparent 40%),
     linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
   --surface-muted: rgba(20, 20, 40, 0.6);
+  --surface-elevated: rgba(18, 18, 38, 0.95);
   --border: rgba(34, 211, 238, 0.3);
   --control-bg: rgba(255, 255, 255, 0.08);
   --control-bg-hover: rgba(255, 255, 255, 0.15);

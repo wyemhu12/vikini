@@ -14,6 +14,45 @@
 
 ## TypeScript and Type Safety
 
+### 2026-06-12: Type duplication drift between `types/` and `lib/features/`
+
+- **Symptom**: `Conversation` in `types/chat.ts` lacked `projectId` field; `ImageGenOptions` lacked `referenceImage`. Code using wrong source got compile errors or missing data.
+- **Root Cause**: Types were copy-pasted into both `types/` and `lib/features/` during feature development. New fields were only added to `lib/features/` without updating `types/`.
+- **Fix**: Converted `types/chat.ts` and `types/image-gen.ts` into facade modules that re-export from authoritative `lib/features/` sources.
+- **Prevention**: Types MUST have a single authoritative source. `types/` folder should only re-export, never define duplicates.
+
+## CSS and Theming
+
+### 2026-06-12: Dead shadcn CSS variables breaking components
+
+- **Symptom**: Tooltip invisible, Avatar fallback missing on all custom themes.
+- **Root Cause**: Shadcn/UI components reference CSS variables (`--popover`, `--muted`, `--card`, etc.) via `hsl()` wrapper in tailwind.config.ts, but these variables are never defined in the custom theme CSS. The theme system uses `--surface-elevated`, `--surface-muted` etc. instead.
+- **Fix**: Replaced shadcn token classes with design system tokens (`bg-(--surface-elevated)`, `bg-(--surface-muted)`).
+- **Prevention**: When adding shadcn components, ALWAYS audit their CSS classes against the actual theme variable definitions. If they reference `bg-popover`, `bg-muted`, `bg-card` etc., replace with `--surface-*` tokens.
+
+### 2026-06-12: `--surface-elevated` not overridden per-theme
+
+- **Symptom**: Dialogs/popovers showed base dark surface (`#0f1115`) on glassmorphism and light themes (e.g. Orchid showed dark popover on light background).
+- **Root Cause**: `--surface-elevated` was only defined in base.css with a single dark value. Per-theme CSS files overrode `--surface-muted` but not `--surface-elevated`.
+- **Fix**: Added `--surface-elevated` to all 5 glassmorphism themes with tone-appropriate values.
+- **Prevention**: When adding new themes, ensure ALL surface tokens (`--surface`, `--surface-muted`, `--surface-elevated`, `--surface-strong`) are overridden.
+
+## Internationalization (i18n)
+
+### 2026-06-12: Hardcoded English strings in new features
+
+- **Symptom**: Projects feature was 100% English despite the app being bilingual.
+- **Root Cause**: New features were developed without importing the translation system. 44 hardcoded strings across 3 files.
+- **Fix**: Added 41 translation keys to config.ts, replaced all hardcoded strings with `t()` calls.
+- **Prevention**: Every new user-facing string MUST use the `t()` translation function. Never hardcode English or Vietnamese strings directly.
+
+### 2026-06-12: Hardcoded Vietnamese in toast messages
+
+- **Symptom**: `CreateProjectModal` had `"Đã tạo dự án..."` toast — Vietnamese-only, not translated.
+- **Root Cause**: Developer used inline Vietnamese string for toast instead of translation key.
+- **Fix**: Replaced with `t("projectCreatedSuccess")`.
+- **Prevention**: Toast messages must always use translation keys, same as UI labels.
+
 ### 2026-04: `as any` in streaming and knowledge modules
 
 - **Symptom**: Type-check failures when refactoring streaming response handling

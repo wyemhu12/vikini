@@ -5,6 +5,31 @@
 
 ---
 
+## 2026-06-12: Fix — UX/UI Audit Critical Batch (10 issues)
+
+### Phase 1: CSS/Theming
+
+- **Tooltip broken**: `bg-popover text-popover-foreground` → `bg-(--surface-elevated) text-(--text-primary)` — `--popover` was never defined in any theme CSS.
+- **Avatar fallback broken**: `bg-muted` → `bg-(--surface-muted)` — `--muted` never defined.
+- **`--surface-elevated` per glassmorphism theme**: Added to nebula, aqua, holo, orchid, sunset — dialogs/popovers now match theme tone instead of showing base dark surface.
+- **`prefers-reduced-motion`**: Added `<MotionConfig reducedMotion="user">` in providers.tsx + CSS `@media (prefers-reduced-motion: reduce)` fallback for non-Framer animations.
+
+### Phase 2: Accessibility
+
+- **Sidebar ARIA**: Added `aria-label="Main navigation" role="navigation"` on both desktop and mobile `<aside>`.
+- **Mobile drawer → Radix Dialog**: Replaced custom overlay with `Dialog.Root/Portal/Overlay/Content` for automatic focus trap, ESC close, scroll lock. Added `Dialog.Title` (sr-only) and `aria-label` on close button.
+- **Global `focus-visible`**: Added `:focus-visible { outline: 2px solid var(--accent) }` + `:focus:not(:focus-visible) { outline: none }` in utilities.css.
+- **ThinkingLevelSelector → Radix DropdownMenu**: Replaced custom useState+backdrop dropdown with `DropdownMenu/Trigger/Content/MenuItem` for keyboard nav and ARIA.
+
+### Phase 3: Types & Bilingual
+
+- **Type deduplication (facade pattern)**: `types/chat.ts` and `types/image-gen.ts` now re-export from authoritative `lib/features/` sources. Eliminated `Conversation` drift (missing `projectId`), `ImageGenOptions` drift (missing `referenceImage`).
+- **Projects bilingual**: Added 41 translation keys. Replaced 44 hardcoded English strings across `projects/[id]/page.tsx`, `CreateProjectModal.tsx`, `ProjectSwitcher.tsx` with `t()` calls. Fixed mixed Vietnamese toast.
+
+**Files**: tooltip.tsx, avatar.tsx, 5× glassmorphism CSS, utilities.css, providers.tsx, Sidebar.tsx, ThinkingLevelSelector.tsx, types/chat.ts, types/image-gen.ts, config.ts, projects/[id]/page.tsx, CreateProjectModal.tsx, ProjectSwitcher.tsx
+
+---
+
 ## 2026-06-12: Refactor — UX/UI Audit Phase 4 (Waves 1-2)
 
 ### Wave 1: Font Sizes & Token Cleanup

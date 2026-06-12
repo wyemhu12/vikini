@@ -64,6 +64,7 @@
     radial-gradient(circle at 40% 82%, rgba(255, 255, 255, 0.25) 0px, transparent 0.4px),
     /* Nền vũ trụ đen */ linear-gradient(180deg, #050505 0%, #0a0a09 100%);
   --surface-muted: rgba(20, 18, 16, 0.95);
+  --surface-elevated: rgba(18, 16, 14, 0.98);
   /* Border cam nhạt từ hình */
   --border: rgba(249, 115, 22, 0.15);
   /* Control surfaces với tông nâu ấm */

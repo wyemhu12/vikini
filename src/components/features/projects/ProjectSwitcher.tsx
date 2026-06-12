@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useProjectStore } from "@/lib/store/projectStore";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import type { ProjectWithStats } from "@/types/projects";
 
 // Map icon id to Lucide component
@@ -61,6 +62,7 @@ export function ProjectSwitcher({
 }: ProjectSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { projects, getCurrentProject, setCurrentProject, limits, isLoading } = useProjectStore();
+  const { t } = useLanguage();
 
   const currentProject = getCurrentProject();
 
@@ -92,7 +94,7 @@ export function ProjectSwitcher({
             return <IconComp className="h-3.5 w-3.5 text-white" />;
           })()}
         </span>
-        <span className="flex-1 text-left truncate">{currentProject?.name || "No Project"}</span>
+        <span className="flex-1 text-left truncate">{currentProject?.name || t("noProject")}</span>
         <ChevronDown
           className={cn(
             "h-4 w-4 text-muted-foreground transition-transform",
@@ -125,7 +127,7 @@ export function ProjectSwitcher({
               )}
             >
               <FolderOpen className="h-4 w-4 text-muted-foreground" />
-              <span className="flex-1 text-left">No Project</span>
+              <span className="flex-1 text-left">{t("noProject")}</span>
               {!currentProject && <Check className="h-4 w-4 text-primary" />}
             </button>
 
@@ -170,7 +172,7 @@ export function ProjectSwitcher({
                       setIsOpen(false);
                     }}
                     className="opacity-0 group-hover:opacity-100 p-1 hover:bg-(--control-bg-hover) rounded"
-                    title="Project settings"
+                    title={t("projectSettings")}
                   >
                     <Settings className="h-3 w-3 text-muted-foreground" />
                   </button>
@@ -179,7 +181,9 @@ export function ProjectSwitcher({
             ))}
 
             {/* Loading State */}
-            {isLoading && <div className="px-3 py-2 text-sm text-muted-foreground">Loading...</div>}
+            {isLoading && (
+              <div className="px-3 py-2 text-sm text-muted-foreground">{t("loading")}</div>
+            )}
 
             {/* Create New Project */}
             {onCreateProject && (
@@ -198,9 +202,11 @@ export function ProjectSwitcher({
                   )}
                 >
                   <Plus className="h-4 w-4 text-primary" />
-                  <span className="text-primary">New Project</span>
+                  <span className="text-primary">{t("newProjectBtn")}</span>
                   {!canCreateMore && (
-                    <span className="text-xs text-muted-foreground ml-auto">Limit reached</span>
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {t("limitReached")}
+                    </span>
                   )}
                 </button>
               </>

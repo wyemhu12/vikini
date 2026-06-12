@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import type { EmbeddingModel } from "@/types/projects";
 
 interface CreateProjectModalProps {
@@ -68,6 +69,7 @@ const COLORS = [
  */
 export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
   const { createProject, limits, isLoading: _isLoading } = useProjectStore();
+  const { t } = useLanguage();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -87,14 +89,14 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
     "text-embedding-004": {
       label: "text-embedding-004",
       dims: 768,
-      desc: "Free • 768 dimensions • Good quality",
-      descLocked: "Free • 768 dimensions • Good quality",
+      desc: t("freeModelDesc"),
+      descLocked: t("freeModelDesc"),
     },
     "gemini-embedding-2": {
       label: "gemini-embedding-2",
       dims: 3072,
-      desc: "All tiers • 3072 dimensions • Best quality • Multimodal",
-      descLocked: "Not available for your tier",
+      desc: t("bestModelDesc"),
+      descLocked: t("notAvailableTier"),
     },
   };
 
@@ -113,7 +115,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
     setError("");
 
     if (!name.trim()) {
-      setError("Project name is required");
+      setError(t("projectNameRequired"));
       return;
     }
 
@@ -134,9 +136,9 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
       setIcon("folder");
       setColor("#6366f1");
 
-      toast.success(`Đã tạo dự án "${name.trim()}" thành công`);
+      toast.success(t("projectCreatedSuccess"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create project");
+      setError(err instanceof Error ? err.message : t("createProjectFailed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -145,11 +147,11 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md p-0 gap-0 [&>button]:hidden">
-        <DialogTitle className="sr-only">Create New Project</DialogTitle>
+        <DialogTitle className="sr-only">{t("createNewProject")}</DialogTitle>
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-(--border)">
-          <h2 className="text-lg font-semibold">Create New Project</h2>
+          <h2 className="text-lg font-semibold">{t("createNewProject")}</h2>
           <button
             onClick={onClose}
             className="p-1 hover:bg-(--control-bg-hover) rounded-lg transition-colors"
@@ -163,13 +165,13 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
           {/* Project Name */}
           <div>
             <label className="block text-sm font-medium mb-1.5">
-              Project Name <span className="text-(--danger)">*</span>
+              {t("projectName")} <span className="text-(--danger)">*</span>
             </label>
             <Input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="My Research Project"
+              placeholder={t("projectNamePlaceholder")}
               maxLength={50}
               autoFocus
             />
@@ -177,11 +179,11 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">Description (optional)</label>
+            <label className="block text-sm font-medium mb-1.5">{t("descriptionOptional")}</label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of this project..."
+              placeholder={t("descriptionPlaceholder")}
               rows={2}
               maxLength={200}
               className="resize-none"
@@ -192,7 +194,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
           <div className="grid grid-cols-2 gap-4">
             {/* Icon Picker */}
             <div>
-              <label className="block text-sm font-medium mb-1.5">Icon</label>
+              <label className="block text-sm font-medium mb-1.5">{t("iconLabel")}</label>
               <div className="flex flex-wrap gap-1">
                 {ICON_OPTIONS.map(({ id, icon: IconComponent }) => (
                   <button
@@ -213,7 +215,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
 
             {/* Color Picker */}
             <div>
-              <label className="block text-sm font-medium mb-1.5">Color</label>
+              <label className="block text-sm font-medium mb-1.5">{t("colorLabel")}</label>
               <div className="flex flex-wrap gap-1">
                 {COLORS.map((c) => (
                   <button
@@ -237,7 +239,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
 
           {/* Embedding Model */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">Embedding Model</label>
+            <label className="block text-sm font-medium mb-1.5">{t("embeddingModelLabel")}</label>
             <div className="space-y-2">
               {allModels.map((modelId) => {
                 const info = EMBEDDING_MODEL_INFO[modelId];
@@ -285,11 +287,11 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              Cancel
+              {t("cancelLabel")}
             </Button>
             <Button type="submit" disabled={isSubmitting || !name.trim()} className="flex-1">
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              Create Project
+              {t("createProjectBtn")}
             </Button>
           </div>
         </form>

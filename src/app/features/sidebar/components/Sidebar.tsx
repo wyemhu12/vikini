@@ -3,6 +3,7 @@
 
 import React from "react";
 import { AnimatePresence } from "framer-motion";
+import * as Dialog from "@radix-ui/react-dialog";
 import SidebarItem from "./SidebarItem";
 import SidebarSection from "./SidebarSection";
 import ProjectNode from "./ProjectNode";
@@ -450,6 +451,8 @@ function Sidebar({
       <TooltipProvider delayDuration={0}>
         {/* Desktop sidebar */}
         <aside
+          aria-label="Main navigation"
+          role="navigation"
           className={cn(
             "hidden md:flex flex-col fixed top-0 left-0 bottom-0 border-r border-(--border) bg-(--surface-muted)/90 backdrop-blur-3xl p-4 z-30 transition-[width] duration-300",
             collapsed ? "w-20" : "w-72 lg:w-80"
@@ -458,41 +461,52 @@ function Sidebar({
           {renderSidebarContent()}
         </aside>
 
-        {/* Mobile drawer */}
-        {mobileOpen && (
-          <div className="md:hidden">
-            <div
-              className="fixed inset-0 z-40 bg-(--surface-muted)/80 backdrop-blur-sm transition-opacity"
-              onClick={() => onCloseMobile?.()}
-            />
-            <aside className="fixed top-0 left-0 bottom-0 z-50 w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-6 pb-24 shadow-2xl flex flex-col">
-              {/* Mobile header */}
-              <div className="mb-8 flex items-center justify-between">
-                <Link
-                  href="/"
-                  className="text-lg font-black tracking-tighter text-(--text-primary) flex items-center gap-3 active:opacity-70 transition-opacity"
-                  onClick={() => {
-                    onLogoClick?.();
-                    onCloseMobile?.();
-                  }}
-                >
-                  <div className="h-8 w-8 rounded-lg bg-(--control-bg) flex items-center justify-center border border-(--control-border) text-(--accent)">
-                    V
-                  </div>
-                  {t?.appName || "Vikini"}
-                </Link>
-                <button
-                  onClick={() => onCloseMobile?.()}
-                  className="p-2 rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-              {/* Reuse SidebarContent with isMobile=true (never collapsed) */}
-              {renderSidebarContent(true)}
-            </aside>
-          </div>
-        )}
+        {/* Mobile drawer — Radix Dialog for focus trap + ESC close */}
+        <Dialog.Root
+          open={mobileOpen}
+          onOpenChange={(open) => {
+            if (!open) onCloseMobile?.();
+          }}
+        >
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 z-40 bg-(--surface-muted)/80 backdrop-blur-sm md:hidden" />
+            <Dialog.Content asChild>
+              <aside
+                aria-label="Main navigation"
+                role="navigation"
+                className="fixed top-0 left-0 bottom-0 z-50 w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-6 pb-24 shadow-2xl flex flex-col md:hidden"
+              >
+                <Dialog.Title className="sr-only">Navigation</Dialog.Title>
+                {/* Mobile header */}
+                <div className="mb-8 flex items-center justify-between">
+                  <Link
+                    href="/"
+                    className="text-lg font-black tracking-tighter text-(--text-primary) flex items-center gap-3 active:opacity-70 transition-opacity"
+                    onClick={() => {
+                      onLogoClick?.();
+                      onCloseMobile?.();
+                    }}
+                  >
+                    <div className="h-8 w-8 rounded-lg bg-(--control-bg) flex items-center justify-center border border-(--control-border) text-(--accent)">
+                      V
+                    </div>
+                    {t?.appName || "Vikini"}
+                  </Link>
+                  <Dialog.Close asChild>
+                    <button
+                      aria-label="Close sidebar"
+                      className="p-2 rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </Dialog.Close>
+                </div>
+                {/* Reuse SidebarContent with isMobile=true (never collapsed) */}
+                {renderSidebarContent(true)}
+              </aside>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
       </TooltipProvider>
 
       {/* Create Project Modal */}

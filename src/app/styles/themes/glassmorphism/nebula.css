@@ -10,6 +10,7 @@
     radial-gradient(ellipse at 15% 85%, rgba(59, 130, 246, 0.25) 0%, transparent 45%),
     linear-gradient(180deg, #0f172a 0%, #1a1a3e 50%, #0f0f20 100%);
   --surface-muted: rgba(30, 40, 80, 0.7);
+  --surface-elevated: rgba(25, 32, 65, 0.95);
   --border: rgba(34, 211, 238, 0.3);
   --control-bg: rgba(255, 255, 255, 0.08);
   --control-bg-hover: rgba(255, 255, 255, 0.15);
