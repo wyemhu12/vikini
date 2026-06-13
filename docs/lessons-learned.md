@@ -92,12 +92,13 @@
 - **Fix**: Wrapped `personalConversations` with `useMemo([conversations])`.
 - **Prevention Rule**: **Any `.filter()`, `.map()`, or `.reduce()` result that flows to a memoized component as a prop MUST be wrapped in `useMemo`.** This is the 2nd occurrence of sidebar flickering (1st was unmemoized callbacks, now unstable arrays). Always audit props passed to `React.memo` components for referential stability.
 
-### 2026-06: Sidebar layout jump/bounce — animation + useEffect state flash ⚠️ RECURRING (3rd occurrence)
+### 2026-06: Sidebar layout jump/bounce — inline component definition causing unmount/remount ⚠️ RECURRING (3rd occurrence)
 
-- **Symptom**: All elements from Projects downward "jump" once when switching chats or clicking sidebar items.
-- **Root Cause** (3 combined): (1) `SidebarItem` had `initial={{ opacity: 0, x: -10 }}` — runs enter animation on mount/remount. (2) `SidebarSection` read localStorage via `useEffect` causing state flash after first render. (3) `ProjectNode` auto-expand effect called `setIsExpanded(true)` even when already expanded, triggering unnecessary re-renders.
-- **Fix**: (1) Set `initial={false}` on motion.div. (2) Use synchronous `useState(() => localStorage...)` lazy initializer. (3) Guard with `setIsExpanded(prev => prev ? prev : true)`.
-- **Prevention Rule**: **NEVER use `useEffect` to read `localStorage` for initial state — use `useState` lazy initializer instead.** **NEVER use `initial={{ ... }}` animations on list items that may remount — use `initial={false}` and let `AnimatePresence` handle exit-only animations.** **Always guard `setState(value)` with functional updater when the value might equal current state — prevents unnecessary re-renders.**
+- **Symptom**: All elements from Projects downward "jump" once when switching chats or clicking ANY sidebar item (except 3-dot menu which doesn't trigger parent re-render).
+- **Root Cause**: `SidebarButton` was defined **inside** the `Sidebar` function body. Each `Sidebar` re-render created a new function reference → React treated it as a new component type → **unmounted and remounted ALL button instances** → DOM teardown/rebuild in one frame → layout shift on dividers and everything below.
+- **Misdiagnosis (first attempt)**: Initially blamed Framer Motion `initial` animations, `useEffect` localStorage reads, and `ProjectNode` auto-expand. These were secondary issues that masked the true cause. Fixing them alone did NOT resolve the bounce.
+- **Fix**: Extracted `SidebarButton` to **module level** with `React.memo`. Secondary: removed enter animations, replaced `useEffect` localStorage with `useState` lazy initializer, guarded `ProjectNode` auto-expand.
+- **Prevention Rule**: **NEVER define React components (functions that accept props and return JSX) inside another component's function body.** They MUST be at module level or in separate files. Inline definitions create new component identity on every render → React unmounts/remounts → layout shift. This rule applies even if the component has no hooks — the identity instability alone is enough to cause visual bugs. Use render functions (returning JSX without being treated as components) only when intentional and documented.
 
 ### 2026-05: Side effects inside useDebounceCallback are delayed — mark state changes synchronously
 

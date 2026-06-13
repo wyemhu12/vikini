@@ -8,12 +8,14 @@
 ## 2026-06-13: Fix — Sidebar Layout Jump/Bounce When Switching Chats (RECURRING)
 
 - **What changed**: Elements from Projects section downward no longer "jump" when switching between chats or clicking sidebar items.
-- **Root causes fixed** (3 combined):
-  1. `SidebarItem` had `initial={{ opacity: 0, x: -10 }}` causing enter animation on every mount → set `initial={false}`
-  2. `SidebarSection` read localStorage via `useEffect` causing post-mount state flash → moved to synchronous lazy initializer in `useState`
-  3. `ProjectNode` auto-expand effect triggered unnecessary re-renders even when already expanded → added functional updater guard
-- **Additional fix**: Changed `AnimatePresence mode="sync"` to `initial={false}` in chat list wrapper
-- **Files**: `SidebarItem.tsx`, `Sidebar.tsx`, `SidebarSection.tsx`, `ProjectNode.tsx`
+- **Actual root cause**: `SidebarButton` was defined **inside** the `Sidebar` function component. Every re-render created a new function reference → React treated it as a different component type → **unmounted and remounted ALL buttons** (New Chat, Chat, Image Studio, Gallery) every render → DOM teardown/rebuild in 1 frame → layout shift cascade on dividers and everything below.
+- **Fix**: Extracted `SidebarButton` to **module level** with `React.memo`, ensuring stable component identity across re-renders.
+- **Secondary fixes** (applied first, necessary but not sufficient alone):
+  1. `SidebarItem`: removed `initial={{ opacity: 0, x: -10 }}` enter animation → `initial={false}`
+  2. `SidebarSection`: replaced `useEffect` localStorage read with synchronous `useState` lazy initializer
+  3. `ProjectNode`: replaced `useEffect` localStorage read with lazy initializer + guarded auto-expand with functional updater
+  4. `AnimatePresence mode="sync"` → `initial={false}` in chat list wrapper
+- **Files**: `Sidebar.tsx`, `SidebarItem.tsx`, `SidebarSection.tsx`, `ProjectNode.tsx`
 
 ## 2026-06-12: Fix — UX/UI Audit Minor Batch (27 issues)
 
