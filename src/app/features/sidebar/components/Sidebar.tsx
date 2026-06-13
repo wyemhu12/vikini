@@ -92,6 +92,69 @@ interface SidebarProps {
   isCreatingChat?: boolean;
 }
 
+// ---- Module-level SidebarButton (stable identity across re-renders) ----
+interface SidebarButtonProps {
+  onClick?: () => void;
+  icon: LucideIcon;
+  label: string;
+  variant?: "default" | "primary" | "destructive";
+  className?: string;
+  isCollapsed?: boolean;
+  isLoading?: boolean;
+}
+
+const SidebarButton = React.memo(function SidebarButton({
+  onClick,
+  icon: Icon,
+  label,
+  variant = "default",
+  className,
+  isCollapsed = false,
+  isLoading = false,
+}: SidebarButtonProps) {
+  const button = (
+    <button
+      onClick={isLoading ? undefined : onClick}
+      disabled={isLoading}
+      className={cn(
+        "flex items-center gap-3 rounded-lg py-2.5 transition-all duration-200 group",
+        isCollapsed ? "justify-center px-0 w-full" : "justify-start px-3 w-full",
+        variant === "primary" &&
+          "bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-(--accent) font-bold shadow-sm",
+        variant === "default" &&
+          "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)",
+        variant === "destructive" &&
+          "text-(--text-secondary) hover:bg-(--danger)/10 hover:text-(--danger)",
+        isLoading && "opacity-70 cursor-not-allowed",
+        className
+      )}
+      type="button"
+    >
+      <span
+        className={cn(
+          "shrink-0 transition-transform duration-300",
+          variant === "primary" && !isLoading && "group-hover:rotate-90"
+        )}
+      >
+        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Icon className="w-5 h-5" />}
+      </span>
+      {!isCollapsed && <span className="text-sm font-medium truncate">{label}</span>}
+    </button>
+  );
+
+  if (isCollapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent side="right">
+          <p>{label}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+  return button;
+});
+
 function Sidebar({
   conversations,
   selectedConversationId,
@@ -188,68 +251,7 @@ function Sidebar({
     }
   };
 
-  // Extracted SidebarButton component
-  const SidebarButton = ({
-    onClick,
-    icon: Icon,
-    label,
-    variant = "default",
-    className,
-    isCollapsed = false,
-    isLoading = false,
-  }: {
-    onClick?: () => void;
-    icon: LucideIcon;
-    label: string;
-    variant?: "default" | "primary" | "destructive";
-    className?: string;
-    isCollapsed?: boolean;
-    isLoading?: boolean;
-  }) => {
-    const button = (
-      <button
-        onClick={isLoading ? undefined : onClick}
-        disabled={isLoading}
-        className={cn(
-          "flex items-center gap-3 rounded-lg py-2.5 transition-all duration-200 group",
-          isCollapsed ? "justify-center px-0 w-full" : "justify-start px-3 w-full",
-          variant === "primary" &&
-            "bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-(--accent) font-bold shadow-sm",
-          variant === "default" &&
-            "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)",
-          variant === "destructive" &&
-            "text-(--text-secondary) hover:bg-(--danger)/10 hover:text-(--danger)",
-          isLoading && "opacity-70 cursor-not-allowed",
-          className
-        )}
-        type="button"
-      >
-        <span
-          className={cn(
-            "shrink-0 transition-transform duration-300",
-            variant === "primary" && !isLoading && "group-hover:rotate-90"
-          )}
-        >
-          {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Icon className="w-5 h-5" />}
-        </span>
-        {!isCollapsed && <span className="text-sm font-medium truncate">{label}</span>}
-      </button>
-    );
-
-    if (isCollapsed) {
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>{button}</TooltipTrigger>
-          <TooltipContent side="right">
-            <p>{label}</p>
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
-    return button;
-  };
-
-  // Render function (NOT a component) — prevents remount/flicker on each Sidebar re-render
+  // renderSidebarContent is a render function (NOT a component) — prevents remount/flicker
   const renderSidebarContent = (isMobile = false) => {
     const isCollapsed = isMobile ? false : collapsed;
 
