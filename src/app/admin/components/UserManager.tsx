@@ -65,7 +65,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
   const { t, language } = useLanguage();
 
   useEffect(() => {
-    fetchUsers();
+    void fetchUsers();
   }, []);
 
   const fetchUsers = async () => {

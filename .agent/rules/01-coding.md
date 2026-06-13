@@ -5,17 +5,6 @@ description: TypeScript enforcement, project structure, and naming conventions.
 
 # Coding Standards
 
-## Project Structure
-
-> All paths below are relative to `src/`.
-
-- **Feature logic**: `lib/features/<feature-name>/`
-- **Feature UI**: `app/features/<feature-name>/`
-- **Shared UI**: `components/ui/` -- generic primitives only, no business logic
-- **State stores**: `lib/store/` or `lib/features/<feature>/store.ts`
-- **Types**: `types/`
-- Features must not import heavily from other features. Use `lib/core/` for shared logic.
-
 ## TypeScript (Strict)
 
 - Files must be `.ts` or `.tsx`. No `.js` files.
@@ -54,6 +43,29 @@ catch (error: unknown) {
   toast.error(t("actionFailed") || message); // User sees feedback
 }
 ```
+
+## Testing Requirements
+
+<important>
+When creating or modifying business logic in `lib/features/` or `lib/core/`, you MUST create or update a co-located test file (e.g., `feature.test.ts` next to `feature.ts`).
+Tests are NOT optional for server-side logic, utilities, and API helpers.
+</important>
+
+- **Co-locate tests**: Place `*.test.ts` next to the source file, not in a separate `tests/` tree.
+- **Minimum coverage**: Every exported function in `lib/features/` and `lib/core/` must have at least one test covering the happy path and one error case.
+- **API route tests**: When creating a new API route, add integration tests verifying auth checks, input validation, and error responses.
+- **Skip UI component tests** unless the component contains significant logic (state machines, complex calculations). Pure render components don't need tests.
+
+## Project Structure
+
+> All paths below are relative to `src/`.
+
+- **Feature logic**: `lib/features/<feature-name>/`
+- **Feature UI**: `app/features/<feature-name>/`
+- **Shared UI**: `components/ui/` -- generic primitives only, no business logic
+- **State stores**: `lib/store/` or `lib/features/<feature>/store.ts`
+- **Types**: `types/`
+- Features must not import heavily from other features. Use `lib/core/` for shared logic.
 
 ## Naming
 

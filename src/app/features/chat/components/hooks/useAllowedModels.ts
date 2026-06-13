@@ -43,7 +43,7 @@ export function useAllowedModels(isAuthed: boolean) {
       }
     }
 
-    fetchAllowedModels();
+    void fetchAllowedModels();
 
     return () => {
       cancelled = true;

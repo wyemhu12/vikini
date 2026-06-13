@@ -474,7 +474,7 @@ export function useConversation(): UseConversationReturn {
   const renameConversationFinal = useCallback(
     (id: string, title: string) => {
       patchConversationTitle(id, title);
-      mutate();
+      void mutate();
     },
     [mutate, patchConversationTitle]
   );

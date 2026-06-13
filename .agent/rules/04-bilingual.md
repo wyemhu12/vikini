@@ -11,7 +11,7 @@ Every piece of user-visible text MUST use the translation system. Do NOT hardcod
 
 ## Implementation
 
-**Config location**: `lib/utils/config.ts`
+**Config location**: `lib/utils/translations/` (`vi.ts`, `en.ts`, `index.ts`)
 
 ```typescript
 export const translations = {

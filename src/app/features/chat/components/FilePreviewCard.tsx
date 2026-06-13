@@ -146,7 +146,7 @@ export function FilePreviewCard({
             e.stopPropagation();
             if (deleting) return;
             setDeleting(true);
-            onRemove(file.id);
+            void onRemove(file.id);
           }}
           className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-full bg-(--surface-base)/90 hover:bg-(--danger)/20 text-(--text-secondary) hover:text-(--danger)"
           aria-label={`Remove ${filename}`}

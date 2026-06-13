@@ -71,8 +71,8 @@ export async function GET(req: NextRequest) {
     // 2. Validate Input
     const { searchParams } = new URL(req.url);
     const parseResult = querySchema.safeParse({
-      limit: searchParams.get("limit"),
-      offset: searchParams.get("offset"),
+      limit: searchParams.get("limit") ?? undefined,
+      offset: searchParams.get("offset") ?? undefined,
     });
 
     if (!parseResult.success) {

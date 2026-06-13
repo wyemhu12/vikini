@@ -282,7 +282,7 @@ export function useSpeechRecognition(
     if (status === "listening") {
       stopListening();
     } else {
-      startListening();
+      void startListening();
     }
   }, [status, startListening, stopListening]);
 

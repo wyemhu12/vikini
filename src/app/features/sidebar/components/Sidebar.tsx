@@ -193,7 +193,7 @@ function Sidebar({
 
   // Fetch projects on mount
   React.useEffect(() => {
-    fetchProjects();
+    void fetchProjects();
   }, [fetchProjects]);
 
   const list = Array.isArray(chats)
@@ -247,7 +247,7 @@ function Sidebar({
         setTimeout(() => setDeletingId(null), 500);
       }, 250);
     } else {
-      deleteFallback(id);
+      void deleteFallback(id);
     }
   };
 

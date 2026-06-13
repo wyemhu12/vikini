@@ -11,7 +11,7 @@ Run this after every bug fix to build institutional memory and verify quality.
 1. **Run verification** -- Confirm the fix works:
 
    ```bash
-   npm run type-check && npm run lint && npm test
+   npm run verify
    ```
 
 2. **Record the lesson** -- Add a new entry to `docs/lessons-learned.md` under the appropriate category:

@@ -183,8 +183,9 @@ export function createAnthropicStream({
               }
             : { temperature: 0.7 }),
           tools: anthropicTools,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
+          // Beta API types don't fully cover dynamic tool types (code_execution, web_fetch)
+          // and conditional thinking config spread. Using narrowed assertion instead of `any`.
+        } as unknown as Parameters<typeof ai.beta.messages.create>[0]);
 
         const stream = (await withTimeout(streamPromise, timeoutMs)) as unknown as AsyncIterable<{
           type: string;
@@ -305,8 +306,8 @@ export function createAnthropicStream({
                   max_tokens: 4096,
                   temperature: 0.7,
                   tools: anthropicTools,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } as any);
+                  // Beta API types don't fully cover dynamic tool types — see line 164 comment
+                } as unknown as Parameters<typeof ai.beta.messages.create>[0]);
 
                 for await (const rChunk of resumeStream as unknown as AsyncIterable<{
                   type: string;

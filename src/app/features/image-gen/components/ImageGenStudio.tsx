@@ -137,7 +137,7 @@ export function ImageGenStudio() {
   // Load messages when ID changes
   useEffect(() => {
     if (selectedConversationId) {
-      loadConversation(selectedConversationId);
+      void loadConversation(selectedConversationId);
     }
   }, [selectedConversationId, loadConversation]);
 
@@ -160,7 +160,7 @@ export function ImageGenStudio() {
 
   useEffect(() => {
     if (isAuthed) {
-      fetchBatchQuota();
+      void fetchBatchQuota();
     }
   }, [isAuthed, fetchBatchQuota]);
 
@@ -283,7 +283,7 @@ export function ImageGenStudio() {
           // Refresh messages to show new image immediately
           await loadConversation(targetId!);
           if (i === 0) {
-            refreshConversations();
+            void refreshConversations();
           }
         }
       }
@@ -298,7 +298,7 @@ export function ImageGenStudio() {
       setGeneratingLabel(null);
       // Refresh batch quota after generation
       if (totalImages > 1) {
-        fetchBatchQuota();
+        void fetchBatchQuota();
       }
     }
   };
@@ -365,7 +365,7 @@ export function ImageGenStudio() {
     try {
       const res = await fetch(`/api/messages/${showDeleteConfirm}`, { method: "DELETE" });
       if (res.ok && selectedConversationId) {
-        loadConversation(selectedConversationId);
+        void loadConversation(selectedConversationId);
       }
     } catch (e) {
       logger.error("Delete error:", e);
@@ -382,7 +382,7 @@ export function ImageGenStudio() {
 
   const confirmRename = async () => {
     if (!showRenameModal || !renameValue.trim()) return;
-    renameConversation(showRenameModal, renameValue.trim());
+    void renameConversation(showRenameModal, renameValue.trim());
     setShowRenameModal(null);
     setRenameValue("");
   };
@@ -396,7 +396,7 @@ export function ImageGenStudio() {
     );
   }
   if (!isAuthed) {
-    signIn();
+    void signIn();
     return null;
   }
 
@@ -469,7 +469,7 @@ export function ImageGenStudio() {
             confirmLabel: t("modalDeleteButton") || "Delete",
             cancelLabel: t("cancel") || "Cancel",
           });
-          if (ok) deleteConversation(id);
+          if (ok) void deleteConversation(id);
         }}
         onRenameChat={handleRename}
         onLogout={() => {}} // Handle in ChatApp mainly

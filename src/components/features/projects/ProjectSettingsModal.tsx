@@ -54,7 +54,7 @@ export function ProjectSettingsModal({
     if (found) {
       setProject(found);
     } else {
-      fetchProjects();
+      void fetchProjects();
     }
   }, [projectId, projects, fetchProjects, isOpen]);
 
@@ -81,7 +81,7 @@ export function ProjectSettingsModal({
 
   useEffect(() => {
     if (isOpen && projectId) {
-      fetchDocuments();
+      void fetchDocuments();
     }
   }, [isOpen, projectId, fetchDocuments]);
 
@@ -318,7 +318,7 @@ export function ProjectSettingsModal({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteChat(conv.id);
+                              void handleDeleteChat(conv.id);
                             }}
                             className="opacity-0 group-hover:opacity-100 p-1 hover:text-(--danger) transition-all"
                           >

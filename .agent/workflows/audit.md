@@ -36,4 +36,19 @@ Use this to perform a focused code quality audit on a file or feature.
    - Unused imports
    - Console.log left in code
 
-7. **Report** -- Summarize findings with severity (Critical, Warning, Info).
+7. **Run verification**:
+
+   ```bash
+   npm run verify
+   ```
+
+8. **Report** -- Summarize findings with severity (Critical, Warning, Info).
+
+## Exit Criteria (ALL must pass for audit to PASS)
+
+- [ ] Zero `any` types in audited scope (verified by `npm run lint`)
+- [ ] All error handlers show `toast.error()` on user-initiated actions
+- [ ] All UI text uses `t("key")` — no hardcoded strings
+- [ ] No `console.log` statements (only `logger.*`)
+- [ ] All components < 500 lines
+- [ ] `npm run verify` passes with zero errors

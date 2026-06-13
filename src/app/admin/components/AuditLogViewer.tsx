@@ -39,7 +39,7 @@ export default function AuditLogViewer() {
   const { t, language } = useLanguage();
 
   useEffect(() => {
-    fetchLogs();
+    void fetchLogs();
   }, []);
 
   const fetchLogs = async () => {

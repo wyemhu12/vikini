@@ -244,7 +244,7 @@ export function useChatStreamController({
       // Reload messages from server to ensure all messages have proper IDs
       // This fixes the edit-after-stop bug where handleEdit can't find messages
       if (commitPartial && selectedConversationId) {
-        reloadMessagesAfterStream(selectedConversationId);
+        void reloadMessagesAfterStream(selectedConversationId);
       }
     },
     [normalizeMessages, stopTypewriter, selectedConversationId, reloadMessagesAfterStream]
@@ -323,7 +323,7 @@ export function useChatStreamController({
       }
     };
 
-    loadMessages();
+    void loadMessages();
     prevConversationIdRef.current = selectedConversationId;
   }, [selectedConversationId, loadingMessages, isStreaming, messages.length, normalizeMessages]);
 
@@ -632,7 +632,7 @@ export function useChatStreamController({
 
   const handleSend = useCallback(
     (text?: string, fileIds?: string[]) => {
-      coreSend(text ?? input, fileIds ? { fileIds } : {});
+      void coreSend(text ?? input, fileIds ? { fileIds } : {});
     },
     [coreSend, input]
   );
@@ -656,8 +656,9 @@ export function useChatStreamController({
               !specificMessage.id &&
               m.role === specificMessage.role &&
               m.content === specificMessage.content
-            )
+            ) {
               return true;
+            }
             return false;
           });
 
@@ -725,8 +726,9 @@ export function useChatStreamController({
           !originalMessage.id &&
           m.role === originalMessage.role &&
           m.content === originalMessage.content
-        )
+        ) {
           return true;
+        }
         return false;
       });
 

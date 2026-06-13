@@ -12,6 +12,7 @@ export default [
       parserOptions: {
         ecmaVersion: "latest",
         sourceType: "module",
+        project: "./tsconfig.json",
       },
       globals: {
         ...globals.node,
@@ -26,7 +27,7 @@ export default [
       // CONSOLE RULES
       // =====================================================
       // Warn for console.log, allow warn/error for production logging
-      "no-console": ["warn", {
+      "no-console": ["error", {
         allow: ["warn", "error"]
       }],
 
@@ -51,11 +52,11 @@ export default [
 
       // IMPORTANT: Prevent `any` type usage for type safety
       // Use `unknown` instead and narrow with type guards
-      "@typescript-eslint/no-explicit-any": "warn",
+      // BANNED by rules/01-coding.md — must be "error" to fail CI
+      "@typescript-eslint/no-explicit-any": "error",
 
       // Ensure async functions are properly awaited
-      // Note: Requires type-aware linting (parserOptions.project)
-      // "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-floating-promises": "error",
 
       // Prevent duplicate class members
       "no-dupe-class-members": "off",

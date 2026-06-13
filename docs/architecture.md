@@ -200,3 +200,19 @@ Limits are managed at **two levels**:
 
 1. **Vercel Environment Variables**: Rate limiting (`RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_SECONDS`), file limits (via `rank_configs.max_file_size_mb`)
 2. **Admin Dashboard (`/admin` → Limits tab)**: Per-rank daily message limits, max file size, feature toggles, allowed models — stored in `rank_configs` table in Supabase
+
+## 6. Token Observability
+
+> **Status**: Not yet implemented. Currently no automated token tracking for agent workflows.
+
+### Future Implementation
+
+Track token usage per workflow type to identify optimization opportunities:
+
+- **Tokens per task completion** — total input+output tokens from first edit to passing `npm run verify`
+- **Verify command cost** — tokens spent on iterative type-check/lint/test cycles vs. actual code generation
+- **Workflow efficiency ratio** — `(tokens for code generation) / (total tokens)` — lower ratio = too much iteration
+
+### Why This Matters
+
+Most token cost comes from retry loops (fix → verify → fix → verify), not from the initial generation. Tracking these metrics enables data-driven decisions on model routing and workflow improvements.

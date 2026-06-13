@@ -127,7 +127,7 @@ export function GalleryView() {
 
   // Initial load
   useEffect(() => {
-    fetchImages(false);
+    void fetchImages(false);
   }, []);
 
   // Infinite scroll observer
@@ -135,7 +135,7 @@ export function GalleryView() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          fetchImages(true);
+          void fetchImages(true);
         }
       },
       { threshold: 0.1 }

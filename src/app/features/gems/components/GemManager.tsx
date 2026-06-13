@@ -49,7 +49,7 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
   }
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   const applyGemToConversation = async (gemId: string | null) => {

@@ -19,7 +19,10 @@ Use this workflow for complex or recurring bugs. Core rule: no fixes without a c
 2. Attempt to reproduce. Ask: "Can we reproduce this consistently?"
 3. If multi-component: add diagnostic logging at component boundaries to trace data flow.
 
-**Checkpoint**: Do you know the exact line of code or config causing the issue?
+**CHECKPOINT**: Root cause identified?
+
+- **YES** → proceed to Phase 3
+- **NO** → return to Phase 2 (max 2 retries, then escalate to Circuit Breaker)
 
 ## Phase 3: Pattern Analysis
 
@@ -31,16 +34,17 @@ Use this workflow for complex or recurring bugs. Core rule: no fixes without a c
 1. Formulate: "I think X is broken because Y."
 2. Perform a minimal test (hardcoded value, log print) to verify.
 
-**Checkpoint**: Did the minimal test prove the hypothesis?
+**CHECKPOINT**: Hypothesis verified by minimal test?
 
-- If **NO** → return to Phase 2.
+- **YES** → proceed to Phase 5
+- **NO** → return to Phase 3 (max 2 retries, then escalate to Circuit Breaker)
 
 ## Phase 5: Implementation
 
 > **Only proceed if Phase 4 passed.**
 
 1. Implement the single fix.
-2. Run `npm run type-check && npm run lint && npm test`.
+2. Run `npm run verify`.
 3. Run `/post-fix` workflow to record the lesson.
 
 ## Circuit Breaker

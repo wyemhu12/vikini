@@ -138,7 +138,7 @@ export default function EditImageModal({
               if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                 e.preventDefault();
                 if (editPrompt.trim() && !loading) {
-                  handleApplyEdit();
+                  void handleApplyEdit();
                 }
               }
             }}

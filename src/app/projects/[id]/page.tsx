@@ -37,7 +37,7 @@ export default function ProjectPage() {
       setProject(found);
     } else {
       // Fetch if not in store
-      fetchProjects();
+      void fetchProjects();
     }
   }, [projectId, projects, fetchProjects]);
 
@@ -63,7 +63,7 @@ export default function ProjectPage() {
 
   useEffect(() => {
     if (projectId) {
-      fetchDocuments();
+      void fetchDocuments();
     }
   }, [projectId, fetchDocuments]);
 
@@ -336,7 +336,7 @@ export default function ProjectPage() {
                             variant: "danger",
                             confirmLabel: t("modalDeleteButton"),
                           });
-                          if (ok) deleteConversation(conv.id);
+                          if (ok) void deleteConversation(conv.id);
                         }}
                         className="opacity-0 group-hover:opacity-100 p-1 hover:text-(--danger) transition-all"
                       >

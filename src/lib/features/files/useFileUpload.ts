@@ -321,7 +321,7 @@ export function useFileUpload({
   const handleFileInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files?.length) {
-        uploadFiles(e.target.files);
+        void uploadFiles(e.target.files);
       }
       // Reset input so same file can be re-uploaded
       e.target.value = "";
@@ -359,7 +359,7 @@ export function useFileUpload({
       dragCounter.current = 0;
       setIsDragging(false);
       if (e.dataTransfer?.files.length) {
-        uploadFiles(e.dataTransfer.files);
+        void uploadFiles(e.dataTransfer.files);
       }
     };
 
@@ -406,7 +406,7 @@ export function useFileUpload({
 
       if (files.length > 0) {
         e.preventDefault();
-        uploadFiles(files);
+        void uploadFiles(files);
       }
     };
 

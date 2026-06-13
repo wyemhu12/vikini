@@ -64,8 +64,9 @@ export async function GET() {
 
 ## Step 6: Bilingual
 
-- Add ALL user-facing text to `lib/utils/config.ts` translations
-- Add keys to both `translations.vi` and `translations.en` simultaneously
+- Add ALL user-facing text to `lib/utils/translations/` (`vi.ts` and `en.ts`)
+- Add keys to both files simultaneously
+- Use `useLanguage()` + `t("key")` in components (see `rules/04-bilingual.md`)
 - Follow `skills/add-translation.md` for the full workflow
 - Run `npm run type-check` to verify key parity
 
@@ -82,7 +83,7 @@ export async function GET() {
 ## Step 8: Verify
 
 ```bash
-npm run type-check && npm run lint && npm test
+npm run verify
 ```
 
 - Add or update tests for new business logic

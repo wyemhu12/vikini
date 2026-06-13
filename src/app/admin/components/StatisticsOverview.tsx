@@ -37,7 +37,7 @@ export default function StatisticsOverview() {
   const { t } = useLanguage();
 
   useEffect(() => {
-    fetchStats();
+    void fetchStats();
   }, []);
 
   const fetchStats = async () => {

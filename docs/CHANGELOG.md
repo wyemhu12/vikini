@@ -5,6 +5,63 @@
 
 ---
 
+## 2026-06-14: Improvement — Harness Engineering Audit v2 Actions
+
+### CI/CD Pipeline (Tier 3 Verification)
+
+- **[NEW] `.github/workflows/ci.yml`** — GitHub Actions workflow runs `npm run verify` (type-check + lint + test) on every push/PR to `main`/`develop`. Closes the Tier 3 verification gap.
+
+### ESLint Enforcement Upgrades
+
+- **`no-console`: `warn` → `error`** — Forces use of `logger.*` instead of `console.log`.
+- **`no-floating-promises`: enabled** — Added `parserOptions.project` for type-aware linting. Fixed 46 fire-and-forget promises across 22 files with `void` operator.
+- **`as any` violations fixed** — Replaced 2 `as any` casts in `anthropic-stream.ts` with narrowed type assertion.
+
+### API Route Tests (+94 new tests)
+
+- **[NEW]** `conversations/route.test.ts` (22 tests), `gems/route.test.ts` (31 tests), `gallery/route.test.ts` (22 tests), `files/route.test.ts` (14 tests), `user/allowed-models/route.test.ts` (5 tests)
+- **Test total**: 102 → 196 tests (14 test files, all passing)
+
+---
+
+## 2026-06-13: Improvement — Harness Engineering D-G
+
+- **D: Tiered verification** — Replaced single `npm run verify` in Post-Change Checklist with 3 tiers: Tier 1 (`type-check` after each edit), Tier 2 (`verify` after task), Tier 3 (CI before merge).
+- **E: Workflow checkpoints** — Added structured CHECKPOINT gates with YES/NO branches and max 2 retries in `debug.md` after Phase 2 (root cause) and Phase 4 (hypothesis).
+- **F: Model routing docs** — Created `docs/model-routing.md` with task-to-model tier mapping (7 task types) and cost awareness guidelines.
+- **G: Token observability** — Added Section 6 to `architecture.md` documenting future token tracking metrics (per-task cost, verify overhead, efficiency ratio).
+
+---
+
+## 2026-06-13: Improvement — Workflow Efficiency Optimization (A+B+C)
+
+- **A: `npm run verify` script** — Added to `package.json`. Combines type-check + lint + test:run into one command. Fixes PowerShell `&&` incompatibility. Updated all rules, workflows, and skills to use `npm run verify`.
+- **B: `audit.md` exit criteria** — Added verifiable checklist (zero `any`, toast.error on actions, no hardcoded strings, no console.log, component size). Agent now knows when audit PASSES.
+- **C: Reorder `01-coding.md`** — BANNED/critical rules (`any` ban, silent catch ban, test requirements) moved to TOP of file. Based on "Lost in the Middle" research (agents miss instructions in the middle of long files).
+
+---
+
+## 2026-06-13: Fix — Top 3 Harness Engineering Gaps
+
+- **Fix #1: Test enforcement** — Added "Testing Requirements" section to `01-coding.md` with `<important>` tag. Co-located tests (`*.test.ts`) now mandatory for `lib/features/` and `lib/core/`.
+- **Fix #2: `no-explicit-any` → error** — Changed from `"warn"` to `"error"` in `eslint.config.mjs`. CI now fails on `any` types. Verified: 0 errors.
+- **Fix #3: `add-translation.md` rewrite** — Rewrote skill to match current system (`lib/utils/translations/`, `useLanguage()` + `t("key")`). Also fixed stale paths in `04-bilingual.md` and `add-feature.md`.
+
+---
+
+## 2026-06-13: Improvement — Enforce Workflow Usage in Agent Rules (Harness Engineering)
+
+- **What changed**: Updated `02-quality.md` to embed workflow steps directly into rules instead of relying on weak references.
+- **Why**: Agents rarely self-invoked workflows (`/debug`, `/post-fix`, `/audit`) because they were framed as optional slash commands, not mandatory procedures.
+- **Changes**:
+  1. Pre-Work Protocol table now has a "Workflow to follow" column mapping domains to mandatory workflows
+  2. Added `<important>` blocks requiring agents to read and follow workflows step-by-step
+  3. "After Fixing a Bug" section renamed from "ADDITIONAL" to "MANDATORY Post-Fix Protocol" with inline steps
+  4. New "Debugging Protocol" section with inline steps from `/debug` workflow
+  5. Circuit breaker rule (3 failed fixes → STOP) now visible directly in rules
+
+---
+
 ## 2026-06-13: Fix — Sidebar Layout Jump/Bounce When Switching Chats (RECURRING)
 
 - **What changed**: Elements from Projects section downward no longer "jump" when switching between chats or clicking sidebar items.

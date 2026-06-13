@@ -290,7 +290,7 @@ export default function ChatApp() {
     onSuccess: () => {
       // Reload messages to show the generated image
       if (selectedConversationId) {
-        handleSelectConversation(selectedConversationId);
+        void handleSelectConversation(selectedConversationId);
       }
       // Clear temporary state
       setLastGeneratedImage(null);
@@ -412,7 +412,7 @@ export default function ChatApp() {
 
   // Auto sign in
   useEffect(() => {
-    if (!isAuthLoading && !isAuthed) signIn();
+    if (!isAuthLoading && !isAuthed) void signIn();
   }, [isAuthed, isAuthLoading]);
 
   // Gem applied callback
@@ -420,7 +420,7 @@ export default function ChatApp() {
   useEffect(() => {
     setOnGemApplied((conversationId: string, gem: GemInfo | null) => {
       patchConversationGem(conversationId, gem);
-      refreshConversations();
+      void refreshConversations();
     });
     return () => {
       if (useGemStore.getState().setOnGemApplied) {
@@ -432,7 +432,7 @@ export default function ChatApp() {
   // Memoized callbacks
   const memoizedOnSelectConversation = useCallback(
     (id: string | null) => {
-      handleSelectConversation(id);
+      void handleSelectConversation(id);
       closeMobileSidebar();
     },
     [handleSelectConversation, closeMobileSidebar]
@@ -440,7 +440,7 @@ export default function ChatApp() {
 
   // Sidebar-specific memoized callbacks (prevent re-renders via React.memo)
   const memoizedOnNewChat = useCallback(() => {
-    handleNewChat();
+    void handleNewChat();
     closeMobileSidebar();
   }, [handleNewChat, closeMobileSidebar]);
 
@@ -457,7 +457,7 @@ export default function ChatApp() {
   const memoizedOnToggleCollapse = useCallback(() => setSidebarCollapsed((prev) => !prev), []);
 
   const memoizedOnLogoClick = useCallback(() => {
-    handleSelectConversation(null);
+    void handleSelectConversation(null);
     setSelectedProjectId(null);
     closeMobileSidebar();
   }, [handleSelectConversation, closeMobileSidebar]);
@@ -477,7 +477,7 @@ export default function ChatApp() {
   const memoizedOnSelectProject = useCallback(
     (projectId: string) => {
       setSelectedProjectId(projectId);
-      handleSelectConversation(null);
+      void handleSelectConversation(null);
       closeMobileSidebar();
     },
     [handleSelectConversation, closeMobileSidebar]
@@ -626,7 +626,7 @@ export default function ChatApp() {
                 }
               }}
               onSelectConversation={(id) => {
-                handleSelectConversation(id);
+                void handleSelectConversation(id);
                 setSelectedProjectId(null);
               }}
               onOpenSettings={() => {
@@ -879,7 +879,7 @@ export default function ChatApp() {
             }
           }}
           onSelectChat={(chatId) => {
-            handleSelectConversation(chatId);
+            void handleSelectConversation(chatId);
             setSelectedProjectId(null);
           }}
         />

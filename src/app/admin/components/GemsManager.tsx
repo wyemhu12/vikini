@@ -33,7 +33,7 @@ export default function GemsManager() {
   const { t } = useLanguage();
 
   useEffect(() => {
-    fetchGems();
+    void fetchGems();
   }, []);
 
   const fetchGems = async () => {

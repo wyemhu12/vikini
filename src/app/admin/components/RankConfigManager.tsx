@@ -32,7 +32,7 @@ export default function RankConfigManager() {
   const { t } = useLanguage();
 
   useEffect(() => {
-    fetchConfigs();
+    void fetchConfigs();
   }, []);
 
   const fetchConfigs = async () => {
