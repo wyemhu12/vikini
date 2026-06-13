@@ -92,6 +92,13 @@
 - **Fix**: Wrapped `personalConversations` with `useMemo([conversations])`.
 - **Prevention Rule**: **Any `.filter()`, `.map()`, or `.reduce()` result that flows to a memoized component as a prop MUST be wrapped in `useMemo`.** This is the 2nd occurrence of sidebar flickering (1st was unmemoized callbacks, now unstable arrays). Always audit props passed to `React.memo` components for referential stability.
 
+### 2026-06: Sidebar layout jump/bounce — animation + useEffect state flash ⚠️ RECURRING (3rd occurrence)
+
+- **Symptom**: All elements from Projects downward "jump" once when switching chats or clicking sidebar items.
+- **Root Cause** (3 combined): (1) `SidebarItem` had `initial={{ opacity: 0, x: -10 }}` — runs enter animation on mount/remount. (2) `SidebarSection` read localStorage via `useEffect` causing state flash after first render. (3) `ProjectNode` auto-expand effect called `setIsExpanded(true)` even when already expanded, triggering unnecessary re-renders.
+- **Fix**: (1) Set `initial={false}` on motion.div. (2) Use synchronous `useState(() => localStorage...)` lazy initializer. (3) Guard with `setIsExpanded(prev => prev ? prev : true)`.
+- **Prevention Rule**: **NEVER use `useEffect` to read `localStorage` for initial state — use `useState` lazy initializer instead.** **NEVER use `initial={{ ... }}` animations on list items that may remount — use `initial={false}` and let `AnimatePresence` handle exit-only animations.** **Always guard `setState(value)` with functional updater when the value might equal current state — prevents unnecessary re-renders.**
+
 ### 2026-05: Side effects inside useDebounceCallback are delayed — mark state changes synchronously
 
 - **Symptom**: After clicking Send, uploaded files stayed visible in input preview for 500ms before disappearing

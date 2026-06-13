@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
@@ -42,15 +42,13 @@ export function SidebarSection({
   emptyIcon: _emptyIcon,
   emptyMessage: _emptyMessage,
 }: SidebarSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem(`sidebar-section-${storageKey}`);
-    if (stored !== null) {
-      setIsExpanded(stored === "true");
+  const [isExpanded, setIsExpanded] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(`sidebar-section-${storageKey}`);
+      if (stored !== null) return stored === "true";
     }
-  }, [storageKey]);
+    return defaultExpanded;
+  });
 
   const toggle = () => {
     const newState = !isExpanded;

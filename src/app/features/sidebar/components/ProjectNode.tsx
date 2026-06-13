@@ -41,22 +41,23 @@ export function ProjectNode({
   onRenameConversation,
   onDeleteConversation,
 }: ProjectNodeProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(`project-expanded-${project.id}`);
+      if (stored !== null) return stored === "true";
+    }
+    return false;
+  });
   const { t } = useLanguage();
 
-  // Load expanded state from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem(`project-expanded-${project.id}`);
-    if (stored !== null) {
-      setIsExpanded(stored === "true");
-    }
-  }, [project.id]);
-
-  // Auto-expand if a chat in this project is active
+  // Auto-expand if a chat in this project is active (guarded to avoid no-op re-renders)
   useEffect(() => {
     if (activeConversationId && conversations.some((c) => c.id === activeConversationId)) {
-      setIsExpanded(true);
-      localStorage.setItem(`project-expanded-${project.id}`, "true");
+      setIsExpanded((prev) => {
+        if (prev) return prev; // Already expanded — bail out, no re-render
+        localStorage.setItem(`project-expanded-${project.id}`, "true");
+        return true;
+      });
     }
   }, [activeConversationId, conversations, project.id]);
 

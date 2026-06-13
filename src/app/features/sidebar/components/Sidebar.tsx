@@ -402,7 +402,7 @@ function Sidebar({
                   <span className="text-[10px] text-(--text-muted)">Start a new chat to begin</span>
                 </div>
               ) : (
-                <AnimatePresence mode="sync">
+                <AnimatePresence initial={false}>
                   {list.map((c) => (
                     <SidebarItem
                       key={c.id}

@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-06-13: Fix — Sidebar Layout Jump/Bounce When Switching Chats (RECURRING)
+
+- **What changed**: Elements from Projects section downward no longer "jump" when switching between chats or clicking sidebar items.
+- **Root causes fixed** (3 combined):
+  1. `SidebarItem` had `initial={{ opacity: 0, x: -10 }}` causing enter animation on every mount → set `initial={false}`
+  2. `SidebarSection` read localStorage via `useEffect` causing post-mount state flash → moved to synchronous lazy initializer in `useState`
+  3. `ProjectNode` auto-expand effect triggered unnecessary re-renders even when already expanded → added functional updater guard
+- **Additional fix**: Changed `AnimatePresence mode="sync"` to `initial={false}` in chat list wrapper
+- **Files**: `SidebarItem.tsx`, `Sidebar.tsx`, `SidebarSection.tsx`, `ProjectNode.tsx`
+
 ## 2026-06-12: Fix — UX/UI Audit Minor Batch (27 issues)
 
 ### Animation

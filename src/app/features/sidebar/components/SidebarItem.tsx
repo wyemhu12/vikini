@@ -114,9 +114,8 @@ function SidebarItem({
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -10 }}
+      initial={false}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
       exit={{ opacity: 0, x: -60, scale: 0.9, transition: { duration: 0.3, ease: "easeIn" } }}
       className={cn(
         "relative group w-full px-2 transition-[opacity,transform] duration-200",
