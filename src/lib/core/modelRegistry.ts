@@ -248,9 +248,9 @@ const API_ALLOWED = new Set([
   "gemini-2.5-flash",
   "gemini-2.5-pro",
 
-  // Gemini 3 official IDs (with -preview suffix)
+  // Gemini 3 official IDs (GA)
   "gemini-3-flash-preview",
-  "gemini-3-pro-image-preview",
+  "gemini-3-pro-image",
 
   // Gemini 3.1 (March 2026)
   "gemini-3.1-pro-preview",
@@ -289,9 +289,9 @@ export const MODEL_ALIASES: Record<string, string> = {
   "gemini-1.5-pro": DEFAULT_MODEL,
   "gemini-1.5-flash": DEFAULT_MODEL,
 
-  // Gemini 3 aliases → official preview IDs
+  // Gemini 3 aliases → GA IDs
   "gemini-3-flash": "gemini-3-flash-preview",
-  "gemini-3-pro-image": "gemini-3-pro-image-preview",
+  "gemini-3-pro-image-preview": "gemini-3-pro-image",
 
   // Gemini 3.1 aliases (+ deprecated Gemini 3 Pro → 3.1)
   "gemini-3.1-pro": "gemini-3.1-pro-preview",

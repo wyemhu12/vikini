@@ -65,7 +65,7 @@ export function ImageGenStudio() {
 
   // UI States
   const [prompt, setPrompt] = useState("");
-  const [model, setModel] = useState("gemini-3.1-flash-image-preview");
+  const [model, setModel] = useState("gemini-3.1-flash-image");
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [style, setStyle] = useState("none");
   const [isEnhancerOn, setIsEnhancerOn] = useState(false);
@@ -177,7 +177,7 @@ export function ImageGenStudio() {
 
   // Check if API key is required for the selected model
   const getRequiredApiKey = () => {
-    if (model.includes("dall-e")) {
+    if (model.includes("gpt-image")) {
       return { key: localStorage.getItem("vikini-openai-key") || "", provider: "OpenAI" };
     } else if (model.includes("flux") || model.includes("replicate")) {
       return { key: localStorage.getItem("vikini-replicate-key") || "", provider: "Replicate" };
@@ -193,7 +193,7 @@ export function ImageGenStudio() {
     const { key, provider: _provider } = getRequiredApiKey();
     // Only require for OpenAI and Replicate (third-party)
     if (
-      (model.includes("dall-e") || model.includes("flux") || model.includes("replicate")) &&
+      (model.includes("gpt-image") || model.includes("flux") || model.includes("replicate")) &&
       !key
     ) {
       setShowApiKeyWarning(true);

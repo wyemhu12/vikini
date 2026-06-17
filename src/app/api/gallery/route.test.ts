@@ -132,7 +132,7 @@ const SAMPLE_MESSAGES = [
       type: "image_gen",
       imageUrl: "https://cdn.example.com/img1.png",
       prompt: "sunset mountains",
-      originalOptions: { aspectRatio: "16:9", style: "vivid", model: "imagen-4" },
+      originalOptions: { aspectRatio: "16:9", style: "vivid", model: "gemini-3.1-flash-image" },
     },
   },
   {
@@ -391,7 +391,7 @@ describe("/api/gallery", () => {
       expect(img.createdAt).toBe("2026-06-01T00:00:00Z");
       expect(img.aspectRatio).toBe("16:9");
       expect(img.style).toBe("vivid");
-      expect(img.model).toBe("imagen-4");
+      expect(img.model).toBe("gemini-3.1-flash-image");
     });
 
     it("should use attachment URL when imageUrl is absent", async () => {

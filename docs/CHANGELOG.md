@@ -5,6 +5,51 @@
 
 ---
 
+## 2026-06-17: Feature — Model Descriptions in Image Studio + DALL-E 3 → GPT Image 2
+
+### Model Descriptions (Bilingual)
+
+- **`ControlPanel.tsx`** — Model selector now shows bilingual descriptions under each model name
+- **`en.ts` / `vi.ts`** — Added 4 new translation keys: `studioModelFlashDesc`, `studioModelProDesc`, `studioModelFluxDesc`, `studioModelGptImageDesc`
+
+### DALL-E 3 → GPT Image 2 Migration
+
+DALL-E 3 API was deprecated and removed by OpenAI on 12/05/2026. Migrated to `gpt-image-2`.
+
+- **`OpenAIImageProvider.ts`** — Complete rewrite: model `dall-e-3` → `gpt-image-2`, handles `b64_json` response format, updated size mappings
+- **`ControlPanel.tsx`** — Model value `dall-e-3` → `gpt-image-2`, label `DALL-E 3` → `GPT Image 2`
+- **`ImageGenStudio.tsx`** — Updated BYOK validation checks from `dall-e` → `gpt-image`
+- **`generate-image/route.ts`** — Updated routing conditions and fallback label
+- **`ImageGenPreview.tsx`** — Added `gpt-image` display name, kept legacy `dall-e` for old messages
+
+---
+
+## 2026-06-17: Migration — Imagen 4 + Nano Banana Preview → GA Models
+
+### URGENT: Nano Banana Preview → GA (deadline 25/06/2026)
+
+- **`GeminiNativeImageProvider.ts`** — Default model `gemini-3.1-flash-image-preview` → `gemini-3.1-flash-image` (GA)
+- **`ImageGenStudio.tsx`** — Default state updated to GA model ID
+- **`ControlPanel.tsx`** — Model selector values: `-preview` → GA for both Flash and Pro
+- **`EditImageModal.tsx`** — Edit model list updated to GA IDs, labels standardized
+- **`edit-image/route.ts`** — API default model updated to GA
+- **`modelRegistry.ts`** — `API_ALLOWED` updated, preview IDs added as backward-compat aliases
+- **`chat-stream/utils.ts`** — Gemini 3 model identifiers updated
+
+### Imagen 4 Dead Code Removal (deadline 17/08/2026)
+
+- **[DELETED] `GeminiImageProvider.ts`** — Removed dead provider using deprecated `imagen-4.0-generate-001` (alpha `generateImages` API)
+- **`ImageGenFactory.ts`** — Removed import, redirected legacy `"gemini"` provider → `GeminiNativeImageProvider`
+- **`generate-image/route.ts`** — Cleaned up model labels (`"Imagen 4"` → `"Gemini Image Flash"`)
+
+### Cleanup
+
+- **`ControlPanel.tsx`** — Removed dead `!model.includes("imagen")` condition
+- **`gallery/route.test.ts`** — Updated test fixtures from `imagen-4` → `gemini-3.1-flash-image`
+- **Docs** — Updated `contracts.md`, `architecture.md`, `features.md`, `overview.md` with current model names
+
+---
+
 ## 2026-06-14: Improvement — Harness Engineering Audit v2 Actions
 
 ### CI/CD Pipeline (Tier 3 Verification)

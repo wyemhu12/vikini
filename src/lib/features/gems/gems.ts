@@ -198,8 +198,9 @@ export async function getGemInstructionsForConversation(
     .eq("id", gemId)
     .maybeSingle();
 
-  if (gemErr)
+  if (gemErr) {
     throw new DatabaseError(`getGemInstructionsForConversation gem failed: ${gemErr.message}`);
+  }
 
   const gemRow = gem as { instruction?: string; instructions?: string } | null;
   const ins =

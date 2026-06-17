@@ -99,7 +99,7 @@ export default function ControlPanel({
   );
 
   const isGeminiNative = model.includes("gemini-3") || model.includes("gemini-3.1");
-  const showRefWarning = referenceImage && !isGeminiNative && !model.includes("imagen");
+  const showRefWarning = referenceImage && !isGeminiNative;
 
   return (
     <aside
@@ -195,12 +195,36 @@ export default function ControlPanel({
               <SelectValue placeholder={t("studioSelectModel")} />
             </SelectTrigger>
             <SelectContent className="bg-(--surface-elevated) border border-(--border) shadow-xl z-100">
-              <SelectItem value="gemini-3.1-flash-image-preview">Gemini Image Flash</SelectItem>
-              <SelectItem value="gemini-3-pro-image-preview">Gemini Image Pro</SelectItem>
-              <SelectItem value="black-forest-labs/flux-schnell">
-                Flux Schnell (Replicate)
+              <SelectItem value="gemini-3.1-flash-image">
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-medium">Gemini Image Flash</span>
+                  <span className="text-xs text-(--text-secondary)">
+                    {t("studioModelFlashDesc")}
+                  </span>
+                </div>
               </SelectItem>
-              <SelectItem value="dall-e-3">DALL-E 3 (OpenAI)</SelectItem>
+              <SelectItem value="gemini-3-pro-image">
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-medium">Gemini Image Pro</span>
+                  <span className="text-xs text-(--text-secondary)">{t("studioModelProDesc")}</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="black-forest-labs/flux-schnell">
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-medium">Flux Schnell (Replicate)</span>
+                  <span className="text-xs text-(--text-secondary)">
+                    {t("studioModelFluxDesc")}
+                  </span>
+                </div>
+              </SelectItem>
+              <SelectItem value="gpt-image-2">
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-medium">GPT Image 2 (OpenAI)</span>
+                  <span className="text-xs text-(--text-secondary)">
+                    {t("studioModelGptImageDesc")}
+                  </span>
+                </div>
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>

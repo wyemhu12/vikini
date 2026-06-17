@@ -35,8 +35,8 @@ interface EditImageModalProps {
 const ASPECT_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4"] as const;
 
 const EDIT_MODELS = [
-  { value: "gemini-3.1-flash-image-preview", label: "Nano Banana 2 (Gemini)" },
-  { value: "gemini-3-pro-image-preview", label: "Nano Banana Pro (Gemini)" },
+  { value: "gemini-3.1-flash-image", label: "Gemini Image Flash" },
+  { value: "gemini-3-pro-image", label: "Gemini Image Pro" },
 ] as const;
 
 export default function EditImageModal({

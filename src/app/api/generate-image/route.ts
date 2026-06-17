@@ -167,7 +167,11 @@ export async function POST(req: NextRequest) {
       modelName?.includes("schnell")
     ) {
       providerName = "replicate";
-    } else if (modelName?.includes("dall-e") || modelName?.includes("gpt")) {
+    } else if (
+      modelName?.includes("dall-e") ||
+      modelName?.includes("gpt-image") ||
+      modelName?.includes("gpt")
+    ) {
       providerName = "openai";
     }
 
@@ -254,15 +258,13 @@ export async function POST(req: NextRequest) {
     // Ensure model is always present in originalOptions
     const effectiveModel =
       options?.model ||
-      (providerName === "gemini"
-        ? "Imagen 4"
-        : providerName === "gemini-native"
-          ? "Nano Banana"
-          : providerName === "openai"
-            ? "DALL-E 3"
-            : providerName === "replicate"
-              ? "Flux"
-              : "Unknown");
+      (providerName === "gemini" || providerName === "gemini-native"
+        ? "Gemini Image Flash"
+        : providerName === "openai"
+          ? "GPT Image 2"
+          : providerName === "replicate"
+            ? "Flux"
+            : "Unknown");
 
     const savedOptions = {
       ...options,

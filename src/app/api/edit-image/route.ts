@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
       "";
 
     const ai = new GoogleGenAI({ apiKey });
-    const modelId = options?.model || "gemini-3.1-flash-image-preview";
+    const modelId = options?.model || "gemini-3.1-flash-image";
 
     routeLogger.info(`Editing image with model: ${modelId}`);
 

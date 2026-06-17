@@ -372,8 +372,9 @@ async function doSaveConversation(
       .select("*")
       .single();
 
-    if (attempt2.error)
+    if (attempt2.error) {
       throw new DatabaseError(`saveConversation failed: ${attempt2.error.message}`);
+    }
     result = mapConversationRow(attempt2.data);
   }
 

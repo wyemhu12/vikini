@@ -56,7 +56,7 @@ interface MessageMeta {
     aspectRatio?: string; // "1:1", "16:9", etc.
     style?: string; // Style preset used
     enhancer?: boolean; // AI prompt enhancement enabled
-    model?: string; // Image model used (imagen-4, flux, dall-e)
+    model?: string; // Image model used (gemini-flash-image, gemini-pro-image, flux, dall-e)
   };
 }
 

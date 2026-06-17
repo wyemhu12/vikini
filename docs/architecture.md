@@ -134,7 +134,7 @@ Tests are colocated with source files using the `.test.ts` / `.test.tsx` suffix.
 
 ### Image Generation (Image Studio)
 
-- Multi-model support: Gemini Imagen 3, DALL-E 3, Flux Pro
+- Multi-model support: Gemini Image Flash, Gemini Image Pro, DALL-E 3, Flux Pro
 - BYOK (Bring Your Own Key) for third-party providers
 - Style presets and aspect ratio controls
 - Route: `/image-studio`

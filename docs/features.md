@@ -136,7 +136,7 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 
 **Models hỗ trợ**:
 
-- **Gemini Imagen 3**: Default, miễn phí
+- **Gemini Image Flash (Nano Banana 2)**: Default, miễn phí
 - **DALL-E 3**: Yêu cầu OpenAI API key (BYOK)
 - **Flux Pro**: Yêu cầu Replicate API key (BYOK)
 

@@ -6,7 +6,7 @@ const providerLogger = logger.withContext("GeminiNativeImageProvider");
 
 /**
  * Gemini Native Image Provider — uses generateContent API
- * for Nano Banana models (gemini-3.1-flash-image-preview, gemini-3-pro-image-preview).
+ * for Nano Banana models (gemini-3.1-flash-image, gemini-3-pro-image).
  *
  * Unlike Imagen (generateImages alpha API), these models use the standard
  * generateContent endpoint with `responseModalities: ['Image']`.
@@ -26,7 +26,7 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
     const ai = new GoogleGenAI({ apiKey: key });
 
     // Default to Nano Banana 2 (3.1 Flash Image) if no model specified
-    const modelId = options?.model || "gemini-3.1-flash-image-preview";
+    const modelId = options?.model || "gemini-3.1-flash-image";
 
     providerLogger.info(`Generating with model: ${modelId} (Native Image Gen)`);
 
@@ -45,7 +45,7 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
         ],
       };
 
-      // Aspect ratio via imageConfig (supported by gemini-3.1-flash-image-preview and gemini-3-pro-image-preview)
+      // Aspect ratio via imageConfig (supported by gemini-3.1-flash-image and gemini-3-pro-image)
       if (options?.aspectRatio) {
         config.imageConfig = {
           aspectRatio: options.aspectRatio,
