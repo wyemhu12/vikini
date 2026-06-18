@@ -74,19 +74,28 @@ export default function EditImageModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sourceImageUrl: image.url,
-          prompt: editPrompt.trim(),
-          model,
-          aspectRatio,
+          editPrompt: editPrompt.trim(),
           conversationId,
+          options: {
+            model,
+            aspectRatio,
+          },
         }),
       });
 
       if (!res.ok) {
         const data: unknown = await res.json().catch(() => ({}));
-        const message =
+        const errObj =
           data && typeof data === "object" && "error" in data
-            ? String((data as Record<string, unknown>).error)
-            : t("studioEditFailed");
+            ? (data as Record<string, unknown>).error
+            : null;
+        // error can be { message, code } object or a plain string
+        const message =
+          errObj && typeof errObj === "object" && "message" in errObj
+            ? String((errObj as Record<string, unknown>).message)
+            : typeof errObj === "string"
+              ? errObj
+              : t("studioEditFailed");
         throw new Error(message);
       }
 

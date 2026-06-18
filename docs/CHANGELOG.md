@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-06-18: Fix — EditImageModal `[object Object]` + Request Body Mismatch
+
+- **Symptom**: Clicking "Apply Edit" showed `[object Object]` in error field and edit never executed.
+- **Root causes**: (1) Request body sent `prompt` but API schema expected `editPrompt`; `model`/`aspectRatio` sent top-level but expected in `options` object → Zod validation always failed. (2) Error parsing used `String(data.error)` but `data.error` is `{ message, code }` object → `[object Object]`.
+- **Fix**: Corrected request body field names to match Zod schema. Fixed error extraction to check for nested `.message` property.
+- **Files**: `EditImageModal.tsx`
+
+---
+
 ## 2026-06-18: Feature — Image Studio Upgrade (5 Criteria Audit)
 
 ### 1. Suggestion Tags (ControlPanel)

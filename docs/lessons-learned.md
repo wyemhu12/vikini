@@ -139,6 +139,13 @@
 - **Fix**: Added a fallback check that compares `role` and `content` when both IDs are missing, and ensured that `fileIds` are preserved when extracting the previous user message for regeneration.
 - **Prevention Rule**: **Do NOT rely purely on object reference equality (`===`) for array items if the array is mapped/normalized.** If a component maps over an array and creates new objects, any event handler that tries to find the item in the original array by reference will fail. Always use a robust unique identifier (like an ID) or a deep structural comparison fallback.
 
+### 2026-06: `String(data.error)` produces `[object Object]` when API returns structured error
+
+- **Symptom**: EditImageModal showed `[object Object]` in the error display after a failed API call. No useful error feedback to user.
+- **Root Cause**: API response format is `{ error: { message: "...", code: "..." } }` (object), but client code used `String(data.error)` which stringifies the object to `[object Object]`. Also, request body had field name mismatch (`prompt` sent but `editPrompt` expected; `model`/`aspectRatio` sent top-level but expected nested in `options`).
+- **Fix**: Extract `data.error.message` instead of `String(data.error)`. Fixed request body field names to match Zod schema.
+- **Prevention Rule**: **When parsing error responses, ALWAYS check if `data.error` is an object with a `.message` property before stringifying.** The standardized API error format is `{ error: { message, code } }`. Use: `typeof errObj === "object" && "message" in errObj ? errObj.message : String(errObj)`.
+
 - **Symptom**: Agent skipped `await auth()` in API routes believing proxy handled it
 - **Root Cause**: `docs/security.md` documented a non-existent `proxy.ts` mechanism
 - **Fix**: Corrected docs to reflect actual NextAuth v5 direct import pattern
