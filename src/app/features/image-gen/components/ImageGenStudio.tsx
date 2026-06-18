@@ -37,6 +37,34 @@ import { formatDate } from "@/lib/utils/dateFormat";
 import { motion, AnimatePresence } from "framer-motion";
 import { Wand2, Images } from "lucide-react";
 
+/** Classify raw error messages into user-friendly i18n messages + suggestions */
+function classifyError(
+  errorMsg: string,
+  t: (key: string) => string
+): { message: string; suggestion?: string } {
+  const lower = errorMsg.toLowerCase();
+  if (lower.includes("safety") || lower.includes("blocked")) {
+    return {
+      message: t("studioErrorSafety"),
+      suggestion: t("studioErrorSafetySuggestion"),
+    };
+  }
+  if (lower.includes("rate limit") || lower.includes("429") || lower.includes("too many")) {
+    return {
+      message: t("studioErrorRateLimit"),
+      suggestion: t("studioErrorRateLimitSuggestion"),
+    };
+  }
+  if (lower.includes("content policy") || lower.includes("recitation")) {
+    return {
+      message: t("studioErrorContentPolicy"),
+      suggestion: t("studioErrorContentPolicySuggestion"),
+    };
+  }
+  // Default — use the raw error if meaningful, otherwise generic
+  return { message: errorMsg || t("studioGenerateFailed") };
+}
+
 export function ImageGenStudio() {
   const { data: session, status } = useSession();
   const isAuthed = status === "authenticated";
@@ -80,7 +108,7 @@ export function ImageGenStudio() {
   // Modal States
   const [showApiKeyWarning, setShowApiKeyWarning] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  const [showError, setShowError] = useState<string | null>(null);
+  const [showError, setShowError] = useState<{ message: string; suggestion?: string } | null>(null);
   const [showRenameModal, setShowRenameModal] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
@@ -215,7 +243,7 @@ export function ImageGenStudio() {
         targetId = newProj.id;
         setSelectedConversationId(newProj.id);
       } else {
-        setShowError(t("studioCreateProjectFailed"));
+        setShowError({ message: t("studioCreateProjectFailed") });
         return;
       }
     }
@@ -291,7 +319,7 @@ export function ImageGenStudio() {
       logger.error("Gen Error:", error);
       if (successCount === 0) {
         const errMsg = error instanceof Error ? error.message : "";
-        setShowError(errMsg || t("studioGenerateFailed"));
+        setShowError(classifyError(errMsg || t("studioGenerateFailed"), t));
       }
     } finally {
       setGenerating(false);
@@ -441,7 +469,16 @@ export function ImageGenStudio() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("error")}</AlertDialogTitle>
-            <AlertDialogDescription>{showError}</AlertDialogDescription>
+            <AlertDialogDescription>
+              <div className="space-y-2">
+                <p>{showError?.message}</p>
+                {showError?.suggestion && (
+                  <p className="text-xs text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mt-2">
+                    💡 {showError.suggestion}
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setShowError(null)}>{t("done")}</AlertDialogAction>
@@ -565,6 +602,7 @@ export function ImageGenStudio() {
               key="canvas"
               images={generatedImages}
               generating={generating}
+              selectedAspectRatio={aspectRatio}
               onRemix={handleRemix}
               onDelete={handleDeleteRequest}
               onEdit={handleEdit}

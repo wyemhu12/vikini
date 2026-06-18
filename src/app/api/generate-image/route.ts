@@ -118,7 +118,17 @@ export async function POST(req: NextRequest) {
           enhancerModelId = options.enhancerModel;
         }
 
-        const enhancementPrompt = `Rewrite the following image generation prompt to be more detailed, artistic, and descriptive. Keep it under 100 words. Maintain the original intent but enhance visual details, lighting, and style. Return ONLY the enhanced prompt, no intro/outro.\n\nOriginal Prompt: "${prompt}"`;
+        const enhancementPrompt = `You are a professional AI image prompt engineer. Enhance this prompt for maximum image quality.
+
+Rules:
+- Add specific visual details: lighting (volumetric, rim, ambient occlusion), texture, material
+- Add quality keywords: 8K, ultra-detailed, masterpiece, professional photography
+- Add composition cues: depth of field, rule of thirds, leading lines
+- Maintain the EXACT original intent and subject — do not change what the user wants
+- Keep under 150 words
+- Return ONLY the enhanced prompt text, no intro, no explanation, no quotes
+
+Original: "${prompt}"`;
 
         // Note: Using @google/genai SDK format
         const result = await genAI.models.generateContent({

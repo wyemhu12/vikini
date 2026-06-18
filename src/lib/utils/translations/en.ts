@@ -570,4 +570,32 @@ export const en = {
   rateLimitTitle: "Quota Exceeded",
   // Template modal
   choosePhoto: "Choose photo",
+  // Image Studio — Suggestion Tags
+  studioTagsLabel: "Quick add",
+  studioTagCinematicLighting: "cinematic lighting",
+  studioTagBokeh: "bokeh effect",
+  studioTagGoldenHour: "golden hour",
+  studioTagDramaticShadows: "dramatic shadows",
+  studioTagVibrantColors: "vibrant colors",
+  studioTagPastelTones: "pastel tones",
+  studioTagMonochrome: "monochrome",
+  studioTagNeonGlow: "neon glow",
+  studioTagCloseUp: "close-up shot",
+  studioTagWideAngle: "wide angle",
+  studioTagBirdsEye: "bird's eye view",
+  studioTagMinimalist: "minimalist",
+  // Image Studio — Dynamic Loading Messages
+  studioLoadingMixColors: "Mixing colors...",
+  studioLoadingDrawDetails: "Drawing details...",
+  studioLoadingPolishing: "Polishing...",
+  studioLoadingAlmostDone: "Almost done...",
+  studioLoadingCreating: "Creating your vision...",
+  // Image Studio — User-Friendly Errors
+  studioErrorSafety: "Your prompt was blocked by safety filters.",
+  studioErrorSafetySuggestion:
+    "Try rephrasing — avoid brand names, celebrities, or sensitive content.",
+  studioErrorRateLimit: "Too many requests. Please wait a moment.",
+  studioErrorRateLimitSuggestion: "Wait about 30 seconds before trying again.",
+  studioErrorContentPolicy: "Content policy violation detected.",
+  studioErrorContentPolicySuggestion: "Try a more original or creative prompt.",
 } as const;

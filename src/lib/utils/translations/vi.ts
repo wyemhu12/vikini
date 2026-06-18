@@ -580,4 +580,32 @@ export const vi = {
   rateLimitTitle: "Vượt hạn mức",
   // Template modal
   choosePhoto: "Chọn ảnh",
+  // Image Studio — Suggestion Tags
+  studioTagsLabel: "Thêm nhanh",
+  studioTagCinematicLighting: "ánh sáng điện ảnh",
+  studioTagBokeh: "hiệu ứng bokeh",
+  studioTagGoldenHour: "giờ vàng",
+  studioTagDramaticShadows: "bóng đổ kịch tính",
+  studioTagVibrantColors: "màu sắc rực rỡ",
+  studioTagPastelTones: "tông pastel",
+  studioTagMonochrome: "đơn sắc",
+  studioTagNeonGlow: "ánh neon",
+  studioTagCloseUp: "ảnh cận cảnh",
+  studioTagWideAngle: "góc rộng",
+  studioTagBirdsEye: "nhìn từ trên cao",
+  studioTagMinimalist: "tối giản",
+  // Image Studio — Dynamic Loading Messages
+  studioLoadingMixColors: "Đang pha màu...",
+  studioLoadingDrawDetails: "Đang vẽ chi tiết...",
+  studioLoadingPolishing: "Đang hoàn thiện...",
+  studioLoadingAlmostDone: "Sắp xong rồi...",
+  studioLoadingCreating: "Đang hiện thực hóa ý tưởng...",
+  // Image Studio — User-Friendly Errors
+  studioErrorSafety: "Prompt của bạn đã bị chặn bởi bộ lọc an toàn.",
+  studioErrorSafetySuggestion:
+    "Thử viết lại — tránh tên thương hiệu, người nổi tiếng, hoặc nội dung nhạy cảm.",
+  studioErrorRateLimit: "Quá nhiều yêu cầu. Vui lòng đợi một chút.",
+  studioErrorRateLimitSuggestion: "Đợi khoảng 30 giây rồi thử lại.",
+  studioErrorContentPolicy: "Phát hiện vi phạm chính sách nội dung.",
+  studioErrorContentPolicySuggestion: "Thử một prompt sáng tạo hoặc nguyên bản hơn.",
 } as const;

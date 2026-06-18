@@ -18,6 +18,25 @@ import SettingsModal from "./SettingsModal";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 
+// Suggestion tags for quick keyword insertion — 3 categories
+const SUGGESTION_TAGS = [
+  // Style
+  { key: "studioTagCinematicLighting", icon: "🎬" },
+  { key: "studioTagBokeh", icon: "📷" },
+  { key: "studioTagGoldenHour", icon: "🌅" },
+  { key: "studioTagDramaticShadows", icon: "🌑" },
+  // Color
+  { key: "studioTagVibrantColors", icon: "🌈" },
+  { key: "studioTagPastelTones", icon: "🎨" },
+  { key: "studioTagMonochrome", icon: "⬛" },
+  { key: "studioTagNeonGlow", icon: "💜" },
+  // Composition
+  { key: "studioTagCloseUp", icon: "🔍" },
+  { key: "studioTagWideAngle", icon: "🏞️" },
+  { key: "studioTagBirdsEye", icon: "🦅" },
+  { key: "studioTagMinimalist", icon: "✨" },
+] as const;
+
 export interface BatchQuotaInfo {
   rank: string;
   maxBatchSize: number;
@@ -142,6 +161,29 @@ export default function ControlPanel({
             }}
           />
           <p className="text-[10px] text-muted-foreground">{t("studioShortcutHint")}</p>
+
+          {/* Suggestion Tags — click to append keyword */}
+          <div className="space-y-1.5 pt-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {t("studioTagsLabel")}
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {SUGGESTION_TAGS.map((tag) => (
+                <button
+                  key={tag.key}
+                  onClick={() => {
+                    const tagText = t(tag.key);
+                    const separator = prompt.trim() ? ", " : "";
+                    setPrompt(prompt.trim() + separator + tagText);
+                  }}
+                  className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-(--border) bg-(--surface-elevated) hover:bg-purple-500/10 hover:border-purple-500/30 text-(--text-secondary) hover:text-(--text-primary) transition-all"
+                >
+                  <span className="mr-1">{tag.icon}</span>
+                  {t(tag.key)}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Magic Enhance Toggle */}

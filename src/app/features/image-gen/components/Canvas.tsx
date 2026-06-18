@@ -14,7 +14,34 @@ import {
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { motion, AnimatePresence } from "framer-motion";
 import { IMAGE_TEMPLATES, type ImageTemplate } from "@/lib/features/image-gen/templates";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { logger } from "@/lib/utils/logger";
+
+// Dynamic loading message keys — cycle every 2.5s
+const LOADING_MESSAGE_KEYS = [
+  "studioLoadingMixColors",
+  "studioLoadingDrawDetails",
+  "studioLoadingPolishing",
+  "studioLoadingAlmostDone",
+  "studioLoadingCreating",
+] as const;
+
+// Map aspect ratio string to Tailwind aspect class
+function getAspectClass(ratio?: string): string {
+  switch (ratio) {
+    case "16:9":
+      return "aspect-video";
+    case "9:16":
+      return "aspect-[9/16]";
+    case "4:3":
+      return "aspect-[4/3]";
+    case "3:4":
+      return "aspect-[3/4]";
+    case "1:1":
+    default:
+      return "aspect-square";
+  }
+}
 
 export interface GeneratedImage {
   id?: string;
@@ -29,6 +56,7 @@ export interface GeneratedImage {
 interface CanvasProps {
   images: GeneratedImage[];
   generating: boolean;
+  selectedAspectRatio?: string;
   onRemix: (image: GeneratedImage) => void;
   onDelete: (id: string) => void;
   onEdit?: (image: GeneratedImage) => void;
@@ -40,6 +68,7 @@ interface CanvasProps {
 export default function Canvas({
   images,
   generating,
+  selectedAspectRatio,
   onRemix,
   onDelete,
   onEdit,
@@ -49,6 +78,36 @@ export default function Canvas({
 }: CanvasProps) {
   const { t, language } = useLanguage();
   const [templatesExpanded, setTemplatesExpanded] = useState(false);
+
+  // Dynamic loading message cycling
+  const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
+  useEffect(() => {
+    if (!generating) {
+      setLoadingMsgIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setLoadingMsgIndex((prev) => (prev + 1) % LOADING_MESSAGE_KEYS.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [generating]);
+
+  // Proper blob download to handle CORS with signed URLs
+  const downloadImage = useCallback(async (image: GeneratedImage) => {
+    try {
+      const response = await fetch(image.url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `vikini-${Date.now()}.png`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      logger.warn("Blob download failed, falling back to window.open:", err);
+      window.open(image.url, "_blank");
+    }
+  }, []);
 
   return (
     <div
@@ -71,7 +130,7 @@ export default function Canvas({
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="break-inside-avoid mb-4 md:mb-6 aspect-square rounded-xl border border-(--border) flex flex-col items-center justify-center overflow-hidden relative"
+                className={`break-inside-avoid mb-4 md:mb-6 ${getAspectClass(selectedAspectRatio)} rounded-xl border border-(--border) flex flex-col items-center justify-center overflow-hidden relative`}
               >
                 {/* Shimmer background */}
                 <div className="absolute inset-0 shimmer-block" />
@@ -82,9 +141,18 @@ export default function Canvas({
                   >
                     <Sparkles className="w-10 h-10 text-purple-400 mb-3" />
                   </motion.div>
-                  <span className="text-muted-foreground text-sm font-medium">
-                    {t("studioGenerating")}
-                  </span>
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={loadingMsgIndex}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.3 }}
+                      className="text-muted-foreground text-sm font-medium"
+                    >
+                      {t(LOADING_MESSAGE_KEYS[loadingMsgIndex])}
+                    </motion.span>
+                  </AnimatePresence>
                 </div>
               </motion.div>
             )}
@@ -106,6 +174,18 @@ export default function Canvas({
                 loading="lazy"
                 onClick={() => onImageClick?.(item, idx)}
               />
+
+              {/* Quick download — always visible */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void downloadImage(item);
+                }}
+                className="absolute bottom-2 right-2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm transition-all opacity-70 hover:opacity-100 z-10 shadow-lg"
+                title={t("studioDownload")}
+              >
+                <Download className="w-4 h-4" />
+              </button>
 
               {/* Overlay with Controls */}
               <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/40 to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3 overflow-y-auto overflow-x-hidden">
@@ -172,15 +252,7 @@ export default function Canvas({
 
                     <div className="flex gap-1.5 shrink-0">
                       <button
-                        onClick={() => {
-                          const link = document.createElement("a");
-                          link.href = item.url;
-                          link.download = `generated-${Date.now()}.png`;
-                          link.target = "_blank";
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        }}
+                        onClick={() => void downloadImage(item)}
                         className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/5"
                         title={t("studioDownload")}
                       >

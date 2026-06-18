@@ -5,6 +5,38 @@
 
 ---
 
+## 2026-06-18: Feature — Image Studio Upgrade (5 Criteria Audit)
+
+### 1. Suggestion Tags (ControlPanel)
+
+- **`ControlPanel.tsx`** — Added 12 suggestion tags organized by category (Style: 🎬🌅📷🌑, Color: 🌈🎨⬛💜, Composition: 🔍🏞️🦅✨). Click-to-append into prompt textarea. Uses pill-button pattern consistent with EditImageModal.
+
+### 2. Dynamic Loading State (Canvas)
+
+- **`Canvas.tsx`** — Skeleton placeholder now matches the selected aspect ratio (was always `aspect-square`). Loading text cycles through 5 creative messages every 2.5s with fade animation (`Đang pha màu...` → `Đang vẽ chi tiết...` → etc.).
+
+### 3. Enhanced Prompt Quality (API Route)
+
+- **`route.ts`** — Upgraded AI enhancement system prompt from generic "100 words" to professional prompt engineering template with specific quality keywords (8K, volumetric lighting, depth of field, rule of thirds). Limit raised to 150 words.
+
+### 4. User-Friendly Error Handling (ImageGenStudio)
+
+- **`ImageGenStudio.tsx`** — Added `classifyError()` function that maps raw API error strings to i18n-friendly messages + helpful retry suggestions. Error modal now shows 💡 suggestion tip (amber highlight) for safety, rate-limit, and content-policy errors.
+
+### 5. Quick Download (Canvas)
+
+- **`Canvas.tsx`** — Always-visible download button (bottom-right corner) on image cards, no hover required. Download logic replaced from direct link to proper `fetch` → `Blob` → `URL.createObjectURL` to handle CORS with signed URLs.
+
+### Translation Keys
+
+- **`en.ts` / `vi.ts`** — Added 25 new bilingual keys: 12 suggestion tags, 5 loading messages, 6 error messages + suggestions, 1 label.
+
+### Verification
+
+- `type-check` ✅ | `lint` ✅ | `tests` ✅ (34 files, 409 tests, 0 failures)
+
+---
+
 ## 2026-06-17: Feature — Model Descriptions in Image Studio + DALL-E 3 → GPT Image 2
 
 ### Model Descriptions (Bilingual)
