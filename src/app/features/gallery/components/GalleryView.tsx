@@ -15,6 +15,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Heart,
 } from "lucide-react";
 import Image from "next/image";
 import Sidebar from "../../sidebar/components/Sidebar";
@@ -52,9 +53,10 @@ export function GalleryView() {
   // Fetch main chat conversations for the Sidebar
   const { conversations } = useConversation();
 
-  // Filter out Image Studio projects (Keep Main Chat only)
+  // Filter out Image Studio projects and template stores (Keep Main Chat only)
   const mainChats = (conversations || []).filter(
-    (c: FrontendConversation) => c.model !== "vikini-image-studio"
+    (c: FrontendConversation) =>
+      c.model !== "vikini-image-studio" && c.model !== "user_templates_store"
   );
 
   const [images, setImages] = useState<GalleryImage[]>([]);
@@ -79,6 +81,8 @@ export function GalleryView() {
     null,
   ]);
   const [showCompareModal, setShowCompareModal] = useState(false);
+  // MT7: Favorites filter
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // Infinite Scroll State
   const [offset, setOffset] = useState(0);
@@ -100,7 +104,10 @@ export function GalleryView() {
       const currentOffset = isLoadMore ? offset : 0;
 
       try {
-        const res = await fetch(`/api/gallery?limit=${PAGE_SIZE}&offset=${currentOffset}`);
+        const favParam = showFavoritesOnly ? `&favorites=true` : "";
+        const res = await fetch(
+          `/api/gallery?limit=${PAGE_SIZE}&offset=${currentOffset}${favParam}`
+        );
         if (res.ok) {
           const json = await res.json();
           const data = json.data || json;
@@ -122,13 +129,13 @@ export function GalleryView() {
         setLoadingMore(false);
       }
     },
-    [offset]
+    [offset, showFavoritesOnly]
   );
 
   // Initial load
   useEffect(() => {
     void fetchImages(false);
-  }, []);
+  }, [showFavoritesOnly]); // Refetch when favorites toggle changes
 
   // Infinite scroll observer
   useEffect(() => {
@@ -398,6 +405,19 @@ export function GalleryView() {
                       </select>
                     </div>
                   )}
+
+                  {/* MT7: Favorites Toggle */}
+                  <button
+                    onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                    className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                      showFavoritesOnly
+                        ? "bg-pink-500/20 border-pink-500/30 text-pink-400"
+                        : "bg-(--surface-muted) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
+                    }`}
+                  >
+                    <Heart className={`w-4 h-4 ${showFavoritesOnly ? "fill-current" : ""}`} />
+                    {t("galleryFavorites") || "Favorites"}
+                  </button>
                 </div>
               </div>
             </div>

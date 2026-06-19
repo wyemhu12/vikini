@@ -25,19 +25,7 @@ const imageGenOptionsSchema = z
   .object({
     aspectRatio: z.enum(["1:1", "16:9", "9:16", "4:3", "3:4"]).optional(),
     numberOfImages: z.number().int().min(1).max(4).optional(),
-    style: z
-      .enum([
-        "none",
-        "photorealistic",
-        "sketch",
-        "cartoon",
-        "digital_art",
-        "anime",
-        "digital-art",
-        "cinematic",
-        "3d-render",
-      ])
-      .optional(),
+    style: z.string().max(50).optional(), // MT5: Any style ID from expanded style system
     enhancer: z.boolean().optional(),
     enhancerModel: z.string().max(100).optional(),
     model: z.string().max(100).optional(),
@@ -103,6 +91,7 @@ export async function POST(req: NextRequest) {
     }
 
     // --- PROMPT ENHANCER LOGIC ---
+    const userOriginalPrompt = prompt; // QW2: Save before enhancement
     if (options?.enhancer) {
       routeLogger.info("[Enhancer] Original prompt:", prompt);
       try {
@@ -287,6 +276,11 @@ Original: "${prompt}"`;
       imageUrl: finalUrl, // Add imageUrl at top level for easy access
       originalOptions: savedOptions, // Now always includes model
       provider: providerName,
+      // QW2: Store both original and enhanced prompts for transparency
+      originalPrompt: options?.enhancer ? userOriginalPrompt : undefined,
+      enhancedPrompt: options?.enhancer ? prompt : undefined,
+      // MT6: Token usage from provider
+      usage: result.metadata?.usage as Record<string, unknown> | undefined,
       attachment: {
         url: finalUrl,
         storagePath: storagePath,

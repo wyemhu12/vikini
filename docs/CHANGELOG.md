@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-06-18: Feature — Image Studio Quick Wins (7 enhancements)
+
+### QW1: Negative Prompt Field
+
+- **`ControlPanel.tsx`** — Collapsible "🚫 Exclude" section below suggestion tags. Appends `\nDo NOT include: {text}` to prompt. Red dot indicator when active.
+
+### QW2: Enhanced Prompt Transparency
+
+- **`generate-image/route.ts`** — Saves `originalPrompt` and `enhancedPrompt` in message meta JSONB when enhancer is enabled.
+- **`Canvas.tsx`** — "Magic" badge → i18n "Enhanced" badge with tooltip showing enhanced prompt on hover.
+
+### QW3: Image Variations
+
+- **`Canvas.tsx`** — New emerald "Variation" button on image card hover overlay.
+- **`ImageGenStudio.tsx`** — `handleVariation()`: fetches image → base64 → sends with variation prompt + reference to Gemini.
+
+### QW4: Favorites / Bookmarks
+
+- **[NEW] `/api/messages/[id]/favorite/route.ts`** — PATCH endpoint toggles `is_favorite` in messages.meta JSONB. No DB migration.
+- **`Canvas.tsx`** — Heart icon toggle on image overlay. Filled pink when favorited.
+
+### QW5: Prompt History (localStorage, max 30)
+
+- **`ImageGenStudio.tsx`** — Saves successful prompts to localStorage, deduplicates, max 30.
+- **`ControlPanel.tsx`** — Collapsible "🕐 Recent Prompts" section with click-to-fill.
+
+### QW6: Parallel Batch Generation
+
+- **`ImageGenStudio.tsx`** — Sequential `for` loop → `Promise.allSettled()`. 2-4x faster for batch > 1.
+
+### QW7: Text Rendering Tip
+
+- **`ControlPanel.tsx`** — Auto-detects quoted text + Flash model → amber tip to switch to Pro.
+
+### Translation Keys
+
+- **`en.ts` / `vi.ts`** — 22 new bilingual keys.
+
+### Verification
+
+- `type-check` ✅ | `lint` ✅ | `tests` ✅ (34 files, 409 tests, 0 failures)
+
+---
+
 ## 2026-06-18: Fix — EditImageModal `[object Object]` + Request Body Mismatch
 
 - **Symptom**: Clicking "Apply Edit" showed `[object Object]` in error field and edit never executed.

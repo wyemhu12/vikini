@@ -26,8 +26,15 @@ export class ReplicateImageProvider implements ImageGenProvider {
     providerLogger.info(`Generating with model: ${this.defaultModel}`);
 
     try {
-      // Add style to prompt if provided
-      const finalPrompt = options?.style ? `${prompt}. Style: ${options.style}` : prompt;
+      // MT5: Use detailed style short append
+      let finalPrompt = prompt;
+      if (options?.style && options.style !== "none") {
+        const { getStyleInstruction } = await import("../stylePrompts");
+        const styleConfig = getStyleInstruction(options.style);
+        finalPrompt = styleConfig
+          ? `${prompt}. ${styleConfig.shortAppend}`
+          : `${prompt}. Style: ${options.style}`;
+      }
 
       // NOTE: Model ID format requires type assertion for Replicate SDK
       const output = await replicate.run(this.defaultModel as `${string}/${string}`, {

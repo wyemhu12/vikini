@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import ControlPanel, { type BatchQuotaInfo } from "./ControlPanel";
 import Canvas, { GeneratedImage } from "./Canvas";
-import EditImageModal from "./EditImageModal";
+import EditPanel from "./EditPanel";
 import ImageLightbox from "./ImageLightbox";
 import TemplateModal from "./TemplateModal";
 import type { ImageTemplate } from "@/lib/features/image-gen/templates";
@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { logger } from "@/lib/utils/logger";
+import { cn } from "@/lib/utils/cn";
 import { confirm } from "@/lib/store/confirmStore";
 import { formatDate } from "@/lib/utils/dateFormat";
 import { motion, AnimatePresence } from "framer-motion";
@@ -93,6 +94,7 @@ export function ImageGenStudio() {
 
   // UI States
   const [prompt, setPrompt] = useState("");
+  const [negativePrompt, setNegativePrompt] = useState(""); // QW1
   const [model, setModel] = useState("gemini-3.1-flash-image");
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [style, setStyle] = useState("none");
@@ -149,6 +151,16 @@ export function ImageGenStudio() {
           style: opts.style,
           model: opts.model,
           enhancer: opts.enhancer,
+          // QW2: Enhanced Prompt Transparency
+          originalPrompt: meta.originalPrompt as string | undefined,
+          enhancedPrompt: meta.enhancedPrompt as string | undefined,
+          // QW4: Favorites
+          isFavorite: !!meta.is_favorite,
+          // MT2: Version Chain
+          parentMessageId: meta.parentMessageId as string | undefined,
+          editDepth: meta.editDepth as number | undefined,
+          // MT3: Tags
+          tags: Array.isArray(meta.tags) ? (meta.tags as string[]) : undefined,
         };
       })
       .reverse(); // Show newest first
@@ -191,6 +203,34 @@ export function ImageGenStudio() {
       void fetchBatchQuota();
     }
   }, [isAuthed, fetchBatchQuota]);
+
+  // QW5: Prompt History (localStorage, max 30)
+  const HISTORY_KEY = "vikini-prompt-history";
+  const MAX_HISTORY = 30;
+  const [promptHistory, setPromptHistory] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(HISTORY_KEY);
+      if (saved) setPromptHistory(JSON.parse(saved) as string[]);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const addToPromptHistory = useCallback((p: string) => {
+    setPromptHistory((prev) => {
+      const deduped = prev.filter((h) => h !== p);
+      const next = [p, ...deduped].slice(0, MAX_HISTORY);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const clearPromptHistory = useCallback(() => {
+    setPromptHistory([]);
+    localStorage.removeItem(HISTORY_KEY);
+  }, []);
 
   const handleCreateProject = async () => {
     const newProj = await createConversation({
@@ -252,6 +292,12 @@ export function ImageGenStudio() {
     // Auto-switch to results tab on mobile when generating starts
     setMobileTab("results");
 
+    // QW1: Append negative prompt if present
+    let finalPrompt = prompt;
+    if (negativePrompt.trim()) {
+      finalPrompt = `${prompt}\nDo NOT include: ${negativePrompt.trim()}`;
+    }
+
     // Phase 2: Convert reference image to base64 if present
     let referenceImageBase64: string | undefined;
     if (referenceImage) {
@@ -267,28 +313,72 @@ export function ImageGenStudio() {
       }
     }
 
-    // Phase 4: Batch generation - sequential to avoid rate limits
+    // Phase 4: Batch generation
     const totalImages = numberOfImages;
     let successCount = 0;
 
     try {
-      for (let i = 0; i < totalImages; i++) {
-        if (totalImages > 1) {
-          setGeneratingLabel(
-            t("studioGeneratingProgress")
-              .replace("{current}", String(i + 1))
-              .replace("{total}", String(totalImages))
-          );
-        }
+      // QW6: Parallel batch generation with Promise.allSettled
+      if (totalImages > 1) {
+        setGeneratingLabel(
+          t("studioGeneratingProgress")
+            .replace("{current}", "1")
+            .replace("{total}", String(totalImages))
+        );
 
+        const promises = Array.from({ length: totalImages }, (_) =>
+          fetch("/api/generate-image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-api-key": key },
+            body: JSON.stringify({
+              prompt: finalPrompt,
+              conversationId: targetId,
+              options: {
+                model,
+                aspectRatio,
+                style: style === "none" ? undefined : style,
+                enhancer: isEnhancerOn,
+                referenceImage: referenceImageBase64,
+              },
+              batchSize: totalImages,
+            }),
+          }).then(async (response) => {
+            const json = await response.json();
+            if (!response.ok) {
+              throw new Error(json.error?.message || json.error || "Generation failed");
+            }
+            if (json.success) {
+              successCount++;
+              setGeneratingLabel(
+                t("studioGeneratingProgress")
+                  .replace("{current}", String(successCount))
+                  .replace("{total}", String(totalImages))
+              );
+            }
+            return json;
+          })
+        );
+
+        const results = await Promise.allSettled(promises);
+        const failures = results.filter((r) => r.status === "rejected").length;
+
+        if (successCount > 0) {
+          await loadConversation(targetId!);
+          void refreshConversations();
+        }
+        if (failures > 0 && successCount === 0) {
+          const firstRejected = results.find(
+            (r) => r.status === "rejected"
+          ) as PromiseRejectedResult;
+          throw firstRejected.reason;
+        }
+      } else {
+        // Single image — keep simple sequential flow
         const response = await fetch("/api/generate-image", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": key,
-          },
+          headers: { "Content-Type": "application/json", "x-api-key": key },
           body: JSON.stringify({
-            prompt,
+            prompt: finalPrompt,
             conversationId: targetId,
             options: {
               model,
@@ -297,7 +387,6 @@ export function ImageGenStudio() {
               enhancer: isEnhancerOn,
               referenceImage: referenceImageBase64,
             },
-            batchSize: totalImages > 1 ? totalImages : undefined,
           }),
         });
 
@@ -308,12 +397,14 @@ export function ImageGenStudio() {
 
         if (json.success) {
           successCount++;
-          // Refresh messages to show new image immediately
           await loadConversation(targetId!);
-          if (i === 0) {
-            void refreshConversations();
-          }
+          void refreshConversations();
         }
+      }
+
+      // QW5: Save prompt to history on success
+      if (successCount > 0) {
+        addToPromptHistory(prompt);
       }
     } catch (error: unknown) {
       logger.error("Gen Error:", error);
@@ -367,16 +458,19 @@ export function ImageGenStudio() {
     setMobileTab("studio");
   };
 
-  // Phase 1: Edit handlers
+  // Phase 1: Edit handlers — now opens EditPanel (multi-turn)
   const handleEdit = (image: GeneratedImage) => {
     setEditingImage(image);
   };
 
-  const handleEditComplete = async () => {
-    setEditingImage(null);
+  const handleEditComplete = () => {
     if (selectedConversationId) {
-      await loadConversation(selectedConversationId);
+      void loadConversation(selectedConversationId);
     }
+  };
+
+  const handleCloseEditPanel = () => {
+    setEditingImage(null);
   };
 
   // Phase 3: Lightbox handlers
@@ -399,6 +493,80 @@ export function ImageGenStudio() {
       logger.error("Delete error:", e);
     } finally {
       setShowDeleteConfirm(null);
+    }
+  };
+
+  // QW3: Variation handler — send image back as reference with variation prompt
+  const handleVariation = async (image: GeneratedImage) => {
+    if (generating) return;
+
+    const targetId = selectedConversationId;
+    if (!targetId) return;
+
+    setGenerating(true);
+    setMobileTab("results");
+    setGeneratingLabel(t("studioCreatingVariation"));
+
+    try {
+      // Fetch the image and convert to base64
+      const response = await fetch(image.url);
+      const blob = await response.blob();
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+
+      const variationPrompt = `Create a variation of this image. Keep the same overall composition, style, and mood, but introduce subtle creative differences in details, colors, or perspective. Original description: ${image.prompt}`;
+
+      const key = localStorage.getItem("vikini-gemini-key") || "";
+      // Force Gemini model for reference image support
+      const variationModel = model.includes("gemini-3") ? model : "gemini-3.1-flash-image";
+
+      const genResponse = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": key },
+        body: JSON.stringify({
+          prompt: variationPrompt,
+          conversationId: targetId,
+          options: {
+            model: variationModel,
+            aspectRatio: image.aspectRatio || aspectRatio,
+            referenceImage: base64,
+          },
+        }),
+      });
+
+      const json = await genResponse.json();
+      if (!genResponse.ok) {
+        throw new Error(json.error?.message || json.error || "Variation failed");
+      }
+
+      if (json.success) {
+        await loadConversation(targetId);
+        void refreshConversations();
+      }
+    } catch (error: unknown) {
+      logger.error("Variation Error:", error);
+      const errMsg = error instanceof Error ? error.message : "";
+      setShowError(classifyError(errMsg || t("studioGenerateFailed"), t));
+    } finally {
+      setGenerating(false);
+      setGeneratingLabel(null);
+    }
+  };
+
+  // QW4: Favorite toggle
+  const handleToggleFavorite = async (image: GeneratedImage) => {
+    if (!image.id) return;
+    try {
+      const res = await fetch(`/api/messages/${image.id}/favorite`, { method: "PATCH" });
+      if (res.ok && selectedConversationId) {
+        // Refresh to get updated meta
+        await loadConversation(selectedConversationId);
+      }
+    } catch (e) {
+      logger.error("Favorite toggle error:", e);
     }
   };
 
@@ -595,6 +763,10 @@ export function ImageGenStudio() {
               setNumberOfImages={setNumberOfImages}
               batchQuota={batchQuota}
               generatingLabel={generatingLabel || undefined}
+              negativePrompt={negativePrompt}
+              setNegativePrompt={setNegativePrompt}
+              promptHistory={promptHistory}
+              onClearHistory={clearPromptHistory}
             />
 
             {/* Canvas - always visible on md+, conditionally on mobile */}
@@ -608,19 +780,31 @@ export function ImageGenStudio() {
               onEdit={handleEdit}
               onImageClick={handleImageClick}
               onSelectTemplate={handleSelectTemplate}
-              className={mobileTab !== "results" ? "hidden md:flex" : "flex"}
+              onVariation={handleVariation}
+              onToggleFavorite={handleToggleFavorite}
+              onTagsUpdated={handleEditComplete}
+              className={cn(
+                mobileTab !== "results" ? "hidden md:flex" : "flex",
+                editingImage ? "hidden lg:flex" : ""
+              )}
             />
+
+            {/* Multi-Turn Edit Panel — slides in from right */}
+            <AnimatePresence>
+              {editingImage && selectedConversationId && (
+                <EditPanel
+                  key="edit-panel"
+                  sourceImage={editingImage}
+                  conversationId={selectedConversationId}
+                  onClose={handleCloseEditPanel}
+                  onEditComplete={handleEditComplete}
+                />
+              )}
+            </AnimatePresence>
           </AnimatePresence>
         </div>
 
-        {/* Phase 1: Edit Image Modal */}
-        <EditImageModal
-          image={editingImage}
-          open={!!editingImage}
-          onOpenChange={(open) => !open && setEditingImage(null)}
-          onEditComplete={handleEditComplete}
-          conversationId={selectedConversationId}
-        />
+        {/* EditImageModal replaced by EditPanel (inline, in flex layout above) */}
 
         {/* Template Modal (for transform templates) */}
         <TemplateModal

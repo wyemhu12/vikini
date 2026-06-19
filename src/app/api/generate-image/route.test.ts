@@ -261,13 +261,13 @@ describe("/api/generate-image", () => {
       expect(res.status).toBe(400);
     });
 
-    it("should return 400 for invalid style option", async () => {
+    it("should return 400 for style option exceeding max length", async () => {
       mockAuthenticated();
       mockRateLimitAllowed();
 
       const req = createRequest("POST", "/api/generate-image", {
         ...validBody,
-        options: { style: "invalid-style" },
+        options: { style: "x".repeat(51) }, // Exceeds max 50 chars
       });
       const res = await POST(req);
 

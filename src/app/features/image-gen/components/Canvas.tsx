@@ -10,12 +10,16 @@ import {
   Pencil,
   ChevronDown,
   ChevronUp,
+  Shuffle,
+  Heart,
+  Link2,
 } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { motion, AnimatePresence } from "framer-motion";
 import { IMAGE_TEMPLATES, type ImageTemplate } from "@/lib/features/image-gen/templates";
 import { useState, useEffect, useCallback } from "react";
 import { logger } from "@/lib/utils/logger";
+import TagInput from "./TagInput";
 
 // Dynamic loading message keys — cycle every 2.5s
 const LOADING_MESSAGE_KEYS = [
@@ -51,6 +55,16 @@ export interface GeneratedImage {
   style?: string;
   model?: string;
   enhancer?: boolean;
+  // QW2: Enhanced Prompt Transparency
+  originalPrompt?: string;
+  enhancedPrompt?: string;
+  // QW4: Favorites
+  isFavorite?: boolean;
+  // MT2: Version Chain
+  parentMessageId?: string;
+  editDepth?: number;
+  // MT3: Tags
+  tags?: string[];
 }
 
 interface CanvasProps {
@@ -62,6 +76,9 @@ interface CanvasProps {
   onEdit?: (image: GeneratedImage) => void;
   onImageClick?: (image: GeneratedImage, index: number) => void;
   onSelectTemplate?: (template: ImageTemplate) => void;
+  onVariation?: (image: GeneratedImage) => void;
+  onToggleFavorite?: (image: GeneratedImage) => void;
+  onTagsUpdated?: () => void;
   className?: string;
 }
 
@@ -74,6 +91,9 @@ export default function Canvas({
   onEdit,
   onImageClick,
   onSelectTemplate,
+  onVariation,
+  onToggleFavorite,
+  onTagsUpdated,
   className,
 }: CanvasProps) {
   const { t, language } = useLanguage();
@@ -175,18 +195,6 @@ export default function Canvas({
                 onClick={() => onImageClick?.(item, idx)}
               />
 
-              {/* Quick download — always visible */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void downloadImage(item);
-                }}
-                className="absolute bottom-2 right-2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm transition-all opacity-70 hover:opacity-100 z-10 shadow-lg"
-                title={t("studioDownload")}
-              >
-                <Download className="w-4 h-4" />
-              </button>
-
               {/* Overlay with Controls */}
               <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/40 to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3 overflow-y-auto overflow-x-hidden">
                 {/* Top Metadata Badges */}
@@ -201,14 +209,49 @@ export default function Canvas({
                       {item.aspectRatio}
                     </span>
                   )}
+                  {/* QW2: Enhanced badge with tooltip */}
                   {item.enhancer && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-linear-to-r from-pink-500 to-purple-500 text-white border border-white/10 backdrop-blur-md flex items-center gap-1">
-                      <Sparkles className="w-3 h-3" /> Magic
+                    <span
+                      className="text-[10px] font-bold px-2 py-0.5 rounded bg-linear-to-r from-pink-500 to-purple-500 text-white border border-white/10 backdrop-blur-md flex items-center gap-1 cursor-help"
+                      title={
+                        item.enhancedPrompt
+                          ? `${t("studioEnhancedPrompt")}: ${item.enhancedPrompt}`
+                          : undefined
+                      }
+                    >
+                      <Sparkles className="w-3 h-3" /> {t("studioEnhancedBadge")}
+                    </span>
+                  )}
+                  {/* MT2: Version chain badge */}
+                  {item.editDepth && item.editDepth > 0 && (
+                    <span
+                      className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/70 text-white border border-white/10 backdrop-blur-md flex items-center gap-1 cursor-help"
+                      title={t("studioVersionTooltip")}
+                    >
+                      <Link2 className="w-3 h-3" />{" "}
+                      {t("studioVersionBadge").replace("{depth}", String(item.editDepth))}
                     </span>
                   )}
 
-                  {/* Top Right Actions */}
+                  {/* Top Right Actions — Favorite + Delete */}
                   <div className="ml-auto flex gap-1.5">
+                    {/* QW4: Favorite toggle */}
+                    {item.id && onToggleFavorite && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleFavorite(item);
+                        }}
+                        className={`p-1.5 rounded-full backdrop-blur-md transition-all border ${
+                          item.isFavorite
+                            ? "bg-pink-500/80 text-white border-pink-400/30 shadow-lg shadow-pink-500/30"
+                            : "bg-white/10 hover:bg-pink-500/40 text-white/70 hover:text-white border-white/10"
+                        }`}
+                        title={item.isFavorite ? t("studioUnfavorite") : t("studioFavorite")}
+                      >
+                        <Heart className={`w-3 h-3 ${item.isFavorite ? "fill-current" : ""}`} />
+                      </button>
+                    )}
                     {item.id && (
                       <button
                         onClick={() => onDelete(item.id!)}
@@ -230,6 +273,15 @@ export default function Canvas({
                     </p>
                   </div>
 
+                  {/* MT3: Tags */}
+                  {item.id && onTagsUpdated && (
+                    <TagInput
+                      imageId={item.id}
+                      currentTags={item.tags || []}
+                      onTagsUpdated={onTagsUpdated}
+                    />
+                  )}
+
                   {/* Action Buttons */}
                   <div className="flex items-center justify-between gap-2">
                     <button
@@ -247,6 +299,17 @@ export default function Canvas({
                         title={t("studioEdit")}
                       >
                         <Pencil className="w-3 h-3" /> {t("studioEdit")}
+                      </button>
+                    )}
+
+                    {/* QW3: Variation button */}
+                    {onVariation && (
+                      <button
+                        onClick={() => onVariation(item)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/80 hover:bg-emerald-600 text-white backdrop-blur-md transition-colors border border-emerald-400/30 text-xs font-bold shadow-lg shadow-emerald-900/40 shrink-0"
+                        title={t("studioVariation")}
+                      >
+                        <Shuffle className="w-3 h-3" /> {t("studioVariation")}
                       </button>
                     )}
 

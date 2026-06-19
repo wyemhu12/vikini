@@ -31,8 +31,19 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
     providerLogger.info(`Generating with model: ${modelId} (Native Image Gen)`);
 
     try {
-      const finalPrompt =
-        options?.style && options.style !== "none" ? `${prompt}. Style: ${options.style}` : prompt;
+      // MT5: Use detailed style instructions instead of simple append
+      let finalPrompt = prompt;
+      let styleSystemInstruction: string | undefined;
+      if (options?.style && options.style !== "none") {
+        const { getStyleInstruction } = await import("../stylePrompts");
+        const styleConfig = getStyleInstruction(options.style);
+        if (styleConfig) {
+          styleSystemInstruction = styleConfig.instruction;
+        } else {
+          // Fallback for unknown styles
+          finalPrompt = `${prompt}. Style: ${options.style}`;
+        }
+      }
 
       // Build config with responseModalities, imageConfig, and safetySettings to disable filters
       const config: Record<string, unknown> = {
@@ -73,6 +84,11 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
         }
       } else {
         contentParts = [{ text: finalPrompt }];
+      }
+
+      // MT5: Add style system instruction if available
+      if (styleSystemInstruction) {
+        config.systemInstruction = styleSystemInstruction;
       }
 
       const response = await ai.models.generateContent({
@@ -148,6 +164,24 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
 
       if (results.length === 0) {
         throw new Error("Gemini returned response but no image data found in parts");
+      }
+
+      // MT6: Extract usage metadata
+      const usageMetadata = (response as unknown as Record<string, unknown>)?.usageMetadata as
+        | Record<string, unknown>
+        | undefined;
+      if (usageMetadata) {
+        const usage = {
+          promptTokenCount: usageMetadata.promptTokenCount as number | undefined,
+          candidatesTokenCount: usageMetadata.candidatesTokenCount as number | undefined,
+          totalTokenCount: usageMetadata.totalTokenCount as number | undefined,
+        };
+        // Attach usage to all results
+        for (const result of results) {
+          if (!result.metadata) result.metadata = {};
+          result.metadata.usage = usage;
+        }
+        providerLogger.info(`Token usage: ${JSON.stringify(usage)}`);
       }
 
       return results;

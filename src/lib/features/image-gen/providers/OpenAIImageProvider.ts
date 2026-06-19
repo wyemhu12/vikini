@@ -19,10 +19,14 @@ export class OpenAIImageProvider implements ImageGenProvider {
 
     const openai = new OpenAI({ apiKey: key });
 
-    // Map style to prompt enhancement since GPT Image 2 doesn't support style as a param
+    // MT5: Map style to detailed prompt enhancement
     let finalPrompt = prompt;
-    if (options.style) {
-      finalPrompt = `${prompt}, in the style of ${options.style}`;
+    if (options.style && options.style !== "none") {
+      const { getStyleInstruction } = await import("../stylePrompts");
+      const styleConfig = getStyleInstruction(options.style);
+      finalPrompt = styleConfig
+        ? `${prompt}. ${styleConfig.shortAppend}`
+        : `${prompt}, in the style of ${options.style}`;
     }
 
     // Map aspect ratio to GPT Image 2 supported sizes

@@ -53,6 +53,7 @@ interface GalleryImage {
 const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
+  favorites: z.string().optional(), // MT7: filter favorites only
 });
 
 // ============================================================================
@@ -73,13 +74,15 @@ export async function GET(req: NextRequest) {
     const parseResult = querySchema.safeParse({
       limit: searchParams.get("limit") ?? undefined,
       offset: searchParams.get("offset") ?? undefined,
+      favorites: searchParams.get("favorites") ?? undefined,
     });
 
     if (!parseResult.success) {
       throw new ValidationError("Invalid query parameters");
     }
 
-    const { limit, offset } = parseResult.data;
+    const { limit, offset, favorites } = parseResult.data;
+    const favoritesOnly = favorites === "true";
 
     const supabase = getSupabaseAdmin();
 
@@ -99,7 +102,9 @@ export async function GET(req: NextRequest) {
     }
 
     const validConvIds = (userConvs as ConversationRow[])
-      .filter((c) => c.model !== MODEL_IDS.IMAGE_STUDIO)
+      .filter(
+        (c) => c.model !== MODEL_IDS.IMAGE_STUDIO && c.model !== MODEL_IDS.USER_TEMPLATES_STORE
+      )
       .map((c) => c.id);
 
     if (validConvIds.length === 0) {
@@ -126,7 +131,11 @@ export async function GET(req: NextRequest) {
       .filter((msg) => {
         const meta = msg.meta;
         if (!meta) return false;
-        return meta.type === "image_gen" || !!meta.imageUrl || !!meta.attachment?.url;
+        const isImage = meta.type === "image_gen" || !!meta.imageUrl || !!meta.attachment?.url;
+        if (!isImage) return false;
+        // MT7: Filter favorites
+        if (favoritesOnly && !(meta as Record<string, unknown>).is_favorite) return false;
+        return true;
       })
       .map((msg) => {
         const meta = msg.meta!;

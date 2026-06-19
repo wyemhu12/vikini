@@ -12,7 +12,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import StyleSelector from "./StyleSelector";
-import { Sparkles, Wand2, Settings, Upload, X, Image as ImageIcon, Info } from "lucide-react";
+import PromptBuilder from "./PromptBuilder";
+import {
+  Sparkles,
+  Wand2,
+  Settings,
+  Upload,
+  X,
+  Image as ImageIcon,
+  Info,
+  Ban,
+  Clock,
+  Trash2,
+  Lightbulb,
+  ToggleLeft,
+  ToggleRight,
+} from "lucide-react";
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import SettingsModal from "./SettingsModal";
 import { cn } from "@/lib/utils/cn";
@@ -65,6 +80,11 @@ interface ControlPanelProps {
   setNumberOfImages: (n: number) => void;
   batchQuota: BatchQuotaInfo | null;
   generatingLabel?: string;
+  // Quick Wins
+  negativePrompt: string;
+  setNegativePrompt: (v: string) => void;
+  promptHistory: string[];
+  onClearHistory: () => void;
 }
 
 export default function ControlPanel({
@@ -87,9 +107,16 @@ export default function ControlPanel({
   setNumberOfImages,
   batchQuota,
   generatingLabel,
+  negativePrompt,
+  setNegativePrompt,
+  promptHistory,
+  onClearHistory,
 }: ControlPanelProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tooltipBatch, setTooltipBatch] = useState<number | null>(null);
+  const [showNegativePrompt, setShowNegativePrompt] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [promptMode, setPromptMode] = useState<"free" | "guided">("free");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
 
@@ -145,45 +172,147 @@ export default function ControlPanel({
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("studioPromptLabel")}
           </Label>
-          <Textarea
-            placeholder={t("studioPromptPlaceholder")}
-            className="h-32 resize-none bg-(--input-bg) border-(--input-border) focus-visible:ring-1"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              // Ctrl+Enter or Cmd+Enter to generate
-              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault();
-                if (prompt.trim() && !generating) {
-                  onGenerate();
-                }
-              }
-            }}
-          />
-          <p className="text-[10px] text-muted-foreground">{t("studioShortcutHint")}</p>
 
-          {/* Suggestion Tags — click to append keyword */}
-          <div className="space-y-1.5 pt-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {t("studioTagsLabel")}
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {SUGGESTION_TAGS.map((tag) => (
-                <button
-                  key={tag.key}
-                  onClick={() => {
-                    const tagText = t(tag.key);
-                    const separator = prompt.trim() ? ", " : "";
-                    setPrompt(prompt.trim() + separator + tagText);
-                  }}
-                  className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-(--border) bg-(--surface-elevated) hover:bg-purple-500/10 hover:border-purple-500/30 text-(--text-secondary) hover:text-(--text-primary) transition-all"
-                >
-                  <span className="mr-1">{tag.icon}</span>
-                  {t(tag.key)}
-                </button>
-              ))}
-            </div>
+          {/* MT4: Mode toggle — Free / Guided */}
+          <div className="flex items-center gap-2 -mt-0.5">
+            <button
+              onClick={() => setPromptMode(promptMode === "free" ? "guided" : "free")}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium border transition-all",
+                promptMode === "guided"
+                  ? "bg-purple-500/15 border-purple-500/30 text-purple-300"
+                  : "bg-(--surface-elevated) border-(--border) text-(--text-secondary) hover:text-(--text-primary)"
+              )}
+            >
+              {promptMode === "guided" ? (
+                <ToggleRight className="w-3.5 h-3.5" />
+              ) : (
+                <ToggleLeft className="w-3.5 h-3.5" />
+              )}
+              {t(promptMode === "guided" ? "pbModeGuided" : "pbModeFree")}
+            </button>
           </div>
+
+          {promptMode === "guided" ? (
+            <PromptBuilder
+              onBuildPrompt={(built) => {
+                setPrompt(built);
+                setPromptMode("free");
+              }}
+            />
+          ) : (
+            <>
+              <Textarea
+                placeholder={t("studioPromptPlaceholder")}
+                className="h-32 resize-none bg-(--input-bg) border-(--input-border) focus-visible:ring-1"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  // Ctrl+Enter or Cmd+Enter to generate
+                  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                    e.preventDefault();
+                    if (prompt.trim() && !generating) {
+                      onGenerate();
+                    }
+                  }
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground">{t("studioShortcutHint")}</p>
+
+              {/* Suggestion Tags — click to append keyword */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t("studioTagsLabel")}
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {SUGGESTION_TAGS.map((tag) => (
+                    <button
+                      key={tag.key}
+                      onClick={() => {
+                        const tagText = t(tag.key);
+                        const separator = prompt.trim() ? ", " : "";
+                        setPrompt(prompt.trim() + separator + tagText);
+                      }}
+                      className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-(--border) bg-(--surface-elevated) hover:bg-purple-500/10 hover:border-purple-500/30 text-(--text-secondary) hover:text-(--text-primary) transition-all"
+                    >
+                      <span className="mr-1">{tag.icon}</span>
+                      {t(tag.key)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* QW1: Negative Prompt (collapsible) */}
+              <div className="pt-1">
+                <button
+                  onClick={() => setShowNegativePrompt(!showNegativePrompt)}
+                  className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-(--text-primary) transition-colors"
+                >
+                  <Ban className="w-3 h-3" />
+                  {t("studioExclude")}
+                  {negativePrompt && <span className="w-1.5 h-1.5 rounded-full bg-red-400" />}
+                </button>
+                {showNegativePrompt && (
+                  <Textarea
+                    placeholder={t("studioNegativePromptPlaceholder")}
+                    className="mt-1.5 h-16 resize-none bg-(--input-bg) border-(--input-border) focus-visible:ring-1 text-xs"
+                    value={negativePrompt}
+                    onChange={(e) => setNegativePrompt(e.target.value)}
+                  />
+                )}
+              </div>
+
+              {/* QW7: Text Rendering Tip */}
+              {prompt.match(/["'].+?["']/) && model.includes("flash-image") && (
+                <button
+                  onClick={() => setModel("gemini-3-pro-image")}
+                  className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-600 dark:text-amber-400 font-medium hover:bg-amber-500/20 transition-all w-full text-left"
+                >
+                  <Lightbulb className="w-3.5 h-3.5 shrink-0" />
+                  <span className="flex-1">{t("studioTextRenderingTip")}</span>
+                </button>
+              )}
+
+              {/* QW5: Prompt History */}
+              {promptHistory.length > 0 && (
+                <div className="pt-1">
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => setShowHistory(!showHistory)}
+                      className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-(--text-primary) transition-colors"
+                    >
+                      <Clock className="w-3 h-3" />
+                      {t("studioPromptHistory")}
+                      <span className="text-[9px] font-normal">({promptHistory.length})</span>
+                    </button>
+                    {showHistory && (
+                      <button
+                        onClick={onClearHistory}
+                        className="text-[10px] text-red-400 hover:text-red-300 transition-colors flex items-center gap-1"
+                      >
+                        <Trash2 className="w-2.5 h-2.5" />
+                        {t("studioClearHistory")}
+                      </button>
+                    )}
+                  </div>
+                  {showHistory && (
+                    <div className="mt-1.5 flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar">
+                      {promptHistory.slice(0, 10).map((hp, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setPrompt(hp)}
+                          className="text-left text-[11px] text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--surface-hover) px-2 py-1.5 rounded-md transition-colors truncate"
+                          title={hp}
+                        >
+                          {hp}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Magic Enhance Toggle */}
