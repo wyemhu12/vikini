@@ -22,6 +22,8 @@ export interface EditTurn {
   imageUrl?: string;
   imageBase64?: string;
   imageMimeType?: string;
+  /** Gemini multi-turn signature — must be passed back for image continuity */
+  thoughtSignature?: string;
 }
 
 interface EditPanelProps {
@@ -178,17 +180,19 @@ export default function EditPanel({
         const imageUrl = responseData?.imageUrl as string | undefined;
         const imageBase64 = responseData?.imageBase64 as string | undefined;
         const imageMimeType = responseData?.imageMimeType as string | undefined;
+        const thoughtSignature = responseData?.thoughtSignature as string | undefined;
 
         if (!imageUrl) {
           throw new Error("No image returned");
         }
 
-        // Add model response turn
+        // Add model response turn (include thoughtSignature for next API call)
         const modelTurn: EditTurn = {
           role: "model",
           imageUrl,
           imageBase64: imageBase64 || undefined,
           imageMimeType: imageMimeType || "image/png",
+          thoughtSignature,
         };
         setEditHistory((prev) => [...prev, modelTurn]);
 

@@ -24,6 +24,8 @@ const editTurnSchema = z.object({
   text: z.string().optional(),
   imageBase64: z.string().optional(),
   imageMimeType: z.string().optional(),
+  // Gemini multi-turn requires thought_signature for image parts from model responses
+  thoughtSignature: z.string().optional(),
 });
 
 const editImageMultiSchema = z.object({
@@ -71,12 +73,17 @@ function buildGeminiContents(
     if (turn.imageBase64) {
       // Strip data URL prefix if present
       const raw = turn.imageBase64.replace(/^data:[^;]+;base64,/, "");
-      parts.push({
+      const imagePart: Record<string, unknown> = {
         inlineData: {
           data: raw,
           mimeType: turn.imageMimeType || "image/png",
         },
-      });
+      };
+      // Include thought_signature for model image parts (required by Gemini multi-turn)
+      if (turn.thoughtSignature) {
+        imagePart.thought_signature = turn.thoughtSignature;
+      }
+      parts.push(imagePart);
     }
 
     if (turn.text) {
@@ -200,15 +207,20 @@ export async function POST(req: NextRequest) {
 
     let resultBase64 = "";
     let resultMimeType = "image/png";
+    let resultThoughtSignature: string | undefined;
 
     for (const part of parts) {
       const p = part as {
         inlineData?: { data: string; mimeType: string };
+        thought_signature?: string;
       };
       if (p.inlineData?.data) {
         resultBase64 = p.inlineData.data;
         resultMimeType = p.inlineData.mimeType || "image/png";
-        break;
+      }
+      // Capture thought_signature from any part (usually alongside image)
+      if (p.thought_signature) {
+        resultThoughtSignature = p.thought_signature;
       }
     }
 
@@ -297,6 +309,7 @@ export async function POST(req: NextRequest) {
       imageUrl: finalUrl,
       imageBase64: resultBase64,
       imageMimeType: resultMimeType,
+      thoughtSignature: resultThoughtSignature,
     });
   } catch (err: unknown) {
     routeLogger.error("Multi-Turn Edit Error:", err);

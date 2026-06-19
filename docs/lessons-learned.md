@@ -216,3 +216,12 @@
 - **Additional (Strategy D: KB Cache)**: For project conversations, large KB documents can also be cached separately via `getOrCreateKBCache()` to reduce token costs on repeated queries.
 
 ---
+
+## Gemini API
+
+### 2026-06-20: Multi-turn image editing requires `thought_signature` passthrough
+
+- **Symptom**: Second edit in multi-turn conversation fails with 400: "Image part is missing a thought_signature in content position 2, part position 1."
+- **Root Cause**: Gemini API returns a `thought_signature` field in response parts alongside image data. This encrypted token preserves the model's reasoning/visual state across turns. When rebuilding conversation history, we stripped this field — only sending `inlineData` back. Gemini 3.x models require it for any image part from a previous model response.
+- **Fix**: (1) Extract `thought_signature` from response parts in API route, (2) return it to the client (EditPanel), (3) store it in EditTurn alongside imageBase64, (4) include it in the rebuilt `contents[]` parts when making the next API call via `buildGeminiContents()`.
+- **Prevention Rule**: **When implementing multi-turn Gemini conversations involving images, ALWAYS capture and pass through ALL fields from model response parts — especially `thought_signature`.** Do not selectively extract only `inlineData`. The signature is opaque but mandatory for context continuity. If using the SDK's chat API, signatures are handled automatically; if manually building `contents[]`, you must persist them yourself.
