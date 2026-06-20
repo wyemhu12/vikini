@@ -687,6 +687,7 @@ export const vi = {
   studioEnhancedPrompt: "Prompt đã nâng cấp",
   // Quick Wins — Image Variations
   studioVariation: "Biến thể",
+  studioVariationTooltip: "Tạo phiên bản mới giữ nguyên phong cách nhưng thay đổi chi tiết",
   studioCreatingVariation: "Đang tạo biến thể...",
   // Quick Wins — Favorites
   studioFavorite: "Yêu thích",

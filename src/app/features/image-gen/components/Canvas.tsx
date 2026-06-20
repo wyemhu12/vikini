@@ -282,23 +282,25 @@ export default function Canvas({
                     />
                   )}
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center justify-between gap-2">
+                  {/* Action Buttons — wraps on small screens */}
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       onClick={() => onRemix(item)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/80 hover:bg-purple-600 text-white backdrop-blur-md transition-colors border border-purple-400/30 text-xs font-bold shadow-lg shadow-purple-900/40 shrink-0"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-purple-500/80 hover:bg-purple-600 text-white backdrop-blur-md transition-colors border border-purple-400/30 text-[11px] font-bold shadow-lg shadow-purple-900/40"
                       title={t("studioReuse")}
                     >
-                      <RefreshCcw className="w-3 h-3" /> {t("studioReuse")}
+                      <RefreshCcw className="w-3 h-3" />{" "}
+                      <span className="hidden min-[300px]:inline">{t("studioReuse")}</span>
                     </button>
 
                     {onEdit && (
                       <button
                         onClick={() => onEdit(item)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/80 hover:bg-blue-600 text-white backdrop-blur-md transition-colors border border-blue-400/30 text-xs font-bold shadow-lg shadow-blue-900/40 shrink-0"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-blue-500/80 hover:bg-blue-600 text-white backdrop-blur-md transition-colors border border-blue-400/30 text-[11px] font-bold shadow-lg shadow-blue-900/40"
                         title={t("studioEdit")}
                       >
-                        <Pencil className="w-3 h-3" /> {t("studioEdit")}
+                        <Pencil className="w-3 h-3" />{" "}
+                        <span className="hidden min-[300px]:inline">{t("studioEdit")}</span>
                       </button>
                     )}
 
@@ -306,14 +308,15 @@ export default function Canvas({
                     {onVariation && (
                       <button
                         onClick={() => onVariation(item)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/80 hover:bg-emerald-600 text-white backdrop-blur-md transition-colors border border-emerald-400/30 text-xs font-bold shadow-lg shadow-emerald-900/40 shrink-0"
-                        title={t("studioVariation")}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-emerald-500/80 hover:bg-emerald-600 text-white backdrop-blur-md transition-colors border border-emerald-400/30 text-[11px] font-bold shadow-lg shadow-emerald-900/40"
+                        title={t("studioVariationTooltip")}
                       >
-                        <Shuffle className="w-3 h-3" /> {t("studioVariation")}
+                        <Shuffle className="w-3 h-3" />{" "}
+                        <span className="hidden min-[300px]:inline">{t("studioVariation")}</span>
                       </button>
                     )}
 
-                    <div className="flex gap-1.5 shrink-0">
+                    <div className="flex gap-1.5 ml-auto">
                       <button
                         onClick={() => void downloadImage(item)}
                         className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/5"

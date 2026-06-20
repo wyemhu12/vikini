@@ -677,6 +677,7 @@ export const en = {
   studioEnhancedPrompt: "Enhanced Prompt",
   // Quick Wins — Image Variations
   studioVariation: "Variation",
+  studioVariationTooltip: "Generate a new version with similar style but different details",
   studioCreatingVariation: "Creating variation...",
   // Quick Wins — Favorites
   studioFavorite: "Favorite",
