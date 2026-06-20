@@ -59,7 +59,7 @@ export default function EditPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initialize with source image as first model turn
+  // Initialize with source image (user turn only — NO fake model turn)
   useEffect(() => {
     const initHistory = async () => {
       try {
@@ -75,6 +75,10 @@ export default function EditPanel({
         // Strip data URL prefix for raw base64
         const raw = base64.replace(/^data:[^;]+;base64,/, "");
 
+        // Only store the source image as a setup turn.
+        // We do NOT create a fake "model" turn because Gemini requires
+        // thought_signature on model image parts, which we don't have
+        // for externally-sourced images.
         setEditHistory([
           {
             role: "user",
@@ -82,12 +86,6 @@ export default function EditPanel({
             imageBase64: raw,
             imageMimeType: blob.type || "image/png",
             imageUrl: sourceImage.url,
-          },
-          {
-            role: "model",
-            imageUrl: sourceImage.url,
-            imageBase64: raw,
-            imageMimeType: blob.type || "image/png",
           },
         ]);
       } catch (err) {
@@ -119,7 +117,8 @@ export default function EditPanel({
     { key: "studioEditSugColor" as const, label: t("studioEditSugColor") },
   ];
 
-  const turnCount = editHistory.filter((t) => t.role === "user").length;
+  // Count edit turns (excluding the initial setup turn with source image)
+  const turnCount = Math.max(0, editHistory.filter((t) => t.role === "user").length - 1);
 
   const handleSendEdit = useCallback(
     async (text?: string) => {

@@ -54,15 +54,43 @@ function buildGeminiContents(
 ): Array<{ role: string; parts: Array<Record<string, unknown>> }> {
   const MAX_IMAGE_TURNS = 3; // Keep at most 3 image-bearing turns
 
-  // Count image turns
-  const imageTurns = editHistory.filter((t) => t.role === "model" && t.imageBase64);
+  // Check if this is the first edit (no model responses yet)
+  const hasModelResponse = editHistory.some((t) => t.role === "model" && t.thoughtSignature);
 
-  // If too many images, keep first + last (MAX_IMAGE_TURNS - 1)
+  if (!hasModelResponse) {
+    // First edit: merge source image (turn 0) + edit text (last user turn)
+    // into a single user content to avoid needing thought_signature
+    const sourceTurn = editHistory[0]; // user turn with source image
+    const lastUserTurn = editHistory[editHistory.length - 1]; // user turn with edit text
+
+    const parts: Array<Record<string, unknown>> = [];
+
+    // Add source image
+    if (sourceTurn?.imageBase64) {
+      const raw = sourceTurn.imageBase64.replace(/^data:[^;]+;base64,/, "");
+      parts.push({
+        inlineData: {
+          data: raw,
+          mimeType: sourceTurn.imageMimeType || "image/png",
+        },
+      });
+    }
+
+    // Add edit instruction
+    const editText = lastUserTurn?.text || sourceTurn?.text || "Edit this image";
+    parts.push({ text: editText });
+
+    return [{ role: "user", parts }];
+  }
+
+  // Subsequent edits: use proper multi-turn with thought_signatures
+  // Count model image turns for sliding window
+  const modelImageTurns = editHistory.filter((t) => t.role === "model" && t.imageBase64);
+
   let filteredHistory = editHistory;
-  if (imageTurns.length > MAX_IMAGE_TURNS) {
-    // Keep first user turn (with original image), skip middle model image turns
+  if (modelImageTurns.length > MAX_IMAGE_TURNS) {
+    // Keep first user turn (source image) + last N turn pairs
     const firstUserTurn = editHistory[0];
-    // Keep last (MAX_IMAGE_TURNS * 2) entries (each turn = user + model pair)
     const recentTurns = editHistory.slice(-(MAX_IMAGE_TURNS * 2));
     filteredHistory = [firstUserTurn, ...recentTurns];
   }
@@ -71,7 +99,6 @@ function buildGeminiContents(
     const parts: Array<Record<string, unknown>> = [];
 
     if (turn.imageBase64) {
-      // Strip data URL prefix if present
       const raw = turn.imageBase64.replace(/^data:[^;]+;base64,/, "");
       const imagePart: Record<string, unknown> = {
         inlineData: {
