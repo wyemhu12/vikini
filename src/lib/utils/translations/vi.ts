@@ -472,6 +472,7 @@ export const vi = {
   describeCopied: "Đã sao chép!",
   describeUseInStudio: "Dùng trong Image Studio",
   describeNewImage: "Thử ảnh khác",
+  describeHistory: "Lịch sử",
   // QW-D: Multiple References
   studioReferenceImages: "Ảnh tham chiếu",
   studioRefImagesDesc: "Thêm tối đa 4 ảnh để AI tham chiếu",

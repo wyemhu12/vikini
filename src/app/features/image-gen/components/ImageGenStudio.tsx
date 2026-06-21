@@ -20,6 +20,7 @@ import {
   FrontendMessage,
 } from "../../chat/hooks/useConversation";
 import { useSession, signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 
 import {
   AlertDialog,
@@ -101,6 +102,15 @@ export function ImageGenStudio() {
   const [style, setStyle] = useState("none");
   const [isEnhancerOn, setIsEnhancerOn] = useState(false);
   const [generating, setGenerating] = useState(false);
+
+  // Read ?prompt= query param from Describe Image "Use in Studio" button
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const promptParam = searchParams.get("prompt");
+    if (promptParam) {
+      setPrompt(promptParam);
+    }
+  }, [searchParams]);
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);

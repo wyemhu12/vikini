@@ -462,6 +462,7 @@ export const en = {
   describeCopied: "Copied!",
   describeUseInStudio: "Use in Image Studio",
   describeNewImage: "Try another image",
+  describeHistory: "History",
   // QW-D: Multiple References
   studioReferenceImages: "Reference Images",
   studioRefImagesDesc: "Add up to 4 images for AI to reference",

@@ -1,7 +1,17 @@
 "use client";
 
-import { useState, useCallback, useRef, type DragEvent } from "react";
-import { Upload, Loader2, Copy, Check, Sparkles, RefreshCw, ImageIcon } from "lucide-react";
+import { useState, useCallback, useRef, useEffect, type DragEvent } from "react";
+import {
+  Upload,
+  Loader2,
+  Copy,
+  Check,
+  Sparkles,
+  RefreshCw,
+  ImageIcon,
+  Clock,
+  Trash2,
+} from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "../../sidebar/components/Sidebar";
@@ -39,6 +49,41 @@ export function DescribeImageView() {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // History (localStorage)
+  const HISTORY_KEY = "vikini-describe-history";
+  const MAX_HISTORY = 20;
+
+  interface DescribeHistoryItem {
+    thumbnail: string; // small base64 preview
+    prompt: string;
+    timestamp: number;
+  }
+
+  const [history, setHistory] = useState<DescribeHistoryItem[]>([]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(HISTORY_KEY);
+      if (saved) setHistory(JSON.parse(saved) as DescribeHistoryItem[]);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const addToHistory = useCallback((thumbnail: string, prompt: string) => {
+    setHistory((prev) => {
+      const item: DescribeHistoryItem = { thumbnail, prompt, timestamp: Date.now() };
+      const next = [item, ...prev].slice(0, MAX_HISTORY);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    setHistory([]);
+    localStorage.removeItem(HISTORY_KEY);
+  }, []);
 
   const handleFileSelect = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -99,7 +144,27 @@ export function DescribeImageView() {
       }
 
       // API returns success({ description }) → json.data.description
-      setResult(json.data?.description || "");
+      const desc = json.data?.description || "";
+      setResult(desc);
+
+      // Save to history
+      if (desc && imagePreview) {
+        // Create small thumbnail (max 100px) to save storage
+        const canvas = document.createElement("canvas");
+        const img = document.createElement("img");
+        img.src = imagePreview;
+        await new Promise<void>((resolve) => {
+          img.onload = () => {
+            const scale = Math.min(100 / img.width, 100 / img.height, 1);
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve();
+          };
+        });
+        const thumbnail = canvas.toDataURL("image/jpeg", 0.6);
+        addToHistory(thumbnail, desc);
+      }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unknown error";
       logger.error("[DescribeImageView] analyze failed:", message);
@@ -326,6 +391,49 @@ export function DescribeImageView() {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* History Section */}
+            {history.length > 0 && !imagePreview && (
+              <div className="mt-8 w-full max-w-2xl">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-(--text-secondary)">
+                    <Clock className="w-4 h-4" />
+                    {t("describeHistory") || "History"}
+                    <span className="text-xs font-normal">({history.length})</span>
+                  </div>
+                  <button
+                    onClick={clearHistory}
+                    className="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    {t("studioClearHistory") || "Clear"}
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {history.map((item, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setResult(item.prompt)}
+                      className="flex items-start gap-3 p-3 rounded-xl border border-(--border) bg-(--surface-muted)/50 hover:bg-(--surface-hover) transition-all text-left group"
+                    >
+                      <img
+                        src={item.thumbnail}
+                        alt=""
+                        className="w-12 h-12 rounded-lg object-cover shrink-0 border border-(--border)"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-(--text-primary) line-clamp-2 leading-relaxed">
+                          {item.prompt}
+                        </p>
+                        <p className="text-[10px] text-(--text-secondary) mt-1">
+                          {new Date(item.timestamp).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>
