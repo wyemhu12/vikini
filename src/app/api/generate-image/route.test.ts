@@ -241,11 +241,40 @@ describe("/api/generate-image", () => {
 
       const req = createRequest("POST", "/api/generate-image", {
         ...validBody,
-        options: { aspectRatio: "2:1" },
+        options: { aspectRatio: "7:3" }, // Not in 14 valid ratios
       });
       const res = await POST(req);
 
       expect(res.status).toBe(400);
+    });
+
+    it("should accept extended aspect ratios (QW-B)", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+
+      // 3:2 is one of the 9 new extended ratios
+      const req = createRequest("POST", "/api/generate-image", {
+        ...validBody,
+        options: { aspectRatio: "3:2" },
+      });
+      const res = await POST(req);
+
+      // Should not return 400 — schema accepts it
+      // (may return 404 for conversation, but NOT 400)
+      expect(res.status).not.toBe(400);
+    });
+
+    it("should accept 21:9 ultra-wide aspect ratio (QW-B)", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+
+      const req = createRequest("POST", "/api/generate-image", {
+        ...validBody,
+        options: { aspectRatio: "21:9" },
+      });
+      const res = await POST(req);
+
+      expect(res.status).not.toBe(400);
     });
 
     it("should return 400 for invalid numberOfImages option", async () => {
@@ -268,6 +297,69 @@ describe("/api/generate-image", () => {
       const req = createRequest("POST", "/api/generate-image", {
         ...validBody,
         options: { style: "x".repeat(51) }, // Exceeds max 50 chars
+      });
+      const res = await POST(req);
+
+      expect(res.status).toBe(400);
+    });
+
+    it("should accept valid resolution values (QW-A)", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+
+      for (const res of ["0.5K", "1K", "2K", "4K"]) {
+        const req = createRequest("POST", "/api/generate-image", {
+          ...validBody,
+          options: { resolution: res },
+        });
+        const response = await POST(req);
+        // Should not return 400 — valid resolution
+        expect(response.status).not.toBe(400);
+      }
+    });
+
+    it("should return 400 for invalid resolution value (QW-A)", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+
+      const req = createRequest("POST", "/api/generate-image", {
+        ...validBody,
+        options: { resolution: "8K" }, // Not in enum
+      });
+      const res = await POST(req);
+
+      expect(res.status).toBe(400);
+    });
+
+    it("should accept referenceImages array (QW-D)", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+
+      const req = createRequest("POST", "/api/generate-image", {
+        ...validBody,
+        options: { referenceImages: ["data:image/png;base64,abc", "data:image/png;base64,def"] },
+      });
+      const res = await POST(req);
+
+      // Should not return 400 (may return 404 for conversation)
+      expect(res.status).not.toBe(400);
+    });
+
+    it("should return 400 when referenceImages exceeds max 4 (QW-D)", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+
+      const req = createRequest("POST", "/api/generate-image", {
+        ...validBody,
+        options: {
+          referenceImages: [
+            "data:image/png;base64,a",
+            "data:image/png;base64,b",
+            "data:image/png;base64,c",
+            "data:image/png;base64,d",
+            "data:image/png;base64,e", // 5th — exceeds max
+          ],
+        },
       });
       const res = await POST(req);
 

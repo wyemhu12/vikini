@@ -90,6 +90,12 @@ export default [
         allowTernary: true,
         allowTaggedTemplates: true,
       }],
+
+      // Disable no-undef for TypeScript — tsc handles this far better.
+      // ESLint's no-undef doesn't understand TS globals, JSX automatic runtime,
+      // or type-only imports, causing false positives (e.g. 'React' is not defined).
+      // See: https://typescript-eslint.io/troubleshooting/faqs/eslint
+      "no-undef": "off",
     }
   },
   {
