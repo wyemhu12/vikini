@@ -86,21 +86,20 @@ export function DescribeImageView() {
     setResult(null);
 
     try {
-      const formData = new FormData();
-      formData.append("image", imageFile);
-
+      // API expects JSON { imageUrl: string } — send base64 data URL
       const res = await fetch("/api/describe-image", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: imagePreview }),
       });
 
+      const json = await res.json();
       if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error?.message || "Failed to analyze image");
+        throw new Error(json.error?.message || json.error || "Failed to analyze image");
       }
 
-      const json = await res.json();
-      setResult(json.prompt || json.description || "");
+      // API returns success({ description }) → json.data.description
+      setResult(json.data?.description || "");
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unknown error";
       logger.error("[DescribeImageView] analyze failed:", message);
@@ -108,7 +107,7 @@ export function DescribeImageView() {
     } finally {
       setAnalyzing(false);
     }
-  }, [imageFile]);
+  }, [imagePreview]);
 
   const handleCopy = useCallback(async () => {
     if (!result) return;
