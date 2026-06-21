@@ -4,7 +4,22 @@
  */
 
 export interface ImageGenOptions {
-  aspectRatio?: "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
+  aspectRatio?:
+    | "1:1"
+    | "16:9"
+    | "9:16"
+    | "4:3"
+    | "3:4"
+    | "3:2"
+    | "2:3"
+    | "21:9"
+    | "5:4"
+    | "4:5"
+    | "1:4"
+    | "4:1"
+    | "1:8"
+    | "8:1";
+  resolution?: "0.5K" | "1K" | "2K" | "4K";
   numberOfImages?: number;
   style?:
     | "none"
@@ -20,6 +35,7 @@ export interface ImageGenOptions {
   enhancerModel?: string;
   model?: string;
   referenceImage?: string;
+  referenceImages?: string[];
 }
 
 export interface ImageGenResult {

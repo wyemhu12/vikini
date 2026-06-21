@@ -23,13 +23,32 @@ const routeLogger = logger.withContext("generate-image");
 // Zod schema for image generation request validation
 const imageGenOptionsSchema = z
   .object({
-    aspectRatio: z.enum(["1:1", "16:9", "9:16", "4:3", "3:4"]).optional(),
+    aspectRatio: z
+      .enum([
+        "1:1",
+        "16:9",
+        "9:16",
+        "4:3",
+        "3:4",
+        "3:2",
+        "2:3",
+        "21:9",
+        "5:4",
+        "4:5",
+        "1:4",
+        "4:1",
+        "1:8",
+        "8:1",
+      ])
+      .optional(),
+    resolution: z.enum(["0.5K", "1K", "2K", "4K"]).optional(),
     numberOfImages: z.number().int().min(1).max(4).optional(),
     style: z.string().max(50).optional(), // MT5: Any style ID from expanded style system
     enhancer: z.boolean().optional(),
     enhancerModel: z.string().max(100).optional(),
     model: z.string().max(100).optional(),
-    referenceImage: z.string().optional(),
+    referenceImage: z.string().optional(), // backward compat
+    referenceImages: z.array(z.string()).max(4).optional(), // QW-D: multiple reference images
   })
   .optional();
 
@@ -151,8 +170,11 @@ Original: "${prompt}"`;
     let providerName = "gemini-native"; // Default (Gemini Image Flash)
     const modelName = options?.model?.toLowerCase();
 
-    // Auto-route to gemini-native when referenceImage is provided
-    if (options?.referenceImage) {
+    // Auto-route to gemini-native when referenceImage(s) are provided
+    if (
+      options?.referenceImage ||
+      (options?.referenceImages && options.referenceImages.length > 0)
+    ) {
       providerName = "gemini-native";
     } else if (
       modelName?.includes("gemini-3.1-flash-image") ||

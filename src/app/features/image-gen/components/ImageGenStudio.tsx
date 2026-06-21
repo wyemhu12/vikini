@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import ControlPanel, { type BatchQuotaInfo } from "./ControlPanel";
 import Canvas, { GeneratedImage } from "./Canvas";
 import EditPanel from "./EditPanel";
@@ -97,6 +97,7 @@ export function ImageGenStudio() {
   const [negativePrompt, setNegativePrompt] = useState(""); // QW1
   const [model, setModel] = useState("gemini-3.1-flash-image");
   const [aspectRatio, setAspectRatio] = useState("1:1");
+  const [resolution, setResolution] = useState("1K"); // QW-A
   const [style, setStyle] = useState("none");
   const [isEnhancerOn, setIsEnhancerOn] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -117,8 +118,11 @@ export function ImageGenStudio() {
   // Phase 1: Edit Image
   const [editingImage, setEditingImage] = useState<GeneratedImage | null>(null);
 
-  // Phase 2: Reference Image
-  const [referenceImage, setReferenceImage] = useState<File | null>(null);
+  // Phase 2: Reference Images (multi, QW-D)
+  const [referenceImages, setReferenceImages] = useState<File[]>([]);
+
+  // QW-F: AbortController for cancel
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Phase 3: Lightbox
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -298,18 +302,21 @@ export function ImageGenStudio() {
       finalPrompt = `${prompt}\nDo NOT include: ${negativePrompt.trim()}`;
     }
 
-    // Phase 2: Convert reference image to base64 if present
-    let referenceImageBase64: string | undefined;
-    if (referenceImage) {
+    // Phase 2: Convert reference images to base64 if present (QW-D: multi)
+    const referenceImagesBase64: string[] = [];
+    if (referenceImages.length > 0) {
       try {
-        const reader = new FileReader();
-        referenceImageBase64 = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(referenceImage);
-        });
+        for (const refFile of referenceImages) {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(refFile);
+          });
+          referenceImagesBase64.push(base64);
+        }
       } catch (e) {
-        logger.warn("Failed to convert reference image:", e);
+        logger.warn("Failed to convert reference images:", e);
       }
     }
 
@@ -319,6 +326,10 @@ export function ImageGenStudio() {
 
     try {
       // QW6: Parallel batch generation with Promise.allSettled
+      // QW-F: Create AbortController for cancel support
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
       if (totalImages > 1) {
         setGeneratingLabel(
           t("studioGeneratingProgress")
@@ -330,15 +341,18 @@ export function ImageGenStudio() {
           fetch("/api/generate-image", {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-api-key": key },
+            signal: abortController.signal,
             body: JSON.stringify({
               prompt: finalPrompt,
               conversationId: targetId,
               options: {
                 model,
                 aspectRatio,
+                resolution: model.includes("gemini-3") ? resolution : undefined,
                 style: style === "none" ? undefined : style,
                 enhancer: isEnhancerOn,
-                referenceImage: referenceImageBase64,
+                referenceImages:
+                  referenceImagesBase64.length > 0 ? referenceImagesBase64 : undefined,
               },
               batchSize: totalImages,
             }),
@@ -377,15 +391,17 @@ export function ImageGenStudio() {
         const response = await fetch("/api/generate-image", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-api-key": key },
+          signal: abortController.signal,
           body: JSON.stringify({
             prompt: finalPrompt,
             conversationId: targetId,
             options: {
               model,
               aspectRatio,
+              resolution: model.includes("gemini-3") ? resolution : undefined,
               style: style === "none" ? undefined : style,
               enhancer: isEnhancerOn,
-              referenceImage: referenceImageBase64,
+              referenceImages: referenceImagesBase64.length > 0 ? referenceImagesBase64 : undefined,
             },
           }),
         });
@@ -407,6 +423,11 @@ export function ImageGenStudio() {
         addToPromptHistory(prompt);
       }
     } catch (error: unknown) {
+      // QW-F: Don't show error for user-initiated abort
+      if (error instanceof DOMException && error.name === "AbortError") {
+        logger.info("Generation cancelled by user");
+        return;
+      }
       logger.error("Gen Error:", error);
       if (successCount === 0) {
         const errMsg = error instanceof Error ? error.message : "";
@@ -415,12 +436,20 @@ export function ImageGenStudio() {
     } finally {
       setGenerating(false);
       setGeneratingLabel(null);
+      abortControllerRef.current = null;
       // Refresh batch quota after generation
       if (totalImages > 1) {
         void fetchBatchQuota();
       }
     }
   };
+
+  // QW-F: Cancel handler
+  const handleCancel = useCallback(() => {
+    abortControllerRef.current?.abort();
+    setGenerating(false);
+    setGeneratingLabel(null);
+  }, []);
 
   const handleRemix = (image: GeneratedImage) => {
     setPrompt(image.prompt);
@@ -453,7 +482,7 @@ export function ImageGenStudio() {
     if (template.style && template.style !== "none") {
       setStyle(template.style);
     }
-    setReferenceImage(file);
+    setReferenceImages([file]);
     setTemplateModalTarget(null);
     setMobileTab("studio");
   };
@@ -649,7 +678,16 @@ export function ImageGenStudio() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setShowError(null)}>{t("done")}</AlertDialogAction>
+            <AlertDialogCancel>{t("done")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowError(null);
+                void handleGenerate();
+              }}
+              className="bg-purple-600 text-white hover:bg-purple-700"
+            >
+              {t("studioRetry")}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -750,15 +788,18 @@ export function ImageGenStudio() {
               setModel={setModel}
               aspectRatio={aspectRatio}
               setAspectRatio={setAspectRatio}
+              resolution={resolution}
+              setResolution={setResolution}
               style={style}
               setStyle={setStyle}
               isEnhancerOn={isEnhancerOn}
               setIsEnhancerOn={setIsEnhancerOn}
               onGenerate={handleGenerate}
+              onCancel={handleCancel}
               generating={generating}
               className={mobileTab !== "studio" ? "hidden md:flex" : "flex"}
-              referenceImage={referenceImage}
-              setReferenceImage={setReferenceImage}
+              referenceImages={referenceImages}
+              setReferenceImages={setReferenceImages}
               numberOfImages={numberOfImages}
               setNumberOfImages={setNumberOfImages}
               batchQuota={batchQuota}

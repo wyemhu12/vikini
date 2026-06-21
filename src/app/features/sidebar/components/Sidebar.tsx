@@ -26,6 +26,7 @@ import {
   MessageSquarePlus,
   FolderPlus,
   Loader2,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { toast } from "@/lib/store/toastStore";
@@ -316,6 +317,15 @@ function Sidebar({
             variant={pathname?.includes("/images") ? "primary" : "default"}
             isCollapsed={isCollapsed}
           />
+          {pathname?.includes("/images") && (
+            <SidebarButton
+              onClick={() => handleNavigation("/describe")}
+              icon={Search}
+              label={t?.describeTitle || "Describe Image"}
+              className="ml-6 scale-95 origin-left opacity-80"
+              isCollapsed={isCollapsed}
+            />
+          )}
           <SidebarButton
             onClick={() => handleNavigation("/gallery")}
             icon={LayoutGrid}

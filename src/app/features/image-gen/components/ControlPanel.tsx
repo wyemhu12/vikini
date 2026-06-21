@@ -65,16 +65,19 @@ interface ControlPanelProps {
   setModel: (v: string) => void;
   aspectRatio: string;
   setAspectRatio: (v: string) => void;
+  resolution: string;
+  setResolution: (v: string) => void;
   style: string;
   setStyle: (v: string) => void;
   isEnhancerOn: boolean;
   setIsEnhancerOn: (v: boolean) => void;
   onGenerate: () => void;
+  onCancel?: () => void;
   generating: boolean;
   className?: string;
-  // Phase 2: Reference Image
-  referenceImage: File | null;
-  setReferenceImage: (f: File | null) => void;
+  // Phase 2: Reference Images (multi)
+  referenceImages: File[];
+  setReferenceImages: (f: File[]) => void;
   // Phase 4: Batch Generation
   numberOfImages: number;
   setNumberOfImages: (n: number) => void;
@@ -87,6 +90,18 @@ interface ControlPanelProps {
   onClearHistory: () => void;
 }
 
+// Aspect ratio groups for organized display
+const COMMON_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4"];
+const EXTENDED_RATIOS = ["3:2", "2:3", "21:9", "5:4", "4:5", "1:4", "4:1", "1:8", "8:1"];
+
+// Resolution options with approximate cost per image
+const RESOLUTION_OPTIONS = [
+  { value: "0.5K", cost: "0.04" },
+  { value: "1K", cost: "0.07" },
+  { value: "2K", cost: "0.10" },
+  { value: "4K", cost: "0.15" },
+] as const;
+
 export default function ControlPanel({
   prompt,
   setPrompt,
@@ -94,15 +109,18 @@ export default function ControlPanel({
   setModel,
   aspectRatio,
   setAspectRatio,
+  resolution,
+  setResolution,
   style,
   setStyle,
   isEnhancerOn,
   setIsEnhancerOn,
   onGenerate,
+  onCancel,
   generating,
   className,
-  referenceImage,
-  setReferenceImage,
+  referenceImages,
+  setReferenceImages,
   numberOfImages,
   setNumberOfImages,
   batchQuota,
@@ -117,35 +135,53 @@ export default function ControlPanel({
   const [showNegativePrompt, setShowNegativePrompt] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [promptMode, setPromptMode] = useState<"free" | "guided">("free");
+  const [showExtendedRatios, setShowExtendedRatios] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
 
-  const [referencePreview, setReferencePreview] = useState<string | null>(null);
+  const MAX_REF_IMAGES = 4;
+  const [referencePreviews, setReferencePreviews] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!referenceImage) {
-      setReferencePreview(null);
+    if (referenceImages.length === 0) {
+      setReferencePreviews([]);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setReferencePreview(reader.result as string);
-    reader.readAsDataURL(referenceImage);
-  }, [referenceImage]);
+    const previews: string[] = [];
+    let loaded = 0;
+    referenceImages.forEach((file, idx) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        previews[idx] = reader.result as string;
+        loaded++;
+        if (loaded === referenceImages.length) {
+          setReferencePreviews([...previews]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }, [referenceImages]);
 
   const handleRefUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file && file.type.startsWith("image/")) {
-        setReferenceImage(file);
+      const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith("image/"));
+      if (files.length > 0) {
+        setReferenceImages([...referenceImages, ...files].slice(0, MAX_REF_IMAGES));
       }
-      // Reset input so same file can be re-selected
       e.target.value = "";
     },
-    [setReferenceImage]
+    [referenceImages, setReferenceImages]
+  );
+
+  const removeRefImage = useCallback(
+    (index: number) => {
+      setReferenceImages(referenceImages.filter((_, i) => i !== index));
+    },
+    [referenceImages, setReferenceImages]
   );
 
   const isGeminiNative = model.includes("gemini-3") || model.includes("gemini-3.1");
-  const showRefWarning = referenceImage && !isGeminiNative;
+  const showRefWarning = referenceImages.length > 0 && !isGeminiNative;
 
   return (
     <aside
@@ -400,13 +436,13 @@ export default function ControlPanel({
           </Select>
         </div>
 
-        {/* Aspect Ratio */}
+        {/* Aspect Ratio — Common + Extended */}
         <div className="space-y-2 px-6 mt-4">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("studioDimensions")}
           </Label>
           <div className="grid grid-cols-3 gap-2">
-            {["1:1", "16:9", "9:16", "4:3", "3:4"].map((ratio) => (
+            {COMMON_RATIOS.map((ratio) => (
               <button
                 key={ratio}
                 onClick={() => setAspectRatio(ratio)}
@@ -421,7 +457,67 @@ export default function ControlPanel({
               </button>
             ))}
           </div>
+          {/* Extended ratios toggle */}
+          <button
+            onClick={() => setShowExtendedRatios(!showExtendedRatios)}
+            className="text-[10px] font-medium text-purple-400 hover:text-purple-300 transition-colors"
+          >
+            {showExtendedRatios ? "▾" : "▸"} {t("studioExtraRatios")} ({EXTENDED_RATIOS.length})
+          </button>
+          {showExtendedRatios && (
+            <div className="grid grid-cols-3 gap-2 animate-in fade-in slide-in-from-top-1">
+              {EXTENDED_RATIOS.map((ratio) => (
+                <button
+                  key={ratio}
+                  onClick={() => setAspectRatio(ratio)}
+                  className={cn(
+                    "px-2 py-2 rounded-md text-xs font-medium border transition-all",
+                    aspectRatio === ratio
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-(--surface-elevated) border-(--border) hover:bg-(--surface-hover)"
+                  )}
+                >
+                  {ratio}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* QW-A: Resolution Selector */}
+        {isGeminiNative && (
+          <div className="space-y-2 px-6 mt-4">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {t("studioResolution")}
+            </Label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {RESOLUTION_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setResolution(opt.value)}
+                  className={cn(
+                    "flex flex-col items-center gap-0.5 px-1.5 py-2 rounded-lg text-xs font-medium border transition-all",
+                    resolution === opt.value
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-(--surface-elevated) border-(--border) hover:bg-(--surface-hover)"
+                  )}
+                >
+                  <span className="font-bold">{t(`studioRes${opt.value.replace(".", "")}`)}</span>
+                  <span
+                    className={cn(
+                      "text-[9px]",
+                      resolution === opt.value
+                        ? "text-primary-foreground/70"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    ~${opt.cost}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Style */}
         <div className="space-y-2 px-6 mt-4">
@@ -431,30 +527,63 @@ export default function ControlPanel({
           <StyleSelector selectedStyle={style} onSelect={setStyle} />
         </div>
 
-        {/* Reference Image (Phase 2) */}
+        {/* Reference Images (QW-D: Multi-reference, max 4) */}
         <div className="space-y-2 px-4 md:px-6 mt-4">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("studioReferenceImage")}
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {t("studioReferenceImages")}
+            </Label>
+            {referenceImages.length > 0 && (
+              <span className="text-[10px] text-muted-foreground">
+                {t("studioRefCount").replace("{{count}}", String(referenceImages.length))}
+              </span>
+            )}
+          </div>
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            multiple
             className="hidden"
             onChange={handleRefUpload}
           />
-          {referenceImage && referencePreview ? (
-            <div className="relative group/ref rounded-lg overflow-hidden border border-(--border) bg-(--surface-elevated)">
-              <img src={referencePreview} alt="Reference" className="w-full h-24 object-cover" />
-              <button
-                onClick={() => setReferenceImage(null)}
-                className="absolute top-1 right-1 p-1 rounded-full bg-black/60 hover:bg-red-500/80 text-white transition-colors"
-                title={t("studioRemoveRef")}
-              >
-                <X className="w-3 h-3" />
-              </button>
+          {referenceImages.length > 0 ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                {referencePreviews.map((preview, idx) => (
+                  <div
+                    key={idx}
+                    className="relative group/ref rounded-lg overflow-hidden border border-(--border) bg-(--surface-elevated)"
+                  >
+                    <img
+                      src={preview}
+                      alt={`Reference ${idx + 1}`}
+                      className="w-full h-20 object-cover"
+                    />
+                    <button
+                      onClick={() => removeRefImage(idx)}
+                      className="absolute top-1 right-1 p-1 rounded-full bg-black/60 hover:bg-red-500/80 text-white transition-colors opacity-0 group-hover/ref:opacity-100"
+                      title={t("studioRemoveRef")}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                {/* Add more button */}
+                {referenceImages.length < MAX_REF_IMAGES && (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center h-20 rounded-lg border border-dashed border-(--border) hover:border-purple-500/30 hover:bg-purple-500/5 transition-all"
+                  >
+                    <Upload className="w-4 h-4 text-(--text-secondary) mb-1" />
+                    <span className="text-[10px] text-(--text-secondary)">
+                      {t("studioAddMoreRef")}
+                    </span>
+                  </button>
+                )}
+              </div>
               {showRefWarning && (
-                <div className="absolute bottom-0 inset-x-0 bg-amber-500/90 text-white text-[9px] font-medium px-2 py-1 text-center">
+                <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[10px] font-medium px-2.5 py-1.5 rounded-lg text-center">
                   {t("studioRefOnlyGemini")}
                 </div>
               )}
@@ -471,7 +600,9 @@ export default function ControlPanel({
                 <div className="text-xs font-medium text-(--text-primary)">
                   {t("studioUploadRef")}
                 </div>
-                <div className="text-[10px] text-(--text-secondary)">{t("studioRefDesc")}</div>
+                <div className="text-[10px] text-(--text-secondary)">
+                  {t("studioRefImagesDesc")}
+                </div>
               </div>
             </button>
           )}
@@ -534,22 +665,40 @@ export default function ControlPanel({
         )}
       </div>
 
-      {/* Sticky generate button at bottom */}
+      {/* Sticky generate/cancel button at bottom */}
       <div className="shrink-0 px-4 md:px-6 py-4 border-t border-(--border)">
-        <Button
-          onClick={onGenerate}
-          disabled={generating || !prompt.trim()}
-          className="w-full bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-900/20"
-          size="lg"
-        >
-          {generating ? (
-            <span className="animate-pulse">{generatingLabel || t("studioGenerating")}</span>
-          ) : numberOfImages > 1 ? (
-            `${t("studioGenerate")} (${numberOfImages} ${t("studioBatchImages")})`
-          ) : (
-            t("studioGenerate")
-          )}
-        </Button>
+        {generating ? (
+          <div className="flex gap-2">
+            <Button
+              disabled
+              className="flex-1 bg-linear-to-r from-purple-600 to-blue-600 text-white opacity-80"
+              size="lg"
+            >
+              <span className="animate-pulse">{generatingLabel || t("studioGenerating")}</span>
+            </Button>
+            {onCancel && (
+              <Button
+                onClick={onCancel}
+                variant="outline"
+                size="lg"
+                className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              >
+                {t("studioCancel")}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <Button
+            onClick={onGenerate}
+            disabled={!prompt.trim()}
+            className="w-full bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-900/20"
+            size="lg"
+          >
+            {numberOfImages > 1
+              ? `${t("studioGenerate")} (${numberOfImages} ${t("studioBatchImages")})`
+              : t("studioGenerate")}
+          </Button>
+        )}
       </div>
     </aside>
   );

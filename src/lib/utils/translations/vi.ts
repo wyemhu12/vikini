@@ -447,6 +447,41 @@ export const vi = {
   studioRefDesc: "Thêm ảnh để AI tham khảo khi tạo",
   studioRemoveRef: "Xóa ảnh tham chiếu",
   studioRefOnlyGemini: "Chỉ hỗ trợ model Gemini",
+  // QW-A: Resolution
+  studioResolution: "Độ phân giải",
+  studioRes05K: "0.5K",
+  studioRes1K: "1K",
+  studioRes2K: "2K",
+  studioRes4K: "4K",
+  studioResCostHint: "~${{cost}}/ảnh",
+  // QW-B: Expanded Ratios
+  studioCommonRatios: "Phổ biến",
+  studioExtraRatios: "Mở rộng",
+  // QW-C: Describe Image
+  studioDescribe: "Mô tả",
+  studioDescribing: "Đang mô tả...",
+  studioDescribeTooltip: "AI mô tả ảnh này → điền prompt",
+  describeTitle: "Mô Tả Ảnh",
+  describeSubtitle: "Tải ảnh lên để AI tạo prompt chi tiết mô tả lại ảnh",
+  describeUpload: "Kéo thả ảnh hoặc nhấn để tải lên",
+  describeUploadHint: "Hỗ trợ JPG, PNG, WebP (tối đa 10MB)",
+  describeAnalyze: "Phân Tích Ảnh",
+  describeAnalyzing: "Đang phân tích...",
+  describeResult: "Prompt Được Tạo",
+  describeCopy: "Sao chép",
+  describeCopied: "Đã sao chép!",
+  describeUseInStudio: "Dùng trong Image Studio",
+  describeNewImage: "Thử ảnh khác",
+  // QW-D: Multiple References
+  studioReferenceImages: "Ảnh tham chiếu",
+  studioRefImagesDesc: "Thêm tối đa 4 ảnh để AI tham chiếu",
+  studioAddMoreRef: "Thêm ảnh",
+  studioRefCount: "{{count}}/4 ảnh",
+  // QW-E: Retry
+  studioRetry: "Thử lại",
+  // QW-F: Cancel
+  studioCancel: "Huỷ",
+  studioCancelled: "Đã huỷ tạo ảnh",
   // Lightbox (Phase 3)
   studioImageOf: "{current} / {total}",
   studioZoomIn: "Phóng to",

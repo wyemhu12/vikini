@@ -56,31 +56,37 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
         ],
       };
 
-      // Aspect ratio via imageConfig (supported by gemini-3.1-flash-image and gemini-3-pro-image)
-      if (options?.aspectRatio) {
-        config.imageConfig = {
-          aspectRatio: options.aspectRatio,
-        };
+      // Aspect ratio & resolution via imageConfig (supported by gemini-3.1-flash-image and gemini-3-pro-image)
+      const imageConfig: Record<string, unknown> = {};
+      if (options?.aspectRatio) imageConfig.aspectRatio = options.aspectRatio;
+      if (options?.resolution) imageConfig.resolution = options.resolution;
+      if (Object.keys(imageConfig).length > 0) {
+        config.imageConfig = imageConfig;
       }
 
-      // Build contents with optional reference image
+      // Build contents with optional reference image(s)
+      // Supports both single referenceImage (backward compat) and referenceImages array
       let contentParts: Array<
         { text: string } | { inlineData: { data: string; mimeType: string } }
       >;
 
-      if (options?.referenceImage) {
-        // Parse data URL: "data:<mimeType>;base64,<data>"
-        const dataUrlMatch = options.referenceImage.match(/^data:([\w/+.-]+);base64,(.+)$/);
-        if (dataUrlMatch) {
-          const refMimeType = dataUrlMatch[1];
-          const refBase64 = dataUrlMatch[2];
-          contentParts = [
-            { inlineData: { data: refBase64, mimeType: refMimeType } },
-            { text: finalPrompt },
-          ];
-        } else {
-          providerLogger.warn("Invalid referenceImage data URL format, using text-only prompt");
-          contentParts = [{ text: finalPrompt }];
+      const referenceImageSources =
+        options?.referenceImages || (options?.referenceImage ? [options.referenceImage] : []);
+
+      if (referenceImageSources.length > 0) {
+        contentParts = [];
+        for (const refImg of referenceImageSources) {
+          const dataUrlMatch = refImg.match(/^data:([\w/+.-]+);base64,(.+)$/);
+          if (dataUrlMatch) {
+            contentParts.push({ inlineData: { data: dataUrlMatch[2], mimeType: dataUrlMatch[1] } });
+          } else {
+            providerLogger.warn("Invalid referenceImage data URL format, skipping");
+          }
+        }
+        contentParts.push({ text: finalPrompt });
+        // If no valid images were parsed, fall back to text-only
+        if (contentParts.length === 1) {
+          providerLogger.warn("No valid reference images parsed, using text-only prompt");
         }
       } else {
         contentParts = [{ text: finalPrompt }];

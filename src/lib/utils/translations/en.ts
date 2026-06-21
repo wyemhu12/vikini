@@ -437,6 +437,41 @@ export const en = {
   studioRefDesc: "Add image for AI to reference",
   studioRemoveRef: "Remove reference",
   studioRefOnlyGemini: "Only supported with Gemini models",
+  // QW-A: Resolution
+  studioResolution: "Resolution",
+  studioRes05K: "0.5K",
+  studioRes1K: "1K",
+  studioRes2K: "2K",
+  studioRes4K: "4K",
+  studioResCostHint: "~${{cost}}/image",
+  // QW-B: Expanded Ratios
+  studioCommonRatios: "Common",
+  studioExtraRatios: "Extended",
+  // QW-C: Describe Image
+  studioDescribe: "Describe",
+  studioDescribing: "Describing...",
+  studioDescribeTooltip: "AI describes this image → fill prompt",
+  describeTitle: "Describe Image",
+  describeSubtitle: "Upload an image and AI will generate a detailed prompt to recreate it",
+  describeUpload: "Drop image here or click to upload",
+  describeUploadHint: "Supports JPG, PNG, WebP (max 10MB)",
+  describeAnalyze: "Analyze Image",
+  describeAnalyzing: "Analyzing...",
+  describeResult: "Generated Prompt",
+  describeCopy: "Copy to clipboard",
+  describeCopied: "Copied!",
+  describeUseInStudio: "Use in Image Studio",
+  describeNewImage: "Try another image",
+  // QW-D: Multiple References
+  studioReferenceImages: "Reference Images",
+  studioRefImagesDesc: "Add up to 4 images for AI to reference",
+  studioAddMoreRef: "Add more",
+  studioRefCount: "{{count}}/4 images",
+  // QW-E: Retry
+  studioRetry: "Retry",
+  // QW-F: Cancel
+  studioCancel: "Cancel",
+  studioCancelled: "Generation cancelled",
   // Lightbox (Phase 3)
   studioImageOf: "{current} / {total}",
   studioZoomIn: "Zoom in",
