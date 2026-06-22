@@ -1,27 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
-import {
-  Palette,
-  Camera,
-  Clapperboard,
-  Brush,
-  MonitorPlay,
-  Box,
-  Droplet,
-  PaintBucket,
-  PenTool,
-  Zap,
-  Minimize2,
-  Eye,
-  Grid3x3,
-  Triangle,
-  Cog,
-  Binary,
-  Swords,
-  Flower2,
-  Search,
-} from "lucide-react";
+import { Palette, Search } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { useState } from "react";
 
@@ -30,27 +10,48 @@ interface StyleSelectorProps {
   onSelect: (style: string) => void;
 }
 
+// Style preview image map — maps style id to /styles/ image path
+const STYLE_THUMBNAILS: Record<string, string> = {
+  photorealistic: "/styles/style_photorealistic.png",
+  anime: "/styles/style_anime.png",
+  "digital-art": "/styles/style_digital_art.png",
+  cinematic: "/styles/style_cinematic.png",
+  "3d-render": "/styles/style_3d_render.png",
+  watercolor: "/styles/style_watercolor.png",
+  "oil-painting": "/styles/style_oil_painting.png",
+  "sketch-pencil": "/styles/style_sketch.png",
+  "pop-art": "/styles/style_pop_art.png",
+  minimalist: "/styles/style_minimalist.png",
+  surrealist: "/styles/style_surrealist.png",
+  "pixel-art": "/styles/style_pixel_art.png",
+  isometric: "/styles/style_isometric.png",
+  "low-poly": "/styles/style_low_poly.png",
+  steampunk: "/styles/style_steampunk.png",
+  cyberpunk: "/styles/style_cyberpunk.png",
+  "fantasy-art": "/styles/style_fantasy_art.png",
+  "art-nouveau": "/styles/style_art_nouveau.png",
+};
+
 const STYLES = [
-  { id: "none", labelKey: "styleNone", icon: Palette, color: "bg-gray-500" },
-  { id: "photorealistic", labelKey: "stylePhoto", icon: Camera, color: "bg-blue-500" },
-  { id: "anime", labelKey: "styleAnime", icon: MonitorPlay, color: "bg-pink-500" },
-  { id: "digital-art", labelKey: "styleDigital", icon: Brush, color: "bg-purple-500" },
-  { id: "cinematic", labelKey: "styleCinema", icon: Clapperboard, color: "bg-amber-600" },
-  { id: "3d-render", labelKey: "style3d", icon: Box, color: "bg-emerald-500" },
-  // --- New styles (MT5) ---
-  { id: "watercolor", labelKey: "styleWatercolor", icon: Droplet, color: "bg-cyan-500" },
-  { id: "oil-painting", labelKey: "styleOilPainting", icon: PaintBucket, color: "bg-orange-600" },
-  { id: "sketch-pencil", labelKey: "styleSketch", icon: PenTool, color: "bg-gray-400" },
-  { id: "pop-art", labelKey: "stylePopArt", icon: Zap, color: "bg-red-500" },
-  { id: "minimalist", labelKey: "styleMinimalist", icon: Minimize2, color: "bg-slate-500" },
-  { id: "surrealist", labelKey: "styleSurrealist", icon: Eye, color: "bg-violet-600" },
-  { id: "pixel-art", labelKey: "stylePixelArt", icon: Grid3x3, color: "bg-green-500" },
-  { id: "isometric", labelKey: "styleIsometric", icon: Triangle, color: "bg-teal-500" },
-  { id: "low-poly", labelKey: "styleLowPoly", icon: Triangle, color: "bg-lime-600" },
-  { id: "steampunk", labelKey: "styleSteampunk", icon: Cog, color: "bg-yellow-700" },
-  { id: "cyberpunk", labelKey: "styleCyberpunk", icon: Binary, color: "bg-fuchsia-600" },
-  { id: "fantasy-art", labelKey: "styleFantasy", icon: Swords, color: "bg-indigo-600" },
-  { id: "art-nouveau", labelKey: "styleArtNouveau", icon: Flower2, color: "bg-rose-500" },
+  { id: "none", labelKey: "styleNone", color: "bg-gray-500" },
+  { id: "photorealistic", labelKey: "stylePhoto", color: "bg-blue-500" },
+  { id: "anime", labelKey: "styleAnime", color: "bg-pink-500" },
+  { id: "digital-art", labelKey: "styleDigital", color: "bg-purple-500" },
+  { id: "cinematic", labelKey: "styleCinema", color: "bg-amber-600" },
+  { id: "3d-render", labelKey: "style3d", color: "bg-emerald-500" },
+  { id: "watercolor", labelKey: "styleWatercolor", color: "bg-cyan-500" },
+  { id: "oil-painting", labelKey: "styleOilPainting", color: "bg-orange-600" },
+  { id: "sketch-pencil", labelKey: "styleSketch", color: "bg-gray-400" },
+  { id: "pop-art", labelKey: "stylePopArt", color: "bg-red-500" },
+  { id: "minimalist", labelKey: "styleMinimalist", color: "bg-slate-500" },
+  { id: "surrealist", labelKey: "styleSurrealist", color: "bg-violet-600" },
+  { id: "pixel-art", labelKey: "stylePixelArt", color: "bg-green-500" },
+  { id: "isometric", labelKey: "styleIsometric", color: "bg-teal-500" },
+  { id: "low-poly", labelKey: "styleLowPoly", color: "bg-lime-600" },
+  { id: "steampunk", labelKey: "styleSteampunk", color: "bg-yellow-700" },
+  { id: "cyberpunk", labelKey: "styleCyberpunk", color: "bg-fuchsia-600" },
+  { id: "fantasy-art", labelKey: "styleFantasy", color: "bg-indigo-600" },
+  { id: "art-nouveau", labelKey: "styleArtNouveau", color: "bg-rose-500" },
 ] as const;
 
 export default function StyleSelector({ selectedStyle, onSelect }: StyleSelectorProps) {
@@ -77,40 +78,52 @@ export default function StyleSelector({ selectedStyle, onSelect }: StyleSelector
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-2 max-h-[280px] overflow-y-auto custom-scrollbar pr-0.5">
+      <div className="grid grid-cols-3 gap-2 max-h-[320px] overflow-y-auto custom-scrollbar pr-0.5">
         {filteredStyles.map((s) => {
-          const Icon = s.icon;
           const isSelected = selectedStyle === s.id;
+          const thumbnail = STYLE_THUMBNAILS[s.id];
           return (
             <button
               key={s.id}
               onClick={() => onSelect(s.id)}
               className={cn(
-                "group flex flex-col items-center justify-between p-2.5 rounded-xl border transition-all duration-200 h-20 relative overflow-hidden",
+                "group flex flex-col items-center justify-end rounded-xl border transition-all duration-200 h-24 relative overflow-hidden",
                 isSelected
-                  ? "border-primary bg-primary/5 ring-1 ring-primary shadow-md"
-                  : "border-(--border) bg-(--surface-elevated) hover:bg-(--surface-hover) hover:border-(--control-border)"
+                  ? "border-primary ring-2 ring-primary/50 shadow-lg shadow-primary/20"
+                  : "border-(--border) hover:border-(--control-border) hover:shadow-md"
               )}
             >
-              <div
-                className={cn(
-                  "p-2 rounded-full text-white shadow-sm transition-transform group-hover:scale-110",
-                  s.color
-                )}
-              >
-                <Icon size={14} />
-              </div>
+              {/* Thumbnail background or gradient fallback */}
+              {thumbnail ? (
+                <img
+                  src={thumbnail}
+                  alt={t(s.labelKey)}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                  loading="lazy"
+                />
+              ) : (
+                /* "None" style — icon fallback */
+                <div className="absolute inset-0 bg-(--surface-elevated) flex items-center justify-center">
+                  <Palette className="w-8 h-8 text-(--text-secondary) opacity-40" />
+                </div>
+              )}
+
+              {/* Gradient overlay for text readability */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+              {/* Label */}
               <span
                 className={cn(
-                  "text-[10px] font-medium w-full text-center transition-colors leading-tight",
-                  isSelected ? "text-primary" : "text-(--text-secondary)"
+                  "relative z-10 text-[10px] font-bold w-full text-center px-1 pb-1.5 transition-colors leading-tight drop-shadow-md",
+                  isSelected ? "text-white" : "text-white/90"
                 )}
               >
                 {t(s.labelKey)}
               </span>
 
+              {/* Selected indicator */}
               {isSelected && (
-                <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <div className="absolute top-1 right-1 w-3 h-3 rounded-full bg-primary border-2 border-white shadow-md z-10" />
               )}
             </button>
           );

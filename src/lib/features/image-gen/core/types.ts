@@ -41,6 +41,7 @@ export interface ImageGenOptions {
 export interface ImageGenResult {
   url: string;
   provider: string;
+  aiComment?: string;
   metadata?: {
     mimeType?: string;
     [key: string]: unknown;

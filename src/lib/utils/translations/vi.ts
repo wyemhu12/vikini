@@ -461,6 +461,7 @@ export const vi = {
   studioDescribe: "Mô tả",
   studioDescribing: "Đang mô tả...",
   studioDescribeTooltip: "AI mô tả ảnh này → điền prompt",
+  studioSuggestLoading: "Đang gợi ý...",
   describeTitle: "Mô Tả Ảnh",
   describeSubtitle: "Tải ảnh lên để AI tạo prompt chi tiết mô tả lại ảnh",
   describeUpload: "Kéo thả ảnh hoặc nhấn để tải lên",

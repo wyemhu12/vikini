@@ -5,6 +5,36 @@
 
 ---
 
+## 2026-06-22: Image Studio — Priority Improvements Batch
+
+### P0-4: Cleanup Legacy EditImageModal
+
+- **[DELETED] `EditImageModal.tsx`** — 261 lines dead code removed.
+
+### P1-5: Style Preview Thumbnails
+
+- **`StyleSelector.tsx`** — Rewritten with real AI-generated preview images (18 styles). `/public/styles/`.
+
+### P2-1: Interleaved Text+Image Output
+
+- **`GeminiNativeImageProvider.ts`** — `responseModalities: ["TEXT", "IMAGE"]`. Parses text as `aiComment`.
+- **`Canvas.tsx`** — Shows 💬 AI comment below image.
+
+### P2-2: Time Estimate
+
+- **`ImageGenStudio.tsx`** — Shows elapsed seconds during generation.
+
+### P2-7: Prompt Autocomplete
+
+- **[NEW] `api/prompt-suggest/route.ts`** — `gemini-3.1-flash-lite-preview`, 4 completions, rate limited.
+- **`ControlPanel.tsx`** — Debounced dropdown, keyboard nav.
+
+### Other
+
+- Remove Cancel (QW-F), prompt limit 2000→10000, ESLint no-undef fix, Describe Image bugs, Suspense boundary.
+
+---
+
 ## 2026-06-18: Feature — Image Studio Quick Wins (7 enhancements)
 
 ### QW1: Negative Prompt Field

@@ -72,7 +72,6 @@ interface ControlPanelProps {
   isEnhancerOn: boolean;
   setIsEnhancerOn: (v: boolean) => void;
   onGenerate: () => void;
-  onCancel?: () => void;
   generating: boolean;
   className?: string;
   // Phase 2: Reference Images (multi)
@@ -116,7 +115,6 @@ export default function ControlPanel({
   isEnhancerOn,
   setIsEnhancerOn,
   onGenerate,
-  onCancel,
   generating,
   className,
   referenceImages,
@@ -138,6 +136,13 @@ export default function ControlPanel({
   const [showExtendedRatios, setShowExtendedRatios] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
+
+  // P2-7: Prompt Autocomplete state
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIdx, setSelectedSuggestionIdx] = useState(-1);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const MAX_REF_IMAGES = 4;
   const [referencePreviews, setReferencePreviews] = useState<string[]>([]);
@@ -182,6 +187,82 @@ export default function ControlPanel({
 
   const isGeminiNative = model.includes("gemini-3") || model.includes("gemini-3.1");
   const showRefWarning = referenceImages.length > 0 && !isGeminiNative;
+
+  // P2-7: Fetch AI suggestions
+  const fetchSuggestions = useCallback(async (text: string) => {
+    if (text.trim().length < 5) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    setLoadingSuggestions(true);
+    try {
+      const res = await fetch("/api/prompt-suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partialPrompt: text.trim() }),
+      });
+      const json = await res.json();
+      if (json.success && json.data?.suggestions?.length > 0) {
+        setSuggestions(json.data.suggestions);
+        setShowSuggestions(true);
+        setSelectedSuggestionIdx(-1);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } catch {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  }, []);
+
+  // P2-7: Debounced prompt change handler
+  const handlePromptChange = useCallback(
+    (value: string) => {
+      setPrompt(value);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        void fetchSuggestions(value);
+      }, 600);
+    },
+    [setPrompt, fetchSuggestions]
+  );
+
+  // P2-7: Keyboard handler for autocomplete navigation
+  const handlePromptKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (!showSuggestions || suggestions.length === 0) {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+          e.preventDefault();
+          if (prompt.trim() && !generating) {
+            onGenerate();
+          }
+        }
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedSuggestionIdx((prev) => Math.min(prev + 1, suggestions.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedSuggestionIdx((prev) => Math.max(prev - 1, -1));
+      } else if (e.key === "Enter" && selectedSuggestionIdx >= 0) {
+        e.preventDefault();
+        setPrompt(suggestions[selectedSuggestionIdx]);
+        setShowSuggestions(false);
+      } else if (e.key === "Escape") {
+        setShowSuggestions(false);
+      } else if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        setShowSuggestions(false);
+        onGenerate();
+      }
+    },
+    [showSuggestions, suggestions, selectedSuggestionIdx, setPrompt, onGenerate, prompt, generating]
+  );
 
   return (
     <aside
@@ -238,21 +319,44 @@ export default function ControlPanel({
             />
           ) : (
             <>
-              <Textarea
-                placeholder={t("studioPromptPlaceholder")}
-                className="h-32 resize-none bg-(--input-bg) border-(--input-border) focus-visible:ring-1"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  // Ctrl+Enter or Cmd+Enter to generate
-                  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                    e.preventDefault();
-                    if (prompt.trim() && !generating) {
-                      onGenerate();
-                    }
-                  }
-                }}
-              />
+              <div className="relative">
+                <Textarea
+                  placeholder={t("studioPromptPlaceholder")}
+                  className="h-32 resize-none bg-(--input-bg) border-(--input-border) focus-visible:ring-1"
+                  value={prompt}
+                  onChange={(e) => handlePromptChange(e.target.value)}
+                  onKeyDown={handlePromptKeyDown}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                />
+                {/* AI Autocomplete Suggestions */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-(--surface-elevated) border border-(--border) rounded-lg shadow-xl overflow-hidden">
+                    {loadingSuggestions && (
+                      <div className="px-3 py-2 text-xs text-(--text-secondary) animate-pulse">
+                        ✨ {t("studioSuggestLoading")}
+                      </div>
+                    )}
+                    {suggestions.map((s, idx) => (
+                      <button
+                        key={idx}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setPrompt(s);
+                          setShowSuggestions(false);
+                        }}
+                        className={cn(
+                          "w-full text-left px-3 py-2.5 text-xs transition-colors border-b border-(--border) last:border-b-0",
+                          idx === selectedSuggestionIdx
+                            ? "bg-purple-500/10 text-purple-300"
+                            : "hover:bg-(--surface-hover) text-(--text-primary)"
+                        )}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <p className="text-[10px] text-muted-foreground">{t("studioShortcutHint")}</p>
 
               {/* Suggestion Tags — click to append keyword */}
@@ -665,40 +769,22 @@ export default function ControlPanel({
         )}
       </div>
 
-      {/* Sticky generate/cancel button at bottom */}
+      {/* Sticky generate button at bottom */}
       <div className="shrink-0 px-4 md:px-6 py-4 border-t border-(--border)">
-        {generating ? (
-          <div className="flex gap-2">
-            <Button
-              disabled
-              className="flex-1 bg-linear-to-r from-purple-600 to-blue-600 text-white opacity-80"
-              size="lg"
-            >
-              <span className="animate-pulse">{generatingLabel || t("studioGenerating")}</span>
-            </Button>
-            {onCancel && (
-              <Button
-                onClick={onCancel}
-                variant="outline"
-                size="lg"
-                className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
-              >
-                {t("studioCancel")}
-              </Button>
-            )}
-          </div>
-        ) : (
-          <Button
-            onClick={onGenerate}
-            disabled={!prompt.trim()}
-            className="w-full bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-900/20"
-            size="lg"
-          >
-            {numberOfImages > 1
-              ? `${t("studioGenerate")} (${numberOfImages} ${t("studioBatchImages")})`
-              : t("studioGenerate")}
-          </Button>
-        )}
+        <Button
+          onClick={onGenerate}
+          disabled={generating || !prompt.trim()}
+          className="w-full bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-900/20"
+          size="lg"
+        >
+          {generating ? (
+            <span className="animate-pulse">{generatingLabel || t("studioGenerating")}</span>
+          ) : numberOfImages > 1 ? (
+            `${t("studioGenerate")} (${numberOfImages} ${t("studioBatchImages")})`
+          ) : (
+            t("studioGenerate")
+          )}
+        </Button>
       </div>
     </aside>
   );

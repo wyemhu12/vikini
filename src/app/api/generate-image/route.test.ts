@@ -202,7 +202,7 @@ describe("/api/generate-image", () => {
       mockRateLimitAllowed();
 
       const req = createRequest("POST", "/api/generate-image", {
-        prompt: "x".repeat(2001),
+        prompt: "x".repeat(10001),
         conversationId: TEST_CONV_ID,
       });
       const res = await POST(req);

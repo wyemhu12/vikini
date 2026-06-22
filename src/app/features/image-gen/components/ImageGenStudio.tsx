@@ -131,9 +131,6 @@ export function ImageGenStudio() {
   // Phase 2: Reference Images (multi, QW-D)
   const [referenceImages, setReferenceImages] = useState<File[]>([]);
 
-  // QW-F: AbortController for cancel
-  const abortControllerRef = useRef<AbortController | null>(null);
-
   // Phase 3: Lightbox
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
@@ -148,6 +145,10 @@ export function ImageGenStudio() {
     quotas: { 2: { limit: 10, used: 0, remaining: 10 } },
   });
   const [generatingLabel, setGeneratingLabel] = useState<string | null>(null);
+
+  // P2-2: Time tracking refs
+  const genStartTimeRef = useRef<number>(0);
+  const genTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Sync selected conversation messages to generatedImages
   const generatedImages: GeneratedImage[] = useMemo(() => {
@@ -175,6 +176,8 @@ export function ImageGenStudio() {
           editDepth: meta.editDepth as number | undefined,
           // MT3: Tags
           tags: Array.isArray(meta.tags) ? (meta.tags as string[]) : undefined,
+          // P2-1: AI comment
+          aiComment: meta.aiComment as string | undefined,
         };
       })
       .reverse(); // Show newest first
@@ -306,6 +309,17 @@ export function ImageGenStudio() {
     // Auto-switch to results tab on mobile when generating starts
     setMobileTab("results");
 
+    // P2-2: Time estimate for generation
+    genStartTimeRef.current = Date.now();
+    const perImageSec = model.includes("pro") ? 20 : model.includes("gemini") ? 12 : 15;
+    const estimatedTotal = perImageSec * numberOfImages;
+    setGeneratingLabel(`${t("studioGenerating")} (~${estimatedTotal}s)`);
+
+    genTimerRef.current = setInterval(() => {
+      const elapsed = Math.round((Date.now() - genStartTimeRef.current) / 1000);
+      setGeneratingLabel(`${t("studioGenerating")} (${elapsed}s)`);
+    }, 1000);
+
     // QW1: Append negative prompt if present
     let finalPrompt = prompt;
     if (negativePrompt.trim()) {
@@ -336,10 +350,6 @@ export function ImageGenStudio() {
 
     try {
       // QW6: Parallel batch generation with Promise.allSettled
-      // QW-F: Create AbortController for cancel support
-      const abortController = new AbortController();
-      abortControllerRef.current = abortController;
-
       if (totalImages > 1) {
         setGeneratingLabel(
           t("studioGeneratingProgress")
@@ -351,7 +361,6 @@ export function ImageGenStudio() {
           fetch("/api/generate-image", {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-api-key": key },
-            signal: abortController.signal,
             body: JSON.stringify({
               prompt: finalPrompt,
               conversationId: targetId,
@@ -401,7 +410,6 @@ export function ImageGenStudio() {
         const response = await fetch("/api/generate-image", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-api-key": key },
-          signal: abortController.signal,
           body: JSON.stringify({
             prompt: finalPrompt,
             conversationId: targetId,
@@ -433,33 +441,24 @@ export function ImageGenStudio() {
         addToPromptHistory(prompt);
       }
     } catch (error: unknown) {
-      // QW-F: Don't show error for user-initiated abort
-      if (error instanceof DOMException && error.name === "AbortError") {
-        logger.info("Generation cancelled by user");
-        return;
-      }
       logger.error("Gen Error:", error);
       if (successCount === 0) {
         const errMsg = error instanceof Error ? error.message : "";
         setShowError(classifyError(errMsg || t("studioGenerateFailed"), t));
       }
     } finally {
+      if (genTimerRef.current) {
+        clearInterval(genTimerRef.current);
+        genTimerRef.current = null;
+      }
       setGenerating(false);
       setGeneratingLabel(null);
-      abortControllerRef.current = null;
       // Refresh batch quota after generation
       if (totalImages > 1) {
         void fetchBatchQuota();
       }
     }
   };
-
-  // QW-F: Cancel handler
-  const handleCancel = useCallback(() => {
-    abortControllerRef.current?.abort();
-    setGenerating(false);
-    setGeneratingLabel(null);
-  }, []);
 
   const handleRemix = (image: GeneratedImage) => {
     setPrompt(image.prompt);
@@ -805,7 +804,6 @@ export function ImageGenStudio() {
               isEnhancerOn={isEnhancerOn}
               setIsEnhancerOn={setIsEnhancerOn}
               onGenerate={handleGenerate}
-              onCancel={handleCancel}
               generating={generating}
               className={mobileTab !== "studio" ? "hidden md:flex" : "flex"}
               referenceImages={referenceImages}
@@ -854,8 +852,6 @@ export function ImageGenStudio() {
             </AnimatePresence>
           </AnimatePresence>
         </div>
-
-        {/* EditImageModal replaced by EditPanel (inline, in flex layout above) */}
 
         {/* Template Modal (for transform templates) */}
         <TemplateModal

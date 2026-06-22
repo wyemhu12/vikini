@@ -53,7 +53,7 @@ const imageGenOptionsSchema = z
   .optional();
 
 const imageGenRequestSchema = z.object({
-  prompt: z.string().min(1, "Prompt is required").max(2000, "Prompt too long"),
+  prompt: z.string().min(1, "Prompt is required").max(10000, "Prompt too long"),
   conversationId: z.string().uuid("Invalid conversation ID"),
   options: imageGenOptionsSchema,
   batchSize: z.number().int().min(1).max(4).optional(),
@@ -301,6 +301,8 @@ Original: "${prompt}"`;
       // QW2: Store both original and enhanced prompts for transparency
       originalPrompt: options?.enhancer ? userOriginalPrompt : undefined,
       enhancedPrompt: options?.enhancer ? prompt : undefined,
+      // P2-1: AI comment from interleaved text+image output
+      aiComment: result.aiComment,
       // MT6: Token usage from provider
       usage: result.metadata?.usage as Record<string, unknown> | undefined,
       attachment: {

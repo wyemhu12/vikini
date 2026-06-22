@@ -65,6 +65,8 @@ export interface GeneratedImage {
   editDepth?: number;
   // MT3: Tags
   tags?: string[];
+  // P2-1: AI comment from interleaved text+image output
+  aiComment?: string;
 }
 
 interface CanvasProps {
@@ -194,6 +196,13 @@ export default function Canvas({
                 loading="lazy"
                 onClick={() => onImageClick?.(item, idx)}
               />
+
+              {/* P2-1: AI Comment */}
+              {item.aiComment && (
+                <div className="px-3 py-2 text-xs text-(--text-secondary) italic bg-(--surface-muted)/50 border-t border-(--border) line-clamp-2 hover:line-clamp-none transition-all cursor-pointer">
+                  💬 {item.aiComment}
+                </div>
+              )}
 
               {/* Overlay with Controls */}
               <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/40 to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3 overflow-y-auto overflow-x-hidden">

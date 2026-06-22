@@ -47,7 +47,7 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
 
       // Build config with responseModalities, imageConfig, and safetySettings to disable filters
       const config: Record<string, unknown> = {
-        responseModalities: ["Image"],
+        responseModalities: ["TEXT", "IMAGE"],
         safetySettings: [
           { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
           { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
@@ -151,6 +151,7 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
       }
 
       const results: ImageGenResult[] = [];
+      let aiComment = "";
 
       for (const part of parts) {
         const p = part as {
@@ -166,6 +167,16 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
             metadata: { mimeType },
           });
         }
+        if (p.text) {
+          aiComment += p.text + "\n";
+        }
+      }
+
+      // Attach AI comment to each result if present
+      if (aiComment.trim()) {
+        results.forEach((r) => {
+          r.aiComment = aiComment.trim();
+        });
       }
 
       if (results.length === 0) {

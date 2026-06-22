@@ -451,6 +451,7 @@ export const en = {
   studioDescribe: "Describe",
   studioDescribing: "Describing...",
   studioDescribeTooltip: "AI describes this image → fill prompt",
+  studioSuggestLoading: "Getting suggestions...",
   describeTitle: "Describe Image",
   describeSubtitle: "Upload an image and AI will generate a detailed prompt to recreate it",
   describeUpload: "Drop image here or click to upload",
