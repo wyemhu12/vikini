@@ -29,6 +29,7 @@ import {
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import SettingsModal from "./SettingsModal";
 import { cn } from "@/lib/utils/cn";
+import { motion } from "framer-motion";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 
 // Suggestion tags for quick keyword insertion — 3 categories
@@ -310,14 +311,29 @@ export default function ControlPanel({
             {t("studioPromptLabel")}
           </Label>
 
-          {/* MT4: Mode tabs — Free / Guided */}
-          <div className="flex items-center rounded-lg bg-(--surface-muted) border border-(--border) p-0.5 -mt-0.5">
+          {/* MT4: Mode tabs — Free / Guided (segment control with sliding indicator) */}
+          <div className="relative flex items-center rounded-lg bg-(--surface-muted) border border-(--border) p-0.5 -mt-0.5">
+            {/* Sliding background indicator */}
+            <motion.div
+              className={cn(
+                "absolute top-0.5 bottom-0.5 rounded-md shadow-sm",
+                promptMode === "free"
+                  ? "bg-(--surface-elevated) border border-(--border)"
+                  : "bg-purple-500/15 border border-purple-500/30"
+              )}
+              layoutId="prompt-mode-indicator"
+              style={{
+                width: "calc(50% - 2px)",
+                left: promptMode === "free" ? "2px" : "calc(50%)",
+              }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            />
             <button
               onClick={() => setPromptMode("free")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all",
+                "relative z-10 flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200",
                 promptMode === "free"
-                  ? "bg-(--surface-elevated) text-(--text-primary) shadow-sm border border-(--border)"
+                  ? "text-(--text-primary)"
                   : "text-(--text-secondary) hover:text-(--text-primary)"
               )}
             >
@@ -326,9 +342,9 @@ export default function ControlPanel({
             <button
               onClick={() => setPromptMode("guided")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all",
+                "relative z-10 flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200",
                 promptMode === "guided"
-                  ? "bg-purple-500/15 text-purple-300 shadow-sm border border-purple-500/30"
+                  ? "text-purple-300"
                   : "text-(--text-secondary) hover:text-(--text-primary)"
               )}
             >
