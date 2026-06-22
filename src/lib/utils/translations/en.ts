@@ -728,4 +728,14 @@ export const en = {
   // Quick Wins — Text Rendering Tip
   studioTextRenderingTip: "Tip: Use Gemini Pro for better text in images",
   studioSwitchToPro: "Switch to Pro",
+  // UI Polish — Tooltips & Labels
+  studioActualResolution: "Actual size",
+  studioReuseTooltip: "Reuse this prompt and settings to generate a new image",
+  studioEditTooltip: "Edit this image with AI — describe changes to apply",
+  studioAddTagTooltip: "Add searchable tags to organize your images",
+  studioExcludeLabel: "Exclude",
+  studioQuickAddLabel: "Quick add",
+  studioExcludeTooltip: "Exclude unwanted elements from the generated image",
+  studioQuickAddTooltip: "Click keywords to quickly enhance your prompt",
+  studioHistoryTooltip: "Browse and reuse your recent prompts",
 } as const;

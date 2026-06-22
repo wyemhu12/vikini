@@ -738,4 +738,14 @@ export const vi = {
   // Quick Wins — Text Rendering Tip
   studioTextRenderingTip: "Mẹo: Dùng Gemini Pro để chữ trong ảnh đẹp hơn",
   studioSwitchToPro: "Chuyển sang Pro",
+  // UI Polish — Tooltips & Labels
+  studioActualResolution: "Kích thước thực",
+  studioReuseTooltip: "Dùng lại prompt và cài đặt để tạo ảnh mới",
+  studioEditTooltip: "Chỉnh sửa ảnh bằng AI — mô tả thay đổi cần áp dụng",
+  studioAddTagTooltip: "Thêm nhãn để tìm kiếm và sắp xếp ảnh",
+  studioExcludeLabel: "Loại trừ",
+  studioQuickAddLabel: "Thêm nhanh",
+  studioExcludeTooltip: "Loại trừ các yếu tố không mong muốn khỏi ảnh",
+  studioQuickAddTooltip: "Nhấp từ khóa để nhanh chóng cải thiện prompt",
+  studioHistoryTooltip: "Duyệt và tái sử dụng prompt gần đây",
 } as const;

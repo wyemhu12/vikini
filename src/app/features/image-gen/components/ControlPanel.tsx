@@ -25,8 +25,6 @@ import {
   Clock,
   Trash2,
   Lightbulb,
-  ToggleLeft,
-  ToggleRight,
 } from "lucide-react";
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import SettingsModal from "./SettingsModal";
@@ -100,6 +98,28 @@ const RESOLUTION_OPTIONS = [
   { value: "2K", cost: "0.10" },
   { value: "4K", cost: "0.15" },
 ] as const;
+
+// Compute approximate pixel dimensions from resolution + aspect ratio
+function getPixelDimensions(resolution: string, aspectRatio: string): string {
+  // Base pixel counts per resolution tier (total megapixels × 1M)
+  const megapixels: Record<string, number> = {
+    "0.5K": 0.25, // ~500×500
+    "1K": 1.0, // ~1024×1024
+    "2K": 4.0, // ~2048×2048
+    "4K": 16.0, // ~4096×4096
+  };
+  const mp = megapixels[resolution] ?? 1.0;
+  const totalPixels = mp * 1_000_000;
+
+  const parts = aspectRatio.split(":");
+  const w = parseInt(parts[0], 10) || 1;
+  const h = parseInt(parts[1], 10) || 1;
+  const ratio = w / h;
+
+  const height = Math.round(Math.sqrt(totalPixels / ratio));
+  const width = Math.round(height * ratio);
+  return `${width}×${height}`;
+}
 
 export default function ControlPanel({
   prompt,
@@ -290,23 +310,29 @@ export default function ControlPanel({
             {t("studioPromptLabel")}
           </Label>
 
-          {/* MT4: Mode toggle — Free / Guided */}
-          <div className="flex items-center gap-2 -mt-0.5">
+          {/* MT4: Mode tabs — Free / Guided */}
+          <div className="flex items-center rounded-lg bg-(--surface-muted) border border-(--border) p-0.5 -mt-0.5">
             <button
-              onClick={() => setPromptMode(promptMode === "free" ? "guided" : "free")}
+              onClick={() => setPromptMode("free")}
               className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium border transition-all",
-                promptMode === "guided"
-                  ? "bg-purple-500/15 border-purple-500/30 text-purple-300"
-                  : "bg-(--surface-elevated) border-(--border) text-(--text-secondary) hover:text-(--text-primary)"
+                "flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all",
+                promptMode === "free"
+                  ? "bg-(--surface-elevated) text-(--text-primary) shadow-sm border border-(--border)"
+                  : "text-(--text-secondary) hover:text-(--text-primary)"
               )}
             >
-              {promptMode === "guided" ? (
-                <ToggleRight className="w-3.5 h-3.5" />
-              ) : (
-                <ToggleLeft className="w-3.5 h-3.5" />
+              {t("pbModeFree")}
+            </button>
+            <button
+              onClick={() => setPromptMode("guided")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all",
+                promptMode === "guided"
+                  ? "bg-purple-500/15 text-purple-300 shadow-sm border border-purple-500/30"
+                  : "text-(--text-secondary) hover:text-(--text-primary)"
               )}
-              {t(promptMode === "guided" ? "pbModeGuided" : "pbModeFree")}
+            >
+              {t("pbModeGuided")}
             </button>
           </div>
 
@@ -360,9 +386,13 @@ export default function ControlPanel({
               <p className="text-[10px] text-muted-foreground">{t("studioShortcutHint")}</p>
 
               {/* Suggestion Tags — click to append keyword */}
-              <div className="space-y-1.5 pt-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t("studioTagsLabel")}
+              <div className="space-y-1.5 pt-2">
+                <span
+                  className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-purple-400 cursor-help"
+                  title={t("studioQuickAddTooltip")}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  {t("studioQuickAddLabel")}
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {SUGGESTION_TAGS.map((tag) => (
@@ -383,14 +413,17 @@ export default function ControlPanel({
               </div>
 
               {/* QW1: Negative Prompt (collapsible) */}
-              <div className="pt-1">
+              <div className="pt-2">
                 <button
                   onClick={() => setShowNegativePrompt(!showNegativePrompt)}
-                  className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-(--text-primary) transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-red-500/8 border border-red-500/20 text-red-400 hover:bg-red-500/15 hover:text-red-300 transition-all"
+                  title={t("studioExcludeTooltip")}
                 >
                   <Ban className="w-3 h-3" />
-                  {t("studioExclude")}
-                  {negativePrompt && <span className="w-1.5 h-1.5 rounded-full bg-red-400" />}
+                  {t("studioExcludeLabel")}
+                  {negativePrompt && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                  )}
                 </button>
                 {showNegativePrompt && (
                   <Textarea
@@ -415,15 +448,18 @@ export default function ControlPanel({
 
               {/* QW5: Prompt History */}
               {promptHistory.length > 0 && (
-                <div className="pt-1">
+                <div className="pt-2">
                   <div className="flex items-center justify-between">
                     <button
                       onClick={() => setShowHistory(!showHistory)}
-                      className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-(--text-primary) transition-colors"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-blue-500/8 border border-blue-500/20 text-blue-400 hover:bg-blue-500/15 hover:text-blue-300 transition-all"
+                      title={t("studioHistoryTooltip")}
                     >
                       <Clock className="w-3 h-3" />
                       {t("studioPromptHistory")}
-                      <span className="text-[9px] font-normal">({promptHistory.length})</span>
+                      <span className="text-[9px] font-normal bg-blue-500/20 px-1.5 py-0.5 rounded-full">
+                        ({promptHistory.length})
+                      </span>
                     </button>
                     {showHistory && (
                       <button
@@ -619,6 +655,15 @@ export default function ControlPanel({
                   </span>
                 </button>
               ))}
+            </div>
+            {/* Actual pixel dimensions */}
+            <div className="flex items-center gap-1.5 mt-1.5 px-1">
+              <span className="text-[10px] text-muted-foreground">
+                {t("studioActualResolution")}:
+              </span>
+              <span className="text-[10px] font-bold text-(--text-primary) bg-(--surface-elevated) px-2 py-0.5 rounded border border-(--border)">
+                {getPixelDimensions(resolution, aspectRatio)} px
+              </span>
             </div>
           </div>
         )}

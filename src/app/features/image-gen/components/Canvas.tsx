@@ -296,7 +296,7 @@ export default function Canvas({
                     <button
                       onClick={() => onRemix(item)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-purple-500/80 hover:bg-purple-600 text-white backdrop-blur-md transition-colors border border-purple-400/30 text-[11px] font-bold shadow-lg shadow-purple-900/40"
-                      title={t("studioReuse")}
+                      title={t("studioReuseTooltip")}
                     >
                       <RefreshCcw className="w-3 h-3" />{" "}
                       <span className="hidden min-[300px]:inline">{t("studioReuse")}</span>
@@ -306,7 +306,7 @@ export default function Canvas({
                       <button
                         onClick={() => onEdit(item)}
                         className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-blue-500/80 hover:bg-blue-600 text-white backdrop-blur-md transition-colors border border-blue-400/30 text-[11px] font-bold shadow-lg shadow-blue-900/40"
-                        title={t("studioEdit")}
+                        title={t("studioEditTooltip")}
                       >
                         <Pencil className="w-3 h-3" />{" "}
                         <span className="hidden min-[300px]:inline">{t("studioEdit")}</span>

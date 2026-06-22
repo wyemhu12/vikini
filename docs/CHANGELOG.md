@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-06-22: Image Studio — UI Polish
+
+- **`ControlPanel.tsx`** — Free/Guided converted from toggle to 2-tab row. Exclude, Quick Add, Prompt History buttons restyled with colored backgrounds, borders, and icons. Added actual pixel resolution display below resolution selector. Quick Add gets sparkle icon. All 3 menu buttons get hover tooltips.
+- **`Canvas.tsx`** — Reuse and Edit buttons now show descriptive tooltips on hover.
+- **`TagInput.tsx`** — Add Tag button restyled with emerald color and tag icon; hover tooltip explains purpose.
+- **`en.ts` / `vi.ts`** — Added 10 translation keys for tooltips and labels.
+
+---
+
 ## 2026-06-22: Image Studio — Priority Improvements Batch
 
 ### P0-4: Cleanup Legacy EditImageModal

@@ -97,10 +97,11 @@ export default function TagInput({
               setIsEditing(true);
               setTimeout(() => inputRef.current?.focus(), 50);
             }}
-            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-white/5 text-white/50 hover:text-white/80 hover:bg-white/10 border border-white/10 transition-colors"
-            title={t("studioAddTag")}
+            className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 border border-emerald-500/25 hover:border-emerald-500/40 transition-all shadow-sm"
+            title={t("studioAddTagTooltip")}
           >
             <Plus className="w-2.5 h-2.5" />
+            <Tag className="w-2.5 h-2.5" />
           </button>
         )}
       </div>
