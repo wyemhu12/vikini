@@ -115,7 +115,7 @@ export default function GemList({
     <div className="space-y-4">
       <div>
         <div className="mb-2 text-xs font-semibold text-(--text-secondary)">{t("premadeGems")}</div>
-        <div className="space-y-2">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3">
           {premade?.length ? (
             premade.map((g) => renderItem(g, true))
           ) : (
@@ -126,7 +126,7 @@ export default function GemList({
 
       <div>
         <div className="mb-2 text-xs font-semibold text-(--text-secondary)">{t("myGems")}</div>
-        <div className="space-y-2">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3">
           {mine?.length ? (
             mine.map((g) => renderItem(g, false))
           ) : (

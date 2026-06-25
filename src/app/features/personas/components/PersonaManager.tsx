@@ -18,7 +18,7 @@ interface PersonaManagerProps {
 
 export default function PersonaManager({ inModal = false }: PersonaManagerProps) {
   const sp = useSearchParams();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
 
   const { contextConversationId, closePersonaModal, triggerPersonaApplied } = usePersonaStore();
   const urlConversationId = sp?.get("conversationId");
@@ -249,7 +249,14 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_1fr]">
+        <div
+          className={cn(
+            "grid gap-6 transition-all duration-300",
+            editingPersona || previewPersona
+              ? "grid-cols-1 lg:grid-cols-[360px_1fr]"
+              : "grid-cols-1"
+          )}
+        >
           <div
             className="rounded-xl border border-(--border) bg-(--surface-muted)/50 p-3 max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--control-border)] hover:scrollbar-thumb-[var(--border)]"
             style={{ WebkitOverflowScrolling: "touch" }}
@@ -301,34 +308,28 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-1">
-            {editingPersona ? (
-              <div className="rounded-xl border border-(--border) bg-(--surface) p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-medium">Editor</h3>
-                  <button
-                    onClick={() => setEditingPersona(null)}
-                    className="text-xs text-(--text-secondary) hover:text-(--text-primary)"
-                  >
-                    {t("cancel") || "Cancel"}
-                  </button>
+          {(editingPersona || previewPersona) && (
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-1">
+              {editingPersona ? (
+                <div className="rounded-xl border border-(--border) bg-(--surface) p-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-medium">Editor</h3>
+                    <button
+                      onClick={() => setEditingPersona(null)}
+                      className="text-xs text-(--text-secondary) hover:text-(--text-primary)"
+                    >
+                      {t("cancel") || "Cancel"}
+                    </button>
+                  </div>
+                  <PersonaEditor persona={editingPersona} onSave={onSave} />
                 </div>
-                <PersonaEditor persona={editingPersona} onSave={onSave} />
-              </div>
-            ) : previewPersona ? (
-              <div className="rounded-xl border border-(--border) bg-(--surface-muted)/50 h-full">
-                <PersonaPreview persona={previewPersona} />
-              </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-(--border) bg-(--surface-muted)/20 p-8 flex flex-col items-center justify-center text-center text-(--text-secondary) min-h-[300px]">
-                <p className="text-sm">
-                  {language === "vi"
-                    ? 'Chọn "Tạo Persona mới" để bắt đầu hoặc chọn Persona từ danh sách.'
-                    : 'Select "Create New Persona" to start or pick a Persona from the list.'}
-                </p>
-              </div>
-            )}
-          </div>
+              ) : previewPersona ? (
+                <div className="rounded-xl border border-(--border) bg-(--surface-muted)/50 h-full">
+                  <PersonaPreview persona={previewPersona} />
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -10,6 +10,8 @@ import ModelSelector from "./ModelSelector";
 import ThinkingLevelSelector from "./ThinkingLevelSelector";
 import InputForm from "./InputForm";
 import FileManagerPanel from "./FileManagerPanel";
+import GemQuickSwitch from "../../../features/gems/components/GemQuickSwitch";
+import PersonaQuickSwitch from "../../../features/personas/components/PersonaQuickSwitch";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { type ThinkingLevel, modelSupportsThinkingUI } from "./hooks/useThinkingLevel";
@@ -187,30 +189,11 @@ export default function ChatControls({
               />
             </>
           )}
-          {currentGem && (
-            <>
-              <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-(--accent)/15 text-(--accent) border border-(--accent)/20"
-                title={currentGem.name}
-              >
-                <span className="text-sm">{currentGem.icon}</span>
-                <span className="max-w-[120px] truncate">{currentGem.name}</span>
-              </div>
-            </>
-          )}
-          {currentPersona && (
-            <>
-              <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-purple-500/15 text-purple-400 border border-purple-500/20"
-                title={currentPersona.name}
-              >
-                <span className="text-sm">{currentPersona.icon || "🎭"}</span>
-                <span className="max-w-[120px] truncate">{currentPersona.name}</span>
-              </div>
-            </>
-          )}
+          <GemQuickSwitch currentGem={currentGem || null} conversationId={selectedConversationId} />
+          <PersonaQuickSwitch
+            currentPersona={currentPersona || null}
+            conversationId={selectedConversationId}
+          />
           {currentGem && currentPersona && (
             <>
               <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />

@@ -49,7 +49,7 @@ export default function PersonaList({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3">
       {personas.map((p) => {
         const selected = selectedPersonaId === p.id;
         return (
