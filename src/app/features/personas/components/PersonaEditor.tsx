@@ -6,6 +6,7 @@ import type { PersonaForUI } from "./PersonaPreview";
 import type { PersonaTone } from "@/types/persona";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import IconPicker from "@/components/ui/IconPicker";
 
 interface PersonaEditorProps {
   persona: PersonaForUI | null;
@@ -109,7 +110,15 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-(--text-secondary)">Icon</label>
+            <label className="mb-1 flex items-center gap-1 text-xs text-(--text-secondary)">
+              Icon
+              <IconPicker
+                onSelect={(emoji) => {
+                  setIcon(emoji);
+                  setDirty(true);
+                }}
+              />
+            </label>
             <Input
               value={icon}
               onChange={handleChange(setIcon)}

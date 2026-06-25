@@ -35,6 +35,7 @@ import {
   type FrontendMessage,
 } from "../hooks/useConversation";
 import { useGemStore } from "../../gems/stores/useGemStore";
+import { usePersonaStore } from "../../personas/stores/usePersonaStore";
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useThinkingLevel } from "./hooks/useThinkingLevel";
 import { useChatStreamController } from "./hooks/useChatStreamController";
@@ -59,6 +60,13 @@ import { useFiles } from "@/lib/features/files/useFiles";
 
 /** Gem info attached to conversation */
 interface GemInfo {
+  name: string;
+  icon: string | null;
+  color: string | null;
+}
+
+/** Persona info attached to conversation */
+interface PersonaInfo {
   name: string;
   icon: string | null;
   color: string | null;
@@ -163,6 +171,7 @@ export default function ChatApp() {
     setConversationModel,
     patchConversationModel,
     patchConversationGem,
+    patchConversationPersona,
     creatingConversation: isCreatingChatMode,
   } = useConversation();
 
@@ -429,6 +438,20 @@ export default function ChatApp() {
     };
   }, [setOnGemApplied, patchConversationGem, refreshConversations]);
 
+  // Persona applied callback
+  const { setOnPersonaApplied } = usePersonaStore();
+  useEffect(() => {
+    setOnPersonaApplied((conversationId: string, persona: PersonaInfo | null) => {
+      patchConversationPersona(conversationId, persona);
+      void refreshConversations();
+    });
+    return () => {
+      if (usePersonaStore.getState().setOnPersonaApplied) {
+        usePersonaStore.getState().setOnPersonaApplied(null);
+      }
+    };
+  }, [setOnPersonaApplied, patchConversationPersona, refreshConversations]);
+
   // Memoized callbacks
   const memoizedOnSelectConversation = useCallback(
     (id: string | null) => {
@@ -667,6 +690,7 @@ export default function ChatApp() {
                   handleModelChange={handleModelChange}
                   isModelAllowed={isModelAllowed}
                   currentGem={currentConversation?.gem}
+                  currentPersona={currentConversation?.persona}
                   onImageGen={handleImageGen}
                   selectedConversationId={selectedConversationId}
                   showMobileControls={showMobileControls}
@@ -766,6 +790,7 @@ export default function ChatApp() {
             handleModelChange={handleModelChange}
             isModelAllowed={isModelAllowed}
             currentGem={currentConversation?.gem}
+            currentPersona={currentConversation?.persona}
             onImageGen={handleImageGen}
             selectedConversationId={selectedConversationId}
             showMobileControls={showMobileControls}

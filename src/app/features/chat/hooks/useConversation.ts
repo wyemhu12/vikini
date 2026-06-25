@@ -21,6 +21,7 @@ export interface FrontendConversation {
   updatedAt?: number;
   model?: string;
   gem?: { name: string; icon: string | null; color: string | null } | null;
+  persona?: { name: string; icon: string | null; color: string | null } | null;
   projectId?: string | null;
   [key: string]: unknown;
 }
@@ -78,6 +79,7 @@ function convertConversationToFrontend(conv: Conversation): FrontendConversation
     updatedAt: convertDate(conv.updatedAt),
     model: conv.model,
     gem: conv.gem,
+    persona: conv.persona,
     projectId: conv.projectId, // Include project association
   };
 }
@@ -168,6 +170,12 @@ interface UseConversationReturn {
   patchConversationGem: (
     id: string,
     gem: { name: string; icon: string | null; color: string | null } | null
+  ) => void;
+
+  // Persona management (optimistic update)
+  patchConversationPersona: (
+    id: string,
+    persona: { name: string; icon: string | null; color: string | null } | null
   ) => void;
 
   // ChatApp.jsx expected fields
@@ -287,6 +295,25 @@ export function useConversation(): UseConversationReturn {
       setConversations((prev) => {
         const next = prev.map((c) =>
           c.id === id ? normalizeConv({ ...c, gem, updatedAt: now }) || c : normalizeConv(c) || c
+        );
+        next.sort((a, b) => getTs(b) - getTs(a));
+        return next;
+      });
+    },
+    []
+  );
+
+  // ✅ NEW: Patch persona locally (optimistic update)
+  const patchConversationPersona = useCallback(
+    (id: string, persona: { name: string; icon: string | null; color: string | null } | null) => {
+      if (!id) return;
+      const now = Date.now();
+
+      setConversations((prev) => {
+        const next = prev.map((c) =>
+          c.id === id
+            ? normalizeConv({ ...c, persona, updatedAt: now }) || c
+            : normalizeConv(c) || c
         );
         next.sort((a, b) => getTs(b) - getTs(a));
         return next;
@@ -533,6 +560,9 @@ export function useConversation(): UseConversationReturn {
 
     // ✅ NEW: Gem management (optimistic update)
     patchConversationGem,
+
+    // ✅ NEW: Persona management (optimistic update)
+    patchConversationPersona,
 
     // ChatApp.jsx expected fields
     selectedConversationId,

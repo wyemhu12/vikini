@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-06-25: Personas — IconPicker Fix & Chat Badge
+
+### Bug Fix: IconPicker
+
+- **`PersonaEditor.tsx`** — Added `IconPicker` component (from `@/components/ui/IconPicker`) to the Icon field, matching GemEditor pattern.
+
+### New: Persona Badge in Chat Header
+
+- **`ChatControls.tsx`** — Added purple persona badge (icon + name) next to gem badge in chat controls bar.
+- **`ChatApp.tsx`** — Integrated persona store callback (`patchConversationPersona`) for optimistic UI updates.
+- **`useConversation.ts`** — Added `patchConversationPersona` and `persona` field to `FrontendConversation`.
+- **`conversations.ts`** — All Supabase queries now join `personas(name,icon,color)` alongside gems. Added `persona` to `Conversation` interface and row mapper.
+
+---
+
 ## 2026-06-25: Manage Personas Feature (ChatGPT Personality + Gemini Custom Instructions)
 
 ### New Feature: AI Persona Management

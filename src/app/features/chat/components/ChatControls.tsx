@@ -35,6 +35,7 @@ interface ChatControlsProps {
   setThinkingLevel: (level: ThinkingLevel) => void;
   // UI state
   currentGem: GemInfo | null | undefined;
+  currentPersona: { name: string; icon: string | null; color: string | null } | null | undefined;
   input: string;
   setInput: (value: string) => void;
   handleSend: (text?: string, fileIds?: string[]) => void;
@@ -72,6 +73,7 @@ export default function ChatControls({
   setThinkingLevel,
   // UI state
   currentGem,
+  currentPersona,
   input,
   setInput,
   handleSend,
@@ -194,6 +196,18 @@ export default function ChatControls({
               >
                 <span className="text-sm">{currentGem.icon}</span>
                 <span className="max-w-[120px] truncate">{currentGem.name}</span>
+              </div>
+            </>
+          )}
+          {currentPersona && (
+            <>
+              <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-purple-500/15 text-purple-400 border border-purple-500/20"
+                title={currentPersona.name}
+              >
+                <span className="text-sm">{currentPersona.icon || "🎭"}</span>
+                <span className="max-w-[120px] truncate">{currentPersona.name}</span>
               </div>
             </>
           )}

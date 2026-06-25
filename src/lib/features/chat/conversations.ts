@@ -68,6 +68,11 @@ export interface Conversation {
     icon: string | null;
     color: string | null;
   } | null;
+  persona: {
+    name: string;
+    icon: string | null;
+    color: string | null;
+  } | null;
 }
 
 interface ConversationRow {
@@ -90,6 +95,13 @@ interface ConversationRow {
   project_id?: string | null;
   projectId?: string | null;
   gems?: {
+    name: string;
+    icon: string | null;
+    color: string | null;
+  } | null;
+  persona_id?: string | null;
+  personaId?: string | null;
+  personas?: {
     name: string;
     icon: string | null;
     color: string | null;
@@ -129,6 +141,13 @@ export function mapConversationRow(row: ConversationRow | null): Conversation | 
           color: row.gems.color,
         }
       : null,
+    persona: row.personas
+      ? {
+          name: row.personas.name,
+          icon: row.personas.icon,
+          color: row.personas.color,
+        }
+      : null,
   };
 }
 
@@ -138,7 +157,7 @@ export async function getConversationSafe(conversationId: string): Promise<Conve
   // Try join on gems (supabase can join by relationship)
   const q1 = await supabase
     .from("conversations")
-    .select("*,gems(name,icon,color)")
+    .select("*,gems(name,icon,color),personas(name,icon,color)")
     .eq("id", conversationId)
     .maybeSingle();
 
@@ -189,7 +208,7 @@ async function listConversationsSafe(
   // Try primary schema: user_id with pagination
   const q1 = await supabase
     .from("conversations")
-    .select("*,gems(name,icon,color)", { count: "exact" })
+    .select("*,gems(name,icon,color),personas(name,icon,color)", { count: "exact" })
     .eq("user_id", userId)
     .order("updated_at", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -211,7 +230,7 @@ async function listConversationsSafe(
   // Fallback schema: userId with pagination
   const q2 = await supabase
     .from("conversations")
-    .select("*,gems(name,icon,color)", { count: "exact" })
+    .select("*,gems(name,icon,color),personas(name,icon,color)", { count: "exact" })
     .eq("userId", userId)
     .order("updated_at", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -400,7 +419,7 @@ export async function setConversationGem(
     .from("conversations")
     .update({ gem_id: gemId || null, updated_at: new Date().toISOString() })
     .eq("id", conversationId)
-    .select("*,gems(name,icon,color)")
+    .select("*,gems(name,icon,color),personas(name,icon,color)")
     .single();
 
   if (error) throw new DatabaseError(`setConversationGem failed: ${error.message}`);
@@ -427,7 +446,7 @@ export async function setConversationPersona(
     .from("conversations")
     .update({ persona_id: personaId || null, updated_at: new Date().toISOString() })
     .eq("id", conversationId)
-    .select("*,gems(name,icon,color)")
+    .select("*,gems(name,icon,color),personas(name,icon,color)")
     .single();
 
   if (error) throw new DatabaseError(`setConversationPersona failed: ${error.message}`);
@@ -458,7 +477,7 @@ export async function setConversationModel(
     .from("conversations")
     .update({ model: finalModel, updated_at: new Date().toISOString() })
     .eq("id", conversationId)
-    .select("*,gems(name,icon,color)")
+    .select("*,gems(name,icon,color),personas(name,icon,color)")
     .single();
 
   if (error) throw new DatabaseError(`setConversationModel failed: ${error.message}`);
@@ -486,7 +505,7 @@ export async function setConversationProject(
     .from("conversations")
     .update({ project_id: projectId, updated_at: new Date().toISOString() })
     .eq("id", conversationId)
-    .select("*,gems(name,icon,color)")
+    .select("*,gems(name,icon,color),personas(name,icon,color)")
     .single();
 
   if (error) throw new DatabaseError(`setConversationProject failed: ${error.message}`);
@@ -513,7 +532,7 @@ export async function renameConversation(
     .from("conversations")
     .update({ title, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .select("*,gems(name,icon,color)")
+    .select("*,gems(name,icon,color),personas(name,icon,color)")
     .single();
 
   if (error) throw new DatabaseError(`renameConversation failed: ${error.message}`);
