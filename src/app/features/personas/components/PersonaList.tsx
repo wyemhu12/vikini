@@ -2,6 +2,7 @@
 
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import type { PersonaForUI } from "./PersonaPreview";
+import { Check, Eye, Edit2, Trash2 } from "lucide-react";
 
 interface PersonaListProps {
   loading: boolean;
@@ -60,8 +61,8 @@ export default function PersonaList({
                 : "border-(--border) bg-(--surface) hover:bg-(--surface-muted)"
             }`}
           >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm">{p.icon || "🎭"}</span>
                   <div className="truncate text-sm font-medium">{p.name}</div>
@@ -76,47 +77,41 @@ export default function PersonaList({
                 ) : null}
               </div>
 
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-row sm:flex-col gap-1.5 w-full sm:w-28 shrink-0 mt-2 sm:mt-0">
                 <button
                   onClick={() => onSelect?.(p)}
-                  className="rounded-md bg-(--primary) px-2 py-1 text-xs text-black transition-all hover:brightness-110 active:scale-95"
+                  aria-label={t("select")}
+                  className="flex-1 rounded-md bg-(--primary) px-2 py-1 text-xs text-black transition-all hover:brightness-110 active:scale-95 flex items-center justify-center gap-1.5"
                 >
-                  {t("select")}
+                  <Check className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t("select")}</span>
                 </button>
 
                 <button
                   onClick={() => onPreview?.(p)}
-                  className="rounded-md border border-(--border) px-2 py-1 text-xs text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-all active:scale-95 flex items-center justify-center gap-1"
+                  aria-label={t("preview")}
+                  className="flex-1 rounded-md border border-(--border) px-2 py-1 text-xs text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-all active:scale-95 flex items-center justify-center gap-1.5"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  {t("preview")}
+                  <Eye className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t("preview")}</span>
                 </button>
 
                 <button
                   onClick={() => onEdit?.(p)}
-                  className="rounded-md border border-(--border) px-2 py-1 text-xs text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-all active:scale-95"
+                  aria-label={t("personaEdit") || "Edit"}
+                  className="flex-1 rounded-md border border-(--border) px-2 py-1 text-xs text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-all active:scale-95 flex items-center justify-center gap-1.5"
                 >
-                  {t("personaEdit") || "Edit"}
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t("personaEdit") || "Edit"}</span>
                 </button>
 
                 <button
                   onClick={() => onDelete?.(p)}
-                  className="rounded-md border border-(--danger)/30 px-2 py-1 text-xs text-(--danger) hover:bg-(--danger)/10 transition-all active:scale-95"
+                  aria-label={t("personaDelete") || "Delete"}
+                  className="flex-1 rounded-md border border-(--danger)/30 px-2 py-1 text-xs text-(--danger) hover:bg-(--danger)/10 transition-all active:scale-95 flex items-center justify-center gap-1.5"
                 >
-                  {t("personaDelete") || "Delete"}
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t("personaDelete") || "Delete"}</span>
                 </button>
               </div>
             </div>

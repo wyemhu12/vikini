@@ -17,8 +17,24 @@ import { success, error, errorFromAppError } from "@/lib/utils/apiResponse";
 import { ValidationError, AppError, UnauthorizedError } from "@/lib/utils/errors";
 import { HTTP_STATUS } from "@/lib/utils/constants";
 import type { PersonaForClient } from "@/types/persona";
+import { consumeRateLimit, rateLimitHeaders } from "@/lib/core/rateLimit";
 
 const routeLogger = logger.withContext("/api/personas");
+
+async function checkRL(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for") || "127.0.0.1";
+  const rl = await consumeRateLimit(`api-personas-${ip}`);
+  if (!rl.allowed) {
+    const res = error(
+      "Rate limit exceeded",
+      HTTP_STATUS.RATE_LIMIT_EXCEEDED,
+      "RATE_LIMIT_EXCEEDED"
+    );
+    Object.entries(rateLimitHeaders(rl)).forEach(([k, v]) => res.headers.set(k, v));
+    return res;
+  }
+  return null;
+}
 
 // Type guard for Zod-like validation errors
 interface ZodLikeError {
@@ -52,8 +68,11 @@ function mapPersonaForClient(row: PersonaRow | null): PersonaForClient | null {
 // ------------------------------
 // GET: list my personas
 // ------------------------------
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const rlError = await checkRL(req);
+    if (rlError) return rlError;
+
     const session = await auth();
     if (!session?.user?.email) throw new UnauthorizedError();
 
@@ -77,6 +96,9 @@ export async function GET() {
 // ------------------------------
 export async function POST(req: NextRequest) {
   try {
+    const rlError = await checkRL(req);
+    if (rlError) return rlError;
+
     const session = await auth();
     if (!session?.user?.email) throw new UnauthorizedError();
 
@@ -109,6 +131,9 @@ export async function POST(req: NextRequest) {
 // ------------------------------
 export async function PATCH(req: NextRequest) {
   try {
+    const rlError = await checkRL(req);
+    if (rlError) return rlError;
+
     const session = await auth();
     if (!session?.user?.email) throw new UnauthorizedError();
 
@@ -143,6 +168,9 @@ export async function PATCH(req: NextRequest) {
 // ------------------------------
 export async function DELETE(req: NextRequest) {
   try {
+    const rlError = await checkRL(req);
+    if (rlError) return rlError;
+
     const session = await auth();
     if (!session?.user?.email) throw new UnauthorizedError();
 

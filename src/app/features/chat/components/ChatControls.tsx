@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, AlertTriangle } from "lucide-react";
 import { useLanguage } from "../hooks/useLanguage";
 
 import ModelSelector from "./ModelSelector";
@@ -208,6 +208,20 @@ export default function ChatControls({
               >
                 <span className="text-sm">{currentPersona.icon || "🎭"}</span>
                 <span className="max-w-[120px] truncate">{currentPersona.name}</span>
+              </div>
+            </>
+          )}
+          {currentGem && currentPersona && (
+            <>
+              <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
+              <div
+                className="flex items-center justify-center p-1 rounded-full text-amber-500 bg-amber-500/10 cursor-help"
+                title={
+                  t("conflictWarning") ||
+                  "⚠️ Both GEM and Persona are active. If instructions conflict, GEM will be prioritized."
+                }
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
               </div>
             </>
           )}

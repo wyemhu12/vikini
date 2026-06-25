@@ -9,12 +9,14 @@ interface GemInfo {
 interface GemStore {
   isOpen: boolean;
   contextConversationId: string | null;
+  hasDirtyEditor: boolean;
 
   // Callback to patch gem optimistically after gem is applied
   onGemApplied: ((conversationId: string, gem: GemInfo | null) => void) | null;
 
   openGemModal: (conversationId?: string | null) => void;
   closeGemModal: () => void;
+  setHasDirtyEditor: (dirty: boolean) => void;
   setOnGemApplied: (
     callback: ((conversationId: string, gem: GemInfo | null) => void) | null
   ) => void;
@@ -24,6 +26,7 @@ interface GemStore {
 export const useGemStore = create<GemStore>((set, get) => ({
   isOpen: false,
   contextConversationId: null,
+  hasDirtyEditor: false,
   onGemApplied: null,
 
   openGemModal: (conversationId = null) =>
@@ -36,7 +39,10 @@ export const useGemStore = create<GemStore>((set, get) => ({
     set({
       isOpen: false,
       contextConversationId: null,
+      hasDirtyEditor: false,
     }),
+
+  setHasDirtyEditor: (dirty: boolean) => set({ hasDirtyEditor: dirty }),
 
   setOnGemApplied: (callback) => set({ onGemApplied: callback }),
 

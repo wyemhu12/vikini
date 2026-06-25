@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
+import { useGemStore } from "../stores/useGemStore";
 import { Gem } from "./GemPreview";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +26,12 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
   const isReadOnly = !!gem?.isPremade;
 
   const [dirty, setDirty] = useState(false);
+  const { setHasDirtyEditor } = useGemStore();
+
+  // Sync dirty state to store for modal close warning
+  useEffect(() => {
+    setHasDirtyEditor(dirty);
+  }, [dirty, setHasDirtyEditor]);
 
   const [id, setId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -82,6 +89,7 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
           <button
             onClick={save}
             disabled={!canSave}
+            aria-label={t("saveGem") || "Save"}
             className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t("saveGem")}

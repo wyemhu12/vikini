@@ -26,18 +26,22 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
 
   const [personas, setPersonas] = useState<PersonaForUI[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [editingPersona, setEditingPersona] = useState<PersonaForUI | null>(null);
   const [previewPersona, setPreviewPersona] = useState<PersonaForUI | null>(null);
   const [status, setStatus] = useState("");
+  const [isApplying, setIsApplying] = useState(false);
 
   const personaList = useMemo(() => personas, [personas]);
 
   async function refresh() {
     setLoading(true);
+    setFetchError(null);
     try {
       const res = await fetch("/api/personas", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as {
         data?: { personas?: PersonaForUI[] };
         personas?: PersonaForUI[];
@@ -45,6 +49,9 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
       const data = json.data || json;
       const rawPersonas = (data as { personas?: PersonaForUI[] })?.personas;
       setPersonas(Array.isArray(rawPersonas) ? rawPersonas : []);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to load personas";
+      setFetchError(message);
     } finally {
       setLoading(false);
     }
@@ -59,6 +66,8 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
       setStatus(`${t("error") || "Error"}: No conversation ID`);
       return;
     }
+    if (isApplying) return;
+    setIsApplying(true);
 
     setStatus(t("loading") || "Loading...");
     try {
@@ -99,6 +108,8 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
       const message = e instanceof Error ? e.message : "Apply persona failed";
       setStatus(message);
       toast.error(message);
+    } finally {
+      setIsApplying(false);
     }
   };
 
@@ -251,6 +262,26 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
               >
                 Reset Default
               </button>
+            </div>
+
+            {fetchError && (
+              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs mb-3">
+                <span className="flex-1">Failed to load: {fetchError}</span>
+                <button
+                  onClick={refresh}
+                  className="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 transition-colors font-medium"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            <div className="mb-4 rounded-lg bg-blue-500/10 border border-blue-500/20 p-3 text-xs leading-relaxed text-blue-400/90">
+              <span className="font-semibold text-blue-400">GEM vs Persona:</span>
+              <br />• <strong>GEM</strong> defines <strong>WHAT</strong> the AI does (its
+              Task/Role).
+              <br />• <strong>Persona</strong> defines <strong>HOW</strong> the AI communicates (its
+              Tone/Format).
             </div>
 
             <PersonaList

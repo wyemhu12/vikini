@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
+import { usePersonaStore } from "../stores/usePersonaStore";
 import type { PersonaForUI } from "./PersonaPreview";
 import type { PersonaTone } from "@/types/persona";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,12 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
   const { t } = useLanguage();
 
   const [dirty, setDirty] = useState(false);
+  const { setHasDirtyEditor } = usePersonaStore();
+
+  // Sync dirty state to store for modal close warning
+  useEffect(() => {
+    setHasDirtyEditor(dirty);
+  }, [dirty, setHasDirtyEditor]);
   const [id, setId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -89,6 +96,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
         <button
           onClick={save}
           disabled={!canSave}
+          aria-label={t("personaSave") || "Save Persona"}
           className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {t("personaSave") || "Save Persona"}
@@ -207,8 +215,11 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
 
         {/* User Context */}
         <div>
-          <label className="mb-1 block text-xs text-(--text-secondary)">
-            {t("personaUserContext") || "What should AI know about you?"}
+          <label className="mb-1 flex justify-between text-xs text-(--text-secondary)">
+            <span>{t("personaUserContext") || "What should AI know about you?"}</span>
+            <span className={userContext.length > 5000 ? "text-red-400" : "opacity-60"}>
+              {userContext.length} / 5000
+            </span>
           </label>
           <Textarea
             value={userContext}
@@ -224,8 +235,11 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
 
         {/* Custom Instructions */}
         <div>
-          <label className="mb-1 block text-xs text-(--text-secondary)">
-            {t("personaCustomInstructions") || "Custom Instructions (Rules)"}
+          <label className="mb-1 flex justify-between text-xs text-(--text-secondary)">
+            <span>{t("personaCustomInstructions") || "Custom Instructions (Rules)"}</span>
+            <span className={customInstructions.length > 10000 ? "text-red-400" : "opacity-60"}>
+              {customInstructions.length} / 10000
+            </span>
           </label>
           <Textarea
             value={customInstructions}

@@ -700,15 +700,32 @@ export async function handleChatStreamCore({
     }
   }
 
-  // Load system prompt (gem instructions)
+  // Load system prompt — GEM always takes priority
   let sysPrompt = "";
   let gemLoadError = "";
+  const MAX_SYSTEM_PROMPT_CHARS = 12000;
 
-  // Load persona instructions first (if any)
+  // Step 1: Load GEM instructions FIRST (highest priority)
+  let gemPrompt = "";
   try {
-    const personaPrompt = await getPersonaInstructionsForConversation(userId, conversationId);
+    gemPrompt = await getGemInstructionsForConversation(userId, conversationId);
+    if (gemPrompt) {
+      coreLogger.info(
+        `[GEM ACTIVE] Conversation ${conversationId} has gem instructions (${gemPrompt.length} chars)`
+      );
+    } else {
+      coreLogger.info(`[GEM NONE] Conversation ${conversationId} has no gem applied`);
+    }
+  } catch (e) {
+    const error = e as Error;
+    gemLoadError = String(error?.message || "");
+  }
+
+  // Step 2: Load Persona instructions (supplementary — lower priority than GEM)
+  let personaPrompt = "";
+  try {
+    personaPrompt = await getPersonaInstructionsForConversation(userId, conversationId);
     if (personaPrompt) {
-      sysPrompt = personaPrompt;
       coreLogger.info(
         `[PERSONA ACTIVE] Conversation ${conversationId} has persona instructions (${personaPrompt.length} chars)`
       );
@@ -719,21 +736,37 @@ export async function handleChatStreamCore({
     // Continue without persona - non-blocking
   }
 
-  // Load gem instructions (appended after persona)
-  try {
-    const gemPrompt = await getGemInstructionsForConversation(userId, conversationId);
-    if (gemPrompt) {
-      // If persona prompt exists, combine them; otherwise just use gem prompt
-      sysPrompt = sysPrompt ? `${sysPrompt}\n\n${gemPrompt}` : gemPrompt;
-      coreLogger.info(
-        `[GEM ACTIVE] Conversation ${conversationId} has gem instructions (${gemPrompt.length} chars)`
-      );
+  // Step 3: Compose final system prompt using XML tags (Gemini best practice)
+  // Priority order: GEM (task/role) > Persona (style/preferences)
+  const promptParts: string[] = [];
+
+  if (gemPrompt) {
+    promptParts.push(`<task_instructions>\n${gemPrompt}\n</task_instructions>`);
+  }
+
+  if (personaPrompt) {
+    promptParts.push(`<style_preferences>\n${personaPrompt}\n</style_preferences>`);
+  }
+
+  sysPrompt = promptParts.join("\n\n");
+
+  // Step 4: Token budget guard
+  if (sysPrompt.length > MAX_SYSTEM_PROMPT_CHARS) {
+    coreLogger.warn(
+      `[PROMPT BUDGET] System prompt exceeds ${MAX_SYSTEM_PROMPT_CHARS} chars (${sysPrompt.length}). Truncating persona.`
+    );
+    // Keep GEM intact (priority), truncate persona
+    if (gemPrompt && personaPrompt) {
+      const remaining = MAX_SYSTEM_PROMPT_CHARS - gemPrompt.length - 80; // 80 for XML tags
+      const truncatedPersona =
+        remaining > 100 ? personaPrompt.slice(0, remaining) + "\n[...truncated]" : "";
+      sysPrompt = `<task_instructions>\n${gemPrompt}\n</task_instructions>`;
+      if (truncatedPersona) {
+        sysPrompt += `\n\n<style_preferences>\n${truncatedPersona}\n</style_preferences>`;
+      }
     } else {
-      coreLogger.info(`[GEM NONE] Conversation ${conversationId} has no gem applied`);
+      sysPrompt = sysPrompt.slice(0, MAX_SYSTEM_PROMPT_CHARS);
     }
-  } catch (e) {
-    const error = e as Error;
-    gemLoadError = String(error?.message || "");
   }
 
   // === RAG: Inject project knowledge base context ===
