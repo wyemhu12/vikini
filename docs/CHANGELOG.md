@@ -5,6 +5,42 @@
 
 ---
 
+## 2026-06-25: Manage Personas Feature (ChatGPT Personality + Gemini Custom Instructions)
+
+### New Feature: AI Persona Management
+
+Adds a full CRUD system for creating and managing custom AI personas, combining ChatGPT's "Base Style & Tone" preset system with Gemini's free-form "Custom Instructions" into a unified interface.
+
+### Database
+
+- **`supabase/migrations/20260625_add_personas.sql`** — New `personas` table with RLS policies. Added `persona_id` FK to `conversations`.
+
+### Backend (API + Logic)
+
+- **`src/lib/features/personas/personas.ts`** — CRUD business logic: `getPersonasForUser`, `createPersona`, `updatePersona`, `deletePersona`, `getPersonaInstructionsForConversation`.
+- **`src/lib/features/personas/prompt-builder.ts`** — `buildPersonaSystemPrompt()` compiles tone + emoji/headers prefs + user context + custom instructions into a system prompt.
+- **`src/app/api/personas/route.ts`** — GET/POST/PATCH/DELETE API routes with Zod validation.
+- **`src/app/api/conversations/route.ts`** — Added `personaId` support in PATCH handler.
+- **`src/lib/features/chat/conversations.ts`** — Added `setConversationPersona()`.
+- **`src/app/api/chat-stream/chatStreamCore.ts`** — Persona prompt injected before GEM prompt in system instructions.
+
+### Frontend (UI)
+
+- **`src/app/features/personas/`** — PersonaManager, PersonaEditor (with tone cards, characteristic toggles, textareas), PersonaList, PersonaPreview, PersonaModal.
+- **`src/app/features/personas/stores/usePersonaStore.ts`** — Zustand store for persona modal state.
+- **`src/app/features/sidebar/components/Sidebar.tsx`** — Added "Manage Personas" button below "Explore Gems".
+- **`src/app/features/layout/components/MainLayout.tsx`** — Added PersonaModal.
+
+### Translations
+
+- **`en.ts` / `vi.ts`** — Added 28 translation keys for persona management UI.
+
+### Types
+
+- **`src/types/persona.ts`** — `Persona`, `PersonaTone` (8 tones: default, professional, friendly, candid, quirky, efficient, cynical, lawyer), `PersonaForClient`.
+
+---
+
 ## 2026-06-22: Image Studio — UI Polish
 
 - **`ControlPanel.tsx`** — Free/Guided converted from toggle to 2-tab row. Exclude, Quick Add, Prompt History buttons restyled with colored backgrounds, borders, and icons. Added actual pixel resolution display below resolution selector. Quick Add gets sparkle icon. All 3 menu buttons get hover tooltips.

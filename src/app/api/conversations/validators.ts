@@ -34,6 +34,7 @@ export const updateConversationSchema = z.object({
   gemId: z.string().uuid().nullable().optional(),
   model: z.string().nullable().optional(),
   projectId: z.string().uuid().nullable().optional(),
+  personaId: z.string().uuid().nullable().optional(),
 });
 
 export type UpdateConversationRequest = z.infer<typeof updateConversationSchema>;

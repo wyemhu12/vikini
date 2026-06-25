@@ -411,6 +411,33 @@ export async function setConversationGem(
   return mapConversationRow(data);
 }
 
+export async function setConversationPersona(
+  userId: string,
+  conversationId: string,
+  personaId: string | null
+): Promise<Conversation | null> {
+  const supabase = getSupabaseAdmin();
+
+  const current = await getConversationSafe(conversationId);
+  if (!current) throw new NotFoundError("Conversation");
+  if (current.userId !== userId) throw new ForbiddenError();
+
+  // PERFORMANCE: Use RETURNING clause to avoid extra query
+  const { data, error } = await supabase
+    .from("conversations")
+    .update({ persona_id: personaId || null, updated_at: new Date().toISOString() })
+    .eq("id", conversationId)
+    .select("*,gems(name,icon,color)")
+    .single();
+
+  if (error) throw new DatabaseError(`setConversationPersona failed: ${error.message}`);
+
+  // Invalidate cache after update
+  await invalidateConversationsCache(userId);
+
+  return mapConversationRow(data);
+}
+
 // NEW: Set model for a conversation
 export async function setConversationModel(
   userId: string,

@@ -10,6 +10,7 @@ import ProjectNode from "./ProjectNode";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useGemStore } from "../../gems/stores/useGemStore";
+import { usePersonaStore } from "../../personas/stores/usePersonaStore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   PanelLeftClose,
@@ -186,6 +187,7 @@ function Sidebar({
   isCreatingChat = false,
 }: SidebarProps) {
   const { openGemModal } = useGemStore();
+  const { openPersonaModal } = usePersonaStore();
   const router = useRouter();
   const pathname = usePathname();
   const { projects, fetchProjects } = useProjectStore();
@@ -218,6 +220,11 @@ function Sidebar({
 
   const handleOpenGems = () => {
     openGemModal(currentId);
+    onCloseMobile?.();
+  };
+
+  const handleOpenPersonas = () => {
+    openPersonaModal(currentId);
     onCloseMobile?.();
   };
 
@@ -286,6 +293,13 @@ function Sidebar({
                 onClick={handleOpenGems}
                 icon={Sparkles}
                 label={t?.exploreGems || "Explore Gems"}
+                className="ml-6 scale-95 origin-left opacity-80"
+                isCollapsed={isCollapsed}
+              />
+              <SidebarButton
+                onClick={handleOpenPersonas}
+                icon={Sparkles}
+                label={t?.managePersonas || "Manage Personas"}
                 className="ml-6 scale-95 origin-left opacity-80"
                 isCollapsed={isCollapsed}
               />

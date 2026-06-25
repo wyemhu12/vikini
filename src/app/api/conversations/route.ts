@@ -26,6 +26,7 @@ import {
   setConversationGem,
   setConversationModel,
   setConversationProject,
+  setConversationPersona,
 } from "@/lib/features/chat/conversations";
 import { getMessages } from "@/lib/features/chat/messages";
 
@@ -184,10 +185,11 @@ export async function PATCH(req: NextRequest) {
       return errorFromAppError(new ValidationError(message || "Invalid request body"));
     }
 
-    const { id, title, gemId, model, projectId } = body;
+    const { id, title, gemId, model, projectId, personaId } = body;
     const hasGemId = Object.prototype.hasOwnProperty.call(rawBody, "gemId");
     const hasModel = Object.prototype.hasOwnProperty.call(rawBody, "model");
     const hasProjectId = Object.prototype.hasOwnProperty.call(rawBody, "projectId");
+    const hasPersonaId = Object.prototype.hasOwnProperty.call(rawBody, "personaId");
 
     let conversation = null;
 
@@ -208,6 +210,11 @@ export async function PATCH(req: NextRequest) {
     // ✅ NEW: Handle project update (for RAG)
     if (hasProjectId) {
       conversation = await setConversationProject(userId, id, projectId ?? null);
+    }
+
+    // ✅ NEW: Handle persona update
+    if (hasPersonaId) {
+      conversation = await setConversationPersona(userId, id, personaId ?? null);
     }
 
     // fallback: return current

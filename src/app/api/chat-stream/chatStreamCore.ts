@@ -37,6 +37,7 @@ import {
   type Message,
 } from "@/lib/features/chat/messages";
 import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
+import { getPersonaInstructionsForConversation } from "@/lib/features/personas/personas";
 import {
   buildRAGContext,
   injectRAGIntoSystemPrompt,
@@ -702,12 +703,30 @@ export async function handleChatStreamCore({
   // Load system prompt (gem instructions)
   let sysPrompt = "";
   let gemLoadError = "";
+
+  // Load persona instructions first (if any)
   try {
-    sysPrompt = await getGemInstructionsForConversation(userId, conversationId);
-    // Debug: Log gem instructions status
-    if (sysPrompt) {
+    const personaPrompt = await getPersonaInstructionsForConversation(userId, conversationId);
+    if (personaPrompt) {
+      sysPrompt = personaPrompt;
       coreLogger.info(
-        `[GEM ACTIVE] Conversation ${conversationId} has gem instructions (${sysPrompt.length} chars)`
+        `[PERSONA ACTIVE] Conversation ${conversationId} has persona instructions (${personaPrompt.length} chars)`
+      );
+    }
+  } catch (e) {
+    const personaError = e as Error;
+    coreLogger.error("Persona load failed (non-blocking):", personaError?.message);
+    // Continue without persona - non-blocking
+  }
+
+  // Load gem instructions (appended after persona)
+  try {
+    const gemPrompt = await getGemInstructionsForConversation(userId, conversationId);
+    if (gemPrompt) {
+      // If persona prompt exists, combine them; otherwise just use gem prompt
+      sysPrompt = sysPrompt ? `${sysPrompt}\n\n${gemPrompt}` : gemPrompt;
+      coreLogger.info(
+        `[GEM ACTIVE] Conversation ${conversationId} has gem instructions (${gemPrompt.length} chars)`
       );
     } else {
       coreLogger.info(`[GEM NONE] Conversation ${conversationId} has no gem applied`);
