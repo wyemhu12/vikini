@@ -114,10 +114,10 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
             </label>
             <Input
               value={icon}
-              onChange={handleChange(setIcon)}
+              readOnly
               disabled={isReadOnly}
               placeholder="💡"
-              className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm disabled:opacity-60"
+              className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm disabled:opacity-60 cursor-default"
             />
           </div>
         </div>

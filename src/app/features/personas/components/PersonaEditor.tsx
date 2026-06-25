@@ -121,9 +121,9 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
             </label>
             <Input
               value={icon}
-              onChange={handleChange(setIcon)}
+              readOnly
               placeholder="🎭"
-              className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm"
+              className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm cursor-default"
             />
           </div>
         </div>

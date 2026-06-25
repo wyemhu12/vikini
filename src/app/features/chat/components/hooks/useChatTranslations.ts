@@ -108,6 +108,14 @@ const CHAT_TRANSLATION_KEYS = [
   "thinkingLevelLow",
   "thinkingLevelMinimal",
   "thinkingLevelTooltip",
+  // Personas
+  "managePersonas",
+  "personasTitle",
+  "personaCreate",
+  "personaEdit",
+  "personaDelete",
+  "personaSave",
+  "personaApplied",
 ] as const;
 
 // ============================================
