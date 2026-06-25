@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-06-25: Add Grok 4.3 and OpenRouter Reasoning Support
+
+### New Feature: Grok 4.3 Support
+
+- **`modelRegistry.ts`** — Added `x-ai/grok-4.3` to selectable models under the Grok tab. Added `isOpenRouterReasoningModel` helper.
+- **`chatStreamCore.ts`** — Passed `thinkingLevel` to `createOpenAICompatibleStream` for handling Grok reasoning parameter.
+- **`openai-stream.ts`** — Added dynamic injection of `<think>` tags into `reasoning_details` for previous assistant messages. Added streaming `reasoning_details` parsing from delta chunks into UI `<think>` tags for OpenRouter reasoning models.
+
 ## 2026-06-25: Personas — IconPicker Fix & Chat Badge
 
 ### Bug Fix: IconPicker

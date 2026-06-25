@@ -1039,6 +1039,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
       userId,
       conversationId,
       content,
+      thinkingLevel,
       contextMessages: messageContext.contextMessages,
       appendToContext: async () => {},
       saveMessage: saveMessageCompat,

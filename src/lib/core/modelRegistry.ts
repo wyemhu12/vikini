@@ -20,7 +20,8 @@ export interface SelectableModel {
     | "openrouter-free"
     | "openrouter-pay"
     | "openai"
-    | "deepseek";
+    | "deepseek"
+    | "groq";
 }
 
 // Models shown in the UI selector (store these IDs in DB)
@@ -87,6 +88,19 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
   },
 
   // ═══════════════════════════════════════════════════════════
+  // GROK MODELS (xAI / OpenRouter)
+  // ═══════════════════════════════════════════════════════════
+  {
+    id: "x-ai/grok-4.3",
+    descKey: "modelDescGrok43",
+    name: "Grok 4.3",
+    tokenLimit: 131072, // Based on x-ai/grok-2 limit or general high context limit
+    contextWindow: 131072,
+    category: "reasoning",
+    providerId: "grok",
+  },
+
+  // ═══════════════════════════════════════════════════════════
   // GROQ MODELS (Llama via Groq API)
   // ═══════════════════════════════════════════════════════════
   {
@@ -96,12 +110,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     tokenLimit: 128000,
     contextWindow: 128000,
     category: "reasoning",
-    providerId: "grok", // Actually Groq, user filter is 'Groq'. I used 'grok' (xAI) in plan. Mistake. Grok is xAI. Groq is the API provider.
-    // Wait, existing ID is "llama-3.3...". Existing comment says "GROQ MODELS".
-    // User requested "Grok" filter AND "Groq" filter.
-    // "Grok" = xAI models (Grok 3, 4).
-    // "Groq" = Llama models hosted on Groq?
-    // Start with Groq for Llama.
+    providerId: "groq", // Fixed provider ID from 'grok' to 'groq'
   },
   {
     id: "llama-3.1-8b-instant",
@@ -110,12 +119,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     tokenLimit: 128000,
     contextWindow: 128000,
     category: "low-latency",
-    providerId: "grok", // Using 'grok' as provider ID for Groq API in this list based on user filter request 'Groq'.
-    // BUT user also asked for "Grok" (xAI). I need two provider IDs: 'grok-xai' and 'groq-cloud'?
-    // User list: "Gemini, Grok, Deepseek, GPT, Anthropic, Groq, OpenRouter(Free), OpenRouter(Pay)"
-    // Two Groks? "Grok" usually refers to user's "Grok 3/4" models. "Groq" refers to the fast inference API.
-    // I will use `providerId: 'groq'` for Llama/Groq models.
-    // I will use `providerId: 'xai'` or 'grok' for xAI models (none in list yet, but filter exits).
+    providerId: "groq", // Fixed provider ID from 'grok' to 'groq'
   },
 
   // ═══════════════════════════════════════════════════════════
@@ -231,7 +235,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
 
 export const PROVIDER_LABELS: Record<string, string> = {
   gemini: "Gemini",
-  grok: "Grok", // xAI
+  grok: "Grok", // xAI / OpenRouter
   deepseek: "DeepSeek",
   openai: "GPT",
   anthropic: "Anthropic",
@@ -256,12 +260,14 @@ const API_ALLOWED = new Set([
   "gemini-3.1-pro-preview",
   "gemini-3.1-flash-lite-preview",
 
+  // Grok via OpenRouter
+  "x-ai/grok-4.3",
+
   // Llama via Groq
   "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant",
 
   // OpenRouter Free Models
-
   "meta-llama/llama-4-maverick:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "google/gemma-3-27b-it:free",
@@ -431,4 +437,14 @@ export function isDeepSeekV32Model(modelId: unknown): boolean {
     .trim()
     .toLowerCase();
   return id.includes("deepseek") && id.includes("v3.2");
+}
+
+/**
+ * Check if a model is an OpenRouter reasoning model (e.g. Grok 4.3)
+ */
+export function isOpenRouterReasoningModel(modelId: unknown): boolean {
+  const id = String(modelId || "")
+    .trim()
+    .toLowerCase();
+  return id.includes("x-ai/grok") || id.includes("o1") || id.includes("o3");
 }
