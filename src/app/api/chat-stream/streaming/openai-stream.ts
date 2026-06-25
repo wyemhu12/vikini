@@ -199,7 +199,24 @@ export function createOpenAICompatibleStream(params: {
           // We cast to access custom fields
           const delta = (chunk.choices[0]?.delta as Record<string, unknown>) || {};
 
-          const reasoningDelta = (delta.reasoning_details || delta.reasoning || "") as string;
+          const reasoningDeltaRaw = delta.reasoning_details || delta.reasoning || "";
+          let reasoningDelta = "";
+          if (typeof reasoningDeltaRaw === "string") {
+            reasoningDelta = reasoningDeltaRaw;
+          } else if (Array.isArray(reasoningDeltaRaw)) {
+            // It's likely an array of objects like [{ type: "text", text: "..." }]
+            reasoningDelta = reasoningDeltaRaw
+              .map((r: unknown) => {
+                if (typeof r === "string") return r;
+                const rec = r as Record<string, unknown>;
+                return (rec?.text as string) || (rec?.content as string) || "";
+              })
+              .join("");
+          } else if (typeof reasoningDeltaRaw === "object" && reasoningDeltaRaw !== null) {
+            const rAny = reasoningDeltaRaw as Record<string, unknown>;
+            reasoningDelta = (rAny.text as string) || (rAny.content as string) || "";
+          }
+
           if (reasoningDelta) {
             if (!inReasoningMode) {
               inReasoningMode = true;

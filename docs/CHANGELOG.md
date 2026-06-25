@@ -13,6 +13,10 @@
 - **`chatStreamCore.ts`** — Passed `thinkingLevel` to `createOpenAICompatibleStream` for handling Grok reasoning parameter.
 - **`openai-stream.ts`** — Added dynamic injection of `<think>` tags into `reasoning_details` for previous assistant messages. Added streaming `reasoning_details` parsing from delta chunks into UI `<think>` tags for OpenRouter reasoning models.
 
+### Bug Fix: OpenRouter Reasoning Stream Object Extraction
+
+- **`openai-stream.ts`** — Fixed a bug where `delta.reasoning_details` (which can be an array of objects) was concatenated as a string, resulting in `[object Object]` rendering in the Thinking UI. Added robust recursive string extraction for array/object reasoning delta payloads.
+
 ## 2026-06-25: Personas — IconPicker Fix & Chat Badge
 
 ### Bug Fix: IconPicker

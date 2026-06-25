@@ -146,6 +146,13 @@
 - **Fix**: Extract `data.error.message` instead of `String(data.error)`. Fixed request body field names to match Zod schema.
 - **Prevention Rule**: **When parsing error responses, ALWAYS check if `data.error` is an object with a `.message` property before stringifying.** The standardized API error format is `{ error: { message, code } }`. Use: `typeof errObj === "object" && "message" in errObj ? errObj.message : String(errObj)`.
 
+### 2026-06-25: OpenRouter streaming reasoning_details returns Array of Objects
+
+- **Symptom**: The Thinking UI rendered `[object Object][object Object]...` instead of the actual thought content.
+- **Root Cause**: In streaming mode, OpenRouter returns `delta.reasoning_details` or `delta.reasoning` which can be an array of objects `[{ type: "text", text: "..." }]` rather than a flat string. Concatenating it as a string produced `[object Object]`.
+- **Fix**: Added deep extraction helper that checks `typeof`, `Array.isArray`, and pulls `text` or `content` properties safely before concatenating to the thought buffer.
+- **Prevention Rule**: Never assume untyped API fields (like OpenRouter beta parameters) are strings. Always do safe recursive string extraction or type checking.
+
 - **Symptom**: Agent skipped `await auth()` in API routes believing proxy handled it
 - **Root Cause**: `docs/security.md` documented a non-existent `proxy.ts` mechanism
 - **Fix**: Corrected docs to reflect actual NextAuth v5 direct import pattern
