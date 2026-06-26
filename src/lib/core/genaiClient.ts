@@ -80,3 +80,92 @@ export function getGenAIClientInfo(): { cached: boolean; createdAt: number } {
     createdAt: cachedCreatedAt || 0,
   };
 }
+
+// =====================================================================================
+// Deep Research Interactions API
+// =====================================================================================
+
+/**
+ * Minimal interface for Interaction objects returned by the Interactions API.
+ * Defined locally to avoid dependency on SDK types that may not be exported.
+ */
+interface InteractionResult {
+  id: string;
+  status?: string;
+  output_text?: string;
+  error?: string;
+}
+
+/**
+ * Minimal interface for the Interactions namespace on GoogleGenAI.
+ * The SDK v2.x exposes `client.interactions.create()` and `client.interactions.get()`.
+ */
+interface InteractionsClient {
+  create(params: Record<string, unknown>): Promise<InteractionResult>;
+  get(interactionId: string): Promise<InteractionResult>;
+}
+
+/**
+ * Safely access the interactions API from the GenAI client.
+ * @throws {Error} If the SDK version doesn't support the Interactions API
+ */
+function getInteractionsClient(): InteractionsClient {
+  const client = getGenAIClient();
+  const interactions = (client as unknown as { interactions?: InteractionsClient }).interactions;
+  if (!interactions) {
+    throw new Error("Interactions API not available. Ensure @google/genai >= 2.3.0 is installed.");
+  }
+  return interactions;
+}
+
+/**
+ * Creates a Deep Research interaction via Gemini Interactions API.
+ */
+export async function createResearchInteraction(options: {
+  input: string;
+  agent: string;
+  collaborativePlanning: boolean;
+  previousInteractionId?: string;
+}): Promise<{ id: string; status: string; outputText?: string }> {
+  const interactions = getInteractionsClient();
+
+  const params: Record<string, unknown> = {
+    input: options.input,
+    agent: options.agent,
+    background: true,
+    agent_config: {
+      type: "deep-research",
+      collaborative_planning: options.collaborativePlanning,
+    },
+  };
+
+  if (options.previousInteractionId) {
+    params.previous_interaction_id = options.previousInteractionId;
+  }
+
+  const interaction = await interactions.create(params);
+  return {
+    id: interaction.id,
+    status: interaction.status ?? "in_progress",
+    outputText: interaction.output_text ?? undefined,
+  };
+}
+
+/**
+ * Gets the current status of a Deep Research interaction.
+ */
+export async function getResearchInteraction(interactionId: string): Promise<{
+  id: string;
+  status: string;
+  outputText?: string;
+  error?: string;
+}> {
+  const interactions = getInteractionsClient();
+  const result = await interactions.get(interactionId);
+  return {
+    id: result.id,
+    status: result.status ?? "in_progress",
+    outputText: result.output_text ?? undefined,
+    error: result.error ?? undefined,
+  };
+}

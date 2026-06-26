@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { FolderOpen, AlertTriangle } from "lucide-react";
+import { FolderOpen, AlertTriangle, Microscope } from "lucide-react";
 import { useLanguage } from "../hooks/useLanguage";
 
 import ModelSelector from "./ModelSelector";
@@ -15,7 +15,11 @@ import PersonaQuickSwitch from "../../../features/personas/components/PersonaQui
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { type ThinkingLevel, modelSupportsThinkingUI } from "./hooks/useThinkingLevel";
-import { modelSupportsWebSearch, isDeepSeekV32Model } from "@/lib/core/modelRegistry";
+import {
+  modelSupportsWebSearch,
+  isDeepSeekV32Model,
+  modelSupportsDeepResearch,
+} from "@/lib/core/modelRegistry";
 
 /** Gem info for display */
 interface GemInfo {
@@ -32,6 +36,10 @@ interface ChatControlsProps {
   toggleWebSearch: () => void;
   alwaysSearch: boolean;
   toggleAlwaysSearch: () => void;
+  // Deep Research
+  deepResearchEnabled: boolean;
+  toggleDeepResearch: () => void;
+  deepResearchAllowed: boolean;
   // Thinking Level
   thinkingLevel: ThinkingLevel;
   setThinkingLevel: (level: ThinkingLevel) => void;
@@ -70,6 +78,10 @@ export default function ChatControls({
   toggleWebSearch,
   alwaysSearch,
   toggleAlwaysSearch,
+  // Deep Research
+  deepResearchEnabled,
+  toggleDeepResearch,
+  deepResearchAllowed,
   // Thinking Level
   thinkingLevel,
   setThinkingLevel,
@@ -102,6 +114,7 @@ export default function ChatControls({
   const displayValue = previewPrompt !== null ? previewPrompt : input;
   const isShowingPreview = previewPrompt !== null && previewPrompt !== "";
   const canWebSearch = modelSupportsWebSearch(currentModel);
+  const canDeepResearch = modelSupportsDeepResearch(currentModel);
   const isV32 = isDeepSeekV32Model(currentModel);
 
   const { t } = useLanguage();
@@ -187,6 +200,28 @@ export default function ChatControls({
                 setThinkingLevel={setThinkingLevel}
                 currentModel={currentModel}
               />
+            </>
+          )}
+          {/* Deep Research Toggle - Gemini models only */}
+          {canDeepResearch && (
+            <>
+              <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
+              <button
+                onClick={deepResearchAllowed ? toggleDeepResearch : undefined}
+                disabled={!deepResearchAllowed}
+                title={!deepResearchAllowed ? t("deepResearchNotAllowed") : t("deepResearchDesc")}
+                aria-pressed={deepResearchEnabled}
+                className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1 ${
+                  !deepResearchAllowed
+                    ? "text-(--text-secondary) opacity-40 cursor-not-allowed"
+                    : deepResearchEnabled
+                      ? "text-emerald-400 md:bg-(--control-bg-hover)"
+                      : "text-(--text-secondary) hover:text-(--text-primary)"
+                }`}
+              >
+                <Microscope className="w-3 h-3" />
+                {t("deepResearch")}
+              </button>
             </>
           )}
           <GemQuickSwitch currentGem={currentGem || null} conversationId={selectedConversationId} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession, signIn, signOut } from "next-auth/react";
+import { Microscope } from "lucide-react";
 
 // UI Components
 import ChatBubble from "./ChatBubble";
@@ -37,7 +38,13 @@ import {
 import { useGemStore } from "../../gems/stores/useGemStore";
 import { usePersonaStore } from "../../personas/stores/usePersonaStore";
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
+import { useDeepResearchMode } from "./hooks/useDeepResearchMode";
 import { useThinkingLevel } from "./hooks/useThinkingLevel";
+
+import ResearchPlanCard from "../../research/components/ResearchPlanCard";
+import ResearchProgressCard from "../../research/components/ResearchProgressCard";
+import ResearchReportCard from "../../research/components/ResearchReportCard";
+import ResearchReportPanel from "../../research/components/ResearchReportPanel";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 import { useAllowedModels } from "./hooks/useAllowedModels";
 import { useImageGenController } from "./hooks/useImageGenController";
@@ -198,6 +205,25 @@ export default function ChatApp() {
     setServerWebSearchAvailable,
   } = useWebSearchPreference();
 
+  // Deep Research Mode
+  const {
+    isDeepResearchMode,
+    enterDeepResearch,
+    exitDeepResearch,
+    currentTask,
+    startResearch,
+    approvePlan,
+    isReportPanelOpen,
+    openReportPanel,
+    closeReportPanel,
+  } = useDeepResearchMode();
+
+  // Feature permission
+  const userRankConfig = (
+    session?.user as { rankConfig?: { features?: { deep_research?: boolean } } }
+  )?.rankConfig;
+  const deepResearchAllowed = userRankConfig?.features?.deep_research === true;
+
   // Chat Stream Controller
   const {
     renderedMessages,
@@ -242,6 +268,32 @@ export default function ChatApp() {
     [conversations, selectedConversationId]
   );
   const currentModel = currentConversation?.model || landingModel;
+
+  // Intercept send for Deep Research
+  const handleMessageSend = useCallback(
+    (text?: string, fileIds?: string[]) => {
+      if (isDeepResearchMode) {
+        if (text) {
+          startResearch(
+            text,
+            selectedConversationId || undefined,
+            selectedProjectId || undefined,
+            (currentConversation as { gemId?: string })?.gemId || undefined
+          ).catch((e) => toast.error(e.message || "Failed to start research"));
+        }
+      } else {
+        handleSend(text, fileIds);
+      }
+    },
+    [
+      isDeepResearchMode,
+      startResearch,
+      handleSend,
+      selectedConversationId,
+      selectedProjectId,
+      currentConversation,
+    ]
+  );
 
   // File count for file manager button
   const { fileCount } = useFiles(selectedConversationId);
@@ -673,7 +725,7 @@ export default function ChatApp() {
                 <ChatControls
                   input={input}
                   setInput={setInput}
-                  handleSend={handleSend}
+                  handleSend={handleMessageSend}
                   handleStop={handleStop}
                   isStreaming={isStreaming}
                   creatingConversation={creatingConversation}
@@ -684,6 +736,9 @@ export default function ChatApp() {
                   toggleWebSearch={toggleWebSearch}
                   alwaysSearch={alwaysSearch}
                   toggleAlwaysSearch={toggleAlwaysSearch}
+                  deepResearchEnabled={isDeepResearchMode}
+                  toggleDeepResearch={isDeepResearchMode ? exitDeepResearch : enterDeepResearch}
+                  deepResearchAllowed={deepResearchAllowed}
                   thinkingLevel={thinkingLevel}
                   setThinkingLevel={setThinkingLevel}
                   currentModel={currentModel}
@@ -745,6 +800,61 @@ export default function ChatApp() {
                 />
               )}
 
+              {/* Deep Research active task integration */}
+              {isDeepResearchMode && currentTask && (
+                <div className="flex w-full flex-col gap-3 py-6">
+                  <div className="flex max-w-[95%] lg:max-w-[90%] gap-4 items-start">
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                      <Microscope className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 space-y-4 max-w-full">
+                      {currentTask.status === "planning" && (
+                        <ResearchPlanCard
+                          topic={currentTask.query}
+                          plan={{
+                            topic: currentTask.query,
+                            steps: currentTask.planText ? [currentTask.planText] : [],
+                            estimated_time_minutes:
+                              currentTask.agentModel === "deep-research-fast-04-2026" ? 5 : 15,
+                            search_queries: [],
+                          }}
+                          onApprove={() =>
+                            approvePlan().catch((e) =>
+                              toast.error(e.message || "Failed to approve")
+                            )
+                          }
+                          onEdit={() => {}} // Could wire to a generic input prompt in future
+                        />
+                      )}
+                      {(currentTask.status === "ready_to_execute" ||
+                        currentTask.status === "executing") && (
+                        <ResearchProgressCard
+                          topic={currentTask.query}
+                          currentStep={
+                            currentTask.status === "executing" ? "analyzing" : "searching"
+                          }
+                        />
+                      )}
+                      {currentTask.status === "completed" && (
+                        <ResearchReportCard
+                          topic={currentTask.query}
+                          onOpen={openReportPanel}
+                          completedAt={currentTask.updatedAt}
+                        />
+                      )}
+                      {currentTask.status === "failed" && (
+                        <div className="p-4 rounded-2xl bg-(--danger)/10 border border-(--danger)/20 text-(--danger)">
+                          <p className="font-semibold mb-1">
+                            {t.deepResearchFailed || "Research failed"}
+                          </p>
+                          <p className="text-sm opacity-80">{currentTask.errorMessage}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {lastGeneratedImage && (
                 <div className="flex w-full flex-col gap-3 py-6">
                   <div className="flex max-w-[95%] lg:max-w-[90%] gap-4 items-start">
@@ -773,7 +883,7 @@ export default function ChatApp() {
           <ChatControls
             input={input}
             setInput={setInput}
-            handleSend={handleSend}
+            handleSend={handleMessageSend}
             handleStop={handleStop}
             isStreaming={isStreaming}
             creatingConversation={creatingConversation}
@@ -784,6 +894,9 @@ export default function ChatApp() {
             toggleWebSearch={toggleWebSearch}
             alwaysSearch={alwaysSearch}
             toggleAlwaysSearch={toggleAlwaysSearch}
+            deepResearchEnabled={isDeepResearchMode}
+            toggleDeepResearch={isDeepResearchMode ? exitDeepResearch : enterDeepResearch}
+            deepResearchAllowed={deepResearchAllowed}
             thinkingLevel={thinkingLevel}
             setThinkingLevel={setThinkingLevel}
             currentModel={currentModel}
@@ -823,6 +936,16 @@ export default function ChatApp() {
           modelName={modals.restrictedModel || ""}
         />
       </Suspense>
+
+      {/* Deep Research Report Panel */}
+      {isDeepResearchMode && isReportPanelOpen && currentTask && currentTask.reportText && (
+        <ResearchReportPanel
+          title={currentTask.query}
+          report={currentTask.reportText}
+          isOpen={isReportPanelOpen}
+          onClose={closeReportPanel}
+        />
+      )}
 
       <Suspense fallback={null}>
         <EditImagePromptModal

@@ -83,8 +83,9 @@ export default function PersonasManager() {
 
       const json = await res.json().catch(() => ({}));
 
-      if (!res.ok)
+      if (!res.ok) {
         throw new Error(json?.error?.message || json?.error || "Failed to delete persona");
+      }
 
       toast.success(t("personaDeleted") || "Persona deleted successfully");
       await fetchPersonas();

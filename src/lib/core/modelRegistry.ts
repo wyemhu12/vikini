@@ -448,3 +448,14 @@ export function isOpenRouterReasoningModel(modelId: unknown): boolean {
     .toLowerCase();
   return id.includes("x-ai/grok") || id.includes("o1") || id.includes("o3");
 }
+
+/**
+ * Check if the current model supports Deep Research.
+ * Deep Research uses Gemini Interactions API, so only Gemini models qualify.
+ */
+export function modelSupportsDeepResearch(modelId: unknown): boolean {
+  const id = String(modelId || "")
+    .trim()
+    .toLowerCase();
+  return id.startsWith("gemini");
+}

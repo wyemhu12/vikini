@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-06-26: Gemini Deep Research Integration
+
+### New Feature: Deep Research Mode
+
+- **SDK Upgrade** — Upgraded `@google/genai` to `v2.4.0` to support the Interactions API.
+- **Backend & DB** — Created `research_tasks` and `daily_research_counts` tables via migration. Extended `rank_configs` to support `daily_research_limit` and `deep_research` feature flags.
+- **Service Layer** — Implemented `researchService.server.ts` to manage async interaction states, polling, and integration with conversations and projects knowledge bases.
+- **Admin Settings** — Added feature toggle UI and daily limit input in `RankConfigManager.tsx`.
+- **Chat UI** — Added Deep Research toggle in `ChatControls.tsx` (only available for Gemini models). Created interactive UI cards: `ResearchPlanCard`, `ResearchProgressCard`, `ResearchReportCard`, and `ResearchReportPanel` to display the research lifecycle inside the chat stream.
+- **Polling Hooks** — Built `useDeepResearchMode.ts` to handle the asynchronous polling of Deep Research task states.
+- **Translations** — Added 28 bilingual UI keys to `vi.ts` and `en.ts`.
+
 ## 2026-06-26: Admin Personas Management
 
 ### New Feature: Pre-designed Personas (Admin)

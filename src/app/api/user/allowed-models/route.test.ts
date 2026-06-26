@@ -51,8 +51,9 @@ describe("/api/user/allowed-models", () => {
         email: "test@test.com",
         rank: "pro",
         daily_message_limit: 100,
+        daily_research_limit: 5,
         max_file_size_mb: 50,
-        features: { web_search: true, unlimited_gems: true },
+        features: { web_search: true, unlimited_gems: true, deep_research: true },
         allowed_models: ["gemini-2.5-pro", "claude-sonnet-4"],
       });
 
@@ -75,8 +76,9 @@ describe("/api/user/allowed-models", () => {
         email: "test@test.com",
         rank: "basic",
         daily_message_limit: 20,
+        daily_research_limit: 0,
         max_file_size_mb: 5,
-        features: { web_search: false, unlimited_gems: false },
+        features: { web_search: false, unlimited_gems: false, deep_research: false },
         // no allowed_models field
       });
 

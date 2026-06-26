@@ -14,10 +14,12 @@ const limitsLogger = logger.withContext("limits");
 export interface RankConfig {
   rank: "not_whitelisted" | "basic" | "pro" | "admin";
   daily_message_limit: number;
+  daily_research_limit: number;
   max_file_size_mb: number;
   features: {
     web_search: boolean;
     unlimited_gems: boolean;
+    deep_research: boolean;
     [key: string]: boolean;
   };
   allowed_models?: string[];
@@ -120,8 +122,9 @@ export async function getRankConfig(rank: string): Promise<RankConfig> {
       configs.get("basic") || {
         rank: "basic",
         daily_message_limit: 20,
+        daily_research_limit: 0,
         max_file_size_mb: 5,
-        features: { web_search: false, unlimited_gems: false },
+        features: { web_search: false, unlimited_gems: false, deep_research: false },
       }
     );
   }
@@ -298,6 +301,80 @@ export async function hasWebSearch(userId: string): Promise<boolean> {
  */
 export async function hasUnlimitedGems(userId: string): Promise<boolean> {
   return hasFeature(userId, "unlimited_gems");
+}
+
+/**
+ * Check if user has deep research enabled
+ */
+export async function hasDeepResearch(userId: string): Promise<boolean> {
+  return hasFeature(userId, "deep_research");
+}
+
+// =====================================================================================
+// Daily Research Count Functions
+// =====================================================================================
+
+/**
+ * Get current daily research count for user
+ */
+export async function getResearchDailyCount(userId: string): Promise<number> {
+  const supabase = getSupabaseAdmin();
+  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
+  const { data, error } = await supabase
+    .from("daily_research_counts")
+    .select("count")
+    .eq("user_id", userId)
+    .eq("date", today)
+    .maybeSingle();
+
+  if (error) {
+    limitsLogger.warn("Error fetching daily research count:", error);
+    return 0;
+  }
+
+  return data?.count || 0;
+}
+
+/**
+ * Increment daily research count for user
+ */
+export async function incrementResearchCount(userId: string): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
+  // Upsert: insert new row or increment existing count
+  const { error } = await supabase
+    .from("daily_research_counts")
+    .upsert({ user_id: userId, date: today, count: 1 }, { onConflict: "user_id,date" });
+
+  if (error) {
+    // Fallback: try to increment if upsert didn't work
+    const { error: updateError } = await supabase.rpc("increment_daily_research_count", {
+      p_user_id: userId,
+      p_date: today,
+    });
+
+    if (updateError) {
+      limitsLogger.warn("Error incrementing research count:", updateError);
+    }
+  }
+}
+
+/**
+ * Check if user can perform deep research (feature flag + daily limit)
+ */
+export async function canDoResearch(userId: string): Promise<boolean> {
+  const limits = await getUserLimits(userId);
+
+  // Check feature flag first
+  if (!limits.features.deep_research) {
+    return false;
+  }
+
+  // Check daily limit
+  const count = await getResearchDailyCount(userId);
+  return count < limits.daily_research_limit;
 }
 
 // =====================================================================================
