@@ -150,7 +150,7 @@ export async function getUserProfile(userId: string): Promise<{
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", userId)
+    .or(`id.eq.${userId},email.eq.${userId}`)
     .maybeSingle();
 
   if (error) {
