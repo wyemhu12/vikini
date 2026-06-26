@@ -20,6 +20,7 @@ export async function GET() {
     return success({
       allowed_models: limits.allowed_models || [],
       rank: limits.rank,
+      features: limits.features || {},
     });
   } catch (err: unknown) {
     if (err instanceof AppError) return errorFromAppError(err);

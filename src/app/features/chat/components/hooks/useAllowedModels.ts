@@ -5,11 +5,13 @@ import { logger } from "@/lib/utils/logger";
 // Hook to fetch allowed models for current user
 export function useAllowedModels(isAuthed: boolean) {
   const [allowedModelIds, setAllowedModelIds] = useState<Set<string>>(new Set());
+  const [features, setFeatures] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!isAuthed) {
       setAllowedModelIds(new Set());
+      setFeatures({});
       setLoading(false);
       return;
     }
@@ -25,11 +27,13 @@ export function useAllowedModels(isAuthed: boolean) {
         const json = await res.json();
         const data = json.data || json;
         const allowed = data.allowed_models || [];
+        const feats = data.features || {};
 
         if (cancelled) return;
 
         // Return Set of allowed model IDs for easy checking
         setAllowedModelIds(new Set(allowed));
+        setFeatures(feats);
       } catch (error) {
         logger.warn("Error fetching allowed models:", error);
         // Fallback to allowing all models on error
@@ -50,5 +54,5 @@ export function useAllowedModels(isAuthed: boolean) {
     };
   }, [isAuthed]);
 
-  return { allowedModelIds, loading };
+  return { allowedModelIds, features, loading };
 }

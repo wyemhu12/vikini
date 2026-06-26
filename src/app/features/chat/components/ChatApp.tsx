@@ -140,8 +140,8 @@ export default function ChatApp() {
   const [showProjectSettingsModal, setShowProjectSettingsModal] = useState(false);
   const { projects } = useProjectStore();
 
-  // Allowed Models
-  const { allowedModelIds, loading: modelsLoading } = useAllowedModels(isAuthed);
+  // Allowed Models & Features
+  const { allowedModelIds, features, loading: modelsLoading } = useAllowedModels(isAuthed);
   const isModelAllowed = useCallback(
     (modelId: string) => {
       if (modelsLoading) return true;
@@ -219,10 +219,7 @@ export default function ChatApp() {
   } = useDeepResearchMode();
 
   // Feature permission
-  const userRankConfig = (
-    session?.user as { rankConfig?: { features?: { deep_research?: boolean } } }
-  )?.rankConfig;
-  const deepResearchAllowed = userRankConfig?.features?.deep_research === true;
+  const deepResearchAllowed = features?.deep_research === true;
 
   // Chat Stream Controller
   const {
