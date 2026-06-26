@@ -17,6 +17,11 @@
 - **Polling Hooks** — Built `useDeepResearchMode.ts` to handle the asynchronous polling of Deep Research task states.
 - **Translations** — Added 28 bilingual UI keys to `vi.ts` and `en.ts`.
 
+### Bug Fixes
+
+- **Chat Input** — Fixed a bug where intercepting the Enter/Send button click for Deep Research dropped the text input because `text` parameter was passed as `undefined` but no fallback to `input` state was implemented.
+- **Limit Checks** — Fixed `[ForbiddenError]` on backend by making `getUserProfile` robust enough to lookup users by either `id` (Google UUID) or `email`, as `userId` represents different formats across the system.
+
 ## 2026-06-26: Admin Personas Management
 
 ### New Feature: Pre-designed Personas (Admin)

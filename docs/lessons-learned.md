@@ -130,6 +130,13 @@
 
 ---
 
+### 2026-06-26: Form onSubmit handler dropping explicit state fallback
+
+- **Symptom**: Clicking "Send" in Chat Input did nothing when Deep Research mode was active.
+- **Root Cause**: The `onSubmit` handler in `InputForm` passes `undefined` for the text content (expecting the parent to use its own state), but the new interceptor function strictly checked `if (text)` and aborted if undefined, failing to fallback to the React state.
+- **Fix**: Added `const finalQuery = text || input;` fallback inside the interceptor function.
+- **Prevention Rule**: When intercepting or wrapping existing event handlers, ensure that all default fallbacks (like reading from state if params are undefined) are preserved in the wrapper.
+
 ## API and Streaming
 
 ### 2026-06-09: Array mapping breaks object reference equality checks
@@ -191,6 +198,13 @@
 - **Prevention Rule**: **When mutating child data (documents, conversations), always refresh the parent store (projects).** Stats like counts and storage are computed server-side — they won't update unless the parent is re-fetched.
 
 ---
+
+### 2026-06-26: `userId` inconsistency between Email and Google UUID
+
+- **Symptom**: `[ForbiddenError]` when checking permissions in Deep Research API.
+- **Root Cause**: `userId` in `src/app/api/...` is often assumed to be the user's email address (e.g. `session.user.email`), but `profiles` table uses Google Auth ID (UUID-like string) as its Primary Key. `getUserProfile` strictly searched by `id`, failing to find profiles when an email was passed.
+- **Fix**: Modified `getUserProfile` to accept both formats by using Supabase `.or('id.eq.${userId},email.eq.${userId}')`.
+- **Prevention Rule**: Always check whether a DB lookup function expects an Email or an ID, and when possible, design core lookup functions to safely handle either if the system has inconsistent ID representations.
 
 ## Translation and Bilingual
 
