@@ -68,6 +68,7 @@ export const en = {
   modelDescFlash3: "Smart & fast",
   modelDescPro31: "Smartest",
   modelDescFlashLite31: "Cheapest & fastest",
+  modelDescGrok43: "Grok 4.3 — deep reasoning",
   modelDescLlama33_70b: "Llama 3.3 via Groq",
   modelDescLlama31_8b: "Llama 3.1 fast",
   modelDescDeepSeekV3: "DeepSeek V3 powerful (Free)",
@@ -767,4 +768,6 @@ export const en = {
   personaApplied: "Active Persona",
   personaMyPersonas: "My Personas",
   personaNoPersonas: "No personas yet. Create one to get started!",
+  selectGem: "Select GEM",
+  selectPersona: "Select Persona",
 } as const;

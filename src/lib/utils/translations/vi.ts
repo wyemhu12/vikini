@@ -72,6 +72,7 @@ export const vi = {
   modelDescFlash3: "Thông minh & nhanh",
   modelDescPro31: "Thông minh nhất",
   modelDescFlashLite31: "Rẻ nhất & nhanh nhất",
+  modelDescGrok43: "Grok 4.3 — suy luận sâu",
   modelDescLlama33_70b: "Llama 3.3 qua Groq",
   modelDescLlama31_8b: "Llama 3.1 nhanh",
   modelDescDeepSeekV3: "DeepSeek V3 mạnh mẽ (Miễn phí)",
@@ -776,4 +777,6 @@ export const vi = {
   personaApplied: "Persona đang dùng",
   personaMyPersonas: "Personas của tôi",
   personaNoPersonas: "Chưa có persona nào. Hãy tạo mới để bắt đầu!",
+  selectGem: "Chọn GEM",
+  selectPersona: "Chọn Persona",
 } as const;
