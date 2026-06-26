@@ -10,6 +10,7 @@ export interface Persona {
   customInstructions: string;
   icon: string;
   color: string;
+  isPremade?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,6 +36,7 @@ export interface PersonaForClient {
   customInstructions: string;
   icon: string;
   color: string;
+  isPremade?: boolean;
   createdAt: string;
   updatedAt: string;
 }

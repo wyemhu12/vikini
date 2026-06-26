@@ -76,6 +76,7 @@ const mockPersonaRow = {
   custom_instructions: "Be concise",
   icon: "🎭",
   color: "#FF0000",
+  is_premade: false,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
@@ -131,6 +132,7 @@ describe("/api/personas", () => {
         customInstructions: "Be concise",
         icon: "🎭",
         color: "#FF0000",
+        isPremade: false,
         createdAt: "2026-01-01T00:00:00Z",
         updatedAt: "2026-01-01T00:00:00Z",
       });
@@ -222,6 +224,7 @@ describe("/api/personas", () => {
         custom_instructions: "Always use examples",
         icon: "🚀",
         color: "#00FF00",
+        is_premade: false,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-01T00:00:00Z",
       });
@@ -368,6 +371,7 @@ describe("/api/personas", () => {
         custom_instructions: "",
         icon: "🎭",
         color: "#FF0000",
+        is_premade: false,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
       });

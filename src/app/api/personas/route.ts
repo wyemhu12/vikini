@@ -60,6 +60,7 @@ function mapPersonaForClient(row: PersonaRow | null): PersonaForClient | null {
     customInstructions: row.custom_instructions ?? "",
     icon: row.icon ?? "",
     color: row.color ?? "",
+    isPremade: row.is_premade ?? false,
     createdAt: row.created_at ?? "",
     updatedAt: row.updated_at ?? "",
   };

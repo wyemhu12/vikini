@@ -20,6 +20,7 @@ export interface PersonaRow {
   custom_instructions: string;
   icon: string;
   color: string;
+  is_premade: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -74,7 +75,8 @@ export async function getPersonasForUser(userId: string): Promise<PersonaRow[]> 
   const { data, error } = await supabase
     .from("personas")
     .select("*")
-    .eq("user_id", userId)
+    .or(`user_id.eq.${userId},is_premade.eq.true`)
+    .order("is_premade", { ascending: false })
     .order("name", { ascending: true });
 
   if (error) throw new DatabaseError(`getPersonasForUser failed: ${error.message}`);

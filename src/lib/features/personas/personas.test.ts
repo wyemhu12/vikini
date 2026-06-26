@@ -10,6 +10,7 @@ const mockEq = vi.fn();
 const mockOrder = vi.fn();
 const mockSingle = vi.fn();
 const mockMaybeSingle = vi.fn();
+const mockOr = vi.fn();
 
 // Chain builder: each method returns the chain so calls can be composed
 const mockChain = {
@@ -18,6 +19,7 @@ const mockChain = {
   update: mockUpdate,
   delete: mockDeleteFn,
   eq: mockEq,
+  or: mockOr,
   order: mockOrder,
   single: mockSingle,
   maybeSingle: mockMaybeSingle,
@@ -61,6 +63,7 @@ const mockPersonaRow = {
   custom_instructions: "Be concise",
   icon: "🎭",
   color: "#FF0000",
+  is_premade: false,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
@@ -85,7 +88,10 @@ describe("Personas Business Logic", () => {
   // ────────────────────────────────────────────────────────────────────
   describe("getPersonasForUser", () => {
     it("should return an array of personas", async () => {
-      mockOrder.mockResolvedValue({ data: [mockPersonaRow], error: null });
+      // First .order() returns chain, second .order() resolves with data
+      mockOrder
+        .mockReturnValueOnce(mockChain)
+        .mockResolvedValueOnce({ data: [mockPersonaRow], error: null });
 
       const result = await getPersonasForUser(TEST_USER_ID);
 
@@ -95,7 +101,7 @@ describe("Personas Business Logic", () => {
     });
 
     it("should return empty array when user has no personas", async () => {
-      mockOrder.mockResolvedValue({ data: [], error: null });
+      mockOrder.mockReturnValueOnce(mockChain).mockResolvedValueOnce({ data: [], error: null });
 
       const result = await getPersonasForUser(TEST_USER_ID);
 
@@ -103,7 +109,7 @@ describe("Personas Business Logic", () => {
     });
 
     it("should return empty array when data is null", async () => {
-      mockOrder.mockResolvedValue({ data: null, error: null });
+      mockOrder.mockReturnValueOnce(mockChain).mockResolvedValueOnce({ data: null, error: null });
 
       const result = await getPersonasForUser(TEST_USER_ID);
 
@@ -111,7 +117,7 @@ describe("Personas Business Logic", () => {
     });
 
     it("should throw DatabaseError on Supabase error", async () => {
-      mockOrder.mockResolvedValue({
+      mockOrder.mockReturnValueOnce(mockChain).mockResolvedValueOnce({
         data: null,
         error: { message: "Connection refused" },
       });

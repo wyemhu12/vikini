@@ -6,6 +6,7 @@ import Link from "next/link";
 import UserManager from "./UserManager";
 import RankConfigManager from "./RankConfigManager";
 import GemsManager from "./GemsManager";
+import PersonasManager from "./PersonasManager";
 import StatisticsOverview from "./StatisticsOverview";
 import AuditLogViewer from "./AuditLogViewer";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
@@ -15,9 +16,9 @@ interface AdminDashboardProps {
 }
 
 export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<"users" | "limits" | "gems" | "stats" | "audit">(
-    "users"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "users" | "limits" | "gems" | "personas" | "stats" | "audit"
+  >("users");
   const { t, language, setLanguage } = useLanguage();
 
   return (
@@ -129,6 +130,16 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             {t("adminGlobalGems")}
           </button>
           <button
+            onClick={() => setActiveTab("personas")}
+            className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
+              activeTab === "personas"
+                ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
+                : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
+            }`}
+          >
+            {t("adminGlobalPersonas") || "Personas"}
+          </button>
+          <button
             onClick={() => setActiveTab("stats")}
             className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
               activeTab === "stats"
@@ -155,6 +166,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
           {activeTab === "users" && <UserManager currentUserId={currentUserId} />}
           {activeTab === "limits" && <RankConfigManager />}
           {activeTab === "gems" && <GemsManager />}
+          {activeTab === "personas" && <PersonasManager />}
           {activeTab === "stats" && <StatisticsOverview />}
           {activeTab === "audit" && <AuditLogViewer />}
         </div>

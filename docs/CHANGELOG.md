@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-06-26: Admin Personas Management
+
+### New Feature: Pre-designed Personas (Admin)
+
+- **DB Migration** — Added `is_premade` column to `personas` table + RLS policy for public read + index.
+- **`/api/admin/personas`** — New admin API route with GET/POST/PUT/DELETE for premade personas. Audit logging enabled.
+- **`PersonasManager.tsx`** — New admin UI component mirroring GemsManager pattern. Grid display with modal editor.
+- **`AdminDashboard.tsx`** — Added "Personas" tab to admin navigation.
+- **User-facing** — `getPersonasForUser()` now returns both user's own + premade personas. `PersonaList` split into "Premade Personas" (read-only) and "My Personas" sections.
+- **Types** — Added `isPremade` to `Persona`, `PersonaForClient`, `PersonaForUI`, `PersonaRow`.
+- **Translations** — 14 new EN/VI keys for admin personas management.
+
+---
+
 ## 2026-06-25: Add Grok 4.3 and OpenRouter Reasoning Support
 
 ### New Feature: Grok 4.3 Support

@@ -14,6 +14,7 @@ export interface PersonaForUI {
   customInstructions: string;
   icon: string;
   color: string;
+  isPremade?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
