@@ -269,10 +269,12 @@ export default function ChatApp() {
   // Intercept send for Deep Research
   const handleMessageSend = useCallback(
     (text?: string, fileIds?: string[]) => {
+      const finalQuery = text || input;
       if (isDeepResearchMode) {
-        if (text) {
+        if (finalQuery.trim()) {
+          setInput("");
           startResearch(
-            text,
+            finalQuery,
             selectedConversationId || undefined,
             selectedProjectId || undefined,
             (currentConversation as { gemId?: string })?.gemId || undefined
@@ -289,6 +291,8 @@ export default function ChatApp() {
       selectedConversationId,
       selectedProjectId,
       currentConversation,
+      input,
+      setInput,
     ]
   );
 
