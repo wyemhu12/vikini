@@ -215,7 +215,7 @@ export default function ChatControls({
                   !deepResearchAllowed
                     ? "text-(--text-secondary) opacity-40 cursor-not-allowed"
                     : deepResearchEnabled
-                      ? "text-emerald-400 md:bg-(--control-bg-hover)"
+                      ? "text-(--accent) md:bg-(--control-bg-hover)"
                       : "text-(--text-secondary) hover:text-(--text-primary)"
                 }`}
               >
@@ -233,7 +233,7 @@ export default function ChatControls({
             <>
               <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
               <div
-                className="flex items-center justify-center p-1 rounded-full text-amber-500 bg-amber-500/10 cursor-help"
+                className="flex items-center justify-center p-1 rounded-full text-(--warning) bg-(--warning)/10 cursor-help"
                 title={
                   t("conflictWarning") ||
                   "⚠️ Both GEM and Persona are active. If instructions conflict, GEM will be prioritized."

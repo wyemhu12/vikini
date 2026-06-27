@@ -254,15 +254,7 @@ export default function RankConfigManager() {
                   className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 border border-purple-500/30 transition-all"
                 >
                   <Settings2 className="w-4 h-4" />
-                  {t("configureFeatures")} (
-                  {
-                    [
-                      config.features.web_search,
-                      config.features.unlimited_gems,
-                      config.features.deep_research,
-                    ].filter(Boolean).length
-                  }
-                  )
+                  {t("configureFeatures")}
                 </button>
               </div>
             </div>

@@ -111,6 +111,8 @@ interface InteractionsClient {
  */
 function getInteractionsClient(): InteractionsClient {
   const client = getGenAIClient();
+  // SDK v2.4.0 does not export InteractionsClient type directly.
+  // This double cast is required until the SDK exposes the type properly.
   const interactions = (client as unknown as { interactions?: InteractionsClient }).interactions;
   if (!interactions) {
     throw new Error("Interactions API not available. Ensure @google/genai >= 2.3.0 is installed.");

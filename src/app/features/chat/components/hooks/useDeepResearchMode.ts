@@ -4,10 +4,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { ResearchTask, ResearchAgent } from "@/lib/features/research/types";
 import { logger } from "@/lib/utils/logger";
+import { toast } from "@/lib/store/toastStore";
 
 const STORAGE_KEY = "vikini.researchAgent";
+const ACTIVE_RESEARCH_KEY = "vikini-active-research";
 const DEFAULT_AGENT: ResearchAgent = "deep-research-preview-04-2026";
 const POLL_INTERVAL_MS = 10_000;
+const MAX_POLL_COUNT = 180; // ~30 min at 10s intervals
 
 interface UseDeepResearchModeReturn {
   // Mode state
@@ -59,8 +62,9 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
   const [isReportPanelOpen, setIsReportPanelOpen] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollCountRef = useRef(0);
 
-  // Initialize agent from localStorage
+  // Initialize agent from localStorage + resume active research
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -70,6 +74,19 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
     } catch {
       // Ignore storage access errors
     }
+
+    // Resume polling for active research task
+    try {
+      const activeTaskId = localStorage.getItem(ACTIVE_RESEARCH_KEY);
+      if (activeTaskId) {
+        setIsDeepResearchMode(true);
+        setIsLoading(true);
+        pollTask(activeTaskId);
+      }
+    } catch {
+      // Ignore storage access errors
+    }
+    // pollTask is stable (useCallback with no deps change)
   }, []);
 
   const setSelectedAgent = useCallback((agent: ResearchAgent) => {
@@ -111,8 +128,25 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
   const pollTask = useCallback(
     (taskId: string) => {
       stopPolling();
+      pollCountRef.current = 0;
 
       const poll = async () => {
+        pollCountRef.current += 1;
+
+        if (pollCountRef.current > MAX_POLL_COUNT) {
+          stopPolling();
+          setIsLoading(false);
+          const timeoutMsg = "Research polling timed out after 30 minutes";
+          setError(timeoutMsg);
+          toast.error(timeoutMsg);
+          try {
+            localStorage.removeItem(ACTIVE_RESEARCH_KEY);
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
+
         try {
           const res = await fetch(`/api/deep-research/${taskId}`);
           if (!res.ok) {
@@ -125,6 +159,11 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
           if (task.status === "completed" || task.status === "failed") {
             stopPolling();
             setIsLoading(false);
+            try {
+              localStorage.removeItem(ACTIVE_RESEARCH_KEY);
+            } catch {
+              /* ignore */
+            }
             if (task.status === "failed") {
               setError(task.errorMessage || "Research failed");
             }
@@ -170,6 +209,11 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
 
         const task = (await res.json()) as ResearchTask;
         setCurrentTask(task);
+        try {
+          localStorage.setItem(ACTIVE_RESEARCH_KEY, task.id);
+        } catch {
+          /* ignore */
+        }
 
         // Start polling for updates
         pollTask(task.id);
@@ -177,6 +221,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         const message = err instanceof Error ? err.message : "Unknown error";
         logger.error("[useDeepResearchMode] startResearch error:", message);
         setError(message);
+        toast.error(message);
         setIsLoading(false);
       }
     },
@@ -211,6 +256,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         const message = err instanceof Error ? err.message : "Unknown error";
         logger.error("[useDeepResearchMode] approvePlan error:", message);
         setError(message);
+        toast.error(message);
         setIsLoading(false);
       }
     },
@@ -224,6 +270,11 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
     setIsLoading(false);
     setError(null);
     setIsReportPanelOpen(false);
+    try {
+      localStorage.removeItem(ACTIVE_RESEARCH_KEY);
+    } catch {
+      /* ignore */
+    }
   }, [stopPolling]);
 
   const openReportPanel = useCallback(() => {

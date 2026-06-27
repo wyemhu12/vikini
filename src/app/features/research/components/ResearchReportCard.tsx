@@ -18,9 +18,11 @@ export default function ResearchReportCard({
   completedAt,
   onOpen,
 }: ResearchReportCardProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
-  const formattedTime = completedAt ? new Date(completedAt).toLocaleString() : "";
+  const formattedTime = completedAt
+    ? new Date(completedAt).toLocaleString(language === "vi" ? "vi-VN" : "en-US")
+    : "";
 
   return (
     <motion.div

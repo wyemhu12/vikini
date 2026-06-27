@@ -20,6 +20,15 @@ const researchLogger = logger.withContext("research");
 // Default agent model
 const DEFAULT_AGENT: ResearchAgent = "deep-research-preview-04-2026";
 
+// Magic number constants
+const MAX_QUERY_LENGTH = 2000;
+const TITLE_MAX_LENGTH = 60;
+const TITLE_TRUNCATE_LENGTH = 57;
+const PREVIEW_MAX_LENGTH = 100;
+const PREVIEW_TRUNCATE_LENGTH = 97;
+const LIST_DEFAULT_LIMIT = 50;
+const DEFAULT_CONVERSATION_MODEL = "deep-research";
+
 // =====================================================================================
 // Row Mapper
 // =====================================================================================
@@ -87,8 +96,8 @@ export async function createResearchTask(
   if (!request.query || request.query.trim().length === 0) {
     throw new ValidationError("Query is required");
   }
-  if (request.query.length > 2000) {
-    throw new ValidationError("Query must be 2000 characters or fewer");
+  if (request.query.length > MAX_QUERY_LENGTH) {
+    throw new ValidationError(`Query must be ${MAX_QUERY_LENGTH} characters or fewer`);
   }
 
   const supabase = getSupabaseAdmin();
@@ -113,9 +122,6 @@ export async function createResearchTask(
     throw new DatabaseError(`Failed to create research task: ${insertError?.message}`);
   }
 
-  // Increment daily count
-  await incrementResearchCount(userId);
-
   // Call Gemini Interactions API for collaborative planning
   try {
     const interaction = await createResearchInteraction({
@@ -139,6 +145,9 @@ export async function createResearchTask(
     if (updateError) {
       researchLogger.warn("Failed to update task with interaction ID:", updateError);
     }
+
+    // Increment daily count only after successful API call
+    await incrementResearchCount(userId);
 
     // Refetch the updated task
     const { data: updatedRow } = await supabase
@@ -194,7 +203,7 @@ export async function approveResearchPlan(
     throw new ForbiddenError("Not authorized to access this research task");
   }
 
-  if (task.status !== "ready_to_execute" && task.status !== "planning") {
+  if (task.status !== "ready_to_execute") {
     throw new ValidationError(`Cannot approve task in '${task.status}' status`);
   }
 
@@ -319,11 +328,18 @@ export async function checkResearchStatus(userId: string, taskId: string): Promi
 
         const finalTask = mapTaskRow((updatedRow || taskRow) as ResearchTaskRow);
 
-        // Save results to conversation (fire-and-forget)
-        finalizeResearch(finalTask, result.outputText).catch((err: unknown) => {
-          const msg = err instanceof Error ? err.message : "Unknown error";
-          researchLogger.error("Failed to finalize research:", msg);
-        });
+        // Save results to conversation
+        try {
+          await finalizeResearch(finalTask, result.outputText);
+        } catch (finalizeErr: unknown) {
+          const errMsg =
+            finalizeErr instanceof Error ? finalizeErr.message : "Unknown finalize error";
+          researchLogger.error(
+            "Failed to finalize research (report saved but conversation not created):",
+            errMsg
+          );
+          // Report is saved in the task, so don't change status — user can still view it
+        }
 
         return finalTask;
       }
@@ -366,7 +382,10 @@ export async function finalizeResearch(task: ResearchTask, report: string): Prom
 
   // Create a new conversation if needed
   if (!conversationId) {
-    const title = task.query.length > 60 ? `${task.query.substring(0, 57)}...` : task.query;
+    const title =
+      task.query.length > TITLE_MAX_LENGTH
+        ? `${task.query.substring(0, TITLE_TRUNCATE_LENGTH)}...`
+        : task.query;
 
     const now = new Date().toISOString();
     const { data: conv, error: convError } = await supabase
@@ -374,7 +393,7 @@ export async function finalizeResearch(task: ResearchTask, report: string): Prom
       .insert({
         user_id: task.userId,
         title: `🔬 ${title}`,
-        model: "deep-research",
+        model: DEFAULT_CONVERSATION_MODEL,
         created_at: now,
         updated_at: now,
         project_id: task.projectId || null,
@@ -402,8 +421,12 @@ export async function finalizeResearch(task: ResearchTask, report: string): Prom
   try {
     const encrypted = encryptText(task.query);
     if (encrypted) encryptedQuery = encrypted;
-  } catch {
+  } catch (encErr: unknown) {
     // Encryption failure is non-fatal
+    researchLogger.warn(
+      "Query encryption failed:",
+      encErr instanceof Error ? encErr.message : "Unknown error"
+    );
   }
 
   await supabase.from("messages").insert({
@@ -418,8 +441,12 @@ export async function finalizeResearch(task: ResearchTask, report: string): Prom
   try {
     const encrypted = encryptText(report);
     if (encrypted) encryptedReport = encrypted;
-  } catch {
+  } catch (encErr: unknown) {
     // Encryption failure is non-fatal
+    researchLogger.warn(
+      "Report encryption failed:",
+      encErr instanceof Error ? encErr.message : "Unknown error"
+    );
   }
 
   await supabase.from("messages").insert({
@@ -434,7 +461,10 @@ export async function finalizeResearch(task: ResearchTask, report: string): Prom
   });
 
   // Update conversation preview
-  const preview = report.length > 100 ? `${report.substring(0, 97)}...` : report;
+  const preview =
+    report.length > PREVIEW_MAX_LENGTH
+      ? `${report.substring(0, PREVIEW_TRUNCATE_LENGTH)}...`
+      : report;
 
   await supabase
     .from("conversations")
@@ -470,7 +500,7 @@ async function addResearchToProjectKB(
 ): Promise<void> {
   const supabase = getSupabaseAdmin();
 
-  const title = `Deep Research: ${query.substring(0, 100)}`;
+  const title = `Deep Research: ${query.substring(0, PREVIEW_MAX_LENGTH)}`;
 
   await supabase.from("knowledge_documents").insert({
     project_id: projectId,
@@ -498,7 +528,7 @@ export async function getResearchTasks(userId: string): Promise<ResearchTask[]> 
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(LIST_DEFAULT_LIMIT);
 
   if (error) {
     throw new DatabaseError(`Failed to fetch research tasks: ${error.message}`);

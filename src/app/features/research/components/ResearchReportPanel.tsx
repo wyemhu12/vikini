@@ -1,7 +1,7 @@
 // /app/features/research/components/ResearchReportPanel.tsx
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -27,6 +27,16 @@ export default function ResearchReportPanel({
   sources,
 }: ResearchReportPanelProps) {
   const { t } = useLanguage();
+  const panelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   return (
     <AnimatePresence>
@@ -45,6 +55,7 @@ export default function ResearchReportPanel({
 
           {/* Slide-in panel */}
           <motion.aside
+            ref={panelRef}
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -86,7 +97,7 @@ export default function ResearchReportPanel({
                   </h3>
                   <ul className="space-y-2">
                     {sources.map((source, idx) => (
-                      <li key={idx}>
+                      <li key={source.url || idx}>
                         <a
                           href={source.url}
                           target="_blank"

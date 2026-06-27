@@ -15,6 +15,7 @@ const routeLogger = logger.withContext("/api/deep-research");
 const VALID_AGENTS: ResearchAgent[] = [
   "deep-research-preview-04-2026",
   "deep-research-max-preview-04-2026",
+  "deep-research-fast-04-2026",
 ];
 
 function isValidAgent(agent: unknown): agent is ResearchAgent {

@@ -126,7 +126,7 @@ export default function DashboardView({
     };
   }, [getGreetingKey]);
 
-  const userName = session?.user?.name || "User";
+  const userName = session?.user?.name || t("user") || "User";
   const activeCat = CATEGORIES.find((c) => c.id === activeCategory);
 
   const handleCategoryClick = useCallback(
@@ -170,11 +170,11 @@ export default function DashboardView({
       >
         {isDeepResearchMode ? (
           <>
-            <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-semibold uppercase tracking-widest shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+            <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-(--accent)/10 text-(--accent) border border-(--accent)/20 text-xs font-semibold uppercase tracking-widest shadow-[0_0_15px_var(--glow)]">
               <Microscope className="w-3.5 h-3.5" />
               {t("deepResearch")}
             </div>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-emerald-400 to-(--text-secondary) bg-clip-text text-transparent leading-tight tracking-tight">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight tracking-tight">
               {t("deepResearchQuery")}
             </h1>
             <p className="mt-2 text-sm md:text-base text-(--text-secondary)">

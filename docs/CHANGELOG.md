@@ -22,6 +22,21 @@
 - **Chat Input** — Fixed a bug where intercepting the Enter/Send button click for Deep Research dropped the text input because `text` parameter was passed as `undefined` but no fallback to `input` state was implemented.
 - **Limit Checks** — Fixed `[ForbiddenError]` on backend by making `getUserProfile` robust enough to lookup users by either `id` (Google UUID) or `email`, as `userId` represents different formats across the system.
 
+### Quality Audit Fixes (2026-06-27)
+
+- **C1: incrementResearchCount** — Fixed critical bug where upsert reset count to 1 instead of incrementing (bypassed daily limits). Now uses RPC as primary mechanism.
+- **C2: Quota ordering** — Moved `incrementResearchCount` to AFTER successful Gemini API call to prevent losing quota on API failures.
+- **C3: VALID_AGENTS sync** — Added missing `deep-research-fast-04-2026` to API route validation.
+- **C4: SQL injection** — Replaced `.or()` string interpolation in `getUserProfile` with two separate parameterized queries.
+- **C5: Tests** — Created `researchService.server.test.ts` with 25 tests covering all exported functions.
+- **M1: toast.error()** — Added user-facing error toasts in `useDeepResearchMode` hook for `startResearch` and `approvePlan` failures.
+- **M3: Semantic CSS** — Replaced raw Tailwind colors (`emerald-400/500`, `amber-500`) with semantic tokens (`--accent`, `--warning`).
+- **M4: Approve guard** — Restricted plan approval to only `ready_to_execute` status.
+- **M5: Task persistence** — Added localStorage persistence for active research task ID to survive navigation.
+- **M6: Accessibility** — Added Escape key handler and panel ref to `ResearchReportPanel`.
+- **M7: Finalize safety** — Replaced fire-and-forget `.catch()` on `finalizeResearch` with proper `try/catch`.
+- **L1-L12** — Centralized UUID_REGEX, extracted magic numbers, added encryption logging, locale-aware date formatting, better list keys, admin UI count fix, polling timeout (30min), SDK cast comment.
+
 ## 2026-06-26: Admin Personas Management
 
 ### New Feature: Pre-designed Personas (Admin)

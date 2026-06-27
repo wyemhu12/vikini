@@ -6,12 +6,10 @@ import { auth } from "@/lib/features/auth/auth";
 import { checkResearchStatus } from "@/lib/features/research/researchService.server";
 import { success, error, errorFromAppError } from "@/lib/utils/apiResponse";
 import { ValidationError, UnauthorizedError, AppError } from "@/lib/utils/errors";
+import { UUID_REGEX } from "@/lib/utils/constants";
 import { logger } from "@/lib/utils/logger";
 
 const routeLogger = logger.withContext("/api/deep-research/[taskId]");
-
-// UUID v4 pattern
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * GET /api/deep-research/[taskId]

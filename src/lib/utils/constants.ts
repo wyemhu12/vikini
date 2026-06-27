@@ -110,3 +110,8 @@ export const RATE_LIMIT = {
   CHAT_STREAM_WINDOW_SECONDS: 60,
   CHAT_STREAM_MAX_REQUESTS: 30,
 } as const;
+
+/**
+ * UUID v4 validation pattern
+ */
+export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

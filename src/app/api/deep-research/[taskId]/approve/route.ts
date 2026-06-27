@@ -7,12 +7,10 @@ import { auth } from "@/lib/features/auth/auth";
 import { approveResearchPlan } from "@/lib/features/research/researchService.server";
 import { success, error, errorFromAppError } from "@/lib/utils/apiResponse";
 import { ValidationError, UnauthorizedError, AppError } from "@/lib/utils/errors";
+import { UUID_REGEX } from "@/lib/utils/constants";
 import { logger } from "@/lib/utils/logger";
 
 const routeLogger = logger.withContext("/api/deep-research/[taskId]/approve");
-
-// UUID v4 pattern
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * POST /api/deep-research/[taskId]/approve

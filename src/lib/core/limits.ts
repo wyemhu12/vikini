@@ -139,26 +139,42 @@ export async function getRankConfig(rank: string): Promise<RankConfig> {
 /**
  * Get user profile from database
  */
-export async function getUserProfile(userId: string): Promise<{
-  id: string;
-  email: string;
-  rank: string;
-  is_blocked: boolean;
-} | null> {
+export async function getUserProfile(userId: string) {
   const supabase = getSupabaseAdmin();
 
-  const { data, error } = await supabase
+  // Try lookup by ID first
+  const { data: byId, error: idError } = await supabase
     .from("profiles")
     .select("*")
-    .or(`id.eq.${userId},email.eq.${userId}`)
+    .eq("id", userId)
     .maybeSingle();
 
-  if (error) {
-    limitsLogger.warn("Error fetching user profile:", error);
+  if (idError) {
+    limitsLogger.warn("Error fetching user profile by id:", idError);
+  }
+
+  if (byId) {
+    return byId as {
+      id: string;
+      email: string;
+      rank: string;
+      is_blocked: boolean;
+    } | null;
+  }
+
+  // Fallback: lookup by email
+  const { data: byEmail, error: emailError } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("email", userId)
+    .maybeSingle();
+
+  if (emailError) {
+    limitsLogger.warn("Error fetching user profile by email:", emailError);
     return null;
   }
 
-  return data as {
+  return byEmail as {
     id: string;
     email: string;
     rank: string;
@@ -341,22 +357,22 @@ export async function getResearchDailyCount(userId: string): Promise<number> {
  */
 export async function incrementResearchCount(userId: string): Promise<void> {
   const supabase = getSupabaseAdmin();
-  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+  const today = new Date().toISOString().split("T")[0];
 
-  // Upsert: insert new row or increment existing count
-  const { error } = await supabase
-    .from("daily_research_counts")
-    .upsert({ user_id: userId, date: today, count: 1 }, { onConflict: "user_id,date" });
+  // Try to increment existing row via RPC
+  const { error: rpcError } = await supabase.rpc("increment_daily_research_count", {
+    p_user_id: userId,
+    p_date: today,
+  });
 
-  if (error) {
-    // Fallback: try to increment if upsert didn't work
-    const { error: updateError } = await supabase.rpc("increment_daily_research_count", {
-      p_user_id: userId,
-      p_date: today,
-    });
+  if (rpcError) {
+    // Fallback: insert new row if RPC fails (e.g., row doesn't exist yet)
+    const { error: insertError } = await supabase
+      .from("daily_research_counts")
+      .upsert({ user_id: userId, date: today, count: 1 }, { onConflict: "user_id,date" });
 
-    if (updateError) {
-      limitsLogger.warn("Error incrementing research count:", updateError);
+    if (insertError) {
+      limitsLogger.warn("Error incrementing research count:", insertError);
     }
   }
 }

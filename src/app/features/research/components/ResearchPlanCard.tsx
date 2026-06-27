@@ -84,7 +84,7 @@ export default function ResearchPlanCard({
               >
                 <ul className="mt-2 space-y-1 pl-4 list-disc text-xs text-(--text-secondary)">
                   {plan.steps.map((step, idx) => (
-                    <li key={idx}>{step}</li>
+                    <li key={`step-${idx}`}>{step}</li>
                   ))}
                 </ul>
               </motion.div>
