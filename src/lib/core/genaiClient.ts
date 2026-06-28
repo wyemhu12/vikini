@@ -173,12 +173,15 @@ export async function getResearchInteraction(interactionId: string): Promise<{
   const sources: Array<{ url: string; title: string; favicon?: string }> = [];
   const reportSources: Array<{ url: string; title: string }> = [];
 
+  let hasThought = false;
+
   // Parse steps if available
   if (result.steps && Array.isArray(result.steps)) {
     for (const rawStep of result.steps) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const step = rawStep as any; // Type-cast for easy parsing since SDK types are complex
       if (step.type === "thought") {
+        hasThought = true;
         if (Array.isArray(step.summary) && step.summary.length > 0) {
           for (const item of step.summary) {
             if (item.type === "text" && item.text) {
@@ -187,7 +190,7 @@ export async function getResearchInteraction(interactionId: string): Promise<{
           }
         } else {
           // Fallback if summary is empty but model is thinking
-          thinkingText += "_Đang tổng hợp dữ liệu..._\n\n";
+          thinkingText += "_Đang suy nghĩ..._\n\n";
         }
       } else if (step.type === "model_output" && Array.isArray(step.content)) {
         // Extract annotations/citations from text content if available
@@ -212,6 +215,7 @@ export async function getResearchInteraction(interactionId: string): Promise<{
         step.arguments &&
         Array.isArray(step.arguments.queries)
       ) {
+        hasThought = true;
         // As a fallback, if we only get queries, we show them as sources
         for (const query of step.arguments.queries) {
           sources.push({
@@ -221,6 +225,11 @@ export async function getResearchInteraction(interactionId: string): Promise<{
         }
       }
     }
+  }
+
+  // Fallback for when the agent is starting up and hasn't emitted thoughts yet
+  if (!hasThought && result.status === "in_progress") {
+    thinkingText = "_Đang khởi tạo Agent, chuẩn bị môi trường nghiên cứu..._\n\n";
   }
 
   // Deduplicate sources by URL
