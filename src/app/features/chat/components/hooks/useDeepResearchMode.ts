@@ -11,6 +11,21 @@ const ACTIVE_RESEARCH_KEY = "vikini-active-research";
 const DEFAULT_AGENT: ResearchAgent = "deep-research-preview-04-2026";
 const POLL_INTERVAL_MS = 10_000;
 const MAX_POLL_COUNT = 180; // ~30 min at 10s intervals
+const MAX_CONSECUTIVE_ERRORS = 5;
+
+/** Unwrap standardized API response: { success, data: T } */
+interface ApiSuccessResponse<T> {
+  success: boolean;
+  data: T;
+}
+
+function unwrapResponse<T>(json: unknown): T {
+  const resp = json as ApiSuccessResponse<T>;
+  if (resp && typeof resp === "object" && "data" in resp) {
+    return resp.data;
+  }
+  return json as T;
+}
 
 interface UseDeepResearchModeReturn {
   // Mode state
@@ -63,6 +78,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollCountRef = useRef(0);
+  const consecutiveErrorRef = useRef(0);
 
   // Initialize agent from localStorage + resume active research
   useEffect(() => {
@@ -127,8 +143,24 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
 
   const pollTask = useCallback(
     (taskId: string) => {
+      // Guard: don't poll with invalid taskId
+      if (!taskId || taskId === "undefined" || taskId === "null") {
+        const msg = "Cannot poll: invalid task ID";
+        logger.error("[useDeepResearchMode]", msg);
+        setError(msg);
+        toast.error(msg);
+        setIsLoading(false);
+        try {
+          localStorage.removeItem(ACTIVE_RESEARCH_KEY);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+
       stopPolling();
       pollCountRef.current = 0;
+      consecutiveErrorRef.current = 0;
 
       const poll = async () => {
         pollCountRef.current += 1;
@@ -150,10 +182,18 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         try {
           const res = await fetch(`/api/deep-research/${taskId}`);
           if (!res.ok) {
-            const errJson = (await res.json()) as { error?: string };
-            throw new Error(errJson.error || "Failed to fetch task");
+            const errJson = (await res.json()) as { error?: { message?: string } | string };
+            const errMsg =
+              typeof errJson.error === "object" && errJson.error
+                ? errJson.error.message || "Failed to fetch task"
+                : typeof errJson.error === "string"
+                  ? errJson.error
+                  : "Failed to fetch task";
+            throw new Error(errMsg);
           }
-          const task = (await res.json()) as ResearchTask;
+          const json: unknown = await res.json();
+          const { task } = unwrapResponse<{ task: ResearchTask }>(json);
+          consecutiveErrorRef.current = 0; // Reset on success
           setCurrentTask(task);
 
           if (task.status === "completed" || task.status === "failed") {
@@ -165,13 +205,28 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
               /* ignore */
             }
             if (task.status === "failed") {
-              setError(task.errorMessage || "Research failed");
+              const failMsg = task.errorMessage || "Research failed";
+              setError(failMsg);
+              toast.error(failMsg);
             }
           }
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : "Unknown error";
           logger.error("[useDeepResearchMode] poll error:", message);
-          // Don't stop polling on transient errors
+          consecutiveErrorRef.current += 1;
+
+          if (consecutiveErrorRef.current >= MAX_CONSECUTIVE_ERRORS) {
+            stopPolling();
+            setIsLoading(false);
+            const persistentMsg = `Research polling stopped: ${message}`;
+            setError(persistentMsg);
+            toast.error(persistentMsg);
+            try {
+              localStorage.removeItem(ACTIVE_RESEARCH_KEY);
+            } catch {
+              /* ignore */
+            }
+          }
         }
       };
 
@@ -203,11 +258,23 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         });
 
         if (!res.ok) {
-          const errJson = (await res.json()) as { error?: string };
-          throw new Error(errJson.error || "Failed to start research");
+          const errJson = (await res.json()) as { error?: { message?: string } | string };
+          const errMsg =
+            typeof errJson.error === "object" && errJson.error
+              ? errJson.error.message || "Failed to start research"
+              : typeof errJson.error === "string"
+                ? errJson.error
+                : "Failed to start research";
+          throw new Error(errMsg);
         }
 
-        const task = (await res.json()) as ResearchTask;
+        const json: unknown = await res.json();
+        const { task } = unwrapResponse<{ task: ResearchTask }>(json);
+
+        if (!task?.id) {
+          throw new Error("Invalid response: missing task ID");
+        }
+
         setCurrentTask(task);
         try {
           localStorage.setItem(ACTIVE_RESEARCH_KEY, task.id);
@@ -243,11 +310,18 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         });
 
         if (!res.ok) {
-          const errJson = (await res.json()) as { error?: string };
-          throw new Error(errJson.error || "Failed to approve plan");
+          const errJson = (await res.json()) as { error?: { message?: string } | string };
+          const errMsg =
+            typeof errJson.error === "object" && errJson.error
+              ? errJson.error.message || "Failed to approve plan"
+              : typeof errJson.error === "string"
+                ? errJson.error
+                : "Failed to approve plan";
+          throw new Error(errMsg);
         }
 
-        const task = (await res.json()) as ResearchTask;
+        const json: unknown = await res.json();
+        const { task } = unwrapResponse<{ task: ResearchTask }>(json);
         setCurrentTask(task);
 
         // Continue polling

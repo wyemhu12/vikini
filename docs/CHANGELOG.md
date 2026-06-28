@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-06-28: Deep Research — Response Parsing & Error Feedback Fix
+
+### Bug Fixes
+
+- **API Response Parsing** — Fixed critical bug where `useDeepResearchMode` hook cast `res.json()` directly as `ResearchTask` instead of unwrapping the standardized `{ success, data: { task } }` envelope. This caused `task.id` to be `undefined`, triggering infinite `GET /api/deep-research/undefined` polling with 400 errors.
+- **Poll Error Resilience** — Added consecutive error counter (max 5). Polling now stops and shows toast error after persistent failures instead of silently looping forever.
+- **Error Feedback** — Added `toast.error()` for all Deep Research failure paths: poll timeout, poll persistent errors, research task failed status. Previously the UI would freeze with no feedback.
+- **TaskId Guard** — Added validation in `pollTask()` to reject invalid/undefined task IDs immediately instead of making API calls.
+
+---
+
 ## 2026-06-26: Gemini Deep Research Integration
 
 ### New Feature: Deep Research Mode
