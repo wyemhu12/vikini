@@ -952,8 +952,15 @@ export default function ChatApp() {
         <ResearchReportPanel
           title={currentTask.query}
           report={currentTask.reportText}
+          sources={currentTask.sources}
           isOpen={isReportPanelOpen}
           onClose={closeReportPanel}
+          onOpenThoughts={() => {
+            // Only open thoughts if there is thinking data
+            if (currentTask.thinkingText) {
+              openThinkingPanel();
+            }
+          }}
         />
       )}
 

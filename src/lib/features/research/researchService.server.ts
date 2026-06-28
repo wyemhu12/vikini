@@ -13,7 +13,13 @@ import {
   ExternalServiceError,
 } from "@/lib/utils/errors";
 import { logger } from "@/lib/utils/logger";
-import type { ResearchTask, CreateResearchRequest, ResearchAgent, ResearchStatus } from "./types";
+import type {
+  ResearchTask,
+  CreateResearchRequest,
+  ResearchAgent,
+  ResearchStatus,
+  ResearchSource,
+} from "./types";
 
 const researchLogger = logger.withContext("research");
 
@@ -47,6 +53,7 @@ interface ResearchTaskRow {
   project_id: string | null;
   gem_id: string | null;
   error_message: string | null;
+  sources: unknown;
   created_at: string;
   updated_at: string;
 }
@@ -66,6 +73,7 @@ function mapTaskRow(row: ResearchTaskRow): ResearchTask {
     projectId: row.project_id,
     gemId: row.gem_id,
     errorMessage: row.error_message,
+    sources: Array.isArray(row.sources) ? (row.sources as ResearchSource[]) : undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -329,6 +337,8 @@ export async function checkResearchStatus(userId: string, taskId: string): Promi
           .update({
             status: "completed",
             report_text: finalOutput,
+            sources:
+              result.reportSources && result.reportSources.length > 0 ? result.reportSources : null,
           })
           .eq("id", taskId)
           .select("*")
