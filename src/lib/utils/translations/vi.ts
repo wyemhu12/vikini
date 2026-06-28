@@ -820,6 +820,9 @@ export const vi = {
   deepResearchStop: "Dừng nghiên cứu",
   deepResearchContents: "Mục lục",
   deepResearchExport: "Chia sẻ và xuất",
+  deepResearchShowThinking: "Xem suy luận",
+  deepResearchHideThinking: "Ẩn suy luận",
+  deepResearchResearchingWebsites: "Đang tìm kiếm trang web...",
   configureFeatures: "Cấu hình tính năng",
   dailyResearchLimit: "Giới hạn nghiên cứu/ngày",
 } as const;

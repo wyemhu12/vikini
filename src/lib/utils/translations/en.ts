@@ -810,7 +810,10 @@ export const en = {
   deepResearchReadyIn: "Ready in a few minutes",
   deepResearchStop: "Stop research",
   deepResearchContents: "Contents",
-  deepResearchExport: "Share and export",
+  deepResearchExport: "Share & Export",
+  deepResearchShowThinking: "Show thinking",
+  deepResearchHideThinking: "Hide thinking",
+  deepResearchResearchingWebsites: "Researching websites...",
   configureFeatures: "Configure Features",
   dailyResearchLimit: "Daily Research Limit",
 } as const;

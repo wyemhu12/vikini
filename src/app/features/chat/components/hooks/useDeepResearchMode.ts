@@ -56,6 +56,12 @@ interface UseDeepResearchModeReturn {
   isReportPanelOpen: boolean;
   openReportPanel: () => void;
   closeReportPanel: () => void;
+
+  // Thinking panel
+  isThinkingPanelOpen: boolean;
+  openThinkingPanel: () => void;
+  closeThinkingPanel: () => void;
+  toggleThinkingPanel: () => void;
 }
 
 const VALID_AGENTS: ResearchAgent[] = [
@@ -75,6 +81,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isReportPanelOpen, setIsReportPanelOpen] = useState(false);
+  const [isThinkingPanelOpen, setIsThinkingPanelOpen] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollCountRef = useRef(0);
@@ -344,6 +351,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
     setIsLoading(false);
     setError(null);
     setIsReportPanelOpen(false);
+    setIsThinkingPanelOpen(false);
     try {
       localStorage.removeItem(ACTIVE_RESEARCH_KEY);
     } catch {
@@ -357,6 +365,18 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
 
   const closeReportPanel = useCallback(() => {
     setIsReportPanelOpen(false);
+  }, []);
+
+  const openThinkingPanel = useCallback(() => {
+    setIsThinkingPanelOpen(true);
+  }, []);
+
+  const closeThinkingPanel = useCallback(() => {
+    setIsThinkingPanelOpen(false);
+  }, []);
+
+  const toggleThinkingPanel = useCallback(() => {
+    setIsThinkingPanelOpen((p) => !p);
   }, []);
 
   return {
@@ -374,5 +394,9 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
     isReportPanelOpen,
     openReportPanel,
     closeReportPanel,
+    isThinkingPanelOpen,
+    openThinkingPanel,
+    closeThinkingPanel,
+    toggleThinkingPanel,
   };
 }

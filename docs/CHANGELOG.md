@@ -22,6 +22,8 @@
 
 ### New Feature
 
+- **Thinking Panel (Deep Research)** — Implemented a real-time thinking UI similar to Gemini. Added `ResearchThinkingPanel` to show the AI's step-by-step reasoning and current websites being searched. The panel slides in from the right and auto-scrolls as new thoughts stream in.
+- **Interactions API Extraction** — Modified `getResearchInteraction` in `genaiClient.ts` to parse the `steps` array returned by the Gemini Interactions API. Extracts `thought` steps for reasoning text and `google_search_call` steps for source websites.
 - **Stop Research Button** — Added "Dừng nghiên cứu" / "Stop research" button to both `ResearchPlanCard` and `ResearchProgressCard`. Calls `dismissTask()` to stop polling, clear state, and clean up localStorage.
 
 ---

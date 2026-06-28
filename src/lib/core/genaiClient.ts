@@ -94,6 +94,7 @@ interface InteractionResult {
   status?: string;
   output_text?: string;
   error?: string;
+  steps?: Array<Record<string, unknown>>;
 }
 
 /**
@@ -161,13 +162,84 @@ export async function getResearchInteraction(interactionId: string): Promise<{
   status: string;
   outputText?: string;
   error?: string;
+  thinkingText?: string;
+  searchedSources?: Array<{ url: string; title: string; favicon?: string }>;
+  reportSources?: Array<{ url: string; title: string }>;
 }> {
   const interactions = getInteractionsClient();
   const result = await interactions.get(interactionId);
+
+  let thinkingText = "";
+  const sources: Array<{ url: string; title: string; favicon?: string }> = [];
+  const reportSources: Array<{ url: string; title: string }> = [];
+
+  // Parse steps if available
+  if (result.steps && Array.isArray(result.steps)) {
+    for (const rawStep of result.steps) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const step = rawStep as any; // Type-cast for easy parsing since SDK types are complex
+      if (step.type === "thought") {
+        if (Array.isArray(step.summary) && step.summary.length > 0) {
+          for (const item of step.summary) {
+            if (item.type === "text" && item.text) {
+              thinkingText += item.text + "\n\n";
+            }
+          }
+        } else {
+          // Fallback if summary is empty but model is thinking
+          thinkingText += "_Đang tổng hợp dữ liệu..._\n\n";
+        }
+      } else if (step.type === "model_output" && Array.isArray(step.content)) {
+        // Extract annotations/citations from text content if available
+        for (const content of step.content) {
+          if (Array.isArray(content.parts)) {
+            for (const part of content.parts) {
+              if (Array.isArray(part.annotations)) {
+                for (const annotation of part.annotations) {
+                  if (annotation.type === "url_citation" && annotation.url) {
+                    reportSources.push({
+                      url: annotation.url,
+                      title: annotation.title || annotation.url,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (
+        step.type === "google_search_call" &&
+        step.arguments &&
+        Array.isArray(step.arguments.queries)
+      ) {
+        // As a fallback, if we only get queries, we show them as sources
+        for (const query of step.arguments.queries) {
+          sources.push({
+            url: `https://google.com/search?q=${encodeURIComponent(String(query))}`,
+            title: String(query),
+          });
+        }
+      }
+    }
+  }
+
+  // Deduplicate sources by URL
+  const uniqueSources = sources.filter(
+    (source, index, self) => index === self.findIndex((s) => s.url === source.url)
+  );
+
+  // Deduplicate reportSources by URL
+  const uniqueReportSources = reportSources.filter(
+    (source, index, self) => index === self.findIndex((s) => s.url === source.url)
+  );
+
   return {
     id: result.id,
     status: result.status ?? "in_progress",
     outputText: result.output_text ?? undefined,
     error: result.error ?? undefined,
+    thinkingText: thinkingText.trim() || undefined,
+    searchedSources: uniqueSources.length > 0 ? uniqueSources : undefined,
+    reportSources: uniqueReportSources.length > 0 ? uniqueReportSources : undefined,
   };
 }

@@ -3,7 +3,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Search, BarChart3, FileText, Loader2, Check, StopCircle } from "lucide-react";
+import { Search, BarChart3, FileText, Loader2, Check, StopCircle, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { DURATION, EASE } from "@/lib/utils/motion";
 import type { ResearchStep } from "@/lib/features/research/types";
@@ -12,6 +12,7 @@ interface ResearchProgressCardProps {
   currentStep?: ResearchStep;
   topic: string;
   onStop?: () => void;
+  onShowThinking?: () => void;
   /** 'planning' = creating plan, 'executing' = performing research */
   phase?: "planning" | "executing";
 }
@@ -50,6 +51,7 @@ export default function ResearchProgressCard({
   currentStep,
   topic,
   onStop,
+  onShowThinking,
   phase = "executing",
 }: ResearchProgressCardProps) {
   const { t } = useLanguage();
@@ -121,18 +123,32 @@ export default function ResearchProgressCard({
         })}
       </div>
 
-      {/* Footer: time hint + stop */}
-      <div className="mt-4 flex items-center justify-between">
-        <p className="text-xs text-(--text-secondary)">⏱ {t("deepResearchReadyIn")}</p>
-        {onStop && (
+      {/* Actions at the bottom */}
+      <div className="mt-4 pt-3 flex justify-between items-center border-t border-(--border)/50">
+        {onShowThinking ? (
           <button
-            onClick={onStop}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-(--radius) border border-(--danger)/30 text-(--danger) hover:bg-(--danger)/10 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
+            onClick={onShowThinking}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-(--accent) hover:text-(--accent-light) hover:bg-(--accent)/10 rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
           >
-            <StopCircle className="w-3.5 h-3.5" />
-            {t("deepResearchStop")}
+            <div className="w-1.5 h-1.5 rounded-full bg-(--accent) animate-pulse" />
+            {t("deepResearchShowThinking") || "Show thinking"}
+            <ChevronDown className="w-3 h-3 ml-0.5" />
           </button>
+        ) : (
+          <div /> // Spacer
         )}
+
+        <div className="flex items-center gap-1.5 text-xs text-(--text-secondary) font-medium ml-auto">
+          {onStop && (
+            <button
+              onClick={onStop}
+              className="flex items-center gap-1 text-(--danger) hover:text-(--danger-hover) px-2 py-1 rounded-md hover:bg-(--danger)/10 transition-colors"
+            >
+              <StopCircle className="w-3.5 h-3.5" />
+              <span>{t("deepResearchStop") || "Stop research"}</span>
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );

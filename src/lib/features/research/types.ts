@@ -25,6 +25,12 @@ export interface ResearchSource {
   snippet?: string;
 }
 
+export interface ResearchThinkingSource {
+  url: string;
+  title: string;
+  favicon?: string;
+}
+
 export interface ResearchTask {
   id: string;
   userId: string;
@@ -36,6 +42,10 @@ export interface ResearchTask {
   currentStep?: ResearchStep;
   plan?: ResearchPlan;
   sources?: ResearchSource[];
+
+  // Real-time transient data (not stored in DB, only returned by poll)
+  thinkingText?: string;
+  searchedSources?: ResearchThinkingSource[];
   planInteractionId: string | null;
   execInteractionId: string | null;
   conversationId: string | null;

@@ -316,11 +316,19 @@ export async function checkResearchStatus(userId: string, taskId: string): Promi
         return mapTaskRow((updatedRow || taskRow) as ResearchTaskRow);
       } else if (task.status === "executing") {
         // Research report is ready - finalize
+        let finalOutput = result.outputText || "";
+        if (result.reportSources && result.reportSources.length > 0) {
+          finalOutput += "\n\n### Nguồn tham khảo\n";
+          result.reportSources.forEach((source, index) => {
+            finalOutput += `[${index + 1}] [${source.title}](${source.url})\n`;
+          });
+        }
+
         const { data: updatedRow } = await supabase
           .from("research_tasks")
           .update({
             status: "completed",
-            report_text: result.outputText,
+            report_text: finalOutput,
           })
           .eq("id", taskId)
           .select("*")
@@ -330,7 +338,7 @@ export async function checkResearchStatus(userId: string, taskId: string): Promi
 
         // Save results to conversation
         try {
-          await finalizeResearch(finalTask, result.outputText);
+          await finalizeResearch(finalTask, finalOutput);
         } catch (finalizeErr: unknown) {
           const errMsg =
             finalizeErr instanceof Error ? finalizeErr.message : "Unknown finalize error";
@@ -349,15 +357,15 @@ export async function checkResearchStatus(userId: string, taskId: string): Promi
         .from("research_tasks")
         .update({ status: "failed", error_message: errorMsg })
         .eq("id", taskId);
-
-      return {
-        ...task,
-        status: "failed",
-        errorMessage: errorMsg,
-      };
+      task.status = "failed";
+      task.errorMessage = errorMsg;
+      return task;
     }
 
-    // Still in progress
+    // Attach transient data if we are still polling
+    task.thinkingText = result.thinkingText;
+    task.searchedSources = result.searchedSources;
+
     return task;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";

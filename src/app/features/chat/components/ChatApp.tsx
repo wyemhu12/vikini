@@ -45,6 +45,7 @@ import ResearchPlanCard from "../../research/components/ResearchPlanCard";
 import ResearchProgressCard from "../../research/components/ResearchProgressCard";
 import ResearchReportCard from "../../research/components/ResearchReportCard";
 import ResearchReportPanel from "../../research/components/ResearchReportPanel";
+import ResearchThinkingPanel from "../../research/components/ResearchThinkingPanel";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 import { useAllowedModels } from "./hooks/useAllowedModels";
 import { useImageGenController } from "./hooks/useImageGenController";
@@ -217,6 +218,9 @@ export default function ChatApp() {
     isReportPanelOpen,
     openReportPanel,
     closeReportPanel,
+    isThinkingPanelOpen,
+    openThinkingPanel,
+    closeThinkingPanel,
   } = useDeepResearchMode();
 
   // Feature permission
@@ -816,6 +820,7 @@ export default function ChatApp() {
                           currentStep="searching"
                           phase="planning"
                           onStop={dismissTask}
+                          onShowThinking={openThinkingPanel}
                         />
                       )}
                       {currentTask.status === "ready_to_execute" && (
@@ -837,6 +842,7 @@ export default function ChatApp() {
                           currentStep={currentTask.currentStep || "analyzing"}
                           phase="executing"
                           onStop={dismissTask}
+                          onShowThinking={openThinkingPanel}
                         />
                       )}
                       {currentTask.status === "completed" && (
@@ -948,6 +954,17 @@ export default function ChatApp() {
           report={currentTask.reportText}
           isOpen={isReportPanelOpen}
           onClose={closeReportPanel}
+        />
+      )}
+
+      {/* Deep Research Thinking Panel */}
+      {isDeepResearchMode && isThinkingPanelOpen && currentTask && (
+        <ResearchThinkingPanel
+          title={currentTask.query}
+          isOpen={isThinkingPanelOpen}
+          onClose={closeThinkingPanel}
+          thinkingText={currentTask.thinkingText}
+          sources={currentTask.searchedSources}
         />
       )}
 
