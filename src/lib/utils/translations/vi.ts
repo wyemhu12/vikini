@@ -817,6 +817,7 @@ export const vi = {
   deepResearchAnalyzing: "Đang phân tích kết quả",
   deepResearchWriting: "Đang tạo báo cáo",
   deepResearchReadyIn: "Sẵn sàng sau vài phút",
+  deepResearchStop: "Dừng nghiên cứu",
   deepResearchContents: "Mục lục",
   deepResearchExport: "Chia sẻ và xuất",
   configureFeatures: "Cấu hình tính năng",

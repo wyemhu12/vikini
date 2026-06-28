@@ -3,7 +3,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Search, BarChart3, FileText, Loader2, Check } from "lucide-react";
+import { Search, BarChart3, FileText, Loader2, Check, StopCircle } from "lucide-react";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { DURATION, EASE } from "@/lib/utils/motion";
 import type { ResearchStep } from "@/lib/features/research/types";
@@ -11,6 +11,9 @@ import type { ResearchStep } from "@/lib/features/research/types";
 interface ResearchProgressCardProps {
   currentStep?: ResearchStep;
   topic: string;
+  onStop?: () => void;
+  /** 'planning' = creating plan, 'executing' = performing research */
+  phase?: "planning" | "executing";
 }
 
 interface StepConfig {
@@ -43,8 +46,14 @@ function getStepState(
   return "pending";
 }
 
-export default function ResearchProgressCard({ currentStep, topic }: ResearchProgressCardProps) {
+export default function ResearchProgressCard({
+  currentStep,
+  topic,
+  onStop,
+  phase = "executing",
+}: ResearchProgressCardProps) {
   const { t } = useLanguage();
+  const headerKey = phase === "planning" ? "deepResearchPlanning" : "deepResearchExecuting";
 
   return (
     <motion.div
@@ -58,9 +67,7 @@ export default function ResearchProgressCard({ currentStep, topic }: ResearchPro
 
       {/* Header */}
       <div className="mb-4">
-        <h3 className="text-sm font-semibold text-(--text-primary) mb-1">
-          {t("deepResearchExecuting")}
-        </h3>
+        <h3 className="text-sm font-semibold text-(--text-primary) mb-1">{t(headerKey)}</h3>
         <p className="text-xs text-(--text-secondary) line-clamp-1">{topic}</p>
       </div>
 
@@ -114,8 +121,19 @@ export default function ResearchProgressCard({ currentStep, topic }: ResearchPro
         })}
       </div>
 
-      {/* Time hint */}
-      <p className="mt-4 text-xs text-(--text-secondary)">⏱ {t("deepResearchReadyIn")}</p>
+      {/* Footer: time hint + stop */}
+      <div className="mt-4 flex items-center justify-between">
+        <p className="text-xs text-(--text-secondary)">⏱ {t("deepResearchReadyIn")}</p>
+        {onStop && (
+          <button
+            onClick={onStop}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-(--radius) border border-(--danger)/30 text-(--danger) hover:bg-(--danger)/10 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
+          >
+            <StopCircle className="w-3.5 h-3.5" />
+            {t("deepResearchStop")}
+          </button>
+        )}
+      </div>
     </motion.div>
   );
 }

@@ -213,6 +213,7 @@ export default function ChatApp() {
     currentTask,
     startResearch,
     approvePlan,
+    dismissTask,
     isReportPanelOpen,
     openReportPanel,
     closeReportPanel,
@@ -810,30 +811,32 @@ export default function ChatApp() {
                     </div>
                     <div className="flex-1 space-y-4 max-w-full">
                       {currentTask.status === "planning" && (
+                        <ResearchProgressCard
+                          topic={currentTask.query}
+                          currentStep="searching"
+                          phase="planning"
+                          onStop={dismissTask}
+                        />
+                      )}
+                      {currentTask.status === "ready_to_execute" && (
                         <ResearchPlanCard
                           topic={currentTask.query}
-                          plan={{
-                            topic: currentTask.query,
-                            steps: currentTask.planText ? [currentTask.planText] : [],
-                            estimated_time_minutes:
-                              currentTask.agentModel === "deep-research-fast-04-2026" ? 5 : 15,
-                            search_queries: [],
-                          }}
+                          planText={currentTask.planText}
                           onApprove={() =>
                             approvePlan().catch((e) =>
                               toast.error(e.message || "Failed to approve")
                             )
                           }
                           onEdit={() => {}} // Could wire to a generic input prompt in future
+                          onStop={dismissTask}
                         />
                       )}
-                      {(currentTask.status === "ready_to_execute" ||
-                        currentTask.status === "executing") && (
+                      {currentTask.status === "executing" && (
                         <ResearchProgressCard
                           topic={currentTask.query}
-                          currentStep={
-                            currentTask.status === "executing" ? "analyzing" : "searching"
-                          }
+                          currentStep={currentTask.currentStep || "analyzing"}
+                          phase="executing"
+                          onStop={dismissTask}
                         />
                       )}
                       {currentTask.status === "completed" && (

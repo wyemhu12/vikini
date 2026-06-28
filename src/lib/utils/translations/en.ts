@@ -808,6 +808,7 @@ export const en = {
   deepResearchAnalyzing: "Analyzing results",
   deepResearchWriting: "Creating report",
   deepResearchReadyIn: "Ready in a few minutes",
+  deepResearchStop: "Stop research",
   deepResearchContents: "Contents",
   deepResearchExport: "Share and export",
   configureFeatures: "Configure Features",

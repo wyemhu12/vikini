@@ -3,34 +3,31 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ClipboardList, BarChart3, FileText, ChevronDown } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import { ClipboardList, ChevronDown, StopCircle } from "lucide-react";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { DURATION, EASE } from "@/lib/utils/motion";
-import type { ResearchPlan } from "@/lib/features/research/types";
 
 interface ResearchPlanCardProps {
   topic: string;
-  plan: ResearchPlan;
+  /** AI-generated plan text (markdown) from Gemini */
+  planText: string | null;
   onEdit?: () => void;
   onApprove?: () => void;
+  onStop?: () => void;
   isLoading?: boolean;
 }
 
-const PLAN_STEPS = [
-  { icon: ClipboardList, labelKey: "deepResearchSearching" },
-  { icon: BarChart3, labelKey: "deepResearchAnalyzing" },
-  { icon: FileText, labelKey: "deepResearchWriting" },
-] as const;
-
 export default function ResearchPlanCard({
   topic,
-  plan,
+  planText,
   onEdit,
   onApprove,
+  onStop,
   isLoading = false,
 }: ResearchPlanCardProps) {
   const { t } = useLanguage();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   return (
     <motion.div
@@ -41,24 +38,15 @@ export default function ResearchPlanCard({
     >
       {/* Header */}
       <div className="mb-3">
-        <h3 className="text-sm font-semibold text-(--text-primary) mb-1">
-          {t("deepResearchPlan")}
-        </h3>
+        <div className="flex items-center gap-2 mb-1">
+          <ClipboardList className="w-4 h-4 text-(--accent) shrink-0" />
+          <h3 className="text-sm font-semibold text-(--text-primary)">{t("deepResearchPlan")}</h3>
+        </div>
         <p className="text-sm text-(--text-secondary) line-clamp-2">{topic}</p>
       </div>
 
-      {/* Steps overview */}
-      <div className="space-y-2 mb-3">
-        {PLAN_STEPS.map((step) => (
-          <div key={step.labelKey} className="flex items-center gap-2">
-            <step.icon className="w-4 h-4 text-(--accent) shrink-0" />
-            <span className="text-xs text-(--text-secondary)">{t(step.labelKey)}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Plan details (collapsible) */}
-      {plan.steps.length > 0 && (
+      {/* AI-generated plan content (collapsible) */}
+      {planText && (
         <div className="mb-3">
           <button
             onClick={() => setExpanded(!expanded)}
@@ -82,22 +70,27 @@ export default function ResearchPlanCard({
                 }}
                 className="overflow-hidden"
               >
-                <ul className="mt-2 space-y-1 pl-4 list-disc text-xs text-(--text-secondary)">
-                  {plan.steps.map((step, idx) => (
-                    <li key={`step-${idx}`}>{step}</li>
-                  ))}
-                </ul>
+                <div className="mt-2 text-sm text-(--text-secondary) prose prose-sm prose-invert max-w-none [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:text-xs [&_p]:text-xs [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_h1]:font-semibold [&_h2]:font-medium [&_h3]:font-medium">
+                  <ReactMarkdown>{planText}</ReactMarkdown>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       )}
 
-      {/* Time estimate */}
-      <p className="text-xs text-(--text-secondary) mb-4">⏱ {t("deepResearchReadyIn")}</p>
-
       {/* Actions */}
       <div className="flex items-center gap-2">
+        {onStop && (
+          <button
+            onClick={onStop}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-(--radius) border border-(--danger)/30 text-(--danger) hover:bg-(--danger)/10 transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring)"
+          >
+            <StopCircle className="w-3.5 h-3.5" />
+            {t("deepResearchStop")}
+          </button>
+        )}
         {onEdit && (
           <button
             onClick={onEdit}

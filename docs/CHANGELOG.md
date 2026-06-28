@@ -14,6 +14,16 @@
 - **Error Feedback** — Added `toast.error()` for all Deep Research failure paths: poll timeout, poll persistent errors, research task failed status. Previously the UI would freeze with no feedback.
 - **TaskId Guard** — Added validation in `pollTask()` to reject invalid/undefined task IDs immediately instead of making API calls.
 
+### UI Flow Fix
+
+- **Inverted Status Rendering** — Fixed critical UX bug where `planning` status showed `ResearchPlanCard` (with raw user query) and `ready_to_execute` showed `ResearchProgressCard`. Now correctly: `planning` → progress spinner ("Đang lên kế hoạch..."), `ready_to_execute` → plan card with AI-generated plan for review/approve, `executing` → progress card.
+- **AI Plan Display** — Refactored `ResearchPlanCard` to accept `planText` (markdown string from Gemini) instead of hardcoded `ResearchPlan` object. Plan content is rendered via `ReactMarkdown`.
+- **Phase-Aware Progress Header** — `ResearchProgressCard` now accepts `phase` prop to show "Đang lên kế hoạch..." during planning vs "Đang nghiên cứu..." during execution.
+
+### New Feature
+
+- **Stop Research Button** — Added "Dừng nghiên cứu" / "Stop research" button to both `ResearchPlanCard` and `ResearchProgressCard`. Calls `dismissTask()` to stop polling, clear state, and clean up localStorage.
+
 ---
 
 ## 2026-06-26: Gemini Deep Research Integration
