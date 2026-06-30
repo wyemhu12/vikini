@@ -375,6 +375,7 @@ export async function checkResearchStatus(userId: string, taskId: string): Promi
     // Attach transient data if we are still polling
     task.thinkingText = result.thinkingText;
     task.searchedSources = result.searchedSources;
+    task.currentStep = result.currentStep;
 
     return task;
   } catch (err: unknown) {

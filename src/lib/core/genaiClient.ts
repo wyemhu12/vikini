@@ -165,6 +165,7 @@ export async function getResearchInteraction(interactionId: string): Promise<{
   thinkingText?: string;
   searchedSources?: Array<{ url: string; title: string; favicon?: string }>;
   reportSources?: Array<{ url: string; title: string }>;
+  currentStep?: "searching" | "analyzing" | "writing";
 }> {
   const interactions = getInteractionsClient();
   const result = await interactions.get(interactionId);
@@ -174,6 +175,7 @@ export async function getResearchInteraction(interactionId: string): Promise<{
   const reportSources: Array<{ url: string; title: string }> = [];
 
   let hasThought = false;
+  let currentStep: "searching" | "analyzing" | "writing" = "analyzing";
 
   // Parse steps if available
   if (result.steps && Array.isArray(result.steps)) {
@@ -182,6 +184,7 @@ export async function getResearchInteraction(interactionId: string): Promise<{
       const step = rawStep as any; // Type-cast for easy parsing since SDK types are complex
       if (step.type === "thought") {
         hasThought = true;
+        currentStep = "analyzing";
         if (Array.isArray(step.summary) && step.summary.length > 0) {
           for (const item of step.summary) {
             if (item.type === "text" && item.text) {
@@ -193,6 +196,7 @@ export async function getResearchInteraction(interactionId: string): Promise<{
           thinkingText += "_Đang suy nghĩ..._\n\n";
         }
       } else if (step.type === "model_output" && Array.isArray(step.content)) {
+        currentStep = "writing";
         // Extract annotations/citations from text content if available
         for (const content of step.content) {
           if (Array.isArray(content.parts)) {
@@ -216,6 +220,7 @@ export async function getResearchInteraction(interactionId: string): Promise<{
         Array.isArray(step.arguments.queries)
       ) {
         hasThought = true;
+        currentStep = "searching";
         // As a fallback, if we only get queries, we show them as sources
         for (const query of step.arguments.queries) {
           sources.push({
@@ -230,6 +235,7 @@ export async function getResearchInteraction(interactionId: string): Promise<{
   // Fallback for when the agent is starting up and hasn't emitted thoughts yet
   if (!hasThought && result.status === "in_progress") {
     thinkingText = "_Đang khởi tạo Agent, chuẩn bị môi trường nghiên cứu..._\n\n";
+    currentStep = "searching";
   }
 
   // Deduplicate sources by URL
@@ -250,5 +256,6 @@ export async function getResearchInteraction(interactionId: string): Promise<{
     thinkingText: thinkingText.trim() || undefined,
     searchedSources: uniqueSources.length > 0 ? uniqueSources : undefined,
     reportSources: uniqueReportSources.length > 0 ? uniqueReportSources : undefined,
+    currentStep,
   };
 }
