@@ -4,9 +4,25 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { ClipboardList, ChevronDown, StopCircle } from "lucide-react";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { DURATION, EASE } from "@/lib/utils/motion";
+
+function formatPlanText(text: string | null): string {
+  if (!text) return "";
+
+  let formatted = text;
+
+  // Break apart clumped sections
+  formatted = formatted.replace(/(\s+)(\*?\*?Input:\*?\*?)/gi, "\n\n$2\n");
+  formatted = formatted.replace(/(\s+)(\*?\*?Research Plan:\*?\*?)/gi, "\n\n$2\n");
+
+  // Convert inline (1), (2) into markdown lists
+  formatted = formatted.replace(/(\s+|^)\*?\*?\((\d+)\)\*?\*?\s/g, "\n$2. ");
+
+  return formatted;
+}
 
 interface ResearchPlanCardProps {
   topic: string;
@@ -86,7 +102,7 @@ export default function ResearchPlanCard({
               [&_strong]:font-semibold [&_strong]:text-(--text-primary)
             "
             >
-              <ReactMarkdown>{planText}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanText(planText)}</ReactMarkdown>
             </div>
           </motion.div>
         )}

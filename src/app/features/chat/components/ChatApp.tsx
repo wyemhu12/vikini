@@ -821,7 +821,7 @@ export default function ChatApp() {
                       {currentTask.status === "planning" && (
                         <ResearchProgressCard
                           topic={currentTask.query}
-                          currentStep="searching"
+                          currentStep={currentTask.currentStep || "analyzing"}
                           phase="planning"
                           onStop={dismissTask}
                           onShowThinking={openThinkingPanel}
@@ -836,7 +836,17 @@ export default function ChatApp() {
                               toast.error(e.message || "Failed to approve")
                             )
                           }
-                          onEdit={() => {}} // Could wire to a generic input prompt in future
+                          onEdit={() => {
+                            const feedback = window.prompt(
+                              t.deepResearchEditPlanPrompt ||
+                                "Bạn muốn thay đổi hoặc bổ sung gì vào kế hoạch này?"
+                            );
+                            if (feedback && feedback.trim()) {
+                              approvePlan(feedback.trim()).catch((e) =>
+                                toast.error(e.message || "Failed to revise plan")
+                              );
+                            }
+                          }}
                           onStop={dismissTask}
                         />
                       )}

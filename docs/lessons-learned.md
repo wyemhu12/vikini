@@ -128,6 +128,24 @@
 - **Fix**: Added `[NEWLY ATTACHED]` labels for images, text labels before Gemini URI parts, explicit instruction to "acknowledge and describe what you see in EACH image", and a count note when >1 images.
 - **Prevention Rule**: **When injecting multimodal content (images, files) into AI context, always pair each binary part with a descriptive text label.** AI models need text anchors to understand the significance of binary parts. Without labels, models treat binary data as background context and may not proactively engage with it.
 
+### 2026-07-01: Deep Research "Edit Plan" No-op and Planning Status UI Stuck
+
+- **Symptom**: User clicked "Edit Plan" and nothing happened. The UI during the planning phase remained stuck at "Searching the web" forever.
+- **Root Cause**:
+  1. The `onEdit` handler in `ChatApp.tsx` was implemented as a no-op `() => {}` with a comment "Could wire to a generic input prompt in future".
+  2. The `ResearchProgressCard` when in `phase="planning"` hardcoded `currentStep="searching"`, completely ignoring the actual progress from the backend. Since the agent might not emit any steps during `collaborative_planning`, it just sat at "Searching the web" while actually generating the plan text.
+- **Fix**:
+  1. Wired `onEdit` to a `window.prompt` that asks the user for feedback and passes it to the `approvePlan` backend API, properly resuming research with the user's modifications.
+  2. Updated the `planning` phase in `ChatApp.tsx` to use `currentTask.currentStep || "analyzing"` instead of hardcoding `"searching"`.
+- **Prevention Rule**: **Do not leave empty lambda handlers `() => {}` for visible UI actions in production.** If a feature is incomplete, either hide the button or add a `toast.info("Coming soon")`. Never hardcode progress state for a phase if the underlying backend supports dynamic state.
+
+### 2026-07-01: AI Output missing Markdown line breaks (Inline lists)
+
+- **Symptom**: AI-generated Deep Research plans displayed as a single massive paragraph instead of numbered lists, despite `ReactMarkdown` being used.
+- **Root Cause**: The raw text from the AI (especially Google Interactions API) contained inline lists like `(1) text (2) text` without newline characters (`\n`). `ReactMarkdown` requires proper newlines to render blocks or lists, even with `remarkGfm`.
+- **Fix**: Implemented a `formatPlanText` utility to intercept the raw AI text and pre-format it before rendering. It uses regex `/(?:\s+|^)\*?\*?\((\d+)\)\*?\*?\s/g` to replace inline numbers with `\n$1. `, ensuring proper markdown syntax for numbered lists.
+- **Prevention Rule**: **Do not assume managed AI APIs will output perfectly formatted Markdown with proper line breaks.** If the UI depends on semantic HTML elements (like `<ol>`), always pre-parse and normalize the AI output (e.g. converting `(1)...` to `\n1. ...`) before feeding it to `ReactMarkdown`.
+
 ---
 
 ### 2026-06-26: Form onSubmit handler dropping explicit state fallback
