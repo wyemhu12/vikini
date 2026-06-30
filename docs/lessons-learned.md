@@ -255,3 +255,12 @@
 - **Root Cause**: Server uses `success({ task })` which wraps response as `{ success: true, data: { task } }`. Client cast `res.json() as ResearchTask` directly, so `task.id` was `undefined`. This `undefined` was stored in localStorage and used for polling, causing infinite 400 errors. Poll error handler only logged errors silently with no UI feedback.
 - **Fix**: (1) Added `unwrapResponse()` helper to unwrap `data` from standardized API responses. (2) Added guard against invalid taskId in `pollTask()`. (3) Added consecutive error counter (MAX_CONSECUTIVE_ERRORS=5) to stop polling on persistent failures. (4) Added `toast.error()` for all failure paths.
 - **Prevention Rule**: **ALL client-side API calls MUST unwrap the standardized `{ success, data }` envelope.** Never cast `res.json()` directly to the domain type. Also: polling loops MUST have both timeout AND consecutive error limits, and MUST show user-facing error feedback (toast) on terminal failure.
+
+## UI Conditional Rendering
+
+### 2026-07-01: Deep Research UI invisible despite active backend polling
+
+- **Symptom**: After clicking "Start Research" from the Landing page, the frontend stayed on the DashboardView ("Good Morning, Vik") while Vercel logs showed successful `/api/deep-research/` polling every 10s. No Research cards (ProgressCard, PlanCard, etc.) were rendered.
+- **Root Cause**: The `showLanding` flag in `ChatApp.tsx` was computed as `!isRemixMode && !showProjectView && (!selectedConversationId || renderedMessages.length === 0)`. When Deep Research starts from the Landing page, there is no selected conversation and no messages, so `showLanding` remained `true`. All Research UI components were placed inside the `else` branch of `showLanding ? <DashboardView> : <Messages + Research UI>`, making them unreachable.
+- **Fix**: Added `!hasActiveResearch` (where `hasActiveResearch = isDeepResearchMode && currentTask != null`) to the `showLanding` condition. When a research task is active, the Landing page is suppressed and the branch containing Research cards is rendered.
+- **Prevention Rule**: **When adding a new "mode" or "overlay" feature (like Deep Research) that has its own UI state, always verify it is reachable from ALL entry points** (Landing page, active conversation, project view). Conditional rendering trees in ChatApp are deeply nested — a new feature's UI block must be reachable regardless of which branch the user enters from.

@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-07-01: Deep Research — Fix UI Not Rendering from Landing Page
+
+### Bug Fixes
+
+- **showLanding Blocking Research UI** — Fixed critical bug where starting Deep Research from the Landing page caused the frontend to stay on the "Good Morning" DashboardView while the backend polled successfully. Root cause: `showLanding` remained `true` because there was no selected conversation or messages, and the Research UI cards were only rendered in the `!showLanding` branch. Added `!hasActiveResearch` guard to `showLanding` so the Landing page is suppressed when a research task is active.
+- **Thinking Fallback Text** — Added fallback `thinkingText` in `genaiClient.ts` for when the Gemini agent is starting up and hasn't emitted any `thought` or `google_search_call` steps yet, preventing the Thinking Panel from appearing empty during the agent's initialization phase.
+
+---
+
 ## 2026-06-28: Deep Research — Response Parsing & Error Feedback Fix
 
 ### Bug Fixes

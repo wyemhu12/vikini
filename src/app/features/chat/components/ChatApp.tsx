@@ -610,8 +610,12 @@ export default function ChatApp() {
   const projectConversations = selectedProjectId
     ? conversations.filter((c) => c.projectId === selectedProjectId)
     : [];
+  const hasActiveResearch = isDeepResearchMode && currentTask != null;
   const showLanding =
-    !isRemixMode && !showProjectView && (!selectedConversationId || renderedMessages.length === 0);
+    !isRemixMode &&
+    !showProjectView &&
+    !hasActiveResearch &&
+    (!selectedConversationId || renderedMessages.length === 0);
 
   return (
     <div className="h-screen w-screen text-primary overflow-hidden relative font-sans bg-surface">
