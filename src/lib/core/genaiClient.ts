@@ -4,6 +4,7 @@
 import "@/lib/env";
 
 import { GoogleGenAI } from "@google/genai";
+import { logger } from "@/lib/utils/logger";
 
 function pickFirstEnv(keys: string[]): string {
   for (const k of keys) {
@@ -179,6 +180,13 @@ export async function getResearchInteraction(interactionId: string): Promise<{
 
   // Parse steps if available
   if (result.steps && Array.isArray(result.steps)) {
+    // Log the step types for debugging Deep Research "stuck" issues
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stepTypes = result.steps.map((s) => (s as any).type).join(", ");
+    logger.info(
+      `[getResearchInteraction] interactionId=${interactionId}, status=${result.status}, steps=${result.steps.length}, types=[${stepTypes}]`
+    );
+
     for (const rawStep of result.steps) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const step = rawStep as any; // Type-cast for easy parsing since SDK types are complex
@@ -228,14 +236,21 @@ export async function getResearchInteraction(interactionId: string): Promise<{
             title: String(query),
           });
         }
+      } else if (step.type) {
+        // Fallback for unknown step types (e.g., function_call, tool_call)
+        hasThought = true;
+        currentStep = "searching";
+        const actionName = step.name || step.functionName || step.type;
+        thinkingText += `_Đang xử lý: ${actionName}..._\n\n`;
       }
     }
   }
 
   // Fallback for when the agent is starting up and hasn't emitted thoughts yet
   if (!hasThought && result.status === "in_progress") {
-    thinkingText = "_Đang khởi tạo Agent, chuẩn bị môi trường nghiên cứu..._\n\n";
-    currentStep = "searching";
+    thinkingText =
+      "_Đang khởi tạo Agent, chuẩn bị môi trường nghiên cứu..._\n\n_Lưu ý: Quá trình nghiên cứu chuyên sâu (Deep Research) có thể mất từ 3 đến 10 phút. Vui lòng kiên nhẫn chờ đợi, Agent đang làm việc ngầm..._\n\n";
+    currentStep = "analyzing"; // Default to analyzing instead of searching so it doesn't look stuck on web search
   }
 
   // Deduplicate sources by URL

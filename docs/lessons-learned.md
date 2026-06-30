@@ -139,6 +139,16 @@
   2. Updated the `planning` phase in `ChatApp.tsx` to use `currentTask.currentStep || "analyzing"` instead of hardcoding `"searching"`.
 - **Prevention Rule**: **Do not leave empty lambda handlers `() => {}` for visible UI actions in production.** If a feature is incomplete, either hide the button or add a `toast.info("Coming soon")`. Never hardcode progress state for a phase if the underlying backend supports dynamic state.
 
+### 2026-07-01: Deep Research UI Frozen at "Searching" and "Đang khởi tạo Agent" during Execution
+
+- **Symptom**: User saw "Searching the web" active and "Đang khởi tạo Agent, chuẩn bị môi trường nghiên cứu..." for 4+ minutes during the actual Research phase, making it look like the system was stuck or broken.
+- **Root Cause**: The parser in `genaiClient.ts` only recognized `thought`, `model_output`, and `google_search_call`. If the Google API returned a step like `tool_call` or `function_call`, `hasThought` remained false. The fallback logic then forcefully set `currentStep = "searching"` and displayed the static "Đang khởi tạo Agent" text, hiding the actual progress from the user. Furthermore, the text didn't inform the user that Deep Research inherently takes a long time.
+- **Fix**:
+  1. Enhanced `getResearchInteraction` parser to catch ANY unknown step types (`} else if (step.type) {`), treating them as active progress, setting `currentStep = "searching"`, and logging `_Đang xử lý: [step_name]..._`.
+  2. Improved the empty-steps fallback text to explicitly warn the user: "_Lưu ý: Quá trình nghiên cứu chuyên sâu (Deep Research) có thể mất từ 3 đến 10 phút. Vui lòng kiên nhẫn chờ đợi, Agent đang làm việc ngầm..._".
+  3. Changed the fallback `currentStep` from `"searching"` to `"analyzing"` to avoid false indications of web searching when the agent is actually just starting up or processing text.
+- **Prevention Rule**: **When parsing API steps from third-party SDKs, always include a catch-all fallback for unknown step types.** The SDK schema may evolve (e.g. adding `tool_call` alongside `google_search_call`). Additionally, for long-running background tasks, the UI must explicitly set user expectations about the duration to prevent them from assuming the system is frozen.
+
 ### 2026-07-01: AI Output missing Markdown line breaks (Inline lists)
 
 - **Symptom**: AI-generated Deep Research plans displayed as a single massive paragraph instead of numbered lists, despite `ReactMarkdown` being used.
