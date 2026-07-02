@@ -150,7 +150,10 @@ export async function createResearchInteraction(options: {
   const params: Record<string, unknown> = {
     input: options.input,
     agent: options.agent,
+    // Deep Research agents MUST run asynchronously. Per Google docs, background:true
+    // REQUIRES store:true — omitting store causes the interaction to be rejected.
     background: true,
+    store: true,
     agent_config: {
       type: "deep-research",
       collaborative_planning: options.collaborativePlanning,
@@ -161,12 +164,71 @@ export async function createResearchInteraction(options: {
     params.previous_interaction_id = options.previousInteractionId;
   }
 
-  const interaction = await interactions.create(params);
-  return {
-    id: interaction.id,
-    status: interaction.status ?? "in_progress",
-    outputText: interaction.output_text ?? undefined,
-  };
+  try {
+    const interaction = await interactions.create(params);
+    return {
+      id: interaction.id,
+      status: interaction.status ?? "in_progress",
+      outputText: interaction.output_text ?? undefined,
+    };
+  } catch (err: unknown) {
+    // SDK errors (e.g. 403) often stringify to an empty body. Extract the richest
+    // detail available so logs and the surfaced message are actionable.
+    throw new Error(describeGenAIError(err, options.agent));
+  }
+}
+
+/**
+ * Builds an actionable error message from a GenAI SDK error.
+ * The raw SDK error frequently stringifies to `403 API error occurred: {...empty...}`,
+ * which hides the actual cause. This digs through common SDK error shapes and, for
+ * known status codes, appends the most likely fix.
+ */
+function describeGenAIError(err: unknown, agent: string): string {
+  const e = err as Record<string, unknown> | null;
+  const status =
+    (e?.["status"] as number | undefined) ??
+    (e?.["code"] as number | undefined) ??
+    (typeof e?.["message"] === "string" && /\b(\d{3})\b/.exec(e["message"] as string)
+      ? Number(/\b(\d{3})\b/.exec(e["message"] as string)?.[1])
+      : undefined);
+
+  // Try to pull a nested message from various SDK error shapes
+  const nested =
+    (
+      (e?.["response"] as Record<string, unknown> | undefined)?.["data"] as
+        | Record<string, unknown>
+        | undefined
+    )?.["error"] ??
+    (e?.["error"] as Record<string, unknown> | undefined) ??
+    undefined;
+  const nestedMessage =
+    (nested as Record<string, unknown> | undefined)?.["message"] ??
+    (typeof e?.["message"] === "string" ? e["message"] : undefined);
+
+  const baseMessage =
+    typeof nestedMessage === "string" && nestedMessage.trim()
+      ? nestedMessage
+      : "Unknown Gemini error";
+
+  if (status === 403) {
+    return (
+      `403 Forbidden — the API key does not have access to the Deep Research agent "${agent}". ` +
+      `This preview agent requires a Google AI project with billing enabled (pay-as-you-go); ` +
+      `it is not available on the free tier. Verify GEMINI_API_KEY belongs to a paid project ` +
+      `and that the Interactions API is enabled. (${baseMessage})`
+    );
+  }
+  if (status === 404) {
+    return (
+      `404 Not Found — agent "${agent}" is not recognized. The preview model name may have ` +
+      `changed or is unavailable in your region. (${baseMessage})`
+    );
+  }
+  if (status === 429) {
+    return `429 Rate limit exceeded for Deep Research. Try again later. (${baseMessage})`;
+  }
+  return baseMessage;
 }
 
 /**
