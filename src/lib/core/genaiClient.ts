@@ -232,6 +232,15 @@ function describeGenAIError(err: unknown, agent: string): string {
 }
 
 /**
+ * Step types that echo the request rather than represent research progress.
+ * The Interactions API emits a `user_input` step (the original query) which must
+ * NOT be treated as active work — otherwise the catch-all sets currentStep to
+ * "searching" and suppresses the "Initializing…" fallback, leaving the UI stuck
+ * at "Searching the web / Processing: user_input" indefinitely.
+ */
+const PASSIVE_STEP_TYPES = new Set(["user_input", "input", "user_message"]);
+
+/**
  * Gets the current status of a Deep Research interaction.
  */
 export async function getResearchInteraction(interactionId: string): Promise<{
@@ -324,9 +333,14 @@ export async function getResearchInteraction(interactionId: string): Promise<{
             });
           }
         }
+      } else if (typeof stepType === "string" && PASSIVE_STEP_TYPES.has(stepType)) {
+        // Passive/echo steps (e.g. `user_input` echoing the query back) are NOT progress.
+        // Skipping them lets the "Initializing…" fallback show instead of a false
+        // "_Processing: user_input..._" that makes the agent look stuck before it starts.
+        continue;
       } else if (stepType) {
-        // Catch-all for unknown step types (e.g. tool_call, function_call in future SDK versions).
-        // Treat any recognised step as active progress to avoid false "stuck" UI.
+        // Catch-all for genuinely unknown ACTIVE step types (e.g. tool_call, function_call
+        // in future SDK versions). Treat as active progress to avoid false "stuck" UI.
         hasThought = true;
         if (!currentStep) currentStep = "searching";
         const actionName =
