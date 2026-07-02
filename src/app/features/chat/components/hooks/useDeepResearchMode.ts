@@ -2,15 +2,18 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { ResearchTask, ResearchAgent } from "@/lib/features/research/types";
+import { isValidAgent, type ResearchTask, type ResearchAgent } from "@/lib/features/research/types";
 import { logger } from "@/lib/utils/logger";
 import { toast } from "@/lib/store/toastStore";
 
 const STORAGE_KEY = "vikini.researchAgent";
 const ACTIVE_RESEARCH_KEY = "vikini-active-research";
 const DEFAULT_AGENT: ResearchAgent = "deep-research-preview-04-2026";
-const POLL_INTERVAL_MS = 10_000;
-const MAX_POLL_COUNT = 180; // ~30 min at 10s intervals
+
+// Adaptive polling: fast during planning (plan usually ready in ~3s), slower during execution
+const POLL_INTERVAL_PLANNING_MS = 3_000;
+const POLL_INTERVAL_EXECUTING_MS = 15_000;
+const MAX_POLL_COUNT = 120; // ~30 min at 15s intervals (executing phase)
 const MAX_CONSECUTIVE_ERRORS = 5;
 
 /** Unwrap standardized API response: { success, data: T } */
@@ -50,6 +53,8 @@ interface UseDeepResearchModeReturn {
     gemId?: string
   ) => Promise<void>;
   approvePlan: (feedback?: string) => Promise<void>;
+  cancelResearch: () => Promise<void>; // UX-02: cancel in-progress task
+  retryResearch: () => Promise<void>; // UX-04: re-start a failed task with same query
   dismissTask: () => void;
 
   // Report panel
@@ -64,15 +69,7 @@ interface UseDeepResearchModeReturn {
   toggleThinkingPanel: () => void;
 }
 
-const VALID_AGENTS: ResearchAgent[] = [
-  "deep-research-fast-04-2026",
-  "deep-research-preview-04-2026",
-  "deep-research-max-preview-04-2026",
-];
-
-function isValidAgent(value: string): value is ResearchAgent {
-  return VALID_AGENTS.includes(value as ResearchAgent);
-}
+// VALID_AGENTS and isValidAgent are imported from types.ts — no local copy needed (BUG-08)
 
 export function useDeepResearchMode(): UseDeepResearchModeReturn {
   const [isDeepResearchMode, setIsDeepResearchMode] = useState(false);
@@ -87,6 +84,10 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
   const pollCountRef = useRef(0);
   const consecutiveErrorRef = useRef(0);
 
+  // Store pollTask in a ref so the initialization useEffect can call the latest version
+  // without needing pollTask in its dependency array (BUG-10).
+  const pollTaskRef = useRef<(taskId: string) => void>(() => undefined);
+
   // Initialize agent from localStorage + resume active research
   useEffect(() => {
     try {
@@ -98,19 +99,18 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
       // Ignore storage access errors
     }
 
-    // Resume polling for active research task
+    // Resume polling via ref — avoids stale-closure / missing-dep ESLint warning (BUG-10)
     try {
       const activeTaskId = localStorage.getItem(ACTIVE_RESEARCH_KEY);
       if (activeTaskId) {
         setIsDeepResearchMode(true);
         setIsLoading(true);
-        pollTask(activeTaskId);
+        pollTaskRef.current(activeTaskId);
       }
     } catch {
       // Ignore storage access errors
     }
-    // pollTask is stable (useCallback with no deps change)
-  }, []);
+  }, []); // intentionally empty — reads from refs only
 
   const setSelectedAgent = useCallback((agent: ResearchAgent) => {
     setSelectedAgentState(agent);
@@ -200,7 +200,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
           }
           const json: unknown = await res.json();
           const { task } = unwrapResponse<{ task: ResearchTask }>(json);
-          consecutiveErrorRef.current = 0; // Reset on success
+          consecutiveErrorRef.current = 0;
           setCurrentTask(task);
 
           if (task.status === "completed" || task.status === "failed") {
@@ -214,7 +214,17 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
             if (task.status === "failed") {
               const failMsg = task.errorMessage || "Research failed";
               setError(failMsg);
-              toast.error(failMsg);
+              // Only show error toast if not user-cancelled
+              if (failMsg !== "Cancelled by user") toast.error(failMsg);
+            }
+          } else {
+            // Adaptive polling: use a faster interval during planning phase (UX-06).
+            // Restart the interval with the appropriate delay for the current status.
+            const nextInterval =
+              task.status === "planning" ? POLL_INTERVAL_PLANNING_MS : POLL_INTERVAL_EXECUTING_MS;
+            if (pollRef.current) {
+              clearInterval(pollRef.current);
+              pollRef.current = setInterval(poll, nextInterval);
             }
           }
         } catch (err: unknown) {
@@ -237,12 +247,16 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         }
       };
 
-      // Initial poll immediately
+      // Initial poll immediately; start with planning interval — adapts on first response (UX-06)
       void poll();
-      pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
+      pollRef.current = setInterval(poll, POLL_INTERVAL_PLANNING_MS);
     },
     [stopPolling]
   );
+
+  // Wire the ref so the initialization useEffect always calls the latest version (BUG-10)
+  // Must come after pollTask is defined.
+  pollTaskRef.current = pollTask;
 
   const startResearch = useCallback(
     async (query: string, conversationId?: string, projectId?: string, gemId?: string) => {
@@ -359,6 +373,41 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
     }
   }, [stopPolling]);
 
+  // UX-02: Cancel an in-progress research task.
+  // Calls the DELETE endpoint which marks the task as failed server-side,
+  // causing the next poll to stop and show a clean dismissed state.
+  const cancelResearch = useCallback(async () => {
+    if (!currentTask) return;
+    stopPolling();
+    try {
+      await fetch(`/api/deep-research/${currentTask.id}`, { method: "DELETE" });
+    } catch {
+      // Best-effort — even if the request fails, we clean up client-side
+    }
+    setCurrentTask(null);
+    setIsDeepResearchMode(false);
+    setIsLoading(false);
+    setError(null);
+    try {
+      localStorage.removeItem(ACTIVE_RESEARCH_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, [currentTask, stopPolling]);
+
+  // UX-04: Retry a failed task using the same query and current agent selection.
+  const retryResearch = useCallback(async () => {
+    if (!currentTask) return;
+    const query = currentTask.query;
+    const conversationId = currentTask.conversationId ?? undefined;
+    const projectId = currentTask.projectId ?? undefined;
+    const gemId = currentTask.gemId ?? undefined;
+    // Reset state then kick off a fresh search
+    setCurrentTask(null);
+    setError(null);
+    await startResearch(query, conversationId, projectId, gemId);
+  }, [currentTask, startResearch]);
+
   const openReportPanel = useCallback(() => {
     setIsReportPanelOpen(true);
   }, []);
@@ -390,6 +439,8 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
     error,
     startResearch,
     approvePlan,
+    cancelResearch,
+    retryResearch,
     dismissTask,
     isReportPanelOpen,
     openReportPanel,

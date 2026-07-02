@@ -7,20 +7,11 @@ import { auth } from "@/lib/features/auth/auth";
 import { createResearchTask } from "@/lib/features/research/researchService.server";
 import { success, error, errorFromAppError } from "@/lib/utils/apiResponse";
 import { ValidationError, UnauthorizedError, AppError } from "@/lib/utils/errors";
+import { UUID_REGEX } from "@/lib/utils/constants";
 import { logger } from "@/lib/utils/logger";
-import type { CreateResearchRequest, ResearchAgent } from "@/lib/features/research/types";
+import { isValidAgent, type CreateResearchRequest } from "@/lib/features/research/types";
 
 const routeLogger = logger.withContext("/api/deep-research");
-
-const VALID_AGENTS: ResearchAgent[] = [
-  "deep-research-preview-04-2026",
-  "deep-research-max-preview-04-2026",
-  "deep-research-fast-04-2026",
-];
-
-function isValidAgent(agent: unknown): agent is ResearchAgent {
-  return typeof agent === "string" && VALID_AGENTS.includes(agent as ResearchAgent);
-}
 
 /**
  * POST /api/deep-research
@@ -48,25 +39,31 @@ export async function POST(req: NextRequest) {
       throw new ValidationError("Query must be 2000 characters or fewer");
     }
 
-    // Validate optional agent model
+    // Validate optional agent model (use shared isValidAgent from types — BUG-08)
     if (body.agentModel !== undefined && !isValidAgent(body.agentModel)) {
       throw new ValidationError("Invalid agent model");
     }
 
-    // Validate optional UUIDs
-    if (body.conversationId !== undefined && typeof body.conversationId !== "string") {
-      throw new ValidationError("conversationId must be a string");
+    // Validate optional UUID fields — must be valid UUIDs, not arbitrary strings (BUG-11)
+    if (body.conversationId !== undefined) {
+      if (typeof body.conversationId !== "string" || !UUID_REGEX.test(body.conversationId)) {
+        throw new ValidationError("conversationId must be a valid UUID");
+      }
     }
-    if (body.projectId !== undefined && typeof body.projectId !== "string") {
-      throw new ValidationError("projectId must be a string");
+    if (body.projectId !== undefined) {
+      if (typeof body.projectId !== "string" || !UUID_REGEX.test(body.projectId)) {
+        throw new ValidationError("projectId must be a valid UUID");
+      }
     }
-    if (body.gemId !== undefined && typeof body.gemId !== "string") {
-      throw new ValidationError("gemId must be a string");
+    if (body.gemId !== undefined) {
+      if (typeof body.gemId !== "string" || !UUID_REGEX.test(body.gemId)) {
+        throw new ValidationError("gemId must be a valid UUID");
+      }
     }
 
     const request: CreateResearchRequest = {
       query: body.query,
-      agentModel: body.agentModel as ResearchAgent | undefined,
+      agentModel: isValidAgent(body.agentModel) ? body.agentModel : undefined,
       conversationId: body.conversationId as string | undefined,
       projectId: body.projectId as string | undefined,
       gemId: body.gemId as string | undefined,

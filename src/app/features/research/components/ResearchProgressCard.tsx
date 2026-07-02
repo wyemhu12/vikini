@@ -1,9 +1,18 @@
 // /app/features/research/components/ResearchProgressCard.tsx
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Search, BarChart3, FileText, Loader2, Check, StopCircle, ChevronDown } from "lucide-react";
+import {
+  Search,
+  BarChart3,
+  FileText,
+  Loader2,
+  Check,
+  StopCircle,
+  ChevronDown,
+  Clock,
+} from "lucide-react";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { DURATION, EASE } from "@/lib/utils/motion";
 import type { ResearchStep } from "@/lib/features/research/types";
@@ -15,6 +24,48 @@ interface ResearchProgressCardProps {
   onShowThinking?: () => void;
   /** 'planning' = creating plan, 'executing' = performing research */
   phase?: "planning" | "executing";
+  /** ISO timestamp of when the task started — drives the live elapsed timer */
+  startedAt?: string;
+  /** Number of web sources discovered so far (shown under the "searching" step) */
+  sourceCount?: number;
+}
+
+/** Formats elapsed seconds as m:ss (e.g. 2:47) or h:mm:ss for long runs. */
+function formatElapsed(totalSeconds: number): string {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safe / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const seconds = safe % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+/**
+ * Live elapsed-time counter. Ticks once per second from `startedAt`.
+ * Self-contained so it never triggers re-renders of the parent poll loop.
+ */
+function useElapsedSeconds(startedAt?: string): number {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!startedAt) {
+      setElapsed(0);
+      return;
+    }
+    const startMs = new Date(startedAt).getTime();
+    if (Number.isNaN(startMs)) {
+      setElapsed(0);
+      return;
+    }
+    const tick = () => setElapsed((Date.now() - startMs) / 1000);
+    tick(); // set immediately, don't wait 1s
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [startedAt]);
+
+  return elapsed;
 }
 
 interface StepConfig {
@@ -53,9 +104,12 @@ export default function ResearchProgressCard({
   onStop,
   onShowThinking,
   phase = "executing",
+  startedAt,
+  sourceCount = 0,
 }: ResearchProgressCardProps) {
   const { t } = useLanguage();
   const headerKey = phase === "planning" ? "deepResearchPlanning" : "deepResearchExecuting";
+  const elapsed = useElapsedSeconds(startedAt);
 
   return (
     <motion.div
@@ -68,9 +122,20 @@ export default function ResearchProgressCard({
       <div className="absolute inset-0 rounded-(--radius) ring-1 ring-(--accent)/20 pointer-events-none" />
 
       {/* Header */}
-      <div className="mb-4">
-        <h3 className="text-sm font-semibold text-(--text-primary) mb-1">{t(headerKey)}</h3>
-        <p className="text-xs text-(--text-secondary) line-clamp-1">{topic}</p>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-(--text-primary) mb-1">{t(headerKey)}</h3>
+          <p className="text-xs text-(--text-secondary) line-clamp-1">{topic}</p>
+        </div>
+        {startedAt && (
+          <div
+            className="flex items-center gap-1 shrink-0 text-xs font-medium text-(--text-secondary) tabular-nums"
+            aria-label={t("deepResearchElapsed") || "Elapsed time"}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>{formatElapsed(elapsed)}</span>
+          </div>
+        )}
       </div>
 
       {/* Steps */}
@@ -118,6 +183,13 @@ export default function ResearchProgressCard({
               >
                 {t(step.labelKey)}
               </span>
+
+              {/* Source count — only on the searching step once we've found any */}
+              {step.key === "searching" && sourceCount > 0 && (
+                <span className="ml-auto text-xs text-(--text-secondary) tabular-nums">
+                  {sourceCount} {t("deepResearchSourcesFound") || "sources"}
+                </span>
+              )}
             </div>
           );
         })}

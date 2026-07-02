@@ -378,7 +378,61 @@ export async function incrementResearchCount(userId: string): Promise<void> {
 }
 
 /**
- * Check if user can perform deep research (feature flag + daily limit)
+ * Atomically claims one research slot for the user.
+ * Increments the counter first, then verifies the new count is within the limit.
+ * If over the limit the increment is rolled back and false is returned.
+ *
+ * This eliminates the TOCTOU race that existed when canDoResearch() and
+ * incrementResearchCount() were called in two separate non-atomic steps (BUG-02).
+ *
+ * @returns true if the slot was successfully claimed; false if not allowed or over limit.
+ */
+export async function tryClaimResearchSlot(userId: string): Promise<boolean> {
+  const limits = await getUserLimits(userId);
+
+  if (!limits.features.deep_research) return false;
+
+  const supabase = getSupabaseAdmin();
+  const today = new Date().toISOString().split("T")[0];
+
+  // 1. Atomic increment via RPC (upsert with count + 1)
+  const { error: rpcError } = await supabase.rpc("increment_daily_research_count", {
+    p_user_id: userId,
+    p_date: today,
+  });
+
+  if (rpcError) {
+    // RPC failed — fall back to upsert. Not perfectly atomic but best effort.
+    limitsLogger.warn("RPC increment failed, falling back to upsert:", rpcError);
+    await supabase
+      .from("daily_research_counts")
+      .upsert({ user_id: userId, date: today, count: 1 }, { onConflict: "user_id,date" });
+  }
+
+  // 2. Read back the current count after increment
+  const newCount = await getResearchDailyCount(userId);
+
+  // 3. If over limit, roll back the increment and deny the request
+  if (newCount > limits.daily_research_limit) {
+    const { error: rollbackError } = await supabase
+      .from("daily_research_counts")
+      .update({ count: Math.max(0, newCount - 1) })
+      .eq("user_id", userId)
+      .eq("date", today);
+
+    if (rollbackError) {
+      limitsLogger.warn("Failed to rollback research count increment:", rollbackError);
+    }
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Check if user can perform deep research (feature flag + daily limit).
+ * Prefer tryClaimResearchSlot() when you intend to actually start a task —
+ * it performs the check and increment atomically.
  */
 export async function canDoResearch(userId: string): Promise<boolean> {
   const limits = await getUserLimits(userId);

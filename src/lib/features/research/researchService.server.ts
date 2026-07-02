@@ -3,7 +3,7 @@
 
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { createResearchInteraction, getResearchInteraction } from "@/lib/core/genaiClient";
-import { canDoResearch, incrementResearchCount } from "@/lib/core/limits";
+import { tryClaimResearchSlot } from "@/lib/core/limits";
 import { encryptText } from "@/lib/core/encryption";
 import {
   ForbiddenError,
@@ -13,12 +13,13 @@ import {
   ExternalServiceError,
 } from "@/lib/utils/errors";
 import { logger } from "@/lib/utils/logger";
-import type {
-  ResearchTask,
-  CreateResearchRequest,
-  ResearchAgent,
-  ResearchStatus,
-  ResearchSource,
+import {
+  VALID_AGENTS,
+  type ResearchTask,
+  type CreateResearchRequest,
+  type ResearchAgent,
+  type ResearchStatus,
+  type ResearchSource,
 } from "./types";
 
 const researchLogger = logger.withContext("research");
@@ -73,7 +74,16 @@ function mapTaskRow(row: ResearchTaskRow): ResearchTask {
     projectId: row.project_id,
     gemId: row.gem_id,
     errorMessage: row.error_message,
-    sources: Array.isArray(row.sources) ? (row.sources as ResearchSource[]) : undefined,
+    // Validate each element's shape instead of blindly casting the array (BUG-04)
+    sources: Array.isArray(row.sources)
+      ? (row.sources as unknown[]).filter(
+          (s): s is ResearchSource =>
+            typeof s === "object" &&
+            s !== null &&
+            typeof (s as ResearchSource).url === "string" &&
+            typeof (s as ResearchSource).title === "string"
+        )
+      : undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -94,13 +104,7 @@ export async function createResearchTask(
   userId: string,
   request: CreateResearchRequest
 ): Promise<ResearchTask> {
-  // Check permissions
-  const allowed = await canDoResearch(userId);
-  if (!allowed) {
-    throw new ForbiddenError("Deep Research not available or daily limit reached");
-  }
-
-  // Validate query
+  // Validate query first (before claiming the slot, so bad requests don't consume quota)
   if (!request.query || request.query.trim().length === 0) {
     throw new ValidationError("Query is required");
   }
@@ -108,8 +112,20 @@ export async function createResearchTask(
     throw new ValidationError(`Query must be ${MAX_QUERY_LENGTH} characters or fewer`);
   }
 
+  // Atomically claim one research slot — checks feature flag, increments, and verifies
+  // the new count is within the limit. Eliminates the TOCTOU race of the old
+  // canDoResearch() → incrementResearchCount() two-step pattern (BUG-02).
+  const claimed = await tryClaimResearchSlot(userId);
+  if (!claimed) {
+    throw new ForbiddenError("Deep Research not available or daily limit reached");
+  }
+
   const supabase = getSupabaseAdmin();
-  const agentModel = request.agentModel || DEFAULT_AGENT;
+  // Validate agentModel against canonical list (BUG-08 — single source of truth)
+  const agentModel: ResearchAgent =
+    request.agentModel && (VALID_AGENTS as readonly string[]).includes(request.agentModel)
+      ? request.agentModel
+      : DEFAULT_AGENT;
 
   // Create task in DB
   const { data: taskRow, error: insertError } = await supabase
@@ -154,8 +170,8 @@ export async function createResearchTask(
       researchLogger.warn("Failed to update task with interaction ID:", updateError);
     }
 
-    // Increment daily count only after successful API call
-    await incrementResearchCount(userId);
+    // NOTE: Daily count was already atomically claimed via tryClaimResearchSlot() above.
+    // Do NOT call incrementResearchCount() here — that would double-count.
 
     // Refetch the updated task
     const { data: updatedRow } = await supabase
@@ -217,8 +233,9 @@ export async function approveResearchPlan(
 
   // Create execution interaction, referencing the plan interaction
   try {
+    // Wrap user feedback in delimiters to prevent prompt injection (BUG-05)
     const input = feedback
-      ? `Proceed with the research plan. User feedback: ${feedback}`
+      ? `Proceed with the research plan.\n\n<user_feedback>\n${feedback}\n</user_feedback>`
       : "Proceed with the research plan.";
 
     const interaction = await createResearchInteraction({
@@ -323,14 +340,10 @@ export async function checkResearchStatus(userId: string, taskId: string): Promi
 
         return mapTaskRow((updatedRow || taskRow) as ResearchTaskRow);
       } else if (task.status === "executing") {
-        // Research report is ready - finalize
-        let finalOutput = result.outputText || "";
-        if (result.reportSources && result.reportSources.length > 0) {
-          finalOutput += "\n\n### Nguồn tham khảo\n";
-          result.reportSources.forEach((source, index) => {
-            finalOutput += `[${index + 1}] [${source.title}](${source.url})\n`;
-          });
-        }
+        // Research report is ready - finalize.
+        // Store the raw AI output WITHOUT appending a hardcoded Vietnamese header (BUG-06).
+        // Sources are stored separately in the `sources` column; the UI renders them with i18n.
+        const finalOutput = result.outputText || "";
 
         const { data: updatedRow } = await supabase
           .from("research_tasks")
@@ -367,9 +380,8 @@ export async function checkResearchStatus(userId: string, taskId: string): Promi
         .from("research_tasks")
         .update({ status: "failed", error_message: errorMsg })
         .eq("id", taskId);
-      task.status = "failed";
-      task.errorMessage = errorMsg;
-      return task;
+      // Return immutable copy instead of mutating the fetched object (BUG-03)
+      return { ...task, status: "failed" as ResearchStatus, errorMessage: errorMsg };
     }
 
     // Attach transient data if we are still polling
@@ -479,11 +491,17 @@ export async function finalizeResearch(task: ResearchTask, report: string): Prom
     },
   });
 
-  // Update conversation preview
+  // Update conversation preview — strip leading markdown so the sidebar shows readable text (BUG-07)
+  const cleanReport = report
+    .replace(/^#{1,6}\s+.*/gm, "") // remove header lines
+    .replace(/\*\*(.+?)\*\*/g, "$1") // unwrap bold
+    .replace(/\*(.+?)\*/g, "$1") // unwrap italic
+    .trim();
+  const previewSource = cleanReport || report;
   const preview =
-    report.length > PREVIEW_MAX_LENGTH
-      ? `${report.substring(0, PREVIEW_TRUNCATE_LENGTH)}...`
-      : report;
+    previewSource.length > PREVIEW_MAX_LENGTH
+      ? `${previewSource.substring(0, PREVIEW_TRUNCATE_LENGTH)}...`
+      : previewSource;
 
   await supabase
     .from("conversations")
@@ -554,4 +572,53 @@ export async function getResearchTasks(userId: string): Promise<ResearchTask[]> 
   }
 
   return (data || []).map((row) => mapTaskRow(row as ResearchTaskRow));
+}
+
+// =====================================================================================
+// Cancel Research Task
+// =====================================================================================
+
+/**
+ * Cancels an in-progress research task.
+ * Marks the DB row as failed with "Cancelled by user" so the client stops polling.
+ * NOTE: The Gemini Interactions API does not yet support server-side cancellation,
+ * so the underlying agent may continue running briefly, but no further DB writes
+ * will occur after this call because checkResearchStatus exits early on terminal states.
+ */
+export async function cancelResearchTask(userId: string, taskId: string): Promise<ResearchTask> {
+  const supabase = getSupabaseAdmin();
+
+  const { data: taskRow, error: fetchError } = await supabase
+    .from("research_tasks")
+    .select("*")
+    .eq("id", taskId)
+    .single();
+
+  if (fetchError || !taskRow) {
+    throw new NotFoundError("Research task");
+  }
+
+  const task = mapTaskRow(taskRow as ResearchTaskRow);
+
+  if (task.userId !== userId) {
+    throw new ForbiddenError("Not authorized to access this research task");
+  }
+
+  // Already in a terminal state — nothing to cancel
+  if (task.status === "completed" || task.status === "failed") {
+    return task;
+  }
+
+  const { data: updatedRow, error: updateError } = await supabase
+    .from("research_tasks")
+    .update({ status: "failed", error_message: "Cancelled by user" })
+    .eq("id", taskId)
+    .select("*")
+    .single();
+
+  if (updateError) {
+    throw new DatabaseError(`Failed to cancel research task: ${updateError.message}`);
+  }
+
+  return mapTaskRow((updatedRow || taskRow) as ResearchTaskRow);
 }

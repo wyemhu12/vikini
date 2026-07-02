@@ -87,15 +87,20 @@ export function getGenAIClientInfo(): { cached: boolean; createdAt: number } {
 // =====================================================================================
 
 /**
- * Minimal interface for Interaction objects returned by the Interactions API.
- * Defined locally to avoid dependency on SDK types that may not be exported.
+ * Expanded interface for Interaction objects returned by the Interactions API.
+ * Maps all currently-known fields from SDK v2.x responses.
  */
 interface InteractionResult {
   id: string;
   status?: string;
   output_text?: string;
   error?: string;
+  /** Ordered list of steps the agent executed (thought, google_search_call, model_output, etc.) */
   steps?: Array<Record<string, unknown>>;
+  /** Additional metadata fields that may appear in future SDK versions */
+  metadata?: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**
@@ -109,17 +114,26 @@ interface InteractionsClient {
 
 /**
  * Safely access the interactions API from the GenAI client.
+ * Performs a runtime capability check instead of a blind double-cast,
+ * so SDK internal restructuring fails loudly instead of silently.
  * @throws {Error} If the SDK version doesn't support the Interactions API
  */
 function getInteractionsClient(): InteractionsClient {
   const client = getGenAIClient();
-  // SDK v2.4.0 does not export InteractionsClient type directly.
-  // This double cast is required until the SDK exposes the type properly.
-  const interactions = (client as unknown as { interactions?: InteractionsClient }).interactions;
-  if (!interactions) {
-    throw new Error("Interactions API not available. Ensure @google/genai >= 2.3.0 is installed.");
+  // Access via string key to avoid TypeScript prototype chain issues with SDK types.
+  // We then validate the shape at runtime rather than relying on compile-time casting.
+  const maybeInteractions = (client as unknown as Record<string, unknown>)["interactions"];
+  if (
+    !maybeInteractions ||
+    typeof (maybeInteractions as Record<string, unknown>)["create"] !== "function" ||
+    typeof (maybeInteractions as Record<string, unknown>)["get"] !== "function"
+  ) {
+    throw new Error(
+      "Interactions API not available or incompatible. " +
+        "Ensure @google/genai ~2.10.0 is installed and provides interactions.create() / interactions.get()."
+    );
   }
-  return interactions;
+  return maybeInteractions as InteractionsClient;
 }
 
 /**
@@ -176,81 +190,100 @@ export async function getResearchInteraction(interactionId: string): Promise<{
   const reportSources: Array<{ url: string; title: string }> = [];
 
   let hasThought = false;
-  let currentStep: "searching" | "analyzing" | "writing" = "analyzing";
+  // Only set currentStep when there's actual activity — undefined means "not yet started"
+  let currentStep: "searching" | "analyzing" | "writing" | undefined;
 
   // Parse steps if available
   if (result.steps && Array.isArray(result.steps)) {
     // Log the step types for debugging Deep Research "stuck" issues
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stepTypes = result.steps.map((s) => (s as any).type).join(", ");
+    const stepTypes = result.steps.map((s) => (s as Record<string, unknown>)["type"]).join(", ");
     logger.info(
       `[getResearchInteraction] interactionId=${interactionId}, status=${result.status}, steps=${result.steps.length}, types=[${stepTypes}]`
     );
 
     for (const rawStep of result.steps) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const step = rawStep as any; // Type-cast for easy parsing since SDK types are complex
-      if (step.type === "thought") {
+      const step = rawStep as Record<string, unknown>;
+      const stepType = step["type"];
+
+      if (stepType === "thought") {
         hasThought = true;
         currentStep = "analyzing";
-        if (Array.isArray(step.summary) && step.summary.length > 0) {
-          for (const item of step.summary) {
-            if (item.type === "text" && item.text) {
-              thinkingText += item.text + "\n\n";
+        const summary = step["summary"];
+        if (Array.isArray(summary) && summary.length > 0) {
+          for (const item of summary as Array<Record<string, unknown>>) {
+            if (item["type"] === "text" && typeof item["text"] === "string") {
+              thinkingText += item["text"] + "\n\n";
             }
           }
         } else {
           // Fallback if summary is empty but model is thinking
-          thinkingText += "_Đang suy nghĩ..._\n\n";
+          thinkingText += "_Thinking..._\n\n";
         }
-      } else if (step.type === "model_output" && Array.isArray(step.content)) {
+      } else if (stepType === "model_output") {
         currentStep = "writing";
-        // Extract annotations/citations from text content if available
-        for (const content of step.content) {
-          if (Array.isArray(content.parts)) {
-            for (const part of content.parts) {
-              if (Array.isArray(part.annotations)) {
-                for (const annotation of part.annotations) {
-                  if (annotation.type === "url_citation" && annotation.url) {
-                    reportSources.push({
-                      url: annotation.url,
-                      title: annotation.title || annotation.url,
-                    });
+        const content = step["content"];
+        if (Array.isArray(content)) {
+          // Extract annotations/citations from text content if available
+          for (const c of content as Array<Record<string, unknown>>) {
+            const parts = c["parts"];
+            if (Array.isArray(parts)) {
+              for (const part of parts as Array<Record<string, unknown>>) {
+                const annotations = part["annotations"];
+                if (Array.isArray(annotations)) {
+                  for (const annotation of annotations as Array<Record<string, unknown>>) {
+                    if (
+                      annotation["type"] === "url_citation" &&
+                      typeof annotation["url"] === "string"
+                    ) {
+                      reportSources.push({
+                        url: annotation["url"],
+                        title:
+                          typeof annotation["title"] === "string"
+                            ? annotation["title"]
+                            : annotation["url"],
+                      });
+                    }
                   }
                 }
               }
             }
           }
         }
-      } else if (
-        step.type === "google_search_call" &&
-        step.arguments &&
-        Array.isArray(step.arguments.queries)
-      ) {
+      } else if (stepType === "google_search_call") {
         hasThought = true;
         currentStep = "searching";
-        // As a fallback, if we only get queries, we show them as sources
-        for (const query of step.arguments.queries) {
-          sources.push({
-            url: `https://google.com/search?q=${encodeURIComponent(String(query))}`,
-            title: String(query),
-          });
+        const args = step["arguments"] as Record<string, unknown> | undefined;
+        if (args && Array.isArray(args["queries"])) {
+          // Show search queries as interim sources so user sees search activity
+          for (const query of args["queries"] as unknown[]) {
+            sources.push({
+              url: `https://google.com/search?q=${encodeURIComponent(String(query))}`,
+              title: String(query),
+            });
+          }
         }
-      } else if (step.type) {
-        // Fallback for unknown step types (e.g., function_call, tool_call)
+      } else if (stepType) {
+        // Catch-all for unknown step types (e.g. tool_call, function_call in future SDK versions).
+        // Treat any recognised step as active progress to avoid false "stuck" UI.
         hasThought = true;
-        currentStep = "searching";
-        const actionName = step.name || step.functionName || step.type;
-        thinkingText += `_Đang xử lý: ${actionName}..._\n\n`;
+        if (!currentStep) currentStep = "searching";
+        const actionName =
+          (step["name"] as string | undefined) ||
+          (step["functionName"] as string | undefined) ||
+          String(stepType);
+        thinkingText += `_Processing: ${actionName}..._\n\n`;
       }
     }
   }
 
-  // Fallback for when the agent is starting up and hasn't emitted thoughts yet
+  // Fallback for when the agent is starting up and hasn't emitted any steps yet.
+  // Only add fallback text while the interaction is still running (not for terminal states).
   if (!hasThought && result.status === "in_progress") {
     thinkingText =
-      "_Đang khởi tạo Agent, chuẩn bị môi trường nghiên cứu..._\n\n_Lưu ý: Quá trình nghiên cứu chuyên sâu (Deep Research) có thể mất từ 3 đến 10 phút. Vui lòng kiên nhẫn chờ đợi, Agent đang làm việc ngầm..._\n\n";
-    currentStep = "analyzing"; // Default to analyzing instead of searching so it doesn't look stuck on web search
+      "_Initializing research agent..._\n\n" +
+      "_Note: Deep Research typically takes 3–10 minutes. The agent is working in the background — please wait._\n\n";
+    // Use "analyzing" so the UI does not display a false "Searching the web" indicator
+    currentStep = "analyzing";
   }
 
   // Deduplicate sources by URL

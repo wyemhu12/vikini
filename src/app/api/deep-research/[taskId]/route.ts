@@ -3,7 +3,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { auth } from "@/lib/features/auth/auth";
-import { checkResearchStatus } from "@/lib/features/research/researchService.server";
+import {
+  checkResearchStatus,
+  cancelResearchTask,
+} from "@/lib/features/research/researchService.server";
 import { success, error, errorFromAppError } from "@/lib/utils/apiResponse";
 import { ValidationError, UnauthorizedError, AppError } from "@/lib/utils/errors";
 import { UUID_REGEX } from "@/lib/utils/constants";
@@ -54,5 +57,30 @@ export async function GET(_req: Request, { params }: { params: Promise<{ taskId:
     routeLogger.error("GET error:", err);
     if (err instanceof AppError) return errorFromAppError(err);
     return error("Failed to check research status", 500);
+  }
+}
+
+/**
+ * DELETE /api/deep-research/[taskId]
+ * Cancels an in-progress research task by marking it as failed.
+ */
+export async function DELETE(_req: Request, { params }: { params: Promise<{ taskId: string }> }) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) throw new UnauthorizedError();
+
+    const userId = session.user.email.toLowerCase();
+    const { taskId } = await params;
+
+    if (!taskId || !UUID_REGEX.test(taskId)) {
+      throw new ValidationError("Invalid task ID");
+    }
+
+    const task = await cancelResearchTask(userId, taskId);
+    return success({ task });
+  } catch (err: unknown) {
+    routeLogger.error("DELETE error:", err);
+    if (err instanceof AppError) return errorFromAppError(err);
+    return error("Failed to cancel research task", 500);
   }
 }

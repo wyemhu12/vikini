@@ -2,10 +2,22 @@
 
 export type ResearchStatus = "planning" | "ready_to_execute" | "executing" | "completed" | "failed";
 
-export type ResearchAgent =
-  | "deep-research-preview-04-2026"
-  | "deep-research-max-preview-04-2026"
-  | "deep-research-fast-04-2026";
+/**
+ * Canonical list of valid agent model IDs.
+ * Single source of truth — referenced by API routes, client hook, and UI.
+ */
+export const VALID_AGENTS = [
+  "deep-research-fast-04-2026",
+  "deep-research-preview-04-2026",
+  "deep-research-max-preview-04-2026",
+] as const;
+
+export type ResearchAgent = (typeof VALID_AGENTS)[number];
+
+/** Type guard for ResearchAgent — use instead of local VALID_AGENTS arrays */
+export function isValidAgent(value: unknown): value is ResearchAgent {
+  return typeof value === "string" && (VALID_AGENTS as readonly string[]).includes(value);
+}
 
 /** Active step during execution */
 export type ResearchStep = "searching" | "analyzing" | "writing";

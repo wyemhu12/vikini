@@ -823,6 +823,8 @@ export default function ChatApp() {
                           topic={currentTask.query}
                           currentStep={currentTask.currentStep || "analyzing"}
                           phase="planning"
+                          startedAt={currentTask.createdAt}
+                          sourceCount={currentTask.searchedSources?.length}
                           onStop={dismissTask}
                           onShowThinking={openThinkingPanel}
                         />
@@ -855,6 +857,8 @@ export default function ChatApp() {
                           topic={currentTask.query}
                           currentStep={currentTask.currentStep || "analyzing"}
                           phase="executing"
+                          startedAt={currentTask.createdAt}
+                          sourceCount={currentTask.searchedSources?.length}
                           onStop={dismissTask}
                           onShowThinking={openThinkingPanel}
                         />
