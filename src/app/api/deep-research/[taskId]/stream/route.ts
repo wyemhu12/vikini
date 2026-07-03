@@ -28,8 +28,8 @@ const MAX_DURATION_MS = 30 * 60 * 1000; // 30 minutes max (internal safety net)
  * we consider it a "silent hang" and auto-retry with a new interaction.
  * This is a known intermittent issue with the Deep Research API.
  */
-const STALE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes before considering stale
-const MAX_STALE_RETRIES = 2; // Max auto-retries before giving up
+const STALE_THRESHOLD_MS = 90 * 1000; // 90 seconds before considering stale (reduced from 3 min for faster recovery)
+const MAX_STALE_RETRIES = 3; // Max auto-retries before giving up
 
 /**
  * GET /api/deep-research/[taskId]/stream
@@ -180,7 +180,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
                     sendEvent("task", {
                       task: {
                         ...task,
-                        thinkingText: `_Retrying... (attempt ${staleRetries + 1})_\n\n`,
+                        thinkingText:
+                          `_⟳ Retrying... (attempt ${staleRetries + 1}/${MAX_STALE_RETRIES + 1})_\n\n` +
+                          `_The research agent didn't start in time. Creating a new session — please wait ~90s..._\n\n`,
                       },
                     });
 

@@ -11,13 +11,14 @@
 
 - **Misleading progress card during initialization** — `getResearchInteraction` fallback was setting `currentStep = "analyzing"` when the Gemini agent hadn't started yet (only `user_input` echo step). This falsely showed "Searching the web ✓" (green check) when nothing had happened. Now `currentStep` stays `undefined` so all steps show as "pending" (gray).
 - **Added initialization indicator** — `ResearchProgressCard` now shows a spinning "Initializing agent..." label when `currentStep` is undefined, giving clear feedback that the system is waiting for the Gemini agent to start.
-- **Stale hang auto-recovery** — SSE stream route now monitors for the known Gemini "silent hang" where the agent stays at `in_progress` with only `user_input` steps. After 3 minutes, it automatically creates a new Gemini interaction and retries (up to 2 times). Only after all retries fail does it mark the task as failed.
+- **Stale hang auto-recovery (improved)** — SSE stream route monitors for the known Gemini "silent hang" where the agent stays at `in_progress` with only `user_input` steps. Threshold reduced from 3 minutes → **90 seconds** for faster recovery. Max retries increased from 2 → **3**. Retry SSE events now include attempt count and expected wait time.
 - **Enabled `thinking_summaries: "auto"`** — Added to `agent_config` in `createResearchInteraction`. Per Google docs, this makes the agent more reliably emit `thought` steps during polling, reducing the silent hang pattern.
 - **Regression: `|| "analyzing"` fallback in ChatApp.tsx** — Despite the backend correctly sending `currentStep: undefined` during agent initialization, `ChatApp.tsx` overrode it with `currentStep={currentTask.currentStep || "analyzing"}`. This masked the "Initializing agent..." indicator and immediately showed "Analyzing results" as active. Removed the fallback for both `planning` and `executing` phases.
 
 ### i18n
 
 - Added `deepResearchInitializing` translation key (EN: "Initializing agent...", VI: "Đang khởi tạo agent...")
+- Added `deepResearchExecutionInit` translation key (EN: "Starting research agent... this may take 1–2 minutes", VI: "Đang khởi động agent nghiên cứu... có thể mất 1–2 phút")
 
 ---
 

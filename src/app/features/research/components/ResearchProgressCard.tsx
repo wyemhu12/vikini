@@ -143,7 +143,10 @@ export default function ResearchProgressCard({
         <div className="mb-3 flex items-center gap-2 px-1">
           <Loader2 className="w-3.5 h-3.5 text-(--accent) animate-spin" />
           <span className="text-xs text-(--text-secondary) animate-pulse">
-            {t("deepResearchInitializing") || "Initializing agent..."}
+            {phase === "executing"
+              ? t("deepResearchExecutionInit") ||
+                "Starting research agent... this may take 1–2 minutes"
+              : t("deepResearchInitializing") || "Initializing agent..."}
           </span>
         </div>
       )}
