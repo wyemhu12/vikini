@@ -366,10 +366,16 @@ export async function incrementResearchCount(userId: string): Promise<void> {
   });
 
   if (rpcError) {
-    // Fallback: insert new row if RPC fails (e.g., row doesn't exist yet)
+    limitsLogger.warn("RPC increment failed, falling back to manual increment:", rpcError);
+    // Fallback: read current count, then upsert with count + 1.
+    // Cannot use SQL expressions in Supabase JS upsert, so read-then-write.
+    const currentCount = await getResearchDailyCount(userId);
     const { error: insertError } = await supabase
       .from("daily_research_counts")
-      .upsert({ user_id: userId, date: today, count: 1 }, { onConflict: "user_id,date" });
+      .upsert(
+        { user_id: userId, date: today, count: currentCount + 1 },
+        { onConflict: "user_id,date" }
+      );
 
     if (insertError) {
       limitsLogger.warn("Error incrementing research count:", insertError);
@@ -402,11 +408,15 @@ export async function tryClaimResearchSlot(userId: string): Promise<boolean> {
   });
 
   if (rpcError) {
-    // RPC failed — fall back to upsert. Not perfectly atomic but best effort.
-    limitsLogger.warn("RPC increment failed, falling back to upsert:", rpcError);
+    // RPC failed — fall back to read-then-write. Not perfectly atomic but best effort.
+    limitsLogger.warn("RPC increment failed, falling back to manual increment:", rpcError);
+    const currentCount = await getResearchDailyCount(userId);
     await supabase
       .from("daily_research_counts")
-      .upsert({ user_id: userId, date: today, count: 1 }, { onConflict: "user_id,date" });
+      .upsert(
+        { user_id: userId, date: today, count: currentCount + 1 },
+        { onConflict: "user_id,date" }
+      );
   }
 
   // 2. Read back the current count after increment

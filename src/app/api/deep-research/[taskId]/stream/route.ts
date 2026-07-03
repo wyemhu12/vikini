@@ -3,7 +3,11 @@
 // Replaces the client-side polling approach with a real-time stream.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Vercel Pro: standard limit 800s. Deep Research can take 3–10 minutes,
+// so 800s covers the vast majority of sessions without hitting Vercel limits.
+export const maxDuration = 800;
 
+import { type NextRequest } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
 import { checkResearchStatus } from "@/lib/features/research/researchService.server";
 import { UnauthorizedError, AppError, ValidationError } from "@/lib/utils/errors";
@@ -16,7 +20,7 @@ const streamLogger = logger.withContext("/api/deep-research/[taskId]/stream");
 /** Server-side poll interval — faster than client-side since there's no network overhead per poll */
 const POLL_INTERVAL_PLANNING_MS = 2_000;
 const POLL_INTERVAL_EXECUTING_MS = 5_000;
-const MAX_DURATION_MS = 30 * 60 * 1000; // 30 minutes max
+const MAX_DURATION_MS = 30 * 60 * 1000; // 30 minutes max (internal safety net)
 
 /**
  * GET /api/deep-research/[taskId]/stream
@@ -28,10 +32,10 @@ const MAX_DURATION_MS = 30 * 60 * 1000; // 30 minutes max
  * Events:
  * - `task`: Updated task state (JSON)
  * - `complete`: Final task state (JSON), stream ends after
- * - `error`: Error message (JSON)
+ * - `stream_error`: Error message (JSON) — named to avoid collision with EventSource connection errors
  * - `ping`: Keep-alive (every 15s)
  */
-export async function GET(_req: Request, { params }: { params: Promise<{ taskId: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ taskId: string }> }) {
   try {
     const session = await auth();
     if (!session?.user?.email) throw new UnauthorizedError();
@@ -47,9 +51,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ taskId:
     const encoder = new TextEncoder();
     const startTime = Date.now();
 
+    // Shared flag — set to false by abort signal, cancel(), or internal exit conditions
+    let running = true;
+
     const stream = new ReadableStream({
       async start(controller) {
-        let running = true;
         let lastStatus = "";
         let consecutiveErrors = 0;
 
@@ -80,11 +86,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ taskId:
           sendPing();
         }, 15_000);
 
+        // Listen for client disconnect via AbortSignal
+        const onAbort = () => {
+          streamLogger.info(`Client disconnected for task ${taskId}`);
+          running = false;
+        };
+        req.signal.addEventListener("abort", onAbort);
+
         try {
           while (running) {
             // Check timeout
             if (Date.now() - startTime > MAX_DURATION_MS) {
-              sendEvent("error", { message: "Stream timed out after 30 minutes" });
+              sendEvent("stream_error", { message: "Stream timed out after 30 minutes" });
               break;
             }
 
@@ -123,7 +136,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ taskId:
               streamLogger.warn(`Poll error (${consecutiveErrors}/5):`, errMsg);
 
               if (consecutiveErrors >= 5) {
-                sendEvent("error", {
+                sendEvent("stream_error", {
                   message: `Polling stopped after 5 consecutive errors: ${errMsg}`,
                 });
                 break;
@@ -136,6 +149,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ taskId:
         } finally {
           running = false;
           clearInterval(pingInterval);
+          req.signal.removeEventListener("abort", onAbort);
           try {
             controller.close();
           } catch {
@@ -145,8 +159,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ taskId:
       },
 
       cancel() {
-        // Client disconnected — the while loop will exit on next iteration
+        // Client disconnected — stop the poll loop
         streamLogger.info(`SSE stream cancelled for task ${taskId}`);
+        running = false;
       },
     });
 

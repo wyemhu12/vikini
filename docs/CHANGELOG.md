@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-07-03: Deep Research — DB Fix + UI/Backend Desync Resolution
+
+### Critical Fixes
+
+- **Missing `increment_daily_research_count` RPC** — The DB migration that created `daily_research_counts` table never included the corresponding PostgreSQL function. Applied migration to Supabase production. Without this, the fallback upsert always reset `count: 1` instead of incrementing, making rate limits completely ineffective.
+- **Rate limit counter bypass** — Fixed fallback upsert in `limits.ts` (`incrementResearchCount` + `tryClaimResearchSlot`) to read current count and increment instead of resetting to 1.
+
+### Bug Fixes
+
+- **SSE stream killed by Vercel** — Added `maxDuration = 800` to stream route (Vercel Pro limit). Previously missing, causing Vercel to kill the function at default timeout while the client's EventSource silently auto-reconnected.
+- **Server unaware of client disconnect** — Added `req.signal` abort listener in SSE stream route so the server stops polling when the client disconnects (closes tab, navigates away).
+- **`cancel()` not stopping poll loop** — Fixed ReadableStream `cancel()` callback to set `running = false`, ensuring the poll loop exits when the stream is cancelled.
+- **EventSource error event collision** — Renamed server SSE error event from `error` to `stream_error` to avoid collision with native EventSource connection errors. Previously, both custom server errors and connection drops triggered the same handler, causing unpredictable cleanup.
+- **SSE infinite silent reconnection** — Added reconnect counter (max 3 retries) and 30s CONNECTING-state timeout guard. Previously, EventSource could silently reconnect indefinitely when the server kept dying, leaving the UI "stuck" with loading indicators.
+- **Thinking panel skeleton on failed tasks** — `isCompleted` prop now also checks `failed` status, stopping the skeleton loader animation when a task fails (not just completes).
+
+---
+
 ## 2026-07-03: Deep Research — Comprehensive Audit Fixes
 
 ### Breaking Changes

@@ -310,11 +310,28 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         eventSourceRef.current = es;
         sseActiveRef.current = true;
 
+        // Track reconnect attempts — if EventSource auto-reconnects too many times,
+        // it likely means the server keeps dying (Vercel timeout, crash, etc.)
+        let reconnectCount = 0;
+        const MAX_SSE_RECONNECTS = 3;
+        // Timer to detect stuck CONNECTING state
+        let connectingTimeout: ReturnType<typeof setTimeout> | null = null;
+
+        const clearConnectingTimeout = () => {
+          if (connectingTimeout) {
+            clearTimeout(connectingTimeout);
+            connectingTimeout = null;
+          }
+        };
+
         es.addEventListener("task", (event: MessageEvent) => {
           try {
             const data = JSON.parse(event.data) as { task: ResearchTask };
             if (data.task) {
               setCurrentTask(data.task);
+              // Successful data means connection is healthy — reset reconnect counter
+              reconnectCount = 0;
+              clearConnectingTimeout();
             }
           } catch (parseErr: unknown) {
             logger.warn("[useDeepResearchMode] SSE parse error:", parseErr);
@@ -339,6 +356,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
 
           setIsLoading(false);
           stopSSE();
+          clearConnectingTimeout();
           try {
             localStorage.removeItem(ACTIVE_RESEARCH_KEY);
           } catch {
@@ -346,18 +364,21 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
           }
         });
 
-        es.addEventListener("error", (event: MessageEvent) => {
+        // Server-sent error event — renamed to `stream_error` to avoid collision
+        // with native EventSource connection error events
+        es.addEventListener("stream_error", (event: MessageEvent) => {
           try {
             const data = JSON.parse(event.data) as { message: string };
             const errMsg = data.message || "SSE stream error";
             setError(errMsg);
             toast.error(errMsg);
           } catch {
-            // Generic SSE error (connection issue)
+            // Generic SSE error
           }
 
           setIsLoading(false);
           stopSSE();
+          clearConnectingTimeout();
           try {
             localStorage.removeItem(ACTIVE_RESEARCH_KEY);
           } catch {
@@ -365,15 +386,44 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
           }
         });
 
-        // Handle connection errors (EventSource.onerror)
+        // Handle native connection errors (EventSource.onerror)
         es.onerror = () => {
-          // EventSource auto-reconnects, but if it's in CLOSED state, fall back to polling
+          clearConnectingTimeout();
+
           if (es.readyState === EventSource.CLOSED) {
+            // Connection permanently closed — fall back to polling
             logger.warn("[useDeepResearchMode] SSE connection closed, falling back to polling");
             stopSSE();
             pollTask(taskId);
+            return;
           }
-          // If CONNECTING, let it auto-reconnect
+
+          // EventSource is in CONNECTING state (auto-reconnecting)
+          reconnectCount++;
+          logger.warn(
+            `[useDeepResearchMode] SSE reconnect attempt ${reconnectCount}/${MAX_SSE_RECONNECTS}`
+          );
+
+          if (reconnectCount >= MAX_SSE_RECONNECTS) {
+            // Too many reconnects — server is likely unstable, fall back to polling
+            logger.warn(
+              "[useDeepResearchMode] SSE max reconnects reached, falling back to polling"
+            );
+            stopSSE();
+            pollTask(taskId);
+            return;
+          }
+
+          // Set a timeout: if still in CONNECTING after 30s, assume dead
+          connectingTimeout = setTimeout(() => {
+            if (es.readyState === EventSource.CONNECTING) {
+              logger.warn(
+                "[useDeepResearchMode] SSE stuck in CONNECTING for 30s, falling back to polling"
+              );
+              stopSSE();
+              pollTask(taskId);
+            }
+          }, 30_000);
         };
       } catch (initErr: unknown) {
         const message = initErr instanceof Error ? initErr.message : "Unknown SSE error";

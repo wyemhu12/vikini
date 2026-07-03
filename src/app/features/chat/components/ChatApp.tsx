@@ -1012,7 +1012,7 @@ export default function ChatApp() {
           onClose={closeThinkingPanel}
           thinkingText={currentTask.thinkingText}
           sources={currentTask.searchedSources}
-          isCompleted={currentTask.status === "completed"}
+          isCompleted={currentTask.status === "completed" || currentTask.status === "failed"}
         />
       )}
 
