@@ -25,10 +25,11 @@ const MAX_DURATION_MS = 30 * 60 * 1000; // 30 minutes max (internal safety net)
 /**
  * If the Gemini agent stays at in_progress without producing any real steps
  * (i.e. only the echo `user_input` step) for longer than this threshold,
- * we consider it a "silent hang" and auto-fail the task.
+ * we consider it a "silent hang" and auto-retry with a new interaction.
  * This is a known intermittent issue with the Deep Research API.
  */
-const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+const STALE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes before considering stale
+const MAX_STALE_RETRIES = 2; // Max auto-retries before giving up
 
 /**
  * GET /api/deep-research/[taskId]/stream
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
         let consecutiveErrors = 0;
         // Track when we first saw the agent with no real steps (stale detection)
         let noStepsSince: number | null = null;
+        let staleRetries = 0;
 
         const sendEvent = (event: string, data: unknown) => {
           try {
@@ -124,29 +126,79 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
 
               // Stale detection: if agent has no real steps for too long,
               // it's likely a "silent hang" — a known Gemini Deep Research issue.
+              // Strategy: auto-retry with a new interaction before giving up.
               if (!task.currentStep) {
                 if (noStepsSince === null) noStepsSince = Date.now();
                 if (Date.now() - noStepsSince > STALE_THRESHOLD_MS) {
-                  const staleMsg =
-                    "Research agent failed to start within 5 minutes (Gemini silent hang). " +
-                    "This is a known intermittent issue. Please try again.";
-                  streamLogger.warn(`Stale detection triggered for task ${taskId}`);
+                  staleRetries++;
+                  streamLogger.warn(
+                    `Stale detection triggered for task ${taskId} (retry ${staleRetries}/${MAX_STALE_RETRIES})`
+                  );
 
-                  // Mark task as failed in DB so it doesn't keep running
-                  const { getSupabaseAdmin } = await import("@/lib/core/supabase.server");
-                  await getSupabaseAdmin()
-                    .from("research_tasks")
-                    .update({ status: "failed", error_message: staleMsg })
-                    .eq("id", taskId);
+                  if (staleRetries > MAX_STALE_RETRIES) {
+                    // Give up after max retries
+                    const staleMsg =
+                      "Research agent failed to start after multiple attempts (Gemini silent hang). " +
+                      "This is a known intermittent issue. Please try again later.";
+                    const { getSupabaseAdmin } = await import("@/lib/core/supabase.server");
+                    await getSupabaseAdmin()
+                      .from("research_tasks")
+                      .update({ status: "failed", error_message: staleMsg })
+                      .eq("id", taskId);
 
-                  sendEvent("complete", {
-                    task: { ...task, status: "failed", errorMessage: staleMsg },
-                  });
-                  break;
+                    sendEvent("complete", {
+                      task: { ...task, status: "failed", errorMessage: staleMsg },
+                    });
+                    break;
+                  }
+
+                  // Auto-retry: create a new interaction and update the task
+                  try {
+                    const { createResearchInteraction } = await import("@/lib/core/genaiClient");
+                    const { getSupabaseAdmin } = await import("@/lib/core/supabase.server");
+                    const supabase = getSupabaseAdmin();
+
+                    const isPlanning = task.status === "planning";
+                    const newInteraction = await createResearchInteraction({
+                      input: isPlanning ? task.query : "Proceed with the research plan.",
+                      agent: task.agentModel,
+                      collaborativePlanning: isPlanning,
+                      previousInteractionId: isPlanning
+                        ? undefined
+                        : task.planInteractionId || undefined,
+                    });
+
+                    // Update DB with new interaction ID
+                    const updateField = isPlanning
+                      ? { plan_interaction_id: newInteraction.id }
+                      : { exec_interaction_id: newInteraction.id };
+                    await supabase.from("research_tasks").update(updateField).eq("id", taskId);
+
+                    streamLogger.info(
+                      `Stale retry: created new interaction ${newInteraction.id} for task ${taskId}`
+                    );
+                    sendEvent("task", {
+                      task: {
+                        ...task,
+                        thinkingText: `_Retrying... (attempt ${staleRetries + 1})_\n\n`,
+                      },
+                    });
+
+                    // Reset stale timer for the new interaction
+                    noStepsSince = Date.now();
+                    lastStatus = ""; // Force next update to be sent
+                  } catch (retryErr: unknown) {
+                    const retryMsg =
+                      retryErr instanceof Error ? retryErr.message : "Unknown retry error";
+                    streamLogger.error(`Stale retry failed: ${retryMsg}`);
+                    // Continue polling — next stale cycle will try again or give up
+                    noStepsSince = Date.now();
+                  }
                 }
               } else {
-                // Agent started working — reset stale timer
+                // Agent started working — reset stale timer and retry counter
                 noStepsSince = null;
+                staleRetries = 0;
               }
 
               // Terminal state — send final event and close

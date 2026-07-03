@@ -157,6 +157,10 @@ export async function createResearchInteraction(options: {
     agent_config: {
       type: "deep-research",
       collaborative_planning: options.collaborativePlanning,
+      // Enable intermediate thinking summaries — this makes the agent more reliably
+      // emit `thought` steps during polling, reducing the "silent hang" pattern where
+      // only `user_input` steps appear. Also provides richer thinking data for the UI.
+      thinking_summaries: "auto",
     },
   };
 

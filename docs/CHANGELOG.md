@@ -5,13 +5,14 @@
 
 ---
 
-## 2026-07-03: Deep Research — Silent Hang Detection + UX Fix
+## 2026-07-03: Deep Research — Silent Hang Auto-Recovery + UX Fix
 
 ### Bug Fixes
 
 - **Misleading progress card during initialization** — `getResearchInteraction` fallback was setting `currentStep = "analyzing"` when the Gemini agent hadn't started yet (only `user_input` echo step). This falsely showed "Searching the web ✓" (green check) when nothing had happened. Now `currentStep` stays `undefined` so all steps show as "pending" (gray).
 - **Added initialization indicator** — `ResearchProgressCard` now shows a spinning "Initializing agent..." label when `currentStep` is undefined, giving clear feedback that the system is waiting for the Gemini agent to start.
-- **Stale hang auto-detection** — SSE stream route now monitors for the known Gemini "silent hang" where the agent stays at `in_progress` with only `user_input` steps indefinitely. If no real steps appear within 5 minutes, the task is auto-marked as `failed` with a descriptive error message and the user is notified to retry.
+- **Stale hang auto-recovery** — SSE stream route now monitors for the known Gemini "silent hang" where the agent stays at `in_progress` with only `user_input` steps. After 3 minutes, it automatically creates a new Gemini interaction and retries (up to 2 times). Only after all retries fail does it mark the task as failed.
+- **Enabled `thinking_summaries: "auto"`** — Added to `agent_config` in `createResearchInteraction`. Per Google docs, this makes the agent more reliably emit `thought` steps during polling, reducing the silent hang pattern.
 
 ### i18n
 
