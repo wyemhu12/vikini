@@ -146,6 +146,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
                       .update({ status: "failed", error_message: staleMsg })
                       .eq("id", taskId);
 
+                    // Save prompt + error to conversation so the user's query is preserved
+                    try {
+                      const { finalizeResearch } =
+                        await import("@/lib/features/research/researchService.server");
+                      await finalizeResearch(
+                        { ...task, status: "failed" as const, errorMessage: staleMsg },
+                        `*Deep Research Failed*\n\nReason: ${staleMsg}`,
+                        true
+                      );
+                    } catch (finErr: unknown) {
+                      streamLogger.warn(
+                        "Failed to save stale-failed research to conversation:",
+                        finErr instanceof Error ? finErr.message : "Unknown error"
+                      );
+                    }
+
                     sendEvent("complete", {
                       task: { ...task, status: "failed", errorMessage: staleMsg },
                     });

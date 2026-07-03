@@ -46,6 +46,11 @@ interface UseDeepResearchModeReturn {
   isLoading: boolean;
   error: string | null;
 
+  /** The user's query, set immediately on submit before the API responds (optimistic UI). */
+  pendingQuery: string | null;
+  /** True while the approve API call is in flight (optimistic transition to executing view). */
+  isApproving: boolean;
+
   // Actions
   startResearch: (
     query: string,
@@ -78,6 +83,8 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
   const [currentTask, setCurrentTask] = useState<ResearchTask | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingQuery, setPendingQuery] = useState<string | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
   const [isReportPanelOpen, setIsReportPanelOpen] = useState(false);
   const [isThinkingPanelOpen, setIsThinkingPanelOpen] = useState(false);
 
@@ -448,6 +455,8 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
       try {
         setIsLoading(true);
         setError(null);
+        // Set immediately for optimistic UI — the card will render before the API responds
+        setPendingQuery(query);
 
         const body = {
           query,
@@ -482,6 +491,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         }
 
         setCurrentTask(task);
+        setPendingQuery(null); // Clear optimistic query now that the real task is set
         try {
           localStorage.setItem(ACTIVE_RESEARCH_KEY, task.id);
         } catch {
@@ -495,6 +505,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         logger.error("[useDeepResearchMode] startResearch error:", message);
         setError(message);
         toast.error(message);
+        setPendingQuery(null);
         setIsLoading(false);
       }
     },
@@ -507,6 +518,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
 
       try {
         setIsLoading(true);
+        setIsApproving(true); // Optimistic: immediately show executing UI
         setError(null);
 
         const res = await fetch(`/api/deep-research/${currentTask.id}/approve`, {
@@ -529,6 +541,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         const json: unknown = await res.json();
         const { task } = unwrapResponse<{ task: ResearchTask }>(json);
         setCurrentTask(task);
+        setIsApproving(false);
 
         // Continue with SSE stream
         connectSSE(task.id);
@@ -537,6 +550,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         logger.error("[useDeepResearchMode] approvePlan error:", message);
         setError(message);
         toast.error(message);
+        setIsApproving(false);
         setIsLoading(false);
       }
     },
@@ -622,6 +636,8 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
     currentTask,
     isLoading,
     error,
+    pendingQuery,
+    isApproving,
     startResearch,
     approvePlan,
     cancelResearch,

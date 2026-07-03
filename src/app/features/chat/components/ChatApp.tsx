@@ -213,6 +213,8 @@ export default function ChatApp() {
     enterDeepResearch,
     exitDeepResearch,
     currentTask,
+    pendingQuery,
+    isApproving,
     selectedAgent,
     setSelectedAgent,
     startResearch,
@@ -616,7 +618,7 @@ export default function ChatApp() {
   const projectConversations = selectedProjectId
     ? conversations.filter((c) => c.projectId === selectedProjectId)
     : [];
-  const hasActiveResearch = isDeepResearchMode && currentTask != null;
+  const hasActiveResearch = isDeepResearchMode && (currentTask != null || pendingQuery != null);
   const showLanding =
     !isRemixMode &&
     !showProjectView &&
@@ -816,6 +818,20 @@ export default function ChatApp() {
                 />
               )}
 
+              {/* Deep Research: optimistic card while API creates the task */}
+              {isDeepResearchMode && !currentTask && pendingQuery && (
+                <div className="flex w-full flex-col gap-3 py-6">
+                  <div className="flex max-w-[95%] lg:max-w-[90%] gap-4 items-start">
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                      <Microscope className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 space-y-4 max-w-full">
+                      <ResearchProgressCard topic={pendingQuery} phase="planning" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Deep Research active task integration */}
               {isDeepResearchMode && currentTask && (
                 <div className="flex w-full flex-col gap-3 py-6">
@@ -839,7 +855,7 @@ export default function ChatApp() {
                           onShowThinking={openThinkingPanel}
                         />
                       )}
-                      {currentTask.status === "ready_to_execute" && (
+                      {currentTask.status === "ready_to_execute" && !isApproving && (
                         <ResearchPlanCard
                           topic={currentTask.query}
                           planText={currentTask.planText}
@@ -856,12 +872,20 @@ export default function ChatApp() {
                           }
                         />
                       )}
-                      {currentTask.status === "executing" && (
+                      {/* Show executing card immediately when approve is clicked (optimistic) */}
+                      {(currentTask.status === "executing" ||
+                        (currentTask.status === "ready_to_execute" && isApproving)) && (
                         <ResearchProgressCard
                           topic={currentTask.query}
-                          currentStep={currentTask.currentStep}
+                          currentStep={
+                            currentTask.status === "executing" ? currentTask.currentStep : undefined
+                          }
                           phase="executing"
-                          startedAt={currentTask.createdAt}
+                          startedAt={
+                            currentTask.status === "executing"
+                              ? currentTask.createdAt
+                              : new Date().toISOString()
+                          }
                           sourceCount={currentTask.searchedSources?.length}
                           onStop={() =>
                             cancelResearch().catch((e) =>

@@ -381,7 +381,17 @@ export async function checkResearchStatus(userId: string, taskId: string): Promi
         .update({ status: "failed", error_message: errorMsg })
         .eq("id", taskId);
       // Return immutable copy instead of mutating the fetched object (BUG-03)
-      return { ...task, status: "failed" as ResearchStatus, errorMessage: errorMsg };
+      const failedTask = { ...task, status: "failed" as ResearchStatus, errorMessage: errorMsg };
+
+      // Save prompt + error message to conversation so the user's query is preserved
+      try {
+        await finalizeResearch(failedTask, `*Deep Research Failed*\n\nReason: ${errorMsg}`, true);
+      } catch (finalizeErr: unknown) {
+        const msg = finalizeErr instanceof Error ? finalizeErr.message : "Unknown error";
+        researchLogger.warn("Failed to save failed research to conversation:", msg);
+      }
+
+      return failedTask;
     }
 
     // Attach transient data if we are still polling
@@ -406,8 +416,15 @@ export async function checkResearchStatus(userId: string, taskId: string): Promi
  * Saves research results to a conversation.
  * If conversationId exists, adds messages there.
  * Otherwise, creates a new conversation.
+ *
+ * @param isFailed - When true, skips adding the report to the project knowledge base
+ *                   (used for error/cancellation messages that shouldn't pollute KB).
  */
-export async function finalizeResearch(task: ResearchTask, report: string): Promise<void> {
+export async function finalizeResearch(
+  task: ResearchTask,
+  report: string,
+  isFailed = false
+): Promise<void> {
   const supabase = getSupabaseAdmin();
   let conversationId = task.conversationId;
 
@@ -511,8 +528,9 @@ export async function finalizeResearch(task: ResearchTask, report: string): Prom
     })
     .eq("id", conversationId);
 
-  // If project linked, add report to knowledge base (best-effort)
-  if (task.projectId) {
+  // If project linked and this is a successful research, add report to knowledge base (best-effort).
+  // Skip KB indexing for failed/cancelled tasks — error messages shouldn't pollute the KB.
+  if (task.projectId && !isFailed) {
     try {
       await addResearchToProjectKB(task.projectId, task.userId, task.query, report);
     } catch (err: unknown) {
@@ -620,5 +638,19 @@ export async function cancelResearchTask(userId: string, taskId: string): Promis
     throw new DatabaseError(`Failed to cancel research task: ${updateError.message}`);
   }
 
-  return mapTaskRow((updatedRow || taskRow) as ResearchTaskRow);
+  const cancelledTask = mapTaskRow((updatedRow || taskRow) as ResearchTaskRow);
+
+  // Save prompt + cancel message to conversation so the user's query is preserved
+  try {
+    await finalizeResearch(
+      cancelledTask,
+      "*Deep Research Cancelled*\n\nThe research was cancelled by the user.",
+      true
+    );
+  } catch (finalizeErr: unknown) {
+    const msg = finalizeErr instanceof Error ? finalizeErr.message : "Unknown error";
+    researchLogger.warn("Failed to save cancelled research to conversation:", msg);
+  }
+
+  return cancelledTask;
 }
