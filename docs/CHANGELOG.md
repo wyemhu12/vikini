@@ -5,6 +5,38 @@
 
 ---
 
+## 2026-07-03: Deep Research — Comprehensive Audit Fixes
+
+### Breaking Changes
+
+- **Removed Agent `deep-research-fast-04-2026`** — This agent ID was never documented in Google's official API. Only `deep-research-preview-04-2026` (Deep) and `deep-research-max-preview-04-2026` (Max) remain in `VALID_AGENTS`.
+
+### Architecture
+
+- **SSE Streaming Migration** — Added new SSE endpoint `GET /api/deep-research/[taskId]/stream` that polls Gemini server-side (2–5s) and forwards events to the client in real-time. The `useDeepResearchMode` hook now uses EventSource as primary update mechanism, with polling as automatic fallback for page reload resume or SSE failure. Reduces network overhead and provides near-instant UI updates.
+
+### Bug Fixes
+
+- **`onStop` Not Cancelling Server-Side** — Fixed critical bug where "Stop Research" button called `dismissTask()` (client-only cleanup) instead of `cancelResearch()`. Tasks now properly cancel on the server via `DELETE /api/deep-research/[taskId]`.
+- **`window.prompt()` Replaced** — Replaced native `window.prompt()` with a custom `EditPlanModal` component using Framer Motion animations, textarea input, and bilingual i18n text.
+- **Skeleton Loader Always Visible** — `ResearchThinkingPanel` now accepts `isCompleted` prop and hides the skeleton animation when the research task is complete.
+
+### Features
+
+- **Functional Report Panel Buttons** — Replaced 3 dummy buttons with working implementations:
+  - **Contents**: ToC dropdown that parses markdown headings (h1–h3) and smooth-scrolls to them
+  - **Share & Export**: Menu with Export Markdown (file download), Export PDF (print), and Copy to Clipboard
+  - **Create Conversation**: Navigates to the conversation created by `finalizeResearch()`
+- **Research Agent Selector in ChatControls** — Added compact badge + popover to switch between Deep and Max research modes directly from the chat controls bar.
+
+### i18n Fixes
+
+- Fixed 5 hardcoded text strings across `ResearchPlanCard`, `ResearchReportPanel`, and `ResearchThinkingPanel`.
+- Added 10 new translation keys for both Vietnamese and English.
+- Removed obsolete `deepResearchAgentFast` / `deepResearchAgentFastDesc` translation keys.
+
+---
+
 ## 2026-07-01: Deep Research — Fix UI Not Rendering from Landing Page
 
 ### Bug Fixes

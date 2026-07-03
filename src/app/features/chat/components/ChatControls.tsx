@@ -12,6 +12,7 @@ import InputForm from "./InputForm";
 import FileManagerPanel from "./FileManagerPanel";
 import GemQuickSwitch from "../../../features/gems/components/GemQuickSwitch";
 import PersonaQuickSwitch from "../../../features/personas/components/PersonaQuickSwitch";
+import ResearchAgentSelector from "../../../features/research/components/ResearchAgentSelector";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { type ThinkingLevel, modelSupportsThinkingUI } from "./hooks/useThinkingLevel";
@@ -20,6 +21,7 @@ import {
   isDeepSeekV32Model,
   modelSupportsDeepResearch,
 } from "@/lib/core/modelRegistry";
+import type { ResearchAgent } from "@/lib/features/research/types";
 
 /** Gem info for display */
 interface GemInfo {
@@ -40,6 +42,8 @@ interface ChatControlsProps {
   deepResearchEnabled: boolean;
   toggleDeepResearch: () => void;
   deepResearchAllowed: boolean;
+  selectedResearchAgent?: ResearchAgent;
+  onResearchAgentChange?: (agent: ResearchAgent) => void;
   // Thinking Level
   thinkingLevel: ThinkingLevel;
   setThinkingLevel: (level: ThinkingLevel) => void;
@@ -82,6 +86,8 @@ export default function ChatControls({
   deepResearchEnabled,
   toggleDeepResearch,
   deepResearchAllowed,
+  selectedResearchAgent,
+  onResearchAgentChange,
   // Thinking Level
   thinkingLevel,
   setThinkingLevel,
@@ -120,6 +126,7 @@ export default function ChatControls({
   const { t } = useLanguage();
 
   const [showFileManager, setShowFileManager] = useState(false);
+  const [showAgentSelector, setShowAgentSelector] = useState(false);
 
   return (
     <motion.div
@@ -222,6 +229,34 @@ export default function ChatControls({
                 <Microscope className="w-3 h-3" />
                 {t("deepResearch")}
               </button>
+              {/* Agent Selector Popover */}
+              {deepResearchEnabled && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAgentSelector(!showAgentSelector)}
+                    className="text-[10px] font-medium px-2 py-1 rounded-full bg-(--accent)/15 text-(--accent) border border-(--accent)/20 hover:bg-(--accent)/25 transition-colors"
+                    title={t("deepResearchSelectAgent")}
+                  >
+                    {selectedResearchAgent === "deep-research-max-preview-04-2026"
+                      ? t("deepResearchAgentMax")
+                      : t("deepResearchAgentDeep")}
+                  </button>
+                  {showAgentSelector && onResearchAgentChange && (
+                    <div className="absolute bottom-full left-0 mb-2 z-50">
+                      <div className="fixed inset-0" onClick={() => setShowAgentSelector(false)} />
+                      <div className="relative">
+                        <ResearchAgentSelector
+                          selectedAgent={selectedResearchAgent || "deep-research-preview-04-2026"}
+                          onSelect={(agent) => {
+                            onResearchAgentChange(agent);
+                            setShowAgentSelector(false);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
           <GemQuickSwitch currentGem={currentGem || null} conversationId={selectedConversationId} />

@@ -16,6 +16,8 @@ interface ResearchThinkingPanelProps {
   title: string;
   thinkingText?: string;
   sources?: ResearchThinkingSource[];
+  /** Hide skeleton loader when task is complete */
+  isCompleted?: boolean;
 }
 
 export default function ResearchThinkingPanel({
@@ -24,6 +26,7 @@ export default function ResearchThinkingPanel({
   title,
   thinkingText,
   sources,
+  isCompleted = false,
 }: ResearchThinkingPanelProps) {
   const { t } = useLanguage();
   const panelRef = useRef<HTMLElement>(null);
@@ -106,19 +109,21 @@ export default function ResearchThinkingPanel({
               ) : (
                 <div className="flex items-center gap-3 text-(--text-secondary) opacity-70">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-sm">Generating thought process...</span>
+                  <span className="text-sm">{t("deepResearchGeneratingThoughts")}</span>
                 </div>
               )}
 
               <div ref={bottomRef} />
 
-              {/* Skeleton loading below text (Gemini style) */}
-              <div className="space-y-3 opacity-30 animate-pulse mt-4">
-                <div className="h-3 bg-(--border) rounded-full w-full"></div>
-                <div className="h-3 bg-(--border) rounded-full w-[90%]"></div>
-                <div className="h-3 bg-(--border) rounded-full w-[95%]"></div>
-                <div className="h-3 bg-(--border) rounded-full w-[80%]"></div>
-              </div>
+              {/* Skeleton loading below text (Gemini style) — hidden when complete */}
+              {!isCompleted && (
+                <div className="space-y-3 opacity-30 animate-pulse mt-4">
+                  <div className="h-3 bg-(--border) rounded-full w-full"></div>
+                  <div className="h-3 bg-(--border) rounded-full w-[90%]"></div>
+                  <div className="h-3 bg-(--border) rounded-full w-[95%]"></div>
+                  <div className="h-3 bg-(--border) rounded-full w-[80%]"></div>
+                </div>
+              )}
 
               {/* Searching Sources */}
               {sources && sources.length > 0 && (

@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-import { Zap, Brain, Sparkles } from "lucide-react";
+import { Brain, Sparkles } from "lucide-react";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import type { ResearchAgent } from "@/lib/features/research/types";
 
@@ -14,20 +14,13 @@ interface ResearchAgentSelectorProps {
 
 interface AgentOption {
   id: ResearchAgent;
-  icon: typeof Zap;
+  icon: typeof Brain;
   labelKey: string;
   /** i18n key for the short description shown below the label (UX-05) */
   descriptionKey: string;
 }
 
-// UX-01: All three agents are now exposed (previously "max" was missing).
 const AGENTS: AgentOption[] = [
-  {
-    id: "deep-research-fast-04-2026",
-    icon: Zap,
-    labelKey: "deepResearchAgentFast",
-    descriptionKey: "deepResearchAgentFastDesc",
-  },
   {
     id: "deep-research-preview-04-2026",
     icon: Brain,

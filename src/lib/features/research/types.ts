@@ -7,7 +7,6 @@ export type ResearchStatus = "planning" | "ready_to_execute" | "executing" | "co
  * Single source of truth — referenced by API routes, client hook, and UI.
  */
 export const VALID_AGENTS = [
-  "deep-research-fast-04-2026",
   "deep-research-preview-04-2026",
   "deep-research-max-preview-04-2026",
 ] as const;

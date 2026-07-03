@@ -46,6 +46,7 @@ import ResearchProgressCard from "../../research/components/ResearchProgressCard
 import ResearchReportCard from "../../research/components/ResearchReportCard";
 import ResearchReportPanel from "../../research/components/ResearchReportPanel";
 import ResearchThinkingPanel from "../../research/components/ResearchThinkingPanel";
+import EditPlanModal from "../../research/components/EditPlanModal";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 import { useAllowedModels } from "./hooks/useAllowedModels";
 import { useImageGenController } from "./hooks/useImageGenController";
@@ -212,9 +213,11 @@ export default function ChatApp() {
     enterDeepResearch,
     exitDeepResearch,
     currentTask,
+    selectedAgent,
+    setSelectedAgent,
     startResearch,
     approvePlan,
-    dismissTask,
+    cancelResearch,
     isReportPanelOpen,
     openReportPanel,
     closeReportPanel,
@@ -222,6 +225,9 @@ export default function ChatApp() {
     openThinkingPanel,
     closeThinkingPanel,
   } = useDeepResearchMode();
+
+  // Edit plan modal state
+  const [isEditPlanOpen, setIsEditPlanOpen] = useState(false);
 
   // Feature permission
   const deepResearchAllowed = features?.deep_research === true;
@@ -825,7 +831,11 @@ export default function ChatApp() {
                           phase="planning"
                           startedAt={currentTask.createdAt}
                           sourceCount={currentTask.searchedSources?.length}
-                          onStop={dismissTask}
+                          onStop={() =>
+                            cancelResearch().catch((e) =>
+                              toast.error(e instanceof Error ? e.message : "Failed to cancel")
+                            )
+                          }
                           onShowThinking={openThinkingPanel}
                         />
                       )}
@@ -838,18 +848,12 @@ export default function ChatApp() {
                               toast.error(e.message || "Failed to approve")
                             )
                           }
-                          onEdit={() => {
-                            const feedback = window.prompt(
-                              t.deepResearchEditPlanPrompt ||
-                                "Bạn muốn thay đổi hoặc bổ sung gì vào kế hoạch này?"
-                            );
-                            if (feedback && feedback.trim()) {
-                              approvePlan(feedback.trim()).catch((e) =>
-                                toast.error(e.message || "Failed to revise plan")
-                              );
-                            }
-                          }}
-                          onStop={dismissTask}
+                          onEdit={() => setIsEditPlanOpen(true)}
+                          onStop={() =>
+                            cancelResearch().catch((e) =>
+                              toast.error(e instanceof Error ? e.message : "Failed to cancel")
+                            )
+                          }
                         />
                       )}
                       {currentTask.status === "executing" && (
@@ -859,7 +863,11 @@ export default function ChatApp() {
                           phase="executing"
                           startedAt={currentTask.createdAt}
                           sourceCount={currentTask.searchedSources?.length}
-                          onStop={dismissTask}
+                          onStop={() =>
+                            cancelResearch().catch((e) =>
+                              toast.error(e instanceof Error ? e.message : "Failed to cancel")
+                            )
+                          }
                           onShowThinking={openThinkingPanel}
                         />
                       )}
@@ -925,6 +933,8 @@ export default function ChatApp() {
             deepResearchEnabled={isDeepResearchMode}
             toggleDeepResearch={isDeepResearchMode ? exitDeepResearch : enterDeepResearch}
             deepResearchAllowed={deepResearchAllowed}
+            selectedResearchAgent={selectedAgent}
+            onResearchAgentChange={setSelectedAgent}
             thinkingLevel={thinkingLevel}
             setThinkingLevel={setThinkingLevel}
             currentModel={currentModel}
@@ -979,6 +989,18 @@ export default function ChatApp() {
               openThinkingPanel();
             }
           }}
+          onCreateConversation={
+            currentTask.conversationId
+              ? () => {
+                  closeReportPanel();
+                  exitDeepResearch();
+                  // Navigate to the conversation
+                  if (currentTask.conversationId) {
+                    window.location.hash = `#conv=${currentTask.conversationId}`;
+                  }
+                }
+              : undefined
+          }
         />
       )}
 
@@ -990,6 +1012,20 @@ export default function ChatApp() {
           onClose={closeThinkingPanel}
           thinkingText={currentTask.thinkingText}
           sources={currentTask.searchedSources}
+          isCompleted={currentTask.status === "completed"}
+        />
+      )}
+
+      {/* Edit Plan Modal — replaces window.prompt() */}
+      {isDeepResearchMode && (
+        <EditPlanModal
+          isOpen={isEditPlanOpen}
+          onClose={() => setIsEditPlanOpen(false)}
+          onSubmit={(feedback) => {
+            approvePlan(feedback).catch((e) =>
+              toast.error(e instanceof Error ? e.message : "Failed to revise plan")
+            );
+          }}
         />
       )}
 

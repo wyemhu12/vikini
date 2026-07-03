@@ -11,6 +11,7 @@ const ACTIVE_RESEARCH_KEY = "vikini-active-research";
 const DEFAULT_AGENT: ResearchAgent = "deep-research-preview-04-2026";
 
 // Adaptive polling: fast during planning (plan usually ready in ~3s), slower during execution
+// Polling is now the FALLBACK mechanism — SSE is primary for active sessions.
 const POLL_INTERVAL_PLANNING_MS = 3_000;
 const POLL_INTERVAL_EXECUTING_MS = 15_000;
 const MAX_POLL_COUNT = 120; // ~30 min at 15s intervals (executing phase)
@@ -84,6 +85,10 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
   const pollCountRef = useRef(0);
   const consecutiveErrorRef = useRef(0);
 
+  // SSE (Server-Sent Events) refs — primary real-time mechanism
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const sseActiveRef = useRef(false);
+
   // Store pollTask in a ref so the initialization useEffect can call the latest version
   // without needing pollTask in its dependency array (BUG-10).
   const pollTaskRef = useRef<(taskId: string) => void>(() => undefined);
@@ -131,12 +136,16 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
     setError(null);
   }, []);
 
-  // Cleanup polling on unmount
+  // Cleanup polling + SSE on unmount
   useEffect(() => {
     return () => {
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
+      }
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
     };
   }, []);
@@ -147,6 +156,21 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
       pollRef.current = null;
     }
   }, []);
+
+  /** Close SSE connection if open. */
+  const stopSSE = useCallback(() => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+    sseActiveRef.current = false;
+  }, []);
+
+  /** Stop ALL update mechanisms (SSE + polling). */
+  const stopAll = useCallback(() => {
+    stopPolling();
+    stopSSE();
+  }, [stopPolling, stopSSE]);
 
   const pollTask = useCallback(
     (taskId: string) => {
@@ -251,12 +275,115 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
       void poll();
       pollRef.current = setInterval(poll, POLL_INTERVAL_PLANNING_MS);
     },
-    [stopPolling]
+    [stopAll]
   );
 
   // Wire the ref so the initialization useEffect always calls the latest version (BUG-10)
   // Must come after pollTask is defined.
   pollTaskRef.current = pollTask;
+
+  /**
+   * Connect to the SSE streaming endpoint for real-time research updates.
+   * Falls back to polling if SSE connection fails.
+   */
+  const connectSSE = useCallback(
+    (taskId: string) => {
+      // Guard: don't connect with invalid taskId
+      if (!taskId || taskId === "undefined" || taskId === "null") {
+        logger.error("[useDeepResearchMode] connectSSE: invalid task ID, falling back to poll");
+        pollTask(taskId);
+        return;
+      }
+
+      // Close any existing connections
+      stopAll();
+
+      // Check if EventSource is available (should be in all modern browsers)
+      if (typeof EventSource === "undefined") {
+        logger.warn("[useDeepResearchMode] EventSource not available, falling back to polling");
+        pollTask(taskId);
+        return;
+      }
+
+      try {
+        const es = new EventSource(`/api/deep-research/${taskId}/stream`);
+        eventSourceRef.current = es;
+        sseActiveRef.current = true;
+
+        es.addEventListener("task", (event: MessageEvent) => {
+          try {
+            const data = JSON.parse(event.data) as { task: ResearchTask };
+            if (data.task) {
+              setCurrentTask(data.task);
+            }
+          } catch (parseErr: unknown) {
+            logger.warn("[useDeepResearchMode] SSE parse error:", parseErr);
+          }
+        });
+
+        es.addEventListener("complete", (event: MessageEvent) => {
+          try {
+            const data = JSON.parse(event.data) as { task: ResearchTask };
+            if (data.task) {
+              setCurrentTask(data.task);
+
+              if (data.task.status === "failed") {
+                const failMsg = data.task.errorMessage || "Research failed";
+                setError(failMsg);
+                if (failMsg !== "Cancelled by user") toast.error(failMsg);
+              }
+            }
+          } catch {
+            // Ignore parse errors on complete
+          }
+
+          setIsLoading(false);
+          stopSSE();
+          try {
+            localStorage.removeItem(ACTIVE_RESEARCH_KEY);
+          } catch {
+            /* ignore */
+          }
+        });
+
+        es.addEventListener("error", (event: MessageEvent) => {
+          try {
+            const data = JSON.parse(event.data) as { message: string };
+            const errMsg = data.message || "SSE stream error";
+            setError(errMsg);
+            toast.error(errMsg);
+          } catch {
+            // Generic SSE error (connection issue)
+          }
+
+          setIsLoading(false);
+          stopSSE();
+          try {
+            localStorage.removeItem(ACTIVE_RESEARCH_KEY);
+          } catch {
+            /* ignore */
+          }
+        });
+
+        // Handle connection errors (EventSource.onerror)
+        es.onerror = () => {
+          // EventSource auto-reconnects, but if it's in CLOSED state, fall back to polling
+          if (es.readyState === EventSource.CLOSED) {
+            logger.warn("[useDeepResearchMode] SSE connection closed, falling back to polling");
+            stopSSE();
+            pollTask(taskId);
+          }
+          // If CONNECTING, let it auto-reconnect
+        };
+      } catch (initErr: unknown) {
+        const message = initErr instanceof Error ? initErr.message : "Unknown SSE error";
+        logger.warn("[useDeepResearchMode] SSE init failed, falling back to polling:", message);
+        stopSSE();
+        pollTask(taskId);
+      }
+    },
+    [stopAll, stopSSE, pollTask]
+  );
 
   const startResearch = useCallback(
     async (query: string, conversationId?: string, projectId?: string, gemId?: string) => {
@@ -303,8 +430,8 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
           /* ignore */
         }
 
-        // Start polling for updates
-        pollTask(task.id);
+        // Primary: use SSE for real-time updates; fallback to polling if SSE fails
+        connectSSE(task.id);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Unknown error";
         logger.error("[useDeepResearchMode] startResearch error:", message);
@@ -313,7 +440,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         setIsLoading(false);
       }
     },
-    [selectedAgent, pollTask]
+    [selectedAgent, connectSSE]
   );
 
   const approvePlan = useCallback(
@@ -345,8 +472,8 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         const { task } = unwrapResponse<{ task: ResearchTask }>(json);
         setCurrentTask(task);
 
-        // Continue polling
-        pollTask(task.id);
+        // Continue with SSE stream
+        connectSSE(task.id);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Unknown error";
         logger.error("[useDeepResearchMode] approvePlan error:", message);
@@ -355,11 +482,11 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         setIsLoading(false);
       }
     },
-    [currentTask, pollTask]
+    [currentTask, connectSSE]
   );
 
   const dismissTask = useCallback(() => {
-    stopPolling();
+    stopAll();
     setCurrentTask(null);
     setIsDeepResearchMode(false);
     setIsLoading(false);
@@ -371,14 +498,14 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
     } catch {
       /* ignore */
     }
-  }, [stopPolling]);
+  }, [stopAll]);
 
   // UX-02: Cancel an in-progress research task.
   // Calls the DELETE endpoint which marks the task as failed server-side,
   // causing the next poll to stop and show a clean dismissed state.
   const cancelResearch = useCallback(async () => {
     if (!currentTask) return;
-    stopPolling();
+    stopAll();
     try {
       await fetch(`/api/deep-research/${currentTask.id}`, { method: "DELETE" });
     } catch {
@@ -393,7 +520,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
     } catch {
       /* ignore */
     }
-  }, [currentTask, stopPolling]);
+  }, [currentTask, stopAll]);
 
   // UX-04: Retry a failed task using the same query and current agent selection.
   const retryResearch = useCallback(async () => {

@@ -110,7 +110,9 @@ export default function ResearchPlanCard({
 
       {/* Bottom Actions Row */}
       <div className="flex items-center justify-between p-4 border-t border-(--border) bg-(--surface)/30">
-        <div className="text-xs font-medium text-(--text-secondary)">Sẵn sàng sau vài phút</div>
+        <div className="text-xs font-medium text-(--text-secondary)">
+          {t("deepResearchReadyIn")}
+        </div>
         <div className="flex items-center gap-2">
           {onStop && (
             <button
