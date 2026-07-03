@@ -357,8 +357,16 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
           setIsLoading(false);
           stopSSE();
           clearConnectingTimeout();
+
+          // Only clear active research from localStorage when task truly finishes.
+          // `ready_to_execute` means planning is done but user hasn't approved yet —
+          // task is still active and must survive page refreshes.
           try {
-            localStorage.removeItem(ACTIVE_RESEARCH_KEY);
+            const parsed = JSON.parse(event.data) as { task?: ResearchTask };
+            const finalStatus = parsed?.task?.status;
+            if (finalStatus === "completed" || finalStatus === "failed") {
+              localStorage.removeItem(ACTIVE_RESEARCH_KEY);
+            }
           } catch {
             /* ignore */
           }

@@ -203,8 +203,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
                 staleRetries = 0;
               }
 
-              // Terminal state — send final event and close
-              if (task.status === "completed" || task.status === "failed") {
+              // Terminal state — send final event and close.
+              // `ready_to_execute` is also terminal for the SSE stream: planning is done,
+              // the plan is shown to the user for approval. When they click "Start Research",
+              // a NEW SSE connection is opened for the executing phase.
+              // Without this, the planning SSE would keep polling indefinitely, and the
+              // new executing SSE would create a second parallel stream — causing duplicate
+              // stale detection, duplicate retries, and race conditions.
+              if (
+                task.status === "completed" ||
+                task.status === "failed" ||
+                task.status === "ready_to_execute"
+              ) {
                 sendEvent("complete", { task });
                 break;
               }

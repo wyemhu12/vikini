@@ -14,6 +14,7 @@
 - **Stale hang auto-recovery (improved)** — SSE stream route monitors for the known Gemini "silent hang" where the agent stays at `in_progress` with only `user_input` steps. Threshold reduced from 3 minutes → **90 seconds** for faster recovery. Max retries increased from 2 → **3**. Retry SSE events now include attempt count and expected wait time.
 - **Enabled `thinking_summaries: "auto"`** — Added to `agent_config` in `createResearchInteraction`. Per Google docs, this makes the agent more reliably emit `thought` steps during polling, reducing the silent hang pattern.
 - **Regression: `|| "analyzing"` fallback in ChatApp.tsx** — Despite the backend correctly sending `currentStep: undefined` during agent initialization, `ChatApp.tsx` overrode it with `currentStep={currentTask.currentStep || "analyzing"}`. This masked the "Initializing agent..." indicator and immediately showed "Analyzing results" as active. Removed the fallback for both `planning` and `executing` phases.
+- **Duplicate SSE streams after approve** — Planning SSE stream didn't close when task reached `ready_to_execute`, causing 2 parallel streams during execution. Both triggered stale detection independently, exhausting retries 2x faster → premature failure. Fixed by adding `ready_to_execute` to the terminal status check. Also fixed client localStorage cleanup to not wipe active task on plan-ready.
 
 ### i18n
 
