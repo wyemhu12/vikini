@@ -827,7 +827,7 @@ export default function ChatApp() {
                       {currentTask.status === "planning" && (
                         <ResearchProgressCard
                           topic={currentTask.query}
-                          currentStep={currentTask.currentStep || "analyzing"}
+                          currentStep={currentTask.currentStep}
                           phase="planning"
                           startedAt={currentTask.createdAt}
                           sourceCount={currentTask.searchedSources?.length}
@@ -859,7 +859,7 @@ export default function ChatApp() {
                       {currentTask.status === "executing" && (
                         <ResearchProgressCard
                           topic={currentTask.query}
-                          currentStep={currentTask.currentStep || "analyzing"}
+                          currentStep={currentTask.currentStep}
                           phase="executing"
                           startedAt={currentTask.createdAt}
                           sourceCount={currentTask.searchedSources?.length}

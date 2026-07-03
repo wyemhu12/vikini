@@ -277,12 +277,13 @@
 
 ## API Response Parsing
 
-### 2026-07-01: Deep Research UI stuck at "Analyzing results"
+### 2026-07-01: Deep Research UI stuck at "Analyzing results" ⚠️ RECURRING
 
-- **Symptom**: Deep Research UI shows "Analyzing results" indefinitely while the backend is still running and polling correctly.
-- **Root Cause**: The `getResearchInteraction` parser successfully extracted `thinkingText` and `sources` but did not expose or assign the current active step (`searching`, `analyzing`, `writing`). Since `task.currentStep` was always undefined, the UI component (`ResearchProgressCard`) fell back to its default value `"analyzing"`.
-- **Fix**: Added step-deduction logic in `getResearchInteraction` based on the latest parsed step (`google_search_call` -> `searching`, `thought` -> `analyzing`, `model_output` -> `writing`). Assigned this `result.currentStep` to `task.currentStep` inside the polling loop of `checkResearchStatus`.
-- **Prevention Rule**: **When polling an API for long-running task progress, ensure that all required state for the UI (like `currentStep` or progress phase) is explicitly extracted and passed back to the client.** Do not rely on UI defaults for active progress states.
+- **Symptom**: Deep Research UI shows "Analyzing results" indefinitely while the backend is still running and polling correctly. After clicking "Start Research", the progress card immediately jumps to "Analyzing results" active state instead of showing "Initializing agent..." during the startup phase.
+- **Root Cause**: The `getResearchInteraction` parser correctly deduces `currentStep` based on step types, and `ResearchProgressCard` has built-in "Initializing agent..." UI for when `currentStep` is undefined. However, `ChatApp.tsx` passed `currentStep={currentTask.currentStep || "analyzing"}` — the `|| "analyzing"` fallback overrode `undefined` with a hardcoded value, preventing the initialization UI from ever appearing.
+- **Fix (original 2026-07-01)**: Added step-deduction logic in `getResearchInteraction` and set `task.currentStep` in polling.
+- **Fix (regression 2026-07-03)**: Removed `|| "analyzing"` fallback in `ChatApp.tsx` for both `planning` and `executing` phases. Now passes `currentTask.currentStep` directly, allowing `ResearchProgressCard` to correctly show "Initializing agent..." when the step is undefined.
+- **Prevention Rule**: **Never override backend-provided state with UI-side fallbacks that mask "unknown/pending" states.** If a component already handles `undefined` gracefully (e.g., showing an initializing indicator), the parent must NOT replace `undefined` with a default value. The `|| "default"` pattern is dangerous for progress indicators — it hides the distinction between "not started" and "actively running".
 
 ### 2026-06-28: Deep Research client not unwrapping standardized API response
 

@@ -13,6 +13,7 @@
 - **Added initialization indicator** — `ResearchProgressCard` now shows a spinning "Initializing agent..." label when `currentStep` is undefined, giving clear feedback that the system is waiting for the Gemini agent to start.
 - **Stale hang auto-recovery** — SSE stream route now monitors for the known Gemini "silent hang" where the agent stays at `in_progress` with only `user_input` steps. After 3 minutes, it automatically creates a new Gemini interaction and retries (up to 2 times). Only after all retries fail does it mark the task as failed.
 - **Enabled `thinking_summaries: "auto"`** — Added to `agent_config` in `createResearchInteraction`. Per Google docs, this makes the agent more reliably emit `thought` steps during polling, reducing the silent hang pattern.
+- **Regression: `|| "analyzing"` fallback in ChatApp.tsx** — Despite the backend correctly sending `currentStep: undefined` during agent initialization, `ChatApp.tsx` overrode it with `currentStep={currentTask.currentStep || "analyzing"}`. This masked the "Initializing agent..." indicator and immediately showed "Analyzing results" as active. Removed the fallback for both `planning` and `executing` phases.
 
 ### i18n
 
