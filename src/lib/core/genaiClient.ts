@@ -358,8 +358,9 @@ export async function getResearchInteraction(interactionId: string): Promise<{
     thinkingText =
       "_Initializing research agent..._\n\n" +
       "_Note: Deep Research typically takes 3–10 minutes. The agent is working in the background — please wait._\n\n";
-    // Use "analyzing" so the UI does not display a false "Searching the web" indicator
-    currentStep = "analyzing";
+    // Leave currentStep as undefined so the progress card shows ALL steps as "pending" (gray).
+    // Previously this was set to "analyzing" which falsely showed "Searching the web"
+    // as completed (green checkmark) before the agent even started.
   }
 
   // Deduplicate sources by URL

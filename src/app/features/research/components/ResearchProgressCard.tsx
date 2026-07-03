@@ -138,6 +138,16 @@ export default function ResearchProgressCard({
         )}
       </div>
 
+      {/* Initialization indicator — shown when agent hasn't produced any steps yet */}
+      {!currentStep && (
+        <div className="mb-3 flex items-center gap-2 px-1">
+          <Loader2 className="w-3.5 h-3.5 text-(--accent) animate-spin" />
+          <span className="text-xs text-(--text-secondary) animate-pulse">
+            {t("deepResearchInitializing") || "Initializing agent..."}
+          </span>
+        </div>
+      )}
+
       {/* Steps */}
       <div className="space-y-3">
         {STEPS.map((step) => {

@@ -23,6 +23,14 @@ const POLL_INTERVAL_EXECUTING_MS = 5_000;
 const MAX_DURATION_MS = 30 * 60 * 1000; // 30 minutes max (internal safety net)
 
 /**
+ * If the Gemini agent stays at in_progress without producing any real steps
+ * (i.e. only the echo `user_input` step) for longer than this threshold,
+ * we consider it a "silent hang" and auto-fail the task.
+ * This is a known intermittent issue with the Deep Research API.
+ */
+const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
  * GET /api/deep-research/[taskId]/stream
  *
  * Returns an SSE (Server-Sent Events) stream that forwards research progress
@@ -58,6 +66,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
       async start(controller) {
         let lastStatus = "";
         let consecutiveErrors = 0;
+        // Track when we first saw the agent with no real steps (stale detection)
+        let noStepsSince: number | null = null;
 
         const sendEvent = (event: string, data: unknown) => {
           try {
@@ -110,6 +120,33 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
               if (taskFingerprint !== lastStatus) {
                 lastStatus = taskFingerprint;
                 sendEvent("task", { task });
+              }
+
+              // Stale detection: if agent has no real steps for too long,
+              // it's likely a "silent hang" — a known Gemini Deep Research issue.
+              if (!task.currentStep) {
+                if (noStepsSince === null) noStepsSince = Date.now();
+                if (Date.now() - noStepsSince > STALE_THRESHOLD_MS) {
+                  const staleMsg =
+                    "Research agent failed to start within 5 minutes (Gemini silent hang). " +
+                    "This is a known intermittent issue. Please try again.";
+                  streamLogger.warn(`Stale detection triggered for task ${taskId}`);
+
+                  // Mark task as failed in DB so it doesn't keep running
+                  const { getSupabaseAdmin } = await import("@/lib/core/supabase.server");
+                  await getSupabaseAdmin()
+                    .from("research_tasks")
+                    .update({ status: "failed", error_message: staleMsg })
+                    .eq("id", taskId);
+
+                  sendEvent("complete", {
+                    task: { ...task, status: "failed", errorMessage: staleMsg },
+                  });
+                  break;
+                }
+              } else {
+                // Agent started working — reset stale timer
+                noStepsSince = null;
               }
 
               // Terminal state — send final event and close

@@ -790,6 +790,7 @@ export const en = {
   deepResearchStart: "Start research",
   deepResearchPlanning: "Planning...",
   deepResearchExecuting: "Researching...",
+  deepResearchInitializing: "Initializing agent...",
   deepResearchComplete: "Research complete",
   deepResearchFailed: "Research failed",
   deepResearchPlan: "Research plan",

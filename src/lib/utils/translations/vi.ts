@@ -799,6 +799,7 @@ export const vi = {
   deepResearchStart: "Bắt đầu nghiên cứu",
   deepResearchPlanning: "Đang lên kế hoạch...",
   deepResearchExecuting: "Đang nghiên cứu...",
+  deepResearchInitializing: "Đang khởi tạo agent...",
   deepResearchComplete: "Nghiên cứu hoàn tất",
   deepResearchFailed: "Nghiên cứu thất bại",
   deepResearchPlan: "Kế hoạch nghiên cứu",
