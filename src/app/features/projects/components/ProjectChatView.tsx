@@ -97,7 +97,7 @@ export function ProjectChatView({
                 "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium",
                 "border border-(--border) bg-(--surface)/80 backdrop-blur-sm",
                 "hover:bg-(--control-bg-hover) hover:border-(--border-hover)",
-                "transition-all duration-200 shadow-sm"
+                "transition-colors duration-200 shadow-sm"
               )}
             >
               <FilePlus className="h-4 w-4" />
@@ -112,7 +112,7 @@ export function ProjectChatView({
               "w-full flex items-center gap-3 px-4 py-4 rounded-2xl mb-8",
               "bg-(--surface)/60 backdrop-blur-sm border border-(--border)",
               "hover:border-(--primary)/50 hover:bg-(--surface)/80",
-              "transition-all duration-200 shadow-sm",
+              "transition-colors duration-200 shadow-sm",
               "text-left group"
             )}
           >
@@ -137,7 +137,7 @@ export function ProjectChatView({
                   key={conv.id}
                   className={cn(
                     "flex items-center justify-between px-4 py-3 rounded-xl",
-                    "hover:bg-(--control-bg-hover)/60 transition-all duration-200",
+                    "hover:bg-(--control-bg-hover)/60 transition-colors duration-200",
                     "group cursor-pointer"
                   )}
                   onClick={() => onSelectConversation(conv.id)}
@@ -160,7 +160,7 @@ export function ProjectChatView({
                       <button
                         onClick={(e) => e.stopPropagation()}
                         className={cn(
-                          "p-1.5 rounded-lg transition-all",
+                          "p-1.5 rounded-lg transition-colors",
                           "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)",
                           "opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
                         )}

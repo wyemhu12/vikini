@@ -11,7 +11,7 @@ export const DURATION = {
 // Easing presets
 export const EASE = {
   ENTER: [0.0, 0.0, 0.2, 1.0] as const, // easeOut - for elements entering
-  EXIT: [0.4, 0.0, 1.0, 1.0] as const, // easeIn - for elements leaving
+  EXIT: [0.23, 1, 0.32, 1] as const, // strong easeOut - for elements leaving (fast start)
   MOVE: [0.4, 0.0, 0.2, 1.0] as const, // easeInOut - for moving elements
   SPRING: { type: "spring" as const, stiffness: 400, damping: 30 },
 } as const;

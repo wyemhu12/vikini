@@ -65,7 +65,7 @@ export function FilePreviewCard({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8, x: -20 }}
       transition={{ type: "spring", stiffness: 300, damping: 25 }}
-      className={`group relative ${cardSize} shrink-0 rounded-xl border transition-all duration-200 overflow-hidden ${
+      className={`group relative ${cardSize} shrink-0 rounded-xl border transition-[border-color,box-shadow] duration-200 overflow-hidden ${
         isError
           ? "border-(--danger)/50 bg-(--danger)/5"
           : "border-(--control-border) bg-(--surface-base) hover:border-(--accent)/50 hover:shadow-md"
@@ -130,10 +130,10 @@ export function FilePreviewCard({
       {isUploading && !isError && (
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-(--control-border)">
           <motion.div
-            className="h-full bg-(--accent)"
-            initial={{ width: 0 }}
-            animate={{ width: `${upload.progress}%` }}
-            transition={{ ease: "easeOut" }}
+            className="h-full w-full bg-(--accent) origin-left"
+            initial={{ transform: "scaleX(0)" }}
+            animate={{ transform: `scaleX(${(upload.progress ?? 0) / 100})` }}
+            transition={{ ease: [0.23, 1, 0.32, 1] }}
           />
         </div>
       )}

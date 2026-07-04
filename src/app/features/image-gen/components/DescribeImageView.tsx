@@ -218,7 +218,7 @@ export function DescribeImageView() {
       <FloatingMenuTrigger onClick={() => setMobileOpen(true)} />
 
       <div
-        className={`flex-1 flex flex-col h-full transition-all duration-300 relative z-10 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
+        className={`flex-1 flex flex-col h-full transition-colors duration-300 relative z-10 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
       >
         <HeaderBar onToggleSidebar={() => setMobileOpen(true)} />
 
@@ -251,7 +251,7 @@ export function DescribeImageView() {
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
-                    className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-12 md:p-16 text-center transition-all duration-300 backdrop-blur-sm ${
+                    className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-12 md:p-16 text-center transition-colors duration-300 backdrop-blur-sm ${
                       isDragOver
                         ? "border-purple-400 bg-purple-500/10 shadow-lg shadow-purple-500/10 scale-[1.02]"
                         : "border-(--control-border) bg-(--surface-muted)/50 hover:border-purple-400/50 hover:bg-purple-500/5"
@@ -315,7 +315,7 @@ export function DescribeImageView() {
                       animate={{ opacity: 1, y: 0 }}
                       onClick={handleAnalyze}
                       disabled={analyzing}
-                      className="w-full py-4 rounded-xl font-bold text-lg text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 shadow-lg shadow-purple-500/25 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                      className="w-full py-4 rounded-xl font-bold text-lg text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 shadow-lg shadow-purple-500/25 transition-colors duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                     >
                       {analyzing ? (
                         <>
@@ -372,14 +372,14 @@ export function DescribeImageView() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <button
                             onClick={handleUseInStudio}
-                            className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 shadow-lg shadow-purple-500/20 transition-all duration-300"
+                            className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 shadow-lg shadow-purple-500/20 transition-colors duration-300"
                           >
                             <ImageIcon className="w-4 h-4" />
                             {t("describeUseInStudio")}
                           </button>
                           <button
                             onClick={handleReset}
-                            className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-(--surface-muted) border border-(--control-border) hover:bg-(--surface-hover) transition-all"
+                            className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-(--surface-muted) border border-(--control-border) hover:bg-(--surface-hover) transition-colors"
                           >
                             <RefreshCw className="w-4 h-4" />
                             {t("describeNewImage")}
@@ -414,7 +414,7 @@ export function DescribeImageView() {
                     <button
                       key={idx}
                       onClick={() => setResult(item.prompt)}
-                      className="flex items-start gap-3 p-3 rounded-xl border border-(--border) bg-(--surface-muted)/50 hover:bg-(--surface-hover) transition-all text-left group"
+                      className="flex items-start gap-3 p-3 rounded-xl border border-(--border) bg-(--surface-muted)/50 hover:bg-(--surface-hover) transition-colors text-left group"
                     >
                       <img
                         src={item.thumbnail}

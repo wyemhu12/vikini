@@ -187,19 +187,19 @@ export default function Canvas({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: Math.min(idx * 0.08, 0.4) }}
-              className="break-inside-avoid mb-4 md:mb-6 group relative rounded-xl overflow-hidden border border-(--border) bg-(--surface-elevated) shadow-sm hover:shadow-xl transition-all duration-300"
+              className="break-inside-avoid mb-4 md:mb-6 group relative rounded-xl overflow-hidden border border-(--border) bg-(--surface-elevated) shadow-sm hover:shadow-xl transition-shadow duration-300"
             >
               <img
                 src={item.url}
                 alt={`Generated ${item.prompt}`}
-                className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer"
+                className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-[1.02] cursor-pointer"
                 loading="lazy"
                 onClick={() => onImageClick?.(item, idx)}
               />
 
               {/* P2-1: AI Comment */}
               {item.aiComment && (
-                <div className="px-3 py-2 text-xs text-(--text-secondary) italic bg-(--surface-muted)/50 border-t border-(--border) line-clamp-2 hover:line-clamp-none transition-all cursor-pointer">
+                <div className="px-3 py-2 text-xs text-(--text-secondary) italic bg-(--surface-muted)/50 border-t border-(--border) line-clamp-2 hover:line-clamp-none transition-colors cursor-pointer">
                   💬 {item.aiComment}
                 </div>
               )}
@@ -251,7 +251,7 @@ export default function Canvas({
                           e.stopPropagation();
                           onToggleFavorite(item);
                         }}
-                        className={`p-1.5 rounded-full backdrop-blur-md transition-all border ${
+                        className={`p-1.5 rounded-full backdrop-blur-md transition-colors border ${
                           item.isFavorite
                             ? "bg-pink-500/80 text-white border-pink-400/30 shadow-lg shadow-pink-500/30"
                             : "bg-white/10 hover:bg-pink-500/40 text-white/70 hover:text-white border-white/10"
@@ -264,7 +264,7 @@ export default function Canvas({
                     {item.id && (
                       <button
                         onClick={() => onDelete(item.id!)}
-                        className="p-1.5 rounded-full bg-red-500/20 hover:bg-red-500/80 text-red-200 hover:text-white backdrop-blur-md transition-all border border-red-500/20"
+                        className="p-1.5 rounded-full bg-red-500/20 hover:bg-red-500/80 text-red-200 hover:text-white backdrop-blur-md transition-colors border border-red-500/20"
                         title={t("galleryDeleteImage")}
                       >
                         <Trash2 className="w-3 h-3" />
@@ -354,7 +354,7 @@ export default function Canvas({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
           className="flex-1 flex flex-col py-4"
         >
           {/* Header */}
@@ -382,7 +382,7 @@ export default function Canvas({
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: idx * 0.04, duration: 0.3 }}
                   onClick={() => onSelectTemplate?.(tmpl)}
-                  className="group relative aspect-[3/4] rounded-2xl overflow-hidden border border-(--border) hover:border-purple-500/40 transition-all hover:shadow-lg hover:shadow-purple-500/10 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                  className="group relative aspect-[3/4] rounded-2xl overflow-hidden border border-(--border) hover:border-purple-500/40 transition-colors hover:shadow-lg hover:shadow-purple-500/10 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
                 >
                   {/* Preview image */}
                   <img
@@ -406,7 +406,7 @@ export default function Canvas({
                     )}
                   </div>
                   {/* Hover border glow */}
-                  <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 group-hover:ring-purple-400/30 transition-all" />
+                  <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 group-hover:ring-purple-400/30 transition-colors" />
                 </motion.button>
               )
             )}
@@ -418,7 +418,7 @@ export default function Canvas({
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
             onClick={() => setTemplatesExpanded(!templatesExpanded)}
-            className="mx-auto mt-4 flex items-center gap-1.5 px-4 py-2 rounded-full bg-(--surface-elevated) border border-(--border) hover:border-purple-500/30 hover:bg-purple-500/5 transition-all text-xs font-medium text-(--text-secondary) hover:text-(--text-primary)"
+            className="mx-auto mt-4 flex items-center gap-1.5 px-4 py-2 rounded-full bg-(--surface-elevated) border border-(--border) hover:border-purple-500/30 hover:bg-purple-500/5 transition-colors text-xs font-medium text-(--text-secondary) hover:text-(--text-primary)"
           >
             {templatesExpanded ? (
               <>

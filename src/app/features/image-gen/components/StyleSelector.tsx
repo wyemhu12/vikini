@@ -87,7 +87,7 @@ export default function StyleSelector({ selectedStyle, onSelect }: StyleSelector
               key={s.id}
               onClick={() => onSelect(s.id)}
               className={cn(
-                "group flex flex-col items-center justify-end rounded-xl border transition-all duration-200 h-24 relative overflow-hidden",
+                "group flex flex-col items-center justify-end rounded-xl border transition-colors duration-200 h-24 relative overflow-hidden",
                 isSelected
                   ? "border-primary ring-2 ring-primary/50 shadow-lg shadow-primary/20"
                   : "border-(--border) hover:border-(--control-border) hover:shadow-md"

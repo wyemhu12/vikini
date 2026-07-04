@@ -41,7 +41,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             {/* Back to Home */}
             <Link
               href="/"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--control-bg) border border-(--border) text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) hover:border-(--border) transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--control-bg) border border-(--border) text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) hover:border-(--border) transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               <span className="text-sm font-medium">{t("adminBackToHome")}</span>
@@ -53,7 +53,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 href="https://vercel.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-all text-xs"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors text-xs"
                 title="Vercel Dashboard"
               >
                 <ExternalLink className="w-3 h-3" />
@@ -63,7 +63,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 href="https://supabase.com/dashboard"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-all text-xs"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors text-xs"
                 title="Supabase Dashboard"
               >
                 <ExternalLink className="w-3 h-3" />
@@ -75,7 +75,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             <div className="flex items-center gap-1 p-1 rounded-lg bg-(--control-bg) border border-(--border)">
               <button
                 onClick={() => setLanguage("vi")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   language === "vi"
                     ? "bg-(--warning)/20 text-(--warning) border border-(--warning)/30"
                     : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
@@ -85,7 +85,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
               </button>
               <button
                 onClick={() => setLanguage("en")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   language === "en"
                     ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
                     : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
@@ -101,7 +101,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
         <div className="mb-6 flex gap-2 p-1 rounded-xl bg-(--control-bg) border border-(--border) backdrop-blur-3xl w-fit">
           <button
             onClick={() => setActiveTab("users")}
-            className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
+            className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === "users"
                 ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
                 : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
@@ -111,7 +111,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
           </button>
           <button
             onClick={() => setActiveTab("limits")}
-            className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
+            className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === "limits"
                 ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
                 : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
@@ -121,7 +121,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
           </button>
           <button
             onClick={() => setActiveTab("gems")}
-            className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
+            className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === "gems"
                 ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
                 : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
@@ -131,7 +131,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
           </button>
           <button
             onClick={() => setActiveTab("personas")}
-            className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
+            className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === "personas"
                 ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
                 : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
@@ -141,7 +141,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
           </button>
           <button
             onClick={() => setActiveTab("stats")}
-            className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
+            className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === "stats"
                 ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
                 : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
@@ -151,7 +151,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
           </button>
           <button
             onClick={() => setActiveTab("audit")}
-            className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
+            className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === "audit"
                 ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
                 : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"

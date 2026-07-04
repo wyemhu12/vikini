@@ -294,7 +294,7 @@ export default function ImageLightbox({
           {hasPrev && (
             <button
               onClick={navigatePrev}
-              className="absolute left-2 md:left-4 z-20 p-2 md:p-3 rounded-full bg-black/40 hover:bg-black/60 text-white/70 hover:text-white transition-all backdrop-blur-sm border border-white/10"
+              className="absolute left-2 md:left-4 z-20 p-2 md:p-3 rounded-full bg-black/40 hover:bg-black/60 text-white/70 hover:text-white transition-colors backdrop-blur-sm border border-white/10"
             >
               <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
             </button>
@@ -338,7 +338,7 @@ export default function ImageLightbox({
           {hasNext && (
             <button
               onClick={navigateNext}
-              className="absolute right-2 md:right-4 z-20 p-2 md:p-3 rounded-full bg-black/40 hover:bg-black/60 text-white/70 hover:text-white transition-all backdrop-blur-sm border border-white/10"
+              className="absolute right-2 md:right-4 z-20 p-2 md:p-3 rounded-full bg-black/40 hover:bg-black/60 text-white/70 hover:text-white transition-colors backdrop-blur-sm border border-white/10"
             >
               <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
             </button>

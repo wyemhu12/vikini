@@ -28,9 +28,8 @@ export default function ResearchReportCard({
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.01 }}
       transition={{ duration: DURATION.NORMAL, ease: EASE.ENTER }}
-      className="rounded-(--radius) border border-(--border) bg-(--surface-elevated) p-4 w-full max-w-xl"
+      className="rounded-(--radius) border border-(--border) bg-(--surface-elevated) p-4 w-full max-w-xl hover:scale-[1.01] transition-transform duration-200"
     >
       <div className="flex items-start gap-3">
         {/* Icon */}

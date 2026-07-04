@@ -338,7 +338,7 @@ export default function ProjectPage() {
                           });
                           if (ok) void deleteConversation(conv.id);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-(--danger) transition-all"
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-(--danger) transition-[opacity,color]"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

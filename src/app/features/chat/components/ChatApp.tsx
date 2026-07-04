@@ -660,7 +660,7 @@ export default function ChatApp() {
       <FloatingMenuTrigger onClick={() => setMobileOpen((prev) => !prev)} />
 
       <div
-        className={`h-full flex flex-col relative z-10 transition-all duration-300 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
+        className={`h-full flex flex-col relative z-10 transition-[padding] duration-300 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
       >
         <HeaderBar onToggleSidebar={toggleMobileSidebar} showMobileControls={showMobileControls} />
 
@@ -685,7 +685,7 @@ export default function ChatApp() {
           {/* RA2 Theme Backgrounds */}
           {mounted && (theme === "yuri" || theme === "allied" || theme === "soviet") && (
             <div
-              className={`fixed top-0 left-0 right-0 bottom-0 z-0 pointer-events-none transition-all duration-300 ${sidebarCollapsed ? "md:left-20" : "md:left-72 lg:left-80"}`}
+              className={`fixed top-0 left-0 right-0 bottom-0 z-0 pointer-events-none transition-[left] duration-300 ${sidebarCollapsed ? "md:left-20" : "md:left-72 lg:left-80"}`}
               style={{
                 backgroundImage: `url('/assets/themes/${theme}.png')`,
                 backgroundSize: theme === "allied" ? "38%" : "35%",
@@ -982,7 +982,7 @@ export default function ChatApp() {
       {/* Landing Disclaimer - fixed at page bottom, sidebar-aware */}
       {showLanding && (
         <div
-          className={`fixed bottom-2 inset-x-0 text-center z-30 pointer-events-none transition-all duration-300 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
+          className={`fixed bottom-2 inset-x-0 text-center z-30 pointer-events-none transition-[padding] duration-300 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
         >
           <p className="text-[9px] font-bold text-(--text-secondary) tracking-widest uppercase">
             {t.aiDisclaimer}

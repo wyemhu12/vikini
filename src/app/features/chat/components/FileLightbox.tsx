@@ -349,7 +349,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
                     href={signedUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 bg-(--accent) text-white rounded-lg hover:brightness-110 transition-all mt-2"
+                    className="flex items-center gap-2 px-4 py-2 bg-(--accent) text-white rounded-lg hover:brightness-110 transition-[filter] mt-2"
                   >
                     <ExternalLink className="w-4 h-4" />
                     {t?.fileOpenInNewTab ?? "Open in new tab"}
@@ -367,7 +367,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
                 </span>
                 <button
                   onClick={handleRetry}
-                  className="flex items-center gap-2 px-4 py-2 bg-(--accent) text-white rounded-lg hover:brightness-110 transition-all text-sm"
+                  className="flex items-center gap-2 px-4 py-2 bg-(--accent) text-white rounded-lg hover:brightness-110 transition-[filter] text-sm"
                 >
                   <RotateCcw className="w-4 h-4" />
                   {t?.fileRetry ?? "Retry"}

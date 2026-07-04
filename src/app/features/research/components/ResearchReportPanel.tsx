@@ -398,7 +398,7 @@ export default function ResearchReportPanel({
                             href={source.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="group flex items-start gap-3 p-3 rounded-xl bg-(--surface) hover:bg-(--control-bg-hover) border border-(--border) hover:border-(--border-hover) transition-all duration-200"
+                            className="group flex items-start gap-3 p-3 rounded-xl bg-(--surface) hover:bg-(--control-bg-hover) border border-(--border) hover:border-(--border-hover) transition-colors duration-200"
                           >
                             {/* Favicon */}
                             <div className="shrink-0 w-5 h-5 rounded-sm overflow-hidden bg-white mt-0.5">

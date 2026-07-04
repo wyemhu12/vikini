@@ -40,12 +40,13 @@ export function VoiceWaveform({
         <div
           key={i}
           className={cn(
-            "w-0.5 rounded-full transition-all duration-150",
+            "w-0.5 h-4 rounded-full transition-[transform,opacity] duration-150 origin-bottom",
             barColors[variant],
-            isActive ? "animate-voice-bar" : "h-1 opacity-30"
+            isActive ? "animate-voice-bar" : "opacity-30"
           )}
           style={{
             animationDelay: isActive ? `${i * 80}ms` : undefined,
+            transform: isActive ? undefined : "scaleY(0.25)",
           }}
         />
       ))}

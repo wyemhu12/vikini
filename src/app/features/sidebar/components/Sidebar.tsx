@@ -119,7 +119,7 @@ const SidebarButton = React.memo(function SidebarButton({
       onClick={isLoading ? undefined : onClick}
       disabled={isLoading}
       className={cn(
-        "flex items-center gap-3 rounded-lg py-2.5 transition-all duration-200 group active:scale-[0.97]",
+        "flex items-center gap-3 rounded-lg py-2.5 transition-[background-color,color,transform] duration-200 group active:scale-[0.97]",
         isCollapsed ? "justify-center px-0 w-full" : "justify-start px-3 w-full",
         variant === "primary" &&
           "bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-(--accent) font-bold shadow-sm",

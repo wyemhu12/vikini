@@ -54,7 +54,7 @@ function MessageActions({
       {/* Copy Button */}
       <button
         onClick={onCopy}
-        className="group/copy flex items-center gap-1 text-[10px] font-bold uppercase tracking-tighter transition-all text-secondary hover:text-(--accent)"
+        className="group/copy flex items-center gap-1 text-[10px] font-bold uppercase tracking-tighter transition-colors text-secondary hover:text-(--accent)"
         title={copied ? t("copied") : t("copy")}
       >
         {copied ? (
@@ -81,7 +81,7 @@ function MessageActions({
         <button
           onClick={onRegenerate}
           disabled={regenerating}
-          className="group/regen flex items-center gap-1 text-[10px] font-bold text-secondary hover:text-(--accent) uppercase tracking-tighter disabled:opacity-30 transition-all"
+          className="group/regen flex items-center gap-1 text-[10px] font-bold text-secondary hover:text-(--accent) uppercase tracking-tighter disabled:opacity-30 transition-colors"
           title={t("regenerate")}
         >
           <RefreshCw className="w-3 h-3 group-hover/regen:rotate-180 transition-transform duration-300" />
@@ -104,7 +104,7 @@ function MessageActions({
       {isBot && onSpeak && (
         <button
           onClick={onSpeak}
-          className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-tighter transition-all ${
+          className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-tighter transition-colors ${
             isSpeaking ? "text-(--accent)" : "text-secondary hover:text-(--accent)"
           }`}
           title={isSpeaking ? t("stopSpeaking") || "Stop" : t("readAloud") || "Read aloud"}

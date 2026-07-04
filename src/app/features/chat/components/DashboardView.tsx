@@ -208,7 +208,7 @@ export default function DashboardView({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+            transition={{ duration: 0.3, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
             className="flex flex-wrap items-center justify-center gap-2"
           >
             {CATEGORIES.map((cat) => {
@@ -219,7 +219,7 @@ export default function DashboardView({
                   onClick={() => handleCategoryClick(cat.id)}
                   className={`
                   inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium
-                  transition-all duration-200 border active:scale-[0.95]
+                  transition-[background-color,color,border-color,transform,box-shadow] duration-200 border active:scale-[0.95]
                   ${
                     isActive
                       ? "bg-(--accent)/15 text-(--accent) border-(--accent)/40 shadow-[0_0_12px_var(--glow)]"
@@ -279,7 +279,7 @@ export default function DashboardView({
                         onClick={() => handleSuggestionClick(sug)}
                         className={`
                         w-full flex items-center justify-between px-4 py-3 text-left text-sm
-                        transition-all duration-150 group cursor-pointer
+                        transition-[background-color,color] duration-150 group cursor-pointer
                         ${
                           hoveredSuggestion === idx
                             ? "bg-(--accent)/10 text-(--text-primary)"
@@ -289,7 +289,7 @@ export default function DashboardView({
                       >
                         <span className="flex-1 truncate">{t(sug.labelKey)}</span>
                         <ChevronRight
-                          className={`w-4 h-4 shrink-0 ml-2 transition-all duration-200 ${
+                          className={`w-4 h-4 shrink-0 ml-2 transition-[opacity,transform,color] duration-200 ${
                             hoveredSuggestion === idx
                               ? "opacity-100 translate-x-0 text-(--accent)"
                               : "opacity-0 -translate-x-1"

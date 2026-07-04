@@ -154,7 +154,7 @@ export function ProjectNode({
                     <button
                       onClick={(e) => e.stopPropagation()}
                       className={cn(
-                        "p-1 mr-1 rounded transition-all",
+                        "p-1 mr-1 rounded transition-colors",
                         "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)",
                         "opacity-0 group-hover/chat:opacity-100 data-[state=open]:opacity-100"
                       )}

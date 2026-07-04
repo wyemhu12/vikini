@@ -66,7 +66,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
 
   // Common styles for triggers
   const triggerButtonStyles =
-    "flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) hover:border-(--border) p-1 px-4 py-1.5 transition-all shadow-lg group backdrop-blur-md text-(--text-primary) cursor-pointer outline-none focus:ring-2 focus:ring-(--accent) focus:ring-opacity-50";
+    "flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) hover:border-(--border) p-1 px-4 py-1.5 transition-[border-color,box-shadow] duration-200 shadow-lg group backdrop-blur-md text-(--text-primary) cursor-pointer outline-none focus:ring-2 focus:ring-(--accent) focus:ring-opacity-50";
   const triggerLabelStyles =
     "text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors max-w-[100px] truncate";
 
@@ -74,7 +74,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
     <motion.header
       initial={false}
       animate={{ y: showMobileControls ? 0 : "-100%" }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
+      transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
       className="
       fixed top-0 left-0 right-0 z-20 
       md:sticky md:top-0 md:translate-y-0

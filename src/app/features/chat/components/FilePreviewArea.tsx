@@ -113,7 +113,7 @@ export function FilePreviewArea({
                 type="button"
                 onClick={handleClearAll}
                 disabled={disabled}
-                className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-all ${
+                className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors ${
                   showClearConfirm
                     ? "bg-(--danger)/10 text-(--danger) hover:bg-(--danger)/20"
                     : "text-(--text-secondary) hover:text-(--danger) hover:bg-(--danger)/5"

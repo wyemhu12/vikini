@@ -215,7 +215,7 @@ export default function InputForm({
             handleSubmit();
           }
         }}
-        className={`relative flex flex-col w-full rounded-3xl border shadow-2xl transition-all duration-300 ${
+        className={`relative flex flex-col w-full rounded-3xl border shadow-2xl transition-[border-color,box-shadow] duration-300 ${
           isImageMode
             ? "bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface))] border-(--accent) ring-1 ring-(--accent)/50"
             : isDragging
@@ -334,7 +334,7 @@ export default function InputForm({
             disabled={
               !isStreaming && ((!input.trim() && fileCount === 0) || (disabled && !isUploading))
             }
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 shadow-lg ${
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-[border-color,box-shadow] duration-200 shadow-lg ${
               !isStreaming && ((!input.trim() && fileCount === 0) || (disabled && !isUploading))
                 ? "bg-(--control-bg) text-(--text-secondary) cursor-not-allowed"
                 : isImageMode

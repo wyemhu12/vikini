@@ -69,7 +69,7 @@ export default function UpgradeModal({ isOpen, onClose, modelName }: UpgradeModa
             {/* Button */}
             <button
               onClick={onClose}
-              className="w-full py-3 px-4 bg-linear-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-lg text-white font-medium transition-all shadow-lg shadow-purple-500/20"
+              className="w-full py-3 px-4 bg-linear-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-lg text-white font-medium transition-colors shadow-lg shadow-purple-500/20"
             >
               {t("modalUpgradeGotIt")}
             </button>

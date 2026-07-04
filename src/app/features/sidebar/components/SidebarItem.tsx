@@ -116,7 +116,12 @@ function SidebarItem({
     <motion.div
       initial={false}
       animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -60, scale: 0.9, transition: { duration: 0.3, ease: "easeIn" } }}
+      exit={{
+        opacity: 0,
+        x: -60,
+        scale: 0.9,
+        transition: { duration: 0.2, ease: [0.23, 1, 0.32, 1] },
+      }}
       className={cn(
         "relative group w-full px-2 transition-[opacity,transform] duration-200",
         isDeleting && "opacity-40 scale-[0.97] pointer-events-none"

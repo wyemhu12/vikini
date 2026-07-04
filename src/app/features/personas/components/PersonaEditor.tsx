@@ -163,7 +163,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
                   setTone(opt.value);
                   setDirty(true);
                 }}
-                className={`rounded-lg border px-3 py-2 text-left transition-all duration-200 ${
+                className={`rounded-lg border px-3 py-2 text-left transition-colors duration-200 ${
                   tone === opt.value
                     ? "border-(--primary) bg-(--primary)/10 text-(--text-primary)"
                     : "border-(--border) bg-(--surface) hover:bg-(--surface-muted) text-(--text-secondary)"

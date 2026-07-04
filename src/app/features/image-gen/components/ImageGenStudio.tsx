@@ -735,7 +735,7 @@ export function ImageGenStudio() {
       <FloatingMenuTrigger onClick={() => setMobileOpen(true)} />
 
       <div
-        className={`flex-1 flex flex-col h-full transition-all duration-300 relative z-10 pt-14 md:pt-0 ${
+        className={`flex-1 flex flex-col h-full transition-colors duration-300 relative z-10 pt-14 md:pt-0 ${
           sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"
         }`}
       >
@@ -747,7 +747,7 @@ export function ImageGenStudio() {
           <div className="md:hidden flex border-b border-(--border) bg-(--surface-base) shrink-0 z-10">
             <button
               onClick={() => setMobileTab("studio")}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-all relative ${
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors relative ${
                 mobileTab === "studio"
                   ? "text-(--text-primary)"
                   : "text-(--text-secondary) hover:text-(--text-primary)"
@@ -764,7 +764,7 @@ export function ImageGenStudio() {
             </button>
             <button
               onClick={() => setMobileTab("results")}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-all relative ${
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors relative ${
                 mobileTab === "results"
                   ? "text-(--text-primary)"
                   : "text-(--text-secondary) hover:text-(--text-primary)"

@@ -202,7 +202,7 @@ function FileListItem({ file, isDeleting, onDelete }: FileListItemProps) {
           onDelete(file.id);
         }}
         disabled={isDeleting}
-        className="shrink-0 p-1 rounded-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all hover:bg-(--danger)/15 text-[var(--text-secondary)] hover:text-(--danger) disabled:opacity-50"
+        className="shrink-0 p-1 rounded-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-[opacity,color,background-color] hover:bg-(--danger)/15 text-[var(--text-secondary)] hover:text-(--danger) disabled:opacity-50"
         aria-label={`Delete ${file.filename}`}
       >
         {isDeleting ? (

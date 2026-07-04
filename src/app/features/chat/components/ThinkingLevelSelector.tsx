@@ -76,7 +76,7 @@ export default function ThinkingLevelSelector({
       <DropdownMenuTrigger asChild>
         <button
           aria-label={t("thinkingLevelTooltip")}
-          className="flex items-center gap-1.5 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 px-4 py-1.5 transition-all group text-(--text-primary) hover:bg-(--control-bg)"
+          className="flex items-center gap-1.5 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 px-4 py-1.5 transition-colors group text-(--text-primary) hover:bg-(--control-bg)"
           title={t("thinkingLevelTooltip")}
         >
           <Brain className="w-3 h-3 text-(--text-secondary) md:hidden" />

@@ -301,14 +301,14 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
             <button
               onClick={() => bulkUpdate({ is_blocked: true })}
               disabled={updating === "bulk"}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 transition-all disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 transition-colors disabled:opacity-50"
             >
               {t("adminBulkBlock")}
             </button>
             <button
               onClick={() => bulkUpdate({ is_blocked: false })}
               disabled={updating === "bulk"}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30 transition-all disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30 transition-colors disabled:opacity-50"
             >
               {t("adminBulkUnblock")}
             </button>
@@ -423,7 +423,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                     <button
                       onClick={() => updateUser(user.id, { is_blocked: !user.is_blocked })}
                       disabled={self || updating === user.id}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 ${
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
                         user.is_blocked
                           ? "bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30"
                           : "bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30"

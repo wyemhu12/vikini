@@ -122,7 +122,7 @@ export function KnowledgePanel({
         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
           <div
             className={cn(
-              "h-full rounded-full transition-all",
+              "h-full rounded-full transition-colors",
               storagePercent > 90 ? "bg-destructive" : "bg-primary"
             )}
             style={{ width: `${Math.min(storagePercent, 100)}%` }}
@@ -250,7 +250,7 @@ function DocumentItem({
         disabled={isDeleting}
         className={cn(
           "p-1.5 rounded-lg opacity-0 group-hover:opacity-100",
-          "hover:bg-destructive/10 text-destructive transition-all",
+          "hover:bg-destructive/10 text-destructive transition-colors",
           isDeleting && "opacity-100"
         )}
         title={deleteLabel}

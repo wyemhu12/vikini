@@ -419,7 +419,7 @@ export default function ControlPanel({
                         const separator = prompt.trim() ? ", " : "";
                         setPrompt(prompt.trim() + separator + tagText);
                       }}
-                      className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-(--border) bg-(--surface-elevated) hover:bg-purple-500/10 hover:border-purple-500/30 text-(--text-secondary) hover:text-(--text-primary) transition-all"
+                      className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-(--border) bg-(--surface-elevated) hover:bg-purple-500/10 hover:border-purple-500/30 text-(--text-secondary) hover:text-(--text-primary) transition-colors"
                     >
                       <span className="mr-1">{tag.icon}</span>
                       {t(tag.key)}
@@ -432,7 +432,7 @@ export default function ControlPanel({
               <div className="pt-2">
                 <button
                   onClick={() => setShowNegativePrompt(!showNegativePrompt)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-red-500/8 border border-red-500/20 text-red-400 hover:bg-red-500/15 hover:text-red-300 transition-all"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-red-500/8 border border-red-500/20 text-red-400 hover:bg-red-500/15 hover:text-red-300 transition-colors"
                   title={t("studioExcludeTooltip")}
                 >
                   <Ban className="w-3 h-3" />
@@ -455,7 +455,7 @@ export default function ControlPanel({
               {prompt.match(/["'].+?["']/) && model.includes("flash-image") && (
                 <button
                   onClick={() => setModel("gemini-3-pro-image")}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-600 dark:text-amber-400 font-medium hover:bg-amber-500/20 transition-all w-full text-left"
+                  className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-600 dark:text-amber-400 font-medium hover:bg-amber-500/20 transition-colors w-full text-left"
                 >
                   <Lightbulb className="w-3.5 h-3.5 shrink-0" />
                   <span className="flex-1">{t("studioTextRenderingTip")}</span>
@@ -468,7 +468,7 @@ export default function ControlPanel({
                   <div className="flex items-center justify-between">
                     <button
                       onClick={() => setShowHistory(!showHistory)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-blue-500/8 border border-blue-500/20 text-blue-400 hover:bg-blue-500/15 hover:text-blue-300 transition-all"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-blue-500/8 border border-blue-500/20 text-blue-400 hover:bg-blue-500/15 hover:text-blue-300 transition-colors"
                       title={t("studioHistoryTooltip")}
                     >
                       <Clock className="w-3 h-3" />
@@ -515,7 +515,7 @@ export default function ControlPanel({
           <div
             onClick={() => setIsEnhancerOn(!isEnhancerOn)}
             className={`
-                        relative flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all
+                        relative flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors
                         ${
                           isEnhancerOn
                             ? "bg-purple-500/10 border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.15)]"
@@ -525,7 +525,7 @@ export default function ControlPanel({
           >
             <div
               className={`
-                        flex items-center justify-center w-10 h-10 rounded-lg transition-all
+                        flex items-center justify-center w-10 h-10 rounded-lg transition-colors
                         ${
                           isEnhancerOn
                             ? "bg-purple-500 text-white shadow-lg"
@@ -603,7 +603,7 @@ export default function ControlPanel({
                 key={ratio}
                 onClick={() => setAspectRatio(ratio)}
                 className={cn(
-                  "px-2 py-2 rounded-md text-xs font-medium border transition-all",
+                  "px-2 py-2 rounded-md text-xs font-medium border transition-colors",
                   aspectRatio === ratio
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-(--surface-elevated) border-(--border) hover:bg-(--surface-hover)"
@@ -627,7 +627,7 @@ export default function ControlPanel({
                   key={ratio}
                   onClick={() => setAspectRatio(ratio)}
                   className={cn(
-                    "px-2 py-2 rounded-md text-xs font-medium border transition-all",
+                    "px-2 py-2 rounded-md text-xs font-medium border transition-colors",
                     aspectRatio === ratio
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-(--surface-elevated) border-(--border) hover:bg-(--surface-hover)"
@@ -652,7 +652,7 @@ export default function ControlPanel({
                   key={opt.value}
                   onClick={() => setResolution(opt.value)}
                   className={cn(
-                    "flex flex-col items-center gap-0.5 px-1.5 py-2 rounded-lg text-xs font-medium border transition-all",
+                    "flex flex-col items-center gap-0.5 px-1.5 py-2 rounded-lg text-xs font-medium border transition-colors",
                     resolution === opt.value
                       ? "bg-primary text-primary-foreground border-primary shadow-sm"
                       : "bg-(--surface-elevated) border-(--border) hover:bg-(--surface-hover)"
@@ -738,7 +738,7 @@ export default function ControlPanel({
                 {referenceImages.length < MAX_REF_IMAGES && (
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center h-20 rounded-lg border border-dashed border-(--border) hover:border-purple-500/30 hover:bg-purple-500/5 transition-all"
+                    className="flex flex-col items-center justify-center h-20 rounded-lg border border-dashed border-(--border) hover:border-purple-500/30 hover:bg-purple-500/5 transition-colors"
                   >
                     <Upload className="w-4 h-4 text-(--text-secondary) mb-1" />
                     <span className="text-[10px] text-(--text-secondary)">
@@ -756,7 +756,7 @@ export default function ControlPanel({
           ) : (
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full flex items-center gap-3 p-3 rounded-lg border border-dashed border-(--border) hover:border-purple-500/30 hover:bg-purple-500/5 transition-all text-left"
+              className="w-full flex items-center gap-3 p-3 rounded-lg border border-dashed border-(--border) hover:border-purple-500/30 hover:bg-purple-500/5 transition-colors text-left"
             >
               <div className="p-2 rounded-lg bg-(--surface-muted) text-(--text-secondary)">
                 <Upload className="w-4 h-4" />
@@ -796,7 +796,7 @@ export default function ControlPanel({
                       onTouchEnd={() => setTimeout(() => setTooltipBatch(null), 2000)}
                       disabled={isDisabled}
                       className={cn(
-                        "w-full px-2 py-2 rounded-md text-xs font-medium border transition-all flex items-center justify-center gap-1",
+                        "w-full px-2 py-2 rounded-md text-xs font-medium border transition-colors flex items-center justify-center gap-1",
                         numberOfImages === num
                           ? "bg-primary text-primary-foreground border-primary"
                           : isDisabled

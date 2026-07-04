@@ -46,7 +46,7 @@ function PersonaCard({
 }) {
   return (
     <div
-      className={`rounded-lg border px-3 py-2 transition-all duration-200 ${
+      className={`rounded-lg border px-3 py-2 transition-[background-color,color,border-color,transform,filter] duration-200 ${
         selected
           ? "border-(--primary) bg-(--primary)/10"
           : "border-(--border) bg-(--surface) hover:bg-(--surface-muted)"
@@ -77,7 +77,7 @@ function PersonaCard({
           <button
             onClick={() => onSelect?.(persona)}
             aria-label={t("select")}
-            className="flex-1 rounded-md bg-(--primary) px-2 py-1 text-xs text-black transition-all hover:brightness-110 active:scale-95 flex items-center justify-center gap-1.5"
+            className="flex-1 rounded-md bg-(--primary) px-2 py-1 text-xs text-black transition-[background-color,color,border-color,transform,filter] hover:brightness-110 active:scale-95 flex items-center justify-center gap-1.5"
           >
             <Check className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{t("select")}</span>
@@ -86,7 +86,7 @@ function PersonaCard({
           <button
             onClick={() => onPreview?.(persona)}
             aria-label={t("preview")}
-            className="flex-1 rounded-md border border-(--border) px-2 py-1 text-xs text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-all active:scale-95 flex items-center justify-center gap-1.5"
+            className="flex-1 rounded-md border border-(--border) px-2 py-1 text-xs text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-[background-color,color,border-color,transform,filter] active:scale-95 flex items-center justify-center gap-1.5"
           >
             <Eye className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{t("preview")}</span>
@@ -97,7 +97,7 @@ function PersonaCard({
               <button
                 onClick={() => onEdit?.(persona)}
                 aria-label={t("personaEdit") || "Edit"}
-                className="flex-1 rounded-md border border-(--border) px-2 py-1 text-xs text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                className="flex-1 rounded-md border border-(--border) px-2 py-1 text-xs text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-[background-color,color,border-color,transform,filter] active:scale-95 flex items-center justify-center gap-1.5"
               >
                 <Edit2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{t("personaEdit") || "Edit"}</span>
@@ -106,7 +106,7 @@ function PersonaCard({
               <button
                 onClick={() => onDelete?.(persona)}
                 aria-label={t("personaDelete") || "Delete"}
-                className="flex-1 rounded-md border border-(--danger)/30 px-2 py-1 text-xs text-(--danger) hover:bg-(--danger)/10 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                className="flex-1 rounded-md border border-(--danger)/30 px-2 py-1 text-xs text-(--danger) hover:bg-(--danger)/10 transition-[background-color,color,border-color,transform,filter] active:scale-95 flex items-center justify-center gap-1.5"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{t("personaDelete") || "Delete"}</span>

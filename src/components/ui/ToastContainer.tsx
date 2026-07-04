@@ -41,9 +41,10 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
   return (
     <motion.div
       role="alert"
-      initial={{ opacity: 0, x: 50, scale: 0.9 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 20, scale: 0.95 }}
+      initial={{ opacity: 0, transform: "translateX(50px) scale(0.9)" }}
+      animate={{ opacity: 1, transform: "translateX(0px) scale(1)" }}
+      exit={{ opacity: 0, transform: "translateX(20px) scale(0.95)" }}
+      transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
       className={`
         pointer-events-auto flex items-start gap-3 p-4 rounded-xl border backdrop-blur-xl shadow-2xl min-w-[300px] max-w-md
         ${colors[toast.type]}

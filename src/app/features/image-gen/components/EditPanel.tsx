@@ -385,7 +385,7 @@ export default function EditPanel({
                 onClick={() => void handleSendEdit(chip.label)}
                 disabled={loading}
                 className={cn(
-                  "px-2.5 py-1 rounded-full text-[10px] font-medium border transition-all",
+                  "px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors",
                   "bg-(--surface-muted) border-(--border) hover:bg-purple-500/10 hover:border-purple-500/30",
                   "text-(--text-secondary) hover:text-(--text-primary)",
                   "disabled:opacity-50 disabled:cursor-not-allowed"
@@ -429,7 +429,7 @@ export default function EditPanel({
             onClick={() => void handleSendEdit()}
             disabled={loading || !inputText.trim() || turnCount >= MAX_TURNS}
             className={cn(
-              "p-2.5 rounded-xl transition-all",
+              "p-2.5 rounded-xl transition-colors",
               inputText.trim() && !loading
                 ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-900/20 hover:shadow-xl"
                 : "bg-(--surface-muted) text-(--text-secondary) cursor-not-allowed"

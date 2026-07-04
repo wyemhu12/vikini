@@ -82,7 +82,7 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
   const isCollapsed = isCollapsible && !expanded;
 
   return (
-    <div className="group/code my-5 overflow-hidden rounded-xl border card-surface shadow-2xl transition-all hover:border-token">
+    <div className="group/code my-5 overflow-hidden rounded-xl border card-surface shadow-2xl transition-colors hover:border-token">
       {/* Header */}
       <div className="flex items-center justify-between bg-surface-muted px-4 py-3 border-b border-token select-none">
         <div className="flex items-center gap-2">
@@ -109,7 +109,7 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
           <button
             onClick={handleCopy}
             className={`
-              flex items-center gap-1.5 px-2 py-1 rounded transition-all duration-200
+              flex items-center gap-1.5 px-2 py-1 rounded transition-colors duration-200
               text-[10px] font-bold uppercase tracking-wider
               ${
                 copied
@@ -124,7 +124,9 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
       </div>
 
       {/* Code Content */}
-      <div className={`relative ${isCollapsed ? "max-h-[320px]" : ""} transition-all duration-300`}>
+      <div
+        className={`relative ${isCollapsed ? "max-h-[320px]" : ""} transition-colors duration-300`}
+      >
         <pre className="p-4 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
           <code
             className={`${className} bg-transparent! text-[13px] leading-6 font-mono p-0! block min-w-full`}

@@ -84,7 +84,7 @@ function ChipSelector({
           key={opt.id}
           onClick={() => onSelect(selected === opt.id ? null : opt.id)}
           className={cn(
-            "px-2 py-1 rounded-full text-[10px] font-medium border transition-all",
+            "px-2 py-1 rounded-full text-[10px] font-medium border transition-colors",
             selected === opt.id
               ? "bg-purple-500/20 border-purple-500/40 text-purple-300 ring-1 ring-purple-500/30"
               : "bg-(--surface-elevated) border-(--border) text-(--text-secondary) hover:bg-purple-500/10 hover:border-purple-500/20"
@@ -255,7 +255,7 @@ export default function PromptBuilder({ onBuildPrompt }: PromptBuilderProps) {
         onClick={handleBuild}
         disabled={!builtPrompt.trim()}
         className={cn(
-          "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all",
+          "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-colors",
           builtPrompt.trim()
             ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-900/30 hover:shadow-xl hover:scale-[1.01]"
             : "bg-(--surface-muted) text-(--text-secondary) cursor-not-allowed"

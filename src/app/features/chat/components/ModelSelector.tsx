@@ -115,7 +115,7 @@ export default function ModelSelector({
       {/* TRIGGER BUTTON */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 md:hover:bg-(--control-bg) p-1 px-4 py-1.5 transition-all md:shadow-none shadow-lg group text-(--text-primary)"
+        className="flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 md:hover:bg-(--control-bg) p-1 px-4 py-1.5 transition-colors md:shadow-none shadow-lg group text-(--text-primary)"
       >
         <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">
           {currentModel?.name || currentModelId}
@@ -139,7 +139,7 @@ export default function ModelSelector({
           <div className="flex items-center p-1 bg-(--control-bg) border-b border-(--border) shrink-0">
             <button
               onClick={() => setActiveTab("providers")}
-              className={`flex-1 text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all ${
+              className={`flex-1 text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg transition-colors ${
                 activeTab === "providers"
                   ? "bg-(--control-bg-hover) text-(--text-primary) shadow-sm"
                   : "text-(--text-secondary) hover:text-(--text-primary)"
@@ -149,7 +149,7 @@ export default function ModelSelector({
             </button>
             <button
               onClick={() => setActiveTab("service")}
-              className={`flex-1 text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all ${
+              className={`flex-1 text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg transition-colors ${
                 activeTab === "service"
                   ? "bg-(--control-bg-hover) text-(--text-primary) shadow-sm"
                   : "text-(--text-secondary) hover:text-(--text-primary)"
@@ -176,7 +176,7 @@ export default function ModelSelector({
                       <button
                         key={pid}
                         onClick={() => setActiveProviderFilter(pid)}
-                        className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl transition-all border bg-linear-to-br ${
+                        className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl transition-colors border bg-linear-to-br ${
                           isActive
                             ? `${activeClass} text-(--text-primary) shadow-lg scale-[1.02]`
                             : "from-transparent to-transparent border-transparent text-(--text-secondary) hover:bg-(--control-bg) hover:text-(--text-primary)"
@@ -190,7 +190,7 @@ export default function ModelSelector({
                               src={logoSrc}
                               alt={PROVIDER_LABELS[pid] || pid}
                               fill
-                              className={`object-contain drop-shadow-sm transition-all ${needsInvert ? "invert brightness-200" : ""}`}
+                              className={`object-contain drop-shadow-sm transition-colors ${needsInvert ? "invert brightness-200" : ""}`}
                             />
                           </div>
                         ) : (
@@ -300,7 +300,7 @@ function ModelItem({ model, isActive, isAllowed, onSelect }: ModelItemProps) {
   return (
     <button
       onClick={() => onSelect()}
-      className={`w-full text-left flex items-start gap-3 p-2 rounded-lg transition-all group ${
+      className={`w-full text-left flex items-start gap-3 p-2 rounded-lg transition-colors group ${
         isActive ? "bg-(--control-bg-hover)" : "hover:bg-(--control-bg)"
       } ${!isAllowed ? "opacity-50 cursor-not-allowed" : ""}`}
     >

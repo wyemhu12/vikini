@@ -141,7 +141,7 @@ export default function RankConfigManager() {
           <button
             onClick={saveConfigs}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-colors disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {t("saveChanges")}
@@ -237,7 +237,7 @@ export default function RankConfigManager() {
                 </label>
                 <button
                   onClick={() => setModelModalRank(config.rank)}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 border border-purple-500/30 transition-all"
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 border border-purple-500/30 transition-colors"
                 >
                   <Cpu className="w-4 h-4" />
                   {t("configureModels")} ({config.allowed_models?.length || 0})
@@ -251,7 +251,7 @@ export default function RankConfigManager() {
                 </label>
                 <button
                   onClick={() => setFeatureModalRank(config.rank)}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 border border-purple-500/30 transition-all"
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 border border-purple-500/30 transition-colors"
                 >
                   <Settings2 className="w-4 h-4" />
                   {t("configureFeatures")}
@@ -278,7 +278,7 @@ export default function RankConfigManager() {
                 return (
                   <label
                     key={model.id}
-                    className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                    className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
                       isSelected
                         ? "bg-blue-500/20 border border-blue-500/30"
                         : "bg-white/2 border border-white/10 hover:bg-white/5"
@@ -305,7 +305,7 @@ export default function RankConfigManager() {
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setModelModalRank(null)}
-                className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-all"
+                className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-colors"
               >
                 {t("done")}
               </button>
@@ -344,7 +344,7 @@ export default function RankConfigManager() {
                     return (
                       <label
                         key={feat.key}
-                        className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                        className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
                           isEnabled
                             ? "bg-blue-500/20 border border-blue-500/30"
                             : "bg-white/2 border border-white/10 hover:bg-white/5"
@@ -370,7 +370,7 @@ export default function RankConfigManager() {
                 <div className="mt-6 flex justify-end">
                   <button
                     onClick={() => setFeatureModalRank(null)}
-                    className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-all"
+                    className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-colors"
                   >
                     {t("done")}
                   </button>

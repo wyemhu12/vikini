@@ -132,7 +132,7 @@ export default function ChatControls({
     <motion.div
       initial={false}
       animate={{ y: showMobileControls ? 0 : "100%" }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
+      transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
       className={`
         w-full max-w-4xl mx-auto px-4 md:px-6
         ${
@@ -162,7 +162,7 @@ export default function ChatControls({
             onClick={canWebSearch ? toggleWebSearch : undefined}
             disabled={!canWebSearch}
             title={!canWebSearch ? t("webSearchNotSupported") : undefined}
-            className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 ${
+            className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-colors rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 ${
               !canWebSearch
                 ? "text-(--text-secondary) opacity-40 cursor-not-allowed"
                 : webSearchEnabled
@@ -187,7 +187,7 @@ export default function ChatControls({
               <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
               <button
                 onClick={toggleAlwaysSearch}
-                className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 ${
+                className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-colors rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 ${
                   alwaysSearch
                     ? "text-(--accent) md:bg-(--control-bg-hover)"
                     : "text-(--text-secondary) hover:text-(--text-primary)"
@@ -218,7 +218,7 @@ export default function ChatControls({
                 disabled={!deepResearchAllowed}
                 title={!deepResearchAllowed ? t("deepResearchNotAllowed") : t("deepResearchDesc")}
                 aria-pressed={deepResearchEnabled}
-                className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1 ${
+                className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-colors rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1 ${
                   !deepResearchAllowed
                     ? "text-(--text-secondary) opacity-40 cursor-not-allowed"
                     : deepResearchEnabled
@@ -284,7 +284,7 @@ export default function ChatControls({
               <div className="relative">
                 <button
                   onClick={() => setShowFileManager((v) => !v)}
-                  className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-all rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1.5 ${
+                  className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-colors rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1.5 ${
                     showFileManager
                       ? "text-(--accent) md:bg-(--control-bg-hover)"
                       : "text-(--text-secondary) hover:text-(--accent)"

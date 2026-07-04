@@ -28,7 +28,7 @@ function AuthErrorContent() {
         <div className="flex rounded-full border border-white/5 bg-white/5 p-1 backdrop-blur-3xl shadow-2xl">
           <button
             onClick={() => setLanguage("vi")}
-            className={`px-4 py-1.5 text-[10px] font-bold rounded-full transition-all duration-300 ${
+            className={`px-4 py-1.5 text-[10px] font-bold rounded-full transition-colors duration-300 ${
               language === "vi" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white"
             }`}
           >
@@ -36,7 +36,7 @@ function AuthErrorContent() {
           </button>
           <button
             onClick={() => setLanguage("en")}
-            className={`px-4 py-1.5 text-[10px] font-bold rounded-full transition-all duration-300 ${
+            className={`px-4 py-1.5 text-[10px] font-bold rounded-full transition-colors duration-300 ${
               language === "en" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white"
             }`}
           >
@@ -97,7 +97,7 @@ function AuthErrorContent() {
         <div className="pt-4">
           <button
             onClick={() => router.push("/auth/signin")}
-            className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-full border border-white/20 bg-white/5 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-white/10 hover:scale-[1.02] active:scale-[0.98]"
+            className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-full border border-white/20 bg-white/5 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-white/10 hover:scale-[1.02] active:scale-[0.98]"
           >
             {language === "vi" ? "Quay Lại Đăng Nhập" : "Back to Sign In"}
           </button>

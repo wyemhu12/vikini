@@ -347,7 +347,7 @@ export function GalleryView() {
       <FloatingMenuTrigger onClick={() => setMobileOpen(true)} />
 
       <div
-        className={`flex-1 flex flex-col h-full transition-all duration-300 relative z-10 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
+        className={`flex-1 flex flex-col h-full transition-colors duration-300 relative z-10 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
       >
         <HeaderBar onToggleSidebar={() => setMobileOpen(true)} />
 
@@ -363,7 +363,7 @@ export function GalleryView() {
                   <input
                     type="text"
                     placeholder={t("gallerySearch")}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none transition-colors"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
@@ -409,7 +409,7 @@ export function GalleryView() {
                   {/* MT7: Favorites Toggle */}
                   <button
                     onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                    className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
                       showFavoritesOnly
                         ? "bg-pink-500/20 border-pink-500/30 text-pink-400"
                         : "bg-(--surface-muted) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
@@ -442,7 +442,7 @@ export function GalleryView() {
                     {compareImages[0] && compareImages[1] && (
                       <button
                         onClick={handleOpenCompare}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--accent) text-white font-bold shadow-lg shadow-(--accent)/20 hover:opacity-90 transition-all"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--accent) text-white font-bold shadow-lg shadow-(--accent)/20 hover:opacity-90 transition-colors"
                       >
                         <GitCompare className="w-4 h-4" />
                         {t("compareNow") || "Compare"}
@@ -452,7 +452,7 @@ export function GalleryView() {
                 )}
                 <button
                   onClick={handleToggleCompareMode}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                     compareMode
                       ? "bg-(--danger)/20 text-(--danger) border border-(--danger)/30 hover:bg-(--danger)/30"
                       : "bg-(--surface-muted) border border-(--control-border) hover:bg-(--surface-hover)"
@@ -499,7 +499,7 @@ export function GalleryView() {
                           setSelectedImage(img);
                         }
                       }}
-                      className={`group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-(--surface-muted) border-2 transition-all ${
+                      className={`group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-(--surface-muted) border-2 transition-colors ${
                         isSelectedForCompare
                           ? "border-(--accent) ring-2 ring-(--accent)/30"
                           : "border-(--border) hover:border-(--accent)"
@@ -516,7 +516,7 @@ export function GalleryView() {
                       {/* Compare Mode Selection Indicator */}
                       {compareMode && (
                         <div
-                          className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                          className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
                             isSelectedForCompare
                               ? "bg-(--accent) text-white"
                               : "bg-black/50 text-white/70 border border-white/30"
@@ -592,7 +592,7 @@ export function GalleryView() {
                           e.stopPropagation();
                           handlePrevImage();
                         }}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-all shadow-lg opacity-0 group-hover:opacity-100"
+                        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
                         title={t("galleryPrev") || "Previous"}
                       >
                         <ChevronLeft className="w-6 h-6" />
@@ -606,7 +606,7 @@ export function GalleryView() {
                           e.stopPropagation();
                           handleNextImage();
                         }}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-all shadow-lg opacity-0 group-hover:opacity-100"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
                         title={t("galleryNext") || "Next"}
                       >
                         <ChevronRight className="w-6 h-6" />
@@ -673,7 +673,7 @@ export function GalleryView() {
                         </button>
                         <button
                           onClick={() => handleRemix(selectedImage.prompt)}
-                          className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--accent) text-white hover:opacity-90 font-bold shadow-lg shadow-(--accent)/20 transition-all"
+                          className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--accent) text-white hover:opacity-90 font-bold shadow-lg shadow-(--accent)/20 transition-colors"
                         >
                           <Sparkles className="w-4 h-4" /> {t("galleryRemix")}
                         </button>

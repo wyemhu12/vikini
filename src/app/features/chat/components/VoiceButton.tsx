@@ -137,7 +137,7 @@ export function VoiceButton({
               type="button"
               onClick={handleClick}
               disabled={disabled}
-              className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 ${
+              className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors duration-200 ${
                 isListening
                   ? "bg-(--danger) text-white animate-pulse shadow-lg shadow-(--danger)/50"
                   : "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--accent)"

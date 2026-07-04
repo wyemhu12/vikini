@@ -500,7 +500,7 @@ const ChatBubble = React.memo(
         >
           {/* Avatar */}
           <div
-            className={`relative flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-lg border text-[10px] font-black tracking-tighter shadow-sm overflow-hidden transition-all duration-300
+            className={`relative flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-lg border text-[10px] font-black tracking-tighter shadow-sm overflow-hidden transition-[border-color,background-color,box-shadow] duration-300
             ${
               isBot
                 ? isLoading
@@ -551,7 +551,7 @@ const ChatBubble = React.memo(
             className={`flex flex-col gap-2 ${isBot ? "items-start w-full min-w-0" : "items-end max-w-full"}`}
           >
             <div
-              className={`relative rounded-2xl px-1 text-sm leading-relaxed transition-all
+              className={`relative rounded-2xl px-1 text-sm leading-relaxed transition-colors
               ${isBot ? "text-primary w-full" : "bg-(--primary) px-4 py-2.5 text-(--surface) shadow-lg"}`}
             >
               {isEditing ? (

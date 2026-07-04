@@ -196,7 +196,7 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
         <div className="flex gap-2">
           <button
             onClick={onCreate}
-            className="rounded-lg bg-(--primary) px-3 py-1.5 text-sm text-black font-medium hover:brightness-110 transition-all active:scale-95"
+            className="rounded-lg bg-(--primary) px-3 py-1.5 text-sm text-black font-medium hover:brightness-110 transition-colors active:scale-95"
           >
             + {t("createGem") || "New Gem"}
           </button>
@@ -219,7 +219,7 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
 
         <div
           className={cn(
-            "grid gap-6 transition-all duration-300",
+            "grid gap-6 transition-colors duration-300",
             editingGem || previewGem ? "grid-cols-1 lg:grid-cols-[360px_1fr]" : "grid-cols-1"
           )}
         >

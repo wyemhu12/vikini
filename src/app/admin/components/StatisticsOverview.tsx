@@ -123,7 +123,7 @@ export default function StatisticsOverview() {
         {cards.map((card) => (
           <div
             key={card.label}
-            className={`p-4 rounded-xl border ${card.bgColor} transition-all hover:scale-[1.02]`}
+            className={`p-4 rounded-xl border ${card.bgColor} transition-colors hover:scale-[1.02]`}
           >
             <div className="flex items-center gap-2 mb-2">
               <card.icon className={`w-4 h-4 ${card.color}`} />
@@ -154,7 +154,7 @@ export default function StatisticsOverview() {
                 <span className="text-sm text-gray-300 w-28 shrink-0">{label}</span>
                 <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
                   <div
-                    className={`h-full rounded-full ${color} transition-all duration-500`}
+                    className={`h-full rounded-full ${color} transition-colors duration-500`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
