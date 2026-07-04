@@ -34,3 +34,9 @@ pnpm-debug.log*
 # Other
 .DS_Store
 *.pem
+
+# Agent Skills
+.agent/skill
+.agent/skills
+.claude/skill
+.claude/skills
