@@ -20,7 +20,7 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
   // Use prop if provided (Admin), otherwise use hook (normal Gems page)
   const _language = languageProp || hookLanguage;
   // When languageProp matches hook language (or no prop), use hook's t directly
-  // Otherwise fall back to key (Admin with different language — rare case)
+  // Otherwise fall back to key (Admin with different language - rare case)
   const t = hookT;
 
   const isReadOnly = !!gem?.isPremade;
@@ -124,7 +124,7 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
               value={icon}
               readOnly
               disabled={isReadOnly}
-              placeholder="💡"
+              placeholder=""
               className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm disabled:opacity-60 cursor-default"
             />
           </div>

@@ -140,7 +140,7 @@ export async function createProject(userId: string, input: CreateProjectInput): 
       user_id: userId,
       name: input.name.trim(),
       description: input.description?.trim() || null,
-      icon: input.icon || "📁",
+      icon: input.icon || "",
       color: input.color || "#6366f1",
       embedding_model: embeddingModel,
     })

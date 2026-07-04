@@ -132,7 +132,7 @@ Rules:
 - Add specific visual details: lighting (volumetric, rim, ambient occlusion), texture, material
 - Add quality keywords: 8K, ultra-detailed, masterpiece, professional photography
 - Add composition cues: depth of field, rule of thirds, leading lines
-- Maintain the EXACT original intent and subject — do not change what the user wants
+- Maintain the EXACT original intent and subject - do not change what the user wants
 - Keep under 150 words
 - Return ONLY the enhanced prompt text, no intro, no explanation, no quotes
 

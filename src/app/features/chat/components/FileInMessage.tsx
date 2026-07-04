@@ -1,5 +1,5 @@
 /**
- * FileInMessage — Compact file indicator for chat bubbles.
+ * FileInMessage - Compact file indicator for chat bubbles.
  *
  * Shows file cards inline within user messages.
  * Filters by specific fileIds attached to that message.

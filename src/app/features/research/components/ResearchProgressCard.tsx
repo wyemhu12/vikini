@@ -24,7 +24,7 @@ interface ResearchProgressCardProps {
   onShowThinking?: () => void;
   /** 'planning' = creating plan, 'executing' = performing research */
   phase?: "planning" | "executing";
-  /** ISO timestamp of when the task started — drives the live elapsed timer */
+  /** ISO timestamp of when the task started - drives the live elapsed timer */
   startedAt?: string;
   /** Number of web sources discovered so far (shown under the "searching" step) */
   sourceCount?: number;
@@ -138,14 +138,14 @@ export default function ResearchProgressCard({
         )}
       </div>
 
-      {/* Initialization indicator — shown when agent hasn't produced any steps yet */}
+      {/* Initialization indicator - shown when agent hasn't produced any steps yet */}
       {!currentStep && (
         <div className="mb-3 flex items-center gap-2 px-1">
           <Loader2 className="w-3.5 h-3.5 text-(--accent) animate-spin" />
           <span className="text-xs text-(--text-secondary) animate-pulse">
             {phase === "executing"
               ? t("deepResearchExecutionInit") ||
-                "Starting research agent... this may take 1–2 minutes"
+                "Starting research agent... this may take 1-2 minutes"
               : t("deepResearchInitializing") || "Initializing agent..."}
           </span>
         </div>
@@ -197,7 +197,7 @@ export default function ResearchProgressCard({
                 {t(step.labelKey)}
               </span>
 
-              {/* Source count — only on the searching step once we've found any */}
+              {/* Source count - only on the searching step once we've found any */}
               {step.key === "searching" && sourceCount > 0 && (
                 <span className="ml-auto text-xs text-(--text-secondary) tabular-nums">
                   {sourceCount} {t("deepResearchSourcesFound") || "sources"}

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 // ============================================================================
-// Mocks — declared BEFORE importing the route
+// Mocks - declared BEFORE importing the route
 // ============================================================================
 
 vi.mock("@/lib/features/auth/auth", () => ({
@@ -36,7 +36,7 @@ vi.mock("@/lib/utils/logger", () => ({
 }));
 
 // ============================================================================
-// Imports — AFTER mocks
+// Imports - AFTER mocks
 // ============================================================================
 
 import { GET } from "./route";
@@ -88,14 +88,14 @@ function mockBothQueries(convResult: SupabaseResult<unknown>, msgResult: Supabas
   mockFrom.mockImplementation((() => {
     callCount++;
     if (callCount === 1) {
-      // Conversations chain – terminal method is `eq`
+      // Conversations chain - terminal method is `eq`
       return {
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue(convResult),
         }),
       };
     }
-    // Messages chain – terminal method is `order`
+    // Messages chain - terminal method is `order`
     return {
       select: vi.fn().mockReturnValue({
         in: vi.fn().mockReturnValue({
@@ -176,7 +176,7 @@ describe("/api/gallery", () => {
   // --------------------------------------------------------------------------
   // Auth
   // --------------------------------------------------------------------------
-  describe("GET — Auth", () => {
+  describe("GET - Auth", () => {
     it("should return 401 when session is null", async () => {
       vi.mocked(auth).mockResolvedValue(null as unknown as Awaited<ReturnType<typeof auth>>);
 
@@ -215,7 +215,7 @@ describe("/api/gallery", () => {
   // --------------------------------------------------------------------------
   // Validation
   // --------------------------------------------------------------------------
-  describe("GET — Validation", () => {
+  describe("GET - Validation", () => {
     it("should return 400 for invalid limit (negative)", async () => {
       vi.mocked(auth).mockResolvedValue(
         AUTHENTICATED_SESSION as unknown as ReturnType<typeof auth> extends Promise<infer T>
@@ -293,7 +293,7 @@ describe("/api/gallery", () => {
   // --------------------------------------------------------------------------
   // Empty states
   // --------------------------------------------------------------------------
-  describe("GET — Empty states", () => {
+  describe("GET - Empty states", () => {
     it("should return empty images when user has no conversations", async () => {
       vi.mocked(auth).mockResolvedValue(
         AUTHENTICATED_SESSION as unknown as ReturnType<typeof auth> extends Promise<infer T>
@@ -349,7 +349,7 @@ describe("/api/gallery", () => {
   // --------------------------------------------------------------------------
   // Happy path
   // --------------------------------------------------------------------------
-  describe("GET — Happy path", () => {
+  describe("GET - Happy path", () => {
     it("should return gallery images with correct shape", async () => {
       vi.mocked(auth).mockResolvedValue(
         AUTHENTICATED_SESSION as unknown as ReturnType<typeof auth> extends Promise<infer T>
@@ -469,7 +469,7 @@ describe("/api/gallery", () => {
   // --------------------------------------------------------------------------
   // Pagination
   // --------------------------------------------------------------------------
-  describe("GET — Pagination", () => {
+  describe("GET - Pagination", () => {
     it("should respect limit parameter", async () => {
       vi.mocked(auth).mockResolvedValue(
         AUTHENTICATED_SESSION as unknown as ReturnType<typeof auth> extends Promise<infer T>
@@ -528,7 +528,7 @@ describe("/api/gallery", () => {
   // --------------------------------------------------------------------------
   // Error handling
   // --------------------------------------------------------------------------
-  describe("GET — Error handling", () => {
+  describe("GET - Error handling", () => {
     it("should return 500 when conversations query fails", async () => {
       vi.mocked(auth).mockResolvedValue(
         AUTHENTICATED_SESSION as unknown as ReturnType<typeof auth> extends Promise<infer T>

@@ -63,7 +63,7 @@ function classifyError(
       suggestion: t("studioErrorContentPolicySuggestion"),
     };
   }
-  // Default — use the raw error if meaningful, otherwise generic
+  // Default - use the raw error if meaningful, otherwise generic
   return { message: errorMsg || t("studioGenerateFailed") };
 }
 
@@ -406,7 +406,7 @@ export function ImageGenStudio() {
           throw firstRejected.reason;
         }
       } else {
-        // Single image — keep simple sequential flow
+        // Single image - keep simple sequential flow
         const response = await fetch("/api/generate-image", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-api-key": key },
@@ -496,7 +496,7 @@ export function ImageGenStudio() {
     setMobileTab("studio");
   };
 
-  // Phase 1: Edit handlers — now opens EditPanel (multi-turn)
+  // Phase 1: Edit handlers - now opens EditPanel (multi-turn)
   const handleEdit = (image: GeneratedImage) => {
     setEditingImage(image);
   };
@@ -534,7 +534,7 @@ export function ImageGenStudio() {
     }
   };
 
-  // QW3: Variation handler — send image back as reference with variation prompt
+  // QW3: Variation handler - send image back as reference with variation prompt
   const handleVariation = async (image: GeneratedImage) => {
     if (generating) return;
 
@@ -679,8 +679,8 @@ export function ImageGenStudio() {
               <div className="space-y-2">
                 <p>{showError?.message}</p>
                 {showError?.suggestion && (
-                  <p className="text-xs text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mt-2">
-                    💡 {showError.suggestion}
+                  <p className="text-xs text-(--warning) bg-(--warning)/10 border border-(--warning)/20 rounded-lg px-3 py-2 mt-2">
+                    {showError.suggestion}
                   </p>
                 )}
               </div>
@@ -693,7 +693,7 @@ export function ImageGenStudio() {
                 setShowError(null);
                 void handleGenerate();
               }}
-              className="bg-purple-600 text-white hover:bg-purple-700"
+              className="bg-(--primary) text-(--primary-foreground) hover:bg-(--primary-hover)"
             >
               {t("studioRetry")}
             </AlertDialogAction>
@@ -758,7 +758,7 @@ export function ImageGenStudio() {
               {mobileTab === "studio" && (
                 <motion.div
                   layoutId="mobileTabIndicator"
-                  className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                  className="absolute bottom-0 left-2 right-2 h-0.5 bg-(--primary) rounded-full"
                 />
               )}
             </button>
@@ -773,14 +773,14 @@ export function ImageGenStudio() {
               <Images className="w-4 h-4" />
               {t("studioTabResults")}
               {generatedImages.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-purple-500/20 text-purple-400">
+                <span className="ml-1 px-1.5 py-0.5 text-xs font-bold rounded-full bg-(--primary)/20 text-(--primary)">
                   {generatedImages.length}
                 </span>
               )}
               {mobileTab === "results" && (
                 <motion.div
                   layoutId="mobileTabIndicator"
-                  className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                  className="absolute bottom-0 left-2 right-2 h-0.5 bg-(--primary) rounded-full"
                 />
               )}
             </button>
@@ -838,7 +838,7 @@ export function ImageGenStudio() {
               )}
             />
 
-            {/* Multi-Turn Edit Panel — slides in from right */}
+            {/* Multi-Turn Edit Panel - slides in from right */}
             <AnimatePresence>
               {editingImage && selectedConversationId && (
                 <EditPanel

@@ -86,7 +86,7 @@ export default function InputForm({
   const sentFileIds = useFileStore((s) => s.sentFileIds);
   const markAsSent = useFileStore((s) => s.markAsSent);
 
-  // Filter out files already sent — combine:
+  // Filter out files already sent - combine:
   // 1. sentMessageFileIds (from message meta, persistent/survives reload)
   // 2. sentFileIds (Zustand, optimistic/instant UI update before message is saved)
   const files = useMemo(() => {
@@ -270,7 +270,7 @@ export default function InputForm({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Hidden file input — controlled by useFileUpload */}
+          {/* Hidden file input - controlled by useFileUpload */}
           <input
             type="file"
             ref={fileInputRef}

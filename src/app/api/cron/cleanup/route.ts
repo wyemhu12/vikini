@@ -1,6 +1,6 @@
 /**
- * Cron API — Cleanup expired files
- * GET/POST /api/cron/cleanup — Delete files past their TTL
+ * Cron API - Cleanup expired files
+ * GET/POST /api/cron/cleanup - Delete files past their TTL
  *
  * Protected by x-cron-secret header. Called by Vercel Cron or external scheduler.
  */

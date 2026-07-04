@@ -167,7 +167,7 @@ function makeFakeSupabase(db: FakeDb) {
 }
 
 // ---------------------------------------------------------------------------
-// Module mocks — declared BEFORE importing the service
+// Module mocks - declared BEFORE importing the service
 // ---------------------------------------------------------------------------
 
 // Holds the active fake DB; swapped per test in beforeEach.
@@ -206,7 +206,7 @@ vi.mock("@/lib/utils/logger", () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Imports — AFTER mocks
+// Imports - AFTER mocks
 // ---------------------------------------------------------------------------
 import {
   createResearchTask,

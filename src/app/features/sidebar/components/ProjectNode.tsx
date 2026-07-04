@@ -54,7 +54,7 @@ export function ProjectNode({
   useEffect(() => {
     if (activeConversationId && conversations.some((c) => c.id === activeConversationId)) {
       setIsExpanded((prev) => {
-        if (prev) return prev; // Already expanded — bail out, no re-render
+        if (prev) return prev; // Already expanded - bail out, no re-render
         localStorage.setItem(`project-expanded-${project.id}`, "true");
         return true;
       });

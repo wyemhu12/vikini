@@ -620,9 +620,7 @@ export function GalleryView() {
                       <button
                         onClick={() => setSelectedImage(null)}
                         className="p-2 hover:bg-(--surface-muted) rounded-full"
-                      >
-                        ✕
-                      </button>
+                      ></button>
                     </div>
 
                     <div className="flex-1 space-y-6 overflow-y-auto">

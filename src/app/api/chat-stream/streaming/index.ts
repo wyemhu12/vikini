@@ -1,5 +1,5 @@
 // /app/api/chat-stream/streaming/index.ts
-// Barrel re-exports — preserves the original public API of streaming.ts
+// Barrel re-exports - preserves the original public API of streaming.ts
 
 export { createChatReadableStream } from "./gemini-stream";
 export { createOpenAICompatibleStream } from "./openai-stream";

@@ -44,7 +44,7 @@ describe("/api/cron/cleanup", () => {
   });
 
   // ────────────────────────────────────────────────────────────────────
-  // GET — Auth / Secret Verification
+  // GET - Auth / Secret Verification
   // ────────────────────────────────────────────────────────────────────
   describe("GET", () => {
     it("should return 401 when no secret header is provided", async () => {
@@ -205,7 +205,7 @@ describe("/api/cron/cleanup", () => {
   });
 
   // ────────────────────────────────────────────────────────────────────
-  // POST — Alias for GET
+  // POST - Alias for GET
   // ────────────────────────────────────────────────────────────────────
   describe("POST", () => {
     it("should be the same handler as GET", () => {

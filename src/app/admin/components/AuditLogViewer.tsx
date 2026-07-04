@@ -16,7 +16,7 @@ interface AuditLog {
   created_at: string;
 }
 
-// No props needed — language comes from useLanguage() hook
+// No props needed - language comes from useLanguage() hook
 
 // Human-readable action labels
 const ACTION_LABELS: Record<string, { vi: string; en: string; color: string }> = {

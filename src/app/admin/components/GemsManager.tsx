@@ -19,7 +19,7 @@ interface PremadeGem {
   is_premade: boolean;
 }
 
-// No props needed — language comes from useLanguage() hook
+// No props needed - language comes from useLanguage() hook
 
 export default function GemsManager() {
   const [gems, setGems] = useState<PremadeGem[]>([]);

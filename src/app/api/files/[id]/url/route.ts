@@ -1,6 +1,6 @@
 /**
- * Files API — Single file operations
- * GET /api/files/[id]/url — Get signed download URL
+ * Files API - Single file operations
+ * GET /api/files/[id]/url - Get signed download URL
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

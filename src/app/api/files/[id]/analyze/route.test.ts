@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 // ============================================================================
-// Mocks — declared BEFORE importing the route
+// Mocks - declared BEFORE importing the route
 // ============================================================================
 
 vi.mock("@/app/api/conversations/auth", () => ({
@@ -30,7 +30,7 @@ vi.mock("@/lib/utils/logger", () => ({
 }));
 
 // ============================================================================
-// Imports — AFTER mocks
+// Imports - AFTER mocks
 // ============================================================================
 
 import { POST } from "./route";
@@ -83,7 +83,7 @@ describe("/api/files/[id]/analyze", () => {
   // --------------------------------------------------------------------------
   // Auth
   // --------------------------------------------------------------------------
-  describe("POST — Auth", () => {
+  describe("POST - Auth", () => {
     it("should return 401 if not authenticated", async () => {
       mockUnauthorized();
 
@@ -99,7 +99,7 @@ describe("/api/files/[id]/analyze", () => {
   // --------------------------------------------------------------------------
   // Validation
   // --------------------------------------------------------------------------
-  describe("POST — Validation", () => {
+  describe("POST - Validation", () => {
     it("should return 400 when file id is empty", async () => {
       mockAuthorized();
 
@@ -116,7 +116,7 @@ describe("/api/files/[id]/analyze", () => {
   // --------------------------------------------------------------------------
   // Happy path
   // --------------------------------------------------------------------------
-  describe("POST — Happy path", () => {
+  describe("POST - Happy path", () => {
     it("should analyze file and return analysis result", async () => {
       mockAuthorized();
 
@@ -156,7 +156,7 @@ describe("/api/files/[id]/analyze", () => {
   // --------------------------------------------------------------------------
   // Error handling
   // --------------------------------------------------------------------------
-  describe("POST — Error handling", () => {
+  describe("POST - Error handling", () => {
     it("should return 500 when downloadFileBytes throws", async () => {
       mockAuthorized();
       vi.mocked(downloadFileBytes).mockRejectedValue(new Error("Storage down"));

@@ -20,8 +20,8 @@ if (typeof window === "undefined") {
     if (process.env.NODE_ENV === "production") {
       throw error;
     }
-    console.error("⚠️  Environment validation failed:", error);
-    console.error("⚠️  App may not work correctly. Please fix your environment variables.");
+    console.error("  Environment validation failed:", error);
+    console.error("  App may not work correctly. Please fix your environment variables.");
   }
 }
 

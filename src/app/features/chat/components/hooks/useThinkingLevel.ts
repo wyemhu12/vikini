@@ -36,7 +36,7 @@ export function isGemini3FlashModel(model: string): boolean {
 
 /**
  * Check if a model is a Claude model that supports extended thinking
- * (Sonnet, Opus — Haiku does NOT support thinking)
+ * (Sonnet, Opus - Haiku does NOT support thinking)
  */
 export function isClaudeThinkingModel(model: string): boolean {
   const lower = model.toLowerCase();
@@ -95,12 +95,12 @@ export function useThinkingLevel(currentModel: string): UseThinkingLevelResult {
   const hasExtendedLevels = isGemini3FlashModel(currentModel);
   // Claude models only support on/off (high)
   const isClaudeModel = isClaudeThinkingModel(currentModel);
-  // DeepSeek V4 supports off/low(high)/high(max) — 3 levels
+  // DeepSeek V4 supports off/low(high)/high(max) - 3 levels
   const isDeepSeek = isDeepSeekV4Model(currentModel);
 
   // Available levels based on model
   // Claude Sonnet/Opus: simple on/off (high = budget_tokens)
-  // DeepSeek V4: off/low(=high effort)/high(=max effort) — 3 options
+  // DeepSeek V4: off/low(=high effort)/high(=max effort) - 3 options
   // Gemini 2.5: simple on/off (high = dynamic thinkingBudget)
   // Gemini 3 Flash: full range
   // Gemini 3 Pro: basic levels

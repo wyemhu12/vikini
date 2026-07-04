@@ -10,7 +10,7 @@ interface StyleSelectorProps {
   onSelect: (style: string) => void;
 }
 
-// Style preview image map — maps style id to /styles/ image path
+// Style preview image map - maps style id to /styles/ image path
 const STYLE_THUMBNAILS: Record<string, string> = {
   photorealistic: "/styles/style_photorealistic.png",
   anime: "/styles/style_anime.png",
@@ -102,7 +102,7 @@ export default function StyleSelector({ selectedStyle, onSelect }: StyleSelector
                   loading="lazy"
                 />
               ) : (
-                /* "None" style — icon fallback */
+                /* "None" style - icon fallback */
                 <div className="absolute inset-0 bg-(--surface-elevated) flex items-center justify-center">
                   <Palette className="w-8 h-8 text-(--text-secondary) opacity-40" />
                 </div>

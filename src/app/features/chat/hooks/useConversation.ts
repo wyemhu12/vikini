@@ -198,7 +198,7 @@ export function useConversation(): UseConversationReturn {
   // Tombstone set để chặn "conversation đã xoá" bị re-add lại do merge/refresh.
   const deletedIdsRef = useRef<Set<string>>(new Set());
 
-  // ✅ for ChatApp.jsx compatibility
+  //  for ChatApp.jsx compatibility
   const [creatingConversation, setCreatingConversation] = useState(false);
 
   const { data, mutate } = useSWR<ConversationResponse>("/api/conversations", fetcher, {
@@ -207,7 +207,7 @@ export function useConversation(): UseConversationReturn {
     revalidateOnReconnect: false,
   });
 
-  // ✅ FIX: SWR về thì MERGE, không overwrite
+  //  FIX: SWR về thì MERGE, không overwrite
   useEffect(() => {
     if (!data?.conversations) return;
 
@@ -225,7 +225,7 @@ export function useConversation(): UseConversationReturn {
       );
     });
 
-    // ✅ REMOVED: Tự động chọn activeId.
+    //  REMOVED: Tự động chọn activeId.
     // Chúng ta muốn ở lại Landing Page (activeId = null) khi load lại trang.
   }, [data]);
 
@@ -272,7 +272,7 @@ export function useConversation(): UseConversationReturn {
     });
   }, []);
 
-  // ✅ NEW: Patch model locally (optimistic update)
+  //  NEW: Patch model locally (optimistic update)
   const patchConversationModel = useCallback((id: string, model: string) => {
     if (!id || !model) return;
     const now = Date.now();
@@ -286,7 +286,7 @@ export function useConversation(): UseConversationReturn {
     });
   }, []);
 
-  // ✅ NEW: Patch gem locally (optimistic update) - fixes immediate UI update after gem selection
+  //  NEW: Patch gem locally (optimistic update) - fixes immediate UI update after gem selection
   const patchConversationGem = useCallback(
     (id: string, gem: { name: string; icon: string | null; color: string | null } | null) => {
       if (!id) return;
@@ -303,7 +303,7 @@ export function useConversation(): UseConversationReturn {
     []
   );
 
-  // ✅ NEW: Patch persona locally (optimistic update)
+  //  NEW: Patch persona locally (optimistic update)
   const patchConversationPersona = useCallback(
     (id: string, persona: { name: string; icon: string | null; color: string | null } | null) => {
       if (!id) return;
@@ -322,7 +322,7 @@ export function useConversation(): UseConversationReturn {
     []
   );
 
-  // ✅ NEW: bump updatedAt local để sidebar reorder ngay khi user gửi message
+  //  NEW: bump updatedAt local để sidebar reorder ngay khi user gửi message
   const bumpConversationActivity = useCallback((id: string, ts: number = Date.now()) => {
     if (!id) return;
 
@@ -427,7 +427,7 @@ export function useConversation(): UseConversationReturn {
     [mutate, patchConversationTitle]
   );
 
-  // ✅ NEW: Set model for a conversation (server call)
+  //  NEW: Set model for a conversation (server call)
   const setConversationModel = useCallback(
     async (id: string, model: string) => {
       if (!id || !model) return;
@@ -523,7 +523,7 @@ export function useConversation(): UseConversationReturn {
   }, [conversations, deleteConversation, mutate]);
 
   // Computed: personal chats (no project) and project chats getter
-  // ✅ FIX: useMemo to stabilize reference — prevents Sidebar re-render cascade
+  //  FIX: useMemo to stabilize reference - prevents Sidebar re-render cascade
   // Without this, every ChatApp render (typing, streaming) creates a new array,
   // which busts React.memo on Sidebar and causes visible flickering.
   const personalConversations = useMemo(
@@ -554,14 +554,14 @@ export function useConversation(): UseConversationReturn {
     bumpConversationActivity,
     mutateConversations: mutate,
 
-    // ✅ NEW: Model management
+    //  NEW: Model management
     setConversationModel,
     patchConversationModel,
 
-    // ✅ NEW: Gem management (optimistic update)
+    //  NEW: Gem management (optimistic update)
     patchConversationGem,
 
-    // ✅ NEW: Persona management (optimistic update)
+    //  NEW: Persona management (optimistic update)
     patchConversationPersona,
 
     // ChatApp.jsx expected fields

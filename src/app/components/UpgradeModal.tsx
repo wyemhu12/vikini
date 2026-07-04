@@ -51,7 +51,7 @@ export default function UpgradeModal({ isOpen, onClose, modelName }: UpgradeModa
                   <div className="text-sm font-medium text-blue-300 mb-1">
                     {t("modalUpgradeRequestedModel")}
                   </div>
-                  <div className="text-white font-semibold">🔒 {modelName}</div>
+                  <div className="text-white font-semibold"> {modelName}</div>
                 </div>
               )}
 

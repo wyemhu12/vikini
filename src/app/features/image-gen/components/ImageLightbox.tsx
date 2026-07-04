@@ -148,7 +148,7 @@ export default function ImageLightbox({
     [zoomIn, zoomOut]
   );
 
-  // Pan when zoomed — mouse handlers
+  // Pan when zoomed - mouse handlers
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (scale <= 1) return;

@@ -1,5 +1,5 @@
 /**
- * File Store — Zustand store for client-side upload state management.
+ * File Store - Zustand store for client-side upload state management.
  *
  * Manages upload queue (in-progress uploads) with per-file progress tracking.
  * The actual file list comes from useFiles() SWR hook, not from this store.

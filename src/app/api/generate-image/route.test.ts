@@ -116,7 +116,7 @@ describe("/api/generate-image", () => {
   });
 
   // ────────────────────────────────────────────────────────────────────
-  // POST — Auth
+  // POST - Auth
   // ────────────────────────────────────────────────────────────────────
   describe("POST", () => {
     it("should return 401 if not authenticated", async () => {
@@ -259,7 +259,7 @@ describe("/api/generate-image", () => {
       });
       const res = await POST(req);
 
-      // Should not return 400 — schema accepts it
+      // Should not return 400 - schema accepts it
       // (may return 404 for conversation, but NOT 400)
       expect(res.status).not.toBe(400);
     });
@@ -313,7 +313,7 @@ describe("/api/generate-image", () => {
           options: { resolution: res },
         });
         const response = await POST(req);
-        // Should not return 400 — valid resolution
+        // Should not return 400 - valid resolution
         expect(response.status).not.toBe(400);
       }
     });
@@ -357,7 +357,7 @@ describe("/api/generate-image", () => {
             "data:image/png;base64,b",
             "data:image/png;base64,c",
             "data:image/png;base64,d",
-            "data:image/png;base64,e", // 5th — exceeds max
+            "data:image/png;base64,e", // 5th - exceeds max
           ],
         },
       });

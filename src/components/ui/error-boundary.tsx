@@ -8,7 +8,7 @@ interface Props {
   children: ReactNode;
   fallback?: ReactNode;
   onReset?: () => void;
-  /** Translation function — pass `t` from useLanguage(). Falls back to English. */
+  /** Translation function - pass `t` from useLanguage(). Falls back to English. */
   t?: (key: string) => string;
 }
 

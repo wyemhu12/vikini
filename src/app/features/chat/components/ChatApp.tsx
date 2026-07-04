@@ -1040,7 +1040,7 @@ export default function ChatApp() {
         />
       )}
 
-      {/* Edit Plan Modal — replaces window.prompt() */}
+      {/* Edit Plan Modal - replaces window.prompt() */}
       {isDeepResearchMode && (
         <EditPlanModal
           isOpen={isEditPlanOpen}

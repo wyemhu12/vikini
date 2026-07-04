@@ -259,7 +259,7 @@ function Sidebar({
     }
   };
 
-  // renderSidebarContent is a render function (NOT a component) — prevents remount/flicker
+  // renderSidebarContent is a render function (NOT a component) - prevents remount/flicker
   const renderSidebarContent = (isMobile = false) => {
     const isCollapsed = isMobile ? false : collapsed;
 
@@ -516,7 +516,7 @@ function Sidebar({
           {renderSidebarContent()}
         </aside>
 
-        {/* Mobile drawer — Radix Dialog for focus trap + ESC close */}
+        {/* Mobile drawer - Radix Dialog for focus trap + ESC close */}
         <Dialog.Root
           open={mobileOpen}
           onOpenChange={(open) => {
@@ -566,9 +566,7 @@ function Sidebar({
                           <button
                             aria-label="Close sidebar"
                             className="p-2 rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors"
-                          >
-                            ✕
-                          </button>
+                          ></button>
                         </Dialog.Close>
                       </div>
                       {/* Reuse SidebarContent with isMobile=true (never collapsed) */}

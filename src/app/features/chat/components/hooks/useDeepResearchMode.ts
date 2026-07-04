@@ -11,7 +11,7 @@ const ACTIVE_RESEARCH_KEY = "vikini-active-research";
 const DEFAULT_AGENT: ResearchAgent = "deep-research-preview-04-2026";
 
 // Adaptive polling: fast during planning (plan usually ready in ~3s), slower during execution
-// Polling is now the FALLBACK mechanism — SSE is primary for active sessions.
+// Polling is now the FALLBACK mechanism - SSE is primary for active sessions.
 const POLL_INTERVAL_PLANNING_MS = 3_000;
 const POLL_INTERVAL_EXECUTING_MS = 15_000;
 const MAX_POLL_COUNT = 120; // ~30 min at 15s intervals (executing phase)
@@ -75,7 +75,7 @@ interface UseDeepResearchModeReturn {
   toggleThinkingPanel: () => void;
 }
 
-// VALID_AGENTS and isValidAgent are imported from types.ts — no local copy needed (BUG-08)
+// VALID_AGENTS and isValidAgent are imported from types.ts - no local copy needed (BUG-08)
 
 export function useDeepResearchMode(): UseDeepResearchModeReturn {
   const [isDeepResearchMode, setIsDeepResearchMode] = useState(false);
@@ -92,7 +92,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
   const pollCountRef = useRef(0);
   const consecutiveErrorRef = useRef(0);
 
-  // SSE (Server-Sent Events) refs — primary real-time mechanism
+  // SSE (Server-Sent Events) refs - primary real-time mechanism
   const eventSourceRef = useRef<EventSource | null>(null);
   const sseActiveRef = useRef(false);
 
@@ -111,7 +111,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
       // Ignore storage access errors
     }
 
-    // Resume polling via ref — avoids stale-closure / missing-dep ESLint warning (BUG-10)
+    // Resume polling via ref - avoids stale-closure / missing-dep ESLint warning (BUG-10)
     try {
       const activeTaskId = localStorage.getItem(ACTIVE_RESEARCH_KEY);
       if (activeTaskId) {
@@ -122,7 +122,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
     } catch {
       // Ignore storage access errors
     }
-  }, []); // intentionally empty — reads from refs only
+  }, []); // intentionally empty - reads from refs only
 
   const setSelectedAgent = useCallback((agent: ResearchAgent) => {
     setSelectedAgentState(agent);
@@ -278,7 +278,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         }
       };
 
-      // Initial poll immediately; start with planning interval — adapts on first response (UX-06)
+      // Initial poll immediately; start with planning interval - adapts on first response (UX-06)
       void poll();
       pollRef.current = setInterval(poll, POLL_INTERVAL_PLANNING_MS);
     },
@@ -317,7 +317,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
         eventSourceRef.current = es;
         sseActiveRef.current = true;
 
-        // Track reconnect attempts — if EventSource auto-reconnects too many times,
+        // Track reconnect attempts - if EventSource auto-reconnects too many times,
         // it likely means the server keeps dying (Vercel timeout, crash, etc.)
         let reconnectCount = 0;
         const MAX_SSE_RECONNECTS = 3;
@@ -336,7 +336,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
             const data = JSON.parse(event.data) as { task: ResearchTask };
             if (data.task) {
               setCurrentTask(data.task);
-              // Successful data means connection is healthy — reset reconnect counter
+              // Successful data means connection is healthy - reset reconnect counter
               reconnectCount = 0;
               clearConnectingTimeout();
             }
@@ -366,7 +366,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
           clearConnectingTimeout();
 
           // Only clear active research from localStorage when task truly finishes.
-          // `ready_to_execute` means planning is done but user hasn't approved yet —
+          // `ready_to_execute` means planning is done but user hasn't approved yet -
           // task is still active and must survive page refreshes.
           try {
             const parsed = JSON.parse(event.data) as { task?: ResearchTask };
@@ -379,7 +379,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
           }
         });
 
-        // Server-sent error event — renamed to `stream_error` to avoid collision
+        // Server-sent error event - renamed to `stream_error` to avoid collision
         // with native EventSource connection error events
         es.addEventListener("stream_error", (event: MessageEvent) => {
           try {
@@ -406,7 +406,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
           clearConnectingTimeout();
 
           if (es.readyState === EventSource.CLOSED) {
-            // Connection permanently closed — fall back to polling
+            // Connection permanently closed - fall back to polling
             logger.warn("[useDeepResearchMode] SSE connection closed, falling back to polling");
             stopSSE();
             pollTask(taskId);
@@ -420,7 +420,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
           );
 
           if (reconnectCount >= MAX_SSE_RECONNECTS) {
-            // Too many reconnects — server is likely unstable, fall back to polling
+            // Too many reconnects - server is likely unstable, fall back to polling
             logger.warn(
               "[useDeepResearchMode] SSE max reconnects reached, falling back to polling"
             );
@@ -455,7 +455,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
       try {
         setIsLoading(true);
         setError(null);
-        // Set immediately for optimistic UI — the card will render before the API responds
+        // Set immediately for optimistic UI - the card will render before the API responds
         setPendingQuery(query);
 
         const body = {
@@ -581,7 +581,7 @@ export function useDeepResearchMode(): UseDeepResearchModeReturn {
     try {
       await fetch(`/api/deep-research/${currentTask.id}`, { method: "DELETE" });
     } catch {
-      // Best-effort — even if the request fails, we clean up client-side
+      // Best-effort - even if the request fails, we clean up client-side
     }
     setCurrentTask(null);
     setIsDeepResearchMode(false);

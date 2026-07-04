@@ -39,12 +39,12 @@ export async function POST(req: NextRequest) {
       throw new ValidationError("Query must be 2000 characters or fewer");
     }
 
-    // Validate optional agent model (use shared isValidAgent from types — BUG-08)
+    // Validate optional agent model (use shared isValidAgent from types - BUG-08)
     if (body.agentModel !== undefined && !isValidAgent(body.agentModel)) {
       throw new ValidationError("Invalid agent model");
     }
 
-    // Validate optional UUID fields — must be valid UUIDs, not arbitrary strings (BUG-11)
+    // Validate optional UUID fields - must be valid UUIDs, not arbitrary strings (BUG-11)
     if (body.conversationId !== undefined) {
       if (typeof body.conversationId !== "string" || !UUID_REGEX.test(body.conversationId)) {
         throw new ValidationError("conversationId must be a valid UUID");

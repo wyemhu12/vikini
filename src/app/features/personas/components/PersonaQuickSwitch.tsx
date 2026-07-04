@@ -65,7 +65,7 @@ export default function PersonaQuickSwitch({
         >
           {currentPersona ? (
             <>
-              <span className="text-sm">{currentPersona.icon || "🎭"}</span>
+              <span className="text-sm">{currentPersona.icon || ""}</span>
               <span className="max-w-[120px] truncate">{currentPersona.name}</span>
             </>
           ) : (
@@ -93,7 +93,7 @@ export default function PersonaQuickSwitch({
                   onClick={() => applyPersona(null, null)}
                   className="w-full text-left px-2 py-1.5 rounded-md text-xs text-(--danger) hover:bg-(--danger)/10 transition-colors flex items-center gap-2"
                 >
-                  <span className="w-4 text-center">✕</span> Remove Persona
+                  <span className="w-4 text-center"></span> Remove Persona
                 </button>
               )}
               {personas.map((p) => (
@@ -108,7 +108,7 @@ export default function PersonaQuickSwitch({
                   }
                   className="w-full text-left px-2 py-1.5 rounded-md text-xs text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors flex items-center gap-2"
                 >
-                  <span className="text-sm w-4 text-center">{p.icon || "🎭"}</span>
+                  <span className="text-sm w-4 text-center">{p.icon || ""}</span>
                   <span className="truncate">{p.name}</span>
                 </button>
               ))}

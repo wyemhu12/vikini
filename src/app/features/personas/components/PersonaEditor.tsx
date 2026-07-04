@@ -130,7 +130,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
             <Input
               value={icon}
               readOnly
-              placeholder="🎭"
+              placeholder=""
               className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm cursor-default"
             />
           </div>

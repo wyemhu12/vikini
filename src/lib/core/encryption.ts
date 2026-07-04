@@ -40,7 +40,7 @@ function getKey(): Buffer {
   if (!RAW_KEY) {
     throw new Error("DATA_ENCRYPTION_KEY is not available");
   }
-  // Use the hex key directly – no SHA-256 derivation
+  // Use the hex key directly - no SHA-256 derivation
   cachedKey = Buffer.from(RAW_KEY, "hex");
   return cachedKey;
 }

@@ -56,7 +56,7 @@ describe("incrementDailyMessageCount", () => {
       error: { message: "DB connection failed" },
     });
 
-    // Should not throw — function logs warning internally
+    // Should not throw - function logs warning internally
     await expect(limits.incrementDailyMessageCount("user-123")).resolves.toBeUndefined();
 
     expect(rpcMock).toHaveBeenCalledTimes(1);

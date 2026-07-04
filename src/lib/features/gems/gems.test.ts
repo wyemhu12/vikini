@@ -69,14 +69,14 @@ describe("Gems Helper Functions", () => {
         name: "Test Gem",
         description: "A test gem",
         instruction: "Do something",
-        icon: "⭐",
+        icon: "",
         color: "#FF0000",
       });
 
       expect(result.name).toBe("Test Gem");
       expect(result.description).toBe("A test gem");
       expect(result.instruction).toBe("Do something");
-      expect(result.icon).toBe("⭐");
+      expect(result.icon).toBe("");
       expect(result.color).toBe("#FF0000");
     });
 

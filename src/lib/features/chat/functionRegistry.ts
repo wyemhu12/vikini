@@ -1,6 +1,6 @@
 // /lib/features/chat/functionRegistry.ts
 // Extensible function registry for Gemini Function Calling.
-// Register new functions here — they become available to all Gemini models.
+// Register new functions here - they become available to all Gemini models.
 //
 // Architecture:
 //   1. Define function with FunctionDeclaration schema
@@ -174,7 +174,7 @@ registerFunction(
   }
 );
 
-// --- get_weather (placeholder — returns instruction to use web search) ---
+// --- get_weather (placeholder - returns instruction to use web search) ---
 registerFunction(
   {
     name: "get_weather",

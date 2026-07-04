@@ -1,6 +1,6 @@
 /**
- * Files API — Upload
- * POST /api/files/upload — FormData upload with dual storage
+ * Files API - Upload
+ * POST /api/files/upload - FormData upload with dual storage
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

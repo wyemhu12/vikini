@@ -84,7 +84,7 @@ export function ProjectIcon({ icon, color, size = "sm", className }: ProjectIcon
       )}
       style={{ backgroundColor: color || "#6366f1" }}
     >
-      {icon || "📁"}
+      {icon || ""}
     </span>
   );
 }

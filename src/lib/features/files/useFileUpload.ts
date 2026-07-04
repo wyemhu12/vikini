@@ -1,5 +1,5 @@
 /**
- * useFileUpload — Unified upload logic hook.
+ * useFileUpload - Unified upload logic hook.
  *
  * Consolidates ALL upload entry points into a single hook:
  * - File picker (via "+" button)
@@ -87,7 +87,7 @@ function classifyClientSide(ext: string, mime: string): FileKind {
   return "other";
 }
 
-/** File input accept attribute — all supported types */
+/** File input accept attribute - all supported types */
 const FILE_ACCEPT = [
   "image/*",
   "video/*",
@@ -247,7 +247,7 @@ export function useFileUpload({
                         uploadedFile = d.data?.file ?? d.file ?? null;
                       }
                     } catch {
-                      /* response parsing failed — will fall back to SWR refetch */
+                      /* response parsing failed - will fall back to SWR refetch */
                     }
 
                     // Notify parent with file data (for optimistic SWR update)
@@ -259,7 +259,7 @@ export function useFileUpload({
                     setTimeout(() => removeFromQueue(tempId), 800);
                     resolve();
                   } else {
-                    // Server error (4xx/5xx) — do NOT retry
+                    // Server error (4xx/5xx) - do NOT retry
                     let msg = "Upload failed";
                     try {
                       const body: unknown = JSON.parse(xhr.responseText);
@@ -281,7 +281,7 @@ export function useFileUpload({
                 xhr.open("POST", "/api/files/upload");
                 xhr.send(fd);
               });
-              // Upload succeeded — break out of retry loop
+              // Upload succeeded - break out of retry loop
               lastError = null;
               break;
             } catch (retryErr: unknown) {

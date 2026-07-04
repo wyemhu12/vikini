@@ -62,7 +62,7 @@ export default function GemQuickSwitch({ currentGem, conversationId }: GemQuickS
         >
           {currentGem ? (
             <>
-              <span className="text-sm">{currentGem.icon || "💎"}</span>
+              <span className="text-sm">{currentGem.icon || ""}</span>
               <span className="max-w-[120px] truncate">{currentGem.name}</span>
             </>
           ) : (
@@ -90,7 +90,7 @@ export default function GemQuickSwitch({ currentGem, conversationId }: GemQuickS
                   onClick={() => applyGem(null, null)}
                   className="w-full text-left px-2 py-1.5 rounded-md text-xs text-(--danger) hover:bg-(--danger)/10 transition-colors flex items-center gap-2"
                 >
-                  <span className="w-4 text-center">✕</span> Remove GEM
+                  <span className="w-4 text-center"></span> Remove GEM
                 </button>
               )}
               {gems.map((g) => (
@@ -101,7 +101,7 @@ export default function GemQuickSwitch({ currentGem, conversationId }: GemQuickS
                   }
                   className="w-full text-left px-2 py-1.5 rounded-md text-xs text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors flex items-center gap-2"
                 >
-                  <span className="text-sm w-4 text-center">{g.icon || "💎"}</span>
+                  <span className="text-sm w-4 text-center">{g.icon || ""}</span>
                   <span className="truncate">{g.name}</span>
                 </button>
               ))}

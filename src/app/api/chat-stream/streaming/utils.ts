@@ -86,7 +86,7 @@ export function safeText(respOrChunk: unknown): string {
       firstCandidate?.finishReason === "FUNCTION_CALL" ||
       firstCandidate?.finishReason === "function_call"
     ) {
-      // Let the caller handle function calls — don't extract text
+      // Let the caller handle function calls - don't extract text
       return "";
     }
 
@@ -116,7 +116,7 @@ export function safeText(respOrChunk: unknown): string {
             codeExecutionResult?: { output?: string; outcome?: string };
           };
 
-          // Skip function call/response parts — they contain raw metadata, not display text
+          // Skip function call/response parts - they contain raw metadata, not display text
           if (p.functionCall || p.functionResponse) continue;
 
           // Handle Gemini Code Execution parts (render as markdown)
@@ -130,7 +130,7 @@ export function safeText(respOrChunk: unknown): string {
             continue;
           }
 
-          // Skip thought parts here — they are handled by executeStream's
+          // Skip thought parts here - they are handled by executeStream's
           // state machine to ensure correct ordering (thoughts before text)
           if (p.thought === true) continue;
           if (typeof p.thought === "string") continue;

@@ -1,5 +1,5 @@
 /**
- * FileLightbox — Full-screen preview modal for files.
+ * FileLightbox - Full-screen preview modal for files.
  *
  * Supports images (full-size), text (monospace), video/audio (HTML5 players),
  * and generic files (info + download).

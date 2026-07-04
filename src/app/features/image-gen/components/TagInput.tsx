@@ -77,7 +77,7 @@ export default function TagInput({
     }
   };
 
-  // Compact display mode — show tag pills + "+" button
+  // Compact display mode - show tag pills + "+" button
   if (!isEditing) {
     return (
       <div className={cn("flex flex-wrap items-center gap-1", className)}>
@@ -108,7 +108,7 @@ export default function TagInput({
     );
   }
 
-  // Edit mode — show input with existing tags
+  // Edit mode - show input with existing tags
   return (
     <div
       className={cn(

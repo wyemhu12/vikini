@@ -1,8 +1,8 @@
 /**
- * File Validation — Consolidated validation logic
+ * File Validation - Consolidated validation logic
  *
  * Merged from fileService.server.ts and attachments.ts.
- * Pure functions only — no DB, storage, or network calls.
+ * Pure functions only - no DB, storage, or network calls.
  */
 
 import type { FileKind, FileValidationResult, FileSupportLevel, FileCategory } from "@/types/files";
@@ -22,7 +22,7 @@ function safeLower(v: unknown): string {
 // BLOCKED EXTENSIONS & MIME TYPES
 // ============================================
 
-/** Blocked extensions — executables, scripts, system files, packages. */
+/** Blocked extensions - executables, scripts, system files, packages. */
 export const BLOCKED_EXTENSIONS = new Set([
   // Windows executables
   "exe",
@@ -58,7 +58,7 @@ export const BLOCKED_EXTENSIONS = new Set([
   "rpm",
 ]);
 
-/** Blocked MIME types — corresponding dangerous content types. */
+/** Blocked MIME types - corresponding dangerous content types. */
 export const BLOCKED_MIME_TYPES = new Set([
   "application/x-msdownload",
   "application/x-msdos-program",
@@ -163,7 +163,7 @@ export function normalizeMimeType(ext: string, browserMime: string): string {
   // 1. Extension-based lookup (highest priority)
   if (EXT_MIME_MAP[ext]) return EXT_MIME_MAP[ext];
 
-  // 2. Avoid octet-stream — prefer browser hint otherwise
+  // 2. Avoid octet-stream - prefer browser hint otherwise
   if (browserMime && browserMime !== "application/octet-stream") return browserMime;
 
   // 3. Fallback
@@ -296,7 +296,7 @@ export function validateImageContent(bytes: Uint8Array, expectedMime: string): b
     );
   }
 
-  // Cannot verify — be lenient
+  // Cannot verify - be lenient
   return true;
 }
 

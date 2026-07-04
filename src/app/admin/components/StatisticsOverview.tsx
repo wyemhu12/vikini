@@ -27,7 +27,7 @@ interface Stats {
   messages: { today: number };
 }
 
-// No props needed — language comes from useLanguage() hook
+// No props needed - language comes from useLanguage() hook
 
 export default function StatisticsOverview() {
   const [stats, setStats] = useState<Stats | null>(null);

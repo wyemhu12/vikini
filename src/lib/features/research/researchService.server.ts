@@ -112,7 +112,7 @@ export async function createResearchTask(
     throw new ValidationError(`Query must be ${MAX_QUERY_LENGTH} characters or fewer`);
   }
 
-  // Atomically claim one research slot — checks feature flag, increments, and verifies
+  // Atomically claim one research slot - checks feature flag, increments, and verifies
   // the new count is within the limit. Eliminates the TOCTOU race of the old
   // canDoResearch() → incrementResearchCount() two-step pattern (BUG-02).
   const claimed = await tryClaimResearchSlot(userId);
@@ -121,7 +121,7 @@ export async function createResearchTask(
   }
 
   const supabase = getSupabaseAdmin();
-  // Validate agentModel against canonical list (BUG-08 — single source of truth)
+  // Validate agentModel against canonical list (BUG-08 - single source of truth)
   const agentModel: ResearchAgent =
     request.agentModel && (VALID_AGENTS as readonly string[]).includes(request.agentModel)
       ? request.agentModel
@@ -171,7 +171,7 @@ export async function createResearchTask(
     }
 
     // NOTE: Daily count was already atomically claimed via tryClaimResearchSlot() above.
-    // Do NOT call incrementResearchCount() here — that would double-count.
+    // Do NOT call incrementResearchCount() here - that would double-count.
 
     // Refetch the updated task
     const { data: updatedRow } = await supabase
@@ -369,7 +369,7 @@ export async function checkResearchStatus(userId: string, taskId: string): Promi
             "Failed to finalize research (report saved but conversation not created):",
             errMsg
           );
-          // Report is saved in the task, so don't change status — user can still view it
+          // Report is saved in the task, so don't change status - user can still view it
         }
 
         return finalTask;
@@ -440,7 +440,7 @@ export async function finalizeResearch(
       .from("conversations")
       .insert({
         user_id: task.userId,
-        title: `🔬 ${title}`,
+        title: ` ${title}`,
         model: DEFAULT_CONVERSATION_MODEL,
         created_at: now,
         updated_at: now,
@@ -508,7 +508,7 @@ export async function finalizeResearch(
     },
   });
 
-  // Update conversation preview — strip leading markdown so the sidebar shows readable text (BUG-07)
+  // Update conversation preview - strip leading markdown so the sidebar shows readable text (BUG-07)
   const cleanReport = report
     .replace(/^#{1,6}\s+.*/gm, "") // remove header lines
     .replace(/\*\*(.+?)\*\*/g, "$1") // unwrap bold
@@ -529,7 +529,7 @@ export async function finalizeResearch(
     .eq("id", conversationId);
 
   // If project linked and this is a successful research, add report to knowledge base (best-effort).
-  // Skip KB indexing for failed/cancelled tasks — error messages shouldn't pollute the KB.
+  // Skip KB indexing for failed/cancelled tasks - error messages shouldn't pollute the KB.
   if (task.projectId && !isFailed) {
     try {
       await addResearchToProjectKB(task.projectId, task.userId, task.query, report);
@@ -622,7 +622,7 @@ export async function cancelResearchTask(userId: string, taskId: string): Promis
     throw new ForbiddenError("Not authorized to access this research task");
   }
 
-  // Already in a terminal state — nothing to cancel
+  // Already in a terminal state - nothing to cancel
   if (task.status === "completed" || task.status === "failed") {
     return task;
   }

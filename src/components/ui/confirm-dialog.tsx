@@ -20,7 +20,7 @@ import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
  * app root, alongside <ToastContainer />.
  *
  * Built on the Radix Dialog primitive, so focus trapping, ESC-to-close and
- * scroll locking come for free — the gaps the old hand-rolled modals had.
+ * scroll locking come for free - the gaps the old hand-rolled modals had.
  */
 export default function ConfirmDialogHost() {
   const { open, loading, options, settle } = useConfirmStore();

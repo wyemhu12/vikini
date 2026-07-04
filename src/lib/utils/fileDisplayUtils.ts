@@ -1,5 +1,5 @@
 /**
- * File formatting and display utilities — shared across all file UI components.
+ * File formatting and display utilities - shared across all file UI components.
  *
  * Extracted from FilePreviewCard, FileLightbox, FileManagerPanel, FileInMessage
  * to eliminate 4× duplication.
@@ -56,7 +56,7 @@ export function truncateFilename(name: string, maxLength: number = 18): string {
 
   const dotIndex = name.lastIndexOf(".");
   if (dotIndex === -1 || dotIndex === 0) {
-    // No extension or hidden file — simple truncate
+    // No extension or hidden file - simple truncate
     return name.slice(0, maxLength - 1) + "…";
   }
 
@@ -66,7 +66,7 @@ export function truncateFilename(name: string, maxLength: number = 18): string {
   // Ensure we have room for at least a few base chars + ext
   const maxBase = maxLength - ext.length - 1; // -1 for the "…"
   if (maxBase < 3) {
-    // Extension is very long — just truncate everything
+    // Extension is very long - just truncate everything
     return name.slice(0, maxLength - 1) + "…";
   }
 

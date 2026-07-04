@@ -111,22 +111,22 @@ export function createAnthropicStream({
           }
         );
 
-        // Build tools array for Beta API — code execution, web fetch, web search, function calling
+        // Build tools array for Beta API - code execution, web fetch, web search, function calling
         const anthropicTools: Array<Record<string, unknown>> = [];
 
-        // Code Execution — Claude runs Python/JS in a sandboxed container
+        // Code Execution - Claude runs Python/JS in a sandboxed container
         anthropicTools.push({
           type: "code_execution_20250522",
           name: "code_execution",
         });
 
-        // Web Fetch — Claude can fetch URLs for real-time data
+        // Web Fetch - Claude can fetch URLs for real-time data
         anthropicTools.push({
           type: "web_fetch_20250910",
           name: "web_fetch",
         });
 
-        // Web Search — native web search
+        // Web Search - native web search
         if (enableWebSearch && WEB_SEARCH_AVAILABLE) {
           anthropicTools.push({
             type: "web_search_20250305",
@@ -135,7 +135,7 @@ export function createAnthropicStream({
           });
         }
 
-        // Function Calling — get_current_time
+        // Function Calling - get_current_time
         anthropicTools.push({
           name: "get_current_time",
           description:
@@ -253,7 +253,7 @@ export function createAnthropicStream({
             if (partial) currentToolInput += partial;
           }
 
-          // Tool use complete — execute and resume
+          // Tool use complete - execute and resume
           if (chunk.type === "content_block_stop" && currentToolName && currentToolUseId) {
             // Only handle our custom functions (not server tools like web_search)
             if (currentToolName === "get_current_time") {
@@ -306,7 +306,7 @@ export function createAnthropicStream({
                   max_tokens: 4096,
                   temperature: 0.7,
                   tools: anthropicTools,
-                  // Beta API types don't fully cover dynamic tool types — see line 164 comment
+                  // Beta API types don't fully cover dynamic tool types - see line 164 comment
                 } as unknown as Parameters<typeof ai.beta.messages.create>[0]);
 
                 for await (const rChunk of resumeStream as unknown as AsyncIterable<{
@@ -342,7 +342,7 @@ export function createAnthropicStream({
             }
           }
 
-          // Handle content_block_start — extract web search results + code execution results
+          // Handle content_block_start - extract web search results + code execution results
           if (chunk.type === "content_block_start") {
             const block = chunk.content_block as Record<string, unknown>;
 
@@ -374,7 +374,7 @@ export function createAnthropicStream({
               }
             }
 
-            // Code execution result — extract stdout/stderr and render as code blocks
+            // Code execution result - extract stdout/stderr and render as code blocks
             if (block.type === "code_execution_result") {
               const ceResult = block as {
                 type: "code_execution_result";
@@ -394,7 +394,7 @@ export function createAnthropicStream({
               }
             }
 
-            // server_tool_use — Claude deciding to use a tool (log for debugging)
+            // server_tool_use - Claude deciding to use a tool (log for debugging)
             if (block.type === "server_tool_use") {
               const toolName = (block as { name?: string }).name;
               if (toolName === "web_search") {
@@ -465,7 +465,7 @@ export function createAnthropicStream({
         }
       }
 
-      // 3. Post Stream Processing — include sources for DB persistence
+      // 3. Post Stream Processing - include sources for DB persistence
       // Deduplicate sources before persisting
       const seen = new Set<string>();
       const uniqueSources = collectedSources.filter((s) => {

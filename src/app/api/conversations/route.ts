@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const id = url.searchParams.get("id");
 
-    // ✅ If id provided => return messages
+    //  If id provided => return messages
     if (id) {
       // SECURITY: Validate UUID format to prevent injection
       const uuidRegex =
@@ -202,17 +202,17 @@ export async function PATCH(req: NextRequest) {
       conversation = await setConversationGem(userId, id, gemId ?? null);
     }
 
-    // ✅ NEW: Handle model update
+    //  NEW: Handle model update
     if (hasModel && model) {
       conversation = await setConversationModel(userId, id, model);
     }
 
-    // ✅ NEW: Handle project update (for RAG)
+    //  NEW: Handle project update (for RAG)
     if (hasProjectId) {
       conversation = await setConversationProject(userId, id, projectId ?? null);
     }
 
-    // ✅ NEW: Handle persona update
+    //  NEW: Handle persona update
     if (hasPersonaId) {
       conversation = await setConversationPersona(userId, id, personaId ?? null);
     }

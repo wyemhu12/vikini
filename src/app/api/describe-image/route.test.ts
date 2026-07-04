@@ -88,7 +88,7 @@ describe("/api/describe-image", () => {
   });
 
   // ── Auth ─────────────────────────────────────────────────────────────
-  describe("POST — Auth", () => {
+  describe("POST - Auth", () => {
     it("should return 401 if not authenticated", async () => {
       mockUnauthenticated();
 
@@ -102,7 +102,7 @@ describe("/api/describe-image", () => {
   });
 
   // ── Rate Limiting ───────────────────────────────────────────────────
-  describe("POST — Rate Limiting", () => {
+  describe("POST - Rate Limiting", () => {
     it("should return 429 when rate limited", async () => {
       mockAuthenticated();
       mockRateLimitExceeded();
@@ -117,7 +117,7 @@ describe("/api/describe-image", () => {
   });
 
   // ── Validation ──────────────────────────────────────────────────────
-  describe("POST — Validation", () => {
+  describe("POST - Validation", () => {
     it("should return 400 if imageUrl is missing", async () => {
       mockAuthenticated();
       mockRateLimitAllowed();
@@ -144,7 +144,7 @@ describe("/api/describe-image", () => {
   });
 
   // ── Happy Path ──────────────────────────────────────────────────────
-  describe("POST — Success", () => {
+  describe("POST - Success", () => {
     it("should return description for data URL image", async () => {
       mockAuthenticated();
       mockRateLimitAllowed();
@@ -200,7 +200,7 @@ describe("/api/describe-image", () => {
   });
 
   // ── Error Handling ──────────────────────────────────────────────────
-  describe("POST — Error handling", () => {
+  describe("POST - Error handling", () => {
     it("should return 500 when Gemini call fails", async () => {
       mockAuthenticated();
       mockRateLimitAllowed();

@@ -21,7 +21,7 @@ import { useState, useEffect, useCallback } from "react";
 import { logger } from "@/lib/utils/logger";
 import TagInput from "./TagInput";
 
-// Dynamic loading message keys — cycle every 2.5s
+// Dynamic loading message keys - cycle every 2.5s
 const LOADING_MESSAGE_KEYS = [
   "studioLoadingMixColors",
   "studioLoadingDrawDetails",
@@ -200,7 +200,7 @@ export default function Canvas({
               {/* P2-1: AI Comment */}
               {item.aiComment && (
                 <div className="px-3 py-2 text-xs text-(--text-secondary) italic bg-(--surface-muted)/50 border-t border-(--border) line-clamp-2 hover:line-clamp-none transition-colors cursor-pointer">
-                  💬 {item.aiComment}
+                  {item.aiComment}
                 </div>
               )}
 
@@ -242,7 +242,7 @@ export default function Canvas({
                     </span>
                   )}
 
-                  {/* Top Right Actions — Favorite + Delete */}
+                  {/* Top Right Actions - Favorite + Delete */}
                   <div className="ml-auto flex gap-1.5">
                     {/* QW4: Favorite toggle */}
                     {item.id && onToggleFavorite && (
@@ -291,7 +291,7 @@ export default function Canvas({
                     />
                   )}
 
-                  {/* Action Buttons — wraps on small screens */}
+                  {/* Action Buttons - wraps on small screens */}
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       onClick={() => onRemix(item)}
@@ -349,7 +349,7 @@ export default function Canvas({
         </div>
       )}
 
-      {/* Empty state — Template Gallery */}
+      {/* Empty state - Template Gallery */}
       {!generating && images.length === 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 // ============================================================================
-// Mocks — declared BEFORE importing the route
+// Mocks - declared BEFORE importing the route
 // ============================================================================
 
 vi.mock("@/app/api/conversations/auth", () => ({
@@ -30,7 +30,7 @@ vi.mock("@/lib/utils/logger", () => ({
 }));
 
 // ============================================================================
-// Imports — AFTER mocks
+// Imports - AFTER mocks
 // ============================================================================
 
 import { POST } from "./route";
@@ -86,7 +86,7 @@ describe("/api/files/upload", () => {
   // --------------------------------------------------------------------------
   // Auth
   // --------------------------------------------------------------------------
-  describe("POST — Auth", () => {
+  describe("POST - Auth", () => {
     it("should return 401 if not authenticated", async () => {
       mockUnauthorized();
 
@@ -105,7 +105,7 @@ describe("/api/files/upload", () => {
   // --------------------------------------------------------------------------
   // Validation
   // --------------------------------------------------------------------------
-  describe("POST — Validation", () => {
+  describe("POST - Validation", () => {
     it("should return 400 when conversationId is missing", async () => {
       mockAuthorized();
 
@@ -138,7 +138,7 @@ describe("/api/files/upload", () => {
   // --------------------------------------------------------------------------
   // Not found
   // --------------------------------------------------------------------------
-  describe("POST — Not found", () => {
+  describe("POST - Not found", () => {
     it("should return 404 when conversation does not exist", async () => {
       mockAuthorized();
       vi.mocked(getConversation).mockResolvedValue(null);
@@ -177,7 +177,7 @@ describe("/api/files/upload", () => {
   // --------------------------------------------------------------------------
   // Happy path
   // --------------------------------------------------------------------------
-  describe("POST — Happy path", () => {
+  describe("POST - Happy path", () => {
     it("should upload file and return file data", async () => {
       mockAuthorized();
       vi.mocked(getConversation).mockResolvedValue({
@@ -237,7 +237,7 @@ describe("/api/files/upload", () => {
   // --------------------------------------------------------------------------
   // Error handling
   // --------------------------------------------------------------------------
-  describe("POST — Error handling", () => {
+  describe("POST - Error handling", () => {
     it("should return 500 when uploadFile throws unexpected error", async () => {
       mockAuthorized();
       vi.mocked(getConversation).mockResolvedValue({

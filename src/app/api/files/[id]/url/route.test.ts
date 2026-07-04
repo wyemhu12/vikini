@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 // ============================================================================
-// Mocks — declared BEFORE importing the route
+// Mocks - declared BEFORE importing the route
 // ============================================================================
 
 vi.mock("@/app/api/conversations/auth", () => ({
@@ -26,7 +26,7 @@ vi.mock("@/lib/utils/logger", () => ({
 }));
 
 // ============================================================================
-// Imports — AFTER mocks
+// Imports - AFTER mocks
 // ============================================================================
 
 import { GET } from "./route";
@@ -77,7 +77,7 @@ describe("/api/files/[id]/url", () => {
   // --------------------------------------------------------------------------
   // Auth
   // --------------------------------------------------------------------------
-  describe("GET — Auth", () => {
+  describe("GET - Auth", () => {
     it("should return 401 if not authenticated", async () => {
       mockUnauthorized();
 
@@ -93,7 +93,7 @@ describe("/api/files/[id]/url", () => {
   // --------------------------------------------------------------------------
   // Validation
   // --------------------------------------------------------------------------
-  describe("GET — Validation", () => {
+  describe("GET - Validation", () => {
     it("should return 400 when file id is empty", async () => {
       mockAuthorized();
 
@@ -110,7 +110,7 @@ describe("/api/files/[id]/url", () => {
   // --------------------------------------------------------------------------
   // Happy path
   // --------------------------------------------------------------------------
-  describe("GET — Happy path", () => {
+  describe("GET - Happy path", () => {
     it("should return signed URL on success", async () => {
       mockAuthorized();
 
@@ -141,7 +141,7 @@ describe("/api/files/[id]/url", () => {
   // --------------------------------------------------------------------------
   // Error handling
   // --------------------------------------------------------------------------
-  describe("GET — Error handling", () => {
+  describe("GET - Error handling", () => {
     it("should return 500 when createSignedUrl throws unexpected error", async () => {
       mockAuthorized();
       vi.mocked(createSignedUrl).mockRejectedValue(new Error("Storage down"));

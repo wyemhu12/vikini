@@ -61,7 +61,7 @@ const mockPersonaRow = {
   use_headers_lists: true,
   user_context: "I am a developer",
   custom_instructions: "Be concise",
-  icon: "🎭",
+  icon: "",
   color: "#FF0000",
   is_premade: false,
   created_at: "2026-01-01T00:00:00Z",
@@ -140,7 +140,7 @@ describe("Personas Business Logic", () => {
         useEmojis: true,
         userContext: "I am a developer",
         customInstructions: "Be concise",
-        icon: "🎭",
+        icon: "",
         color: "#FF0000",
       });
 
@@ -292,7 +292,7 @@ describe("Personas Business Logic", () => {
         // Calls 1-2 are from ownership check (.eq("id", id) in select chain)
         // maybeSingle will resolve those. Calls 3-4 are from delete chain.
         if (eqCallCount >= 4) {
-          // Last .eq() in delete chain — must resolve to { error: null }
+          // Last .eq() in delete chain - must resolve to { error: null }
           return Promise.resolve({ error: null });
         }
         return mockChain;

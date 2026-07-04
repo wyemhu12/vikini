@@ -3,7 +3,7 @@
 // Replaces the client-side polling approach with a real-time stream.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Vercel Pro: standard limit 800s. Deep Research can take 3–10 minutes,
+// Vercel Pro: standard limit 800s. Deep Research can take 3-10 minutes,
 // so 800s covers the vast majority of sessions without hitting Vercel limits.
 export const maxDuration = 800;
 
@@ -17,7 +17,7 @@ import type { ResearchTask } from "@/lib/features/research/types";
 
 const streamLogger = logger.withContext("/api/deep-research/[taskId]/stream");
 
-/** Server-side poll interval — faster than client-side since there's no network overhead per poll */
+/** Server-side poll interval - faster than client-side since there's no network overhead per poll */
 const POLL_INTERVAL_PLANNING_MS = 2_000;
 const POLL_INTERVAL_EXECUTING_MS = 5_000;
 const MAX_DURATION_MS = 30 * 60 * 1000; // 30 minutes max (internal safety net)
@@ -35,13 +35,13 @@ const MAX_STALE_RETRIES = 3; // Max auto-retries before giving up
  * GET /api/deep-research/[taskId]/stream
  *
  * Returns an SSE (Server-Sent Events) stream that forwards research progress
- * in real-time. The server polls Gemini every 2–5 seconds and pushes events
+ * in real-time. The server polls Gemini every 2-5 seconds and pushes events
  * to the client, eliminating the need for client-side polling.
  *
  * Events:
  * - `task`: Updated task state (JSON)
  * - `complete`: Final task state (JSON), stream ends after
- * - `stream_error`: Error message (JSON) — named to avoid collision with EventSource connection errors
+ * - `stream_error`: Error message (JSON) - named to avoid collision with EventSource connection errors
  * - `ping`: Keep-alive (every 15s)
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ taskId: string }> }) {
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
     const encoder = new TextEncoder();
     const startTime = Date.now();
 
-    // Shared flag — set to false by abort signal, cancel(), or internal exit conditions
+    // Shared flag - set to false by abort signal, cancel(), or internal exit conditions
     let running = true;
 
     const stream = new ReadableStream({
@@ -125,7 +125,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
               }
 
               // Stale detection: if agent has no real steps for too long,
-              // it's likely a "silent hang" — a known Gemini Deep Research issue.
+              // it's likely a "silent hang" - a known Gemini Deep Research issue.
               // Strategy: auto-retry with a new interaction before giving up.
               if (!task.currentStep) {
                 if (noStepsSince === null) noStepsSince = Date.now();
@@ -198,7 +198,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
                         ...task,
                         thinkingText:
                           `_⟳ Retrying... (attempt ${staleRetries + 1}/${MAX_STALE_RETRIES + 1})_\n\n` +
-                          `_The research agent didn't start in time. Creating a new session — please wait ~90s..._\n\n`,
+                          `_The research agent didn't start in time. Creating a new session - please wait ~90s..._\n\n`,
                       },
                     });
 
@@ -209,22 +209,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
                     const retryMsg =
                       retryErr instanceof Error ? retryErr.message : "Unknown retry error";
                     streamLogger.error(`Stale retry failed: ${retryMsg}`);
-                    // Continue polling — next stale cycle will try again or give up
+                    // Continue polling - next stale cycle will try again or give up
                     noStepsSince = Date.now();
                   }
                 }
               } else {
-                // Agent started working — reset stale timer and retry counter
+                // Agent started working - reset stale timer and retry counter
                 noStepsSince = null;
                 staleRetries = 0;
               }
 
-              // Terminal state — send final event and close.
+              // Terminal state - send final event and close.
               // `ready_to_execute` is also terminal for the SSE stream: planning is done,
               // the plan is shown to the user for approval. When they click "Start Research",
               // a NEW SSE connection is opened for the executing phase.
               // Without this, the planning SSE would keep polling indefinitely, and the
-              // new executing SSE would create a second parallel stream — causing duplicate
+              // new executing SSE would create a second parallel stream - causing duplicate
               // stale detection, duplicate retries, and race conditions.
               if (
                 task.status === "completed" ||
@@ -276,7 +276,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
       },
 
       cancel() {
-        // Client disconnected — stop the poll loop
+        // Client disconnected - stop the poll loop
         streamLogger.info(`SSE stream cancelled for task ${taskId}`);
         running = false;
       },

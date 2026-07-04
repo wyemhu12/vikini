@@ -57,9 +57,7 @@ const StreamErrorBanner: React.FC<StreamErrorBannerProps> = ({ error, onDismiss 
     >
       <div className="bg-(--danger)/10 backdrop-blur-xl border border-(--danger)/30 rounded-xl p-4 shadow-2xl flex gap-3">
         <div className="shrink-0 w-8 h-8 rounded-full bg-(--danger)/20 flex items-center justify-center">
-          <span className="text-(--danger) text-lg" aria-hidden="true">
-            ⚠
-          </span>
+          <span className="text-(--danger) text-lg" aria-hidden="true"></span>
         </div>
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-semibold text-(--text-primary) mb-1">{title}</h4>
@@ -70,7 +68,7 @@ const StreamErrorBanner: React.FC<StreamErrorBannerProps> = ({ error, onDismiss 
           className="shrink-0 w-6 h-6 rounded-full bg-(--danger)/20 hover:bg-(--danger)/40 flex items-center justify-center transition-colors"
           aria-label={t("cancel")}
         >
-          <span className="text-(--danger) text-xs">✕</span>
+          <span className="text-(--danger) text-xs"></span>
         </button>
       </div>
     </div>

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 
 // ---------------------------------------------------------------------------
-// Mocks — declared BEFORE importing the route handler
+// Mocks - declared BEFORE importing the route handler
 // ---------------------------------------------------------------------------
 
 vi.mock("@/lib/features/auth/auth", () => ({
@@ -43,7 +43,7 @@ vi.mock("@/lib/utils/logger", () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Imports — AFTER mocks are set up
+// Imports - AFTER mocks are set up
 // ---------------------------------------------------------------------------
 
 import { POST } from "./route";
@@ -143,7 +143,7 @@ describe("/api/chat-stream", () => {
       expect(json.error.code).toBe("PAYLOAD_TOO_LARGE");
     });
 
-    // ------ 2. Unauthorized — no session ------
+    // ------ 2. Unauthorized - no session ------
     it("should return 401 if not authenticated (no session)", async () => {
       mockUnauthenticated();
 
@@ -158,7 +158,7 @@ describe("/api/chat-stream", () => {
       expect(json.error.code).toBe("UNAUTHORIZED");
     });
 
-    // ------ 3. Unauthorized — no email ------
+    // ------ 3. Unauthorized - no email ------
     it("should return 401 if session has no email", async () => {
       vi.mocked(auth).mockResolvedValue({
         user: { email: null },

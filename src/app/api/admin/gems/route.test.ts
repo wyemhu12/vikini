@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { NextRequest } from "next/server";
 
 // ---------------------------------------------------------------------------
-// Mocks — declared BEFORE importing the route handlers
+// Mocks - declared BEFORE importing the route handlers
 // ---------------------------------------------------------------------------
 
 vi.mock("@/lib/features/auth/auth", () => ({
@@ -134,7 +134,7 @@ vi.mock("@/lib/utils/logger", () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Imports — AFTER mocks are set up
+// Imports - AFTER mocks are set up
 // ---------------------------------------------------------------------------
 
 import { GET, POST, PUT, DELETE } from "./route";

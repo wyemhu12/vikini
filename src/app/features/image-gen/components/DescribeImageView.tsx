@@ -131,7 +131,7 @@ export function DescribeImageView() {
     setResult(null);
 
     try {
-      // API expects JSON { imageUrl: string } — send base64 data URL
+      // API expects JSON { imageUrl: string } - send base64 data URL
       const res = await fetch("/api/describe-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

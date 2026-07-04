@@ -1,8 +1,8 @@
 // /lib/core/contextCache.ts
 // Explicit Context Caching for Gemini API
 //
-// Strategy B: Composite Cache — caches system instruction + tools + toolConfig together
-// Strategy D: Content Cache — caches large KB/RAG documents for project conversations
+// Strategy B: Composite Cache - caches system instruction + tools + toolConfig together
+// Strategy D: Content Cache - caches large KB/RAG documents for project conversations
 //
 // Gemini API constraint: cachedContent cannot coexist with system_instruction,
 // tools, or tool_config in generateContent requests. ALL must be inside the cache.
@@ -23,13 +23,13 @@ const MIN_CACHEABLE_CHARS = 4096; // ~1024 tokens (rough estimate at 4 chars/tok
 
 /**
  * Default TTL for cached content in seconds.
- * GEM personas are typically stable across sessions — 1 hour is a good balance
+ * GEM personas are typically stable across sessions - 1 hour is a good balance
  * between cost savings and storage fees.
  */
 const DEFAULT_CACHE_TTL_SECONDS = 3600; // 1 hour
 
 /**
- * TTL for KB content caches — shorter since RAG results vary per query.
+ * TTL for KB content caches - shorter since RAG results vary per query.
  * KB documents themselves don't change often, but the injected chunks differ per conversation.
  */
 const KB_CACHE_TTL_SECONDS = 1800; // 30 minutes
@@ -46,7 +46,7 @@ const activeCacheNames = new Map<string, { name: string; expiresAt: number }>();
 
 /**
  * Simple hash for cache key deduplication.
- * Uses djb2 algorithm — fast, low collision for our use case.
+ * Uses djb2 algorithm - fast, low collision for our use case.
  */
 function hashString(str: string): string {
   let hash = 5381;
@@ -62,7 +62,7 @@ function hashString(str: string): string {
 
 /**
  * Configuration for composite cache creation.
- * Includes system instruction, tools, and toolConfig — all fields that
+ * Includes system instruction, tools, and toolConfig - all fields that
  * CANNOT be sent alongside cachedContent in generateContent requests.
  */
 export interface CompositeCacheConfig {
@@ -133,7 +133,7 @@ export async function getOrCreateCompositeCache(
     return { cacheName: existing.name, cacheHit: true };
   }
 
-  // Cache miss — create new
+  // Cache miss - create new
   try {
     const ai = getGenAIClient();
 
@@ -237,7 +237,7 @@ export async function getOrCreateKBCache(
     return { cacheName: existing.name, cacheHit: true };
   }
 
-  // Cache miss — create
+  // Cache miss - create
   try {
     const ai = getGenAIClient();
 
@@ -271,12 +271,12 @@ export async function getOrCreateKBCache(
 }
 
 // ============================================
-// Legacy API (backward compat — delegates to composite)
+// Legacy API (backward compat - delegates to composite)
 // ============================================
 
 /**
  * @deprecated Use getOrCreateCompositeCache instead.
- * Kept for backward compatibility — delegates to composite cache without tools.
+ * Kept for backward compatibility - delegates to composite cache without tools.
  */
 export async function getOrCreateSystemCache(
   model: string,

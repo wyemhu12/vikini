@@ -1,8 +1,8 @@
 /**
- * Files API — List & Delete
- * GET  /api/files?conversationId=xxx — List files
- * DELETE /api/files?id=xxx — Delete single file
- * DELETE /api/files?conversationId=xxx — Delete all files in conversation
+ * Files API - List & Delete
+ * GET  /api/files?conversationId=xxx - List files
+ * DELETE /api/files?id=xxx - Delete single file
+ * DELETE /api/files?conversationId=xxx - Delete all files in conversation
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

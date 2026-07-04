@@ -151,13 +151,13 @@ export async function createResearchInteraction(options: {
     input: options.input,
     agent: options.agent,
     // Deep Research agents MUST run asynchronously. Per Google docs, background:true
-    // REQUIRES store:true — omitting store causes the interaction to be rejected.
+    // REQUIRES store:true - omitting store causes the interaction to be rejected.
     background: true,
     store: true,
     agent_config: {
       type: "deep-research",
       collaborative_planning: options.collaborativePlanning,
-      // Enable intermediate thinking summaries — this makes the agent more reliably
+      // Enable intermediate thinking summaries - this makes the agent more reliably
       // emit `thought` steps during polling, reducing the "silent hang" pattern where
       // only `user_input` steps appear. Also provides richer thinking data for the UI.
       thinking_summaries: "auto",
@@ -217,7 +217,7 @@ function describeGenAIError(err: unknown, agent: string): string {
 
   if (status === 403) {
     return (
-      `403 Forbidden — the API key does not have access to the Deep Research agent "${agent}". ` +
+      `403 Forbidden - the API key does not have access to the Deep Research agent "${agent}". ` +
       `This preview agent requires a Google AI project with billing enabled (pay-as-you-go); ` +
       `it is not available on the free tier. Verify GEMINI_API_KEY belongs to a paid project ` +
       `and that the Interactions API is enabled. (${baseMessage})`
@@ -225,7 +225,7 @@ function describeGenAIError(err: unknown, agent: string): string {
   }
   if (status === 404) {
     return (
-      `404 Not Found — agent "${agent}" is not recognized. The preview model name may have ` +
+      `404 Not Found - agent "${agent}" is not recognized. The preview model name may have ` +
       `changed or is unavailable in your region. (${baseMessage})`
     );
   }
@@ -238,7 +238,7 @@ function describeGenAIError(err: unknown, agent: string): string {
 /**
  * Step types that echo the request rather than represent research progress.
  * The Interactions API emits a `user_input` step (the original query) which must
- * NOT be treated as active work — otherwise the catch-all sets currentStep to
+ * NOT be treated as active work - otherwise the catch-all sets currentStep to
  * "searching" and suppresses the "Initializing…" fallback, leaving the UI stuck
  * at "Searching the web / Processing: user_input" indefinitely.
  */
@@ -265,7 +265,7 @@ export async function getResearchInteraction(interactionId: string): Promise<{
   const reportSources: Array<{ url: string; title: string }> = [];
 
   let hasThought = false;
-  // Only set currentStep when there's actual activity — undefined means "not yet started"
+  // Only set currentStep when there's actual activity - undefined means "not yet started"
   let currentStep: "searching" | "analyzing" | "writing" | undefined;
 
   // Parse steps if available
@@ -361,7 +361,7 @@ export async function getResearchInteraction(interactionId: string): Promise<{
   if (!hasThought && result.status === "in_progress") {
     thinkingText =
       "_Initializing research agent..._\n\n" +
-      "_Note: Deep Research typically takes 3–10 minutes. The agent is working in the background — please wait._\n\n";
+      "_Note: Deep Research typically takes 3-10 minutes. The agent is working in the background - please wait._\n\n";
     // Leave currentStep as undefined so the progress card shows ALL steps as "pending" (gray).
     // Previously this was set to "analyzing" which falsely showed "Searching the web"
     // as completed (green checkmark) before the agent even started.

@@ -1,5 +1,5 @@
 /**
- * useFiles — SWR-powered hook for fetching conversation files.
+ * useFiles - SWR-powered hook for fetching conversation files.
  *
  * Single source of truth for file data. Auto-refreshes when mutated.
  * Used by FilePreviewArea and FileInMessage components.

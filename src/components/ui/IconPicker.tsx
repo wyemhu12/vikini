@@ -8,37 +8,39 @@ interface IconPickerProps {
   disabled?: boolean;
 }
 
+import * as Icons from "lucide-react";
+
 const ICON_LIST = [
-  "💡",
-  "🎯",
-  "🎨",
-  "🔥",
-  "💎",
-  "✨",
-  "🚀",
-  "📚",
-  "💻",
-  "🎵",
-  "🎮",
-  "🌟",
-  "⚡",
-  "🔮",
-  "🎭",
-  "📷",
-  "🎬",
-  "🌈",
-  "🎁",
-  "📝",
-  "🔧",
-  "⚙️",
-  "🎓",
-  "🌍",
-  "❤️",
-  "🧠",
-  "🤖",
-  "💬",
-  "📊",
-  "🎲",
+  "Lightbulb",
+  "Target",
+  "Palette",
+  "Flame",
+  "Diamond",
+  "Sparkles",
+  "Rocket",
+  "BookOpen",
+  "Laptop",
+  "Music",
+  "Gamepad2",
+  "Star",
+  "Zap",
+  "Wand2",
+  "Drama",
+  "Camera",
+  "Clapperboard",
+  "Rainbow",
+  "Gift",
+  "FileEdit",
+  "Wrench",
+  "Settings",
+  "GraduationCap",
+  "Globe",
+  "Heart",
+  "Brain",
+  "Bot",
+  "MessageCircle",
+  "BarChart3",
+  "Dice5",
 ];
 
 export default function IconPicker({ onSelect, disabled }: IconPickerProps) {
@@ -63,16 +65,24 @@ export default function IconPicker({ onSelect, disabled }: IconPickerProps) {
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2" align="start">
         <div className="grid grid-cols-6 gap-1">
-          {ICON_LIST.map((icon) => (
-            <button
-              key={icon}
-              type="button"
-              onClick={() => handleSelect(icon)}
-              className="w-8 h-8 flex items-center justify-center text-lg rounded hover:bg-(--control-bg-hover) transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-(--primary)"
-            >
-              {icon}
-            </button>
-          ))}
+          {ICON_LIST.map((iconName) => {
+            const IconComponent = Icons[iconName as keyof typeof Icons] as React.ElementType;
+            return (
+              <button
+                key={iconName}
+                type="button"
+                onClick={() => handleSelect(iconName)}
+                className="w-8 h-8 flex items-center justify-center text-(--text-primary) rounded hover:bg-(--control-bg-hover) transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-(--primary)"
+                title={iconName}
+              >
+                {IconComponent ? (
+                  <IconComponent className="w-4 h-4" />
+                ) : (
+                  <Icons.HelpCircle className="w-4 h-4" />
+                )}
+              </button>
+            );
+          })}
         </div>
       </PopoverContent>
     </Popover>

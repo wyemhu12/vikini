@@ -5,9 +5,9 @@ import { useLanguage } from "../../features/chat/hooks/useLanguage";
 import { handleGoogleSignIn } from "./actions";
 
 /**
- * 🌑 Warm Noir Login Page
+ *  Warm Noir Login Page
  * Deep charcoal with a single amber/gold glow point.
- * Luxury editorial feel — no rainbow, no AI clichés.
+ * Luxury editorial feel - no rainbow, no AI clichés.
  */
 
 export default function SignInPage() {
@@ -22,11 +22,11 @@ export default function SignInPage() {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#0a0a0a] text-white">
-      {/* 🌑 Warm Noir Background — single amber glow */}
+      {/*  Warm Noir Background - single amber glow */}
       <div className="absolute inset-0 z-0">
-        {/* Primary warm glow — top center */}
+        {/* Primary warm glow - top center */}
         <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.15)_0%,transparent_70%)] blur-3xl" />
-        {/* Secondary subtle glow — bottom right */}
+        {/* Secondary subtle glow - bottom right */}
         <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.06)_0%,transparent_65%)]" />
         {/* Vignette */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#0a0a0a_85%)]" />
@@ -58,7 +58,7 @@ export default function SignInPage() {
       <div className="relative z-10 w-full max-w-md px-6 space-y-12 text-center">
         {/* Brand Identity */}
         <div className="space-y-8 animate-in fade-in slide-in-from-top-8 duration-1000">
-          {/* Large Logo V — gold gradient */}
+          {/* Large Logo V - gold gradient */}
           <div className="mx-auto h-32 w-32 relative flex items-center justify-center">
             {/* Warm glow behind logo */}
             <div className="absolute inset-0 bg-[#d4af37]/8 blur-3xl rounded-full" />

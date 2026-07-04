@@ -32,23 +32,23 @@ import { cn } from "@/lib/utils/cn";
 import { motion } from "framer-motion";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 
-// Suggestion tags for quick keyword insertion — 3 categories
+// Suggestion tags for quick keyword insertion - 3 categories
 const SUGGESTION_TAGS = [
   // Style
-  { key: "studioTagCinematicLighting", icon: "🎬" },
-  { key: "studioTagBokeh", icon: "📷" },
-  { key: "studioTagGoldenHour", icon: "🌅" },
-  { key: "studioTagDramaticShadows", icon: "🌑" },
+  { key: "studioTagCinematicLighting", icon: "" },
+  { key: "studioTagBokeh", icon: "" },
+  { key: "studioTagGoldenHour", icon: "" },
+  { key: "studioTagDramaticShadows", icon: "" },
   // Color
-  { key: "studioTagVibrantColors", icon: "🌈" },
-  { key: "studioTagPastelTones", icon: "🎨" },
-  { key: "studioTagMonochrome", icon: "⬛" },
-  { key: "studioTagNeonGlow", icon: "💜" },
+  { key: "studioTagVibrantColors", icon: "" },
+  { key: "studioTagPastelTones", icon: "" },
+  { key: "studioTagMonochrome", icon: "" },
+  { key: "studioTagNeonGlow", icon: "" },
   // Composition
-  { key: "studioTagCloseUp", icon: "🔍" },
-  { key: "studioTagWideAngle", icon: "🏞️" },
-  { key: "studioTagBirdsEye", icon: "🦅" },
-  { key: "studioTagMinimalist", icon: "✨" },
+  { key: "studioTagCloseUp", icon: "" },
+  { key: "studioTagWideAngle", icon: "" },
+  { key: "studioTagBirdsEye", icon: "" },
+  { key: "studioTagMinimalist", icon: "" },
 ] as const;
 
 export interface BatchQuotaInfo {
@@ -311,7 +311,7 @@ export default function ControlPanel({
             {t("studioPromptLabel")}
           </Label>
 
-          {/* MT4: Mode tabs — Free / Guided (segment control with sliding indicator) */}
+          {/* MT4: Mode tabs - Free / Guided (segment control with sliding indicator) */}
           <div className="relative flex items-center rounded-lg bg-(--surface-muted) border border-(--border) p-0.5 -mt-0.5">
             {/* Sliding background indicator */}
             <motion.div
@@ -375,7 +375,7 @@ export default function ControlPanel({
                   <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-(--surface-elevated) border border-(--border) rounded-lg shadow-xl overflow-hidden">
                     {loadingSuggestions && (
                       <div className="px-3 py-2 text-xs text-(--text-secondary) animate-pulse">
-                        ✨ {t("studioSuggestLoading")}
+                        {t("studioSuggestLoading")}
                       </div>
                     )}
                     {suggestions.map((s, idx) => (
@@ -401,7 +401,7 @@ export default function ControlPanel({
               </div>
               <p className="text-[10px] text-muted-foreground">{t("studioShortcutHint")}</p>
 
-              {/* Suggestion Tags — click to append keyword */}
+              {/* Suggestion Tags - click to append keyword */}
               <div className="space-y-1.5 pt-2">
                 <span
                   className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-purple-400 cursor-help"
@@ -592,7 +592,7 @@ export default function ControlPanel({
           </Select>
         </div>
 
-        {/* Aspect Ratio — Common + Extended */}
+        {/* Aspect Ratio - Common + Extended */}
         <div className="space-y-2 px-6 mt-4">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("studioDimensions")}

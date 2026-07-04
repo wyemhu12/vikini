@@ -68,7 +68,7 @@ export const en = {
   modelDescFlash3: "Smart & fast",
   modelDescPro31: "Smartest",
   modelDescFlashLite31: "Cheapest & fastest",
-  modelDescGrok43: "Grok 4.3 — deep reasoning",
+  modelDescGrok43: "Grok 4.3 - deep reasoning",
   modelDescLlama33_70b: "Llama 3.3 via Groq",
   modelDescLlama31_8b: "Llama 3.1 fast",
   modelDescDeepSeekV3: "DeepSeek V3 powerful (Free)",
@@ -79,8 +79,8 @@ export const en = {
   modelDescMistralSmall: "Mistral Small 3.1 (Free)",
   modelDescClaudeHaiku: "Claude 4.5 fastest",
   modelDescClaudeSonnet: "Claude 4.5 intelligent",
-  modelDescDeepSeekV4Flash: "DeepSeek V4 Flash — fast, intelligent",
-  modelDescDeepSeekV4Pro: "DeepSeek V4 Pro — strong reasoning (75% off)",
+  modelDescDeepSeekV4Flash: "DeepSeek V4 Flash - fast, intelligent",
+  modelDescDeepSeekV4Pro: "DeepSeek V4 Pro - strong reasoning (75% off)",
   modelDescDeepSeekV32: "DeepSeek V3.2 intelligent (~$0.28/M tokens)",
   webSearch: "Web Search",
   webSearchOn: "ON",
@@ -692,7 +692,7 @@ export const en = {
   rateLimitTitle: "Quota Exceeded",
   // Template modal
   choosePhoto: "Choose photo",
-  // Image Studio — Suggestion Tags
+  // Image Studio - Suggestion Tags
   studioTagsLabel: "Quick add",
   studioTagCinematicLighting: "cinematic lighting",
   studioTagBokeh: "bokeh effect",
@@ -706,47 +706,47 @@ export const en = {
   studioTagWideAngle: "wide angle",
   studioTagBirdsEye: "bird's eye view",
   studioTagMinimalist: "minimalist",
-  // Image Studio — Dynamic Loading Messages
+  // Image Studio - Dynamic Loading Messages
   studioLoadingMixColors: "Mixing colors...",
   studioLoadingDrawDetails: "Drawing details...",
   studioLoadingPolishing: "Polishing...",
   studioLoadingAlmostDone: "Almost done...",
   studioLoadingCreating: "Creating your vision...",
-  // Image Studio — User-Friendly Errors
+  // Image Studio - User-Friendly Errors
   studioErrorSafety: "Your prompt was blocked by safety filters.",
   studioErrorSafetySuggestion:
-    "Try rephrasing — avoid brand names, celebrities, or sensitive content.",
+    "Try rephrasing - avoid brand names, celebrities, or sensitive content.",
   studioErrorRateLimit: "Too many requests. Please wait a moment.",
   studioErrorRateLimitSuggestion: "Wait about 30 seconds before trying again.",
   studioErrorContentPolicy: "Content policy violation detected.",
   studioErrorContentPolicySuggestion: "Try a more original or creative prompt.",
-  // Quick Wins — Negative Prompt
+  // Quick Wins - Negative Prompt
   studioExclude: "Exclude",
   studioNegativePromptPlaceholder: "Elements to avoid: blurry, text, watermark...",
-  // Quick Wins — Enhanced Prompt Transparency
+  // Quick Wins - Enhanced Prompt Transparency
   studioEnhancedBadge: "Enhanced",
   studioOriginalPrompt: "Original Prompt",
   studioEnhancedPrompt: "Enhanced Prompt",
-  // Quick Wins — Image Variations
+  // Quick Wins - Image Variations
   studioVariation: "Variation",
   studioVariationTooltip: "Generate a new version with similar style but different details",
   studioCreatingVariation: "Creating variation...",
-  // Quick Wins — Favorites
+  // Quick Wins - Favorites
   studioFavorite: "Favorite",
   studioUnfavorite: "Unfavorite",
   galleryFavorites: "Favorites",
   galleryShowFavorites: "Favorites only",
-  // Quick Wins — Prompt History
+  // Quick Wins - Prompt History
   studioPromptHistory: "Recent Prompts",
   studioNoHistory: "No recent prompts",
   studioClearHistory: "Clear history",
-  // Quick Wins — Text Rendering Tip
+  // Quick Wins - Text Rendering Tip
   studioTextRenderingTip: "Tip: Use Gemini Pro for better text in images",
   studioSwitchToPro: "Switch to Pro",
-  // UI Polish — Tooltips & Labels
+  // UI Polish - Tooltips & Labels
   studioActualResolution: "Actual size",
   studioReuseTooltip: "Reuse this prompt and settings to generate a new image",
-  studioEditTooltip: "Edit this image with AI — describe changes to apply",
+  studioEditTooltip: "Edit this image with AI - describe changes to apply",
   studioAddTagTooltip: "Add searchable tags to organize your images",
   studioExcludeLabel: "Exclude",
   studioQuickAddLabel: "Quick add",
@@ -791,7 +791,7 @@ export const en = {
   deepResearchPlanning: "Planning...",
   deepResearchExecuting: "Researching...",
   deepResearchInitializing: "Initializing agent...",
-  deepResearchExecutionInit: "Starting research agent... this may take 1–2 minutes",
+  deepResearchExecutionInit: "Starting research agent... this may take 1-2 minutes",
   deepResearchComplete: "Research complete",
   deepResearchFailed: "Research failed",
   deepResearchPlan: "Research plan",
@@ -802,9 +802,9 @@ export const en = {
   deepResearchClose: "Close",
   deepResearchQuery: "What do you want to research?",
   deepResearchAgentDeep: "Deep",
-  deepResearchAgentDeepDesc: "~5–15 min, thorough research",
+  deepResearchAgentDeepDesc: "~5-15 min, thorough research",
   deepResearchAgentMax: "Max",
-  deepResearchAgentMaxDesc: "~10–20 min, most comprehensive",
+  deepResearchAgentMaxDesc: "~10-20 min, most comprehensive",
   deepResearchSelectAgent: "Select research mode",
   deepResearchLimitReached: "Daily research limit reached",
   deepResearchNotAllowed: "Contact Admin to unlock this feature",

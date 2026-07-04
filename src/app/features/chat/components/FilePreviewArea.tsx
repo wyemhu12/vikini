@@ -1,5 +1,5 @@
 /**
- * FilePreviewArea — Inline file preview container above the textarea.
+ * FilePreviewArea - Inline file preview container above the textarea.
  *
  * Shows uploaded files + in-progress uploads as horizontal scrollable cards.
  * Replaces AttachmentsPanel (903 lines) with a clean inline-first design.

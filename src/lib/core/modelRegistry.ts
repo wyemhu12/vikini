@@ -417,13 +417,13 @@ export function modelSupportsDeepSeekThinking(modelId: unknown): boolean {
  * Check if a model supports web search (grounding).
  * DeepSeek V4 (direct API) has no web search tool.
  * DeepSeek V3.2 (OpenRouter) supports web search via `openrouter:web_search` server tool.
- * Gemini uses googleSearch, Claude uses web_search — both supported.
+ * Gemini uses googleSearch, Claude uses web_search - both supported.
  */
 export function modelSupportsWebSearch(modelId: unknown): boolean {
   const id = String(modelId || "")
     .trim()
     .toLowerCase();
-  // DeepSeek V4 direct models — no web search capability
+  // DeepSeek V4 direct models - no web search capability
   if (isDeepSeekDirectModel(id)) return false;
   return true;
 }

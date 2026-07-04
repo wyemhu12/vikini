@@ -271,7 +271,7 @@ export default function ChatControls({
                 className="flex items-center justify-center p-1 rounded-full text-(--warning) bg-(--warning)/10 cursor-help"
                 title={
                   t("conflictWarning") ||
-                  "⚠️ Both GEM and Persona are active. If instructions conflict, GEM will be prioritized."
+                  " Both GEM and Persona are active. If instructions conflict, GEM will be prioritized."
                 }
               >
                 <AlertTriangle className="w-3.5 h-3.5" />

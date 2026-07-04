@@ -1,6 +1,6 @@
 /**
- * Files API — AI analysis of a file
- * POST /api/files/[id]/analyze — Analyze file content with AI
+ * Files API - AI analysis of a file
+ * POST /api/files/[id]/analyze - Analyze file content with AI
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

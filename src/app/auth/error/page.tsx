@@ -17,7 +17,7 @@ function AuthErrorContent() {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#020617] text-white">
-      {/* 🌌 Multi-tone Flowing Background */}
+      {/*  Multi-tone Flowing Background */}
       <div className="absolute inset-0 z-0">
         <div className="flowing-gradient absolute inset-0 opacity-30" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#020617_85%)]" />

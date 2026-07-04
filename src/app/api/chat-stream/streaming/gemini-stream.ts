@@ -160,7 +160,7 @@ async function executeStream(
 
   let systemInstruction: SystemInstruction | undefined = undefined;
   // When cachedContent is active, system instruction + tools + toolConfig
-  // are already in the cache (Strategy B: Composite Cache) — skip them all
+  // are already in the cache (Strategy B: Composite Cache) - skip them all
   if (!params.cachedContent && sysPrompt && sysPrompt.trim()) {
     systemInstruction = {
       role: "system",
@@ -180,7 +180,7 @@ async function executeStream(
         safetySettings:
           Array.isArray(safetySettings) && safetySettings.length > 0 ? safetySettings : undefined,
         thinkingConfig,
-        // When cachedContent is active, tools + toolConfig are IN the cache — don't send separately
+        // When cachedContent is active, tools + toolConfig are IN the cache - don't send separately
         tools:
           !params.cachedContent &&
           params.useTools &&
@@ -240,7 +240,7 @@ async function executeStream(
           functionResponse?: unknown;
         };
 
-        // Skip function call/response — handled separately below
+        // Skip function call/response - handled separately below
         if (part.functionCall || part.functionResponse) continue;
 
         // Handle THOUGHT parts
@@ -260,7 +260,7 @@ async function executeStream(
           continue;
         }
 
-        // Handle TEXT parts — close thinking block first if open
+        // Handle TEXT parts - close thinking block first if open
         if (typeof part.text === "string") {
           if (isInThinkingBlock) {
             isInThinkingBlock = false;
@@ -674,7 +674,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           streamResult.safetyRatings
         );
 
-        // Process metadata — collect sources/urlContext for DB persistence
+        // Process metadata - collect sources/urlContext for DB persistence
         const sources = processGroundingMetadata(controller, streamResult.groundingMetadata);
         const urlContext = processUrlContextMetadata(controller, streamResult.urlContextMetadata);
 

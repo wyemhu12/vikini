@@ -1,5 +1,5 @@
 /**
- * Unified File Service — Dual Storage (Gemini Files API + Supabase Storage)
+ * Unified File Service - Dual Storage (Gemini Files API + Supabase Storage)
  *
  * Upload flow:
  *   1. Validate file (ext, mime, size, security, magic bytes)
@@ -153,7 +153,7 @@ async function uploadToGemini(
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     fileLogger.error(`Gemini upload failed for ${filename}: ${message}`);
-    return null; // Non-blocking — Supabase is the fallback
+    return null; // Non-blocking - Supabase is the fallback
   }
 }
 
@@ -274,7 +274,7 @@ export async function uploadFile({
         tokenCount = Math.ceil(text.length / 4);
       }
     } catch {
-      // Non-text content — skip extraction
+      // Non-text content - skip extraction
     }
   }
 
@@ -431,7 +431,7 @@ export async function deleteFilesByConversation(
     }
   }
 
-  // Delete from Gemini (one by one — API doesn't support batch)
+  // Delete from Gemini (one by one - API doesn't support batch)
   const ai = getGenAIClient();
   for (const f of files) {
     if (f.gemini_file_name) {
@@ -612,7 +612,7 @@ export async function cleanupExpiredFiles(): Promise<CleanupResult> {
         try {
           await ai.files.delete({ name: f.gemini_file_name });
         } catch {
-          /* ignore — Gemini may have already auto-deleted */
+          /* ignore - Gemini may have already auto-deleted */
         }
       }
     }

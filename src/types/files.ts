@@ -1,5 +1,5 @@
 /**
- * File System Types — Dual Storage (Gemini Files API + Supabase Storage)
+ * File System Types - Dual Storage (Gemini Files API + Supabase Storage)
  */
 
 // ============================================

@@ -510,7 +510,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                       {detailLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        (detailStats?.conversations ?? "—")
+                        (detailStats?.conversations ?? "-")
                       )}
                     </div>
                   </div>
@@ -520,7 +520,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                       {detailLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        (detailStats?.messages ?? "—")
+                        (detailStats?.messages ?? "-")
                       )}
                     </div>
                   </div>

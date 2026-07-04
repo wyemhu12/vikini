@@ -4,7 +4,7 @@ export type ResearchStatus = "planning" | "ready_to_execute" | "executing" | "co
 
 /**
  * Canonical list of valid agent model IDs.
- * Single source of truth — referenced by API routes, client hook, and UI.
+ * Single source of truth - referenced by API routes, client hook, and UI.
  */
 export const VALID_AGENTS = [
   "deep-research-preview-04-2026",
@@ -13,7 +13,7 @@ export const VALID_AGENTS = [
 
 export type ResearchAgent = (typeof VALID_AGENTS)[number];
 
-/** Type guard for ResearchAgent — use instead of local VALID_AGENTS arrays */
+/** Type guard for ResearchAgent - use instead of local VALID_AGENTS arrays */
 export function isValidAgent(value: unknown): value is ResearchAgent {
   return typeof value === "string" && (VALID_AGENTS as readonly string[]).includes(value);
 }

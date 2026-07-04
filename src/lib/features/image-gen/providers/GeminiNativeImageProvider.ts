@@ -5,7 +5,7 @@ import { logger } from "@/lib/utils/logger";
 const providerLogger = logger.withContext("GeminiNativeImageProvider");
 
 /**
- * Gemini Native Image Provider — uses generateContent API
+ * Gemini Native Image Provider - uses generateContent API
  * for Nano Banana models (gemini-3.1-flash-image, gemini-3-pro-image).
  *
  * Unlike Imagen (generateImages alpha API), these models use the standard
@@ -103,7 +103,7 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
         config,
       });
 
-      // Parse response — scan parts for inlineData (base64 images)
+      // Parse response - scan parts for inlineData (base64 images)
       const candidates = (response as { candidates?: unknown[] })?.candidates;
       if (!Array.isArray(candidates) || candidates.length === 0) {
         providerLogger.error("No candidates in response:", response);
@@ -130,7 +130,7 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
 
         if (finishReason.includes("SAFETY") || finishReason === "IMAGE_SAFETY") {
           throw new Error(
-            "Image generation was blocked by safety filters. Try rephrasing your prompt — avoid brand names, celebrities, or potentially sensitive content."
+            "Image generation was blocked by safety filters. Try rephrasing your prompt - avoid brand names, celebrities, or potentially sensitive content."
           );
         }
         if (finishReason === "RECITATION") {

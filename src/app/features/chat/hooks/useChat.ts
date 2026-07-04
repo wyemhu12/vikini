@@ -107,7 +107,7 @@ export default function useChat(callbacks: UseChatCallbacks = {}) {
         const res = await fetch("/api/chat-stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // ✅ Only send: conversationId + content
+          //  Only send: conversationId + content
           body: JSON.stringify({ conversationId, content }),
           signal: controller.signal,
         });
@@ -254,7 +254,7 @@ export default function useChat(callbacks: UseChatCallbacks = {}) {
         }
         return { ok: false, error: error?.message || "Unknown error" };
       } finally {
-        // ✅ Nếu cuối cùng không nhận được finalTitle thì vẫn nên tắt loading
+        //  Nếu cuối cùng không nhận được finalTitle thì vẫn nên tắt loading
         const cid = activeConversationIdRef.current;
         if (cid) setTitleLoading(cid, false);
 

@@ -408,7 +408,7 @@ export async function tryClaimResearchSlot(userId: string): Promise<boolean> {
   });
 
   if (rpcError) {
-    // RPC failed — fall back to read-then-write. Not perfectly atomic but best effort.
+    // RPC failed - fall back to read-then-write. Not perfectly atomic but best effort.
     limitsLogger.warn("RPC increment failed, falling back to manual increment:", rpcError);
     const currentCount = await getResearchDailyCount(userId);
     await supabase
@@ -441,7 +441,7 @@ export async function tryClaimResearchSlot(userId: string): Promise<boolean> {
 
 /**
  * Check if user can perform deep research (feature flag + daily limit).
- * Prefer tryClaimResearchSlot() when you intend to actually start a task —
+ * Prefer tryClaimResearchSlot() when you intend to actually start a task -
  * it performs the check and increment atomically.
  */
 export async function canDoResearch(userId: string): Promise<boolean> {

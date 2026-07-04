@@ -22,7 +22,7 @@ export interface EditTurn {
   imageUrl?: string;
   imageBase64?: string;
   imageMimeType?: string;
-  /** Gemini multi-turn signature — must be passed back for image continuity */
+  /** Gemini multi-turn signature - must be passed back for image continuity */
   thoughtSignature?: string;
 }
 
@@ -59,7 +59,7 @@ export default function EditPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initialize with source image (user turn only — NO fake model turn)
+  // Initialize with source image (user turn only - NO fake model turn)
   useEffect(() => {
     const initHistory = async () => {
       try {

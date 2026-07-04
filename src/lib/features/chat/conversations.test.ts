@@ -88,7 +88,7 @@ describe("Conversations", () => {
         title: "Test",
         gems: {
           name: "Test Gem",
-          icon: "⭐",
+          icon: "",
           color: "#FF0000",
         },
       };
@@ -98,7 +98,7 @@ describe("Conversations", () => {
       expect(result).not.toBeNull();
       expect(result?.gem).toEqual({
         name: "Test Gem",
-        icon: "⭐",
+        icon: "",
         color: "#FF0000",
       });
     });

@@ -43,7 +43,7 @@ export default function PersonaPreview({ persona }: PersonaPreviewProps) {
     <div className="h-full flex flex-col p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div className="flex items-center gap-3 mb-4">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-(--primary) text-2xl text-black shadow-lg">
-          {persona.icon || "🎭"}
+          {persona.icon || ""}
         </div>
         <div>
           <h2 className="text-lg font-bold text-(--text-primary)">{persona.name}</h2>
@@ -72,9 +72,9 @@ export default function PersonaPreview({ persona }: PersonaPreviewProps) {
           <div className="text-sm text-(--text-primary) bg-(--surface-muted) p-3 rounded-lg border border-(--border) flex items-center gap-2">
             <span className="font-medium">{TONE_LABELS[persona.tone] || persona.tone}</span>
             <span className="text-(--text-secondary) text-xs">
-              {persona.useEmojis ? "✅ Emojis" : "❌ No Emojis"}
+              {persona.useEmojis ? " Emojis" : " No Emojis"}
               {" · "}
-              {persona.useHeadersLists ? "✅ Headers & Lists" : "❌ No Headers"}
+              {persona.useHeadersLists ? " Headers & Lists" : " No Headers"}
             </span>
           </div>
         </div>

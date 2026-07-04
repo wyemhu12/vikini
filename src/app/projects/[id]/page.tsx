@@ -173,7 +173,7 @@ export default function ProjectPage() {
               className="w-10 h-10 flex items-center justify-center rounded-lg text-xl"
               style={{ backgroundColor: project?.color || "#6366f1" }}
             >
-              {project?.icon || "📁"}
+              {project?.icon || ""}
             </span>
             <div>
               <h1 className="text-lg font-bold">{project?.name || "Loading..."}</h1>

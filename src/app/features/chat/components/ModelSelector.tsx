@@ -311,7 +311,7 @@ function ModelItem({ model, isActive, isAllowed, onSelect }: ModelItemProps) {
           >
             {model.name}
           </span>
-          {!isAllowed && <span className="text-[10px] text-(--text-secondary) opacity-70">🔒</span>}
+          {!isAllowed && <span className="text-[10px] text-(--text-secondary) opacity-70"></span>}
         </div>
         {model.descKey && t(model.descKey) && (
           <div className="text-xs text-(--text-secondary) line-clamp-1">{t(model.descKey)}</div>

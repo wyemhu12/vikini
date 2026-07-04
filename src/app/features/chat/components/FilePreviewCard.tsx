@@ -1,9 +1,9 @@
 /**
- * FilePreviewCard — Single file card component.
+ * FilePreviewCard - Single file card component.
  *
  * Two modes:
- * 1. Uploaded file — shows thumbnail/icon, filename, size
- * 2. Uploading file — shows progress bar and status
+ * 1. Uploaded file - shows thumbnail/icon, filename, size
+ * 2. Uploading file - shows progress bar and status
  *
  * Used by FilePreviewArea (inline above textarea) and FileInMessage (in chat bubbles).
  */

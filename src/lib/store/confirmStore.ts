@@ -58,7 +58,7 @@ export const useConfirmStore = create<ConfirmState>((set, get) => ({
 }));
 
 /**
- * Imperative confirmation prompt — the canonical replacement for window.confirm().
+ * Imperative confirmation prompt - the canonical replacement for window.confirm().
  *
  * @example
  * if (await confirm({ title: "Delete project?", variant: "danger" })) {

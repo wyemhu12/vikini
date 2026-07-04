@@ -30,7 +30,7 @@ const editTurnSchema = z.object({
 
 const editImageMultiSchema = z.object({
   conversationId: z.string().uuid("Invalid conversation ID"),
-  /** The full edit history — alternating user/model turns */
+  /** The full edit history - alternating user/model turns */
   editHistory: z.array(editTurnSchema).min(1).max(20),
   /** ID of the source (parent) message being edited */
   parentMessageId: z.string().uuid().optional(),

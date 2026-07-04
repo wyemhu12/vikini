@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 // ============================================================================
-// Mocks — declared BEFORE importing the route
+// Mocks - declared BEFORE importing the route
 // ============================================================================
 
 vi.mock("@/lib/features/auth/auth", () => ({
@@ -58,7 +58,7 @@ vi.mock("@/lib/utils/logger", () => ({
 }));
 
 // ============================================================================
-// Imports — AFTER mocks
+// Imports - AFTER mocks
 // ============================================================================
 
 import { DELETE } from "./route";
@@ -95,7 +95,7 @@ describe("/api/gallery/[id]", () => {
   // --------------------------------------------------------------------------
   // Auth
   // --------------------------------------------------------------------------
-  describe("DELETE — Auth", () => {
+  describe("DELETE - Auth", () => {
     it("should return 401 when session is null", async () => {
       mockAuth(null);
 
@@ -129,7 +129,7 @@ describe("/api/gallery/[id]", () => {
   // --------------------------------------------------------------------------
   // Validation
   // --------------------------------------------------------------------------
-  describe("DELETE — Validation", () => {
+  describe("DELETE - Validation", () => {
     it("should return 400 when message ID is empty", async () => {
       mockAuth(AUTH_SESSION);
 
@@ -145,7 +145,7 @@ describe("/api/gallery/[id]", () => {
   // --------------------------------------------------------------------------
   // Happy path
   // --------------------------------------------------------------------------
-  describe("DELETE — Happy path", () => {
+  describe("DELETE - Happy path", () => {
     it("should delete message and return success", async () => {
       mockAuth(AUTH_SESSION);
       mockSingle.mockResolvedValue({
@@ -218,7 +218,7 @@ describe("/api/gallery/[id]", () => {
   // --------------------------------------------------------------------------
   // Not found / Forbidden
   // --------------------------------------------------------------------------
-  describe("DELETE — Not found / Forbidden", () => {
+  describe("DELETE - Not found / Forbidden", () => {
     it("should return 404 when message is not found", async () => {
       mockAuth(AUTH_SESSION);
       mockSingle.mockResolvedValue({ data: null, error: { message: "No rows" } });
@@ -257,7 +257,7 @@ describe("/api/gallery/[id]", () => {
   // --------------------------------------------------------------------------
   // Error handling
   // --------------------------------------------------------------------------
-  describe("DELETE — Error handling", () => {
+  describe("DELETE - Error handling", () => {
     it("should return 500 when message delete query fails", async () => {
       mockAuth(AUTH_SESSION);
       mockSingle.mockResolvedValue({

@@ -115,7 +115,7 @@ export default function ResearchThinkingPanel({
 
               <div ref={bottomRef} />
 
-              {/* Skeleton loading below text (Gemini style) — hidden when complete */}
+              {/* Skeleton loading below text (Gemini style) - hidden when complete */}
               {!isCompleted && (
                 <div className="space-y-3 opacity-30 animate-pulse mt-4">
                   <div className="h-3 bg-(--border) rounded-full w-full"></div>

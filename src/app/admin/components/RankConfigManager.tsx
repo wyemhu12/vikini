@@ -21,7 +21,7 @@ interface RankConfig {
   daily_research_limit?: number;
 }
 
-// No props needed — language comes from useLanguage() hook
+// No props needed - language comes from useLanguage() hook
 
 export default function RankConfigManager() {
   const [configs, setConfigs] = useState<RankConfig[]>([]);
@@ -333,7 +333,7 @@ export default function RankConfigManager() {
             >
               <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto bg-[#0a0a0a] border-white/10 p-6 sm:rounded-xl">
                 <DialogTitle className="text-xl font-semibold text-white capitalize mb-4">
-                  {featureModalRank} — {t("configureFeatures")}
+                  {featureModalRank} - {t("configureFeatures")}
                 </DialogTitle>
 
                 <p className="text-sm text-gray-400 mb-4">{t("configureFeatures")}</p>

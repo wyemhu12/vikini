@@ -50,22 +50,22 @@ const ICON_OPTIONS = [
 ];
 
 const COLORS = [
-  "#6366f1",
-  "#8b5cf6",
-  "#ec4899",
-  "#ef4444",
-  "#f97316",
-  "#eab308",
-  "#22c55e",
-  "#14b8a6",
-  "#06b6d4",
-  "#3b82f6",
-  "#6b7280",
-  "#1f2937",
+  "var(--color-indigo-500)",
+  "var(--color-violet-500)",
+  "var(--color-pink-500)",
+  "var(--color-red-500)",
+  "var(--color-orange-500)",
+  "var(--color-yellow-500)",
+  "var(--color-green-500)",
+  "var(--color-teal-500)",
+  "var(--color-cyan-500)",
+  "var(--color-blue-500)",
+  "var(--color-gray-500)",
+  "var(--color-slate-800)",
 ];
 
 /**
- * Modal to create a new project — uses Radix Dialog for focus trap + ESC
+ * Modal to create a new project - uses Radix Dialog for focus trap + ESC
  */
 export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
   const { createProject, limits, isLoading: _isLoading } = useProjectStore();
@@ -74,7 +74,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState("folder");
-  const [color, setColor] = useState("#6366f1");
+  const [color, setColor] = useState("var(--color-indigo-500)");
   const [embeddingModel, setEmbeddingModel] = useState<EmbeddingModel>("text-embedding-004");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -134,7 +134,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
       setName("");
       setDescription("");
       setIcon("folder");
-      setColor("#6366f1");
+      setColor("var(--color-indigo-500)");
 
       toast.success(t("projectCreatedSuccess"));
     } catch (err) {

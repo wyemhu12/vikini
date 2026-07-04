@@ -27,43 +27,43 @@ interface FieldOption {
 }
 
 const LIGHTING_OPTIONS: FieldOption[] = [
-  { id: "natural", labelKey: "pbLightNatural", icon: "☀️" },
-  { id: "studio", labelKey: "pbLightStudio", icon: "💡" },
-  { id: "dramatic", labelKey: "pbLightDramatic", icon: "🎭" },
-  { id: "neon", labelKey: "pbLightNeon", icon: "💜" },
-  { id: "golden-hour", labelKey: "pbLightGolden", icon: "🌅" },
-  { id: "backlit", labelKey: "pbLightBacklit", icon: "🌄" },
-  { id: "moonlight", labelKey: "pbLightMoonlight", icon: "🌙" },
+  { id: "natural", labelKey: "pbLightNatural", icon: "" },
+  { id: "studio", labelKey: "pbLightStudio", icon: "" },
+  { id: "dramatic", labelKey: "pbLightDramatic", icon: "" },
+  { id: "neon", labelKey: "pbLightNeon", icon: "" },
+  { id: "golden-hour", labelKey: "pbLightGolden", icon: "" },
+  { id: "backlit", labelKey: "pbLightBacklit", icon: "" },
+  { id: "moonlight", labelKey: "pbLightMoonlight", icon: "" },
 ];
 
 const CAMERA_OPTIONS: FieldOption[] = [
-  { id: "close-up", labelKey: "pbCamCloseup", icon: "🔍" },
-  { id: "wide-angle", labelKey: "pbCamWide", icon: "🏞️" },
-  { id: "aerial", labelKey: "pbCamAerial", icon: "🦅" },
-  { id: "macro", labelKey: "pbCamMacro", icon: "🔬" },
-  { id: "portrait", labelKey: "pbCamPortrait", icon: "📷" },
-  { id: "fish-eye", labelKey: "pbCamFisheye", icon: "🐟" },
-  { id: "low-angle", labelKey: "pbCamLowAngle", icon: "⬆️" },
+  { id: "close-up", labelKey: "pbCamCloseup", icon: "" },
+  { id: "wide-angle", labelKey: "pbCamWide", icon: "" },
+  { id: "aerial", labelKey: "pbCamAerial", icon: "" },
+  { id: "macro", labelKey: "pbCamMacro", icon: "" },
+  { id: "portrait", labelKey: "pbCamPortrait", icon: "" },
+  { id: "fish-eye", labelKey: "pbCamFisheye", icon: "" },
+  { id: "low-angle", labelKey: "pbCamLowAngle", icon: "" },
 ];
 
 const MOOD_OPTIONS: FieldOption[] = [
-  { id: "joyful", labelKey: "pbMoodJoyful", icon: "😊" },
-  { id: "dark", labelKey: "pbMoodDark", icon: "🌑" },
-  { id: "mysterious", labelKey: "pbMoodMysterious", icon: "🔮" },
-  { id: "serene", labelKey: "pbMoodSerene", icon: "🕊️" },
-  { id: "epic", labelKey: "pbMoodEpic", icon: "⚔️" },
-  { id: "nostalgic", labelKey: "pbMoodNostalgic", icon: "📼" },
-  { id: "dreamy", labelKey: "pbMoodDreamy", icon: "💭" },
+  { id: "joyful", labelKey: "pbMoodJoyful", icon: "" },
+  { id: "dark", labelKey: "pbMoodDark", icon: "" },
+  { id: "mysterious", labelKey: "pbMoodMysterious", icon: "" },
+  { id: "serene", labelKey: "pbMoodSerene", icon: "" },
+  { id: "epic", labelKey: "pbMoodEpic", icon: "" },
+  { id: "nostalgic", labelKey: "pbMoodNostalgic", icon: "" },
+  { id: "dreamy", labelKey: "pbMoodDreamy", icon: "" },
 ];
 
 const COLOR_OPTIONS: FieldOption[] = [
-  { id: "vibrant", labelKey: "pbColorVibrant", icon: "🌈" },
-  { id: "pastel", labelKey: "pbColorPastel", icon: "🎨" },
-  { id: "monochrome", labelKey: "pbColorMono", icon: "⬛" },
-  { id: "earth-tones", labelKey: "pbColorEarth", icon: "🏜️" },
-  { id: "neon", labelKey: "pbColorNeon", icon: "💜" },
-  { id: "warm", labelKey: "pbColorWarm", icon: "🔥" },
-  { id: "cool", labelKey: "pbColorCool", icon: "❄️" },
+  { id: "vibrant", labelKey: "pbColorVibrant", icon: "" },
+  { id: "pastel", labelKey: "pbColorPastel", icon: "" },
+  { id: "monochrome", labelKey: "pbColorMono", icon: "" },
+  { id: "earth-tones", labelKey: "pbColorEarth", icon: "" },
+  { id: "neon", labelKey: "pbColorNeon", icon: "" },
+  { id: "warm", labelKey: "pbColorWarm", icon: "" },
+  { id: "cool", labelKey: "pbColorCool", icon: "" },
 ];
 
 function ChipSelector({
@@ -199,7 +199,7 @@ export default function PromptBuilder({ onBuildPrompt }: PromptBuilderProps) {
         />
       </div>
 
-      {/* Attribute sections — collapsible */}
+      {/* Attribute sections - collapsible */}
       {sections.map((section) => {
         const Icon = section.icon;
         const isExpanded = expandedSection === section.id;

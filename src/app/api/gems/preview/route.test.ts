@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 // ============================================================================
-// Mocks — declared BEFORE importing the route
+// Mocks - declared BEFORE importing the route
 // ============================================================================
 
 vi.mock("@/lib/features/auth/auth", () => ({
@@ -22,7 +22,7 @@ vi.mock("@/lib/utils/logger", () => ({
 }));
 
 // ============================================================================
-// Imports — AFTER mocks
+// Imports - AFTER mocks
 // ============================================================================
 
 import { POST } from "./route";
@@ -59,7 +59,7 @@ describe("/api/gems/preview", () => {
   // --------------------------------------------------------------------------
   // Auth
   // --------------------------------------------------------------------------
-  describe("POST — Auth", () => {
+  describe("POST - Auth", () => {
     it("should return 401 when session is null", async () => {
       mockAuth(null);
 
@@ -91,7 +91,7 @@ describe("/api/gems/preview", () => {
   // --------------------------------------------------------------------------
   // Happy path
   // --------------------------------------------------------------------------
-  describe("POST — Happy path", () => {
+  describe("POST - Happy path", () => {
     it("should return placeholder success response", async () => {
       mockAuth(AUTH_SESSION);
 
@@ -108,7 +108,7 @@ describe("/api/gems/preview", () => {
   // --------------------------------------------------------------------------
   // Error handling
   // --------------------------------------------------------------------------
-  describe("POST — Error handling", () => {
+  describe("POST - Error handling", () => {
     it("should return 500 when auth throws unexpected error", async () => {
       vi.mocked(auth).mockRejectedValue(new Error("Auth service down"));
 

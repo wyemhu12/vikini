@@ -31,9 +31,9 @@ export const vi = {
   en: "Tiếng Anh",
   // Theme names
   blueprint: "Xanh Dịu (Blueprint)",
-  amber: "Cam–Nâu",
-  indigo: "Tím–Xanh",
-  charcoal: "Xám–Đen",
+  amber: "Cam-Nâu",
+  indigo: "Tím-Xanh",
+  charcoal: "Xám-Đen",
   gold: "Vàng ánh kim",
   red: "Đỏ",
   rose: "Hồng nhạt",
@@ -72,7 +72,7 @@ export const vi = {
   modelDescFlash3: "Thông minh & nhanh",
   modelDescPro31: "Thông minh nhất",
   modelDescFlashLite31: "Rẻ nhất & nhanh nhất",
-  modelDescGrok43: "Grok 4.3 — suy luận sâu",
+  modelDescGrok43: "Grok 4.3 - suy luận sâu",
   modelDescLlama33_70b: "Llama 3.3 qua Groq",
   modelDescLlama31_8b: "Llama 3.1 nhanh",
   modelDescDeepSeekV3: "DeepSeek V3 mạnh mẽ (Miễn phí)",
@@ -83,8 +83,8 @@ export const vi = {
   modelDescMistralSmall: "Mistral Small 3.1 (Miễn phí)",
   modelDescClaudeHaiku: "Claude 4.5 nhanh nhất",
   modelDescClaudeSonnet: "Claude 4.5 thông minh",
-  modelDescDeepSeekV4Flash: "DeepSeek V4 Flash — nhanh, thông minh",
-  modelDescDeepSeekV4Pro: "DeepSeek V4 Pro — suy luận mạnh (Giảm 75%)",
+  modelDescDeepSeekV4Flash: "DeepSeek V4 Flash - nhanh, thông minh",
+  modelDescDeepSeekV4Pro: "DeepSeek V4 Pro - suy luận mạnh (Giảm 75%)",
   modelDescDeepSeekV32: "DeepSeek V3.2 thông minh (~$0.28/M tokens)",
   // Web search
   webSearch: "Tìm kiếm Web",
@@ -702,7 +702,7 @@ export const vi = {
   rateLimitTitle: "Vượt hạn mức",
   // Template modal
   choosePhoto: "Chọn ảnh",
-  // Image Studio — Suggestion Tags
+  // Image Studio - Suggestion Tags
   studioTagsLabel: "Thêm nhanh",
   studioTagCinematicLighting: "ánh sáng điện ảnh",
   studioTagBokeh: "hiệu ứng bokeh",
@@ -716,47 +716,47 @@ export const vi = {
   studioTagWideAngle: "góc rộng",
   studioTagBirdsEye: "nhìn từ trên cao",
   studioTagMinimalist: "tối giản",
-  // Image Studio — Dynamic Loading Messages
+  // Image Studio - Dynamic Loading Messages
   studioLoadingMixColors: "Đang pha màu...",
   studioLoadingDrawDetails: "Đang vẽ chi tiết...",
   studioLoadingPolishing: "Đang hoàn thiện...",
   studioLoadingAlmostDone: "Sắp xong rồi...",
   studioLoadingCreating: "Đang hiện thực hóa ý tưởng...",
-  // Image Studio — User-Friendly Errors
+  // Image Studio - User-Friendly Errors
   studioErrorSafety: "Prompt của bạn đã bị chặn bởi bộ lọc an toàn.",
   studioErrorSafetySuggestion:
-    "Thử viết lại — tránh tên thương hiệu, người nổi tiếng, hoặc nội dung nhạy cảm.",
+    "Thử viết lại - tránh tên thương hiệu, người nổi tiếng, hoặc nội dung nhạy cảm.",
   studioErrorRateLimit: "Quá nhiều yêu cầu. Vui lòng đợi một chút.",
   studioErrorRateLimitSuggestion: "Đợi khoảng 30 giây rồi thử lại.",
   studioErrorContentPolicy: "Phát hiện vi phạm chính sách nội dung.",
   studioErrorContentPolicySuggestion: "Thử một prompt sáng tạo hoặc nguyên bản hơn.",
-  // Quick Wins — Negative Prompt
+  // Quick Wins - Negative Prompt
   studioExclude: "Loại trừ",
   studioNegativePromptPlaceholder: "Yếu tố cần tránh: mờ, chữ, watermark...",
-  // Quick Wins — Enhanced Prompt Transparency
+  // Quick Wins - Enhanced Prompt Transparency
   studioEnhancedBadge: "Đã nâng cấp",
   studioOriginalPrompt: "Prompt gốc",
   studioEnhancedPrompt: "Prompt đã nâng cấp",
-  // Quick Wins — Image Variations
+  // Quick Wins - Image Variations
   studioVariation: "Biến thể",
   studioVariationTooltip: "Tạo phiên bản mới giữ nguyên phong cách nhưng thay đổi chi tiết",
   studioCreatingVariation: "Đang tạo biến thể...",
-  // Quick Wins — Favorites
+  // Quick Wins - Favorites
   studioFavorite: "Yêu thích",
   studioUnfavorite: "Bỏ yêu thích",
   galleryFavorites: "Yêu thích",
   galleryShowFavorites: "Chỉ ảnh yêu thích",
-  // Quick Wins — Prompt History
+  // Quick Wins - Prompt History
   studioPromptHistory: "Prompt gần đây",
   studioNoHistory: "Chưa có prompt nào",
   studioClearHistory: "Xóa lịch sử",
-  // Quick Wins — Text Rendering Tip
+  // Quick Wins - Text Rendering Tip
   studioTextRenderingTip: "Mẹo: Dùng Gemini Pro để chữ trong ảnh đẹp hơn",
   studioSwitchToPro: "Chuyển sang Pro",
-  // UI Polish — Tooltips & Labels
+  // UI Polish - Tooltips & Labels
   studioActualResolution: "Kích thước thực",
   studioReuseTooltip: "Dùng lại prompt và cài đặt để tạo ảnh mới",
-  studioEditTooltip: "Chỉnh sửa ảnh bằng AI — mô tả thay đổi cần áp dụng",
+  studioEditTooltip: "Chỉnh sửa ảnh bằng AI - mô tả thay đổi cần áp dụng",
   studioAddTagTooltip: "Thêm nhãn để tìm kiếm và sắp xếp ảnh",
   studioExcludeLabel: "Loại trừ",
   studioQuickAddLabel: "Thêm nhanh",
@@ -800,7 +800,7 @@ export const vi = {
   deepResearchPlanning: "Đang lên kế hoạch...",
   deepResearchExecuting: "Đang nghiên cứu...",
   deepResearchInitializing: "Đang khởi tạo agent...",
-  deepResearchExecutionInit: "Đang khởi động agent nghiên cứu... có thể mất 1–2 phút",
+  deepResearchExecutionInit: "Đang khởi động agent nghiên cứu... có thể mất 1-2 phút",
   deepResearchComplete: "Nghiên cứu hoàn tất",
   deepResearchFailed: "Nghiên cứu thất bại",
   deepResearchPlan: "Kế hoạch nghiên cứu",
@@ -811,9 +811,9 @@ export const vi = {
   deepResearchClose: "Đóng",
   deepResearchQuery: "Bạn muốn nghiên cứu gì?",
   deepResearchAgentDeep: "Chuyên sâu",
-  deepResearchAgentDeepDesc: "~5–15 phút, nghiên cứu kỹ lưỡng",
+  deepResearchAgentDeepDesc: "~5-15 phút, nghiên cứu kỹ lưỡng",
   deepResearchAgentMax: "Tối đa",
-  deepResearchAgentMaxDesc: "~10–20 phút, toàn diện nhất",
+  deepResearchAgentMaxDesc: "~10-20 phút, toàn diện nhất",
   deepResearchSelectAgent: "Chọn chế độ nghiên cứu",
   deepResearchLimitReached: "Đã đạt giới hạn nghiên cứu hôm nay",
   deepResearchNotAllowed: "Liên hệ Admin để mở khóa tính năng này",
