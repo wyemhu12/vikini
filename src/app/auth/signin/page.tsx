@@ -5,8 +5,9 @@ import { useLanguage } from "../../features/chat/hooks/useLanguage";
 import { handleGoogleSignIn } from "./actions";
 
 /**
- * 🌠 Advanced Flowing Gradient Login Page
- * Features a seamless right-to-left color flow through a hollow logo.
+ * 🌑 Warm Noir Login Page
+ * Deep charcoal with a single amber/gold glow point.
+ * Luxury editorial feel — no rainbow, no AI clichés.
  */
 
 export default function SignInPage() {
@@ -17,15 +18,18 @@ export default function SignInPage() {
     setMounted(true);
   }, []);
 
-  if (!mounted) return <div className="min-h-screen bg-[#020617]" />;
+  if (!mounted) return <div className="min-h-screen bg-[#0a0a0a]" />;
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#020617] text-white">
-      {/* 🌌 Multi-tone Flowing Background */}
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#0a0a0a] text-white">
+      {/* 🌑 Warm Noir Background — single amber glow */}
       <div className="absolute inset-0 z-0">
-        <div className="flowing-gradient absolute inset-0 opacity-50" />
-        {/* Vignette effect for focus */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#020617_85%)]" />
+        {/* Primary warm glow — top center */}
+        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.15)_0%,transparent_70%)] blur-3xl" />
+        {/* Secondary subtle glow — bottom right */}
+        <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.06)_0%,transparent_65%)]" />
+        {/* Vignette */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#0a0a0a_85%)]" />
       </div>
 
       {/* Language Toggle */}
@@ -54,24 +58,27 @@ export default function SignInPage() {
       <div className="relative z-10 w-full max-w-md px-6 space-y-12 text-center">
         {/* Brand Identity */}
         <div className="space-y-8 animate-in fade-in slide-in-from-top-8 duration-1000">
-          {/* Large Hollow Logo V */}
+          {/* Large Logo V — gold gradient */}
           <div className="mx-auto h-32 w-32 relative flex items-center justify-center">
-            {/* Glow behind logo */}
-            <div className="absolute inset-0 bg-white/5 blur-3xl rounded-full" />
+            {/* Warm glow behind logo */}
+            <div className="absolute inset-0 bg-[#d4af37]/8 blur-3xl rounded-full" />
 
-            {/* The "V" with background clip for transparency effect */}
-            <div className="relative flex h-full w-full items-center justify-center rounded-[2.5rem] border border-white/10 bg-black/20 backdrop-blur-sm overflow-hidden shadow-2xl">
-              <span className="text-7xl font-black text-transparent bg-clip-text flowing-gradient-text select-none">
+            {/* The "V" with gold gradient */}
+            <div className="relative flex h-full w-full items-center justify-center rounded-[2.5rem] border border-[#d4af37]/15 bg-white/[0.02] backdrop-blur-sm overflow-hidden shadow-2xl">
+              <span className="text-7xl font-black text-transparent bg-clip-text warm-gradient-text select-none">
                 V
               </span>
             </div>
           </div>
 
           <div className="space-y-4">
-            <h1 className="text-5xl font-black tracking-tight text-white sm:text-6xl bg-clip-text text-transparent bg-linear-to-b from-white to-white/50 font-sans">
+            <h1
+              className="text-5xl font-black text-white sm:text-6xl font-sans"
+              style={{ letterSpacing: "-0.03em" }}
+            >
               {t("appName")}
             </h1>
-            <p className="text-xs font-bold uppercase tracking-[0.6em] text-white/40">
+            <p className="text-xs font-bold uppercase tracking-[0.6em] text-white/30">
               {t("authorizedAccess")}
             </p>
           </div>
@@ -79,8 +86,8 @@ export default function SignInPage() {
 
         {/* Action Area */}
         <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-          <div className="rounded-[3rem] border border-white/5 bg-white/2 p-10 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-            <p className="mb-10 text-base font-medium tracking-tight text-white/60 max-w-[300px] mx-auto leading-relaxed">
+          <div className="rounded-[3rem] border border-[#d4af37]/8 bg-white/[0.02] p-10 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+            <p className="mb-10 text-base font-medium tracking-tight text-white/50 max-w-[300px] mx-auto leading-relaxed">
               {t("signinTagline")}
             </p>
 
@@ -113,49 +120,31 @@ export default function SignInPage() {
 
         {/* Footer Info */}
         <div className="pt-12 animate-in fade-in duration-1000 delay-500">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/5 bg-white/5 text-[10px] font-bold text-white/20 tracking-[0.3em] uppercase">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/5 bg-white/[0.03] text-[10px] font-bold text-white/20 tracking-[0.3em] uppercase">
             {t("encryptedE2E")}
           </div>
         </div>
       </div>
 
       <style jsx>{`
-        .flowing-gradient {
-          background: linear-gradient(
-            to left,
-            #6366f1,
-            /* indigo */ #d4af37,
-            /* metallic gold */ #ef4444,
-            /* red */ #ec4899,
-            /* rose */ #f59e0b,
-            /* amber */ #3b82f6,
-            /* blue/blueprint */ #6366f1 /* indigo back */
-          );
-          background-size: 300% 100%;
-          animation: flow 12s linear infinite;
-        }
-
-        .flowing-gradient-text {
+        .warm-gradient-text {
           background-image: linear-gradient(
-            to left,
-            #6366f1,
+            135deg,
             #d4af37,
-            #ef4444,
-            #ec4899,
-            #f59e0b,
-            #3b82f6,
-            #6366f1
+            /* gold */ #f5deb3,
+            /* wheat/champagne */ #d4af37
           );
-          background-size: 300% 100%;
-          animation: flow 12s linear infinite;
+          background-size: 200% 200%;
+          animation: warm-shimmer 6s ease-in-out infinite;
         }
 
-        @keyframes flow {
-          0% {
-            background-position: 0% 0%;
-          }
+        @keyframes warm-shimmer {
+          0%,
           100% {
-            background-position: 300% 0%;
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
           }
         }
       `}</style>

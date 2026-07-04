@@ -5,6 +5,8 @@ import MainLayout from "@/app/features/layout/components/MainLayout"; // Thêm d
 import LanguageUpdater from "@/app/features/layout/components/LanguageUpdater";
 import React from "react";
 import type { Metadata, Viewport } from "next";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 
 export const metadata: Metadata = {
   title: "Vikini - Gemini Chat",
@@ -18,7 +20,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`h-full ${GeistSans.variable} ${GeistMono.variable}`}
+      suppressHydrationWarning
+    >
       <head />
       {/* Giữ nguyên các class cũ (nền đen, text trắng) */}
       <body className="min-h-screen bg-surface text-primary" suppressHydrationWarning>

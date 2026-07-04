@@ -5,6 +5,36 @@
 
 ---
 
+## 2026-07-04: Design Redesign — Premium Polish Pass
+
+### Typography
+
+- **Font swap: Inter → Geist** — Replaced Inter (most common AI font) with Geist (sans + mono) via `next/font` for optimal loading. Updated `base.css`, `tailwind.config.ts`, and `layout.tsx`.
+- **Headline tracking** — Tighter `-0.03em` letter-spacing on DashboardView greetings, `-0.02em` on chat-markdown headings.
+- **Text-wrap: balance** — Applied to all headings to prevent orphaned words.
+- **Tabular figures** — Added `font-variant-numeric: tabular-nums` to TokenBadge number displays.
+
+### Color & Surfaces
+
+- **Fixed pure #000000** — `--surface-dark-strong` changed from `#000000` to `#050505` (tinted near-black).
+- **Theme-aware shimmer** — `shimmer.css` hardcoded colors (`#2a2a2a`) replaced with CSS variables (`var(--surface-muted)`).
+- **Smooth scrolling** — Added `scroll-behavior: smooth` to html/body.
+
+### Interactivity
+
+- **Pressed feedback** — Added `active:scale-[0.97]` to SidebarButton, `active:scale-[0.95]` to DashboardView suggestion chips.
+- **New utility classes** — `.press-scale`, `.hover-lift`, `.tabular-nums`, `.shadow-tinted` in `utilities.css`.
+
+### Loading States
+
+- **Branded skeleton** — Replaced generic "Loading..." text with V-logo pulse skeleton matching app layout shape.
+
+### Login Page
+
+- **Warm Noir redesign** — Replaced rainbow flowing gradient (indigo→gold→red→rose→amber→blue) with single amber/gold radial glow. V logo now uses gold→champagne gradient. Luxury editorial feel.
+
+---
+
 ## 2026-07-03: Deep Research — Silent Hang Auto-Recovery + UX Fix
 
 ### Bug Fixes

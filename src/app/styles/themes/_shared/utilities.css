@@ -20,6 +20,8 @@
 .chat-markdown h3,
 .chat-markdown h4 {
   @apply mt-8 mb-4 font-bold text-(--text-primary);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 .chat-markdown h1 {
@@ -201,4 +203,36 @@
 
 :focus:not(:focus-visible) {
   outline: none;
+}
+
+/* ===========================================
+   INTERACTIVE STATE UTILITIES
+   =========================================== */
+
+/* Physical click feedback */
+.press-scale {
+  transition: transform 150ms ease;
+}
+
+.press-scale:active {
+  transform: scale(0.97);
+}
+
+/* Subtle hover elevation */
+.hover-lift {
+  transition: transform 200ms ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-1px);
+}
+
+/* Tabular figures for data/numbers */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tinted shadow (use with inline --shadow-color) */
+.shadow-tinted {
+  box-shadow: 0 4px 16px -2px var(--shadow-color, rgba(0, 0, 0, 0.25));
 }

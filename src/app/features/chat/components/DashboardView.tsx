@@ -174,7 +174,10 @@ export default function DashboardView({
               <Microscope className="w-3.5 h-3.5" />
               {t("deepResearch")}
             </div>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight tracking-tight">
+            <h1
+              className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight"
+              style={{ letterSpacing: "-0.03em", textWrap: "balance" }}
+            >
               {t("deepResearchQuery")}
             </h1>
             <p className="mt-2 text-sm md:text-base text-(--text-secondary)">
@@ -183,7 +186,10 @@ export default function DashboardView({
           </>
         ) : (
           <>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight tracking-tight">
+            <h1
+              className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight"
+              style={{ letterSpacing: "-0.03em", textWrap: "balance" }}
+            >
               {t(greetingKey)}, {userName}
             </h1>
             <p className="mt-2 text-sm md:text-base text-(--text-secondary)">
@@ -213,7 +219,7 @@ export default function DashboardView({
                   onClick={() => handleCategoryClick(cat.id)}
                   className={`
                   inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium
-                  transition-all duration-200 border
+                  transition-all duration-200 border active:scale-[0.95]
                   ${
                     isActive
                       ? "bg-(--accent)/15 text-(--accent) border-(--accent)/40 shadow-[0_0_12px_var(--glow)]"

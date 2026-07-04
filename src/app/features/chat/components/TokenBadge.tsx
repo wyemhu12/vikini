@@ -67,7 +67,7 @@ const TokenBadge = memo(function TokenBadge({
         className={`inline-flex items-center gap-1 text-xs text-secondary/60 select-none opacity-50 hover:opacity-100 transition-opacity ${className}`}
       >
         <Sparkles className="w-3 h-3" />
-        <span>
+        <span className="tabular-nums">
           {formatTokenCount(totalTokenCount)} {tokenLabel}
         </span>
       </span>
@@ -83,7 +83,7 @@ const TokenBadge = memo(function TokenBadge({
           onClick={() => setOpen(!open)}
         >
           <Sparkles className="w-3 h-3" />
-          <span>
+          <span className="tabular-nums">
             {formatTokenCount(totalTokenCount)} {tokenLabel}
           </span>
         </button>

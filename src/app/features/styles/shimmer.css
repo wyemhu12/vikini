@@ -1,6 +1,11 @@
-/* Shimmer Loading Block (giống ChatGPT) */
+/* Shimmer Loading Block (theme-aware) */
 .shimmer-block {
-  background: linear-gradient(90deg, #2a2a2a 0%, #3a3a3a 40%, #2a2a2a 80%);
+  background: linear-gradient(
+    90deg,
+    var(--surface-muted) 0%,
+    var(--control-bg-hover, #3a3a3a) 40%,
+    var(--surface-muted) 80%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite linear;
 }
