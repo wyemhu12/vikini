@@ -123,12 +123,12 @@ function ImageGenPreview({ message, onRegenerate, onEdit }: ImageGenPreviewProps
           <img
             src={sanitizeImageUrl(imageUrl)}
             alt={prompt || "Generated Image"}
-            className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
+            className="w-full h-auto object-cover transition-transform duration-300 ease-out group-hover:scale-105"
             loading="lazy"
           />
 
           {/* Hover Overlay */}
-          <div className="absolute inset-0 bg-black/60 opacity-0 active:opacity-100 md:active:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black/60 opacity-0 active:opacity-100 md:active:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 ease-out flex items-center justify-center pointer-events-none">
             <div className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
               <Expand className="w-5 h-5 text-white" />
               <span className="text-white text-sm font-medium">

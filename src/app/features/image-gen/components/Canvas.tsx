@@ -184,15 +184,15 @@ export default function Canvas({
           {images.map((item, idx) => (
             <motion.div
               key={item.id || idx}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: Math.min(idx * 0.08, 0.4) }}
+              initial={{ opacity: 0, transform: "translateY(20px)" }}
+              animate={{ opacity: 1, transform: "translateY(0)" }}
+              transition={{ duration: 0.3, ease: "easeOut", delay: Math.min(idx * 0.08, 0.4) }}
               className="break-inside-avoid mb-4 md:mb-6 group relative rounded-xl overflow-hidden border border-(--border) bg-(--surface-elevated) shadow-sm hover:shadow-xl transition-shadow duration-300"
             >
               <img
                 src={item.url}
                 alt={`Generated ${item.prompt}`}
-                className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-[1.02] cursor-pointer"
+                className="w-full h-auto object-cover transition-transform duration-300 ease-out group-hover:scale-[1.02] cursor-pointer"
                 loading="lazy"
                 onClick={() => onImageClick?.(item, idx)}
               />
@@ -378,9 +378,9 @@ export default function Canvas({
               (tmpl, idx) => (
                 <motion.button
                   key={tmpl.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: idx * 0.04, duration: 0.3 }}
+                  initial={{ opacity: 0, transform: "scale(0.9)" }}
+                  animate={{ opacity: 1, transform: "scale(1)" }}
+                  transition={{ delay: idx * 0.04, duration: 0.3, ease: "easeOut" }}
                   onClick={() => onSelectTemplate?.(tmpl)}
                   className="group relative aspect-[3/4] rounded-2xl overflow-hidden border border-(--border) hover:border-purple-500/40 transition-colors hover:shadow-lg hover:shadow-purple-500/10 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
                 >
@@ -388,7 +388,7 @@ export default function Canvas({
                   <img
                     src={tmpl.previewUrl}
                     alt={tmpl.name[language]}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
                     loading="lazy"
                   />
                   {/* Gradient overlay */}

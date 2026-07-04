@@ -509,7 +509,7 @@ export function GalleryView() {
                         src={img.url}
                         alt={img.prompt}
                         fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        className="object-cover transition-transform duration-300 ease-out group-hover:scale-110"
                         unoptimized
                       />
 

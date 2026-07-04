@@ -58,7 +58,7 @@ function MessageActions({
         title={copied ? t("copied") : t("copy")}
       >
         {copied ? (
-          <Check className="w-3.5 h-3.5 text-(--success) animate-bounce-once" />
+          <Check className="w-3.5 h-3.5 text-(--success) animate-in zoom-in-50 duration-200 ease-out" />
         ) : (
           <Copy className="w-3 h-3 group-hover/copy:scale-110 transition-transform duration-200" />
         )}
