@@ -240,3 +240,39 @@
 .shadow-tinted {
   box-shadow: 0 4px 16px -2px var(--shadow-color, rgba(0, 0, 0, 0.25));
 }
+
+/* ===========================================
+   SIDEBAR - Accent Bar Hover/Active Effect
+   =========================================== */
+
+/* Left accent bar that scales in on hover/active */
+.sidebar-accent-bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 20%;
+  width: 2px;
+  height: 60%;
+  background: var(--accent);
+  border-radius: 1px;
+  transform: scaleY(0);
+  transition: transform 0.15s ease;
+  transform-origin: center;
+}
+
+.sidebar-accent-bar:hover::before {
+  transform: scaleY(1);
+}
+
+/* Permanently visible accent bar for active state */
+.sidebar-accent-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 20%;
+  width: 2px;
+  height: 60%;
+  background: var(--accent);
+  border-radius: 1px;
+  transform: scaleY(1);
+}

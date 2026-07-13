@@ -783,7 +783,7 @@ export default function ChatApp() {
               <span className="text-sm text-(--text-secondary)">{t.loading || "Loading..."}</span>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto w-full py-8 space-y-2 chat-content-area">
+            <div className="max-w-3xl mx-auto w-full py-8 space-y-2">
               {renderedMessages.map((m: FrontendMessage, idx: number) => {
                 const isLastAI = m.role === "assistant" && idx === renderedMessages.length - 1;
                 return (

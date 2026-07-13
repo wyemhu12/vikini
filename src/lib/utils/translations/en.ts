@@ -686,10 +686,6 @@ export const en = {
   // HeaderBar / Layout
   settings: "Settings",
   theme: "Theme",
-  layoutMode: "Layout",
-  layoutClassic: "Classic",
-  layoutLinear: "Linear",
-  selectLayout: "Select Layout",
   // File manager
   files: "Files",
   // Stream errors

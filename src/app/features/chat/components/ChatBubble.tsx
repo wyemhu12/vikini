@@ -493,14 +493,14 @@ const ChatBubble = React.memo(
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
-        className={`group flex w-full flex-col gap-3 py-6 chat-bubble-wrapper ${isBot ? "" : "items-end"}`}
+        className={`group flex w-full flex-col gap-3 py-6 ${isBot ? "" : "items-end"}`}
       >
         <div
           className={`flex max-w-[95%] lg:max-w-[90%] gap-4 ${isBot ? "items-start" : "flex-row-reverse items-start"}`}
         >
           {/* Avatar */}
           <div
-            className={`relative flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-lg border text-[10px] font-black tracking-tighter shadow-sm overflow-hidden transition-[border-color,background-color,box-shadow] duration-300 chat-avatar
+            className={`relative flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-lg border text-[10px] font-black tracking-tighter shadow-sm overflow-hidden transition-[border-color,background-color,box-shadow] duration-300
             ${
               isBot
                 ? isLoading
@@ -552,7 +552,7 @@ const ChatBubble = React.memo(
           >
             <div
               className={`relative rounded-2xl px-1 text-sm leading-relaxed transition-colors
-              ${isBot ? "text-primary w-full chat-bubble-bot" : "bg-(--primary) px-4 py-2.5 text-(--surface) shadow-lg chat-bubble-user"}`}
+              ${isBot ? "text-primary w-full" : "bg-(--primary) px-4 py-2.5 text-(--surface) shadow-lg"}`}
             >
               {isEditing ? (
                 <div className="flex flex-col gap-2 w-full min-w-[60vw] md:min-w-[600px]">

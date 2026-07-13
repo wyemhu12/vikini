@@ -124,7 +124,7 @@ const SidebarButton = React.memo(function SidebarButton({
         variant === "primary" &&
           "bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-(--accent) font-bold shadow-sm",
         variant === "default" &&
-          "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) sidebar-item-default",
+          "text-(--text-secondary) hover:text-(--text-primary) sidebar-accent-bar",
         variant === "destructive" &&
           "text-(--text-secondary) hover:bg-(--danger)/10 hover:text-(--danger)",
         isLoading && "opacity-70 cursor-not-allowed",
@@ -350,9 +350,7 @@ function Sidebar({
         </div>
 
         {/* Divider */}
-        <div
-          className={cn("h-px bg-(--border)/60 mb-2 mx-2 sidebar-divider", isCollapsed && "hidden")}
-        />
+        <div className={cn("h-px bg-(--border)/60 mb-2 mx-2", isCollapsed && "hidden")} />
 
         {/* Projects Section - own scroll area */}
         {!isCollapsed && !pathname?.includes("/images") && (
@@ -410,9 +408,7 @@ function Sidebar({
         )}
 
         {/* Divider */}
-        <div
-          className={cn("h-px bg-(--border)/40 my-2 mx-2 sidebar-divider", isCollapsed && "hidden")}
-        />
+        <div className={cn("h-px bg-(--border)/40 my-2 mx-2", isCollapsed && "hidden")} />
 
         {/* Your chats Section - own scroll area, fills remaining space */}
         {!isCollapsed && (
@@ -513,7 +509,7 @@ function Sidebar({
           aria-label="Main navigation"
           role="navigation"
           className={cn(
-            "hidden md:flex flex-col fixed top-0 left-0 bottom-0 border-r border-(--border) bg-(--surface-muted)/90 backdrop-blur-3xl p-4 z-30 transition-[width] duration-300 sidebar-desktop",
+            "hidden md:flex flex-col fixed top-0 left-0 bottom-0 border-r border-(--border) bg-(--surface-muted)/90 backdrop-blur-3xl p-4 z-30 transition-[width] duration-300",
             collapsed ? "w-20" : "w-72 lg:w-80"
           )}
         >
@@ -544,7 +540,7 @@ function Sidebar({
                     <motion.aside
                       aria-label="Main navigation"
                       role="navigation"
-                      className="fixed top-0 left-0 bottom-0 z-50 w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-6 pb-24 shadow-2xl flex flex-col md:hidden sidebar-mobile"
+                      className="fixed top-0 left-0 bottom-0 z-50 w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-6 pb-24 shadow-2xl flex flex-col md:hidden"
                       initial={{ x: "-100%" }}
                       animate={{ x: 0 }}
                       exit={{ x: "-100%" }}

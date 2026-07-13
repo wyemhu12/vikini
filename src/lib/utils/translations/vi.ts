@@ -696,10 +696,6 @@ export const vi = {
   // HeaderBar / Layout
   settings: "Cài đặt",
   theme: "Giao diện",
-  layoutMode: "Bố cục",
-  layoutClassic: "Classic",
-  layoutLinear: "Linear",
-  selectLayout: "Chọn bố cục",
   // File manager
   files: "Tệp",
   // Stream errors

@@ -8,7 +8,6 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { THEME_CONFIG } from "@/lib/config/theme-config";
-import { useLayoutStore } from "@/lib/store/layoutStore";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -27,9 +26,6 @@ const Check = dynamic(() => import("lucide-react").then((mod) => mod.Check), { s
 const Settings = dynamic(() => import("lucide-react").then((mod) => mod.Settings), {
   ssr: false,
 });
-const Columns = dynamic(() => import("lucide-react").then((mod) => mod.Columns2), {
-  ssr: false,
-});
 
 const Menu = dynamic(() => import("lucide-react").then((mod) => mod.Menu), {
   ssr: false,
@@ -43,7 +39,6 @@ interface HeaderBarProps {
 const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileControls = true }) => {
   const { theme, setTheme } = useTheme();
   const { t, language, setLanguage } = useLanguage();
-  const { layoutMode, toggleLayoutMode, setLayoutMode } = useLayoutStore();
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []); // Hydration fix
 
@@ -87,7 +82,6 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
       bg-transparent text-(--text-primary)
       px-4 py-4 sm:px-6
       transition-colors duration-300
-      header-bar
     "
     >
       <div className="flex items-center gap-4 min-w-0">
@@ -123,25 +117,6 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
 
       <div className="hidden md:flex items-center gap-3 ml-auto">
         {/* DESKTOP: Separate Controls */}
-        {/* Layout Mode Toggle */}
-        {mounted ? (
-          <button
-            onClick={toggleLayoutMode}
-            className={triggerButtonStyles}
-            aria-label={t("selectLayout")}
-            title={`${t("layoutMode")}: ${layoutMode === "linear" ? t("layoutLinear") : t("layoutClassic")}`}
-          >
-            <Columns className="w-3.5 h-3.5 text-(--text-secondary) group-hover:text-(--text-primary) transition-colors" />
-            <span className={triggerLabelStyles}>
-              {layoutMode === "linear" ? t("layoutLinear") : t("layoutClassic")}
-            </span>
-          </button>
-        ) : (
-          <button className={triggerButtonStyles} aria-label={t("selectLayout")}>
-            <Columns className="w-3.5 h-3.5 text-(--text-secondary)" />
-            <span className={triggerLabelStyles}>Classic</span>
-          </button>
-        )}
         {/* Language Dropdown */}
         {mounted ? (
           <DropdownMenu>
@@ -262,27 +237,6 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
                   {language === lang.id && <Check className="w-3 h-3 text-(--accent)" />}
                 </DropdownMenuItem>
               ))}
-
-              <DropdownMenuSeparator />
-
-              {/* Layout Mode Section */}
-              <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-(--text-secondary) px-2 py-1.5">
-                {t("layoutMode")}
-              </DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => setLayoutMode("classic")}
-                className="flex items-center justify-between cursor-pointer"
-              >
-                <span className="text-xs font-medium">{t("layoutClassic")}</span>
-                {layoutMode === "classic" && <Check className="w-3 h-3 text-(--accent)" />}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setLayoutMode("linear")}
-                className="flex items-center justify-between cursor-pointer"
-              >
-                <span className="text-xs font-medium">{t("layoutLinear")}</span>
-                {layoutMode === "linear" && <Check className="w-3 h-3 text-(--accent)" />}
-              </DropdownMenuItem>
 
               <DropdownMenuSeparator />
 

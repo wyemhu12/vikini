@@ -3,7 +3,6 @@ import "@/app/features/styles/shimmer.css"; // Giữ lại style cũ của bạn
 import Providers from "@/app/features/layout/providers";
 import MainLayout from "@/app/features/layout/components/MainLayout"; // Thêm dòng này
 import LanguageUpdater from "@/app/features/layout/components/LanguageUpdater";
-import LayoutModeUpdater from "@/app/features/layout/components/LayoutModeUpdater";
 import React from "react";
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
@@ -36,7 +35,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to main content
         </a>
         <LanguageUpdater />
-        <LayoutModeUpdater />
         <Providers>
           {/* Bọc MainLayout vào đây để Modal hoạt động, nhưng không làm mất style của Body */}
           <MainLayout>{children}</MainLayout>

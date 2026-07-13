@@ -64,7 +64,7 @@ export function SidebarSection({
       <button
         onClick={toggle}
         className={cn(
-          "w-full flex items-center justify-between px-3 py-2 sidebar-section-label",
+          "w-full flex items-center justify-between px-3 py-2",
           "text-xs font-medium text-(--text-secondary) uppercase tracking-wider",
           "hover:text-(--text-primary) transition-colors"
         )}

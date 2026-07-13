@@ -38,8 +38,3 @@
 @import "./styles/themes/ra2/yuri.css";
 @import "./styles/themes/ra2/allied.css";
 @import "./styles/themes/ra2/soviet.css";
-
-/* ===========================================
-   LAYOUT MODES (Structural overrides)
-   =========================================== */
-@import "./styles/layout-modes/linear.css";

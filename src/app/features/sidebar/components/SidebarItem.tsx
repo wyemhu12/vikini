@@ -130,8 +130,8 @@ function SidebarItem({
       <button
         className={`relative flex w-full items-center justify-between gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm transition-colors duration-200 ${
           isActive
-            ? "bg-(--control-bg-hover) text-(--text-primary) shadow-[0_0_15px_var(--glow)] border border-(--control-border) sidebar-item-active"
-            : "text-(--text-secondary) hover:bg-(--control-bg) hover:text-(--text-primary) border border-transparent sidebar-item-default"
+            ? "text-(--text-primary) font-medium sidebar-accent-active border border-transparent"
+            : "text-(--text-secondary) hover:text-(--text-primary) sidebar-accent-bar border border-transparent"
         }`}
         onClick={() => onSelect?.(c.id)}
         type="button"
