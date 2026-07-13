@@ -1,0 +1,127 @@
+/* ===========================================
+   LAYOUT MODE: LINEAR
+   Structural overrides for the Linear/Vercel aesthetic.
+   Applied when `layout-linear` class is present on <html>.
+   
+   This file ONLY overrides structural properties (spacing,
+   blur, borders, radius, typography weight). It does NOT
+   touch color tokens — those come from the active theme.
+   =========================================== */
+
+/* ── Global Token Overrides ── */
+.layout-linear {
+  --radius: 0.5rem; /* 8px — sharper than classic's 12px */
+}
+
+/* ── Sidebar: Solid background, no blur ── */
+.layout-linear .sidebar-desktop {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--surface-muted) !important;
+  border-right-color: var(--border);
+}
+
+/* Sidebar items: text-highlight hover instead of bg-fill (default variant only) */
+.layout-linear .sidebar-item-default:hover {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+.layout-linear .sidebar-item-default:hover::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 60%;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+/* ── Header: cleaner, no background noise ── */
+.layout-linear .header-bar {
+  background: transparent !important;
+}
+
+/* ── Chat Content: tighter measure ── */
+.layout-linear .chat-content-area {
+  max-width: 48rem; /* 768px — similar to ChatGPT */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Dashboard: sharper chips, less glow ── */
+.layout-linear .dashboard-chip {
+  box-shadow: none !important;
+  border-radius: 0.5rem;
+}
+
+.layout-linear .dashboard-chip:hover {
+  box-shadow: none !important;
+}
+
+/* Dashboard greeting: Linear typography */
+.layout-linear .dashboard-greeting {
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  background: none !important;
+  -webkit-text-fill-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+/* ── Suggestion dropdown: sharper ── */
+.layout-linear .suggestion-dropdown {
+  border-radius: 0.5rem;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--surface-muted) !important;
+}
+
+/* ── General: increase macro-whitespace at section level ── */
+.layout-linear .section-spacer {
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+}
+
+/* ── Chat bubbles: flat, no heavy shadows ── */
+.layout-linear .chat-bubble {
+  border-radius: 0.5rem;
+  box-shadow: none;
+}
+
+/* ── Control elements: sharper radius ── */
+.layout-linear button,
+.layout-linear input,
+.layout-linear textarea,
+.layout-linear select {
+  border-radius: var(--radius);
+}
+
+/* ── Scrollbar: thinner for linear ── */
+.layout-linear ::-webkit-scrollbar {
+  width: 4px;
+}
+
+/* ── Glow suppression: reduce glow effects ── */
+.layout-linear .static-depth-bg {
+  background: var(--surface) !important;
+}
+
+/* ── Context menu / dropdown: sharper ── */
+.layout-linear [data-radix-popper-content-wrapper] [role="menu"],
+.layout-linear [data-radix-popper-content-wrapper] [role="listbox"] {
+  border-radius: 0.5rem !important;
+}
+
+/* ── Mobile sidebar: also solid ── */
+.layout-linear .sidebar-mobile {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--surface-muted) !important;
+}
+
+/* ── Focus rings: keep accessible but tighter ── */
+.layout-linear :focus-visible {
+  outline-offset: 1px;
+}

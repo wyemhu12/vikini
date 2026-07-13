@@ -175,7 +175,7 @@ export default function DashboardView({
               {t("deepResearch")}
             </div>
             <h1
-              className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight"
+              className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight dashboard-greeting"
               style={{ letterSpacing: "-0.03em", textWrap: "balance" }}
             >
               {t("deepResearchQuery")}
@@ -187,7 +187,7 @@ export default function DashboardView({
         ) : (
           <>
             <h1
-              className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight"
+              className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight dashboard-greeting"
               style={{ letterSpacing: "-0.03em", textWrap: "balance" }}
             >
               {t(greetingKey)}, {userName}
@@ -219,7 +219,7 @@ export default function DashboardView({
                   onClick={() => handleCategoryClick(cat.id)}
                   className={`
                   inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium
-                  transition-[background-color,color,border-color,transform,box-shadow] duration-200 border active:scale-[0.95]
+                  transition-[background-color,color,border-color,transform,box-shadow] duration-200 border active:scale-[0.95] dashboard-chip
                   ${
                     isActive
                       ? "bg-(--accent)/15 text-(--accent) border-(--accent)/40 shadow-[0_0_12px_var(--glow)]"
@@ -245,7 +245,7 @@ export default function DashboardView({
                 transition={{ duration: 0.25, ease: "easeInOut" }}
                 className="absolute top-full left-1/2 -translate-x-1/2 w-full max-w-md mt-2 z-50"
               >
-                <div className="rounded-2xl border border-(--border) bg-(--surface-muted)/60 backdrop-blur-2xl shadow-2xl overflow-hidden">
+                <div className="rounded-2xl border border-(--border) bg-(--surface-muted)/60 backdrop-blur-2xl shadow-2xl overflow-hidden suggestion-dropdown">
                   {/* Category Header */}
                   <div className="flex items-center justify-between px-4 py-3 border-b border-(--border)">
                     <div className="flex items-center gap-2 text-(--accent) text-sm font-semibold">

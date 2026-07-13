@@ -119,12 +119,12 @@ const SidebarButton = React.memo(function SidebarButton({
       onClick={isLoading ? undefined : onClick}
       disabled={isLoading}
       className={cn(
-        "flex items-center gap-3 rounded-lg py-2.5 transition-[background-color,color,transform] duration-200 group active:scale-[0.97]",
+        "flex items-center gap-3 rounded-lg py-2.5 transition-[background-color,color,transform] duration-200 group active:scale-[0.97] relative",
         isCollapsed ? "justify-center px-0 w-full" : "justify-start px-3 w-full",
         variant === "primary" &&
           "bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-(--accent) font-bold shadow-sm",
         variant === "default" &&
-          "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)",
+          "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) sidebar-item-default",
         variant === "destructive" &&
           "text-(--text-secondary) hover:bg-(--danger)/10 hover:text-(--danger)",
         isLoading && "opacity-70 cursor-not-allowed",
@@ -509,7 +509,7 @@ function Sidebar({
           aria-label="Main navigation"
           role="navigation"
           className={cn(
-            "hidden md:flex flex-col fixed top-0 left-0 bottom-0 border-r border-(--border) bg-(--surface-muted)/90 backdrop-blur-3xl p-4 z-30 transition-[width] duration-300",
+            "hidden md:flex flex-col fixed top-0 left-0 bottom-0 border-r border-(--border) bg-(--surface-muted)/90 backdrop-blur-3xl p-4 z-30 transition-[width] duration-300 sidebar-desktop",
             collapsed ? "w-20" : "w-72 lg:w-80"
           )}
         >
@@ -540,7 +540,7 @@ function Sidebar({
                     <motion.aside
                       aria-label="Main navigation"
                       role="navigation"
-                      className="fixed top-0 left-0 bottom-0 z-50 w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-6 pb-24 shadow-2xl flex flex-col md:hidden"
+                      className="fixed top-0 left-0 bottom-0 z-50 w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-6 pb-24 shadow-2xl flex flex-col md:hidden sidebar-mobile"
                       initial={{ x: "-100%" }}
                       animate={{ x: 0 }}
                       exit={{ x: "-100%" }}
