@@ -215,7 +215,7 @@ export default function InputForm({
             handleSubmit();
           }
         }}
-        className={`relative flex flex-col w-full rounded-3xl border shadow-2xl transition-[border-color,box-shadow] duration-300 ${
+        className={`relative flex flex-col w-full rounded-3xl border shadow-2xl transition-[border-color,box-shadow] duration-300 chat-input-container ${
           isImageMode
             ? "bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface))] border-(--accent) ring-1 ring-(--accent)/50"
             : isDragging

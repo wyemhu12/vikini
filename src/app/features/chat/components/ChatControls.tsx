@@ -134,7 +134,7 @@ export default function ChatControls({
       animate={{ y: showMobileControls ? 0 : "100%" }}
       transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
       className={`
-        w-full max-w-4xl mx-auto px-4 md:px-6
+        w-full max-w-4xl mx-auto px-4 md:px-6 chat-controls-container
         ${
           isLanding
             ? "relative z-40"
@@ -308,7 +308,7 @@ export default function ChatControls({
 
       {/* Input Box Wrapper */}
       <div className="relative group">
-        <div className="absolute -inset-0.5 bg-(--accent) rounded-4xl opacity-0 group-focus-within:opacity-20 transition-opacity duration-500 blur-lg" />
+        <div className="absolute -inset-0.5 bg-(--accent) rounded-4xl opacity-0 group-focus-within:opacity-20 transition-opacity duration-500 blur-lg chat-input-glow" />
         <div className="relative">
           <InputForm
             input={isShowingPreview ? displayValue : input}

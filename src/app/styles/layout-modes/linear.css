@@ -10,23 +10,54 @@
 
 /* ── Global Token Overrides ── */
 .layout-linear {
-  --radius: 0.5rem; /* 8px — sharper than classic's 12px */
+  --radius: 0.375rem; /* 6px — noticeably sharper than classic's 12px */
 }
 
-/* ── Sidebar: Solid background, no blur ── */
+/* ──────────────────────────────────────────────
+   SIDEBAR
+   ────────────────────────────────────────────── */
+
+/* Desktop sidebar: solid bg, NO blur, visible border */
 .layout-linear .sidebar-desktop {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   background: var(--surface-muted) !important;
-  border-right-color: var(--border);
+  border-right: 1px solid var(--border);
+  padding: 0.75rem;
 }
 
-/* Sidebar items: text-highlight hover instead of bg-fill (default variant only) */
+/* Mobile sidebar: also solid */
+.layout-linear .sidebar-mobile {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: var(--surface-muted) !important;
+}
+
+/* Sidebar section labels: true Linear eyebrow style */
+.layout-linear .sidebar-section-label {
+  font-size: 0.625rem !important; /* 10px */
+  font-weight: 600 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  padding-top: 1rem !important;
+  padding-bottom: 0.375rem !important;
+  color: var(--text-secondary) !important;
+  opacity: 0.6;
+}
+
+/* Sidebar items (default variant): text-highlight hover, no bg fill */
+.layout-linear .sidebar-item-default {
+  border-radius: 0.375rem;
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+
 .layout-linear .sidebar-item-default:hover {
   background: transparent !important;
   color: var(--text-primary) !important;
 }
 
+/* Left accent bar on hover for default items */
 .layout-linear .sidebar-item-default:hover::before {
   content: "";
   position: absolute;
@@ -39,58 +70,147 @@
   border-radius: 1px;
 }
 
-/* ── Header: cleaner, no background noise ── */
-.layout-linear .header-bar {
+/* Active sidebar item in Linear: permanent accent bar */
+.layout-linear .sidebar-item-active {
   background: transparent !important;
 }
 
-/* ── Chat Content: tighter measure ── */
-.layout-linear .chat-content-area {
-  max-width: 48rem; /* 768px — similar to ChatGPT */
-  margin-left: auto;
-  margin-right: auto;
+.layout-linear .sidebar-item-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 60%;
+  background: var(--accent);
+  border-radius: 1px;
 }
 
-/* ── Dashboard: sharper chips, less glow ── */
+/* Sidebar dividers: thinner, more subtle */
+.layout-linear .sidebar-divider {
+  opacity: 0.3;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+/* ──────────────────────────────────────────────
+   HEADER
+   ────────────────────────────────────────────── */
+
+/* Header: cleaner, bottom hairline */
+.layout-linear .header-bar {
+  background: transparent !important;
+  border-bottom: 1px solid var(--border);
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+}
+
+/* Logo: remove glow effect in Linear */
+.layout-linear .header-bar .shadow-\[0_0_15px_var\(--glow\)\] {
+  box-shadow: none !important;
+}
+
+/* ──────────────────────────────────────────────
+   DASHBOARD (Landing Page)
+   ────────────────────────────────────────────── */
+
+/* Dashboard greeting: no gradient text, just clean solid color */
+.layout-linear .dashboard-greeting {
+  font-weight: 500 !important;
+  letter-spacing: -0.04em !important;
+  background: none !important;
+  background-clip: unset !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Dashboard chips: flat, sharp, no glow */
 .layout-linear .dashboard-chip {
   box-shadow: none !important;
-  border-radius: 0.5rem;
+  border-radius: 0.375rem !important;
 }
 
 .layout-linear .dashboard-chip:hover {
   box-shadow: none !important;
 }
 
-/* Dashboard greeting: Linear typography */
-.layout-linear .dashboard-greeting {
-  font-weight: 500;
-  letter-spacing: -0.04em;
-  background: none !important;
-  -webkit-text-fill-color: var(--text-primary);
-  color: var(--text-primary);
+/* Active chip: no glow shadow */
+.layout-linear .dashboard-chip.dashboard-chip-active {
+  box-shadow: none !important;
 }
 
-/* ── Suggestion dropdown: sharper ── */
+/* Suggestion dropdown: sharp, solid */
 .layout-linear .suggestion-dropdown {
-  border-radius: 0.5rem;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  border-radius: 0.5rem !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   background: var(--surface-muted) !important;
 }
 
-/* ── General: increase macro-whitespace at section level ── */
-.layout-linear .section-spacer {
-  margin-top: 2rem;
-  margin-bottom: 2rem;
+/* ──────────────────────────────────────────────
+   CHAT AREA
+   ────────────────────────────────────────────── */
+
+/* Chat bubbles: squared off, no heavy radius */
+.layout-linear .chat-bubble-wrapper {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
 }
 
-/* ── Chat bubbles: flat, no heavy shadows ── */
-.layout-linear .chat-bubble {
-  border-radius: 0.5rem;
-  box-shadow: none;
+.layout-linear .chat-bubble-wrapper:last-child {
+  border-bottom: none;
 }
 
-/* ── Control elements: sharper radius ── */
+/* Bot message: minimal padding, tighter typography */
+.layout-linear .chat-bubble-bot {
+  border-radius: 0.375rem !important;
+  padding: 0 !important;
+}
+
+/* User message: sharp, less shadow */
+.layout-linear .chat-bubble-user {
+  border-radius: 0.5rem !important;
+  box-shadow: none !important;
+}
+
+/* Bot avatar: square, no shadow */
+.layout-linear .chat-avatar {
+  border-radius: 0.375rem !important;
+  box-shadow: none !important;
+}
+
+/* ──────────────────────────────────────────────
+   INPUT AREA
+   ────────────────────────────────────────────── */
+
+/* Chat input: sharper, thinner border */
+.layout-linear .chat-input-container {
+  border-radius: 0.75rem !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  border-width: 1px !important;
+}
+
+/* Suppress the glowing halo around the input on focus */
+.layout-linear .chat-input-glow {
+  display: none !important;
+}
+
+/* Chat controls container: no backdrop blur on mobile */
+.layout-linear .chat-controls-container {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ──────────────────────────────────────────────
+   GLOBAL STRUCTURAL
+   ────────────────────────────────────────────── */
+
+/* All buttons, inputs: sharper radius */
 .layout-linear button,
 .layout-linear input,
 .layout-linear textarea,
@@ -98,30 +218,42 @@
   border-radius: var(--radius);
 }
 
-/* ── Scrollbar: thinner for linear ── */
+/* Scrollbar: thinner for linear */
 .layout-linear ::-webkit-scrollbar {
   width: 4px;
 }
 
-/* ── Glow suppression: reduce glow effects ── */
+/* Suppress glow effects everywhere */
 .layout-linear .static-depth-bg {
   background: var(--surface) !important;
 }
 
-/* ── Context menu / dropdown: sharper ── */
+/* Context menu / dropdown: sharper */
 .layout-linear [data-radix-popper-content-wrapper] [role="menu"],
 .layout-linear [data-radix-popper-content-wrapper] [role="listbox"] {
   border-radius: 0.5rem !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
-/* ── Mobile sidebar: also solid ── */
-.layout-linear .sidebar-mobile {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  background: var(--surface-muted) !important;
+/* Tooltips: sharper */
+.layout-linear [data-radix-popper-content-wrapper] [data-side] {
+  border-radius: 0.375rem !important;
 }
 
-/* ── Focus rings: keep accessible but tighter ── */
+/* Focus rings: keep accessible but tighter */
 .layout-linear :focus-visible {
   outline-offset: 1px;
+}
+
+/* Modals / Dialogs: sharper corners */
+.layout-linear [role="dialog"] {
+  border-radius: 0.75rem !important;
+}
+
+/* Remove all glow box-shadows globally */
+.layout-linear .shadow-\[0_0_12px_var\(--glow\)\],
+.layout-linear .shadow-\[0_0_15px_var\(--glow\)\],
+.layout-linear .shadow-\[0_0_8px_currentColor\] {
+  box-shadow: none !important;
 }

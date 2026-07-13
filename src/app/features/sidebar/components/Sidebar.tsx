@@ -350,7 +350,9 @@ function Sidebar({
         </div>
 
         {/* Divider */}
-        <div className={cn("h-px bg-(--border)/60 mb-2 mx-2", isCollapsed && "hidden")} />
+        <div
+          className={cn("h-px bg-(--border)/60 mb-2 mx-2 sidebar-divider", isCollapsed && "hidden")}
+        />
 
         {/* Projects Section - own scroll area */}
         {!isCollapsed && !pathname?.includes("/images") && (
@@ -408,7 +410,9 @@ function Sidebar({
         )}
 
         {/* Divider */}
-        <div className={cn("h-px bg-(--border)/40 my-2 mx-2", isCollapsed && "hidden")} />
+        <div
+          className={cn("h-px bg-(--border)/40 my-2 mx-2 sidebar-divider", isCollapsed && "hidden")}
+        />
 
         {/* Your chats Section - own scroll area, fills remaining space */}
         {!isCollapsed && (
