@@ -9,7 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Lock, Eye, EyeOff, Save, Trash2, Key, CheckCircle, AlertCircle } from "lucide-react";
+import { Lock, Eye, EyeOff, Save, Trash2, Key } from "lucide-react";
+import { toast } from "@/lib/store/toastStore";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import {
   AlertDialog,
@@ -35,26 +36,12 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // Simple feedback state instead of full toast system
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(
-    null
-  );
-
-  // Clear feedback after 3s
-  useEffect(() => {
-    if (feedback) {
-      const timer = setTimeout(() => setFeedback(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [feedback]);
-
   // Load keys from local storage on mount/open
   useEffect(() => {
     if (open) {
       setGeminiKey(localStorage.getItem("vikini-gemini-key") || "");
       setOpenaiKey(localStorage.getItem("vikini-openai-key") || "");
       setReplicateKey(localStorage.getItem("vikini-replicate-key") || "");
-      setFeedback(null);
     }
   }, [open]);
 
@@ -69,9 +56,9 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
       if (replicateKey) localStorage.setItem("vikini-replicate-key", replicateKey);
       else localStorage.removeItem("vikini-replicate-key");
 
-      setFeedback({ type: "success", message: t("studioSettingsSaved") });
+      toast.success(t("studioSettingsSaved"));
     } catch {
-      setFeedback({ type: "error", message: t("studioSettingsFailed") });
+      toast.error(t("studioSettingsFailed"));
     }
   };
 
@@ -86,7 +73,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
     setGeminiKey("");
     setOpenaiKey("");
     setReplicateKey("");
-    setFeedback({ type: "success", message: t("studioAllKeysCleared") });
+    toast.success(t("studioAllKeysCleared"));
     setShowClearConfirm(false);
   };
 
@@ -107,24 +94,6 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
           </DialogHeader>
 
           <div className="grid gap-6 py-4">
-            {/* Feedback Message */}
-            {feedback && (
-              <div
-                className={`p-3 rounded-lg flex items-center gap-2 text-sm font-medium animate-in fade-in slide-in-from-top-1 ${
-                  feedback.type === "success"
-                    ? "bg-(--success)/10 text-(--success) border border-(--success)/20"
-                    : "bg-(--danger)/10 text-(--danger) border border-(--danger)/20"
-                }`}
-              >
-                {feedback.type === "success" ? (
-                  <CheckCircle className="w-4 h-4" />
-                ) : (
-                  <AlertCircle className="w-4 h-4" />
-                )}
-                {feedback.message}
-              </div>
-            )}
-
             {/* Gemini Key */}
             <div className="space-y-2">
               <Label htmlFor="gemini">{t("studioGeminiKey")}</Label>

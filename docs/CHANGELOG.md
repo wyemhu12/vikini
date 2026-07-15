@@ -5,6 +5,32 @@
 
 ---
 
+## 2026-07-15: Image Studio — Audit Fixes
+
+### Type Safety (Critical)
+
+- **Style union sync** — Aligned `ImageGenOptions.style` type with actual 18 styles from `stylePrompts.ts`. Removed orphaned values (`digital_art`, `sketch`, `cartoon`) that had no matching implementation.
+- **Stale callback fix** — Added missing `onSuccess` to `useImageGenController.handleImageGen` dependency array.
+
+### Error Handling (Warning)
+
+- **Delete/Favorite toast feedback** — Added `toast.error()` to `handleDeleteConfirm` and `handleToggleFavorite` catch blocks in `ImageGenStudio.tsx`.
+- **SettingsModal toast migration** — Replaced custom feedback state with standard `toast()` system, removed unused `CheckCircle`/`AlertCircle` imports.
+- **Enhancer failure transparency** — API route now returns `enhancerFailed: true` when prompt enhancement fails silently, enabling future client-side notification.
+
+### UX Improvements
+
+- **Lightbox download fix** — Replaced direct `<a>.click()` download (fails with CORS signed URLs) with blob-based download matching Canvas pattern.
+- **Template style alignment** — Set correct style IDs for `watercolor`, `oil-painting`, `pastel` templates (were `"none"`), enabling both system instruction AND prompt-based style guidance.
+- **OpenAI model selection** — `OpenAIImageProvider` now respects `options.model` instead of hardcoding `gpt-image-2`.
+- **Aspect ratio coverage** — Expanded `getAspectClass()` in Canvas to cover all 14 supported ratios (was only 5).
+
+### SEO
+
+- **Images page metadata** — Added `layout.tsx` with title/description metadata for the `/images` route.
+
+---
+
 ## 2026-07-04: Design Redesign — Premium Polish Pass
 
 ### Typography

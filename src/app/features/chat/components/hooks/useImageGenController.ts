@@ -108,7 +108,14 @@ export function useImageGenController({
         return false;
       }
     },
-    [selectedConversationId, createConversation, setSelectedConversationIdAndUrl, currentModel, t]
+    [
+      selectedConversationId,
+      createConversation,
+      setSelectedConversationIdAndUrl,
+      currentModel,
+      t,
+      onSuccess,
+    ]
   );
 
   const handleImageRegenerate = useCallback(

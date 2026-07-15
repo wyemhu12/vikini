@@ -39,8 +39,11 @@ export class OpenAIImageProvider implements ImageGenProvider {
     }
 
     try {
+      // Use user-specified model or default to gpt-image-2
+      const modelId = options.model || "gpt-image-2";
+
       const response = await openai.images.generate({
-        model: "gpt-image-2",
+        model: modelId,
         prompt: finalPrompt,
         size: size,
         quality: "high",
@@ -66,7 +69,7 @@ export class OpenAIImageProvider implements ImageGenProvider {
           url,
           provider: "openai",
           metadata: {
-            model: "gpt-image-2",
+            model: modelId,
             aspectRatio: options.aspectRatio,
             style: options.style,
             revisedPrompt: image.revised_prompt || prompt,

@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
 
     // --- PROMPT ENHANCER LOGIC ---
     const userOriginalPrompt = prompt; // QW2: Save before enhancement
+    let enhancerFailed = false;
     if (options?.enhancer) {
       routeLogger.info("[Enhancer] Original prompt:", prompt);
       try {
@@ -161,6 +162,7 @@ Original: "${prompt}"`;
         }
       } catch (e) {
         routeLogger.error("Prompt Enhancement Failed, using original:", e);
+        enhancerFailed = true;
       }
     }
     // -----------------------------
@@ -351,6 +353,7 @@ Original: "${prompt}"`;
     return success({
       message: message,
       imageUrl: finalUrl,
+      enhancerFailed,
     });
   } catch (err: unknown) {
     routeLogger.error("Image Gen Route Error:", err);

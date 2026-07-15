@@ -24,13 +24,23 @@ export interface ImageGenOptions {
   style?:
     | "none"
     | "photorealistic"
-    | "sketch"
-    | "cartoon"
-    | "digital_art"
     | "anime"
     | "digital-art"
     | "cinematic"
-    | "3d-render";
+    | "3d-render"
+    | "watercolor"
+    | "oil-painting"
+    | "sketch-pencil"
+    | "pop-art"
+    | "minimalist"
+    | "surrealist"
+    | "pixel-art"
+    | "isometric"
+    | "low-poly"
+    | "steampunk"
+    | "cyberpunk"
+    | "fantasy-art"
+    | "art-nouveau";
   enhancer?: boolean;
   enhancerModel?: string;
   model?: string;

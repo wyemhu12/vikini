@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { logger } from "@/lib/utils/logger";
+import { toast } from "@/lib/store/toastStore";
 import { cn } from "@/lib/utils/cn";
 import { confirm } from "@/lib/store/confirmStore";
 import { formatDate } from "@/lib/utils/dateFormat";
@@ -529,6 +530,7 @@ export function ImageGenStudio() {
       }
     } catch (e) {
       logger.error("Delete error:", e);
+      toast.error(t("studioDeleteFailed") || "Failed to delete image");
     } finally {
       setShowDeleteConfirm(null);
     }
@@ -605,6 +607,7 @@ export function ImageGenStudio() {
       }
     } catch (e) {
       logger.error("Favorite toggle error:", e);
+      toast.error(t("studioFavoriteFailed") || "Failed to update favorite");
     }
   };
 

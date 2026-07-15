@@ -41,6 +41,24 @@ function getAspectClass(ratio?: string): string {
       return "aspect-[4/3]";
     case "3:4":
       return "aspect-[3/4]";
+    case "3:2":
+      return "aspect-[3/2]";
+    case "2:3":
+      return "aspect-[2/3]";
+    case "21:9":
+      return "aspect-[21/9]";
+    case "5:4":
+      return "aspect-[5/4]";
+    case "4:5":
+      return "aspect-[4/5]";
+    case "1:4":
+      return "aspect-[1/4]";
+    case "4:1":
+      return "aspect-[4/1]";
+    case "1:8":
+      return "aspect-[1/8]";
+    case "8:1":
+      return "aspect-[8/1]";
     case "1:1":
     default:
       return "aspect-square";

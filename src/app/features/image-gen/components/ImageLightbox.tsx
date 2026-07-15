@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence, type PanInfo } from "framer-motion";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "../../chat/hooks/useLanguage";
+import { logger } from "@/lib/utils/logger";
 import type { GeneratedImage } from "./Canvas";
 
 interface ImageLightboxProps {
@@ -199,15 +200,21 @@ export default function ImageLightbox({
     [scale, hasPrev, hasNext, navigatePrev, navigateNext]
   );
 
-  const handleDownload = useCallback(() => {
+  const handleDownload = useCallback(async () => {
     if (!currentImage) return;
-    const link = document.createElement("a");
-    link.href = currentImage.url;
-    link.download = `generated-${Date.now()}.png`;
-    link.target = "_blank";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const response = await fetch(currentImage.url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `vikini-${Date.now()}.png`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      logger.warn("Blob download failed, falling back to window.open:", err);
+      window.open(currentImage.url, "_blank");
+    }
   }, [currentImage]);
 
   // Format counter text

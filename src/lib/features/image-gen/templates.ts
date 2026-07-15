@@ -96,7 +96,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
     },
     previewUrl: "/templates/template_watercolor.png",
     requiresPhoto: false,
-    style: "none",
+    style: "watercolor",
   },
 
   // --- Row 2-3: Extended (shown on expand) ---
@@ -124,7 +124,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
     },
     previewUrl: "/templates/template_oil_painting.png",
     requiresPhoto: false,
-    style: "none",
+    style: "oil-painting",
   },
   {
     id: "pop-art",
@@ -215,7 +215,7 @@ export const IMAGE_TEMPLATES: ImageTemplate[] = [
     },
     previewUrl: "/templates/template_pastel.png",
     requiresPhoto: false,
-    style: "none",
+    style: "minimalist",
   },
   {
     id: "sticker",
