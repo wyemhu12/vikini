@@ -1,7 +1,6 @@
 "use client";
 
 import { useSession, signIn, signOut } from "next-auth/react";
-import { Microscope } from "lucide-react";
 
 // UI Components
 import ChatBubble from "./ChatBubble";
@@ -14,19 +13,10 @@ import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import ToastContainer from "@/components/ui/ToastContainer";
 import StreamErrorBanner from "./StreamErrorBanner";
 import ProjectChatView from "../../projects/components/ProjectChatView";
-import { ProjectSettingsModal } from "@/components/features/projects/ProjectSettingsModal";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import ChatDeepResearch from "./ChatDeepResearch";
+import ChatModalsSection from "./ChatModalsSection";
 
-import React, { useEffect, useRef, useMemo, useCallback, useState, lazy, Suspense } from "react";
+import React, { useEffect, useMemo, useCallback, useState, lazy, Suspense } from "react";
 
 import { useTheme } from "../hooks/useTheme";
 import { LANGS, type SupportedLanguage } from "../hooks/useLanguage";
@@ -41,9 +31,6 @@ import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useDeepResearchMode } from "./hooks/useDeepResearchMode";
 import { useThinkingLevel } from "./hooks/useThinkingLevel";
 
-import ResearchPlanCard from "../../research/components/ResearchPlanCard";
-import ResearchProgressCard from "../../research/components/ResearchProgressCard";
-import ResearchReportCard from "../../research/components/ResearchReportCard";
 import ResearchReportPanel from "../../research/components/ResearchReportPanel";
 import ResearchThinkingPanel from "../../research/components/ResearchThinkingPanel";
 import EditPlanModal from "../../research/components/EditPlanModal";
@@ -54,6 +41,7 @@ import { useChatModals } from "./hooks/useChatModals";
 import { useChatTranslations, useLanguage } from "./hooks/useChatTranslations";
 import { useUrlSync } from "./hooks/useUrlSync";
 import { useTTS } from "../hooks/useTTS";
+import { useChatScroll } from "./hooks/useChatScroll";
 
 // Utils & Constants
 import { DEFAULT_MODEL, SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
@@ -92,7 +80,6 @@ interface SessionUser {
 
 // Lazy-loaded modals for code splitting
 const UpgradeModal = lazy(() => import("@/app/components/UpgradeModal"));
-const EditImagePromptModal = lazy(() => import("@/app/components/EditImagePromptModal"));
 
 // ============================================
 // Main Component
@@ -383,74 +370,13 @@ export default function ChatApp() {
     }
   }, [setInput]);
 
-  // Smart Auto-Scroll: scroll during streaming, cancel if user scrolls up
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const shouldAutoScrollRef = useRef(true);
-  const lastScrollTopRef = useRef(0);
-  const userScrollTimestampRef = useRef(0); // Track when user last scrolled up
-  const isTouchingRef = useRef(false); // Track active touch (mobile)
-
-  // Touch handlers for mobile scroll detection
-  const handleTouchStart = useCallback(() => {
-    isTouchingRef.current = true;
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    isTouchingRef.current = false;
-  }, []);
-
-  // Detect user scroll: if user scrolls UP, disable auto-scroll
-  const handleScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-
-    const currentScrollTop = el.scrollTop;
-    const maxScrollTop = el.scrollHeight - el.clientHeight;
-    const distanceFromBottom = maxScrollTop - currentScrollTop;
-
-    // User scrolled UP (away from bottom) - use larger threshold for touch
-    const scrollUpThreshold = isTouchingRef.current ? 150 : 80;
-    if (currentScrollTop < lastScrollTopRef.current && distanceFromBottom > scrollUpThreshold) {
-      shouldAutoScrollRef.current = false;
-      userScrollTimestampRef.current = Date.now();
-    }
-
-    // User scrolled back to bottom (within threshold)
-    const bottomThreshold = isTouchingRef.current ? 80 : 30;
-    if (distanceFromBottom <= bottomThreshold) {
-      shouldAutoScrollRef.current = true;
-    }
-
-    lastScrollTopRef.current = currentScrollTop;
-  }, []);
-
-  // Reset auto-scroll when starting a new stream - but respect recent user scroll
-  useEffect(() => {
-    if (isStreaming && streamingAssistant === "") {
-      // Only auto-enable if user hasn't scrolled up in the last 500ms
-      const timeSinceUserScroll = Date.now() - userScrollTimestampRef.current;
-      if (timeSinceUserScroll > 500) {
-        shouldAutoScrollRef.current = true;
-      }
-    }
-  }, [isStreaming, streamingAssistant]);
-
-  // Auto-scroll during streaming (if enabled and user not actively touching)
-  useEffect(() => {
-    if (!scrollRef.current || !isStreaming || !shouldAutoScrollRef.current) return;
-    // Skip auto-scroll while user is touching (mobile momentum scroll)
-    if (isTouchingRef.current) return;
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [streamingAssistant, isStreaming]);
-
-  // Scroll to bottom when stream ends (if auto-scroll was not cancelled)
-  useEffect(() => {
-    if (!scrollRef.current) return;
-    // Only scroll when NOT streaming (stream just ended or new messages loaded)
-    if (!isStreaming && shouldAutoScrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [renderedMessages.length, isStreaming, lastGeneratedImage]);
+  // Smart Auto-Scroll (extracted hook)
+  const { scrollRef, handleScroll, handleTouchStart, handleTouchEnd } = useChatScroll({
+    isStreaming,
+    streamingAssistant,
+    renderedMessagesLength: renderedMessages.length,
+    lastGeneratedImage,
+  });
 
   // Model Change Handler
   const handleModelChange = useCallback(
@@ -818,101 +744,19 @@ export default function ChatApp() {
                 />
               )}
 
-              {/* Deep Research: optimistic card while API creates the task */}
-              {isDeepResearchMode && !currentTask && pendingQuery && (
-                <div className="flex w-full flex-col gap-3 py-6">
-                  <div className="flex max-w-[95%] lg:max-w-[90%] gap-4 items-start">
-                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                      <Microscope className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 space-y-4 max-w-full">
-                      <ResearchProgressCard topic={pendingQuery} phase="planning" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Deep Research active task integration */}
-              {isDeepResearchMode && currentTask && (
-                <div className="flex w-full flex-col gap-3 py-6">
-                  <div className="flex max-w-[95%] lg:max-w-[90%] gap-4 items-start">
-                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                      <Microscope className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 space-y-4 max-w-full">
-                      {currentTask.status === "planning" && (
-                        <ResearchProgressCard
-                          topic={currentTask.query}
-                          currentStep={currentTask.currentStep}
-                          phase="planning"
-                          startedAt={currentTask.createdAt}
-                          sourceCount={currentTask.searchedSources?.length}
-                          onStop={() =>
-                            cancelResearch().catch((e) =>
-                              toast.error(e instanceof Error ? e.message : "Failed to cancel")
-                            )
-                          }
-                          onShowThinking={openThinkingPanel}
-                        />
-                      )}
-                      {currentTask.status === "ready_to_execute" && !isApproving && (
-                        <ResearchPlanCard
-                          topic={currentTask.query}
-                          planText={currentTask.planText}
-                          onApprove={() =>
-                            approvePlan().catch((e) =>
-                              toast.error(e.message || "Failed to approve")
-                            )
-                          }
-                          onEdit={() => setIsEditPlanOpen(true)}
-                          onStop={() =>
-                            cancelResearch().catch((e) =>
-                              toast.error(e instanceof Error ? e.message : "Failed to cancel")
-                            )
-                          }
-                        />
-                      )}
-                      {/* Show executing card immediately when approve is clicked (optimistic) */}
-                      {(currentTask.status === "executing" ||
-                        (currentTask.status === "ready_to_execute" && isApproving)) && (
-                        <ResearchProgressCard
-                          topic={currentTask.query}
-                          currentStep={
-                            currentTask.status === "executing" ? currentTask.currentStep : undefined
-                          }
-                          phase="executing"
-                          startedAt={
-                            currentTask.status === "executing"
-                              ? currentTask.createdAt
-                              : new Date().toISOString()
-                          }
-                          sourceCount={currentTask.searchedSources?.length}
-                          onStop={() =>
-                            cancelResearch().catch((e) =>
-                              toast.error(e instanceof Error ? e.message : "Failed to cancel")
-                            )
-                          }
-                          onShowThinking={openThinkingPanel}
-                        />
-                      )}
-                      {currentTask.status === "completed" && (
-                        <ResearchReportCard
-                          topic={currentTask.query}
-                          onOpen={openReportPanel}
-                          completedAt={currentTask.updatedAt}
-                        />
-                      )}
-                      {currentTask.status === "failed" && (
-                        <div className="p-4 rounded-2xl bg-(--danger)/10 border border-(--danger)/20 text-(--danger)">
-                          <p className="font-semibold mb-1">
-                            {t.deepResearchFailed || "Research failed"}
-                          </p>
-                          <p className="text-sm opacity-80">{currentTask.errorMessage}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+              {/* Deep Research integration (extracted component) */}
+              {isDeepResearchMode && (currentTask || pendingQuery) && (
+                <ChatDeepResearch
+                  currentTask={currentTask}
+                  pendingQuery={pendingQuery}
+                  isApproving={isApproving}
+                  approvePlan={approvePlan}
+                  cancelResearch={cancelResearch}
+                  openReportPanel={openReportPanel}
+                  openThinkingPanel={openThinkingPanel}
+                  onEditPlan={() => setIsEditPlanOpen(true)}
+                  t={t}
+                />
               )}
 
               {lastGeneratedImage && (
@@ -1053,91 +897,36 @@ export default function ChatApp() {
         />
       )}
 
-      <Suspense fallback={null}>
-        <EditImagePromptModal
-          isOpen={showEditImageModal}
-          onClose={() => setShowEditImageModal(false)}
-          initialPrompt={editingImagePrompt}
-          onConfirm={confirmImageEdit}
-        />
-      </Suspense>
-
-      {/* Rename Modal */}
-      <Dialog
-        open={modals.showRenameModal}
-        onOpenChange={(open) => !open && modals.closeRenameModal()}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t.renameChat || "Rename Conversation"}</DialogTitle>
-          </DialogHeader>
-          <Input
-            type="text"
-            value={modals.renameValue}
-            onChange={(e) => modals.setRenameValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && modals.confirmRename()}
-            autoFocus
-            className="h-11"
-            placeholder={t.renameChat || "Enter new title"}
-          />
-          <DialogFooter className="gap-2">
-            <Button variant="ghost" onClick={modals.closeRenameModal}>
-              {t.cancel || "Cancel"}
-            </Button>
-            <Button onClick={modals.confirmRename} disabled={!modals.renameValue.trim()}>
-              {t.save || "Save"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Message Modal */}
-      <Dialog
-        open={modals.showDeleteMessageModal}
-        onOpenChange={(open) => !open && modals.closeDeleteMessageModal()}
-      >
-        <DialogContent className="max-w-md ring-(--danger)/20">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -inset-px -z-10 rounded-(--radius) bg-(--danger)/15 blur-2xl"
-          />
-          <DialogHeader>
-            <DialogTitle>{t.modalDeleteTitle || "Delete Message?"}</DialogTitle>
-            <DialogDescription className="pt-1">
-              {t.modalDeleteConfirm ||
-                "Are you sure you want to delete this message? This action cannot be undone."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button variant="ghost" onClick={modals.closeDeleteMessageModal}>
-              {t.cancel || "Cancel"}
-            </Button>
-            <Button variant="destructive" onClick={modals.confirmDeleteMessage}>
-              {t.modalDeleteButton || "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Project Settings Modal */}
-      {selectedProjectId && (
-        <ProjectSettingsModal
-          projectId={selectedProjectId}
-          isOpen={showProjectSettingsModal}
-          onClose={() => setShowProjectSettingsModal(false)}
-          onNewChat={async (projectId) => {
-            const conv = await createConversation({ title: "", projectId, model: landingModel });
-            if (conv) {
-              setSelectedConversationIdAndUrl(conv.id);
-              setSelectedProjectId(null);
-            }
-          }}
-          onSelectChat={(chatId) => {
-            void handleSelectConversation(chatId);
+      {/* Modals (extracted component) */}
+      <ChatModalsSection
+        showRenameModal={modals.showRenameModal}
+        closeRenameModal={modals.closeRenameModal}
+        renameValue={modals.renameValue}
+        setRenameValue={modals.setRenameValue}
+        confirmRename={modals.confirmRename}
+        showDeleteMessageModal={modals.showDeleteMessageModal}
+        closeDeleteMessageModal={modals.closeDeleteMessageModal}
+        confirmDeleteMessage={modals.confirmDeleteMessage}
+        showEditImageModal={showEditImageModal}
+        closeEditImageModal={() => setShowEditImageModal(false)}
+        editingImagePrompt={editingImagePrompt}
+        confirmImageEdit={confirmImageEdit}
+        selectedProjectId={selectedProjectId}
+        showProjectSettingsModal={showProjectSettingsModal}
+        closeProjectSettingsModal={() => setShowProjectSettingsModal(false)}
+        onCreateProjectChat={async (projectId) => {
+          const conv = await createConversation({ title: "", projectId, model: landingModel });
+          if (conv) {
+            setSelectedConversationIdAndUrl(conv.id);
             setSelectedProjectId(null);
-          }}
-        />
-      )}
+          }
+        }}
+        onSelectChat={(chatId) => {
+          void handleSelectConversation(chatId);
+          setSelectedProjectId(null);
+        }}
+        t={t}
+      />
     </div>
   );
 }

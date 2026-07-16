@@ -31,6 +31,7 @@ import SettingsModal from "./SettingsModal";
 import { cn } from "@/lib/utils/cn";
 import { motion } from "framer-motion";
 import { useLanguage } from "../../chat/hooks/useLanguage";
+import { usePromptAutocomplete } from "./hooks/usePromptAutocomplete";
 
 // Suggestion tags for quick keyword insertion - 3 categories
 const SUGGESTION_TAGS = [
@@ -158,12 +159,8 @@ export default function ControlPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
 
-  // P2-7: Prompt Autocomplete state
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [selectedSuggestionIdx, setSelectedSuggestionIdx] = useState(-1);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // P2-7: Prompt Autocomplete (extracted hook)
+  const autocomplete = usePromptAutocomplete({ prompt, setPrompt, generating, onGenerate });
 
   const MAX_REF_IMAGES = 4;
   const [referencePreviews, setReferencePreviews] = useState<string[]>([]);
@@ -208,82 +205,6 @@ export default function ControlPanel({
 
   const isGeminiNative = model.includes("gemini-3") || model.includes("gemini-3.1");
   const showRefWarning = referenceImages.length > 0 && !isGeminiNative;
-
-  // P2-7: Fetch AI suggestions
-  const fetchSuggestions = useCallback(async (text: string) => {
-    if (text.trim().length < 5) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-    setLoadingSuggestions(true);
-    try {
-      const res = await fetch("/api/prompt-suggest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ partialPrompt: text.trim() }),
-      });
-      const json = await res.json();
-      if (json.success && json.data?.suggestions?.length > 0) {
-        setSuggestions(json.data.suggestions);
-        setShowSuggestions(true);
-        setSelectedSuggestionIdx(-1);
-      } else {
-        setSuggestions([]);
-        setShowSuggestions(false);
-      }
-    } catch {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    } finally {
-      setLoadingSuggestions(false);
-    }
-  }, []);
-
-  // P2-7: Debounced prompt change handler
-  const handlePromptChange = useCallback(
-    (value: string) => {
-      setPrompt(value);
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = setTimeout(() => {
-        void fetchSuggestions(value);
-      }, 600);
-    },
-    [setPrompt, fetchSuggestions]
-  );
-
-  // P2-7: Keyboard handler for autocomplete navigation
-  const handlePromptKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (!showSuggestions || suggestions.length === 0) {
-        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-          e.preventDefault();
-          if (prompt.trim() && !generating) {
-            onGenerate();
-          }
-        }
-        return;
-      }
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedSuggestionIdx((prev) => Math.min(prev + 1, suggestions.length - 1));
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedSuggestionIdx((prev) => Math.max(prev - 1, -1));
-      } else if (e.key === "Enter" && selectedSuggestionIdx >= 0) {
-        e.preventDefault();
-        setPrompt(suggestions[selectedSuggestionIdx]);
-        setShowSuggestions(false);
-      } else if (e.key === "Escape") {
-        setShowSuggestions(false);
-      } else if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        e.preventDefault();
-        setShowSuggestions(false);
-        onGenerate();
-      }
-    },
-    [showSuggestions, suggestions, selectedSuggestionIdx, setPrompt, onGenerate, prompt, generating]
-  );
 
   return (
     <aside
@@ -366,29 +287,28 @@ export default function ControlPanel({
                   placeholder={t("studioPromptPlaceholder")}
                   className="h-32 resize-none bg-(--input-bg) border-(--input-border) focus-visible:ring-1"
                   value={prompt}
-                  onChange={(e) => handlePromptChange(e.target.value)}
-                  onKeyDown={handlePromptKeyDown}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  onChange={(e) => autocomplete.handlePromptChange(e.target.value)}
+                  onKeyDown={autocomplete.handlePromptKeyDown}
+                  onBlur={autocomplete.dismissSuggestions}
                 />
                 {/* AI Autocomplete Suggestions */}
-                {showSuggestions && suggestions.length > 0 && (
+                {autocomplete.showSuggestions && autocomplete.suggestions.length > 0 && (
                   <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-(--surface-elevated) border border-(--border) rounded-lg shadow-xl overflow-hidden">
-                    {loadingSuggestions && (
+                    {autocomplete.loadingSuggestions && (
                       <div className="px-3 py-2 text-xs text-(--text-secondary) animate-pulse">
                         {t("studioSuggestLoading")}
                       </div>
                     )}
-                    {suggestions.map((s, idx) => (
+                    {autocomplete.suggestions.map((s, idx) => (
                       <button
                         key={idx}
                         onMouseDown={(e) => {
                           e.preventDefault();
-                          setPrompt(s);
-                          setShowSuggestions(false);
+                          autocomplete.selectSuggestion(s);
                         }}
                         className={cn(
                           "w-full text-left px-3 py-2.5 text-xs transition-colors border-b border-(--border) last:border-b-0",
-                          idx === selectedSuggestionIdx
+                          idx === autocomplete.selectedSuggestionIdx
                             ? "bg-purple-500/10 text-purple-300"
                             : "hover:bg-(--surface-hover) text-(--text-primary)"
                         )}

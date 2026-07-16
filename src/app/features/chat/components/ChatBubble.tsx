@@ -9,11 +9,11 @@ import rehypeHighlight from "rehype-highlight";
 import React, { useMemo, useState, useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import dynamic from "next/dynamic";
-import { ChevronDown, Sparkles, Brain, ImageIcon } from "lucide-react";
+import { Sparkles, ImageIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { logger } from "@/lib/utils/logger";
 import type { FileItem } from "@/types/files";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 // Sub-components
 import SmartCode, { extractText } from "./SmartCode";
@@ -23,6 +23,10 @@ import ImageGenPreview from "./ImageGenPreview";
 import TokenBadge from "./TokenBadge";
 import { FileInMessage } from "./FileInMessage";
 import { ModelAvatar } from "./ModelAvatar";
+
+// Extracted helpers
+import { TypingDots, TypingCursor, ThinkingBlock } from "./BubbleHelpers";
+import { extractThinking, EXTENDED_TAG_NAMES } from "./markdownConfig";
 
 // ============================================
 // Type Definitions
@@ -85,161 +89,6 @@ const ChartTool = dynamic(() => import("./ChartTool"), {
 });
 
 const FileLightbox = dynamic(() => import("./FileLightbox"), { ssr: false });
-
-// ============================================
-// Helper Components
-// ============================================
-
-const TypingDots = React.memo(function TypingDots() {
-  const dotVariants = {
-    initial: { y: 0, opacity: 0.4 },
-    animate: { y: -4, opacity: 1 },
-  };
-
-  return (
-    <motion.div
-      className="typing-dots flex items-center gap-1.5 px-2 py-2"
-      initial="initial"
-      animate="animate"
-      transition={{ staggerChildren: 0.15 }}
-    >
-      {[0, 1, 2].map((i) => (
-        <motion.span
-          key={i}
-          variants={dotVariants}
-          transition={{
-            duration: 0.5,
-            repeat: Infinity,
-            repeatType: "reverse",
-            ease: "easeInOut",
-          }}
-          className="w-1.5 h-1.5 bg-secondary rounded-full"
-        />
-      ))}
-    </motion.div>
-  );
-});
-
-// Typing cursor for streaming text - blinking animation
-const TypingCursor = React.memo(function TypingCursor() {
-  return (
-    <motion.span
-      initial={{ opacity: 1 }}
-      animate={{ opacity: [1, 0.3, 1] }}
-      transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut" }}
-      className="inline-block w-0.5 h-4 bg-(--primary) ml-0.5 align-middle rounded-sm"
-      aria-hidden="true"
-    />
-  );
-});
-
-const ThinkingBlock = React.memo(function ThinkingBlock({
-  content,
-  t,
-}: {
-  content: string;
-  t: (key: string) => string;
-}) {
-  // Default to collapsed per user request
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom when content changes (while expanded)
-  useEffect(() => {
-    if (!isCollapsed && contentRef.current) {
-      contentRef.current.scrollTop = contentRef.current.scrollHeight;
-    }
-  }, [content, isCollapsed]);
-
-  return (
-    <div className="mb-4 rounded-lg border border-(--border) overflow-hidden bg-(--control-bg)">
-      <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary hover:text-primary hover:bg-(--control-bg-hover) transition-colors"
-      >
-        <Brain className="w-3 h-3" />
-        <span>{t("thinkingProcess") || "Thinking Process"}</span>
-        <motion.div
-          className="ml-auto"
-          animate={{ rotate: isCollapsed ? -90 : 0 }}
-          transition={{ duration: 0.2 }}
-        >
-          <ChevronDown className="w-3 h-3 opacity-50" />
-        </motion.div>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {!isCollapsed && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            <div
-              ref={contentRef}
-              className="px-3 py-3 border-t border-(--border) text-sm text-secondary font-mono leading-relaxed bg-(--surface-muted)/50 whitespace-pre-wrap max-h-96 overflow-y-auto"
-            >
-              {content}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-});
-
-// ============================================
-// Utility Functions
-// ============================================
-
-function extractThinking(text: string) {
-  const patterns = [
-    { start: "<think>", end: "</think>" },
-    { start: "<thought>", end: "</thought>" },
-  ];
-
-  const thoughts: string[] = [];
-  let rest = text;
-  let isThinking = false;
-
-  for (const { start, end } of patterns) {
-    // Handle all complete blocks first
-    const completeRegex = new RegExp(
-      `${start.replace(/</g, "&lt;").replace(/>/g, "&gt;")}([\\s\\S]*?)${end.replace(/</g, "&lt;").replace(/>/g, "&gt;")}|${start}([\\s\\S]*?)${end}`,
-      "gi"
-    );
-
-    let match;
-    while ((match = completeRegex.exec(rest)) !== null) {
-      const thought = match[1] || match[2] || "";
-      if (thought.trim()) thoughts.push(thought.trim());
-    }
-
-    // Remove all complete blocks
-    rest = rest.replace(new RegExp(`${escapeRegex(start)}[\\s\\S]*?${escapeRegex(end)}`, "gi"), "");
-
-    // Handle incomplete block (no closing tag - streaming)
-    const startIndex = rest.indexOf(start);
-    if (startIndex !== -1) {
-      const incompleteThought = rest.slice(startIndex + start.length);
-      if (incompleteThought.trim()) thoughts.push(incompleteThought.trim());
-      rest = rest.slice(0, startIndex);
-      isThinking = true;
-    }
-  }
-
-  return {
-    thought: thoughts.length > 0 ? thoughts.join("\n\n") : null,
-    rest: rest.trim(),
-    isThinking,
-  };
-}
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\<>]/g, "\\$&");
-}
 
 // ============================================
 // Markdown Components
@@ -607,16 +456,7 @@ const ChatBubble = React.memo(
                             rehypeSanitize,
                             {
                               ...defaultSchema,
-                              tagNames: [
-                                ...(defaultSchema.tagNames || []),
-                                "mark",
-                                "u",
-                                "br",
-                                "b",
-                                "i",
-                                "sub",
-                                "sup",
-                              ],
+                              tagNames: [...(defaultSchema.tagNames || []), ...EXTENDED_TAG_NAMES],
                             },
                           ],
                           rehypeHighlight,

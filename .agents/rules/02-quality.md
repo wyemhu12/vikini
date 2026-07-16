@@ -23,6 +23,7 @@ Before writing any code, identify the task domain and read relevant documentatio
 | New feature overview      | docs/features.md, docs/architecture.md                |                        |
 | Adding a new feature      | skills/add-feature.md                                 |                        |
 | Code quality review       | rules/01-coding.md                                    | **workflows/audit.md** |
+| Refactoring / File split  | rules/01-coding.md (§ File Size & Modularity)         |                        |
 
 <important>
 When a workflow is listed in the table above, you MUST read and follow it step-by-step.

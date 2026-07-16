@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
   Search,
   Image as ImageIcon,
@@ -21,351 +20,58 @@ import Image from "next/image";
 import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
 import { useTheme } from "../../chat/hooks/useTheme";
-import { useLanguage } from "../../chat/hooks/useLanguage";
-import { useConversation, FrontendConversation } from "../../chat/hooks/useConversation";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
-import { useRouter } from "next/navigation";
-import { logger } from "@/lib/utils/logger";
-import { confirm } from "@/lib/store/confirmStore";
-import { toast } from "@/lib/store/toastStore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { formatDateShort } from "@/lib/utils/dateFormat";
 import ImageCompareModal from "./ImageCompareModal";
 
-interface GalleryImage {
-  id: string;
-  url: string;
-  prompt: string;
-  createdAt: string;
-  aspectRatio?: string;
-  style?: string;
-  model?: string;
-}
-
-type DateFilter = "all" | "today" | "week" | "month";
+import {
+  useGalleryController,
+  DATE_FILTER_OPTIONS,
+  type DateFilter,
+} from "./hooks/useGalleryController";
 
 export function GalleryView() {
   const { theme: _theme } = useTheme();
-  const { t, language } = useLanguage();
-  const router = useRouter();
-
-  // Fetch main chat conversations for the Sidebar
-  const { conversations } = useConversation();
-
-  // Filter out Image Studio projects and template stores (Keep Main Chat only)
-  const mainChats = (conversations || []).filter(
-    (c: FrontendConversation) =>
-      c.model !== "vikini-image-studio" && c.model !== "user_templates_store"
-  );
-
-  const [images, setImages] = useState<GalleryImage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Filter State
-  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
-  const [modelFilter, setModelFilter] = useState<string>("all");
-
-  // Delete State
-  const [deleting, setDeleting] = useState<string | null>(null);
-
-  // Sidebar State
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-  // Compare Mode State
-  const [compareMode, setCompareMode] = useState(false);
-  const [compareImages, setCompareImages] = useState<[GalleryImage | null, GalleryImage | null]>([
-    null,
-    null,
-  ]);
-  const [showCompareModal, setShowCompareModal] = useState(false);
-  // MT7: Favorites filter
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-
-  // Infinite Scroll State
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-
-  const PAGE_SIZE = 20;
-
-  const fetchImages = useCallback(
-    async (isLoadMore = false) => {
-      if (isLoadMore) {
-        setLoadingMore(true);
-      } else {
-        setLoading(true);
-        setOffset(0);
-      }
-
-      const currentOffset = isLoadMore ? offset : 0;
-
-      try {
-        const favParam = showFavoritesOnly ? `&favorites=true` : "";
-        const res = await fetch(
-          `/api/gallery?limit=${PAGE_SIZE}&offset=${currentOffset}${favParam}`
-        );
-        if (res.ok) {
-          const json = await res.json();
-          const data = json.data || json;
-          const newImages = data.images || [];
-
-          if (isLoadMore) {
-            setImages((prev) => [...prev, ...newImages]);
-          } else {
-            setImages(newImages);
-          }
-
-          setHasMore(data.hasMore || false);
-          setOffset(currentOffset + newImages.length);
-        }
-      } catch (error) {
-        logger.error("Failed to load gallery:", error);
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    },
-    [offset, showFavoritesOnly]
-  );
-
-  // Initial load
-  useEffect(() => {
-    void fetchImages(false);
-  }, [showFavoritesOnly]); // Refetch when favorites toggle changes
-
-  // Infinite scroll observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          void fetchImages(true);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [hasMore, loadingMore, loading, fetchImages]);
-
-  // Extract unique models for filter dropdown
-  const availableModels = useMemo(() => {
-    const models = new Set<string>();
-    images.forEach((img) => {
-      if (img.model) models.add(img.model);
-    });
-    return Array.from(models);
-  }, [images]);
-
-  // Apply filters
-  const filteredImages = useMemo(() => {
-    let result = images;
-
-    // Search filter
-    if (searchQuery) {
-      result = result.filter((img) => img.prompt.toLowerCase().includes(searchQuery.toLowerCase()));
-    }
-
-    // Date filter
-    if (dateFilter !== "all") {
-      const now = new Date();
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-      result = result.filter((img) => {
-        const imgDate = new Date(img.createdAt);
-        const weekAgo = new Date(startOfDay);
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const monthAgo = new Date(startOfDay);
-        monthAgo.setMonth(monthAgo.getMonth() - 1);
-
-        switch (dateFilter) {
-          case "today":
-            return imgDate >= startOfDay;
-          case "week":
-            return imgDate >= weekAgo;
-          case "month":
-            return imgDate >= monthAgo;
-          default:
-            return true;
-        }
-      });
-    }
-
-    // Model filter
-    if (modelFilter !== "all") {
-      result = result.filter((img) => img.model === modelFilter);
-    }
-
-    return result;
-  }, [images, searchQuery, dateFilter, modelFilter]);
-
-  const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
-
-  // Compare Mode Handlers
-  const handleToggleCompareMode = useCallback(() => {
-    setCompareMode((prev) => !prev);
-    setCompareImages([null, null]);
-  }, []);
-
-  const handleToggleCompareImage = useCallback((img: GalleryImage) => {
-    setCompareImages((prev) => {
-      // If image already selected, remove it
-      if (prev[0]?.id === img.id) return [null, prev[1]];
-      if (prev[1]?.id === img.id) return [prev[0], null];
-
-      // Add to first empty slot
-      if (!prev[0]) return [img, prev[1]];
-      if (!prev[1]) return [prev[0], img];
-
-      // Both slots full, replace second
-      return [prev[0], img];
-    });
-  }, []);
-
-  const handleOpenCompare = useCallback(() => {
-    if (compareImages[0] && compareImages[1]) {
-      setShowCompareModal(true);
-    }
-  }, [compareImages]);
-
-  const handleSwapCompareImages = useCallback(() => {
-    setCompareImages((prev) => [prev[1], prev[0]]);
-  }, []);
-
-  const isImageSelectedForCompare = useCallback(
-    (imgId: string) => compareImages[0]?.id === imgId || compareImages[1]?.id === imgId,
-    [compareImages]
-  );
-
-  // Navigation handlers for modal
-  const currentImageIndex = useMemo(() => {
-    if (!selectedImage) return -1;
-    return filteredImages.findIndex((img) => img.id === selectedImage.id);
-  }, [selectedImage, filteredImages]);
-
-  const handlePrevImage = useCallback(() => {
-    if (currentImageIndex > 0) {
-      setSelectedImage(filteredImages[currentImageIndex - 1]);
-    }
-  }, [currentImageIndex, filteredImages]);
-
-  const handleNextImage = useCallback(() => {
-    if (currentImageIndex < filteredImages.length - 1) {
-      setSelectedImage(filteredImages[currentImageIndex + 1]);
-    }
-  }, [currentImageIndex, filteredImages]);
-
-  // Keyboard navigation for modal
-  useEffect(() => {
-    if (!selectedImage) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        handlePrevImage();
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        handleNextImage();
-      } else if (e.key === "Escape") {
-        setSelectedImage(null);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [selectedImage, handlePrevImage, handleNextImage]);
-
-  // Remix Handler
-  const handleRemix = (prompt: string) => {
-    // Store prompt and image mode flag in sessionStorage for ChatApp to read
-    sessionStorage.setItem("remixPrompt", prompt);
-    sessionStorage.setItem("remixImageMode", "true");
-    // Navigate with mode=remix to force chat input display
-    router.push("/?mode=remix");
-  };
-
-  // Delete Handler
-  const handleDelete = async (imageId: string) => {
-    const ok = await confirm({
-      title: t("galleryDeleteImage"),
-      variant: "danger",
-      confirmLabel: t("galleryConfirmDelete"),
-      cancelLabel: t("cancel"),
-    });
-    if (!ok) return;
-
-    setDeleting(imageId);
-    try {
-      const res = await fetch(`/api/gallery/${imageId}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        // Remove from local state
-        setImages((prev) => prev.filter((img) => img.id !== imageId));
-        setSelectedImage(null);
-      } else {
-        const json = await res.json();
-        logger.error("Delete failed:", json.error?.message || json.error);
-        toast.error("Failed to delete image");
-      }
-    } catch (error) {
-      logger.error("Delete error:", error);
-      toast.error("Failed to delete image");
-    } finally {
-      setDeleting(null);
-    }
-  };
-
-  const dateFilterOptions: { value: DateFilter; labelKey: string }[] = [
-    { value: "all", labelKey: "galleryAllTime" },
-    { value: "today", labelKey: "galleryToday" },
-    { value: "week", labelKey: "galleryThisWeek" },
-    { value: "month", labelKey: "galleryThisMonth" },
-  ];
+  const g = useGalleryController();
 
   return (
     <div className="h-screen w-screen text-(--text-primary) overflow-hidden relative font-sans bg-(--surface-base) flex">
       <Sidebar
-        conversations={mainChats}
-        allConversations={conversations || []}
-        onSelectConversation={(id) => router.push(`/?id=${id}`)}
-        onNewChat={() => router.push("/")}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        mobileOpen={mobileOpen}
-        onCloseMobile={() => setMobileOpen(false)}
-        t={t as unknown as Record<string, string>}
+        conversations={g.mainChats}
+        allConversations={g.conversations || []}
+        onSelectConversation={(id) => g.router.push(`/?id=${id}`)}
+        onNewChat={() => g.router.push("/")}
+        collapsed={g.sidebarCollapsed}
+        onToggleCollapse={() => g.setSidebarCollapsed(!g.sidebarCollapsed)}
+        mobileOpen={g.mobileOpen}
+        onCloseMobile={() => g.setMobileOpen(false)}
+        t={g.t as unknown as Record<string, string>}
       />
 
-      <FloatingMenuTrigger onClick={() => setMobileOpen(true)} />
+      <FloatingMenuTrigger onClick={() => g.setMobileOpen(true)} />
 
       <div
-        className={`flex-1 flex flex-col h-full transition-colors duration-300 relative z-10 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
+        className={`flex-1 flex flex-col h-full transition-colors duration-300 relative z-10 ${g.sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
       >
-        <HeaderBar onToggleSidebar={() => setMobileOpen(true)} />
+        <HeaderBar onToggleSidebar={() => g.setMobileOpen(true)} />
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Hero / Header */}
             <div className="space-y-4">
-              <h1 className="text-3xl font-bold tracking-tight">{t("galleryTitle")}</h1>
+              <h1 className="text-3xl font-bold tracking-tight">{g.t("galleryTitle")}</h1>
               <div className="flex flex-col md:flex-row gap-4">
                 {/* Search */}
                 <div className="relative flex-1 max-w-xl">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-(--text-secondary)" />
                   <input
                     type="text"
-                    placeholder={t("gallerySearch")}
+                    placeholder={g.t("gallerySearch")}
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none transition-colors"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    value={g.searchQuery}
+                    onChange={(e) => g.setSearchQuery(e.target.value)}
                   />
                 </div>
 
@@ -375,29 +81,29 @@ export function GalleryView() {
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--text-secondary) pointer-events-none" />
                     <select
-                      value={dateFilter}
-                      onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+                      value={g.dateFilter}
+                      onChange={(e) => g.setDateFilter(e.target.value as DateFilter)}
                       className="pl-9 pr-8 py-2.5 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none appearance-none cursor-pointer text-sm"
                     >
-                      {dateFilterOptions.map((opt) => (
+                      {DATE_FILTER_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
-                          {t(opt.labelKey)}
+                          {g.t(opt.labelKey)}
                         </option>
                       ))}
                     </select>
                   </div>
 
                   {/* Model Filter */}
-                  {availableModels.length > 0 && (
+                  {g.availableModels.length > 0 && (
                     <div className="relative">
                       <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--text-secondary) pointer-events-none" />
                       <select
-                        value={modelFilter}
-                        onChange={(e) => setModelFilter(e.target.value)}
+                        value={g.modelFilter}
+                        onChange={(e) => g.setModelFilter(e.target.value)}
                         className="pl-9 pr-8 py-2.5 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none appearance-none cursor-pointer text-sm"
                       >
-                        <option value="all">{t("galleryAllModels")}</option>
-                        {availableModels.map((model) => (
+                        <option value="all">{g.t("galleryAllModels")}</option>
+                        {g.availableModels.map((model) => (
                           <option key={model} value={model}>
                             {model}
                           </option>
@@ -406,17 +112,17 @@ export function GalleryView() {
                     </div>
                   )}
 
-                  {/* MT7: Favorites Toggle */}
+                  {/* Favorites Toggle */}
                   <button
-                    onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                    onClick={() => g.setShowFavoritesOnly(!g.showFavoritesOnly)}
                     className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
-                      showFavoritesOnly
+                      g.showFavoritesOnly
                         ? "bg-pink-500/20 border-pink-500/30 text-pink-400"
                         : "bg-(--surface-muted) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
                     }`}
                   >
-                    <Heart className={`w-4 h-4 ${showFavoritesOnly ? "fill-current" : ""}`} />
-                    {t("galleryFavorites") || "Favorites"}
+                    <Heart className={`w-4 h-4 ${g.showFavoritesOnly ? "fill-current" : ""}`} />
+                    {g.t("galleryFavorites") || "Favorites"}
                   </button>
                 </div>
               </div>
@@ -425,48 +131,49 @@ export function GalleryView() {
             {/* Results Count + Compare Button */}
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-(--text-secondary)">
-                {t("galleryYourCreations")}
-                {!loading && (
-                  <span className="ml-2 text-sm font-normal">({filteredImages.length} images)</span>
+                {g.t("galleryYourCreations")}
+                {!g.loading && (
+                  <span className="ml-2 text-sm font-normal">
+                    ({g.filteredImages.length} images)
+                  </span>
                 )}
               </h2>
 
-              {/* Compare Mode Toggle */}
               <div className="flex items-center gap-2">
-                {compareMode && (
+                {g.compareMode && (
                   <>
                     <span className="text-sm text-(--text-secondary)">
-                      {[compareImages[0], compareImages[1]].filter(Boolean).length}/2{" "}
-                      {t("compareSelected") || "selected"}
+                      {[g.compareImages[0], g.compareImages[1]].filter(Boolean).length}/2{" "}
+                      {g.t("compareSelected") || "selected"}
                     </span>
-                    {compareImages[0] && compareImages[1] && (
+                    {g.compareImages[0] && g.compareImages[1] && (
                       <button
-                        onClick={handleOpenCompare}
+                        onClick={g.handleOpenCompare}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--accent) text-white font-bold shadow-lg shadow-(--accent)/20 hover:opacity-90 transition-colors"
                       >
                         <GitCompare className="w-4 h-4" />
-                        {t("compareNow") || "Compare"}
+                        {g.t("compareNow") || "Compare"}
                       </button>
                     )}
                   </>
                 )}
                 <button
-                  onClick={handleToggleCompareMode}
+                  onClick={g.handleToggleCompareMode}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                    compareMode
+                    g.compareMode
                       ? "bg-(--danger)/20 text-(--danger) border border-(--danger)/30 hover:bg-(--danger)/30"
                       : "bg-(--surface-muted) border border-(--control-border) hover:bg-(--surface-hover)"
                   }`}
                 >
-                  {compareMode ? (
+                  {g.compareMode ? (
                     <>
                       <X className="w-4 h-4" />
-                      {t("cancel") || "Cancel"}
+                      {g.t("cancel") || "Cancel"}
                     </>
                   ) : (
                     <>
                       <GitCompare className="w-4 h-4" />
-                      {t("compareImages") || "Compare"}
+                      {g.t("compareImages") || "Compare"}
                     </>
                   )}
                 </button>
@@ -474,29 +181,29 @@ export function GalleryView() {
             </div>
 
             {/* Grid */}
-            {loading ? (
+            {g.loading ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {Array.from({ length: 10 }).map((_, i) => (
                   <Skeleton key={i} className="aspect-square w-full rounded-xl" />
                 ))}
               </div>
-            ) : filteredImages.length === 0 ? (
+            ) : g.filteredImages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 text-(--text-secondary)">
                 <ImageIcon className="w-16 h-16 opacity-20" />
-                <p>{t("galleryNoImages")}</p>
+                <p>{g.t("galleryNoImages")}</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {filteredImages.map((img) => {
-                  const isSelectedForCompare = isImageSelectedForCompare(img.id);
+                {g.filteredImages.map((img) => {
+                  const isSelectedForCompare = g.isImageSelectedForCompare(img.id);
                   return (
                     <div
                       key={img.id}
                       onClick={() => {
-                        if (compareMode) {
-                          handleToggleCompareImage(img);
+                        if (g.compareMode) {
+                          g.handleToggleCompareImage(img);
                         } else {
-                          setSelectedImage(img);
+                          g.setSelectedImage(img);
                         }
                       }}
                       className={`group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-(--surface-muted) border-2 transition-colors ${
@@ -514,7 +221,7 @@ export function GalleryView() {
                       />
 
                       {/* Compare Mode Selection Indicator */}
-                      {compareMode && (
+                      {g.compareMode && (
                         <div
                           className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
                             isSelectedForCompare
@@ -526,9 +233,9 @@ export function GalleryView() {
                             <Check className="w-4 h-4" />
                           ) : (
                             <span className="text-xs font-bold">
-                              {compareImages[0] === null
+                              {g.compareImages[0] === null
                                 ? "1"
-                                : compareImages[1] === null
+                                : g.compareImages[1] === null
                                   ? "2"
                                   : ""}
                             </span>
@@ -547,9 +254,9 @@ export function GalleryView() {
             )}
 
             {/* Infinite scroll trigger */}
-            {!loading && hasMore && (
-              <div ref={loadMoreRef} className="flex justify-center py-8">
-                {loadingMore ? (
+            {!g.loading && g.hasMore && (
+              <div ref={g.loadMoreRef} className="flex justify-center py-8">
+                {g.loadingMore ? (
                   <Loader2 className="w-6 h-6 animate-spin text-(--accent)" />
                 ) : (
                   <p className="text-sm text-(--text-secondary)">Scroll to load more...</p>
@@ -560,24 +267,24 @@ export function GalleryView() {
         </main>
 
         {/* Modal Detail View */}
-        <Dialog open={!!selectedImage} onOpenChange={(open) => !open && setSelectedImage(null)}>
+        <Dialog open={!!g.selectedImage} onOpenChange={(open) => !open && g.setSelectedImage(null)}>
           <DialogContent className="max-w-7xl w-full max-h-[95vh] p-0 gap-0 overflow-hidden border-(--border) [&>button]:hidden">
-            <DialogTitle className="sr-only">{t("galleryImageDetails")}</DialogTitle>
+            <DialogTitle className="sr-only">{g.t("galleryImageDetails")}</DialogTitle>
 
-            {selectedImage && (
+            {g.selectedImage && (
               <>
-                {/* Image Counter - Top center */}
+                {/* Image Counter */}
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full text-white/80 text-sm font-medium border border-white/10">
-                  {currentImageIndex + 1} / {filteredImages.length}
+                  {g.currentImageIndex + 1} / {g.filteredImages.length}
                 </div>
 
                 <div className="flex flex-col lg:flex-row w-full max-h-[95vh] overflow-hidden">
-                  {/* Image Area with hover navigation */}
+                  {/* Image Area */}
                   <div className="flex-1 relative bg-black flex items-center justify-center min-h-[400px] lg:min-h-[600px] group">
                     <div className="relative w-full h-full p-6">
                       <Image
-                        src={selectedImage.url}
-                        alt={selectedImage.prompt}
+                        src={g.selectedImage.url}
+                        alt={g.selectedImage.prompt}
                         fill
                         className="object-contain"
                         unoptimized
@@ -585,40 +292,41 @@ export function GalleryView() {
                       />
                     </div>
 
-                    {/* Previous Arrow - Inside image, visible on hover */}
-                    {currentImageIndex > 0 && (
+                    {/* Previous Arrow */}
+                    {g.currentImageIndex > 0 && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handlePrevImage();
+                          g.handlePrevImage();
                         }}
                         className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
-                        title={t("galleryPrev") || "Previous"}
+                        title={g.t("galleryPrev") || "Previous"}
                       >
                         <ChevronLeft className="w-6 h-6" />
                       </button>
                     )}
 
-                    {/* Next Arrow - Inside image, visible on hover */}
-                    {currentImageIndex < filteredImages.length - 1 && (
+                    {/* Next Arrow */}
+                    {g.currentImageIndex < g.filteredImages.length - 1 && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleNextImage();
+                          g.handleNextImage();
                         }}
                         className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
-                        title={t("galleryNext") || "Next"}
+                        title={g.t("galleryNext") || "Next"}
                       >
                         <ChevronRight className="w-6 h-6" />
                       </button>
                     )}
                   </div>
-                  {/* Details Sidebar - Slightly narrower */}
+
+                  {/* Details Sidebar */}
                   <div className="w-full lg:w-80 p-6 flex flex-col border-l border-(--border) bg-(--surface-base) max-h-[95vh] overflow-y-auto">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-bold text-lg">{t("galleryImageDetails")}</h3>
+                      <h3 className="font-bold text-lg">{g.t("galleryImageDetails")}</h3>
                       <button
-                        onClick={() => setSelectedImage(null)}
+                        onClick={() => g.setSelectedImage(null)}
                         className="p-2 hover:bg-(--surface-muted) rounded-full"
                       ></button>
                     </div>
@@ -626,36 +334,36 @@ export function GalleryView() {
                     <div className="flex-1 space-y-6 overflow-y-auto">
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-(--text-secondary) uppercase">
-                          {t("galleryPrompt")}
+                          {g.t("galleryPrompt")}
                         </label>
                         <p className="text-sm leading-relaxed p-3 rounded-lg bg-(--surface-muted) border border-(--border)">
-                          {selectedImage.prompt}
+                          {g.selectedImage.prompt}
                         </p>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="text-xs font-bold text-(--text-secondary) uppercase">
-                            {t("galleryModel")}
+                            {g.t("galleryModel")}
                           </label>
-                          <p className="text-sm">{selectedImage.model || "Unknown"}</p>
+                          <p className="text-sm">{g.selectedImage.model || "Unknown"}</p>
                         </div>
                         <div>
                           <label className="text-xs font-bold text-(--text-secondary) uppercase">
-                            {t("galleryDate")}
+                            {g.t("galleryDate")}
                           </label>
                           <p className="text-sm">
                             {formatDateShort(
-                              selectedImage.createdAt,
-                              language === "vi" ? "vi-VN" : "en-US"
+                              g.selectedImage.createdAt,
+                              g.language === "vi" ? "vi-VN" : "en-US"
                             )}
                           </p>
                         </div>
                         <div>
                           <label className="text-xs font-bold text-(--text-secondary) uppercase">
-                            {t("galleryRatio")}
+                            {g.t("galleryRatio")}
                           </label>
-                          <p className="text-sm">{selectedImage.aspectRatio || "1:1"}</p>
+                          <p className="text-sm">{g.selectedImage.aspectRatio || "1:1"}</p>
                         </div>
                       </div>
                     </div>
@@ -664,30 +372,30 @@ export function GalleryView() {
                     <div className="pt-6 border-t border-(--border) space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <button
-                          onClick={() => window.open(selectedImage.url, "_blank")}
+                          onClick={() => window.open(g.selectedImage!.url, "_blank")}
                           className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) font-medium transition-colors"
                         >
-                          <Download className="w-4 h-4" /> {t("studioDownload")}
+                          <Download className="w-4 h-4" /> {g.t("studioDownload")}
                         </button>
                         <button
-                          onClick={() => handleRemix(selectedImage.prompt)}
+                          onClick={() => g.handleRemix(g.selectedImage!.prompt)}
                           className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--accent) text-white hover:opacity-90 font-bold shadow-lg shadow-(--accent)/20 transition-colors"
                         >
-                          <Sparkles className="w-4 h-4" /> {t("galleryRemix")}
+                          <Sparkles className="w-4 h-4" /> {g.t("galleryRemix")}
                         </button>
                       </div>
 
                       {/* Delete Button */}
                       <button
-                        onClick={() => handleDelete(selectedImage.id)}
-                        disabled={deleting === selectedImage.id}
+                        onClick={() => g.handleDelete(g.selectedImage!.id)}
+                        disabled={g.deleting === g.selectedImage.id}
                         className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-(--danger) hover:bg-(--danger)/10 border border-(--danger)/30 font-medium transition-colors disabled:opacity-50"
                       >
-                        {deleting === selectedImage.id ? (
+                        {g.deleting === g.selectedImage.id ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <>
-                            <Trash2 className="w-4 h-4" /> {t("galleryDeleteImage")}
+                            <Trash2 className="w-4 h-4" /> {g.t("galleryDeleteImage")}
                           </>
                         )}
                       </button>
@@ -701,11 +409,11 @@ export function GalleryView() {
 
         {/* Image Compare Modal */}
         <ImageCompareModal
-          isOpen={showCompareModal}
-          onClose={() => setShowCompareModal(false)}
-          leftImage={compareImages[0]}
-          rightImage={compareImages[1]}
-          onSwap={handleSwapCompareImages}
+          isOpen={g.showCompareModal}
+          onClose={() => g.setShowCompareModal(false)}
+          leftImage={g.compareImages[0]}
+          rightImage={g.compareImages[1]}
+          onSwap={g.handleSwapCompareImages}
         />
       </div>
     </div>

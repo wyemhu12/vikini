@@ -98,11 +98,13 @@ Tests are colocated with source files using the `.test.ts` / `.test.tsx` suffix.
 
 ### Chat System
 
+> **File size policy**: See `rules/01-coding.md § File Size & Modularity Guidelines` for AI-agent-optimized targets.
+
 - **Real-time Streaming**: Custom implementation for streaming AI responses.
 - **Component Architecture**:
-  - `ChatApp.tsx`: Main container and state orchestrator (~450 lines).
+  - `ChatApp.tsx`: Main container and state orchestrator (~1050 lines — **needs refactoring**).
   - `ChatControls.tsx`: Isolated input and model selection UI.
-  - `ChatBubble.tsx`: Message rendering (~400 lines, refactored).
+  - `ChatBubble.tsx`: Message rendering (~676 lines — **needs refactoring**).
   - `StreamErrorBanner.tsx`: Error display with accessibility.
 - **ChatBubble Sub-components** (extracted for maintainability):
   - `SmartCode.tsx`: Code blocks with syntax highlighting, copy, expand/collapse.

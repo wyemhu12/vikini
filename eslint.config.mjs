@@ -106,6 +106,7 @@ export default [
       "dist/**",
       "build/**",
       "coverage/**",
+      ".agents/**",
       "*.config.{js,mjs,ts}",
       "inspect_ai.ts",
     ]
