@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { isDeepSeekV32Model, isOpenRouterReasoningModel } from "@/lib/core/modelRegistry";
 
 import { StreamTimeoutError, type ChatStreamParams, type Message } from "./types";
-import { sendEvent, getStreamTimeout, withTimeout, streamLogger } from "./utils";
+import { sendEvent, getStreamTimeout, withTimeout, withIdleTimeout, streamLogger } from "./utils";
 import { sendInitialMetaEvents, generateAndSendOptimisticTitle } from "./gemini-stream";
 import { processPostStream } from "./post-processing";
 
@@ -78,6 +78,7 @@ export function createOpenAICompatibleStream(params: {
       );
 
       let full = "";
+      let streamFailed = false;
 
       try {
         // Map contents to OpenAI format with multimodal support
@@ -185,6 +186,8 @@ export function createOpenAICompatibleStream(params: {
         );
 
         const stream = await withTimeout(streamPromise, timeoutMs);
+        const idleTimeoutMs = Math.max(timeoutMs / 2, 30_000);
+        const guardedStream = withIdleTimeout(stream, idleTimeoutMs);
 
         // Track usage from final chunk
         let promptTokens: number | undefined;
@@ -194,7 +197,7 @@ export function createOpenAICompatibleStream(params: {
 
         let inReasoningMode = false;
 
-        for await (const chunk of stream) {
+        for await (const chunk of guardedStream) {
           // OpenRouter streams reasoning in delta.reasoning_details or delta.reasoning
           // We cast to access custom fields
           const delta = (chunk.choices[0]?.delta as Record<string, unknown>) || {};
@@ -268,6 +271,7 @@ export function createOpenAICompatibleStream(params: {
           });
         }
       } catch (e) {
+        streamFailed = true;
         // Handle timeout specifically
         if (e instanceof StreamTimeoutError) {
           const timeoutMs = getStreamTimeout();
@@ -314,23 +318,25 @@ export function createOpenAICompatibleStream(params: {
         }
       }
 
-      // 3. Post Stream Processing
-      await processPostStream(controller, {
-        full,
-        isActuallyBlocked: false,
-        shouldGenerateTitle,
-        conversationId,
-        userId,
-        contextMessages,
-        content,
-        appendToContext,
-        saveMessage,
-        setConversationAutoTitle,
-        generateFinalTitle,
-        model,
-      });
+      // 3. Post Stream Processing — skip if stream failed with no content
+      if (!streamFailed || full.trim()) {
+        await processPostStream(controller, {
+          full,
+          isActuallyBlocked: false,
+          shouldGenerateTitle,
+          conversationId,
+          userId,
+          contextMessages,
+          content,
+          appendToContext,
+          saveMessage,
+          setConversationAutoTitle,
+          generateFinalTitle,
+          model,
+        });
+      }
 
-      sendEvent(controller, "done", { ok: true });
+      sendEvent(controller, "done", { ok: !streamFailed });
       controller.close();
     },
   });

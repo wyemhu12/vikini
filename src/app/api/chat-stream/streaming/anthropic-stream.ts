@@ -4,7 +4,7 @@ import { modelSupportsClaudeThinking } from "@/lib/core/modelRegistry";
 import { executeFunction } from "@/lib/features/chat/functionRegistry";
 
 import { StreamTimeoutError, type ChatStreamParams, type CreatedConversation } from "./types";
-import { sendEvent, getStreamTimeout, withTimeout, streamLogger } from "./utils";
+import { sendEvent, getStreamTimeout, withTimeout, withIdleTimeout, streamLogger } from "./utils";
 import { processPostStream } from "./post-processing";
 
 export function createAnthropicStream({
@@ -68,6 +68,7 @@ export function createAnthropicStream({
       const collectedSources: Array<{ uri: string; title: string }> = [];
       // Track Claude Extended Thinking state for <think> tag injection
       let isInThinkingBlock = false;
+      let streamFailed = false;
       try {
         // Map contents to Anthropic format with multimodal support
         // contents: [{ role: "user", parts: [{text: ""}, {inlineData: {data, mimeType}}] }]
@@ -194,12 +195,15 @@ export function createAnthropicStream({
           usage?: { output_tokens?: number };
         }>;
 
+        const idleTimeoutMs = Math.max(timeoutMs / 2, 30_000);
+        const guardedStream = withIdleTimeout(stream, idleTimeoutMs);
+
         // Track tool_use blocks for function calling
         let currentToolUseId = "";
         let currentToolName = "";
         let currentToolInput = "";
 
-        for await (const chunk of stream) {
+        for await (const chunk of guardedStream) {
           // Handle text token deltas
           if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
             const text = (chunk.delta as { text?: string }).text;
@@ -438,6 +442,7 @@ export function createAnthropicStream({
           sendEvent(controller, "meta", { type: "sources", sources: uniqueSources });
         }
       } catch (e: unknown) {
+        streamFailed = true;
         // Handle timeout specifically
         if (e instanceof StreamTimeoutError) {
           const timeoutMs = getStreamTimeout();
@@ -465,32 +470,34 @@ export function createAnthropicStream({
         }
       }
 
-      // 3. Post Stream Processing - include sources for DB persistence
-      // Deduplicate sources before persisting
-      const seen = new Set<string>();
-      const uniqueSources = collectedSources.filter((s) => {
-        if (seen.has(s.uri)) return false;
-        seen.add(s.uri);
-        return true;
-      });
+      // 3. Post Stream Processing — skip if stream failed with no content
+      if (!streamFailed || full.trim()) {
+        // Deduplicate sources before persisting
+        const seen = new Set<string>();
+        const uniqueSources = collectedSources.filter((s) => {
+          if (seen.has(s.uri)) return false;
+          seen.add(s.uri);
+          return true;
+        });
 
-      await processPostStream(controller, {
-        full,
-        isActuallyBlocked: false,
-        shouldGenerateTitle,
-        conversationId,
-        userId,
-        contextMessages,
-        content,
-        appendToContext,
-        saveMessage,
-        setConversationAutoTitle,
-        generateFinalTitle,
-        sources: uniqueSources.length > 0 ? uniqueSources : undefined,
-        model,
-      });
+        await processPostStream(controller, {
+          full,
+          isActuallyBlocked: false,
+          shouldGenerateTitle,
+          conversationId,
+          userId,
+          contextMessages,
+          content,
+          appendToContext,
+          saveMessage,
+          setConversationAutoTitle,
+          generateFinalTitle,
+          sources: uniqueSources.length > 0 ? uniqueSources : undefined,
+          model,
+        });
+      }
 
-      sendEvent(controller, "done", { ok: true });
+      sendEvent(controller, "done", { ok: !streamFailed });
       controller.close();
     },
   });

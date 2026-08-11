@@ -3,7 +3,7 @@ import OpenAI from "openai";
 
 import { isDeepSeekV4ProModel } from "@/lib/core/modelRegistry";
 import { StreamTimeoutError, type ChatStreamParams, type Message } from "./types";
-import { sendEvent, getStreamTimeout, withTimeout, streamLogger } from "./utils";
+import { sendEvent, getStreamTimeout, withTimeout, withIdleTimeout, streamLogger } from "./utils";
 import { sendInitialMetaEvents, generateAndSendOptimisticTitle } from "./gemini-stream";
 import { processPostStream } from "./post-processing";
 
@@ -89,6 +89,7 @@ export function createDeepSeekStream(params: {
 
       let full = "";
       let isInThinkingBlock = false;
+      let streamFailed = false;
 
       try {
         // Determine thinking mode configuration
@@ -195,6 +196,9 @@ export function createDeepSeekStream(params: {
         );
 
         const stream = await withTimeout(streamPromise, timeoutMs);
+        // Wrap with idle timeout — if no chunk arrives within half the total timeout, abort
+        const idleTimeoutMs = Math.max(timeoutMs / 2, 30_000);
+        const guardedStream = withIdleTimeout(stream, idleTimeoutMs);
 
         // Track usage from final chunk
         let promptTokens: number | undefined;
@@ -202,7 +206,7 @@ export function createDeepSeekStream(params: {
         let totalTokens: number | undefined;
         let reasoningTokens: number | undefined;
 
-        for await (const chunk of stream) {
+        for await (const chunk of guardedStream) {
           // Cast delta to access reasoning_content (not in OpenAI SDK types)
           const delta = chunk.choices[0]?.delta as
             | {
@@ -272,6 +276,7 @@ export function createDeepSeekStream(params: {
           });
         }
       } catch (e) {
+        streamFailed = true;
         if (e instanceof StreamTimeoutError) {
           const timeoutMs = getStreamTimeout();
           streamLogger.error(`DeepSeek stream timeout after ${timeoutMs}ms`);
@@ -323,23 +328,25 @@ export function createDeepSeekStream(params: {
         }
       }
 
-      // 3. Post Stream Processing
-      await processPostStream(controller, {
-        full,
-        isActuallyBlocked: false,
-        shouldGenerateTitle,
-        conversationId,
-        userId,
-        contextMessages,
-        content,
-        appendToContext,
-        saveMessage,
-        setConversationAutoTitle,
-        generateFinalTitle,
-        model,
-      });
+      // 3. Post Stream Processing — skip if stream failed with no content
+      if (!streamFailed || full.trim()) {
+        await processPostStream(controller, {
+          full,
+          isActuallyBlocked: false,
+          shouldGenerateTitle,
+          conversationId,
+          userId,
+          contextMessages,
+          content,
+          appendToContext,
+          saveMessage,
+          setConversationAutoTitle,
+          generateFinalTitle,
+          model,
+        });
+      }
 
-      sendEvent(controller, "done", { ok: true });
+      sendEvent(controller, "done", { ok: !streamFailed });
       controller.close();
     },
   });

@@ -179,4 +179,39 @@ export function pick<T = unknown>(obj: unknown, keys: string[]): T | undefined {
   return undefined;
 }
 
-export { getStreamTimeout, createTimeoutPromise, withTimeout };
+/**
+ * Wraps an async iterable with an idle timeout.
+ * Throws StreamTimeoutError if no chunk is received within `idleMs`.
+ * Resets the timer on every chunk.
+ */
+async function* withIdleTimeout<T>(stream: AsyncIterable<T>, idleMs: number): AsyncGenerator<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let _rejectIdle: ((err: Error) => void) | null = null;
+
+  const resetTimer = () => {
+    if (timer) clearTimeout(timer);
+    return new Promise<never>((_, reject) => {
+      _rejectIdle = reject;
+      timer = setTimeout(() => {
+        reject(new StreamTimeoutError(idleMs));
+      }, idleMs);
+    });
+  };
+
+  try {
+    const iterator = stream[Symbol.asyncIterator]();
+    let idlePromise = resetTimer();
+
+    while (true) {
+      const result = (await Promise.race([iterator.next(), idlePromise])) as IteratorResult<T>;
+
+      if (result.done) break;
+      idlePromise = resetTimer();
+      yield result.value;
+    }
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+export { getStreamTimeout, createTimeoutPromise, withTimeout, withIdleTimeout };
