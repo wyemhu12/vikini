@@ -171,12 +171,22 @@ export function createDeepSeekStream(params: {
         }
 
         // Add thinking mode config
+        // OpenRouter uses `include_reasoning` + `reasoning_effort`
+        // DeepSeek Direct API uses `thinking: { type }` + `reasoning_effort`
+        const isOpenRouterRoute = isDeepSeekV4ProModel(model);
         if (isThinkingEnabled) {
-          requestBody.thinking = { type: "enabled" };
+          if (isOpenRouterRoute) {
+            requestBody.include_reasoning = true;
+          } else {
+            requestBody.thinking = { type: "enabled" };
+          }
           requestBody.reasoning_effort = reasoningEffort;
-          // DeepSeek ignores temperature/top_p in thinking mode, but we skip them explicitly
         } else {
-          requestBody.thinking = { type: "disabled" };
+          if (isOpenRouterRoute) {
+            requestBody.include_reasoning = false;
+          } else {
+            requestBody.thinking = { type: "disabled" };
+          }
           requestBody.temperature = 0.7;
         }
 
