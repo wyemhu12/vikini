@@ -190,6 +190,12 @@ export function createDeepSeekStream(params: {
           requestBody.temperature = 0.7;
         }
 
+        // Debug: log request params (excluding messages for brevity)
+        if (isOpenRouterRoute) {
+          const { messages: _msgs, ...debugParams } = requestBody;
+          streamLogger.info(`[DeepSeek OR request] params=${JSON.stringify(debugParams)}`);
+        }
+
         const streamPromise = ai.chat.completions.create(
           requestBody as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
         );
@@ -202,25 +208,38 @@ export function createDeepSeekStream(params: {
         let totalTokens: number | undefined;
         let reasoningTokens: number | undefined;
 
+        let chunkCount = 0;
+
         for await (const chunk of stream) {
           // Cast delta to access reasoning_content (not in OpenAI SDK types)
           const delta = chunk.choices[0]?.delta as
             | {
                 content?: string | null;
                 reasoning_content?: string | null;
+                reasoning?: string | null;
               }
             | undefined;
 
+          // Debug: log first 3 chunks to see actual structure from OpenRouter
+          if (chunkCount < 3 && isOpenRouterRoute) {
+            streamLogger.info(
+              `[DeepSeek OR chunk ${chunkCount}] keys=${JSON.stringify(Object.keys(delta || {}))} reasoning_content=${!!delta?.reasoning_content} reasoning=${!!(delta as Record<string, unknown>)?.reasoning} content=${!!delta?.content}`
+            );
+          }
+          chunkCount++;
+
           // Handle reasoning_content (thinking/CoT tokens)
-          if (delta?.reasoning_content) {
+          // OpenRouter may use `reasoning_content` or `reasoning` depending on version
+          const reasoningText = delta?.reasoning_content || delta?.reasoning;
+          if (reasoningText) {
             if (!isInThinkingBlock) {
               isInThinkingBlock = true;
               const openTag = "<think>";
               full += openTag;
               sendEvent(controller, "token", { t: openTag });
             }
-            full += delta.reasoning_content;
-            sendEvent(controller, "token", { t: delta.reasoning_content });
+            full += reasoningText;
+            sendEvent(controller, "token", { t: reasoningText });
           }
 
           // Handle regular content
