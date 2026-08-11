@@ -22,7 +22,7 @@ export const MODEL_IDS = {
   CLAUDE_HAIKU_45: "claude-haiku-4.5",
   // DeepSeek V4 models (Direct API)
   DEEPSEEK_V4_FLASH: "deepseek-v4-flash",
-  DEEPSEEK_V4_PRO: "deepseek-v4-pro",
+  DEEPSEEK_V4_PRO: "deepseek/deepseek-v4-pro",
   // DeepSeek V3.2 (via OpenRouter)
   DEEPSEEK_V32: "deepseek/deepseek-v3.2:floor",
 } as const;

@@ -193,8 +193,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
   },
 
   // ═══════════════════════════════════════════════════════════
-  // DEEPSEEK V4 MODELS (Direct API - May 2026)
-  // Thinking mode built-in, reasoning_content support
+  // DEEPSEEK V4 FLASH (Direct API - May 2026)
   // ═══════════════════════════════════════════════════════════
   {
     id: "deepseek-v4-flash",
@@ -206,15 +205,19 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     category: "low-latency",
     providerId: "deepseek",
   },
+
+  // ═══════════════════════════════════════════════════════════
+  // DEEPSEEK V4 PRO (via OpenRouter → Baidu Qianfan, FP8)
+  // ═══════════════════════════════════════════════════════════
   {
-    id: "deepseek-v4-pro",
+    id: "deepseek/deepseek-v4-pro",
     name: "DeepSeek V4 Pro",
     descKey: "modelDescDeepSeekV4Pro",
-    tokenLimit: 128000,
-    contextWindow: 128000,
-    maxOutputTokens: 8192,
+    tokenLimit: 1000000,
+    contextWindow: 1000000,
+    maxOutputTokens: 16384,
     category: "reasoning",
-    providerId: "deepseek",
+    providerId: "openrouter-pay",
   },
 
   // ═══════════════════════════════════════════════════════════
@@ -279,7 +282,7 @@ const API_ALLOWED = new Set([
 
   // DeepSeek V4 Direct API
   "deepseek-v4-flash",
-  "deepseek-v4-pro",
+  "deepseek/deepseek-v4-pro",
 
   // DeepSeek Legacy via OpenRouter
   "deepseek/deepseek-v3.2:floor",
@@ -314,6 +317,7 @@ export const MODEL_ALIASES: Record<string, string> = {
   // DeepSeek legacy aliases (deprecated 2026/07/24)
   "deepseek-chat": "deepseek-v4-flash",
   "deepseek-reasoner": "deepseek-v4-flash", // Maps to thinking mode of V4 Flash
+  "deepseek-v4-pro": "deepseek/deepseek-v4-pro", // Migrated to OpenRouter/Baidu (2026/08)
 } as const;
 
 export function isSelectableModelId(modelId: unknown): boolean {
@@ -402,7 +406,13 @@ export function modelSupportsClaudeThinking(modelId: unknown): boolean {
  */
 export function isDeepSeekDirectModel(modelId: unknown): boolean {
   const normalized = String(modelId || "").trim();
-  return normalized.startsWith("deepseek-v4");
+  // Only deepseek-v4-flash uses Direct API; V4 Pro routes via OpenRouter
+  return normalized === "deepseek-v4-flash";
+}
+
+export function isDeepSeekV4ProModel(modelId: unknown): boolean {
+  const id = String(modelId || "").trim();
+  return id === "deepseek/deepseek-v4-pro";
 }
 
 /**
@@ -410,7 +420,7 @@ export function isDeepSeekDirectModel(modelId: unknown): boolean {
  * All DeepSeek V4 models have thinking enabled by default.
  */
 export function modelSupportsDeepSeekThinking(modelId: unknown): boolean {
-  return isDeepSeekDirectModel(modelId);
+  return isDeepSeekDirectModel(modelId) || isDeepSeekV4ProModel(modelId);
 }
 
 /**
@@ -423,8 +433,8 @@ export function modelSupportsWebSearch(modelId: unknown): boolean {
   const id = String(modelId || "")
     .trim()
     .toLowerCase();
-  // DeepSeek V4 direct models - no web search capability
   if (isDeepSeekDirectModel(id)) return false;
+  if (isDeepSeekV4ProModel(id)) return false;
   return true;
 }
 

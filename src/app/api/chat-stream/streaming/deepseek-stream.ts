@@ -1,6 +1,7 @@
 // /app/api/chat-stream/streaming/deepseek-stream.ts
 import OpenAI from "openai";
 
+import { isDeepSeekV4ProModel } from "@/lib/core/modelRegistry";
 import { StreamTimeoutError, type ChatStreamParams, type Message } from "./types";
 import { sendEvent, getStreamTimeout, withTimeout, streamLogger } from "./utils";
 import { sendInitialMetaEvents, generateAndSendOptimisticTitle } from "./gemini-stream";
@@ -90,10 +91,34 @@ export function createDeepSeekStream(params: {
       let isInThinkingBlock = false;
 
       try {
+        // Determine thinking mode configuration
+        const isThinkingEnabled = thinkingLevel !== "off";
+        // Map Vikini thinkingLevel → DeepSeek reasoning_effort
+        // DeepSeek V4 has 3 modes: Non-think, Think High, Think Max
+        // Think Max requires a special system prompt prefix (per official docs)
+        let reasoningEffort: "high" | "max" = "high";
+        if (thinkingLevel === "high") {
+          reasoningEffort = "max";
+        }
+
+        // Prepend Think Max system prompt prefix (per DeepSeek V4 encoding/README.md)
+        let effectiveSysPrompt = sysPrompt;
+        if (reasoningEffort === "max" && isThinkingEnabled) {
+          const thinkMaxPrefix =
+            "Reasoning Effort: Absolute maximum with no shortcuts permitted.\n" +
+            "You MUST be very thorough in your thinking and comprehensively decompose the problem " +
+            "to resolve the root cause, rigorously stress-testing your logic against all potential " +
+            "paths, edge cases, and adversarial scenarios.\n" +
+            "Explicitly write out your entire deliberation process, documenting every intermediate " +
+            "step, considered alternative, and rejected hypothesis to ensure absolutely no " +
+            "assumption is left unchecked.\n\n";
+          effectiveSysPrompt = thinkMaxPrefix + sysPrompt;
+        }
+
         // Map contents to OpenAI format (same as createOpenAICompatibleStream)
         type GeminiPart = { text?: string; inlineData?: { data: string; mimeType: string } };
         const openAIMessages = [
-          { role: "system" as const, content: sysPrompt },
+          { role: "system" as const, content: effectiveSysPrompt },
           ...(contents as Array<{ role: string; parts: GeminiPart[] }>).map((m) => {
             const hasImages = m.parts.some((p) => p.inlineData);
             if (hasImages) {
@@ -124,15 +149,6 @@ export function createDeepSeekStream(params: {
           }),
         ] as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
 
-        // Determine thinking mode configuration
-        const isThinkingEnabled = thinkingLevel !== "off";
-        // Map Vikini thinkingLevel → DeepSeek reasoning_effort
-        // DeepSeek only supports "high" and "max" (low/medium → high, xhigh → max)
-        let reasoningEffort: "high" | "max" = "high";
-        if (thinkingLevel === "high") {
-          reasoningEffort = "max";
-        }
-
         const timeoutMs = getStreamTimeout(model, thinkingLevel);
 
         // Build request body with DeepSeek-specific params
@@ -144,6 +160,15 @@ export function createDeepSeekStream(params: {
           stream_options: { include_usage: true },
           max_tokens: 8192,
         };
+
+        // Add OpenRouter provider routing for DeepSeek V4 Pro via Baidu Qianfan
+        if (isDeepSeekV4ProModel(model)) {
+          requestBody.provider = {
+            order: ["Baidu"],
+            quantizations: ["fp8"],
+            allow_fallbacks: true,
+          };
+        }
 
         // Add thinking mode config
         if (isThinkingEnabled) {

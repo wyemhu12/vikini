@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-08-11: DeepSeek V4 Pro — Provider Migration to OpenRouter/Baidu Qianfan
+
+### Infrastructure
+
+- **Provider switch** — Migrated DeepSeek V4 Pro from Direct API (`api.deepseek.com`) to OpenRouter with Baidu Qianfan provider and FP8 quantization. ~75% cost reduction ($0.4225/$0.845 per 1M tokens vs $1.69/$3.38).
+- **Model ID change** — `deepseek-v4-pro` → `deepseek/deepseek-v4-pro`. Backward-compat alias added for existing conversations.
+- **Context window upgrade** — 128K → 1M tokens (OpenRouter supports full DeepSeek V4 Pro context).
+- **Thinking mode preserved** — V4 Pro still uses `createDeepSeekStream()` for `reasoning_content` parsing via OpenRouter proxy.
+- **V4 Flash unchanged** — Remains on Direct API with `DEEPSEEK_API_KEY`.
+
+---
+
 ## 2026-07-15: Image Studio — Audit Fixes
 
 ### Type Safety (Critical)

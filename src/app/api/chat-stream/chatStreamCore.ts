@@ -13,6 +13,7 @@ import {
   normalizeModelForApi,
   coerceStoredModel,
   isDeepSeekDirectModel,
+  isDeepSeekV4ProModel,
 } from "@/lib/core/modelRegistry";
 import { CLAUDE_API_MODELS, MODEL_IDS } from "@/lib/utils/constants";
 import { getOrCreateCompositeCache } from "@/lib/core/contextCache";
@@ -404,6 +405,7 @@ async function createProviderStream(
   } = params;
 
   const isDeepSeekDirect = isDeepSeekDirectModel(model);
+  const isDeepSeekV4Pro = isDeepSeekV4ProModel(model);
   const isStandardGroq = model.includes("llama") && !model.includes("/");
   const isOpenRouter = model.includes("/") || model.includes(":free");
   const isClaude = model.startsWith("claude-");
@@ -419,6 +421,17 @@ async function createProviderStream(
       coreLogger.error("DeepSeek Init Error:", e);
       return error(
         "DeepSeek API configuration missing. Add DEEPSEEK_API_KEY to .env",
+        500,
+        "CONFIG_ERROR"
+      );
+    }
+  } else if (isDeepSeekV4Pro) {
+    try {
+      aiClient = getOpenRouterClient();
+    } catch (e) {
+      coreLogger.error("OpenRouter Init Error (for DeepSeek V4 Pro):", e);
+      return error(
+        "OpenRouter configuration missing. Add OPENROUTER_API_KEY to .env",
         500,
         "CONFIG_ERROR"
       );
@@ -465,6 +478,15 @@ async function createProviderStream(
   };
 
   if (isDeepSeekDirect) {
+    return createDeepSeekStream({
+      ...streamParams,
+      ai: aiClient as unknown as OpenAI,
+      model: apiModel,
+      thinkingLevel,
+    } as unknown as Parameters<typeof createDeepSeekStream>[0]);
+  }
+
+  if (isDeepSeekV4Pro) {
     return createDeepSeekStream({
       ...streamParams,
       ai: aiClient as unknown as OpenAI,
