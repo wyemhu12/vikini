@@ -90,6 +90,13 @@ export default function ChatApp() {
   const isAuthLoading = status === "loading";
   const isAuthed = status === "authenticated" && !!session?.user?.email;
 
+  // SECURITY: If user has been blocked, force sign out and redirect
+  useEffect(() => {
+    if (session?.user?.rank === "__blocked__") {
+      void signOut({ callbackUrl: "/auth/error?error=blocked" });
+    }
+  }, [session?.user?.rank]);
+
   const { theme } = useTheme();
   const { language, setLanguage, t: tRaw } = useLanguage();
   const t = useChatTranslations();

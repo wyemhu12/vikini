@@ -1,0 +1,19 @@
+/* ===========================================
+   FOCUS THEMES - Pitch Black (Đen Tuyệt Đối)
+   Zero-distraction, OLED-optimized.
+   Inspired by ChatGPT 2026 pure-black interface.
+   =========================================== */
+
+.theme-pitch-black {
+  --surface: #000000;
+  --surface-muted: #0a0a0a;
+  --surface-elevated: #0a0a0a;
+  --border: rgba(255, 255, 255, 0.06);
+  --control-bg: rgba(255, 255, 255, 0.03);
+  --control-bg-hover: rgba(255, 255, 255, 0.07);
+  --control-border: rgba(255, 255, 255, 0.08);
+  --text-primary: #ececec;
+  --text-secondary: #8e8e93;
+  --accent: #9ca3af;
+  --glow: rgba(255, 255, 255, 0.03);
+}

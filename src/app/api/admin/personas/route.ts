@@ -37,9 +37,10 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user || session.user.rank !== "admin") {
+    if (!session?.user?.email || session.user.rank !== "admin") {
       throw new ForbiddenError("Admin access required");
     }
+    const adminEmail = session.user.email.toLowerCase();
 
     const json = await req.json();
     const { name, description, tone, icon, color } = json;
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     if (dbError) throw new Error(dbError.message);
 
-    loggerWithContext.audit("ADMIN_CREATE_PERSONA", session.user.id, {
+    loggerWithContext.audit("ADMIN_CREATE_PERSONA", adminEmail, {
       personaId: data.id,
       name,
     });
@@ -91,9 +92,10 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user || session.user.rank !== "admin") {
+    if (!session?.user?.email || session.user.rank !== "admin") {
       throw new ForbiddenError("Admin access required");
     }
+    const adminEmail = session.user.email.toLowerCase();
 
     const json = await req.json();
     const { id, name, description, tone, icon, color } = json;
@@ -131,7 +133,7 @@ export async function PUT(req: NextRequest) {
 
     if (dbError) throw new Error(dbError.message);
 
-    logger.withContext("AdminPersonaUpdate").audit("ADMIN_UPDATE_PERSONA", session.user.id, {
+    logger.withContext("AdminPersonaUpdate").audit("ADMIN_UPDATE_PERSONA", adminEmail, {
       personaId: id,
       updates: updatePayload,
     });
@@ -147,9 +149,10 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user || session.user.rank !== "admin") {
+    if (!session?.user?.email || session.user.rank !== "admin") {
       throw new ForbiddenError("Admin access required");
     }
+    const adminEmail = session.user.email.toLowerCase();
 
     const { searchParams } = new URL(req.url);
     const personaId = searchParams.get("id");
@@ -167,7 +170,7 @@ export async function DELETE(req: NextRequest) {
 
     if (dbError) throw new Error(dbError.message);
 
-    logger.withContext("AdminPersonaDelete").audit("ADMIN_DELETE_PERSONA", session.user.id, {
+    logger.withContext("AdminPersonaDelete").audit("ADMIN_DELETE_PERSONA", adminEmail, {
       personaId,
     });
 

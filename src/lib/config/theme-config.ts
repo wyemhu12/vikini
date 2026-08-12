@@ -24,6 +24,7 @@ export const THEME_CONFIG: ThemeDefinition[] = [
   { id: "amber", labelKey: "amber", swatch: "#d97706", group: "Focus", tone: "dark" },
   { id: "indigo", labelKey: "indigo", swatch: "#6366f1", group: "Focus", tone: "dark" },
   { id: "charcoal", labelKey: "charcoal", swatch: "#4b5563", group: "Focus", tone: "dark" },
+  { id: "pitch-black", labelKey: "pitchBlack", swatch: "#000000", group: "Focus", tone: "dark" },
   { id: "gold", labelKey: "gold", swatch: "#d4af37", group: "Focus", tone: "dark" },
   { id: "red", labelKey: "red", swatch: "#ef4444", group: "Focus", tone: "dark" },
   { id: "rose", labelKey: "rose", swatch: "#cc8899", group: "Focus", tone: "dark" },

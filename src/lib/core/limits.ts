@@ -137,44 +137,25 @@ export async function getRankConfig(rank: string): Promise<RankConfig> {
 // =====================================================================================
 
 /**
- * Get user profile from database
+ * Get user profile from database.
+ * userId is the canonical email (lowercased) after normalization.
  */
 export async function getUserProfile(userId: string) {
   const supabase = getSupabaseAdmin();
 
-  // Try lookup by ID first
-  const { data: byId, error: idError } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (idError) {
-    limitsLogger.warn("Error fetching user profile by id:", idError);
-  }
-
-  if (byId) {
-    return byId as {
-      id: string;
-      email: string;
-      rank: string;
-      is_blocked: boolean;
-    } | null;
-  }
-
-  // Fallback: lookup by email
-  const { data: byEmail, error: emailError } = await supabase
+  // CANONICAL: userId = email, so query by email directly
+  const { data, error } = await supabase
     .from("profiles")
     .select("*")
     .eq("email", userId)
     .maybeSingle();
 
-  if (emailError) {
-    limitsLogger.warn("Error fetching user profile by email:", emailError);
+  if (error) {
+    limitsLogger.warn("Error fetching user profile by email:", error);
     return null;
   }
 
-  return byEmail as {
+  return data as {
     id: string;
     email: string;
     rank: string;

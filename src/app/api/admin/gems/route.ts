@@ -78,9 +78,10 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user || session.user.rank !== "admin") {
+    if (!session?.user?.email || session.user.rank !== "admin") {
       throw new ForbiddenError("Admin access required");
     }
+    const adminEmail = session.user.email.toLowerCase();
 
     const json = await req.json();
     const { name, description, instructions, icon, color } = json;
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
         icon,
         color,
         is_premade: true,
-        user_id: session.user.id,
+        user_id: adminEmail,
       })
       .select()
       .single();
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest) {
           gem_id: data.id,
           version: 1,
           instructions: instructions,
-          created_by: session.user.id,
+          created_by: adminEmail,
         })
         .select()
         .single();
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
       instructions: versionedInstructions || instructions,
     };
 
-    loggerWithContext.audit("ADMIN_CREATE_GEM", session.user.id, {
+    loggerWithContext.audit("ADMIN_CREATE_GEM", adminEmail, {
       gemId: data.id,
       name,
     });
@@ -147,9 +148,10 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user || session.user.rank !== "admin") {
+    if (!session?.user?.email || session.user.rank !== "admin") {
       throw new ForbiddenError("Admin access required");
     }
+    const adminEmail = session.user.email.toLowerCase();
 
     const json = await req.json();
     const { id, name, description, instructions, icon, color } = json;
@@ -194,7 +196,7 @@ export async function PUT(req: NextRequest) {
         gem_id: id,
         version: nextVersion,
         instructions: instructions,
-        created_by: session.user.id,
+        created_by: adminEmail,
       })
       .select()
       .single();
@@ -204,7 +206,7 @@ export async function PUT(req: NextRequest) {
       instructions: vData?.instructions || instructions,
     };
 
-    logger.withContext("AdminGemUpdate").audit("ADMIN_UPDATE_GEM", session.user.id, {
+    logger.withContext("AdminGemUpdate").audit("ADMIN_UPDATE_GEM", adminEmail, {
       gemId: id,
       updates: updatePayload,
       version: nextVersion,
@@ -221,9 +223,10 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user || session.user.rank !== "admin") {
+    if (!session?.user?.email || session.user.rank !== "admin") {
       throw new ForbiddenError("Admin access required");
     }
+    const adminEmail = session.user.email.toLowerCase();
 
     const { searchParams } = new URL(req.url);
     const gemId = searchParams.get("id");
@@ -241,7 +244,7 @@ export async function DELETE(req: NextRequest) {
 
     if (dbError) throw new Error(dbError.message);
 
-    logger.withContext("AdminGemDelete").audit("ADMIN_DELETE_GEM", session.user.id, {
+    logger.withContext("AdminGemDelete").audit("ADMIN_DELETE_GEM", adminEmail, {
       gemId,
     });
 

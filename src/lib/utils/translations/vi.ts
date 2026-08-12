@@ -34,6 +34,7 @@ export const vi = {
   amber: "Cam-Nâu",
   indigo: "Tím-Xanh",
   charcoal: "Xám-Đen",
+  pitchBlack: "Đen Tuyệt Đối",
   gold: "Vàng ánh kim",
   red: "Đỏ",
   rose: "Hồng nhạt",

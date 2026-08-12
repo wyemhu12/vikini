@@ -81,16 +81,6 @@ describe("/api/batch-gen-quota", () => {
       expect(res.status).toBe(401);
     });
 
-    it("should return 401 if session has no id", async () => {
-      vi.mocked(auth).mockResolvedValue({
-        user: { email: TEST_EMAIL },
-      } as unknown as Awaited<ReturnType<typeof auth>>);
-
-      const res = await GET();
-
-      expect(res.status).toBe(401);
-    });
-
     it("should return quota data on success for basic rank", async () => {
       mockAuthenticated();
       vi.mocked(getUserProfile).mockResolvedValue({

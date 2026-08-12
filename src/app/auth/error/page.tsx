@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { useLanguage } from "../../features/chat/hooks/useLanguage";
 
 function AuthErrorContent() {
   const { language, setLanguage } = useLanguage();
-  const router = useRouter();
+  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
+
+  const error = searchParams.get("error");
+  const isBlocked = error === "blocked";
 
   useEffect(() => {
     setMounted(true);
@@ -15,9 +19,13 @@ function AuthErrorContent() {
 
   if (!mounted) return <div className="min-h-screen bg-[#020617]" />;
 
+  const handleBackToSignIn = () => {
+    void signOut({ callbackUrl: "/auth/signin" });
+  };
+
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#020617] text-white">
-      {/*  Multi-tone Flowing Background */}
+      {/* Multi-tone Flowing Background */}
       <div className="absolute inset-0 z-0">
         <div className="flowing-gradient absolute inset-0 opacity-30" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#020617_85%)]" />
@@ -51,52 +59,82 @@ function AuthErrorContent() {
         <div className="mx-auto h-24 w-24 relative flex items-center justify-center">
           <div className="absolute inset-0 bg-(--danger)/10 blur-3xl rounded-full" />
           <div className="relative flex h-full w-full items-center justify-center rounded-4xl border border-(--danger)/20 bg-(--danger)/5 backdrop-blur-sm overflow-hidden shadow-2xl">
-            <svg
-              className="h-12 w-12 text-(--danger)"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
+            {isBlocked ? (
+              <svg
+                className="h-12 w-12 text-(--danger)"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="h-12 w-12 text-(--danger)"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            )}
           </div>
         </div>
 
         {/* Error Message */}
         <div className="space-y-4">
           <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
-            {language === "vi" ? "Truy Cập Bị Từ Chối" : "Access Denied"}
+            {isBlocked
+              ? language === "vi"
+                ? "Tài Khoản Đã Bị Khóa"
+                : "Account Blocked"
+              : language === "vi"
+                ? "Truy Cập Bị Từ Chối"
+                : "Access Denied"}
           </h1>
 
           <div className="rounded-4xl border border-(--danger)/20 bg-(--danger)/5 p-6 backdrop-blur-sm">
-            <p className="text-base font-medium text-white/80 leading-relaxed mb-4">
-              {language === "vi"
-                ? "Email của bạn chưa được cấp phép truy cập ứng dụng này."
-                : "Your email is not authorized to access this application."}
+            <p className="text-base font-medium text-white/80 leading-relaxed">
+              {isBlocked
+                ? language === "vi"
+                  ? "Tài khoản của bạn đã bị quản trị viên vô hiệu hóa. Vui lòng liên hệ quản trị viên để biết thêm chi tiết."
+                  : "Your account has been disabled by an administrator. Please contact the admin for more information."
+                : language === "vi"
+                  ? "Email của bạn chưa được cấp phép truy cập ứng dụng này."
+                  : "Your email is not authorized to access this application."}
             </p>
-            <p className="text-sm font-medium text-white/60 leading-relaxed">
-              {language === "vi"
-                ? "Chỉ những người dùng có trong whitelist mới được phép sử dụng dịch vụ này."
-                : "Only whitelisted users are allowed to use this service."}
-            </p>
+            {!isBlocked && (
+              <p className="text-sm font-medium text-white/60 leading-relaxed mt-4">
+                {language === "vi"
+                  ? "Chỉ những người dùng có trong whitelist mới được phép sử dụng dịch vụ này."
+                  : "Only whitelisted users are allowed to use this service."}
+              </p>
+            )}
           </div>
 
-          <p className="text-sm text-white/40">
-            {language === "vi"
-              ? "Nếu bạn nghĩ đây là lỗi, vui lòng liên hệ với quản trị viên."
-              : "If you believe this is an error, please contact the administrator."}
-          </p>
+          {!isBlocked && (
+            <p className="text-sm text-white/40">
+              {language === "vi"
+                ? "Nếu bạn nghĩ đây là lỗi, vui lòng liên hệ với quản trị viên."
+                : "If you believe this is an error, please contact the administrator."}
+            </p>
+          )}
         </div>
 
         {/* Back Button */}
         <div className="pt-4">
           <button
-            onClick={() => router.push("/auth/signin")}
+            onClick={handleBackToSignIn}
             className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-full border border-white/20 bg-white/5 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-white/10 hover:scale-[1.02] active:scale-[0.98]"
           >
             {language === "vi" ? "Quay Lại Đăng Nhập" : "Back to Sign In"}
@@ -132,5 +170,9 @@ function AuthErrorContent() {
 }
 
 export default function AuthErrorPage() {
-  return <AuthErrorContent />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#020617]" />}>
+      <AuthErrorContent />
+    </Suspense>
+  );
 }

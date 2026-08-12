@@ -11,11 +11,10 @@ export async function GET() {
   try {
     // 1. Auth Check
     const session = await auth();
-    if (!session?.user?.id || !session?.user?.email) {
+    if (!session?.user?.email) {
       throw new UnauthorizedError();
     }
-    const userId = session.user.id;
-    const userKey = session.user.email.toLowerCase();
+    const userId = session.user.email.toLowerCase();
 
     // 2. Get user rank
     const profile = await getUserProfile(userId);
@@ -34,7 +33,7 @@ export async function GET() {
 
       if (redis) {
         try {
-          const key = `batch-gen:${userKey}:${today}:${batchSize}`;
+          const key = `batch-gen:${userId}:${today}:${batchSize}`;
           const count = await redis.get<number>(key);
           used = count || 0;
         } catch (err: unknown) {

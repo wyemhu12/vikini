@@ -35,6 +35,7 @@ export const en = {
   amber: "Amber",
   indigo: "Indigo",
   charcoal: "Charcoal",
+  pitchBlack: "Pitch Black",
   gold: "Gold",
   red: "Red",
   rose: "Rose",

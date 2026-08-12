@@ -10,11 +10,11 @@ import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 export async function GET() {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       throw new UnauthorizedError();
     }
 
-    const userId = session.user.id;
+    const userId = session.user.email.toLowerCase();
     const limits = await getUserLimits(userId);
 
     return success({

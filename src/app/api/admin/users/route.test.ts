@@ -87,7 +87,7 @@ import { auth } from "@/lib/features/auth/auth";
 // Helpers
 // ---------------------------------------------------------------------------
 
-const TEST_UUID = "a1b2c3d4-e5f6-1234-a89b-abcdef123456";
+const TEST_UUID = "target@example.com";
 
 function createRequest(method: string, url: string, body?: unknown): NextRequest {
   const init = {

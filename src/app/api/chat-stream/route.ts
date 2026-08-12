@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Use email as userId for consistency with conversations table
-    const userId = session.user.email?.toLowerCase() || session.user.id || "";
+    const userId = session.user.email.toLowerCase();
     if (!userId) {
       routeLogger.warn("No user ID available");
       perfMonitor.end(HTTP_STATUS.UNAUTHORIZED);

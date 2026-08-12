@@ -32,8 +32,8 @@ describe("/api/user/allowed-models", () => {
       expect(json.error.code).toBe("UNAUTHORIZED");
     });
 
-    it("should return 401 if session has no user id", async () => {
-      vi.mocked(auth).mockResolvedValue({ user: { email: "a@b.com" } } as unknown as Awaited<
+    it("should return 401 if session has no user email", async () => {
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user-123" } } as unknown as Awaited<
         ReturnType<typeof auth>
       >);
 
@@ -64,7 +64,7 @@ describe("/api/user/allowed-models", () => {
       expect(json.success).toBe(true);
       expect(json.data.allowed_models).toEqual(["gemini-2.5-pro", "claude-sonnet-4"]);
       expect(json.data.rank).toBe("pro");
-      expect(getUserLimits).toHaveBeenCalledWith("user-123");
+      expect(getUserLimits).toHaveBeenCalledWith("test@test.com");
     });
 
     it("should return empty array when allowed_models is undefined", async () => {

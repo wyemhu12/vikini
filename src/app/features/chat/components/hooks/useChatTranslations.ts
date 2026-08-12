@@ -61,6 +61,7 @@ const CHAT_TRANSLATION_KEYS = [
   "amber",
   "indigo",
   "charcoal",
+  "pitchBlack",
   "gold",
   "red",
   "rose",

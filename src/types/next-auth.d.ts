@@ -18,6 +18,10 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     userId?: string;
+    profileId?: string; // Google providerAccountId (legacy, for reference only)
     rank?: string;
+    rankVersion?: number;
+    rankRefreshedAt?: number;
+    blocked?: boolean;
   }
 }

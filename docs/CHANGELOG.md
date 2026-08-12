@@ -5,6 +5,58 @@
 
 ---
 
+## 2026-08-12: Architecture — Normalize userId to Email (Identity Crisis Fix)
+
+### Architecture (Critical)
+
+- **Identity normalization** — Unified `userId` across the entire codebase to always be `email` (lowercased). Previously, `userId` could be Google `providerAccountId` (numeric string), email, or NextAuth `user.id` depending on the code path, creating fragmented identity for ownership, quota, rate limiting, and audit.
+- **Auth flow** — `signIn` callback now creates profiles with `id = email`. JWT `token.userId` stores email. `session.user.id` = email.
+- **Database migration** — `022_normalize_userid_to_email.sql` migrates `profiles.id` from providerAccountId to email, fixes `gems.user_id`/`gem_versions.created_by` for admin-created records, and updates `admin_audit_logs`.
+- **Admin routes** — All admin audit logs and DB writes now use email consistently.
+- **Simplified lookups** — `getUserProfile()` no longer needs double-lookup (by ID then by email). Single query by email.
+- **New helper** — `getUserId()` in `lib/features/auth/getUserId.ts` provides canonical userId extraction.
+
+### Files Changed
+
+- `lib/features/auth/auth.ts` — Profile creation uses email, JWT stores email
+- `lib/features/auth/authRevocation.ts` — `refreshTokenFromDB` returns email
+- `lib/features/auth/getUserId.ts` — [NEW] Canonical userId helper
+- `lib/core/limits.ts` — Simplified `getUserProfile()` to single email query
+- `app/api/chat-stream/route.ts` — Removed mixed email/id fallback
+- `app/api/batch-gen-quota/route.ts` — Uses email consistently
+- `app/api/user/allowed-models/route.ts` — Uses email instead of session.user.id
+- `app/api/admin/gems/route.ts` — Uses email for user_id, created_by, audit
+- `app/api/admin/personas/route.ts` — Uses email for audit log
+- `app/api/admin/users/route.ts` — Uses email for adminId, updated `isValidUserId` to accept email
+- `types/next-auth.d.ts` — Added `profileId` to JWT interface (legacy reference)
+- `database-migrations/022_normalize_userid_to_email.sql` — [NEW] DB migration
+
+### ⚠️ Action Required
+
+Run `database-migrations/022_normalize_userid_to_email.sql` on Supabase before deploying.
+
+---
+
+## 2026-08-12: Security — JWT Authorization Revocation Fix
+
+### Security (Critical)
+
+- **Authorization revocation** — Fixed vulnerability where rank/block changes had no effect on active JWT sessions (30-day `maxAge`). Admin could downgrade or block a user, but their existing JWT continued to grant full access.
+- **Redis version check** — JWT callback now checks a Redis `auth:version:{userId}` stamp on every request (O(1), ~1ms). Only queries DB when rank actually changed.
+- **Time-based fallback** — When Redis is unavailable, falls back to 2-minute interval DB refresh to ensure revocation still works.
+- **Blocked user redirect** — Blocked users are immediately signed out and redirected to `/auth/error?error=blocked` with localized messaging (VI/EN).
+
+### Files Changed
+
+- `lib/features/auth/auth.ts` — JWT callback enhanced with version check + fallback
+- `lib/features/auth/authRevocation.ts` — [NEW] Redis version management
+- `app/api/admin/users/route.ts` — Calls `bumpAuthVersion()` after rank/block update
+- `app/auth/error/page.tsx` — Added blocked-specific UI with lock icon
+- `app/features/chat/components/ChatApp.tsx` — Client-side blocked detection + signOut redirect
+- `types/next-auth.d.ts` — Added `rankVersion`, `rankRefreshedAt`, `blocked` to JWT type
+
+---
+
 ## 2026-08-11: DeepSeek V4 Pro — Provider Migration to OpenRouter/Baidu Qianfan
 
 ### Infrastructure

@@ -8,6 +8,7 @@ import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { ForbiddenError, ValidationError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { logAuditEvent } from "@/lib/features/admin/auditLog";
+import { bumpAuthVersion } from "@/lib/features/auth/authRevocation";
 
 // SECURITY: Whitelist of valid user ranks - prevents rank injection attacks
 const VALID_RANKS = ["basic", "pro", "admin", "not_whitelisted"] as const;
@@ -17,12 +18,11 @@ function isValidRank(rank: unknown): rank is UserRank {
   return typeof rank === "string" && VALID_RANKS.includes(rank as UserRank);
 }
 
-// SECURITY: Validate userId format - accepts both UUID and Google numeric IDs
-const SAFE_ID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const GOOGLE_ID_REGEX = /^\d{10,30}$/;
+// SECURITY: Validate userId format - accepts email (canonical identity)
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isValidUserId(id: unknown): boolean {
-  return typeof id === "string" && (SAFE_ID_REGEX.test(id) || GOOGLE_ID_REGEX.test(id));
+  return typeof id === "string" && EMAIL_REGEX.test(id);
 }
 
 // Type for profile updates
@@ -97,6 +97,10 @@ export async function PATCH(req: NextRequest) {
 
     if (dbError) throw new Error(dbError.message);
 
+    // SECURITY: Invalidate cached JWT rank for the target user
+    // This forces their next request to re-fetch rank from DB
+    await bumpAuthVersion(userId);
+
     // Resolve target email for audit log
     const { data: targetProfile } = await supabase
       .from("profiles")
@@ -111,7 +115,7 @@ export async function PATCH(req: NextRequest) {
 
     await logAuditEvent({
       action,
-      adminId: session.user.id,
+      adminId: session.user.email?.toLowerCase() || "",
       adminEmail: session.user.email || undefined,
       targetId: userId,
       targetEmail: targetProfile?.email || undefined,
