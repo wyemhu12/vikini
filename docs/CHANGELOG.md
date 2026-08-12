@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-08-12: Fix — Messages sent to wrong conversation after switching chats
+
+### Bug Fix (Critical)
+
+- **Race condition in `useUrlSync.ts`** — `selectedConversationId` in the URL→State `useEffect` dependency array caused a feedback loop: programmatic state changes triggered the effect, which read stale `searchParams` (async `router.push`) and reverted state to the old conversation. Fix: use `useRef` to read current state inside the effect without re-triggering it.
+
+### Files Changed
+
+- `app/features/chat/components/hooks/useUrlSync.ts` — Removed `selectedConversationId` from deps, added `selectedIdRef` for comparison
+
+---
+
 ## 2026-08-12: Architecture — Normalize userId to Email (Identity Crisis Fix)
 
 ### Architecture (Critical)

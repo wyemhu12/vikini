@@ -1,7 +1,7 @@
 // /app/features/chat/components/hooks/useUrlSync.ts
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 // ============================================
@@ -36,15 +36,22 @@ export function useUrlSync({
   const router = useRouter();
   const pathname = usePathname();
 
-  // Sync URL → State
+  // Ref to read current state without triggering the URL→State effect.
+  // Prevents race condition: router.push() is async, so searchParams lags
+  // behind state. Without the ref, the effect would revert state to the
+  // stale URL value before router.push() completes.
+  const selectedIdRef = useRef(selectedConversationId);
+  selectedIdRef.current = selectedConversationId;
+
+  // Sync URL → State (only fires when searchParams changes, e.g. browser back/forward)
   useEffect(() => {
     const idFromUrl = searchParams?.get("id");
-    if (idFromUrl && idFromUrl !== selectedConversationId) {
+    if (idFromUrl && idFromUrl !== selectedIdRef.current) {
       setSelectedConversationId(idFromUrl);
-    } else if (!idFromUrl && selectedConversationId) {
+    } else if (!idFromUrl && selectedIdRef.current) {
       setSelectedConversationId(null);
     }
-  }, [searchParams, selectedConversationId, setSelectedConversationId]);
+  }, [searchParams, setSelectedConversationId]);
 
   // Sync State → URL
   const syncUrlWithId = useCallback(
