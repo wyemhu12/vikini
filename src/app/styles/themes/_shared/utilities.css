@@ -11,7 +11,7 @@
 
 /* Markdown & Chat Styling */
 .chat-markdown {
-  @apply text-[15px] leading-[1.75];
+  @apply text-base leading-[1.75];
   word-break: break-word;
 }
 
@@ -37,7 +37,7 @@
 }
 
 .chat-markdown p {
-  @apply mb-5 last:mb-0;
+  @apply mb-6 last:mb-0;
 }
 
 .chat-markdown ul,

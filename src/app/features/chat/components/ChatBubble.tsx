@@ -273,13 +273,13 @@ const ChatBubble = React.memo(
         code: InlineCode,
         pre: PreBlock,
         p: ({ children }: MarkdownChildrenProps) => (
-          <p className="mb-4 last:mb-0 leading-7 wrap-break-word">{children}</p>
+          <p className="mb-5 last:mb-0 leading-7 wrap-break-word">{children}</p>
         ),
         ul: ({ children }: MarkdownChildrenProps) => (
-          <ul className="mb-4 ml-6 list-disc space-y-2">{children}</ul>
+          <ul className="mb-5 ml-6 list-disc space-y-2">{children}</ul>
         ),
         ol: ({ children }: MarkdownChildrenProps) => (
-          <ol className="mb-4 ml-6 list-decimal space-y-2">{children}</ol>
+          <ol className="mb-5 ml-6 list-decimal space-y-2">{children}</ol>
         ),
         li: ({ children }: MarkdownChildrenProps) => <li className="leading-7">{children}</li>,
         h1: ({ children }: MarkdownChildrenProps) => (
@@ -400,7 +400,7 @@ const ChatBubble = React.memo(
             className={`flex flex-col gap-2 ${isBot ? "items-start w-full min-w-0" : "items-end max-w-full"}`}
           >
             <div
-              className={`relative rounded-2xl px-1 text-sm leading-relaxed transition-colors
+              className={`relative rounded-2xl px-1 text-base leading-relaxed transition-colors
               ${isBot ? "text-primary w-full" : "bg-(--primary) px-4 py-2.5 text-(--surface) shadow-lg"}`}
             >
               {isEditing ? (

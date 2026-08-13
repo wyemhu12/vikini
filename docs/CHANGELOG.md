@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-08-13: UI — Chat message typography improvement
+
+### Changes
+
+- Increased chat bubble wrapper font-size from `text-sm` (14px) → `text-base` (16px) for better readability
+- Increased AI markdown body font-size from `15px` → `16px` (text-base)
+- Increased paragraph and list spacing from `mb-4` (16px) → `mb-5` (20px)
+- Aligned typography closer to ChatGPT's sizing for comfortable reading
+
+### Files Changed
+
+- `app/features/chat/components/ChatBubble.tsx` — Wrapper font-size, paragraph/list spacing
+- `app/styles/themes/_shared/utilities.css` — `.chat-markdown` font-size and paragraph spacing fallback
+
+---
+
 ## 2026-08-12: Fix — Messages sent to wrong conversation after switching chats
 
 ### Bug Fix (Critical)
