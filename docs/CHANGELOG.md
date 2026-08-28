@@ -5,6 +5,75 @@
 
 ---
 
+## 2026-08-28: Fix "Invalid color format" on Project Creation
+
+- **Bug**: Creating a new project always failed with "color: Invalid color format" validation error.
+- **Root Cause**: `CreateProjectModal.tsx` used CSS variables (`var(--color-indigo-500)`) for colors, but API validates hex format (`#xxxxxx`).
+- **Fix**: Replaced CSS variable colors with hex values in `COLORS` array and default state in [`CreateProjectModal.tsx`](file:///c:/Users/wyemh/vikini/src/components/features/projects/CreateProjectModal.tsx).
+
+## 2026-08-28: Switch DeepSeek V4 Pro Provider from Baidu to StreamLake
+
+- **Change**: OpenRouter provider routing for DeepSeek V4 Pro switched from `Baidu` (Qianfan) to `StreamLake`.
+- **Reason**: StreamLake offers 56% discount on input pricing (\$0.5795 vs \$1.32/M), lowest cache read cost (\$0.01932/M), and competitive latency (3.43s P50, 47 tps).
+- **File**: [`deepseek-stream.ts`](file:///c:/Users/wyemh/vikini/src/app/api/chat-stream/streaming/deepseek-stream.ts) — removed `quantizations: ["fp8"]` constraint, changed `order: ["Baidu"]` → `order: ["StreamLake"]`.
+
+---
+
+## 2026-08-25: Frontend Audit — Production Readiness Fixes
+
+### Based on [Front-End Checklist](https://github.com/thedaviddias/Front-End-Checklist) audit
+
+#### Error Handling (App Router Conventions)
+
+- Created `src/app/not-found.tsx` — Custom 404 page with bilingual support
+- Created `src/app/error.tsx` — Client error boundary with retry/reload
+- Created `src/app/global-error.tsx` — Last-resort root layout error boundary
+- Created `src/app/_components/go-back-button.tsx` — Client component for router.back()
+- Added translation keys: notFoundTitle, notFoundDescription, goHome, goBack, serverErrorTitle, serverErrorDescription
+
+#### Image Optimization
+
+- Added `formats: ['image/avif', 'image/webp']` to next.config.ts images config
+
+#### CSS & Config Cleanup
+
+- Migrated `tailwind.config.ts` (v3 style) → CSS `@theme` blocks in base.css (Tailwind v4)
+- Deleted `tailwind.config.ts` (no longer needed with Tailwind v4 CSS-first architecture)
+- Removed redundant `autoprefixer` from postcss.config.mjs (built into Tailwind v4)
+- Cleaned CSP headers: removed unused fonts.googleapis.com and fonts.gstatic.com whitelists
+
+#### Accessibility
+
+- Added `aria-busy` attribute to streaming message container in ChatBubble.tsx
+- Added `role="status"` with `aria-label` to TypingDots for screen reader announcements
+
+#### Tooling
+
+- Installed and configured `@next/bundle-analyzer` with `npm run analyze` script
+- Installed `@playwright/test`, created `playwright.config.ts` and sample smoke tests
+- Added scripts: `test:e2e`, `test:e2e:ui`, `analyze`
+- Excluded `tests/e2e/` from Vitest runner to prevent test framework conflicts
+
+### Files Changed
+
+- `src/app/not-found.tsx` [NEW]
+- `src/app/error.tsx` [NEW]
+- `src/app/global-error.tsx` [NEW]
+- `src/app/_components/go-back-button.tsx` [NEW]
+- `playwright.config.ts` [NEW]
+- `tests/e2e/smoke.test.ts` [NEW]
+- `next.config.ts` [MODIFIED]
+- `postcss.config.mjs` [MODIFIED]
+- `vitest.config.ts` [MODIFIED]
+- `package.json` [MODIFIED]
+- `src/app/styles/themes/_shared/base.css` [MODIFIED]
+- `src/app/features/chat/components/ChatBubble.tsx` [MODIFIED]
+- `src/lib/utils/translations/en.ts` [MODIFIED]
+- `src/lib/utils/translations/vi.ts` [MODIFIED]
+- `tailwind.config.ts` [DELETED]
+
+---
+
 ## 2026-08-13: UI — Chat message typography improvement
 
 ### Changes

@@ -1,0 +1,44 @@
+"use client";
+
+import { useEffect } from "react";
+import { AlertCircle, RefreshCw, RotateCcw } from "lucide-react";
+
+export default function ErrorPage({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    console.error("Next.js Error Boundary caught an error:", error);
+  }, [error]);
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] p-8 h-full bg-(--surface) text-(--text-primary)">
+      <div className="flex items-center justify-center w-16 h-16 mb-6 rounded-full bg-(--danger)/10 border border-(--danger)/30">
+        <AlertCircle className="w-8 h-8 text-(--danger)" />
+      </div>
+      <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
+      <p className="text-(--text-secondary) mb-6 text-center max-w-md">
+        An unexpected error occurred. Please try again.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={() => reset()}
+          className="flex items-center gap-2 px-4 py-2 bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) rounded-lg text-sm font-medium transition-colors"
+        >
+          <RotateCcw className="w-4 h-4" />
+          Try Again
+        </button>
+        <button
+          onClick={() => window.location.reload()}
+          className="flex items-center gap-2 px-4 py-2 bg-(--accent) text-white rounded-lg text-sm font-medium hover:brightness-110 transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Reload Page
+        </button>
+      </div>
+    </div>
+  );
+}

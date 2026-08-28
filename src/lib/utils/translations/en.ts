@@ -664,6 +664,12 @@ export const en = {
   tryAgain: "Try Again",
   reloadPage: "Reload Page",
   errorBoundaryDescription: "An unexpected error occurred. Please try again.",
+  notFoundTitle: "Page not found",
+  notFoundDescription: "The page you're looking for doesn't exist or has been moved.",
+  goHome: "Go Home",
+  goBack: "Go Back",
+  serverErrorTitle: "Something went wrong",
+  serverErrorDescription: "An unexpected error occurred. Please try again.",
   // ConfirmDialog
   confirmAction: "Confirm",
   working: "Working…",

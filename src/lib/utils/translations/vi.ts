@@ -674,6 +674,12 @@ export const vi = {
   tryAgain: "Thử lại",
   reloadPage: "Tải lại trang",
   errorBoundaryDescription: "Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.",
+  notFoundTitle: "Không tìm thấy trang",
+  notFoundDescription: "Trang bạn đang tìm kiếm không tồn tại hoặc đã được di chuyển.",
+  goHome: "Về trang chủ",
+  goBack: "Quay lại",
+  serverErrorTitle: "Đã xảy ra lỗi",
+  serverErrorDescription: "Một lỗi không mong muốn đã xảy ra. Vui lòng thử lại.",
   // ConfirmDialog
   confirmAction: "Xác nhận",
   working: "Đang xử lý…",

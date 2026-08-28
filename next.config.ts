@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import withBundleAnalyzer from "@next/bundle-analyzer";
 
 const config: NextConfig = {
   output: "standalone",
@@ -7,6 +8,7 @@ const config: NextConfig = {
     // Fix all TypeScript errors before building
   },
   images: {
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       {
         protocol: "https",
@@ -68,9 +70,9 @@ const config: NextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
-              "font-src 'self' data: https://fonts.gstatic.com",
+              "font-src 'self' data:",
               "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.google.com",
               "frame-ancestors 'self'",
             ].join("; "),
@@ -94,4 +96,6 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+export default withBundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+})(config);

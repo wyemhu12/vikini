@@ -439,13 +439,18 @@ const ChatBubble = React.memo(
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col w-full overflow-hidden">
+                <div
+                  className="flex flex-col w-full overflow-hidden"
+                  aria-busy={isStreaming && isLastAssistant}
+                >
                   {thought && typeof thought === "string" && (
                     <ThinkingBlock content={thought} t={t} />
                   )}
 
                   {(!hasContent && isLoading) || (showTyping && !displayContent.trim()) ? (
-                    <TypingDots />
+                    <div role="status" aria-label="AI is typing">
+                      <TypingDots />
+                    </div>
                   ) : isBot ? (
                     <div className="chat-markdown-container chat-markdown w-full overflow-hidden">
                       <ReactMarkdown

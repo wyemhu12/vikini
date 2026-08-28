@@ -162,11 +162,10 @@ export function createDeepSeekStream(params: {
           max_tokens: 8192,
         };
 
-        // Add OpenRouter provider routing for DeepSeek V4 Pro via Baidu Qianfan
+        // Add OpenRouter provider routing for DeepSeek V4 Pro via StreamLake
         if (isDeepSeekV4ProModel(model)) {
           requestBody.provider = {
-            order: ["Baidu"],
-            quantizations: ["fp8"],
+            order: ["StreamLake"],
             allow_fallbacks: true,
           };
         }

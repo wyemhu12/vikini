@@ -30,6 +30,13 @@
 - **Fix**: Replaced shadcn token classes with design system tokens (`bg-(--surface-elevated)`, `bg-(--surface-muted)`).
 - **Prevention**: When adding shadcn components, ALWAYS audit their CSS classes against the actual theme variable definitions. If they reference `bg-popover`, `bg-muted`, `bg-card` etc., replace with `--surface-*` tokens.
 
+### 2026-08-28: CSS variable colors sent to API expecting hex format
+
+- **Symptom**: "Invalid color format" validation error when creating a new project. Color picker displayed correctly but form submission failed.
+- **Root Cause**: `CreateProjectModal.tsx` used Tailwind CSS variables (`var(--color-indigo-500)`) for color values, but the API route validated colors with regex `/^#[0-9a-fA-F]{6}$/` expecting hex format. The CSS variables work fine for `backgroundColor` inline styles but fail API validation.
+- **Fix**: Replaced all CSS variable color values with their hex equivalents (e.g., `var(--color-indigo-500)` → `#6366f1`).
+- **Prevention Rule**: **When storing colors in the database via API, always use hex format (`#xxxxxx`).** CSS variables are for rendering only — they resolve at runtime in the browser and have no meaning server-side. If a color needs to persist in the DB, it must be a concrete value.
+
 ### 2026-06-12: `--surface-elevated` not overridden per-theme
 
 - **Symptom**: Dialogs/popovers showed base dark surface (`#0f1115`) on glassmorphism and light themes (e.g. Orchid showed dark popover on light background).
