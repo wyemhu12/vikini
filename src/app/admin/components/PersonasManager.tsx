@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Users, Loader2, Plus, Edit2, Trash2, AlertCircle, X } from "lucide-react";
 import PersonaEditor from "@/app/features/personas/components/PersonaEditor";
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
 import type { PersonaForUI } from "@/app/features/personas/components/PersonaPreview";
 import type { PersonaTone } from "@/types/persona";
 import { motion } from "framer-motion";
@@ -196,7 +197,11 @@ export default function PersonasManager() {
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  {persona.icon && <span className="text-2xl">{persona.icon}</span>}
+                  {persona.icon && (
+                    <span className="text-2xl shrink-0 flex items-center justify-center w-7 h-7 text-white">
+                      <DynamicIcon name={persona.icon} className="w-5 h-5" />
+                    </span>
+                  )}
                   <div>
                     <h3 className="font-semibold text-white">{persona.name}</h3>
                     <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-400">

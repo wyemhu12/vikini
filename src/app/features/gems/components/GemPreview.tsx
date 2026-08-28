@@ -1,6 +1,7 @@
 "use client";
 
 import { useLanguage } from "../../chat/hooks/useLanguage";
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
 
 export interface Gem {
   id: string;
@@ -26,7 +27,7 @@ export default function GemPreview({ gem }: GemPreviewProps) {
     <div className="h-full flex flex-col p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div className="flex items-center gap-3 mb-4">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-(--primary) text-2xl text-black shadow-lg">
-          {gem.icon || "◆"}
+          <DynamicIcon name={gem.icon} fallback="◆" className="w-6 h-6" />
         </div>
         <div>
           <h2 className="text-lg font-bold text-(--text-primary)">{gem.name}</h2>

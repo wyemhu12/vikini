@@ -170,6 +170,13 @@
 - **Fix**: Implemented a `formatPlanText` utility to intercept the raw AI text and pre-format it before rendering. It uses regex `/(?:\s+|^)\*?\*?\((\d+)\)\*?\*?\s/g` to replace inline numbers with `\n$1. `, ensuring proper markdown syntax for numbered lists.
 - **Prevention Rule**: **Do not assume managed AI APIs will output perfectly formatted Markdown with proper line breaks.** If the UI depends on semantic HTML elements (like `<ol>`), always pre-parse and normalize the AI output (e.g. converting `(1)...` to `\n1. ...`) before feeding it to `ReactMarkdown`.
 
+### 2026-08-28: Lucide icon names rendered as raw text strings alongside entity names
+
+- **Symptom**: When creating or selecting a GEM with an icon from `IconPicker` (e.g. "Lightbulb"), the text `"Lightbulb"` was rendered as raw text directly adjacent to the Gem name (e.g. `"Lightbulb  Smug Verre"`). The editor also showed `"Lightbulb"` in a text input rather than a graphical icon preview, and title showed "Edit Gem" instead of "Create Gem".
+- **Root Cause**: `IconPicker` stored Lucide icon names (strings like `"Lightbulb"`), but `GemList`, `GemPreview`, `GemQuickSwitch`, and `Persona` components rendered `{gem.icon}` as plain JSX text without resolving the string into a Lucide component or emoji. Additionally, `GemEditor` used a read-only text input for icon selection and incorrectly defaulted title to "Edit Gem".
+- **Fix**: Created `DynamicIcon` component that maps icon string names (case-insensitive) to Lucide icon components with fallback to emoji/unicode text. Upgraded `IconPicker` to render interactive previews with active state and emojis. Fixed `GemEditor` title computation for new gems (`!gem?.id`).
+- **Prevention Rule**: **Never render polymorphic icon values (icon name string or emoji) directly in JSX without a resolver component.** Always use `DynamicIcon` to distinguish between Lucide icon names and emoji/text characters, and provide interactive previews in pickers instead of raw string inputs.
+
 ---
 
 ### 2026-06-26: Form onSubmit handler dropping explicit state fallback

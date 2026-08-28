@@ -2,6 +2,7 @@
 
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import type { PersonaTone } from "@/types/persona";
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
 
 export interface PersonaForUI {
   id: string;
@@ -43,7 +44,7 @@ export default function PersonaPreview({ persona }: PersonaPreviewProps) {
     <div className="h-full flex flex-col p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div className="flex items-center gap-3 mb-4">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-(--primary) text-2xl text-black shadow-lg">
-          {persona.icon || ""}
+          <DynamicIcon name={persona.icon} className="w-6 h-6" />
         </div>
         <div>
           <h2 className="text-lg font-bold text-(--text-primary)">{persona.name}</h2>

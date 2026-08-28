@@ -118,20 +118,15 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
             />
           </div>
           <div>
-            <label className="mb-1 flex items-center gap-1 text-xs text-(--text-secondary)">
-              Icon
-              <IconPicker
-                onSelect={(emoji) => {
-                  setIcon(emoji);
-                  setDirty(true);
-                }}
-              />
+            <label className="mb-1 block text-xs text-(--text-secondary)">
+              {t("selectIcon") || "Icon"}
             </label>
-            <Input
+            <IconPicker
               value={icon}
-              readOnly
-              placeholder=""
-              className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm cursor-default"
+              onSelect={(selectedIcon) => {
+                setIcon(selectedIcon);
+                setDirty(true);
+              }}
             />
           </div>
         </div>

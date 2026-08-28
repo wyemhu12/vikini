@@ -2,6 +2,7 @@
 
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { Gem } from "./GemPreview"; // Import shared type if possible, or redefine
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
 
 interface GemListProps {
   loading: boolean;
@@ -41,7 +42,9 @@ export default function GemList({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm">{g.icon || "◆"}</span>
+              <span className="text-sm shrink-0 flex items-center justify-center w-5 h-5 text-(--text-primary)">
+                <DynamicIcon name={g.icon} fallback="◆" className="w-4 h-4" />
+              </span>
               <div className="truncate text-sm font-medium">{g.name}</div>
               {g.isPremade ? (
                 <span className="rounded bg-(--control-bg) px-1.5 py-0.5 text-xs text-(--text-secondary)">

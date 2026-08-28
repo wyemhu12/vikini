@@ -44,11 +44,11 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
     setId(gem?.id || null);
     setName(gem?.name || "");
     setDescription(gem?.description || "");
-    setInstructions(gem?.instructions || "");
+    setInstructions(gem?.instructions || gem?.instruction || "");
     setIcon(gem?.icon || "");
     setColor(gem?.color || "");
     setDirty(false);
-  }, [gem?.id]); // switch gem
+  }, [gem?.id, gem]);
 
   const canSave = useMemo(() => {
     if (isReadOnly) return false;
@@ -56,10 +56,14 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
     return dirty;
   }, [dirty, isReadOnly, name]);
 
+  const isNew = !gem?.id;
+
   const title = gem
     ? isReadOnly
       ? `${t("premadeGems")} (Read Only)`
-      : `${t("editGem")}${dirty ? " *" : ""}`
+      : isNew
+        ? `${t("createGem") || "Create Gem"}${dirty ? " *" : ""}`
+        : `${t("editGem") || "Edit Gem"}${dirty ? " *" : ""}`
     : t("selectModel");
 
   const handleChange =
@@ -110,22 +114,16 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
             />
           </div>
           <div>
-            <label className="mb-1 flex items-center gap-1 text-xs text-neutral-400">
-              Icon
-              <IconPicker
-                onSelect={(emoji) => {
-                  setIcon(emoji);
-                  setDirty(true);
-                }}
-                disabled={isReadOnly}
-              />
+            <label className="mb-1 block text-xs text-(--text-secondary)">
+              {t("selectIcon") || "Icon"}
             </label>
-            <Input
+            <IconPicker
               value={icon}
-              readOnly
+              onSelect={(selectedIcon) => {
+                setIcon(selectedIcon);
+                setDirty(true);
+              }}
               disabled={isReadOnly}
-              placeholder=""
-              className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm disabled:opacity-60 cursor-default"
             />
           </div>
         </div>

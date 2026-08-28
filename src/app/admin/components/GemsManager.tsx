@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Gem, Loader2, Plus, Edit2, Trash2, AlertCircle, X } from "lucide-react";
 import GemEditor from "@/app/features/gems/components/GemEditor";
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
 import { motion } from "framer-motion";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
@@ -164,7 +165,11 @@ export default function GemsManager() {
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  {gem.icon && <span className="text-2xl">{gem.icon}</span>}
+                  {gem.icon && (
+                    <span className="text-2xl shrink-0 flex items-center justify-center w-7 h-7 text-white">
+                      <DynamicIcon name={gem.icon} className="w-5 h-5" />
+                    </span>
+                  )}
                   <h3 className="font-semibold text-white">{gem.name}</h3>
                 </div>
                 <div className="flex gap-1">

@@ -118,6 +118,9 @@ export const vi = {
   gemPlaceholderDesc: "Mô tả ngắn gọn chức năng của Gem",
   gemPlaceholderInst: "Nhập hướng dẫn chi tiết cho AI...",
   gemDeleteConfirm: "Bạn có chắc chắn muốn xóa Gem này?",
+  gemDeleteWarning: "Bạn có chắc chắn muốn xóa Gem này? Hành động này không thể hoàn tác.",
+  gemDeleted: "Đã xóa Gem thành công",
+  gemSaved: "Đã lưu Gem thành công!",
   selectIcon: "Chọn Icon",
   backToChat: "Quay lại Chat",
   // Sidebar & Conversations

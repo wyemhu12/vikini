@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-08-28: Fix GEM and Persona Icon Rendering & Editor Display
+
+- **Bug**: Selecting an icon (e.g., Lucide icon like "Lightbulb") for a GEM caused the raw string `"Lightbulb"` to render as plain text in the GEM list right beside the GEM name (`"Lightbulb  Smug Verre"`), in the preview box, quick switcher, and admin view. In the editor, a read-only input showed `"Lightbulb"` as text, and creating a new GEM incorrectly displayed the title "Edit Gem".
+- **Root Cause**: `{gem.icon}` was rendered directly as raw text in JSX without resolving Lucide icon component names vs emojis. The editor lacked an interactive preview trigger and miscomputed new vs edit titles.
+- **Fix**:
+  - Created [`DynamicIcon.tsx`](file:///c:/Users/wyemh/vikini/src/components/ui/DynamicIcon.tsx) to resolve Lucide icons (case-insensitive) and unicode emojis with customizable fallbacks.
+  - Upgraded [`IconPicker.tsx`](file:///c:/Users/wyemh/vikini/src/components/ui/IconPicker.tsx) with interactive icon/emoji trigger preview, active state highlight, clear button, and emoji grid.
+  - Updated [`GemEditor.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/gems/components/GemEditor.tsx) to fix creation title (`!gem?.id`) and integrate upgraded `IconPicker`.
+  - Updated [`GemList.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/gems/components/GemList.tsx), [`GemPreview.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/gems/components/GemPreview.tsx), [`GemQuickSwitch.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/gems/components/GemQuickSwitch.tsx), [`PersonaList.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/personas/components/PersonaList.tsx), [`PersonaPreview.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/personas/components/PersonaPreview.tsx), [`PersonaQuickSwitch.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/personas/components/PersonaQuickSwitch.tsx), [`GemsManager.tsx`](file:///c:/Users/wyemh/vikini/src/app/admin/components/GemsManager.tsx), and [`PersonasManager.tsx`](file:///c:/Users/wyemh/vikini/src/app/admin/components/PersonasManager.tsx) to use `DynamicIcon`.
+  - Added unit test suite in [`DynamicIcon.test.tsx`](file:///c:/Users/wyemh/vikini/src/components/ui/DynamicIcon.test.tsx).
+
 ## 2026-08-28: Fix "Invalid color format" on Project Creation
 
 - **Bug**: Creating a new project always failed with "color: Invalid color format" validation error.

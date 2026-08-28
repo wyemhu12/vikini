@@ -3,6 +3,7 @@
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import type { PersonaForUI } from "./PersonaPreview";
 import { Check, Eye, Edit2, Trash2 } from "lucide-react";
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
 
 interface PersonaListProps {
   loading: boolean;
@@ -55,7 +56,9 @@ function PersonaCard({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm">{persona.icon || ""}</span>
+            <span className="text-sm shrink-0 flex items-center justify-center w-5 h-5 text-(--text-primary)">
+              <DynamicIcon name={persona.icon} className="w-4 h-4" />
+            </span>
             <div className="truncate text-sm font-medium">{persona.name}</div>
             <span className="rounded bg-(--control-bg) px-1.5 py-0.5 text-[10px] text-(--text-secondary)">
               {TONE_BADGES[persona.tone] || persona.tone}

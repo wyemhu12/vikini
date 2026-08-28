@@ -166,12 +166,14 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error?.message || json?.error || "Save failed");
 
+      toast.success(t("gemSaved") || "Gem saved successfully");
       setStatus(t("success") || "Success");
       const data = json.data || json;
       setEditingGem(data?.gem || null);
       await refresh();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Save failed";
+      toast.error(message);
       setStatus(message);
     }
   };
