@@ -1,7 +1,8 @@
 // /app/features/chat/components/SmartCode.tsx
 "use client";
 
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { Check, Copy, ChevronDown, ChevronUp } from "lucide-react";
 import { useLanguage } from "../hooks/useLanguage";
 import { logger } from "@/lib/utils/logger";
 
@@ -55,21 +56,34 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
 
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(codeText);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      logger.error("Failed to copy code to clipboard:", err);
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      logger.error("Failed to copy code to clipboard:", message);
     }
   }, [codeText]);
 
   // Inline code
   if (inline) {
     return (
-      <code className="rounded bg-control px-1.5 py-0.5 font-mono text-[0.9em] text-(--primary-light)">
+      <code className="rounded bg-(--control-bg) px-1.5 py-0.5 font-mono text-xs text-(--accent)">
         {children}
       </code>
     );
@@ -81,67 +95,90 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
   const isCollapsible = lineCount > COLLAPSE_AFTER_LINES;
   const isCollapsed = isCollapsible && !expanded;
 
+  const expandLabel =
+    t("expandCode") && t("expandCode") !== "expandCode"
+      ? t("expandCode")
+      : t("expand")
+        ? `${t("expand")} code`
+        : "Expand code";
+
+  const collapseLabel =
+    t("collapseCode") && t("collapseCode") !== "collapseCode"
+      ? t("collapseCode")
+      : t("collapse")
+        ? `${t("collapse")} code`
+        : "Collapse code";
+
   return (
-    <div className="group/code my-5 overflow-hidden rounded-xl border card-surface shadow-2xl transition-colors hover:border-token">
+    <div className="group/code my-5 overflow-hidden rounded-xl border border-(--border) bg-(--surface-elevated) shadow-2xl transition-colors">
       {/* Header */}
-      <div className="flex items-center justify-between bg-surface-muted px-4 py-3 border-b border-token select-none">
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1.5 opacity-60 group-hover/code:opacity-100 transition-opacity">
-            <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
-            <div className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
-            <div className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
-          </div>
-          <span className="ml-3 text-xs font-mono font-medium text-secondary uppercase tracking-wider">
-            {lang}
-          </span>
-        </div>
+      <div className="flex items-center justify-between border-b border-(--border) bg-(--control-bg) px-4 py-2.5 select-none">
+        <span className="font-mono text-xs font-semibold uppercase tracking-wider text-(--text-secondary)">
+          {lang}
+        </span>
 
-        <div className="flex items-center gap-2">
-          {isCollapsible && (
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="px-2 py-1 rounded hover:bg-control-hover text-[10px] font-bold text-secondary hover:text-primary transition-colors uppercase tracking-wider"
-            >
-              {expanded ? t("collapse") : t("expand")}
-            </button>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all duration-200 active:scale-[0.95] focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
+            copied
+              ? "bg-(--success)/10 text-(--success)"
+              : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--surface-elevated)"
+          }`}
+          aria-label={copied ? t("copied") || "Copied" : t("copy") || "Copy"}
+        >
+          {copied ? (
+            <>
+              <Check className="h-3.5 w-3.5 text-(--success)" />
+              <span className="text-(--success)">{t("copied") || "Copied"}</span>
+            </>
+          ) : (
+            <>
+              <Copy className="h-3.5 w-3.5" />
+              <span>{t("copy") || "Copy"}</span>
+            </>
           )}
-
-          <button
-            onClick={handleCopy}
-            className={`
-              flex items-center gap-1.5 px-2 py-1 rounded transition-colors duration-200
-              text-[10px] font-bold uppercase tracking-wider
-              ${
-                copied
-                  ? "bg-(--success)/10 text-(--success)"
-                  : "text-secondary hover:text-primary hover:bg-control-hover"
-              }
-            `}
-          >
-            {copied ? t("copied") : t("copy")}
-          </button>
-        </div>
+        </button>
       </div>
 
       {/* Code Content */}
       <div
-        className={`relative ${isCollapsed ? "max-h-[320px]" : ""} transition-colors duration-300`}
+        className={`relative ${isCollapsed ? "max-h-[320px] overflow-hidden" : ""} transition-colors duration-300`}
       >
         <pre className="p-4 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
           <code
-            className={`${className} bg-transparent! text-[13px] leading-6 font-mono p-0! block min-w-full`}
+            className={`${className || ""} bg-transparent! text-[13px] leading-6 font-mono text-(--text-primary) p-0! block min-w-full`}
           >
             {children}
           </code>
         </pre>
+
         {isCollapsed && (
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-(--surface) via-[color-mix(in_srgb,var(--surface)_80%,transparent)] to-transparent pointer-events-none flex items-end justify-center pb-4">
-            <div className="text-[10px] font-bold text-secondary uppercase tracking-widest">
-              {lineCount - COLLAPSE_AFTER_LINES} more lines...
-            </div>
+          <div className="absolute inset-x-0 bottom-0 flex h-28 items-end justify-center bg-gradient-to-t from-(--surface-elevated) to-transparent pb-4 pointer-events-none">
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="pointer-events-auto flex items-center gap-1.5 rounded-md border border-(--border) bg-(--surface-elevated) px-3 py-1.5 text-xs font-medium text-(--text-secondary) hover:text-(--text-primary) shadow-sm transition-all active:scale-[0.95] focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+              <span>{expandLabel}</span>
+            </button>
           </div>
         )}
       </div>
+
+      {isCollapsible && expanded && (
+        <div className="flex items-center justify-center border-t border-(--border) bg-(--control-bg)/40 p-2">
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            className="flex items-center gap-1.5 rounded-md border border-(--border) bg-(--surface-elevated) px-3 py-1.5 text-xs font-medium text-(--text-secondary) hover:text-(--text-primary) shadow-sm transition-all active:scale-[0.95] focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+          >
+            <ChevronUp className="h-3.5 w-3.5" />
+            <span>{collapseLabel}</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
