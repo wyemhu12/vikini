@@ -32,6 +32,12 @@ export const en = {
   themes: "Themes",
   vi: "Vietnamese",
   en: "English",
+  // Theme names
+  nebula: "Nebula",
+  orchid: "Orchid",
+  aqua: "Aqua",
+  holo: "Holo",
+  sunset: "Sunset",
   blueprint: "Blueprint",
   amber: "Amber",
   indigo: "Indigo",
@@ -643,6 +649,8 @@ export const en = {
   deleteChatFailed2: "Failed to delete chat",
   // Thinking & Charts
   thinkingProcess: "Thinking Process",
+  thinkingNoResponseContent:
+    "Response only contains thinking deliberation without answer content. Please click Regenerate.",
   loadingChart: "Loading Chart...",
   // Image Mode
   imageModeLabel: "IMAGE GENERATION MODE",

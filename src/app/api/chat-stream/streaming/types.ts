@@ -142,6 +142,7 @@ export interface ChatStreamParams {
     apiModel?: string;
     normalized?: boolean;
     isDefault?: boolean;
+    maxOutputTokens?: number;
   };
   createdConversation: unknown | null;
   shouldGenerateTitle: boolean;

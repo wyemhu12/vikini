@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-09-05: Fix DeepSeek V4 Pro Reasoning Token Cutoff & Empty Response Fallback
+
+- **Bug**: DeepSeek V4 Pro in Project chats occasionally output only the Thinking Process (`<think>...</think>`) and stopped abruptly without emitting any response content, leaving a blank message with action buttons.
+- **Root Cause**:
+  - `deepseek-stream.ts` hardcoded `max_tokens: 8192`. In reasoning models, thinking tokens count directly against the total output token limit.
+  - In Project chats with extensive context (RAG chunks + GEM persona instructions + conversation history) and High Thinking Level, DeepSeek generated ~8,192 tokens of reasoning.
+  - The stream was cut off by OpenRouter with `finish_reason: "length"` before any `content` tokens were emitted.
+  - The backend closed the stream silently and the UI rendered an empty message.
+- **Fix**:
+  - In [`deepseek-stream.ts`](file:///c:/Users/wyemh/vikini/src/app/api/chat-stream/streaming/deepseek-stream.ts):
+    - Raised output token ceiling to `16,384` for thinking mode via `effectiveMaxTokens`.
+    - Configured OpenRouter `reasoning: { effort: reasoningEffort }`.
+    - Calibrated `thinkMaxPrefix` to prevent runaway deliberation loops on heavy project prompts.
+    - Added backend fallback: if a stream finishes with zero answer content outside `<think>`, append a clear explanatory message outside the thinking block.
+  - In [`ChatBubble.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/ChatBubble.tsx):
+    - Added UI fallback when a stored or finished message has `thought` but empty `displayContent`, rendering `t("thinkingNoResponseContent")`.
+  - Added bilingual keys `thinkingNoResponseContent` to [`vi.ts`](file:///c:/Users/wyemh/vikini/src/lib/utils/translations/vi.ts) and [`en.ts`](file:///c:/Users/wyemh/vikini/src/lib/utils/translations/en.ts).
+  - Added unit test suite [`deepseek-stream.test.ts`](file:///c:/Users/wyemh/vikini/src/app/api/chat-stream/streaming/deepseek-stream.test.ts) covering token budgets, thinking blocks, and token limit / empty content fallbacks.
+
 ## 2026-09-05: Chat Core UX/UI Augmentation (Craft-Grade Polish & Modular Decomposition)
 
 - **Architecture & Modularity**:

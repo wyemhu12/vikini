@@ -213,12 +213,18 @@ export const ChatBubble = React.memo(
                             onClick={setLightboxFile}
                           />
                         )}
-                      <BubbleMarkdown
-                        content={deferredDisplayContent}
-                        isBot={isBot}
-                        isStreaming={isStreaming}
-                        isLastAssistant={isLastAssistant}
-                      />
+                      {isBot && !isStreaming && Boolean(thought) && !displayContent.trim() ? (
+                        <div className="text-sm italic text-(--text-secondary) py-1">
+                          {t("thinkingNoResponseContent")}
+                        </div>
+                      ) : (
+                        <BubbleMarkdown
+                          content={deferredDisplayContent}
+                          isBot={isBot}
+                          isStreaming={isStreaming}
+                          isLastAssistant={isLastAssistant}
+                        />
+                      )}
                     </>
                   )}
                 </div>

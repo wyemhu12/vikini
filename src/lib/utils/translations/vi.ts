@@ -31,6 +31,11 @@ export const vi = {
   vi: "Tiếng Việt",
   en: "Tiếng Anh",
   // Theme names
+  nebula: "Nebula",
+  orchid: "Orchid",
+  aqua: "Aqua",
+  holo: "Holo",
+  sunset: "Sunset",
   blueprint: "Xanh Dịu (Blueprint)",
   amber: "Cam-Nâu",
   indigo: "Tím-Xanh",
@@ -653,6 +658,8 @@ export const vi = {
   deleteChatFailed2: "Không thể xóa đoạn chat",
   // Thinking & Charts
   thinkingProcess: "Quá trình suy nghĩ",
+  thinkingNoResponseContent:
+    "Phản hồi chỉ ghi nhận quá trình suy nghĩ và chưa có nội dung trả lời. Vui lòng bấm Thử lại.",
   loadingChart: "Đang tải biểu đồ...",
   // Image Mode
   imageModeLabel: "CHẾ ĐỘ TẠO ẢNH",

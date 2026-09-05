@@ -329,3 +329,22 @@
 - **Secondary bug**: The `complete` event handler on the client side always called `localStorage.removeItem(ACTIVE_RESEARCH_KEY)`. This meant a `ready_to_execute` complete event would wipe the active task from storage, causing it to be lost on page refresh.
 - **Fix**: (1) Added `ready_to_execute` to the terminal status check in SSE stream route, so the planning stream closes when the plan is ready. (2) Modified the client `complete` handler to only clear localStorage when `status === "completed" || "failed"`, not on `ready_to_execute`.
 - **Prevention Rule**: **SSE streams for multi-phase workflows MUST close at each phase boundary, not just at the final terminal state.** Each phase (planning → approval → executing) should have its own SSE lifecycle. The client should open a NEW connection for the next phase. Also: localStorage cleanup in event handlers must check the semantic meaning of the status, not assume `complete` event = task finished.
+
+## AI Streaming and Thinking Mode
+
+### 2026-09-05: DeepSeek V4 Reasoning Token Exhaustion in Project Chats
+
+- **Symptom**: In Project chats with DeepSeek V4 Pro, AI occasionally outputs only the `<think>...</think>` (Thinking Process) block, then stops abruptly with no response content. The chat displays an empty message bubble with action buttons.
+- **Root Cause**:
+  1. `deepseek-stream.ts` hardcoded `max_tokens: 8192`. Reasoning models include reasoning tokens (`reasoning_content`) in the total output token limit.
+  2. When Thinking Level was set to High/Deep, `thinkMaxPrefix` instructed the model to "document every intermediate step, considered alternative, and rejected hypothesis".
+  3. In Project chats, extensive context (Project RAG knowledge chunks + GEM instructions + chat history) caused reasoning deliberation alone to exhaust all 8,192 tokens.
+  4. The provider terminated the stream with `finish_reason: "length"` while still in the thinking phase (0 content tokens produced).
+  5. The backend silently closed `</think>` without checking `finish_reason` or verifying whether content was emitted, and the UI displayed only the ThinkingBlock with empty markdown.
+- **Fix**:
+  1. In `deepseek-stream.ts`, dynamically set `max_tokens: Math.max(registeredMaxOutput || 8192, isThinkingEnabled ? 16384 : 8192)`, expanding token budget for thinking models to 16,384 tokens.
+  2. Calibrated `thinkMaxPrefix` to balance thorough deliberation with a clear directive to transition to the final response without redundant loops.
+  3. Configured modern OpenRouter `reasoning: { effort: reasoningEffort }` parameters.
+  4. Added backend fallback in `deepseek-stream.ts`: if a stream finishes with zero non-thinking content, append an explicit explanatory notice outside `<think>` (differentiating token limit cutoff from clean stops).
+  5. Added frontend fallback in `ChatBubble.tsx`: if a saved message has `thought` but empty `displayContent`, display a localized notice `t("thinkingNoResponseContent")`.
+- **Prevention Rule**: **Reasoning models require output token headroom that accommodates BOTH thinking tokens AND completion tokens.** Never hardcode small `max_tokens` for reasoning-enabled models. Always verify that response content was actually generated before closing streams, and never leave an empty response when a stream terminates during reasoning.

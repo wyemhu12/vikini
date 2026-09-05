@@ -31,6 +31,8 @@ vi.mock("../hooks/useLanguage", () => ({
         stopSpeaking: "Stop",
         readAloud: "Read aloud",
         thinkingProcess: "Thinking Process",
+        thinkingNoResponseContent:
+          "Response only contains thinking deliberation without answer content. Please click Regenerate.",
       };
       return dict[key] || key;
     },
@@ -116,6 +118,23 @@ describe("ChatBubble", () => {
       // Expanding thinking block shows inner thought
       fireEvent.click(thinkingBtn);
       expect(screen.getByText("Analyzing step 1, step 2.")).toBeInTheDocument();
+    });
+
+    it("renders fallback notice when thought is present but display content is empty", () => {
+      const msgWithThoughtOnly: ChatMessage = {
+        id: "msg-bot-thought-only",
+        role: "assistant",
+        content: "<thought>Deliberating only...</thought>",
+      };
+
+      render(<ChatBubble message={msgWithThoughtOnly} isStreaming={false} />);
+
+      expect(screen.getByRole("button", { name: /thinking process/i })).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Response only contains thinking deliberation without answer content. Please click Regenerate."
+        )
+      ).toBeInTheDocument();
     });
 
     it("renders actions dock for assistant message", () => {
