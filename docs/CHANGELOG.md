@@ -5,7 +5,27 @@
 
 ---
 
-## 2026-08-28: Fix GEM and Persona Icon Rendering & Editor Display
+## 2026-09-05: Chat Core UX/UI Augmentation (Craft-Grade Polish & Modular Decomposition)
+
+- **Architecture & Modularity**:
+  - Decomposed monolithic `ChatBubble.tsx` (582 lines) into a focused shell controller (303 lines, pre-prettier 218 lines), strictly below the 400-line modularity threshold.
+  - Extracted [`BubbleAvatar.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/BubbleAvatar.tsx) (73 lines) managing user and model avatars with animated halo pulse for AI loading states.
+  - Extracted [`BubbleMarkdown.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/BubbleMarkdown.tsx) (187 lines) isolating the complete ReactMarkdown parsing and sanitization pipeline.
+- **Design Tokens & Theme Harmony**:
+  - Replaced 100% of dead Tailwind v4 classes across chat core (`border-token`, `bg-surface-elevated`, `bg-surface-muted`, `text-primary`, `text-secondary`, `bg-control`, `bg-surface/95`) with standardized Vikini tokens (`bg-(--surface-elevated)`, `border-(--border)`, `text-(--text-primary)`, `text-(--text-secondary)`, `bg-(--control-bg)`).
+  - Ensured WCAG 2.2 contrast compliance across all 15 themes (Focus, Glassmorphism, RA2).
+- **Typography & Accessibility**:
+  - Eliminated all sub-12px text sizes (`text-[8px]`, `text-[9px]`, `text-[10px]`) in favor of standardized `text-xs font-semibold`.
+  - Added visible focus rings (`focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none`) and active press feedback (`active:scale-[0.92]` or `0.95`) on all interactive buttons.
+  - Added ARIA state attributes: `aria-expanded` on `ThinkingBlock`, `aria-pressed` on TTS speak button, and explicit `type="button"`.
+- **Emil Kowalski Micro-Interactions**:
+  - Upgraded [`SmartCode.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/SmartCode.tsx) to developer-grade: removed fake Mac window dots, added monospace language header, morphing copy check button, and gradient fade mask (`bg-gradient-to-t`) for code blocks over 20 lines with expand/collapse control.
+  - Upgraded [`MessageActions.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/MessageActions.tsx) into a floating glass dock (`backdrop-blur-md bg-(--surface-elevated)/80 border border-(--border) rounded-full px-2.5 py-1`) with $\ge 28\text{px}$ tap targets.
+  - Refactored [`BubbleHelpers.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/BubbleHelpers.tsx): made `TypingCursor` anti-orphan (`inline-block whitespace-nowrap align-middle`) and `ThinkingBlock` smooth spring accordion.
+  - Upgraded [`InputForm.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/InputForm.tsx): replaced custom SVGs with `SendHorizontal` and `Square` from Lucide React, implemented smart Send/Stop button state machine, added desktop keyboard shortcut hints (`↵ Send`, `Shift+↵ New line`), and removed prop-drilling `t` to directly consume `useLanguage()`.
+  - Polished [`ChatControls.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/ChatControls.tsx): integrated Radix `Popover` for the agent selector and tokenized `bg-(--surface)/95`.
+- **Testing**:
+  - Added 6 co-located test suites in `src/app/features/chat/components/` with 64 tests covering all components: `SmartCode.test.tsx`, `BubbleHelpers.test.tsx`, `MessageActions.test.tsx`, `BubbleAvatar.test.tsx`, `ChatBubble.test.tsx`, and `InputForm.test.tsx`.
 
 - **Bug**: Selecting an icon (e.g., Lucide icon like "Lightbulb") for a GEM caused the raw string `"Lightbulb"` to render as plain text in the GEM list right beside the GEM name (`"Lightbulb  Smug Verre"`), in the preview box, quick switcher, and admin view. In the editor, a read-only input showed `"Lightbulb"` as text, and creating a new GEM incorrectly displayed the title "Edit Gem".
 - **Root Cause**: `{gem.icon}` was rendered directly as raw text in JSX without resolving Lucide icon component names vs emojis. The editor lacked an interactive preview trigger and miscomputed new vs edit titles.
