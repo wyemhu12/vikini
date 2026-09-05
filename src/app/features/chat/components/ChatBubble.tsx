@@ -1,44 +1,30 @@
 // /app/features/chat/components/ChatBubble.tsx
 "use client";
 
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
-import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
-import rehypeHighlight from "rehype-highlight";
 import React, { useMemo, useState, useEffect, useRef, useCallback, useDeferredValue } from "react";
-import { useLanguage } from "../hooks/useLanguage";
 import dynamic from "next/dynamic";
-import { Sparkles, ImageIcon } from "lucide-react";
+import { motion } from "framer-motion";
+import { ImageIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { logger } from "@/lib/utils/logger";
 import type { FileItem } from "@/types/files";
-import { motion } from "framer-motion";
-
-// Sub-components
-import SmartCode, { extractText } from "./SmartCode";
+import { useLanguage } from "../hooks/useLanguage";
+import { extractThinking } from "./markdownConfig";
+import { BubbleAvatar } from "./BubbleAvatar";
+import { BubbleMarkdown } from "./BubbleMarkdown";
+import { TypingDots, ThinkingBlock } from "./BubbleHelpers";
 import MessageActions from "./MessageActions";
 import SourceLinks from "./SourceLinks";
 import ImageGenPreview from "./ImageGenPreview";
 import TokenBadge from "./TokenBadge";
 import { FileInMessage } from "./FileInMessage";
-import { ModelAvatar } from "./ModelAvatar";
 
-// Extracted helpers
-import { TypingDots, TypingCursor, ThinkingBlock } from "./BubbleHelpers";
-import { extractThinking, EXTENDED_TAG_NAMES } from "./markdownConfig";
-
-// ============================================
-// Type Definitions
-// ============================================
-
-interface MessageMeta {
-  type?: "image_gen" | "text" | string;
+export interface MessageMeta {
+  type?: string;
   imageUrl?: string;
   prompt?: string;
   attachment?: { url: string };
   fileIds?: string[];
-  // Token usage fields
   totalTokenCount?: number;
   promptTokenCount?: number;
   candidatesTokenCount?: number;
@@ -46,7 +32,7 @@ interface MessageMeta {
   [key: string]: unknown;
 }
 
-interface ChatMessage {
+export interface ChatMessage {
   role: string;
   content: string;
   id?: string;
@@ -56,105 +42,7 @@ interface ChatMessage {
   [key: string]: unknown;
 }
 
-interface MarkdownChildrenProps {
-  children?: React.ReactNode;
-}
-
-interface MarkdownLinkProps extends MarkdownChildrenProps {
-  href?: string;
-}
-
-interface CodeProps {
-  inline?: boolean;
-  className?: string;
-  children?: React.ReactNode;
-}
-
-interface ReactElementProps {
-  className?: string;
-  children?: React.ReactNode;
-}
-
-// ============================================
-// Dynamic Imports
-// ============================================
-
-const ChartTool = dynamic(() => import("./ChartTool"), {
-  loading: () => (
-    <div className="w-full h-64 flex items-center justify-center bg-surface-muted rounded-xl animate-pulse">
-      <span className="text-sm text-secondary">Loading Chart...</span>
-    </div>
-  ),
-  ssr: false,
-});
-
-const FileLightbox = dynamic(() => import("./FileLightbox"), { ssr: false });
-
-// ============================================
-// Markdown Components
-// ============================================
-
-function PreBlock({ children }: MarkdownChildrenProps) {
-  if (React.isValidElement(children)) {
-    const childProps = (children.props || {}) as ReactElementProps;
-    const className = childProps.className || "";
-    const isCodeElement = children.type === "code" || className;
-
-    if (isCodeElement) {
-      const isJson = className.includes("language-json");
-
-      if (isJson) {
-        try {
-          const textContent = extractText(childProps.children);
-          const start = textContent.indexOf("{");
-          const end = textContent.lastIndexOf("}");
-
-          if (start !== -1 && end !== -1 && end > start) {
-            const potentialJson = textContent.slice(start, end + 1);
-            if (potentialJson.includes("chart")) {
-              interface ChartData {
-                type: string;
-                chartType?: string;
-                title?: string;
-                data: Array<Record<string, string | number>>;
-                xKey: string;
-                yKeys: string[];
-                colors?: string[];
-              }
-              const parsed = JSON.parse(potentialJson) as ChartData;
-              if (parsed.type === "chart" && parsed.data && parsed.xKey && parsed.yKeys) {
-                return <ChartTool {...parsed} />;
-              }
-            }
-          }
-        } catch {
-          // Ignore JSON parse errors
-        }
-      }
-
-      return (
-        <SmartCode inline={false} className={className}>
-          {childProps.children}
-        </SmartCode>
-      );
-    }
-  }
-  return <pre>{children}</pre>;
-}
-
-function InlineCode({ children, className }: CodeProps) {
-  return (
-    <SmartCode inline={true} className={className}>
-      {children}
-    </SmartCode>
-  );
-}
-
-// ============================================
-// Main Component Props
-// ============================================
-
-interface ChatBubbleProps {
+export interface ChatBubbleProps {
   message: ChatMessage;
   role?: string;
   content?: string;
@@ -162,65 +50,39 @@ interface ChatBubbleProps {
   urlContext?: unknown[];
   isLastAssistant?: boolean;
   canRegenerate?: boolean;
+  regenerating?: boolean;
+  isStreaming?: boolean;
+  isSpeaking?: boolean;
+  conversationId?: string;
   onRegenerate?: () => void;
   onEdit?: (message: ChatMessage, newContent: string) => void;
   onDelete?: (messageId: string) => void;
   onImageRegenerate?: (message: ChatMessage) => void;
   onImageEdit?: (message: ChatMessage) => void;
-  regenerating?: boolean;
-  /** Is currently streaming response */
-  isStreaming?: boolean;
-  /** TTS callback */
   onSpeak?: () => void;
-  /** Is TTS currently speaking this message */
-  isSpeaking?: boolean;
-  /** Conversation ID for file lookups */
-  conversationId?: string;
 }
 
-// ============================================
-// Main Component
-// ============================================
+const FileLightbox = dynamic(() => import("./FileLightbox"), { ssr: false });
 
-const ChatBubble = React.memo(
-  function ChatBubble({
-    message,
-    role,
-    content,
-    sources: sourcesProp,
-    urlContext: urlContextProp,
-    isLastAssistant,
-    canRegenerate,
-    onRegenerate,
-    onEdit,
-    onDelete,
-    onImageRegenerate,
-    onImageEdit,
-    regenerating,
-    isStreaming,
-    onSpeak,
-    isSpeaking,
-    conversationId,
-  }: ChatBubbleProps) {
+export const ChatBubble = React.memo(
+  function ChatBubble(props: ChatBubbleProps) {
+    const { message, conversationId, isLastAssistant, isStreaming } = props;
     const { t } = useLanguage();
 
-    // Normalize message
     const safeMessage = useMemo((): ChatMessage => {
-      const base: ChatMessage =
+      const b =
         message && typeof message === "object" ? message : { role: "assistant", content: "" };
       return {
-        role: base.role || role || "assistant",
-        content: base.content || content || "",
-        sources: base.sources || sourcesProp || [],
-        urlContext: base.urlContext || urlContextProp || [],
-        id: base.id,
-        meta: base.meta || {},
+        role: b.role || props.role || "assistant",
+        content: b.content || props.content || "",
+        sources: b.sources || props.sources || [],
+        urlContext: b.urlContext || props.urlContext || [],
+        id: b.id,
+        meta: b.meta || {},
       };
-    }, [message, role, content, sourcesProp, urlContextProp]);
+    }, [message, props.role, props.content, props.sources, props.urlContext]);
 
     const isBot = safeMessage.role === "assistant";
-
-    // Edit state
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState(safeMessage.content);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -230,7 +92,6 @@ const ChatBubble = React.memo(
     useEffect(() => {
       setEditContent(safeMessage.content);
     }, [safeMessage.content]);
-
     useEffect(() => {
       if (isEditing && textareaRef.current) {
         textareaRef.current.focus();
@@ -239,7 +100,6 @@ const ChatBubble = React.memo(
       }
     }, [isEditing]);
 
-    // Handlers
     const handleCopyMessage = useCallback(async () => {
       try {
         await navigator.clipboard.writeText(safeMessage.content || "");
@@ -251,13 +111,10 @@ const ChatBubble = React.memo(
     }, [safeMessage.content]);
 
     const handleSaveEdit = () => {
-      if (editContent.trim() !== safeMessage.content) {
-        onEdit?.(safeMessage, editContent);
-      }
+      if (editContent.trim() !== safeMessage.content) props.onEdit?.(safeMessage, editContent);
       setIsEditing(false);
     };
 
-    // Extract thinking content
     const {
       thought,
       rest: displayContent,
@@ -267,73 +124,9 @@ const ChatBubble = React.memo(
       return extractThinking(safeMessage.content || "");
     }, [safeMessage.content, isBot]);
 
-    // Markdown components config
-    const mdComponents = useMemo(
-      () => ({
-        code: InlineCode,
-        pre: PreBlock,
-        p: ({ children }: MarkdownChildrenProps) => (
-          <p className="mb-5 last:mb-0 leading-7 wrap-break-word">{children}</p>
-        ),
-        ul: ({ children }: MarkdownChildrenProps) => (
-          <ul className="mb-5 ml-6 list-disc space-y-2">{children}</ul>
-        ),
-        ol: ({ children }: MarkdownChildrenProps) => (
-          <ol className="mb-5 ml-6 list-decimal space-y-2">{children}</ol>
-        ),
-        li: ({ children }: MarkdownChildrenProps) => <li className="leading-7">{children}</li>,
-        h1: ({ children }: MarkdownChildrenProps) => (
-          <h1 className="mt-8 mb-4 text-2xl font-bold text-primary border-b border-token pb-2">
-            {children}
-          </h1>
-        ),
-        h2: ({ children }: MarkdownChildrenProps) => (
-          <h2 className="mt-7 mb-3 text-xl font-bold text-primary">{children}</h2>
-        ),
-        h3: ({ children }: MarkdownChildrenProps) => (
-          <h3 className="mt-6 mb-2 text-lg font-bold text-primary">{children}</h3>
-        ),
-        blockquote: ({ children }: MarkdownChildrenProps) => (
-          <blockquote className="border-l-4 border-token pl-4 py-1 my-4 text-secondary italic">
-            {children}
-          </blockquote>
-        ),
-        a: ({ href, children }: MarkdownLinkProps) => (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-(--primary-light) hover:underline break-all"
-          >
-            {children}
-          </a>
-        ),
-        table: ({ children }: MarkdownChildrenProps) => (
-          <div className="overflow-x-auto my-4 rounded-lg border border-token bg-surface-elevated">
-            <table className="w-full text-left text-sm">{children}</table>
-          </div>
-        ),
-        thead: ({ children }: MarkdownChildrenProps) => (
-          <thead className="bg-surface-muted uppercase font-bold text-xs text-secondary">
-            {children}
-          </thead>
-        ),
-        th: ({ children }: MarkdownChildrenProps) => (
-          <th className="px-4 py-3 border-b border-token text-primary">{children}</th>
-        ),
-        td: ({ children }: MarkdownChildrenProps) => (
-          <td className="px-4 py-3 border-b border-token text-secondary">{children}</td>
-        ),
-      }),
-      []
-    );
-
-    // Sử dụng useDeferredValue để ưu tiên mượt mà của scroll/UI hơn là render Markdown liên tục
     const deferredDisplayContent = useDeferredValue(displayContent);
-
-    // Loading states
     const hasContent = Boolean(displayContent?.trim()) || Boolean(thought?.trim());
-    const isLoading = isBot && isLastAssistant && (regenerating || !hasContent);
+    const isLoading = isBot && isLastAssistant && (props.regenerating || !hasContent);
     const showTyping =
       isLoading || (isBot && isLastAssistant && isStreamThinking && !displayContent.trim());
 
@@ -347,61 +140,21 @@ const ChatBubble = React.memo(
         <div
           className={`flex max-w-[95%] lg:max-w-[90%] gap-4 ${isBot ? "items-start" : "flex-row-reverse items-start"}`}
         >
-          {/* Avatar */}
-          <div
-            className={`relative flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-lg border text-[10px] font-black tracking-tighter shadow-sm overflow-hidden transition-[border-color,background-color,box-shadow] duration-300
-            ${
-              isBot
-                ? isLoading
-                  ? "border-blue-500/20 bg-blue-500/5 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
-                  : "border-token bg-surface-elevated text-primary"
-                : "border-(--primary)/20 bg-(--primary) text-(--surface)"
-            }`}
-          >
-            {isBot ? (
-              isLoading ? (
-                <motion.div
-                  className="relative flex items-center justify-center w-full h-full"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                >
-                  <motion.div
-                    className="absolute inset-0 bg-blue-500/10"
-                    animate={{
-                      scale: [1, 1.2, 1],
-                      opacity: [0.5, 0.8, 0.5],
-                    }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                  />
-                  <Sparkles className="w-4 h-4 text-blue-400 z-10" />
-                  <motion.div
-                    className="absolute inset-0"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                  >
-                    <div className="w-full h-full rounded-lg border-2 border-transparent border-t-blue-400/30 border-r-blue-400/30" />
-                  </motion.div>
-                </motion.div>
-              ) : (
-                <div
-                  className="scale-100 transition-transform group-hover:scale-110 flex items-center justify-center w-full h-full"
-                  title={(safeMessage.meta?.model as string) || "AI"}
-                >
-                  <ModelAvatar modelName={safeMessage.meta?.model as string} />
-                </div>
-              )
-            ) : (
-              t("me") || "ME"
-            )}
-          </div>
+          <BubbleAvatar
+            isBot={isBot}
+            isLoading={isLoading}
+            modelName={safeMessage.meta?.model as string | undefined}
+          />
 
-          {/* Content */}
           <div
             className={`flex flex-col gap-2 ${isBot ? "items-start w-full min-w-0" : "items-end max-w-full"}`}
           >
             <div
-              className={`relative rounded-2xl px-1 text-base leading-relaxed transition-colors
-              ${isBot ? "text-primary w-full" : "bg-(--primary) px-4 py-2.5 text-(--surface) shadow-lg"}`}
+              className={`relative rounded-2xl px-1 text-base leading-relaxed transition-colors ${
+                isBot
+                  ? "text-(--text-primary) w-full"
+                  : "bg-(--accent) px-4 py-2.5 text-(--accent-foreground) shadow-lg"
+              }`}
             >
               {isEditing ? (
                 <div className="flex flex-col gap-2 w-full min-w-[60vw] md:min-w-[600px]">
@@ -410,29 +163,27 @@ const ChatBubble = React.memo(
                     value={editContent}
                     onChange={(e) => {
                       setEditContent(e.target.value);
-                      // Save parent scroll position before resize to prevent mobile viewport jump
-                      const scrollParent = e.target.closest(".overflow-y-auto");
-                      const savedScrollTop = scrollParent?.scrollTop ?? 0;
+                      const sp = e.target.closest(".overflow-y-auto");
+                      const st = sp?.scrollTop ?? 0;
                       e.target.style.height = "auto";
                       e.target.style.height = `${e.target.scrollHeight}px`;
-                      // Restore scroll position immediately after resize
-                      if (scrollParent) {
-                        scrollParent.scrollTop = savedScrollTop;
-                      }
+                      if (sp) sp.scrollTop = st;
                     }}
-                    className="w-full bg-surface-elevated text-primary p-3 rounded-md outline-none resize-none overflow-hidden font-mono text-sm leading-6 border border-token min-h-[40px] focus-visible:ring-0"
+                    className="w-full bg-(--surface-elevated) text-(--text-primary) p-3 rounded-md outline-none resize-none overflow-hidden font-mono text-sm leading-6 border border-(--border) min-h-[40px] focus-visible:ring-1 focus-visible:ring-(--ring)"
                     rows={1}
                   />
                   <div className="flex justify-end gap-2 mt-2">
                     <button
+                      type="button"
                       onClick={() => setIsEditing(false)}
-                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-control hover:bg-control-hover rounded-md transition-colors text-secondary"
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-(--control-bg) hover:bg-(--control-bg-hover) rounded-md transition-colors text-(--text-secondary)"
                     >
                       {t("cancel")}
                     </button>
                     <button
+                      type="button"
                       onClick={handleSaveEdit}
-                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-accent text-(--surface) hover:brightness-110 rounded-md transition-colors shadow-sm"
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-(--accent) text-(--accent-foreground) hover:brightness-110 rounded-md transition-colors shadow-sm"
                     >
                       {t("save")}
                     </button>
@@ -446,36 +197,12 @@ const ChatBubble = React.memo(
                   {thought && typeof thought === "string" && (
                     <ThinkingBlock content={thought} t={t} />
                   )}
-
                   {(!hasContent && isLoading) || (showTyping && !displayContent.trim()) ? (
                     <div role="status" aria-label="AI is typing">
                       <TypingDots />
                     </div>
-                  ) : isBot ? (
-                    <div className="chat-markdown-container chat-markdown w-full overflow-hidden">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[
-                          rehypeRaw,
-                          [
-                            rehypeSanitize,
-                            {
-                              ...defaultSchema,
-                              tagNames: [...(defaultSchema.tagNames || []), ...EXTENDED_TAG_NAMES],
-                            },
-                          ],
-                          rehypeHighlight,
-                        ]}
-                        components={mdComponents}
-                      >
-                        {deferredDisplayContent}
-                      </ReactMarkdown>
-                      {/* Typing cursor when streaming */}
-                      {isStreaming && isLastAssistant && displayContent.trim() && <TypingCursor />}
-                    </div>
                   ) : (
                     <>
-                      {/* File attachments in user messages */}
                       {!isBot &&
                         safeMessage.meta?.fileIds &&
                         safeMessage.meta.fileIds.length > 0 &&
@@ -486,41 +213,40 @@ const ChatBubble = React.memo(
                             onClick={setLightboxFile}
                           />
                         )}
-                      <span className="whitespace-pre-wrap wrap-break-word">
-                        {deferredDisplayContent}
-                      </span>
+                      <BubbleMarkdown
+                        content={deferredDisplayContent}
+                        isBot={isBot}
+                        isStreaming={isStreaming}
+                        isLastAssistant={isLastAssistant}
+                      />
                     </>
                   )}
                 </div>
               )}
 
-              {/* Image Gen Preview */}
               {isBot &&
                 safeMessage.meta?.type === "image_gen" &&
                 (safeMessage.meta?.attachment?.url ? (
                   <ImageGenPreview
                     message={safeMessage}
-                    onRegenerate={onImageRegenerate}
-                    onEdit={onImageEdit}
+                    onRegenerate={props.onImageRegenerate}
+                    onEdit={props.onImageEdit}
                   />
                 ) : (
-                  /* Skeleton loader khi đang generate */
-                  <div className="mt-4 rounded-xl overflow-hidden border border-token max-w-sm animate-pulse">
-                    <div className="aspect-square bg-surface-muted flex items-center justify-center">
-                      <ImageIcon className="w-12 h-12 text-secondary/40" />
+                  <div className="mt-4 rounded-xl overflow-hidden border border-(--border) max-w-sm animate-pulse">
+                    <div className="aspect-square bg-(--surface-muted) flex items-center justify-center">
+                      <ImageIcon className="w-12 h-12 text-(--text-secondary)/40" />
                     </div>
-                    <div className="px-3 py-2 bg-surface-elevated border-t border-token">
-                      <div className="h-3 bg-surface-muted rounded w-3/4"></div>
+                    <div className="px-3 py-2 bg-(--surface-elevated) border-t border-(--border)">
+                      <div className="h-3 bg-(--surface-muted) rounded w-3/4" />
                     </div>
                   </div>
                 ))}
 
-              {/* Source Links */}
               {isBot && (safeMessage.sources?.length ?? 0) > 0 && (
                 <SourceLinks sources={safeMessage.sources ?? []} />
               )}
 
-              {/* Token Usage Badge */}
               {isBot && !isLoading && safeMessage.meta?.totalTokenCount && (
                 <div className="mt-2 flex justify-end">
                   <TokenBadge
@@ -535,47 +261,42 @@ const ChatBubble = React.memo(
               )}
             </div>
 
-            {/* Actions - Hide for image_gen messages since ImageGenPreview has its own actions */}
             {!isLoading && !isEditing && safeMessage.meta?.type !== "image_gen" && (
               <MessageActions
                 isBot={isBot}
                 messageId={safeMessage.id}
                 copied={copied}
-                canRegenerate={canRegenerate}
-                regenerating={regenerating}
-                isSpeaking={isSpeaking}
+                canRegenerate={props.canRegenerate}
+                regenerating={props.regenerating}
+                isSpeaking={props.isSpeaking}
                 onCopy={handleCopyMessage}
                 onEdit={!isBot ? () => setIsEditing(true) : undefined}
-                onRegenerate={onRegenerate}
-                onDelete={onDelete}
-                onSpeak={isBot ? onSpeak : undefined}
+                onRegenerate={props.onRegenerate}
+                onDelete={props.onDelete}
+                onSpeak={isBot ? props.onSpeak : undefined}
               />
             )}
           </div>
         </div>
 
-        {/* File lightbox for user message attachments */}
         {lightboxFile && <FileLightbox file={lightboxFile} onClose={() => setLightboxFile(null)} />}
       </motion.div>
     );
   },
-  (prev, next) => {
-    return (
-      prev.message === next.message &&
-      prev.isLastAssistant === next.isLastAssistant &&
-      prev.regenerating === next.regenerating &&
-      prev.isStreaming === next.isStreaming &&
-      prev.canRegenerate === next.canRegenerate &&
-      prev.onRegenerate === next.onRegenerate &&
-      prev.onEdit === next.onEdit &&
-      prev.onDelete === next.onDelete &&
-      prev.onImageRegenerate === next.onImageRegenerate &&
-      prev.onImageEdit === next.onImageEdit &&
-      prev.isSpeaking === next.isSpeaking &&
-      prev.onSpeak === next.onSpeak &&
-      prev.conversationId === next.conversationId
-    );
-  }
+  (p, n) =>
+    p.message === n.message &&
+    p.isLastAssistant === n.isLastAssistant &&
+    p.regenerating === n.regenerating &&
+    p.isStreaming === n.isStreaming &&
+    p.canRegenerate === n.canRegenerate &&
+    p.onRegenerate === n.onRegenerate &&
+    p.onEdit === n.onEdit &&
+    p.onDelete === n.onDelete &&
+    p.onImageRegenerate === n.onImageRegenerate &&
+    p.onImageEdit === n.onImageEdit &&
+    p.isSpeaking === n.isSpeaking &&
+    p.onSpeak === n.onSpeak &&
+    p.conversationId === n.conversationId
 );
 
 export default ChatBubble;
