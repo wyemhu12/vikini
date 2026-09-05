@@ -14,33 +14,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Image as ImageIcon, Upload, X } from "lucide-react";
+import { Plus, Image as ImageIcon, Upload, X, SendHorizontal, Square } from "lucide-react";
 import { toast } from "@/lib/store/toastStore";
 import { useDebounceCallback } from "@/lib/hooks/useDebounceCallback";
 import { VoiceButton } from "./VoiceButton";
+import { useLanguage } from "../hooks/useLanguage";
 import type { FileItem } from "@/types/files";
-
-const PaperAirplaneIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    className="w-5 h-5"
-  >
-    <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
-  </svg>
-);
-
-const StopIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    className="w-5 h-5"
-  >
-    <rect x="6" y="6" width="12" height="12" rx="2" />
-  </svg>
-);
 
 interface InputFormProps {
   input: string;
@@ -50,7 +29,6 @@ interface InputFormProps {
   onImageGen?: (prompt: string) => void;
   disabled?: boolean;
   isStreaming?: boolean;
-  t?: Record<string, string>;
   conversationId?: string | null;
   initialImageMode?: boolean;
   onImageModeConsumed?: () => void;
@@ -67,7 +45,6 @@ export default function InputForm({
   onImageGen,
   disabled,
   isStreaming,
-  t,
   conversationId,
   initialImageMode = false,
   onImageModeConsumed,
@@ -77,8 +54,15 @@ export default function InputForm({
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isImageMode, setIsImageMode] = useState(initialImageMode);
+  const [isFocused, setIsFocused] = useState(false);
   const [_voiceTranscript, setVoiceTranscript] = useState("");
   const [lightboxFile, setLightboxFile] = useState<FileItem | null>(null);
+
+  const { t } = useLanguage();
+  const tRecord = useMemo(
+    () => new Proxy({} as Record<string, string>, { get: (_, prop: string) => t(prop) }),
+    [t]
+  );
 
   // === Unified file management ===
   const { files: allFiles, mutate } = useFiles(conversationId ?? null);
@@ -117,7 +101,7 @@ export default function InputForm({
         await fetch(`/api/files?id=${encodeURIComponent(id)}`, { method: "DELETE" });
         void mutate();
       } catch {
-        toast.error(t?.uploadFailed || "Failed to remove file");
+        toast.error(t("uploadFailed") || "Failed to remove file");
       }
     },
     [mutate, t]
@@ -130,10 +114,10 @@ export default function InputForm({
       }
       void mutate();
       toast.success(
-        (t?.filesCleared || "{count} files cleared").replace("{count}", String(files.length))
+        (t("filesCleared") || "{count} files cleared").replace("{count}", String(files.length))
       );
     } catch {
-      toast.error(t?.uploadFailed || "Failed to clear files");
+      toast.error(t("uploadFailed") || "Failed to clear files");
     }
   }, [files, mutate, t]);
 
@@ -203,6 +187,18 @@ export default function InputForm({
     }
   };
 
+  // Smart Send/Stop button state machine
+  const isReady = (Boolean(input.trim()) || fileCount > 0) && (!disabled || isUploading);
+  const isButtonDisabled = !isStreaming && !isReady;
+
+  const sendButtonClasses = `flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
+    isStreaming
+      ? "bg-(--danger) text-white ring-2 ring-(--danger)/30 hover:brightness-110 active:scale-[0.92]"
+      : isReady
+        ? "bg-(--accent) text-(--accent-foreground) hover:brightness-110 active:scale-[0.92] shadow-[0_0_15px_var(--accent)] scale-100"
+        : "bg-(--control-bg) text-(--text-secondary) opacity-40 cursor-not-allowed scale-95"
+  }`;
+
   return (
     <>
       <form
@@ -232,7 +228,7 @@ export default function InputForm({
           onClickFile={setLightboxFile}
           isDragging={isDragging}
           disabled={disabled || isUploading}
-          t={t}
+          t={tRecord}
         />
 
         {/* Input row */}
@@ -245,13 +241,13 @@ export default function InputForm({
               <button
                 type="button"
                 disabled={disabled || isUploading}
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] disabled:opacity-50 ${
                   isImageMode
                     ? "bg-(--accent) text-white hover:brightness-110"
                     : "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)"
                 }`}
-                title={t?.addAttachment || "Add..."}
-                aria-label={t?.addAttachment || "Add attachment or switch mode"}
+                title={t("addAttachment") || "Add..."}
+                aria-label={t("addAttachment") || "Add attachment or switch mode"}
               >
                 {isImageMode ? <ImageIcon className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
               </button>
@@ -259,13 +255,13 @@ export default function InputForm({
             <DropdownMenuContent align="start" className="w-48">
               <DropdownMenuItem onClick={openFilePicker}>
                 <Upload className="w-4 h-4 mr-2" />
-                {t?.uploadFile || "Upload File"}
+                {t("uploadFile") || "Upload File"}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsImageMode(!isImageMode)}>
                 <ImageIcon className="w-4 h-4 mr-2" />
                 {isImageMode
-                  ? t?.switchToChat || "Switch to Chat"
-                  : t?.createImage || "Create Image"}
+                  ? t("switchToChat") || "Switch to Chat"
+                  : t("createImage") || "Create Image"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -278,14 +274,14 @@ export default function InputForm({
             className="hidden"
             multiple
             accept={fileAccept}
-            aria-label={t?.uploadFile || "Upload file"}
+            aria-label={t("uploadFile") || "Upload file"}
           />
 
           {/* Text Area */}
           <div className="flex-1 min-w-0 relative">
             {isImageMode && (
-              <div className="absolute -top-6 left-0 text-[10px] font-bold uppercase tracking-wider text-(--accent) animate-in fade-in slide-in-from-bottom-1 bg-(--surface-base) px-2 py-0.5 rounded-full border border-(--accent)/30 shadow-sm">
-                {t?.imageModeLabel || "IMAGE GENERATION MODE"}
+              <div className="absolute -top-6 left-0 text-xs font-semibold uppercase tracking-wider text-(--accent) animate-in fade-in slide-in-from-bottom-1 bg-(--surface-elevated) px-2 py-0.5 rounded-full border border-(--accent)/30 shadow-sm">
+                {t("imageModeLabel") || "IMAGE GENERATION MODE"}
               </div>
             )}
             <Textarea
@@ -294,10 +290,12 @@ export default function InputForm({
               value={input}
               onChange={(e) => onChangeInput(e.target.value)}
               onKeyDown={handleKeyDown}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               placeholder={
                 isImageMode
-                  ? t?.imagePlaceholder || "Describe the image you want to generate..."
-                  : t?.placeholder || "Message..."
+                  ? t("imagePlaceholder") || "Describe the image you want to generate..."
+                  : t("placeholder") || "Message..."
               }
               disabled={disabled}
               className={`max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] placeholder:text-(--text-secondary) outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--text-secondary) italic" : "text-(--text-primary)"}`}
@@ -309,9 +307,9 @@ export default function InputForm({
             <button
               type="button"
               onClick={() => setIsImageMode(false)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--danger) transition-colors"
-              title={t?.cancelImageMode || "Cancel Image Mode"}
-              aria-label={t?.cancelImageMode || "Cancel image mode"}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--danger) transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95]"
+              title={t("cancelImageMode") || "Cancel Image Mode"}
+              aria-label={t("cancelImageMode") || "Cancel image mode"}
             >
               <X className="w-5 h-5" />
             </button>
@@ -324,37 +322,37 @@ export default function InputForm({
               onFinalTranscript={(text) => onChangeInput(input + (input ? " " : "") + text)}
               disabled={disabled || isStreaming}
               language="vi-VN"
-              t={t}
+              t={tRecord}
             />
           )}
 
           {/* Send / Stop Button */}
           <button
             type="submit"
-            disabled={
-              !isStreaming && ((!input.trim() && fileCount === 0) || (disabled && !isUploading))
-            }
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-[border-color,box-shadow] duration-200 shadow-lg ${
-              !isStreaming && ((!input.trim() && fileCount === 0) || (disabled && !isUploading))
-                ? "bg-(--control-bg) text-(--text-secondary) cursor-not-allowed"
-                : isImageMode
-                  ? "bg-(--accent) text-white hover:brightness-110 shadow-[0_0_15px_var(--accent)]"
-                  : "bg-(--accent) text-(--surface) hover:brightness-110 active:scale-95 hover:shadow-[0_0_15px_var(--glow)]"
-            }`}
-            title={isStreaming ? t?.stopBtn || "Stop" : t?.send || "Send"}
+            disabled={isButtonDisabled}
+            className={sendButtonClasses}
+            title={isStreaming ? t("stopBtn") || "Stop" : t("send") || "Send"}
             aria-label={
-              isStreaming ? t?.stopGeneration || "Stop generation" : t?.send || "Send message"
+              isStreaming ? t("stopGeneration") || "Stop generation" : t("send") || "Send message"
             }
           >
             {isStreaming ? (
-              <StopIcon />
+              <Square className="w-4 h-4 fill-current" />
             ) : isImageMode ? (
               <ImageIcon className="w-5 h-5" />
             ) : (
-              <PaperAirplaneIcon />
+              <SendHorizontal className="w-5 h-5" />
             )}
           </button>
         </div>
+
+        {/* Keyboard shortcut hints */}
+        {isFocused && (
+          <div className="hidden md:flex items-center justify-end gap-3 px-4 pb-2 -mt-1 text-xs text-(--text-secondary)/60 select-none animate-in fade-in duration-200">
+            <span>↵ {t("send") || "Send"}</span>
+            <span>Shift+↵ {t("newLine") || "New line"}</span>
+          </div>
+        )}
       </form>
 
       {/* File Lightbox */}

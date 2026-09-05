@@ -4,6 +4,7 @@ export const en = {
   exploreGems: "Explore Gems",
   placeholder: "Type a message...",
   send: "Send",
+  newLine: "New line",
   logout: "Logout",
   signOut: "Sign Out",
   thinking: "Thinking...",

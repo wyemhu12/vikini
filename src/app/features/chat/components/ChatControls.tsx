@@ -13,6 +13,7 @@ import FileManagerPanel from "./FileManagerPanel";
 import GemQuickSwitch from "../../../features/gems/components/GemQuickSwitch";
 import PersonaQuickSwitch from "../../../features/personas/components/PersonaQuickSwitch";
 import ResearchAgentSelector from "../../../features/research/components/ResearchAgentSelector";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { type ThinkingLevel, modelSupportsThinkingUI } from "./hooks/useThinkingLevel";
@@ -138,7 +139,7 @@ export default function ChatControls({
         ${
           isLanding
             ? "relative z-40"
-            : "pb-6 shadow-2xl md:shadow-none fixed bottom-0 left-0 right-0 z-40 bg-surface/95 backdrop-blur-xl md:bg-transparent md:backdrop-blur-none md:static md:translate-y-0"
+            : "pb-6 shadow-2xl md:shadow-none fixed bottom-0 left-0 right-0 z-40 bg-(--surface)/95 backdrop-blur-xl md:bg-transparent md:backdrop-blur-none md:static md:translate-y-0"
         }
       `}
     >
@@ -162,7 +163,7 @@ export default function ChatControls({
             onClick={canWebSearch ? toggleWebSearch : undefined}
             disabled={!canWebSearch}
             title={!canWebSearch ? t("webSearchNotSupported") : undefined}
-            className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-colors rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 ${
+            className={`text-xs font-semibold uppercase tracking-wider px-3 py-1.5 transition-all duration-200 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
               !canWebSearch
                 ? "text-(--text-secondary) opacity-40 cursor-not-allowed"
                 : webSearchEnabled
@@ -178,7 +179,7 @@ export default function ChatControls({
                 : t("webSearchOff")}
           </button>
           {isV32 && webSearchEnabled && (
-            <span className="hidden md:inline text-[8px] text-(--warning)/80 font-medium ml-0.5 whitespace-nowrap">
+            <span className="hidden md:inline text-xs text-(--warning)/80 font-medium ml-0.5 whitespace-nowrap">
               {t("webSearchPricingNote")}
             </span>
           )}
@@ -187,7 +188,7 @@ export default function ChatControls({
               <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
               <button
                 onClick={toggleAlwaysSearch}
-                className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-colors rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 ${
+                className={`text-xs font-semibold uppercase tracking-wider px-3 py-1.5 transition-all duration-200 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
                   alwaysSearch
                     ? "text-(--accent) md:bg-(--control-bg-hover)"
                     : "text-(--text-secondary) hover:text-(--text-primary)"
@@ -218,7 +219,7 @@ export default function ChatControls({
                 disabled={!deepResearchAllowed}
                 title={!deepResearchAllowed ? t("deepResearchNotAllowed") : t("deepResearchDesc")}
                 aria-pressed={deepResearchEnabled}
-                className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-colors rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1 ${
+                className={`text-xs font-semibold uppercase tracking-wider px-3 py-1.5 transition-all duration-200 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
                   !deepResearchAllowed
                     ? "text-(--text-secondary) opacity-40 cursor-not-allowed"
                     : deepResearchEnabled
@@ -226,36 +227,34 @@ export default function ChatControls({
                       : "text-(--text-secondary) hover:text-(--text-primary)"
                 }`}
               >
-                <Microscope className="w-3 h-3" />
+                <Microscope className="w-3.5 h-3.5" />
                 {t("deepResearch")}
               </button>
               {/* Agent Selector Popover */}
               {deepResearchEnabled && (
-                <div className="relative">
-                  <button
-                    onClick={() => setShowAgentSelector(!showAgentSelector)}
-                    className="text-[10px] font-medium px-2 py-1 rounded-full bg-(--accent)/15 text-(--accent) border border-(--accent)/20 hover:bg-(--accent)/25 transition-colors"
-                    title={t("deepResearchSelectAgent")}
-                  >
-                    {selectedResearchAgent === "deep-research-max-preview-04-2026"
-                      ? t("deepResearchAgentMax")
-                      : t("deepResearchAgentDeep")}
-                  </button>
-                  {showAgentSelector && onResearchAgentChange && (
-                    <div className="absolute bottom-full left-0 mb-2 z-50">
-                      <div className="fixed inset-0" onClick={() => setShowAgentSelector(false)} />
-                      <div className="relative">
-                        <ResearchAgentSelector
-                          selectedAgent={selectedResearchAgent || "deep-research-preview-04-2026"}
-                          onSelect={(agent) => {
-                            onResearchAgentChange(agent);
-                            setShowAgentSelector(false);
-                          }}
-                        />
-                      </div>
-                    </div>
+                <Popover open={showAgentSelector} onOpenChange={setShowAgentSelector}>
+                  <PopoverTrigger asChild>
+                    <button
+                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-(--accent)/15 text-(--accent) border border-(--accent)/20 hover:bg-(--accent)/25 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95]"
+                      title={t("deepResearchSelectAgent")}
+                    >
+                      {selectedResearchAgent === "deep-research-max-preview-04-2026"
+                        ? t("deepResearchAgentMax")
+                        : t("deepResearchAgentDeep")}
+                    </button>
+                  </PopoverTrigger>
+                  {onResearchAgentChange && (
+                    <PopoverContent side="top" align="start" className="w-80 p-3">
+                      <ResearchAgentSelector
+                        selectedAgent={selectedResearchAgent || "deep-research-preview-04-2026"}
+                        onSelect={(agent) => {
+                          onResearchAgentChange(agent);
+                          setShowAgentSelector(false);
+                        }}
+                      />
+                    </PopoverContent>
                   )}
-                </div>
+                </Popover>
               )}
             </>
           )}
@@ -284,7 +283,7 @@ export default function ChatControls({
               <div className="relative">
                 <button
                   onClick={() => setShowFileManager((v) => !v)}
-                  className={`text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 transition-colors rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1.5 ${
+                  className={`text-xs font-semibold uppercase tracking-wider px-3 py-1.5 transition-all duration-200 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
                     showFileManager
                       ? "text-(--accent) md:bg-(--control-bg-hover)"
                       : "text-(--text-secondary) hover:text-(--accent)"
@@ -329,7 +328,7 @@ export default function ChatControls({
 
       {!isLanding && (
         <div className="mt-3 text-center">
-          <p className="text-[9px] font-bold text-(--text-secondary) tracking-widest uppercase hover:text-(--text-primary) transition-colors cursor-default">
+          <p className="text-xs font-semibold text-(--text-secondary) tracking-widest uppercase hover:text-(--text-primary) transition-colors cursor-default">
             {t("aiDisclaimer")}
           </p>
         </div>

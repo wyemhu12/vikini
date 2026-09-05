@@ -4,6 +4,7 @@ export const vi = {
   exploreGems: "Khám phá Gems",
   placeholder: "Nhập câu hỏi...",
   send: "Gửi",
+  newLine: "Dòng mới",
   logout: "Đăng xuất",
   signOut: "Đăng xuất",
   thinking: "Đang nghĩ...",
