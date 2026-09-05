@@ -34,7 +34,7 @@ export const TypingDots = React.memo(function TypingDots() {
             repeatType: "reverse",
             ease: "easeInOut",
           }}
-          className="w-1.5 h-1.5 bg-secondary rounded-full"
+          className="w-1.5 h-1.5 bg-(--accent) rounded-full"
         />
       ))}
     </motion.div>
@@ -51,7 +51,7 @@ export const TypingCursor = React.memo(function TypingCursor() {
       initial={{ opacity: 1 }}
       animate={{ opacity: [1, 0.3, 1] }}
       transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut" }}
-      className="inline-block w-0.5 h-4 bg-(--primary) ml-0.5 align-middle rounded-sm"
+      className="inline-block whitespace-nowrap ml-1 align-middle w-0.5 h-4 bg-(--primary) rounded-sm"
       aria-hidden="true"
     />
   );
@@ -81,15 +81,17 @@ export const ThinkingBlock = React.memo(function ThinkingBlock({
   return (
     <div className="mb-4 rounded-lg border border-(--border) overflow-hidden bg-(--control-bg)">
       <button
+        type="button"
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary hover:text-primary hover:bg-(--control-bg-hover) transition-colors"
+        aria-expanded={!isCollapsed}
+        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.98]"
       >
         <Brain className="w-3 h-3" />
         <span>{t("thinkingProcess") || "Thinking Process"}</span>
         <motion.div
           className="ml-auto"
           animate={{ rotate: isCollapsed ? -90 : 0 }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: 0.2, ease: "easeInOut" }}
         >
           <ChevronDown className="w-3 h-3 opacity-50" />
         </motion.div>
@@ -106,7 +108,7 @@ export const ThinkingBlock = React.memo(function ThinkingBlock({
           >
             <div
               ref={contentRef}
-              className="px-3 py-3 border-t border-(--border) text-sm text-secondary font-mono leading-relaxed bg-(--surface-muted)/50 whitespace-pre-wrap max-h-96 overflow-y-auto"
+              className="px-3 py-3 border-t border-(--border) text-sm text-(--text-secondary) font-mono leading-relaxed bg-(--surface-muted)/50 whitespace-pre-wrap max-h-96 overflow-y-auto"
             >
               {content}
             </div>
