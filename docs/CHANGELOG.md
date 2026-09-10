@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-09-10: Integrate DeepSeek V4.1 Flash via OpenRouter (Fireworks AI)
+
+- **Feature**: Added **DeepSeek V4.1 Flash** (`deepseek/deepseek-v4.1-flash`) to the Vikini model registry with OpenRouter integration, prioritized on Fireworks AI infrastructure.
+- **Key Capabilities**:
+  - **Causal Encoder-Decoder (CED) MoE Architecture**: 552B total parameters with asymmetric activation (8B prefill, 16B decode) achieving ~70 tps throughput and 1.87s latency.
+  - **Ultra-deep Context Window**: 1,048,576 tokens (1M tokens), on par with Gemini 3 Flash.
+  - **Full Unconstrained Output Token Limit**: `384,000` completion tokens (no artificial cap), enabling end-to-end full codebase and long-form report generation.
+  - **Multimodal Vision**: Enables native image understanding (`image_url` data URLs) for DeepSeek models in Vikini chat and file attachment pipelines.
+  - **Thinking Mode**: Integrated OpenRouter reasoning parameter (`include_reasoning: true`, `reasoning.effort`) with real-time `<think>` tag streaming and `<ThinkingBlock>` UI render.
+  - **Provider Routing**: Configured OpenRouter provider order `["Fireworks"]` with automatic fallbacks for maximum throughput and 96.8% cache discount ($0.007/M cached tokens).
+- **Files Modified**:
+  - [`constants.ts`](file:///c:/Users/wyemh/vikini/src/lib/utils/constants.ts): Added `MODEL_IDS.DEEPSEEK_V41_FLASH`.
+  - [`modelRegistry.ts`](file:///c:/Users/wyemh/vikini/src/lib/core/modelRegistry.ts): Registered model metadata, 1M context, 384k output tokens, `isDeepSeekV41FlashModel` helper, and aliases.
+  - [`useThinkingLevel.ts`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/hooks/useThinkingLevel.ts): Enabled Thinking Level selector for DeepSeek V4.1 Flash.
+  - [`chatStreamCore.ts`](file:///c:/Users/wyemh/vikini/src/app/api/chat-stream/chatStreamCore.ts): Dispatched to OpenRouter client and `createDeepSeekStream`.
+  - [`deepseek-stream.ts`](file:///c:/Users/wyemh/vikini/src/app/api/chat-stream/streaming/deepseek-stream.ts): Added Fireworks provider routing and full 384k token budget calculation.
+  - [`vi.ts`](file:///c:/Users/wyemh/vikini/src/lib/utils/translations/vi.ts) & [`en.ts`](file:///c:/Users/wyemh/vikini/src/lib/utils/translations/en.ts): Added bilingual model descriptions highlighting CED 1M context, multimodal, superior efficiency, and lowest cost.
+  - [`models.md`](file:///c:/Users/wyemh/vikini/docs/models.md): Documented full technical specifications and comparison matrix.
+  - [`005_add_deepseek_v4_1_flash.sql`](file:///c:/Users/wyemh/vikini/database-migrations/005_add_deepseek_v4_1_flash.sql): Added database migration script for rank configurations.
+  - [`deepseek-stream.test.ts`](file:///c:/Users/wyemh/vikini/src/app/api/chat-stream/streaming/deepseek-stream.test.ts): Added unit test verifying Fireworks routing, 384k tokens, thinking config, and multimodal image handling.
+
 ## 2026-09-05: Fix DeepSeek V4 Pro Reasoning Token Cutoff & Empty Response Fallback
 
 - **Bug**: DeepSeek V4 Pro in Project chats occasionally output only the Thinking Process (`<think>...</think>`) and stopped abruptly without emitting any response content, leaving a blank message with action buttons.

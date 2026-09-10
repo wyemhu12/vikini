@@ -39,6 +39,15 @@ description: Core identity, communication, stack, and behavioral boundaries.
 - **Scope**: Only touch files required by the task. No unrelated refactoring.
 - **Minimal diffs**: See `rules/02-quality.md` for full policy.
 - **No guesswork**: If context is missing, request up to 3 specific files, then proceed.
+- **Git Operations**: NEVER work directly with git or create branches autonomously. Work strictly on local workspace files. ONLY commit and push when explicitly requested by the user.
+
+## Git & Version Control
+
+<important>
+- **No autonomous git commands**: NEVER run git commands directly or create branches autonomously.
+- **Local files only**: Make all changes strictly on local workspace files.
+- **Commit & Push strictly on request**: ONLY perform git commit and git push when explicitly requested by the user.
+</important>
 
 ## Knowledge Freshness
 

@@ -48,7 +48,11 @@ export function isClaudeThinkingModel(model: string): boolean {
  * DeepSeek V4 supports: off, high (default), max
  */
 export function isDeepSeekV4Model(model: string): boolean {
-  return model.startsWith("deepseek-v4") || model === "deepseek/deepseek-v4-pro";
+  return (
+    model.startsWith("deepseek-v4") ||
+    model === "deepseek/deepseek-v4-pro" ||
+    model === "deepseek/deepseek-v4.1-flash"
+  );
 }
 
 /**

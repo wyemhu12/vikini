@@ -1,7 +1,11 @@
 // /app/api/chat-stream/streaming/deepseek-stream.ts
 import OpenAI from "openai";
 
-import { isDeepSeekV4ProModel, getModelMaxOutputTokens } from "@/lib/core/modelRegistry";
+import {
+  isDeepSeekV4ProModel,
+  isDeepSeekV41FlashModel,
+  getModelMaxOutputTokens,
+} from "@/lib/core/modelRegistry";
 import { StreamTimeoutError, type ChatStreamParams, type Message } from "./types";
 import { sendEvent, getStreamTimeout, withTimeout, withIdleTimeout, streamLogger } from "./utils";
 import { sendInitialMetaEvents, generateAndSendOptimisticTitle } from "./gemini-stream";
@@ -169,8 +173,13 @@ export function createDeepSeekStream(params: {
           max_tokens: effectiveMaxTokens,
         };
 
-        // Add OpenRouter provider routing for DeepSeek V4 Pro via StreamLake
-        if (isDeepSeekV4ProModel(model)) {
+        // Add OpenRouter provider routing for DeepSeek models
+        if (isDeepSeekV41FlashModel(model)) {
+          requestBody.provider = {
+            order: ["Fireworks"],
+            allow_fallbacks: true,
+          };
+        } else if (isDeepSeekV4ProModel(model)) {
           requestBody.provider = {
             order: ["StreamLake"],
             allow_fallbacks: true,
@@ -180,7 +189,7 @@ export function createDeepSeekStream(params: {
         // Add thinking mode config
         // OpenRouter uses `include_reasoning` + `reasoning: { effort }`
         // DeepSeek Direct API uses `thinking: { type }` + `reasoning_effort`
-        const isOpenRouterRoute = isDeepSeekV4ProModel(model);
+        const isOpenRouterRoute = isDeepSeekV4ProModel(model) || isDeepSeekV41FlashModel(model);
         if (isThinkingEnabled) {
           if (isOpenRouterRoute) {
             requestBody.include_reasoning = true;

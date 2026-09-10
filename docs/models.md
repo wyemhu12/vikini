@@ -166,9 +166,35 @@
 | Image Input | ❌ Not supported |
 | Image Generation | ❌ Not supported |
 
+---
+
+### deepseek/deepseek-v4.1-flash
+
+| Thuộc tính             | Giá trị                                                  |
+| ---------------------- | -------------------------------------------------------- |
+| **Tên hiển thị**       | DeepSeek V4.1 Flash                                      |
+| **Input token limit**  | **1,048,576** (1M)                                       |
+| **Output token limit** | **384,000** (Full unconstrained completion)              |
+| **Category**           | Low-latency / High Efficiency                            |
+| **Architecture**       | Causal Encoder-Decoder (CED MoE, 552B total, 8B/16B act) |
+| **Provider**           | OpenRouter (Ưu tiên Fireworks AI)                        |
+| **API Key**            | `OPENROUTER_API_KEY`                                     |
+| **Pricing**            | ~$0.22/M input, ~$0.66/M output, **$0.007/M cache read** |
+
+**Supported Features:**
+| Feature | Status |
+|---------|--------|
+| Thinking Mode | ✅ Supported (`reasoning: { effort }` via OpenRouter) |
+| Reasoning Effort | ✅ `high`, `max` (với system prompt prefix) |
+| Tool Calls | ✅ Supported (`tools` + `tool_choice`) |
+| Streaming | ✅ SSE with `delta.reasoning_content` / `delta.reasoning` |
+| Context Caching | ✅ **96.8% discount** với $0.007/M token khi hit cache |
+| Image Input (Vision) | ✅ **Supported** (Multimodal input qua base64 `image_url`) |
+| Structured Output | ✅ Supported (`json_object` mode) |
+| Stream Cancellation | ✅ Supported |
+
 > [!TIP]
-> V4 Pro là model flagship thông minh nhất của DeepSeek, tối ưu cho complex reasoning.
-> Đang có chương trình giảm giá 75% đến hết tháng 5/2026.
+> DeepSeek V4.1 Flash là model flagship Flash-tier mới nhất (9/2026), vượt trội về hiệu năng và rẻ hơn nhiều so với V4 Pro. Tối ưu cực mạnh cho tác vụ phân tích tài liệu/code lớn (1M context) và sinh nội dung siêu dài (384K output).
 
 ---
 

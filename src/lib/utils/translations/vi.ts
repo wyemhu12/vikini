@@ -91,6 +91,8 @@ export const vi = {
   modelDescClaudeHaiku: "Claude 4.5 nhanh nhất",
   modelDescClaudeSonnet: "Claude 4.5 thông minh",
   modelDescDeepSeekV4Flash: "DeepSeek V4 Flash - nhanh, thông minh",
+  modelDescDeepSeekV41Flash:
+    "DeepSeek V4.1 Flash - CED 1M context, đa phương thức, siêu nhanh. Vượt trội, hiệu quả và rẻ nhất trong các model DeepSeek.",
   modelDescDeepSeekV4Pro: "DeepSeek V4 Pro - suy luận mạnh (Giảm 75%)",
   modelDescDeepSeekV32: "DeepSeek V3.2 thông minh (~$0.28/M tokens)",
   // Web search

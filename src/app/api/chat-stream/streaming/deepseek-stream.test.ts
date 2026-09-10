@@ -247,4 +247,85 @@ describe("createDeepSeekStream", () => {
     expect(output).toContain("</think>");
     expect(output).toContain("Mô hình đã hoàn tất suy nghĩ nhưng chưa xuất nội dung trả lời");
   });
+
+  it("configures Fireworks provider and 384000 max_tokens for DeepSeek V4.1 Flash", async () => {
+    mockCreate.mockResolvedValue(
+      createAsyncIterable([
+        {
+          choices: [
+            {
+              delta: { content: "V4.1 Flash response" },
+              finish_reason: "stop",
+            },
+          ],
+        },
+      ])
+    );
+
+    const stream = createDeepSeekStream({
+      ai: mockAi,
+      model: "deepseek/deepseek-v4.1-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: "Check this image" },
+            { inlineData: { mimeType: "image/png", data: "base64data==" } },
+          ],
+        },
+      ],
+      sysPrompt: "System instruction",
+      thinkingLevel: "high",
+      gemMeta: { gemId: null },
+      modelMeta: { maxOutputTokens: 384000 },
+      createdConversation: null,
+      shouldGenerateTitle: false,
+      enableWebSearch: false,
+      WEB_SEARCH_AVAILABLE: false,
+      cookieWeb: "",
+      userId: "user-1",
+      conversationId: "conv-1",
+      content: "Check this image",
+      contextMessages: [],
+      appendToContext: vi.fn(),
+      saveMessage: vi.fn(),
+      setConversationAutoTitle: vi.fn(),
+      generateOptimisticTitle: vi.fn(),
+      generateFinalTitle: vi.fn(),
+    });
+
+    const output = await readStream(stream);
+    expect(output).toContain("V4.1 Flash response");
+
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    const requestBody = mockCreate.mock.calls[0][0];
+
+    // Provider routing Fireworks
+    expect(requestBody.provider).toEqual({
+      order: ["Fireworks"],
+      allow_fallbacks: true,
+    });
+
+    // Max tokens: 384000 without artificial caps
+    expect(requestBody.max_tokens).toBe(384000);
+
+    // Thinking mode config via OpenRouter
+    expect(requestBody.include_reasoning).toBe(true);
+    expect(requestBody.reasoning).toEqual({ effort: "max" });
+
+    // Multimodal image part
+    const userMessage = requestBody.messages[1];
+    expect(userMessage.role).toBe("user");
+    expect(Array.isArray(userMessage.content)).toBe(true);
+    expect(userMessage.content).toEqual([
+      {
+        type: "text",
+        text: "Check this image",
+      },
+      {
+        type: "image_url",
+        image_url: { url: "data:image/png;base64,base64data==" },
+      },
+    ]);
+  });
 });

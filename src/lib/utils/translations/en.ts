@@ -88,6 +88,8 @@ export const en = {
   modelDescClaudeHaiku: "Claude 4.5 fastest",
   modelDescClaudeSonnet: "Claude 4.5 intelligent",
   modelDescDeepSeekV4Flash: "DeepSeek V4 Flash - fast, intelligent",
+  modelDescDeepSeekV41Flash:
+    "DeepSeek V4.1 Flash - CED 1M context, multimodal, ultra-fast. Superior, efficient, and cheapest among DeepSeek models.",
   modelDescDeepSeekV4Pro: "DeepSeek V4 Pro - strong reasoning (75% off)",
   modelDescDeepSeekV32: "DeepSeek V3.2 intelligent (~$0.28/M tokens)",
   webSearch: "Web Search",

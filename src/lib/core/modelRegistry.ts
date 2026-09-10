@@ -207,6 +207,20 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
   },
 
   // ═══════════════════════════════════════════════════════════
+  // DEEPSEEK V4.1 FLASH (via OpenRouter → Fireworks, CED MoE)
+  // ═══════════════════════════════════════════════════════════
+  {
+    id: "deepseek/deepseek-v4.1-flash",
+    name: "DeepSeek V4.1 Flash",
+    descKey: "modelDescDeepSeekV41Flash",
+    tokenLimit: 1048576,
+    contextWindow: 1048576,
+    maxOutputTokens: 384000,
+    category: "low-latency",
+    providerId: "openrouter-pay",
+  },
+
+  // ═══════════════════════════════════════════════════════════
   // DEEPSEEK V4 PRO (via OpenRouter → Baidu Qianfan, FP8)
   // ═══════════════════════════════════════════════════════════
   {
@@ -280,9 +294,10 @@ const API_ALLOWED = new Set([
   "claude-haiku-4.5",
   "claude-sonnet-4.5",
 
-  // DeepSeek V4 Direct API
+  // DeepSeek V4 Direct API / OpenRouter
   "deepseek-v4-flash",
   "deepseek/deepseek-v4-pro",
+  "deepseek/deepseek-v4.1-flash",
 
   // DeepSeek Legacy via OpenRouter
   "deepseek/deepseek-v3.2:floor",
@@ -318,6 +333,7 @@ export const MODEL_ALIASES: Record<string, string> = {
   "deepseek-chat": "deepseek-v4-flash",
   "deepseek-reasoner": "deepseek-v4-flash", // Maps to thinking mode of V4 Flash
   "deepseek-v4-pro": "deepseek/deepseek-v4-pro", // Migrated to OpenRouter/Baidu (2026/08)
+  "deepseek-v4.1-flash": "deepseek/deepseek-v4.1-flash",
 } as const;
 
 export function isSelectableModelId(modelId: unknown): boolean {
@@ -415,12 +431,21 @@ export function isDeepSeekV4ProModel(modelId: unknown): boolean {
   return id === "deepseek/deepseek-v4-pro";
 }
 
+export function isDeepSeekV41FlashModel(modelId: unknown): boolean {
+  const id = String(modelId || "").trim();
+  return id === "deepseek/deepseek-v4.1-flash";
+}
+
 /**
  * Check if a DeepSeek model supports thinking mode.
  * All DeepSeek V4 models have thinking enabled by default.
  */
 export function modelSupportsDeepSeekThinking(modelId: unknown): boolean {
-  return isDeepSeekDirectModel(modelId) || isDeepSeekV4ProModel(modelId);
+  return (
+    isDeepSeekDirectModel(modelId) ||
+    isDeepSeekV4ProModel(modelId) ||
+    isDeepSeekV41FlashModel(modelId)
+  );
 }
 
 /**
