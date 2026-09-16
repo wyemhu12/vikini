@@ -25,6 +25,7 @@ export const vi = {
   parentConversation: "Cuộc hội thoại gốc",
   branchTitlePrefix: "[Nhánh]",
   branching: "Đang tách nhánh...",
+  priorContextForAi: "Các tin nhắn trước đó được lưu làm ngữ cảnh cho AI (ẩn trên màn hình)",
   copy: "Sao chép",
   copied: "Đã chép",
   expand: "Mở rộng",

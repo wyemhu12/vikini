@@ -15,6 +15,7 @@ import {
   invalidateConversationsCache,
 } from "@/lib/core/cache";
 import { NotFoundError, ForbiddenError, DatabaseError } from "@/lib/utils/errors";
+import { decryptText } from "@/lib/core/encryption";
 
 // ------------------------------
 // Deduplication: Prevent race conditions when creating conversations
@@ -637,7 +638,9 @@ export async function setConversationAutoTitle(
 
 /**
  * Branch a conversation from a specific message node into a new conversation.
- * Clones history up to the target message, preserving AES encryption on message content.
+ * Keeps only the target turn (user prompt + assistant answer) visible to the user,
+ * while preserving older history with `isContextOnly: true` so the AI can still read it
+ * (leveraging KV prompt caching) without cluttering the user's interface.
  */
 export async function branchConversation(
   userId: string,
@@ -656,10 +659,10 @@ export async function branchConversation(
     throw new ForbiddenError("You do not have access to this conversation");
   }
 
-  // 2. Fetch the target branch message to verify it belongs to this conversation and get its creation time
+  // 2. Fetch the target branch message to verify it belongs to this conversation
   const { data: targetMsg, error: targetMsgErr } = await supabase
     .from("messages")
-    .select("id, created_at")
+    .select("id, role, content, meta, created_at")
     .eq("id", messageId)
     .eq("conversation_id", sourceConversationId)
     .maybeSingle();
@@ -671,20 +674,92 @@ export async function branchConversation(
     throw new NotFoundError("Message");
   }
 
-  // 3. Fetch all messages in the source conversation up to and including the target message
+  // 3. Determine the cutoff timestamp and the turn's starting timestamp
+  let cutoffTimestamp = targetMsg.created_at;
+  let turnStartTimestamp = targetMsg.created_at;
+
+  if (targetMsg.role === "assistant") {
+    // If target is an assistant answer, find the preceding user prompt for this turn
+    const { data: precedingUserMsg } = await supabase
+      .from("messages")
+      .select("id, role, created_at")
+      .eq("conversation_id", sourceConversationId)
+      .eq("role", "user")
+      .lte("created_at", targetMsg.created_at)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (precedingUserMsg?.created_at) {
+      turnStartTimestamp = precedingUserMsg.created_at;
+    }
+  } else if (targetMsg.role === "user") {
+    // If target is a user prompt, find the next assistant response if one exists
+    const { data: nextAssistantMsg } = await supabase
+      .from("messages")
+      .select("id, role, created_at")
+      .eq("conversation_id", sourceConversationId)
+      .gt("created_at", targetMsg.created_at)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (nextAssistantMsg?.role === "assistant" && nextAssistantMsg.created_at) {
+      cutoffTimestamp = nextAssistantMsg.created_at;
+    }
+  }
+
+  // 4. Fetch all messages in the source conversation up to the cutoff timestamp
   const { data: sourceMessages, error: msgsErr } = await supabase
     .from("messages")
     .select("role, content, meta, created_at")
     .eq("conversation_id", sourceConversationId)
-    .lte("created_at", targetMsg.created_at)
+    .lte("created_at", cutoffTimestamp)
     .order("created_at", { ascending: true });
 
   if (msgsErr) {
     throw new DatabaseError(`Failed to fetch source messages: ${msgsErr.message}`);
   }
 
-  // 4. Create the new branched conversation
-  const newTitle = `${titlePrefix} ${sourceConvo.title}`.trim();
+  // 5. Generate contextual title and lastMessagePreview
+  let newTitle = `${titlePrefix} ${sourceConvo.title}`.trim();
+  let previewText = sourceConvo.lastMessagePreview;
+
+  if (sourceMessages && sourceMessages.length > 0) {
+    const visibleMsgs = sourceMessages.filter(
+      (m) => (m.created_at ?? "") >= (turnStartTimestamp ?? "")
+    );
+
+    const questionMsg = visibleMsgs.find((m) => m.role === "user");
+    if (questionMsg?.content) {
+      try {
+        const decryptedQ = decryptText(questionMsg.content);
+        if (decryptedQ && decryptedQ.trim()) {
+          const firstLine = decryptedQ.trim().split("\n")[0]?.trim();
+          if (firstLine) {
+            const shortQ = firstLine.length > 45 ? `${firstLine.slice(0, 45)}...` : firstLine;
+            newTitle = `${titlePrefix} ${shortQ}`;
+          }
+        }
+      } catch {
+        // keep default newTitle
+      }
+    }
+
+    const lastVis = visibleMsgs[visibleMsgs.length - 1];
+    if (lastVis?.content) {
+      try {
+        const decryptedAns = decryptText(lastVis.content);
+        if (decryptedAns) {
+          previewText = decryptedAns.slice(0, 80);
+        }
+      } catch {
+        // keep default preview
+      }
+    }
+  }
+
+  // 6. Create the new branched conversation
   const insertPayload: Record<string, unknown> = {
     user_id: userId,
     title: newTitle,
@@ -693,7 +768,7 @@ export async function branchConversation(
     project_id: sourceConvo.projectId,
     parent_conversation_id: sourceConversationId,
     forked_from_message_id: messageId,
-    last_message_preview: sourceConvo.lastMessagePreview,
+    last_message_preview: previewText,
   };
 
   const { data: newConvoRow, error: createConvoErr } = await supabase
@@ -713,15 +788,26 @@ export async function branchConversation(
     throw new DatabaseError("Failed to map created conversation");
   }
 
-  // 5. Clone messages into the new conversation
+  // 7. Clone messages into the new conversation
+  // Messages BEFORE turnStartTimestamp get isContextOnly: true (hidden from user, readable by AI)
+  // Messages IN the turn (>= turnStartTimestamp) get isContextOnly: false (visible to user)
   if (sourceMessages && sourceMessages.length > 0) {
-    const messagesToInsert = sourceMessages.map((msg) => ({
-      conversation_id: newConvo.id,
-      role: msg.role,
-      content: msg.content, // Content is already encrypted AES in DB, preserve it
-      meta: msg.meta || {},
-      created_at: msg.created_at,
-    }));
+    const messagesToInsert = sourceMessages.map((msg) => {
+      const isOlderContext = (msg.created_at ?? "") < (turnStartTimestamp ?? "");
+      const existingMeta =
+        msg.meta && typeof msg.meta === "object" ? (msg.meta as Record<string, unknown>) : {};
+
+      return {
+        conversation_id: newConvo.id,
+        role: msg.role,
+        content: msg.content, // Content is already encrypted AES in DB, preserve it
+        meta: {
+          ...existingMeta,
+          ...(isOlderContext ? { isContextOnly: true } : {}),
+        },
+        created_at: msg.created_at,
+      };
+    });
 
     const { error: insertMsgsErr } = await supabase.from("messages").insert(messagesToInsert);
 
@@ -732,7 +818,7 @@ export async function branchConversation(
     }
   }
 
-  // 6. Invalidate cache
+  // 8. Invalidate cache
   try {
     await invalidateConversationsCache(userId);
   } catch {

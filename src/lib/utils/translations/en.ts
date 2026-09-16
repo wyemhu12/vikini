@@ -25,6 +25,7 @@ export const en = {
   parentConversation: "Original conversation",
   branchTitlePrefix: "[Branch]",
   branching: "Branching...",
+  priorContextForAi: "Prior messages preserved in AI context (hidden from chat)",
   copy: "Copy",
   copied: "Copied",
   expand: "Expand",

@@ -107,7 +107,11 @@ export function useChatStreamController({
           meta: m?.meta,
         };
       })
-      .filter((m) => m.role === "user" || m.role === "assistant");
+      .filter(
+        (m) =>
+          (m.role === "user" || m.role === "assistant") &&
+          !(m.meta as Record<string, unknown> | undefined)?.isContextOnly
+      );
   }, []);
 
   const renderedMessages = useMemo(

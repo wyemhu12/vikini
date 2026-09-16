@@ -10,12 +10,15 @@
 - **Feature**: Added **Branch In New Chat** capability to Vikini, allowing users to fork any conversation from a specific message node into an independent new conversation session.
 - **Architecture & Technical Highlights**:
   - **Hybrid Snapshot Fork Model**: Clones conversation history up to the target message node ($M_1 \dots M_k$) directly at the database level, preserving AES encrypted content without plaintext exposure in memory.
+  - **Turn Isolation & AI Context Retention**: Only the branched turn (user prompt + assistant answer) is displayed on the user's interface, keeping the view clean. All older prior messages are tagged with `isContextOnly: true` and fed seamlessly to the LLM backend, preserving 100% conversational intelligence and prefix KV cache reuse.
+  - **Contextual Branch Title**: Auto-generates the branch conversation title from the branched user prompt for immediate topic recognition.
   - **Genealogy Tracking**: Added `parent_conversation_id` and `forked_from_message_id` columns with indexes on the `conversations` table.
   - **API Route**: Created `POST /api/conversations/[id]/branch` with RFC 4122 UUID validation, authentication checks, and cache invalidation.
   - **UI/UX**:
     - Added `GitFork` action button to `MessageActions.tsx` with loading state and bilingual tooltips.
     - Integrated with `ChatBubble.tsx` and `ChatApp.tsx`.
     - Implemented subtle **Origin Breadcrumb** at the top of branched conversations linking back to the parent conversation.
+    - Added prior context notification badge indicating background context retained for AI.
   - **Bilingual**: Full English and Vietnamese translations added for action buttons, notifications, and breadcrumbs.
 - **Files Modified & Added**:
   - [`20260916_add_conversation_branching.sql`](file:///c:/Users/wyemh/vikini/supabase/migrations/20260916_add_conversation_branching.sql): Added migration script for branching columns and index.

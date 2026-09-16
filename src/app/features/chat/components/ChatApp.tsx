@@ -15,7 +15,7 @@ import StreamErrorBanner from "./StreamErrorBanner";
 import ProjectChatView from "../../projects/components/ProjectChatView";
 import ChatDeepResearch from "./ChatDeepResearch";
 import ChatModalsSection from "./ChatModalsSection";
-import { GitFork } from "lucide-react";
+import { GitFork, Sparkles } from "lucide-react";
 
 import React, { useEffect, useMemo, useCallback, useState, lazy, Suspense } from "react";
 
@@ -177,7 +177,16 @@ export default function ChatApp() {
     patchConversationGem,
     patchConversationPersona,
     creatingConversation: isCreatingChatMode,
+    messages: rawMessages,
   } = useConversation();
+
+  // Count prior messages that are stored in context for AI but hidden from UI
+  const contextMessagesCount = useMemo(() => {
+    const list = Array.isArray(rawMessages) ? rawMessages : [];
+    return list.filter((m) =>
+      Boolean((m.meta as Record<string, unknown> | undefined)?.isContextOnly)
+    ).length;
+  }, [rawMessages]);
 
   // URL Sync Hook
   const { setSelectedConversationIdAndUrl, isRemixMode } = useUrlSync({
@@ -796,6 +805,17 @@ export default function ChatApp() {
                       tRaw("parentConversation") ||
                       "Cuộc hội thoại gốc"}
                   </button>
+                </div>
+              )}
+
+              {/* Notice for preserved context readable by AI but hidden from user */}
+              {contextMessagesCount > 0 && (
+                <div className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-(--surface-elevated)/40 border border-(--border)/60 text-xs text-(--text-secondary) w-fit backdrop-blur-sm animate-in fade-in duration-200">
+                  <Sparkles className="w-3.5 h-3.5 text-(--accent)" />
+                  <span>
+                    {tRaw("priorContextForAi") ||
+                      "Các tin nhắn trước đó được lưu làm ngữ cảnh cho AI (ẩn trên màn hình)"}
+                  </span>
                 </div>
               )}
 
