@@ -248,7 +248,7 @@ describe("createDeepSeekStream", () => {
     expect(output).toContain("Mô hình đã hoàn tất suy nghĩ nhưng chưa xuất nội dung trả lời");
   });
 
-  it("configures Fireworks provider and 384000 max_tokens for DeepSeek V4.1 Flash", async () => {
+  it("configures Relace provider and 384000 max_tokens for DeepSeek V4.1 Flash", async () => {
     mockCreate.mockResolvedValue(
       createAsyncIterable([
         {
@@ -300,9 +300,9 @@ describe("createDeepSeekStream", () => {
     expect(mockCreate).toHaveBeenCalledTimes(1);
     const requestBody = mockCreate.mock.calls[0][0];
 
-    // Provider routing Fireworks
+    // Provider routing Relace
     expect(requestBody.provider).toEqual({
-      order: ["Fireworks"],
+      order: ["Relace"],
       allow_fallbacks: true,
     });
 

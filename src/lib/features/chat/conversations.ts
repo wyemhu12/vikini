@@ -63,6 +63,8 @@ export interface Conversation {
   gemId: string | null;
   model: string;
   projectId: string | null;
+  parentConversationId?: string | null;
+  forkedFromMessageId?: string | null;
   gem: {
     name: string;
     icon: string | null;
@@ -94,6 +96,10 @@ interface ConversationRow {
   model?: string;
   project_id?: string | null;
   projectId?: string | null;
+  parent_conversation_id?: string | null;
+  parentConversationId?: string | null;
+  forked_from_message_id?: string | null;
+  forkedFromMessageId?: string | null;
   gems?: {
     name: string;
     icon: string | null;
@@ -114,6 +120,8 @@ interface ConversationPayload {
   lastMessagePreview?: string | null;
   gemId?: string | null;
   projectId?: string | null;
+  parent_conversation_id?: string | null;
+  forked_from_message_id?: string | null;
 }
 
 // ------------------------------
@@ -134,6 +142,8 @@ export function mapConversationRow(row: ConversationRow | null): Conversation | 
     model: coerceStoredModel(row.model ?? DEFAULT_MODEL),
     // NEW: project_id for RAG knowledge base
     projectId: row.project_id ?? row.projectId ?? null,
+    parentConversationId: row.parent_conversation_id ?? row.parentConversationId ?? null,
+    forkedFromMessageId: row.forked_from_message_id ?? row.forkedFromMessageId ?? null,
     gem: row.gems
       ? {
           name: row.gems.name,
@@ -623,4 +633,111 @@ export async function setConversationAutoTitle(
 ): Promise<Conversation | null> {
   // same as renameConversation but kept for semantic clarity
   return renameConversation(userId, id, title);
+}
+
+/**
+ * Branch a conversation from a specific message node into a new conversation.
+ * Clones history up to the target message, preserving AES encryption on message content.
+ */
+export async function branchConversation(
+  userId: string,
+  sourceConversationId: string,
+  messageId: string,
+  titlePrefix = "[Nhánh]"
+): Promise<Conversation> {
+  const supabase = getSupabaseAdmin();
+
+  // 1. Get source conversation and verify ownership
+  const sourceConvo = await getConversationSafe(sourceConversationId);
+  if (!sourceConvo) {
+    throw new NotFoundError("Conversation");
+  }
+  if (sourceConvo.userId !== userId) {
+    throw new ForbiddenError("You do not have access to this conversation");
+  }
+
+  // 2. Fetch the target branch message to verify it belongs to this conversation and get its creation time
+  const { data: targetMsg, error: targetMsgErr } = await supabase
+    .from("messages")
+    .select("id, created_at")
+    .eq("id", messageId)
+    .eq("conversation_id", sourceConversationId)
+    .maybeSingle();
+
+  if (targetMsgErr) {
+    throw new DatabaseError(`Failed to fetch target message: ${targetMsgErr.message}`);
+  }
+  if (!targetMsg) {
+    throw new NotFoundError("Message");
+  }
+
+  // 3. Fetch all messages in the source conversation up to and including the target message
+  const { data: sourceMessages, error: msgsErr } = await supabase
+    .from("messages")
+    .select("role, content, meta, created_at")
+    .eq("conversation_id", sourceConversationId)
+    .lte("created_at", targetMsg.created_at)
+    .order("created_at", { ascending: true });
+
+  if (msgsErr) {
+    throw new DatabaseError(`Failed to fetch source messages: ${msgsErr.message}`);
+  }
+
+  // 4. Create the new branched conversation
+  const newTitle = `${titlePrefix} ${sourceConvo.title}`.trim();
+  const insertPayload: Record<string, unknown> = {
+    user_id: userId,
+    title: newTitle,
+    model: sourceConvo.model,
+    gem_id: sourceConvo.gemId,
+    project_id: sourceConvo.projectId,
+    parent_conversation_id: sourceConversationId,
+    forked_from_message_id: messageId,
+    last_message_preview: sourceConvo.lastMessagePreview,
+  };
+
+  const { data: newConvoRow, error: createConvoErr } = await supabase
+    .from("conversations")
+    .insert(insertPayload)
+    .select("*,gems(name,icon,color),personas(name,icon,color)")
+    .single();
+
+  if (createConvoErr || !newConvoRow) {
+    throw new DatabaseError(
+      `Failed to create branched conversation: ${createConvoErr?.message || "Unknown error"}`
+    );
+  }
+
+  const newConvo = mapConversationRow(newConvoRow);
+  if (!newConvo) {
+    throw new DatabaseError("Failed to map created conversation");
+  }
+
+  // 5. Clone messages into the new conversation
+  if (sourceMessages && sourceMessages.length > 0) {
+    const messagesToInsert = sourceMessages.map((msg) => ({
+      conversation_id: newConvo.id,
+      role: msg.role,
+      content: msg.content, // Content is already encrypted AES in DB, preserve it
+      meta: msg.meta || {},
+      created_at: msg.created_at,
+    }));
+
+    const { error: insertMsgsErr } = await supabase.from("messages").insert(messagesToInsert);
+
+    if (insertMsgsErr) {
+      throw new DatabaseError(
+        `Failed to copy messages to branched conversation: ${insertMsgsErr.message}`
+      );
+    }
+  }
+
+  // 6. Invalidate cache
+  try {
+    await invalidateConversationsCache(userId);
+  } catch {
+    // Non-fatal cache invalidation error
+  }
+
+  return newConvo;
 }

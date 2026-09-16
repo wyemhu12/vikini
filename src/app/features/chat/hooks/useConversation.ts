@@ -23,6 +23,8 @@ export interface FrontendConversation {
   gem?: { name: string; icon: string | null; color: string | null } | null;
   persona?: { name: string; icon: string | null; color: string | null } | null;
   projectId?: string | null;
+  parentConversationId?: string | null;
+  forkedFromMessageId?: string | null;
   [key: string]: unknown;
 }
 
@@ -81,6 +83,8 @@ function convertConversationToFrontend(conv: Conversation): FrontendConversation
     gem: conv.gem,
     persona: conv.persona,
     projectId: conv.projectId, // Include project association
+    parentConversationId: conv.parentConversationId,
+    forkedFromMessageId: conv.forkedFromMessageId,
   };
 }
 

@@ -115,5 +115,21 @@ describe("Conversations", () => {
       expect(result).not.toBeNull();
       expect(result?.gem).toBeNull();
     });
+
+    it("should map parent_conversation_id and forked_from_message_id correctly", () => {
+      const row = {
+        id: "branch-1",
+        user_id: "user@example.com",
+        title: "[Nhánh] Test",
+        parent_conversation_id: "parent-convo-123",
+        forked_from_message_id: "msg-456",
+      };
+
+      const result = mapConversationRow(row);
+
+      expect(result).not.toBeNull();
+      expect(result?.parentConversationId).toBe("parent-convo-123");
+      expect(result?.forkedFromMessageId).toBe("msg-456");
+    });
   });
 });

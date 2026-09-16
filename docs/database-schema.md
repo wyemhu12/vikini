@@ -51,6 +51,8 @@ erDiagram
         text model
         uuid gem_id FK
         uuid project_id FK
+        uuid parent_conversation_id FK
+        uuid forked_from_message_id FK
         timestamptz created_at
         timestamptz updated_at
     }
@@ -209,17 +211,19 @@ erDiagram
 
 ### 2.3 `conversations` - Cuộc hội thoại
 
-| Cột          | Kiểu          | Ràng buộc          | Mô tả                        |
-| ------------ | ------------- | ------------------ | ---------------------------- |
-| `id`         | `UUID`        | PRIMARY KEY        | ID cuộc hội thoại            |
-| `user_id`    | `TEXT`        | NOT NULL           | Email người dùng (lowercase) |
-| `title`      | `TEXT`        | DEFAULT 'New Chat' | Tiêu đề (auto-generated)     |
-| `model`      | `TEXT`        |                    | Model AI đang sử dụng        |
-| `gem_id`     | `UUID`        | FK → gems(id)      | GEM được áp dụng (nullable)  |
-| `created_at` | `TIMESTAMPTZ` | DEFAULT now()      | Thời gian tạo                |
-| `updated_at` | `TIMESTAMPTZ` | DEFAULT now()      | Thời gian cập nhật           |
+| Cột                      | Kiểu          | Ràng buộc                       | Mô tả                                   |
+| ------------------------ | ------------- | ------------------------------- | --------------------------------------- |
+| `id`                     | `UUID`        | PRIMARY KEY                     | ID cuộc hội thoại                       |
+| `user_id`                | `TEXT`        | NOT NULL                        | Email người dùng (lowercase)            |
+| `title`                  | `TEXT`        | DEFAULT 'New Chat'              | Tiêu đề (auto-generated)                |
+| `model`                  | `TEXT`        |                                 | Model AI đang sử dụng                   |
+| `gem_id`                 | `UUID`        | FK → gems(id)                   | GEM được áp dụng (nullable)             |
+| `parent_conversation_id` | `UUID`        | FK → conversations(id) nullable | Cuộc hội thoại gốc nếu là nhánh tách ra |
+| `forked_from_message_id` | `UUID`        | FK → messages(id) nullable      | Tin nhắn mốc được chọn để rẽ nhánh      |
+| `created_at`             | `TIMESTAMPTZ` | DEFAULT now()                   | Thời gian tạo                           |
+| `updated_at`             | `TIMESTAMPTZ` | DEFAULT now()                   | Thời gian cập nhật                      |
 
-**Index**: `idx_conversations_user_id`, `idx_conversations_updated_at`
+**Index**: `idx_conversations_user_id`, `idx_conversations_updated_at`, `idx_conversations_parent_id`, `idx_conversations_forked_from_msg`
 
 ---
 

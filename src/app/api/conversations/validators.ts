@@ -44,3 +44,10 @@ export const deleteConversationSchema = z.object({
 });
 
 export type DeleteConversationRequest = z.infer<typeof deleteConversationSchema>;
+
+export const branchConversationSchema = z.object({
+  messageId: z.string().uuid(),
+  titlePrefix: z.string().max(50).optional(),
+});
+
+export type BranchConversationRequest = z.infer<typeof branchConversationSchema>;

@@ -60,6 +60,10 @@ vi.mock("@/lib/features/admin/auditLog", () => ({
   logAuditEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/features/auth/authRevocation", () => ({
+  bumpAuthVersion: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/utils/logger", () => ({
   logger: {
     withContext: vi.fn(() => ({

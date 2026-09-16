@@ -5,6 +5,46 @@
 
 ---
 
+## 2026-09-16: Implement "Branch In New Chat" (Conversation Branching) Feature
+
+- **Feature**: Added **Branch In New Chat** capability to Vikini, allowing users to fork any conversation from a specific message node into an independent new conversation session.
+- **Architecture & Technical Highlights**:
+  - **Hybrid Snapshot Fork Model**: Clones conversation history up to the target message node ($M_1 \dots M_k$) directly at the database level, preserving AES encrypted content without plaintext exposure in memory.
+  - **Genealogy Tracking**: Added `parent_conversation_id` and `forked_from_message_id` columns with indexes on the `conversations` table.
+  - **API Route**: Created `POST /api/conversations/[id]/branch` with RFC 4122 UUID validation, authentication checks, and cache invalidation.
+  - **UI/UX**:
+    - Added `GitFork` action button to `MessageActions.tsx` with loading state and bilingual tooltips.
+    - Integrated with `ChatBubble.tsx` and `ChatApp.tsx`.
+    - Implemented subtle **Origin Breadcrumb** at the top of branched conversations linking back to the parent conversation.
+  - **Bilingual**: Full English and Vietnamese translations added for action buttons, notifications, and breadcrumbs.
+- **Files Modified & Added**:
+  - [`20260916_add_conversation_branching.sql`](file:///c:/Users/wyemh/vikini/supabase/migrations/20260916_add_conversation_branching.sql): Added migration script for branching columns and index.
+  - [`database-schema.md`](file:///c:/Users/wyemh/vikini/docs/database-schema.md): Updated ERD and Section 2.3 `conversations` documentation.
+  - [`conversations.ts`](file:///c:/Users/wyemh/vikini/src/lib/features/chat/conversations.ts): Added `branchConversation` domain logic and updated `Conversation` types & mappers.
+  - [`conversations.test.ts`](file:///c:/Users/wyemh/vikini/src/lib/features/chat/conversations.test.ts): Added unit tests for branching mappers.
+  - [`branch/route.ts`](file:///c:/Users/wyemh/vikini/src/app/api/conversations/[id]/branch/route.ts): Created branching API handler.
+  - [`branch/route.test.ts`](file:///c:/Users/wyemh/vikini/src/app/api/conversations/[id]/branch/route.test.ts): Added integration tests for branch API.
+  - [`validators.ts`](file:///c:/Users/wyemh/vikini/src/app/api/conversations/validators.ts): Added `branchConversationSchema`.
+  - [`MessageActions.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/MessageActions.tsx): Added branch button and loading state.
+  - [`MessageActions.test.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/MessageActions.test.tsx): Added unit tests for branch button.
+  - [`ChatBubble.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/ChatBubble.tsx): Forwarded `onBranch` and `isBranching` props and updated React.memo comparison.
+  - [`ChatApp.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/ChatApp.tsx): Added `handleBranchMessage`, origin breadcrumb, and navigation.
+  - [`useConversation.ts`](file:///c:/Users/wyemh/vikini/src/app/features/chat/hooks/useConversation.ts): Added `parentConversationId` and `forkedFromMessageId` to `FrontendConversation`.
+  - [`vi.ts`](file:///c:/Users/wyemh/vikini/src/lib/utils/translations/vi.ts) & [`en.ts`](file:///c:/Users/wyemh/vikini/src/lib/utils/translations/en.ts): Added bilingual translation keys.
+
+## 2026-09-16: Switch DeepSeek V4.1 Flash Provider to Relace on OpenRouter
+
+- **Improvement**: Switched DeepSeek V4.1 Flash (`deepseek/deepseek-v4.1-flash`) OpenRouter priority provider from Fireworks to **Relace** (`provider: { order: ["Relace"], allow_fallbacks: true }`).
+- **Key Metrics with Relace**:
+  - **Lower Cost**: Input reduced to $0.15/M (down from $0.22/M), Output reduced to $0.60/M (down from $0.66/M).
+  - **Faster Latency**: TTFT reduced to 1.43s (down from 1.87s).
+  - **Higher Availability**: 99.50% uptime with verified badge on OpenRouter.
+- **Files Modified**:
+  - [`deepseek-stream.ts`](file:///c:/Users/wyemh/vikini/src/app/api/chat-stream/streaming/deepseek-stream.ts): Updated `order: ["Relace"]`.
+  - [`modelRegistry.ts`](file:///c:/Users/wyemh/vikini/src/lib/core/modelRegistry.ts): Updated provider comment.
+  - [`deepseek-stream.test.ts`](file:///c:/Users/wyemh/vikini/src/app/api/chat-stream/streaming/deepseek-stream.test.ts): Updated unit test expectations to verify Relace routing.
+  - [`models.md`](file:///c:/Users/wyemh/vikini/docs/models.md): Updated specifications table and benchmark details.
+
 ## 2026-09-10: Integrate DeepSeek V4.1 Flash via OpenRouter (Fireworks AI)
 
 - **Feature**: Added **DeepSeek V4.1 Flash** (`deepseek/deepseek-v4.1-flash`) to the Vikini model registry with OpenRouter integration, prioritized on Fireworks AI infrastructure.

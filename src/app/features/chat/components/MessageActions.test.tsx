@@ -18,6 +18,8 @@ vi.mock("../hooks/useLanguage", () => ({
         delete: "Delete",
         stopSpeaking: "Stop",
         readAloud: "Read aloud",
+        branchInNewChat: "Branch in new chat",
+        branching: "Branching...",
       };
       return dict[key] || key;
     },
@@ -196,6 +198,66 @@ describe("MessageActions", () => {
     it("does not render delete button when messageId or onDelete is missing", () => {
       render(<MessageActions isBot={true} copied={false} onCopy={vi.fn()} />);
       expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Branch in new chat button", () => {
+    it("renders branch button and calls onBranch with messageId when clicked", () => {
+      const onBranch = vi.fn();
+      render(
+        <MessageActions
+          isBot={true}
+          messageId="msg-123"
+          copied={false}
+          onCopy={vi.fn()}
+          onBranch={onBranch}
+        />
+      );
+
+      const branchBtn = screen.getByRole("button", { name: /branch in new chat/i });
+      expect(branchBtn).toBeInTheDocument();
+      expect(branchBtn).not.toBeDisabled();
+      fireEvent.click(branchBtn);
+      expect(onBranch).toHaveBeenCalledWith("msg-123");
+    });
+
+    it("renders branch button for user messages as well", () => {
+      const onBranch = vi.fn();
+      render(
+        <MessageActions
+          isBot={false}
+          messageId="msg-user-456"
+          copied={false}
+          onCopy={vi.fn()}
+          onBranch={onBranch}
+        />
+      );
+
+      const branchBtn = screen.getByRole("button", { name: /branch in new chat/i });
+      expect(branchBtn).toBeInTheDocument();
+      fireEvent.click(branchBtn);
+      expect(onBranch).toHaveBeenCalledWith("msg-user-456");
+    });
+
+    it("disables branch button and shows branching label when isBranching is true", () => {
+      render(
+        <MessageActions
+          isBot={true}
+          messageId="msg-123"
+          copied={false}
+          isBranching={true}
+          onCopy={vi.fn()}
+          onBranch={vi.fn()}
+        />
+      );
+
+      const branchBtn = screen.getByRole("button", { name: /branching/i });
+      expect(branchBtn).toBeDisabled();
+    });
+
+    it("does not render branch button when onBranch or messageId is missing", () => {
+      render(<MessageActions isBot={true} copied={false} onCopy={vi.fn()} />);
+      expect(screen.queryByRole("button", { name: /branch/i })).not.toBeInTheDocument();
     });
   });
 

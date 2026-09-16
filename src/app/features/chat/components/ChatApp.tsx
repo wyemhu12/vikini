@@ -15,6 +15,7 @@ import StreamErrorBanner from "./StreamErrorBanner";
 import ProjectChatView from "../../projects/components/ProjectChatView";
 import ChatDeepResearch from "./ChatDeepResearch";
 import ChatModalsSection from "./ChatModalsSection";
+import { GitFork } from "lucide-react";
 
 import React, { useEffect, useMemo, useCallback, useState, lazy, Suspense } from "react";
 
@@ -272,6 +273,61 @@ export default function ChatApp() {
     [conversations, selectedConversationId]
   );
   const currentModel = currentConversation?.model || landingModel;
+
+  const parentConversation = useMemo(
+    () =>
+      currentConversation?.parentConversationId
+        ? (conversations || []).find(
+            (c: FrontendConversation) => c?.id === currentConversation.parentConversationId
+          )
+        : null,
+    [conversations, currentConversation?.parentConversationId]
+  );
+
+  // Branch in new chat handler
+  const [branchingMessageId, setBranchingMessageId] = useState<string | null>(null);
+
+  const handleBranchMessage = useCallback(
+    async (messageId: string) => {
+      if (!selectedConversationId) return;
+
+      try {
+        setBranchingMessageId(messageId);
+        const res = await fetch(`/api/conversations/${selectedConversationId}/branch`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messageId,
+            titlePrefix: tRaw("branchTitlePrefix") || "[Nhánh]",
+          }),
+        });
+
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          throw new Error(
+            json.error?.message || tRaw("branchFailed") || "Failed to branch conversation"
+          );
+        }
+
+        const newConvo = json.data?.conversation;
+        if (newConvo?.id) {
+          toast.success(tRaw("branchSuccess") || "Đã tách cuộc trò chuyện thành công");
+          await refreshConversations();
+          setSelectedConversationIdAndUrl(newConvo.id);
+        }
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : tRaw("branchFailed") || "Failed to branch conversation";
+        logger.error("[ChatApp] Branch conversation error:", msg);
+        toast.error(msg);
+      } finally {
+        setBranchingMessageId(null);
+      }
+    },
+    [selectedConversationId, refreshConversations, setSelectedConversationIdAndUrl, tRaw]
+  );
 
   // Intercept send for Deep Research
   const handleMessageSend = useCallback(
@@ -717,6 +773,32 @@ export default function ChatApp() {
             </div>
           ) : (
             <div className="max-w-3xl mx-auto w-full py-8 space-y-2">
+              {/* Origin Breadcrumb if conversation is a branch */}
+              {currentConversation?.parentConversationId && (
+                <div className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-(--surface-elevated)/60 border border-(--border) text-xs text-(--text-secondary) w-fit backdrop-blur-sm animate-in fade-in duration-200">
+                  <GitFork className="w-3.5 h-3.5 rotate-180 text-(--accent)" />
+                  <span>{tRaw("branchedFrom") || "Được tách từ"}:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (currentConversation.parentConversationId) {
+                        setSelectedConversationIdAndUrl(currentConversation.parentConversationId);
+                      }
+                    }}
+                    className="font-medium text-(--accent) hover:underline truncate max-w-[240px] text-left"
+                    title={
+                      parentConversation?.title ||
+                      tRaw("parentConversation") ||
+                      "Cuộc hội thoại gốc"
+                    }
+                  >
+                    {parentConversation?.title ||
+                      tRaw("parentConversation") ||
+                      "Cuộc hội thoại gốc"}
+                  </button>
+                </div>
+              )}
+
               {renderedMessages.map((m: FrontendMessage, idx: number) => {
                 const isLastAI = m.role === "assistant" && idx === renderedMessages.length - 1;
                 return (
@@ -735,6 +817,8 @@ export default function ChatApp() {
                     onSpeak={m.id ? () => tts.speakMessage(m.id!, m.content || "") : undefined}
                     isSpeaking={m.id ? tts.isMessageSpeaking(m.id) : false}
                     conversationId={selectedConversationId ?? undefined}
+                    onBranch={handleBranchMessage}
+                    isBranching={branchingMessageId === m.id}
                   />
                 );
               })}

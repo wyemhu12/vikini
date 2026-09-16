@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-import { Trash2, Volume2, VolumeX, Copy, Check, RefreshCw } from "lucide-react";
+import { Trash2, Volume2, VolumeX, Copy, Check, RefreshCw, GitFork, Loader2 } from "lucide-react";
 import { useLanguage } from "../hooks/useLanguage";
 import { VoiceWaveform } from "@/components/ui/VoiceWaveform";
 
@@ -18,12 +18,16 @@ interface MessageActionsProps {
   regenerating?: boolean;
   /** TTS speaking state */
   isSpeaking?: boolean;
+  /** Branching in progress for this message */
+  isBranching?: boolean;
   onCopy: () => void;
   onEdit?: () => void;
   onRegenerate?: () => void;
   onDelete?: (messageId: string) => void;
   /** Callback to trigger TTS */
   onSpeak?: () => void;
+  /** Callback to branch into a new chat from this message */
+  onBranch?: (messageId: string) => void;
 }
 
 // ============================================
@@ -37,11 +41,13 @@ function MessageActions({
   canRegenerate,
   regenerating,
   isSpeaking,
+  isBranching,
   onCopy,
   onEdit,
   onRegenerate,
   onDelete,
   onSpeak,
+  onBranch,
 }: MessageActionsProps) {
   const { t } = useLanguage();
 
@@ -94,6 +100,32 @@ function MessageActions({
             className={`w-3.5 h-3.5 group-hover/regen:rotate-180 transition-transform duration-300 ${regenerating ? "animate-spin" : ""}`}
           />
           <span>{t("regenerate")}</span>
+        </button>
+      )}
+
+      {/* Branch in new chat Button */}
+      {onBranch && messageId && (
+        <button
+          type="button"
+          onClick={() => onBranch(messageId)}
+          disabled={isBranching}
+          className="min-h-[28px] min-w-[28px] px-1.5 py-0.5 rounded-md inline-flex items-center justify-center gap-1 text-xs font-semibold text-(--text-secondary) hover:text-(--accent) uppercase tracking-tighter disabled:opacity-40 disabled:pointer-events-none transition-transform duration-150 ease-out active:scale-[0.92] focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+          title={
+            isBranching
+              ? t("branching") || "Branching..."
+              : t("branchInNewChat") || "Branch in new chat"
+          }
+          aria-label={
+            isBranching
+              ? t("branching") || "Branching..."
+              : t("branchInNewChat") || "Branch in new chat"
+          }
+        >
+          {isBranching ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-(--accent)" />
+          ) : (
+            <GitFork className="w-3.5 h-3.5 rotate-180 transition-transform duration-200" />
+          )}
         </button>
       )}
 

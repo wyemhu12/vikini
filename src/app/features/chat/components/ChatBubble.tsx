@@ -60,6 +60,8 @@ export interface ChatBubbleProps {
   onImageRegenerate?: (message: ChatMessage) => void;
   onImageEdit?: (message: ChatMessage) => void;
   onSpeak?: () => void;
+  onBranch?: (messageId: string) => void;
+  isBranching?: boolean;
 }
 
 const FileLightbox = dynamic(() => import("./FileLightbox"), { ssr: false });
@@ -275,11 +277,13 @@ export const ChatBubble = React.memo(
                 canRegenerate={props.canRegenerate}
                 regenerating={props.regenerating}
                 isSpeaking={props.isSpeaking}
+                isBranching={props.isBranching}
                 onCopy={handleCopyMessage}
                 onEdit={!isBot ? () => setIsEditing(true) : undefined}
                 onRegenerate={props.onRegenerate}
                 onDelete={props.onDelete}
                 onSpeak={isBot ? props.onSpeak : undefined}
+                onBranch={props.onBranch}
               />
             )}
           </div>
@@ -302,6 +306,8 @@ export const ChatBubble = React.memo(
     p.onImageEdit === n.onImageEdit &&
     p.isSpeaking === n.isSpeaking &&
     p.onSpeak === n.onSpeak &&
+    p.onBranch === n.onBranch &&
+    p.isBranching === n.isBranching &&
     p.conversationId === n.conversationId
 );
 

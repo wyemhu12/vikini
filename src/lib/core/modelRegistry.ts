@@ -207,7 +207,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
   },
 
   // ═══════════════════════════════════════════════════════════
-  // DEEPSEEK V4.1 FLASH (via OpenRouter → Fireworks, CED MoE)
+  // DEEPSEEK V4.1 FLASH (via OpenRouter → Relace, CED MoE)
   // ═══════════════════════════════════════════════════════════
   {
     id: "deepseek/deepseek-v4.1-flash",

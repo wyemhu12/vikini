@@ -176,7 +176,7 @@ export function createDeepSeekStream(params: {
         // Add OpenRouter provider routing for DeepSeek models
         if (isDeepSeekV41FlashModel(model)) {
           requestBody.provider = {
-            order: ["Fireworks"],
+            order: ["Relace"],
             allow_fallbacks: true,
           };
         } else if (isDeepSeekV4ProModel(model)) {
