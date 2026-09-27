@@ -28,6 +28,7 @@ import {
   FolderPlus,
   Loader2,
   Search,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { toast } from "@/lib/store/toastStore";
@@ -268,10 +269,82 @@ function Sidebar({
       if (isMobile) onCloseMobile?.();
     };
 
+    const navButtons = (
+      <div className="space-y-2">
+        <SidebarButton
+          onClick={() => handleNavigation("/")}
+          icon={MessageSquare}
+          label="Chat"
+          variant={pathname === "/" ? "primary" : "default"}
+          isCollapsed={isCollapsed}
+        />
+        {pathname === "/" && (
+          <>
+            <SidebarButton
+              onClick={handleOpenGems}
+              icon={Sparkles}
+              label={t?.exploreGems || "Explore Gems"}
+              className="ml-6 scale-95 origin-left opacity-80"
+              isCollapsed={isCollapsed}
+            />
+            <SidebarButton
+              onClick={handleOpenPersonas}
+              icon={Sparkles}
+              label={t?.managePersonas || "Manage Personas"}
+              className="ml-6 scale-95 origin-left opacity-80"
+              isCollapsed={isCollapsed}
+            />
+            {isCollapsed && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleOpenGems}
+                    className="flex items-center justify-center w-full py-2 text-(--text-secondary) hover:text-(--accent) transition-colors"
+                    type="button"
+                  >
+                    <Sparkles className="w-5 h-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[200px]">
+                  <p className="font-medium">GEMs</p>
+                  <p className="text-xs text-(--text-secondary)">
+                    Custom AI personas with specialized instructions and knowledge
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </>
+        )}
+        <SidebarButton
+          onClick={() => handleNavigation("/images")}
+          icon={ImageIcon}
+          label="Image Studio"
+          variant={pathname?.includes("/images") ? "primary" : "default"}
+          isCollapsed={isCollapsed}
+        />
+        {pathname?.includes("/images") && (
+          <SidebarButton
+            onClick={() => handleNavigation("/describe")}
+            icon={Search}
+            label={t?.describeTitle || "Describe Image"}
+            className="ml-6 scale-95 origin-left opacity-80"
+            isCollapsed={isCollapsed}
+          />
+        )}
+        <SidebarButton
+          onClick={() => handleNavigation("/gallery")}
+          icon={LayoutGrid}
+          label="Gallery"
+          variant={pathname?.includes("/gallery") ? "primary" : "default"}
+          isCollapsed={isCollapsed}
+        />
+      </div>
+    );
+
     return (
-      <div className="flex flex-col h-full text-(--text-primary)">
-        {/* Actions */}
-        <div className="mb-4 space-y-2">
+      <div className="flex flex-col flex-1 min-h-0 text-(--text-primary)">
+        {/* Actions - Fixed top button */}
+        <div className="shrink-0 mb-2">
           <SidebarButton
             onClick={handleNew}
             icon={Plus}
@@ -280,81 +353,28 @@ function Sidebar({
             isCollapsed={isCollapsed}
             isLoading={isCreatingChat}
           />
-          <SidebarButton
-            onClick={() => handleNavigation("/")}
-            icon={MessageSquare}
-            label="Chat"
-            variant={pathname === "/" ? "primary" : "default"}
-            isCollapsed={isCollapsed}
-          />
-          {pathname === "/" && (
-            <>
-              <SidebarButton
-                onClick={handleOpenGems}
-                icon={Sparkles}
-                label={t?.exploreGems || "Explore Gems"}
-                className="ml-6 scale-95 origin-left opacity-80"
-                isCollapsed={isCollapsed}
-              />
-              <SidebarButton
-                onClick={handleOpenPersonas}
-                icon={Sparkles}
-                label={t?.managePersonas || "Manage Personas"}
-                className="ml-6 scale-95 origin-left opacity-80"
-                isCollapsed={isCollapsed}
-              />
-              {isCollapsed && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={handleOpenGems}
-                      className="flex items-center justify-center w-full py-2 text-(--text-secondary) hover:text-(--accent) transition-colors"
-                      type="button"
-                    >
-                      <Sparkles className="w-5 h-5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-[200px]">
-                    <p className="font-medium">GEMs</p>
-                    <p className="text-xs text-(--text-secondary)">
-                      Custom AI personas with specialized instructions and knowledge
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </>
-          )}
-          <SidebarButton
-            onClick={() => handleNavigation("/images")}
-            icon={ImageIcon}
-            label="Image Studio"
-            variant={pathname?.includes("/images") ? "primary" : "default"}
-            isCollapsed={isCollapsed}
-          />
-          {pathname?.includes("/images") && (
-            <SidebarButton
-              onClick={() => handleNavigation("/describe")}
-              icon={Search}
-              label={t?.describeTitle || "Describe Image"}
-              className="ml-6 scale-95 origin-left opacity-80"
-              isCollapsed={isCollapsed}
-            />
-          )}
-          <SidebarButton
-            onClick={() => handleNavigation("/gallery")}
-            icon={LayoutGrid}
-            label="Gallery"
-            variant={pathname?.includes("/gallery") ? "primary" : "default"}
-            isCollapsed={isCollapsed}
-          />
         </div>
 
-        {/* Divider */}
-        <div className={cn("h-px bg-(--border)/60 mb-2 mx-2", isCollapsed && "hidden")} />
+        {/* Desktop Navigation Links - Fixed on top when !isMobile */}
+        {!isMobile && (
+          <div className="shrink-0 mb-2">
+            {navButtons}
+            <div className={cn("h-px bg-(--border)/60 mt-2 mx-2", isCollapsed && "hidden")} />
+          </div>
+        )}
 
-        {/* Projects Section - own scroll area */}
-        {!isCollapsed && !pathname?.includes("/images") && (
-          <div className="max-h-[40%] overflow-y-auto pr-1 shrink-0 scrollbar-thin scrollbar-thumb-[var(--control-border)] hover:scrollbar-thumb-[var(--border)]">
+        {/* Middle Unified Scroll Area */}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-1 pb-2 space-y-2 custom-scrollbar">
+          {/* Mobile Navigation Links - Inside scroll area on mobile */}
+          {isMobile && (
+            <>
+              {navButtons}
+              <div className="h-px bg-(--border)/60 my-2 mx-2" />
+            </>
+          )}
+
+          {/* Projects Section */}
+          {!isCollapsed && !pathname?.includes("/images") && (
             <SidebarSection
               label={t?.projects || "Projects"}
               storageKey="projects"
@@ -404,15 +424,15 @@ function Sidebar({
                 })
               )}
             </SidebarSection>
-          </div>
-        )}
+          )}
 
-        {/* Divider */}
-        <div className={cn("h-px bg-(--border)/40 my-2 mx-2", isCollapsed && "hidden")} />
+          {/* Divider between Projects and Chats */}
+          {!isCollapsed && !pathname?.includes("/images") && (
+            <div className="h-px bg-(--border)/40 my-2 mx-2" />
+          )}
 
-        {/* Your chats Section - own scroll area, fills remaining space */}
-        {!isCollapsed && (
-          <div className="flex-1 min-h-0 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[var(--control-border)] hover:scrollbar-thumb-[var(--border)]">
+          {/* Your chats Section */}
+          {!isCollapsed && (
             <SidebarSection
               label={t?.yourChats || "Your chats"}
               storageKey="your-chats"
@@ -443,16 +463,11 @@ function Sidebar({
                 </AnimatePresence>
               )}
             </SidebarSection>
-          </div>
-        )}
-
-        {/* Placeholder when collapsed */}
-        {isCollapsed && (
-          <div className="flex-1 flex flex-col items-center pt-4 border-t border-(--border) gap-2" />
-        )}
+          )}
+        </div>
 
         {/* Footer Actions */}
-        <div className={cn("mt-auto pt-4 space-y-2", !isCollapsed && "border-t border-(--border)")}>
+        <div className="shrink-0 pt-3 space-y-2 border-t border-(--border)">
           {onDeleteAll && !isCollapsed && (
             <SidebarButton
               onClick={() => onDeleteAll?.()}
@@ -529,7 +544,7 @@ function Sidebar({
                 <>
                   <Dialog.Overlay asChild forceMount>
                     <motion.div
-                      className="fixed inset-0 z-40 bg-(--surface-muted)/80 backdrop-blur-sm md:hidden"
+                      className="fixed inset-0 z-[55] bg-(--surface-muted)/80 backdrop-blur-sm md:hidden"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
@@ -540,7 +555,7 @@ function Sidebar({
                     <motion.aside
                       aria-label="Main navigation"
                       role="navigation"
-                      className="fixed top-0 left-0 bottom-0 z-50 w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-6 pb-24 shadow-2xl flex flex-col md:hidden"
+                      className="fixed top-0 left-0 bottom-0 z-[60] w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-5 pb-16 shadow-2xl flex flex-col md:hidden"
                       initial={{ x: "-100%" }}
                       animate={{ x: 0 }}
                       exit={{ x: "-100%" }}
@@ -548,7 +563,7 @@ function Sidebar({
                     >
                       <Dialog.Title className="sr-only">Navigation</Dialog.Title>
                       {/* Mobile header */}
-                      <div className="mb-8 flex items-center justify-between">
+                      <div className="mb-4 flex items-center justify-between shrink-0">
                         <Link
                           href="/"
                           className="text-lg font-black tracking-tighter text-(--text-primary) flex items-center gap-3 active:opacity-70 transition-opacity"
@@ -566,7 +581,9 @@ function Sidebar({
                           <button
                             aria-label="Close sidebar"
                             className="p-2 rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors"
-                          ></button>
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
                         </Dialog.Close>
                       </div>
                       {/* Reuse SidebarContent with isMobile=true (never collapsed) */}

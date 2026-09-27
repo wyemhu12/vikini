@@ -9,25 +9,27 @@ description: Mandatory pre-work, post-change checklist, workflow enforcement, an
 
 Before writing any code, identify the task domain and read relevant documentation:
 
-| Domain                    | Read first                                            | Workflow to follow     |
-| ------------------------- | ----------------------------------------------------- | ---------------------- |
-| Chat / Streaming          | docs/contracts.md, skills/streaming-patterns.md       |                        |
-| Database / Schema         | docs/database-schema.md, skills/database-migration.md |                        |
-| Auth / Security           | docs/security.md                                      |                        |
-| UI Components             | rules/03-ui.md                                        |                        |
-| Bug fixing                | docs/lessons-learned.md                               | **workflows/debug.md** |
-| API routes                | skills/api-patterns.md                                |                        |
-| Projects / Knowledge Base | docs/features.md (section 2.10), docs/contracts.md    |                        |
-| Image Studio / Gallery    | docs/features.md (sections 2.5, 2.6)                  |                        |
-| Voice / Audio             | docs/features.md (section 2.7)                        |                        |
-| New feature overview      | docs/features.md, docs/architecture.md                |                        |
-| Adding a new feature      | skills/add-feature.md                                 |                        |
-| Code quality review       | rules/01-coding.md                                    | **workflows/audit.md** |
-| Refactoring / File split  | rules/01-coding.md (§ File Size & Modularity)         |                        |
+| Domain                    | Read first                                            | Workflow to follow          |
+| ------------------------- | ----------------------------------------------------- | --------------------------- |
+| Chat / Streaming          | docs/contracts.md, skills/streaming-patterns.md       |                             |
+| Database / Schema         | docs/database-schema.md, skills/database-migration.md |                             |
+| Auth / Security           | docs/security.md                                      |                             |
+| UI Components             | rules/03-ui.md                                        |                             |
+| Bug fixing                | docs/lessons-learned.md                               | **workflows/debug.md**      |
+| API routes                | skills/api-patterns.md                                |                             |
+| Projects / Knowledge Base | docs/features.md (section 2.10), docs/contracts.md    |                             |
+| Image Studio / Gallery    | docs/features.md (sections 2.5, 2.6)                  |                             |
+| Voice / Audio             | docs/features.md (section 2.7)                        |                             |
+| New feature overview      | docs/features.md, docs/architecture.md                |                             |
+| Adding a new feature      | skills/add-feature.md                                 |                             |
+| Feature / Task Planning   | docs/plans/, rules/05-plan-review.md                  | **rules/05-plan-review.md** |
+| Code quality review       | rules/01-coding.md                                    | **workflows/audit.md**      |
+| Refactoring / File split  | rules/01-coding.md (§ File Size & Modularity)         |                             |
 
 <important>
-When a workflow is listed in the table above, you MUST read and follow it step-by-step.
+When a workflow or rule is listed in the table above, you MUST read and follow it step-by-step.
 Do NOT skip workflows. They are mandatory procedures, not optional references.
+For any new feature or non-trivial task, strict code freeze applies until token `[PLAN_APPROVED]` is issued by `@reviewer` (see `rules/05-plan-review.md`).
 </important>
 
 ## Post-Change Checklist (MANDATORY)

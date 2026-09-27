@@ -655,7 +655,7 @@ export default function ChatApp() {
         isCreatingChat={isCreatingChatMode}
       />
 
-      <FloatingMenuTrigger onClick={() => setMobileOpen((prev) => !prev)} />
+      {!mobileOpen && <FloatingMenuTrigger onClick={() => setMobileOpen((prev) => !prev)} />}
 
       <div
         className={`h-full flex flex-col relative z-10 transition-[padding] duration-300 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}

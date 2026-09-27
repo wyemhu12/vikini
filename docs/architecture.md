@@ -218,3 +218,55 @@ Track token usage per workflow type to identify optimization opportunities:
 ### Why This Matters
 
 Most token cost comes from retry loops (fix → verify → fix → verify), not from the initial generation. Tracking these metrics enables data-driven decisions on model routing and workflow improvements.
+
+## 7. Multi-Agent Governance Architecture
+
+Quy trình phát triển và kiểm soát chất lượng của Vikini được vận hành bởi hệ thống phối hợp đa tác tử (Multi-Agent System) tuân thủ chuẩn Antigravity 2.0:
+
+```text
+User (PM) ──[Task]──▶ Orchestrator (Dispatcher)
+                              │
+                    (Zero-Self-Execution)
+                              │
+                              ▼
+                      [ @planner Subagent ]
+                      (Gemini 3.8 Flash)
+                              │
+                  (Uninterrupted Chain - KHÔNG ngắt quãng hỏi PM)
+                              │
+                              ▼
+                     [ @reviewer Subagent ]
+                     (Claude Opus 4.6 / Fallback Flash)
+                              │
+                     [ Thẩm định trực tuyến 2026 ]
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+           [CHANGES_REQUESTED]    [PLAN_APPROVED]
+                    │                   │
+                    ▼                   ▼
+         (Gửi lại @planner sửa)   [ Pre-Flight Gate ]
+         (Tối đa 3 vòng lặp)            │ (PASS)
+                                        ▼
+                               [ Trình User (PM) Duyệt ]
+                                        │
+                                        ▼
+                               [ Unfreeze & Code ]
+                                        │
+                                        ▼
+                               [ npm run verify ]
+```
+
+### 3 Cơ Chế Cưỡng Chế Cốt Lõi:
+
+1. **Zero-Self-Execution**: Orchestrator chỉ đóng vai trò điều phối viên; cấm tự lập kế hoạch trên luồng chính. Khâu lập kế hoạch bắt buộc 100% ủy quyền cho `@planner`.
+2. **Uninterrupted Execution Chain**: Luồng `[Task]` ➔ `[@planner]` ➔ `[@reviewer]` chạy tự động, liên tục; cấm dừng giữa chừng để hỏi ý kiến người dùng khi chưa có thẻ `[PLAN_APPROVED]`.
+3. **Pre-Flight Gate**: Chốt chặn 3 cổng bắt buộc trước khi xuất phản hồi xin mở khóa viết code:
+   - **Gate 1 - Plan Persistence**: Kế hoạch được ghi vào `docs/plans/`.
+   - **Gate 2 - Reviewer Dispatch**: Kế hoạch đã qua thẩm định trực tuyến độc lập bởi `@reviewer`.
+   - **Gate 3 - Reviewer Approval Token**: Nhận thẻ `[PLAN_APPROVED]` trực tiếp từ `@reviewer`.
+
+### Subagent Nghiệm Thu Độc Lập (@qa)
+
+- Hoạt động theo chế độ **ON-DEMAND** (chỉ kích hoạt khi người dùng gõ `@qa`).
+- Thực hiện kiểm toán 4 giai đoạn: Nghiệm thu đối chiếu plan vs thực tế, săn lỗi chuyên sâu (concurrency, security, bilingual), đề xuất cải tiến và xuất báo cáo `[QA_PASSED]` / `[QA_FAILED]`.

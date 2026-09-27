@@ -71,6 +71,20 @@
 
 ## UI and Styling
 
+### 2026-09-27: Mobile & Short Viewport Sidebar Scroll Failure
+
+- **Symptom**: On mobile devices or short viewport windows, the chat list and footer in the sidebar were inaccessible; no scrollbar appeared and users could not scroll down.
+- **Root Cause**: Two contributing issues:
+  1. The drawer layout placed `h-full` without `min-h-0` inside a flex child preceded by a header, combined with large padding (`pb-24`), causing content overflow.
+  2. The sidebar fragmented content into multiple separate scroll zones: fixed action buttons (~308px) and `shrink-0` on Projects (~100px) squeezed the "Your chats" container (`min-h-0`) down to ~0px on viewports <= 667px.
+- **Fix**:
+  1. Unified the middle content into a single scroll container (`flex-1 min-h-0 overflow-y-auto custom-scrollbar`).
+  2. Kept navigation links fixed on desktop (`!isMobile`) and scrolled seamlessly on mobile (`isMobile`).
+  3. Added `.custom-scrollbar` utility in `utilities.css` with Webkit styling and `@supports not selector(::-webkit-scrollbar)` for Firefox to avoid Chrome 121+ scrollbar-width overriding issues.
+  4. Adjusted mobile drawer padding to `p-5 pb-16` and added the missing `X` icon to the close button.
+  5. Hid `FloatingMenuTrigger` when `mobileOpen` is active to eliminate z-index overlap.
+- **Prevention Rule**: Never split narrow/mobile sidebars into multiple separate scroll areas between large fixed-height sections. Use a single scroll container with `flex-1 min-h-0 overflow-y-auto` so content never gets squeezed to 0px.
+
 ### 2026-06: Dead shadcn token layer under Tailwind v4
 
 - **Symptom**: `components/ui/` primitives (Dialog, Button, Input, Select, Dropdown…) rendered with no background / wrong colors; features compensated by hardcoding `--surface`/`white/X` glass, causing visual drift across the app.

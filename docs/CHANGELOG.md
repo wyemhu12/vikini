@@ -5,6 +5,57 @@
 
 ---
 
+## 2026-09-27: Fix Mobile & Short Viewport Sidebar Scroll Failure
+
+- **Bug Fix**: Resolved issue where sidebar chat list and footer could not be scrolled down or accessed on mobile devices and short desktop windows.
+- **Root Cause & Technical Highlights**:
+  - **Single Scroll Flow Architecture (Option A)**:
+    - Desktop: Kept navigation links (`+ New Chat`, `Chat`, `Explore Gems`, `Manage Personas`, `Image Studio`, `Gallery`) fixed at the top, while unifying Projects and Your chats into a single flexible scroll container (`flex-1 min-h-0 overflow-y-auto pr-1 pb-2 custom-scrollbar`).
+    - Mobile: Unified all navigation items, Projects, and Your chats into a single continuous scroll area so users can swipe smoothly through the entire drawer without fragmentation or 0px container collapse.
+  - **Mobile Drawer Polish**:
+    - Reduced excessive drawer padding from `p-6 pb-24` (120px) to `p-5 pb-16` (80px), preserving safe spacing for iOS Safari bottom toolbar while reclaiming vertical space for chat history.
+    - Added missing `X` icon inside the mobile drawer close button (`Dialog.Close`).
+    - Raised mobile drawer to `z-[60]` and overlay to `z-[55]`, and hid `FloatingMenuTrigger` when `mobileOpen` is active to eliminate UI overlap.
+  - **Cross-Browser Theme-Aware Custom Scrollbar**:
+    - Added `.custom-scrollbar` utility in `src/app/styles/themes/_shared/utilities.css` using 5px Webkit scrollbars and `@supports not selector(::-webkit-scrollbar)` for Firefox, ensuring Chrome 121+ does not disregard custom width/color rules.
+    - Supports the 8 components already referencing `.custom-scrollbar`.
+  - **Collapsed Desktop Sidebar Cleanup**:
+    - Removed redundant `flex-1` placeholder that split sidebar height 50/50 in collapsed mode; cleanly anchored border-t to the footer.
+- **Testing & Verification**:
+  - Added new unit test file [`Sidebar.test.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/sidebar/components/Sidebar.test.tsx) testing desktop scroll container, collapsed mode, and mobile drawer.
+  - Full Tier 2 quality gate (`npm run verify`: type-check + lint + 618 vitest tests) passed with 0 errors.
+- **Files Modified & Added**:
+  - [MODIFY] [`src/app/features/sidebar/components/Sidebar.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/sidebar/components/Sidebar.tsx)
+  - [MODIFY] [`src/app/features/chat/components/ChatApp.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/ChatApp.tsx)
+  - [MODIFY] [`src/app/styles/themes/_shared/utilities.css`](file:///c:/Users/wyemh/vikini/src/app/styles/themes/_shared/utilities.css)
+  - [NEW] [`src/app/features/sidebar/components/Sidebar.test.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/sidebar/components/Sidebar.test.tsx)
+  - [NEW] [`docs/plans/2026-09-27-mobile-sidebar-scroll-fix-implementation-plan.md`](file:///c:/Users/wyemh/vikini/docs/plans/2026-09-27-mobile-sidebar-scroll-fix-implementation-plan.md)
+  - [MODIFY] [`docs/lessons-learned.md`](file:///c:/Users/wyemh/vikini/docs/lessons-learned.md)
+
+## 2026-09-17: Adopt Multi-Agent Subagent Architecture (Planner, Reviewer, QA) from Project AURORA
+
+- **Architecture & System Governance**: Tích hợp toàn diện hệ thống phối hợp đa tác tử (Multi-Agent System) chuẩn Antigravity 2.0 từ Project AURORA, thiết lập quy trình kiểm soát chất lượng khép kín với các cơ chế cưỡng chế bất biến:
+  - **Subagent `@planner`** (`.agents/agents/planner/agent.md`): Sử dụng mô hình `gemini-3.8-flash`, trang bị 7 công cụ chuẩn bao gồm tra cứu trực tuyến (`search_web`, `read_url_content`) để cập nhật API năm 2026, thiết kế kế hoạch bám sát nguyên tắc Minimal Diffs, ghi kế hoạch vào `docs/plans/` và xử lý Revision Loop in-place.
+  - **Subagent `@reviewer`** (`.agents/agents/reviewer/agent.md`): Sử dụng mô hình `claude-4.6-opus` (tự động Fallback sang `gemini-3.8-flash` khi chạm HTTP 429), trang bị 6 công cụ Read-Only & Online Grounding, áp dụng Severity Rubric 3 cấp độ (`[BLOCKER]`, `[MAJOR]`, `[MINOR]`), nắm giữ thẩm quyền Gatekeeper duy nhất cấp token `[PLAN_APPROVED]`.
+  - **Subagent `@qa`** (`.agents/agents/qa/agent.md`): Sử dụng mô hình `claude-4.6-opus` (Fallback `gemini-3.8-flash`), hoạt động ở chế độ On-Demand (chỉ kích hoạt khi người dùng gõ `@qa`), thẩm định 4 giai đoạn độc lập: Plan Compliance, Deep Bug Hunting, Actionable Improvements và xuất báo cáo `[QA_PASSED]` / `[QA_FAILED]`.
+  - **Quy tắc điều phối `05-plan-review.md`**: Ban hành quy tắc Plan-Review-Revise Loop với 3 cơ chế cưỡng chế cốt lõi:
+    1. _Strict Code Freeze_: Cấm chạm source code trước khi có thẻ `[PLAN_APPROVED]`.
+    2. _Zero-Self-Execution_: Orchestrator cấm tự lập kế hoạch trên luồng chính, bắt buộc 100% ủy quyền cho `@planner`.
+    3. _Uninterrupted Execution Chain_: Chuỗi task ➔ planner ➔ reviewer chạy tự động liên tục, cấm ngắt quãng hỏi người dùng trước khi có thẻ phê duyệt.
+    4. _Pre-Flight Gate_: Kiểm tra bắt buộc 3 cổng (Plan Persistence, Reviewer Dispatch, Approval Token) trước khi xin phép mở khóa code.
+  - **Thư mục lưu trữ `docs/plans/`**: Khởi tạo cấu trúc lưu vết kế hoạch thực thi dài hạn.
+  - **Tài liệu hóa**: Cập nhật `00-core.md`, `02-quality.md`, và bổ sung Section 7 vào `docs/architecture.md`.
+- **Files Modified & Added**:
+  - [NEW] [`.agents/agents/planner/agent.md`](file:///c:/Users/wyemh/vikini/.agents/agents/planner/agent.md)
+  - [NEW] [`.agents/agents/reviewer/agent.md`](file:///c:/Users/wyemh/vikini/.agents/agents/reviewer/agent.md)
+  - [NEW] [`.agents/agents/qa/agent.md`](file:///c:/Users/wyemh/vikini/.agents/agents/qa/agent.md)
+  - [NEW] [`.agents/rules/05-plan-review.md`](file:///c:/Users/wyemh/vikini/.agents/rules/05-plan-review.md)
+  - [NEW] [`docs/plans/README.md`](file:///c:/Users/wyemh/vikini/docs/plans/README.md)
+  - [NEW] [`docs/plans/2026-09-17-multi-agent-system-implementation-plan.md`](file:///c:/Users/wyemh/vikini/docs/plans/2026-09-17-multi-agent-system-implementation-plan.md)
+  - [MODIFY] [`.agents/rules/00-core.md`](file:///c:/Users/wyemh/vikini/.agents/rules/00-core.md)
+  - [MODIFY] [`.agents/rules/02-quality.md`](file:///c:/Users/wyemh/vikini/.agents/rules/02-quality.md)
+  - [MODIFY] [`docs/architecture.md`](file:///c:/Users/wyemh/vikini/docs/architecture.md)
+
 ## 2026-09-16: Implement "Branch In New Chat" (Conversation Branching) Feature
 
 - **Feature**: Added **Branch In New Chat** capability to Vikini, allowing users to fork any conversation from a specific message node into an independent new conversation session.

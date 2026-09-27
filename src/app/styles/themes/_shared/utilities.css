@@ -276,3 +276,30 @@
   border-radius: 1px;
   transform: scaleY(1);
 }
+
+/* ===========================================
+   CUSTOM SCROLLBAR - Subtle & Theme-Aware
+   =========================================== */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--control-border);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--border);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--control-border) transparent;
+  }
+}
