@@ -1,9 +1,23 @@
 ---
 trigger: always_on
-description: TypeScript enforcement, project structure, and naming conventions.
+description: TypeScript enforcement, project structure, naming conventions, and machine enforcement status.
 ---
 
 # Coding Standards
+
+## Trạng Thái Cưỡng Chế (Enforcement Status)
+
+Bảng phân định cơ chế kiểm soát chất lượng thực tế tại **Vikini**:
+
+| Cơ Chế Kiểm Soát               | Quy Tắc Áp Dụng                                                                                                                                                                                        | Công Cụ & Cấu Hình Thực Tế                                                                                                                                                                                                                                                                                           |
+| :----------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Máy Chặn** (Hard Gate)       | • Cấm `any`<br>• Cấm `console.log`<br>• Bắt buộc await promises<br>• Cấm trùng lặp class member<br>• Cấm `var`<br>• TypeScript strict mode                                                             | • `eslint.config.mjs`: `@typescript-eslint/no-explicit-any: error`<br>• `no-console: ["error", { allow: ["warn", "error"] }]`<br>• `@typescript-eslint/no-floating-promises: error`<br>• `@typescript-eslint/no-dupe-class-members: error`<br>• `no-var: error`<br>• `tsconfig.json`: `strict: true`, `noEmit: true` |
+| **Máy Hỏi** (Interactive Hook) | • Chặn sửa code khi chưa duyệt plan<br>• Khóa file nhạy cảm (\*.server.ts, migrations, test infra)<br>• Chặn lệnh mutating / shell escape                                                              | • Hook `PreToolUse` (`.agents/scripts/code-freeze-guard.js`) kích hoạt qua `.agents/hooks.json`<br>• Cưỡng chế chính sách Scoped Protection (Phương án 2)                                                                                                                                                            |
+| **Kỷ Luật Agent & Reviewer**   | • 0 warnings khi lint<br>• Giới hạn file 150–400 dòng<br>• Co-located tests cho `lib/`<br>• Bắt buộc `toast.error()`<br>• Chuẩn song ngữ `rules/04-bilingual.md`<br>• Thinking budget max khi fallback | • `@reviewer` thẩm định độc lập<br>• Lưu ý: `npm run lint` thiếu `--max-warnings 0` nên 0 warnings thuộc tầng kỷ luật<br>• `@qa` nghiệm thu đối chiếu on-demand                                                                                                                                                      |
+
+> **Lưu ý công cụ commit**: Cấu hình `lint-staged` trong `package.json` tự động áp dụng `eslint --fix` và `prettier --write` khi commit các file `*.{ts,tsx,js,jsx}`.
+
+---
 
 ## TypeScript (Strict)
 

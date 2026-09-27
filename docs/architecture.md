@@ -257,16 +257,33 @@ User (PM) ──[Task]──▶ Orchestrator (Dispatcher)
                                [ npm run verify ]
 ```
 
-### 3 Cơ Chế Cưỡng Chế Cốt Lõi:
+### Các Cơ Chế Cưỡng Chế Cốt Lõi:
 
-1. **Zero-Self-Execution**: Orchestrator chỉ đóng vai trò điều phối viên; cấm tự lập kế hoạch trên luồng chính. Khâu lập kế hoạch bắt buộc 100% ủy quyền cho `@planner`.
-2. **Uninterrupted Execution Chain**: Luồng `[Task]` ➔ `[@planner]` ➔ `[@reviewer]` chạy tự động, liên tục; cấm dừng giữa chừng để hỏi ý kiến người dùng khi chưa có thẻ `[PLAN_APPROVED]`.
-3. **Pre-Flight Gate**: Chốt chặn 3 cổng bắt buộc trước khi xuất phản hồi xin mở khóa viết code:
+1. **Platform Hook Code Freeze Guard**: Chốt chặn tầng máy chủ phát triển (`.agents/hooks.json` và `.agents/scripts/code-freeze-guard.js`). Áp dụng cơ chế **Scoped Protection (Phương án 2)**:
+   - Tự động cho phép ghi vào UI components/hooks và feature logic sau khi plan được phê duyệt (`[PLAN_APPROVED]`).
+   - Luôn luôn khóa và hỏi User (`ask`) với các file nhạy cảm: `*.server.ts`, database migrations, cấu hình hạ tầng kiểm thử `TEST_INFRA_FILES`, và file test chịu Test Integrity Guard.
+2. **Zero-Self-Execution**: Orchestrator chỉ đóng vai trò điều phối viên; cấm tự lập kế hoạch trên luồng chính. Khâu lập kế hoạch bắt buộc 100% ủy quyền cho `@planner`.
+3. **Uninterrupted Execution Chain**: Luồng `[Task]` ➔ `[@planner]` ➔ `[@reviewer]` chạy tự động, liên tục; cấm dừng giữa chừng để hỏi ý kiến người dùng khi chưa có thẻ `[PLAN_APPROVED]`.
+4. **Pre-Flight Gate**: Chốt chặn 3 cổng bắt buộc trước khi xuất phản hồi xin mở khóa viết code:
    - **Gate 1 - Plan Persistence**: Kế hoạch được ghi vào `docs/plans/`.
    - **Gate 2 - Reviewer Dispatch**: Kế hoạch đã qua thẩm định trực tuyến độc lập bởi `@reviewer`.
    - **Gate 3 - Reviewer Approval Token**: Nhận thẻ `[PLAN_APPROVED]` trực tiếp từ `@reviewer`.
+5. **Circuit Breaker**: Sau 3 vòng lặp revision không đạt phê duyệt, Orchestrator tự động ngắt chuỗi và trình báo cáo tổng hợp lỗi tồn đọng lên User (PM) quyết định.
+
+### Bộ 3 Tài Liệu Vệ Tinh Của @reviewer:
+
+- **`allowlist.md`**: Quy định 4 nhóm lệnh `run_command` read-only được phép chạy để kiểm chứng kết luận. Cấm tuyệt đối lệnh mutating.
+- **`evidence-bar.md`**: Chuẩn hóa 4 loại bằng chứng bắt buộc (`[CMD]`, `[SRC]`, `[ADV]`, `[URL]`), quy trình Negative Probe cho Zod/RLS/Redis, và Adversarial Timeline 4 trục.
+- **`mental-simulation.md`**: 6 kịch bản đối kháng bắt buộc S1–S6 (Cold-start, SSE streaming teardown, Supabase PostgreSQL temporal logic, cross-task state, 3-tier auth, external resilience & serverless cap 800s/60s/30s) và Domain Open Inquiry riêng cho Vikini.
 
 ### Subagent Nghiệm Thu Độc Lập (@qa)
 
 - Hoạt động theo chế độ **ON-DEMAND** (chỉ kích hoạt khi người dùng gõ `@qa`).
-- Thực hiện kiểm toán 4 giai đoạn: Nghiệm thu đối chiếu plan vs thực tế, săn lỗi chuyên sâu (concurrency, security, bilingual), đề xuất cải tiến và xuất báo cáo `[QA_PASSED]` / `[QA_FAILED]`.
+- Thực hiện quy trình 7 bước tuần tự:
+  1. Đọc plan tạo checklist.
+  2. Chạy verification suite (`type-check`, `lint`, `test:run`).
+  3. **Verification Gate (fail-fast)**: Dừng ngay và xuất `[QA_FAILED]` nếu verify thất bại, không soi code.
+  4. Săn lỗi chuyên sâu (bảo tồn toàn diện tiêu chuẩn Vikini: co-located test, bilingual `04-bilingual.md`, `toast.error()`, file size 150–400 dòng, SSE stream abort listener, Zustand/SWR race conditions).
+  5. Quét lỗ hổng online (`search_web` CVEs).
+  6. **Test Integrity Audit**: Quét `git diff --stat` phát hiện specification gaming, đếm `expect(` bị giảm, rà matcher nới lỏng, phân loại lỗi Type A/B/C.
+  7. Xuất báo cáo chuẩn hóa `[QA_PASSED]` / `[QA_FAILED]`.

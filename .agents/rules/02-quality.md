@@ -1,6 +1,6 @@
 ---
 trigger: always_on
-description: Mandatory pre-work, post-change checklist, workflow enforcement, and quality protocols.
+description: Mandatory pre-work, post-change checklist, workflow enforcement, test triage, and quality protocols.
 ---
 
 # Quality Gates
@@ -52,12 +52,63 @@ After verification, also:
 - Update `docs/CHANGELOG.md` with a summary of what changed
 - Update related docs if any interface, API, models or schema changed
 
+## Windows PowerShell 5.1 Terminal Guidance
+
+<important>
+Khi chạy thủ công chuỗi lệnh kiểm thử trong terminal Windows (PowerShell 5.1):
+- **CẤM** dùng toán tử `&&` giữa các lệnh (PowerShell 5.1 sẽ ném lỗi cú pháp parser).
+- **BẮT BUỘC** dùng dấu chấm phẩy `;` để nối lệnh:
+  `npm run type-check; npm run lint; npm run test:run`
+- Lưu ý: Lệnh `npm run verify` trong `package.json` vẫn sử dụng `&&` an toàn vì npm thực thi scripts thông qua shell `cmd.exe`.
+</important>
+
+## Test Failure Triage Protocol (Giao Thức Xử Lý Lỗi Test)
+
+Khi một test case thất bại trong quá trình verify, agent BẮT BUỘC phân loại nguyên nhân theo 3 loại:
+
+- **Loại A (Code Bug)**: Mã nguồn ứng dụng có lỗi logic so với đặc tả.
+  ➔ **SỬA CODE ỨNG DỤNG**. Tuyệt đối không chạm vào test file.
+- **Loại B (Test Harness Issue)**: Cấu hình mock, test harness hoặc import path bị lỗi thời do refactor, nhưng đặc tả nghiệp vụ không đổi.
+  ➔ **ĐƯỢC PHÉP SỬA TEST HARNESS/MOCK**, nhưng KHÔNG được giảm số lượng `expect()` hay nới lỏng matcher.
+- **Loại C (Approved Spec Change)**: Đặc tả nghiệp vụ chính thức thay đổi theo Test Contract trong kế hoạch đã được `@reviewer` cấp thẻ `[PLAN_APPROVED]`.
+  ➔ **ĐƯỢC PHÉP CẬP NHẬT TEST CASES** tương ứng với Test Contract mới.
+
+<important>
+NGHIÊM CẤM HẠ THẤP TIÊU CHUẨN TEST:
+- CẤM xóa `expect()` hoặc comment-out test cases.
+- CẤM nới lỏng matcher (ví dụ: đổi `toEqual` thành `toBeDefined`).
+- CẤM thêm `.skip`, `.only`, `xit`, `fit`, `.skipIf`, `.fails` mà không có căn cứ Loại C.
+- Mọi hành vi làm yếu test sẽ bị Test Integrity Guard ở tầng platform phát hiện và @qa đánh lỗi [BLOCKER].
+</important>
+
+## Phân Định Ranh Giới: Audit Định Kỳ vs. Nghiệm Thu @qa
+
+- **Quy trình Audit Định Kỳ (`workflows/audit.md`)**:
+  - Dành cho việc rà soát mã nguồn toàn diện theo chu kỳ (sprint/release) hoặc trước khi merge PR lớn.
+  - Quét dead code, phân tích dependencies, kiểm tra kiến trúc tổng thể.
+- **Tác Tử Nghiệm Thu On-Demand (`@qa`)**:
+  - Tác tử độc lập chỉ kích hoạt khi người dùng (Product Manager) trực tiếp gọi `@qa` trong chat.
+  - Nghiệm thu đối chiếu từng task cụ thể theo 7 bước, thi hành Verification Gate, săn lỗi chuyên sâu và Test Integrity Audit.
+- **Tham Chiếu Tài Sản Kỹ Thuật Sẵn Có**:
+  - Chuẩn SSE Stream: `skills/streaming-patterns.md` (events `token`, `meta`, `thinking`, `done`, `error`).
+  - Chuẩn Database Migrations: `skills/database-migration.md` (Supabase schema, RLS, cascade).
+  - Chuẩn API Route Architecture: `skills/api-patterns.md` (Validate → Execute → Respond, `requireUser()`).
+
+## Governance-Only Changes (Quy Chuẩn Quản Trị)
+
+Khi tạo mới hoặc cập nhật các tài liệu governance (`.agents/rules/`, `.agents/agents/`, `docs/plans/`):
+
+- Bắt buộc có Frontmatter YAML chuẩn xác (`trigger`, `description`, `tools`, `model`...).
+- Tuân thủ chuẩn GitHub Flavored Markdown (GFM).
+- Đường dẫn file nội bộ viết dạng relative path từ repo root (`rules/01-coding.md`, `src/lib/core/...`).
+- Giới hạn dung lượng ký tự nghiêm ngặt (Character Limit):
+  - File Rules (`.agents/rules/*.md`): BẮT BUỘC `≤ 12,000` ký tự.
+  - File Agents (`.agents/agents/*/agent.md`): BẮT BUỘC `≤ 10,000` ký tự.
+
 ## After Fixing a Bug (MANDATORY Post-Fix Protocol)
 
 <important>
-After EVERY bug fix, you MUST execute ALL of the following steps in order.
-This is not optional. Skipping any step is a quality violation.
-Read `workflows/post-fix.md` for the full structured workflow.
+After EVERY bug fix, you MUST execute ALL of the following steps in order:
 </important>
 
 1. **Verify** -- Run `npm run verify`
@@ -73,8 +124,7 @@ Read `workflows/post-fix.md` for the full structured workflow.
 ## Debugging Protocol (MANDATORY for complex/recurring bugs)
 
 <important>
-For any bug that is not trivially obvious, you MUST follow the debug workflow.
-Read `workflows/debug.md` for the full structured workflow.
+For any bug that is not trivially obvious, you MUST follow the debug workflow in `workflows/debug.md`.
 Do NOT propose fixes without a confirmed root cause.
 </important>
 

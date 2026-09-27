@@ -5,6 +5,46 @@
 
 ---
 
+## 2026-09-27: Upgrade Multi-Agent Governance & Code Freeze Guard from Project AURORA (Revision 5)
+
+- **Machine-Enforced Code Freeze Guard**:
+  - Triển khai hook tự động `PreToolUse` tại `.agents/hooks.json` và `.agents/scripts/code-freeze-guard.js` (cô lập native ESM qua `.agents/scripts/package.json` và strict typing `// @ts-check`).
+  - Áp dụng chính sách **Scoped Protection (Phương án 2)**: Sau khi plan được duyệt (`[PLAN_APPROVED]`), tự động cho phép ghi vào UI components/hooks và feature code; luôn khóa và yêu cầu xác nhận (`ask`) đối với các file nhạy cảm: `*.server.ts`, database migrations, cấu hình hạ tầng test `TEST_INFRA_FILES`, và file test chịu Test Integrity Guard.
+  - Tích hợp Test Integrity Guard: Phát hiện và cảnh báo hành vi làm yếu test (giảm `expect()`, thêm `.skip`/`.only`/`xit`/`fit`/`.fails`, nới lỏng matcher, thêm `try/catch`).
+  - Chống bypass artifact 4 lớp: Bắt buộc đường dẫn tuyệt đối `path.isAbsolute()`, kiểm tra thoát repo `toRepoRelative() === null`, chuẩn hóa `ARTIFACT_ROOT`, kiểm tra đuôi an toàn (`.md`, `.json`, `scratch/*`), cấm file thực thi.
+  - Bổ sung bộ unit test toàn diện `.agents/scripts/code-freeze-guard.test.ts` (64 tests) bao phủ 100% kịch bản.
+- **Nâng Cấp Thẩm Quyền & Bộ 3 Vệ Tinh Cho `@reviewer`**:
+  - Thêm quyền `run_command` kiểm chứng read-only trong frontmatter `reviewer/agent.md`.
+  - Tạo `.agents/agents/reviewer/allowlist.md`: Quy định 4 nhóm lệnh được phép (Verification suite, Wiring probes, Semantic probes in-memory, Git read-only).
+  - Tạo `.agents/agents/reviewer/evidence-bar.md`: Quy chuẩn 4 loại bằng chứng bắt buộc (`[CMD]`, `[SRC]`, `[ADV]`, `[URL]`), quy trình Negative Probe cho Zod/RLS/Redis, Adversarial Timeline 4 trục.
+  - Tạo `.agents/agents/reviewer/mental-simulation.md`: 6 kịch bản đối kháng S1–S6 (Cold-start, SSE streaming teardown, Supabase PostgreSQL temporal logic, cross-task state, 3-tier auth, external resilience & serverless execution cap 800s/60s/30s) và Domain Open Inquiry bản địa hóa 100% cho Vikini.
+  - Cập nhật quy trình 7 bước tuần tự và cơ chế công bố `[FALLBACK_MODEL]`.
+- **Nâng Cấp Subagent `@qa` và `@planner`**:
+  - `@qa` (`qa/agent.md`): Thống nhất taxonomy lỗi `[BLOCKER]`, `[MAJOR]`, `[MINOR]`; thiết lập quy trình 7 bước; bổ sung Bước 3 Verification Gate (fail-fast: dừng ngay và xuất `[QA_FAILED]` nếu verify thất bại, không soi code); Bước 4 bảo tồn 100% tiêu chuẩn riêng của Vikini (co-located tests, bilingual `04-bilingual.md`, `toast.error()`, file size 150–400 dòng, SSE stream abort cleanup, Zustand/SWR race conditions); Bước 6 Test Integrity Audit chống specification gaming; bổ sung allowlist lệnh và Post-[QA_FAILED] Flow.
+  - `@planner` (`planner/agent.md`): Thêm `replace_file_content` vào tools, quy định mục Test Contract bắt buộc, nhận diện Circuit Breaker dừng sau 3 vòng lặp, và cơ chế `[NEEDS_PRODUCT_DECISION]` với default assumption.
+- **Cập Nhật Bộ Rules Quản Trị Cốt Lõi**:
+  - `rules/01-coding.md`: Bổ sung Bảng Trạng Thái Cưỡng Chế (Enforcement Status: máy chặn vs máy hỏi vs kỷ luật) phản ánh trung thực cấu hình linter/compiler Vikini.
+  - `rules/02-quality.md`: Bổ sung lưu ý PowerShell 5.1 (dùng `;` thay vì `&&` khi chạy chuỗi lệnh thủ công); quy chuẩn Governance-only changes; Giao thức phân loại lỗi test Loại A/B/C và cấm nới test; phân định ranh giới giữa `workflows/audit.md` và tác tử on-demand `@qa`.
+  - `rules/05-plan-review.md`: Tích hợp hook Code Freeze Scoped Protection; chính xác hóa Circuit Breaker (Orchestrator dừng chuỗi sau 3 vòng lặp revision thất bại, tổng hợp lỗi tồn đọng trình User); bắt buộc công bố model fallback.
+- **Cập Nhật Tài Liệu Hệ Thống**:
+  - `docs/architecture.md`: Cập nhật Section 7 (Multi-Agent Governance Architecture) bổ sung đầy đủ các cơ chế mới.
+- **Files Modified & Added**:
+  - [NEW] [`.agents/scripts/package.json`](file:///c:/Users/wyemh/vikini/.agents/scripts/package.json)
+  - [NEW] [`.agents/scripts/code-freeze-guard.js`](file:///c:/Users/wyemh/vikini/.agents/scripts/code-freeze-guard.js)
+  - [NEW] [`.agents/scripts/code-freeze-guard.test.ts`](file:///c:/Users/wyemh/vikini/.agents/scripts/code-freeze-guard.test.ts)
+  - [NEW] [`.agents/agents/reviewer/allowlist.md`](file:///c:/Users/wyemh/vikini/.agents/agents/reviewer/allowlist.md)
+  - [NEW] [`.agents/agents/reviewer/evidence-bar.md`](file:///c:/Users/wyemh/vikini/.agents/agents/reviewer/evidence-bar.md)
+  - [NEW] [`.agents/agents/reviewer/mental-simulation.md`](file:///c:/Users/wyemh/vikini/.agents/agents/reviewer/mental-simulation.md)
+  - [NEW] [`.agents/hooks.json`](file:///c:/Users/wyemh/vikini/.agents/hooks.json)
+  - [MODIFY] [`.agents/agents/reviewer/agent.md`](file:///c:/Users/wyemh/vikini/.agents/agents/reviewer/agent.md)
+  - [MODIFY] [`.agents/agents/qa/agent.md`](file:///c:/Users/wyemh/vikini/.agents/agents/qa/agent.md)
+  - [MODIFY] [`.agents/agents/planner/agent.md`](file:///c:/Users/wyemh/vikini/.agents/agents/planner/agent.md)
+  - [MODIFY] [`.agents/rules/01-coding.md`](file:///c:/Users/wyemh/vikini/.agents/rules/01-coding.md)
+  - [MODIFY] [`.agents/rules/02-quality.md`](file:///c:/Users/wyemh/vikini/.agents/rules/02-quality.md)
+  - [MODIFY] [`.agents/rules/05-plan-review.md`](file:///c:/Users/wyemh/vikini/.agents/rules/05-plan-review.md)
+  - [MODIFY] [`docs/architecture.md`](file:///c:/Users/wyemh/vikini/docs/architecture.md)
+  - [MODIFY] [`docs/CHANGELOG.md`](file:///c:/Users/wyemh/vikini/docs/CHANGELOG.md)
+
 ## 2026-09-27: Fix Mobile & Short Viewport Sidebar Scroll Failure
 
 - **Bug Fix**: Resolved issue where sidebar chat list and footer could not be scrolled down or accessed on mobile devices and short desktop windows.
