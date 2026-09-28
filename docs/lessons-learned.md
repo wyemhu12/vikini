@@ -202,6 +202,22 @@
 
 ## API and Streaming
 
+### 2026-09-28: Streaming abort & interruption text loss due to unhandled abort and SWR overwrite
+
+- **Symptom**: When a user clicked Stop (red square button) while AI was streaming or when a stream suffered an interruption/timeout, the text that had already streamed vanished from the chat UI.
+- **Root Cause**:
+  1. The client-side abort mechanism simply closed the reader or cancelled the stream without finalizing the assistant message with `isPartial: true`.
+  2. SWR revalidation or background reload replaced the local message state with database messages before any server persistence landed or because the server never persisted incomplete streams.
+  3. Server-side stream handlers did not handle abort signals or `controller.close()` cancellations, proceeding blindly into post-stream completion or discarding content on error.
+  4. Subsequent regenerate or delete actions risked resurrecting old partial responses or causing dual-writer races without a tombstone cache.
+- **Fix**:
+  1. Finalize assistant messages in client state immediately on abort/error with `isPartial: true, aborted: true`, and persist via `POST /api/messages`.
+  2. Implement `messageMerge` logic anchoring unsynced partials against SWR updates and prioritizing real database IDs.
+  3. Implement "Complete beats Partial" rule in `upsertMessage` and add an in-memory tombstone cache (TTL 60s) for deleted/truncated `clientMessageId`s.
+  4. Wrap all AI provider streams with cancellation checks before `processPostStream` and in catch blocks, ensuring unclosed `<think>` tags are balanced.
+  5. Add UI badges ("Đã dừng", "Bị gián đoạn", "Đang lưu...", "Lưu thất bại"), a retry action, and a "Tiếp tục" (Continue) button.
+- **Prevention Rule**: **In streaming interfaces, always decouple stream abort from message destruction.** Interrupted streams MUST finalize the currently accumulated tokens as a valid partial state and persist them under a clear consensus rule ("Complete beats Partial"), backed by tombstone checks on deletes to prevent resurrection races.
+
 ### 2026-06-09: Array mapping breaks object reference equality checks
 
 - **Symptom**: "Regenerate" and "Edit" buttons silently failed for newly generated messages that didn't have an ID yet.

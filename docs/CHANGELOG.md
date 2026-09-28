@@ -5,6 +5,33 @@
 
 ---
 
+## 2026-09-28: Fix Streaming Abort and Interruption Text Loss with Partial Persistence
+
+- **Streaming Abort & Disconnection Text Loss Fix**:
+  - Resolved issue where clicking Stop (red square button) or experiencing connection drops/timeouts caused streamed response text to vanish from the chat interface.
+  - Implemented client-side partial message finalization with state preservation (`isPartial: true`, `aborted: true`) and seamless background sync via `POST /api/messages`.
+  - Added "Complete beats Partial" rule in `upsertMessage` to guarantee completed answers are never accidentally downgraded by delayed partial syncs.
+  - Added an in-memory tombstone cache with 60-second TTL to prevent late-arriving stream chunks or aborted responses from resurrecting deleted or regenerated messages.
+  - Added server-side stream abort detection across all 4 providers (Gemini, Anthropic, OpenAI, DeepSeek) with safety nets before `processPostStream` and in exception handlers.
+  - Balanced `<think>` tags via `ensureBalancedThinkTags` so unclosed reasoning blocks do not corrupt Markdown rendering when interrupted.
+  - Added "Tiếp tục" (Continue) action button and prompt extension for interrupted assistant messages, along with UI status badges ("Đã dừng", "Bị gián đoạn", "Đang lưu...", "Lưu thất bại — Thử lưu lại").
+- **Files Modified & Added**:
+  - [NEW] [`src/lib/features/chat/thinkTags.ts`](file:///c:/Users/wyemh/vikini/src/lib/features/chat/thinkTags.ts) & [`thinkTags.test.ts`](file:///c:/Users/wyemh/vikini/src/lib/features/chat/thinkTags.test.ts)
+  - [NEW] [`src/lib/features/chat/messageMerge.ts`](file:///c:/Users/wyemh/vikini/src/lib/features/chat/messageMerge.ts) & [`messageMerge.test.ts`](file:///c:/Users/wyemh/vikini/src/lib/features/chat/messageMerge.test.ts)
+  - [NEW] [`src/app/api/messages/route.ts`](file:///c:/Users/wyemh/vikini/src/app/api/messages/route.ts) & [`route.test.ts`](file:///c:/Users/wyemh/vikini/src/app/api/messages/route.test.ts)
+  - [NEW] [`src/app/api/chat-stream/streaming/gemini-stream.test.ts`](file:///c:/Users/wyemh/vikini/src/app/api/chat-stream/streaming/gemini-stream.test.ts)
+  - [NEW] [`src/app/features/chat/components/hooks/useChatStreamController.test.ts`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/hooks/useChatStreamController.test.ts)
+  - [MODIFY] [`src/lib/features/chat/messages.ts`](file:///c:/Users/wyemh/vikini/src/lib/features/chat/messages.ts) & [`messages.test.ts`](file:///c:/Users/wyemh/vikini/src/lib/features/chat/messages.test.ts)
+  - [MODIFY] [`src/app/api/chat-stream/streaming/gemini-stream.ts`](file:///c:/Users/wyemh/vikini/src/app/api/chat-stream/streaming/gemini-stream.ts)
+  - [MODIFY] [`src/app/api/chat-stream/streaming/anthropic-stream.ts`](file:///c:/Users/wyemh/vikini/src/app/api/chat-stream/streaming/anthropic-stream.ts)
+  - [MODIFY] [`src/app/api/chat-stream/streaming/openai-stream.ts`](file:///c:/Users/wyemh/vikini/src/app/api/chat-stream/streaming/openai-stream.ts)
+  - [MODIFY] [`src/app/api/chat-stream/streaming/deepseek-stream.ts`](file:///c:/Users/wyemh/vikini/src/app/api/chat-stream/streaming/deepseek-stream.ts)
+  - [MODIFY] [`src/app/features/chat/components/hooks/useChatStreamController.ts`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/hooks/useChatStreamController.ts)
+  - [MODIFY] [`src/app/features/chat/components/ChatBubble.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/ChatBubble.tsx)
+  - [MODIFY] [`src/app/features/chat/components/MessageActions.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/MessageActions.tsx)
+  - [MODIFY] [`src/app/features/chat/components/ChatApp.tsx`](file:///c:/Users/wyemh/vikini/src/app/features/chat/components/ChatApp.tsx)
+  - [MODIFY] [`src/lib/utils/translations/vi.ts`](file:///c:/Users/wyemh/vikini/src/lib/utils/translations/vi.ts) & [`en.ts`](file:///c:/Users/wyemh/vikini/src/lib/utils/translations/en.ts)
+
 ## 2026-09-27: Upgrade Multi-Agent Governance & Code Freeze Guard from Project AURORA (Revision 5)
 
 - **Machine-Enforced Code Freeze Guard**:

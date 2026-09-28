@@ -10,6 +10,7 @@ import { StreamTimeoutError, type ChatStreamParams, type Message } from "./types
 import { sendEvent, getStreamTimeout, withTimeout, withIdleTimeout, streamLogger } from "./utils";
 import { sendInitialMetaEvents, generateAndSendOptimisticTitle } from "./gemini-stream";
 import { processPostStream } from "./post-processing";
+import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
 
 /**
  * DeepSeek V4 streaming with native thinking mode support.
@@ -44,6 +45,8 @@ export function createDeepSeekStream(params: {
   setConversationAutoTitle: ChatStreamParams["setConversationAutoTitle"];
   generateOptimisticTitle: ChatStreamParams["generateOptimisticTitle"];
   generateFinalTitle: ChatStreamParams["generateFinalTitle"];
+  clientMessageId?: string;
+  signal?: AbortSignal;
 }): ReadableStream<Uint8Array> {
   const {
     ai,
@@ -67,9 +70,62 @@ export function createDeepSeekStream(params: {
     setConversationAutoTitle,
     generateOptimisticTitle,
     generateFinalTitle,
+    clientMessageId,
+    signal,
   } = params;
 
+  const ac = new AbortController();
+  let isCancelled = false;
+  if (signal) {
+    if (signal.aborted) {
+      isCancelled = true;
+      ac.abort();
+    } else {
+      signal.addEventListener(
+        "abort",
+        () => {
+          isCancelled = true;
+          ac.abort();
+        },
+        { once: true }
+      );
+    }
+  }
+
+  const acc = { full: "" };
+  let savedPartial = false;
+
+  const savePartialOnce = async () => {
+    if (savedPartial) return;
+    savedPartial = true;
+    const trimmed = acc.full.trim();
+    if (trimmed) {
+      const balanced = balanceThinkTags(trimmed);
+      try {
+        await saveMessage({
+          conversationId,
+          userId,
+          role: "assistant",
+          content: balanced,
+          meta: {
+            isPartial: true,
+            aborted: true,
+            status: "aborted",
+            model,
+            clientMessageId,
+          },
+        });
+      } catch (saveErr) {
+        streamLogger.error("Failed to save partial message in DeepSeek safety net:", saveErr);
+      }
+    }
+  };
+
   return new ReadableStream({
+    cancel() {
+      isCancelled = true;
+      ac.abort();
+    },
     async start(controller) {
       // 1. Send Initial Meta
       sendInitialMetaEvents(controller, {
@@ -209,7 +265,8 @@ export function createDeepSeekStream(params: {
         }
 
         const streamPromise = ai.chat.completions.create(
-          requestBody as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
+          requestBody as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
+          { signal: ac.signal }
         );
 
         const stream = await withTimeout(streamPromise, timeoutMs);
@@ -225,6 +282,10 @@ export function createDeepSeekStream(params: {
         let lastFinishReason: string | undefined;
 
         for await (const chunk of guardedStream) {
+          if (isCancelled || ac.signal.aborted) {
+            break;
+          }
+
           const choice = chunk.choices[0];
           if (choice?.finish_reason) {
             lastFinishReason = choice.finish_reason;
@@ -247,9 +308,11 @@ export function createDeepSeekStream(params: {
               isInThinkingBlock = true;
               const openTag = "<think>";
               full += openTag;
+              acc.full = full;
               sendEvent(controller, "token", { t: openTag });
             }
             full += reasoningText;
+            acc.full = full;
             sendEvent(controller, "token", { t: reasoningText });
           }
 
@@ -260,9 +323,11 @@ export function createDeepSeekStream(params: {
               isInThinkingBlock = false;
               const closeTag = "</think>";
               full += closeTag;
+              acc.full = full;
               sendEvent(controller, "token", { t: closeTag });
             }
             full += delta.content;
+            acc.full = full;
             sendEvent(controller, "token", { t: delta.content });
           }
 
@@ -286,6 +351,7 @@ export function createDeepSeekStream(params: {
           isInThinkingBlock = false;
           const closeTag = "</think>";
           full += closeTag;
+          acc.full = full;
           sendEvent(controller, "token", { t: closeTag });
         }
 
@@ -302,6 +368,7 @@ export function createDeepSeekStream(params: {
               : "\n\n*(Mô hình đã hoàn tất suy nghĩ nhưng chưa xuất nội dung trả lời. Vui lòng bấm 'Tạo lại'.)*";
 
           full += notice;
+          acc.full = full;
           sendEvent(controller, "token", { t: notice });
         }
 
@@ -317,55 +384,73 @@ export function createDeepSeekStream(params: {
         }
       } catch (e) {
         streamFailed = true;
-        if (e instanceof StreamTimeoutError) {
-          const timeoutMs = getStreamTimeout();
-          streamLogger.error(`DeepSeek stream timeout after ${timeoutMs}ms`);
-          sendEvent(controller, "error", {
-            message: `Request timed out after ${Math.round(timeoutMs / 1000)} seconds. Please try again.`,
-            code: "STREAM_TIMEOUT",
-            isTimeout: true,
-          });
+        if (isCancelled || ac.signal.aborted) {
+          await savePartialOnce();
         } else {
-          streamLogger.error("DeepSeek stream error:", e);
+          // If stream failed unexpectedly but accumulated some content, save it too
+          await savePartialOnce();
+          if (e instanceof StreamTimeoutError) {
+            const timeoutMs = getStreamTimeout();
+            streamLogger.error(`DeepSeek stream timeout after ${timeoutMs}ms`);
+            sendEvent(controller, "error", {
+              message: `Request timed out after ${Math.round(timeoutMs / 1000)} seconds. Please try again.`,
+              code: "STREAM_TIMEOUT",
+              isTimeout: true,
+            });
+          } else {
+            streamLogger.error("DeepSeek stream error:", e);
 
-          const err = e as {
-            status?: number;
-            code?: string;
-            message?: string;
-            error?: { message?: string };
-          };
+            const err = e as {
+              status?: number;
+              code?: string;
+              message?: string;
+              error?: { message?: string };
+            };
 
-          // Map DeepSeek-specific error codes
-          const isRateLimit = err.status === 429;
-          const isInsufficientBalance = err.status === 402;
-          const isTokenLimit = err.status === 413 || err.code === "rate_limit_exceeded";
-          const errorMessage = err.error?.message || err.message || "DeepSeek stream error";
+            // Map DeepSeek-specific error codes
+            const isRateLimit = err.status === 429;
+            const isInsufficientBalance = err.status === 402;
+            const isTokenLimit = err.status === 413 || err.code === "rate_limit_exceeded";
+            const errorMessage = err.error?.message || err.message || "DeepSeek stream error";
 
-          let tokenInfo: { limit?: number; requested?: number } | null = null;
-          if (isTokenLimit && errorMessage) {
-            const limitMatch = errorMessage.match(/Limit (\d+)/);
-            const requestedMatch = errorMessage.match(/Requested (\d+)/);
-            if (limitMatch || requestedMatch) {
-              tokenInfo = {
-                limit: limitMatch ? parseInt(limitMatch[1], 10) : undefined,
-                requested: requestedMatch ? parseInt(requestedMatch[1], 10) : undefined,
-              };
+            let tokenInfo: { limit?: number; requested?: number } | null = null;
+            if (isTokenLimit && errorMessage) {
+              const limitMatch = errorMessage.match(/Limit (\d+)/);
+              const requestedMatch = errorMessage.match(/Requested (\d+)/);
+              if (limitMatch || requestedMatch) {
+                tokenInfo = {
+                  limit: limitMatch ? parseInt(limitMatch[1], 10) : undefined,
+                  requested: requestedMatch ? parseInt(requestedMatch[1], 10) : undefined,
+                };
+              }
             }
+
+            let code = err.code || "stream_error";
+            if (isRateLimit) code = "rate_limit_exceeded";
+            if (isInsufficientBalance) code = "insufficient_balance";
+            if (isTokenLimit) code = "token_limit_exceeded";
+
+            sendEvent(controller, "error", {
+              message: errorMessage,
+              code,
+              status: err.status || 500,
+              isTokenLimit,
+              tokenInfo,
+            });
           }
-
-          let code = err.code || "stream_error";
-          if (isRateLimit) code = "rate_limit_exceeded";
-          if (isInsufficientBalance) code = "insufficient_balance";
-          if (isTokenLimit) code = "token_limit_exceeded";
-
-          sendEvent(controller, "error", {
-            message: errorMessage,
-            code,
-            status: err.status || 500,
-            isTokenLimit,
-            tokenInfo,
-          });
         }
+      }
+
+      // Mandatory gate check right before processPostStream (S1)
+      if (isCancelled || ac.signal.aborted) {
+        await savePartialOnce();
+        sendEvent(controller, "done", { ok: false });
+        try {
+          controller.close();
+        } catch {
+          // Ignore if already closed
+        }
+        return;
       }
 
       // 3. Post Stream Processing — skip if stream failed with no content
@@ -387,7 +472,11 @@ export function createDeepSeekStream(params: {
       }
 
       sendEvent(controller, "done", { ok: !streamFailed });
-      controller.close();
+      try {
+        controller.close();
+      } catch {
+        // Ignore if already closed
+      }
     },
   });
 }

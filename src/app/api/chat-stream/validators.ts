@@ -7,6 +7,8 @@ export const chatStreamRequestSchema = z.object({
   content: z.string().min(1).max(100000),
   regenerate: z.boolean().optional(),
   truncateMessageId: z.string().uuid().optional().nullable(),
+  truncateClientMessageId: z.string().max(100).optional().nullable(),
+  clientMessageId: z.string().max(100).optional().nullable(),
   skipSaveUserMessage: z.boolean().optional(),
   thinkingLevel: z.enum(["off", "low", "medium", "high", "minimal"]).optional(),
   fileIds: z.array(z.string().uuid()).optional(),

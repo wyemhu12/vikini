@@ -21,6 +21,7 @@ import {
   processUrlContextMetadata,
   processPostStream,
 } from "./post-processing";
+import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
 
 // --- EXTRACTED FUNCTIONS ---
 
@@ -111,9 +112,15 @@ async function executeStream(
     useTools: boolean;
     thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
     cachedContent?: string;
+    acc?: { full: string };
+    abortSignal?: AbortSignal;
   }
 ): Promise<StreamResult> {
   const { ai, model, contents, sysPrompt, safetySettings, thinkingLevel } = params;
+
+  if (params.acc) {
+    params.acc.full = "";
+  }
 
   // Resolve Thinking Models
   const apiModel = model;
@@ -191,6 +198,7 @@ async function executeStream(
         toolConfig: !params.cachedContent && params.useTools ? params.toolConfig : undefined,
         // Explicit context caching: reference composite cache (sysInstruction + tools)
         cachedContent: params.cachedContent,
+        abortSignal: params.abortSignal,
       },
     });
 
@@ -223,6 +231,8 @@ async function executeStream(
   let isInThinkingBlock = false;
 
   for await (const chunk of stream) {
+    if (params.abortSignal?.aborted) break;
+
     const pf = pick(chunk, ["promptFeedback", "prompt_feedback"]);
     if (pf) promptFeedback = pf;
 
@@ -253,9 +263,11 @@ async function executeStream(
           if (!isInThinkingBlock) {
             isInThinkingBlock = true;
             full += "<think>";
+            if (params.acc) params.acc.full = full;
             sendEvent(controller, "token", { t: "<think>" });
           }
           full += thoughtText;
+          if (params.acc) params.acc.full = full;
           sendEvent(controller, "token", { t: thoughtText });
           continue;
         }
@@ -265,9 +277,11 @@ async function executeStream(
           if (isInThinkingBlock) {
             isInThinkingBlock = false;
             full += "</think>";
+            if (params.acc) params.acc.full = full;
             sendEvent(controller, "token", { t: "</think>" });
           }
           full += part.text;
+          if (params.acc) params.acc.full = full;
           sendEvent(controller, "token", { t: part.text });
         }
       }
@@ -417,9 +431,11 @@ async function executeStream(
           });
           const contStream = contResult instanceof Promise ? await contResult : contResult;
           for await (const contChunk of contStream) {
+            if (params.abortSignal?.aborted) break;
             const ct = safeText(contChunk);
             if (ct) {
               full += ct;
+              if (params.acc) params.acc.full = full;
               sendEvent(controller, "token", { t: ct });
             }
           }
@@ -433,6 +449,7 @@ async function executeStream(
   // Close any remaining thinking block
   if (isInThinkingBlock) {
     full += "</think>";
+    if (params.acc) params.acc.full = full;
     sendEvent(controller, "token", { t: "</think>" });
   }
 
@@ -464,6 +481,8 @@ async function runStreamWithFallback(
     toolConfig?: Record<string, unknown>;
     thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
     cachedContent?: string;
+    acc?: { full: string };
+    abortSignal?: AbortSignal;
   }
 ): Promise<StreamResult> {
   const {
@@ -476,6 +495,8 @@ async function runStreamWithFallback(
     toolConfig,
     thinkingLevel,
     cachedContent,
+    acc,
+    abortSignal,
   } = params;
 
   // Helper to extract detailed error info from Gemini API errors
@@ -538,8 +559,14 @@ async function runStreamWithFallback(
       useTools: true,
       thinkingLevel,
       cachedContent,
+      acc,
+      abortSignal,
     });
   } catch (err) {
+    if (abortSignal?.aborted) {
+      throw err;
+    }
+
     const toolNames = (tools as Array<Record<string, unknown>>)
       .map((t) => Object.keys(t).join(","))
       .join("; ");
@@ -576,6 +603,8 @@ async function runStreamWithFallback(
           safetySettings,
           useTools: false,
           thinkingLevel,
+          acc,
+          abortSignal,
         });
       } else {
         sendEvent(controller, "error", {
@@ -627,9 +656,62 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
     generateOptimisticTitle,
     generateFinalTitle,
     thinkingLevel,
+    clientMessageId,
+    signal,
   } = params;
 
+  const ac = new AbortController();
+  let isCancelled = false;
+  if (signal) {
+    if (signal.aborted) {
+      isCancelled = true;
+      ac.abort();
+    } else {
+      signal.addEventListener(
+        "abort",
+        () => {
+          isCancelled = true;
+          ac.abort();
+        },
+        { once: true }
+      );
+    }
+  }
+
+  const acc = { full: "" };
+  let savedPartial = false;
+
+  const savePartialOnce = async () => {
+    if (savedPartial) return;
+    savedPartial = true;
+    const trimmed = acc.full.trim();
+    if (trimmed) {
+      const balanced = balanceThinkTags(trimmed);
+      try {
+        await saveMessage({
+          conversationId,
+          userId,
+          role: "assistant",
+          content: balanced,
+          meta: {
+            isPartial: true,
+            aborted: true,
+            status: "aborted",
+            model,
+            clientMessageId,
+          },
+        });
+      } catch (saveErr) {
+        streamLogger.error("Failed to save partial message in Gemini safety net:", saveErr);
+      }
+    }
+  };
+
   return new ReadableStream({
+    cancel() {
+      isCancelled = true;
+      ac.abort();
+    },
     async start(controller) {
       try {
         // Send initial meta events
@@ -663,7 +745,21 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           toolConfig,
           thinkingLevel,
           cachedContent: params.cachedContent,
+          acc,
+          abortSignal: ac.signal,
         });
+
+        // Check cancellation right after stream finishes
+        if (isCancelled || ac.signal.aborted) {
+          await savePartialOnce();
+          sendEvent(controller, "done", { ok: false });
+          try {
+            controller.close();
+          } catch {
+            // Ignore if already closed
+          }
+          return;
+        }
 
         // Handle safety blocking
         const { full: finalFull, isActuallyBlocked } = handleSafetyBlocking(
@@ -674,11 +770,23 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           streamResult.safetyRatings
         );
 
+        // Mandatory gate check right before processPostStream (S1)
+        if (isCancelled || ac.signal.aborted) {
+          await savePartialOnce();
+          sendEvent(controller, "done", { ok: false });
+          try {
+            controller.close();
+          } catch {
+            // Ignore if already closed
+          }
+          return;
+        }
+
         // Process metadata - collect sources/urlContext for DB persistence
         const sources = processGroundingMetadata(controller, streamResult.groundingMetadata);
         const urlContext = processUrlContextMetadata(controller, streamResult.urlContextMetadata);
 
-        // Post-stream processing
+        // Post-stream processing: pass finalFull
         await processPostStream(controller, {
           full: finalFull,
           isActuallyBlocked,
@@ -711,12 +819,17 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
 
         sendEvent(controller, "done", { ok: true });
       } catch (err) {
-        // Error event was already sent by runStreamWithFallback
-        // Just log and close the stream gracefully
+        if (isCancelled || ac.signal.aborted) {
+          await savePartialOnce();
+        }
         streamLogger.error("createChatReadableStream error:", err);
         sendEvent(controller, "done", { ok: false });
       } finally {
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // Ignore if already closed
+        }
       }
     },
   });

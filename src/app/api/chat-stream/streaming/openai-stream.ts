@@ -6,6 +6,7 @@ import { StreamTimeoutError, type ChatStreamParams, type Message } from "./types
 import { sendEvent, getStreamTimeout, withTimeout, withIdleTimeout, streamLogger } from "./utils";
 import { sendInitialMetaEvents, generateAndSendOptimisticTitle } from "./gemini-stream";
 import { processPostStream } from "./post-processing";
+import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
 
 export function createOpenAICompatibleStream(params: {
   ai: OpenAI;
@@ -30,6 +31,8 @@ export function createOpenAICompatibleStream(params: {
   generateOptimisticTitle: ChatStreamParams["generateOptimisticTitle"];
   generateFinalTitle: ChatStreamParams["generateFinalTitle"];
   thinkingLevel?: string;
+  clientMessageId?: string;
+  signal?: AbortSignal;
 }): ReadableStream<Uint8Array> {
   const {
     ai,
@@ -53,9 +56,62 @@ export function createOpenAICompatibleStream(params: {
     generateOptimisticTitle,
     generateFinalTitle,
     thinkingLevel,
+    clientMessageId,
+    signal,
   } = params;
 
+  const ac = new AbortController();
+  let isCancelled = false;
+  if (signal) {
+    if (signal.aborted) {
+      isCancelled = true;
+      ac.abort();
+    } else {
+      signal.addEventListener(
+        "abort",
+        () => {
+          isCancelled = true;
+          ac.abort();
+        },
+        { once: true }
+      );
+    }
+  }
+
+  const acc = { full: "" };
+  let savedPartial = false;
+
+  const savePartialOnce = async () => {
+    if (savedPartial) return;
+    savedPartial = true;
+    const trimmed = acc.full.trim();
+    if (trimmed) {
+      const balanced = balanceThinkTags(trimmed);
+      try {
+        await saveMessage({
+          conversationId,
+          userId,
+          role: "assistant",
+          content: balanced,
+          meta: {
+            isPartial: true,
+            aborted: true,
+            status: "aborted",
+            model,
+            clientMessageId,
+          },
+        });
+      } catch (saveErr) {
+        streamLogger.error("Failed to save partial message in OpenAI safety net:", saveErr);
+      }
+    }
+  };
+
   return new ReadableStream({
+    cancel() {
+      isCancelled = true;
+      ac.abort();
+    },
     async start(controller) {
       // 1. Send Initial Meta
       sendInitialMetaEvents(controller, {
@@ -182,7 +238,8 @@ export function createOpenAICompatibleStream(params: {
         }
 
         const streamPromise = ai.chat.completions.create(
-          createParams as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
+          createParams as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
+          { signal: ac.signal }
         );
 
         const stream = await withTimeout(streamPromise, timeoutMs);
@@ -198,6 +255,10 @@ export function createOpenAICompatibleStream(params: {
         let inReasoningMode = false;
 
         for await (const chunk of guardedStream) {
+          if (isCancelled || ac.signal.aborted) {
+            break;
+          }
+
           // OpenRouter streams reasoning in delta.reasoning_details or delta.reasoning
           // We cast to access custom fields
           const delta = (chunk.choices[0]?.delta as Record<string, unknown>) || {};
@@ -224,9 +285,11 @@ export function createOpenAICompatibleStream(params: {
             if (!inReasoningMode) {
               inReasoningMode = true;
               full += "<think>\n";
+              acc.full = full;
               sendEvent(controller, "token", { t: "<think>\n" });
             }
             full += reasoningDelta;
+            acc.full = full;
             sendEvent(controller, "token", { t: reasoningDelta });
           }
 
@@ -235,9 +298,11 @@ export function createOpenAICompatibleStream(params: {
             if (inReasoningMode) {
               inReasoningMode = false;
               full += "\n</think>\n\n";
+              acc.full = full;
               sendEvent(controller, "token", { t: "\n</think>\n\n" });
             }
             full += text;
+            acc.full = full;
             sendEvent(controller, "token", { t: text });
           }
 
@@ -272,50 +337,68 @@ export function createOpenAICompatibleStream(params: {
         }
       } catch (e) {
         streamFailed = true;
-        // Handle timeout specifically
-        if (e instanceof StreamTimeoutError) {
-          const timeoutMs = getStreamTimeout();
-          streamLogger.error(`OpenAI/Groq stream timeout after ${timeoutMs}ms`);
-          sendEvent(controller, "error", {
-            message: `Request timed out after ${Math.round(timeoutMs / 1000)} seconds. Please try again.`,
-            code: "STREAM_TIMEOUT",
-            isTimeout: true,
-          });
+        if (isCancelled || ac.signal.aborted) {
+          await savePartialOnce();
         } else {
-          streamLogger.error("OpenAI/Groq stream error:", e);
+          // If stream failed unexpectedly but accumulated some content, save it too
+          await savePartialOnce();
+          // Handle timeout specifically
+          if (e instanceof StreamTimeoutError) {
+            const timeoutMs = getStreamTimeout();
+            streamLogger.error(`OpenAI/Groq stream timeout after ${timeoutMs}ms`);
+            sendEvent(controller, "error", {
+              message: `Request timed out after ${Math.round(timeoutMs / 1000)} seconds. Please try again.`,
+              code: "STREAM_TIMEOUT",
+              isTimeout: true,
+            });
+          } else {
+            streamLogger.error("OpenAI/Groq stream error:", e);
 
-          // Extract detailed error info for frontend
-          const err = e as {
-            status?: number;
-            code?: string;
-            message?: string;
-            error?: { message?: string };
-          };
+            // Extract detailed error info for frontend
+            const err = e as {
+              status?: number;
+              code?: string;
+              message?: string;
+              error?: { message?: string };
+            };
 
-          const isTokenLimit = err.status === 413 || err.code === "rate_limit_exceeded";
-          const errorMessage = err.error?.message || err.message || "Stream error";
+            const isTokenLimit = err.status === 413 || err.code === "rate_limit_exceeded";
+            const errorMessage = err.error?.message || err.message || "Stream error";
 
-          // Parse token info from error message if available
-          let tokenInfo: { limit?: number; requested?: number } | null = null;
-          if (isTokenLimit && errorMessage) {
-            const limitMatch = errorMessage.match(/Limit (\d+)/);
-            const requestedMatch = errorMessage.match(/Requested (\d+)/);
-            if (limitMatch || requestedMatch) {
-              tokenInfo = {
-                limit: limitMatch ? parseInt(limitMatch[1], 10) : undefined,
-                requested: requestedMatch ? parseInt(requestedMatch[1], 10) : undefined,
-              };
+            // Parse token info from error message if available
+            let tokenInfo: { limit?: number; requested?: number } | null = null;
+            if (isTokenLimit && errorMessage) {
+              const limitMatch = errorMessage.match(/Limit (\d+)/);
+              const requestedMatch = errorMessage.match(/Requested (\d+)/);
+              if (limitMatch || requestedMatch) {
+                tokenInfo = {
+                  limit: limitMatch ? parseInt(limitMatch[1], 10) : undefined,
+                  requested: requestedMatch ? parseInt(requestedMatch[1], 10) : undefined,
+                };
+              }
             }
-          }
 
-          sendEvent(controller, "error", {
-            message: errorMessage,
-            code: err.code || (isTokenLimit ? "token_limit_exceeded" : "stream_error"),
-            status: err.status || 500,
-            isTokenLimit,
-            tokenInfo,
-          });
+            sendEvent(controller, "error", {
+              message: errorMessage,
+              code: err.code || (isTokenLimit ? "token_limit_exceeded" : "stream_error"),
+              status: err.status || 500,
+              isTokenLimit,
+              tokenInfo,
+            });
+          }
         }
+      }
+
+      // Mandatory gate check right before processPostStream (S1)
+      if (isCancelled || ac.signal.aborted) {
+        await savePartialOnce();
+        sendEvent(controller, "done", { ok: false });
+        try {
+          controller.close();
+        } catch {
+          // Ignore if already closed
+        }
+        return;
       }
 
       // 3. Post Stream Processing — skip if stream failed with no content
@@ -337,7 +420,11 @@ export function createOpenAICompatibleStream(params: {
       }
 
       sendEvent(controller, "done", { ok: !streamFailed });
-      controller.close();
+      try {
+        controller.close();
+      } catch {
+        // Ignore if already closed
+      }
     },
   });
 }

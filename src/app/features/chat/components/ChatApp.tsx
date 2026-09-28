@@ -255,6 +255,8 @@ export default function ChatApp() {
     handleSelectConversation,
     handleSend,
     handleRegenerate,
+    handleContinue,
+    retrySave,
     handleEdit,
     handleStop,
     streamError,
@@ -819,29 +821,37 @@ export default function ChatApp() {
                 </div>
               )}
 
-              {renderedMessages.map((m: FrontendMessage, idx: number) => {
-                const isLastAI = m.role === "assistant" && idx === renderedMessages.length - 1;
-                return (
-                  <ChatBubble
-                    key={m.id ?? idx}
-                    message={m}
-                    isLastAssistant={isLastAI}
-                    canRegenerate={m.role === "assistant"}
-                    onRegenerate={() => handleRegenerate(m)}
-                    onEdit={handleEdit}
-                    onDelete={modals.openDeleteMessageModal}
-                    onImageRegenerate={handleImageRegenerate}
-                    onImageEdit={handleImageEdit}
-                    regenerating={regenerating && isLastAI}
-                    isStreaming={isStreaming && isLastAI}
-                    onSpeak={m.id ? () => tts.speakMessage(m.id!, m.content || "") : undefined}
-                    isSpeaking={m.id ? tts.isMessageSpeaking(m.id) : false}
-                    conversationId={selectedConversationId ?? undefined}
-                    onBranch={handleBranchMessage}
-                    isBranching={branchingMessageId === m.id}
-                  />
-                );
-              })}
+              {(() => {
+                const lastAssistantIndex = renderedMessages
+                  .map((m: FrontendMessage) => m.role)
+                  .lastIndexOf("assistant");
+
+                return renderedMessages.map((m: FrontendMessage, idx: number) => {
+                  const isLastAI = m.role === "assistant" && idx === lastAssistantIndex;
+                  return (
+                    <ChatBubble
+                      key={m.id ?? idx}
+                      message={m}
+                      isLastAssistant={isLastAI}
+                      canRegenerate={m.role === "assistant"}
+                      onRegenerate={() => handleRegenerate(m)}
+                      onContinue={() => handleContinue(m)}
+                      onRetrySave={() => retrySave(m)}
+                      onEdit={handleEdit}
+                      onDelete={modals.openDeleteMessageModal}
+                      onImageRegenerate={handleImageRegenerate}
+                      onImageEdit={handleImageEdit}
+                      regenerating={regenerating && isLastAI}
+                      isStreaming={isStreaming && isLastAI}
+                      onSpeak={m.id ? () => tts.speakMessage(m.id!, m.content || "") : undefined}
+                      isSpeaking={m.id ? tts.isMessageSpeaking(m.id) : false}
+                      conversationId={selectedConversationId ?? undefined}
+                      onBranch={handleBranchMessage}
+                      isBranching={branchingMessageId === m.id}
+                    />
+                  );
+                });
+              })()}
 
               {isStreaming && streamingAssistant !== null && (
                 <ChatBubble

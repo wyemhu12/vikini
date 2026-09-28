@@ -6,6 +6,7 @@ import { getConversation, saveConversation } from "@/lib/features/chat/conversat
 import {
   deleteLastAssistantMessage,
   deleteMessagesIncludingAndAfter,
+  deleteMessageByClientMessageId,
 } from "@/lib/features/chat/messages";
 import { coreLogger, type ConversationContext } from "./chatStreamHelpers";
 
@@ -70,13 +71,20 @@ export async function handleMessageTruncation(
   userId: string,
   conversationId: string,
   truncateMessageId: string | null | undefined,
-  regenerate: boolean | undefined
+  regenerate: boolean | undefined,
+  truncateClientMessageId?: string | null | undefined
 ): Promise<void> {
   if (truncateMessageId) {
     try {
       await deleteMessagesIncludingAndAfter(userId, conversationId, truncateMessageId);
     } catch (e) {
       coreLogger.error("Failed to truncate messages:", e);
+    }
+  } else if (truncateClientMessageId) {
+    try {
+      await deleteMessageByClientMessageId(userId, conversationId, truncateClientMessageId);
+    } catch (e) {
+      coreLogger.error("Failed to truncate by clientMessageId:", e);
     }
   } else if (regenerate) {
     try {

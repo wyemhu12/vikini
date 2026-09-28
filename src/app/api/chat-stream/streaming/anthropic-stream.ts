@@ -6,6 +6,7 @@ import { executeFunction } from "@/lib/features/chat/functionRegistry";
 import { StreamTimeoutError, type ChatStreamParams, type CreatedConversation } from "./types";
 import { sendEvent, getStreamTimeout, withTimeout, withIdleTimeout, streamLogger } from "./utils";
 import { processPostStream } from "./post-processing";
+import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
 
 export function createAnthropicStream({
   ai,
@@ -29,6 +30,8 @@ export function createAnthropicStream({
   setConversationAutoTitle,
   generateFinalTitle,
   thinkingLevel,
+  clientMessageId,
+  signal,
 }: Omit<ChatStreamParams, "ai"> & {
   ai: Anthropic;
   enableWebSearch: boolean;
@@ -44,8 +47,61 @@ export function createAnthropicStream({
   setConversationAutoTitle: ChatStreamParams["setConversationAutoTitle"];
   generateFinalTitle: ChatStreamParams["generateFinalTitle"];
   thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
+  clientMessageId?: string;
+  signal?: AbortSignal;
 }): ReadableStream {
+  const ac = new AbortController();
+  let isCancelled = false;
+  if (signal) {
+    if (signal.aborted) {
+      isCancelled = true;
+      ac.abort();
+    } else {
+      signal.addEventListener(
+        "abort",
+        () => {
+          isCancelled = true;
+          ac.abort();
+        },
+        { once: true }
+      );
+    }
+  }
+
+  const acc = { full: "" };
+  let savedPartial = false;
+
+  const savePartialOnce = async () => {
+    if (savedPartial) return;
+    savedPartial = true;
+    const trimmed = acc.full.trim();
+    if (trimmed) {
+      const balanced = balanceThinkTags(trimmed);
+      try {
+        await saveMessage({
+          conversationId,
+          userId,
+          role: "assistant",
+          content: balanced,
+          meta: {
+            isPartial: true,
+            aborted: true,
+            status: "aborted",
+            model,
+            clientMessageId,
+          },
+        });
+      } catch (saveErr) {
+        streamLogger.error("Failed to save partial message in Anthropic safety net:", saveErr);
+      }
+    }
+  };
+
   return new ReadableStream({
+    cancel() {
+      isCancelled = true;
+      ac.abort();
+    },
     async start(controller) {
       // 1. Send Initial Metadata
       const conv = createdConversation as CreatedConversation | null;
@@ -162,31 +218,33 @@ export function createAnthropicStream({
 
         const timeoutMs = getStreamTimeout(model, thinkingLevel);
 
-        // Use Beta API for code execution + web fetch support
-        const streamPromise = ai.beta.messages.create({
-          model: model,
-          // Prompt caching: wrap system prompt with cache_control for cost savings (~90%)
-          system: [
-            {
-              type: "text" as const,
-              text: sysPrompt,
-              cache_control: { type: "ephemeral" as const },
-            },
-          ],
-          messages: anthropicMessages,
-          stream: true,
-          max_tokens: claudeMaxTokens,
-          // Extended thinking requires temperature = 1 (Anthropic requirement)
-          ...(isClaudeThinking
-            ? {
-                thinking: { type: "enabled" as const, budget_tokens: claudeBudgetTokens },
-                temperature: 1,
-              }
-            : { temperature: 0.7 }),
-          tools: anthropicTools,
-          // Beta API types don't fully cover dynamic tool types (code_execution, web_fetch)
-          // and conditional thinking config spread. Using narrowed assertion instead of `any`.
-        } as unknown as Parameters<typeof ai.beta.messages.create>[0]);
+        const streamPromise = ai.beta.messages.create(
+          {
+            model: model,
+            // Prompt caching: wrap system prompt with cache_control for cost savings (~90%)
+            system: [
+              {
+                type: "text" as const,
+                text: sysPrompt,
+                cache_control: { type: "ephemeral" as const },
+              },
+            ],
+            messages: anthropicMessages,
+            stream: true,
+            max_tokens: claudeMaxTokens,
+            // Extended thinking requires temperature = 1 (Anthropic requirement)
+            ...(isClaudeThinking
+              ? {
+                  thinking: { type: "enabled" as const, budget_tokens: claudeBudgetTokens },
+                  temperature: 1,
+                }
+              : { temperature: 0.7 }),
+            tools: anthropicTools,
+            // Beta API types don't fully cover dynamic tool types (code_execution, web_fetch)
+            // and conditional thinking config spread. Using narrowed assertion instead of `any`.
+          } as unknown as Parameters<typeof ai.beta.messages.create>[0],
+          { signal: ac.signal }
+        );
 
         const stream = (await withTimeout(streamPromise, timeoutMs)) as unknown as AsyncIterable<{
           type: string;
@@ -204,11 +262,16 @@ export function createAnthropicStream({
         let currentToolInput = "";
 
         for await (const chunk of guardedStream) {
+          if (isCancelled || ac.signal.aborted) {
+            break;
+          }
+
           // Handle text token deltas
           if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
             const text = (chunk.delta as { text?: string }).text;
             if (text) {
               full += text;
+              acc.full = full;
               sendEvent(controller, "token", { t: text });
             }
           }
@@ -222,9 +285,11 @@ export function createAnthropicStream({
                 isInThinkingBlock = true;
                 const openTag = "<think>";
                 full += openTag;
+                acc.full = full;
                 sendEvent(controller, "token", { t: openTag });
               }
               full += thinkingText;
+              acc.full = full;
               sendEvent(controller, "token", { t: thinkingText });
             }
           }
@@ -238,6 +303,7 @@ export function createAnthropicStream({
             isInThinkingBlock = false;
             const closeTag = "</think>";
             full += closeTag;
+            acc.full = full;
             sendEvent(controller, "token", { t: closeTag });
           }
 
@@ -296,31 +362,37 @@ export function createAnthropicStream({
                   },
                 ];
 
-                const resumeStream = await ai.beta.messages.create({
-                  model,
-                  system: [
-                    {
-                      type: "text" as const,
-                      text: sysPrompt,
-                      cache_control: { type: "ephemeral" as const },
-                    },
-                  ],
-                  messages: resumeMessages as unknown[],
-                  stream: true,
-                  max_tokens: 4096,
-                  temperature: 0.7,
-                  tools: anthropicTools,
-                  // Beta API types don't fully cover dynamic tool types - see line 164 comment
-                } as unknown as Parameters<typeof ai.beta.messages.create>[0]);
+                const resumeStream = await ai.beta.messages.create(
+                  {
+                    model,
+                    system: [
+                      {
+                        type: "text" as const,
+                        text: sysPrompt,
+                        cache_control: { type: "ephemeral" as const },
+                      },
+                    ],
+                    messages: resumeMessages as unknown[],
+                    stream: true,
+                    max_tokens: 4096,
+                    temperature: 0.7,
+                    tools: anthropicTools,
+                  } as unknown as Parameters<typeof ai.beta.messages.create>[0],
+                  { signal: ac.signal }
+                );
 
                 for await (const rChunk of resumeStream as unknown as AsyncIterable<{
                   type: string;
                   delta: { type: string; text?: string };
                 }>) {
+                  if (isCancelled || ac.signal.aborted) {
+                    break;
+                  }
                   if (rChunk.type === "content_block_delta" && rChunk.delta.type === "text_delta") {
                     const t = (rChunk.delta as { text?: string }).text;
                     if (t) {
                       full += t;
+                      acc.full = full;
                       sendEvent(controller, "token", { t });
                     }
                   }
@@ -389,11 +461,13 @@ export function createAnthropicStream({
               if (ceResult.stdout) {
                 const output = `\n**Code Output:**\n\`\`\`\n${ceResult.stdout}\n\`\`\`\n`;
                 full += output;
+                acc.full = full;
                 sendEvent(controller, "token", { t: output });
               }
               if (ceResult.stderr) {
                 const errOutput = `\n**Error Output:**\n\`\`\`\n${ceResult.stderr}\n\`\`\`\n`;
                 full += errOutput;
+                acc.full = full;
                 sendEvent(controller, "token", { t: errOutput });
               }
             }
@@ -426,6 +500,7 @@ export function createAnthropicStream({
           isInThinkingBlock = false;
           const closeTag = "</think>";
           full += closeTag;
+          acc.full = full;
           sendEvent(controller, "token", { t: closeTag });
         }
 
@@ -443,31 +518,49 @@ export function createAnthropicStream({
         }
       } catch (e: unknown) {
         streamFailed = true;
-        // Handle timeout specifically
-        if (e instanceof StreamTimeoutError) {
-          const timeoutMs = getStreamTimeout();
-          streamLogger.error(`Anthropic stream timeout after ${timeoutMs}ms`);
-          sendEvent(controller, "error", {
-            message: `Request timed out after ${Math.round(timeoutMs / 1000)} seconds. Please try again.`,
-            code: "STREAM_TIMEOUT",
-            isTimeout: true,
-          });
+        if (isCancelled || ac.signal.aborted) {
+          await savePartialOnce();
         } else {
-          streamLogger.error("Anthropic stream error:", e);
+          // If stream failed unexpectedly but accumulated some content, save it too
+          await savePartialOnce();
+          // Handle timeout specifically
+          if (e instanceof StreamTimeoutError) {
+            const timeoutMs = getStreamTimeout();
+            streamLogger.error(`Anthropic stream timeout after ${timeoutMs}ms`);
+            sendEvent(controller, "error", {
+              message: `Request timed out after ${Math.round(timeoutMs / 1000)} seconds. Please try again.`,
+              code: "STREAM_TIMEOUT",
+              isTimeout: true,
+            });
+          } else {
+            streamLogger.error("Anthropic stream error:", e);
 
-          // Extract detailed error info
-          const err = e as { status?: number; message?: string; code?: string };
-          const status = err.status || 500;
-          const errorMessage = err.message || "Stream error";
-          const isTokenLimit = status === 429 || errorMessage.includes("rate_limit");
+            // Extract detailed error info
+            const err = e as { status?: number; message?: string; code?: string };
+            const status = err.status || 500;
+            const errorMessage = err.message || "Stream error";
+            const isTokenLimit = status === 429 || errorMessage.includes("rate_limit");
 
-          sendEvent(controller, "error", {
-            message: errorMessage,
-            code: err.code || (isTokenLimit ? "rate_limit_exceeded" : "stream_error"),
-            status: status,
-            isTokenLimit,
-          });
+            sendEvent(controller, "error", {
+              message: errorMessage,
+              code: err.code || (isTokenLimit ? "rate_limit_exceeded" : "stream_error"),
+              status: status,
+              isTokenLimit,
+            });
+          }
         }
+      }
+
+      // Mandatory gate check right before processPostStream (S1)
+      if (isCancelled || ac.signal.aborted) {
+        await savePartialOnce();
+        sendEvent(controller, "done", { ok: false });
+        try {
+          controller.close();
+        } catch {
+          // Ignore if already closed
+        }
+        return;
       }
 
       // 3. Post Stream Processing — skip if stream failed with no content
@@ -498,7 +591,11 @@ export function createAnthropicStream({
       }
 
       sendEvent(controller, "done", { ok: !streamFailed });
-      controller.close();
+      try {
+        controller.close();
+      } catch {
+        // Ignore if already closed
+      }
     },
   });
 }

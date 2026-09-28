@@ -4,7 +4,7 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback, useDeferredValue } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { logger } from "@/lib/utils/logger";
 import type { FileItem } from "@/types/files";
@@ -29,6 +29,12 @@ export interface MessageMeta {
   promptTokenCount?: number;
   candidatesTokenCount?: number;
   thoughtsTokenCount?: number;
+  isPartial?: boolean;
+  aborted?: boolean;
+  status?: string;
+  isSaving?: boolean;
+  saveFailed?: boolean;
+  clientMessageId?: string;
   [key: string]: unknown;
 }
 
@@ -55,6 +61,8 @@ export interface ChatBubbleProps {
   isSpeaking?: boolean;
   conversationId?: string;
   onRegenerate?: () => void;
+  onContinue?: (message: ChatMessage) => void;
+  onRetrySave?: (message: ChatMessage) => void;
   onEdit?: (message: ChatMessage, newContent: string) => void;
   onDelete?: (messageId: string) => void;
   onImageRegenerate?: (message: ChatMessage) => void;
@@ -267,6 +275,36 @@ export const ChatBubble = React.memo(
                   />
                 </div>
               )}
+
+              {/* Status badges for partial / interrupted messages */}
+              {isBot && safeMessage.meta?.isPartial && !isLoading && (
+                <div className="mt-2 flex items-center gap-2 text-xs flex-wrap">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${
+                      safeMessage.meta?.status === "error"
+                        ? "bg-(--danger)/10 text-(--danger) border border-(--danger)/20"
+                        : "bg-(--surface-muted) text-(--text-secondary) border border-(--border)"
+                    }`}
+                  >
+                    {safeMessage.meta?.status === "error" ? t("interrupted") : t("stopped")}
+                  </span>
+                  {safeMessage.meta?.isSaving && (
+                    <span className="text-(--text-muted) flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin text-(--accent)" />
+                      {t("saving")}
+                    </span>
+                  )}
+                  {safeMessage.meta?.saveFailed && (
+                    <button
+                      type="button"
+                      onClick={() => props.onRetrySave?.(safeMessage)}
+                      className="text-(--danger) hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                    >
+                      {t("saveFailed")} ({t("retrySave")})
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {!isLoading && !isEditing && safeMessage.meta?.type !== "image_gen" && (
@@ -276,11 +314,14 @@ export const ChatBubble = React.memo(
                 copied={copied}
                 canRegenerate={props.canRegenerate}
                 regenerating={props.regenerating}
+                isPartial={Boolean(safeMessage.meta?.isPartial)}
+                isLastAssistant={props.isLastAssistant}
                 isSpeaking={props.isSpeaking}
                 isBranching={props.isBranching}
                 onCopy={handleCopyMessage}
                 onEdit={!isBot ? () => setIsEditing(true) : undefined}
                 onRegenerate={props.onRegenerate}
+                onContinue={props.onContinue ? () => props.onContinue?.(safeMessage) : undefined}
                 onDelete={props.onDelete}
                 onSpeak={isBot ? props.onSpeak : undefined}
                 onBranch={props.onBranch}
@@ -300,6 +341,8 @@ export const ChatBubble = React.memo(
     p.isStreaming === n.isStreaming &&
     p.canRegenerate === n.canRegenerate &&
     p.onRegenerate === n.onRegenerate &&
+    p.onContinue === n.onContinue &&
+    p.onRetrySave === n.onRetrySave &&
     p.onEdit === n.onEdit &&
     p.onDelete === n.onDelete &&
     p.onImageRegenerate === n.onImageRegenerate &&

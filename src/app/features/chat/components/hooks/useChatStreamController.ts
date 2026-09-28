@@ -3,6 +3,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { logger } from "@/lib/utils/logger";
+import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
+import { mergeMessages } from "@/lib/features/chat/messageMerge";
+import { toast } from "@/lib/store/toastStore";
 
 interface FrontendMessage {
   id?: string;
@@ -38,12 +41,20 @@ interface CoreSendOptions {
   skipUserAppend?: boolean;
   truncateFromIndex?: number;
   truncateMessageId?: string;
+  truncateClientMessageId?: string;
   skipSaveUserMessage?: boolean;
   fileIds?: string[];
 }
 
 function safeArray<T>(v: T[] | unknown): T[] {
   return Array.isArray(v) ? v : [];
+}
+
+function generateClientMessageId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "cm-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
 }
 
 export function useChatStreamController({
@@ -73,6 +84,15 @@ export function useChatStreamController({
   // AbortController để quản lý việc hủy request streaming
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingAssistantRef = useRef<string | null>(streamingAssistant);
+
+  // Refs for client-side message persistence and deduplication
+  const currentClientMessageIdRef = useRef<string | null>(null);
+  const currentTruncateClientMessageIdRef = useRef<string | null>(null);
+  const localSourcesRef = useRef<unknown[]>([]);
+  const localUrlContextRef = useRef<unknown[]>([]);
+  const hasStreamErrorRef = useRef<boolean>(false);
+  const lastStreamErrorRef = useRef<StreamError | null>(null);
+  const accumulatedAssistantRef = useRef<string>("");
 
   // Typewriter buffer: decouple network streaming từ visual streaming
   // Network tokens → buffer → display (smooth animation)
@@ -180,6 +200,7 @@ export function useChatStreamController({
   // Typewriter: Add tokens to buffer (called when SSE tokens arrive)
   const appendToTypewriterBuffer = useCallback((token: string) => {
     typewriterBufferRef.current += token;
+    accumulatedAssistantRef.current += token;
   }, []);
 
   // Cleanup typewriter on unmount
@@ -191,6 +212,128 @@ export function useChatStreamController({
     };
   }, []);
 
+  const syncPartialMessage = useCallback(
+    async (convId: string, clientMsgId: string, content: string, meta: Record<string, unknown>) => {
+      try {
+        const res = await fetch("/api/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conversationId: convId,
+            role: "assistant",
+            content,
+            clientMessageId: clientMsgId,
+            meta,
+          }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const data = json.data;
+          const savedMsg = data?.message;
+          const alreadyComplete = Boolean(data?.alreadyComplete);
+          setMessages((prev) =>
+            prev.map((m) => {
+              const metaObj = m.meta as Record<string, unknown> | undefined;
+              if (metaObj?.clientMessageId === clientMsgId || m.id === `temp-${clientMsgId}`) {
+                if (alreadyComplete && savedMsg) {
+                  return {
+                    ...m,
+                    id: savedMsg.id,
+                    content: savedMsg.content,
+                    meta: {
+                      ...metaObj,
+                      ...savedMsg.meta,
+                      isPartial: false,
+                      aborted: false,
+                      isSaving: false,
+                      saveFailed: false,
+                    },
+                  };
+                }
+                return {
+                  ...m,
+                  id: savedMsg?.id || m.id,
+                  meta: {
+                    ...metaObj,
+                    isSaving: false,
+                    saveFailed: false,
+                  },
+                };
+              }
+              return m;
+            })
+          );
+        } else {
+          throw new Error("Sync failed");
+        }
+      } catch (syncErr) {
+        logger.error("Failed to sync partial message:", syncErr);
+        setMessages((prev) =>
+          prev.map((m) => {
+            const metaObj = m.meta as Record<string, unknown> | undefined;
+            if (metaObj?.clientMessageId === clientMsgId || m.id === `temp-${clientMsgId}`) {
+              return {
+                ...m,
+                meta: {
+                  ...metaObj,
+                  isSaving: false,
+                  saveFailed: true,
+                },
+              };
+            }
+            return m;
+          })
+        );
+      }
+    },
+    []
+  );
+
+  const finalizeAssistantMessage = useCallback(
+    (status: "aborted" | "error" | "complete", convId: string | null) => {
+      stopTypewriter(true);
+
+      const rawContent = accumulatedAssistantRef.current || streamingAssistantRef.current || "";
+      const trimmed = rawContent.trim();
+      if (!trimmed) {
+        setIsStreaming(false);
+        setStreamingAssistant(null);
+        return;
+      }
+
+      const balanced = balanceThinkTags(rawContent);
+      const clientMsgId = currentClientMessageIdRef.current;
+      const isPartial = status !== "complete";
+
+      const meta: Record<string, unknown> = {
+        ...(clientMsgId ? { clientMessageId: clientMsgId } : {}),
+        ...(isPartial ? { isPartial: true, aborted: true, status, isSaving: true } : { status }),
+        sources: safeArray(localSourcesRef.current),
+        urlContext: safeArray(localUrlContextRef.current),
+      };
+
+      const assistantMsg: FrontendMessage = {
+        role: "assistant",
+        content: balanced,
+        ...(isPartial && clientMsgId ? { id: `temp-${clientMsgId}` } : {}),
+        sources: safeArray(localSourcesRef.current),
+        urlContext: safeArray(localUrlContextRef.current),
+        meta,
+      };
+
+      setMessages((prev) => [...normalizeMessages(prev), assistantMsg]);
+      setIsStreaming(false);
+      setStreamingAssistant(null);
+      setStreamingSources([]);
+      setStreamingUrlContext([]);
+
+      if (isPartial && convId && clientMsgId) {
+        void syncPartialMessage(convId, clientMsgId, balanced, meta);
+      }
+    },
+    [stopTypewriter, normalizeMessages, syncPartialMessage]
+  );
+
   const reloadMessagesAfterStream = useCallback(
     async (convId: string | null) => {
       if (!convId) return;
@@ -201,7 +344,9 @@ export function useChatStreamController({
           const json = await res.json();
           const data = json.data || json;
           if (data?.messages && Array.isArray(data.messages)) {
-            setMessages(normalizeMessages(data.messages));
+            setMessages((currentLocal) =>
+              mergeMessages(normalizeMessages(data.messages), currentLocal)
+            );
           }
         }
       } catch (reloadError) {
@@ -220,38 +365,24 @@ export function useChatStreamController({
         abortControllerRef.current = null;
       }
 
-      // Stop typewriter and flush remaining buffer
-      stopTypewriter(commitPartial);
-
-      // Nếu được yêu cầu lưu nội dung dở dang và có nội dung
-      if (commitPartial && streamingAssistantRef.current) {
-        setMessages((prev) => [
-          ...normalizeMessages(prev),
-          {
-            role: "assistant",
-            content: streamingAssistantRef.current || "",
-            sources: [], // Có thể chưa có sources
-            urlContext: [],
-          },
-        ]);
+      if (commitPartial) {
+        finalizeAssistantMessage("aborted", selectedConversationId);
+      } else {
+        stopTypewriter(false);
+        typewriterBufferRef.current = "";
+        setIsStreaming(false);
+        setRegenerating(false);
+        setStreamingAssistant(null);
+        setStreamingSources([]);
+        setStreamingUrlContext([]);
       }
 
-      // Clear typewriter buffer
-      typewriterBufferRef.current = "";
-
-      setIsStreaming(false);
-      setRegenerating(false);
-      setStreamingAssistant(null);
-      setStreamingSources([]);
-      setStreamingUrlContext([]);
-
       // Reload messages from server to ensure all messages have proper IDs
-      // This fixes the edit-after-stop bug where handleEdit can't find messages
       if (commitPartial && selectedConversationId) {
         void reloadMessagesAfterStream(selectedConversationId);
       }
     },
-    [normalizeMessages, stopTypewriter, selectedConversationId, reloadMessagesAfterStream]
+    [finalizeAssistantMessage, selectedConversationId, stopTypewriter, reloadMessagesAfterStream]
   );
 
   const resetChatUI = useCallback(() => {
@@ -363,6 +494,14 @@ export function useChatStreamController({
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
 
+      currentClientMessageIdRef.current = generateClientMessageId();
+      currentTruncateClientMessageIdRef.current = options?.truncateClientMessageId || null;
+      localSourcesRef.current = [];
+      localUrlContextRef.current = [];
+      hasStreamErrorRef.current = false;
+      lastStreamErrorRef.current = null;
+      accumulatedAssistantRef.current = "";
+
       setInput("");
       setIsStreaming(true);
       setStreamingAssistant("");
@@ -392,6 +531,7 @@ export function useChatStreamController({
         signal,
         regenerate,
         truncateMessageId,
+        truncateClientMessageId: options?.truncateClientMessageId,
         skipSaveUserMessage,
       };
     },
@@ -457,11 +597,13 @@ export function useChatStreamController({
         const sources = safeArray(data?.sources);
         setStreamingSources(sources);
         localSources.current = sources;
+        localSourcesRef.current = sources;
       }
       if (data?.type === "urlContext") {
         const urls = safeArray(data?.urls);
         setStreamingUrlContext(urls);
         localUrlContext.current = urls;
+        localUrlContextRef.current = urls;
       }
       if (data?.type === "webSearch") {
         const enabled = typeof data?.enabled === "boolean" ? data.enabled : undefined;
@@ -531,6 +673,8 @@ export function useChatStreamController({
               isTokenLimit: data?.isTokenLimit,
               tokenInfo: data?.tokenInfo,
             };
+            hasStreamErrorRef.current = true;
+            lastStreamErrorRef.current = errorData;
             setStreamError(errorData);
             onStreamError?.(errorData);
           }
@@ -573,8 +717,10 @@ export function useChatStreamController({
           body: JSON.stringify({
             conversationId: convId,
             content: text,
-            regenerate,
+            clientMessageId: currentClientMessageIdRef.current,
             truncateMessageId,
+            truncateClientMessageId: options?.truncateClientMessageId,
+            regenerate,
             skipSaveUserMessage,
             ...(thinkingLevel ? { thinkingLevel } : {}),
             ...(fileIds && fileIds.length > 0 ? { fileIds } : {}),
@@ -591,32 +737,21 @@ export function useChatStreamController({
         await processStreamResponse(reader, localSources, localUrlContext);
 
         // Ngay khi network stream kết thúc, lập tức flush toàn bộ buffer còn lại ra màn hình
-        // Không bắt người dùng phải chờ hiệu ứng gõ chữ "diễn" nốt nữa.
         stopTypewriter(true);
 
         // Small delay to ensure final state update
         await new Promise((resolve) => setTimeout(resolve, 30));
 
-        const finalAssistant = streamingAssistantRef.current || "";
-        const assistantMsg: FrontendMessage = {
-          role: "assistant",
-          content: finalAssistant,
-          sources: safeArray(localSources.current),
-          urlContext: safeArray(localUrlContext.current),
-        };
-
-        setMessages((prev) => [...normalizeMessages(prev), assistantMsg]);
-        setStreamingAssistant(null);
+        const finalStatus = hasStreamErrorRef.current ? "error" : "complete";
+        finalizeAssistantMessage(finalStatus, convId);
 
         await reloadMessagesAfterStream(convId);
       } catch (e) {
         const error = e as Error & { name?: string };
         if (error.name !== "AbortError") {
           logger.error("Stream error:", e);
-          setStreamingAssistant(null);
+          finalizeAssistantMessage("error", convId);
         }
-        // Nếu AbortError (do bấm Stop hoặc chuyển chat), ko làm gì ở đây
-        // Việc save message đã được xử lý trong handleStop (nếu gọi với commit=true)
       } finally {
         setIsStreaming(false);
         abortControllerRef.current = null;
@@ -628,8 +763,8 @@ export function useChatStreamController({
       prepareStreamRequest,
       ensureConversationExists,
       processStreamResponse,
+      finalizeAssistantMessage,
       reloadMessagesAfterStream,
-      normalizeMessages,
       stopTypewriter,
     ]
   );
@@ -699,11 +834,14 @@ export function useChatStreamController({
 
         const meta = prevUserMsg.meta as Record<string, unknown> | undefined;
         const fileIds = Array.isArray(meta?.fileIds) ? (meta.fileIds as string[]) : undefined;
+        const truncateClientMessageId = (assistantMsg.meta as Record<string, unknown> | undefined)
+          ?.clientMessageId as string | undefined;
 
         await coreSend(prevUserMsg.content, {
           regenerate: true,
           skipUserAppend: true,
           truncateMessageId: assistantMsg.id,
+          truncateClientMessageId,
           skipSaveUserMessage: true,
           fileIds,
         });
@@ -719,8 +857,6 @@ export function useChatStreamController({
       if (isStreaming) return;
 
       // Use messagesRef to always get the latest messages (avoid stale closure)
-      // This fixes the bug where 2nd edit finds index === -1 because
-      // messages in the closure was stale after the 1st edit's stream cycle.
       const currentMsgs = normalizeMessages(messagesRef.current);
       let index = currentMsgs.findIndex((m) => {
         if (m === originalMessage) return true;
@@ -752,11 +888,13 @@ export function useChatStreamController({
 
       const meta = originalMessage.meta as Record<string, unknown> | undefined;
       const fileIds = Array.isArray(meta?.fileIds) ? (meta.fileIds as string[]) : undefined;
+      const truncateClientMessageId = meta?.clientMessageId as string | undefined;
 
       await coreSend(newContent, {
         truncateFromIndex: index,
         regenerate: true,
         truncateMessageId: originalMessage.id,
+        truncateClientMessageId,
         skipSaveUserMessage: false,
         fileIds,
       });
@@ -770,6 +908,108 @@ export function useChatStreamController({
   }, [cancelStream]);
 
   const clearStreamError = useCallback(() => setStreamError(null), []);
+
+  const retrySave = useCallback(
+    async (msg: FrontendMessage) => {
+      const clientMsgId = (msg.meta as Record<string, unknown> | undefined)?.clientMessageId as
+        | string
+        | undefined;
+      if (!selectedConversationId || !clientMsgId || !msg.content) return;
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m === msg ||
+          (clientMsgId &&
+            (m.meta as Record<string, unknown> | undefined)?.clientMessageId === clientMsgId)
+            ? {
+                ...m,
+                meta: {
+                  ...(m.meta as Record<string, unknown> | undefined),
+                  isSaving: true,
+                  saveFailed: false,
+                },
+              }
+            : m
+        )
+      );
+
+      await syncPartialMessage(
+        selectedConversationId,
+        clientMsgId,
+        msg.content,
+        (msg.meta as Record<string, unknown>) || {}
+      );
+    },
+    [selectedConversationId, syncPartialMessage]
+  );
+
+  const handleContinue = useCallback(
+    async (specificMessage?: FrontendMessage) => {
+      if (isStreaming) return;
+
+      const currentMsgs = normalizeMessages(messagesRef.current);
+      const lastMsg = specificMessage || currentMsgs[currentMsgs.length - 1];
+      if (!lastMsg || lastMsg.role !== "assistant") return;
+
+      const clientMsgId = (lastMsg.meta as Record<string, unknown> | undefined)?.clientMessageId as
+        | string
+        | undefined;
+      const lastMeta = lastMsg.meta as Record<string, unknown> | undefined;
+      let isSaved = !lastMsg.id?.startsWith("temp-") && !lastMeta?.isSaving;
+
+      if (clientMsgId && (lastMeta?.isSaving || lastMsg.id?.startsWith("temp-"))) {
+        const startTime = Date.now();
+        while (Date.now() - startTime < 8000) {
+          const freshMsgs = messagesRef.current;
+          const target = freshMsgs.find(
+            (m) =>
+              (m.meta as Record<string, unknown> | undefined)?.clientMessageId === clientMsgId ||
+              m.id === lastMsg.id
+          );
+          const targetMeta = target?.meta as Record<string, unknown> | undefined;
+          if (
+            target &&
+            !targetMeta?.isSaving &&
+            !targetMeta?.saveFailed &&
+            !target.id?.startsWith("temp-")
+          ) {
+            isSaved = true;
+            break;
+          }
+          if (targetMeta?.saveFailed) {
+            break;
+          }
+          await new Promise((r) => setTimeout(r, 400));
+        }
+      }
+
+      if (!isSaved && clientMsgId && selectedConversationId) {
+        await syncPartialMessage(
+          selectedConversationId,
+          clientMsgId,
+          lastMsg.content,
+          lastMeta || {}
+        );
+        const fresh = messagesRef.current.find(
+          (m) => (m.meta as Record<string, unknown> | undefined)?.clientMessageId === clientMsgId
+        );
+        const freshMeta = fresh?.meta as Record<string, unknown> | undefined;
+        if (fresh && !freshMeta?.saveFailed && !fresh.id?.startsWith("temp-")) {
+          isSaved = true;
+        }
+      }
+
+      if (!isSaved) {
+        toast.error("Không thể tiếp tục vì đoạn chat chưa được lưu vào hệ thống.");
+        return;
+      }
+
+      await coreSend("Hãy tiếp tục viết tiếp phần câu trả lời còn đang dang dở ở trên.", {
+        skipSaveUserMessage: false,
+      });
+    },
+    [isStreaming, normalizeMessages, selectedConversationId, syncPartialMessage, coreSend]
+  );
 
   return {
     messages,
@@ -792,6 +1032,8 @@ export function useChatStreamController({
     handleRegenerate,
     handleEdit,
     handleStop,
+    handleContinue,
+    retrySave,
     setMessages,
   };
 }

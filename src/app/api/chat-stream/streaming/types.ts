@@ -119,6 +119,7 @@ export interface ChatStreamParams {
           maxOutputTokens?: number;
           thinkingConfig?: unknown;
           cachedContent?: string;
+          abortSignal?: AbortSignal;
         };
       }) => Promise<AsyncGenerator<unknown, unknown, unknown>> | AsyncIterable<unknown>;
     };
@@ -184,4 +185,6 @@ export interface ChatStreamParams {
   thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
   /** Explicit context cache name (from contextCache.ts). When set, system instruction is omitted (it's in the cache). */
   cachedContent?: string;
+  clientMessageId?: string;
+  signal?: AbortSignal;
 }

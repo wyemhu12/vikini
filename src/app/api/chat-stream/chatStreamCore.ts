@@ -19,8 +19,7 @@ import {
 import { CLAUDE_API_MODELS, MODEL_IDS } from "@/lib/utils/constants";
 import { getOrCreateCompositeCache } from "@/lib/core/contextCache";
 import { error } from "@/lib/utils/apiResponse";
-
-import { saveMessage } from "@/lib/features/chat/messages";
+import { saveMessage, upsertMessage } from "@/lib/features/chat/messages";
 import { setConversationAutoTitle } from "@/lib/features/chat/conversations";
 import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
 import { getPersonaInstructionsForConversation } from "@/lib/features/personas/personas";
@@ -76,6 +75,8 @@ export async function handleChatStreamCore({
     content,
     regenerate,
     truncateMessageId,
+    truncateClientMessageId,
+    clientMessageId,
     skipSaveUserMessage,
     thinkingLevel,
     fileIds,
@@ -116,7 +117,13 @@ export async function handleChatStreamCore({
   const finalShouldGenerateTitle = shouldGenerateTitle && !regenerate;
 
   // Handle message truncation/regeneration
-  await handleMessageTruncation(userId, conversationId, truncateMessageId, regenerate);
+  await handleMessageTruncation(
+    userId,
+    conversationId,
+    truncateMessageId,
+    regenerate,
+    truncateClientMessageId
+  );
 
   // Save user message (with fileIds in meta if present)
   if (!skipSaveUserMessage) {
@@ -200,7 +207,19 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
     content: string;
     meta?: Record<string, unknown>;
   }) => {
-    return saveMessage(userId, conversationId, role, content, meta);
+    const enrichedMeta: Record<string, unknown> = {
+      ...(meta || {}),
+      ...(clientMessageId ? { clientMessageId } : {}),
+    };
+    const res = await upsertMessage(
+      userId,
+      conversationId,
+      role,
+      content,
+      enrichedMeta,
+      clientMessageId || undefined
+    );
+    return res.message;
   };
 
   // Build shared meta objects
@@ -234,6 +253,8 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
     },
     generateOptimisticTitle,
     generateFinalTitle,
+    clientMessageId: clientMessageId || undefined,
+    signal: req.signal,
   };
 
   // Route to provider-specific stream
