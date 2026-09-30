@@ -1,8 +1,11 @@
 /**
  * Knowledge API Routes for a Project
- * GET: List documents in project
- * POST: Upload new document
+ * GET: List documents in project (with opportunistic cleanup)
+ * POST: Upload new document (pre-insert check, strict 400 rejection for embedding_model)
+ * DELETE: Delete a document
  */
+export const maxDuration = 60;
+
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/features/auth/auth";
@@ -10,6 +13,7 @@ import {
   getProjectDocuments,
   uploadDocument,
   deleteDocument,
+  cleanupStuckProcessingDocuments,
 } from "@/lib/features/projects/knowledge.server";
 import { getProject } from "@/lib/features/projects/projects.server";
 import { UnauthorizedError, ValidationError, NotFoundError, AppError } from "@/lib/utils/errors";
@@ -36,10 +40,17 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     const userId = session.user.email.toLowerCase();
     const { id: projectId } = await params;
 
-    // Verify project exists and user owns it
+    // 1. Verify project exists and user owns it
     const project = await getProject(projectId, userId);
     if (!project) {
       throw new NotFoundError("Project");
+    }
+
+    // 2. Opportunistic cleanup for stuck processing documents in this project (non-blocking)
+    try {
+      await cleanupStuckProcessingDocuments(projectId);
+    } catch (cleanupErr) {
+      routeLogger.warn("Opportunistic cleanup failed, continuing", { error: cleanupErr });
     }
 
     const documents = await getProjectDocuments(projectId, userId);
@@ -60,7 +71,6 @@ const uploadSchema = z.object({
   filename: z.string().min(1),
   content: z.string().min(1),
   mimeType: z.string().optional(),
-  embedding_model: z.enum(["text-embedding-004", "gemini-embedding-2"]).optional(),
 });
 
 /**
@@ -81,10 +91,16 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       throw new NotFoundError("Project");
     }
 
-    const body = await req.json();
+    const rawBody = await req.json();
+
+    // Strict Rejection 400: embedding_model is immutable and cannot be specified
+    if (rawBody && typeof rawBody === "object" && "embedding_model" in rawBody) {
+      throw new ValidationError("embedding_model cannot be specified for knowledge uploads");
+    }
+
     let parsed;
     try {
-      parsed = uploadSchema.parse(body);
+      parsed = uploadSchema.parse(rawBody);
     } catch (e: unknown) {
       if (e instanceof z.ZodError) {
         throw new ValidationError(`Invalid request: ${e.issues[0].message}`);
@@ -105,7 +121,6 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       filename: parsed.filename,
       content: parsed.content,
       mimeType: parsed.mimeType,
-      embeddingModel: parsed.embedding_model,
     });
 
     routeLogger.info(`Uploaded document: ${document.filename} (${document.id})`);
@@ -122,8 +137,6 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     return error("Failed to upload document", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
-
-// documentId is validated via query params
 
 /**
  * DELETE /api/projects/[id]/knowledge?documentId=xxx - Delete a document

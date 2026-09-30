@@ -96,7 +96,7 @@ export function ProjectChatView({
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium",
                 "border border-(--border) bg-(--surface)/80 backdrop-blur-sm",
-                "hover:bg-(--control-bg-hover) hover:border-(--border-hover)",
+                "hover:bg-(--control-bg-hover) hover:border-(--control-border)",
                 "transition-colors duration-200 shadow-sm"
               )}
             >
@@ -150,7 +150,7 @@ export function ProjectChatView({
                   </div>
 
                   {/* Date */}
-                  <span className="text-xs text-(--text-muted) mx-4 shrink-0">
+                  <span className="text-xs text-(--text-secondary) mx-4 shrink-0">
                     {formatDate(conv.updatedAt || conv.createdAt)}
                   </span>
 
@@ -226,7 +226,7 @@ export function ProjectChatView({
                 <ProjectIcon icon={project.icon} color={project.color} size="lg" />
               </div>
               <p className="text-(--text-secondary) mb-1">{t("projectNoChats")}</p>
-              <p className="text-sm text-(--text-muted)">{t("projectStartChat")}</p>
+              <p className="text-sm text-(--text-secondary)">{t("projectStartChat")}</p>
             </div>
           )}
         </div>

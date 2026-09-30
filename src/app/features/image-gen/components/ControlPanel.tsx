@@ -208,7 +208,7 @@ export default function ControlPanel({
 
   return (
     <aside
-      className={`w-full md:w-80 border-r border-(--border) h-full flex-col bg-(--surface-base) relative z-20 shadow-xl overflow-hidden ${className || "flex"}`}
+      className={`w-full md:w-80 border-r border-(--border) h-full flex-col bg-(--surface) relative z-20 shadow-xl overflow-hidden ${className || "flex"}`}
     >
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto pt-4">
@@ -310,7 +310,7 @@ export default function ControlPanel({
                           "w-full text-left px-3 py-2.5 text-xs transition-colors border-b border-(--border) last:border-b-0",
                           idx === autocomplete.selectedSuggestionIdx
                             ? "bg-purple-500/10 text-purple-300"
-                            : "hover:bg-(--surface-hover) text-(--text-primary)"
+                            : "hover:bg-(--control-bg-hover) text-(--text-primary)"
                         )}
                       >
                         {s}
@@ -413,7 +413,7 @@ export default function ControlPanel({
                         <button
                           key={i}
                           onClick={() => setPrompt(hp)}
-                          className="text-left text-[11px] text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--surface-hover) px-2 py-1.5 rounded-md transition-colors truncate"
+                          className="text-left text-[11px] text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) px-2 py-1.5 rounded-md transition-colors truncate"
                           title={hp}
                         >
                           {hp}
@@ -526,7 +526,7 @@ export default function ControlPanel({
                   "px-2 py-2 rounded-md text-xs font-medium border transition-colors",
                   aspectRatio === ratio
                     ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-(--surface-elevated) border-(--border) hover:bg-(--surface-hover)"
+                    : "bg-(--surface-elevated) border-(--border) hover:bg-(--control-bg-hover)"
                 )}
               >
                 {ratio}
@@ -550,7 +550,7 @@ export default function ControlPanel({
                     "px-2 py-2 rounded-md text-xs font-medium border transition-colors",
                     aspectRatio === ratio
                       ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-(--surface-elevated) border-(--border) hover:bg-(--surface-hover)"
+                      : "bg-(--surface-elevated) border-(--border) hover:bg-(--control-bg-hover)"
                   )}
                 >
                   {ratio}
@@ -575,7 +575,7 @@ export default function ControlPanel({
                     "flex flex-col items-center gap-0.5 px-1.5 py-2 rounded-lg text-xs font-medium border transition-colors",
                     resolution === opt.value
                       ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                      : "bg-(--surface-elevated) border-(--border) hover:bg-(--surface-hover)"
+                      : "bg-(--surface-elevated) border-(--border) hover:bg-(--control-bg-hover)"
                   )}
                 >
                   <span className="font-bold">{t(`studioRes${opt.value.replace(".", "")}`)}</span>
@@ -721,7 +721,7 @@ export default function ControlPanel({
                           ? "bg-primary text-primary-foreground border-primary"
                           : isDisabled
                             ? "bg-(--surface-muted) border-(--border) text-(--text-secondary)/40 cursor-not-allowed opacity-50"
-                            : "bg-(--surface-elevated) border-(--border) hover:bg-(--surface-hover)"
+                            : "bg-(--surface-elevated) border-(--border) hover:bg-(--control-bg-hover)"
                       )}
                     >
                       <ImageIcon className="w-3 h-3" />

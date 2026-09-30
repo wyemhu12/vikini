@@ -52,5 +52,5 @@ the parent (a function component) calls `useLanguage()` and passes `t` down.
 ## Enforcement
 
 - Both `translations.vi` and `translations.en` MUST have matching keys.
-- When adding new UI text, read `skills/add-translation.md` for the full workflow.
+- When adding new UI text, read `.agents/skills/add-translation.md` for the full workflow.
 - Type safety ensures missing keys cause compile errors.

@@ -63,6 +63,7 @@ export function SidebarSection({
       {/* Header */}
       <button
         onClick={toggle}
+        aria-expanded={isExpanded}
         className={cn(
           "w-full flex items-center justify-between px-3 py-2",
           "text-xs font-medium text-(--text-secondary) uppercase tracking-wider",
@@ -72,7 +73,7 @@ export function SidebarSection({
         <span className="flex items-center gap-2">
           {label}
           {count !== undefined && count > 0 && (
-            <span className="text-(--text-muted) font-normal normal-case">({count})</span>
+            <span className="text-(--text-secondary) font-normal normal-case">({count})</span>
           )}
         </span>
         <ChevronDown

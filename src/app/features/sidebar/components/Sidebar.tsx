@@ -390,7 +390,7 @@ function Sidebar({
                 <div className="flex flex-col items-center gap-2 py-4 text-center">
                   <FolderPlus className="w-6 h-6 text-(--text-secondary) opacity-50" />
                   <span className="text-xs text-(--text-secondary)">No projects yet</span>
-                  <span className="text-[10px] text-(--text-muted)">
+                  <span className="text-xs text-(--text-secondary)">
                     Create a project to organize your chats
                   </span>
                 </div>
@@ -445,7 +445,7 @@ function Sidebar({
                   <span className="text-xs text-(--text-secondary)">
                     {t?.noConversations || "No conversations"}
                   </span>
-                  <span className="text-[10px] text-(--text-muted)">Start a new chat to begin</span>
+                  <span className="text-xs text-(--text-secondary)">Start a new chat to begin</span>
                 </div>
               ) : (
                 <AnimatePresence initial={false}>
@@ -492,7 +492,7 @@ function Sidebar({
           {/* Admin */}
           {session?.user?.rank === "admin" && (
             <SidebarButton
-              onClick={() => (window.location.href = "/admin")}
+              onClick={() => router.push("/admin")}
               icon={Shield}
               label={t?.adminManagement || "Admin Management"}
               isCollapsed={isCollapsed}
@@ -544,7 +544,7 @@ function Sidebar({
                 <>
                   <Dialog.Overlay asChild forceMount>
                     <motion.div
-                      className="fixed inset-0 z-[55] bg-(--surface-muted)/80 backdrop-blur-sm md:hidden"
+                      className="fixed inset-0 z-(--z-drawer) bg-(--surface-muted)/80 backdrop-blur-sm md:hidden"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
@@ -555,7 +555,7 @@ function Sidebar({
                     <motion.aside
                       aria-label="Main navigation"
                       role="navigation"
-                      className="fixed top-0 left-0 bottom-0 z-[60] w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-5 pb-16 shadow-2xl flex flex-col md:hidden"
+                      className="fixed top-0 left-0 bottom-0 z-(--z-drawer) w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-5 pb-16 shadow-2xl flex flex-col md:hidden"
                       initial={{ x: "-100%" }}
                       animate={{ x: 0 }}
                       exit={{ x: "-100%" }}

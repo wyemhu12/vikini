@@ -1,27 +1,40 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { usePersonaStore } from "../stores/usePersonaStore";
 import PersonaManager from "./PersonaManager";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { confirm } from "@/lib/store/confirmStore";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 export default function PersonaModal() {
-  const { isOpen, closePersonaModal, hasDirtyEditor } = usePersonaStore();
+  const { isOpen, closePersonaModal } = usePersonaStore();
+  const { t } = useLanguage();
+  const isConfirmingRef = useRef(false);
 
   const handleOpenChange = useCallback(
-    (open: boolean) => {
+    async (open: boolean) => {
       if (!open) {
-        if (hasDirtyEditor) {
-          const confirmed = window.confirm(
-            "You have unsaved changes. Are you sure you want to close?"
-          );
-          if (!confirmed) return;
+        const hasDirty = usePersonaStore.getState().hasDirtyEditor;
+        if (hasDirty) {
+          if (isConfirmingRef.current) return;
+          isConfirmingRef.current = true;
+          try {
+            const confirmed = await confirm({
+              title: t("discardChangesTitle"),
+              description: t("discardChangesDesc"),
+              variant: "danger",
+            });
+            if (!confirmed) return;
+          } finally {
+            isConfirmingRef.current = false;
+          }
         }
         closePersonaModal();
       }
     },
-    [hasDirtyEditor, closePersonaModal]
+    [closePersonaModal, t]
   );
 
   return (

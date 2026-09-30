@@ -8,6 +8,9 @@ import type { ProjectWithStats } from "@/types/projects";
 import type { FrontendConversation } from "@/app/features/chat/hooks/useConversation";
 import { ProjectIcon } from "@/components/features/projects/ProjectIcon";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
+import { downloadConversationById } from "@/lib/utils/download";
+import { toast } from "@/lib/store/toastStore";
+import { logger } from "@/lib/utils/logger";
 
 interface ProjectNodeProps {
   /** Project data */
@@ -61,21 +64,26 @@ export function ProjectNode({
     }
   }, [activeConversationId, conversations, project.id]);
 
+  const [isExporting, setIsExporting] = useState(false);
+
   const toggleExpand = () => {
     const newState = !isExpanded;
     setIsExpanded(newState);
     localStorage.setItem(`project-expanded-${project.id}`, String(newState));
   };
 
-  const handleExport = (conv: FrontendConversation) => {
-    const content = `# ${conv.title || "Conversation"}\n\nExported from Vikini Chat`;
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${conv.title || "conversation"}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExport = async (conv: FrontendConversation) => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      await downloadConversationById(conv.id, conv.title || "conversation");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      logger.error("[ProjectNode] Export failed:", message);
+      toast.error(t("exportFailed") || message);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -89,7 +97,12 @@ export function ProjectNode({
         )}
       >
         {/* Expand chevron */}
-        <button onClick={toggleExpand} className="p-0.5 hover:bg-(--control-bg) rounded shrink-0">
+        <button
+          onClick={toggleExpand}
+          className="p-0.5 hover:bg-(--control-bg) rounded shrink-0"
+          aria-expanded={isExpanded}
+          aria-label={isExpanded ? "Collapse project" : "Expand project"}
+        >
           <ChevronRight
             className={cn(
               "h-3.5 w-3.5 text-(--text-secondary) transition-transform duration-150",
@@ -126,7 +139,9 @@ export function ProjectNode({
       {isExpanded && (
         <div className="ml-4 mt-0.5 space-y-0.5 border-l border-(--border)/40 pl-2">
           {conversations.length === 0 ? (
-            <div className="px-2 py-2 text-xs text-(--text-muted)">{t("projectNoChatsYet")}</div>
+            <div className="px-2 py-2 text-xs text-(--text-secondary)">
+              {t("projectNoChatsYet")}
+            </div>
           ) : (
             conversations.map((conv) => (
               <div
@@ -153,6 +168,7 @@ export function ProjectNode({
                   <DropdownMenu.Trigger asChild>
                     <button
                       onClick={(e) => e.stopPropagation()}
+                      aria-label="Conversation options"
                       className={cn(
                         "p-1 mr-1 rounded transition-colors",
                         "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)",
@@ -165,7 +181,7 @@ export function ProjectNode({
 
                   <DropdownMenu.Portal>
                     <DropdownMenu.Content
-                      className="z-9999 min-w-48 rounded-xl bg-(--surface-muted)/95 backdrop-blur-xl border border-(--border) shadow-2xl overflow-hidden ring-1 ring-(--border) py-1.5 animate-in fade-in zoom-in-95 duration-200"
+                      className="z-(--z-popover) min-w-48 rounded-xl bg-(--surface-muted)/95 backdrop-blur-xl border border-(--border) shadow-2xl overflow-hidden ring-1 ring-(--border) py-1.5 animate-in fade-in zoom-in-95 duration-200"
                       align="end"
                       sideOffset={5}
                     >
@@ -180,8 +196,9 @@ export function ProjectNode({
                       )}
 
                       <DropdownMenu.Item
+                        disabled={isExporting}
                         onClick={() => handleExport(conv)}
-                        className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary)"
+                        className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary) disabled:opacity-50"
                       >
                         <Download className="w-4 h-4 mr-2" />
                         {t("projectExport")}

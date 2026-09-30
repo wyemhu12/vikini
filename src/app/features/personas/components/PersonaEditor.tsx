@@ -165,7 +165,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
                 }`}
               >
                 <div className="text-xs font-medium">{opt.label}</div>
-                <div className="text-[10px] text-(--text-muted) mt-0.5">{opt.description}</div>
+                <div className="text-xs text-(--text-secondary) mt-0.5">{opt.description}</div>
               </button>
             ))}
           </div>

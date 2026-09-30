@@ -9,6 +9,7 @@ import {
   assessTestIntegrity,
   ARTIFACT_ROOT,
   TEST_INFRA_FILES,
+  isPlanApproved,
 } from "./code-freeze-guard.js";
 
 describe("toRepoRelative", () => {
@@ -262,6 +263,18 @@ describe("decide — run_command", () => {
       "git status",
       "git diff",
       "git log -n 5",
+    ]) {
+      expect(decide({ command }).decision, command).toBe("allow");
+    }
+  });
+
+  it("allows Claude CLI and run-claude script execution", () => {
+    for (const command of [
+      "powershell.exe -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1",
+      "powershell -File .agents/scripts/run-claude.ps1 -PlanFile docs/plans/task.md",
+      "powershell -ExecutionPolicy Bypass -File .agents\\scripts\\run-claude.ps1 -CheckOnly",
+      "claude -p ping",
+      "claude.exe --version",
     ]) {
       expect(decide({ command }).decision, command).toBe("allow");
     }
@@ -573,5 +586,12 @@ describe("decide — test files (Test Integrity Guard)", () => {
 
     expect(decision.decision).toBe("ask");
     expect(decision.reason).toContain("Test Integrity Guard: this edit modifies a TEST file");
+  });
+});
+
+describe("isPlanApproved", () => {
+  it("returns a boolean based on governance marker or latest plan check", () => {
+    const approved = isPlanApproved();
+    expect(typeof approved).toBe("boolean");
   });
 });

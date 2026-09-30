@@ -9,27 +9,27 @@ description: Mandatory pre-work, post-change checklist, workflow enforcement, te
 
 Before writing any code, identify the task domain and read relevant documentation:
 
-| Domain                    | Read first                                            | Workflow to follow          |
-| ------------------------- | ----------------------------------------------------- | --------------------------- |
-| Chat / Streaming          | docs/contracts.md, skills/streaming-patterns.md       |                             |
-| Database / Schema         | docs/database-schema.md, skills/database-migration.md |                             |
-| Auth / Security           | docs/security.md                                      |                             |
-| UI Components             | rules/03-ui.md                                        |                             |
-| Bug fixing                | docs/lessons-learned.md                               | **workflows/debug.md**      |
-| API routes                | skills/api-patterns.md                                |                             |
-| Projects / Knowledge Base | docs/features.md (section 2.10), docs/contracts.md    |                             |
-| Image Studio / Gallery    | docs/features.md (sections 2.5, 2.6)                  |                             |
-| Voice / Audio             | docs/features.md (section 2.7)                        |                             |
-| New feature overview      | docs/features.md, docs/architecture.md                |                             |
-| Adding a new feature      | skills/add-feature.md                                 |                             |
-| Feature / Task Planning   | docs/plans/, rules/05-plan-review.md                  | **rules/05-plan-review.md** |
-| Code quality review       | rules/01-coding.md                                    | **workflows/audit.md**      |
-| Refactoring / File split  | rules/01-coding.md (§ File Size & Modularity)         |                             |
+| Domain                    | Read first                                                    | Workflow to follow                  |
+| ------------------------- | ------------------------------------------------------------- | ----------------------------------- |
+| Chat / Streaming          | docs/contracts.md, .agents/skills/streaming-patterns.md       |                                     |
+| Database / Schema         | docs/database-schema.md, .agents/skills/database-migration.md |                                     |
+| Auth / Security           | docs/security.md                                              |                                     |
+| UI Components             | .agents/rules/03-ui.md                                        |                                     |
+| Bug fixing                | docs/lessons-learned.md                                       | **.agents/workflows/debug.md**      |
+| API routes                | .agents/skills/api-patterns.md                                |                                     |
+| Projects / Knowledge Base | docs/features.md (section 2.10), docs/contracts.md            |                                     |
+| Image Studio / Gallery    | docs/features.md (sections 2.5, 2.6)                          |                                     |
+| Voice / Audio             | docs/features.md (section 2.7)                                |                                     |
+| New feature overview      | docs/features.md, docs/architecture.md                        |                                     |
+| Adding a new feature      | .agents/skills/add-feature.md                                 |                                     |
+| Feature / Task Planning   | docs/plans/, .agents/rules/05-plan-review.md                  | **.agents/rules/05-plan-review.md** |
+| Code quality review       | .agents/rules/01-coding.md                                    | **.agents/workflows/audit.md**      |
+| Refactoring / File split  | .agents/rules/01-coding.md (§ File Size & Modularity)         |                                     |
 
 <important>
 When a workflow or rule is listed in the table above, you MUST read and follow it step-by-step.
 Do NOT skip workflows. They are mandatory procedures, not optional references.
-For any new feature or non-trivial task, strict code freeze applies until token `[PLAN_APPROVED]` is issued by `@reviewer` (see `rules/05-plan-review.md`).
+For any new feature or non-trivial task, strict code freeze applies until token `[PLAN_APPROVED]` is issued by Lead Reviewer (Claude CLI hoặc `@reviewer` fallback) (see `.agents/rules/05-plan-review.md`).
 </important>
 
 ## Post-Change Checklist (MANDATORY)
@@ -70,7 +70,7 @@ Khi một test case thất bại trong quá trình verify, agent BẮT BUỘC ph
   ➔ **SỬA CODE ỨNG DỤNG**. Tuyệt đối không chạm vào test file.
 - **Loại B (Test Harness Issue)**: Cấu hình mock, test harness hoặc import path bị lỗi thời do refactor, nhưng đặc tả nghiệp vụ không đổi.
   ➔ **ĐƯỢC PHÉP SỬA TEST HARNESS/MOCK**, nhưng KHÔNG được giảm số lượng `expect()` hay nới lỏng matcher.
-- **Loại C (Approved Spec Change)**: Đặc tả nghiệp vụ chính thức thay đổi theo Test Contract trong kế hoạch đã được `@reviewer` cấp thẻ `[PLAN_APPROVED]`.
+- **Loại C (Approved Spec Change)**: Đặc tả nghiệp vụ chính thức thay đổi theo Test Contract trong kế hoạch đã được Lead Reviewer (Claude CLI hoặc `@reviewer`) cấp thẻ `[PLAN_APPROVED]`.
   ➔ **ĐƯỢC PHÉP CẬP NHẬT TEST CASES** tương ứng với Test Contract mới.
 
 <important>
@@ -83,16 +83,16 @@ NGHIÊM CẤM HẠ THẤP TIÊU CHUẨN TEST:
 
 ## Phân Định Ranh Giới: Audit Định Kỳ vs. Nghiệm Thu @qa
 
-- **Quy trình Audit Định Kỳ (`workflows/audit.md`)**:
+- **Quy trình Audit Định Kỳ (`.agents/workflows/audit.md`)**:
   - Dành cho việc rà soát mã nguồn toàn diện theo chu kỳ (sprint/release) hoặc trước khi merge PR lớn.
   - Quét dead code, phân tích dependencies, kiểm tra kiến trúc tổng thể.
 - **Tác Tử Nghiệm Thu On-Demand (`@qa`)**:
   - Tác tử độc lập chỉ kích hoạt khi người dùng (Product Manager) trực tiếp gọi `@qa` trong chat.
   - Nghiệm thu đối chiếu từng task cụ thể theo 7 bước, thi hành Verification Gate, săn lỗi chuyên sâu và Test Integrity Audit.
 - **Tham Chiếu Tài Sản Kỹ Thuật Sẵn Có**:
-  - Chuẩn SSE Stream: `skills/streaming-patterns.md` (events `token`, `meta`, `thinking`, `done`, `error`).
-  - Chuẩn Database Migrations: `skills/database-migration.md` (Supabase schema, RLS, cascade).
-  - Chuẩn API Route Architecture: `skills/api-patterns.md` (Validate → Execute → Respond, `requireUser()`).
+  - Chuẩn SSE Stream: `.agents/skills/streaming-patterns.md` (events `token`, `meta`, `thinking`, `done`, `error`).
+  - Chuẩn Database Migrations: `.agents/skills/database-migration.md` (Supabase schema, RLS, cascade).
+  - Chuẩn API Route Architecture: `.agents/skills/api-patterns.md` (Validate → Execute → Respond, `requireUser()`).
 
 ## Governance-Only Changes (Quy Chuẩn Quản Trị)
 
@@ -100,7 +100,7 @@ Khi tạo mới hoặc cập nhật các tài liệu governance (`.agents/rules/
 
 - Bắt buộc có Frontmatter YAML chuẩn xác (`trigger`, `description`, `tools`, `model`...).
 - Tuân thủ chuẩn GitHub Flavored Markdown (GFM).
-- Đường dẫn file nội bộ viết dạng relative path từ repo root (`rules/01-coding.md`, `src/lib/core/...`).
+- Đường dẫn file nội bộ viết dạng relative path từ repo root (`.agents/rules/01-coding.md`, `src/lib/core/...`).
 - Giới hạn dung lượng ký tự nghiêm ngặt (Character Limit):
   - File Rules (`.agents/rules/*.md`): BẮT BUỘC `≤ 12,000` ký tự.
   - File Agents (`.agents/agents/*/agent.md`): BẮT BUỘC `≤ 10,000` ký tự.
@@ -117,14 +117,14 @@ After EVERY bug fix, you MUST execute ALL of the following steps in order:
    - Root Cause: Why it happened
    - Fix: What was changed
    - Prevention Rule: How to avoid this in the future
-3. **Check for pattern promotion** -- If the same category of mistake appears 3+ times in lessons-learned, extract a formal rule into the appropriate `.agent/rules/` file
+3. **Check for pattern promotion** -- If the same category of mistake appears 3+ times in lessons-learned, extract a formal rule into the appropriate `.agents/rules/` file
 4. **Update CHANGELOG** -- Add the fix to `docs/CHANGELOG.md`
 5. **Confirm** -- End with: `Lesson recorded in docs/lessons-learned.md: [one-line description]`
 
 ## Debugging Protocol (MANDATORY for complex/recurring bugs)
 
 <important>
-For any bug that is not trivially obvious, you MUST follow the debug workflow in `workflows/debug.md`.
+For any bug that is not trivially obvious, you MUST follow the debug workflow in `.agents/workflows/debug.md`.
 Do NOT propose fixes without a confirmed root cause.
 </important>
 
@@ -137,7 +137,7 @@ Do NOT propose fixes without a confirmed root cause.
 
 ## Bilingual Enforcement
 
-See `rules/04-bilingual.md` for full requirements. In short: every new UI-facing text MUST use the translation system.
+See `.agents/rules/04-bilingual.md` for full requirements. In short: every new UI-facing text MUST use the translation system.
 
 ## Minimal Diffs Policy
 

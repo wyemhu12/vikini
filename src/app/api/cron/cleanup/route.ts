@@ -1,6 +1,6 @@
 /**
- * Cron API - Cleanup expired files
- * GET/POST /api/cron/cleanup - Delete files past their TTL
+ * Cron API - Cleanup expired files & stuck processing documents
+ * GET/POST /api/cron/cleanup - Delete files past their TTL and timeout stuck knowledge uploads
  *
  * Protected by x-cron-secret header. Called by Vercel Cron or external scheduler.
  */
@@ -10,6 +10,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { cleanupExpiredFiles } from "@/lib/features/files/fileService.server";
+import { cleanupStuckProcessingDocuments } from "@/lib/features/projects/knowledge.server";
 import { logger } from "@/lib/utils/logger";
 
 const routeLogger = logger.withContext("/api/cron/cleanup");
@@ -27,9 +28,26 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await cleanupExpiredFiles();
-    routeLogger.info(`Cleanup complete: deleted=${result.deleted}, errors=${result.errors}`);
-    return NextResponse.json(result);
+    const [filesSettled, docsSettled] = await Promise.allSettled([
+      cleanupExpiredFiles(),
+      cleanupStuckProcessingDocuments(),
+    ]);
+
+    const fileResult =
+      filesSettled.status === "fulfilled" ? filesSettled.value : { deleted: 0, errors: 1 };
+    const stuckDocsCleaned = docsSettled.status === "fulfilled" ? docsSettled.value : 0;
+
+    if (filesSettled.status === "rejected") {
+      routeLogger.error("cleanupExpiredFiles failed", filesSettled.reason);
+    }
+    if (docsSettled.status === "rejected") {
+      routeLogger.error("cleanupStuckProcessingDocuments failed", docsSettled.reason);
+    }
+
+    routeLogger.info(
+      `Cleanup complete: deleted=${fileResult.deleted}, errors=${fileResult.errors}, stuck docs cleaned=${stuckDocsCleaned}`
+    );
+    return NextResponse.json({ ...fileResult, stuckDocsCleaned });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     routeLogger.error(`Cleanup failed: ${msg}`);

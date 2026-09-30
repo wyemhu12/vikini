@@ -95,9 +95,10 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={disabled}
+        <div
+          tabIndex={disabled ? -1 : 0}
+          role="combobox"
+          aria-expanded={open}
           aria-label="Select Icon"
           className={cn(
             "w-full h-[38px] px-3 flex items-center justify-between gap-2 rounded-md bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--border) text-(--text-primary) text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-(--primary) disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer",
@@ -108,7 +109,7 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
             {value ? (
               <DynamicIcon name={value} className="w-5 h-5 text-(--text-primary)" />
             ) : (
-              <Sparkles className="w-4 h-4 text-(--text-muted)" />
+              <Sparkles className="w-4 h-4 text-(--text-secondary)" />
             )}
             <span className="truncate text-xs text-(--text-secondary)">
               {value ? value : "Select Icon"}
@@ -117,36 +118,30 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
 
           <div className="flex items-center gap-1 shrink-0">
             {value && !disabled && (
-              <span
-                role="button"
-                tabIndex={0}
+              <button
+                type="button"
                 onClick={handleClear}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleClear(e as unknown as React.MouseEvent);
-                  }
-                }}
-                className="p-0.5 rounded hover:bg-(--control-bg) text-(--text-muted) hover:text-(--danger) transition-colors"
+                className="p-0.5 rounded hover:bg-(--control-bg) text-(--text-secondary) hover:text-(--danger) transition-colors cursor-pointer"
                 title="Clear icon"
+                aria-label="Clear icon"
               >
                 <X className="w-3.5 h-3.5" />
-              </span>
+              </button>
             )}
-            <ChevronDown className="w-3.5 h-3.5 text-(--text-muted)" />
+            <ChevronDown className="w-3.5 h-3.5 text-(--text-secondary)" />
           </div>
-        </button>
+        </div>
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-72 p-3 bg-(--surface-elevated) border-(--border) shadow-xl rounded-xl z-50 max-h-80 overflow-y-auto custom-scrollbar"
+        className="w-72 p-3 bg-(--surface-elevated) border-(--border) shadow-xl rounded-xl z-(--z-popover) max-h-80 overflow-y-auto custom-scrollbar"
         align="start"
         sideOffset={6}
       >
         <div className="space-y-3">
           {/* Lucide Icons */}
           <div>
-            <div className="text-[11px] font-semibold text-(--text-muted) uppercase tracking-wider mb-1.5">
+            <div className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider mb-1.5">
               Icons
             </div>
             <div className="grid grid-cols-6 gap-1">
@@ -174,7 +169,7 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
 
           {/* Emojis */}
           <div>
-            <div className="text-[11px] font-semibold text-(--text-muted) uppercase tracking-wider mb-1.5">
+            <div className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider mb-1.5">
               Emojis
             </div>
             <div className="grid grid-cols-6 gap-1">

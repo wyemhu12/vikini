@@ -1,15 +1,20 @@
 /**
- * Embedding Service - Tier-based embedding generation
- * Uses text-embedding-004 (free/768d) and gemini-embedding-2 (3072d/multimodal)
+ * Embedding Service - Unified Gemini Embedding 2 (3072d)
+ * Model API: gemini-embedding-2-preview
  */
-import { GoogleGenAI } from "@google/genai";
-import { EmbeddingModel, PROJECT_LIMITS, UserTier } from "@/types/projects";
-import { getUserTier } from "./projects.server";
+import { GoogleGenAI, ApiError } from "@google/genai";
 import { logger } from "@/lib/utils/logger";
 
 const embeddingLogger = logger.withContext("embedding");
 
-// Singleton clients
+export const GEMINI_EMBEDDING_API_MODEL = "gemini-embedding-2-preview";
+export const EMBEDDING_DIMENSION = 3072;
+export const NATIVE_BATCH_SIZE = 50; // Tối đa 50 texts trong 1 request
+export const UPLOAD_MAX_RETRIES = 3; // Upload tài liệu retry tối đa 3 lần
+export const SEARCH_MAX_RETRIES = 1; // Search query chỉ retry tối đa 1 lần để tối ưu latency
+export const EMBEDDING_INITIAL_RETRY_DELAY_MS = 1000;
+
+// Singleton clients (lazy initialization)
 let client: GoogleGenAI | null = null;
 
 function getClient(): GoogleGenAI {
@@ -23,22 +28,8 @@ function getClient(): GoogleGenAI {
   return client;
 }
 
-// Model dimensions (default output)
-const MODEL_DIMENSIONS: Record<EmbeddingModel, number> = {
-  "text-embedding-004": 768,
-  "gemini-embedding-2": 3072, // supports 768, 1536, 3072 via outputDimensionality
-};
-
-/**
- * Whether a model is the new gemini-embedding-2 (uses task prefix format).
- */
-function isEmbedding2(model: EmbeddingModel): boolean {
-  return model === "gemini-embedding-2";
-}
-
 /**
  * Format content with task prefix for gemini-embedding-2 RAG queries.
- * Embedding-2 uses inline text prefixes instead of task_type config.
  * @see https://ai.google.dev/gemini-api/docs/embeddings#task-types-embeddings-2
  */
 export function formatQueryForRAG(query: string): string {
@@ -54,123 +45,133 @@ export function formatDocumentForRAG(content: string, title?: string): string {
 }
 
 /**
- * Get the default embedding model for a user tier
+ * Checks whether an error from Google GenAI is transient and retryable.
  */
-export function getDefaultEmbeddingModel(tier: UserTier): EmbeddingModel {
-  const models = PROJECT_LIMITS[tier].embeddingModels as readonly string[];
-  // Default to best available model for the tier
-  if (models.includes("gemini-embedding-2")) {
-    return "gemini-embedding-2";
+export function isRetryableApiError(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return error.status === 429 || error.status === 503 || error.status === 500;
   }
-  return "text-embedding-004";
+  return false;
+}
+
+export interface RetryOptions {
+  maxRetries?: number;
+  initialDelayMs?: number;
 }
 
 /**
- * Validate that a model is available for a tier
+ * Executes an embedding operation with exponential backoff and jitter.
  */
-export function isModelAvailableForTier(model: EmbeddingModel, tier: UserTier): boolean {
-  return (PROJECT_LIMITS[tier].embeddingModels as readonly string[]).includes(model);
+export async function withEmbeddingRetry<T>(
+  fn: () => Promise<T>,
+  options: RetryOptions = {}
+): Promise<T> {
+  const maxRetries = options.maxRetries ?? UPLOAD_MAX_RETRIES;
+  const initialDelayMs = options.initialDelayMs ?? EMBEDDING_INITIAL_RETRY_DELAY_MS;
+  let attempt = 0;
+
+  while (true) {
+    try {
+      return await fn();
+    } catch (error) {
+      attempt++;
+      if (attempt > maxRetries || !isRetryableApiError(error)) {
+        throw error;
+      }
+      const jitter = initialDelayMs === 0 ? 0 : Math.random() * 200;
+      const delay =
+        initialDelayMs === 0
+          ? 0
+          : Math.min(initialDelayMs * Math.pow(2, attempt - 1) + jitter, 10000);
+      embeddingLogger.warn(
+        `Gemini Embedding transient error. Retrying attempt ${attempt}/${maxRetries} after ${Math.round(delay)}ms...`
+      );
+      if (delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
 }
 
 /**
- * Get embedding dimension for a model
+ * Generate embedding for a single text query (Search RAG, max 1 retry).
  */
-export function getEmbeddingDimension(model: EmbeddingModel): number {
-  return MODEL_DIMENSIONS[model];
-}
+export async function generateEmbedding(
+  content: string,
+  retryOptions?: RetryOptions
+): Promise<number[]> {
+  const genaiClient = getClient();
+  const options: RetryOptions = {
+    maxRetries: retryOptions?.maxRetries ?? SEARCH_MAX_RETRIES,
+    initialDelayMs: retryOptions?.initialDelayMs,
+  };
 
-/**
- * Generate embeddings for text content
- */
-export async function generateEmbedding(content: string, model: EmbeddingModel): Promise<number[]> {
-  const client = getClient();
-
-  try {
-    // Build config for embedding-2 (supports outputDimensionality)
-    const config = isEmbedding2(model)
-      ? { outputDimensionality: MODEL_DIMENSIONS[model] }
-      : undefined;
-
-    const result = await client.models.embedContent({
-      model,
+  return withEmbeddingRetry(async () => {
+    const result = await genaiClient.models.embedContent({
+      model: GEMINI_EMBEDDING_API_MODEL,
       contents: content,
-      ...(config ? { config } : {}),
+      config: { outputDimensionality: EMBEDDING_DIMENSION },
     });
 
-    if (!result.embeddings || result.embeddings.length === 0) {
-      throw new Error("No embeddings returned");
+    const values = result.embeddings?.[0]?.values;
+    if (!values || values.length !== EMBEDDING_DIMENSION) {
+      throw new Error(
+        `Invalid embedding returned: expected ${EMBEDDING_DIMENSION} dimensions, got ${values?.length ?? 0}`
+      );
     }
-
-    const embedding = result.embeddings[0].values;
-    if (!embedding) {
-      throw new Error("Empty embedding values");
-    }
-
-    return embedding;
-  } catch (error) {
-    embeddingLogger.error(`Failed to generate embedding with ${model}`, error);
-    throw error;
-  }
+    return values;
+  }, options);
 }
 
 /**
- * Generate embeddings for multiple chunks in batch
- * More efficient than generating one at a time
+ * Generate embeddings for multiple text chunks using native batching with Content parts.
  */
 export async function generateEmbeddingsBatch(
   contents: string[],
-  model: EmbeddingModel
+  retryOptions?: RetryOptions
 ): Promise<number[][]> {
-  const client = getClient();
-  const embeddings: number[][] = [];
+  if (contents.length === 0) return [];
+  const genaiClient = getClient();
+  const allEmbeddings: number[][] = [];
+  const options: RetryOptions = {
+    maxRetries: retryOptions?.maxRetries ?? UPLOAD_MAX_RETRIES,
+    initialDelayMs: retryOptions?.initialDelayMs,
+  };
 
-  // Process in batches of 100 (API limit)
-  const batchSize = 100;
-  for (let i = 0; i < contents.length; i += batchSize) {
-    const batch = contents.slice(i, i + batchSize);
+  for (let i = 0; i < contents.length; i += NATIVE_BATCH_SIZE) {
+    const subBatch = contents.slice(i, i + NATIVE_BATCH_SIZE);
 
-    try {
-      // Process batch in parallel with some concurrency limit
-      const batchResults = await Promise.all(
-        batch.map(async (content) => {
-          const result = await client.models.embedContent({
-            model,
-            contents: content,
-          });
-          return result.embeddings?.[0]?.values || [];
-        })
-      );
+    const batchResults = await withEmbeddingRetry(async () => {
+      // BẮT BUỘC: Truyền mảng Content objects với parts: [{ text }]
+      // Tránh SDK gom string[] thành 1 Content duy nhất dẫn đến trả về 1 embedding!
+      const result = await genaiClient.models.embedContent({
+        model: GEMINI_EMBEDDING_API_MODEL,
+        contents: subBatch.map((text) => ({
+          role: "user",
+          parts: [{ text }],
+        })),
+        config: { outputDimensionality: EMBEDDING_DIMENSION },
+      });
 
-      embeddings.push(...batchResults);
-    } catch (error) {
-      embeddingLogger.error(
-        `Failed to generate batch embeddings (batch ${i / batchSize + 1})`,
-        error
-      );
-      throw error;
-    }
+      if (!result.embeddings || result.embeddings.length !== subBatch.length) {
+        throw new Error(
+          `Batch embedding length mismatch: expected ${subBatch.length}, got ${result.embeddings?.length ?? 0}`
+        );
+      }
+
+      return result.embeddings.map((emb, idx) => {
+        const values = emb.values;
+        if (!values || values.length !== EMBEDDING_DIMENSION) {
+          throw new Error(
+            `Invalid embedding at index ${idx}: expected ${EMBEDDING_DIMENSION} dimensions, got ${values?.length ?? 0}`
+          );
+        }
+        return values;
+      });
+    }, options);
+
+    allEmbeddings.push(...batchResults);
   }
 
-  return embeddings;
-}
-
-/**
- * Get embedding model for a user, validating against their tier
- */
-export async function getValidatedEmbeddingModel(
-  userId: string,
-  requestedModel?: EmbeddingModel
-): Promise<EmbeddingModel> {
-  const tier = await getUserTier(userId);
-
-  if (requestedModel) {
-    if (isModelAvailableForTier(requestedModel, tier)) {
-      return requestedModel;
-    }
-    embeddingLogger.warn(
-      `User ${userId} (${tier}) requested unavailable model ${requestedModel}, falling back`
-    );
-  }
-
-  return getDefaultEmbeddingModel(tier);
+  return allEmbeddings;
 }

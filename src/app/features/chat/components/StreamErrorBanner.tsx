@@ -51,7 +51,7 @@ const StreamErrorBanner: React.FC<StreamErrorBannerProps> = ({ error, onDismiss 
 
   return (
     <div
-      className="fixed top-4 right-4 z-100 max-w-md animate-in slide-in-from-top-2 fade-in duration-300"
+      className="fixed top-4 right-4 z-(--z-banner) max-w-md animate-in slide-in-from-top-2 fade-in duration-300"
       role="alert"
       aria-live="polite"
     >

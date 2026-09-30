@@ -207,7 +207,7 @@ export default function PromptBuilder({ onBuildPrompt }: PromptBuilderProps) {
           <div key={section.id} className="border border-(--border) rounded-lg overflow-hidden">
             <button
               onClick={() => toggleSection(section.id)}
-              className="w-full flex items-center justify-between px-3 py-2 bg-(--surface-elevated) hover:bg-(--surface-hover) transition-colors"
+              className="w-full flex items-center justify-between px-3 py-2 bg-(--surface-elevated) hover:bg-(--control-bg-hover) transition-colors"
             >
               <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <Icon className="w-3 h-3" />

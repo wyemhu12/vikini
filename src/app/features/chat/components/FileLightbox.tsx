@@ -314,7 +314,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
             )}
 
             {file.kind === "audio" && signedUrl && (
-              <div className="flex flex-col items-center gap-6 p-12 bg-(--surface-base) rounded-2xl shadow-2xl">
+              <div className="flex flex-col items-center gap-6 p-12 bg-(--surface) rounded-2xl shadow-2xl">
                 <Music className="w-16 h-16 text-amber-500" />
                 <span
                   className="text-lg font-medium text-(--text-primary) truncate max-w-sm"
@@ -327,13 +327,13 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
             )}
 
             {file.kind === "text" && textContent !== null && (
-              <pre className="p-6 bg-(--surface-base) rounded-lg shadow-2xl text-sm text-(--text-primary) font-mono whitespace-pre-wrap break-words max-w-3xl overflow-auto">
+              <pre className="p-6 bg-(--surface) rounded-lg shadow-2xl text-sm text-(--text-primary) font-mono whitespace-pre-wrap break-words max-w-3xl overflow-auto">
                 {textContent}
               </pre>
             )}
 
             {(file.kind === "document" || file.kind === "archive" || file.kind === "other") && (
-              <div className="flex flex-col items-center gap-4 p-12 bg-(--surface-base) rounded-2xl shadow-2xl">
+              <div className="flex flex-col items-center gap-4 p-12 bg-(--surface) rounded-2xl shadow-2xl">
                 <KindIcon kind={file.kind} large />
                 <span
                   className="text-lg font-medium text-(--text-primary) truncate max-w-sm"
@@ -360,7 +360,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
 
             {/* Error state */}
             {fetchError && !signedUrl && (
-              <div className="flex flex-col items-center gap-4 p-12 bg-(--surface-base) rounded-2xl shadow-2xl">
+              <div className="flex flex-col items-center gap-4 p-12 bg-(--surface) rounded-2xl shadow-2xl">
                 <AlertCircle className="w-12 h-12 text-(--danger)" />
                 <span className="text-sm text-(--text-secondary)">
                   {t?.fileLoadFailed ?? "Failed to load file"}
@@ -377,7 +377,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
 
             {/* Loading state */}
             {!signedUrl && !fetchError && (
-              <div className="flex flex-col items-center gap-4 p-12 bg-(--surface-base) rounded-2xl shadow-2xl">
+              <div className="flex flex-col items-center gap-4 p-12 bg-(--surface) rounded-2xl shadow-2xl">
                 <div className="w-12 h-12 rounded-full border-2 border-(--accent) border-t-transparent animate-spin" />
                 <span className="text-sm text-(--text-secondary)">
                   {t?.fileLoadingPreview ?? "Loading preview..."}

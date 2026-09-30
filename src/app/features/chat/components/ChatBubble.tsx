@@ -208,7 +208,7 @@ export const ChatBubble = React.memo(
                     <ThinkingBlock content={thought} t={t} />
                   )}
                   {(!hasContent && isLoading) || (showTyping && !displayContent.trim()) ? (
-                    <div role="status" aria-label="AI is typing">
+                    <div role="status" aria-label={t("aiIsTyping")}>
                       <TypingDots />
                     </div>
                   ) : (
@@ -289,7 +289,7 @@ export const ChatBubble = React.memo(
                     {safeMessage.meta?.status === "error" ? t("interrupted") : t("stopped")}
                   </span>
                   {safeMessage.meta?.isSaving && (
-                    <span className="text-(--text-muted) flex items-center gap-1">
+                    <span className="text-(--text-secondary) flex items-center gap-1">
                       <Loader2 className="w-3 h-3 animate-spin text-(--accent)" />
                       {t("saving")}
                     </span>

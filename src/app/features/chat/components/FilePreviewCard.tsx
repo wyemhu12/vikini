@@ -68,7 +68,7 @@ export function FilePreviewCard({
       className={`group relative ${cardSize} shrink-0 rounded-xl border transition-[border-color,box-shadow] duration-200 overflow-hidden ${
         isError
           ? "border-(--danger)/50 bg-(--danger)/5"
-          : "border-(--control-border) bg-(--surface-base) hover:border-(--accent)/50 hover:shadow-md"
+          : "border-(--control-border) bg-(--surface) hover:border-(--accent)/50 hover:shadow-md"
       } ${!isUploading && file ? "cursor-pointer" : ""}`}
       onClick={() => !isUploading && file && onClick?.(file)}
       onKeyDown={(e) => {
@@ -148,7 +148,7 @@ export function FilePreviewCard({
             setDeleting(true);
             void onRemove(file.id);
           }}
-          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-full bg-(--surface-base)/90 hover:bg-(--danger)/20 text-(--text-secondary) hover:text-(--danger)"
+          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-full bg-(--surface)/90 hover:bg-(--danger)/20 text-(--text-secondary) hover:text-(--danger)"
           aria-label={`Remove ${filename}`}
           disabled={deleting}
         >

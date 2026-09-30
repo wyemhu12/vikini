@@ -1,24 +1,26 @@
 /**
  * Knowledge Base Server Operations
- * Document CRUD, upload processing, and search
+ * Document CRUD, upload processing, and semantic search
+ * Uses unified gemini-embedding-2 (3072d) and pre-insert limit validation
  */
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import {
   KnowledgeDocument,
   KnowledgeSearchResult,
-  EmbeddingModel,
   isSupportedFileType,
   getFileCategory,
+  MAX_FILE_SIZE_BYTES,
+  MAX_CHUNKS_PER_UPLOAD,
 } from "@/types/projects";
 import { getUserTier, getTierLimits, canAddStorageToProject } from "./projects.server";
 import {
   generateEmbedding,
   generateEmbeddingsBatch,
-  getValidatedEmbeddingModel,
   formatQueryForRAG,
   formatDocumentForRAG,
 } from "./embedding.server";
 import { chunkContent } from "./chunking";
+import { ValidationError } from "@/lib/utils/errors";
 import { logger } from "@/lib/utils/logger";
 
 const kbLogger = logger.withContext("knowledge");
@@ -101,40 +103,38 @@ export interface UploadDocumentInput {
   filename: string;
   content: string;
   mimeType?: string;
-  embeddingModel?: EmbeddingModel;
 }
 
 /**
- * Upload and process a document into the knowledge base
- * This creates the document, chunks the content, generates embeddings,
- * and stores everything in the database
+ * Upload and process a document into the knowledge base.
+ * Pre-insert validation ensures no phantom/error records are created
+ * if the file exceeds size (5MB) or chunks count (500).
  */
 export async function uploadDocument(input: UploadDocumentInput): Promise<KnowledgeDocument> {
   const supabase = getSupabaseAdmin();
 
-  // Validate file type
+  // 1. Validate file type
   if (!isSupportedFileType(input.filename)) {
-    throw new Error(`Unsupported file type: ${input.filename}`);
+    throw new ValidationError(`Unsupported file type: ${input.filename}`);
   }
 
-  // Check tier and get validated embedding model
+  // 2. Check content size (5MB max)
+  const contentBytes = Buffer.byteLength(input.content, "utf8");
+  if (contentBytes > MAX_FILE_SIZE_BYTES) {
+    throw new ValidationError("File size exceeds 5MB limit");
+  }
+
+  // 3. Check storage limits & tier
   const tier = await getUserTier(input.userId);
   const limits = getTierLimits(tier);
-  const embeddingModel = await getValidatedEmbeddingModel(input.userId, input.embeddingModel);
-
-  // Calculate content size
-  const contentBytes = new Blob([input.content]).size;
-
-  // Check storage limits
   const storageCheck = await canAddStorageToProject(input.projectId, input.userId, contentBytes);
-
   if (!storageCheck.allowed) {
     const maxMB = Math.round(storageCheck.maxBytes / (1024 * 1024));
     const usedMB = Math.round(storageCheck.currentBytes / (1024 * 1024));
     throw new Error(`Storage limit exceeded. Project uses ${usedMB}MB of ${maxMB}MB allowed.`);
   }
 
-  // Check document count limit
+  // 4. Check document count limit
   const existingDocs = await getProjectDocuments(input.projectId, input.userId);
   if (existingDocs.length >= limits.maxDocsPerProject) {
     throw new Error(
@@ -142,7 +142,16 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Knowle
     );
   }
 
-  // Create document record (status: processing)
+  // 5. Pre-insert Validation: Chunking & validate chunks count BEFORE inserting into database!
+  const chunks = chunkContent(input.content, input.filename);
+  if (chunks.length === 0) {
+    throw new ValidationError("No content to process");
+  }
+  if (chunks.length > MAX_CHUNKS_PER_UPLOAD) {
+    throw new ValidationError("Document exceeds maximum 500 chunks limit (~350–400 KB text)");
+  }
+
+  // 6. Insert document record (status: processing) ONLY after passing chunk validation
   const { data: doc, error: createError } = await supabase
     .from("knowledge_documents")
     .insert({
@@ -151,7 +160,7 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Knowle
       filename: input.filename,
       mime_type: input.mimeType || getMimeType(input.filename),
       size_bytes: contentBytes,
-      embedding_model: embeddingModel,
+      embedding_model: "gemini-embedding-2",
       status: "processing",
     })
     .select()
@@ -163,23 +172,11 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Knowle
   }
 
   try {
-    // Chunk the content
-    const chunks = chunkContent(input.content, input.filename);
-    kbLogger.info(`Chunked ${input.filename} into ${chunks.length} chunks for ${embeddingModel}`);
+    // 7. Format chunks and generate embeddings in native batch
+    const chunkTexts = chunks.map((c) => formatDocumentForRAG(c.content, input.filename));
+    const embeddings = await generateEmbeddingsBatch(chunkTexts);
 
-    if (chunks.length === 0) {
-      throw new Error("No content to process");
-    }
-
-    // Generate embeddings in batch
-    // For gemini-embedding-2, format chunks with document title prefix for asymmetric retrieval
-    const chunkTexts =
-      embeddingModel === "gemini-embedding-2"
-        ? chunks.map((c) => formatDocumentForRAG(c.content, input.filename))
-        : chunks.map((c) => c.content);
-    const embeddings = await generateEmbeddingsBatch(chunkTexts, embeddingModel);
-
-    // Insert chunks with embeddings
+    // 8. Insert chunks
     const chunkInserts = chunks.map((chunk, i) => ({
       document_id: doc.id,
       project_id: input.projectId,
@@ -187,17 +184,15 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Knowle
       chunk_index: chunk.index,
       content: chunk.content,
       metadata: chunk.metadata,
-      embedding: `[${embeddings[i].join(",")}]`, // pgvector format
+      embedding: `[${embeddings[i].join(",")}]`,
     }));
 
     const { error: chunkError } = await supabase.from("knowledge_chunks").insert(chunkInserts);
-
     if (chunkError) {
-      kbLogger.error("Failed to insert chunks", chunkError);
-      throw new Error("Failed to process document chunks");
+      throw new Error("Failed to insert document chunks");
     }
 
-    // Update document status to ready
+    // 9. Update document status to ready
     const { data: updatedDoc, error: updateError } = await supabase
       .from("knowledge_documents")
       .update({
@@ -209,25 +204,55 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Knowle
       .select()
       .single();
 
-    if (updateError) {
-      kbLogger.error("Failed to update document status", updateError);
+    if (updateError || !updatedDoc) {
+      throw new Error("Failed to finalize document status");
     }
 
-    kbLogger.info(`Successfully processed ${input.filename}: ${chunks.length} chunks`);
-    return updatedDoc || { ...doc, status: "ready", total_chunks: chunks.length };
-  } catch (error) {
-    // Mark document as error
+    return updatedDoc;
+  } catch (procErr: unknown) {
+    const msg = procErr instanceof Error ? procErr.message : "Processing failed";
     await supabase
       .from("knowledge_documents")
       .update({
         status: "error",
-        error_message: error instanceof Error ? error.message : "Processing failed",
+        error_message: msg,
         updated_at: new Date().toISOString(),
       })
       .eq("id", doc.id);
-
-    throw error;
+    throw procErr;
   }
+}
+
+// ============================================
+// CLEANUP STUCK DOCUMENTS
+// ============================================
+
+/**
+ * Cleans up documents that have been stuck in "processing" state for more than 15 minutes.
+ */
+export async function cleanupStuckProcessingDocuments(projectId?: string): Promise<number> {
+  const supabase = getSupabaseAdmin();
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  let query = supabase
+    .from("knowledge_documents")
+    .update({
+      status: "error",
+      error_message: "Upload processing timed out (exceeded 15 minutes)",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("status", "processing")
+    .lt("updated_at", fifteenMinutesAgo);
+
+  if (projectId) {
+    query = query.eq("project_id", projectId);
+  }
+
+  const { data, error } = await query.select("id");
+  if (error) {
+    kbLogger.error("Failed to cleanup stuck documents", error);
+    return 0;
+  }
+  return data?.length ?? 0;
 }
 
 // ============================================
@@ -235,7 +260,8 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Knowle
 // ============================================
 
 /**
- * Search knowledge base for a project using semantic similarity
+ * Search knowledge base for a project using semantic similarity.
+ * Zero sample chunk overhead and zero extra DB round-trip.
  */
 export async function searchKnowledge(
   projectId: string,
@@ -244,85 +270,19 @@ export async function searchKnowledge(
   options?: {
     threshold?: number;
     limit?: number;
-    embeddingModel?: EmbeddingModel;
   }
 ): Promise<KnowledgeSearchResult[]> {
   const supabase = getSupabaseAdmin();
   const threshold = options?.threshold ?? 0.7;
   const limit = options?.limit ?? 5;
 
-  // Get the embedding model used for this project
-  const { data: project } = await supabase
-    .from("projects")
-    .select("embedding_model")
-    .eq("id", projectId)
-    .single();
+  kbLogger.info(`Search: project=${projectId}, threshold=${threshold}, limit=${limit}`);
 
-  const embeddingModel = (project?.embedding_model ||
-    options?.embeddingModel ||
-    "gemini-embedding-2") as EmbeddingModel;
+  // 1. Generate query embedding with task prefix for optimal asymmetric retrieval
+  const formattedQuery = formatQueryForRAG(query);
+  const queryEmbedding = await generateEmbedding(formattedQuery);
 
-  kbLogger.info(`Search: project=${projectId}, model=${embeddingModel}, threshold=${threshold}`);
-
-  // Generate query embedding
-  // For gemini-embedding-2, use task prefix for optimal asymmetric retrieval
-  const formattedQuery = embeddingModel === "gemini-embedding-2" ? formatQueryForRAG(query) : query;
-  const queryEmbedding = await generateEmbedding(formattedQuery, embeddingModel);
-  kbLogger.info(`Query embedding generated: ${queryEmbedding.length} dimensions`);
-
-  // First check if project has any chunks with embeddings
-  const { data: sampleChunk, error: sampleError } = await supabase
-    .from("knowledge_chunks")
-    .select("id, embedding")
-    .eq("project_id", projectId)
-    .limit(1)
-    .single();
-
-  if (sampleError || !sampleChunk) {
-    kbLogger.warn(`Project ${projectId} has no knowledge chunks`);
-    return [];
-  }
-
-  // Check if chunk has embedding - Supabase returns vector as string "[0.1,0.2,...]"
-  const hasEmbedding = sampleChunk.embedding !== null && sampleChunk.embedding !== undefined;
-  let embeddingDims = 0;
-
-  if (hasEmbedding) {
-    // Handle both array and string formats from Supabase
-    if (Array.isArray(sampleChunk.embedding)) {
-      embeddingDims = sampleChunk.embedding.length;
-    } else if (typeof sampleChunk.embedding === "string") {
-      // Parse vector string format: "[0.1,0.2,...]"
-      try {
-        const parsed = JSON.parse(sampleChunk.embedding);
-        embeddingDims = Array.isArray(parsed) ? parsed.length : 0;
-      } catch {
-        // Count commas + 1 as rough estimate
-        const str = sampleChunk.embedding as string;
-        embeddingDims = str.split(",").length;
-      }
-    }
-  }
-
-  kbLogger.info(
-    `Chunk sample: hasEmbedding=${hasEmbedding}, dims=${embeddingDims}, queryDims=${queryEmbedding.length}`
-  );
-
-  // CRITICAL: Check for dimension mismatch
-  if (hasEmbedding && embeddingDims > 0 && embeddingDims !== queryEmbedding.length) {
-    kbLogger.error(
-      `DIMENSION MISMATCH! Chunks have ${embeddingDims} dims, query has ${queryEmbedding.length} dims`
-    );
-    kbLogger.error(`Documents need to be re-uploaded with the same embedding model`);
-    return [];
-  }
-
-  if (!hasEmbedding) {
-    kbLogger.warn(`Chunks exist but have no embeddings - need to re-embed`);
-    return [];
-  }
-
-  // Search using the RPC function
+  // 2. Search using the RPC function directly
   const { data, error } = await supabase.rpc("match_project_knowledge", {
     p_project_id: projectId,
     query_embedding: `[${queryEmbedding.join(",")}]`,
@@ -335,7 +295,6 @@ export async function searchKnowledge(
     throw new Error("Search failed");
   }
 
-  kbLogger.info(`RPC returned ${data?.length ?? 0} results`);
   return (data || []) as KnowledgeSearchResult[];
 }
 

@@ -48,7 +48,7 @@ export default function PersonaPreview({ persona }: PersonaPreviewProps) {
         </div>
         <div>
           <h2 className="text-lg font-bold text-(--text-primary)">{persona.name}</h2>
-          <span className="rounded bg-(--control-bg) px-1.5 py-0.5 text-[10px] text-(--text-secondary)">
+          <span className="rounded bg-(--control-bg) px-1.5 py-0.5 text-xs text-(--text-secondary)">
             {TONE_LABELS[persona.tone] || persona.tone}
           </span>
         </div>
@@ -61,7 +61,7 @@ export default function PersonaPreview({ persona }: PersonaPreviewProps) {
           </label>
           <div className="text-sm text-(--text-primary) bg-(--surface-muted) p-3 rounded-lg border border-(--border)">
             {persona.description || (
-              <span className="italic text-(--text-muted)">No description</span>
+              <span className="italic text-(--text-secondary)">No description</span>
             )}
           </div>
         </div>
@@ -97,7 +97,7 @@ export default function PersonaPreview({ persona }: PersonaPreviewProps) {
           </label>
           <div className="text-sm text-(--text-primary) bg-(--surface-muted) p-3 rounded-lg border border-(--border) whitespace-pre-wrap font-mono text-xs leading-relaxed max-h-[400px] overflow-y-auto">
             {persona.customInstructions || (
-              <span className="italic text-(--text-muted)">No custom instructions</span>
+              <span className="italic text-(--text-secondary)">No custom instructions</span>
             )}
           </div>
         </div>

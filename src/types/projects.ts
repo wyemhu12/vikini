@@ -5,29 +5,29 @@
 // ============================================
 // TIER LIMITS
 // ============================================
+export const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+export const MAX_CHUNKS_PER_UPLOAD = 500; // Tối đa 500 chunks (~350–400 KB text) mỗi tài liệu
+
 export const PROJECT_LIMITS = {
   basic: {
     maxProjects: 5,
     maxDocsPerProject: 50,
     maxStorageBytesPerProject: 5 * 1024 * 1024, // 5MB
-    embeddingModels: ["text-embedding-004", "gemini-embedding-2"] as const,
   },
   pro: {
     maxProjects: 10,
     maxDocsPerProject: 50,
     maxStorageBytesPerProject: 5 * 1024 * 1024, // 5MB
-    embeddingModels: ["text-embedding-004", "gemini-embedding-2"] as const,
   },
   admin: {
     maxProjects: 99,
     maxDocsPerProject: 50,
     maxStorageBytesPerProject: 100 * 1024 * 1024, // 100MB
-    embeddingModels: ["text-embedding-004", "gemini-embedding-2"] as const,
   },
 } as const;
 
 export type UserTier = keyof typeof PROJECT_LIMITS;
-export type EmbeddingModel = "text-embedding-004" | "gemini-embedding-2";
+export type EmbeddingModel = "gemini-embedding-2";
 
 // ============================================
 // PROJECT
@@ -55,7 +55,6 @@ export interface CreateProjectInput {
   description?: string;
   icon?: string;
   color?: string;
-  embedding_model?: EmbeddingModel;
 }
 
 export interface UpdateProjectInput {
@@ -63,7 +62,6 @@ export interface UpdateProjectInput {
   description?: string | null;
   icon?: string;
   color?: string;
-  embedding_model?: EmbeddingModel;
 }
 
 // ============================================

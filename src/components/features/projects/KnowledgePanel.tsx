@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils/cn";
 import type { KnowledgeDocument } from "@/types/projects";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { confirm } from "@/lib/store/confirmStore";
+import { toast } from "@/lib/store/toastStore";
+import { logger } from "@/lib/utils/logger";
 
 interface KnowledgePanelProps {
   projectId: string;
@@ -64,15 +66,18 @@ export function KnowledgePanel({
         // Read file content
         const content = await file.text();
         await onUpload(file, content);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Upload failed");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Upload failed";
+        logger.error("[KnowledgePanel] upload failed:", message);
+        toast.error(t("kbUploadFailed") || message);
+        setError(message);
       } finally {
         setIsUploading(false);
         // Reset input
         e.target.value = "";
       }
     },
-    [onUpload]
+    [onUpload, t]
   );
 
   const handleDelete = async (documentId: string) => {
@@ -89,8 +94,11 @@ export function KnowledgePanel({
     setDeletingId(documentId);
     try {
       await onDelete(documentId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Delete failed";
+      logger.error("[KnowledgePanel] delete failed:", message);
+      toast.error(t("kbDeleteFailed") || message);
+      setError(message);
     } finally {
       setDeletingId(null);
     }

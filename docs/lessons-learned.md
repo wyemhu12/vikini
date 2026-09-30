@@ -7,8 +7,24 @@
 ## How This File Works
 
 - After fixing a bug, add a new entry under the appropriate category below.
-- If the same mistake pattern appears 3 or more times in a category, promote it to a formal rule in `.agent/rules/`.
+- If the same mistake pattern appears 3 or more times in a category, promote it to a formal rule in `.agents/rules/`.
 - Entries are organized by category (not chronologically) for easy scanning.
+
+## Table of Contents
+
+- [TypeScript and Type Safety](#typescript-and-type-safety)
+- [CSS and Theming](#css-and-theming)
+- [Internationalization (i18n)](#internationalization-i18n)
+- [UI and Styling](#ui-and-styling)
+- [API and Streaming](#api-and-streaming)
+- [Database and Queries](#database-and-queries)
+- [Translation and Bilingual](#translation-and-bilingual)
+- [Configuration and Environment](#configuration-and-environment)
+- [Gemini API](#gemini-api)
+- [API Response Parsing](#api-response-parsing)
+- [UI Conditional Rendering](#ui-conditional-rendering)
+- [AI Streaming and Thinking Mode](#ai-streaming-and-thinking-mode)
+- [Vector Embeddings & Supabase TypeGen Lifecycle](#vector-embeddings--supabase-typegen-lifecycle)
 
 ---
 
@@ -62,10 +78,13 @@
 
 ### 2026-04: `as any` in streaming and knowledge modules
 
+> [!NOTE]
+> Promoted to Rule: [.agents/rules/01-coding.md](../.agents/rules/01-coding.md)
+
 - **Symptom**: Type-check failures when refactoring streaming response handling
 - **Root Cause**: Convenience `as any` assertions were used during rapid prototyping in `streaming.ts` and `knowledge.server.ts`
 - **Fix**: Replaced with proper `unknown` + type narrowing patterns
-- **Prevention Rule**: Enforced in `rules/01-coding.md` — `any` is banned everywhere
+- **Prevention Rule**: Enforced in `.agents/rules/01-coding.md` — `any` is banned everywhere
 
 ---
 
@@ -87,17 +106,23 @@
 
 ### 2026-06: Dead shadcn token layer under Tailwind v4
 
+> [!NOTE]
+> Promoted to Rule: [.agents/rules/03-ui.md](../.agents/rules/03-ui.md)
+
 - **Symptom**: `components/ui/` primitives (Dialog, Button, Input, Select, Dropdown…) rendered with no background / wrong colors; features compensated by hardcoding `--surface`/`white/X` glass, causing visual drift across the app.
 - **Root Cause**: Primitives used shadcn token classes (`bg-background`, `bg-destructive`, `text-muted-foreground`, `border-input`, `ring-ring`, `bg-popover`, `--radius`) whose CSS variables are **defined nowhere**. Under Tailwind v4 the project has **no `@config`**, so `tailwind.config.ts`'s color map never loads — those utilities compile to empty styles.
 - **Fix**: Rewrote primitives onto the live Vikini token vocabulary (`--surface*`, `--text-*`, `--control-*`, `--border`, `--accent`) via `bg-(--token)` arbitrary syntax; added semantic state tokens (`--danger/--success/--warning`, `--ring/--radius/--overlay`) in `base.css`.
-- **Prevention Rule**: Promoted to `rules/03-ui.md` — dead shadcn token classes are BANNED; use the token table. (Corrects the old rule that wrongly recommended `bg-primary`/`bg-destructive`.)
+- **Prevention Rule**: Promoted to `.agents/rules/03-ui.md` — dead shadcn token classes are BANNED; use the token table. (Corrects the old rule that wrongly recommended `bg-primary`/`bg-destructive`.)
 
 ### 2026-06: Hand-rolled modals missing focus-trap / ESC
+
+> [!NOTE]
+> Promoted to Rule: [.agents/rules/03-ui.md](../.agents/rules/03-ui.md)
 
 - **Symptom**: Custom `fixed inset-0` modal `div`s (ChatApp rename/delete) and native `confirm()` (projects page) — inconsistent look, no keyboard trap, no `role="dialog"`.
 - **Root Cause**: Same primitive built four different ways across the app; no canonical confirm component.
 - **Fix**: Added imperative `confirm()` (`lib/store/confirmStore.ts`) + global `ConfirmDialogHost` on Radix Dialog; migrated offenders. Focus-trap/ESC/ARIA now come for free.
-- **Prevention Rule**: `rules/03-ui.md` — hand-rolled modal `div`s banned; use `Dialog` primitive / `confirm()`.
+- **Prevention Rule**: `.agents/rules/03-ui.md` — hand-rolled modal `div`s banned; use `Dialog` primitive / `confirm()`.
 
 ### 2026-04: Vietnamese diacritics input bug in search
 
@@ -378,3 +403,49 @@
   4. Added backend fallback in `deepseek-stream.ts`: if a stream finishes with zero non-thinking content, append an explicit explanatory notice outside `<think>` (differentiating token limit cutoff from clean stops).
   5. Added frontend fallback in `ChatBubble.tsx`: if a saved message has `thought` but empty `displayContent`, display a localized notice `t("thinkingNoResponseContent")`.
 - **Prevention Rule**: **Reasoning models require output token headroom that accommodates BOTH thinking tokens AND completion tokens.** Never hardcode small `max_tokens` for reasoning-enabled models. Always verify that response content was actually generated before closing streams, and never leave an empty response when a stream terminates during reasoning.
+
+## Vector Embeddings & Supabase TypeGen Lifecycle
+
+### 2026-09-29: GenAI Native Batching, Supabase CLI TypeGen Lifecycle, and Immutable Embedding Architecture
+
+- **Symptom**:
+  1. `generateEmbeddingsBatch` bị sập hoàn toàn khi upload tài liệu từ 2 chunks trở lên: `result.embeddings.length !== subBatch.length` ném lỗi và tài liệu rơi vào trạng thái error.
+  2. Nguy cơ vỡ build khi typegen phụ thuộc vào schema migration trước khi deploy, hoặc typed client ném TS2322 do `string | null` từ Supabase CLI không khớp literal domain types.
+  3. RAG search RPC có nguy cơ sập hoặc lỗi nếu chữ ký Postgres RPC bị sửa kiểu trả về.
+- **Root Cause**:
+  1. Trong SDK `@google/genai` 2.10.0, nếu model name chứa `gemini-embedding-2`, SDK gọi `tContents(params.contents)`. Khi truyền `string[]`, SDK coi mỗi string là một `part` và gom tất cả thành một Content duy nhất (`{ role: 'user', parts: [...] }`). Gemini API tính một embedding tổng hợp cho mỗi Content, nên chỉ trả về 1 vector duy nhất cho cả batch 50 chunks!
+  2. Mâu thuẫn "con gà và quả trứng" khi deploy code phụ thuộc `database.types.ts` trước khi migration chạy trên remote DB. Ngoài ra, Supabase CLI typegen sinh kiểu `string` (thay vì union literal) cho các cột có CHECK constraints.
+  3. Cột `embedding` trước đây là `VECTOR` không cố định chiều, dễ gây phân mảnh nếu có project trộn nhiều model khác nhau.
+- **Fix**:
+  1. **Native Batching Content format**: Chuyển sang truyền mảng Content rõ ràng: `contents: subBatch.map((text) => ({ role: "user", parts: [{ text }] }))`. Gemini API nhận N Contents riêng biệt và trả về đúng N vector 3072d.
+  2. **Quy trình 5 Giai đoạn**:
+     - _Giai đoạn 1_: Sinh initial `database.types.ts` từ schema hiện tại.
+     - _Giai đoạn 2_: Viết code dùng typed client kết hợp mapper function `toProject(row)` gán cứng `embedding_model: "gemini-embedding-2"` và fallback mặc định, tách riêng untyped client cho metadata JSONB phức tạp.
+     - _Giai đoạn 3_: Deploy code mới trước lên production (code tương thích ngược hoàn toàn với schema hiện hữu).
+     - _Giai đoạn 4_: Áp dụng migration DDL (`ALTER TABLE ... TYPE VECTOR(3072);` sau bước DELETE chunk ≠ 3072d, CHECK constraints, NOT NULL) bọc trong transaction `BEGIN; ... COMMIT;`.
+     - _Giai đoạn 5_: Re-typegen sau migration.
+  3. **Pre-insert Chunk Validation & 15-phút Auto-Cleanup**: Chunking và kiểm tra số chunks (tối đa 500) TRƯỚC KHI insert DB để loại trừ hoàn toàn tài liệu lỗi. Kết hợp opportunistic cleanup trên API GET (sau kiểm tra auth) và Cron Cleanup định kỳ để tự động phục hồi các document kẹt `processing` quá 15 phút.
+  4. **Strict 400 Rejection**: Cấm client gửi `embedding_model` trên mọi API routes (`/api/projects`, `/api/projects/[id]`, `/api/projects/[id]/knowledge`), biến cấu hình model thành bất biến.
+- **Prevention Rule**:
+  - Khi dùng `@google/genai` `:batchEmbedContents`, **LUÔN LUÔN truyền mảng Content objects `{ role: "user", parts: [{ text }] }`**, tuyệt đối không truyền mảng `string[]`.
+  - Luôn bảo vệ codebase khỏi biến động Supabase TypeGen bằng **Domain Mapper Functions (`toProject()`)** thay vì spread raw database rows.
+  - Khi thay đổi schema CSDL, luôn tuân thủ quy trình **Deploy Code trước -> Áp dụng Migration sau -> Re-typegen**, và bọc migration trong transaction `BEGIN; ... COMMIT;`.
+
+---
+
+## UI Architecture & Streaming Hooks
+
+### 2026-09-30: Vitest Mock Leaks on Streaming Hooks & Language Hydration Race Conditions
+
+- **Symptom**:
+  1. Unit tests for streaming hooks (`useChatStreamController`) caused Node.js heap exhaustion (OOM) or hung test runners indefinitely.
+  2. In production/preview, reloading the application occasionally overwrote the user's Vietnamese language setting back to English, while 71 components continuously fired `localStorage.setItem` and `window.dispatchEvent` on every mount.
+- **Root Cause**:
+  1. In unit tests mocking `ReadableStreamDefaultReader.read()`, returning an unresolving promise (`new Promise(() => {})`) kept the RAF typewriter loop and buffer timers spinning indefinitely after the test completed, leaking closures and exhausting the Vitest memory pool.
+  2. In `useLanguage.ts`, an unlatched `useEffect` executed `localStorage.setItem("vikini-lang", language)` unconditionally on mount for every component consuming `useLanguage()`, racing with `LanguageUpdater.tsx` and overwriting stored settings before hydration was settled.
+- **Fix**:
+  1. In `useChatStreamController.test.ts`, all streams are explicitly closed with `{ done: true }` upon completion, and lingering loops are cleanly reset in tests via `result.current.resetChatUI()`. Asynchronous state transitions before message finalization are wrapped in `await waitFor(...)`.
+  2. In `LanguageUpdater.tsx`, implemented a read-first, write-after latch pattern with `const [hasHydrated, setHasHydrated] = useState(false)` to prevent overwriting user preferences on reload. Removed the redundant `useEffect` storage write from `useLanguage.ts`.
+- **Prevention Rule**:
+  - In Vitest tests for streaming hooks, **NEVER leave stream readers hanging with unresolved promises** without calling cleanup (`resetChatUI` / `cancelStream` / `handleStop`).
+  - For client storage hydration, **always latch state with `hasHydrated` before allowing write effects to localStorage**, preventing mount-time overwrite races.

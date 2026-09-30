@@ -37,7 +37,7 @@ export function GalleryView() {
   const g = useGalleryController();
 
   return (
-    <div className="h-screen w-screen text-(--text-primary) overflow-hidden relative font-sans bg-(--surface-base) flex">
+    <div className="h-screen w-screen text-(--text-primary) overflow-hidden relative font-sans bg-(--surface) flex">
       <Sidebar
         conversations={g.mainChats}
         allConversations={g.conversations || []}
@@ -162,7 +162,7 @@ export function GalleryView() {
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                     g.compareMode
                       ? "bg-(--danger)/20 text-(--danger) border border-(--danger)/30 hover:bg-(--danger)/30"
-                      : "bg-(--surface-muted) border border-(--control-border) hover:bg-(--surface-hover)"
+                      : "bg-(--surface-muted) border border-(--control-border) hover:bg-(--control-bg-hover)"
                   }`}
                 >
                   {g.compareMode ? (
@@ -322,7 +322,7 @@ export function GalleryView() {
                   </div>
 
                   {/* Details Sidebar */}
-                  <div className="w-full lg:w-80 p-6 flex flex-col border-l border-(--border) bg-(--surface-base) max-h-[95vh] overflow-y-auto">
+                  <div className="w-full lg:w-80 p-6 flex flex-col border-l border-(--border) bg-(--surface) max-h-[95vh] overflow-y-auto">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-bold text-lg">{g.t("galleryImageDetails")}</h3>
                       <button

@@ -103,6 +103,13 @@
   --primary-light: color-mix(in srgb, var(--accent) 75%, white 25%);
   --primary-dark: color-mix(in srgb, var(--accent) 80%, black 20%);
   --bg-glow: var(--glow);
+
+  /* Semantic z-scale hierarchy */
+  --z-drawer: 60;
+  --z-modal: 70;
+  --z-popover: 75;
+  --z-toast: 80;
+  --z-banner: 90;
 }
 
 :root.theme-blueprint,
@@ -159,7 +166,7 @@ body {
 }
 
 body {
-  background: var(--surface);
+  background: var(--surface-gradient, var(--surface));
   color: var(--text-primary);
   @apply antialiased font-sans;
 }

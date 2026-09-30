@@ -54,3 +54,19 @@ Vikini đặt trọng tâm vào việc xây dựng một giao diện **Minimal &
 - **Thành Phần Giao Diện Chuẩn Xác**: Xây dựng dựa trên các component của **Shadcn/UI** và **Radix UI**, đảm bảo tính nhất quán. Các thành phần tương tác tuân thủ nguyên tắc Mobile First, hỗ trợ Focus Trap, điều hướng bằng bàn phím (ESC) và chuẩn Accessibility (ARIA).
 - **Phản Hồi Trạng Thái Thông Minh**: Loại bỏ hoàn toàn các popup native (`alert`/`confirm`) của trình duyệt. Hệ thống sử dụng **Toast Notifications** cho các thông báo không gián đoạn và **ConfirmDialogHost** toàn cục cho các thao tác quan trọng (như xóa dữ liệu), tạo trải nghiệm liền mạch và an toàn.
 - **Giao Diện Song Ngữ Đồng Bộ (Bilingual UI)**: Hệ thống dịch thuật an toàn kiểu (Type Safety), hỗ trợ chuyển đổi hoàn chỉnh toàn bộ giao diện và các thông báo lỗi giữa Tiếng Việt và Tiếng Anh mà không cần tải lại trang.
+
+## 5. Bối Cảnh & Phạm Vi Sản Phẩm (Scale, Scope & Core Use Cases)
+
+> Phần nội dung này được hợp nhất từ `context.md` nhằm tập trung hóa bức tranh sản phẩm tại một nguồn chân lý duy nhất.
+
+### 5.1. Quy Mô & Bản Chất Hệ Thống (Scale and Scope)
+
+- **Người Dùng (Users)**: Công cụ nội bộ chuyên biệt dành riêng cho nhóm 5–10 power users (internal team).
+- **Bản Chất**: Không phải sản phẩm SaaS thương mại đại trà. Ưu tiên độ ổn định, tính chính xác và chất lượng phản hồi AI thay vì tối ưu hóa tải cho hàng nghìn người dùng đồng thời.
+- **Ranh Giới Kiến Trúc**: Triết lý _Keep It Simple Monolith_. Với quy mô nhóm nhỏ, hệ thống kiên quyết không phân tán thành microservices hay Kubernetes mà duy trì kiến trúc Next.js monolithic tinh gọn, sạch sẽ.
+
+### 5.2. Các Trường Hợp Sử Dụng Trọng Tâm (Core Use Cases)
+
+- **Sáng Tạo & Viết Lách (Creative Writing)**: Viết tiểu thuyết, xây dựng dàn ý, phát triển nhân vật, brainstorming cốt truyện. Đòi hỏi cửa sổ ngữ cảnh cực lớn và hệ thống GEM tùy biến linh hoạt (đóng vai trò Editor / Co-author).
+- **Nghiên Cứu & Phát Triển (R&D)**: Phân tích tài liệu kỹ thuật, tóm tắt tệp tải lên (PDF/Docx), đối chiếu dữ liệu. Đòi hỏi độ chính xác cao trong phân tích nội dung và mã hóa an toàn dữ liệu nội bộ.
+- **Tư Vấn Chiến Thuật & Gaming**: Hướng dẫn chơi game, xây dựng cấu hình nhân vật (character builds) thông qua các System GEMs chuyên biệt.

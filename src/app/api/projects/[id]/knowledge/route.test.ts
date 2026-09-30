@@ -14,6 +14,7 @@ vi.mock("@/lib/features/projects/knowledge.server", () => ({
   getProjectDocuments: vi.fn(),
   uploadDocument: vi.fn(),
   deleteDocument: vi.fn(),
+  cleanupStuckProcessingDocuments: vi.fn().mockResolvedValue(0),
 }));
 
 vi.mock("@/lib/features/projects/projects.server", () => ({
@@ -50,6 +51,7 @@ import {
   getProjectDocuments,
   uploadDocument,
   deleteDocument,
+  cleanupStuckProcessingDocuments,
 } from "@/lib/features/projects/knowledge.server";
 import { getProject } from "@/lib/features/projects/projects.server";
 import { isSupportedFileType } from "@/types/projects";
@@ -129,7 +131,26 @@ describe("/api/projects/[id]/knowledge", () => {
       expect(json.data.documents).toEqual(mockDocs);
       expect(json.data.project_id).toBe(TEST_PROJECT_ID);
       expect(json.data.storage_used_bytes).toBe(1024);
+      expect(cleanupStuckProcessingDocuments).toHaveBeenCalledWith(TEST_PROJECT_ID);
       expect(getProjectDocuments).toHaveBeenCalledWith(TEST_PROJECT_ID, TEST_USER_EMAIL);
+    });
+
+    it("should succeed and return documents even if opportunistic cleanup throws", async () => {
+      mockAuthenticated();
+      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
+      const mockDocs = [{ id: TEST_DOC_ID, filename: "test.txt", projectId: TEST_PROJECT_ID }];
+      vi.mocked(getProjectDocuments).mockResolvedValue(mockDocs as never);
+      vi.mocked(cleanupStuckProcessingDocuments).mockRejectedValueOnce(
+        new Error("Cleanup DB timeout")
+      );
+
+      const req = createRequest("GET", `/api/projects/${TEST_PROJECT_ID}/knowledge`);
+      const res = await GET(req, createParams(TEST_PROJECT_ID));
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.data.documents).toEqual(mockDocs);
     });
 
     it("should return 404 when project is not found", async () => {
@@ -201,8 +222,27 @@ describe("/api/projects/[id]/knowledge", () => {
         filename: "notes.txt",
         content: "Hello world",
         mimeType: undefined,
-        embeddingModel: undefined,
       });
+    });
+
+    it("should return 400 when embedding_model is provided in upload body (TC-EMB-03)", async () => {
+      mockAuthenticated();
+      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
+
+      const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge`, {
+        filename: "notes.txt",
+        content: "Hello world",
+        embedding_model: "gemini-embedding-2",
+      });
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error.message).toContain(
+        "embedding_model cannot be specified for knowledge uploads"
+      );
+      expect(uploadDocument).not.toHaveBeenCalled();
     });
 
     it("should return 404 when project is not found", async () => {

@@ -4,10 +4,15 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import InputForm from "./InputForm";
 
+let mockCurrentLanguage = "en";
+const mockVoiceButton = vi.fn();
+
 // Mock useLanguage hook
 vi.mock("../hooks/useLanguage", () => ({
   useLanguage: () => ({
-    language: "en",
+    get language() {
+      return mockCurrentLanguage;
+    },
     setLanguage: vi.fn(),
     t: (key: string) => {
       const dict: Record<string, string> = {
@@ -73,7 +78,10 @@ vi.mock("./FileLightbox", () => ({
 }));
 
 vi.mock("./VoiceButton", () => ({
-  VoiceButton: () => <div data-testid="voice-button" />,
+  VoiceButton: (props: unknown) => {
+    mockVoiceButton(props);
+    return <div data-testid="voice-button" />;
+  },
 }));
 
 describe("InputForm", () => {
@@ -161,6 +169,46 @@ describe("InputForm", () => {
       expect(
         screen.getByPlaceholderText("Describe the image you want to generate...")
       ).toBeInTheDocument();
+    });
+  });
+
+  describe("Submit Double-Lock & Voice Language (TC-09)", () => {
+    it("fires onSubmit immediately and blocks second submit in the same tick", () => {
+      const onSubmit = vi.fn();
+      render(<InputForm input="Immediate message" onChangeInput={vi.fn()} onSubmit={onSubmit} />);
+
+      const sendBtn = screen.getByRole("button", { name: /^send$/i });
+
+      // Click twice in same tick
+      fireEvent.click(sendBtn);
+      fireEvent.click(sendBtn);
+
+      // Should be called exactly once
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it("passes dynamic language to VoiceButton based on active language", () => {
+      // 1. English
+      mockCurrentLanguage = "en";
+      const { rerender } = render(
+        <InputForm input="" onChangeInput={vi.fn()} onSubmit={vi.fn()} />
+      );
+
+      expect(mockVoiceButton).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          language: "en-US",
+        })
+      );
+
+      // 2. Vietnamese
+      mockCurrentLanguage = "vi";
+      rerender(<InputForm input="" onChangeInput={vi.fn()} onSubmit={vi.fn()} />);
+
+      expect(mockVoiceButton).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          language: "vi-VN",
+        })
+      );
     });
   });
 });

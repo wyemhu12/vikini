@@ -32,7 +32,7 @@ export default function GemPreview({ gem }: GemPreviewProps) {
         <div>
           <h2 className="text-lg font-bold text-(--text-primary)">{gem.name}</h2>
           {gem.isPremade && (
-            <span className="rounded bg-(--control-bg) px-1.5 py-0.5 text-[10px] text-(--text-secondary)">
+            <span className="rounded bg-(--control-bg) px-1.5 py-0.5 text-xs text-(--text-secondary)">
               {t("premadeGems") || "System Gem"}
             </span>
           )}
@@ -45,7 +45,9 @@ export default function GemPreview({ gem }: GemPreviewProps) {
             {t("gemDescription") || "Description"}
           </label>
           <div className="text-sm text-(--text-primary) bg-(--surface-muted) p-3 rounded-lg border border-(--border)">
-            {gem.description || <span className="italic text-(--text-muted)">No description</span>}
+            {gem.description || (
+              <span className="italic text-(--text-secondary)">No description</span>
+            )}
           </div>
         </div>
 
@@ -70,7 +72,7 @@ export default function GemPreview({ gem }: GemPreviewProps) {
           </label>
           <div className="text-sm text-(--text-primary) bg-(--surface-muted) p-3 rounded-lg border border-(--border) whitespace-pre-wrap font-mono text-xs leading-relaxed max-h-[400px] overflow-y-auto">
             {gem.instructions || gem.instruction || (
-              <span className="italic text-(--text-muted)">No instructions</span>
+              <span className="italic text-(--text-secondary)">No instructions</span>
             )}
           </div>
         </div>

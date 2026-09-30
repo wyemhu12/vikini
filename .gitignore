@@ -40,3 +40,9 @@ pnpm-debug.log*
 .agents/skills
 .claude/skill
 .claude/skills
+
+# Supabase temp
+supabase/.temp/
+
+# TypeScript build cache
+*.tsbuildinfo

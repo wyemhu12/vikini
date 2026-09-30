@@ -341,29 +341,33 @@ interface UpdateConversationRequest {
 
 ```typescript
 // POST /api/projects (Create)
+// Note: embedding_model is immutable and defaults to "gemini-embedding-2".
+// Providing embedding_model in request body returns 400 Bad Request.
 interface CreateProjectRequest {
   name: string; // Bắt buộc (max 100)
   description?: string; // Max 500
-  icon?: string; // Emoji
-  color?: string; // Hex color (#xxxxxx)
-  embedding_model?: "text-embedding-004" | "gemini-embedding-001";
+  icon?: string; // Emoji (mặc định '📁')
+  color?: string; // Hex color (#xxxxxx, mặc định '#6366f1')
 }
 
 // PATCH /api/projects/[id] (Update)
+// Note: embedding_model is immutable.
+// Providing embedding_model in request body returns 400 Bad Request.
 interface UpdateProjectRequest {
   name?: string;
   description?: string | null;
   icon?: string;
   color?: string;
-  embedding_model?: "text-embedding-004" | "gemini-embedding-001";
 }
 
 // POST /api/projects/[id]/knowledge (Upload document)
+// Note: embedding_model is determined automatically as "gemini-embedding-2".
+// Providing embedding_model in request body returns 400 Bad Request.
+// Limit: file size <= 5MB, chunks <= 500 (~350-400 KB text).
 interface UploadDocumentRequest {
   filename: string; // Bắt buộc
-  content: string; // Text content - Bắt buộc
+  content: string; // Text content - Bắt buộc (max 5MB)
   mimeType?: string;
-  embedding_model?: "text-embedding-004" | "gemini-embedding-001";
 }
 
 // POST /api/projects/[id]/knowledge/search (RAG search)
@@ -371,6 +375,16 @@ interface KnowledgeSearchRequest {
   query: string; // Search query
   matchThreshold?: number; // Default 0.7
   matchCount?: number; // Default 5
+}
+
+// Knowledge Search Result
+interface KnowledgeSearchResult {
+  id: string;
+  content: string;
+  similarity: number;
+  filename: string;
+  chunk_index: number;
+  metadata: Record<string, unknown>;
 }
 ```
 

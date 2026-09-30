@@ -13,14 +13,14 @@
 - KIỂM TRA plan có import module chưa tồn tại không (cross-ref với danh sách `[NEW]` files).
 - XÁC NHẬN plan không phụ thuộc biến môi trường (`.env`) chưa được khai báo trong `docs/architecture.md` hoặc `docs/security.md`.
 
-**S2: Runner Lifecycle & Teardown (Tham chiếu `skills/streaming-patterns.md`)**
+**S2: Runner Lifecycle & Teardown (Tham chiếu `.agents/skills/streaming-patterns.md`)**
 
 - TÌM trong plan mọi tài nguyên cần cleanup: Supabase connection pool, Upstash Redis client, browser EventSource / AudioContext.
 - KIỂM TRA xử lý ngắt kết nối mạng và dọn dẹp SSE Chat Stream: bắt buộc lắng nghe `req.signal.addEventListener('abort', ...)` và hủy AbortController tương ứng.
 - XÁC NHẬN plan đề cập cleanup/teardown hoặc test isolation strategy.
 - KIỂM TRA test cases không dùng circular/tautological mock tự pass.
 
-**S3: Database & Temporal Logic (Supabase PostgreSQL, Tham chiếu `skills/database-migration.md`)**
+**S3: Database & Temporal Logic (Supabase PostgreSQL, Tham chiếu `.agents/skills/database-migration.md`)**
 
 - KHẢO SÁT các bảng dữ liệu qua `docs/database-schema.md` và migration scripts (`supabase/migrations/` hoặc `database-migrations/`).
 - KIỂM TRA RLS policies: Bảng có mở cho `authenticated`/`anon` không, hay chỉ `service_role`?
@@ -34,7 +34,7 @@
 - KIỂM TRA tính tương thích giữa Zustand stores, SWR cache keys, và URL query parameters (`useUrlSync`).
 - KHÔNG chỉ đọc bản kế hoạch — phải kiểm tra source code thực tế.
 
-**S5: Security Boundary & 3-Tier Auth (NextAuth + Supabase RLS + Redis, Tham chiếu `skills/api-patterns.md`)**
+**S5: Security Boundary & 3-Tier Auth (NextAuth + Supabase RLS + Redis, Tham chiếu `.agents/skills/api-patterns.md`)**
 
 - KIỂM TRA xác thực API route: BẮT BUỘC gọi `const session = await auth()` hoặc `requireUser()`.
 - PHÂN TÁCH Server-Only: Client `service_role` chỉ được nằm trong file `.server.ts` (`src/lib/core/supabase.server.ts`), TUYỆT ĐỐI CẤM import vào Client Component.
@@ -58,5 +58,5 @@
 - _Model Registry & Multi-Provider_: Khảo sát `src/lib/core/modelRegistry.ts`, kiểm tra mapping định danh mô hình, provider order.
 - _Context Window & Quota Budget_: Đối soát token context (1M tokens) và trần output tokens (`effectiveMaxTokens`) tại `src/lib/core/limits.ts` và `src/lib/features/chat/batchGenQuota.ts`.
 - _Reasoning Token Truncation Risk_: Phòng ngừa sự cố cắt ngắn chuỗi tư duy AI (bài học kinh nghiệm từ commit `093d2d2` khi token reasoning `<think>` chiếm trọn `max_tokens` khiến câu trả lời bị rỗng).
-- _Hệ Thống Dịch Song Ngữ_: Kiểm tra tuân thủ `rules/04-bilingual.md`, không hardcode text thô, bảo đảm tính đồng bộ giữa `vi.ts` và `en.ts`.
+- _Hệ Thống Dịch Song Ngữ_: Kiểm tra tuân thủ `.agents/rules/04-bilingual.md`, không hardcode text thô, bảo đảm tính đồng bộ giữa `vi.ts` và `en.ts`.
 - _Vòng Đời Quản Lý Attachments_: Quản lý vòng đời file 30 ngày TTL, hàm RPC dọn dẹp, và xử lý stream đa phương tiện (ảnh, tài liệu PDF, audio).

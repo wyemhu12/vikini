@@ -202,7 +202,7 @@ export function DescribeImageView() {
   }, []);
 
   return (
-    <div className="h-screen w-screen text-(--text-primary) overflow-hidden relative font-sans bg-(--surface-base) flex">
+    <div className="h-screen w-screen text-(--text-primary) overflow-hidden relative font-sans bg-(--surface) flex">
       <Sidebar
         conversations={mainChats}
         allConversations={conversations || []}
@@ -357,7 +357,7 @@ export function DescribeImageView() {
                           {/* Copy Button */}
                           <button
                             onClick={handleCopy}
-                            className="absolute top-3 right-3 p-2 rounded-lg hover:bg-(--surface-hover) transition-colors"
+                            className="absolute top-3 right-3 p-2 rounded-lg hover:bg-(--control-bg-hover) transition-colors"
                             title={t("describeCopy")}
                           >
                             {copied ? (
@@ -379,7 +379,7 @@ export function DescribeImageView() {
                           </button>
                           <button
                             onClick={handleReset}
-                            className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-(--surface-muted) border border-(--control-border) hover:bg-(--surface-hover) transition-colors"
+                            className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-(--surface-muted) border border-(--control-border) hover:bg-(--control-bg-hover) transition-colors"
                           >
                             <RefreshCw className="w-4 h-4" />
                             {t("describeNewImage")}
@@ -414,7 +414,7 @@ export function DescribeImageView() {
                     <button
                       key={idx}
                       onClick={() => setResult(item.prompt)}
-                      className="flex items-start gap-3 p-3 rounded-xl border border-(--border) bg-(--surface-muted)/50 hover:bg-(--surface-hover) transition-colors text-left group"
+                      className="flex items-start gap-3 p-3 rounded-xl border border-(--border) bg-(--surface-muted)/50 hover:bg-(--control-bg-hover) transition-colors text-left group"
                     >
                       <img
                         src={item.thumbnail}

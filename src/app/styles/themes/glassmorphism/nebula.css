@@ -4,7 +4,8 @@
    =========================================== */
 
 .theme-nebula {
-  --surface:
+  --surface: #0f172a;
+  --surface-gradient:
     radial-gradient(ellipse at 50% -10%, rgba(34, 211, 238, 0.6) 0%, transparent 45%),
     radial-gradient(ellipse at 85% 15%, rgba(236, 72, 153, 0.4) 0%, transparent 35%),
     radial-gradient(ellipse at 15% 85%, rgba(59, 130, 246, 0.25) 0%, transparent 45%),

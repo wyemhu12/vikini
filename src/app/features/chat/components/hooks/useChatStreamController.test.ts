@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { useChatStreamController } from "./useChatStreamController";
 
 // Mock fetch globally
@@ -152,5 +152,214 @@ describe("useChatStreamController", () => {
 
     expect(result.current.messages).toEqual([]);
     expect(result.current.isStreaming).toBe(false);
+  });
+
+  it("flushes typewriter buffer and finalizes assistant message on complete stream (done/flush)", async () => {
+    const { result } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: "conv-1",
+      })
+    );
+
+    const encoder = new TextEncoder();
+    let step = 0;
+    mockFetch.mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/api/chat")) {
+        return Promise.resolve({
+          ok: true,
+          body: {
+            getReader: () => ({
+              read: () => {
+                if (step === 0) {
+                  step++;
+                  return Promise.resolve({
+                    done: false,
+                    value: encoder.encode('event: token\ndata: {"t":"Complete answer"}\n\n'),
+                  });
+                }
+                return Promise.resolve({ done: true, value: undefined });
+              },
+              cancel: () => Promise.resolve(),
+            }),
+          },
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ success: true, data: { messages: [] } }),
+      });
+    });
+
+    await act(async () => {
+      await result.current.handleSend("Test prompt");
+    });
+
+    await waitFor(() => {
+      const msgs = result.current.messages;
+      const assistantMsg = msgs.find((m) => m.role === "assistant");
+      expect(assistantMsg).toBeDefined();
+      expect(assistantMsg?.content).toBe("Complete answer");
+      expect(result.current.isStreaming).toBe(false);
+    });
+  });
+
+  it("handles typewriter token streaming and buffers chunks smoothly", async () => {
+    const { result } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: "conv-1",
+      })
+    );
+
+    const encoder = new TextEncoder();
+    let emitted = false;
+
+    mockFetch.mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/api/chat")) {
+        return Promise.resolve({
+          ok: true,
+          body: {
+            getReader: () => ({
+              read: () => {
+                if (!emitted) {
+                  emitted = true;
+                  return Promise.resolve({
+                    done: false,
+                    value: encoder.encode('event: token\ndata: {"t":"Smooth typing"}\n\n'),
+                  });
+                }
+                return new Promise(() => {}); // hold until cancel
+              },
+              cancel: () => Promise.resolve(),
+            }),
+          },
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ success: true, data: { messages: [] } }),
+      });
+    });
+
+    await act(async () => {
+      result.current.handleSend("Start stream");
+    });
+
+    expect(result.current.isStreaming).toBe(true);
+
+    // Clean up active stream to prevent leaks
+    await act(async () => {
+      result.current.resetChatUI();
+    });
+  });
+
+  it("handles backend error event and populates streamError state (error rollback)", async () => {
+    const onStreamError = vi.fn();
+    const { result } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: "conv-1",
+        onStreamError,
+      })
+    );
+
+    const encoder = new TextEncoder();
+    mockFetch.mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/api/chat")) {
+        let sent = false;
+        return Promise.resolve({
+          ok: true,
+          body: {
+            getReader: () => ({
+              read: () => {
+                if (!sent) {
+                  sent = true;
+                  return Promise.resolve({
+                    done: false,
+                    value: encoder.encode(
+                      'event: error\ndata: {"error":"Rate limit exceeded","code":"RATE_LIMIT"}\n\n'
+                    ),
+                  });
+                }
+                return Promise.resolve({ done: true, value: undefined });
+              },
+              cancel: () => Promise.resolve(),
+            }),
+          },
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ success: true, data: { messages: [] } }),
+      });
+    });
+
+    await act(async () => {
+      await result.current.handleSend("Trigger error");
+    });
+
+    await waitFor(() => {
+      expect(onStreamError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "Rate limit exceeded",
+          code: "RATE_LIMIT",
+        })
+      );
+    });
+  });
+
+  it("balances think tags when aborting partial message (abort partial persistence)", async () => {
+    const { result } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: "conv-1",
+      })
+    );
+
+    const encoder = new TextEncoder();
+    let sent = false;
+    mockFetch.mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/api/chat")) {
+        return Promise.resolve({
+          ok: true,
+          body: {
+            getReader: () => ({
+              read: () => {
+                if (!sent) {
+                  sent = true;
+                  return Promise.resolve({
+                    done: false,
+                    value: encoder.encode(
+                      'event: token\ndata: {"t":"<think>Internal thought"}\n\n'
+                    ),
+                  });
+                }
+                return new Promise(() => {}); // hold until stop
+              },
+              cancel: () => Promise.resolve(),
+            }),
+          },
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ success: true, data: { message: { id: "p-1" } } }),
+      });
+    });
+
+    await act(async () => {
+      result.current.handleSend("Think test");
+    });
+
+    await act(async () => {
+      result.current.handleStop();
+    });
+
+    const msgs = result.current.messages;
+    const assistantMsg = msgs.find((m) => m.role === "assistant");
+    expect(assistantMsg).toBeDefined();
+    // Think tags should be balanced automatically
+    expect(assistantMsg?.content).toContain("</think>");
   });
 });

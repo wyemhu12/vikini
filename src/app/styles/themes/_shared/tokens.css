@@ -4,8 +4,9 @@
    =========================================== */
 
 /* Backgrounds */
-.bg-surface {
-  background: var(--surface);
+.bg-surface,
+.theme-surface-canvas {
+  background: var(--surface-gradient, var(--surface));
 }
 
 .bg-surface-muted {

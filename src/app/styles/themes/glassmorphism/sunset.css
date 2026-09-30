@@ -4,7 +4,8 @@
 
 .theme-sunset {
   /* Vũ trụ đen với ánh sáng mặt trời từ chân trời hành tinh */
-  --surface:
+  --surface: #050505;
+  --surface-gradient:
     /* Vầng sáng chính từ mặt trời (curved horizon) */
     radial-gradient(
       ellipse 120% 35% at 50% 105%,

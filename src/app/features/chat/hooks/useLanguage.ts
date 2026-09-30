@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { translations } from "@/lib/utils/config";
 
 import { useLanguageStore } from "@/lib/store/languageStore";
@@ -11,15 +11,6 @@ export type SupportedLanguage = Language;
 
 export function useLanguage() {
   const { language, setLanguage } = useLanguageStore();
-
-  // Removed automatic init from localStorage here to avoid infinite loops in children
-  // Initialization should be done once in the root component (ChatApp)
-
-  useEffect(() => {
-    localStorage.setItem("vikini-language", language);
-    // Sync with a custom event for other components to listen if needed
-    window.dispatchEvent(new CustomEvent("vikini-language-change", { detail: language }));
-  }, [language]);
 
   const dict = useMemo(() => {
     return (translations?.[language] || translations?.en || {}) as Record<string, string>;

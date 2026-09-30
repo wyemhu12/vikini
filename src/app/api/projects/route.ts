@@ -1,7 +1,7 @@
 /**
  * Projects API Routes
  * GET: List user projects
- * POST: Create new project
+ * POST: Create new project (strict 400 rejection for embedding_model)
  */
 import { NextRequest } from "next/server";
 import { z } from "zod";
@@ -27,7 +27,6 @@ const createProjectSchema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/, "Invalid color format")
     .optional(),
-  embedding_model: z.enum(["text-embedding-004", "gemini-embedding-2"]).optional(),
 });
 
 /**
@@ -52,7 +51,6 @@ export async function GET() {
         maxProjects: limits.maxProjects,
         currentProjects: projects.length,
         maxStorageBytesPerProject: limits.maxStorageBytesPerProject,
-        availableModels: limits.embeddingModels,
       },
     });
   } catch (err: unknown) {
@@ -73,10 +71,16 @@ export async function POST(req: NextRequest) {
     }
     const userId = session.user.email.toLowerCase();
 
-    const body = await req.json();
+    const rawBody = await req.json();
+
+    // Strict Rejection 400: embedding_model is not configurable (TC-EMB-01)
+    if (rawBody && typeof rawBody === "object" && "embedding_model" in rawBody) {
+      throw new ValidationError("embedding_model is not configurable");
+    }
+
     let parsed;
     try {
-      parsed = createProjectSchema.parse(body);
+      parsed = createProjectSchema.parse(rawBody);
     } catch (e: unknown) {
       if (e instanceof z.ZodError) {
         const firstIssue = e.issues[0];

@@ -1,8 +1,10 @@
 /**
  * Projects Server-Side Operations
  * CRUD operations for projects with tier limit enforcement
+ * Uses Typed Supabase Client and immutable gemini-embedding-2 model
  */
-import { getSupabaseAdmin } from "@/lib/core/supabase.server";
+import { getTypedSupabaseAdmin } from "@/lib/core/supabase.server";
+import type { Tables } from "@/types/database.types";
 import {
   Project,
   ProjectWithStats,
@@ -15,11 +17,29 @@ import { logger } from "@/lib/utils/logger";
 
 const projectLogger = logger.withContext("projects");
 
+/**
+ * Maps database project row to domain Project model.
+ * Always normalizes embedding_model to "gemini-embedding-2" and guarantees fallback defaults.
+ */
+export function toProject(row: Tables<"projects">): Project {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    name: row.name,
+    description: row.description,
+    icon: row.icon || "📁",
+    color: row.color || "#6366f1",
+    embedding_model: "gemini-embedding-2",
+    created_at: row.created_at || "",
+    updated_at: row.updated_at || "",
+  };
+}
+
 // ============================================
 // TIER DETECTION
 // ============================================
 export async function getUserTier(userId: string): Promise<UserTier> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getTypedSupabaseAdmin();
 
   const { data } = await supabase.from("profiles").select("rank").eq("email", userId).single();
 
@@ -43,7 +63,7 @@ export function getTierLimits(tier: UserTier) {
  * Get all projects for a user with stats
  */
 export async function getUserProjects(userId: string): Promise<ProjectWithStats[]> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getTypedSupabaseAdmin();
 
   const { data: projects, error } = await supabase
     .from("projects")
@@ -69,7 +89,7 @@ export async function getUserProjects(userId: string): Promise<ProjectWithStats[
       ]);
 
       return {
-        ...project,
+        ...toProject(project),
         conversation_count: convCount,
         document_count: docStats.count,
         storage_bytes: docStats.totalBytes,
@@ -87,7 +107,7 @@ export async function getProject(
   projectId: string,
   userId: string
 ): Promise<ProjectWithStats | null> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getTypedSupabaseAdmin();
 
   const { data: project, error } = await supabase
     .from("projects")
@@ -106,7 +126,7 @@ export async function getProject(
   ]);
 
   return {
-    ...project,
+    ...toProject(project),
     conversation_count: convCount,
     document_count: docStats.count,
     storage_bytes: docStats.totalBytes,
@@ -117,7 +137,7 @@ export async function getProject(
  * Create a new project
  */
 export async function createProject(userId: string, input: CreateProjectInput): Promise<Project> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getTypedSupabaseAdmin();
 
   // Check tier limits
   const tier = await getUserTier(userId);
@@ -128,27 +148,21 @@ export async function createProject(userId: string, input: CreateProjectInput): 
     throw new Error(`Project limit reached. ${tier} tier allows ${limits.maxProjects} projects.`);
   }
 
-  // Validate embedding model for tier
-  const embeddingModel = input.embedding_model || "text-embedding-004";
-  if (!(limits.embeddingModels as readonly string[]).includes(embeddingModel)) {
-    throw new Error(`Embedding model ${embeddingModel} not available for ${tier} tier`);
-  }
-
   const { data, error } = await supabase
     .from("projects")
     .insert({
       user_id: userId,
       name: input.name.trim(),
       description: input.description?.trim() || null,
-      icon: input.icon || "",
+      icon: input.icon || "📁",
       color: input.color || "#6366f1",
-      embedding_model: embeddingModel,
+      embedding_model: "gemini-embedding-2",
     })
     .select()
     .single();
 
-  if (error) {
-    if (error.code === "23505") {
+  if (error || !data) {
+    if (error?.code === "23505") {
       throw new Error("A project with this name already exists");
     }
     projectLogger.error("Failed to create project", error);
@@ -156,34 +170,31 @@ export async function createProject(userId: string, input: CreateProjectInput): 
   }
 
   projectLogger.info(`Created project: ${data.name} (${data.id}) for user ${userId}`);
-  return data;
+  return toProject(data);
 }
 
 /**
- * Update a project
+ * Update a project (embedding_model is immutable and cannot be modified)
  */
 export async function updateProject(
   projectId: string,
   userId: string,
   input: UpdateProjectInput
 ): Promise<Project> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getTypedSupabaseAdmin();
 
-  // Validate embedding model if changing
-  if (input.embedding_model) {
-    const tier = await getUserTier(userId);
-    const limits = getTierLimits(tier);
-    if (!(limits.embeddingModels as readonly string[]).includes(input.embedding_model)) {
-      throw new Error(`Embedding model ${input.embedding_model} not available for ${tier} tier`);
-    }
-  }
+  const updates: {
+    name?: string;
+    description?: string | null;
+    icon?: string;
+    color?: string;
+    updated_at: string;
+  } = { updated_at: new Date().toISOString() };
 
-  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.name !== undefined) updates.name = input.name.trim();
   if (input.description !== undefined) updates.description = input.description?.trim() || null;
   if (input.icon !== undefined) updates.icon = input.icon;
   if (input.color !== undefined) updates.color = input.color;
-  if (input.embedding_model !== undefined) updates.embedding_model = input.embedding_model;
 
   const { data, error } = await supabase
     .from("projects")
@@ -198,14 +209,14 @@ export async function updateProject(
     throw new Error("Failed to update project");
   }
 
-  return data;
+  return toProject(data);
 }
 
 /**
  * Delete a project (cascade deletes documents and chunks)
  */
 export async function deleteProject(projectId: string, userId: string): Promise<void> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getTypedSupabaseAdmin();
 
   // First, unlink conversations (they're preserved with project_id = NULL)
   await supabase.from("conversations").update({ project_id: null }).eq("project_id", projectId);
@@ -230,7 +241,7 @@ export async function deleteProject(projectId: string, userId: string): Promise<
 // ============================================
 
 async function getUserProjectCount(userId: string): Promise<number> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getTypedSupabaseAdmin();
 
   const { count, error } = await supabase
     .from("projects")
@@ -242,7 +253,7 @@ async function getUserProjectCount(userId: string): Promise<number> {
 }
 
 async function getProjectConversationCount(projectId: string): Promise<number> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getTypedSupabaseAdmin();
 
   const { count, error } = await supabase
     .from("conversations")
@@ -256,7 +267,7 @@ async function getProjectConversationCount(projectId: string): Promise<number> {
 async function getProjectDocumentStats(
   projectId: string
 ): Promise<{ count: number; totalBytes: number }> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getTypedSupabaseAdmin();
 
   const { data, error } = await supabase
     .from("knowledge_documents")

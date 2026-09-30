@@ -167,13 +167,21 @@ export const BubbleMarkdown = React.memo(function BubbleMarkdown({
     return <span className={`whitespace-pre-wrap break-words ${className}`}>{content}</span>;
   }
 
+  const rehypePlugins = React.useMemo<
+    React.ComponentProps<typeof ReactMarkdown>["rehypePlugins"]
+  >(() => {
+    return isStreaming
+      ? [rehypeRaw, [rehypeSanitize, SANITIZE_SCHEMA]]
+      : [rehypeRaw, [rehypeSanitize, SANITIZE_SCHEMA], rehypeHighlight];
+  }, [isStreaming]);
+
   return (
     <div
       className={`chat-markdown-container chat-markdown w-full overflow-hidden text-[15px] md:text-base leading-relaxed ${className}`}
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw, [rehypeSanitize, SANITIZE_SCHEMA], rehypeHighlight]}
+        rehypePlugins={rehypePlugins}
         components={mdComponents}
       >
         {content}

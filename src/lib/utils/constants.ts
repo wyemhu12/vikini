@@ -116,3 +116,8 @@ export const RATE_LIMIT = {
  * UUID v4 validation pattern
  */
 export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Feature flag for virtualized chat list (safe rollout: default false)
+ */
+export const ENABLE_VIRTUALIZED_CHAT = false;

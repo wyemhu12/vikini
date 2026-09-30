@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Plus, Image as ImageIcon, Upload, X, SendHorizontal, Square } from "lucide-react";
 import { toast } from "@/lib/store/toastStore";
-import { useDebounceCallback } from "@/lib/hooks/useDebounceCallback";
 import { VoiceButton } from "./VoiceButton";
 import { useLanguage } from "../hooks/useLanguage";
 import type { FileItem } from "@/types/files";
@@ -58,7 +57,7 @@ export default function InputForm({
   const [_voiceTranscript, setVoiceTranscript] = useState("");
   const [lightboxFile, setLightboxFile] = useState<FileItem | null>(null);
 
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const tRecord = useMemo(
     () => new Proxy({} as Record<string, string>, { get: (_, prop: string) => t(prop) }),
     [t]
@@ -153,36 +152,40 @@ export default function InputForm({
     }
   };
 
-  // Ref to hold fileIds snapshot between handleSubmit (sync) and debouncedSubmit (async)
-  const pendingFileIdsRef = useRef<string[]>([]);
+  // Ref to prevent double-submit in same tick/race conditions
+  const isSubmittingRef = useRef(false);
 
-  const debouncedSubmit = useDebounceCallback(() => {
-    // Use fileIds snapshot from handleSubmit (files are already marked as sent)
-    const fileIds = pendingFileIdsRef.current;
-    pendingFileIdsRef.current = [];
-    onSubmit(fileIds.length > 0 ? fileIds : undefined);
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
-  }, 500);
+  // Reset isSubmittingRef when streaming completes or conversation changes
+  useEffect(() => {
+    isSubmittingRef.current = false;
+  }, [conversationId, isStreaming]);
 
   const handleSubmit = () => {
-    if (disabled) return;
+    if (disabled || isSubmittingRef.current) return;
 
     if (isImageMode && onImageGen) {
       if (input.trim()) {
+        isSubmittingRef.current = true;
         onImageGen(input);
         onChangeInput("");
         setIsImageMode(false);
         if (textareaRef.current) textareaRef.current.style.height = "auto";
+        requestAnimationFrame(() => {
+          isSubmittingRef.current = false;
+        });
       }
     } else {
       if (input.trim() || fileCount > 0) {
-        // Snapshot fileIds and mark as sent IMMEDIATELY (before debounce delay)
+        isSubmittingRef.current = true;
         const currentFileIds = files.map((f) => f.id);
-        pendingFileIdsRef.current = currentFileIds;
         if (currentFileIds.length > 0) {
           markAsSent(currentFileIds);
         }
-        debouncedSubmit();
+        onSubmit(currentFileIds.length > 0 ? currentFileIds : undefined);
+        if (textareaRef.current) textareaRef.current.style.height = "auto";
+        requestAnimationFrame(() => {
+          isSubmittingRef.current = false;
+        });
       }
     }
   };
@@ -321,7 +324,7 @@ export default function InputForm({
               onTranscript={setVoiceTranscript}
               onFinalTranscript={(text) => onChangeInput(input + (input ? " " : "") + text)}
               disabled={disabled || isStreaming}
-              language="vi-VN"
+              language={language === "vi" ? "vi-VN" : "en-US"}
               t={tRecord}
             />
           )}

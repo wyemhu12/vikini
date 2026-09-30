@@ -3,13 +3,12 @@
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { ProjectWithStats, UserTier, EmbeddingModel } from "@/types/projects";
+import { ProjectWithStats, UserTier } from "@/types/projects";
 
 interface ProjectLimits {
   maxProjects: number;
   currentProjects: number;
   maxStorageBytesPerProject: number;
-  availableModels: readonly EmbeddingModel[];
 }
 
 interface ProjectStore {
@@ -38,7 +37,6 @@ interface ProjectStore {
     description?: string;
     icon?: string;
     color?: string;
-    embedding_model?: EmbeddingModel;
   }) => Promise<ProjectWithStats>;
   updateProject: (
     projectId: string,
@@ -47,7 +45,6 @@ interface ProjectStore {
       description?: string;
       icon?: string;
       color?: string;
-      embedding_model?: EmbeddingModel;
     }
   ) => Promise<ProjectWithStats>;
   deleteProject: (projectId: string) => Promise<void>;

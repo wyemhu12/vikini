@@ -323,62 +323,111 @@ erDiagram
 
 ### 2.10 `projects` - Dự án
 
-| Cột               | Kiểu          | Ràng buộc                      | Mô tả              |
-| ----------------- | ------------- | ------------------------------ | ------------------ |
-| `id`              | `UUID`        | PRIMARY KEY                    | ID dự án           |
-| `user_id`         | `TEXT`        | NOT NULL                       | Email người dùng   |
-| `name`            | `TEXT`        | NOT NULL                       | Tên dự án          |
-| `description`     | `TEXT`        |                                | Mô tả              |
-| `icon`            | `TEXT`        | DEFAULT '📁'                   | Emoji icon         |
-| `color`           | `TEXT`        | DEFAULT '#6366f1'              | Mã màu hex         |
-| `embedding_model` | `TEXT`        | DEFAULT 'gemini-embedding-001' | Model embedding    |
-| `created_at`      | `TIMESTAMPTZ` | DEFAULT now()                  | Thời gian tạo      |
-| `updated_at`      | `TIMESTAMPTZ` | DEFAULT now()                  | Thời gian cập nhật |
+| Cột               | Kiểu          | Ràng buộc                                    | Mô tả                      |
+| ----------------- | ------------- | -------------------------------------------- | -------------------------- |
+| `id`              | `UUID`        | PRIMARY KEY                                  | ID dự án                   |
+| `user_id`         | `TEXT`        | NOT NULL                                     | Email người dùng           |
+| `name`            | `TEXT`        | NOT NULL                                     | Tên dự án                  |
+| `description`     | `TEXT`        |                                              | Mô tả                      |
+| `icon`            | `TEXT`        | DEFAULT '📁'                                 | Emoji icon                 |
+| `color`           | `TEXT`        | DEFAULT '#6366f1'                            | Mã màu hex                 |
+| `embedding_model` | `TEXT`        | NOT NULL DEFAULT 'gemini-embedding-2', CHECK | Model embedding (bất biến) |
+| `created_at`      | `TIMESTAMPTZ` | DEFAULT now()                                | Thời gian tạo              |
+| `updated_at`      | `TIMESTAMPTZ` | DEFAULT now()                                | Thời gian cập nhật         |
 
 **Unique**: `(user_id, name)`  
-**Index**: `projects_user_id_idx`
+**Index**: `projects_user_id_idx`  
+**Check Constraint**: `chk_projects_embedding_model: CHECK (embedding_model = 'gemini-embedding-2')`
 
 ---
 
 ### 2.11 `knowledge_documents` - Tài liệu Knowledge Base
 
-| Cột               | Kiểu          | Ràng buộc                 | Mô tả                             |
-| ----------------- | ------------- | ------------------------- | --------------------------------- |
-| `id`              | `UUID`        | PRIMARY KEY               | ID tài liệu                       |
-| `project_id`      | `UUID`        | FK → projects(id) CASCADE | Dự án chứa tài liệu               |
-| `user_id`         | `TEXT`        | NOT NULL                  | Email người upload                |
-| `filename`        | `TEXT`        | NOT NULL                  | Tên file gốc                      |
-| `mime_type`       | `TEXT`        |                           | Loại file                         |
-| `size_bytes`      | `INTEGER`     | DEFAULT 0                 | Kích thước file                   |
-| `total_chunks`    | `INTEGER`     | DEFAULT 0                 | Số chunks sau khi chia            |
-| `embedding_model` | `TEXT`        |                           | Model dùng để embed               |
-| `status`          | `TEXT`        | DEFAULT 'processing'      | `processing`, `ready`, `error`    |
-| `error_message`   | `TEXT`        |                           | Chi tiết lỗi (nếu status = error) |
-| `created_at`      | `TIMESTAMPTZ` | DEFAULT now()             | Thời gian tạo                     |
-| `updated_at`      | `TIMESTAMPTZ` | DEFAULT now()             | Thời gian cập nhật                |
+| Cột               | Kiểu          | Ràng buộc                                    | Mô tả                             |
+| ----------------- | ------------- | -------------------------------------------- | --------------------------------- |
+| `id`              | `UUID`        | PRIMARY KEY                                  | ID tài liệu                       |
+| `project_id`      | `UUID`        | FK → projects(id) CASCADE                    | Dự án chứa tài liệu               |
+| `user_id`         | `TEXT`        | NOT NULL                                     | Email người upload                |
+| `filename`        | `TEXT`        | NOT NULL                                     | Tên file gốc                      |
+| `mime_type`       | `TEXT`        |                                              | Loại file                         |
+| `size_bytes`      | `INTEGER`     | DEFAULT 0                                    | Kích thước file                   |
+| `total_chunks`    | `INTEGER`     | DEFAULT 0                                    | Số chunks sau khi chia            |
+| `embedding_model` | `TEXT`        | NOT NULL DEFAULT 'gemini-embedding-2', CHECK | Model dùng để embed               |
+| `status`          | `TEXT`        | DEFAULT 'processing'                         | `processing`, `ready`, `error`    |
+| `error_message`   | `TEXT`        |                                              | Chi tiết lỗi (nếu status = error) |
+| `created_at`      | `TIMESTAMPTZ` | DEFAULT now()                                | Thời gian tạo                     |
+| `updated_at`      | `TIMESTAMPTZ` | DEFAULT now()                                | Thời gian cập nhật                |
 
-**Index**: `knowledge_documents_project_id_idx`, `knowledge_documents_user_id_idx`
+**Index**: `knowledge_documents_project_id_idx`, `knowledge_documents_user_id_idx`  
+**Check Constraint**: `chk_knowledge_documents_embedding_model: CHECK (embedding_model = 'gemini-embedding-2')`
 
 ---
 
 ### 2.12 `knowledge_chunks` - Chunks với embeddings
 
-| Cột           | Kiểu          | Ràng buộc                            | Mô tả                           |
-| ------------- | ------------- | ------------------------------------ | ------------------------------- |
-| `id`          | `UUID`        | PRIMARY KEY                          | ID chunk                        |
-| `document_id` | `UUID`        | FK → knowledge_documents(id) CASCADE | Tài liệu gốc                    |
-| `project_id`  | `UUID`        | NOT NULL                             | ID dự án (denormalized)         |
-| `user_id`     | `TEXT`        | NOT NULL                             | Email owner                     |
-| `chunk_index` | `INTEGER`     | NOT NULL                             | Vị trí chunk trong tài liệu     |
-| `content`     | `TEXT`        | NOT NULL                             | Nội dung text chunk             |
-| `metadata`    | `JSONB`       | DEFAULT '{}'                         | Metadata bổ sung                |
-| `embedding`   | `VECTOR`      |                                      | Vector embedding (no fixed dim) |
-| `created_at`  | `TIMESTAMPTZ` | DEFAULT now()                        | Thời gian tạo                   |
+| Cột           | Kiểu           | Ràng buộc                            | Mô tả                         |
+| ------------- | -------------- | ------------------------------------ | ----------------------------- |
+| `id`          | `UUID`         | PRIMARY KEY                          | ID chunk                      |
+| `document_id` | `UUID`         | FK → knowledge_documents(id) CASCADE | Tài liệu gốc                  |
+| `project_id`  | `UUID`         | NOT NULL                             | ID dự án (denormalized)       |
+| `user_id`     | `TEXT`         | NOT NULL                             | Email owner                   |
+| `chunk_index` | `INTEGER`      | NOT NULL                             | Vị trí chunk trong tài liệu   |
+| `content`     | `TEXT`         | NOT NULL                             | Nội dung text chunk           |
+| `metadata`    | `JSONB`        | DEFAULT '{}'                         | Metadata bổ sung              |
+| `embedding`   | `VECTOR(3072)` |                                      | Vector embedding (3072 chiều) |
+| `created_at`  | `TIMESTAMPTZ`  | DEFAULT now()                        | Thời gian tạo                 |
 
 **Index**: `knowledge_chunks_project_id_idx`, `knowledge_chunks_document_id_idx`
 
 > [!NOTE]
-> Cột `embedding` không có fixed dimension — hỗ trợ cả `text-embedding-004` (768d) và `gemini-embedding-001` (3072d). Dùng exact cosine similarity search (fine cho <100k chunks/project).
+> Cột `embedding` được cố định số chiều `VECTOR(3072)` tối ưu cho model chuẩn duy nhất `gemini-embedding-2` (API endpoint: `gemini-embedding-2-preview`). Dùng exact cosine similarity search qua RPC `match_project_knowledge`.
+
+---
+
+### 2.13 Database Functions & RPC
+
+#### `match_project_knowledge`
+
+Tìm kiếm vector tương đồng (RAG) trong phạm vi một dự án:
+
+```sql
+CREATE OR REPLACE FUNCTION match_project_knowledge (
+  p_project_id UUID,
+  query_embedding VECTOR(3072),
+  match_threshold FLOAT DEFAULT 0.7,
+  match_count INT DEFAULT 5
+)
+RETURNS TABLE (
+  id UUID,
+  content TEXT,
+  similarity FLOAT,
+  filename TEXT,
+  chunk_index INT,
+  metadata JSONB
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    kc.id,
+    kc.content,
+    1 - (kc.embedding <=> query_embedding) AS similarity,
+    kd.filename,
+    kc.chunk_index,
+    kc.metadata
+  FROM knowledge_chunks kc
+  JOIN knowledge_documents kd ON kd.id = kc.document_id
+  WHERE kc.project_id = p_project_id
+    AND kd.status = 'ready'
+    AND vector_dims(kc.embedding) = 3072
+    AND 1 - (kc.embedding <=> query_embedding) > match_threshold
+  ORDER BY kc.embedding <=> query_embedding
+  LIMIT match_count;
+END;
+$$;
+```
 
 ---
 

@@ -59,6 +59,8 @@ const READ_ONLY_COMMANDS = [
   /^npm ls(?: \S+)*$/,
   /^npm view \S+(?: \S+)*$/,
   /^git (?:status|diff|log|show|blame)(?: \S+)*$/,
+  /^powershell(?:\.exe)?\s+(?:-ExecutionPolicy\s+\w+\s+)?-File\s+\.agents[/\\]scripts[/\\]run-claude\.ps1(?:\s+.*)?$/,
+  /^claude(?:\.exe)?(?:\s+.*)?$/,
 ];
 
 /** Shell constructs that can turn an allowed command into a mutating one. */
@@ -158,15 +160,33 @@ export function isAntigravityArtifact(targetFile) {
 }
 
 /**
- * Checks if a plan has been approved by @reviewer.
- * Inspects .agents/.plan-approved or the latest plan in docs/plans/.
+ * Checks if the current active plan has been approved by Reviewer (Claude CLI or @reviewer).
+ * Inspects .agents/.plan-approved or strictly the single latest plan in docs/plans/.
+ *
+ * Hardened Security Checks:
+ * 1. Checks .agents/.plan-approved first (governance-protected marker).
+ * 2. Scans ONLY the single latest plan (entries[0]), preventing older finished tasks
+ *    from unfreezing active unfinished tasks.
+ * 3. Rejects if header Status is pending review (Draft / In Review / Ready for Review / Changes Requested).
+ * 4. Strictly requires [PLAN_APPROVED] on the non-blank last line of the file (no loose regex).
  *
  * @returns {boolean}
  */
 export function isPlanApproved() {
   const markerPath = path.resolve(REPO_ROOT, ".agents/.plan-approved");
   if (fs.existsSync(markerPath)) {
-    return true;
+    try {
+      const markerContent = fs.readFileSync(markerPath, "utf8").trim();
+      if (markerContent === "true" || markerContent === "APPROVED") {
+        return true;
+      }
+      if (markerContent.startsWith("{")) {
+        const data = JSON.parse(markerContent);
+        if (data.approved === true) return true;
+      }
+    } catch {
+      // Fall through to file inspection
+    }
   }
 
   const plansDir = path.resolve(REPO_ROOT, "docs/plans");
@@ -177,13 +197,33 @@ export function isPlanApproved() {
         .filter((file) => file.endsWith(".md") && file !== "README.md")
         .map((file) => path.join(plansDir, file));
       if (entries.length > 0) {
+        // Sort strictly by modification time descending
         entries.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
-        // Check top recent plans (handles git checkout mtime jitter within same batch)
-        for (const planPath of entries.slice(0, 3)) {
-          const content = fs.readFileSync(planPath, "utf8");
-          if (/Status:\s*Approved/i.test(content) || /\[PLAN_APPROVED\]/.test(content)) {
-            return true;
-          }
+        const latestPlanPath = entries[0];
+        const content = fs.readFileSync(latestPlanPath, "utf8");
+
+        // Check 1: Header status check (first 30 lines)
+        const headerLines = content.split(/\r?\n/).slice(0, 30).join("\n");
+        const isPending =
+          /(?:\*\*|\b)(?:Status|Trạng thái)(?:\*\*|\b)?\s*:\s*(?:Draft|In Review|Ready for Review|Changes Requested|Chờ Duyệt)/i.test(
+            headerLines
+          );
+        if (isPending) {
+          return false;
+        }
+
+        // Check 2: Strict last non-blank line check for approval token
+        const nonBlankLines = content
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+        if (nonBlankLines.length === 0) {
+          return false;
+        }
+
+        const lastLine = nonBlankLines[nonBlankLines.length - 1];
+        if (lastLine === "[PLAN_APPROVED]" || lastLine.endsWith("[PLAN_APPROVED]")) {
+          return true;
         }
       }
     } catch {

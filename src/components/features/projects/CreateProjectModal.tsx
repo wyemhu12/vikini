@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   X,
   Loader2,
@@ -25,7 +25,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
-import type { EmbeddingModel } from "@/types/projects";
 
 interface CreateProjectModalProps {
   isOpen: boolean;
@@ -53,7 +52,7 @@ const COLORS = [
   "#6366f1", // indigo-500
   "#8b5cf6", // violet-500
   "#ec4899", // pink-500
-  "#ef4444", // red-500
+  "#f43f5e", // rose-500
   "#f97316", // orange-500
   "#eab308", // yellow-500
   "#22c55e", // green-500
@@ -68,47 +67,15 @@ const COLORS = [
  * Modal to create a new project - uses Radix Dialog for focus trap + ESC
  */
 export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
-  const { createProject, limits, isLoading: _isLoading } = useProjectStore();
+  const { createProject, isLoading: _isLoading } = useProjectStore();
   const { t } = useLanguage();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState("folder");
   const [color, setColor] = useState("#6366f1");
-  const [embeddingModel, setEmbeddingModel] = useState<EmbeddingModel>("text-embedding-004");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const availableModels = limits?.availableModels ?? ["text-embedding-004"];
-
-  // Embedding model metadata for display
-  const EMBEDDING_MODEL_INFO: Record<
-    EmbeddingModel,
-    { label: string; dims: number; desc: string; descLocked: string }
-  > = {
-    "text-embedding-004": {
-      label: "text-embedding-004",
-      dims: 768,
-      desc: t("freeModelDesc"),
-      descLocked: t("freeModelDesc"),
-    },
-    "gemini-embedding-2": {
-      label: "gemini-embedding-2",
-      dims: 3072,
-      desc: t("bestModelDesc"),
-      descLocked: t("notAvailableTier"),
-    },
-  };
-
-  // Auto-select best available model when tier limits load
-  useEffect(() => {
-    if (availableModels.includes("gemini-embedding-2")) {
-      setEmbeddingModel("gemini-embedding-2");
-    }
-  }, [availableModels]);
-
-  // All models in display order
-  const allModels: EmbeddingModel[] = ["text-embedding-004", "gemini-embedding-2"];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +93,6 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
         description: description.trim() || undefined,
         icon,
         color,
-        embedding_model: embeddingModel,
       });
       onSuccess?.();
       onClose();
@@ -148,75 +114,82 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md p-0 gap-0 [&>button]:hidden">
         <DialogTitle className="sr-only">{t("createNewProject")}</DialogTitle>
-
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-(--border)">
-          <h2 className="text-lg font-semibold">{t("createNewProject")}</h2>
+        <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white"
+              style={{ backgroundColor: color }}
+            >
+              {(() => {
+                const IconComponent = ICON_OPTIONS.find((i) => i.id === icon)?.icon || Folder;
+                return <IconComponent className="w-4 h-4" />;
+              })()}
+            </div>
+            <h2 className="text-lg font-semibold">{t("createNewProject")}</h2>
+          </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-(--control-bg-hover) rounded-lg transition-colors"
+            className="p-1 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg)] cursor-pointer"
           >
-            <X className="h-5 w-5 text-(--text-secondary)" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Project Name */}
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* Name */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">
-              {t("projectName")} <span className="text-(--danger)">*</span>
-            </label>
+            <label className="block text-sm font-medium mb-1.5">{t("projectName")}</label>
             <Input
-              type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t("projectNamePlaceholder")}
-              maxLength={50}
+              maxLength={100}
               autoFocus
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">{t("descriptionOptional")}</label>
+            <label className="block text-sm font-medium mb-1.5">{t("projectDescription")}</label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder={t("descriptionPlaceholder")}
+              placeholder={t("projectDescriptionPlaceholder")}
               rows={2}
-              maxLength={200}
-              className="resize-none"
+              maxLength={500}
             />
           </div>
 
-          {/* Icon & Color */}
+          {/* Icon & Color Selection */}
           <div className="grid grid-cols-2 gap-4">
-            {/* Icon Picker */}
+            {/* Icon */}
             <div>
               <label className="block text-sm font-medium mb-1.5">{t("iconLabel")}</label>
-              <div className="flex flex-wrap gap-1">
-                {ICON_OPTIONS.map(({ id, icon: IconComponent }) => (
+              <div className="grid grid-cols-4 gap-1.5 p-2 bg-[var(--control-bg)] rounded-lg border border-[var(--border)] max-h-32 overflow-y-auto">
+                {ICON_OPTIONS.map(({ id, icon: IconComp }) => (
                   <button
                     key={id}
                     type="button"
                     onClick={() => setIcon(id)}
                     className={cn(
-                      "w-8 h-8 flex items-center justify-center rounded",
-                      "hover:bg-(--control-bg-hover) transition-colors",
-                      icon === id && "ring-2 ring-(--accent) bg-(--control-bg)"
+                      "p-1.5 rounded flex items-center justify-center transition-colors cursor-pointer",
+                      icon === id
+                        ? "bg-[var(--accent)] text-white"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface)] hover:text-[var(--text-primary)]"
                     )}
                   >
-                    <IconComponent className="h-4 w-4" />
+                    <IconComp className="w-4 h-4" />
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Color Picker */}
+            {/* Color */}
             <div>
               <label className="block text-sm font-medium mb-1.5">{t("colorLabel")}</label>
-              <div className="flex flex-wrap gap-1">
+              <div className="grid grid-cols-4 gap-1.5 p-2 bg-[var(--control-bg)] rounded-lg border border-[var(--border)] max-h-32 overflow-y-auto">
                 {COLORS.map((c) => (
                   <button
                     key={c}
@@ -237,61 +210,19 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
             </div>
           </div>
 
-          {/* Embedding Model */}
-          <div>
-            <label className="block text-sm font-medium mb-1.5">{t("embeddingModelLabel")}</label>
-            <div className="space-y-2">
-              {allModels.map((modelId) => {
-                const info = EMBEDDING_MODEL_INFO[modelId];
-                const isAvailable = availableModels.includes(modelId);
-                return (
-                  <label
-                    key={modelId}
-                    className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg border cursor-pointer",
-                      "transition-colors",
-                      !isAvailable && "opacity-50 cursor-not-allowed",
-                      embeddingModel === modelId
-                        ? "border-(--accent) bg-(--accent)/5"
-                        : "border-(--border) hover:bg-(--control-bg)"
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="embedding"
-                      value={modelId}
-                      checked={embeddingModel === modelId}
-                      onChange={() => isAvailable && setEmbeddingModel(modelId)}
-                      disabled={!isAvailable}
-                      className="accent-[var(--accent)]"
-                    />
-                    <div>
-                      <div className="text-sm font-medium">{info.label}</div>
-                      <div className="text-xs text-(--text-secondary)">
-                        {isAvailable ? info.desc : info.descLocked}
-                      </div>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Error */}
           {error && (
-            <div className="p-3 rounded-lg bg-(--danger)/10 border border-(--danger)/20 text-sm text-(--danger)">
-              {error}
-            </div>
+            <div className="text-sm text-red-500 bg-red-500/10 p-2.5 rounded-lg">{error}</div>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              {t("cancelLabel")}
+          {/* Footer */}
+          <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border)]">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+              {t("cancel")}
             </Button>
-            <Button type="submit" disabled={isSubmitting || !name.trim()} className="flex-1">
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {t("createProjectBtn")}
+            <Button type="submit" disabled={isSubmitting || !name.trim()}>
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
+              {t("createProject")}
             </Button>
           </div>
         </form>

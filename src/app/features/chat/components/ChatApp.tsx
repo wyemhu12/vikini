@@ -3,7 +3,7 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 
 // UI Components
-import ChatBubble from "./ChatBubble";
+import ChatMessagesArea from "./ChatMessagesArea";
 import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
 import AccessPendingScreen from "@/app/components/AccessPendingScreen";
@@ -15,17 +15,14 @@ import StreamErrorBanner from "./StreamErrorBanner";
 import ProjectChatView from "../../projects/components/ProjectChatView";
 import ChatDeepResearch from "./ChatDeepResearch";
 import ChatModalsSection from "./ChatModalsSection";
-import { GitFork, Sparkles } from "lucide-react";
+import ScrollToBottomButton from "./ScrollToBottomButton";
+import CommandPalette from "./CommandPalette";
+import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
 
 import React, { useEffect, useMemo, useCallback, useState, lazy, Suspense } from "react";
 
 import { useTheme } from "../hooks/useTheme";
-import { LANGS, type SupportedLanguage } from "../hooks/useLanguage";
-import {
-  useConversation,
-  type FrontendConversation,
-  type FrontendMessage,
-} from "../hooks/useConversation";
+import { useConversation, type FrontendConversation } from "../hooks/useConversation";
 import { useGemStore } from "../../gems/stores/useGemStore";
 import { usePersonaStore } from "../../personas/stores/usePersonaStore";
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
@@ -99,21 +96,11 @@ export default function ChatApp() {
   }, [session?.user?.rank]);
 
   const { theme } = useTheme();
-  const { language, setLanguage, t: tRaw } = useLanguage();
+  const { t: tRaw } = useLanguage();
   const t = useChatTranslations();
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-
-  // Initialize Language ONCE from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("vikini-language");
-      if (stored && (LANGS as readonly string[]).includes(stored) && stored !== language) {
-        setLanguage(stored as SupportedLanguage);
-      }
-    }
-  }, [language, setLanguage]);
 
   // Mobile Sidebar State
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -232,8 +219,10 @@ export default function ChatApp() {
     closeThinkingPanel,
   } = useDeepResearchMode();
 
-  // Edit plan modal state
+  // Modal states
   const [isEditPlanOpen, setIsEditPlanOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
 
   // Feature permission
   const deepResearchAllowed = features?.deep_research === true;
@@ -445,11 +434,20 @@ export default function ChatApp() {
   }, [setInput]);
 
   // Smart Auto-Scroll (extracted hook)
-  const { scrollRef, handleScroll, handleTouchStart, handleTouchEnd } = useChatScroll({
+  const {
+    scrollRef,
+    handleScroll,
+    handleTouchStart,
+    handleTouchEnd,
+    isAtBottom,
+    unreadCount,
+    scrollToBottom,
+  } = useChatScroll({
     isStreaming,
     streamingAssistant,
     renderedMessagesLength: renderedMessages.length,
     lastGeneratedImage,
+    conversationId: selectedConversationId,
   });
 
   // Model Change Handler
@@ -582,6 +580,41 @@ export default function ChatApp() {
     [openDeleteModal]
   );
 
+  // Global Keyboard Shortcuts (Cmd+K / Ctrl+K and ?)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K: Toggle Command Palette
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      // Check if user is actively typing in an input or textarea
+      const target = e.target as HTMLElement | null;
+      const isInput =
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+
+      // Cmd/Ctrl + Shift + O: New Chat
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        void handleNewChat();
+        return;
+      }
+
+      // ?: Open keyboard shortcuts help modal (when not typing)
+      if (e.key === "?" && !isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setIsShortcutsModalOpen(true);
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleNewChat]);
+
   // ============================================
   // Render: Loading State
   // ============================================
@@ -593,7 +626,7 @@ export default function ChatApp() {
           <div className="h-16 w-16 rounded-2xl border border-(--control-border) bg-control backdrop-blur-xl flex items-center justify-center text-3xl font-black shadow-2xl">
             V
           </div>
-          <div className="text-[10px] tracking-[0.4em] text-(--text-secondary) uppercase font-bold">
+          <div className="text-xs tracking-[0.4em] text-(--text-secondary) uppercase font-bold">
             {t.loading}
           </div>
         </div>
@@ -783,88 +816,33 @@ export default function ChatApp() {
               <span className="text-sm text-(--text-secondary)">{t.loading || "Loading..."}</span>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto w-full py-8 space-y-2">
-              {/* Origin Breadcrumb if conversation is a branch */}
-              {currentConversation?.parentConversationId && (
-                <div className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-(--surface-elevated)/60 border border-(--border) text-xs text-(--text-secondary) w-fit backdrop-blur-sm animate-in fade-in duration-200">
-                  <GitFork className="w-3.5 h-3.5 rotate-180 text-(--accent)" />
-                  <span>{tRaw("branchedFrom") || "Được tách từ"}:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (currentConversation.parentConversationId) {
-                        setSelectedConversationIdAndUrl(currentConversation.parentConversationId);
-                      }
-                    }}
-                    className="font-medium text-(--accent) hover:underline truncate max-w-[240px] text-left"
-                    title={
-                      parentConversation?.title ||
-                      tRaw("parentConversation") ||
-                      "Cuộc hội thoại gốc"
-                    }
-                  >
-                    {parentConversation?.title ||
-                      tRaw("parentConversation") ||
-                      "Cuộc hội thoại gốc"}
-                  </button>
-                </div>
-              )}
-
-              {/* Notice for preserved context readable by AI but hidden from user */}
-              {contextMessagesCount > 0 && (
-                <div className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-(--surface-elevated)/40 border border-(--border)/60 text-xs text-(--text-secondary) w-fit backdrop-blur-sm animate-in fade-in duration-200">
-                  <Sparkles className="w-3.5 h-3.5 text-(--accent)" />
-                  <span>
-                    {tRaw("priorContextForAi") ||
-                      "Các tin nhắn trước đó được lưu làm ngữ cảnh cho AI (ẩn trên màn hình)"}
-                  </span>
-                </div>
-              )}
-
-              {(() => {
-                const lastAssistantIndex = renderedMessages
-                  .map((m: FrontendMessage) => m.role)
-                  .lastIndexOf("assistant");
-
-                return renderedMessages.map((m: FrontendMessage, idx: number) => {
-                  const isLastAI = m.role === "assistant" && idx === lastAssistantIndex;
-                  return (
-                    <ChatBubble
-                      key={m.id ?? idx}
-                      message={m}
-                      isLastAssistant={isLastAI}
-                      canRegenerate={m.role === "assistant"}
-                      onRegenerate={() => handleRegenerate(m)}
-                      onContinue={() => handleContinue(m)}
-                      onRetrySave={() => retrySave(m)}
-                      onEdit={handleEdit}
-                      onDelete={modals.openDeleteMessageModal}
-                      onImageRegenerate={handleImageRegenerate}
-                      onImageEdit={handleImageEdit}
-                      regenerating={regenerating && isLastAI}
-                      isStreaming={isStreaming && isLastAI}
-                      onSpeak={m.id ? () => tts.speakMessage(m.id!, m.content || "") : undefined}
-                      isSpeaking={m.id ? tts.isMessageSpeaking(m.id) : false}
-                      conversationId={selectedConversationId ?? undefined}
-                      onBranch={handleBranchMessage}
-                      isBranching={branchingMessageId === m.id}
-                    />
-                  );
-                });
-              })()}
-
-              {isStreaming && streamingAssistant !== null && (
-                <ChatBubble
-                  message={{
-                    role: "assistant",
-                    content: streamingAssistant || "",
-                    sources: streamingSources,
-                    urlContext: streamingUrlContext,
-                  }}
-                  isLastAssistant={true}
-                />
-              )}
-
+            <ChatMessagesArea
+              renderedMessages={renderedMessages}
+              currentConversation={currentConversation}
+              parentConversation={parentConversation}
+              contextMessagesCount={contextMessagesCount}
+              selectedConversationId={selectedConversationId}
+              regenerating={regenerating}
+              isStreaming={isStreaming}
+              streamingAssistant={streamingAssistant}
+              streamingSources={streamingSources}
+              streamingUrlContext={streamingUrlContext}
+              branchingMessageId={branchingMessageId}
+              handleRegenerate={handleRegenerate}
+              handleContinue={handleContinue}
+              retrySave={retrySave}
+              handleEdit={handleEdit}
+              openDeleteMessageModal={modals.openDeleteMessageModal}
+              handleImageRegenerate={handleImageRegenerate}
+              handleImageEdit={handleImageEdit}
+              handleBranchMessage={handleBranchMessage}
+              setSelectedConversationIdAndUrl={setSelectedConversationIdAndUrl}
+              tts={tts}
+              tRaw={tRaw}
+              scrollContainerRef={scrollRef}
+              lastGeneratedImage={lastGeneratedImage}
+              studioGeneratingStatus={t.studioGeneratingStatus}
+            >
               {/* Deep Research integration (extracted component) */}
               {isDeepResearchMode && (currentTask || pendingQuery) && (
                 <ChatDeepResearch
@@ -879,29 +857,20 @@ export default function ChatApp() {
                   t={t}
                 />
               )}
-
-              {lastGeneratedImage && (
-                <div className="flex w-full flex-col gap-3 py-6">
-                  <div className="flex max-w-[95%] lg:max-w-[90%] gap-4 items-start">
-                    <ChatBubble
-                      message={{
-                        id: "temp-image",
-                        role: "assistant",
-                        content: lastGeneratedImage.url ? "" : t.studioGeneratingStatus,
-                        meta: {
-                          type: "image_gen",
-                          imageUrl: lastGeneratedImage.url,
-                          prompt: lastGeneratedImage.prompt,
-                        },
-                      }}
-                      isLastAssistant={true}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
+            </ChatMessagesArea>
           )}
         </div>
+
+        {/* Scroll to bottom button */}
+        {!showProjectView && !showLanding && (
+          <div className="absolute right-6 bottom-32 z-20 pointer-events-auto">
+            <ScrollToBottomButton
+              isAtBottom={isAtBottom}
+              unreadCount={unreadCount}
+              onClick={() => scrollToBottom(true)}
+            />
+          </div>
+        )}
 
         {/* ChatControls at bottom - only when NOT landing and NOT project view */}
         {!showProjectView && !showLanding && (
@@ -949,7 +918,7 @@ export default function ChatApp() {
         <div
           className={`fixed bottom-2 inset-x-0 text-center z-30 pointer-events-none transition-[padding] duration-300 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
         >
-          <p className="text-[9px] font-bold text-(--text-secondary) tracking-widest uppercase">
+          <p className="text-xs font-bold text-(--text-secondary) tracking-widest uppercase">
             {t.aiDisclaimer}
           </p>
         </div>
@@ -985,7 +954,7 @@ export default function ChatApp() {
                   exitDeepResearch();
                   // Navigate to the conversation
                   if (currentTask.conversationId) {
-                    window.location.hash = `#conv=${currentTask.conversationId}`;
+                    setSelectedConversationIdAndUrl(currentTask.conversationId);
                   }
                 }
               : undefined
@@ -1047,6 +1016,22 @@ export default function ChatApp() {
           setSelectedProjectId(null);
         }}
         t={t}
+      />
+
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onNewChat={() => void handleNewChat()}
+        onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
+        onSelectConversation={(id) => void handleSelectConversation(id)}
+        conversations={conversations || []}
+      />
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={isShortcutsModalOpen}
+        onClose={() => setIsShortcutsModalOpen(false)}
       />
     </div>
   );

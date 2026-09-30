@@ -1,7 +1,7 @@
 # Progress Ledger: Chat Core UX/UI Augmentation
 
 Branch: feat/chat-core-ux-ui-augmentation
-Plan: docs/superpowers/plans/2026-09-04-chat-core-ux-ui-augmentation.md
+Plan: docs/archive/plans/2026-09-04-chat-core-ux-ui-augmentation.md
 Base Commit: 48511f0277b4d5ee2d826a558e8e9c99e9a5d266
 
 - [x] Task 1: SmartCode Developer-Grade Upgrade & Tests (complete: 4bf6773, review clean)

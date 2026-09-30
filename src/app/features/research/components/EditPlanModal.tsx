@@ -118,7 +118,7 @@ export default function EditPlanModal({ isOpen, onClose, onSubmit }: EditPlanMod
               <div className="flex items-center justify-end gap-2 p-4 border-t border-(--border) bg-(--surface)/30">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 text-xs font-medium rounded-full border border-(--control-border) text-(--text-secondary) hover:bg-(--surface-hover) hover:text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
+                  className="px-4 py-2 text-xs font-medium rounded-full border border-(--control-border) text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
                 >
                   {t("deepResearchClose")}
                 </button>

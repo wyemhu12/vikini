@@ -54,7 +54,7 @@ export default function ResearchPlanCard({
     >
       {/* Top Header Section */}
       <div
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-(--surface-hover) transition-colors"
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-(--control-bg-hover) transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex flex-col gap-1.5">
@@ -94,7 +94,7 @@ export default function ResearchPlanCard({
               [&_ol>li::before]:absolute [&_ol>li::before]:-left-[27px] [&_ol>li::before]:top-0 [&_ol>li::before]:flex [&_ol>li::before]:items-center [&_ol>li::before]:justify-center [&_ol>li::before]:w-6 [&_ol>li::before]:h-6 [&_ol>li::before]:rounded-full [&_ol>li::before]:bg-(--surface) [&_ol>li::before]:border-2 [&_ol>li::before]:border-(--border) [&_ol>li::before]:text-[11px] [&_ol>li::before]:font-bold [&_ol>li::before]:text-(--text-primary)
               [&_ul]:list-none [&_ul]:pl-1 [&_ul]:mt-2 [&_ul]:space-y-2
               [&_ul>li]:relative [&_ul>li]:pl-4
-              [&_ul>li::before]:content-[''] [&_ul>li::before]:absolute [&_ul>li::before]:left-0 [&_ul>li::before]:top-2 [&_ul>li::before]:w-1.5 [&_ul>li::before]:h-1.5 [&_ul>li::before]:rounded-full [&_ul>li::before]:bg-(--text-tertiary)
+              [&_ul>li::before]:content-[''] [&_ul>li::before]:absolute [&_ul>li::before]:left-0 [&_ul>li::before]:top-2 [&_ul>li::before]:w-1.5 [&_ul>li::before]:h-1.5 [&_ul>li::before]:rounded-full [&_ul>li::before]:bg-(--text-secondary)
               [&_h1]:text-base [&_h1]:font-semibold [&_h1]:text-(--text-primary) [&_h1]:mb-4
               [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:text-(--text-primary) [&_h2]:mt-4 [&_h2]:mb-2
               [&_h3]:text-sm [&_h3]:font-medium [&_h3]:text-(--text-primary) [&_h3]:mt-3 [&_h3]:mb-1
@@ -128,7 +128,7 @@ export default function ResearchPlanCard({
             <button
               onClick={onEdit}
               disabled={isLoading}
-              className="px-4 py-1.5 text-xs font-medium rounded-full border border-(--control-border) bg-transparent text-(--text-secondary) hover:bg-(--surface-hover) hover:text-(--text-primary) transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring)"
+              className="px-4 py-1.5 text-xs font-medium rounded-full border border-(--control-border) bg-transparent text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring)"
             >
               {t("deepResearchEditPlan") || "Chỉnh sửa kế hoạch"}
             </button>

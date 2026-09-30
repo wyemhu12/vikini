@@ -109,6 +109,7 @@ export default [
       ".agents/**",
       "*.config.{js,mjs,ts}",
       "inspect_ai.ts",
+      "src/types/database.types.ts",
     ]
   }
 ];

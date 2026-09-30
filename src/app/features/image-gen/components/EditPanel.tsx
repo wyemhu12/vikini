@@ -261,7 +261,7 @@ export default function EditPanel({
         </div>
         <button
           onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-(--surface-hover) text-(--text-secondary) hover:text-(--text-primary) transition-colors"
+          className="p-1.5 rounded-lg hover:bg-(--control-bg-hover) text-(--text-secondary) hover:text-(--text-primary) transition-colors"
           aria-label="Close edit panel"
         >
           <X className="w-4 h-4" />
@@ -400,7 +400,7 @@ export default function EditPanel({
       )}
 
       {/* Input bar */}
-      <div className="px-4 py-3 border-t border-(--border) shrink-0 bg-(--surface-base)/50">
+      <div className="px-4 py-3 border-t border-(--border) shrink-0 bg-(--surface)/50">
         <div className="flex items-end gap-2">
           <div className="flex-1 relative">
             <textarea

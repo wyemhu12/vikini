@@ -3,11 +3,12 @@
 import "@/lib/env";
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database.types";
 
 /**
  * Global cache for Supabase admin client to implement Singleton pattern.
  */
-let cachedAdminClient: SupabaseClient | null = null;
+let cachedAdminClient: SupabaseClient<Database> | null = null;
 
 /**
  * Picks the first available environment variable from a list of possible keys.
@@ -20,10 +21,7 @@ function pickFirstEnv(keys: string[]): string {
   return "";
 }
 
-/**
- * Returns a singleton instance of Supabase admin client with service role permissions.
- */
-export function getSupabaseAdmin(): SupabaseClient {
+function initAdminClient(): SupabaseClient<Database> {
   if (cachedAdminClient) return cachedAdminClient;
 
   const url = pickFirstEnv(["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"]);
@@ -37,9 +35,24 @@ export function getSupabaseAdmin(): SupabaseClient {
   if (!url) throw new Error("Missing Supabase URL");
   if (!serviceKey) throw new Error("Missing Supabase service role key");
 
-  cachedAdminClient = createClient(url, serviceKey, {
+  cachedAdminClient = createClient<Database>(url, serviceKey, {
     auth: { persistSession: false },
   });
 
   return cachedAdminClient;
+}
+
+/**
+ * Returns a singleton instance of Supabase admin client with service role permissions.
+ * Untyped SupabaseClient for backward compatibility.
+ */
+export function getSupabaseAdmin(): SupabaseClient {
+  return initAdminClient();
+}
+
+/**
+ * Returns a singleton instance of Supabase admin client with full Database type safety.
+ */
+export function getTypedSupabaseAdmin(): SupabaseClient<Database> {
+  return initAdminClient();
 }

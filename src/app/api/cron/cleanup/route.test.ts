@@ -7,19 +7,28 @@ vi.mock("@/lib/features/files/fileService.server", () => ({
   cleanupExpiredFiles: vi.fn(),
 }));
 
+vi.mock("@/lib/features/projects/knowledge.server", () => ({
+  cleanupStuckProcessingDocuments: vi.fn().mockResolvedValue(0),
+}));
+
+const { mockRouteLogger } = vi.hoisted(() => ({
+  mockRouteLogger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
 vi.mock("@/lib/utils/logger", () => ({
   logger: {
-    withContext: () => ({
-      error: vi.fn(),
-      warn: vi.fn(),
-      info: vi.fn(),
-    }),
+    withContext: () => mockRouteLogger,
   },
 }));
 
 // ── Import route handlers AFTER mocks ─────────────────────────────────
 import { GET, POST } from "./route";
 import { cleanupExpiredFiles } from "@/lib/features/files/fileService.server";
+import { cleanupStuckProcessingDocuments } from "@/lib/features/projects/knowledge.server";
 
 // ── Helpers ───────────────────────────────────────────────────────────
 const CRON_SECRET = "test-cron-secret-123";
@@ -39,8 +48,8 @@ function createRequest(method: string, url: string, headers?: Record<string, str
 describe("/api/cron/cleanup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Set the cron secret env var
     process.env.CRON_SECRET = CRON_SECRET;
+    vi.mocked(cleanupStuckProcessingDocuments).mockResolvedValue(0);
   });
 
   // ────────────────────────────────────────────────────────────────────
@@ -61,8 +70,10 @@ describe("/api/cron/cleanup", () => {
         "x-cron-secret": "wrong-secret",
       });
       const res = await GET(req);
+      const json = await res.json();
 
       expect(res.status).toBe(401);
+      expect(json.error).toBe("Unauthorized");
     });
 
     it("should return 401 when no CRON_SECRET env var is set", async () => {
@@ -70,11 +81,13 @@ describe("/api/cron/cleanup", () => {
       delete process.env.ATTACHMENTS_CRON_SECRET;
 
       const req = createRequest("GET", "/api/cron/cleanup", {
-        "x-cron-secret": "any-secret",
+        "x-cron-secret": CRON_SECRET,
       });
       const res = await GET(req);
+      const json = await res.json();
 
       expect(res.status).toBe(401);
+      expect(json.error).toBe("Unauthorized");
     });
 
     it("should accept x-cron-secret header", async () => {
@@ -89,11 +102,12 @@ describe("/api/cron/cleanup", () => {
       const res = await GET(req);
 
       expect(res.status).toBe(200);
+      expect(cleanupExpiredFiles).toHaveBeenCalledTimes(1);
     });
 
     it("should accept authorization header with raw secret", async () => {
       vi.mocked(cleanupExpiredFiles).mockResolvedValue({
-        deleted: 0,
+        deleted: 3,
         errors: 0,
       });
 
@@ -103,11 +117,12 @@ describe("/api/cron/cleanup", () => {
       const res = await GET(req);
 
       expect(res.status).toBe(200);
+      expect(cleanupExpiredFiles).toHaveBeenCalledTimes(1);
     });
 
     it("should accept authorization header with Bearer prefix", async () => {
       vi.mocked(cleanupExpiredFiles).mockResolvedValue({
-        deleted: 0,
+        deleted: 3,
         errors: 0,
       });
 
@@ -117,6 +132,7 @@ describe("/api/cron/cleanup", () => {
       const res = await GET(req);
 
       expect(res.status).toBe(200);
+      expect(cleanupExpiredFiles).toHaveBeenCalledTimes(1);
     });
 
     it("should accept ATTACHMENTS_CRON_SECRET as fallback", async () => {
@@ -124,7 +140,7 @@ describe("/api/cron/cleanup", () => {
       process.env.ATTACHMENTS_CRON_SECRET = "fallback-secret";
 
       vi.mocked(cleanupExpiredFiles).mockResolvedValue({
-        deleted: 0,
+        deleted: 1,
         errors: 0,
       });
 
@@ -134,16 +150,18 @@ describe("/api/cron/cleanup", () => {
       const res = await GET(req);
 
       expect(res.status).toBe(200);
+      expect(cleanupExpiredFiles).toHaveBeenCalledTimes(1);
     });
 
     // ──────────────────────────────────────────────────────────────────
-    // Happy Path
+    // Cleanup Execution with Promise.allSettled
     // ──────────────────────────────────────────────────────────────────
-    it("should return cleanup result on success", async () => {
+    it("should return cleanup result on success and clean stuck documents", async () => {
       vi.mocked(cleanupExpiredFiles).mockResolvedValue({
         deleted: 10,
         errors: 2,
       });
+      vi.mocked(cleanupStuckProcessingDocuments).mockResolvedValue(3);
 
       const req = createRequest("GET", "/api/cron/cleanup", {
         "x-cron-secret": CRON_SECRET,
@@ -154,7 +172,9 @@ describe("/api/cron/cleanup", () => {
       expect(res.status).toBe(200);
       expect(json.deleted).toBe(10);
       expect(json.errors).toBe(2);
+      expect(json.stuckDocsCleaned).toBe(3);
       expect(cleanupExpiredFiles).toHaveBeenCalledTimes(1);
+      expect(cleanupStuckProcessingDocuments).toHaveBeenCalledTimes(1);
     });
 
     it("should return cleanup result when nothing to clean", async () => {
@@ -162,6 +182,7 @@ describe("/api/cron/cleanup", () => {
         deleted: 0,
         errors: 0,
       });
+      vi.mocked(cleanupStuckProcessingDocuments).mockResolvedValue(0);
 
       const req = createRequest("GET", "/api/cron/cleanup", {
         "x-cron-secret": CRON_SECRET,
@@ -172,13 +193,15 @@ describe("/api/cron/cleanup", () => {
       expect(res.status).toBe(200);
       expect(json.deleted).toBe(0);
       expect(json.errors).toBe(0);
+      expect(json.stuckDocsCleaned).toBe(0);
     });
 
     // ──────────────────────────────────────────────────────────────────
-    // Error Handling
+    // Resilience & Error Handling with Promise.allSettled
     // ──────────────────────────────────────────────────────────────────
-    it("should return 500 when cleanupExpiredFiles throws an Error", async () => {
+    it("should handle cleanupExpiredFiles rejection gracefully with errors: 1 and log error", async () => {
       vi.mocked(cleanupExpiredFiles).mockRejectedValue(new Error("Storage unreachable"));
+      vi.mocked(cleanupStuckProcessingDocuments).mockResolvedValue(2);
 
       const req = createRequest("GET", "/api/cron/cleanup", {
         "x-cron-secret": CRON_SECRET,
@@ -186,12 +209,19 @@ describe("/api/cron/cleanup", () => {
       const res = await GET(req);
       const json = await res.json();
 
-      expect(res.status).toBe(500);
-      expect(json.error).toBe("Storage unreachable");
+      expect(res.status).toBe(200);
+      expect(json.deleted).toBe(0);
+      expect(json.errors).toBe(1);
+      expect(json.stuckDocsCleaned).toBe(2);
+      expect(mockRouteLogger.error).toHaveBeenCalledWith(
+        "cleanupExpiredFiles failed",
+        expect.any(Error)
+      );
     });
 
-    it("should return 500 with 'Unknown error' for non-Error throws", async () => {
-      vi.mocked(cleanupExpiredFiles).mockRejectedValue("string error");
+    it("should handle cleanupStuckProcessingDocuments rejection gracefully and log error", async () => {
+      vi.mocked(cleanupExpiredFiles).mockResolvedValue({ deleted: 4, errors: 0 });
+      vi.mocked(cleanupStuckProcessingDocuments).mockRejectedValue(new Error("DB timeout"));
 
       const req = createRequest("GET", "/api/cron/cleanup", {
         "x-cron-secret": CRON_SECRET,
@@ -199,8 +229,14 @@ describe("/api/cron/cleanup", () => {
       const res = await GET(req);
       const json = await res.json();
 
-      expect(res.status).toBe(500);
-      expect(json.error).toBe("Unknown error");
+      expect(res.status).toBe(200);
+      expect(json.deleted).toBe(4);
+      expect(json.errors).toBe(0);
+      expect(json.stuckDocsCleaned).toBe(0);
+      expect(mockRouteLogger.error).toHaveBeenCalledWith(
+        "cleanupStuckProcessingDocuments failed",
+        expect.any(Error)
+      );
     });
   });
 
@@ -221,7 +257,7 @@ describe("/api/cron/cleanup", () => {
 
     it("should work with POST method and valid secret", async () => {
       vi.mocked(cleanupExpiredFiles).mockResolvedValue({
-        deleted: 3,
+        deleted: 1,
         errors: 0,
       });
 
@@ -232,7 +268,7 @@ describe("/api/cron/cleanup", () => {
       const json = await res.json();
 
       expect(res.status).toBe(200);
-      expect(json.deleted).toBe(3);
+      expect(json.deleted).toBe(1);
     });
   });
 });

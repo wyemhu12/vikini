@@ -3,6 +3,9 @@
 > **Updated**: 2026-05-03  
 > **Nguồn**: [Google AI - Gemini Models](https://ai.google.dev/gemini-api/docs/models), [DeepSeek API](https://api-docs.deepseek.com/), [OpenRouter](https://openrouter.ai)
 
+> [!NOTE]
+> Để tham khảo hướng dẫn phân bổ model cho AI Coding Agents, xem [Agent Task-to-Model Routing Guide](../.agents/README.md#agent-task-to-model-routing).
+
 ---
 
 ## Gemini 3.1 Series

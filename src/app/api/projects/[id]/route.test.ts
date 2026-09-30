@@ -198,6 +198,22 @@ describe("/api/projects/[id]", () => {
       expect(json.success).toBe(false);
     });
 
+    it("should return 400 when embedding_model is provided in PATCH body (TC-EMB-02)", async () => {
+      mockAuthenticated();
+
+      const req = createRequest("PATCH", `/api/projects/${TEST_PROJECT_ID}`, {
+        name: "Project B",
+        embedding_model: "gemini-embedding-2",
+      });
+      const res = await PATCH(req, createParams(TEST_PROJECT_ID));
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error.message).toContain("embedding_model is immutable and cannot be updated");
+      expect(updateProject).not.toHaveBeenCalled();
+    });
+
     it("should return 500 when updateProject throws", async () => {
       mockAuthenticated();
       vi.mocked(updateProject).mockRejectedValue(new Error("Unexpected"));

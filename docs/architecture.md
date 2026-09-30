@@ -61,7 +61,7 @@ Separation of concerns between UI and business logic.
 
 ### Design System (Tokens & Primitives)
 
-> Single source of truth for the visual language. See `rules/03-ui.md` for the enforced standards.
+> Single source of truth for the visual language. See `.agents/rules/03-ui.md` for the enforced standards.
 
 - **Token vocabulary** (defined in `app/styles/themes/_shared/base.css`, overridden per theme in
   `app/styles/themes/`): surfaces (`--surface`, `--surface-muted`, `--surface-elevated`), text
@@ -98,7 +98,7 @@ Tests are colocated with source files using the `.test.ts` / `.test.tsx` suffix.
 
 ### Chat System
 
-> **File size policy**: See `rules/01-coding.md § File Size & Modularity Guidelines` for AI-agent-optimized targets.
+> **File size policy**: See `.agents/rules/01-coding.md § File Size & Modularity Guidelines` for AI-agent-optimized targets.
 
 - **Real-time Streaming**: Custom implementation for streaming AI responses.
 - **Component Architecture**:
@@ -268,7 +268,7 @@ User (PM) ──[Task]──▶ Orchestrator (Dispatcher)
    - **Gate 1 - Plan Persistence**: Kế hoạch được ghi vào `docs/plans/`.
    - **Gate 2 - Reviewer Dispatch**: Kế hoạch đã qua thẩm định trực tuyến độc lập bởi `@reviewer`.
    - **Gate 3 - Reviewer Approval Token**: Nhận thẻ `[PLAN_APPROVED]` trực tiếp từ `@reviewer`.
-5. **Circuit Breaker**: Sau 3 vòng lặp revision không đạt phê duyệt, Orchestrator tự động ngắt chuỗi và trình báo cáo tổng hợp lỗi tồn đọng lên User (PM) quyết định.
+5. **Circuit Breaker**: Sau 10 vòng lặp revision không đạt phê duyệt, Orchestrator tự động ngắt chuỗi và trình báo cáo tổng hợp lỗi tồn đọng lên User (PM) quyết định.
 
 ### Bộ 3 Tài Liệu Vệ Tinh Của @reviewer:
 

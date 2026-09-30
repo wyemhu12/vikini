@@ -53,8 +53,8 @@ Chủ động rà soát mã nguồn qua `view_file`, `grep_search`:
 - **TypeScript Strictness**: CẤM triệt để kiểu `any` ở mọi nơi (catch blocks, variables, function params, type assertions). Bắt buộc dùng `unknown` kèm type narrowing.
 - **Co-Located Tests**: Bắt buộc mọi exported function / logic trong `src/lib/core/` và `src/lib/features/` phải có test `*.test.ts` đặt cùng thư mục.
 - **Error Handling & User Feedback**: CẤM silent catch block (chỉ log mà không báo cho user). Mọi hành động do người dùng kích hoạt (lưu, xóa, export, upload,...) khi thất bại BẮT BUỘC phải hiển thị `toast.error()`.
-- **Hệ Thống Song Ngữ (`rules/04-bilingual.md`)**: Toàn bộ chuỗi văn bản UI phải dùng hệ thống đa ngôn ngữ (`vi.ts` và `en.ts`), CẤM hardcode tiếng Việt/Anh thô trong JSX.
-- **Độ Dài & Tính Mô-đun (`rules/01-coding.md`)**: File UI và Business Logic mục tiêu 150–400 dòng, Hard Max 500 dòng. Cảnh báo các file phình to quá giới hạn.
+- **Hệ Thống Song Ngữ (`.agents/rules/04-bilingual.md`)**: Toàn bộ chuỗi văn bản UI phải dùng hệ thống đa ngôn ngữ (`vi.ts` và `en.ts`), CẤM hardcode tiếng Việt/Anh thô trong JSX.
+- **Độ Dài & Tính Mô-đun (`.agents/rules/01-coding.md`)**: File UI và Business Logic mục tiêu 150–400 dòng, Hard Max 500 dòng. Cảnh báo các file phình to quá giới hạn.
 - **Concurrency, State & SSE Streaming**:
   - Race conditions trong Zustand stores, SWR mutate không đồng bộ.
   - Lắng nghe `req.signal.addEventListener('abort', ...)` và hủy AbortController dọn dẹp kết nối SSE Chat Stream khi client ngắt kết nối.
@@ -77,7 +77,7 @@ Chạy lại `npm run test:run` xác nhận thay đổi không phá vỡ tính n
 
 1. `git diff --stat` — Nếu một task sửa bug chỉ thay đổi file test mà không sửa source code tương ứng ➔ cờ đỏ cảnh báo specification gaming.
 2. `git diff -- "*.test.ts" "*.test.tsx"` — Đếm số lượng `expect(` bị xóa (`-`) vs thêm (`+`); rà matcher bị nới lỏng (`toEqual` → `toBeDefined`), test bị skip (`.skip`, `.only`, `xit`, `fit`, `.skipIf`, `.fails`).
-3. Mỗi thay đổi test phải đối chiếu với Loại B (hạ tầng test hỏng) hoặc Loại C (đặc tả đổi theo Test Contract) theo Test Failure Triage Protocol (`rules/02-quality.md`).
+3. Mỗi thay đổi test phải đối chiếu với Loại B (hạ tầng test hỏng) hoặc Loại C (đặc tả đổi theo Test Contract) theo Test Failure Triage Protocol (`.agents/rules/02-quality.md`).
 
 - Severity: Làm yếu test không có căn cứ Loại C ➔ `[MAJOR]`; Thêm `.skip` hoặc xóa test không có căn cứ ➔ `[BLOCKER]`.
 

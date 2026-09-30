@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 
 import React, { useMemo } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useLanguage } from "../../chat/hooks/useLanguage";
@@ -18,18 +17,7 @@ import {
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 
-// Lazy load icons
-const ChevronDown = dynamic(() => import("lucide-react").then((mod) => mod.ChevronDown), {
-  ssr: false,
-});
-const Check = dynamic(() => import("lucide-react").then((mod) => mod.Check), { ssr: false });
-const Settings = dynamic(() => import("lucide-react").then((mod) => mod.Settings), {
-  ssr: false,
-});
-
-const Menu = dynamic(() => import("lucide-react").then((mod) => mod.Menu), {
-  ssr: false,
-});
+import { ChevronDown, Check, Settings, Menu } from "lucide-react";
 
 interface HeaderBarProps {
   onToggleSidebar?: () => void;
@@ -68,7 +56,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
   const triggerButtonStyles =
     "flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) hover:border-(--border) p-1 px-4 py-1.5 transition-[border-color,box-shadow] duration-200 shadow-lg group backdrop-blur-md text-(--text-primary) cursor-pointer outline-none focus:ring-2 focus:ring-(--accent) focus:ring-opacity-50";
   const triggerLabelStyles =
-    "text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors max-w-[100px] truncate";
+    "text-xs font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors max-w-[100px] truncate";
 
   return (
     <motion.header

@@ -1,7 +1,7 @@
 /**
  * Single Project API Routes
  * GET: Get project details
- * PATCH: Update project
+ * PATCH: Update project (strict 400 rejection for embedding_model)
  * DELETE: Delete project (cascade deletes KB)
  */
 import { NextRequest } from "next/server";
@@ -23,7 +23,6 @@ const updateProjectSchema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/)
     .optional(),
-  embedding_model: z.enum(["text-embedding-004", "gemini-embedding-2"]).optional(),
 });
 
 interface RouteParams {
@@ -67,10 +66,16 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     const userId = session.user.email.toLowerCase();
     const { id: projectId } = await params;
 
-    const body = await req.json();
+    const rawBody = await req.json();
+
+    // Strict Rejection 400: embedding_model is immutable and cannot be updated (TC-EMB-02)
+    if (rawBody && typeof rawBody === "object" && "embedding_model" in rawBody) {
+      throw new ValidationError("embedding_model is immutable and cannot be updated");
+    }
+
     let parsed;
     try {
-      parsed = updateProjectSchema.parse(body);
+      parsed = updateProjectSchema.parse(rawBody);
     } catch (e: unknown) {
       if (e instanceof z.ZodError) {
         const firstIssue = e.issues[0];

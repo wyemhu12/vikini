@@ -1,13 +1,14 @@
 // Chat scroll management hook
 // Extracted from ChatApp.tsx for modularity
 
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 
 interface UseChatScrollOptions {
   isStreaming: boolean;
   streamingAssistant: string | null;
   renderedMessagesLength: number;
-  lastGeneratedImage: unknown;
+  lastGeneratedImage?: unknown;
+  conversationId?: string | null;
 }
 
 export function useChatScroll({
@@ -15,12 +16,16 @@ export function useChatScroll({
   streamingAssistant,
   renderedMessagesLength,
   lastGeneratedImage,
+  conversationId,
 }: UseChatScrollOptions) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
   const lastScrollTopRef = useRef(0);
   const userScrollTimestampRef = useRef(0);
   const isTouchingRef = useRef(false);
+
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Touch handlers for mobile scroll detection
   const handleTouchStart = useCallback(() => {
@@ -29,6 +34,22 @@ export function useChatScroll({
 
   const handleTouchEnd = useCallback(() => {
     isTouchingRef.current = false;
+  }, []);
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    shouldAutoScrollRef.current = true;
+    setIsAtBottom(true);
+    setUnreadCount(0);
+    if (typeof el.scrollTo === "function") {
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior: smooth ? "smooth" : "auto",
+      });
+    } else {
+      el.scrollTop = el.scrollHeight;
+    }
   }, []);
 
   // Detect user scroll: if user scrolls UP, disable auto-scroll
@@ -49,17 +70,41 @@ export function useChatScroll({
 
     // User scrolled back to bottom (within threshold)
     const bottomThreshold = isTouchingRef.current ? 80 : 30;
-    if (distanceFromBottom <= bottomThreshold) {
+    const atBottom = distanceFromBottom <= bottomThreshold;
+    setIsAtBottom(atBottom);
+
+    if (atBottom) {
       shouldAutoScrollRef.current = true;
+      setUnreadCount(0);
     }
 
     lastScrollTopRef.current = currentScrollTop;
   }, []);
 
+  // Reset state when switching conversations
+  useEffect(() => {
+    shouldAutoScrollRef.current = true;
+    setIsAtBottom(true);
+    setUnreadCount(0);
+  }, [conversationId]);
+
+  // Track unread messages when user is scrolled up
+  const prevCountRef = useRef(renderedMessagesLength);
+  useEffect(() => {
+    if (renderedMessagesLength > prevCountRef.current) {
+      const delta = renderedMessagesLength - prevCountRef.current;
+      if (!isAtBottom) {
+        setUnreadCount((c) => c + delta);
+      } else {
+        setUnreadCount(0);
+      }
+    }
+    prevCountRef.current = renderedMessagesLength;
+  }, [renderedMessagesLength, isAtBottom]);
+
   // Reset auto-scroll when starting a new stream - but respect recent user scroll
   useEffect(() => {
     if (isStreaming && streamingAssistant === "") {
-      // Only auto-enable if user hasn't scrolled up in the last 500ms
       const timeSinceUserScroll = Date.now() - userScrollTimestampRef.current;
       if (timeSinceUserScroll > 500) {
         shouldAutoScrollRef.current = true;
@@ -70,7 +115,6 @@ export function useChatScroll({
   // Auto-scroll during streaming (if enabled and user not actively touching)
   useEffect(() => {
     if (!scrollRef.current || !isStreaming || !shouldAutoScrollRef.current) return;
-    // Skip auto-scroll while user is touching (mobile momentum scroll)
     if (isTouchingRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [streamingAssistant, isStreaming]);
@@ -78,7 +122,6 @@ export function useChatScroll({
   // Scroll to bottom when stream ends (if auto-scroll was not cancelled)
   useEffect(() => {
     if (!scrollRef.current) return;
-    // Only scroll when NOT streaming (stream just ended or new messages loaded)
     if (!isStreaming && shouldAutoScrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -89,5 +132,8 @@ export function useChatScroll({
     handleScroll,
     handleTouchStart,
     handleTouchEnd,
+    isAtBottom,
+    unreadCount,
+    scrollToBottom,
   };
 }

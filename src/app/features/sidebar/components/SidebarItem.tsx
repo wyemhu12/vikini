@@ -150,7 +150,7 @@ function SidebarItem({
                 ? "opacity-100 text-(--text-primary)"
                 : "opacity-0 group-hover:opacity-100 text-(--text-secondary) hover:text-(--text-primary)"
             }`}
-            aria-label="Options"
+            aria-label={c.title ? `Options for ${c.title}` : "Conversation options"}
             onClick={(e) => e.stopPropagation()}
           >
             <EllipsisVerticalIcon />
@@ -159,7 +159,7 @@ function SidebarItem({
 
         <DropdownMenu.Portal>
           <DropdownMenu.Content
-            className="z-9999 min-w-48 rounded-xl bg-(--surface-muted)/95 backdrop-blur-xl border border-(--border) shadow-2xl overflow-hidden ring-1 ring-(--border) py-1.5 animate-in fade-in zoom-in-95 duration-200"
+            className="z-(--z-popover) min-w-48 rounded-xl bg-(--surface-muted)/95 backdrop-blur-xl border border-(--border) shadow-2xl overflow-hidden ring-1 ring-(--border) py-1.5 animate-in fade-in zoom-in-95 duration-200"
             align="end"
             sideOffset={5}
           >

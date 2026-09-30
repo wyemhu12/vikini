@@ -68,7 +68,7 @@ export function ImageGenStudio() {
   }
 
   return (
-    <div className="h-screen w-screen text-(--text-primary) overflow-hidden relative font-sans bg-(--surface-base) flex">
+    <div className="h-screen w-screen text-(--text-primary) overflow-hidden relative font-sans bg-(--surface) flex">
       {/* API Key Warning Modal */}
       <AlertDialog open={studio.showApiKeyWarning} onOpenChange={studio.setShowApiKeyWarning}>
         <AlertDialogContent>
@@ -129,7 +129,7 @@ export function ImageGenStudio() {
                 studio.setShowError(null);
                 void studio.handleGenerate();
               }}
-              className="bg-(--primary) text-(--primary-foreground) hover:bg-(--primary-hover)"
+              className="bg-(--accent) text-(--accent-foreground) hover:brightness-110"
             >
               {t("studioRetry")}
             </AlertDialogAction>
@@ -170,9 +170,9 @@ export function ImageGenStudio() {
         <HeaderBar onToggleSidebar={() => setMobileOpen(true)} />
 
         {/* Main content area */}
-        <div className="flex flex-col md:flex-row h-full w-full relative overflow-hidden bg-(--surface-base)">
+        <div className="flex flex-col md:flex-row h-full w-full relative overflow-hidden bg-(--surface)">
           {/* Mobile Tab Bar */}
-          <div className="md:hidden flex border-b border-(--border) bg-(--surface-base) shrink-0 z-10">
+          <div className="md:hidden flex border-b border-(--border) bg-(--surface) shrink-0 z-10">
             <button
               onClick={() => studio.setMobileTab("studio")}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors relative ${

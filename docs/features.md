@@ -290,14 +290,16 @@ Extended timeouts cho Deep Thinking mode:
 
 ### 2.10 Projects (Knowledge Base)
 
-**Mô tả**: Tổ chức conversations theo project với Knowledge Base riêng.
+**Mô tả**: Tổ chức conversations theo project với Knowledge Base riêng được chuẩn hóa hoàn toàn trên mô hình `gemini-embedding-2` (3072 chiều).
 
 **Tính năng**:
 
-- Tạo project với icon/màu tùy chọn
-- Upload documents để tạo knowledge base (5MB limit)
-- Auto-chunking với text-embedding-004
-- RAG search khi chat trong project context
+- Tạo project với icon/màu tùy chọn (embedding model bất biến `gemini-embedding-2`)
+- Upload documents để tạo knowledge base (giới hạn 5MB và tối đa 500 chunks (~350–400 KB text))
+- Native Batching qua Google GenAI SDK (`@google/genai` 2.10.0) với định dạng Content objects `{ role: "user", parts: [{ text }] }`
+- Pre-insert chunk validation: kiểm tra dung lượng và số chunks trước khi tạo bản ghi DB, tránh rò rỉ quota tài liệu
+- Auto-cleanup 15 phút: Dọn dẹp tài liệu kẹt processing qua cron job định kỳ và opportunistic cleanup trên API GET
+- RAG search trực tiếp qua Postgres RPC `match_project_knowledge` (zero sample chunk overhead)
 - Project settings modal với delete confirmation đẹp
 - Bilingual support (Vietnamese/English)
 

@@ -37,10 +37,10 @@ description: Core identity, communication, stack, and behavioral boundaries.
 ## Non-Negotiables
 
 - **Scope**: Only touch files required by the task. No unrelated refactoring.
-- **Minimal diffs**: See `rules/02-quality.md` for full policy.
+- **Minimal diffs**: See `.agents/rules/02-quality.md` for full policy.
 - **No guesswork**: If context is missing, request up to 3 specific files, then proceed.
 - **Git Operations**: NEVER work directly with git or create branches autonomously. Work strictly on local workspace files. ONLY commit and push when explicitly requested by the user.
-- **Zero-Self-Execution & Uninterrupted Chain**: Orchestrator never self-plans and never pauses between `@planner` and `@reviewer`. Planning requires subagent `@planner` and approval requires subagent `@reviewer` with `[PLAN_APPROVED]`. See `rules/05-plan-review.md`.
+- **Zero-Self-Execution & Uninterrupted Chain**: Orchestrator never self-plans and never pauses between planning and reviewing. Planning requires subagent `@planner` and approval requires Lead Reviewer (Claude Code CLI via `.agents/scripts/run-claude.ps1` or fallback subagent `@reviewer`) with `[PLAN_APPROVED]`. See `.agents/rules/05-plan-review.md`.
 
 ## Git & Version Control
 

@@ -6,6 +6,7 @@ import { logger } from "@/lib/utils/logger";
 import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
 import { mergeMessages } from "@/lib/features/chat/messageMerge";
 import { toast } from "@/lib/store/toastStore";
+import { useTypewriterBuffer } from "./useTypewriterBuffer";
 
 interface FrontendMessage {
   id?: string;
@@ -94,16 +95,24 @@ export function useChatStreamController({
   const lastStreamErrorRef = useRef<StreamError | null>(null);
   const accumulatedAssistantRef = useRef<string>("");
 
-  // Typewriter buffer: decouple network streaming từ visual streaming
-  // Network tokens → buffer → display (smooth animation)
-  const typewriterBufferRef = useRef<string>("");
-  const rafIdRef = useRef<number | null>(null);
-  const lastTickRef = useRef<number>(0);
-  const isTypewriterActiveRef = useRef(false);
+  const onTypewriterChunk = useCallback((chunk: string) => {
+    setStreamingAssistant((prev) => (prev || "") + chunk);
+  }, []);
 
-  // Typewriter config: Throttle state updates to keep Main Thread free
-  const MIN_INTERVAL_MS = 30; // Target ~30fps for UI updates
-  const BASE_CHARS_PER_TICK = 2;
+  const {
+    bufferRef: typewriterBufferRef,
+    startTypewriter,
+    stopTypewriter,
+    appendToTypewriterBuffer: rawAppendToTypewriter,
+  } = useTypewriterBuffer(onTypewriterChunk);
+
+  const appendToTypewriterBuffer = useCallback(
+    (token: string) => {
+      accumulatedAssistantRef.current += token;
+      rawAppendToTypewriter(token);
+    },
+    [rawAppendToTypewriter]
+  );
 
   const normalizeMessages = useCallback((arr: FrontendMessage[] | unknown): FrontendMessage[] => {
     const safe = safeArray<FrontendMessage>(arr);
@@ -147,70 +156,6 @@ export function useChatStreamController({
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
-
-  // Typewriter: Start the RAF loop that drains buffer to display
-  const startTypewriter = useCallback(() => {
-    if (isTypewriterActiveRef.current) return;
-    isTypewriterActiveRef.current = true;
-    lastTickRef.current = performance.now();
-
-    const tick = (now: number) => {
-      if (!isTypewriterActiveRef.current) return;
-
-      const elapsed = now - lastTickRef.current;
-
-      if (elapsed >= MIN_INTERVAL_MS) {
-        if (typewriterBufferRef.current.length > 0) {
-          const bufferLen = typewriterBufferRef.current.length;
-          // Dynamic chunking: adjust chunk size based on buffer backlog
-          let charsToTake = BASE_CHARS_PER_TICK;
-          if (bufferLen > 200) charsToTake = Math.floor(bufferLen / 3);
-          else if (bufferLen > 80) charsToTake = 12;
-          else if (bufferLen > 30) charsToTake = 6;
-
-          const chunk = typewriterBufferRef.current.slice(0, charsToTake);
-          typewriterBufferRef.current = typewriterBufferRef.current.slice(charsToTake);
-
-          setStreamingAssistant((prev) => (prev || "") + chunk);
-        }
-        lastTickRef.current = now;
-      }
-      rafIdRef.current = requestAnimationFrame(tick);
-    };
-
-    rafIdRef.current = requestAnimationFrame(tick);
-  }, []);
-
-  // Typewriter: Stop interval and flush remaining buffer immediately
-  const stopTypewriter = useCallback((flush = true) => {
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
-    }
-    isTypewriterActiveRef.current = false;
-
-    // Flush remaining buffer to display
-    if (flush && typewriterBufferRef.current.length > 0) {
-      const remaining = typewriterBufferRef.current;
-      typewriterBufferRef.current = "";
-      setStreamingAssistant((prev) => (prev || "") + remaining);
-    }
-  }, []);
-
-  // Typewriter: Add tokens to buffer (called when SSE tokens arrive)
-  const appendToTypewriterBuffer = useCallback((token: string) => {
-    typewriterBufferRef.current += token;
-    accumulatedAssistantRef.current += token;
-  }, []);
-
-  // Cleanup typewriter on unmount
-  useEffect(() => {
-    return () => {
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-      }
-    };
-  }, []);
 
   const syncPartialMessage = useCallback(
     async (convId: string, clientMsgId: string, content: string, meta: Record<string, unknown>) => {
@@ -550,7 +495,7 @@ export function useChatStreamController({
       enabled?: boolean;
       available?: boolean;
       t?: string;
-      // Error fields
+      error?: string;
       message?: string;
       code?: string;
       status?: number;
@@ -667,7 +612,10 @@ export function useChatStreamController({
           // Handle error events from backend
           if (event === "error") {
             const errorData: StreamError = {
-              message: data?.message || "An error occurred",
+              message:
+                data?.message ||
+                (typeof data?.error === "string" ? data.error : "") ||
+                "An error occurred",
               code: data?.code,
               status: data?.status,
               isTokenLimit: data?.isTokenLimit,

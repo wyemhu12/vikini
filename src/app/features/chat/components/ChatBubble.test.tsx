@@ -33,6 +33,7 @@ vi.mock("../hooks/useLanguage", () => ({
         thinkingProcess: "Thinking Process",
         thinkingNoResponseContent:
           "Response only contains thinking deliberation without answer content. Please click Regenerate.",
+        aiIsTyping: "AI is typing...",
       };
       return dict[key] || key;
     },

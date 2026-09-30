@@ -26,7 +26,7 @@ Run this after every bug fix to build institutional memory and verify quality.
    ```
 
 3. **Check for pattern promotion** -- If the same category of mistake appears 3 or more times:
-   - Extract a formal rule into the appropriate `.agent/rules/` file
+   - Extract a formal rule into the appropriate `.agents/rules/` file
    - Type safety issues go to `01-coding.md`
    - UI/styling issues go to `03-ui.md`
    - API/streaming issues go to `00-core.md`

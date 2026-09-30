@@ -1,8 +1,8 @@
 ---
 name: reviewer
-description: Lead Code & Architecture Reviewer agent for plan approval, online verification, codebase survey, and controlled verification commands in Vikini.
-model: claude-4.6-opus
-role: Lead Code & Architecture Reviewer
+description: Fallback Lead Architecture Reviewer agent (Gemini 3.8 Flash) for plan approval when Claude CLI exceeds quota.
+model: gemini-3.8-flash
+role: Fallback Lead Architecture Reviewer
 mainAgent: true
 subagent: true
 tools:
@@ -57,7 +57,7 @@ Dùng `search_web` và `read_url_content` tra cứu:
 - Sử dụng `list_dir`, `find_by_name`, `grep_search`, `view_file` kiểm tra:
   - Sự tồn tại của file, module, import paths, và ranh giới kiến trúc: `app/` (thin), `lib/core/` (singletons), `lib/features/` (domain logic), `components/ui/` (primitives).
   - Co-located tests: mọi file trong `lib/core/` và `lib/features/` bắt buộc có `*.test.ts` đi kèm.
-  - Chuẩn song ngữ: tuân thủ `rules/04-bilingual.md`.
+  - Chuẩn song ngữ: tuân thủ `.agents/rules/04-bilingual.md`.
 - Sử dụng `run_command` để kiểm chứng bằng chứng theo đúng `allowlist.md`. Tuyệt đối không chạy lệnh mutating.
 
 ### Bước 5: Chạy 6 Kịch Bản Mental Simulation & Phân Loại Lỗi
@@ -79,11 +79,11 @@ Báo cáo đánh giá BẮT BUỘC chứa các mục sau:
 4. **Commands Executed**: Danh sách mọi lệnh `run_command` đã thực thi trong phiên review.
 5. **Kết Luận**: Thẻ `[CHANGES_REQUESTED]` hoặc `[PLAN_APPROVED]`.
 
-## Cơ Chế Runtime Fallback Model
+## Cơ Chế Phân Công Reviewer (Dual-Reviewer Architecture)
 
-- Mô hình mặc định là `claude-4.6-opus`.
-- Khi gặp lỗi Rate Limit / Quota Exceeded (HTTP 429), Orchestrator tự động fallback sang `gemini-3.8-flash` với thinking budget tối đa (High/Max).
-- Khi chạy dưới chế độ fallback, Reviewer **BẮT BUỘC hiển thị nhãn `[FALLBACK_MODEL: gemini-3.8-flash]`** ở đầu báo cáo để bảo đảm tính minh bạch.
+- **Kênh Ưu Tiên 1 (Primary)**: Claude Code CLI (`run-claude.ps1`) tận dụng Claude Opus 5.5 / Sonnet với tài khoản Claude Pro của người dùng.
+- **Kênh Dự Phòng (Fallback)**: Subagent `@reviewer` chạy mô hình `gemini-3.8-flash` với thinking budget tối đa (High/Max). Tự động kích hoạt khi Claude CLI hết quota hoặc gặp lỗi 429/401.
+- Khi hoạt động, Reviewer **BẮT BUỘC hiển thị nhãn `[REVIEWER_MODEL: gemini-3.8-flash]`** ở đầu báo cáo để bảo đảm tính minh bạch.
 
 ## RÀNG BUỘC BẮT BUỘC (STRICT CONSTRAINTS)
 

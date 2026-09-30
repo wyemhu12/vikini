@@ -74,7 +74,6 @@ function mockUnauthenticated() {
 const MOCK_TIER_LIMITS = {
   maxProjects: 10,
   maxStorageBytesPerProject: 50_000_000,
-  embeddingModels: ["text-embedding-004"],
 };
 
 // ---------------------------------------------------------------------------
@@ -114,6 +113,7 @@ describe("/api/projects", () => {
       expect(json.data.tier).toBe("free");
       expect(json.data.limits.maxProjects).toBe(10);
       expect(json.data.limits.currentProjects).toBe(1);
+      expect(json.data.limits.availableModels).toBeUndefined();
       expect(getUserProjects).toHaveBeenCalledWith(TEST_USER_EMAIL);
     });
 
@@ -236,6 +236,22 @@ describe("/api/projects", () => {
       expect(res.status).toBe(403);
       const json = await res.json();
       expect(json.success).toBe(false);
+    });
+
+    it("should return 400 when embedding_model is provided in POST body (TC-EMB-01)", async () => {
+      mockAuthenticated();
+
+      const req = createRequest("POST", "/api/projects", {
+        name: "Project A",
+        embedding_model: "gemini-embedding-2",
+      });
+      const res = await POST(req);
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error.message).toContain("embedding_model is not configurable");
+      expect(createProject).not.toHaveBeenCalled();
     });
 
     it("should return 500 when createProject throws unexpected error", async () => {

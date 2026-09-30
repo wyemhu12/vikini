@@ -10,7 +10,7 @@ Use this to perform a focused code quality audit on a file or feature.
 
 1. **Identify scope** -- Which file(s) or feature area to audit?
 
-2. **Check coding standards** (from `rules/01-coding.md`):
+2. **Check coding standards** (from `.agents/rules/01-coding.md`):
    - No `any` types
    - Proper error handling with `unknown`
    - Correct naming conventions
@@ -18,7 +18,7 @@ Use this to perform a focused code quality audit on a file or feature.
 
 3. **Check API patterns** (if API route):
    - Uses standardized error classes
-   - Follows response format from `skills/api-patterns.md`
+   - Follows response format from `.agents/skills/api-patterns.md`
    - No raw `NextResponse.json({ error: ... })`
 
 4. **Check UI standards** (if UI component):
