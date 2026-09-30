@@ -66,43 +66,7 @@ export function stripOuterQuotes(s: unknown): string {
 
 // --- TOKEN ESTIMATION ---
 
-/**
- * Estimates the number of tokens in a string.
- *
- * Token estimation for different text types:
- * - English: ~4 chars/token (GPT-style BPE)
- * - Vietnamese: ~2-3 chars/token (more syllabic, diacritics)
- * - CJK (Chinese/Japanese/Korean): ~1-2 chars/token
- * - Code: ~3-4 chars/token (keywords, symbols)
- *
- * We use a weighted approach based on character analysis for better accuracy.
- */
-export function estimateTokens(text: string | null | undefined): number {
-  if (!text) return 0;
-
-  // Count different character types
-  const cjkChars = (text.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || [])
-    .length;
-  const vietnameseChars = (
-    text.match(/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/gi) || []
-  ).length;
-  const asciiChars = (text.match(/[\x20-\x7E]/g) || []).length;
-  const otherChars = text.length - cjkChars - vietnameseChars - asciiChars;
-
-  // Weighted token estimation:
-  // - CJK: 1.5 chars/token (very character-dense)
-  // - Vietnamese: 2.5 chars/token (syllabic with diacritics)
-  // - ASCII (English): 4 chars/token (standard BPE)
-  // - Other Unicode: 2 chars/token (conservative)
-  const cjkTokens = cjkChars / 1.5;
-  const vietTokens = vietnameseChars / 2.5;
-  const asciiTokens = asciiChars / 4;
-  const otherTokens = otherChars / 2;
-
-  // Add 10% safety margin to avoid context overflow
-  const total = cjkTokens + vietTokens + asciiTokens + otherTokens;
-  return Math.ceil(total * 1.1);
-}
+export { estimateTokens } from "@/lib/utils/tokenEstimate";
 
 // --- INTERFACES ---
 
@@ -125,5 +89,6 @@ export interface ConversationContext {
 export interface MessageContext {
   contextMessages: Array<{ role: string; content: string }>;
   contents: Array<{ role: string; parts: unknown[] }>;
+  contentsMeta?: Array<{ messageId?: string; fileIds?: string[] }>;
   currentTokenCount: number;
 }

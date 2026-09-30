@@ -227,6 +227,25 @@
 
 ## API and Streaming
 
+### 2026-10-01: Multi-Turn File Context Leak & Binary Corrupt Text Extraction in Chat Streams
+
+- **Symptom**:
+  1. Uploading files in a later chat turn caused previous chat turns or future turns to suffer context pollution, with all 30 conversation files always dumped into `contents[0]`.
+  2. Uploading Word (DOCX) or Excel (XLSX) documents caused corrupt raw binary strings (starting with `PK\x03\x04` and NUL bytes) to be injected directly into the LLM context prompt, consuming 100,000+ tokens of gibberish and causing model hallucinations or crashes.
+  3. Uploading files with Vietnamese diacritics failed at the Supabase Storage layer due to non-ASCII keys.
+- **Root Cause**:
+  1. `attachmentProcessor.ts` iterated over all conversation files and indiscriminately prepended them into `contents[0].parts` regardless of which message turn originally attached which file.
+  2. `fileService.server.ts` used `bytes.toString("utf8")` for all `kind === "text" || kind === "document"` files without format-specific binary parsing.
+  3. Storage path was derived from the raw filename (`${crypto.randomUUID()}-${filename}`), which contained non-ASCII UTF-8 characters rejected by S3/Supabase storage key rules.
+- **Fix**:
+  1. Track `contentsMeta` from `messages.meta.fileIds` in `buildMessageContext` and route historical files to their matching message turn index `contents[i].parts`, while priority files from the current turn are injected strictly into the last user turn `contents[contents.length - 1].parts`.
+  2. Implement `documentParsers.ts` with dedicated parsers (`mammoth` for DOCX, `exceljs` for XLSX, `pdf-parse` v2 with page limits for PDF, NUL byte stripping, and legacy OLE2 rejection).
+  3. Enforce pure ASCII storage paths: `${userId}/${conversationId}/${uuid}.${safeExt}` while preserving the original Vietnamese filename in PostgreSQL.
+- **Prevention Rule**:
+  1. **Never use `Buffer.toString("utf8")` on binary document containers (DOCX, XLSX, PDF, PPTX).** Always use structured, safe parsers with memory cleanup and strip NUL characters (`\u0000`).
+  2. **Object storage keys must strictly use pure ASCII characters and safe extensions.** Never embed user-provided unicode or filenames with diacritics directly into S3/Storage bucket paths.
+  3. **Multi-turn conversation attachments must follow per-message provenance.** Never aggregate and inject all conversation files into `contents[0]`.
+
 ### 2026-09-28: Streaming abort & interruption text loss due to unhandled abort and SWR overwrite
 
 - **Symptom**: When a user clicked Stop (red square button) while AI was streaming or when a stream suffered an interruption/timeout, the text that had already streamed vanished from the chat UI.

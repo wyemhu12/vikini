@@ -148,7 +148,7 @@ export function FilePreviewCard({
             setDeleting(true);
             void onRemove(file.id);
           }}
-          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-full bg-(--surface)/90 hover:bg-(--danger)/20 text-(--text-secondary) hover:text-(--danger)"
+          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 min-w-[24px] min-h-[24px] flex items-center justify-center transition-opacity p-1 rounded-full bg-(--surface)/90 hover:bg-(--danger)/20 text-(--text-secondary) hover:text-(--danger)"
           aria-label={`Remove ${filename}`}
           disabled={deleting}
         >

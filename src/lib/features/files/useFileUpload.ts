@@ -16,6 +16,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { logger } from "@/lib/utils/logger";
 import { useFileStore } from "./store";
 import { BLOCKED_EXTENSIONS, BLOCKED_MIME_TYPES } from "./fileValidation";
+import { shouldClearQueue } from "@/lib/features/chat/draftConversation";
 import { toast } from "@/lib/store/toastStore";
 import type { FileItem, FileKind, FileUploadProgress } from "@/types/files";
 
@@ -24,6 +25,10 @@ interface UseFileUploadOptions {
   disabled?: boolean;
   /** Called after each successful upload with the file data from server */
   onUploadComplete?: (uploadedFile: FileItem) => void;
+  /** Optional function to ensure conversation exists before uploading (for New Chat mode) */
+  ensureConversationId?: () => Promise<string>;
+  /** Optional ref indicating upload was initiated from the current UI */
+  isSelfInitiatedUploadRef?: React.MutableRefObject<boolean>;
 }
 
 /** Client-side file kind classification for immediate UI feedback */
@@ -141,24 +146,41 @@ export function useFileUpload({
   conversationId,
   disabled,
   onUploadComplete,
+  ensureConversationId,
+  isSelfInitiatedUploadRef,
 }: UseFileUploadOptions) {
   const { addToQueue, updateProgress, setStatus, removeFromQueue, clearQueue } = useFileStore();
 
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const prevConversationIdRef = useRef<string | null>(conversationId);
 
   // === File Picker ===
   const openFilePicker = useCallback(() => {
-    if (disabled || !conversationId) return;
+    if (disabled) return;
     fileInputRef.current?.click();
-  }, [disabled, conversationId]);
+  }, [disabled]);
 
   // === Core Upload (XHR for per-file progress) ===
   const uploadFiles = useCallback(
     async (files: FileList | File[]) => {
-      if (disabled || !conversationId) return;
+      if (disabled) return;
       const fileArray = Array.from(files);
+      if (fileArray.length === 0) return;
+
+      let targetConvId = conversationId;
+      if (!targetConvId && ensureConversationId) {
+        if (isSelfInitiatedUploadRef) isSelfInitiatedUploadRef.current = true;
+        try {
+          targetConvId = await ensureConversationId();
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Failed to initialize conversation";
+          toast.error(msg);
+          return;
+        }
+      }
+      if (!targetConvId) return;
 
       for (const file of fileArray) {
         // --- Client-side validation (fast-fail before upload) ---
@@ -197,7 +219,7 @@ export function useFileUpload({
 
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("conversationId", conversationId);
+        formData.append("conversationId", targetConvId);
 
         try {
           const MAX_RETRIES = 1;
@@ -220,7 +242,7 @@ export function useFileUpload({
                 : (() => {
                     const f = new FormData();
                     f.append("file", file);
-                    f.append("conversationId", conversationId);
+                    f.append("conversationId", targetConvId);
                     return f;
                   })();
 
@@ -309,6 +331,8 @@ export function useFileUpload({
     [
       conversationId,
       disabled,
+      ensureConversationId,
+      isSelfInitiatedUploadRef,
       addToQueue,
       updateProgress,
       setStatus,
@@ -416,8 +440,16 @@ export function useFileUpload({
 
   // === Clear queue on conversation change ===
   useEffect(() => {
-    clearQueue();
-  }, [conversationId, clearQueue]);
+    const prevId = prevConversationIdRef.current;
+    const isSelfInitiated = isSelfInitiatedUploadRef?.current ?? false;
+    if (shouldClearQueue(prevId, conversationId, isSelfInitiated)) {
+      clearQueue();
+    }
+    if (isSelfInitiatedUploadRef) {
+      isSelfInitiatedUploadRef.current = false;
+    }
+    prevConversationIdRef.current = conversationId;
+  }, [conversationId, clearQueue, isSelfInitiatedUploadRef]);
 
   return {
     /** Open native file picker */

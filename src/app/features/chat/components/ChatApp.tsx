@@ -19,7 +19,8 @@ import ScrollToBottomButton from "./ScrollToBottomButton";
 import CommandPalette from "./CommandPalette";
 import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
 
-import React, { useEffect, useMemo, useCallback, useState, lazy, Suspense } from "react";
+import React, { useEffect, useMemo, useCallback, useState, useRef, lazy, Suspense } from "react";
+import { createDraftCoordinator } from "@/lib/features/chat/draftConversation";
 
 import { useTheme } from "../hooks/useTheme";
 import { useConversation, type FrontendConversation } from "../hooks/useConversation";
@@ -358,6 +359,27 @@ export default function ChatApp() {
       setInput,
     ]
   );
+
+  // Draft conversation coordinator for New Chat file uploads
+  const isSelfInitiatedUploadRef = useRef(false);
+  const draftCoordinator = useMemo(
+    () =>
+      createDraftCoordinator({
+        createConversation: async () => {
+          const conv = await createConversation({ model: landingModel });
+          if (conv) {
+            setSelectedConversationIdAndUrl(conv.id);
+            return { id: conv.id };
+          }
+          return null;
+        },
+      }),
+    [createConversation, landingModel, setSelectedConversationIdAndUrl]
+  );
+
+  useEffect(() => {
+    draftCoordinator.reset();
+  }, [selectedConversationId, draftCoordinator]);
 
   // File count for file manager button
   const { fileCount } = useFiles(selectedConversationId);
@@ -807,6 +829,8 @@ export default function ChatApp() {
                   fileCount={fileCount}
                   conversationId={selectedConversationId}
                   sentMessageFileIds={sentMessageFileIds}
+                  ensureConversationId={draftCoordinator.ensureConversationId}
+                  isSelfInitiatedUploadRef={isSelfInitiatedUploadRef}
                 />
               </DashboardView>
             </div>
@@ -909,6 +933,8 @@ export default function ChatApp() {
             fileCount={fileCount}
             conversationId={selectedConversationId}
             sentMessageFileIds={sentMessageFileIds}
+            ensureConversationId={draftCoordinator.ensureConversationId}
+            isSelfInitiatedUploadRef={isSelfInitiatedUploadRef}
           />
         )}
       </div>

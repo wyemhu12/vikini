@@ -1,7 +1,7 @@
 // /app/features/chat/components/ChatControls.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { FolderOpen, AlertTriangle, Microscope } from "lucide-react";
 import { useLanguage } from "../hooks/useLanguage";
@@ -72,6 +72,8 @@ interface ChatControlsProps {
   fileCount?: number;
   conversationId?: string | null;
   sentMessageFileIds?: string[];
+  ensureConversationId?: () => Promise<string>;
+  isSelfInitiatedUploadRef?: React.MutableRefObject<boolean>;
 }
 
 export default function ChatControls({
@@ -116,6 +118,8 @@ export default function ChatControls({
   fileCount = 0,
   conversationId = null,
   sentMessageFileIds = [],
+  ensureConversationId,
+  isSelfInitiatedUploadRef,
 }: ChatControlsProps) {
   // Display value: show preview prompt when hovering, otherwise show actual input
   const displayValue = previewPrompt !== null ? previewPrompt : input;
@@ -125,6 +129,10 @@ export default function ChatControls({
   const isV32 = isDeepSeekV32Model(currentModel);
 
   const { t } = useLanguage();
+  const tRecord = useMemo(
+    () => new Proxy({} as Record<string, string>, { get: (_, prop: string) => t(prop) }),
+    [t]
+  );
 
   const [showFileManager, setShowFileManager] = useState(false);
   const [showAgentSelector, setShowAgentSelector] = useState(false);
@@ -297,6 +305,7 @@ export default function ChatControls({
                     conversationId={conversationId}
                     isOpen={showFileManager}
                     onClose={() => setShowFileManager(false)}
+                    t={tRecord}
                   />
                 )}
               </div>
@@ -322,6 +331,8 @@ export default function ChatControls({
             onImageModeConsumed={onImageModeConsumed}
             isPreview={isShowingPreview}
             sentMessageFileIds={sentMessageFileIds}
+            ensureConversationId={ensureConversationId}
+            isSelfInitiatedUploadRef={isSelfInitiatedUploadRef}
           />
         </div>
       </div>

@@ -1,4 +1,4 @@
-# @ts-check
+﻿# @ts-check
 param(
     [Parameter(Position=0)]
     [string]$PlanFile,
@@ -7,6 +7,18 @@ param(
 
     [switch]$CheckOnly
 )
+
+# 0. Thiết lập UTF-8 encoding toàn diện cho PowerShell 5.1 và tiến trình con
+if (Get-Command chcp.com -ErrorAction SilentlyContinue) {
+    chcp.com 65001 >$null
+}
+try {
+    [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+} catch {
+    # Bỏ qua nếu môi trường không có console host trực tiếp
+}
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
 # 1. Dọn dẹp biến môi trường proxy cũ để Claude Code dùng xác thực Claude Pro chính chủ
 $env:ANTHROPIC_BASE_URL = $null

@@ -31,6 +31,8 @@ export interface MessageMeta {
   thoughtsTokenCount?: number;
   /** Total tokens used in this response */
   totalTokenCount?: number;
+  /** IDs of files attached to this message */
+  fileIds?: string[];
   [key: string]: unknown; // Allow additional properties
 }
 

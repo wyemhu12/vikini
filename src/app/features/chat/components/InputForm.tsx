@@ -34,6 +34,10 @@ interface InputFormProps {
   isPreview?: boolean;
   /** File IDs already referenced in sent messages (from message meta, survives reload) */
   sentMessageFileIds?: string[];
+  /** Optional function to ensure conversation exists before uploading (for New Chat mode) */
+  ensureConversationId?: () => Promise<string>;
+  /** Optional ref indicating upload was initiated from the current UI */
+  isSelfInitiatedUploadRef?: React.MutableRefObject<boolean>;
 }
 
 export default function InputForm({
@@ -49,6 +53,8 @@ export default function InputForm({
   onImageModeConsumed,
   isPreview = false,
   sentMessageFileIds = [],
+  ensureConversationId,
+  isSelfInitiatedUploadRef,
 }: InputFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -87,6 +93,8 @@ export default function InputForm({
   } = useFileUpload({
     conversationId: conversationId ?? null,
     disabled: disabled || false,
+    ensureConversationId,
+    isSelfInitiatedUploadRef,
     onUploadComplete: (uploadedFile) => {
       // Optimistic SWR update: immediately add file to cache
       void mutate((current) => [...(current ?? []), uploadedFile], { revalidate: true });
@@ -359,7 +367,12 @@ export default function InputForm({
       </form>
 
       {/* File Lightbox */}
-      <FileLightbox file={lightboxFile} onClose={() => setLightboxFile(null)} />
+      <FileLightbox
+        file={lightboxFile}
+        onClose={() => setLightboxFile(null)}
+        files={files}
+        t={tRecord}
+      />
     </>
   );
 }

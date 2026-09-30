@@ -723,6 +723,12 @@ export const en = {
   theme: "Theme",
   // File manager
   files: "Files",
+  dropFilesHere: "Drop files here to upload",
+  confirmClearAll: "Are you sure you want to clear all files?",
+  clearAllFiles: "Clear all files",
+  filesCleared: "{count} files cleared",
+  deleteFileFailed: "Failed to delete file",
+  noFilesUploaded: "No files uploaded yet",
   // Stream errors
   rateLimitTitle: "Quota Exceeded",
   // Template modal

@@ -25,10 +25,20 @@ import type {
   FilesConfig,
   CleanupResult,
 } from "@/types/files";
-import { classifyFile as classifyFileShared, validateFile } from "./fileValidation";
+import {
+  classifyFile as classifyFileShared,
+  validateFile,
+  getSafeExtension,
+} from "./fileValidation";
+import { uploadToGemini, refreshGeminiUri } from "./geminiFiles.server";
+import { extractDocumentText } from "./documentParsers";
+import { estimateTokens } from "@/lib/utils/tokenEstimate";
 import { NotFoundError, ValidationError, DatabaseError } from "@/lib/utils/errors";
 
 const fileLogger = logger.withContext("fileService");
+
+// Re-export refreshGeminiUri for backward compatibility
+export { refreshGeminiUri };
 
 // ============================================
 // CONFIG
@@ -109,118 +119,36 @@ async function enforceQuotas(
 }
 
 // ============================================
-// GEMINI FILES API
+// MESSAGE LINKING
 // ============================================
 
 /**
- * Upload file to Gemini Files API.
- * Returns { name, uri, expiresAt } or null if upload fails (non-blocking).
+ * Link uploaded files to their corresponding saved message.
+ * Strict tenant isolation: filters by user_id, conversation_id, and is(message_id, null).
  */
-async function uploadToGemini(
-  fileBytes: Buffer,
-  filename: string,
-  mimeType: string
-): Promise<{ name: string; uri: string; expiresAt: string } | null> {
-  try {
-    const ai = getGenAIClient();
+export async function linkFilesToMessage(
+  userId: string,
+  conversationId: string,
+  fileIds: string[],
+  messageId: string
+): Promise<void> {
+  if (!fileIds || fileIds.length === 0 || !messageId) return;
 
-    // Convert Buffer to Blob for SDK upload (use Uint8Array to satisfy TS)
-    const blob = new Blob([new Uint8Array(fileBytes)], { type: mimeType });
-
-    const uploaded = await ai.files.upload({
-      file: blob,
-      config: {
-        mimeType,
-        displayName: filename,
-      },
-    });
-
-    if (!uploaded?.name || !uploaded?.uri) {
-      fileLogger.warn(`Gemini upload returned incomplete data for ${filename}`);
-      return null;
-    }
-
-    // Gemini auto-deletes after 48h
-    const expiresAt = new Date(Date.now() + 47 * 60 * 60 * 1000).toISOString(); // 47h buffer
-
-    fileLogger.info(`Gemini upload OK: ${filename} → ${uploaded.name}`);
-
-    return {
-      name: uploaded.name,
-      uri: uploaded.uri,
-      expiresAt,
-    };
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    fileLogger.error(`Gemini upload failed for ${filename}: ${message}`);
-    return null; // Non-blocking - Supabase is the fallback
-  }
-}
-
-/**
- * Re-upload a file to Gemini if its URI has expired.
- * Downloads from Supabase Storage, re-uploads to Gemini, updates DB.
- */
-export async function refreshGeminiUri(fileId: string, userId: string): Promise<FileRow | null> {
   const supabase = getSupabaseAdmin();
-
-  const { data: file, error } = await supabase
+  const { error } = await supabase
     .from("files")
-    .select("*")
-    .eq("id", fileId)
+    .update({
+      message_id: messageId,
+      updated_at: new Date().toISOString(),
+    })
     .eq("user_id", userId)
-    .maybeSingle();
+    .eq("conversation_id", conversationId)
+    .is("message_id", null)
+    .in("id", fileIds);
 
-  if (error || !file) return null;
-  const row = file as FileRow;
-
-  // Check if Gemini URI is still valid (with 1h buffer)
-  if (row.gemini_file_uri && row.gemini_expires_at) {
-    const expiresAt = new Date(row.gemini_expires_at).getTime();
-    if (expiresAt > Date.now() + 60 * 60 * 1000) {
-      return row; // Still valid
-    }
+  if (error) {
+    fileLogger.warn(`linkFilesToMessage failed: ${error.message}`);
   }
-
-  // Need to re-upload: download from Supabase
-  if (!row.storage_path) {
-    fileLogger.warn(`Cannot refresh Gemini URI: no storage_path for file ${fileId}`);
-    return row;
-  }
-
-  const cfg = getFilesConfig();
-  const { data: blob, error: dlError } = await supabase.storage
-    .from(row.bucket || cfg.bucket)
-    .download(row.storage_path);
-
-  if (dlError || !blob) {
-    fileLogger.error(`Failed to download from Supabase for re-upload: ${dlError?.message}`);
-    return row;
-  }
-
-  const bytes = Buffer.from(await blob.arrayBuffer());
-  const gemini = await uploadToGemini(bytes, row.filename, row.mime_type);
-
-  if (gemini) {
-    await supabase
-      .from("files")
-      .update({
-        gemini_file_name: gemini.name,
-        gemini_file_uri: gemini.uri,
-        gemini_expires_at: gemini.expiresAt,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", fileId);
-
-    return {
-      ...row,
-      gemini_file_name: gemini.name,
-      gemini_file_uri: gemini.uri,
-      gemini_expires_at: gemini.expiresAt,
-    };
-  }
-
-  return row;
 }
 
 // ============================================
@@ -250,8 +178,9 @@ export async function uploadFile({
   const bytes = Buffer.from(await file.arrayBuffer());
 
   // 4. Upload to Supabase Storage (permanent)
-  const objectName = `${crypto.randomUUID()}-${v.filename}`;
-  const storagePath = `${userId}/${conversationId}/${objectName}`;
+  // [C4 Fix]: Use safe extension and pure ASCII UUID for storage path. Original filename kept in PostgreSQL.
+  const safeExt = getSafeExtension(v.filename);
+  const storagePath = `${userId}/${conversationId}/${crypto.randomUUID()}.${safeExt}`;
 
   const { error: upError } = await supabase.storage.from(cfg.bucket).upload(storagePath, bytes, {
     contentType: v.mime,
@@ -263,18 +192,19 @@ export async function uploadFile({
   // 5. Upload to Gemini Files API (non-blocking, best-effort)
   const gemini = await uploadToGemini(bytes, v.filename, v.mime);
 
-  // 6. Extract text + estimate tokens for text-kind files
+  // 6. Extract text + estimate tokens for text-kind and document-kind files
   let extractedText: string | null = null;
   let tokenCount: number | null = null;
   if (v.kind === "text" || v.kind === "document") {
     try {
-      const text = bytes.toString("utf8");
-      if (text.length > 0 && text.length < 500_000) {
-        extractedText = text;
-        tokenCount = Math.ceil(text.length / 4);
+      extractedText = await extractDocumentText(bytes, v.mime, v.filename);
+      if (extractedText) {
+        tokenCount = estimateTokens(extractedText);
       }
-    } catch {
-      // Non-text content - skip extraction
+    } catch (err: unknown) {
+      fileLogger.warn(
+        `Text extraction skipped for ${v.filename}: ${err instanceof Error ? err.message : String(err)}`
+      );
     }
   }
 

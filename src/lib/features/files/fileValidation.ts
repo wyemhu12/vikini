@@ -105,8 +105,21 @@ export function getExtension(filename: string): string {
   return n.slice(idx + 1);
 }
 
+/**
+ * Extract a strictly alphanumeric ASCII safe extension for object storage keys.
+ * Clamps to 10 chars, strips all non-alphanumeric characters, fallbacks to "bin".
+ */
+export function getSafeExtension(filename: string): string {
+  const ext = getExtension(filename);
+  const safe = ext
+    .replace(/[^a-z0-9]/gi, "")
+    .toLowerCase()
+    .slice(0, 10);
+  return safe || "bin";
+}
+
 // ============================================
-// MIME NORMALIZATION
+// MIME NORMALIZATION & GEMINI WHITELIST
 // ============================================
 
 /** Extension → canonical MIME lookup (code files, media, docs, archives). */
@@ -132,10 +145,14 @@ const EXT_MIME_MAP: Record<string, string> = {
   mp4: "video/mp4",
   mov: "video/quicktime",
   webm: "video/webm",
+  avi: "video/x-msvideo",
+  mkv: "video/x-matroska",
   mp3: "audio/mpeg",
   wav: "audio/wav",
   ogg: "audio/ogg",
   m4a: "audio/mp4",
+  aac: "audio/aac",
+  flac: "audio/flac",
   // Documents
   pdf: "application/pdf",
   doc: "application/msword",
@@ -151,6 +168,42 @@ const EXT_MIME_MAP: Record<string, string> = {
   "7z": "application/x-7z-compressed",
   rar: "application/x-rar-compressed",
 };
+
+/**
+ * Whitelist of MIME types supported natively by Google Gemini Files API.
+ * Files NOT in this whitelist must not be uploaded to Gemini Files API.
+ */
+export const GEMINI_NATIVE_MIME = new Set([
+  // Images
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  // Audio
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/wav",
+  "audio/ogg",
+  "audio/aac",
+  "audio/flac",
+  // Video
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+  "video/x-msvideo",
+  // Documents
+  "application/pdf",
+  "text/plain",
+]);
+
+/**
+ * Checks whether a MIME type is natively supported by Gemini Files API.
+ */
+export function isGeminiNativeMime(mimeType: string | null | undefined): boolean {
+  if (!mimeType) return false;
+  const m = mimeType.trim().toLowerCase();
+  return GEMINI_NATIVE_MIME.has(m);
+}
 
 /**
  * Normalize a MIME type based on extension, browser hint, and file kind.

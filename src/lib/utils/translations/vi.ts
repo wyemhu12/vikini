@@ -732,6 +732,12 @@ export const vi = {
   theme: "Giao diện",
   // File manager
   files: "Tệp",
+  dropFilesHere: "Thả tệp vào đây để tải lên",
+  confirmClearAll: "Bạn có chắc chắn muốn xóa tất cả tệp?",
+  clearAllFiles: "Xóa tất cả tệp",
+  filesCleared: "Đã xóa {count} tệp",
+  deleteFileFailed: "Không thể xóa tệp",
+  noFilesUploaded: "Chưa có tệp nào được tải lên",
   // Stream errors
   rateLimitTitle: "Vượt hạn mức",
   // Template modal

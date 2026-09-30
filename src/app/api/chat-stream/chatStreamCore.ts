@@ -20,6 +20,7 @@ import { CLAUDE_API_MODELS, MODEL_IDS } from "@/lib/utils/constants";
 import { getOrCreateCompositeCache } from "@/lib/core/contextCache";
 import { error } from "@/lib/utils/apiResponse";
 import { saveMessage, upsertMessage } from "@/lib/features/chat/messages";
+import { linkFilesToMessage } from "@/lib/features/files/fileService.server";
 import { setConversationAutoTitle } from "@/lib/features/chat/conversations";
 import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
 import { getPersonaInstructionsForConversation } from "@/lib/features/personas/personas";
@@ -129,7 +130,10 @@ export async function handleChatStreamCore({
   if (!skipSaveUserMessage) {
     try {
       const userMeta = fileIds && fileIds.length > 0 ? { fileIds } : undefined;
-      await saveMessage(userId, conversationId, "user", content, userMeta);
+      const savedUserMsg = await saveMessage(userId, conversationId, "user", content, userMeta);
+      if (fileIds && fileIds.length > 0 && savedUserMsg?.id) {
+        await linkFilesToMessage(userId, conversationId, fileIds, savedUserMsg.id);
+      }
     } catch (e) {
       const errorMsg = e as Error;
       return error(errorMsg?.message || "Failed to save user message", 500, "MESSAGE_SAVE_ERROR");
@@ -156,7 +160,9 @@ export async function handleChatStreamCore({
     messageContext.currentTokenCount,
     modelLimitTokens,
     model,
-    fileIds
+    fileIds,
+    messageContext.contentsMeta,
+    req?.signal
   );
 
   // Inject Chart Generation Protocol

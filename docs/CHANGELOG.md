@@ -8,6 +8,30 @@
 
 ---
 
+## 2026-10-01: File Upload & Chat Attachments System Overhaul
+
+- **Binary Storage Key Fix [C4]**: Chuẩn hóa đường dẫn Supabase Storage chỉ chứa pure ASCII: `${userId}/${conversationId}/${uuid}.${safeExt}`. Giữ nguyên 100% tên file tiếng Việt gốc có dấu trong bảng PostgreSQL `files.filename`.
+- **Clean Document Text Extraction [C1 & M7]**:
+  - Tích hợp bộ parser tài liệu sạch `src/lib/features/files/documentParsers.ts`: DOCX (`mammoth`), XLSX (`exceljs`), PDF (`pdf-parse` v2 với page cap 200 trang và parser cleanup trong `finally`), text UTF-8, loại bỏ ký tự rác nhị phân NUL (`\u0000`). Chặn hoàn toàn binary garbage / OLE2 (`.doc`, `.xls`, `.ppt`).
+  - Tạo migration SQL `database-migrations/20261001000000_clean_corrupted_extracted_text.sql` dọn sạch cache rác nhị phân cũ.
+- **Multi-turn Context Injection & Gemini ACTIVE Polling [C2, C3, C5]**:
+  - Tái cấu trúc `attachmentProcessor.ts` và `contextBuilder.ts`: chấm dứt việc nhồi toàn bộ 30 file cũ vào `contents[0]`. File của từng message được định tuyến chính xác vào đúng turn tương ứng thông qua `contentsMeta` từ `messages.meta.fileIds`.
+  - Phân luồng native multimodal cho Gemini models với Gemini Files API, polling trạng thái `ACTIVE` cho file lớn/video qua `waitForGeminiFileActive` với timeout 15s và AbortSignal. Fallback an toàn sang inline base64 cho hình ảnh và text cho tài liệu.
+  - Tính toán token budget chính xác dựa trên `estimateTokens` (chuẩn hóa Unicode tiếng Việt). Chống IDOR triệt để qua kiểm tra `listFiles` theo tenant `userId` + `conversationId`.
+- **Draft Conversation Coordinator cho New Chat [U1, MAJOR-7]**:
+  - Tạo `src/lib/features/chat/draftConversation.ts` với predicate `shouldClearQueue` và `createDraftCoordinator`.
+  - Cho phép người dùng chọn file / drag-drop / paste ngay khi ở trạng thái New Chat (`conversationId === null`). Hàng đợi upload không bị xóa oan khi conversationId chuyển từ `null -> newId`.
+- **Database Relationship Synchronization [M1]**:
+  - Bổ sung `linkFilesToMessage(userId, conversationId, fileIds, messageId)` trong `fileService.server.ts` với tenant filters an toàn, liên kết `files.message_id` với `messages.id` sau khi lưu user message.
+- **Mobile Touch UX & Bilingual i18n [U2, U3, U4]**:
+  - Sửa nút xóa file trên `FilePreviewCard.tsx`: bổ sung `pointer-coarse:opacity-100` và kích thước tối thiểu 24×24px tuân thủ WCAG 2.2 cho màn hình cảm ứng.
+  - Bổ sung 6 translation keys thiếu vào `src/lib/utils/translations/vi.ts` và `en.ts` (`dropFilesHere`, `confirmClearAll`, `clearAllFiles`, `filesCleared`, `deleteFileFailed`, `noFilesUploaded`). Truyền `t` đối xứng cho `FileLightbox` và `FileManagerPanel`.
+- **Co-located Test Suite & Verification**:
+  - Bổ sung 5 file test co-located mới: `tokenEstimate.test.ts` (7 tests), `documentParsers.test.ts` (13 tests), `fileValidation.test.ts` (12 tests), `fileService.server.test.ts` (4 tests), `draftConversation.test.ts` (7 tests), `attachmentProcessor.test.ts` (4 tests).
+  - Verification: 77 test files passed, 850 tests passed, 0 lint warnings, 0 type errors.
+
+---
+
 ## 2026-09-30: Comprehensive UI/UX Audit & Modernization Implementation (Phases 0–3)
 
 - **Phase 0 (Critical P0 Bug Fixes & UX Blockers)**:

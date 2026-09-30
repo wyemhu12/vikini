@@ -22,6 +22,9 @@ export async function buildMessageContext(
   let contents: Array<{ role: string; parts: unknown[] }> = [
     { role: "user", parts: [{ text: content }] },
   ];
+  let contentsMeta: Array<{ messageId?: string; fileIds?: string[] }> = [
+    { messageId: undefined, fileIds: undefined },
+  ];
   let currentTokenCount = estimateTokens(content) + estimateTokens(sysPrompt);
 
   try {
@@ -36,6 +39,7 @@ export async function buildMessageContext(
     );
 
     const messagesToKeep: Array<{ role: string; content: string }> = [];
+    const contentsMetaToKeep: Array<{ messageId?: string; fileIds?: string[] }> = [];
     // Adaptive safety buffer: smaller for large context models (1M+)
     const safetyBuffer = modelLimitTokens >= 500000 ? 2000 : 4000;
 
@@ -46,6 +50,10 @@ export async function buildMessageContext(
 
       if (currentTokenCount + msgTokens < modelLimitTokens - safetyBuffer) {
         messagesToKeep.unshift({ role: msg.role, content: msg.content });
+        contentsMetaToKeep.unshift({
+          messageId: msg.id,
+          fileIds: Array.isArray(msg.meta?.fileIds) ? (msg.meta.fileIds as string[]) : undefined,
+        });
         currentTokenCount += msgTokens;
       } else {
         coreLogger.info(
@@ -56,9 +64,12 @@ export async function buildMessageContext(
     }
 
     contextMessages = messagesToKeep;
+    contentsMeta = contentsMetaToKeep;
     const mapped = mapMessages(contextMessages);
     if (Array.isArray(mapped) && mapped.length > 0) {
       contents = mapped as Array<{ role: string; parts: unknown[] }>;
+    } else {
+      contentsMeta = [{ messageId: undefined, fileIds: undefined }];
     }
   } catch (e) {
     coreLogger.error("Context load error:", e);
@@ -68,6 +79,7 @@ export async function buildMessageContext(
   return {
     contextMessages,
     contents,
+    contentsMeta: contentsMeta || [{ messageId: undefined, fileIds: undefined }],
     currentTokenCount,
   };
 }
