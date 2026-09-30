@@ -182,7 +182,7 @@
 | **Architecture**       | Causal Encoder-Decoder (CED MoE, 552B total, 8B/16B act) |
 | **Provider**           | OpenRouter (Ưu tiên Relace)                              |
 | **API Key**            | `OPENROUTER_API_KEY`                                     |
-| **Pricing**            | ~$0.15/M input, ~$0.60/M output, **$0.015/M cache read** |
+| **Pricing**            | ~$0.02/M input, ~$0.60/M output, **$0.02/M cache read**  |
 
 **Supported Features:**
 | Feature | Status |
@@ -191,11 +191,11 @@
 | Reasoning Effort | ✅ `high`, `max` (với system prompt prefix) |
 | Tool Calls | ✅ Supported (`tools` + `tool_choice`) |
 | Streaming | ✅ SSE with `delta.reasoning_content` / `delta.reasoning` |
-| Context Caching | ✅ **90% discount** với $0.015/M token khi hit cache |
+| Context Caching | ✅ **Đồng giá $0.02/M token** khi hit cache |
 | Image Input (Vision) | ✅ **Supported** (Multimodal input qua base64 `image_url`) |
 | Structured Output | ✅ Supported (`json_object` mode) |
 | Stream Cancellation | ✅ Supported |
-| Performance | ✅ Latency 1.43s, Throughput 60 tps, Uptime 99.50% |
+| Performance | ✅ Latency 1.12s, Throughput 51 tps, Uptime 99.98% |
 
 > [!TIP]
 > DeepSeek V4.1 Flash là model flagship Flash-tier mới nhất (9/2026), vượt trội về hiệu năng và rẻ hơn nhiều so với V4 Pro. Tối ưu cực mạnh cho tác vụ phân tích tài liệu/code lớn (1M context) và sinh nội dung siêu dài (384K output).

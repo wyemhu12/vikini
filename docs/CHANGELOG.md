@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-10-01: Update DeepSeek V4.1 Flash Provider Metrics (Relace)
+
+- **Provider Verification & Metrics Sync**: Xác thực cấu hình OpenRouter provider ưu tiên của DeepSeek V4.1 Flash (`deepseek/deepseek-v4.1-flash`) là Relace (`order: ["Relace"]`). Cập nhật thông số chi phí ($0.02/M input, $0.60/M output, $0.02/M cache read) và hiệu năng (latency 1.12s, throughput 51 tps, uptime 99.98%) trong tài liệu kỹ thuật `docs/models.md`. Toàn bộ 5/5 unit tests của `deepseek-stream.test.ts` và 850/850 tests toàn dự án đều pass.
+
+---
+
 ## 2026-10-01: File Upload & Chat Attachments System Overhaul
 
 - **Binary Storage Key Fix [C4]**: Chuẩn hóa đường dẫn Supabase Storage chỉ chứa pure ASCII: `${userId}/${conversationId}/${uuid}.${safeExt}`. Giữ nguyên 100% tên file tiếng Việt gốc có dấu trong bảng PostgreSQL `files.filename`.
