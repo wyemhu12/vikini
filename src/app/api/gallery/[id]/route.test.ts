@@ -173,7 +173,7 @@ describe("/api/gallery/[id]", () => {
       mockSingle.mockResolvedValue({
         data: {
           id: VALID_MSG_ID,
-          meta: { attachment: { storagePath: "uploads/img.png" } },
+          meta: { attachment: { storagePath: "test@example.com/uploads/img.png" } },
           conversation_id: "conv-1",
           conversations: { user_id: "test@example.com" },
         },
@@ -188,7 +188,29 @@ describe("/api/gallery/[id]", () => {
 
       expect(res.status).toBe(200);
       expect(json.success).toBe(true);
-      expect(mockStorageRemove).toHaveBeenCalledWith(["uploads/img.png"]);
+      expect(mockStorageRemove).toHaveBeenCalledWith(["test@example.com/uploads/img.png"]);
+    });
+
+    it("should NOT delete storage file if storagePath belongs to another user (TC-SEC-01C)", async () => {
+      mockAuth(AUTH_SESSION);
+      mockSingle.mockResolvedValue({
+        data: {
+          id: VALID_MSG_ID,
+          meta: { attachment: { storagePath: "other@example.com/secret.png" } },
+          conversation_id: "conv-1",
+          conversations: { user_id: "test@example.com" },
+        },
+        error: null,
+      });
+      mockDeleteEq.mockResolvedValue({ error: null });
+
+      const req = createRequest("DELETE", `/api/gallery/${VALID_MSG_ID}`);
+      const res = await DELETE(req, { params: Promise.resolve({ id: VALID_MSG_ID }) });
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.success).toBe(true);
+      expect(mockStorageRemove).not.toHaveBeenCalled();
     });
 
     it("should continue deletion even if storage removal fails", async () => {
@@ -196,7 +218,7 @@ describe("/api/gallery/[id]", () => {
       mockSingle.mockResolvedValue({
         data: {
           id: VALID_MSG_ID,
-          meta: { attachment: { storagePath: "uploads/img.png" } },
+          meta: { attachment: { storagePath: "test@example.com/uploads/img.png" } },
           conversation_id: "conv-1",
           conversations: { user_id: "test@example.com" },
         },

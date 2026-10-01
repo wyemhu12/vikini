@@ -356,5 +356,34 @@ describe("/api/edit-image", () => {
       // Should pass validation (400) and reach conversation check (404)
       expect(res.status).toBe(404);
     });
+
+    it("should reject sourceImageUrl pointing to private IP with 400 ValidationError (SSRF)", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: TEST_CONV_ID, user_id: TEST_EMAIL },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      const req = createRequest("POST", "/api/edit-image", {
+        ...validBody,
+        sourceImageUrl: "http://127.0.0.1/admin.png",
+      });
+      const res = await POST(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(json.success).toBe(false);
+      expect(json.error.message).toContain(
+        "Access to private or restricted network addresses is forbidden"
+      );
+    });
   });
 });

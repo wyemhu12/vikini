@@ -3,6 +3,7 @@
 import { CONVERSATION_DEFAULTS } from "@/lib/utils/constants";
 import { DEFAULT_MODEL, normalizeModelForApi, getModelTokenLimit } from "@/lib/core/modelRegistry";
 import { getConversation, saveConversation } from "@/lib/features/chat/conversations";
+import { NotFoundError } from "@/lib/utils/errors";
 import {
   deleteLastAssistantMessage,
   deleteMessagesIncludingAndAfter,
@@ -20,7 +21,11 @@ export async function loadOrCreateConversation(
   if (requestedConversationId) {
     try {
       convo = await getConversation(requestedConversationId);
-    } catch {
+      if (convo && convo.userId !== userId) {
+        throw new NotFoundError("Conversation");
+      }
+    } catch (err) {
+      if (err instanceof NotFoundError) throw err;
       convo = null;
     }
   }

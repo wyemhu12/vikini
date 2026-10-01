@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
-import { ForbiddenError, ValidationError, AppError } from "@/lib/utils/errors";
+import { ForbiddenError, ValidationError, NotFoundError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { logAuditEvent } from "@/lib/features/admin/auditLog";
 import { bumpAuthVersion } from "@/lib/features/auth/authRevocation";
@@ -18,11 +18,12 @@ function isValidRank(rank: unknown): rank is UserRank {
   return typeof rank === "string" && VALID_RANKS.includes(rank as UserRank);
 }
 
-// SECURITY: Validate userId format - accepts email (canonical identity)
+// SECURITY: Validate userId format - accepts email or UUID
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isValidUserId(id: unknown): boolean {
-  return typeof id === "string" && EMAIL_REGEX.test(id);
+  return typeof id === "string" && (EMAIL_REGEX.test(id) || UUID_REGEX.test(id));
 }
 
 // Type for profile updates
@@ -93,20 +94,41 @@ export async function PATCH(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
-    const { error: dbError } = await supabase.from("profiles").update(updates).eq("id", userId);
+
+    // Look up user by id first (supports UUID and canonical email)
+    let targetProfile: { id: string; email: string } | null = null;
+    const { data: byId } = await supabase
+      .from("profiles")
+      .select("id, email")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (byId) {
+      targetProfile = byId;
+    } else {
+      // Fallback lookup by canonical email
+      const { data: byEmail } = await supabase
+        .from("profiles")
+        .select("id, email")
+        .eq("email", userId.toLowerCase())
+        .maybeSingle();
+      targetProfile = byEmail;
+    }
+
+    if (!targetProfile) {
+      throw new NotFoundError("User");
+    }
+
+    const { error: dbError } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", targetProfile.id);
 
     if (dbError) throw new Error(dbError.message);
 
-    // SECURITY: Invalidate cached JWT rank for the target user
-    // This forces their next request to re-fetch rank from DB
-    await bumpAuthVersion(userId);
-
-    // Resolve target email for audit log
-    const { data: targetProfile } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("id", userId)
-      .single();
+    // SECURITY: Invalidate cached JWT rank for the target user (canonical email)
+    const canonicalEmail = targetProfile.email?.toLowerCase() || targetProfile.id.toLowerCase();
+    await bumpAuthVersion(canonicalEmail);
 
     // Determine audit action
     let action = "UPDATE_USER_RANK";
@@ -117,8 +139,8 @@ export async function PATCH(req: NextRequest) {
       action,
       adminId: session.user.email?.toLowerCase() || "",
       adminEmail: session.user.email || undefined,
-      targetId: userId,
-      targetEmail: targetProfile?.email || undefined,
+      targetId: targetProfile.id,
+      targetEmail: targetProfile.email || undefined,
       details: updates as Record<string, unknown>,
     });
 

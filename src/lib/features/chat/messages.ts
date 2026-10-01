@@ -2,7 +2,9 @@
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { encryptText, decryptText } from "@/lib/core/encryption";
 import { logger } from "@/lib/utils/logger";
+import { NotFoundError, ForbiddenError } from "@/lib/utils/errors";
 import { balanceThinkTags } from "./thinkTags";
+import { removeOwnedStoragePaths } from "./storageCleanup";
 
 const messagesLogger = logger.withContext("messages");
 
@@ -11,7 +13,7 @@ const messagesLogger = logger.withContext("messages");
  * Avoids `any` type for type safety.
  */
 export interface MessageMeta {
-  type?: "image_gen" | "text" | "chart";
+  type?: "image_gen" | "image_edit" | "text" | "chart";
   imageUrl?: string;
   prompt?: string;
   attachment?: {
@@ -251,6 +253,23 @@ export async function deleteMessageByClientMessageId(
   recordTombstone(clientMessageId);
 
   const supabase = getSupabaseAdmin();
+
+  // Verify conversation ownership
+  const { data: conv } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("id", conversationId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!conv) {
+    messagesLogger.warn(
+      { userId, conversationId },
+      "Unauthorized attempt to delete message in unowned conversation"
+    );
+    return;
+  }
+
   const { data: targetMsg } = await supabase
     .from("messages")
     .select("id, meta")
@@ -261,8 +280,11 @@ export async function deleteMessageByClientMessageId(
   if (!targetMsg) return;
 
   const meta = targetMsg.meta as MessageMeta | undefined;
-  if (meta?.type === "image_gen" && meta?.attachment?.storagePath) {
-    await supabase.storage.from("attachments").remove([meta.attachment.storagePath]);
+  if (
+    (meta?.type === "image_gen" || meta?.type === "image_edit") &&
+    meta?.attachment?.storagePath
+  ) {
+    await removeOwnedStoragePaths(supabase, userId, [meta.attachment.storagePath]);
   }
 
   await supabase.from("messages").delete().eq("id", targetMsg.id);
@@ -328,19 +350,30 @@ export async function deleteLastAssistantMessage(
 export async function deleteMessage(userId: string, messageId: string): Promise<void> {
   const supabase = getSupabaseAdmin();
 
-  // 1. Fetch message meta to check for generated images and tombstone
-  const { data: msg } = await supabase.from("messages").select("meta").eq("id", messageId).single();
+  // 1. Fetch message and verify conversation ownership
+  const { data: msg, error } = await supabase
+    .from("messages")
+    .select("id, meta, conversation_id, conversations!inner(user_id)")
+    .eq("id", messageId)
+    .maybeSingle();
 
-  if (msg?.meta) {
+  if (error || !msg) {
+    throw new NotFoundError("Message");
+  }
+
+  const conv = msg.conversations as unknown as { user_id: string };
+  if (conv.user_id !== userId) {
+    throw new ForbiddenError("You do not have permission to delete this message");
+  }
+
+  if (msg.meta) {
     const meta = msg.meta as MessageMeta;
     if (meta.clientMessageId) {
       recordTombstone(meta.clientMessageId as string);
     }
-    // Check if it's a generated image with a storage path
-    if (meta.type === "image_gen" && meta.attachment?.storagePath) {
-      const storagePath = meta.attachment.storagePath;
-      messagesLogger.info(`Deleting generated image from storage: ${storagePath}`);
-      await supabase.storage.from("attachments").remove([storagePath]);
+    // Check if it's a generated or edited image with a storage path
+    if ((meta.type === "image_gen" || meta.type === "image_edit") && meta.attachment?.storagePath) {
+      await removeOwnedStoragePaths(supabase, userId, [meta.attachment.storagePath]);
     }
   }
 
@@ -354,6 +387,22 @@ export async function deleteMessagesIncludingAndAfter(
   messageId: string
 ): Promise<void> {
   const supabase = getSupabaseAdmin();
+
+  // Verify conversation ownership
+  const { data: conv } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("id", conversationId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!conv) {
+    messagesLogger.warn(
+      { userId, conversationId },
+      "Unauthorized attempt to truncate messages in unowned conversation"
+    );
+    return;
+  }
 
   // 1. Get target message to find its creation time
   const { data: targetMsg } = await supabase
@@ -380,14 +429,16 @@ export async function deleteMessagesIncludingAndAfter(
       if (meta?.clientMessageId) {
         recordTombstone(meta.clientMessageId as string);
       }
-      if (meta?.type === "image_gen" && meta?.attachment?.storagePath) {
+      if (
+        (meta?.type === "image_gen" || meta?.type === "image_edit") &&
+        meta?.attachment?.storagePath
+      ) {
         pathsToRemove.push(meta.attachment.storagePath);
       }
     }
 
     if (pathsToRemove.length > 0) {
-      messagesLogger.info(`Deleting ${pathsToRemove.length} generated images from storage`);
-      await supabase.storage.from("attachments").remove(pathsToRemove);
+      await removeOwnedStoragePaths(supabase, userId, pathsToRemove);
     }
   }
 
@@ -437,6 +488,13 @@ export async function deleteSingleMessage(userId: string, messageId: string) {
     if (path) {
       await supabase.storage.from("images").remove([path]);
     }
+  }
+  const meta = msg.meta as MessageMeta | undefined;
+  if (
+    (meta?.type === "image_gen" || meta?.type === "image_edit") &&
+    meta?.attachment?.storagePath
+  ) {
+    await removeOwnedStoragePaths(supabase, userId, [meta.attachment.storagePath]);
   }
 
   // 2. Delete Record

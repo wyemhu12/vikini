@@ -12,7 +12,7 @@ import {
   MAX_FILE_SIZE_BYTES,
   MAX_CHUNKS_PER_UPLOAD,
 } from "@/types/projects";
-import { getUserTier, getTierLimits, canAddStorageToProject } from "./projects.server";
+import { getUserTier, getTierLimits, canAddStorageToProject, getProject } from "./projects.server";
 import {
   generateEmbedding,
   generateEmbeddingsBatch,
@@ -272,6 +272,12 @@ export async function searchKnowledge(
     limit?: number;
   }
 ): Promise<KnowledgeSearchResult[]> {
+  const project = await getProject(projectId, userId);
+  if (!project) {
+    kbLogger.warn(`User ${userId} does not own project ${projectId}`);
+    return [];
+  }
+
   const supabase = getSupabaseAdmin();
   const threshold = options?.threshold ?? 0.7;
   const limit = options?.limit ?? 5;

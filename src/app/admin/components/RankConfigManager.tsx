@@ -163,7 +163,11 @@ export default function RankConfigManager() {
                   type="number"
                   value={config.daily_message_limit}
                   onChange={(e) =>
-                    updateConfig(config.rank, "daily_message_limit", parseInt(e.target.value))
+                    updateConfig(
+                      config.rank,
+                      "daily_message_limit",
+                      Math.min(Math.max(0, parseInt(e.target.value, 10) || 0), 2147483647)
+                    )
                   }
                   className="w-full bg-white/5 border-white/10 text-white focus-visible:ring-blue-500/50"
                 />
@@ -178,7 +182,11 @@ export default function RankConfigManager() {
                   type="number"
                   value={config.max_file_size_mb}
                   onChange={(e) =>
-                    updateConfig(config.rank, "max_file_size_mb", parseInt(e.target.value))
+                    updateConfig(
+                      config.rank,
+                      "max_file_size_mb",
+                      Math.min(Math.max(0, parseInt(e.target.value, 10) || 0), 2147483647)
+                    )
                   }
                   className="w-full bg-white/5 border-white/10 text-white focus-visible:ring-blue-500/50"
                 />
@@ -193,7 +201,11 @@ export default function RankConfigManager() {
                   type="number"
                   value={config.daily_research_limit ?? 0}
                   onChange={(e) =>
-                    updateConfig(config.rank, "daily_research_limit", parseInt(e.target.value))
+                    updateConfig(
+                      config.rank,
+                      "daily_research_limit",
+                      Math.min(Math.max(0, parseInt(e.target.value, 10) || 0), 2147483647)
+                    )
                   }
                   className="w-full bg-white/5 border-white/10 text-white focus-visible:ring-blue-500/50"
                 />

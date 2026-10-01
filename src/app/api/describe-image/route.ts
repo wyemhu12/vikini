@@ -5,6 +5,7 @@ import { logger } from "@/lib/utils/logger";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
 import { UnauthorizedError, ValidationError, RateLimitError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
+import { fetchSafeImage } from "@/lib/core/ssrfGuard.server";
 
 const routeLogger = logger.withContext("describe-image");
 
@@ -49,11 +50,9 @@ export async function POST(req: NextRequest) {
       imageBase64 = parts[1];
       mimeType = parts[0].match(/:(.*?);/)?.[1] || "image/png";
     } else {
-      const res = await fetch(imageUrl);
-      if (!res.ok) throw new Error("Failed to fetch image");
-      const buffer = await res.arrayBuffer();
-      imageBase64 = Buffer.from(buffer).toString("base64");
-      mimeType = res.headers.get("content-type") || "image/png";
+      const safeImage = await fetchSafeImage(imageUrl);
+      imageBase64 = safeImage.buffer.toString("base64");
+      mimeType = safeImage.mimeType;
     }
 
     // Call Gemini to describe the image

@@ -112,6 +112,34 @@ describe("/api/messages/[id]", () => {
       expect(json.success).toBe(false);
     });
 
+    it("should return 403 when deleteMessage throws ForbiddenError", async () => {
+      mockAuthenticated();
+      const { ForbiddenError } = await import("@/lib/utils/errors");
+      vi.mocked(deleteMessage).mockRejectedValue(
+        new ForbiddenError("You do not have permission to delete this message")
+      );
+
+      const req = createRequest("DELETE", `/api/messages/${TEST_MESSAGE_ID}`);
+      const res = await DELETE(req, createParams(TEST_MESSAGE_ID));
+
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+    });
+
+    it("should return 404 when deleteMessage throws NotFoundError", async () => {
+      mockAuthenticated();
+      const { NotFoundError } = await import("@/lib/utils/errors");
+      vi.mocked(deleteMessage).mockRejectedValue(new NotFoundError("Message"));
+
+      const req = createRequest("DELETE", `/api/messages/${TEST_MESSAGE_ID}`);
+      const res = await DELETE(req, createParams(TEST_MESSAGE_ID));
+
+      expect(res.status).toBe(404);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+    });
+
     it("should return 500 when deleteMessage throws unexpected error", async () => {
       mockAuthenticated();
       vi.mocked(deleteMessage).mockRejectedValue(new Error("DB connection lost"));

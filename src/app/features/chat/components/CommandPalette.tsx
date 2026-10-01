@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
 import { Search, PlusCircle, Keyboard, Moon, Globe, MessageSquare } from "lucide-react";
 import { useLanguage } from "../hooks/useLanguage";
-import { useTheme } from "next-themes";
+import { useTheme } from "../hooks/useTheme";
 import { cn } from "@/lib/utils/cn";
 
 export interface CommandPaletteProps {
@@ -33,7 +33,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   conversations = [],
 }) => {
   const { t, language, setLanguage } = useLanguage();
-  const { theme, setTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -81,11 +81,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       },
       {
         id: "switch-theme",
-        title: `${t("selectTheme") || "Select Theme"}: ${theme === "dark" ? "Light" : "Dark"}`,
+        title: `${t("switchTheme") || "Chuyển giao diện"}: ${theme || "blueprint"}`,
         category: "preferences",
         icon: <Moon className="w-4 h-4 text-(--accent)" />,
         perform: () => {
-          setTheme(theme === "dark" ? "light" : "dark");
+          toggleTheme();
           onClose();
         },
       },
@@ -111,7 +111,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     language,
     setLanguage,
     theme,
-    setTheme,
+    toggleTheme,
     onNewChat,
     onOpenShortcuts,
     onSelectConversation,

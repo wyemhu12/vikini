@@ -17,33 +17,25 @@ export async function GET(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
-    const userId = req.nextUrl.searchParams.get("userId");
+    const userIdParam = req.nextUrl.searchParams.get("userId");
 
-    if (userId) {
-      // User-specific stats
+    if (userIdParam) {
+      // User-specific stats - normalize email
+      const canonicalEmail = userIdParam.trim().toLowerCase();
+
       const { count: convCount } = await supabase
         .from("conversations")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", userId);
+        .eq("user_id", canonicalEmail);
 
-      const { data: convIds } = await supabase
-        .from("conversations")
-        .select("id")
-        .eq("user_id", userId);
-
-      let msgCount = 0;
-      if (convIds && convIds.length > 0) {
-        const ids = convIds.map((c: { id: string }) => c.id);
-        const { count } = await supabase
-          .from("messages")
-          .select("*", { count: "exact", head: true })
-          .in("conversation_id", ids);
-        msgCount = count || 0;
-      }
+      const { count: msgCount } = await supabase
+        .from("messages")
+        .select("id, conversations!inner(user_id)", { count: "exact", head: true })
+        .eq("conversations.user_id", canonicalEmail);
 
       return success({
         conversations: convCount || 0,
-        messages: msgCount,
+        messages: msgCount || 0,
       });
     }
 

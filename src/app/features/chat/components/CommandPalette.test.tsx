@@ -11,10 +11,12 @@ vi.mock("../hooks/useLanguage", () => ({
   }),
 }));
 
-vi.mock("next-themes", () => ({
+const mockToggleTheme = vi.fn();
+
+vi.mock("../hooks/useTheme", () => ({
   useTheme: () => ({
-    theme: "dark",
-    setTheme: vi.fn(),
+    theme: "blueprint",
+    toggleTheme: mockToggleTheme,
   }),
 }));
 
@@ -82,5 +84,23 @@ describe("CommandPalette", () => {
 
     expect(onClose).toHaveBeenCalled();
     expect(onNewChat).toHaveBeenCalled();
+  });
+
+  it("calls toggleTheme when switch-theme item is clicked (UI-01)", () => {
+    const onClose = vi.fn();
+    render(
+      <CommandPalette
+        isOpen={true}
+        onClose={onClose}
+        onNewChat={vi.fn()}
+        onOpenShortcuts={vi.fn()}
+      />
+    );
+
+    const themeItem = screen.getByText(/switchTheme/i);
+    fireEvent.click(themeItem);
+
+    expect(mockToggleTheme).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
   });
 });

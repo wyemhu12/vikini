@@ -737,6 +737,7 @@ export const vi = {
   // HeaderBar / Layout
   settings: "Cài đặt",
   theme: "Giao diện",
+  switchTheme: "Chuyển giao diện",
   // File manager
   files: "Tệp",
   dropFilesHere: "Thả tệp vào đây để tải lên",

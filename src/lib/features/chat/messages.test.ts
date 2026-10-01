@@ -3,8 +3,11 @@ import {
   upsertMessage,
   recordTombstone,
   isTombstoned,
+  deleteMessage,
   deleteMessageByClientMessageId,
+  deleteMessagesIncludingAndAfter,
 } from "./messages";
+import { ForbiddenError, NotFoundError } from "@/lib/utils/errors";
 
 // Mock Supabase admin client
 const mockFrom = vi.fn();
@@ -206,5 +209,91 @@ describe("messages - upsert and tombstone logic", () => {
 
     expect(isTombstoned("del-id-1")).toBe(true);
     expect(deleteMock).toHaveBeenCalled();
+  });
+
+  it("deleteMessage throws NotFoundError if message does not exist", async () => {
+    mockFrom.mockImplementation(() => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+    }));
+
+    await expect(deleteMessage("user-1", "non-existent-msg")).rejects.toThrow(NotFoundError);
+  });
+
+  it("deleteMessage throws ForbiddenError if conversation belongs to another user (TC-SEC-01A)", async () => {
+    mockFrom.mockImplementation(() => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: {
+              id: "msg-victim",
+              meta: {},
+              conversation_id: "conv-victim",
+              conversations: { user_id: "victim@example.com" },
+            },
+            error: null,
+          }),
+        }),
+      }),
+    }));
+
+    await expect(deleteMessage("attacker@example.com", "msg-victim")).rejects.toThrow(
+      ForbiddenError
+    );
+  });
+
+  it("deleteMessage deletes message when owned by requesting user (TC-SEC-01B)", async () => {
+    const deleteMock = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+
+    mockFrom.mockImplementation(() => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: {
+              id: "msg-my",
+              meta: { clientMessageId: "my-client-id" },
+              conversation_id: "conv-my",
+              conversations: { user_id: "my@example.com" },
+            },
+            error: null,
+          }),
+        }),
+      }),
+      delete: deleteMock,
+    }));
+
+    await deleteMessage("my@example.com", "msg-my");
+    expect(deleteMock).toHaveBeenCalled();
+    expect(isTombstoned("my-client-id")).toBe(true);
+  });
+
+  it("deleteMessagesIncludingAndAfter aborts deletion if conversation is not owned by user (TC-SEC-01E)", async () => {
+    const deleteMock = vi.fn();
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "conversations") {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null }),
+              }),
+            }),
+          }),
+        };
+      }
+      return {
+        select: vi.fn(),
+        delete: deleteMock,
+      };
+    });
+
+    await deleteMessagesIncludingAndAfter("attacker@example.com", "conv-victim", "msg-1");
+    expect(deleteMock).not.toHaveBeenCalled();
   });
 });

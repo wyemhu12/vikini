@@ -25,6 +25,8 @@
 - [UI Conditional Rendering](#ui-conditional-rendering)
 - [AI Streaming and Thinking Mode](#ai-streaming-and-thinking-mode)
 - [Vector Embeddings & Supabase TypeGen Lifecycle](#vector-embeddings--supabase-typegen-lifecycle)
+- [UI Architecture & Streaming Hooks](#ui-architecture--streaming-hooks)
+- [Security, Multi-Tenancy & Query Isolation](#security-multi-tenancy--query-isolation)
 
 ---
 
@@ -484,3 +486,44 @@
 - **Prevention Rule**:
   - In Vitest tests for streaming hooks, **NEVER leave stream readers hanging with unresolved promises** without calling cleanup (`resetChatUI` / `cancelStream` / `handleStop`).
   - For client storage hydration, **always latch state with `hasHydrated` before allowing write effects to localStorage**, preventing mount-time overwrite races.
+
+---
+
+## Security, Multi-Tenancy & Query Isolation
+
+### 2026-10-01: Phase 1 Security, Admin Dashboard & Query Architecture Remediation
+
+- **Symptom**:
+  1. **SEC-01**: A user could call `deleteMessage` or message pruning APIs with an arbitrary message ID or storage path, enabling unauthorized message deletion and cross-tenant file deletion in Supabase Storage (`storage.remove([path])`).
+  2. **SEC-02**: In RAG knowledge queries, `getConversationProjectId` queried conversations without checking `user_id`, and `searchKnowledge` executed vector searches without verifying whether the requesting user owned the target project, leaking documents across accounts.
+  3. **SEC-03**: In image processing endpoints (`/api/describe-image`, `/api/edit-image`), external URLs supplied in payloads were fetched directly with standard `fetch()`, allowing SSRF attacks targeting internal cloud metadata (`169.254.169.254`), loopback, or private networks.
+  4. **SEC-04**: In the chat tool `calculate`, mathematical expressions were evaluated via `new Function("return " + sanitized)`, which was susceptible to JavaScript sandbox escapes and code injection.
+  5. **ADM-01 & ADM-02**: Admin user updates failed or produced 400 errors when sending emails instead of UUIDs (or vice versa), and admin stats reported 0 conversations/messages due to case-sensitivity mismatches and unbounded `.in()` query syntax limitations.
+  6. **ADM-03**: Rank config limits allowed `NaN` and numbers exceeding Postgres `int4` max (`2147483647`), causing SQL crashes, while `daily_research_limit` was omitted from database updates.
+  7. **API-01 & API-02**: Gallery endpoint `/api/gallery` loaded ALL messages of a user into RAM before filtering for images and paginating, creating unbounded memory consumption and ignoring Image Studio assets.
+  8. **UI-01 & UI-02**: The Command Palette theme switcher called `setTheme("light"|"dark")`, wiping glassmorphism CSS tokens, and the Gallery image modal had an empty close button missing an icon.
+
+- **Root Cause**:
+  1. Missing user ownership validation before executing database mutations and storage removals, combined with unverified storage path prefixes (allowing directory traversal `..`).
+  2. Helper functions in `ragContext.server.ts` and `knowledge.server.ts` assumed prior upstream authentication without asserting tenant isolation at the data query boundary.
+  3. Lack of a dedicated SSRF defense layer validating DNS lookups, blocking private IP ranges (IPv4 & IPv6), preventing redirect hopping, and capping response stream sizes.
+  4. Use of `new Function` for arithmetic parsing instead of a strict, deterministic recursive descent grammar.
+  5. Discordance between Supabase Auth identities and Vikini's canonical email-based `profiles.id` (`auth.ts:98`), coupled with case-sensitive queries and unjoined PostgREST operations.
+  6. Lack of integer boundary validation (`Number.isInteger` and `[0, 2147483647]`) in admin rank routes.
+  7. Gallery route performed in-memory filtering rather than leveraging PostgREST inner joins and `.range()` pagination on database indexes.
+
+- **Fix**:
+  1. Built centralized `removeOwnedStoragePaths` in `storageCleanup.ts` enforcing strict `${userId}/` prefixes and rejecting path traversal (`..`). Added `userId` checks across all 4 message deletion sinks and in `conversationLoader.ts`.
+  2. Enforced `.eq("user_id", userId)` in `getConversationProjectId` and added ownership verification before invoking vector embeddings and `match_project_knowledge` RPC.
+  3. Created `ssrfGuard.server.ts` using Node.js `dns.promises.lookup`, `net.BlockList` covering all private/loopback/cloud-metadata ranges, manual redirect validation (max 3 hops), a unified 10s deadline, and 10MB streaming caps with immediate `body.cancel()`.
+  4. Implemented `mathParser.ts` (safe recursive descent parser) supporting `+,-,*,/,%,^,**`, correct unary minus precedence (`-2^2 = -4`), exponential limits `[-50, 50]`, and allowlisted Math functions without any dynamic code evaluation.
+  5. Updated `/api/admin/users` to look up profiles by ID then by canonical email, updating the verified `targetProfile.id` and bumping auth versions with lowercased email. Rewrote `/api/admin/stats` to count messages via `conversations!inner(user_id)`.
+  6. Enforced `int4` limits `[0, 2147483647]` and integer checks on all rank config numeric inputs, including `daily_research_limit`.
+  7. Refactored `/api/gallery` into a single PostgREST join `messages` with `conversations!inner(user_id, model)`, filtering out user templates, including Image Studio, and applying `.range(offset, offset + limit)` at the database level.
+  8. Hooked `switchTheme` in CommandPalette to `useTheme:toggleTheme()`, and added the `<X />` icon, focus ring, and `aria-label` to GalleryView modal close button.
+
+- **Prevention Rule**:
+  - **Always validate user ownership and storage prefixes (`${userId}/`) at the data layer** before any deletion or mutation. Never trust client IDs or paths.
+  - **Never use `new Function` or `eval` for user-supplied expressions.** Always use a deterministic tokenizer and AST/recursive descent parser.
+  - **Any server-side HTTP fetch of external URLs must pass through `fetchSafeImage` / SSRF Guard**, strictly forbidding RFC 1918, loopback, link-local, and cloud metadata IPs at both hostname and resolved IP stages.
+  - **Always filter and paginate at the database level (`.range()`)** using inner joins rather than fetching large datasets into Node.js application memory.

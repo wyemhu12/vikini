@@ -16,6 +16,7 @@ const mockUpdate = vi.fn();
 const mockEq = vi.fn();
 const mockSingle = vi.fn();
 const mockFrom = vi.fn();
+const mockUpdateEq = vi.fn().mockResolvedValue({ error: null });
 
 vi.mock("@/lib/core/supabase.server", () => ({
   getSupabaseAdmin: vi.fn(() => ({
@@ -32,12 +33,8 @@ vi.mock("@/lib/core/supabase.server", () => ({
             eq: (...eArgs: unknown[]) => {
               mockEq(...eArgs);
               return {
-                single: () => {
-                  return (
-                    mockSingle.mock.results[mockSingle.mock.results.length - 1]?.value ??
-                    mockSingle()
-                  );
-                },
+                single: () => mockSingle(),
+                maybeSingle: () => mockSingle(),
               };
             },
           };
@@ -47,7 +44,7 @@ vi.mock("@/lib/core/supabase.server", () => ({
           return {
             eq: (...eArgs: unknown[]) => {
               mockEq(...eArgs);
-              return mockEq.mock.results[mockEq.mock.results.length - 1]?.value;
+              return mockUpdateEq(...eArgs);
             },
           };
         },
@@ -239,10 +236,13 @@ describe("/api/admin/users", () => {
 
     it("should update user rank successfully", async () => {
       mockAdmin();
+      // select().eq().maybeSingle() for target profile lookup
+      mockSingle.mockResolvedValueOnce({
+        data: { id: TEST_UUID, email: "target@test.com" },
+        error: null,
+      });
       // update().eq() for profiles
       mockEq.mockResolvedValueOnce({ error: null });
-      // select().eq().single() for target profile email
-      mockSingle.mockResolvedValueOnce({ data: { email: "target@test.com" }, error: null });
 
       const req = createRequest("PATCH", "/api/admin/users", {
         userId: TEST_UUID,
@@ -257,11 +257,11 @@ describe("/api/admin/users", () => {
 
     it("should update user blocked status successfully", async () => {
       mockAdmin();
-      mockEq.mockResolvedValueOnce({ error: null });
       mockSingle.mockResolvedValueOnce({
-        data: { email: "target@test.com" },
+        data: { id: TEST_UUID, email: "target@test.com" },
         error: null,
       });
+      mockEq.mockResolvedValueOnce({ error: null });
 
       const req = createRequest("PATCH", "/api/admin/users", {
         userId: TEST_UUID,
@@ -274,9 +274,48 @@ describe("/api/admin/users", () => {
       expect(json.success).toBe(true);
     });
 
+    it("should return 404 when user is not found by id or email (ADM-01)", async () => {
+      mockAdmin();
+      mockSingle.mockResolvedValueOnce({ data: null, error: null }); // by id
+      mockSingle.mockResolvedValueOnce({ data: null, error: null }); // by email
+
+      const req = createRequest("PATCH", "/api/admin/users", {
+        userId: "unknown@example.com",
+        rank: "pro",
+      });
+      const res = await PATCH(req);
+      expect(res.status).toBe(404);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error.message).toContain("User not found");
+    });
+
+    it("should update user successfully when userId is a valid UUID", async () => {
+      mockAdmin();
+      const testUuid = "12345678-1234-1234-1234-123456789abc";
+      mockSingle.mockResolvedValueOnce({
+        data: { id: testUuid, email: "uuid-user@example.com" },
+        error: null,
+      });
+      mockEq.mockResolvedValueOnce({ error: null });
+
+      const req = createRequest("PATCH", "/api/admin/users", {
+        userId: testUuid,
+        rank: "pro",
+      });
+      const res = await PATCH(req);
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+    });
+
     it("should return 500 on database error during update", async () => {
       mockAdmin();
-      mockEq.mockResolvedValueOnce({
+      mockSingle.mockResolvedValueOnce({
+        data: { id: TEST_UUID, email: "target@test.com" },
+        error: null,
+      });
+      mockUpdateEq.mockResolvedValueOnce({
         error: { message: "Update failed" },
       });
 

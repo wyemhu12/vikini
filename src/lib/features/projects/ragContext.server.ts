@@ -27,15 +27,21 @@ export interface RAGContext {
 
 /**
  * Get project ID for a conversation (if any)
+ * SECURITY: If userId is provided, ensures the conversation belongs to the user.
  */
-export async function getConversationProjectId(conversationId: string): Promise<string | null> {
+export async function getConversationProjectId(
+  conversationId: string,
+  userId?: string
+): Promise<string | null> {
   const supabase = getSupabaseAdmin();
 
-  const { data, error } = await supabase
-    .from("conversations")
-    .select("project_id")
-    .eq("id", conversationId)
-    .single();
+  let query = supabase.from("conversations").select("project_id").eq("id", conversationId);
+
+  if (userId) {
+    query = query.eq("user_id", userId);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error || !data?.project_id) return null;
   return data.project_id;
@@ -62,8 +68,8 @@ export async function buildRAGContext(
   };
 
   try {
-    // Check if conversation has a project
-    const projectId = await getConversationProjectId(conversationId);
+    // Check if conversation has a project and belongs to userId
+    const projectId = await getConversationProjectId(conversationId, userId);
     ragLogger.info(`Conversation ${conversationId} projectId: ${projectId || "NULL"}`);
     if (!projectId) {
       ragLogger.info(`No project linked to conversation ${conversationId}`);

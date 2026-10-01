@@ -9,6 +9,7 @@
 //   4. Registry auto-exports declarations for tools config
 
 import { logger } from "@/lib/utils/logger";
+import { evaluateMathExpression } from "./mathParser";
 
 const fnLogger = logger.withContext("functionRegistry");
 
@@ -224,34 +225,12 @@ registerFunction(
   (args) => {
     const expression = (args.expression as string) || "";
     try {
-      // Sanitize: only allow math characters, numbers, and common functions
-      const sanitized = expression.replace(/[^0-9+\-*/().%^, sqrtloglnabsceipowminmaxround]/gi, "");
-      if (!sanitized) {
-        return { result: "", error: "Invalid expression" };
-      }
-
-      // Simple math eval using Function constructor (safe: server-side, no user code exec)
-      // Replace common math functions
-      const prepared = sanitized
-        .replace(/sqrt/gi, "Math.sqrt")
-        .replace(/log/gi, "Math.log10")
-        .replace(/ln/gi, "Math.log")
-        .replace(/abs/gi, "Math.abs")
-        .replace(/ceil/gi, "Math.ceil")
-        .replace(/pow/gi, "Math.pow")
-        .replace(/min/gi, "Math.min")
-        .replace(/max/gi, "Math.max")
-        .replace(/round/gi, "Math.round")
-        .replace(/pi/gi, "Math.PI")
-        .replace(/e(?![a-z])/gi, "Math.E")
-        .replace(/\^/g, "**");
-
-      const result = new Function(`"use strict"; return (${prepared})`)();
+      const result = evaluateMathExpression(expression);
 
       return {
         result: JSON.stringify({
           expression,
-          result: typeof result === "number" ? result : String(result),
+          result,
         }),
       };
     } catch (e: unknown) {

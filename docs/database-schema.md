@@ -1,6 +1,6 @@
 # Database Schema - Vikini
 
-> **Updated**: 2026-05-28  
+> **Updated**: 2026-10-01  
 > **Database**: Supabase PostgreSQL
 
 ---
@@ -27,7 +27,7 @@ erDiagram
 
 
     profiles {
-        uuid id PK
+        text id PK
         text email UK
         text rank
         boolean is_blocked
@@ -178,7 +178,7 @@ erDiagram
 
 | Cột          | Kiểu          | Ràng buộc       | Mô tả                                                |
 | ------------ | ------------- | --------------- | ---------------------------------------------------- |
-| `id`         | `UUID`        | PRIMARY KEY     | ID từ Supabase Auth                                  |
+| `id`         | `TEXT`        | PRIMARY KEY     | Email người dùng (canonical userId, lowercase)       |
 | `email`      | `TEXT`        | UNIQUE NOT NULL | Email đăng nhập                                      |
 | `rank`       | `TEXT`        | NOT NULL, CHECK | Xếp hạng: `basic`, `pro`, `admin`, `not_whitelisted` |
 | `is_blocked` | `BOOLEAN`     | DEFAULT false   | Trạng thái khóa tài khoản                            |

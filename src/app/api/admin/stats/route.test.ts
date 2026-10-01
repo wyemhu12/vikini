@@ -163,12 +163,10 @@ describe("/api/admin/stats", () => {
 
       // conversations count for user
       fromResults.push({ count: 10 });
-      // conversations ids for user
-      fromResults.push({ data: [{ id: "conv-1" }, { id: "conv-2" }] });
-      // messages count
+      // messages count via inner join
       fromResults.push({ count: 50 });
 
-      const req = createRequest("GET", "/api/admin/stats?userId=user-123");
+      const req = createRequest("GET", "/api/admin/stats?userId=USER@EXAMPLE.COM");
       const res = await GET(req);
 
       expect(res.status).toBe(200);

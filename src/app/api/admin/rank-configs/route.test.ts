@@ -235,7 +235,84 @@ describe("/api/admin/rank-configs", () => {
       expect(res.status).toBe(400);
     });
 
-    it("should update configs successfully", async () => {
+    it("should return 400 for float/decimal daily_message_limit (e.g. 3.14)", async () => {
+      mockAdmin();
+      const req = createRequest("PATCH", "/api/admin/rank-configs", {
+        configs: [
+          {
+            rank: "basic",
+            daily_message_limit: 3.14,
+            max_file_size_mb: 10,
+          },
+        ],
+      });
+      const res = await PATCH(req);
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error.message).toContain(
+        "daily_message_limit must be an integer between 0 and 2147483647"
+      );
+    });
+
+    it("should return 400 for integer overflow exceeding 2147483647", async () => {
+      mockAdmin();
+      const req = createRequest("PATCH", "/api/admin/rank-configs", {
+        configs: [
+          {
+            rank: "basic",
+            daily_message_limit: 2147483648,
+            max_file_size_mb: 10,
+          },
+        ],
+      });
+      const res = await PATCH(req);
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error.message).toContain(
+        "daily_message_limit must be an integer between 0 and 2147483647"
+      );
+    });
+
+    it("should return 400 for string numeric values (prevent NaN)", async () => {
+      mockAdmin();
+      const req = createRequest("PATCH", "/api/admin/rank-configs", {
+        configs: [
+          {
+            rank: "basic",
+            daily_message_limit: "100",
+            max_file_size_mb: 10,
+          },
+        ],
+      });
+      const res = await PATCH(req);
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error.message).toContain(
+        "daily_message_limit must be an integer between 0 and 2147483647"
+      );
+    });
+
+    it("should return 400 for invalid daily_research_limit", async () => {
+      mockAdmin();
+      const req = createRequest("PATCH", "/api/admin/rank-configs", {
+        configs: [
+          {
+            rank: "basic",
+            daily_message_limit: 100,
+            max_file_size_mb: 10,
+            daily_research_limit: -1,
+          },
+        ],
+      });
+      const res = await PATCH(req);
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error.message).toContain(
+        "daily_research_limit must be an integer between 0 and 2147483647"
+      );
+    });
+
+    it("should update configs successfully including daily_research_limit", async () => {
       mockAdmin();
       mockEq.mockResolvedValue({ error: null });
 
@@ -245,6 +322,7 @@ describe("/api/admin/rank-configs", () => {
             rank: "basic",
             daily_message_limit: 100,
             max_file_size_mb: 20,
+            daily_research_limit: 5,
             features: { imageGen: true },
             allowed_models: ["gemini-2.5-flash"],
           },
@@ -256,6 +334,11 @@ describe("/api/admin/rank-configs", () => {
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(json.data.updated).toBe(true);
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          daily_research_limit: 5,
+        })
+      );
     });
 
     it("should return 500 on database error during update", async () => {

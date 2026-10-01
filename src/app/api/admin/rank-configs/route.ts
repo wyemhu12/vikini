@@ -56,12 +56,15 @@ export async function PATCH(req: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
+    const MAX_INT4 = 2147483647;
+
     // Update each config with validation
     for (const config of configs) {
       const configObj = config as {
         rank?: string;
-        daily_message_limit?: number;
-        max_file_size_mb?: number;
+        daily_message_limit?: unknown;
+        max_file_size_mb?: unknown;
+        daily_research_limit?: unknown;
         features?: unknown;
         allowed_models?: string[];
       };
@@ -73,23 +76,53 @@ export async function PATCH(req: NextRequest) {
         );
       }
 
-      // Validate numeric fields
-      if (typeof configObj.daily_message_limit !== "number" || configObj.daily_message_limit < 0) {
-        throw new ValidationError("daily_message_limit must be a non-negative number");
+      // Validate daily_message_limit: must be integer within [0, 2147483647]
+      if (
+        typeof configObj.daily_message_limit !== "number" ||
+        !Number.isInteger(configObj.daily_message_limit) ||
+        configObj.daily_message_limit < 0 ||
+        configObj.daily_message_limit > MAX_INT4
+      ) {
+        throw new ValidationError(
+          "daily_message_limit must be an integer between 0 and 2147483647"
+        );
       }
 
-      if (typeof configObj.max_file_size_mb !== "number" || configObj.max_file_size_mb < 0) {
-        throw new ValidationError("max_file_size_mb must be a non-negative number");
+      // Validate max_file_size_mb: must be integer within [0, 2147483647]
+      if (
+        typeof configObj.max_file_size_mb !== "number" ||
+        !Number.isInteger(configObj.max_file_size_mb) ||
+        configObj.max_file_size_mb < 0 ||
+        configObj.max_file_size_mb > MAX_INT4
+      ) {
+        throw new ValidationError("max_file_size_mb must be an integer between 0 and 2147483647");
+      }
+
+      const updatePayload: Record<string, unknown> = {
+        daily_message_limit: configObj.daily_message_limit,
+        max_file_size_mb: configObj.max_file_size_mb,
+        features: configObj.features,
+        allowed_models: configObj.allowed_models || [],
+      };
+
+      // Validate optional daily_research_limit
+      if (configObj.daily_research_limit !== undefined) {
+        if (
+          typeof configObj.daily_research_limit !== "number" ||
+          !Number.isInteger(configObj.daily_research_limit) ||
+          configObj.daily_research_limit < 0 ||
+          configObj.daily_research_limit > MAX_INT4
+        ) {
+          throw new ValidationError(
+            "daily_research_limit must be an integer between 0 and 2147483647"
+          );
+        }
+        updatePayload.daily_research_limit = configObj.daily_research_limit;
       }
 
       const { error: dbError } = await supabase
         .from("rank_configs")
-        .update({
-          daily_message_limit: configObj.daily_message_limit,
-          max_file_size_mb: configObj.max_file_size_mb,
-          features: configObj.features,
-          allowed_models: configObj.allowed_models || [],
-        })
+        .update(updatePayload)
         .eq("rank", configObj.rank);
 
       if (dbError) throw new Error(dbError.message);

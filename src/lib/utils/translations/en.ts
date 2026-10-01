@@ -729,6 +729,7 @@ export const en = {
   // HeaderBar / Layout
   settings: "Settings",
   theme: "Theme",
+  switchTheme: "Switch Theme",
   // File manager
   files: "Files",
   dropFilesHere: "Drop files here to upload",

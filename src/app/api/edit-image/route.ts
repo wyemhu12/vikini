@@ -15,6 +15,7 @@ import {
   AppError,
 } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
+import { fetchSafeImage } from "@/lib/core/ssrfGuard.server";
 
 const routeLogger = logger.withContext("edit-image");
 
@@ -79,16 +80,20 @@ export async function POST(req: NextRequest) {
       throw new ForbiddenError("You don't have permission to edit images in this conversation");
     }
 
-    // 5. Download source image and convert to base64
+    // 5. Download source image safely and convert to base64
     routeLogger.info("Downloading source image for editing...");
-    const imageResponse = await fetch(sourceImageUrl);
-    if (!imageResponse.ok) {
-      throw new ValidationError("Failed to download source image");
-    }
+    let imageBuffer: Buffer;
+    let sourceMimeType: string;
 
-    const imageArrayBuffer = await imageResponse.arrayBuffer();
-    const imageBuffer = Buffer.from(imageArrayBuffer);
-    const sourceMimeType = imageResponse.headers.get("content-type") || "image/png";
+    if (sourceImageUrl.startsWith("data:image")) {
+      const parts = sourceImageUrl.split(",");
+      imageBuffer = Buffer.from(parts[1], "base64");
+      sourceMimeType = parts[0].match(/:(.*?);/)?.[1] || "image/png";
+    } else {
+      const safeImage = await fetchSafeImage(sourceImageUrl);
+      imageBuffer = safeImage.buffer;
+      sourceMimeType = safeImage.mimeType;
+    }
     const base64Data = imageBuffer.toString("base64");
 
     // 6. Call Gemini for image editing

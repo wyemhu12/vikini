@@ -10,6 +10,7 @@ import {
 } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { logger } from "@/lib/utils/logger";
+import { removeOwnedStoragePaths } from "@/lib/features/chat/storageCleanup";
 
 const routeLogger = logger.withContext("DELETE /api/gallery/[id]");
 
@@ -63,18 +64,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       throw new ForbiddenError("You don't have permission to delete this message");
     }
 
-    // 3. Delete from storage if storagePath exists
+    // 3. Delete from storage if storagePath exists and belongs to user
     const meta = msg.meta as MessageMeta | null;
     if (meta?.attachment?.storagePath) {
-      const storagePath = meta.attachment.storagePath;
-      const { error: storageError } = await supabase.storage
-        .from("attachments")
-        .remove([storagePath]);
-
-      if (storageError) {
-        routeLogger.warn("Failed to delete from storage:", storageError);
-        // Continue with message deletion even if storage deletion fails
-      }
+      await removeOwnedStoragePaths(supabase, userId, [meta.attachment.storagePath]);
     }
 
     // 4. Delete the message

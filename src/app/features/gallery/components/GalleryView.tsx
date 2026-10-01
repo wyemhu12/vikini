@@ -327,8 +327,11 @@ export function GalleryView() {
                       <h3 className="font-bold text-lg">{g.t("galleryImageDetails")}</h3>
                       <button
                         onClick={() => g.setSelectedImage(null)}
-                        className="p-2 hover:bg-(--surface-muted) rounded-full"
-                      ></button>
+                        aria-label={g.t("close") || "Close"}
+                        className="p-2 hover:bg-(--surface-muted) rounded-full text-(--text-secondary) hover:text-(--text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
                     </div>
 
                     <div className="flex-1 space-y-6 overflow-y-auto">

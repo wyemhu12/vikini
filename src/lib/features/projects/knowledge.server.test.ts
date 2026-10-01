@@ -48,6 +48,11 @@ vi.mock("./projects.server", () => ({
     currentBytes: 1000,
     maxBytes: 50 * 1024 * 1024,
   }),
+  getProject: vi.fn().mockResolvedValue({
+    id: "prj-123",
+    user_id: "user-456",
+    name: "Test Project",
+  }),
 }));
 
 import {
@@ -58,7 +63,7 @@ import {
   cleanupStuckProcessingDocuments,
   searchKnowledge,
 } from "./knowledge.server";
-import { canAddStorageToProject } from "./projects.server";
+import { canAddStorageToProject, getProject } from "./projects.server";
 import { ValidationError } from "@/lib/utils/errors";
 
 describe("knowledge.server", () => {
@@ -504,6 +509,16 @@ describe("knowledge.server", () => {
       });
 
       await expect(searchKnowledge("prj-1", "user-1", "query")).rejects.toThrow("Search failed");
+    });
+
+    it("should return empty array and not generate embedding when project is not found or unowned", async () => {
+      vi.mocked(getProject).mockResolvedValueOnce(null);
+
+      const results = await searchKnowledge("prj-other", "user-other", "query");
+
+      expect(results).toEqual([]);
+      expect(mockGenerateEmbedding).not.toHaveBeenCalled();
+      expect(mockSupabaseRpc).not.toHaveBeenCalled();
     });
   });
 });

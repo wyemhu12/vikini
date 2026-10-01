@@ -13,15 +13,10 @@ const routeLogger = logger.withContext("GET /api/gallery");
 // Types
 // ============================================================================
 
-interface ConversationRow {
-  id: string;
-  model: string | null;
-}
-
 interface MessageRow {
   id: string;
   content: string | null;
-  role: string;
+  role?: string;
   created_at: string;
   meta: {
     type?: string;
@@ -86,76 +81,64 @@ export async function GET(req: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    // 3. Get ALL valid conversation IDs for this user (excluding Image Studio)
-    const { data: userConvs, error: convError } = await supabase
-      .from("conversations")
-      .select("id, model")
-      .eq("user_id", userId);
-
-    if (convError) {
-      routeLogger.error("Error fetching conversations:", convError);
-      throw convError;
-    }
-
-    if (!userConvs || userConvs.length === 0) {
-      return success({ images: [], hasMore: false });
-    }
-
-    const validConvIds = (userConvs as ConversationRow[])
-      .filter(
-        (c) => c.model !== MODEL_IDS.IMAGE_STUDIO && c.model !== MODEL_IDS.USER_TEMPLATES_STORE
-      )
-      .map((c) => c.id);
-
-    if (validConvIds.length === 0) {
-      return success({ images: [], hasMore: false });
-    }
-
-    // 4. Fetch Messages with image content (using DB-level filtering)
-    // Note: Supabase doesn't support complex JSON filtering in .or(),
-    // so we still need some client-side filtering, but we pre-filter meta != null
-    const { data, error: msgError } = await supabase
+    // 3. DB-Level query: join messages with conversations
+    // SECURITY & SCOPE: Filters by user_id, excludes USER_TEMPLATES_STORE,
+    // includes Image Studio, uses PostgREST JSONB filtering and DB pagination.
+    let query = supabase
       .from("messages")
-      .select("id, content, role, created_at, meta")
-      .in("conversation_id", validConvIds)
-      .not("meta", "is", null)
-      .order("created_at", { ascending: false });
+      .select(
+        `
+        id,
+        content,
+        created_at,
+        meta,
+        conversations!inner(
+          user_id,
+          model
+        )
+      `
+      )
+      .eq("conversations.user_id", userId)
+      .neq("conversations.model", MODEL_IDS.USER_TEMPLATES_STORE)
+      .or(
+        "meta->>type.eq.image_gen,meta->>type.eq.image_edit,meta->>imageUrl.not.is.null,meta->attachment->>url.not.is.null"
+      )
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
 
-    if (msgError) {
-      routeLogger.error("Gallery Fetch Error:", msgError);
-      throw msgError;
+    if (favoritesOnly) {
+      query = query.eq("meta->>is_favorite", "true");
     }
 
-    // 5. Filter and format images
-    const allImages: GalleryImage[] = (data as MessageRow[])
-      .filter((msg) => {
-        const meta = msg.meta;
-        if (!meta) return false;
-        const isImage = meta.type === "image_gen" || !!meta.imageUrl || !!meta.attachment?.url;
-        if (!isImage) return false;
-        // MT7: Filter favorites
-        if (favoritesOnly && !(meta as Record<string, unknown>).is_favorite) return false;
-        return true;
-      })
+    // Range fetch: fetch limit + 1 items to determine hasMore
+    const { data, error: dbError } = await query.range(offset, offset + limit);
+
+    if (dbError) {
+      routeLogger.error("Gallery Fetch Error:", dbError);
+      throw dbError;
+    }
+
+    const rawRows = (data || []) as unknown as MessageRow[];
+    const hasMore = rawRows.length > limit;
+    const items = hasMore ? rawRows.slice(0, limit) : rawRows;
+
+    const images: GalleryImage[] = items
       .map((msg) => {
-        const meta = msg.meta!;
+        const meta = msg.meta;
+        const url = meta?.imageUrl || meta?.attachment?.url || "";
         return {
           id: msg.id,
-          url: meta.imageUrl || meta.attachment?.url || "",
-          prompt: meta.prompt || msg.content || "",
+          url,
+          prompt: meta?.prompt || msg.content || "",
           createdAt: msg.created_at,
-          aspectRatio: meta.originalOptions?.aspectRatio,
-          style: meta.originalOptions?.style,
-          model: meta.originalOptions?.model,
+          aspectRatio: meta?.originalOptions?.aspectRatio,
+          style: meta?.originalOptions?.style,
+          model: meta?.originalOptions?.model,
         };
       })
       .filter((img) => img.url);
 
-    // 6. Apply pagination AFTER filtering (correct pagination logic)
-    const paginatedImages = allImages.slice(offset, offset + limit);
-    const hasMore = offset + limit < allImages.length;
-
-    return success({ images: paginatedImages, hasMore });
+    return success({ images, hasMore });
   } catch (err: unknown) {
     routeLogger.error("Gallery API error:", err);
     if (err instanceof AppError) return errorFromAppError(err);

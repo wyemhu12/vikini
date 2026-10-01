@@ -8,6 +8,28 @@
 
 ---
 
+## 2026-10-01: Audit Remediation Phase 1 -- Security, Admin Dashboard & Core Fixes
+
+- **Pillar 1: Security Hardening & Zero-Trust Tenant Isolation**:
+  - **SEC-01 (IDOR & Storage Traversal)**: Bổ sung xác thực quyền sở hữu `userId` qua 4 điểm sink (`deleteMessage`, `deleteMessageByClientMessageId`, `deleteMessagesIncludingAndAfter`, `/api/gallery/[id]`) và `conversationLoader.ts`. Tạo module `src/lib/features/chat/storageCleanup.ts` kiểm tra nghiêm ngặt tiền tố `${userId}/` và loại trừ directory traversal `..` trước khi gọi `storage.remove()`. Co-located test: `storageCleanup.test.ts` (4 tests).
+  - **SEC-02 (RAG Cross-Tenant Context Leak)**: Thêm `.eq("user_id", userId)` vào `getConversationProjectId` trong `ragContext.server.ts`. Bổ sung kiểm tra quyền sở hữu project trước khi gọi `generateEmbedding` và RPC `match_project_knowledge` trong `knowledge.server.ts`. Co-located test: `ragContext.server.test.ts` (11 tests), `knowledge.server.test.ts` (17 tests).
+  - **SEC-03 (SSRF Defense)**: Tạo `src/lib/core/ssrfGuard.server.ts` với `fetchSafeImage`. Sử dụng `dns.promises.lookup` và `net.BlockList` ngăn chặn IP loopback, private RFC 1918, link-local, cloud metadata (`169.254.169.254`), CGNAT, ULA và IPv4-mapped IPv6. Manual redirect tối đa 3 hops, tổng deadline 10s, giới hạn streaming 10MB và hủy socket với `body.cancel()`. Bảo vệ `/api/describe-image` và `/api/edit-image`. Co-located test: `ssrfGuard.server.test.ts` (19 tests).
+  - **SEC-04 (Safe Math Parsing & Injection Defense)**: Thay thế hoàn toàn `new Function` trong chat function registry `calculate` bằng `src/lib/features/chat/mathParser.ts` (Recursive Descent Parser). Hỗ trợ toán tử `+,-,*,/,%,^,**`, toán tử âm `-(2^2) = -4`, giới hạn lũy thừa `[-50, 50]` và danh sách allowlist hàm `Math`. Co-located test: `mathParser.test.ts` (20 tests), `functionRegistry.test.ts` (6 tests).
+- **Pillar 2: Admin Dashboard Integrity & PostgREST Counting**:
+  - **ADM-01 & ADM-02 (User Identity & Stats Counting)**: Hỗ trợ cả canonical email và UUID trong `/api/admin/users`. Tra cứu hồ sơ theo ID rồi fallback sang canonical email, cập nhật theo `targetProfile.id` và bump token version theo canonical email. Sửa `/api/admin/stats` chuẩn hóa email lowercase và đếm tin nhắn qua PostgREST join `messages` với `conversations!inner(user_id)`. Co-located test: `admin/users/route.test.ts` (15 tests), `admin/stats/route.test.ts` (5 tests).
+  - **ADM-03 (Rank Configs Boundary Validation)**: Ràng buộc số nguyên `int4` `[0, 2147483647]` trên `daily_message_limit`, `max_file_size_mb`, `daily_research_limit` trong `/api/admin/rank-configs`. Đưa `daily_research_limit` vào payload update CSDL. Cập nhật `RankConfigManager.tsx` với fallback an toàn chống `NaN` và vượt ngưỡng int4. Co-located test: `admin/rank-configs/route.test.ts` (16 tests).
+- **Pillar 3: Gallery Database Pagination & UI Polish**:
+  - **API-01 & API-02 (Gallery Database-Level Pagination)**: Chuyển đổi truy vấn `/api/gallery` sang join PostgREST `messages` với `conversations!inner(user_id, model)` kèm lọc ảnh JSONB, sắp xếp `created_at.desc, id.desc` và phân trang `.range(offset, offset + limit)` trực tiếp tại CSDL, ngăn ngừa tải toàn bộ messages vào RAM. Bao gồm hình ảnh sinh từ Image Studio. Co-located test: `api/gallery/route.test.ts` (22 tests).
+  - **UI-01 (CommandPalette Theming)**: Thêm key song ngữ `switchTheme` vào `vi.ts`/`en.ts`. Kết nối lệnh switch theme với hook `useTheme:toggleTheme()`, ngăn chặn reset biến màu CSS. Co-located test: `CommandPalette.test.tsx` (5 tests).
+  - **UI-02 (GalleryView Modal Close Button)**: Bổ sung icon `<X />`, `aria-label`, tooltip và focus ring cho nút đóng modal chi tiết ảnh. Co-located test: `GalleryView.test.tsx` (2 tests).
+- **Quality Gate & Verification**:
+  - 89 test files passed, 975 tests passed (tăng từ 892 lên 975 tests, 0 failed).
+  - `npm run type-check`: 0 errors.
+  - `npm run lint`: 0 errors, 0 warnings.
+  - Cập nhật living documentation `docs/database-schema.md` (mô tả `profiles.id` là canonical email).
+
+---
+
 ## 2026-10-01: Foldable Responsive Design, DeepSeek Thinking Recovery & Avatar Enhancement
 
 - **Pillar 1: Foldable & Special Aspect Ratio Responsive Overhaul**:

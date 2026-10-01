@@ -215,5 +215,48 @@ describe("/api/describe-image", () => {
       expect(res.status).toBe(500);
       expect(json.success).toBe(false);
     });
+
+    it("should reject remote URL targeting private IP with 400 ValidationError (SSRF protection)", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+
+      const req = createRequest({
+        imageUrl: "http://127.0.0.1/admin.png",
+      });
+      const res = await POST(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(json.success).toBe(false);
+      expect(json.error.message).toContain(
+        "Access to private or restricted network addresses is forbidden"
+      );
+    });
+
+    it("should fetch remote image using fetchSafeImage and describe it", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+      mockGenerateContent.mockResolvedValue({
+        text: "Remote image description",
+        candidates: [],
+      });
+
+      const ssrfModule = await import("@/lib/core/ssrfGuard.server");
+      const spy = vi.spyOn(ssrfModule, "fetchSafeImage").mockResolvedValueOnce({
+        buffer: Buffer.from("fake-png-data"),
+        mimeType: "image/png",
+      });
+
+      const req = createRequest({
+        imageUrl: "https://example.com/safe.png",
+      });
+      const res = await POST(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.data.description).toBe("Remote image description");
+      expect(spy).toHaveBeenCalledWith("https://example.com/safe.png");
+      spy.mockRestore();
+    });
   });
 });

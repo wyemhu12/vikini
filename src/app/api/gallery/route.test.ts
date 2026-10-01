@@ -77,35 +77,29 @@ function _mockSupabaseChainResult(result: SupabaseResult<unknown>) {
   mockSupabaseQuery.order.mockReturnValue(result);
 }
 
-/**
- * Helper to configure **both** Supabase queries the route performs:
- *   1. conversations query  (from → select → eq)
- *   2. messages query        (from → select → in → not → order)
- */
 function mockBothQueries(convResult: SupabaseResult<unknown>, msgResult: SupabaseResult<unknown>) {
-  // First call to from() → conversations, second → messages
-  let callCount = 0;
-  mockFrom.mockImplementation((() => {
-    callCount++;
-    if (callCount === 1) {
-      // Conversations chain - terminal method is `eq`
-      return {
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue(convResult),
-        }),
-      };
-    }
-    // Messages chain - terminal method is `order`
-    return {
-      select: vi.fn().mockReturnValue({
-        in: vi.fn().mockReturnValue({
-          not: vi.fn().mockReturnValue({
-            order: vi.fn().mockReturnValue(msgResult),
-          }),
-        }),
-      }),
-    };
-  }) as typeof mockFrom);
+  const resultToReturn = convResult?.error ? convResult : msgResult;
+  const chain: Record<string, unknown> = {};
+  const methods = ["select", "eq", "neq", "or", "not", "in", "order", "range"];
+  for (const method of methods) {
+    chain[method] = vi.fn().mockImplementation((...args: unknown[]) => {
+      if (method === "range") {
+        if (resultToReturn.error || !Array.isArray(resultToReturn.data)) {
+          return Promise.resolve(resultToReturn);
+        }
+        const offset = typeof args[0] === "number" ? args[0] : 0;
+        const to = typeof args[1] === "number" ? args[1] : offset + 20;
+        const sliced = resultToReturn.data.slice(offset, to + 1);
+        return Promise.resolve({ data: sliced, error: null });
+      }
+      return chain;
+    });
+  }
+  chain["then"] = (resolve: (val: unknown) => unknown) =>
+    Promise.resolve(resultToReturn).then(resolve);
+
+  mockFrom.mockReturnValue(chain as unknown as ReturnType<typeof mockFrom>);
+  return chain;
 }
 
 // ============================================================================
@@ -311,23 +305,36 @@ describe("/api/gallery", () => {
       expect(json.data.hasMore).toBe(false);
     });
 
-    it("should return empty images when all conversations are Image Studio", async () => {
+    it("should include images from Image Studio conversations in gallery (API-02 / TC-API-02)", async () => {
       vi.mocked(auth).mockResolvedValue(
         AUTHENTICATED_SESSION as unknown as ReturnType<typeof auth> extends Promise<infer T>
           ? T
           : never
       );
+      const studioImageMessage = {
+        id: "msg-studio-1",
+        content: "A beautiful painted dragon",
+        role: "assistant",
+        created_at: "2026-06-01T00:00:00Z",
+        meta: {
+          type: "image_gen",
+          imageUrl: "https://cdn.example.com/studio1.png",
+          prompt: "painted dragon",
+          originalOptions: { model: "gemini-3.1-flash-image" },
+        },
+      };
       mockBothQueries(
         { data: [{ id: "c1", model: "vikini-image-studio" }], error: null },
-        { data: [], error: null }
+        { data: [studioImageMessage], error: null }
       );
 
       const res = await GET(createRequest("/api/gallery?limit=20&offset=0"));
       const json = await res.json();
 
       expect(res.status).toBe(200);
-      expect(json.data.images).toEqual([]);
-      expect(json.data.hasMore).toBe(false);
+      expect(json.data.images).toHaveLength(1);
+      expect(json.data.images[0].url).toBe("https://cdn.example.com/studio1.png");
+      expect(json.data.images[0].prompt).toBe("painted dragon");
     });
 
     it("should return empty images when conversations data is null", async () => {
@@ -419,18 +426,21 @@ describe("/api/gallery", () => {
           : never
       );
 
-      // Capture the eq() call to verify the lowercased user_id
-      const eqSpy = vi.fn().mockReturnValue({ data: [], error: null });
-      mockFrom.mockImplementation((() => ({
-        select: vi.fn().mockReturnValue({
-          eq: eqSpy,
-        }),
-      })) as typeof mockFrom);
+      // Capture the eq() call to verify the lowercased conversations.user_id
+      const chain: Record<string, unknown> = {};
+      const methods = ["select", "eq", "neq", "or", "order", "range"];
+      for (const m of methods) {
+        chain[m] = vi.fn().mockImplementation((..._args: unknown[]) => {
+          if (m === "range") return Promise.resolve({ data: [], error: null });
+          return chain;
+        });
+      }
+      mockFrom.mockReturnValue(chain as unknown as ReturnType<typeof mockFrom>);
 
       await GET(createRequest("/api/gallery?limit=20&offset=0"));
 
-      // Verify conversations query used lowercased email
-      expect(eqSpy).toHaveBeenCalledWith("user_id", "test@example.com");
+      // Verify query used lowercased email
+      expect(chain.eq).toHaveBeenCalledWith("conversations.user_id", "test@example.com");
     });
 
     it("should paginate a large set correctly with explicit limit", async () => {
