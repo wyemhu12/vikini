@@ -62,6 +62,80 @@ describe("BubbleAvatar", () => {
     expect(botDiv.className).not.toContain("border-blue-500");
     expect(botDiv.className).not.toContain("bg-blue-500");
   });
+
+  describe("4-state Precedence & DOM data-state", () => {
+    it("sets data-state='loading' when isLoading is true regardless of streaming flags", () => {
+      const { container: c1 } = render(
+        <BubbleAvatar isBot={true} isLoading={true} isStreaming={true} isStreamThinking={true} />
+      );
+      expect((c1.firstChild as HTMLElement).getAttribute("data-state")).toBe("loading");
+
+      const { container: c2 } = render(
+        <BubbleAvatar isBot={true} isLoading={true} isStreaming={false} isStreamThinking={false} />
+      );
+      expect((c2.firstChild as HTMLElement).getAttribute("data-state")).toBe("loading");
+    });
+
+    it("sets data-state='thinking' when isStreaming is true and isStreamThinking is true", () => {
+      const { container } = render(
+        <BubbleAvatar isBot={true} isLoading={false} isStreaming={true} isStreamThinking={true} />
+      );
+      expect((container.firstChild as HTMLElement).getAttribute("data-state")).toBe("thinking");
+    });
+
+    it("sets data-state='streaming' when isStreaming is true and isStreamThinking is false", () => {
+      const { container } = render(
+        <BubbleAvatar isBot={true} isLoading={false} isStreaming={true} isStreamThinking={false} />
+      );
+      expect((container.firstChild as HTMLElement).getAttribute("data-state")).toBe("streaming");
+    });
+
+    it("sets data-state='idle' when isLoading is false and isStreaming is false", () => {
+      const { container } = render(
+        <BubbleAvatar isBot={true} isLoading={false} isStreaming={false} />
+      );
+      expect((container.firstChild as HTMLElement).getAttribute("data-state")).toBe("idle");
+    });
+
+    it("gates historical messages: sets data-state='idle' when isStreaming is false even if isStreamThinking is true", () => {
+      const { container } = render(
+        <BubbleAvatar isBot={true} isLoading={false} isStreaming={false} isStreamThinking={true} />
+      );
+      expect((container.firstChild as HTMLElement).getAttribute("data-state")).toBe("idle");
+    });
+  });
+
+  describe("ModelAvatar Gradient ID Uniqueness", () => {
+    it("generates unique linearGradient IDs across concurrent instances", async () => {
+      const { ModelAvatar: ActualModelAvatar } =
+        await vi.importActual<typeof import("./ModelAvatar")>("./ModelAvatar");
+      const { container } = render(
+        <div>
+          <ActualModelAvatar modelName="gemini-2.5-pro" />
+          <ActualModelAvatar modelName="gemini-2.5-pro" />
+          <ActualModelAvatar modelName="claude-3-7-sonnet" />
+          <ActualModelAvatar modelName="claude-3-7-sonnet" />
+          <ActualModelAvatar modelName="deepseek-v4" />
+          <ActualModelAvatar modelName="deepseek-v4" />
+          <ActualModelAvatar modelName="gpt-4o" />
+          <ActualModelAvatar modelName="gpt-4o" />
+          <ActualModelAvatar modelName="groq-llama-3" />
+          <ActualModelAvatar modelName="groq-llama-3" />
+        </div>
+      );
+
+      const gradients = container.querySelectorAll("linearGradient");
+      expect(gradients.length).toBe(10);
+
+      const idSet = new Set<string>();
+      gradients.forEach((grad) => {
+        expect(grad.id).toBeTruthy();
+        idSet.add(grad.id);
+      });
+      // All 10 gradient IDs must be distinct
+      expect(idSet.size).toBe(10);
+    });
+  });
 });
 
 describe("BubbleMarkdown", () => {

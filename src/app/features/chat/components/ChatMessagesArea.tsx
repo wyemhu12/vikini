@@ -4,6 +4,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { GitFork, Sparkles } from "lucide-react";
 import ChatBubble from "./ChatBubble";
 import type { FrontendConversation, FrontendMessage } from "../hooks/useConversation";
+import type { ThinkingLevel } from "./hooks/useThinkingLevel";
 import { ENABLE_VIRTUALIZED_CHAT } from "@/lib/utils/constants";
 import {
   createSizeCache,
@@ -42,6 +43,9 @@ export interface ChatMessagesAreaProps {
   children?: React.ReactNode;
   lastGeneratedImage?: { url?: string; prompt?: string } | null;
   studioGeneratingStatus?: string;
+  currentModel: string;
+  lowerThinkingLevel?: ThinkingLevel | null;
+  onRegenerateLowerThinking?: (targetMessage: FrontendMessage, newLevel: ThinkingLevel) => void;
 }
 
 export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
@@ -71,6 +75,9 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
   children,
   lastGeneratedImage,
   studioGeneratingStatus,
+  currentModel,
+  lowerThinkingLevel,
+  onRegenerateLowerThinking,
 }) => {
   // Size cache for virtualized list
   const sizeCache = useMemo(() => createSizeCache(100), [selectedConversationId]);
@@ -241,8 +248,14 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
               onDelete={openDeleteMessageModal}
               onImageRegenerate={handleImageRegenerate}
               onImageEdit={handleImageEdit}
-              regenerating={regenerating && isLastAI}
-              isStreaming={isStreaming && isLastAI}
+              regenerating={Boolean(regenerating && isLastAI && streamingAssistant === null)}
+              isStreaming={Boolean(isStreaming && isLastAI && streamingAssistant === null)}
+              lowerThinkingLevel={lowerThinkingLevel}
+              onRegenerateLowerThinking={
+                onRegenerateLowerThinking
+                  ? (level) => onRegenerateLowerThinking(m, level)
+                  : undefined
+              }
               onSpeak={m.id ? () => tts.speakMessage(m.id!, m.content || "") : undefined}
               isSpeaking={m.id ? tts.isMessageSpeaking(m.id) : false}
               conversationId={selectedConversationId ?? undefined}
@@ -262,12 +275,15 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
       {isStreaming && streamingAssistant !== null && (
         <ChatBubble
           message={{
+            id: "streaming-assistant",
             role: "assistant",
             content: streamingAssistant || "",
             sources: streamingSources,
             urlContext: streamingUrlContext,
+            meta: { model: currentConversation?.model || currentModel },
           }}
           isLastAssistant={true}
+          isStreaming={true}
         />
       )}
 

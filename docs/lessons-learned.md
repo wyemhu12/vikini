@@ -423,6 +423,22 @@
   5. Added frontend fallback in `ChatBubble.tsx`: if a saved message has `thought` but empty `displayContent`, display a localized notice `t("thinkingNoResponseContent")`.
 - **Prevention Rule**: **Reasoning models require output token headroom that accommodates BOTH thinking tokens AND completion tokens.** Never hardcode small `max_tokens` for reasoning-enabled models. Always verify that response content was actually generated before closing streams, and never leave an empty response when a stream terminates during reasoning.
 
+### 2026-10-01: DeepSeek Thinking Token Exhaustion & 1-Click Lower Thinking Recovery
+
+- **Symptom**: User encounters recurring "Response only contains thinking deliberation without answer content. Please click Regenerate." message on DeepSeek models (especially V4.1 Flash and V4 Pro via OpenRouter), requiring manual retry without any option to adjust reasoning depth directly from the message bubble.
+- **Root Cause**:
+  1. `maxOutputTokens` for `deepseek-v4-pro` in `modelRegistry.ts` was capped at 16,384 tokens, which easily gets exhausted when `xhigh` effort is requested on deep reasoning queries.
+  2. OpenRouter provider order wasn't optimized for DeepSeek fallback resiliency, causing token throttling or cutoffs.
+  3. When token exhaustion occurred mid-deliberation, the server previously appended a hardcoded Vietnamese string directly to `full` response stream, polluting database history and violating i18n architectural boundaries.
+  4. The UI only displayed static gray text without an actionable path to recover by reducing the thinking level.
+- **Fix**:
+  1. Raised `maxOutputTokens` for `deepseek/deepseek-v4-pro` to 65,536 in `modelRegistry.ts`.
+  2. Implemented typed request builder `deepseek-request-builder.ts` with standardized OpenRouter `reasoning.effort` mapping ("high" / "xhigh") and verified provider routing (`["Relace", "Together", "Novita", "DeepSeek"]`).
+  3. Replaced server-side hardcoded string injection with SSE `meta` event `{ type: "emptyAnswerNotice", reason: "length" | "no_content" }` persisted cleanly into `messages.meta.emptyAnswerReason`.
+  4. Built `EmptyReasoningNotice.tsx` with 1-click "Tạo lại" and "Tạo lại với suy nghĩ thấp hơn" (calculated via pure helper `getLowerThinkingLevel`).
+  5. Built `legacyNotice.ts` exact-match parser for backwards compatibility with historical messages already in the database.
+- **Prevention Rule**: **Never inject server-side localized notification strings into stream payloads or database message content.** Always emit structured SSE meta events and let the UI render localized, actionable recovery cards. For reasoning models, always provide a 1-click degradation path (reducing thinking budget) when the token limit is reached.
+
 ## Vector Embeddings & Supabase TypeGen Lifecycle
 
 ### 2026-09-29: GenAI Native Batching, Supabase CLI TypeGen Lifecycle, and Immutable Embedding Architecture

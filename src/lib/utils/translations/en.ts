@@ -667,6 +667,14 @@ export const en = {
   thinkingProcess: "Thinking Process",
   thinkingNoResponseContent:
     "Response only contains thinking deliberation without answer content. Please click Regenerate.",
+  thinkingNoResponseAlert:
+    "The model finished thinking deliberation without producing answer content.",
+  thinkingExhaustedNotice:
+    "Reasoning process reached token length limit before generating answer content. You can retry with a lower thinking level or request a more concise response.",
+  regenerateWithLowerThinking: "Regenerate with lower thinking",
+  regeneratingWithLowerThinking: "Regenerating response with thinking level: {level}",
+  streamErrorEmptyResponse:
+    "Empty response received from provider (502). Please try again or switch model provider.",
   loadingChart: "Loading Chart...",
   // Image Mode
   imageModeLabel: "IMAGE GENERATION MODE",

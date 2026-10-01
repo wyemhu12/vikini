@@ -39,6 +39,8 @@ const StreamErrorBanner: React.FC<StreamErrorBannerProps> = ({ error, onDismiss 
     message = t("tokenLimitError")
       .replace("{{limit}}", error.tokenInfo.limit?.toLocaleString() || "?")
       .replace("{{requested}}", error.tokenInfo.requested?.toLocaleString() || "?");
+  } else if (error.code === "empty_response") {
+    message = t("streamErrorEmptyResponse");
   } else {
     message = error.message;
   }
@@ -51,7 +53,7 @@ const StreamErrorBanner: React.FC<StreamErrorBannerProps> = ({ error, onDismiss 
 
   return (
     <div
-      className="fixed top-4 right-4 z-(--z-banner) max-w-md animate-in slide-in-from-top-2 fade-in duration-300"
+      className="fixed top-[calc(1rem+var(--sat,0px))] right-[calc(1rem+var(--sar,0px))] z-(--z-banner) max-w-md animate-in slide-in-from-top-2 fade-in duration-300"
       role="alert"
       aria-live="polite"
     >

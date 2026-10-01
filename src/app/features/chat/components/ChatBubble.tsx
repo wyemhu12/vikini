@@ -18,6 +18,9 @@ import SourceLinks from "./SourceLinks";
 import ImageGenPreview from "./ImageGenPreview";
 import TokenBadge from "./TokenBadge";
 import { FileInMessage } from "./FileInMessage";
+import { parseLegacyNotice } from "@/lib/features/chat/legacyNotice";
+import { EmptyReasoningNotice } from "./EmptyReasoningNotice";
+import type { ThinkingLevel } from "./hooks/useThinkingLevel";
 
 export interface MessageMeta {
   type?: string;
@@ -70,13 +73,22 @@ export interface ChatBubbleProps {
   onSpeak?: () => void;
   onBranch?: (messageId: string) => void;
   isBranching?: boolean;
+  onRegenerateLowerThinking?: (newLevel: ThinkingLevel) => void;
+  lowerThinkingLevel?: ThinkingLevel | null;
 }
 
 const FileLightbox = dynamic(() => import("./FileLightbox"), { ssr: false });
 
 export const ChatBubble = React.memo(
   function ChatBubble(props: ChatBubbleProps) {
-    const { message, conversationId, isLastAssistant, isStreaming } = props;
+    const {
+      message,
+      conversationId,
+      isLastAssistant,
+      isStreaming,
+      onRegenerateLowerThinking,
+      lowerThinkingLevel,
+    } = props;
     const { t } = useLanguage();
 
     const safeMessage = useMemo((): ChatMessage => {
@@ -125,14 +137,23 @@ export const ChatBubble = React.memo(
       setIsEditing(false);
     };
 
+    const legacyNoticeResult = useMemo(
+      () => (isBot ? parseLegacyNotice(safeMessage.content || "") : null),
+      [safeMessage.content, isBot]
+    );
+
+    const effectiveRawContent = legacyNoticeResult
+      ? legacyNoticeResult.cleanContent
+      : safeMessage.content || "";
+
     const {
       thought,
       rest: displayContent,
       isThinking: isStreamThinking,
     } = useMemo(() => {
-      if (!isBot) return { thought: null, rest: safeMessage.content, isThinking: false };
-      return extractThinking(safeMessage.content || "");
-    }, [safeMessage.content, isBot]);
+      if (!isBot) return { thought: null, rest: effectiveRawContent, isThinking: false };
+      return extractThinking(effectiveRawContent);
+    }, [effectiveRawContent, isBot]);
 
     const deferredDisplayContent = useDeferredValue(displayContent);
     const hasContent = Boolean(displayContent?.trim()) || Boolean(thought?.trim());
@@ -153,6 +174,8 @@ export const ChatBubble = React.memo(
           <BubbleAvatar
             isBot={isBot}
             isLoading={isLoading}
+            isStreaming={isStreaming}
+            isStreamThinking={isStreamThinking}
             modelName={safeMessage.meta?.model as string | undefined}
           />
 
@@ -223,10 +246,37 @@ export const ChatBubble = React.memo(
                             onClick={setLightboxFile}
                           />
                         )}
-                      {isBot && !isStreaming && Boolean(thought) && !displayContent.trim() ? (
-                        <div className="text-sm italic text-(--text-secondary) py-1">
-                          {t("thinkingNoResponseContent")}
-                        </div>
+                      {isBot &&
+                      !isStreaming &&
+                      !safeMessage.meta?.isPartial &&
+                      (Boolean(safeMessage.meta?.emptyAnswerReason) ||
+                        (!displayContent.trim() && Boolean(thought)) ||
+                        Boolean(legacyNoticeResult)) ? (
+                        <>
+                          {displayContent.trim() ? (
+                            <BubbleMarkdown
+                              content={deferredDisplayContent}
+                              isBot={isBot}
+                              isStreaming={isStreaming}
+                              isLastAssistant={isLastAssistant}
+                            />
+                          ) : null}
+                          <EmptyReasoningNotice
+                            reason={
+                              (safeMessage.meta?.emptyAnswerReason as
+                                | "length"
+                                | "no_content"
+                                | undefined) || legacyNoticeResult?.reason
+                            }
+                            onRegenerate={props.onRegenerate || (() => {})}
+                            onRegenerateLowerThinking={
+                              onRegenerateLowerThinking && lowerThinkingLevel
+                                ? () => onRegenerateLowerThinking(lowerThinkingLevel)
+                                : undefined
+                            }
+                            lowerThinkingLevel={lowerThinkingLevel}
+                          />
+                        </>
                       ) : (
                         <BubbleMarkdown
                           content={deferredDisplayContent}
@@ -341,6 +391,8 @@ export const ChatBubble = React.memo(
     p.isStreaming === n.isStreaming &&
     p.canRegenerate === n.canRegenerate &&
     p.onRegenerate === n.onRegenerate &&
+    p.onRegenerateLowerThinking === n.onRegenerateLowerThinking &&
+    p.lowerThinkingLevel === n.lowerThinkingLevel &&
     p.onContinue === n.onContinue &&
     p.onRetrySave === n.onRetrySave &&
     p.onEdit === n.onEdit &&

@@ -148,59 +148,72 @@ export function createOpenAICompatibleStream(params: {
 
         const openAIMessages = [
           { role: "system" as const, content: sysPrompt },
-          ...(contents as Array<{ role: string; parts: GeminiPart[] }>).map((m) => {
-            const hasImages = m.parts.some((p) => p.inlineData);
+          ...(contents as Array<{ role: string; parts: GeminiPart[] }>)
+            .map((m) => {
+              const hasImages = m.parts.some((p) => p.inlineData);
 
-            let messageContent = m.parts.map((p) => p.text || "").join("");
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let reasoningDetails: any = undefined;
+              let messageContent = m.parts.map((p) => p.text || "").join("");
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              let reasoningDetails: any = undefined;
 
-            // If it's an OpenRouter reasoning model and an assistant message,
-            // extract the <think>...</think> tag and put it in reasoning_details
-            if (isOrReasoning && m.role === "model" && messageContent.includes("<think>")) {
-              const thinkMatch = messageContent.match(/<think>([\s\S]*?)<\/think>/);
-              if (thinkMatch) {
-                // OpenRouter accepts reasoning_details as a string or array?
-                // The safest is sending it as it came out or as string. We'll pass it as text.
-                // Or maybe just leave the <think> tags. Actually OpenRouter recommends passing them back in reasoning_details array.
-                reasoningDetails = [{ type: "text", text: thinkMatch[1].trim() }];
-                messageContent = messageContent.replace(/<think>[\s\S]*?<\/think>\n?/g, "").trim();
-              }
-            }
-
-            if (hasImages) {
-              // Multimodal message: use content array format
-              const contentParts: Array<
-                { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
-              > = [];
-              if (messageContent) {
-                contentParts.push({ type: "text" as const, text: messageContent });
-              }
-              for (const p of m.parts) {
-                if (p.inlineData) {
-                  contentParts.push({
-                    type: "image_url" as const,
-                    image_url: {
-                      url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}`,
-                    },
-                  });
+              // If it's an OpenRouter reasoning model and an assistant message,
+              // extract the <think>...</think> tag and put it in reasoning_details
+              if (isOrReasoning && m.role === "model" && messageContent.includes("<think>")) {
+                const thinkMatch = messageContent.match(/<think>([\s\S]*?)<\/think>/);
+                if (thinkMatch) {
+                  // OpenRouter accepts reasoning_details as a string or array?
+                  // The safest is sending it as it came out or as string. We'll pass it as text.
+                  // Or maybe just leave the <think> tags. Actually OpenRouter recommends passing them back in reasoning_details array.
+                  reasoningDetails = [{ type: "text", text: thinkMatch[1].trim() }];
+                  messageContent = messageContent
+                    .replace(/<think>[\s\S]*?<\/think>\n?/g, "")
+                    .trim();
                 }
               }
+
+              if (hasImages) {
+                // Multimodal message: use content array format
+                const contentParts: Array<
+                  { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
+                > = [];
+                if (messageContent) {
+                  contentParts.push({ type: "text" as const, text: messageContent });
+                }
+                for (const p of m.parts) {
+                  if (p.inlineData) {
+                    contentParts.push({
+                      type: "image_url" as const,
+                      image_url: {
+                        url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}`,
+                      },
+                    });
+                  }
+                }
+                const msg: Record<string, unknown> = {
+                  role: "assistant" as const,
+                  content: contentParts,
+                };
+                if (reasoningDetails) msg.reasoning_details = reasoningDetails;
+                return msg;
+              }
               const msg: Record<string, unknown> = {
-                role: "assistant" as const,
-                content: contentParts,
+                role: m.role === "model" ? "assistant" : m.role,
+                content: messageContent,
               };
               if (reasoningDetails) msg.reasoning_details = reasoningDetails;
               return msg;
-            }
-            // Text-only message: use simple string content
-            const msg: Record<string, unknown> = {
-              role: m.role === "model" ? "assistant" : m.role,
-              content: messageContent,
-            };
-            if (reasoningDetails) msg.reasoning_details = reasoningDetails;
-            return msg;
-          }),
+            })
+            .filter((m): m is Record<string, unknown> => {
+              if (m.role === "assistant") {
+                if (typeof m.content === "string") {
+                  return m.content.trim().length > 0;
+                }
+                if (Array.isArray(m.content)) {
+                  return m.content.length > 0;
+                }
+              }
+              return true;
+            }),
         ] as unknown as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
 
         const timeoutMs = getStreamTimeout(model);

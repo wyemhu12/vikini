@@ -148,6 +148,8 @@ async function processPostStream(
     urlContext?: Array<{ retrievedUrl: string; status: string }>;
     /** Model used for the generation */
     model?: string;
+    /** Reason why answer content was empty despite thinking/CoT */
+    emptyAnswerReason?: "length" | "no_content";
   }
 ): Promise<void> {
   const {
@@ -168,6 +170,7 @@ async function processPostStream(
     sources,
     urlContext,
     model,
+    emptyAnswerReason,
   } = params;
 
   const trimmed = full.trim();
@@ -212,6 +215,7 @@ async function processPostStream(
           ...(sources && sources.length > 0 ? { sources } : {}),
           ...(urlContext && urlContext.length > 0 ? { urlContext } : {}),
           ...(model ? { model } : {}),
+          ...(emptyAnswerReason ? { emptyAnswerReason } : {}),
         },
       }),
     ]);

@@ -94,6 +94,7 @@ export function useChatStreamController({
   const hasStreamErrorRef = useRef<boolean>(false);
   const lastStreamErrorRef = useRef<StreamError | null>(null);
   const accumulatedAssistantRef = useRef<string>("");
+  const emptyAnswerReasonRef = useRef<"length" | "no_content" | null>(null);
 
   const onTypewriterChunk = useCallback((chunk: string) => {
     setStreamingAssistant((prev) => (prev || "") + chunk);
@@ -255,6 +256,9 @@ export function useChatStreamController({
         ...(isPartial ? { isPartial: true, aborted: true, status, isSaving: true } : { status }),
         sources: safeArray(localSourcesRef.current),
         urlContext: safeArray(localUrlContextRef.current),
+        ...(emptyAnswerReasonRef.current
+          ? { emptyAnswerReason: emptyAnswerReasonRef.current }
+          : {}),
       };
 
       const assistantMsg: FrontendMessage = {
@@ -446,6 +450,7 @@ export function useChatStreamController({
       hasStreamErrorRef.current = false;
       lastStreamErrorRef.current = null;
       accumulatedAssistantRef.current = "";
+      emptyAnswerReasonRef.current = null;
 
       setInput("");
       setIsStreaming(true);
@@ -556,6 +561,12 @@ export function useChatStreamController({
         if (typeof onWebSearchMeta === "function") {
           onWebSearchMeta({ enabled, available, raw: data });
         }
+      }
+      if (
+        data?.type === "emptyAnswerNotice" &&
+        (data.reason === "length" || data.reason === "no_content")
+      ) {
+        emptyAnswerReasonRef.current = data.reason;
       }
     },
     [

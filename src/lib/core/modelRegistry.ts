@@ -229,7 +229,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     descKey: "modelDescDeepSeekV4Pro",
     tokenLimit: 1000000,
     contextWindow: 1000000,
-    maxOutputTokens: 16384,
+    maxOutputTokens: 65536,
     category: "reasoning",
     providerId: "openrouter-pay",
   },

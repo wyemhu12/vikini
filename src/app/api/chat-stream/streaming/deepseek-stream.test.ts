@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type OpenAI from "openai";
 import { createDeepSeekStream } from "./deepseek-stream";
+import { processPostStream } from "./post-processing";
 
 // Mock dependencies
 vi.mock("./gemini-stream", () => ({
@@ -47,7 +48,7 @@ describe("createDeepSeekStream", () => {
     }
   }
 
-  it("configures max_tokens: 16384 and reasoning effort when thinking is high", async () => {
+  it("configures max_tokens: 65536 and reasoning effort xhigh for DeepSeek V4 Pro", async () => {
     mockCreate.mockResolvedValue(
       createAsyncIterable([
         {
@@ -68,7 +69,7 @@ describe("createDeepSeekStream", () => {
       sysPrompt: "System instruction",
       thinkingLevel: "high",
       gemMeta: { gemId: null },
-      modelMeta: { maxOutputTokens: 16384 },
+      modelMeta: { maxOutputTokens: 65536 },
       createdConversation: null,
       shouldGenerateTitle: false,
       enableWebSearch: false,
@@ -89,12 +90,11 @@ describe("createDeepSeekStream", () => {
 
     expect(mockCreate).toHaveBeenCalledTimes(1);
     const requestBody = mockCreate.mock.calls[0][0];
-    expect(requestBody.max_tokens).toBe(16384);
+    expect(requestBody.max_tokens).toBe(65536);
     expect(requestBody.include_reasoning).toBe(true);
-    expect(requestBody.reasoning).toEqual({ effort: "max" });
-    expect(requestBody.reasoning_effort).toBe("max");
-    // System prompt includes calibrated reasoning prefix
-    expect(requestBody.messages[0].content).toContain("Reasoning Effort: High depth deliberation.");
+    expect(requestBody.reasoning).toEqual({ effort: "xhigh" });
+    expect(requestBody.reasoning_effort).toBe("xhigh");
+    expect(requestBody.provider?.order).toEqual(["StreamLake"]);
   });
 
   it("handles thinking tokens and closes think tag before content tokens", async () => {
@@ -125,7 +125,7 @@ describe("createDeepSeekStream", () => {
       sysPrompt: "System instruction",
       thinkingLevel: "high",
       gemMeta: { gemId: null },
-      modelMeta: { maxOutputTokens: 16384 },
+      modelMeta: { maxOutputTokens: 65536 },
       createdConversation: null,
       shouldGenerateTitle: false,
       enableWebSearch: false,
@@ -150,8 +150,8 @@ describe("createDeepSeekStream", () => {
     expect(output).toContain("The answer is 42.");
   });
 
-  it("appends token limit notice when finish_reason is length and no answer content was emitted", async () => {
-    // Simulates the exact user bug: reasoning tokens consume max_tokens, ending with finish_reason: "length"
+  it("emits emptyAnswerNotice meta event when finish_reason is length and no answer content was emitted", async () => {
+    // Simulates reasoning tokens consuming max_tokens, ending with finish_reason: "length"
     mockCreate.mockResolvedValue(
       createAsyncIterable([
         {
@@ -179,7 +179,7 @@ describe("createDeepSeekStream", () => {
       sysPrompt: "System instruction with lots of context",
       thinkingLevel: "high",
       gemMeta: { gemId: null },
-      modelMeta: { maxOutputTokens: 16384 },
+      modelMeta: { maxOutputTokens: 65536 },
       createdConversation: null,
       shouldGenerateTitle: false,
       enableWebSearch: false,
@@ -200,11 +200,19 @@ describe("createDeepSeekStream", () => {
 
     // It should have auto-closed the thinking tag
     expect(output).toContain("</think>");
-    // It should append the token limit explanation rather than leaving empty answer content
-    expect(output).toContain("Quá trình suy nghĩ đã đạt giới hạn độ dài token");
+    // Does NOT contain hardcoded Vietnamese server text
+    expect(output).not.toContain("Quá trình suy nghĩ đã đạt giới hạn độ dài token");
+    // Emits meta event emptyAnswerNotice with reason: "length"
+    expect(output).toContain("emptyAnswerNotice");
+    expect(output).toContain('"reason":"length"');
+    // processPostStream called with emptyAnswerReason: "length"
+    expect(processPostStream).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ emptyAnswerReason: "length" })
+    );
   });
 
-  it("appends retry notice when stream finishes without answer content and finish_reason is not length", async () => {
+  it("emits emptyAnswerNotice meta event when stream finishes without answer content and finish_reason is not length", async () => {
     mockCreate.mockResolvedValue(
       createAsyncIterable([
         {
@@ -225,7 +233,7 @@ describe("createDeepSeekStream", () => {
       sysPrompt: "System instruction",
       thinkingLevel: "high",
       gemMeta: { gemId: null },
-      modelMeta: { maxOutputTokens: 16384 },
+      modelMeta: { maxOutputTokens: 65536 },
       createdConversation: null,
       shouldGenerateTitle: false,
       enableWebSearch: false,
@@ -245,10 +253,16 @@ describe("createDeepSeekStream", () => {
     const output = await readStream(stream);
 
     expect(output).toContain("</think>");
-    expect(output).toContain("Mô hình đã hoàn tất suy nghĩ nhưng chưa xuất nội dung trả lời");
+    expect(output).not.toContain("Mô hình đã hoàn tất suy nghĩ nhưng chưa xuất nội dung trả lời");
+    expect(output).toContain("emptyAnswerNotice");
+    expect(output).toContain('"reason":"no_content"');
+    expect(processPostStream).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ emptyAnswerReason: "no_content" })
+    );
   });
 
-  it("configures Relace provider and 384000 max_tokens for DeepSeek V4.1 Flash", async () => {
+  it("configures Relace, Together, Novita, DeepSeek providers and 384000 max_tokens for DeepSeek V4.1 Flash", async () => {
     mockCreate.mockResolvedValue(
       createAsyncIterable([
         {
@@ -300,9 +314,9 @@ describe("createDeepSeekStream", () => {
     expect(mockCreate).toHaveBeenCalledTimes(1);
     const requestBody = mockCreate.mock.calls[0][0];
 
-    // Provider routing Relace
+    // Provider routing without Chutes
     expect(requestBody.provider).toEqual({
-      order: ["Relace"],
+      order: ["Relace", "Together", "Novita", "DeepSeek"],
       allow_fallbacks: true,
     });
 
@@ -311,7 +325,7 @@ describe("createDeepSeekStream", () => {
 
     // Thinking mode config via OpenRouter
     expect(requestBody.include_reasoning).toBe(true);
-    expect(requestBody.reasoning).toEqual({ effort: "max" });
+    expect(requestBody.reasoning).toEqual({ effort: "high" });
 
     // Multimodal image part
     const userMessage = requestBody.messages[1];
@@ -327,5 +341,54 @@ describe("createDeepSeekStream", () => {
         image_url: { url: "data:image/png;base64,base64data==" },
       },
     ]);
+  });
+
+  it("handles completely empty stream (Case A) with empty_response 502 error and skips post-processing", async () => {
+    mockCreate.mockResolvedValue(
+      createAsyncIterable([
+        {
+          choices: [
+            {
+              delta: {},
+              finish_reason: "stop",
+            },
+          ],
+        },
+      ])
+    );
+
+    const stream = createDeepSeekStream({
+      ai: mockAi,
+      model: "deepseek/deepseek-v4.1-flash",
+      contents: [{ role: "user", parts: [{ text: "Empty question" }] }],
+      sysPrompt: "System instruction",
+      thinkingLevel: "high",
+      gemMeta: { gemId: null },
+      modelMeta: { maxOutputTokens: 384000 },
+      createdConversation: null,
+      shouldGenerateTitle: false,
+      enableWebSearch: false,
+      WEB_SEARCH_AVAILABLE: false,
+      cookieWeb: "",
+      userId: "user-1",
+      conversationId: "conv-1",
+      content: "Empty question",
+      contextMessages: [],
+      appendToContext: vi.fn(),
+      saveMessage: vi.fn(),
+      setConversationAutoTitle: vi.fn(),
+      generateOptimisticTitle: vi.fn(),
+      generateFinalTitle: vi.fn(),
+    });
+
+    const output = await readStream(stream);
+
+    expect(output).toContain("empty_response");
+    expect(output).toContain('"status":502');
+    expect(output).toContain('"ok":false');
+    // Does NOT emit emptyAnswerNotice
+    expect(output).not.toContain("emptyAnswerNotice");
+    // processPostStream must NOT be called for completely empty response
+    expect(processPostStream).not.toHaveBeenCalled();
   });
 });

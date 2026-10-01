@@ -9,7 +9,7 @@ export default function ToastContainer() {
 
   return (
     <div
-      className="fixed top-4 right-4 z-(--z-toast) flex flex-col gap-2 pointer-events-none"
+      className="fixed top-[calc(1rem+var(--sat,0px))] right-[calc(1rem+var(--sar,0px))] z-(--z-toast) flex flex-col gap-2 pointer-events-none"
       role="region"
       aria-label="Notifications"
       aria-live="polite"

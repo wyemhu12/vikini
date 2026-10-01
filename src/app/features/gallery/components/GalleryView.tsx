@@ -53,7 +53,7 @@ export function GalleryView() {
       <FloatingMenuTrigger onClick={() => g.setMobileOpen(true)} />
 
       <div
-        className={`flex-1 flex flex-col h-full transition-colors duration-300 relative z-10 ${g.sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
+        className={`flex-1 flex flex-col h-full transition-colors duration-300 relative z-10 ${g.sidebarCollapsed ? "md:pl-[calc(5rem+var(--sal,0px))]" : "md:pl-[calc(18rem+var(--sal,0px))] lg:pl-[calc(20rem+var(--sal,0px))]"} pr-[var(--sar,0px)]`}
       >
         <HeaderBar onToggleSidebar={() => g.setMobileOpen(true)} />
 

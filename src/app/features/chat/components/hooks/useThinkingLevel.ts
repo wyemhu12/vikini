@@ -45,7 +45,7 @@ export function isClaudeThinkingModel(model: string): boolean {
 
 /**
  * Check if a model is a DeepSeek V4 model (supports thinking via reasoning_content)
- * DeepSeek V4 supports: off, high (default), max
+ * DeepSeek V4 supports: off, low, high (and extended internal efforts)
  */
 export function isDeepSeekV4Model(model: string): boolean {
   return (
@@ -99,19 +99,19 @@ export function useThinkingLevel(currentModel: string): UseThinkingLevelResult {
   const hasExtendedLevels = isGemini3FlashModel(currentModel);
   // Claude models only support on/off (high)
   const isClaudeModel = isClaudeThinkingModel(currentModel);
-  // DeepSeek V4 supports off/low(high)/high(max) - 3 levels
+  // DeepSeek V4 supports off/low/high - 3 levels
   const isDeepSeek = isDeepSeekV4Model(currentModel);
 
   // Available levels based on model
   // Claude Sonnet/Opus: simple on/off (high = budget_tokens)
-  // DeepSeek V4: off/low(=high effort)/high(=max effort) - 3 options
+  // DeepSeek V4: off/low/high - 3 options
   // Gemini 2.5: simple on/off (high = dynamic thinkingBudget)
   // Gemini 3 Flash: full range
   // Gemini 3 Pro: basic levels
   const availableLevels: ThinkingLevel[] = isClaudeModel
     ? ["off", "high"] // Claude: only on/off
     : isDeepSeek
-      ? ["off", "low", "high"] // DeepSeek V4: off / standard(high) / deep(max)
+      ? ["off", "low", "high"] // DeepSeek V4: off / standard / deep
       : hasExtendedLevels
         ? ["off", "minimal", "low", "medium", "high"]
         : ["off", "low", "high"];
@@ -144,4 +144,29 @@ export function useThinkingLevel(currentModel: string): UseThinkingLevelResult {
     hasExtendedLevels,
     availableLevels,
   };
+}
+
+const LEVEL_ORDER: Record<ThinkingLevel, number> = {
+  off: 0,
+  minimal: 1,
+  low: 2,
+  medium: 3,
+  high: 4,
+};
+
+/**
+ * Returns the next lower thinking level from the available levels.
+ * Only degrades to active thinking levels (minimal, low, medium, high), never to "off".
+ * Returns null if current level is already at the lowest active level or no lower level is available.
+ */
+export function getLowerThinkingLevel(
+  current: ThinkingLevel,
+  availableLevels: ThinkingLevel[]
+): ThinkingLevel | null {
+  const currentRank = LEVEL_ORDER[current] ?? 0;
+  const lowerCandidates = availableLevels
+    .filter((lvl) => lvl !== "off" && (LEVEL_ORDER[lvl] ?? 0) < currentRank)
+    .sort((a, b) => (LEVEL_ORDER[b] ?? 0) - (LEVEL_ORDER[a] ?? 0));
+
+  return lowerCandidates[0] ?? null;
 }

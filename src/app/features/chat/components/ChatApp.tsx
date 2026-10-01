@@ -23,12 +23,20 @@ import React, { useEffect, useMemo, useCallback, useState, useRef, lazy, Suspens
 import { createDraftCoordinator } from "@/lib/features/chat/draftConversation";
 
 import { useTheme } from "../hooks/useTheme";
-import { useConversation, type FrontendConversation } from "../hooks/useConversation";
+import {
+  useConversation,
+  type FrontendConversation,
+  type FrontendMessage,
+} from "../hooks/useConversation";
 import { useGemStore } from "../../gems/stores/useGemStore";
 import { usePersonaStore } from "../../personas/stores/usePersonaStore";
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useDeepResearchMode } from "./hooks/useDeepResearchMode";
-import { useThinkingLevel } from "./hooks/useThinkingLevel";
+import {
+  useThinkingLevel,
+  getLowerThinkingLevel,
+  type ThinkingLevel,
+} from "./hooks/useThinkingLevel";
 
 import ResearchReportPanel from "../../research/components/ResearchReportPanel";
 import ResearchThinkingPanel from "../../research/components/ResearchThinkingPanel";
@@ -400,7 +408,29 @@ export default function ChatApp() {
   }, [renderedMessages]);
 
   // Thinking Level Preference (Gemini 3 Thinking models)
-  const { thinkingLevel, setThinkingLevel } = useThinkingLevel(currentModel);
+  const { thinkingLevel, setThinkingLevel, availableLevels } = useThinkingLevel(currentModel);
+  const lowerThinkingLevel = useMemo(
+    () => getLowerThinkingLevel(thinkingLevel, availableLevels),
+    [thinkingLevel, availableLevels]
+  );
+
+  const handleRegenerateWithLowerThinking = useCallback(
+    (targetMessage: FrontendMessage, newLevel: ThinkingLevel) => {
+      if (isStreaming) return;
+      setThinkingLevel(newLevel);
+      const levelKeyMap: Record<string, string> = {
+        high: "thinkingLevelHigh",
+        medium: "thinkingLevelMedium",
+        low: "thinkingLevelLow",
+        minimal: "thinkingLevelMinimal",
+        off: "webSearchOff",
+      };
+      const levelLabel = tRaw(levelKeyMap[newLevel] || "thinkingLevelLow");
+      toast.info(tRaw("regeneratingWithLowerThinking").replace("{level}", levelLabel));
+      void handleRegenerate(targetMessage);
+    },
+    [isStreaming, setThinkingLevel, handleRegenerate, tRaw]
+  );
 
   // Modal Management Hook
   const modals = useChatModals({
@@ -642,7 +672,7 @@ export default function ChatApp() {
   // ============================================
   if (isAuthLoading || !isAuthed) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-surface text-primary overflow-hidden">
+      <div className="h-dvh w-full flex items-center justify-center bg-surface text-primary overflow-hidden">
         <div className="absolute inset-0 z-0 bg-surface-muted opacity-80" />
         <div className="relative animate-pulse flex flex-col items-center gap-6 z-10">
           <div className="h-16 w-16 rounded-2xl border border-(--control-border) bg-control backdrop-blur-xl flex items-center justify-center text-3xl font-black shadow-2xl">
@@ -681,7 +711,7 @@ export default function ChatApp() {
     (!selectedConversationId || renderedMessages.length === 0);
 
   return (
-    <div className="h-screen w-screen text-primary overflow-hidden relative font-sans bg-surface">
+    <div className="h-dvh w-full text-primary overflow-hidden relative font-sans bg-surface">
       <ToastContainer />
       <div className="absolute inset-0 z-0 static-depth-bg pointer-events-none" />
 
@@ -715,7 +745,7 @@ export default function ChatApp() {
       {!mobileOpen && <FloatingMenuTrigger onClick={() => setMobileOpen((prev) => !prev)} />}
 
       <div
-        className={`h-full flex flex-col relative z-10 transition-[padding] duration-300 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
+        className={`@container/chat h-full flex flex-col relative z-10 transition-[padding] duration-300 ${sidebarCollapsed ? "md:pl-[calc(5rem+var(--sal,0px))]" : "md:pl-[calc(18rem+var(--sal,0px))] lg:pl-[calc(20rem+var(--sal,0px))]"} pr-[var(--sar,0px)]`}
       >
         <HeaderBar onToggleSidebar={toggleMobileSidebar} showMobileControls={showMobileControls} />
 
@@ -732,7 +762,7 @@ export default function ChatApp() {
               setShowMobileControls((prev) => !prev);
             }, 10);
           }}
-          className="flex-1 overflow-y-auto px-4 md:px-0 scroll-smooth relative pt-24 md:pt-0 pb-32 md:pb-0 cursor-pointer md:cursor-auto"
+          className="flex-1 overflow-y-auto px-4 md:px-0 scroll-smooth relative pt-[calc(6rem+var(--sat,0px))] md:pt-0 pb-[calc(8rem+var(--sab,0px))] md:pb-0 cursor-pointer md:cursor-auto"
           role="log"
           aria-live="polite"
           aria-relevant="additions"
@@ -740,7 +770,7 @@ export default function ChatApp() {
           {/* RA2 Theme Backgrounds */}
           {mounted && (theme === "yuri" || theme === "allied" || theme === "soviet") && (
             <div
-              className={`fixed top-0 left-0 right-0 bottom-0 z-0 pointer-events-none transition-[left] duration-300 ${sidebarCollapsed ? "md:left-20" : "md:left-72 lg:left-80"}`}
+              className={`fixed top-0 left-0 right-0 bottom-0 z-0 pointer-events-none transition-[left] duration-300 ${sidebarCollapsed ? "md:left-[calc(5rem+var(--sal,0px))]" : "md:left-[calc(18rem+var(--sal,0px))] lg:left-[calc(20rem+var(--sal,0px))]"}`}
               style={{
                 backgroundImage: `url('/assets/themes/${theme}.png')`,
                 backgroundSize: theme === "allied" ? "38%" : "35%",
@@ -846,6 +876,9 @@ export default function ChatApp() {
               parentConversation={parentConversation}
               contextMessagesCount={contextMessagesCount}
               selectedConversationId={selectedConversationId}
+              currentModel={currentModel}
+              lowerThinkingLevel={lowerThinkingLevel}
+              onRegenerateLowerThinking={handleRegenerateWithLowerThinking}
               regenerating={regenerating}
               isStreaming={isStreaming}
               streamingAssistant={streamingAssistant}
@@ -887,7 +920,7 @@ export default function ChatApp() {
 
         {/* Scroll to bottom button */}
         {!showProjectView && !showLanding && (
-          <div className="absolute right-6 bottom-32 z-20 pointer-events-auto">
+          <div className="absolute right-[calc(1.5rem+var(--sar,0px))] bottom-[calc(8rem+var(--sab,0px))] z-20 pointer-events-auto">
             <ScrollToBottomButton
               isAtBottom={isAtBottom}
               unreadCount={unreadCount}
@@ -942,7 +975,7 @@ export default function ChatApp() {
       {/* Landing Disclaimer - fixed at page bottom, sidebar-aware */}
       {showLanding && (
         <div
-          className={`fixed bottom-2 inset-x-0 text-center z-30 pointer-events-none transition-[padding] duration-300 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
+          className={`fixed bottom-[calc(0.5rem+var(--sab,0px))] inset-x-0 text-center z-30 pointer-events-none transition-[padding] duration-300 ${sidebarCollapsed ? "md:pl-[calc(5rem+var(--sal,0px))]" : "md:pl-[calc(18rem+var(--sal,0px))] lg:pl-[calc(20rem+var(--sal,0px))]"} pr-[var(--sar,0px)]`}
         >
           <p className="text-xs font-bold text-(--text-secondary) tracking-widest uppercase">
             {t.aiDisclaimer}

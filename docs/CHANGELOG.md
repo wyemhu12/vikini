@@ -8,6 +8,30 @@
 
 ---
 
+## 2026-10-01: Foldable Responsive Design, DeepSeek Thinking Recovery & Avatar Enhancement
+
+- **Pillar 1: Foldable & Special Aspect Ratio Responsive Overhaul**:
+  - `viewportFit: "cover"` trong `src/app/layout.tsx`. Khai báo CSS custom properties cho Safe Area Insets (`--sat`, `--sar`, `--sab`, `--sal`) và `@media (max-height: 500px)` trong `src/app/styles/themes/_shared/base.css`.
+  - Thay thế toàn bộ giả định `h-screen w-screen` bằng `h-dvh w-full overflow-hidden` trên `ChatApp.tsx`. Container query `@container/chat` và padding an toàn trên `scrollRef`, floating controls, `ScrollToBottomButton`, và `ChatControls`.
+  - Đồng bộ safe area insets trục ngang (`calc(5rem + var(--sal, 0px))` và `calc(18rem + var(--sal, 0px))` kèm `pr-[var(--sar,0px)]`) cho cả 2 trạng thái aside desktop và mobile drawer trong `Sidebar.tsx`, cùng 3 view vệ tinh dùng chung (`GalleryView.tsx`, `ImageGenStudio.tsx`, `DescribeImageView.tsx`).
+  - Cập nhật `dialog.tsx` và `alert-dialog.tsx` với `max-h-[calc(100dvh-2rem)] overflow-y-auto w-[calc(100vw-2rem)] sm:w-full`.
+- **Pillar 2: DeepSeek Stream Optimization & 1-Click Thinking Recovery**:
+  - Nâng trần `maxOutputTokens` cho `deepseek-v4-pro` từ 16.384 lên `65536` trong `src/lib/core/modelRegistry.ts`.
+  - Tạo mới module typed request builder `src/app/api/chat-stream/streaming/deepseek-request-builder.ts`: chuẩn hóa `reasoning.effort` sang `"high"` / `"xhigh"`, định tuyến OpenRouter fallback providers (`Relace`, `Together`, `Novita`, `DeepSeek`), và dọn sạch 100% `any`. Co-located test: `deepseek-request-builder.test.ts` (9 tests).
+  - Khắc phục phản hồi rỗng hoàn toàn 0 delta: server phát event SSE `error` `{ code: "empty_response", status: 502 }`, hiển thị banner song ngữ qua `StreamErrorBanner.tsx`.
+  - Cơ chế Thinking Recovery Card 1-Click: Khi stream cạn token chỉ có suy nghĩ mà không có câu trả lời, server phát meta event `emptyAnswerNotice` và lưu DB. Client render `EmptyReasoningNotice.tsx` với nút "Tạo lại" và "Tạo lại với suy nghĩ thấp hơn" (tính toán qua `getLowerThinkingLevel`). Backward-compatible với tin nhắn DB cũ qua `parseLegacyNotice`.
+  - Co-located tests: `useThinkingLevel.test.ts` (7 tests), `EmptyReasoningNotice.test.tsx` (5 tests), `legacyNotice.test.ts` (4 tests).
+- **Pillar 3: High-Fidelity Model Brand Icons & Thinking/Streaming Avatar Animations**:
+  - Nâng cấp `ModelAvatar.tsx`: Bộ SVG nhận diện chính hãng với multi-stop brand gradients (Gemini 4-color, Claude Terracotta, DeepSeek Ocean Cyan, OpenAI Emerald, Groq Flame, Generic Brain Violet). Bảo vệ chống xung đột gradient DOM ID thông qua `React.useId()`. Co-located test: `ModelAvatar.test.tsx` (8 tests).
+  - Nâng cấp `BubbleAvatar.tsx`: Áp dụng vật lý chuyển động Emil Kowalski, cấu trúc 4-state Precedence (`loading` > `thinking` > `streaming` > `idle`) với thuộc tính DOM `data-state`. Trạng thái suy nghĩ Breathing Pulse (chu kỳ 2.0s, scale [1, 1.05, 1], opacity [0.85, 1, 0.85], aura glow). Gating chống áp dụng hiệu ứng cho tin nhắn lịch sử. Co-located test: `BubbleAvatar.test.tsx` (17 tests).
+- **Quality Gate & Verification**:
+  - 82 test files passed, 892 tests passed (tăng từ 850 lên 892 tests, 0 failed).
+  - `npm run type-check`: 0 errors.
+  - `npm run lint`: 0 errors, 0 warnings.
+  - Grep probe xác nhận 0 occurrences của `h-screen` trong `ChatApp.tsx`.
+
+---
+
 ## 2026-10-01: Update DeepSeek V4.1 Flash Provider Metrics (Relace)
 
 - **Provider Verification & Metrics Sync**: Xác thực cấu hình OpenRouter provider ưu tiên của DeepSeek V4.1 Flash (`deepseek/deepseek-v4.1-flash`) là Relace (`order: ["Relace"]`). Cập nhật thông số chi phí ($0.02/M input, $0.60/M output, $0.02/M cache read) và hiệu năng (latency 1.12s, throughput 51 tps, uptime 99.98%) trong tài liệu kỹ thuật `docs/models.md`. Toàn bộ 5/5 unit tests của `deepseek-stream.test.ts` và 850/850 tests toàn dự án đều pass.

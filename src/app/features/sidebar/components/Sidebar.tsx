@@ -524,8 +524,10 @@ function Sidebar({
           aria-label="Main navigation"
           role="navigation"
           className={cn(
-            "hidden md:flex flex-col fixed top-0 left-0 bottom-0 border-r border-(--border) bg-(--surface-muted)/90 backdrop-blur-3xl p-4 z-30 transition-[width] duration-300",
-            collapsed ? "w-20" : "w-72 lg:w-80"
+            "hidden md:flex flex-col fixed top-0 left-0 bottom-0 border-r border-(--border) bg-(--surface-muted)/90 backdrop-blur-3xl pl-[calc(1rem+var(--sal,0px))] pr-4 py-4 z-30 transition-[width] duration-300",
+            collapsed
+              ? "w-[calc(5rem+var(--sal,0px))]"
+              : "w-[calc(18rem+var(--sal,0px))] lg:w-[calc(20rem+var(--sal,0px))]"
           )}
         >
           {renderSidebarContent()}
@@ -555,7 +557,7 @@ function Sidebar({
                     <motion.aside
                       aria-label="Main navigation"
                       role="navigation"
-                      className="fixed top-0 left-0 bottom-0 z-(--z-drawer) w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-5 pb-16 shadow-2xl flex flex-col md:hidden"
+                      className="fixed top-0 left-0 bottom-0 z-(--z-drawer) w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-5 pt-[calc(1.25rem+var(--sat,0px))] pb-[calc(4rem+var(--sab,0px))] pl-[calc(1.25rem+var(--sal,0px))] shadow-2xl flex flex-col md:hidden"
                       initial={{ x: "-100%" }}
                       animate={{ x: 0 }}
                       exit={{ x: "-100%" }}

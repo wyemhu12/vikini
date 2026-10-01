@@ -58,6 +58,12 @@
 :root {
   color-scheme: dark;
 
+  /* Safe Area Inset Tokens with Fallback */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+
   /* Semantic surface + content tokens */
   --surface-dark: #050505;
   --surface-dark-strong: #050505;
@@ -178,4 +184,12 @@ body {
 
 ::-webkit-scrollbar-thumb {
   @apply bg-[var(--control-border)] rounded-full;
+}
+
+/* Landscape Phones with low height (h <= 500px) */
+@media (max-height: 500px) {
+  .chat-header-bar {
+    padding-top: calc(0.375rem + var(--sat, 0px)) !important;
+    padding-bottom: 0.375rem !important;
+  }
 }

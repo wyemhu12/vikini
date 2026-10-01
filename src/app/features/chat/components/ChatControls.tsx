@@ -147,7 +147,7 @@ export default function ChatControls({
         ${
           isLanding
             ? "relative z-40"
-            : "pb-6 shadow-2xl md:shadow-none fixed bottom-0 left-0 right-0 z-40 bg-(--surface)/95 backdrop-blur-xl md:bg-transparent md:backdrop-blur-none md:static md:translate-y-0"
+            : "pb-[calc(1.5rem+var(--sab,0px))] md:pb-6 shadow-2xl md:shadow-none fixed bottom-0 left-0 right-0 z-40 bg-(--surface)/95 backdrop-blur-xl md:bg-transparent md:backdrop-blur-none md:static md:translate-y-0"
         }
       `}
     >
@@ -157,7 +157,7 @@ export default function ChatControls({
       >
         {/* Mobile: no container border, each button is a separate chip */}
         {/* Desktop: unified toolbar with border */}
-        <div className="flex flex-wrap items-center justify-center gap-2 md:gap-0 md:rounded-full md:bg-(--control-bg) md:border md:border-(--control-border) md:p-1 md:shadow-lg">
+        <div className="flex flex-wrap items-center justify-center gap-2 @sm/chat:gap-3 @md/chat:gap-4 md:gap-0 md:rounded-full md:bg-(--control-bg) md:border md:border-(--control-border) md:p-1 md:shadow-lg">
           <ModelSelector
             currentModelId={currentModel}
             onSelectModel={handleModelChange}

@@ -110,11 +110,11 @@ describe("Sidebar component", () => {
     const svgIcon = closeBtn.querySelector("svg");
     expect(svgIcon).not.toBeNull();
 
-    // Mobile aside is portaled to document.body, has z-(--z-drawer) and pb-16
+    // Mobile aside is portaled to document.body, has z-(--z-drawer) and pb-[calc(4rem+var(--sab,0px))]
     const mobileAside = document.body.querySelector("aside.md\\:hidden");
     expect(mobileAside).not.toBeNull();
     expect(mobileAside?.className).toContain("z-(--z-drawer)");
-    expect(mobileAside?.className).toContain("pb-16");
+    expect(mobileAside?.className).toContain("pb-[calc(4rem+var(--sab,0px))]");
 
     // Inside mobile aside, the custom-scrollbar is present
     const mobileScrollContainer = mobileAside?.querySelector(".custom-scrollbar");

@@ -676,6 +676,13 @@ export const vi = {
   thinkingProcess: "Quá trình suy nghĩ",
   thinkingNoResponseContent:
     "Phản hồi chỉ ghi nhận quá trình suy nghĩ và chưa có nội dung trả lời. Vui lòng bấm Thử lại.",
+  thinkingNoResponseAlert: "Mô hình đã hoàn tất suy nghĩ nhưng chưa xuất nội dung trả lời.",
+  thinkingExhaustedNotice:
+    "Quá trình suy nghĩ đã đạt giới hạn độ dài token trước khi tạo câu trả lời. Bạn có thể thử chuyển mức suy nghĩ sang thấp hơn hoặc yêu cầu ngắn gọn hơn.",
+  regenerateWithLowerThinking: "Tạo lại với suy nghĩ thấp hơn",
+  regeneratingWithLowerThinking: "Đang tạo lại câu trả lời với mức suy nghĩ: {level}",
+  streamErrorEmptyResponse:
+    "Mô hình phản hồi rỗng từ nhà cung cấp (502). Vui lòng thử lại hoặc chọn nhà cung cấp khác.",
   loadingChart: "Đang tải biểu đồ...",
   // Image Mode
   imageModeLabel: "CHẾ ĐỘ TẠO ẢNH",

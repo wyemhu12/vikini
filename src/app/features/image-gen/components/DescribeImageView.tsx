@@ -218,7 +218,7 @@ export function DescribeImageView() {
       <FloatingMenuTrigger onClick={() => setMobileOpen(true)} />
 
       <div
-        className={`flex-1 flex flex-col h-full transition-colors duration-300 relative z-10 ${sidebarCollapsed ? "md:pl-20" : "md:pl-72 lg:pl-80"}`}
+        className={`flex-1 flex flex-col h-full transition-colors duration-300 relative z-10 ${sidebarCollapsed ? "md:pl-[calc(5rem+var(--sal,0px))]" : "md:pl-[calc(18rem+var(--sal,0px))] lg:pl-[calc(20rem+var(--sal,0px))]"} pr-[var(--sar,0px)]`}
       >
         <HeaderBar onToggleSidebar={() => setMobileOpen(true)} />
 

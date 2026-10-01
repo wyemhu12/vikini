@@ -57,7 +57,7 @@ export default function FloatingMenuTrigger({ onClick, className }: FloatingMenu
         resetIdleTimer();
       }}
       className={`
-        fixed z-50 bottom-24 left-4 md:hidden
+        fixed z-50 bottom-[calc(6rem+var(--sab,0px))] left-[calc(1rem+var(--sal,0px))] md:hidden
         flex items-center justify-center
         w-12 h-12 rounded-full
         bg-(--accent) text-(--surface)

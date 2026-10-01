@@ -33,6 +33,11 @@ vi.mock("../hooks/useLanguage", () => ({
         thinkingProcess: "Thinking Process",
         thinkingNoResponseContent:
           "Response only contains thinking deliberation without answer content. Please click Regenerate.",
+        thinkingNoResponseAlert:
+          "The model finished thinking deliberation without producing answer content.",
+        thinkingExhaustedNotice:
+          "Reasoning process reached token length limit before generating answer content.",
+        regenerateWithLowerThinking: "Regenerate with lower thinking",
         aiIsTyping: "AI is typing...",
       };
       return dict[key] || key;
@@ -133,7 +138,40 @@ describe("ChatBubble", () => {
       expect(screen.getByRole("button", { name: /thinking process/i })).toBeInTheDocument();
       expect(
         screen.getByText(
-          "Response only contains thinking deliberation without answer content. Please click Regenerate."
+          "The model finished thinking deliberation without producing answer content."
+        )
+      ).toBeInTheDocument();
+    });
+
+    it("does not render recovery notice while streaming with thought only", () => {
+      const msgWithThoughtOnly: ChatMessage = {
+        id: "msg-bot-thought-only",
+        role: "assistant",
+        content: "<thought>Deliberating only...</thought>",
+      };
+
+      render(<ChatBubble message={msgWithThoughtOnly} isStreaming={true} />);
+
+      expect(
+        screen.queryByText(
+          "The model finished thinking deliberation without producing answer content."
+        )
+      ).not.toBeInTheDocument();
+    });
+
+    it("parses legacy notice and renders recovery card for historical messages", () => {
+      const legacyMsg: ChatMessage = {
+        id: "msg-legacy",
+        role: "assistant",
+        content:
+          "<thought>Legacy deliberation</thought>\n\n*(Quá trình suy nghĩ đã đạt giới hạn độ dài token trước khi tạo câu trả lời. Bạn có thể thử chuyển mức suy nghĩ sang Trung bình/Thấp hoặc yêu cầu câu trả lời ngắn gọn hơn.)*",
+      };
+
+      render(<ChatBubble message={legacyMsg} isStreaming={false} />);
+
+      expect(
+        screen.getByText(
+          "Reasoning process reached token length limit before generating answer content."
         )
       ).toBeInTheDocument();
     });

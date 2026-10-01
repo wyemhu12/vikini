@@ -1,11 +1,7 @@
 // /app/api/chat-stream/streaming/deepseek-stream.ts
 import OpenAI from "openai";
 
-import {
-  isDeepSeekV4ProModel,
-  isDeepSeekV41FlashModel,
-  getModelMaxOutputTokens,
-} from "@/lib/core/modelRegistry";
+import { buildDeepSeekRequestBody, mapDeepSeekEffort } from "./deepseek-request-builder";
 import { StreamTimeoutError, type ChatStreamParams, type Message } from "./types";
 import { sendEvent, getStreamTimeout, withTimeout, withIdleTimeout, streamLogger } from "./utils";
 import { sendInitialMetaEvents, generateAndSendOptimisticTitle } from "./gemini-stream";
@@ -15,12 +11,13 @@ import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
 /**
  * DeepSeek V4 streaming with native thinking mode support.
  *
- * Key differences from createOpenAICompatibleStream:
- * 1. Adds `thinking: { type: "enabled/disabled" }` to request
- * 2. Maps thinkingLevel → reasoning_effort ("high" | "max")
- * 3. Parses `delta.reasoning_content` → injects <think> tags
- * 4. Doesn't set temperature/top_p when thinking is enabled
- * 5. Tracks reasoning tokens separately
+ * Key features:
+ * 1. OpenRouter reasoning routing: Relace, Together, Novita, DeepSeek (allow_fallbacks)
+ * 2. Maps thinkingLevel -> reasoning_effort (Flash: "high"/"low", Pro: "xhigh"/"high", Direct: "max"/"high")
+ * 3. Token budget: Flash 384k, Pro 65k, Direct 16k
+ * 4. Parses delta.reasoning_content -> injects <think> tags
+ * 5. CoT deliberation vs Empty answer detection: sends meta event emptyAnswerNotice
+ * 6. Completely empty stream detection: sends error event empty_response (502)
  */
 export function createDeepSeekStream(params: {
   ai: OpenAI;
@@ -150,28 +147,13 @@ export function createDeepSeekStream(params: {
       let full = "";
       let isInThinkingBlock = false;
       let streamFailed = false;
+      let emptyAnswerReason: "length" | "no_content" | undefined;
 
       try {
-        // Determine thinking mode configuration
-        const isThinkingEnabled = thinkingLevel !== "off";
-        // Map Vikini thinkingLevel → DeepSeek reasoning_effort
-        // DeepSeek V4 has 3 modes: Non-think, Think High, Think Max
-        // Think Max requires a special system prompt prefix (per official docs)
-        let reasoningEffort: "high" | "max" = "high";
-        if (thinkingLevel === "high") {
-          reasoningEffort = "max";
-        }
-
-        // Prepend Think Max system prompt prefix (per DeepSeek V4 encoding/README.md)
-        let effectiveSysPrompt = sysPrompt;
-        if (reasoningEffort === "max" && isThinkingEnabled) {
-          const thinkMaxPrefix =
-            "Reasoning Effort: High depth deliberation.\n" +
-            "Be thorough and rigorous in your analysis: decompose the problem, address the root cause, " +
-            "and verify logic against relevant edge cases.\n" +
-            "Maintain focused deliberation and proceed directly to producing a complete, high-quality final response without redundant looping.\n\n";
-          effectiveSysPrompt = thinkMaxPrefix + sysPrompt;
-        }
+        const { effectiveSysPromptPrefix } = mapDeepSeekEffort(model, thinkingLevel);
+        const effectiveSysPrompt = effectiveSysPromptPrefix
+          ? effectiveSysPromptPrefix + sysPrompt
+          : sysPrompt;
 
         // Map contents to OpenAI format (same as createOpenAICompatibleStream)
         type GeminiPart = { text?: string; inlineData?: { data: string; mimeType: string } };
@@ -209,60 +191,12 @@ export function createDeepSeekStream(params: {
 
         const timeoutMs = getStreamTimeout(model, thinkingLevel);
 
-        // Calculate max_tokens budget:
-        // DeepSeek V4 Pro supports 16384 output tokens.
-        // When thinking is enabled, thinking tokens consume the output token budget.
-        // Guarantee at least 16384 tokens to prevent reasoning token exhaustion from truncating responses.
-        const registeredMaxOutput = getModelMaxOutputTokens(model);
-        const effectiveMaxTokens = Math.max(
-          registeredMaxOutput || modelMeta?.maxOutputTokens || 8192,
-          isThinkingEnabled ? 16384 : 8192
-        );
-
-        // Build request body with DeepSeek-specific params
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const requestBody: Record<string, any> = {
-          model: model,
+        const requestBody = buildDeepSeekRequestBody({
+          model,
           messages: openAIMessages,
-          stream: true,
-          stream_options: { include_usage: true },
-          max_tokens: effectiveMaxTokens,
-        };
-
-        // Add OpenRouter provider routing for DeepSeek models
-        if (isDeepSeekV41FlashModel(model)) {
-          requestBody.provider = {
-            order: ["Relace"],
-            allow_fallbacks: true,
-          };
-        } else if (isDeepSeekV4ProModel(model)) {
-          requestBody.provider = {
-            order: ["StreamLake"],
-            allow_fallbacks: true,
-          };
-        }
-
-        // Add thinking mode config
-        // OpenRouter uses `include_reasoning` + `reasoning: { effort }`
-        // DeepSeek Direct API uses `thinking: { type }` + `reasoning_effort`
-        const isOpenRouterRoute = isDeepSeekV4ProModel(model) || isDeepSeekV41FlashModel(model);
-        if (isThinkingEnabled) {
-          if (isOpenRouterRoute) {
-            requestBody.include_reasoning = true;
-            requestBody.reasoning = { effort: reasoningEffort };
-          } else {
-            requestBody.thinking = { type: "enabled" };
-          }
-          requestBody.reasoning_effort = reasoningEffort;
-        } else {
-          if (isOpenRouterRoute) {
-            requestBody.include_reasoning = false;
-            requestBody.reasoning = { effort: "none" };
-          } else {
-            requestBody.thinking = { type: "disabled" };
-          }
-          requestBody.temperature = 0.7;
-        }
+          thinkingLevel,
+          modelMeta,
+        });
 
         const streamPromise = ai.chat.completions.create(
           requestBody as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
@@ -355,21 +289,44 @@ export function createDeepSeekStream(params: {
           sendEvent(controller, "token", { t: closeTag });
         }
 
+        // Diagnostic logging of final stream state
+        streamLogger.info(
+          `[DeepSeek Stream] Completed chunks. Finish reason: "${lastFinishReason}", tokens: { prompt: ${promptTokens}, completion: ${completionTokens}, reasoning: ${reasoningTokens} }, fullLength: ${full.length}`
+        );
+
+        // Check if stream ended completely empty (no reasoning tokens, no answer tokens)
+        if (!full.trim() && !isCancelled && !ac.signal.aborted) {
+          streamLogger.warn(
+            `DeepSeek stream ended completely empty. finish_reason: "${lastFinishReason}"`
+          );
+          sendEvent(controller, "error", {
+            code: "empty_response",
+            message: "Empty response from provider",
+            status: 502,
+          });
+          sendEvent(controller, "done", { ok: false });
+          try {
+            controller.close();
+          } catch {
+            // Ignore if already closed
+          }
+          return;
+        }
+
         // Check if response contains any actual answer content outside thinking tags
         const nonThinkingContent = full.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-        if (!nonThinkingContent) {
+        if (full.includes("<think>") && !nonThinkingContent) {
+          emptyAnswerReason = lastFinishReason === "length" ? "length" : "no_content";
           streamLogger.warn(
-            `DeepSeek stream ended without answer content. finish_reason: "${lastFinishReason}", fullLength: ${full.length}`
+            `DeepSeek stream ended with thinking deliberation but without answer content. finish_reason: "${lastFinishReason}", fullLength: ${full.length}, reason: "${emptyAnswerReason}"`
           );
 
-          const notice =
-            lastFinishReason === "length"
-              ? "\n\n*(Quá trình suy nghĩ đã đạt giới hạn độ dài token trước khi tạo câu trả lời. Bạn có thể thử chuyển mức suy nghĩ sang Trung bình/Thấp hoặc yêu cầu câu trả lời ngắn gọn hơn.)*"
-              : "\n\n*(Mô hình đã hoàn tất suy nghĩ nhưng chưa xuất nội dung trả lời. Vui lòng bấm 'Tạo lại'.)*";
-
-          full += notice;
-          acc.full = full;
-          sendEvent(controller, "token", { t: notice });
+          if (!isCancelled && !ac.signal.aborted) {
+            sendEvent(controller, "meta", {
+              type: "emptyAnswerNotice",
+              reason: emptyAnswerReason,
+            });
+          }
         }
 
         // Send usage metadata if available
@@ -468,6 +425,7 @@ export function createDeepSeekStream(params: {
           setConversationAutoTitle,
           generateFinalTitle,
           model,
+          emptyAnswerReason,
         });
       }
 

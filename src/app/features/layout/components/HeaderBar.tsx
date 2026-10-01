@@ -64,11 +64,12 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
       animate={{ y: showMobileControls ? 0 : "-100%" }}
       transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
       className="
+      chat-header-bar
       fixed top-0 left-0 right-0 z-20 
       md:sticky md:top-0 md:translate-y-0
       flex items-center justify-between 
       bg-transparent text-(--text-primary)
-      px-4 py-4 sm:px-6
+      pt-[calc(1rem+var(--sat,0px))] pb-4 px-4 sm:px-6
       transition-colors duration-300
     "
     >
