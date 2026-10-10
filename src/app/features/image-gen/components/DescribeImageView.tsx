@@ -212,7 +212,6 @@ export function DescribeImageView() {
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
-        t={t as unknown as Record<string, string>}
       />
 
       <FloatingMenuTrigger onClick={() => setMobileOpen(true)} />

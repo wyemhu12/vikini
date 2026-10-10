@@ -46,7 +46,10 @@ vi.mock("next-themes", () => ({
 
 // Mock theme config
 vi.mock("@/lib/config/theme-config", () => ({
-  THEME_CONFIG: [{ id: "blueprint", labelKey: "blueprint", swatch: "#3b82f6", group: "Cool" }],
+  THEME_CONFIG: [
+    { id: "focus-dark", labelKey: "focusDark", swatch: "#000000", group: "Focus" },
+    { id: "custom-theme", labelKey: "customTheme", swatch: "#ffffff", group: "Custom" },
+  ],
 }));
 
 // Mock lucide-react
@@ -67,13 +70,19 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
       {children}
     </div>
   ),
-  DropdownMenuLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuLabel: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => <div className={className}>{children}</div>,
   DropdownMenuSeparator: () => <hr />,
   DropdownMenuGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-// Mock useLanguage hook
-vi.mock("../../chat/hooks/useLanguage", () => ({
+// Mock useLanguage hook with absolute module id (@ alias - MAJOR-9)
+vi.mock("@/app/features/chat/hooks/useLanguage", () => ({
   useLanguage: () => ({
     language: "vi",
     setLanguage: vi.fn(),
@@ -83,12 +92,16 @@ vi.mock("../../chat/hooks/useLanguage", () => ({
         en: "English",
         language: "Ngôn ngữ",
         theme: "Giao diện",
+        themeFocus: "Tập trung",
+        themeGlassmorphism: "Thủy tinh mờ",
+        themeRa2: "Báo động đỏ (RA2)",
+        focusDark: "Tập trung tối",
+        customTheme: "Tùy biến",
         openSidebar: "Mở thanh bên",
         selectLanguage: "Chọn ngôn ngữ",
         selectTheme: "Chọn giao diện",
         appName: "Vikini Chat",
         settings: "Cài đặt",
-        blueprint: "Xanh Dịu",
       };
       return translations[key] || key;
     },
@@ -113,6 +126,23 @@ describe("HeaderBar", () => {
     expect(vnLabels.length).toBeGreaterThan(0);
   });
 
+  it("renders theme selector with localized aria-label (TC-I18N-04)", () => {
+    renderHeader();
+    expect(screen.getByLabelText("Chọn giao diện")).toBeInTheDocument();
+  });
+
+  it("renders translated theme group label 'Tập trung' at both desktop and mobile menus (MAJOR-10)", () => {
+    renderHeader();
+    // Both desktop (:165) and mobile (:239) dropdown menus render the mapped label
+    expect(screen.getAllByText("Tập trung")).toHaveLength(2);
+  });
+
+  it("renders verbatim fallback for unmapped theme group 'Custom' at both desktop and mobile menus (MAJOR-10 counter-test)", () => {
+    renderHeader();
+    // Groups not in THEME_GROUP_LABELS fall back to rendering the verbatim group name
+    expect(screen.getAllByText("Custom")).toHaveLength(2);
+  });
+
   it("renders the V logo brand element", () => {
     renderHeader();
     expect(screen.getByText("V")).toBeInTheDocument();
@@ -125,5 +155,12 @@ describe("HeaderBar", () => {
     expect(header?.className).toContain("pl-[calc(1rem+var(--sal,0px))]");
     expect(header?.className).toContain("pr-[calc(1rem+var(--sar,0px))]");
     expect(header?.className).toContain("md:px-6");
+  });
+
+  it("does not contain obsolete focus:ring-opacity-50 class and uses focus-visible:ring-2", () => {
+    const { container } = renderHeader();
+    expect(container.querySelector(".focus\\:ring-opacity-50")).toBeNull();
+    const focusVisibleBtn = container.querySelector(".focus-visible\\:ring-2");
+    expect(focusVisibleBtn).not.toBeNull();
   });
 });

@@ -1,7 +1,28 @@
 import { render, screen } from "@testing-library/react";
 import React from "react";
 import Sidebar from "./Sidebar";
-import { vi, describe, it, expect, beforeEach } from "vitest";
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import { useLanguageStore } from "@/lib/store/languageStore";
+
+interface MockSidebarItemProps {
+  conversation: { id: string; title?: string };
+  isActive?: boolean;
+  onSelect: (id: string) => void;
+  onRename: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+// Spy to capture props passed into SidebarItem for TC-PERF-01
+export let latestSidebarItemProps: MockSidebarItemProps | null = null;
+
+vi.mock("./SidebarItem", () => ({
+  default: (props: MockSidebarItemProps) => {
+    latestSidebarItemProps = props;
+    return (
+      <div data-testid={`sidebar-item-${props.conversation.id}`}>{props.conversation.title}</div>
+    );
+  },
+}));
 
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
@@ -81,6 +102,12 @@ vi.mock("@/components/features/projects", () => ({
 describe("Sidebar component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    latestSidebarItemProps = null;
+    useLanguageStore.setState({ language: "en" });
+  });
+
+  afterEach(() => {
+    useLanguageStore.setState({ language: "en" });
   });
 
   it("renders desktop sidebar with unified custom-scrollbar container", () => {
@@ -192,5 +219,86 @@ describe("Sidebar component", () => {
     // Drag below threshold (-50px)
     onDragEnd(undefined, { offset: { x: -50 }, velocity: { x: 0 } });
     expect(onCloseMobileMock).not.toHaveBeenCalled();
+  });
+
+  it("maintains stable callback references passed to SidebarItem across re-renders (TC-PERF-01)", () => {
+    const mockChats = [{ id: "conv-1", title: "Chat 1" }];
+    const onSelectChat = vi.fn();
+    const onRenameChat = vi.fn();
+    const onDeleteChat = vi.fn();
+
+    const { rerender } = render(
+      <Sidebar
+        chats={mockChats}
+        onSelectChat={onSelectChat}
+        onRenameChat={onRenameChat}
+        onDeleteChat={onDeleteChat}
+        session={{ user: { rank: "basic", email: "user1@example.com" } }}
+      />
+    );
+
+    const props1 = latestSidebarItemProps;
+    expect(props1).not.toBeNull();
+    expect(props1?.conversation.id).toBe("conv-1");
+
+    // Re-render with dummy prop change (unrelated prop session)
+    rerender(
+      <Sidebar
+        chats={mockChats}
+        onSelectChat={onSelectChat}
+        onRenameChat={onRenameChat}
+        onDeleteChat={onDeleteChat}
+        session={{ user: { rank: "basic", email: "user2@example.com" } }}
+      />
+    );
+
+    const props2 = latestSidebarItemProps;
+    expect(props2).not.toBeNull();
+
+    // Affirmation: callback instances MUST remain strictly identical (toBe)
+    expect(props2?.onSelect).toBe(props1?.onSelect);
+    expect(props2?.onRename).toBe(props1?.onRename);
+    expect(props2?.onDelete).toBe(props1?.onDelete);
+
+    // Counter-factual: changing callback prop MUST change the memoized reference (not.toBe)
+    const newOnSelectChat = vi.fn();
+    rerender(
+      <Sidebar
+        chats={mockChats}
+        onSelectChat={newOnSelectChat}
+        onRenameChat={onRenameChat}
+        onDeleteChat={onDeleteChat}
+        session={{ user: { rank: "basic", email: "user2@example.com" } }}
+      />
+    );
+
+    const props3 = latestSidebarItemProps;
+    expect(props3?.onSelect).not.toBe(props1?.onSelect);
+    // Other callbacks whose inputs didn't change remain stable
+    expect(props3?.onRename).toBe(props1?.onRename);
+    expect(props3?.onDelete).toBe(props1?.onDelete);
+  });
+
+  it("renders localized UI labels in Vietnamese without prop drilling (TC-I18N-02)", () => {
+    useLanguageStore.setState({ language: "vi" });
+
+    render(
+      <Sidebar
+        chats={[]}
+        mobileOpen={true}
+        session={{ user: { rank: "admin", email: "admin@example.com" } }}
+      />
+    );
+
+    // Admin management label localized in vi.ts (rendered in desktop & mobile)
+    expect(screen.getAllByText("Quản lý hệ thống").length).toBeGreaterThanOrEqual(1);
+
+    // Close button localized aria-label
+    expect(screen.getByLabelText("Đóng thanh bên")).toBeInTheDocument();
+
+    // Empty state hint localized in vi.ts
+    expect(
+      screen.getAllByText("Bắt đầu cuộc trò chuyện mới để trải nghiệm").length
+    ).toBeGreaterThanOrEqual(1);
   });
 });

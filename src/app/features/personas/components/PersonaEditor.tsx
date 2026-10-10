@@ -14,19 +14,22 @@ interface PersonaEditorProps {
   onSave: (persona: Partial<PersonaForUI>) => void;
 }
 
-const TONE_OPTIONS: { value: PersonaTone; label: string; description: string }[] = [
-  { value: "default", label: "Default", description: "Preset style and tone" },
-  { value: "professional", label: "Professional", description: "Polished and precise" },
-  { value: "friendly", label: "Friendly", description: "Warm and chatty" },
-  { value: "candid", label: "Candid", description: "Direct and encouraging" },
-  { value: "quirky", label: "Quirky", description: "Playful and imaginative" },
-  { value: "efficient", label: "Efficient", description: "Concise and plain" },
-  { value: "cynical", label: "Cynical", description: "Critical and sarcastic" },
-  { value: "lawyer", label: "Lawyer", description: "Legal advisor, precise terminology" },
+const getToneOptions = (
+  t: (key: string) => string
+): { value: PersonaTone; label: string; description: string }[] => [
+  { value: "default", label: t("toneDefault"), description: t("toneDefaultDesc") },
+  { value: "professional", label: t("toneProfessional"), description: t("toneProfessionalDesc") },
+  { value: "friendly", label: t("toneFriendly"), description: t("toneFriendlyDesc") },
+  { value: "candid", label: t("toneCandid"), description: t("toneCandidDesc") },
+  { value: "quirky", label: t("toneQuirky"), description: t("toneQuirkyDesc") },
+  { value: "efficient", label: t("toneEfficient"), description: t("toneEfficientDesc") },
+  { value: "cynical", label: t("toneCynical"), description: t("toneCynicalDesc") },
+  { value: "lawyer", label: t("toneLawyer"), description: t("toneLawyerDesc") },
 ];
 
 export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
   const { t } = useLanguage();
+  const toneOptions = useMemo(() => getToneOptions(t), [t]);
 
   const [dirty, setDirty] = useState(false);
   const { setHasDirtyEditor } = usePersonaStore();
@@ -94,10 +97,11 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="text-sm font-medium">{title}</div>
         <button
+          type="button"
           onClick={save}
           disabled={!canSave}
           aria-label={t("personaSave") || "Save Persona"}
-          className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-lg bg-(--accent) text-(--accent-foreground) px-3 py-2 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer"
         >
           {t("personaSave") || "Save Persona"}
         </button>
@@ -114,7 +118,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
               value={name}
               onChange={handleChange(setName)}
               placeholder={t("personaPlaceholderName") || "e.g. Code Assistant, Legal Advisor"}
-              className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm"
+              className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-2 focus-visible:ring-(--ring) text-(--text-primary) px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -140,7 +144,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
             value={description}
             onChange={handleChange(setDescription)}
             placeholder={t("personaPlaceholderDesc") || "Brief description of the persona"}
-            className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm"
+            className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-2 focus-visible:ring-(--ring) text-(--text-primary) px-3 py-2 text-sm"
           />
         </div>
 
@@ -150,7 +154,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
             {t("personaTone") || "Base Style & Tone"}
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {TONE_OPTIONS.map((opt) => (
+            {toneOptions.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
@@ -158,9 +162,9 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
                   setTone(opt.value);
                   setDirty(true);
                 }}
-                className={`rounded-lg border px-3 py-2 text-left transition-colors duration-200 ${
+                className={`rounded-lg border px-3 py-2 text-left transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer ${
                   tone === opt.value
-                    ? "border-(--primary) bg-(--primary)/10 text-(--text-primary)"
+                    ? "border-(--accent) bg-(--accent)/10 text-(--text-primary)"
                     : "border-(--border) bg-(--surface) hover:bg-(--surface-muted) text-(--text-secondary)"
                 }`}
               >

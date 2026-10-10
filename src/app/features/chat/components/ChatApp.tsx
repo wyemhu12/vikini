@@ -729,7 +729,6 @@ export default function ChatApp() {
         onDeleteConversation={openDeleteModal}
         onRenameChat={memoizedOnRenameChat}
         onLogout={memoizedOnLogout}
-        t={t}
         mobileOpen={mobileOpen}
         onCloseMobile={closeMobileSidebar}
         session={session}

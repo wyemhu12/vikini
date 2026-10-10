@@ -35,6 +35,7 @@ import { toast } from "@/lib/store/toastStore";
 import { CreateProjectModal } from "@/components/features/projects";
 import { shouldCloseDrawer } from "../utils/drawerGesture";
 import { useProjectStore } from "@/lib/store/projectStore";
+import { useLanguage } from "../../chat/hooks/useLanguage";
 import type { FrontendConversation } from "../../chat/hooks/useConversation";
 
 interface Conversation {
@@ -75,7 +76,6 @@ interface SidebarProps {
   onNewChat?: () => void;
   newChatLabel?: string;
   onLogout?: () => void;
-  t?: Record<string, string>;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
   session?: Session | null;
@@ -174,7 +174,6 @@ function Sidebar({
   onNewChat,
   newChatLabel,
   onLogout,
-  t,
   mobileOpen = false,
   onCloseMobile,
   session,
@@ -188,6 +187,7 @@ function Sidebar({
   onDeleteProjectConversation,
   isCreatingChat = false,
 }: SidebarProps) {
+  const { t } = useLanguage();
   const { openGemModal } = useGemStore();
   const { openPersonaModal } = usePersonaStore();
   const router = useRouter();
@@ -209,73 +209,85 @@ function Sidebar({
 
   const currentId = activeId ?? selectedConversationId ?? null;
 
-  const handleSelect = (id: string) => {
-    (onSelectChat ?? onSelectConversation)?.(id);
-    onCloseMobile?.();
-  };
+  const handleNavigation = React.useCallback(
+    (path: string, isMobile: boolean) => {
+      router.push(path);
+      if (isMobile) onCloseMobile?.();
+    },
+    [router, onCloseMobile]
+  );
 
-  const handleNew = () => {
+  const handleSelect = React.useCallback(
+    (id: string) => {
+      (onSelectChat ?? onSelectConversation)?.(id);
+      onCloseMobile?.();
+    },
+    [onSelectChat, onSelectConversation, onCloseMobile]
+  );
+
+  const handleNew = React.useCallback(() => {
     if (isCreatingChat) return;
     onNewChat?.();
     onCloseMobile?.();
-  };
+  }, [isCreatingChat, onNewChat, onCloseMobile]);
 
-  const handleOpenGems = () => {
+  const handleOpenGems = React.useCallback(() => {
     openGemModal(currentId);
     onCloseMobile?.();
-  };
+  }, [openGemModal, currentId, onCloseMobile]);
 
-  const handleOpenPersonas = () => {
+  const handleOpenPersonas = React.useCallback(() => {
     openPersonaModal(currentId);
     onCloseMobile?.();
-  };
+  }, [openPersonaModal, currentId, onCloseMobile]);
 
-  const renameFallback = async (_id: string) => {
-    // Note: This fallback should ideally use a modal, but for now we use
-    // the parent's onRenameChat which has proper modal handling in ChatApp
-    // If no onRenameChat is provided, show a toast suggesting to use the main UI
-    toast.info(t?.renameChat || "Use the main interface to rename conversations");
-  };
+  const renameFallback = React.useCallback(
+    async (_id: string) => {
+      toast.info(t("renameFallbackToast"));
+    },
+    [t]
+  );
 
-  const deleteFallback = async (_id: string) => {
-    // Note: This fallback should ideally use a modal, but for now we use
-    // the parent's onDeleteChat which has proper modal handling in ChatApp
-    // If no onDeleteChat is provided, show a toast suggesting to use the main UI
-    toast.info(t?.deleteConfirm || "Use the main interface to delete conversations");
-  };
+  const deleteFallback = React.useCallback(
+    async (_id: string) => {
+      toast.info(t("deleteFallbackToast"));
+    },
+    [t]
+  );
 
-  const handleRename = (id: string) =>
-    typeof onRenameChat === "function" ? onRenameChat(id) : renameFallback(id);
-  const handleDelete = (id: string) => {
-    const fn = onDeleteChat ?? onDeleteConversation;
-    if (typeof fn === "function") {
-      setDeletingId(id);
-      // Give animation time to play, then call actual delete
-      setTimeout(() => {
-        fn(id);
-        // Clear after a delay (parent will remove from list)
-        setTimeout(() => setDeletingId(null), 500);
-      }, 250);
-    } else {
-      void deleteFallback(id);
-    }
-  };
+  const handleRename = React.useCallback(
+    (id: string) => (typeof onRenameChat === "function" ? onRenameChat(id) : renameFallback(id)),
+    [onRenameChat, renameFallback]
+  );
+
+  const handleDelete = React.useCallback(
+    (id: string) => {
+      const fn = onDeleteChat ?? onDeleteConversation;
+      if (typeof fn === "function") {
+        setDeletingId(id);
+        // Give animation time to play, then call actual delete
+        setTimeout(() => {
+          fn(id);
+          // Clear after a delay (parent will remove from list)
+          setTimeout(() => setDeletingId(null), 500);
+        }, 250);
+      } else {
+        void deleteFallback(id);
+      }
+    },
+    [onDeleteChat, onDeleteConversation, deleteFallback]
+  );
 
   // renderSidebarContent is a render function (NOT a component) - prevents remount/flicker
   const renderSidebarContent = (isMobile = false) => {
     const isCollapsed = isMobile ? false : collapsed;
 
-    const handleNavigation = (path: string) => {
-      router.push(path);
-      if (isMobile) onCloseMobile?.();
-    };
-
     const navButtons = (
       <div className="space-y-2">
         <SidebarButton
-          onClick={() => handleNavigation("/")}
+          onClick={() => handleNavigation("/", isMobile)}
           icon={MessageSquare}
-          label="Chat"
+          label={t("chat")}
           variant={pathname === "/" ? "primary" : "default"}
           isCollapsed={isCollapsed}
         />
@@ -284,14 +296,14 @@ function Sidebar({
             <SidebarButton
               onClick={handleOpenGems}
               icon={Sparkles}
-              label={t?.exploreGems || "Explore Gems"}
+              label={t("exploreGems")}
               className="ml-6 scale-95 origin-left opacity-80"
               isCollapsed={isCollapsed}
             />
             <SidebarButton
               onClick={handleOpenPersonas}
               icon={Sparkles}
-              label={t?.managePersonas || "Manage Personas"}
+              label={t("managePersonas")}
               className="ml-6 scale-95 origin-left opacity-80"
               isCollapsed={isCollapsed}
             />
@@ -308,34 +320,32 @@ function Sidebar({
                 </TooltipTrigger>
                 <TooltipContent side="right" className="max-w-[200px]">
                   <p className="font-medium">GEMs</p>
-                  <p className="text-xs text-(--text-secondary)">
-                    Custom AI personas with specialized instructions and knowledge
-                  </p>
+                  <p className="text-xs text-(--text-secondary)">{t("gemsDesc")}</p>
                 </TooltipContent>
               </Tooltip>
             )}
           </>
         )}
         <SidebarButton
-          onClick={() => handleNavigation("/images")}
+          onClick={() => handleNavigation("/images", isMobile)}
           icon={ImageIcon}
-          label="Image Studio"
+          label={t("imageStudio")}
           variant={pathname?.includes("/images") ? "primary" : "default"}
           isCollapsed={isCollapsed}
         />
         {pathname?.includes("/images") && (
           <SidebarButton
-            onClick={() => handleNavigation("/describe")}
+            onClick={() => handleNavigation("/describe", isMobile)}
             icon={Search}
-            label={t?.describeTitle || "Describe Image"}
+            label={t("describeTitle")}
             className="ml-6 scale-95 origin-left opacity-80"
             isCollapsed={isCollapsed}
           />
         )}
         <SidebarButton
-          onClick={() => handleNavigation("/gallery")}
+          onClick={() => handleNavigation("/gallery", isMobile)}
           icon={LayoutGrid}
-          label="Gallery"
+          label={t("gallery")}
           variant={pathname?.includes("/gallery") ? "primary" : "default"}
           isCollapsed={isCollapsed}
         />
@@ -349,7 +359,7 @@ function Sidebar({
           <SidebarButton
             onClick={handleNew}
             icon={Plus}
-            label={newChatLabel || t?.newChat || "New Chat"}
+            label={newChatLabel || t("newChat")}
             variant="primary"
             isCollapsed={isCollapsed}
             isLoading={isCreatingChat}
@@ -377,12 +387,12 @@ function Sidebar({
           {/* Projects Section */}
           {!isCollapsed && !pathname?.includes("/images") && (
             <SidebarSection
-              label={t?.projects || "Projects"}
+              label={t("projects")}
               storageKey="projects"
               defaultExpanded={true}
               count={projects.length}
               action={{
-                label: "New project",
+                label: t("newProject"),
                 icon: <Plus className="h-4 w-4" />,
                 onClick: () => setShowCreateProject(true),
               }}
@@ -390,10 +400,8 @@ function Sidebar({
               {projects.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-4 text-center">
                   <FolderPlus className="w-6 h-6 text-(--text-secondary) opacity-50" />
-                  <span className="text-xs text-(--text-secondary)">No projects yet</span>
-                  <span className="text-xs text-(--text-secondary)">
-                    Create a project to organize your chats
-                  </span>
+                  <span className="text-xs text-(--text-secondary)">{t("noProjects")}</span>
+                  <span className="text-xs text-(--text-secondary)">{t("createProjectHint")}</span>
                 </div>
               ) : (
                 projects.map((project) => {
@@ -435,7 +443,7 @@ function Sidebar({
           {/* Your chats Section */}
           {!isCollapsed && (
             <SidebarSection
-              label={t?.yourChats || "Your chats"}
+              label={t("yourChats")}
               storageKey="your-chats"
               defaultExpanded={true}
               count={list.length}
@@ -443,10 +451,8 @@ function Sidebar({
               {list.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-4 text-center">
                   <MessageSquarePlus className="w-6 h-6 text-(--text-secondary) opacity-50" />
-                  <span className="text-xs text-(--text-secondary)">
-                    {t?.noConversations || "No conversations"}
-                  </span>
-                  <span className="text-xs text-(--text-secondary)">Start a new chat to begin</span>
+                  <span className="text-xs text-(--text-secondary)">{t("noConversations")}</span>
+                  <span className="text-xs text-(--text-secondary)">{t("startChatHint")}</span>
                 </div>
               ) : (
                 <AnimatePresence initial={false}>
@@ -473,7 +479,7 @@ function Sidebar({
             <SidebarButton
               onClick={() => onDeleteAll?.()}
               icon={Trash2}
-              label={t?.deleteAll || "Clear History"}
+              label={t("deleteAll")}
               variant="destructive"
               className="text-xs"
               isCollapsed={isCollapsed}
@@ -485,7 +491,7 @@ function Sidebar({
               <SidebarButton
                 onClick={onToggleCollapse}
                 icon={isCollapsed ? PanelLeftOpen : PanelLeftClose}
-                label={isCollapsed ? "Expand" : "Collapse"}
+                label={isCollapsed ? t("expand") : t("collapse")}
                 isCollapsed={isCollapsed}
               />
             </div>
@@ -495,7 +501,7 @@ function Sidebar({
             <SidebarButton
               onClick={() => router.push("/admin")}
               icon={Shield}
-              label={t?.adminManagement || "Admin Management"}
+              label={t("adminManagement")}
               isCollapsed={isCollapsed}
             />
           )}
@@ -507,7 +513,7 @@ function Sidebar({
                 if (isMobile) onCloseMobile?.();
               }}
               icon={LogOut}
-              label={t?.signOut || t?.logout || "Sign Out"}
+              label={t("signOut")}
               variant="destructive"
               isCollapsed={isCollapsed}
             />
@@ -522,7 +528,7 @@ function Sidebar({
       <TooltipProvider delayDuration={0}>
         {/* Desktop sidebar */}
         <aside
-          aria-label="Main navigation"
+          aria-label={t("navigation")}
           role="navigation"
           className={cn(
             "hidden md:flex flex-col fixed top-0 left-0 bottom-0 border-r border-(--border) bg-(--surface-muted)/90 backdrop-blur-3xl pl-[calc(1rem+var(--sal,0px))] pr-4 py-4 z-30 transition-[width] duration-300",
@@ -556,7 +562,7 @@ function Sidebar({
                   </Dialog.Overlay>
                   <Dialog.Content asChild forceMount>
                     <motion.aside
-                      aria-label="Main navigation"
+                      aria-label={t("navigation")}
                       role="navigation"
                       className="fixed top-0 left-0 bottom-0 z-(--z-drawer) w-[85vw] max-w-sm border-r border-(--border) bg-(--surface-muted) p-5 pt-[calc(1.25rem+var(--sat,0px))] pb-[calc(4rem+var(--sab,0px))] pl-[calc(1.25rem+var(--sal,0px))] shadow-2xl flex flex-col md:hidden"
                       initial={{ x: "-100%" }}
@@ -574,7 +580,7 @@ function Sidebar({
                         }
                       }}
                     >
-                      <Dialog.Title className="sr-only">Navigation</Dialog.Title>
+                      <Dialog.Title className="sr-only">{t("navigation")}</Dialog.Title>
                       {/* Mobile header */}
                       <div className="mb-4 flex items-center justify-between shrink-0">
                         <Link
@@ -588,12 +594,12 @@ function Sidebar({
                           <div className="h-8 w-8 rounded-lg bg-(--control-bg) flex items-center justify-center border border-(--control-border) text-(--accent)">
                             V
                           </div>
-                          {t?.appName || "Vikini"}
+                          {t("appName")}
                         </Link>
                         <Dialog.Close asChild>
                           <button
-                            aria-label="Close sidebar"
-                            className="p-2 rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors"
+                            aria-label={t("closeSidebar")}
+                            className="p-2 rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
                           >
                             <X className="w-5 h-5" />
                           </button>

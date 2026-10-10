@@ -99,9 +99,9 @@ export function ProjectNode({
         {/* Expand chevron */}
         <button
           onClick={toggleExpand}
-          className="p-0.5 hover:bg-(--control-bg) rounded shrink-0"
+          className="p-0.5 hover:bg-(--control-bg) rounded shrink-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           aria-expanded={isExpanded}
-          aria-label={isExpanded ? "Collapse project" : "Expand project"}
+          aria-label={isExpanded ? t("collapse") : t("expand")}
         >
           <ChevronRight
             className={cn(
@@ -114,7 +114,7 @@ export function ProjectNode({
         {/* Project icon + name - clicking opens project view */}
         <button
           onClick={() => onSelect(project.id)}
-          className="flex items-center gap-2 flex-1 min-w-0 text-left"
+          className="flex items-center gap-2 flex-1 min-w-0 text-left rounded-md focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
         >
           <ProjectIcon icon={project.icon} color={project.color} size="sm" />
           <span className="text-sm truncate">{project.name}</span>
@@ -127,7 +127,7 @@ export function ProjectNode({
               e.stopPropagation();
               onNewChat(project.id);
             }}
-            className="p-1 hover:bg-(--control-bg) rounded text-(--text-secondary) hover:text-(--text-primary)"
+            className="p-1 hover:bg-(--control-bg) rounded text-(--text-secondary) hover:text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             title={t("newChat")}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -156,7 +156,7 @@ export function ProjectNode({
                 <button
                   onClick={() => onSelectConversation(conv.id)}
                   className={cn(
-                    "flex-1 min-w-0 px-2 py-1.5 text-sm text-left truncate",
+                    "flex-1 min-w-0 px-2 py-1.5 text-sm text-left truncate rounded-md focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
                     conv.id === activeConversationId && "font-medium"
                   )}
                 >
@@ -168,9 +168,9 @@ export function ProjectNode({
                   <DropdownMenu.Trigger asChild>
                     <button
                       onClick={(e) => e.stopPropagation()}
-                      aria-label="Conversation options"
+                      aria-label={t("conversationOptions")}
                       className={cn(
-                        "p-1 mr-1 rounded transition-colors",
+                        "p-1 mr-1 rounded transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
                         "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)",
                         "opacity-0 group-hover/chat:opacity-100 data-[state=open]:opacity-100"
                       )}

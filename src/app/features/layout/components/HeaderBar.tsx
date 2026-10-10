@@ -6,7 +6,8 @@ import React, { useMemo } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useLanguage } from "../../chat/hooks/useLanguage";
-import { THEME_CONFIG } from "@/lib/config/theme-config";
+import { THEME_CONFIG, type ThemeGroup } from "@/lib/config/theme-config";
+import type { TranslationKey } from "@/lib/utils/translations";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -23,6 +24,12 @@ interface HeaderBarProps {
   onToggleSidebar?: () => void;
   showMobileControls?: boolean;
 }
+
+const THEME_GROUP_LABELS: Record<ThemeGroup, TranslationKey> = {
+  Focus: "themeFocus",
+  Glassmorphism: "themeGlassmorphism",
+  "Red Alert 2": "themeRa2",
+};
 
 const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileControls = true }) => {
   const { theme, setTheme } = useTheme();
@@ -54,7 +61,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
 
   // Common styles for triggers
   const triggerButtonStyles =
-    "flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) hover:border-(--border) p-1 px-4 py-1.5 transition-[border-color,box-shadow] duration-200 shadow-lg group backdrop-blur-md text-(--text-primary) cursor-pointer outline-none focus:ring-2 focus:ring-(--accent) focus:ring-opacity-50";
+    "flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) hover:border-(--border) p-1 px-4 py-1.5 transition-[border-color,box-shadow] duration-200 shadow-lg group backdrop-blur-md text-(--text-primary) cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)";
   const triggerLabelStyles =
     "text-xs font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors max-w-[100px] truncate";
 
@@ -150,7 +157,9 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
                   }}
                 />
                 <span className={triggerLabelStyles}>
-                  {t(currentTheme?.labelKey || "") || currentTheme?.id || "Theme"}
+                  {currentTheme?.labelKey
+                    ? t(currentTheme.labelKey)
+                    : currentTheme?.id || t("theme")}
                 </span>
                 <ChevronDown className="w-3 h-3 text-(--text-secondary) transition-transform group-data-[state=open]:rotate-180" />
               </button>
@@ -162,7 +171,9 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
               {Object.entries(groupedThemes).map(([group, themes]) => (
                 <DropdownMenuGroup key={group}>
                   <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-(--text-secondary) px-2 py-1.5">
-                    {group}
+                    {THEME_GROUP_LABELS[group as ThemeGroup]
+                      ? t(THEME_GROUP_LABELS[group as ThemeGroup])
+                      : group}
                   </DropdownMenuLabel>
                   {themes.map((tItem) => (
                     <DropdownMenuItem
@@ -194,7 +205,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
                 color: "var(--accent)",
               }}
             />
-            <span className={triggerLabelStyles}>Theme</span>
+            <span className={triggerLabelStyles}>{t("theme")}</span>
             <ChevronDown className="w-3 h-3 text-(--text-secondary)" />
           </button>
         )}
@@ -236,7 +247,9 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
               {Object.entries(groupedThemes).map(([group, themes]) => (
                 <DropdownMenuGroup key={`mobile-${group}`}>
                   <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-(--text-secondary)/70 px-2 py-1">
-                    {group}
+                    {THEME_GROUP_LABELS[group as ThemeGroup]
+                      ? t(THEME_GROUP_LABELS[group as ThemeGroup])
+                      : group}
                   </DropdownMenuLabel>
                   {themes.map((tItem) => (
                     <DropdownMenuItem

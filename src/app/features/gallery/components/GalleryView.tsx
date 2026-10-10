@@ -47,7 +47,6 @@ export function GalleryView() {
         onToggleCollapse={() => g.setSidebarCollapsed(!g.sidebarCollapsed)}
         mobileOpen={g.mobileOpen}
         onCloseMobile={() => g.setMobileOpen(false)}
-        t={g.t as unknown as Record<string, string>}
       />
 
       <FloatingMenuTrigger onClick={() => g.setMobileOpen(true)} />

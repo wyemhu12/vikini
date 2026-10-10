@@ -8,6 +8,39 @@
 
 ---
 
+## 2026-10-11: Audit Remediation Phase 4 -- Bilingual i18n, WCAG 2.2 Accessibility, Performance Optimization & Co-located Tests
+
+- **Pillar 1: Bilingual i18n Core Parity & Localization (I18N-01, I18N-02, Rule 04)**:
+  - **100% Bidirectional Key Parity**: Bổ sung hơn 50 translation keys thiếu và mới trong `src/lib/utils/translations/vi.ts` và `en.ts` (`language`, `themes`, `loadingConfigs`, `adminManagement`, `icon`, `clearIcon`, `dismissNotification`, `notifications`, `chat`, `imageStudio`, `gallery`, `noProjects`, `createProjectHint`, `startChatHint`, `gemsDesc`, `navigation`, `closeSidebar`, `renameFallbackToast`, `deleteFallbackToast`, `downloadComplete`, `downloadFailed`, `conversationOptions`, `optionsFor`, `exportTxt`, `downloading`, `themeFocus`, `themeGlassmorphism`, `themeRa2`, các tone keys, `failedFetchUsers`, `failedLoadUsers`, `failedUpdateUser`, `failedUpdateUsers`, `userDetailAria`, `kbDeleteConfirmDesc`...).
+  - **Compile-Time Parity Enforcement**: Tái cấu trúc type assertions trong `src/lib/utils/translations/index.ts` bằng generic tuple conditional types để compiler TypeScript tự động báo lỗi nếu có bất kỳ sự lệch key nào giữa `vi.ts` và `en.ts`.
+  - **Zero Prop Drilling in Sidebar**: Xóa bỏ hoàn toàn prop `t` khỏi `Sidebar.tsx` và các component con (`SidebarItem`, `SidebarSection`, `ProjectNode`). Chuyển sang gọi trực tiếp hook `useLanguage()`, loại bỏ truyền prop `t` từ `ChatApp.tsx`, `GalleryView.tsx`, `DescribeImageView.tsx`.
+  - **Comprehensive UI Localization**: Bản địa hóa toàn bộ các chuỗi văn bản hardcoded trong `Sidebar.tsx`, `SidebarItem.tsx`, `ProjectNode.tsx`, `ToastContainer.tsx`, `CreateProjectModal.tsx`, `HeaderBar.tsx`, `KnowledgePanel.tsx`, `PersonaEditor.tsx`, `UserManager.tsx`.
+- **Pillar 2: WCAG 2.2 Accessibility Standards (A11Y-02, A11Y-03, WCAG 4.1.2)**:
+  - **IconPicker Semantic Restructure (A11Y-02)**: Loại bỏ anti-pattern `<div role="combobox">` bọc `<button>`. Tái cấu trúc thành native semantic `<button type="button">` với `aria-haspopup="dialog"`, `aria-expanded`, và bản địa hóa `aria-label`.
+  - **Independent Clear Icon Sibling Button**: Tách nút Clear icon trong `IconPicker.tsx` thành button sibling độc lập nằm tại `absolute right-8 top-1/2 -translate-y-1/2`, bổ sung `pr-14` trên trigger button để chống đè chữ, xử lý cả `stopPropagation` và `preventDefault`.
+  - **Universal Accessible Focus Indicators (A11Y-03)**: Bổ sung lớp `focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none` đồng bộ trên toàn bộ các nút tương tác trong `Sidebar`, `SidebarItem`, `ProjectNode`, `ToastContainer`, `CreateProjectModal`, `HeaderBar`, `KnowledgePanel`, `PersonaEditor`, `UserManager`.
+  - **Tailwind v3 Ring Opacity Cleanup**: Loại bỏ hoàn toàn lớp cũ `focus:ring-opacity-50` trong `HeaderBar.tsx`, thay thế bằng chuẩn CSS tokens `focus-visible:ring-2 focus-visible:ring-(--ring)`.
+  - **Screen Reader Context for Toasts**: Bổ sung translation keys chuyên dụng `dismissNotification` ("Đóng thông báo") và `notifications` ("Thông báo") cho `ToastContainer.tsx` và `ToastItem`, đảm bảo ngữ cảnh trợ năng rõ ràng cho screen readers.
+- **Pillar 3: Performance Optimization & Lucide Icons (PERF-01, PERF-02)**:
+  - **Sidebar Callback Memoization (PERF-01)**: Hoist `handleNavigation` lên thân component `Sidebar.tsx` (tránh conditional hook trong helper) và bọc toàn bộ các hàm callback (`handleSelect`, `handleNew`, `handleOpenGems`, `handleOpenPersonas`, `renameFallback`, `deleteFallback`, `handleRename`, `handleDelete`) bằng `React.useCallback`, bảo vệ `React.memo` cho `SidebarItem` không bị re-render liên tục theo từng AI token stream về.
+  - **Lucide Icons Standardization (PERF-02)**: Thay thế 4 hàm inline custom SVGs thủ công (`EllipsisVerticalIcon`, `PencilIcon`, `TrashIcon`, `DownloadIcon`) trong `SidebarItem.tsx` bằng icons chính thức từ `lucide-react` (`MoreVertical`, `Pencil`, `Trash2`, `Download`, `Loader2`).
+- **Pillar 4: Comprehensive Co-located Test Suite**:
+  - `src/lib/utils/translations/index.test.ts`: Kiểm tra 100% key parity giữa `viDict` và `enDict`, kiểm tra không có key rỗng, và kiểm tra toàn bộ 59/59 referenced UI keys qua mảng `readonly TranslationKey[]`.
+  - `src/lib/features/image-gen/templates.test.ts`: Kiểm tra 18 templates, cấu trúc song ngữ `name`/`description`, và xác thực 6 ID mặc định đầu tiên `["anime", "cinematic", "clay", "neon", "headshot", "watercolor"]`.
+  - `src/lib/features/image-gen/stylePrompts.test.ts`: Kiểm tra 18 styles (gồm `art-nouveau`), kiểm tra `getStyleInstruction` (happy path và edge cases), kiểm tra chéo 100% `template.style` tồn tại trong `STYLE_PROMPTS`.
+  - `src/lib/features/image-gen/core/ImageGenFactory.test.ts`: Kiểm tra khởi tạo singleton providers, alias `"gemini-native"`, và ném lỗi khi provider không hợp lệ.
+  - `src/components/ui/IconPicker.test.tsx`: Kiểm tra semantic trigger button, padding `pr-14`, nút Clear sibling độc lập, keyboard navigation, và disabled state.
+  - `src/app/features/sidebar/components/SidebarItem.test.tsx`: Kiểm tra rendering, active state, onSelect, onRename, onDelete, conversation export download, focus rings, và 100% Lucide icon classes.
+  - `src/app/features/sidebar/components/Sidebar.test.tsx`: Kiểm tra Reference Stability (TC-PERF-01) qua spy component (cả thuận và nghịch), kiểm tra hiển thị song ngữ tiếng Việt không prop drilling (TC-I18N-02).
+  - `src/app/features/layout/HeaderBar.test.tsx`: Kiểm tra mock `@/app/features/chat/hooks/useLanguage`, ánh xạ `THEME_GROUP_LABELS` hiển thị nhãn dịch ở cả desktop và mobile (MAJOR-10), counter-test nhóm lạ fallback nguyên văn (MAJOR-10), và accessible theme selector.
+- **Verification Gate**:
+  - `npm run verify` (`npm run type-check && npm run lint && npm run test:run`) passed 100%.
+  - 112 test files passed, 1178 tests passed (0 failures).
+  - 0 TypeScript errors.
+  - 0 ESLint warnings / errors.
+
+---
+
 ## 2026-10-11: Fix -- Plain-text code blocks bị cắt chữ trong chat
 
 - **Root cause**: `react-markdown` v10 không còn truyền prop `inline`, và phần tử con của `<pre>` có `type` là component `code` tùy biến (không phải chuỗi `"code"`). Fenced block không khai báo ngôn ngữ vì vậy rơi xuống nhánh `<pre>` thô, render như inline code (không xuống dòng) và bị `overflow-hidden` của container cắt mất.

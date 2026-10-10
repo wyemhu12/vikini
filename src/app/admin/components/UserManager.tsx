@@ -72,12 +72,12 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
     try {
       setLoading(true);
       const res = await fetch("/api/admin/users");
-      if (!res.ok) throw new Error("Failed to fetch users");
+      if (!res.ok) throw new Error(t("failedFetchUsers"));
       const json = await res.json();
       const data = json.data || json;
       setUsers(data.users || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load users");
+      setError(err instanceof Error ? err.message : t("failedLoadUsers"));
     } finally {
       setLoading(false);
     }
@@ -134,14 +134,12 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
 
       const json = await res.json().catch(() => ({}));
 
-      if (!res.ok) throw new Error(json?.error?.message || json?.error || "Failed to update user");
+      if (!res.ok) throw new Error(json?.error?.message || json?.error || t("failedUpdateUser"));
 
       toast.success(t("userUpdated") || "User updated successfully");
       await fetchUsers();
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : t("failedUpdateUser") || "Failed to update user"
-      );
+      toast.error(err instanceof Error ? err.message : t("failedUpdateUser"));
     } finally {
       setUpdating(null);
     }
@@ -198,14 +196,14 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
         });
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
-          throw new Error(json?.error?.message || "Failed to update user");
+          throw new Error(json?.error?.message || t("failedUpdateUsers"));
         }
       }
       toast.success(t("adminBulkSuccess") || "Updated successfully");
       setSelectedIds(new Set());
       await fetchUsers();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update users");
+      toast.error(err instanceof Error ? err.message : t("failedUpdateUsers"));
     } finally {
       setUpdating(null);
     }
@@ -299,16 +297,18 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
               </SelectContent>
             </Select>
             <button
+              type="button"
               onClick={() => bulkUpdate({ is_blocked: true })}
               disabled={updating === "bulk"}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 transition-colors disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer"
             >
               {t("adminBulkBlock")}
             </button>
             <button
+              type="button"
               onClick={() => bulkUpdate({ is_blocked: false })}
               disabled={updating === "bulk"}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30 transition-colors disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30 transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer"
             >
               {t("adminBulkUnblock")}
             </button>
@@ -324,8 +324,9 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
               {/* Bulk select header */}
               <th className="py-3 px-2 w-8">
                 <button
+                  type="button"
                   onClick={toggleSelectAll}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="text-gray-400 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded"
                 >
                   {allSelectableSelected ? (
                     <CheckSquare className="w-4 h-4 text-blue-400" />
@@ -363,8 +364,9 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                   <td className="py-3 px-2">
                     {!self && (
                       <button
+                        type="button"
                         onClick={() => toggleSelect(user.id)}
-                        className="text-gray-400 hover:text-white transition-colors"
+                        className="text-gray-400 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded"
                       >
                         {selectedIds.has(user.id) ? (
                           <CheckSquare className="w-4 h-4 text-blue-400" />
@@ -376,8 +378,9 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                   </td>
                   <td className="py-3 px-4 text-sm text-white">
                     <button
+                      type="button"
                       onClick={() => openUserDetail(user)}
-                      className="flex items-center gap-2 hover:text-blue-400 transition-colors text-left"
+                      className="flex items-center gap-2 hover:text-blue-400 transition-colors text-left focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded"
                     >
                       {user.email}
                       {self && (
@@ -421,9 +424,10 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                   </td>
                   <td className="py-3 px-4 text-right">
                     <button
+                      type="button"
                       onClick={() => updateUser(user.id, { is_blocked: !user.is_blocked })}
                       disabled={self || updating === user.id}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer ${
                         user.is_blocked
                           ? "bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30"
                           : "bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30"
@@ -456,7 +460,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
           <Dialog.Overlay className="fixed inset-0 z-50 bg-(--overlay) backdrop-blur-sm" />
           <Dialog.Content
             className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
-            aria-label="User detail"
+            aria-label={t("userDetailAria")}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -468,7 +472,11 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                   {t("adminUserDetail")}
                 </Dialog.Title>
                 <Dialog.Close asChild>
-                  <button className="p-1 rounded-full hover:bg-white/10 transition-colors">
+                  <button
+                    type="button"
+                    aria-label={t("close")}
+                    className="p-1 rounded-full hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                  >
                     <X className="w-5 h-5 text-neutral-400" />
                   </button>
                 </Dialog.Close>

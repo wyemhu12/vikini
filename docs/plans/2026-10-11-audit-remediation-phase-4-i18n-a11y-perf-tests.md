@@ -2,9 +2,9 @@
 
 > **Mã Tài Liệu**: `docs/plans/2026-10-11-audit-remediation-phase-4-i18n-a11y-perf-tests.md`  
 > **Ngày Lập**: 11/10/2026  
-> **Phiên Bản (Revision)**: 3 (Cập nhật xử lý 100% phản hồi từ Audit Run 2 của Lead Reviewer: MAJOR-7, MAJOR-8, MINOR-R2-1 đến MINOR-R2-5)  
+> **Phiên Bản (Revision)**: 5 (Cập nhật xử lý 100% phản hồi từ Audit Run 4 của Lead Reviewer: MAJOR-10, MINOR-R4-1 đến MINOR-R4-5)  
 > **Tác Giả**: Technical Planner (Vikini Antigravity)  
-> **Trạng Thái**: Status: Ready for Review (Audit Run 3)  
+> **Trạng Thái**: Status: Ready for Review (Audit Run 5)  
 > **Tài Liệu Căn Cứ**: [`docs/audit-report-2026-10-01.md`](../audit-report-2026-10-01.md), [`.agents/rules/00-core.md`](../../.agents/rules/00-core.md), [`.agents/rules/01-coding.md`](../../.agents/rules/01-coding.md), [`.agents/rules/02-quality.md`](../../.agents/rules/02-quality.md), [`.agents/rules/03-ui.md`](../../.agents/rules/03-ui.md), [`.agents/rules/04-bilingual.md`](../../.agents/rules/04-bilingual.md), [`.agents/rules/05-plan-review.md`](../../.agents/rules/05-plan-review.md)
 
 ---
@@ -13,29 +13,34 @@
 
 ### 1. Mục Tiêu (Goal)
 
-Hoàn thiện toàn diện phân hệ Đa ngôn ngữ (Bilingual i18n - Rule 04), Tiêu chuẩn Trợ năng Tiếp cận (WCAG 2.2 Level AA), Tối ưu hóa Hiệu năng Render (Tránh vỡ React.memo khi streaming AI), và Bổ sung 100% Co-located Unit/Component Tests theo các phát hiện từ Báo cáo Audit `docs/audit-report-2026-10-01.md` (Mục 6.3, 6.4 và Mục 7 — Giai đoạn 4), khắc phục triệt để các phát hiện trong Audit Run 1 và Audit Run 2:
+Hoàn thiện toàn diện phân hệ Đa ngôn ngữ (Bilingual i18n - Rule 04), Tiêu chuẩn Trợ năng Tiếp cận (WCAG 2.2 Level AA), Tối ưu hóa Hiệu năng Render (Tránh vỡ React.memo khi streaming AI), và Bổ sung 100% Co-located Unit/Component Tests theo các phát hiện từ Báo cáo Audit `docs/audit-report-2026-10-01.md` (Mục 6.3, 6.4 và Mục 7 — Giai đoạn 4), khắc phục triệt để các phát hiện trong Audit Run 1, Run 2, Run 3 và Run 4 (MAJOR-10, MINOR-R4-1 đến MINOR-R4-5):
 
-1. **Chuẩn Hóa Song Ngữ (Bilingual i18n - Rule 04 & I18N-01, I18N-02, MAJOR-7)**:
+1. **Chuẩn Hóa Song Ngữ (Bilingual i18n - Rule 04 & I18N-01, I18N-02, MAJOR-7, MINOR-R3-1, MINOR-R3-2, MINOR-R4-3)**:
    - **I18N-01 (Compile-time Parity Enforcement)**: Bổ sung 3 translation keys còn thiếu trong `src/lib/utils/translations/vi.ts` (`language`, `themes`, `loadingConfigs`) so với `en.ts`. Tái cấu trúc Type Assertion trong `src/lib/utils/translations/index.ts`: loại bỏ việc ép kiểu nới lỏng sang `Record<string, string>` khiến `tsc` bị vô hiệu hóa; áp dụng compile-time check hai chiều bắt buộc TypeScript báo lỗi ngay lập tức khi phát hiện bất kỳ key nào lệch pha giữa `vi.ts` và `en.ts`. Giữ nguyên type exports `TranslationKey`, `TranslationValue`, `Translations`, `TranslationSet` để bảo đảm tương thích với `src/lib/utils/config.ts`.
-   - **Quy Tắc Kiểm Tra Key Trùng, Dead-Code Fallback & Xử Lý Key Tham Chiếu (MAJOR-1, MAJOR-2, MAJOR-7)**:
+   - **Quy Tắc Kiểm Tra Key Trùng, Dead-Code Fallback & Xử Lý Key Tham Chiếu (MAJOR-1, MAJOR-2, MAJOR-7, MINOR-R3-1, MINOR-R3-2)**:
      - Trước khi bổ sung bất kỳ key nào, bắt buộc kiểm tra sự tồn tại trong từ điển. Loại bỏ hoàn toàn `newProject`, `rankChangeConfirm`, `rankChangeDesc` khỏi danh sách key thêm mới vì đã có sẵn trong cả `vi.ts` và `en.ts`, tránh lỗi `TS1117: An object literal cannot have multiple properties with the same name`. Tái sử dụng giá trị hiện có.
-     - Bổ sung `clearIcon`, `failedUpdateUser`, và `icon` vào cả `vi.ts` và `en.ts`.
+     - Bổ sung `clearIcon`, `failedUpdateUser`, `icon`, `dismissNotification`, `notifications`, `closeSidebar`, `startChatHint` vào cả `vi.ts` và `en.ts`.
      - **Khắc phục lỗi key tham chiếu chưa tồn tại (MAJOR-7)**: Bổ sung key `adminManagement`: `"Admin Management"` (en) và `"Quản lý hệ thống"` (vi) vào cả `vi.ts` và `en.ts`. Tại `Sidebar.tsx:510`, đổi `t?.signOut || t?.logout || "Sign Out"` thành `t("signOut")` (key `signOut` đã có sẵn trong từ điển).
      - Lưu ý kỹ thuật bắt buộc: Hàm `t(key)` trong `src/app/features/chat/hooks/useLanguage.ts:27` trả về chính `String(key)` khi không tìm thấy chuỗi bản dịch. Do chuỗi key luôn mang giá trị truthy, biểu thức fallback dạng `t("key") || "fallback"` là **dead code** (không bao giờ lọt vào vế sau `||`). Không được dùng `|| "fallback"` làm lưới an toàn; 100% các chuỗi UI phải có translation key hợp lệ trong từ điển.
    - **I18N-02 (Xóa Bỏ Triệt Để Prop Drilling `t`)**: Loại bỏ thuộc tính `t?: Record<string, string>` trong `SidebarProps` tại `src/app/features/sidebar/components/Sidebar.tsx` và xóa bỏ việc truyền `t={t}` hoặc ép kiểu `t as unknown as Record<string, string>` tại 4 consumer: `ChatApp.tsx`, `GalleryView.tsx`, `DescribeImageView.tsx`, `ImageGenStudio.tsx`. Toàn bộ component (`Sidebar`, `SidebarItem`, `SidebarSection`, `ProjectNode`) bắt buộc sử dụng trực tiếp hook `useLanguage()`.
-   - **Bản Địa Hóa Toàn Diện Các Chuỗi Hardcoded Còn Sót (MINOR-R2-1, MINOR-R2-4)**:
-     - Quét và thay thế toàn bộ các chuỗi tiếng Anh hardcoded trên UI thành `t("key")` tại các file: `Sidebar.tsx` (gồm tooltip GEMs `t("gemsDesc")`, `aria-label={t("navigation")}`, `label={isCollapsed ? t("expand") : t("collapse")}`, `label={t("adminManagement")}`), `SidebarItem.tsx`, `KnowledgePanel.tsx`, `PersonaEditor.tsx`, `UserManager.tsx` (dùng `t("failedUpdateUser")`), `CreateProjectModal.tsx`, `IconPicker.tsx` (thay `Icon: ${value}` bằng `${t("icon")}: ${value}`, nhãn `t("clearIcon")`), và `ToastContainer.tsx` (thêm `aria-label={t("close")}`).
-     - Trong `HeaderBar.tsx`, sử dụng ánh xạ tường minh `THEME_GROUP_LABELS: Record<ThemeGroup, TranslationKey>` để compiler TypeScript bắt buộc kiểm tra đủ nhóm theme ("Focus", "Glassmorphism", "Red Alert 2") (MINOR-R2-4).
+   - **Bản Địa Hóa Toàn Diện Các Chuỗi Hardcoded Còn Sót (MINOR-R2-1, MINOR-R2-4, MINOR-R3-1, MINOR-R3-2, MINOR-R4-3, MAJOR-10)**:
+     - Quét và thay thế các chuỗi tiếng Anh hardcoded trên UI thành `t("key")` tại các file mục tiêu:
+       - `Sidebar.tsx`: tooltip GEMs `t("gemsDesc")`, `aria-label={t("navigation")}`, `label={isCollapsed ? t("expand") : t("collapse")}`, `label={t("adminManagement")}`, `aria-label={t("closeSidebar")}` (dòng 595), `"Start a new chat to begin"` ➔ `t("startChatHint")` (dòng 448), empty state dự án tại dòng 393 ("No projects yet") dùng `t("noProjects")` và dòng 395 ("Create a project to organize your chats") dùng `t("createProjectHint")` (MINOR-R4-3). (Các chuỗi trong `ProjectNode.tsx` như `"Collapse project"`, `"Expand project"` và trong `IconPicker.tsx` như `"Icons"`, `"Emojis"` được hoãn sang backlog Phase 5 vì không ảnh hưởng đến luồng chính).
+       - `SidebarItem.tsx`: toàn bộ menu dropdown và tooltip dùng `t()`.
+       - `KnowledgePanel.tsx`, `PersonaEditor.tsx`, `UserManager.tsx` (dùng `t("failedUpdateUser")`), `CreateProjectModal.tsx`.
+       - `IconPicker.tsx`: thay `Icon: ${value}` bằng `${t("icon")}: ${value}`, nhãn `t("clearIcon")`.
+       - `ToastContainer.tsx`: container gắn `aria-label={t("notifications")}`, nút đóng thông báo trong sub-component `ToastItem` gắn `aria-label={t("dismissNotification")}`.
+     - Trong `HeaderBar.tsx`, sử dụng ánh xạ tường minh `THEME_GROUP_LABELS: Record<ThemeGroup, TranslationKey>` để compiler TypeScript bắt buộc kiểm tra đủ nhóm theme ("Focus", "Glassmorphism", "Red Alert 2") tại CẢ HAI vị trí dòng 165 (desktop) và dòng 239 (mobile) (MINOR-R2-4, MAJOR-10).
 
-2. **Trợ Năng Accessibility (WCAG 2.2 Level AA - A11Y-02, A11Y-03, MINOR-R2-5)**:
-   - **A11Y-02 (Tái Cấu Trúc Toàn Diện `IconPicker.tsx` - MAJOR-2, MINOR-2, MINOR-3, MINOR-R2-5)**:
+2. **Trợ Năng Accessibility (WCAG 2.2 Level AA - A11Y-02, A11Y-03, MINOR-R2-5, MINOR-R3-2, MINOR-R3-4)**:
+   - **A11Y-02 (Tái Cấu Trúc Toàn Diện `IconPicker.tsx` - MAJOR-2, MINOR-2, MINOR-3, MINOR-R2-5, MINOR-R3-4)**:
      - Nhập và sử dụng `useLanguage` từ `@/app/features/chat/hooks/useLanguage` (tiền lệ tương tự `src/components/ui/confirm-dialog.tsx:15`).
      - Loại bỏ anti-pattern `<div role="combobox">` bọc `<button type="button">`. Chuyển nút kích hoạt Popover thành semantic `<button type="button">` với đầy đủ `aria-haspopup="dialog"`, `aria-expanded={open}`, `aria-label={value ? `${t("icon")}: ${value}` : t("selectIcon")}`.
      - **Bảo toàn prop `className` trên trigger (MINOR-R2-5)**: Giữ nguyên prop `className` trên trigger `<button type="button">`, không chuyển sang wrapper `div`, để đảm bảo tương thích styling đầy đủ với mọi caller.
      - Khi có `value`, bổ sung padding-right `pr-14` cho nút trigger để tránh nút Clear icon che mất text nhãn icon.
-     - Tách nút xóa icon (`handleClear`) thành button anh em (sibling) độc lập đặt tại `absolute right-8`, gọi đồng thời `e.stopPropagation()` và `e.preventDefault()`, có `title={t("clearIcon")}` và `aria-label={t("clearIcon")}`.
-   - **A11Y-03 (Bổ Sung Visible Focus Indicators & Dọn Dẹp Class Cũ - MINOR-9, MINOR-R2-1)**:
-     - Bổ sung lớp `focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none` cho toàn bộ các nút bấm tương tác: `SidebarButton`, `SidebarItem` (nút chọn hội thoại, menu 3 chấm, dropdown items), `ProjectNode` (chevron toggle, project header, new chat, options), nút dismiss trong `ToastContainer.tsx` (nhãn `t("close")`), và CreateProjectModal close button.
+     - Tách nút xóa icon (`handleClear`) thành button anh em (sibling) độc lập đặt tại `absolute right-8 top-1/2 -translate-y-1/2` căn giữa hoàn hảo theo chiều dọc (MINOR-R3-4), gọi đồng thời `e.stopPropagation()` và `e.preventDefault()`, có `title={t("clearIcon")}` và `aria-label={t("clearIcon")}`.
+   - **A11Y-03 (Bổ Sung Visible Focus Indicators, WCAG Context & Dọn Dẹp Class Cũ - MINOR-9, MINOR-R2-1, MINOR-R3-1, MINOR-R3-2)**:
+     - Bổ sung lớp `focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none` cho toàn bộ các nút bấm tương tác: `SidebarButton`, `SidebarItem` (nút chọn hội thoại, menu 3 chấm, dropdown items), `ProjectNode` (chevron toggle, project header, new chat, options), nút dismiss trong `ToastContainer.tsx` (nhãn `t("dismissNotification")`), và CreateProjectModal close button.
      - Dọn sạch class quy ước Tailwind v3 `focus:ring-opacity-50` tại `HeaderBar.tsx:57`, thay thế bằng `focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none`.
 
 3. **Tối Ưu Hiệu Năng & Bảo Toàn Memoization (Performance - PERF-01, PERF-02 - MAJOR-3, MAJOR-4, MINOR-R2-3)**:
@@ -62,18 +67,29 @@ Hoàn thiện toàn diện phân hệ Đa ngôn ngữ (Bilingual i18n - Rule 04)
      - `Download` (render ra `<svg class="lucide lucide-download">`)
      - `Loader2` (render ra `<svg class="lucide lucide-loader-circle">`)
 
-4. **Bổ Sung Đầy Đủ Co-located Tests & Type Safety (MAJOR-5, MAJOR-6, MAJOR-7, MAJOR-8, MINOR-R2-2, MINOR-R2-4)**:
-   - `[NEW] src/lib/utils/translations/index.test.ts` (MAJOR-7): Kiểm tra 100% parity keys giữa `vi.ts` và `en.ts`, assert không có key nào mang giá trị rỗng `""`, kiểm tra export `TranslationKey`, `TranslationSet`, `Translations`. **Đặc biệt**: Bổ sung test case duyệt danh sách toàn bộ các translation keys được tham chiếu trong các file sửa đổi (`Sidebar`, `SidebarItem`, `IconPicker`, `HeaderBar`, `PersonaEditor`, `UserManager`, `KnowledgePanel`, `ToastContainer`) và assert 100% các keys này tồn tại và không rỗng trong cả `vi.ts` và `en.ts`.
+4. **Bổ Sung Đầy Đủ Co-located Tests & Type Safety (MAJOR-5, MAJOR-6, MAJOR-7, MAJOR-8, MAJOR-9, MAJOR-10, MINOR-R2-2, MINOR-R2-4, MINOR-R3-3, MINOR-R4-1, MINOR-R4-2)**:
+   - `[NEW] src/lib/utils/translations/index.test.ts` (MAJOR-7, MINOR-R3-3, MINOR-R4-1, MINOR-R4-2):
+     - Dùng alias `import { vi as viDict } from "./vi";` và `import { en as enDict } from "./en";` để tránh shadow biến toàn cục `vi` của Vitest (`globals: true`) và tránh lỗi `tsc` do `index.ts` không re-export `vi`/`en` (MINOR-R4-1).
+     - Kiểm tra 100% parity keys giữa `viDict` và `enDict`, assert không có key nào mang giá trị rỗng `""`, kiểm tra export `TranslationKey`, `TranslationSet`, `Translations`.
+     - **Đặc biệt**: Bổ sung test case duyệt danh sách toàn bộ các translation keys được tham chiếu trong các file sửa đổi (`Sidebar`, `SidebarItem`, `IconPicker`, `HeaderBar`, `PersonaEditor`, `UserManager`, `KnowledgePanel`, `ToastContainer`) với mảng được định kiểu tường minh `const referencedKeys: readonly TranslationKey[] = [...] as const` để compiler `tsc` bắt lỗi key sai ở compile-time (`TS2322` under strict mode - MINOR-R4-2), và assert 100% các keys này tồn tại và không rỗng trong cả `viDict` và `enDict`.
    - `[MODIFY] src/app/features/personas/components/PersonaEditor.tsx` (MAJOR-8): Khai báo tường minh kiểu trả về cho hàm helper:
      `const getToneOptions = (t: (key: string) => string): { value: PersonaTone; label: string; description: string }[] => [ ... ];`
      và trong component gọi `const toneOptions = useMemo(() => getToneOptions(t), [t]);`, loại bỏ hoàn toàn nguy cơ mất type annotation gây lỗi TS2345.
    - `[NEW] src/lib/features/image-gen/templates.test.ts`: Kiểm tra toàn bộ 18 curated templates, cấu trúc song ngữ `en`/`vi`, thuộc tính `requiresPhoto`, styles, và assert ID của 6 templates đầu tiên chính xác là `["anime", "cinematic", "clay", "neon", "headshot", "watercolor"]`.
    - `[NEW] src/lib/features/image-gen/stylePrompts.test.ts`: Kiểm tra đầy đủ 18 cấu hình styles trong `STYLE_PROMPTS` (gồm cả `art-nouveau`), instruction system (> 50 ký tự), shortAppends, kiểm tra hàm export `getStyleInstruction` (happy path và edge cases `"none"`, `""`, id lạ), và kiểm tra chéo 100% `template.style` đều có trong `STYLE_PROMPTS`.
    - `[NEW] src/lib/features/image-gen/core/ImageGenFactory.test.ts`: Kiểm tra Factory khởi tạo đúng provider instances (Gemini, Replicate, OpenAI), kiểm tra alias `"gemini-native"` cùng trỏ về `GeminiNativeImageProvider`, kiểm tra singleton identity (`getProvider("gemini") === getProvider("gemini")`), và ném lỗi khi gặp ID lạ.
-   - `[NEW] src/components/ui/IconPicker.test.tsx`: Kiểm tra semantic button, `pr-14` khi có value, popover open/close, icon selection, clear action (sibling button với `stopPropagation` và `preventDefault`), keyboard focus-visible.
+   - `[NEW] src/components/ui/IconPicker.test.tsx`: Kiểm tra semantic button, `pr-14` khi có value, popover open/close, icon selection, clear action (sibling button đặt tại `absolute right-8 top-1/2 -translate-y-1/2` với `stopPropagation` và `preventDefault`), keyboard focus-visible.
    - `[NEW] src/app/features/sidebar/components/SidebarItem.test.tsx` (MINOR-R2-2): Chiến lược kiểm tra Dropdown menu rõ ràng: Mock `@radix-ui/react-dropdown-menu` để render nội dung inline, hoặc kích hoạt mở menu qua `pointerdown` / keyboard và assert trên `document.body` / `baseElement` để kiểm tra các icon Lucide (`lucide-ellipsis-vertical`, `lucide-trash-2`, `lucide-pencil`, `lucide-download`), assert số lượng inline svg không có class `lucide` bằng 0.
    - `[MODIFY] src/app/features/sidebar/components/Sidebar.test.tsx`: Kiểm tra reference stability (TC-PERF-01) thông qua spy component của `SidebarItem`, test case thuận (prop không liên quan đổi -> callbacks giữ nguyên `toBe`) và test case nghịch đối chứng (thay đổi `onSelectConversation` -> callback đổi `not.toBe`). Thiết lập `useLanguageStore.setState({ language: "vi" })` và reset về `"en"` trong `afterEach`.
-   - `[MODIFY] src/app/features/layout/HeaderBar.test.tsx` (MINOR-R2-4): Cập nhật mock `translations` dictionary với `themeFocus`, `themeGlassmorphism`, `themeRa2`, và `theme`; assertion kiểm tra `t("theme")`, không còn class `focus:ring-opacity-50`.
+   - `[MODIFY] src/app/features/layout/HeaderBar.test.tsx` (MAJOR-9, MAJOR-10, MINOR-R2-4):
+     - Đổi đường dẫn mock `useLanguage` sang `@/app/features/chat/hooks/useLanguage` (đảm bảo Vitest bắt mock thay vì gọi file thật).
+     - Sửa mock `theme-config` dùng `ThemeGroup` hợp lệ `group: "Focus"`.
+     - Cập nhật mock `translations` dictionary với `themeFocus: "Tập trung"`, `themeGlassmorphism: "Thủy tinh mờ"`, `themeRa2: "Báo động đỏ (RA2)"`, `theme: "Giao diện"`.
+     - Khẳng định áp dụng biểu thức mapping `THEME_GROUP_LABELS` tại CẢ HAI vị trí `HeaderBar.tsx:165` (desktop menu) và `HeaderBar.tsx:239` (mobile menu) (MAJOR-10).
+     - Assert `expect(screen.getAllByText("Tập trung")).toHaveLength(2);` để kiểm tra nhãn nhóm theme đã dịch xuất hiện ở cả 2 menu desktop và mobile mà không bị lỗi "Found multiple elements" (MAJOR-10).
+     - Bổ sung test case đối chứng với theme có group không có trong map (ví dụ `group: "Custom"`) -> assert `expect(screen.getAllByText("Custom")).toHaveLength(2);` để kiểm tra cả 2 nhánh của biểu thức render nhóm theme ở cả 2 vị trí (MAJOR-10).
+     - Thay thế assertion `getAllByText("VN")` bằng assertion kiểm tra ngôn ngữ thực sự: `expect(screen.getByLabelText("Chọn giao diện")).toBeInTheDocument()`.
+     - Assert không còn class v3 `focus:ring-opacity-50`.
    - Xác thực chất lượng toàn diện với `npm run verify` (`npm run type-check && npm run lint && npm run test:run`).
 
 ---
@@ -90,8 +106,8 @@ Tuân thủ nghiêm ngặt Giao thức Pre-Work trong [`.agents/rules/02-quality
 | **Co-located Testing Standards**       | [`.agents/rules/01-coding.md`](../../.agents/rules/01-coding.md), Vitest 4 Documentation              | Co-located tests `*.test.ts` / `*.test.tsx` cạnh file nguồn trong `lib/` và `components/ui/`; test cả happy path lẫn error path và edge cases; reset singleton store sau mỗi test case. |
 | **Plan-Review & Code Freeze Protocol** | [`.agents/rules/05-plan-review.md`](../../.agents/rules/05-plan-review.md)                            | Giữ nguyên code freeze trước khi nhận `[PLAN_APPROVED]`; cấu trúc phân khu kép `Technical Plan` và `Audit History`.                                                                     |
 
-> [!WARNING] **LƯU Ý ĐẶC BIỆT DÀNH CHO EXECUTOR (Phase 3 Baseline Protection)**:
-> Trong working tree hiện đang có **30 files chưa commit** thuộc Phase 3 (`Sidebar.tsx`, `HeaderBar.tsx`, `vi.ts`, `en.ts`, CSS theme...). Executor tuyệt đối KHÔNG được thực hiện các lệnh nguy hiểm như `git checkout -- .`, `git reset --hard` hay ghi đè toàn bộ file làm mất các tính năng cử chỉ drawer vuốt chạm, theme switcher đã hoàn thành ở Phase 3. Mọi thao tác chỉnh sửa phải là granular targeted diff.
+> [!NOTE] **CẬP NHẬT TRẠNG THÁI WORKING TREE (Commit `a886251` - MINOR-R3-4)**:
+> Toàn bộ các thay đổi của Phase 3 (`Sidebar.tsx`, `HeaderBar.tsx`, `vi.ts`, `en.ts`, CSS theme tokens...) đã được commit an toàn vào nhánh phát triển tại commit `a886251`. Working tree hiện tại hoàn toàn sạch sẽ. Executor tiến hành triển khai Phase 4 với các sửa đổi cục bộ (targeted diff) rõ ràng, tuân thủ nghiêm ngặt ranh giới từng module và không ghi đè bất cẩn.
 
 ---
 
@@ -155,14 +171,14 @@ Tuân thủ nghiêm ngặt Giao thức Pre-Work trong [`.agents/rules/02-quality
      );
      ```
    - **Technical Control cho Hooks (MAJOR-4)**: Do `eslint.config.mjs` chưa wire bộ rule `react-hooks/*`, technical control chính thức để phát hiện phá vỡ memoization hoặc stale closure là **kiểm thử hành vi reference stability (TC-PERF-01)** trong `Sidebar.test.tsx` với cả kịch bản thuận (`toBe`) lẫn kịch bản đối chứng (`not.toBe`).
-   - **Nợ kỹ thuật (MINOR-6)**: `Sidebar.tsx` hiện > 620 dòng; việc refactor tách file được hoãn sang phase sau để tránh làm vỡ 30 file chưa commit của Phase 3.
+   - **Nợ kỹ thuật (MINOR-6)**: `Sidebar.tsx` hiện > 620 dòng; việc refactor tách file được hoãn sang phase sau để tránh mở rộng phạm vi ngoài Phase 4.
 
-4. **Cơ Chế Trợ Năng Cho `IconPicker.tsx` & Bảo Toàn Prop `className` (MAJOR-2, MINOR-2, MINOR-3, MINOR-R2-5)**:
+4. **Cơ Chế Trợ Năng Cho `IconPicker.tsx` & Bảo Toàn Prop `className` (MAJOR-2, MINOR-2, MINOR-3, MINOR-R2-5, MINOR-R3-4)**:
    - Nhập `useLanguage` từ `@/app/features/chat/hooks/useLanguage` (đã có tiền lệ tại `src/components/ui/confirm-dialog.tsx:15`).
    - Thẻ `<div role="combobox">` bọc `<button>` vi phạm WCAG 4.1.2. Giải pháp: Thẻ ngoài cùng là `div` bố cục. Nút kích hoạt Popover là thẻ semantic `<button type="button" aria-haspopup="dialog" aria-expanded={open} aria-label={value ? `${t("icon")}: ${value}` : t("selectIcon")}>`.
    - **Bảo toàn prop `className` trên trigger (MINOR-R2-5)**: Giữ nguyên prop `className` trên trigger `<button type="button">`, không chuyển sang wrapper `div`, để đảm bảo styling của các caller truyền vào không bị lệch.
    - Khi có `value`, gán thêm lớp `pr-14` cho nút trigger để nhãn text không bị đè lên bởi nút xóa icon.
-   - Nút Clear icon là button anh em (sibling) độc lập đặt tại `absolute right-8`, gọi đồng thời `e.stopPropagation()` và `e.preventDefault()`, có `title={t("clearIcon")}` và `aria-label={t("clearIcon")}`.
+   - Nút Clear icon là button anh em (sibling) độc lập đặt tại `absolute right-8 top-1/2 -translate-y-1/2` căn giữa chuẩn xác theo chiều dọc (MINOR-R3-4), gọi đồng thời `e.stopPropagation()` và `e.preventDefault()`, có `title={t("clearIcon")}` và `aria-label={t("clearIcon")}`.
 
 5. **Type Safety Cho PersonaTone Trong `PersonaEditor.tsx` (MAJOR-8)**:
    - Tại `PersonaEditor.tsx:41`, state `tone` được định nghĩa bằng `useState<PersonaTone>("default")`.
@@ -191,7 +207,7 @@ Tuân thủ nghiêm ngặt Giao thức Pre-Work trong [`.agents/rules/02-quality
      const toneOptions = useMemo(() => getToneOptions(t), [t]);
      ```
 
-6. **Ánh Xạ Tường Minh Theme Groups Trong `HeaderBar.tsx` (MINOR-R2-4)**:
+6. **Ánh Xạ Tường Minh Theme Groups & Cơ Chế Kiểm Thử Cho `HeaderBar.tsx` (MAJOR-9, MAJOR-10, MINOR-R2-4)**:
    - Kiểu `ThemeGroup` trong `@/lib/config/theme-config` gồm `"Focus" | "Glassmorphism" | "Red Alert 2"`.
    - Để tránh việc hiển thị chuỗi tiếng Anh hardcoded hoặc fallback lỏng lẻo, sử dụng ánh xạ tường minh:
      ```typescript
@@ -202,7 +218,34 @@ Tuân thủ nghiêm ngặt Giao thức Pre-Work trong [`.agents/rules/02-quality
      };
      ```
      Điều này đảm bảo compiler TypeScript sẽ báo lỗi ngay lập tức nếu có nhóm theme mới mà chưa được gán TranslationKey.
-     Đồng thời cập nhật từ điển mock trong `HeaderBar.test.tsx` để test runner kiểm tra chuẩn xác nhãn hiển thị tiếng Việt.
+   - Biểu thức hiển thị tại render:
+     `THEME_GROUP_LABELS[group as ThemeGroup] ? t(THEME_GROUP_LABELS[group as ThemeGroup]) : group`
+     được áp dụng đồng bộ tại CẢ HAI vị trí trong `HeaderBar.tsx`: dòng 165 (menu desktop) và dòng 239 (menu mobile) (MAJOR-10). Biểu thức có 2 nhánh: (1) nếu nhóm thuộc map thì dịch qua `t(...)`, (2) nếu nhóm không có trong map (custom/fallback group) thì render nguyên văn `group`.
+   - **Khắc phục lỗi mock `useLanguage` và assertion nhãn nhóm theme trong `HeaderBar.test.tsx` (MAJOR-9, MAJOR-10)**:
+     - Trong `HeaderBar.test.tsx` (nằm ở `src/app/features/layout/`), việc gọi `vi.mock("../../chat/hooks/useLanguage")` sẽ trỏ đến `src/app/chat/hooks/useLanguage` không tồn tại. Vitest bỏ qua mock này và import file thật `src/app/features/chat/hooks/useLanguage.ts`, dẫn đến nhãn aria render ra từ từ điển tiếng Anh thật ("Open sidebar", "Select Language", "Select Theme").
+     - **Giải pháp**: Đổi đường dẫn mock thành module id tuyệt đối `@/app/features/chat/hooks/useLanguage`:
+       ```typescript
+       vi.mock("@/app/features/chat/hooks/useLanguage", () => ({
+         useLanguage: () => ({
+           t: (key: string) => mockTranslations[key] || key,
+           language: "vi",
+           setLanguage: vi.fn(),
+         }),
+       }));
+       ```
+     - Cập nhật mock `theme-config` từ `group: "Cool"` (không hợp lệ) thành `group: "Focus"` (ThemeGroup hợp lệ), bổ sung `themeFocus: "Tập trung"` và `theme: "Giao diện"` vào `mockTranslations`.
+     - **Sửa assertion nhãn nhóm theme (MAJOR-10)**: Do `HeaderBar` render đồng thời cả menu desktop (ẩn trên mobile qua CSS) và menu mobile trong DOM (khi `HeaderBar.test.tsx` mock dropdown inline và `mounted` chuyển `true`), cả hai menu cùng xuất hiện trong DOM. Do đó, `getByText` sẽ bị ném lỗi `"Found multiple elements"`. Technical control chuẩn xác là dùng:
+       `expect(screen.getAllByText("Tập trung")).toHaveLength(2);`
+       để kiểm chứng nhãn nhóm dịch xuất hiện ở cả 2 menu (desktop :165 và mobile :239).
+     - **Bổ sung test case đối chứng (Counter-test case) (MAJOR-10)**: Cấu hình một theme có group lạ không có trong map (ví dụ `group: "Custom"`) -> assert `expect(screen.getAllByText("Custom")).toHaveLength(2);` để kiểm tra nhánh fallback nguyên văn ở cả 2 menu desktop và mobile.
+     - Thay thế assertion `getAllByText("VN")` bằng assertion kiểm tra ngôn ngữ thực sự: `expect(screen.getByLabelText("Chọn giao diện")).toBeInTheDocument()`.
+
+7. **Cơ Chế Trợ Năng Cho `ToastContainer.tsx` & Screen Reader Context (MINOR-R3-1, MINOR-R3-2, MINOR-R4-4)**:
+   - Trong `src/components/ui/ToastContainer.tsx`, các thông báo được hiển thị bởi sub-component `ToastItem` (dòng 26-64) và container bọc ngoài `ToastContainer` (dòng 7-24). Cả hai component đều cần bản địa hóa aria-label.
+   - Thay vì đổi chuỗi nút dismiss thành `t("close")` ("Đóng") làm mất ngữ cảnh hỗ trợ của Screen Reader (vi phạm WCAG 4.1.2 Name), hệ thống bổ sung translation key chuyên dụng `dismissNotification: "Đóng thông báo"` (vi) / `"Dismiss notification"` (en) và `notifications: "Thông báo"` (vi) / `"Notifications"` (en).
+   - **Gọi hook `const { t } = useLanguage()` ở CẢ HAI component (MINOR-R4-4)**:
+     - Trong sub-component `ToastItem` (`ToastContainer.tsx:26-64`): gọi `const { t } = useLanguage()`, áp dụng `aria-label={t("dismissNotification")}` cho nút đóng toast (dòng 57) kèm focus-visible ring.
+     - Trong component cha `ToastContainer` (`ToastContainer.tsx:7-24`): gọi `const { t } = useLanguage()`, gán `aria-label={t("notifications")}` cho thẻ div bọc ngoài cùng (thay vì `"Notifications"` hardcoded tại dòng 14).
 
 ---
 
@@ -227,39 +270,39 @@ Tra cứu trực tuyến và đối soát dependencies thực tế của dự á
 
 #### [MODIFY] — Chỉnh Sửa Các File Hiện Có:
 
-1. `src/lib/utils/translations/vi.ts`: Bổ sung 3 keys thiếu (`language`, `themes`, `loadingConfigs`), key quản trị `adminManagement: "Quản lý hệ thống"` (MAJOR-7), và các keys mới (`clearIcon`, `failedUpdateUser`, `icon`, `gemsDesc`,...). Loại bỏ các keys đã có (`newProject`, `rankChangeConfirm`, `rankChangeDesc`).
-2. `src/lib/utils/translations/en.ts`: Bổ sung `adminManagement: "Admin Management"` (MAJOR-7) và các translation keys mới tương ứng để bảo đảm 100% parity.
+1. `src/lib/utils/translations/vi.ts`: Bổ sung 3 keys thiếu (`language`, `themes`, `loadingConfigs`), key quản trị `adminManagement: "Quản lý hệ thống"` (MAJOR-7), các keys trợ năng & thông báo (`dismissNotification`, `notifications`, `closeSidebar`, `startChatHint`), và các keys mới (`clearIcon`, `failedUpdateUser`, `icon`, `gemsDesc`,...). Loại bỏ các keys đã có (`newProject`, `rankChangeConfirm`, `rankChangeDesc`).
+2. `src/lib/utils/translations/en.ts`: Bổ sung `adminManagement: "Admin Management"` (MAJOR-7), các keys trợ năng & thông báo (`dismissNotification`, `notifications`, `closeSidebar`, `startChatHint`), và các translation keys mới tương ứng để bảo đảm 100% parity.
 3. `src/lib/utils/translations/index.ts`: Tái cấu trúc Type Assertion sang compile-time parity check hai chiều, giữ nguyên các type exports cho `config.ts`.
-4. `src/app/features/sidebar/components/Sidebar.tsx`: Xóa prop `t`, gọi `useLanguage()`, hoist `handleNavigation` lên thân component bọc bằng `useCallback`, bọc các callbacks bằng `useCallback`, đổi `label={t("adminManagement")}`, đổi `t("signOut")` (MAJOR-7), thay `aria-label={t("navigation")}`, `label={isCollapsed ? t("expand") : t("collapse")}` (MINOR-R2-1), bổ sung focus-visible rings.
+4. `src/app/features/sidebar/components/Sidebar.tsx`: Xóa prop `t`, gọi `useLanguage()`, hoist `handleNavigation` lên thân component bọc bằng `useCallback`, bọc các callbacks bằng `useCallback`, đổi `label={t("adminManagement")}`, đổi `t("signOut")` (MAJOR-7), thay `aria-label={t("navigation")}`, `label={isCollapsed ? t("expand") : t("collapse")}`, thay `aria-label="Close sidebar"` bằng `aria-label={t("closeSidebar")}`, thay `"Start a new chat to begin"` bằng `t("startChatHint")` (MINOR-R2-1, MINOR-R3-1), bổ sung focus-visible rings.
 5. `src/app/features/sidebar/components/SidebarItem.tsx`: Xóa 4 inline SVG functions, import Lucide icons (`MoreVertical`, `Pencil`, `Trash2`, `Download`, `Loader2`), gọi `useLanguage()`, thay hardcoded text bằng `t()`, bổ sung focus-visible rings.
 6. `src/app/features/sidebar/components/ProjectNode.tsx`: Bổ sung focus-visible indicators cho tất cả nút bấm tương tác (chevron, new chat, options, conversation buttons).
 7. `src/app/features/chat/components/ChatApp.tsx`: Xóa bỏ việc truyền prop `t={t}` vào `<Sidebar>`.
 8. `src/app/features/gallery/components/GalleryView.tsx`: Xóa bỏ việc truyền prop `t={...}` vào `<Sidebar>`.
 9. `src/app/features/image-gen/components/DescribeImageView.tsx`: Xóa bỏ việc truyền prop `t={...}` vào `<Sidebar>`.
-10. `src/app/features/layout/components/HeaderBar.tsx`: Sử dụng `THEME_GROUP_LABELS: Record<ThemeGroup, TranslationKey>` (MINOR-R2-4), thay thế `"Theme"` hardcoded bằng `t("theme")`, xóa class v3 `focus:ring-opacity-50`, bổ sung focus-visible rings.
+10. `src/app/features/layout/components/HeaderBar.tsx`: Sử dụng `THEME_GROUP_LABELS: Record<ThemeGroup, TranslationKey>` áp dụng tại CẢ HAI vị trí dòng 165 (desktop) và dòng 239 (mobile) (MINOR-R2-4, MAJOR-10), thay thế `"Theme"` hardcoded bằng `t("theme")`, xóa class v3 `focus:ring-opacity-50`, bổ sung focus-visible rings.
 11. `src/components/features/projects/KnowledgePanel.tsx`: Thay thế hardcoded text bằng `t()`, thay thế dead classes (`bg-primary`, `bg-destructive`, `border-border`, `text-muted-foreground`) bằng Vikini CSS variable tokens, bổ sung focus-visible rings.
 12. `src/app/features/personas/components/PersonaEditor.tsx`: Khai báo kiểu trả về tường minh cho `getToneOptions` với `{ value: PersonaTone; ... }[]` và gọi qua `useMemo` (MAJOR-8), thay thế raw classes (`bg-white text-black`), bổ sung focus-visible rings.
 13. `src/app/admin/components/UserManager.tsx`: Thay thế hardcoded error strings bằng `t("failedFetchUsers")`, `t("failedLoadUsers")`, `t("failedUpdateUser")`, `t("failedUpdateUsers")`, thay confirm dialogs và aria-labels bằng `t()`.
-14. `src/components/ui/IconPicker.tsx`: Nhập `useLanguage`, thay thế `<div role="combobox">` bằng native `<button type="button">`, bảo toàn prop `className` trên trigger button (MINOR-R2-5), padding `pr-14` khi có value, tách nút Clear icon thành button độc lập với `e.stopPropagation()` và `e.preventDefault()`, bổ sung focus-visible rings và aria attributes localized.
-15. `src/components/ui/ToastContainer.tsx`: Bổ sung `aria-label={t("close")}` và `focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded-md` cho nút đóng thông báo (MINOR-R2-1).
+14. `src/components/ui/IconPicker.tsx`: Nhập `useLanguage`, thay thế `<div role="combobox">` bằng native `<button type="button">`, bảo toàn prop `className` trên trigger button (MINOR-R2-5), padding `pr-14` khi có value, tách nút Clear icon thành button độc lập đặt tại `absolute right-8 top-1/2 -translate-y-1/2` với `e.stopPropagation()` và `e.preventDefault()` (MINOR-R3-4), bổ sung focus-visible rings và aria attributes localized.
+15. `src/components/ui/ToastContainer.tsx`: Nhập `useLanguage`, gọi hook ở CẢ HAI component: `ToastContainer` (cho `aria-label={t("notifications")}`) và `ToastItem` (cho `aria-label={t("dismissNotification")}`) (MINOR-R4-4), và `focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded-md` (MINOR-R2-1, MINOR-R3-1, MINOR-R3-2).
 16. `src/components/features/projects/CreateProjectModal.tsx`: Bổ sung `aria-label={t("close")}` và `focus-visible:ring-2 focus-visible:ring-(--ring)` cho nút đóng modal.
 17. `src/app/features/sidebar/components/Sidebar.test.tsx`: Cập nhật render test (không truyền `t`), test reference stability (TC-PERF-01) với spy component, reset `useLanguageStore` sau mỗi test.
-18. `src/app/features/layout/HeaderBar.test.tsx`: Cập nhật mock `translations` dictionary với các theme group labels `themeFocus`, `themeGlassmorphism`, `themeRa2`, và `theme` (MINOR-R2-4), assert không còn class v3.
+18. `src/app/features/layout/HeaderBar.test.tsx` (MAJOR-9, MAJOR-10, MINOR-R2-4): Sửa mock `useLanguage` dùng module id `@/app/features/chat/hooks/useLanguage`, sửa mock `theme-config` dùng `ThemeGroup` hợp lệ `group: "Focus"`, cập nhật mock `translations` dictionary với `themeFocus: "Tập trung"`, `themeGlassmorphism`, `themeRa2`, và `theme`, assert `expect(screen.getAllByText("Tập trung")).toHaveLength(2);` để kiểm tra nhãn nhóm theme đã dịch ở cả desktop :165 và mobile :239 (MAJOR-10), bổ sung test case đối chứng với theme có group lạ assert `expect(screen.getAllByText("Custom")).toHaveLength(2);` để kiểm tra fallback nguyên văn (MAJOR-10), thay thế assertion `"VN"` bằng `expect(screen.getByLabelText("Chọn giao diện")).toBeInTheDocument()`, assert không còn class v3.
 
 #### [NEW] — Tạo Mới Các File Test Co-located:
 
-19. `src/lib/utils/translations/index.test.ts`: Test kiểm tra 100% key parity giữa `vi.ts` và `en.ts`, kiểm tra không có key rỗng, kiểm tra exports `TranslationSet`, `Translations`, `TranslationKey`. Bổ sung test case duyệt danh sách toàn bộ các translation keys được tham chiếu trong UI components (`Sidebar`, `SidebarItem`, `IconPicker`, `HeaderBar`, `PersonaEditor`, `UserManager`, `KnowledgePanel`, `ToastContainer`) và assert 100% keys này tồn tại và không rỗng trong cả `vi.ts` và `en.ts` (MAJOR-7).
+19. `src/lib/utils/translations/index.test.ts` (MAJOR-7, MINOR-R3-3, MINOR-R4-1, MINOR-R4-2): Dùng alias `import { vi as viDict } from "./vi";` và `import { en as enDict } from "./en";` để tránh shadow biến toàn cục `vi` của Vitest và tránh lỗi `tsc` do `index.ts` không re-export `vi`/`en` (MINOR-R4-1). Test kiểm tra 100% key parity giữa `viDict` và `enDict`, kiểm tra không có key rỗng, kiểm tra exports `TranslationSet`, `Translations`, `TranslationKey`. Bổ sung test case duyệt danh sách toàn bộ các translation keys được tham chiếu trong UI components (`Sidebar`, `SidebarItem`, `IconPicker`, `HeaderBar`, `PersonaEditor`, `UserManager`, `KnowledgePanel`, `ToastContainer`) với mảng `const referencedKeys: readonly TranslationKey[] = [...] as const` để compiler `tsc` bắt lỗi compile-time (`TS2322` - MINOR-R4-2), và assert 100% keys này tồn tại và không rỗng trong cả `viDict` và `enDict`.
 20. `src/lib/features/image-gen/templates.test.ts`: Test kiểm tra toàn bộ 18 templates trong `IMAGE_TEMPLATES`, kiểm tra song ngữ `en`/`vi` của `name` và `description`, kiểm tra valid styles và flags, assert ID của 6 phần tử đầu tiên là `["anime", "cinematic", "clay", "neon", "headshot", "watercolor"]`.
 21. `src/lib/features/image-gen/stylePrompts.test.ts`: Test kiểm tra 18 styles trong `STYLE_PROMPTS` (gồm `art-nouveau`), kiểm tra `getStyleInstruction` (happy path và edge cases), kiểm tra chéo mọi `template.style` đều tồn tại trong `STYLE_PROMPTS`.
 22. `src/lib/features/image-gen/core/ImageGenFactory.test.ts`: Test kiểm tra `ImageGenFactory.getProvider` khởi tạo singleton providers, kiểm tra alias `"gemini-native"`, kiểm tra singleton identity, và ném lỗi khi provider không hỗ trợ.
-23. `src/components/ui/IconPicker.test.tsx`: Test component `IconPicker` về semantic trigger button, nhận và áp dụng `className` trên trigger, padding `pr-14`, popover interactions, icon selection, clear action (sibling button với event stop), keyboard focus.
+23. `src/components/ui/IconPicker.test.tsx`: Test component `IconPicker` về semantic trigger button, nhận và áp dụng `className` trên trigger, padding `pr-14`, popover interactions, icon selection, clear action (sibling button đặt tại `absolute right-8 top-1/2 -translate-y-1/2` với event stop), keyboard focus.
 24. `src/app/features/sidebar/components/SidebarItem.test.tsx`: Test component `SidebarItem` về active/inactive state, onSelect, onRename, onDelete, handleDownload, focus visible ring, và lucide icons rendering qua mock `@radix-ui/react-dropdown-menu` (render inline) hoặc query trên `document.body` kích hoạt qua `pointerdown`/bàn phím (kiểm tra class thật `lucide-ellipsis-vertical`, `lucide-trash-2`, assert 0 custom svg) (MINOR-R2-2).
 
 ---
 
 ### 6. Các Bước Thực Hiện Tuần Tự (Checklist Chi Tiết)
 
-- [ ] **Bước 1: Bổ Sung Translation Keys & Khắc Phục Type Assertion Compile Parity (I18N-01, MAJOR-1, MAJOR-2)**
+- [ ] **Bước 1: Bổ Sung Translation Keys & Khắc Phục Type Assertion Compile Parity (I18N-01, MAJOR-1, MAJOR-2, MINOR-R3-1, MINOR-R3-2)**
   - [ ] 1.1. Cập nhật `src/lib/utils/translations/vi.ts`:
     - **Quy tắc kỹ thuật bắt buộc (MAJOR-1)**: Trước khi thêm bất kỳ key mới nào, bắt buộc kiểm tra xem key đã tồn tại trong `vi.ts` hay chưa (`'key' in vi`). Tuyệt đối không thêm key trùng lặp để tránh lỗi biên dịch `TS1117: An object literal cannot have multiple properties with the same name`.
     - **Loại bỏ khỏi danh sách thêm mới**: `newProject`, `rankChangeConfirm`, `rankChangeDesc` (đã có sẵn trong từ điển: `newProject: "Dự án mới"`, `rankChangeConfirm: "Thay đổi cấp bậc user này?"`, `rankChangeDesc: "Thay đổi này sẽ có hiệu lực ngay lập tức."`). Tái sử dụng các key hiện có.
@@ -269,11 +312,16 @@ Tra cứu trực tuyến và đối soát dependencies thực tế của dự á
       themes: "Giao diện",
       loadingConfigs: "Đang tải cấu hình...",
       ```
-    - Bổ sung các keys mới chuẩn hóa cho toàn bộ hệ thống UI (gồm `clearIcon`, `failedUpdateUser`, `icon` - MAJOR-2):
+    - Bổ sung các keys mới chuẩn hóa cho toàn bộ hệ thống UI (gồm `adminManagement`, `clearIcon`, `failedUpdateUser`, `icon`, `dismissNotification`, `notifications` - MAJOR-2, MAJOR-7, MINOR-R3-1, MINOR-R3-2):
       ```typescript
+      // Administration
+      adminManagement: "Quản lý hệ thống",
       // Icon Picker & General UI
       icon: "Biểu tượng",
       clearIcon: "Xóa biểu tượng",
+      // Accessibility & Notifications
+      dismissNotification: "Đóng thông báo",
+      notifications: "Thông báo",
       // Navigation & Sidebar
       chat: "Trò chuyện",
       imageStudio: "Image Studio",
@@ -322,11 +370,16 @@ Tra cứu trực tuyến và đối soát dependencies thực tế của dự á
       userDetailAria: "Chi tiết người dùng",
       kbDeleteConfirmDesc: "Tài liệu này và tất cả các đoạn dữ liệu sẽ bị xóa vĩnh viễn.",
       ```
-  - [ ] 1.2. Cập nhật `src/lib/utils/translations/en.ts` với đầy đủ các keys tương ứng (loại bỏ `newProject`, `rankChangeConfirm`, `rankChangeDesc`; thêm `clearIcon`, `failedUpdateUser`, `icon`):
+  - [ ] 1.2. Cập nhật `src/lib/utils/translations/en.ts` với đầy đủ các keys tương ứng (loại bỏ `newProject`, `rankChangeConfirm`, `rankChangeDesc`; thêm `adminManagement`, `clearIcon`, `failedUpdateUser`, `icon`, `dismissNotification`, `notifications` - MAJOR-7, MINOR-R3-1, MINOR-R3-2):
     ```typescript
+    // Administration
+    adminManagement: "Admin Management",
     // Icon Picker & General UI
     icon: "Icon",
     clearIcon: "Clear icon",
+    // Accessibility & Notifications
+    dismissNotification: "Dismiss notification",
+    notifications: "Notifications",
     // Navigation & Sidebar
     chat: "Chat",
     imageStudio: "Image Studio",
@@ -394,12 +447,22 @@ Tra cứu trực tuyến và đối soát dependencies thực tế của dự á
       ```
     - Chạy `npm run type-check` để kiểm chứng compiler bắt lỗi chính xác nếu cố tình xóa một key.
 
-- [ ] **Bước 2: Xóa Bỏ Prop Drilling `t` Khỏi Sidebar & Các Component Con (I18N-02, MAJOR-2)**
+- [ ] **Bước 2: Xóa Bỏ Prop Drilling `t` Khỏi Sidebar & Các Component Con (I18N-02, MAJOR-2, MAJOR-7, MINOR-R2-1, MINOR-R3-1)**
   - [ ] 2.1. Trong `src/app/features/sidebar/components/Sidebar.tsx`:
     - Xóa trường `t?: Record<string, string>;` khỏi interface `SidebarProps`.
     - Nhập hook `import { useLanguage } from "../../chat/hooks/useLanguage";`.
     - Gọi `const { t } = useLanguage();` ngay đầu component `Sidebar`.
     - Thay thế toàn bộ các biểu thức `t?.key || "Fallback"` thành `t("key")`. Lưu ý: Không dùng `|| "fallback"` vì `t()` trả về chuỗi key (truthy) khi thiếu key, khiến `|| "fallback"` trở thành dead code.
+    - **Thay thế chính xác các nút Footer & Admin (MAJOR-7)**:
+      - Đổi `t?.signOut || t?.logout || "Sign Out"` tại dòng 510 thành `t("signOut")` (key `signOut` đã có sẵn trong từ điển).
+      - Đổi `label={t?.adminManagement || "Admin Management"}` tại dòng 498 thành `label={t("adminManagement")}` (key `adminManagement` đã được bổ sung ở Bước 1).
+    - **Thay thế các chuỗi hardcoded còn sót trong Sidebar (MINOR-R2-1, MINOR-R3-1)**:
+      - Đổi `aria-label="Main navigation"` tại dòng 525 (desktop) và 559 (mobile drawer) thành `aria-label={t("navigation")}`.
+      - Đổi `label={isCollapsed ? "Expand" : "Collapse"}` tại dòng 488 thành `label={isCollapsed ? t("expand") : t("collapse")}`.
+      - Đổi `aria-label="Close sidebar"` tại dòng 595 thành `aria-label={t("closeSidebar")}` (MINOR-R3-1).
+      - Đổi `"Start a new chat to begin"` tại dòng 448 thành `t("startChatHint")` (MINOR-R3-1).
+      - Đổi empty state dự án tại dòng 393 ("No projects yet") thành `t("noProjects")` và dòng 395 ("Create a project to organize your chats") thành `t("createProjectHint")` (MINOR-R4-3). Ghi chú: Các nhãn navigation cố định "Chat", "Image Studio", "Gallery" (Bước 3.3) nằm tại các dòng 278, 322, 338; executor nên quét theo chuỗi thay vì số dòng.
+      - _Ghi chú phạm vi_: Các chuỗi trong `ProjectNode.tsx` (`"Collapse project"`, `"Expand project"`, `"Conversation options"`) và `IconPicker.tsx` (`"Icons"`, `"Emojis"`) hoãn sang backlog Phase 5 vì nằm ngoài luồng tương tác chính của Phase 4.
   - [ ] 2.2. Xóa việc truyền prop `t` ở các file cha:
     - Trong `src/app/features/chat/components/ChatApp.tsx:732`: xóa dòng `t={t},`.
     - Trong `src/app/features/gallery/components/GalleryView.tsx:50`: xóa dòng `t={g.t as unknown as Record<string, string>},`.
@@ -511,7 +574,7 @@ Tra cứu trực tuyến và đối soát dependencies thực tế của dự á
   - [ ] 5.3. Chuyển thành cấu trúc semantic đạt chuẩn W3C WCAG 4.1.2:
 
     ```tsx
-    <div className={cn("relative flex items-center w-full", className)}>
+    <div className="relative flex items-center w-full">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
@@ -526,6 +589,7 @@ Tra cứu trực tuyến và đối soát dependencies thực tế của dự á
               "text-(--text-primary) text-sm transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
               "disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer",
+              className, // Bảo toàn prop className trên trigger button (MINOR-R2-5)
               value && "pr-14" // Thêm padding-right để nhãn icon không bị nút Clear đè lên
             )}
           >
@@ -555,7 +619,7 @@ Tra cứu trực tuyến và đối soát dependencies thực tế của dự á
               onSelect("");
               setOpen(false);
             }}
-            className="absolute right-8 p-1 rounded hover:bg-(--control-bg-hover) text-(--text-secondary) hover:text-(--danger) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+            className="absolute right-8 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-(--control-bg-hover) text-(--text-secondary) hover:text-(--danger) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
             title={t("clearIcon")}
             aria-label={t("clearIcon")}
           >
@@ -576,30 +640,58 @@ Tra cứu trực tuyến và đối soát dependencies thực tế của dự á
 
   - [ ] 5.4. Bổ sung `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)` cho tất cả các nút icon trong grid `LUCIDE_ICONS` và `EMOJI_ICONS`.
 
-- [ ] **Bước 6: Bổ Sung Focus Rings & Bản Địa Hóa Cho Các Component Còn Lại (A11Y-03, i18n, MINOR-9)**
+- [ ] **Bước 6: Bổ Sung Focus Rings & Bản Địa Hóa Cho Các Component Còn Lại (A11Y-03, i18n, MAJOR-8, MINOR-R2-1, MINOR-R2-4, MINOR-R3-1, MINOR-R3-2)**
   - [ ] 6.1. `ProjectNode.tsx`:
     - Bổ sung `focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none` cho các nút: Chevron toggle, Project Name select, New Chat, Radix Dropdown Trigger, và Chat items.
-  - [ ] 6.2. `ToastContainer.tsx`:
-    - Thêm `focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded-md` cho nút `<button onClick={() => onRemove(toast.id)}>`.
+  - [ ] 6.2. `ToastContainer.tsx` (MINOR-R2-1, MINOR-R3-1, MINOR-R3-2, MINOR-R4-4):
+    - Nhập `import { useLanguage } from "@/app/features/chat/hooks/useLanguage"`.
+    - Gọi hook `const { t } = useLanguage()` ở CẢ HAI component (MINOR-R4-4):
+      - Trong component cha `ToastContainer` (`ToastContainer.tsx:7-24`): gọi `const { t } = useLanguage()`, gán `aria-label={t("notifications")}` cho container bọc ngoài (thay vì `"Notifications"` hardcoded tại dòng 14).
+      - Trong sub-component `ToastItem` (`ToastContainer.tsx:26-64`): gọi `const { t } = useLanguage()`, gán `aria-label={t("dismissNotification")}` cho nút đóng toast (`<button onClick={() => onRemove(toast.id)}>`, dòng 57) kèm lớp `focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded-md`.
   - [ ] 6.3. `CreateProjectModal.tsx`:
     - Thêm `aria-label={t("close")}` và `focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none` cho nút đóng modal (`<button onClick={onClose}>`).
-  - [ ] 6.4. `HeaderBar.tsx` (MINOR-9):
+  - [ ] 6.4. `HeaderBar.tsx` (MAJOR-10, MINOR-9, MINOR-R2-4):
+    - Định nghĩa mapping tường minh bắt buộc compiler kiểm tra:
+      ```typescript
+      const THEME_GROUP_LABELS: Record<ThemeGroup, TranslationKey> = {
+        Focus: "themeFocus",
+        Glassmorphism: "themeGlassmorphism",
+        "Red Alert 2": "themeRa2",
+      };
+      ```
     - Thay thế `"Theme"` hardcoded bằng `t("theme")`.
-    - Nhóm theme: hiển thị nhãn localized `t("themeFocus")`, `t("themeGlassmorphism")`, `t("themeRa2")` dựa vào `group`.
+    - Khẳng định áp dụng biểu thức mapping `THEME_GROUP_LABELS` tại CẢ HAI vị trí trong `HeaderBar.tsx` (MAJOR-10):
+      - Dòng 165 (menu desktop): `<DropdownMenuLabel className="...">{THEME_GROUP_LABELS[group as ThemeGroup] ? t(THEME_GROUP_LABELS[group as ThemeGroup]) : group}</DropdownMenuLabel>`
+      - Dòng 239 (menu mobile): `<DropdownMenuLabel className="...">{THEME_GROUP_LABELS[group as ThemeGroup] ? t(THEME_GROUP_LABELS[group as ThemeGroup]) : group}</DropdownMenuLabel>`
     - Thay thế lớp cũ Tailwind v3 `outline-none focus:ring-2 focus:ring-(--accent) focus:ring-opacity-50` bằng lớp chuẩn: `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)`.
   - [ ] 6.5. `KnowledgePanel.tsx`:
     - Thay thế `title="Refresh"` bằng `title={t("refresh")}`.
     - Sửa các chuỗi bản dịch: `t("kbDeleteConfirm")`, `t("kbDeleteConfirmDesc")`, `t("uploadFailed")`, `t("deleteFailed")`.
     - Thay thế dead Tailwind classes: `border-border` ➔ `border-(--border)`, `bg-muted` ➔ `bg-(--control-bg)`, `text-muted-foreground` ➔ `text-(--text-secondary)`, `bg-destructive` ➔ `bg-(--danger)`, `bg-primary` ➔ `bg-(--accent)`.
     - Thêm `focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none` cho các nút Refresh, Delete, Upload label.
-  - [ ] 6.6. `PersonaEditor.tsx`:
-    - Chuyển `TONE_OPTIONS` thành hàm tạo dữ liệu động với `t`:
+  - [ ] 6.6. `PersonaEditor.tsx` (MAJOR-8):
+    - Chuyển `TONE_OPTIONS` thành hàm tạo dữ liệu động với `t`, khai báo tường minh kiểu trả về để bảo toàn `PersonaTone`:
       ```typescript
-      const getToneOptions = (t: (key: string) => string) => [
+      const getToneOptions = (
+        t: (key: string) => string
+      ): { value: PersonaTone; label: string; description: string }[] => [
         { value: "default", label: t("toneDefault"), description: t("toneDefaultDesc") },
-        { value: "professional", label: t("toneProfessional"), description: t("toneProfessionalDesc") },
-        ...
+        {
+          value: "professional",
+          label: t("toneProfessional"),
+          description: t("toneProfessionalDesc"),
+        },
+        { value: "friendly", label: t("toneFriendly"), description: t("toneFriendlyDesc") },
+        { value: "candid", label: t("toneCandid"), description: t("toneCandidDesc") },
+        { value: "quirky", label: t("toneQuirky"), description: t("toneQuirkyDesc") },
+        { value: "efficient", label: t("toneEfficient"), description: t("toneEfficientDesc") },
+        { value: "cynical", label: t("toneCynical"), description: t("toneCynicalDesc") },
+        { value: "lawyer", label: t("toneLawyer"), description: t("toneLawyerDesc") },
       ];
+      ```
+    - Trong thân component gọi:
+      ```typescript
+      const toneOptions = useMemo(() => getToneOptions(t), [t]);
       ```
     - Thay thế raw class `bg-white text-black` tại nút Save bằng `bg-(--accent) text-(--accent-foreground) hover:opacity-90`.
     - Thêm `focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none` cho các tone buttons.
@@ -608,12 +700,80 @@ Tra cứu trực tuyến và đối soát dependencies thực tế của dự á
     - Thay thế `aria-label="User detail"` bằng `aria-label={t("userDetailAria")}`.
     - Thêm `focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none` cho checkbox toggle và các action buttons.
 
-- [ ] **Bước 7: Viết Bộ Test Co-located & Cập Nhật Test Suite (MAJOR-5, MAJOR-6, MINOR-7)**
-  - [ ] 7.1. Tạo mới `src/lib/utils/translations/index.test.ts`:
-    - Kiểm tra `vi` và `en` có chính xác 100% keys trùng nhau.
+- [ ] **Bước 7: Viết Bộ Test Co-located & Cập Nhật Test Suite (MAJOR-5, MAJOR-6, MAJOR-7, MAJOR-10, MINOR-7, MINOR-R2-2, MINOR-R2-4, MINOR-R4-1, MINOR-R4-2, MINOR-R4-5)**
+  - [ ] 7.1. Tạo mới `src/lib/utils/translations/index.test.ts` (MAJOR-7, MINOR-R3-3, MINOR-R4-1, MINOR-R4-2):
+    - Thống nhất import trực tiếp từ `./vi` và `./en`: `import { vi as viDict } from "./vi";` và `import { en as enDict } from "./en";` để tránh shadow biến toàn cục `vi` của Vitest (`globals: true`) và tránh lỗi `tsc` do `index.ts` không re-export `vi`/`en` (MINOR-R4-1).
+    - Kiểm tra `viDict` và `enDict` có chính xác 100% keys trùng nhau.
     - Kiểm tra không có key nào bị undefined, null hoặc chuỗi rỗng `""`.
-    - Kiểm tra các keys cốt lõi: `language`, `themes`, `loadingConfigs`, `clearIcon`, `failedUpdateUser`, `icon`, `chat`, `imageStudio`, `gallery`.
+    - Kiểm tra các keys cốt lõi: `language`, `themes`, `loadingConfigs`, `adminManagement`, `clearIcon`, `failedUpdateUser`, `icon`, `dismissNotification`, `notifications`, `chat`, `imageStudio`, `gallery`.
     - Kiểm tra bảo toàn các exports `TranslationSet`, `Translations`, `TranslationKey`.
+    - **Test Case kiểm chứng toàn bộ Referenced Keys (MAJOR-7, MINOR-R3-3, MINOR-R4-2)**:
+      - Quét duyệt danh sách toàn bộ các translation keys được tham chiếu trong các UI components (`Sidebar`, `SidebarItem`, `IconPicker`, `HeaderBar`, `PersonaEditor`, `UserManager`, `KnowledgePanel`, `ToastContainer`).
+      - Định kiểu mảng key tham chiếu là `const referencedKeys: readonly TranslationKey[] = [...] as const` để TypeScript compiler tự động bắt lỗi key sai hoặc không tồn tại ở compile time (`TS2322` under strict mode - MINOR-R4-2):
+        ```typescript
+        const referencedKeys: readonly TranslationKey[] = [
+          "adminManagement",
+          "signOut",
+          "navigation",
+          "closeSidebar",
+          "chat",
+          "imageStudio",
+          "gallery",
+          "noProjects",
+          "createProjectHint",
+          "startChatHint",
+          "gemsDesc",
+          "renameFallbackToast",
+          "deleteFallbackToast",
+          "downloadComplete",
+          "downloadFailed",
+          "conversationOptions",
+          "optionsFor",
+          "exportTxt",
+          "downloading",
+          "rename",
+          "delete",
+          "icon",
+          "clearIcon",
+          "selectIcon",
+          "theme",
+          "themeFocus",
+          "themeGlassmorphism",
+          "themeRa2",
+          "refresh",
+          "kbDeleteConfirm",
+          "kbDeleteConfirmDesc",
+          "uploadFailed",
+          "deleteFailed",
+          "failedFetchUsers",
+          "failedLoadUsers",
+          "failedUpdateUser",
+          "failedUpdateUsers",
+          "userDetailAria",
+          "toneDefault",
+          "toneDefaultDesc",
+          "toneProfessional",
+          "toneProfessionalDesc",
+          "toneFriendly",
+          "toneFriendlyDesc",
+          "toneCandid",
+          "toneCandidDesc",
+          "toneQuirky",
+          "toneQuirkyDesc",
+          "toneEfficient",
+          "toneEfficientDesc",
+          "toneCynical",
+          "toneCynicalDesc",
+          "toneLawyer",
+          "toneLawyerDesc",
+          "close",
+          "expand",
+          "collapse",
+          "dismissNotification",
+          "notifications",
+        ] as const;
+        ```
+      - Assert 100% keys này tồn tại và không rỗng trong cả `viDict` và `enDict` (`expect(viDict[key]).toBeDefined(); expect(viDict[key]).not.toBe(""); expect(enDict[key]).toBeDefined(); expect(enDict[key]).not.toBe("");`).
   - [ ] 7.2. Tạo mới `src/lib/features/image-gen/templates.test.ts` (MINOR-7):
     - Kiểm tra `IMAGE_TEMPLATES` là mảng có đúng 18 phần tử.
     - Kiểm tra mỗi template có đầy đủ `id`, `name.en`, `name.vi`, `prompt`, `description.en`, `description.vi`, `previewUrl`, `requiresPhoto`, `style`.
@@ -634,25 +794,46 @@ Tra cứu trực tuyến và đối soát dependencies thực tế của dự á
     - Test ném Exception khi truyền provider ID không hợp lệ: `expect(() => ImageGenFactory.getProvider("unsupported")).toThrow("Image Provider 'unsupported' not supported")`.
   - [ ] 7.5. Tạo mới `src/components/ui/IconPicker.test.tsx`:
     - Test trigger hiển thị đúng `t("selectIcon")` khi chưa chọn icon.
-    - Test trigger hiển thị đúng tên icon và có class `pr-14` khi có `value="Sparkles"`.
+    - Test trigger hiển thị đúng tên icon, nhận và áp dụng `className`, có class `pr-14` khi có `value="Sparkles"`.
     - Test nút trigger có semantic `<button type="button">`, `aria-haspopup="dialog"`, `aria-label="Biểu tượng: Sparkles"` (khi ngôn ngữ là vi).
     - Test nút Clear icon là sibling button: click nút Clear gọi `onSelect("")`, ngăn chặn bubbling (`stopPropagation`, `preventDefault`).
     - Test thuộc tính `disabled` ngăn chặn kích hoạt popover và áp dụng proper aria.
-  - [ ] 7.6. Tạo mới `src/app/features/sidebar/components/SidebarItem.test.tsx` (MAJOR-5):
+  - [ ] 7.6. Tạo mới `src/app/features/sidebar/components/SidebarItem.test.tsx` (MAJOR-5, MINOR-R2-2):
     - Test render đúng tiêu đề cuộc trò chuyện.
     - Test click vào nút chính gọi `onSelect(id)`.
     - Test hiển thị class active `sidebar-accent-active` khi `isActive={true}`.
-    - Test click vào nút 3 chấm mở Dropdown menu với các lựa chọn Rename, Export, Delete.
+    - **Chiến lược kiểm tra Dropdown Menu (MINOR-R2-2)**:
+      - Tùy chọn 1 (Khuyến nghị theo tiền lệ `ProjectNode.test.tsx`): Mock `@radix-ui/react-dropdown-menu` để render trực tiếp dropdown content inline trong DOM, tránh Portal tách rời.
+      - Tùy chọn 2 (Test DOM thật): Mở menu bằng `fireEvent.pointerDown(triggerButton)` hoặc keyboard `Enter`/`Space` (thay vì `click` thuần túy do Radix trigger bắt pointer events), sau đó thực hiện assertion trên `document.body` hoặc `baseElement` (nơi Radix Portal gắn nội dung).
     - Test các nút có class `focus-visible:ring-(--ring)`.
     - Test icon classes từ `lucide-react`: Kiểm tra các phần tử `<svg>` chứa class `lucide-ellipsis-vertical`, `lucide-trash-2`, `lucide-pencil`, `lucide-download`.
-    - Khẳng định chống gaming: Assert số lượng inline `<svg>` không chứa class `lucide` bằng 0 (`container.querySelectorAll("svg:not(.lucide)").length === 0`).
-  - [ ] 7.7. Cập nhật `src/app/features/sidebar/components/Sidebar.test.tsx` (MAJOR-4, MAJOR-5):
+    - Khẳng định chống gaming: Assert số lượng inline `<svg>` không chứa class `lucide` bằng 0 (`(document.body ?? container).querySelectorAll("svg:not(.lucide)").length === 0`).
+  - [ ] 7.7. Cập nhật `src/app/features/sidebar/components/Sidebar.test.tsx` (MAJOR-4, MAJOR-5, MINOR-R4-5):
     - Test render độc lập không cần prop `t`.
     - Test Reference Stability (TC-PERF-01): Mock `./SidebarItem` bằng spy component ghi nhận các props nhận được. Re-render `Sidebar` với các props không liên quan thay đổi (ví dụ: đổi session dummy nhưng giữ nguyên danh sách hội thoại) -> Assert các hàm `onSelect`, `onRename`, `onDelete` truyền vào `SidebarItem` giữ nguyên tham chiếu tuyệt đối (`expect(props2.onSelect).toBe(props1.onSelect)`).
     - Test đối chứng nghịch đảo (Counter-factual Case): Rerender `Sidebar` với prop callback thay đổi (ví dụ truyền `onSelectConversation` mới) -> Assert tham chiếu truyền vào `SidebarItem` phải thay đổi (`expect(props3.onSelect).not.toBe(props1.onSelect)`).
+    - **Test i18n & Proper Props (MINOR-R4-5)**:
+      - Khi kiểm tra nhãn "Quản lý hệ thống", truyền prop `session={{ user: { rank: "admin", email: "admin@example.com" } }}` (vì `Sidebar.tsx:494` yêu cầu session admin).
+      - Khi kiểm tra nhãn "Đóng thanh bên", truyền `mobileOpen={true}` và assert bằng `expect(screen.getByLabelText("Đóng thanh bên")).toBeInTheDocument()` (hoặc chuỗi tương đương từ `vi.ts`), vì đây là `aria-label` của drawer close button tại `Sidebar.tsx:595`.
     - Quản lý cách ly trạng thái: Trong `beforeEach`/`afterEach`, thiết lập và reset store ngôn ngữ: `useLanguageStore.setState({ language: "en" })`.
-  - [ ] 7.8. Cập nhật `src/app/features/layout/HeaderBar.test.tsx`:
-    - Cập nhật mock và assertion kiểm tra nhãn "Theme" được lấy qua hook `useLanguage()`.
+  - [ ] 7.8. Cập nhật `src/app/features/layout/HeaderBar.test.tsx` (MAJOR-9, MAJOR-10, MINOR-R2-4):
+    - **Sửa đường dẫn mock `useLanguage` (MAJOR-9)**: Thay đổi đường dẫn mock từ relative path cũ `../../chat/hooks/useLanguage` thành alias module tuyệt đối:
+      ```typescript
+      vi.mock("@/app/features/chat/hooks/useLanguage", () => ({
+        useLanguage: () => ({
+          t: (key: string) => mockTranslations[key] || key,
+          language: "vi",
+          setLanguage: vi.fn(),
+        }),
+      }));
+      ```
+    - **Sửa mock `theme-config` dùng ThemeGroup hợp lệ**: Đổi mock `theme-config` từ `group: "Cool"` thành `group: "Focus"`.
+    - Cập nhật mock `translations` dictionary với các keys: `themeFocus: "Tập trung"`, `themeGlassmorphism: "Thủy tinh mờ"`, `themeRa2: "Báo động đỏ (RA2)"`, `theme: "Giao diện"`.
+    - **Sửa assertion nhãn nhóm theme (MAJOR-10)**: Do `HeaderBar` render nhãn nhóm theme ở 2 vị trí riêng biệt: menu desktop (`HeaderBar.tsx:165`) và mobile (`HeaderBar.tsx:239`) trong cùng DOM, assertion `getByText` sẽ bị ném lỗi "Found multiple elements". Sử dụng:
+      `expect(screen.getAllByText("Tập trung")).toHaveLength(2);`
+      để kiểm tra nhãn nhóm theme đã được dịch sang tiếng Việt xuất hiện ở cả hai menu desktop và mobile.
+    - **Bổ sung test case đối chứng (Counter-test case) (MAJOR-10)**: Cấu hình một theme có group không nằm trong `THEME_GROUP_LABELS` (ví dụ `group: "Custom"`) -> Assert `expect(screen.getAllByText("Custom")).toHaveLength(2);` để kiểm chứng cả 2 nhánh của biểu thức mapping tại cả menu desktop và mobile.
+    - **Thay thế assertion `getAllByText("VN")`**: Thay bằng assertion kiểm tra ngôn ngữ thực sự: `expect(screen.getByLabelText("Chọn giao diện")).toBeInTheDocument()`.
     - Assert không còn bất kỳ phần tử nào chứa class cũ `focus:ring-opacity-50`.
 
 - [ ] **Bước 8: Chạy Verification Toàn Diện**
@@ -661,20 +842,21 @@ Tra cứu trực tuyến và đối soát dependencies thực tế của dự á
   - [ ] 8.3. Chạy `npm run test:run` (100% pass trên toàn bộ test suite).
   - [ ] 8.4. Chạy `npm run verify` để chốt chặn toàn diện.
 
-### 7. Test Contract (Hợp Đồng Kiểm Thử Bắt Buộc - MAJOR-5, MAJOR-6)
+### 7. Test Contract (Hợp Đồng Kiểm Thử Bắt Buộc - MAJOR-5, MAJOR-6, MAJOR-7, MAJOR-8, MAJOR-9, MAJOR-10, MINOR-R2-2, MINOR-R3-3, MINOR-R4-1, MINOR-R4-2, MINOR-R4-5)
 
-| Mã ID          | Phân Hệ / Module    | Hành Vi Được Kiểm Thử (Expected Behavior)                                                                                                                | Dữ Liệu Đầu Vào (Inputs)                                                                                                 | Kết Quả Mong Đợi (Expected Output)                                                                                                                                                                                                                   | Tiêu Chí Thất Bại (Failure Modes & Gaming Prevention)                                                                                                                       |
-| :------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **TC-I18N-01** | Translations Core   | 100% key parity giữa `vi.ts` và `en.ts`, bảo toàn exports `TranslationKey`, `TranslationSet`, `Translations`.                                            | Object `vi` và `en` từ `src/lib/utils/translations/`                                                                     | `Object.keys(vi).sort()` bằng chính xác `Object.keys(en).sort()`. Không có key nào giá trị rỗng `""`.                                                                                                                                                | Thất bại nếu `vi` thiếu bất kỳ key nào từ `en` (đặc biệt `language`, `themes`, `loadingConfigs`, `clearIcon`, `failedUpdateUser`, `icon`) hoặc giá trị là chuỗi trắng `""`. |
-| **TC-I18N-02** | Sidebar Component   | `Sidebar` không nhận prop `t`; tự động đọc bản dịch từ `useLanguage()`; cách ly trạng thái giữa các tests.                                               | Render `<Sidebar chats={[...]} />` không truyền prop `t`. Set `useLanguageStore.setState({ language: "vi" })`.           | Hiển thị đúng chuỗi đã dịch ("Trò chuyện", "Cuộc trò chuyện mới" theo `vi.ts` thật, không mock `t`). Reset về `"en"` trong `afterEach`.                                                                                                              | Thất bại nếu `Sidebar` yêu cầu prop `t`, hiển thị key thô, hiển thị fallback dead code tiếng Anh, hoặc rò rỉ ngôn ngữ sang test khác.                                       |
-| **TC-I18N-03** | PersonaEditor       | Nhãn và mô tả của 8 phong cách Persona (`TONE_OPTIONS`) được dịch động theo ngôn ngữ hiện tại.                                                           | Set `useLanguageStore.setState({ language: "vi" })` hoặc `"en"`.                                                         | "Chuyên nghiệp" / "Chỉn chu và chính xác" khi vi; "Professional" / "Polished and precise" khi en. Reset store trong `afterEach`.                                                                                                                     | Thất bại nếu hiển thị chuỗi tiếng Anh cố định khi `language === "vi"`, hoặc mock hàm `t` giả tạo thay vì đọc từ ngữ cảnh thực tế.                                           |
-| **TC-A11Y-01** | IconPicker          | Trigger là `<button type="button">` semantic đạt chuẩn W3C; nút Clear là sibling độc lập; có padding `pr-14`.                                            | Render `<IconPicker value="Sparkles" />`                                                                                 | Thẻ trigger là `<button type="button">` có `aria-haspopup="dialog"`, `aria-label="Biểu tượng: Sparkles"` và class `pr-14`. Nút Clear là sibling button có `stopPropagation` và `preventDefault`.                                                     | Thất bại nếu trigger là thẻ `<div>` có `role="combobox"`, chứa thẻ `<button>` con lồng bên trong, thiếu `pr-14` khiến text bị che, hoặc click nút Clear làm mở Popover.     |
-| **TC-A11Y-02** | Interactive A11y    | Toàn bộ interactive elements có visible focus ring `focus-visible:ring-2 focus-visible:ring-(--ring)`.                                                   | Render `Sidebar`, `SidebarItem`, `ProjectNode`, `ToastContainer`, `HeaderBar`.                                           | Các thẻ button đều có class `focus-visible:ring-(--ring)` và `focus-visible:outline-none`. Không còn class v3 `focus:ring-opacity-50`.                                                                                                               | Thất bại nếu thiếu focus-visible ring trên bất kỳ nút tương tác chính nào, hoặc còn sót lại class quy ước cũ `focus:ring-opacity-50`.                                       |
-| **TC-PERF-01** | Sidebar Memo        | Callback props truyền vào `SidebarItem` giữ nguyên tham chiếu giữa các lần re-render nếu callback prop của cha không đổi; có test case nghịch đối chứng. | Rerender `Sidebar` qua spy component của `SidebarItem`: (Case 1) đổi session dummy; (Case 2) đổi `onSelectConversation`. | Case 1: `props2.onSelect === props1.onSelect` (`toBe`). Case 2: `props3.onSelect !== props1.onSelect` (`not.toBe`).                                                                                                                                  | Thất bại nếu tạo mới function instance làm vỡ shallow equality của `React.memo(SidebarItem)`, hoặc test case đối chứng thất bại (chứng tỏ test bị tautological).            |
-| **TC-PERF-02** | SidebarItem Icons   | `SidebarItem` sử dụng 100% icon từ `lucide-react`, không dùng inline hand-rolled SVG; kiểm tra class thật.                                               | Render `SidebarItem`                                                                                                     | DOM chứa icon Lucide với class thật: `lucide-ellipsis-vertical`, `lucide-trash-2`, `lucide-pencil`, `lucide-download`. Số lượng SVG không có class `lucide` bằng 0.                                                                                  | Thất bại nếu phát hiện inline `<svg>` tự vẽ không thông qua thư viện `lucide-react`, hoặc dùng sai class phỏng đoán (như `lucide-more-vertical`).                           |
-| **TC-IMG-01**  | Image Gen Templates | Toàn bộ 18 templates trong `IMAGE_TEMPLATES` tuân thủ đúng schema song ngữ; kiểm tra ID 6 templates đầu tiên.                                            | `IMAGE_TEMPLATES` array                                                                                                  | `length === 18`, mỗi phần tử có song ngữ `name.en`/`vi` và `description.en`/`vi`. 6 templates đầu tiên có ID chính xác: `["anime", "cinematic", "clay", "neon", "headshot", "watercolor"]`.                                                          | Thất bại nếu thiếu template, thiếu bản dịch tiếng Việt, hoặc sai thứ tự ID của 6 templates hiển thị mặc định ban đầu.                                                       |
-| **TC-IMG-02**  | Image Gen Styles    | `STYLE_PROMPTS` định nghĩa đầy đủ 18 styles; kiểm tra `getStyleInstruction`; kiểm tra chéo không có orphan styles.                                       | `STYLE_PROMPTS` object và mảng `IMAGE_TEMPLATES`.                                                                        | Chứa đủ 18 styles (gồm `art-nouveau`), `instruction.length > 50`, `shortAppend.length > 0`. `getStyleInstruction` trả về đúng config cho id hợp lệ, trả về `undefined` cho `"none"`, `""`, id lạ. Mọi `template.style` đều có trong `STYLE_PROMPTS`. | Thất bại nếu thiếu bất kỳ style nào (đặc biệt `art-nouveau`), `getStyleInstruction` xử lý sai edge cases, hoặc phát hiện orphan style từ templates.                         |
-| **TC-IMG-03**  | Image Gen Factory   | `ImageGenFactory.getProvider` hỗ trợ alias `"gemini-native"`, duy trì singleton identity, và ném lỗi có kiểm soát khi sai ID.                            | ID: `"gemini"`, `"gemini-native"`, `"replicate"`, `"openai"`, `"invalid"`.                                               | `"gemini"` và `"gemini-native"` cùng trả về `GeminiNativeImageProvider`. `getProvider("gemini") === getProvider("gemini")` (`toBe`). Ném Error `"Image Provider 'invalid' not supported"`.                                                           | Thất bại nếu không hỗ trợ alias `"gemini-native"`, tạo instance mới thay vì singleton cache, hoặc không ném lỗi khi gặp ID lạ.                                              |
+| Mã ID          | Phân Hệ / Module       | Hành Vi Được Kiểm Thử (Expected Behavior)                                                                                                                                                                                      | Dữ Liệu Đầu Vào (Inputs)                                                                                                                                                                                                                                                                              | Kết Quả Mong Đợi (Expected Output)                                                                                                                                                                                                                                                                                                                                | Tiêu Chí Thất Bại (Failure Modes & Gaming Prevention)                                                                                                                                                                                                                                                                                |
+| :------------- | :--------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **TC-I18N-01** | Translations Core      | 100% key parity giữa `viDict` và `enDict`, bảo toàn exports `TranslationKey`, `TranslationSet`, `Translations`; 100% referenced keys được định kiểu `readonly TranslationKey[]` (MAJOR-7, MINOR-R3-3, MINOR-R4-1, MINOR-R4-2). | Object `viDict` và `enDict` import trực tiếp từ `src/lib/utils/translations/vi` và `en` (dùng alias tránh shadow `vi` toàn cục và tránh lỗi `tsc` do `index.ts` không re-export - MINOR-R4-1).                                                                                                        | `Object.keys(viDict).sort()` bằng chính xác `Object.keys(enDict).sort()`. Không có key nào giá trị rỗng `""`. 100% các keys trong mảng `readonly TranslationKey[]` (`adminManagement`, `signOut`, `navigation`, `themeFocus`, `dismissNotification`, `notifications`,...) đều defined và không rỗng.                                                              | Thất bại nếu `viDict` thiếu bất kỳ key nào từ `enDict` (đặc biệt `language`, `themes`, `loadingConfigs`, `adminManagement`, `clearIcon`, `failedUpdateUser`, `icon`, `dismissNotification`, `notifications`), có key rỗng `""`, hoặc sai key trong `readonly TranslationKey[]` không bị bắt lỗi `TS2322` (MINOR-R4-2).               |
+| **TC-I18N-02** | Sidebar Component      | `Sidebar` không nhận prop `t`; tự động đọc bản dịch từ `useLanguage()`; cách ly trạng thái giữa các tests; localized admin, footer, navigation & hints (MAJOR-7, MINOR-R3-1, MINOR-R4-5).                                      | Render `<Sidebar chats={[...]} />` không truyền prop `t`. Set `useLanguageStore.setState({ language: "vi" })`. Khi test nhãn "Quản lý hệ thống", truyền prop `session={{ user: { rank: "admin", email: "admin@example.com" } }}`. Khi test "Đóng thanh bên", truyền `mobileOpen={true}` (MINOR-R4-5). | Hiển thị đúng chuỗi đã dịch ("Trò chuyện", "Quản lý hệ thống", "Đăng xuất", "Bắt đầu cuộc trò chuyện mới để trải nghiệm" theo `vi.ts` thật, không mock `t`). Nút đóng thanh bên được assert bằng `screen.getByLabelText("Đóng thanh bên")` (hoặc chuỗi tương đương từ `vi.ts`) vì đây là `aria-label` của drawer close button. Reset về `"en"` trong `afterEach`. | Thất bại nếu `Sidebar` yêu cầu prop `t`, hiển thị key thô (`adminManagement`, `closeSidebar`, `startChatHint`), không render nút admin khi có session admin, không render aria-label đóng thanh bên khi `mobileOpen={true}`, hiển thị fallback dead code tiếng Anh, hoặc rò rỉ ngôn ngữ sang test khác.                              |
+| **TC-I18N-03** | PersonaEditor          | Nhãn và mô tả của 8 phong cách Persona (`TONE_OPTIONS`) được dịch động; bảo đảm an toàn kiểu `PersonaTone` (MAJOR-8).                                                                                                          | Set `useLanguageStore.setState({ language: "vi" })` hoặc `"en"`.                                                                                                                                                                                                                                      | "Chuyên nghiệp" / "Chỉn chu và chính xác" khi vi; "Professional" / "Polished and precise" khi en. Hàm `getToneOptions` giữ kiểu `{ value: PersonaTone; ... }[]`. Reset store trong `afterEach`.                                                                                                                                                                   | Thất bại nếu hiển thị chuỗi tiếng Anh cố định khi `language === "vi"`, hoặc mất type annotation `PersonaTone` dẫn đến lỗi `TS2345` khi biên dịch.                                                                                                                                                                                    |
+| **TC-I18N-04** | HeaderBar i18n & Theme | Nhãn giao diện, nhóm theme đã dịch, và nhóm theme lạ (fallback) render chuẩn xác qua mock `useLanguage` hợp lệ tại cả menu desktop và mobile (MAJOR-9, MAJOR-10, MINOR-R2-4).                                                  | Render `<HeaderBar />` với mock `@/app/features/chat/hooks/useLanguage` và mock themes (gồm cả nhóm chuẩn `"Focus"` và nhóm lạ `"Custom"`).                                                                                                                                                           | `expect(screen.getByLabelText("Chọn giao diện")).toBeInTheDocument()`. Nhóm `"Focus"` hiển thị nhãn dịch `"Tập trung"` ở cả 2 menu: `expect(screen.getAllByText("Tập trung")).toHaveLength(2);`. Nhóm lạ `"Custom"` hiển thị nguyên văn `"Custom"` ở cả 2 menu: `expect(screen.getAllByText("Custom")).toHaveLength(2);` (MAJOR-10).                              | Thất bại nếu mock sai đường dẫn relative làm gọi file thật, mock dùng ThemeGroup không hợp lệ (`"Cool"`), dùng assertion `getByText` bị crash do "Found multiple elements", không kiểm tra đủ cả 2 nhánh của biểu thức nhóm theme ở cả 2 vị trí (:165 và :239), hoặc assertion không phân biệt được ngôn ngữ (`getAllByText("VN")`). |
+| **TC-A11Y-01** | IconPicker             | Trigger là `<button type="button">` semantic đạt chuẩn W3C; bảo toàn prop `className`; nút Clear là sibling độc lập tại `top-1/2 -translate-y-1/2`; padding `pr-14` (MINOR-R2-5, MINOR-R3-4).                                  | Render `<IconPicker value="Sparkles" className="custom-class" />`                                                                                                                                                                                                                                     | Thẻ trigger là `<button type="button">` có `aria-haspopup="dialog"`, `aria-label="Biểu tượng: Sparkles"`, class `custom-class` và class `pr-14`. Nút Clear là sibling button đặt tại `absolute right-8 top-1/2 -translate-y-1/2` có `stopPropagation` và `preventDefault`.                                                                                        | Thất bại nếu trigger là thẻ `<div>` có `role="combobox"`, chứa thẻ `<button>` con lồng bên trong, mất prop `className`, thiếu `pr-14` khiến text bị che, hoặc click nút Clear làm mở Popover.                                                                                                                                        |
+| **TC-A11Y-02** | Interactive A11y       | Toàn bộ interactive elements có visible focus ring; nút Toast có nhãn `dismissNotification`, container có nhãn `notifications` (MINOR-R2-1, MINOR-R3-1, MINOR-R3-2).                                                           | Render `Sidebar`, `SidebarItem`, `ProjectNode`, `ToastContainer`, `HeaderBar`.                                                                                                                                                                                                                        | Các thẻ button đều có class `focus-visible:ring-(--ring)` và `focus-visible:outline-none`. Nút đóng toast có `aria-label={t("dismissNotification")}`. Container có `aria-label={t("notifications")}`. Không còn class v3 `focus:ring-opacity-50`.                                                                                                                 | Thất bại nếu thiếu focus-visible ring trên bất kỳ nút tương tác chính nào, dùng nhãn thiếu ngữ cảnh (`t("close")`), hoặc còn sót lại class quy ước cũ `focus:ring-opacity-50`.                                                                                                                                                       |
+| **TC-PERF-01** | Sidebar Memo           | Callback props truyền vào `SidebarItem` giữ nguyên tham chiếu giữa các lần re-render khi chat streaming AI; có test case nghịch đối chứng.                                                                                     | Rerender `Sidebar` qua spy component của `SidebarItem`: (Case 1) đổi session dummy; (Case 2) đổi `onSelectConversation`.                                                                                                                                                                              | Case 1: `props2.onSelect === props1.onSelect` (`toBe`). Case 2: `props3.onSelect !== props1.onSelect` (`not.toBe`).                                                                                                                                                                                                                                               | Thất bại nếu tạo mới function instance làm vỡ shallow equality của `React.memo(SidebarItem)`, hoặc test case đối chứng thất bại (chứng tỏ test bị tautological).                                                                                                                                                                     |
+| **TC-PERF-02** | SidebarItem Icons      | `SidebarItem` sử dụng 100% icon từ `lucide-react`, không dùng inline hand-rolled SVG; kiểm tra class thật qua Radix portal/inline (MINOR-R2-2).                                                                                | Render `SidebarItem`, mở menu dropdown bằng pointerdown/mock inline.                                                                                                                                                                                                                                  | DOM chứa icon Lucide với class thật: `lucide-ellipsis-vertical`, `lucide-trash-2`, `lucide-pencil`, `lucide-download`. Số lượng SVG không có class `lucide` bằng 0.                                                                                                                                                                                               | Thất bại nếu phát hiện inline `<svg>` tự vẽ không thông qua thư viện `lucide-react`, hoặc dùng sai class phỏng đoán (như `lucide-more-vertical`), hoặc kiểm tra sót portal icon.                                                                                                                                                     |
+| **TC-IMG-01**  | Image Gen Templates    | Toàn bộ 18 templates trong `IMAGE_TEMPLATES` tuân thủ đúng schema song ngữ; kiểm tra ID 6 templates đầu tiên.                                                                                                                  | `IMAGE_TEMPLATES` array                                                                                                                                                                                                                                                                               | `length === 18`, mỗi phần tử có song ngữ `name.en`/`vi` và `description.en`/`vi`. 6 templates đầu tiên có ID chính xác: `["anime", "cinematic", "clay", "neon", "headshot", "watercolor"]`.                                                                                                                                                                       | Thất bại nếu thiếu template, thiếu bản dịch tiếng Việt, hoặc sai thứ tự ID của 6 templates hiển thị mặc định ban đầu.                                                                                                                                                                                                                |
+| **TC-IMG-02**  | Image Gen Styles       | `STYLE_PROMPTS` định nghĩa đầy đủ 18 styles; kiểm tra `getStyleInstruction`; kiểm tra chéo không có orphan styles.                                                                                                             | `STYLE_PROMPTS` object và mảng `IMAGE_TEMPLATES`.                                                                                                                                                                                                                                                     | Chứa đủ 18 styles (gồm `art-nouveau`), `instruction.length > 50`, `shortAppend.length > 0`. `getStyleInstruction` trả về đúng config cho id hợp lệ, trả về `undefined` cho `"none"`, `""`, id lạ. Mọi `template.style` đều có trong `STYLE_PROMPTS`.                                                                                                              | Thất bại nếu thiếu bất kỳ style nào (đặc biệt `art-nouveau`), `getStyleInstruction` xử lý sai edge cases, hoặc phát hiện orphan style từ templates.                                                                                                                                                                                  |
+| **TC-IMG-03**  | Image Gen Factory      | `ImageGenFactory.getProvider` hỗ trợ alias `"gemini-native"`, duy trì singleton identity, và ném lỗi có kiểm soát khi sai ID.                                                                                                  | ID: `"gemini"`, `"gemini-native"`, `"replicate"`, `"openai"`, `"invalid"`.                                                                                                                                                                                                                            | `"gemini"` và `"gemini-native"` cùng trả về `GeminiNativeImageProvider`. `getProvider("gemini") === getProvider("gemini")` (`toBe`). Ném Error `"Image Provider 'invalid' not supported"`.                                                                                                                                                                        | Thất bại nếu không hỗ trợ alias `"gemini-native"`, tạo instance mới thay vì singleton cache, hoặc không ném lỗi khi gặp ID lạ.                                                                                                                                                                                                       |
 
 ---
 
@@ -682,10 +864,12 @@ Tra cứu trực tuyến và đối soát dependencies thực tế của dự á
 
 #### 8.1. Danh Sách File Test Co-located (_.test.ts, _.test.tsx):
 
-- `src/lib/utils/translations/index.test.ts` (Co-located bên cạnh `index.ts`):
-  - Test 100% key parity giữa `vi` và `en`.
+- `src/lib/utils/translations/index.test.ts` (Co-located bên cạnh `index.ts` - MAJOR-7, MINOR-R3-3, MINOR-R4-1, MINOR-R4-2):
+  - Thống nhất import trực tiếp từ `./vi` và `./en`: `import { vi as viDict } from "./vi";` và `import { en as enDict } from "./en";` để tránh shadow `vi` của Vitest và tránh lỗi `tsc` do `index.ts` không re-export `vi`/`en` (MINOR-R4-1).
+  - Test 100% key parity giữa `viDict` và `enDict`.
   - Test không có giá trị rỗng trong cả hai từ điển.
   - Test xuất đúng `translations.vi`, `translations.en`, và các type exports `TranslationKey`, `TranslationSet`, `Translations`.
+  - **Test Case duyệt toàn bộ Referenced Keys (MAJOR-7, MINOR-R3-3, MINOR-R4-2)**: Duyệt danh sách toàn bộ các translation keys được tham chiếu trong các UI components (`Sidebar`, `SidebarItem`, `IconPicker`, `HeaderBar`, `PersonaEditor`, `UserManager`, `KnowledgePanel`, `ToastContainer`) với mảng `const referencedKeys: readonly TranslationKey[] = [...] as const` để compiler `tsc` bắt lỗi compile-time (`TS2322` - MINOR-R4-2), và assert 100% keys này tồn tại và không rỗng trong cả `viDict` và `enDict`.
 - `src/lib/features/image-gen/templates.test.ts` (Co-located bên cạnh `templates.ts`):
   - Test danh sách 18 templates, kiểm tra các trường bắt buộc và định dạng song ngữ.
   - Test khẳng định chính xác ID của 6 templates hiển thị mặc định: `["anime", "cinematic", "clay", "neon", "headshot", "watercolor"]`.
@@ -697,19 +881,26 @@ Tra cứu trực tuyến và đối soát dependencies thực tế của dự á
   - Test khởi tạo provider Gemini Native (với cả 2 ID `"gemini"` và alias `"gemini-native"`), Replicate, OpenAI.
   - Test Singleton Identity: `expect(ImageGenFactory.getProvider("gemini")).toBe(ImageGenFactory.getProvider("gemini"))`.
   - Test kịch bản lỗi khi truyền provider ID không hợp lệ: ném `Error("Image Provider '...' not supported")`.
-- `src/components/ui/IconPicker.test.tsx` (Co-located bên cạnh `IconPicker.tsx`):
-  - Test semantic button trigger, padding `pr-14` khi có value, mở Popover, chọn icon, trạng thái disabled, và ARIA attributes.
-  - Test nút Clear icon là button sibling độc lập: click gọi `onSelect("")`, ngăn chặn bubbling (`stopPropagation`, `preventDefault`).
-- `src/app/features/sidebar/components/SidebarItem.test.tsx` (Co-located bên cạnh `SidebarItem.tsx`):
+- `src/components/ui/IconPicker.test.tsx` (Co-located bên cạnh `IconPicker.tsx` - MINOR-R2-5, MINOR-R3-4):
+  - Test semantic button trigger, nhận và áp dụng `className` trên trigger, padding `pr-14` khi có value, mở Popover, chọn icon, trạng thái disabled, và ARIA attributes.
+  - Test nút Clear icon là button sibling độc lập đặt tại `absolute right-8 top-1/2 -translate-y-1/2`: click gọi `onSelect("")`, ngăn chặn bubbling (`stopPropagation`, `preventDefault`).
+- `src/app/features/sidebar/components/SidebarItem.test.tsx` (Co-located bên cạnh `SidebarItem.tsx` - MAJOR-5, MINOR-R2-2):
   - Test render title, trạng thái active/deleting, gọi callback `onSelect`, mở Dropdown Rename/Delete/Export.
+  - Test mở dropdown qua mock inline hoặc `fireEvent.pointerDown` / keyboard trên DOM thật.
   - Test class name thật của `lucide-react@0.562`: `lucide-ellipsis-vertical`, `lucide-trash-2`, `lucide-loader-circle`, `lucide-pencil`, `lucide-download`.
-  - Assert số lượng inline `<svg>` không chứa class `lucide` bằng 0.
-- `src/app/features/sidebar/components/Sidebar.test.tsx` (Co-located bên cạnh `Sidebar.tsx`):
+  - Assert số lượng inline `<svg>` không chứa class `lucide` bằng 0 (`(document.body ?? container).querySelectorAll("svg:not(.lucide)").length === 0`).
+- `src/app/features/sidebar/components/Sidebar.test.tsx` (Co-located bên cạnh `Sidebar.tsx` - MINOR-R4-5):
   - Cập nhật test suite xác thực `Sidebar` hoạt động độc lập không cần prop `t`.
   - Test Reference Stability (TC-PERF-01) qua spy component của `SidebarItem`: test case thuận (prop không liên quan đổi -> callbacks giữ nguyên `toBe`) và test case nghịch đối chứng (thay đổi `onSelectConversation` -> callback đổi `not.toBe`).
+  - **Test i18n & Proper Props (MINOR-R4-5)**: Truyền `session={{ user: { rank: "admin", email: "admin@example.com" } }}` để assert nhãn "Quản lý hệ thống", truyền `mobileOpen={true}` và assert bằng `expect(screen.getByLabelText("Đóng thanh bên")).toBeInTheDocument()`.
   - Thiết lập và reset store ngôn ngữ `useLanguageStore` trong `beforeEach`/`afterEach`.
-- `src/app/features/layout/HeaderBar.test.tsx` (Co-located bên cạnh `HeaderBar.tsx`):
-  - Cập nhật test suite xác thực nhãn "Theme" được lấy qua hook `useLanguage()`.
+- `src/app/features/layout/HeaderBar.test.tsx` (Co-located bên cạnh `HeaderBar.tsx` - MAJOR-9, MAJOR-10, MINOR-R2-4):
+  - Sửa mock `useLanguage` dùng module alias tuyệt đối `@/app/features/chat/hooks/useLanguage`.
+  - Sửa mock `theme-config` dùng `ThemeGroup` hợp lệ `group: "Focus"`.
+  - Cập nhật mock `translations` dictionary với `themeFocus: "Tập trung"`, `themeGlassmorphism`, `themeRa2`, và `theme`.
+  - Assert `expect(screen.getAllByText("Tập trung")).toHaveLength(2);` để kiểm tra nhãn nhóm theme đã dịch ở cả desktop :165 và mobile :239 (MAJOR-10).
+  - Bổ sung test case đối chứng với theme có group không có trong map (ví dụ `group: "Custom"`) -> assert `expect(screen.getAllByText("Custom")).toHaveLength(2);` kiểm tra nhánh fallback nguyên văn ở cả 2 vị trí (MAJOR-10).
+  - Thay thế assertion `getAllByText("VN")` bằng assertion kiểm tra ngôn ngữ thực sự: `expect(screen.getByLabelText("Chọn giao diện")).toBeInTheDocument()`.
   - Assert không còn bất kỳ phần tử nào chứa class cũ `focus:ring-opacity-50`.
 
 #### 8.2. Lệnh Chạy Kiểm Thử & Kiểm Soát Chất Lượng (Verification Commands):
@@ -735,16 +926,19 @@ Thực thi theo quy chuẩn tại Windows Terminal (PowerShell 5.1 - `.agents/ru
 
 ---
 
-### 9. Rủi Ro Tiềm Ẩn & Phương Án Phòng Ngừa (Technical Controls - MAJOR-4, MINOR-4)
+### 9. Rủi Ro Tiềm Ẩn & Phương Án Phòng Ngừa (Technical Controls - MAJOR-4, MAJOR-7, MAJOR-8, MAJOR-9, MINOR-4, MINOR-R3-4)
 
-| STT | Rủi Ro Kỹ Thuật Tiềm Ẩn                                                                            | Mức Độ      | Nguyên Nhân Kỹ Thuật                                                                                                           | Phương Án Phòng Ngừa & Technical Control Trong Code                                                                                                                                                                                                                   |
-| :-- | :------------------------------------------------------------------------------------------------- | :---------- | :----------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **Trùng key hoặc lệch translation keys giữa `vi.ts` và `en.ts` khi thêm keys mới (MAJOR-1)**       | `[BLOCKER]` | Khai báo lại key đã có (`newProject`, `rankChangeConfirm`, `rankChangeDesc`) gây lỗi `TS1117`, hoặc thêm lệch key giữa 2 file. | Technical Control: Quy tắc kiểm tra key chưa tồn tại trước khi thêm; compiler `TS1117` và biểu thức type assertion hai chiều trong `index.ts` kết hợp `index.test.ts` sẽ làm fail `tsc` và `vitest` ngay lập tức nếu trùng hoặc lệch dù chỉ 1 key.                    |
-| 2   | **Vỡ vòng lặp re-render hoặc conditional hook crash trong `Sidebar` (MAJOR-3, MAJOR-4)**           | `[MAJOR]`   | Bọc `useCallback` trong render helper function có điều kiện (`renderSidebarContent`), hoặc sai dependency array.               | Technical Control: Hoist `handleNavigation` lên thân component; ghi nhận `eslint.config.mjs` chưa nạp `react-hooks`; sử dụng test hành vi reference stability (TC-PERF-01) với cả case thuận (`toBe`) lẫn case nghịch đối chứng (`not.toBe`) để kiểm soát chất lượng. |
-| 3   | **Nút Clear icon trong `IconPicker.tsx` kích hoạt mở Popover ngoài ý muốn hoặc đè text (MINOR-3)** | `[MAJOR]`   | Do PopoverTrigger bắt event bubbling từ các phần tử con, và vị trí absolute che mất label text.                                | Technical Control: Thêm lớp `pr-14` cho nút trigger khi có `value`; tách nút Clear thành button độc lập (sibling) bên ngoài `PopoverTrigger`, gọi đồng thời `e.stopPropagation()` và `e.preventDefault()`.                                                            |
-| 4   | **Xóa prop `t` gây lỗi type error tại các component cha gọi `<Sidebar>` (MINOR-4)**                | `[MAJOR]`   | Cha vẫn truyền `t={...}` trong khi `SidebarProps` đã gỡ bỏ trường `t`.                                                         | Technical Control: Dùng Grep tool quét `<Sidebar` và loại bỏ prop `t` tại tất cả 3 điểm gọi (`ChatApp`, `GalleryView`, `DescribeImageView`). Trình biên dịch `tsc` (excess JSX property check) là chốt chặn tự động.                                                  |
-| 5   | **Dead classes trong `KnowledgePanel.tsx` và `HeaderBar.tsx` trên Tailwind CSS v4 (MINOR-9)**      | `[MINOR]`   | Sử dụng các class quy ước v3 như `bg-primary`, `border-border`, `focus:ring-opacity-50`.                                       | Technical Control: Thay thế 100% bằng arbitrary token classes `bg-(--accent)`, `border-(--border)`, `focus-visible:ring-2 focus-visible:ring-(--ring)`.                                                                                                               |
-| 6   | **Ghi đè làm mất 30 file chưa commit của Phase 3 trong working tree**                              | `[BLOCKER]` | Executor dùng `git checkout`, `git reset`, hoặc ghi đè toàn bộ file thay vì áp dụng diff cục bộ.                               | Technical Control: Cảnh báo bắt buộc tại Mục 2 Pre-Work; Executor chỉ áp dụng sửa đổi cục bộ (targeted diff) trên các file chung (`Sidebar.tsx`, `HeaderBar.tsx`, `vi.ts`, `en.ts`), kiểm tra `git status` trước và sau mỗi bước.                                     |
+| STT | Rủi Ro Kỹ Thuật Tiềm Ẩn                                                                                                                                  | Mức Độ      | Nguyên Nhân Kỹ Thuật                                                                                                                                                                                                                                                                       | Phương Án Phòng Ngừa & Technical Control Trong Code                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| :-- | :------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Trùng key hoặc lệch translation keys giữa `vi.ts` và `en.ts` khi thêm keys mới (MAJOR-1)**                                                             | `[BLOCKER]` | Khai báo lại key đã có (`newProject`, `rankChangeConfirm`, `rankChangeDesc`) gây lỗi `TS1117`, hoặc thêm lệch key giữa 2 file.                                                                                                                                                             | Technical Control: Quy tắc kiểm tra key chưa tồn tại trước khi thêm; compiler `TS1117` và biểu thức type assertion hai chiều trong `index.ts` kết hợp `index.test.ts` sẽ làm fail `tsc` và `vitest` ngay lập tức nếu trùng hoặc lệch dù chỉ 1 key.                                                                                                                                                                                                                   |
+| 2   | **Vỡ vòng lặp re-render hoặc conditional hook crash trong `Sidebar` (MAJOR-3, MAJOR-4)**                                                                 | `[MAJOR]`   | Bọc `useCallback` trong render helper function có điều kiện (`renderSidebarContent`), hoặc sai dependency array.                                                                                                                                                                           | Technical Control: Hoist `handleNavigation` lên thân component; ghi nhận `eslint.config.mjs` chưa nạp `react-hooks`; sử dụng test hành vi reference stability (TC-PERF-01) với cả case thuận (`toBe`) lẫn case nghịch đối chứng (`not.toBe`) để kiểm soát chất lượng.                                                                                                                                                                                                |
+| 3   | **Nút Clear icon trong `IconPicker.tsx` kích hoạt mở Popover ngoài ý muốn hoặc đè text (MINOR-3)**                                                       | `[MAJOR]`   | Do PopoverTrigger bắt event bubbling từ các phần tử con, và vị trí absolute che mất label text.                                                                                                                                                                                            | Technical Control: Thêm lớp `pr-14` cho nút trigger khi có `value`; giữ `className` trên trigger button; tách nút Clear thành button độc lập đặt tại `absolute right-8 top-1/2 -translate-y-1/2`, gọi đồng thời `e.stopPropagation()` và `e.preventDefault()`.                                                                                                                                                                                                       |
+| 4   | **Xóa prop `t` gây lỗi type error tại các component cha gọi `<Sidebar>` (MINOR-4)**                                                                      | `[MAJOR]`   | Cha vẫn truyền `t={...}` trong khi `SidebarProps` đã gỡ bỏ trường `t`.                                                                                                                                                                                                                     | Technical Control: Dùng Grep tool quét `<Sidebar` và loại bỏ prop `t` tại tất cả 3 điểm gọi (`ChatApp`, `GalleryView`, `DescribeImageView`). Trình biên dịch `tsc` (excess JSX property check) là chốt chặn tự động.                                                                                                                                                                                                                                                 |
+| 5   | **Dead classes trong `KnowledgePanel.tsx` và `HeaderBar.tsx` trên Tailwind CSS v4 (MINOR-9)**                                                            | `[MINOR]`   | Sử dụng các class quy ước v3 như `bg-primary`, `border-border`, `focus:ring-opacity-50`.                                                                                                                                                                                                   | Technical Control: Thay thế 100% bằng arbitrary token classes `bg-(--accent)`, `border-(--border)`, `focus-visible:ring-2 focus-visible:ring-(--ring)`.                                                                                                                                                                                                                                                                                                              |
+| 6   | **Rủi ro xung đột hoặc ghi đè mất mã nguồn khi triển khai (MINOR-R3-4)**                                                                                 | `[BLOCKER]` | Executor dùng `git checkout`, `git reset`, hoặc ghi đè toàn bộ file thay vì áp dụng diff cục bộ.                                                                                                                                                                                           | Technical Control: Toàn bộ Phase 3 đã được commit an toàn tại `a886251`, working tree hiện sạch sẽ. Executor chỉ áp dụng sửa đổi cục bộ (targeted diff) trên các file chỉ định, kiểm tra `git status` trước và sau mỗi bước.                                                                                                                                                                                                                                         |
+| 7   | **Tham chiếu translation key chưa tồn tại trong từ điển (MAJOR-7)**                                                                                      | `[MAJOR]`   | Key bị thiếu đồng thời ở cả `vi.ts` và `en.ts` (`adminManagement`) nên parity check hai chiều vẫn pass; `t()` nhận `key: string` nên `tsc` không bắt lỗi.                                                                                                                                  | Technical Control: Bổ sung test case tự động duyệt danh sách 100% referenced keys trong `index.test.ts` với `readonly TranslationKey[]`, assert mọi key tham chiếu đều tồn tại và không rỗng trong cả `vi.ts` và `en.ts`.                                                                                                                                                                                                                                            |
+| 8   | **Mất type annotation `PersonaTone` gây lỗi biên dịch TS2345 (MAJOR-8)**                                                                                 | `[MAJOR]`   | `getToneOptions` trả về mảng có `value` bị suy diễn thành `string`, không tương thích với `useState<PersonaTone>`.                                                                                                                                                                         | Technical Control: Khai báo tường minh kiểu trả về `{ value: PersonaTone; label: string; description: string }[]` và bọc trong `useMemo(() => getToneOptions(t), [t])`; kiểm soát tự động bằng `npm run type-check`.                                                                                                                                                                                                                                                 |
+| 9   | **Mock sai module path, sai kiểu dữ liệu ThemeGroup, hoặc assertion getByText bị fail multiple elements trong `HeaderBar.test.tsx` (MAJOR-9, MAJOR-10)** | `[MAJOR]`   | Đường dẫn tương đối `../../chat/hooks/useLanguage` không tồn tại từ `layout/` khiến Vitest gọi file thật; mock group `"Cool"` không hợp lệ; `HeaderBar` render `{group}` ở cả 2 vị trí :165 (desktop) và :239 (mobile) trong cùng DOM khiến `getByText` ném lỗi "Found multiple elements". | Technical Control: Dùng module alias tuyệt đối `@/app/features/chat/hooks/useLanguage`; mock `ThemeGroup` hợp lệ `group: "Focus"`; áp dụng `THEME_GROUP_LABELS` tại cả `HeaderBar.tsx:165` và `:239`; assert `expect(screen.getAllByText("Tập trung")).toHaveLength(2);`; test case đối chứng với group lạ `"Custom"` assert `expect(screen.getAllByText("Custom")).toHaveLength(2);`; assert `expect(screen.getByLabelText("Chọn giao diện")).toBeInTheDocument()`. |
 
 ---
 
@@ -913,3 +1107,238 @@ Kết cục: Nút hiển thị "adminManagement" ở cả vi/en — không contr
 1. Thêm `adminManagement` (hoặc chuyển sang `adminDashboard`) và bổ sung bước/test kiểm chứng mọi key `t("…")` được tham chiếu trong các file sửa đều tồn tại trong `en`/`vi`.
 2. Sửa snippet `getToneOptions` giữ kiểu `value: PersonaTone`.
 3. (Khuyến nghị) Xử lý MINOR-R2-1 … R2-5.
+
+### Audit Run 3
+
+- **Reviewer**: Claude Code CLI (Claude Opus 5.5 — `claude-opus-5-5[1m]`)
+- **Ngày**: 2026-10-11
+- **Đối tượng**: Technical Plan — Revision 3
+- **Baseline**: `[CMD]` `npm run type-check` → exit 0. Working tree chỉ còn file plan này đang sửa — các thay đổi Phase 3 đã được commit tại `a886251`, nên cảnh báo "30 files chưa commit" ở Mục 2 / Risk #6 đã lỗi thời (vô hại, xem MINOR-R3-4). Mọi probe đều chạy trong thư mục tạm và đã được xóa sau khi chạy.
+
+#### Kiểm chứng lỗi cũ (Audit Run 2)
+
+| Lỗi Run 2                                                                                                         | Trạng thái                                            | Bằng chứng                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| :---------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MAJOR-7 — `adminManagement` được tham chiếu nhưng không tồn tại; không có control nào bắt key thiếu ở cả hai file | **ĐÃ SỬA**                                            | `[CMD]` Probe `npx tsx` trên `vi`/`en` thật: 48 key đề xuất ở Bước 1.1 → `proposed already in vi: []`; ở `en` chỉ trùng 3 key có chủ đích (`language`/`themes`/`loadingConfigs`) → không có nguy cơ `TS1117`. Toàn bộ 57 key trong danh sách Bước 7.1 → `missing after plan: []`. Mọi key hiện có mà Bước 2.1 sẽ chuyển cơ học (`exploreGems`, `managePersonas`, `describeTitle`, `newChat`, `projects`, `yourChats`, `noConversations`, `deleteAll`, `appName`, `signOut`) đều có trong cả `vi`/`en` → không còn trường hợp hiển thị key thô. `[SRC]` `Sidebar.tsx:498,510` đúng vị trí plan nêu. |
+| MAJOR-8 — Snippet `getToneOptions` làm vỡ `type-check` (TS2345)                                                   | **ĐÃ SỬA**                                            | `[CMD]` Biên dịch nguyên văn snippet Bước 6.6 với `PersonaTone` thật (`src/types/persona.ts:18-26`) + `useState<PersonaTone>` + `useMemo(() => getToneOptions(t), [t])` → exit 0. Negative probe (`value: "attorney"`) → `TS2322: Type '"attorney"' is not assignable to type 'PersonaTone'` (exit 2). `[SRC]` `PersonaEditor.tsx:3` đã import `useMemo`; `TONE_OPTIONS` chỉ được dùng tại `:153` (grep toàn `src/`).                                                                                                                                                                              |
+| MINOR-R2-1 — Chuỗi hardcoded còn sót                                                                              | ĐÃ SỬA MỘT PHẦN                                       | `navigation`/`expand`/`collapse`/`adminManagement`/`signOut`/`close` đã có bước thay thế. Vẫn còn sót (xem MINOR-R3-1).                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| MINOR-R2-2 — Chiến lược mở dropdown trong `SidebarItem.test.tsx`                                                  | ĐÃ SỬA                                                | 7.6 đưa ra 2 phương án (mock Radix inline / `pointerDown` + `document.body`). `[SRC]` `SidebarItem.tsx:160` dùng `DropdownMenu.Portal` → assertion trên `document.body` là đúng.                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| MINOR-R2-3 — Phạm vi memoization                                                                                  | ĐÃ SỬA                                                | Goal 3 và Mục 3.3 ghi rõ chỉ bảo vệ `SidebarItem`; `SidebarButton`/`ProjectNode` chấp nhận inline arrow.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| MINOR-R2-4 — Mapping `Record<ThemeGroup, TranslationKey>`                                                         | **ĐÃ SỬA (code) — test KHÔNG HIỆU LỰC (xem MAJOR-9)** | `[CMD]` Probe snippet Bước 6.4 → exit 0; xóa entry `"Red Alert 2"` → `TS2741` (exit 2); đổi sang key không tồn tại `"themeFocusX"` → `TS2820` (exit 2). Compiler control hoạt động thật. Nhưng phần test ở Bước 7.8 dựa trên một mock không được áp dụng.                                                                                                                                                                                                                                                                                                                                          |
+| MINOR-R2-5 — `className` trên trigger IconPicker                                                                  | ĐÃ SỬA                                                | Snippet 5.3 giữ `className` trên `<button>` trigger, `pr-14` đặt sau nên thắng khi gặp `tailwind-merge`. `[SRC]` Hai caller (`GemEditor.tsx:120`, `PersonaEditor.tsx:124`) không bị ảnh hưởng.                                                                                                                                                                                                                                                                                                                                                                                                     |
+
+#### Xác minh bổ sung các khẳng định của Revision 3
+
+| Khẳng định                                                                                                          | Kết quả | Bằng chứng                                                                                                                                                                                                                                                                         |
+| :------------------------------------------------------------------------------------------------------------------ | :------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.ts` mới (kiểu hẹp + parity hai chiều) biên dịch được với dictionary sau khi áp dụng Bước 1.1/1.2             | ĐÚNG    | `[CMD]` Bản sao `vi.ts`/`en.ts` có ghép nguyên văn các khối code của plan (dòng 268-270, 274-325, 329-380) + `index.ts` của Bước 1.3 → `tsc` exit 0. Xóa `icon` khỏi bản sao `vi` → `TS2322 … missingInVi: "icon"` (exit 2).                                                       |
+| `t` ổn định tham chiếu → deps `[t]` của `renameFallback`/`deleteFallback` không phá TC-PERF-01                      | ĐÚNG    | `[SRC]` `useLanguage.ts:15-31`: `dict` = `useMemo([language])`, `t` = `useCallback([dict])` → `t` chỉ đổi khi đổi ngôn ngữ (lúc đó re-render các item là đúng).                                                                                                                    |
+| Chỉ `ChatApp.tsx:732` truyền `t` vào `<Sidebar>`                                                                    | ĐÚNG    | `[CMD]` Grep `t={`: các vị trí `ChatApp.tsx:918` (`<ChatDeepResearch>`) và `:1081` (`<ChatModalsSection>`) không phải Sidebar → plan đúng khi chỉ xóa dòng 732.                                                                                                                    |
+| TC-PERF-01 Case 1 ("đổi session dummy") khả thi                                                                     | ĐÚNG    | `[SRC]` `SidebarProps` có `session?: { user?, expires? }`; `Sidebar.tsx:457-459` truyền thẳng `handleSelect/handleRename/handleDelete` vào `SidebarItem` (memo tại `SidebarItem.tsx:203`). `Sidebar.test.tsx` không mock `useLanguage` → TC-I18N-02 dùng `vi.ts` thật như yêu cầu. |
+| `HeaderBar.test.tsx` mock `useLanguage` → cập nhật dictionary mock sẽ kiểm tra được nhãn tiếng Việt (Bước 7.8, 3.6) | **SAI** | Xem MAJOR-9.                                                                                                                                                                                                                                                                       |
+
+#### Mental Simulation Matrix (S1–S6)
+
+| Kịch bản                                     | Kết quả           | Bằng chứng & Phân tích                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| :------------------------------------------- | :---------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **S1: Cold-start & Build**                   | PASS              | `[CMD]` Baseline `type-check` exit 0. `[CMD]` Toàn bộ snippet type-level của Revision 3 (Bước 1.1–1.3, 6.4, 6.6) biên dịch được (exit 0) và có negative probe chứng minh control bắt lỗi (parity, ThemeGroup thiếu entry, key sai, PersonaTone sai). Không thêm dependency hay env var mới; không có Prisma/Better Auth. `[SRC]` `theme-config.ts:1` import `TranslationKey` từ `config.ts` re-export — vẫn tương thích khi chuyển sang `keyof typeof en` (16/16 `labelKey` hợp lệ, đã xác minh ở Run 1).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| **S2: Lifecycle, Teardown & Test Isolation** | **FAIL**          | Không có SSE/EventSource/AudioContext mới; `useLanguageStore` được reset trong `beforeEach/afterEach` (7.7). **Nhưng** `[CMD]` probe trên `HeaderBar.test.tsx`: mock `vi.mock("../../chat/hooks/useLanguage")` được resolve tương đối từ `src/app/features/layout/` → `src/app/chat/hooks/useLanguage` (không tồn tại; `ls` → `No such file or directory`), trong khi component import `src/app/features/chat/hooks/useLanguage`. Aria-label thực tế render ra là `["Open sidebar","Select Language","Select Theme","Settings"]` (dictionary `en` thật), không phải `"Mở thanh bên"`/`"Chọn giao diện"` của mock → **mock vô hiệu**. Assertion hiện tại `getAllByText("VN")` pass bất kể ngôn ngữ vì `HeaderBar.tsx:126` render cả `"VN"` lẫn `"EN"` trong menu (mock dropdown inline) → test mang tính tautological. Ngoài ra mock `theme-config` (`HeaderBar.test.tsx:48-50`) dùng `group: "Cool"`, không thuộc `ThemeGroup` → nhánh `THEME_GROUP_LABELS[...]` không bao giờ được chạy trong test (MAJOR-9). |
+| **S3: Database & Temporal Logic**            | N/A               | Không chạm Supabase/migration/RLS/dữ liệu thời gian.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **S4: Cross-Task State Flow**                | PASS (có ghi chú) | `[SRC]` `useLanguage.ts:19-31` → `t` ổn định; deps của các `useCallback` ở Bước 3.1 đầy đủ và tối giản. `[ADV]` timeline bên dưới. `handleNavigation` được hoist lên thân component → không có conditional hook. Ghi chú: `ToastContainer.tsx` hiện **không** import `useLanguage` và nút dismiss nằm trong sub-component `ToastItem` (`:40-60`) — Bước 6.2 chưa nêu bước import và gọi hook trong `ToastItem` (MINOR-R3-2; `tsc` sẽ bắt nếu thiếu).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **S5: Security Boundary**                    | PASS              | `[SRC]` Không có API route, auth, RLS hay rate-limit mới; không import `*.server.ts` vào client. `UserManager.tsx` chỉ đổi chuỗi hiển thị phía client.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **S6: External Resilience**                  | N/A / PASS        | Không gọi AI provider. Test `ImageGenFactory` chỉ khởi tạo provider (constructor lazy — đã xác minh ở Run 1), không phát sinh network call.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+
+**Adversarial Timeline (S4 — reference stability khi đang stream):**
+
+```
+Cơ chế: useCallback(handleSelect/handleRename/handleDelete) + React.memo(SidebarItem)
+T1: ChatApp re-render theo từng token stream → Sidebar re-render với cùng onSelectChat/onRenameChat/onDeleteChat (đã memo tại ChatApp.tsx:724-745)
+T2: language không đổi → dict/t giữ nguyên (useLanguage.ts:15-31) → renameFallback/deleteFallback giữ nguyên → handleRename/handleDelete giữ nguyên
+T3: React.memo so shallow các props của SidebarItem → bằng nhau
+Kết cục: SidebarItem không re-render theo token → AN TOÀN. Khi người dùng đổi ngôn ngữ, t đổi → toàn bộ item re-render (hành vi mong muốn).
+```
+
+**Adversarial Timeline (S2 — test HeaderBar dùng mock không có hiệu lực):**
+
+```
+Cơ chế: Bước 7.8 — thêm themeFocus: "Tập trung" vào dictionary mock của HeaderBar.test.tsx và assert nhãn tiếng Việt
+T1: Executor thêm key vào mock (đặt ở đường dẫn không tồn tại "../../chat/hooks/useLanguage") rồi assert getByText("Tập trung")
+T2: HeaderBar dùng useLanguage thật, store mặc định "en"; mock theme-config chỉ có group "Cool" → render "Cool"
+T3: Assertion fail; vì chỉ dẫn của plan "cập nhật mock dictionary" không chạm tới nguyên nhân gốc, cách "sửa" dễ nhất là hạ assertion về getAllByText("VN") / chuỗi tiếng Anh
+Kết cục: Mapping THEME_GROUP_LABELS không có test nào thực sự chạy qua; test pass nhưng không kiểm chứng gì → LỖI (MAJOR, Test Contract dựa trên tiền đề sai)
+```
+
+#### Phân loại lỗi
+
+**[MAJOR]**
+
+9. **MAJOR-9 — Mock `useLanguage` trong `HeaderBar.test.tsx` không có hiệu lực; Bước 7.8 / Mục 3.6 dựa trên tiền đề sai.** Đã chứng minh `[CMD]`: label render ra là tiếng Anh từ dictionary thật; `src/app/chat/hooks` không tồn tại; mock `theme-config` dùng group không hợp lệ `"Cool"`. **Yêu cầu** (đã kiểm chứng bằng probe, 5/5 test pass sau khi sửa):
+   - (a) Đổi đường dẫn mock thành `vi.mock("@/app/features/chat/hooks/useLanguage", …)` (cùng module id với import `../../chat/hooks/useLanguage` của component). `[CMD]` sau khi đổi: aria-label chứa `"Chọn giao diện"`.
+   - (b) Đổi mock `theme-config` sang group hợp lệ (vd. `group: "Focus"`) và thêm `themeFocus: "Tập trung"` vào dictionary mock; assert `getByText("Tập trung")` cho nhãn nhóm. Thêm một case đối chứng (group không có trong map → render nguyên văn `group`) để chạy cả hai nhánh của biểu thức Bước 6.4.
+   - (c) Thay assertion `getAllByText("VN")` (không phân biệt được ngôn ngữ) bằng một assertion phân biệt được, vd. `getByLabelText("Chọn giao diện")`.
+   - Bổ sung các điểm trên vào Bước 7.8 và mục 8.1 tương ứng.
+
+**[MINOR]**
+
+- **MINOR-R3-1** — Còn chuỗi hardcoded / key thêm mới nhưng chưa có bước thay thế: `Sidebar.tsx:595` `aria-label="Close sidebar"` (đã thêm key `closeSidebar`), `Sidebar.tsx:448` `"Start a new chat to begin"` (`startChatHint`), `noProjects`/`createProjectHint` (không có call site nào được chỉ định), `ProjectNode.tsx` (`"Collapse project"`, `"Expand project"`, `"Conversation options"`), `IconPicker.tsx:145,173` (`"Icons"`, `"Emojis"`), `ToastContainer.tsx:14` (`aria-label="Notifications"`). Nên liệt kê thêm vào Bước 2.1/6.x, hoặc hạ chữ "toàn bộ" trong Goal 1.
+- **MINOR-R3-2** — Bước 6.2 (`ToastContainer.tsx`): bổ sung `import { useLanguage } from "@/app/features/chat/hooks/useLanguage"` và gọi hook bên trong `ToastItem`. Đổi `"Dismiss notification"` → `t("close")` ("Đóng") làm mất ngữ cảnh cho screen reader; nên dùng key mới kiểu `dismissNotification`.
+- **MINOR-R3-3** — `index.test.ts` (7.1): `globals: true` (`vitest.config`) cung cấp `vi` toàn cục, nên import `{ vi } from "./vi"` sẽ che (shadow) nó → nên đặt alias (`import { vi as viDict }`). Đặt kiểu cho mảng key tham chiếu là `readonly TranslationKey[]` để `tsc` cũng bắt key sai (`vi[key]` với `key: string` sẽ gặp `TS7053` dưới strict). Danh sách là thủ công nên không tự động phủ các lần gọi `t()` mới — chấp nhận được cho phase này.
+- **MINOR-R3-4** — Cảnh báo "30 files chưa commit" (Mục 2, Risk #6) đã lỗi thời từ commit `a886251`; có thể cập nhật lại cho chính xác. Nút Clear `absolute right-8` không có `top-1/2 -translate-y-1/2` — vẫn được căn giữa nhờ static position trong flex `items-center`, nhưng khai báo tường minh sẽ an toàn hơn.
+
+#### Kết luận
+
+**[CHANGES_REQUESTED]** — Cả 2 lỗi `[MAJOR]` của Run 2 (MAJOR-7, MAJOR-8) đã được khắc phục và kiểm chứng bằng `[CMD]` với cả probe dương lẫn negative probe. Tất cả control dạng type-level mới (parity, `Record<ThemeGroup, TranslationKey>`, `PersonaTone`) đều hoạt động thật. Còn 1 lỗi `[MAJOR]` mới (MAJOR-9): kế hoạch test cho HeaderBar dựa trên một mock không có hiệu lực, nên mapping nhóm theme sẽ không được test nào kiểm chứng. Không có `[BLOCKER]`.
+
+**Việc cần làm cho Revision 4:**
+
+1. Bước 7.8 / 8.1: sửa đường dẫn mock `useLanguage` sang `@/app/features/chat/hooks/useLanguage`, đổi mock `theme-config` sang `ThemeGroup` hợp lệ, assert nhãn nhóm đã dịch (+ case đối chứng), và thay assertion `"VN"` bằng một assertion phân biệt được ngôn ngữ.
+2. (Khuyến nghị) Xử lý MINOR-R3-1 … R3-4.
+
+### Audit Run 4
+
+- **Reviewer**: Claude Code CLI (Claude Opus 5.5 — `claude-opus-5-5[1m]`)
+- **Ngày**: 2026-10-11
+- **Đối tượng**: Technical Plan — Revision 4
+- **Baseline**: `[CMD]` `npm run type-check` → exit 0. Working tree chỉ có file plan này và `tsconfig.tsbuildinfo` (artefact build). Mọi probe chạy trên bản sao tạm (`__ProbeHeaderBar.tsx`, `__probe_HeaderBar.test.tsx`, thư mục temp) và đã được xóa sau khi chạy (`git status` xác nhận không còn file lạ).
+
+#### Kiểm chứng lỗi cũ (Audit Run 3)
+
+| Lỗi Run 3                                                               | Trạng thái                                 | Bằng chứng                                                                                                                                                                                                                                                                                                  |
+| :---------------------------------------------------------------------- | :----------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MAJOR-9 (a) — đường dẫn mock `useLanguage` sai                          | **ĐÃ SỬA**                                 | `[CMD]` Probe: test HeaderBar với `vi.mock("@/app/features/chat/hooks/useLanguage", …)` → `getByLabelText("Chọn giao diện")` **pass** (mock có hiệu lực; ở Run 3 nhãn thực tế là "Select Theme").                                                                                                           |
+| MAJOR-9 (b) — mock `theme-config` group `"Cool"`, thiếu nhánh đối chứng | **ĐÃ SỬA Ý ĐỒ — assertion SAI (MAJOR-10)** | Đã đổi sang `"Focus"`, thêm `themeFocus` vào mock dict và case đối chứng `"Custom"`. Mapping + biểu thức Bước 6.4 hoạt động đúng (`[CMD]` bản sao HeaderBar áp Bước 6.4 biên dịch & render được). Nhưng `getByText("Tập trung")` / `getByText("Custom")` **fail** vì nhãn nhóm render 2 lần — xem MAJOR-10. |
+| MAJOR-9 (c) — assertion `getAllByText("VN")` không phân biệt ngôn ngữ   | **ĐÃ SỬA**                                 | `getByLabelText("Chọn giao diện")` khớp đúng 1 phần tử (`[SRC]` `HeaderBar.tsx:144`, nhánh `mounted`; `:189` là nhánh chưa mount) → `[CMD]` pass.                                                                                                                                                           |
+| MINOR-R3-1 — chuỗi hardcoded còn sót                                    | ĐÃ SỬA (phạm vi thu hẹp rõ ràng)           | `closeSidebar`, `startChatHint`, `noProjects`/`createProjectHint` đã có bước thay thế; `ProjectNode`/`IconPicker` (`"Icons"`, `"Emojis"`) ghi rõ hoãn sang Phase 5. Line number lệch — xem MINOR-R4-3.                                                                                                      |
+| MINOR-R3-2 — `ToastContainer` import & key `dismissNotification`        | ĐÃ SỬA (một phần — MINOR-R4-4)             | Import và key chuyên dụng `dismissNotification`/`notifications` đã thêm. `[SRC]` `ToastContainer.tsx:7-24` vs `:26-64`: container và `ToastItem` là 2 component riêng.                                                                                                                                      |
+| MINOR-R3-3 — alias `vi`, `readonly TranslationKey[]`                    | ĐÃ SỬA (sai sót nhỏ — MINOR-R4-1, R4-2)    | Alias `viDict`/`enDict` và kiểu `readonly TranslationKey[]` đã có.                                                                                                                                                                                                                                          |
+| MINOR-R3-4 — cảnh báo working tree lỗi thời; căn giữa nút Clear         | ĐÃ SỬA                                     | Mục 2 NOTE và Risk #6 đã cập nhật theo `a886251`; nút Clear có `top-1/2 -translate-y-1/2`.                                                                                                                                                                                                                  |
+
+#### Xác minh bổ sung các khẳng định của Revision 4
+
+| Khẳng định                                                                                       | Kết quả | Bằng chứng                                                                                                                                                                                                                                                 |
+| :----------------------------------------------------------------------------------------------- | :------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Không có key trùng (`TS1117`) trong danh sách thêm mới Bước 1.1/1.2                              | ĐÚNG    | `[CMD]` `npx tsx` trích nguyên văn 50 key (vi) / 47 key (en) từ plan, so với `vi`/`en` thật → `vi proposed already in vi: []`, `en proposed already in en: []`.                                                                                            |
+| Parity sau khi áp dụng plan                                                                      | ĐÚNG    | `[CMD]` cùng probe → `missingInVi [] missingInEn []`.                                                                                                                                                                                                      |
+| 100% `referencedKeys` (Bước 7.1) tồn tại sau khi áp dụng plan                                    | ĐÚNG    | `[CMD]` 59/59 key → `missing after plan vi: [] en: []`.                                                                                                                                                                                                    |
+| `CreateProjectModal`/`KnowledgePanel`/`UserManager` đã có `t` để dùng ở Bước 6.3/6.5/6.7         | ĐÚNG    | `[SRC]` `CreateProjectModal.tsx:27,71`, `KnowledgePanel.tsx:16,51`, `UserManager.tsx:16,65` đều đã gọi `useLanguage()`.                                                                                                                                    |
+| `getByText("Tập trung")` / `getByText("Custom")` pass sau khi áp Bước 6.4 (TC-I18N-04, 7.8, 8.1) | **SAI** | `[CMD]` `npx vitest run` probe (HeaderBar sao chép + áp Bước 6.4; test sao chép + áp Bước 7.8) → `TestingLibraryElementError: Found multiple elements with the text: Tập trung` và `… Custom` (2 failed / 7 passed). Xem MAJOR-10.                         |
+| `import { vi as viDict, en as enDict } from "./index"` (Goal 4, Mục 5 #19, Mục 8.1)              | **SAI** | `[SRC]` `src/lib/utils/translations/index.ts:1-2` chỉ `import` `vi`/`en`, không re-export; Bước 1.3 không thêm re-export → `tsc` sẽ báo lỗi "declares locally, but it is not exported". Bước 7.1 có ghi phương án thay thế `./vi`/`./en` — xem MINOR-R4-1. |
+
+#### Mental Simulation Matrix (S1–S6)
+
+| Kịch bản                                     | Kết quả           | Bằng chứng & Phân tích                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| :------------------------------------------- | :---------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **S1: Cold-start & Build**                   | PASS (có ghi chú) | `[CMD]` Baseline `type-check` exit 0. `[CMD]` Probe key: không trùng, parity sạch, 59/59 referenced key tồn tại. `[CMD]` Bản sao HeaderBar áp Bước 6.4 (`Record<ThemeGroup, TranslationKey>`, `TranslationKey` import từ `@/lib/utils/config`) biên dịch & render được trong Vitest. Không thêm dependency/env; không Prisma/Better Auth. Ghi chú: import `./index` cho `viDict`/`enDict` sẽ vỡ `tsc` nếu executor làm theo Goal 4 thay vì phương án ở 7.1 (MINOR-R4-1) — `tsc` là chốt chặn, không lọt ra runtime.                                                                |
+| **S2: Lifecycle, Teardown & Test Isolation** | **FAIL**          | Không có SSE/EventSource/AudioContext mới; reset `useLanguageStore` đã có (7.7). **Nhưng** `[ADV]` timeline bên dưới: `[SRC]` `HeaderBar.tsx:162-166` (desktop) và `:236-240` (mobile) đều render `{group}` trong `DropdownMenuLabel`; test mock `@/components/ui/dropdown-menu` render inline (`HeaderBar.test.tsx:61-73`) và `mounted` chuyển `true` sau effect → cả hai menu cùng có mặt trong DOM. `[CMD]` `getByText` ném "Found multiple elements" cho cả `"Tập trung"` lẫn `"Custom"` → Test Contract TC-I18N-04 như đang viết **không thể pass** với code đúng (MAJOR-10). |
+| **S3: Database & Temporal Logic**            | N/A               | Không chạm Supabase/migration/RLS/dữ liệu thời gian.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **S4: Cross-Task State Flow**                | PASS              | `[SRC]` `useLanguage.ts:15-31` → `t` ổn định theo `language`; deps `useCallback` Bước 3.1 đầy đủ; `handleNavigation` hoist lên thân component (không conditional hook). Timeline reference-stability của Run 3 vẫn đúng vì Revision 4 không đổi Bước 3.                                                                                                                                                                                                                                                                                                                            |
+| **S5: Security Boundary**                    | PASS              | `[SRC]` Không có API route, auth, RLS, rate-limit mới; không import `*.server.ts` vào client. Thay đổi chỉ gồm chuỗi hiển thị, class CSS và test.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **S6: External Resilience**                  | N/A / PASS        | Không gọi AI provider. Test `ImageGenFactory` chỉ khởi tạo provider lazy (đã xác minh Run 1).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+**Adversarial Timeline (S2 — assertion nhãn nhóm theme):**
+
+```
+Cơ chế: Bước 7.8 / TC-I18N-04 — expect(screen.getByText("Tập trung")) và expect(screen.getByText("Custom"))
+T1: render(<HeaderBar />) với mock dropdown inline; useEffect → mounted=true → render cả menu desktop (:141-187) và menu mobile (:205-261)
+T2: Mỗi menu map Object.entries(groupedThemes) → nhãn nhóm "Tập trung" xuất hiện ở :165 VÀ :239 ("Custom" cũng vậy)
+T3: getByText yêu cầu đúng 1 phần tử → TestingLibraryElementError: Found multiple elements
+Kết cục: Test fail với code ĐÚNG. Cách "sửa" nhanh nhất dễ bị chọn là xóa case đối chứng "Custom" hoặc hạ assertion → mất kiểm chứng nhánh fallback mà MAJOR-9 yêu cầu → LỖI (MAJOR, Test Contract dựa trên tiền đề sai — cùng loại MAJOR-5 của Run 1)
+```
+
+`[CMD]` Negative probe cho bản sửa đề xuất: `expect(screen.getAllByText("Tập trung")).toHaveLength(2)` chạy trên HeaderBar **gốc** (chưa áp Bước 6.4) → **fail** (nhãn render nguyên văn `"Focus"`) → assertion dạng `getAllByText` vẫn phân biệt được code đúng/sai, không tautological.
+
+#### Phân loại lỗi
+
+**[MAJOR]**
+
+10. **MAJOR-10 — Assertion `getByText` cho nhãn nhóm theme không thể pass vì HeaderBar render nhãn 2 lần (desktop + mobile).** Đã chứng minh `[CMD]` (2 failed). Ảnh hưởng TC-I18N-04 (Mục 7), Bước 7.8, Mục 8.1, Goal 4 (dòng 88-89), Mục 3.6 và Risk #9. **Yêu cầu** (chọn một, ghi thống nhất ở mọi chỗ trên):
+    - (a) Dùng `expect(screen.getAllByText("Tập trung")).toHaveLength(2)` và `expect(screen.getAllByText("Custom")).toHaveLength(2)` (khóa số lượng để phát hiện nếu một trong hai menu quên áp mapping); **hoặc**
+    - (b) Scope theo vùng bằng `within(...)` cho container desktop (`.hidden.md:flex`) và mobile (`.md:hidden`), rồi `getByText(...)` trong từng vùng.
+    - Giữ nguyên case đối chứng `"Custom"` (không được xóa để "pass"), và ghi rõ ở Bước 6.4 rằng biểu thức mapping phải áp dụng ở **cả hai** vị trí `HeaderBar.tsx:165` và `:239`.
+
+**[MINOR]**
+
+- **MINOR-R4-1** — `index.ts` không re-export `vi`/`en` (`[SRC]` `index.ts:1-2,17-20`). Goal 4 (dòng 72), Mục 5 #19 và Mục 8.1 ghi `import { vi as viDict, en as enDict } from "./index"` → vỡ `tsc`. Thống nhất dùng `import { vi as viDict } from "./vi"; import { en as enDict } from "./en";` (đúng phương án thay thế ở 7.1), hoặc bổ sung `export { vi, en };` vào Bước 1.3.
+- **MINOR-R4-2** — Mã lỗi kỳ vọng ghi sai: key sai trong mảng `readonly TranslationKey[]` sinh `TS2322` (Type '"xyz"' is not assignable to type …), không phải `TS7053`. Không ảnh hưởng hiệu lực control; chỉ cần sửa mô tả ở Goal 4, 7.1, 8.1.
+- **MINOR-R4-3** — Line number trong Bước 2.1 / Goal 1 lệch so với `Sidebar.tsx` hiện tại: empty state dự án ở **:393** (`"No projects yet"`) và **:395** (`"Create a project to organize your chats"`), không phải 423/430; `"Start a new chat to begin"` ở **:448** (đúng). Nhãn `"Chat"`/`"Image Studio"`/`"Gallery"` (Bước 3.3) ở **:278/:322/:338**. Executor nên tìm theo chuỗi thay vì số dòng.
+- **MINOR-R4-4** — Bước 6.2 chỉ gọi `useLanguage()` trong `ToastItem`, nhưng `aria-label={t("notifications")}` nằm trong component `ToastContainer` (`ToastContainer.tsx:7-24`) → cần gọi hook ở **cả hai** component (`tsc` sẽ bắt nếu thiếu).
+- **MINOR-R4-5** — TC-I18N-02 kỳ vọng `"Quản lý hệ thống"` và `"Đóng thanh bên"`: lần lượt chỉ render khi `session.user.rank === "admin"` (`Sidebar.tsx:494`) và khi `mobileOpen` (drawer, `:593-597`, là `aria-label` chứ không phải text). Test cần truyền session admin, `mobileOpen`, và dùng `getByLabelText("Đóng thanh bên")`.
+
+#### Kết luận
+
+**[CHANGES_REQUESTED]** — MAJOR-9 đã được khắc phục về bản chất (mock có hiệu lực, group hợp lệ, có case đối chứng, assertion phân biệt ngôn ngữ — đều kiểm chứng bằng `[CMD]`). Toàn bộ control type-level và dữ liệu key (không trùng, parity sạch, 59/59 referenced key) đã được xác minh. Còn 1 lỗi `[MAJOR]` mới (MAJOR-10): assertion `getByText` trong Test Contract TC-I18N-04 chắc chắn fail với code đúng, vì nhãn nhóm được render ở cả menu desktop lẫn mobile. Không có `[BLOCKER]`.
+
+**Việc cần làm cho Revision 5:**
+
+1. Sửa assertion nhãn nhóm theme (`"Tập trung"`, `"Custom"`) theo MAJOR-10 (a) hoặc (b) tại TC-I18N-04, Bước 7.8, Mục 8.1, Goal 4, Mục 3.6, Risk #9; ghi rõ mapping áp dụng ở cả `HeaderBar.tsx:165` và `:239`.
+2. (Khuyến nghị) Xử lý MINOR-R4-1 … R4-5, đặc biệt MINOR-R4-1 (đường import `./index`) để tránh vỡ `type-check` khi triển khai.
+
+### Audit Run 5
+
+- **Reviewer**: Claude Code CLI (Claude Opus 5.5 — `claude-opus-5-5[1m]`)
+- **Ngày**: 2026-10-11
+- **Đối tượng**: Technical Plan — Revision 5
+- **Baseline**: `[CMD]` `npm run type-check` → exit 0. Mọi probe chạy trên bản sao tạm (`__ProbeHeaderBarFull.tsx`, `__ProbeHeaderBarPartial.tsx`, `__probe_HeaderBar.test.tsx`, `__probe_tc.ts`) hoặc trên `index.ts`/`vi.ts` đã sao lưu và khôi phục qua `trap … EXIT`. `git status` sau probe chỉ còn file plan này và `tsconfig.tsbuildinfo` (artefact incremental do `tsc` sinh ra, không phải source).
+
+#### Kiểm chứng lỗi cũ (Audit Run 4)
+
+| Lỗi Run 4                                                         | Trạng thái | Bằng chứng                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| :---------------------------------------------------------------- | :--------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MAJOR-10 — `getByText` cho nhãn nhóm theme fail vì render 2 lần   | **ĐÃ SỬA** | Đã chọn phương án (a), ghi thống nhất ở Goal 4 (dòng 88-90), Mục 3.6, Mục 5 #10/#18, Bước 6.4 (đủ cả :165 và :239), Bước 7.8, TC-I18N-04, Mục 8.1, Risk #9. Vẫn giữ case đối chứng `"Custom"`. `[CMD]` Probe Vitest (HeaderBar bản sao áp Bước 6.4 ở cả 2 vị trí + test bản sao áp Bước 7.8, mock có cả theme `"Focus"` và `"Custom"`): `getAllByText("Tập trung")).toHaveLength(2)` ✓, `getAllByText("Custom")).toHaveLength(2)` ✓, `getByLabelText("Chọn giao diện")` ✓. |
+| MINOR-R4-1 — import `./index` cho `viDict`/`enDict`               | ĐÃ SỬA     | Goal 4, Mục 5 #19, Bước 7.1, Mục 8.1, TC-I18N-01 đều thống nhất `import { vi as viDict } from "./vi"; import { en as enDict } from "./en";`. `[SRC]` `vi.ts:1` / `en.ts:1` đều `export const`.                                                                                                                                                                                                                                                                             |
+| MINOR-R4-2 — mã lỗi `TS7053`                                      | ĐÃ SỬA     | Đã đổi thành `TS2322` ở Goal 4, 7.1, 8.1, TC-I18N-01. Probe parity bên dưới (`[CMD]`) cũng sinh đúng `TS2322`.                                                                                                                                                                                                                                                                                                                                                             |
+| MINOR-R4-3 — line number Sidebar                                  | ĐÃ SỬA     | `[SRC]` `Sidebar.tsx:393`/`:395` (empty state dự án), `:278/:322/:338` (Chat/Image Studio/Gallery) khớp; plan đã ghi "quét theo chuỗi". Còn lệch 1 dòng ở `"Start a new chat to begin"` (thực tế **:449**, plan ghi :448) — không đáng kể.                                                                                                                                                                                                                                 |
+| MINOR-R4-4 — `useLanguage()` ở cả `ToastContainer` và `ToastItem` | ĐÃ SỬA     | Bước 6.2, Mục 3.7, Mục 5 #15 đều gọi hook ở cả hai component. `[SRC]` `ToastContainer.tsx:7-24` (`aria-label="Notifications"` :14) và `:26-64` (`aria-label="Dismiss notification"` :57) khớp mô tả.                                                                                                                                                                                                                                                                       |
+| MINOR-R4-5 — props `session` admin & `mobileOpen`                 | ĐÃ SỬA     | Bước 7.7, TC-I18N-02, Mục 8.1 đã truyền `session={{ user: { rank: "admin", … } }}` (`[SRC]` `SessionUser.rank?: string` tại `Sidebar.tsx:54`, điều kiện `:494`) và `mobileOpen={true}` + `getByLabelText("Đóng thanh bên")` (`[SRC]` `:595`).                                                                                                                                                                                                                              |
+
+#### Xác minh bổ sung các khẳng định của Revision 5
+
+| Khẳng định                                                                                | Kết quả | Bằng chứng                                                                                                                                                                                                                                                                                                                           |
+| :---------------------------------------------------------------------------------------- | :------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Assertion `toHaveLength(2)` phân biệt được code đúng/sai (không tautological)             | ĐÚNG    | `[CMD]` Negative probe: (1) HeaderBar **gốc** → `getAllByText("Tập trung")` **fail**; (2) HeaderBar áp mapping **chỉ ở desktop** (:165) → `toHaveLength(2)` **fail** (chỉ có 1 phần tử). Kết quả tổng: 4 passed / 2 failed, đúng như kỳ vọng. Khóa số lượng = 2 bắt được việc quên vị trí mobile.                                    |
+| Bản sao HeaderBar áp Bước 6.4 biên dịch được (`ThemeGroup` + `TranslationKey`)            | ĐÚNG    | `[CMD]` `npx tsc --noEmit -p .` khi có file probe → không lỗi nào thuộc file probe. `[SRC]` `theme-config.ts:4` export `ThemeGroup = "Glassmorphism" \| "Focus" \| "Red Alert 2"`.                                                                                                                                                   |
+| Tái cấu trúc `index.ts` (Bước 1.3) + 3 key bổ sung vào `vi.ts` không làm vỡ build         | ĐÚNG    | `[CMD]` Áp tạm `index.ts` theo Bước 1.3 + 3 key `language/themes/loadingConfigs` → `tsc --noEmit -p .` **exit 0**. Lưu ý: `TranslationKey` bị thu hẹp từ `string` → `keyof typeof en`; consumer duy nhất ngoài `config.ts` là `theme-config.ts:8` (`labelKey`). `[CMD]` `npx tsx` xác nhận không có `labelKey` nào thiếu trong `en`. |
+| Parity assertion hai chiều thực sự bắt lỗi (Negative Probe — mục 4.5.3)                   | ĐÚNG    | `[CMD]` Xóa `loadingConfigs` khỏi `vi.ts` → `index.ts(27,7): error TS2322 … missingInVi: "loadingConfigs"; missingInEn: never` → **exit 2**. Đã khôi phục file gốc (`git diff --stat -- src` rỗng).                                                                                                                                  |
+| Mọi `t?.key` hiện có trong `Sidebar.tsx` tồn tại trong từ điển khi chuyển sang `t("key")` | ĐÚNG    | `[CMD]` Quét 14 key `t?.xxx` trong `Sidebar.tsx`: 13/14 có trong cả `vi.ts`/`en.ts`; key thiếu duy nhất `adminManagement` được Bước 1.1/1.2 bổ sung. `[SRC]` `useLanguage.ts:20-29` có fallback cuối là `String(key)` → khẳng định "dead-code fallback" đúng.                                                                        |
+
+#### Mental Simulation Matrix (S1–S6)
+
+| Kịch bản                                     | Kết quả    | Bằng chứng & Phân tích                                                                                                                                                                                                                                                                                                                                                                        |
+| :------------------------------------------- | :--------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **S1: Cold-start & Build**                   | PASS       | `[CMD]` Baseline `type-check` exit 0. `[CMD]` Áp Bước 1.3 + key thiếu → exit 0; negative probe → `TS2322`, exit 2 (control đã được chứng minh cả wiring lẫn khả năng bắt lỗi). Không thêm dependency, env, Prisma hay Better Auth. Import `./vi`/`./en` hợp lệ. Dữ liệu key (không trùng, parity, 59/59 referenced key) đã được `[CMD]` xác minh ở Run 4; Revision 5 không đổi danh sách key. |
+| **S2: Lifecycle, Teardown & Test Isolation** | PASS       | Không có SSE/EventSource/AudioContext mới. Reset `useLanguageStore` trong `beforeEach`/`afterEach` (7.7). `[ADV]` timeline bên dưới: assertion `getAllByText(...).toHaveLength(2)` pass với code đúng và fail với code gốc / code chỉ áp dụng một nửa (`[CMD]`). TC-PERF-01 có case đối chứng `not.toBe`.                                                                                     |
+| **S3: Database & Temporal Logic**            | N/A        | Không chạm Supabase, migration, RLS hay dữ liệu thời gian.                                                                                                                                                                                                                                                                                                                                    |
+| **S4: Cross-Task State Flow**                | PASS       | `[SRC]` `useLanguage.ts:15-31`: `t` ổn định theo `dict`/`language` → deps `[t]` của `renameFallback`/`deleteFallback`/`useMemo(getToneOptions)` đúng. `handleNavigation` được hoist lên thân component (không có conditional hook). Bước 3 không đổi so với Run 4. Việc thu hẹp `TranslationKey` chỉ ảnh hưởng `theme-config.ts` (đã `[CMD]` xác minh).                                       |
+| **S5: Security Boundary**                    | PASS       | Không có API route, auth, RLS, rate limit hay import `*.server.ts` mới. Thay đổi chỉ gồm chuỗi hiển thị, class CSS, kiểu TypeScript và test.                                                                                                                                                                                                                                                  |
+| **S6: External Resilience**                  | N/A / PASS | Không gọi AI provider. `ImageGenFactory.test.ts` chỉ khởi tạo provider lazy (đã xác minh ở Run 1).                                                                                                                                                                                                                                                                                            |
+
+**Adversarial Timeline (S2 — assertion nhãn nhóm theme sau khi sửa MAJOR-10):**
+
+```
+Cơ chế: Bước 7.8 / TC-I18N-04 — expect(getAllByText("Tập trung")).toHaveLength(2)
+T1: Executor áp mapping THEME_GROUP_LABELS chỉ ở menu desktop (:165), quên menu mobile (:239)
+T2: render(<HeaderBar />) với dropdown mock inline; mounted=true → desktop render "Tập trung", mobile render nguyên văn "Focus"
+T3: getAllByText("Tập trung") trả về 1 phần tử ≠ 2
+Kết cục: Test FAIL → lỗi áp dụng một nửa bị chặn trước khi merge → AN TOÀN ([CMD] probe NEG-PARTIAL)
+```
+
+Ghi chú: case đối chứng `"Custom"` vẫn pass khi mapping chỉ được áp một nửa (nhánh fallback ở cả 2 vị trí đều render `group`). Đây là hành vi đúng: case này chỉ dùng để kiểm chứng nhánh fallback, còn việc quên một vị trí đã được assertion `"Tập trung"` bắt.
+
+#### Phân loại lỗi
+
+**[BLOCKER]**: Không có.
+
+**[MAJOR]**: Không có.
+
+**[MINOR]** (không chặn kế hoạch; executor nên xử lý khi viết code/test):
+
+- **MINOR-R5-1** — TC-I18N-02 kỳ vọng `"Đăng xuất"` và `"Bắt đầu cuộc trò chuyện mới để trải nghiệm"`, nhưng nút Sign Out chỉ render khi có prop `onLogout` (`[SRC]` `Sidebar.tsx:503`), còn gợi ý `startChatHint` chỉ render khi `list.length === 0` (`[SRC]` `:442-449`), trong khi Input ghi `chats={[...]}`. Cần truyền `onLogout={vi.fn()}` và dùng danh sách hội thoại rỗng (hoặc tách thành case riêng). Lỗi này cùng loại với MINOR-R4-5; nếu bỏ sót, test sẽ fail rõ ràng chứ không pass giả.
+- **MINOR-R5-2** — Theme mock `"Custom"` trong Bước 7.8 nên dùng `labelKey` không dịch ra đúng chuỗi `"Custom"` (ví dụ `labelKey: "mytheme"`). Nếu không, `HeaderBar.tsx` còn render tên theme qua `t(tItem.labelKey) || tItem.id` ở cả 2 menu → `getAllByText("Custom")` sẽ trả về 4 phần tử.
+- **MINOR-R5-3** — `Sidebar.tsx` vẫn còn một số chuỗi hardcoded chưa được liệt kê: `<Dialog.Title className="sr-only">Navigation</Dialog.Title>` (`:578`, có thể dùng key `navigation` vừa thêm) và `action.label: "New project"` (`:385`, dùng lại key `newProject` có sẵn). Nên gom vào Bước 2.1 hoặc đưa vào backlog Phase 5 cùng `ProjectNode`/`IconPicker`.
+- **MINOR-R5-4** — Mục 3.1 và Bước 1.3 ghi "giữ nguyên type exports", nhưng thực tế `TranslationKey` bị thu hẹp từ `string` (`index.ts:5`) sang `keyof typeof en`. Thay đổi này an toàn (`[CMD]` tsc exit 0; consumer duy nhất là `theme-config.ts:8`), nhưng nên ghi rõ đây là **thu hẹp có chủ đích** để người review code sau không hiểu nhầm.
+
+#### Kết luận
+
+**APPROVED** — MAJOR-10 đã được khắc phục và ghi thống nhất ở mọi vị trí trong plan. Có `[CMD]` chứng minh assertion mới pass với code đúng, đồng thời fail với cả code gốc lẫn code chỉ áp dụng một nửa. MINOR-R4-1 … R4-5 đều đã được xử lý. Control compile-time parity đã được chứng minh cả về wiring (exit 0) lẫn khả năng bắt lỗi (negative probe `TS2322`, exit 2). Không còn `[BLOCKER]` hay `[MAJOR]`; 4 điểm `[MINOR]` ở trên là khuyến nghị cho executor trong lúc triển khai.
+
+[PLAN_APPROVED]

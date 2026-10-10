@@ -3,15 +3,17 @@
 import { useToastStore, Toast } from "@/lib/store/toastStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 export default function ToastContainer() {
   const { toasts, removeToast } = useToastStore();
+  const { t } = useLanguage();
 
   return (
     <div
       className="fixed top-[calc(1rem+var(--sat,0px))] right-[calc(1rem+var(--sar,0px))] z-(--z-toast) flex flex-col gap-2 pointer-events-none"
       role="region"
-      aria-label="Notifications"
+      aria-label={t("notifications")}
       aria-live="polite"
     >
       <AnimatePresence>
@@ -24,6 +26,7 @@ export default function ToastContainer() {
 }
 
 function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) => void }) {
+  const { t } = useLanguage();
   const icons = {
     success: <CheckCircle className="w-5 h-5 text-(--success)" />,
     error: <AlertCircle className="w-5 h-5 text-(--danger)" />,
@@ -54,8 +57,8 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
       <div className="flex-1 text-sm font-medium leading-relaxed">{toast.message}</div>
       <button
         onClick={() => onRemove(toast.id)}
-        aria-label="Dismiss notification"
-        className="mt-0.5 text-(--text-secondary) hover:text-(--text-primary) transition-colors"
+        aria-label={t("dismissNotification")}
+        className="mt-0.5 text-(--text-secondary) hover:text-(--text-primary) transition-colors rounded-md focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
       >
         <X className="w-4 h-4" />
       </button>

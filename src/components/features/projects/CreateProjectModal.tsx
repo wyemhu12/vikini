@@ -129,8 +129,10 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
             <h2 className="text-lg font-semibold">{t("createNewProject")}</h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg)] cursor-pointer"
+            aria-label={t("close")}
+            className="p-1 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg)] cursor-pointer focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <X className="w-5 h-5" />
           </button>
