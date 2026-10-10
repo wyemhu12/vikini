@@ -556,3 +556,10 @@
   - **Always encrypt sensitive metadata at rest (`meta.reasoning`)** using authenticated AES-GCM before saving to PostgreSQL.
   - **For multi-turn media workflows, never pass raw base64 through the client repeatedly.** Persist to secure storage immediately and pass verified, authorized storage paths.
   - **Always enforce fail-closed Gatekeeper checks (status & rank)** before initiating expensive AI vision or generation tasks.
+
+### 2026-10-11: IPv6 Bracketed Literal Parsing in SSRF Guard on Linux CI
+
+- **Symptom**: `src/lib/core/ssrfGuard.server.test.ts` failed in GitHub Actions Linux runner with `AssertionError: expected [Function] to throw error including 'Access to private or restricted network addresses is forbidden' but got 'Could not resolve host: [::1]'`. The same test passed locally on Windows.
+- **Root Cause**: In WHATWG URL parsing, `new URL("http://[::1]/status").hostname` preserves brackets (`"[::1]"`). Node.js `net.isIP("[::1]")` returns 0 (false) because it only expects unbracketed IP strings. Consequently, bracketed IPv6 hostnames fell through to `dns.promises.lookup("[::1]")`. On Windows, WinSock `getaddrinfo` strips brackets and resolves `[::1]` to `::1`, so it passed locally. On Linux (glibc `getaddrinfo` in GitHub Actions CI), `[::1]` is treated as an invalid domain name, throwing `EAI_NONAME` / `ENOTFOUND` and resulting in `"Could not resolve host: [::1]"`.
+- **Fix**: Updated `isIpRestricted` and `validateSafeUrl` in `src/lib/core/ssrfGuard.server.ts` to unbracket IPv6 hostnames (`hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname`) before calling `net.isIP()`. This directly catches restricted IPv6 literals (such as `::1`, `fe80::`, `::ffff:`) at the direct IP check stage without attempting a DNS lookup. Added test coverage for bracketed IPv6 addresses in `src/lib/core/ssrfGuard.server.test.ts`.
+- **Prevention Rule**: **Always strip brackets from IPv6 hostnames obtained from `new URL().hostname` before passing them to `net.isIP()` or IP validation libraries.** Never rely on OS-specific `getaddrinfo` behavior for IPv6 literal hostnames.

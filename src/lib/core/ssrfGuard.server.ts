@@ -47,19 +47,20 @@ blockList.addSubnet("ff00::", 8, "ipv6"); // Multicast (IPv6)
  * Check if an IP address belongs to restricted/private/loopback ranges.
  */
 export function isIpRestricted(ip: string): boolean {
-  const ipFamily = net.isIP(ip);
+  const cleanIp = ip.startsWith("[") && ip.endsWith("]") ? ip.slice(1, -1) : ip;
+  const ipFamily = net.isIP(cleanIp);
   if (ipFamily === 0) {
     return true; // Malformed IP
   }
 
   const family: "ipv4" | "ipv6" = ipFamily === 6 ? "ipv6" : "ipv4";
-  if (blockList.check(ip, family)) {
+  if (blockList.check(cleanIp, family)) {
     return true;
   }
 
   // Check IPv4-mapped IPv6 address (e.g. ::ffff:10.0.0.1 or ::ffff:127.0.0.1)
-  if (ipFamily === 6 && /::ffff:/i.test(ip)) {
-    const parts = ip.split("::ffff:");
+  if (ipFamily === 6 && /::ffff:/i.test(cleanIp)) {
+    const parts = cleanIp.split("::ffff:");
     const mappedIpv4 = parts[parts.length - 1];
     if (net.isIP(mappedIpv4) === 4) {
       return blockList.check(mappedIpv4, "ipv4");
@@ -90,9 +91,12 @@ export async function validateSafeUrl(urlString: string): Promise<URL> {
     throw new ValidationError("Invalid hostname");
   }
 
-  // Direct IP address check
-  if (net.isIP(hostname)) {
-    if (isIpRestricted(hostname)) {
+  // Direct IP address check (handles IPv4 and bracketed IPv6 literals e.g. [::1])
+  const unbracketedHost =
+    hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+
+  if (net.isIP(unbracketedHost)) {
+    if (isIpRestricted(unbracketedHost)) {
       ssrfLogger.warn(`Blocked direct access to restricted IP: ${hostname}`);
       throw new ValidationError("Access to private or restricted network addresses is forbidden");
     }

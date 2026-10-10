@@ -8,6 +8,17 @@
 
 ---
 
+## 2026-10-11: Fix IPv6 Literal Bracket Handling in SSRF Guard for Linux CI
+
+- **SSRF Guard IPv6 Bracket Normalization**:
+  - Khắc phục lỗi `ssrfGuard.server.test.ts` trên môi trường Linux CI (GitHub Actions) do `new URL("http://[::1]/status").hostname` trả về chuỗi có chứa ngoặc vuông `[::1]`, khiến `net.isIP("[::1]")` trả về `0` (false) và rơi xuống hàm `dns.promises.lookup("[::1]")` gây lỗi `EAI_NONAME` / `ENOTFOUND` trên Linux glibc `getaddrinfo`.
+  - Cập nhật `isIpRestricted` và `validateSafeUrl` trong `src/lib/core/ssrfGuard.server.ts` tự động bóc tách ngoặc vuông cho IPv6 literals trước khi kiểm tra `net.isIP()`, nhận diện chính xác các địa chỉ restricted loopback (`::1`, `fe80::`, `::ffff:`) ngay tại tầng kiểm tra IP trực tiếp mà không cần phân giải DNS.
+  - Bổ sung test assertions cho bracketed IPv6 trong `src/lib/core/ssrfGuard.server.test.ts`.
+- **Verification Gate**:
+  - `npm run verify` passed: 100/100 test files pass, 1088/1088 tests pass.
+
+---
+
 ## 2026-10-08: Audit Remediation Phase 2 -- Streaming, RAG & Media Attachments
 
 - **Pillar 1: Streaming Reliability & Provider Normalization (STR-01, STR-02, STR-03)**:

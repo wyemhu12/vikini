@@ -21,7 +21,9 @@ describe("ssrfGuard.server", () => {
       expect(isIpRestricted("127.0.0.53")).toBe(true);
       expect(isIpRestricted("127.255.255.255")).toBe(true);
       expect(isIpRestricted("::1")).toBe(true);
+      expect(isIpRestricted("[::1]")).toBe(true);
       expect(isIpRestricted("::ffff:127.0.0.1")).toBe(true);
+      expect(isIpRestricted("[::ffff:127.0.0.1]")).toBe(true);
     });
 
     it("identifies RFC 1918 private addresses as restricted", () => {
@@ -55,6 +57,7 @@ describe("ssrfGuard.server", () => {
       expect(isIpRestricted("1.1.1.1")).toBe(false);
       expect(isIpRestricted("93.184.216.34")).toBe(false);
       expect(isIpRestricted("2606:4700:4700::1111")).toBe(false);
+      expect(isIpRestricted("[2606:4700:4700::1111]")).toBe(false);
     });
 
     it("treats invalid IP strings as restricted", () => {
@@ -94,6 +97,9 @@ describe("ssrfGuard.server", () => {
         "Access to private or restricted network addresses is forbidden"
       );
       await expect(validateSafeUrl("http://[::1]/status")).rejects.toThrow(
+        "Access to private or restricted network addresses is forbidden"
+      );
+      await expect(validateSafeUrl("http://[fe80::1]/status")).rejects.toThrow(
         "Access to private or restricted network addresses is forbidden"
       );
     });
