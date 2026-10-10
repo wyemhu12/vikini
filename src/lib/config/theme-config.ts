@@ -14,7 +14,7 @@ export interface ThemeDefinition {
 export const THEME_CONFIG: ThemeDefinition[] = [
   // --- GLASSMORPHISM ---
   { id: "nebula", labelKey: "nebula", swatch: "#22d3ee", group: "Glassmorphism", tone: "dark" },
-  { id: "orchid", labelKey: "orchid", swatch: "#c084fc", group: "Glassmorphism", tone: "dark" },
+  { id: "orchid", labelKey: "orchid", swatch: "#c084fc", group: "Glassmorphism", tone: "light" },
   { id: "aqua", labelKey: "aqua", swatch: "#14b8a6", group: "Glassmorphism", tone: "dark" },
   { id: "holo", labelKey: "holo", swatch: "#22d3ee", group: "Glassmorphism", tone: "dark" },
   { id: "sunset", labelKey: "sunset", swatch: "#f97316", group: "Glassmorphism", tone: "dark" },

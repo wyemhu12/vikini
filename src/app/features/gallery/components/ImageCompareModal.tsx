@@ -64,12 +64,29 @@ export function ImageCompareModal({
     setSliderPosition(50);
   }, []);
 
-  const handleSliderChange = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
+  const updateSliderPosition = useCallback((clientX: number, target: HTMLDivElement) => {
+    const rect = target.getBoundingClientRect();
+    if (!rect.width) return;
+    const x = clientX - rect.left;
     const percentage = (x / rect.width) * 100;
     setSliderPosition(Math.max(0, Math.min(100, percentage)));
   }, []);
+
+  const handleSliderChange = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      updateSliderPosition(e.clientX, e.currentTarget);
+    },
+    [updateSliderPosition]
+  );
+
+  const handleTouchSliderChange = useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      if (e.touches && e.touches.length > 0) {
+        updateSliderPosition(e.touches[0].clientX, e.currentTarget);
+      }
+    },
+    [updateSliderPosition]
+  );
 
   if (!leftImage || !rightImage) return null;
 
@@ -128,7 +145,7 @@ export function ImageCompareModal({
               onClick={() => setOverlayMode(!overlayMode)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 overlayMode
-                  ? "bg-(--accent)/80 text-white"
+                  ? "bg-(--accent)/80 text-(--accent-foreground)"
                   : "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
               }`}
             >
@@ -162,9 +179,11 @@ export function ImageCompareModal({
             {overlayMode ? (
               /* Overlay Slider Mode */
               <div
-                className="relative w-full max-w-5xl aspect-square overflow-hidden rounded-xl cursor-ew-resize"
+                className="relative w-full max-w-5xl aspect-square overflow-hidden rounded-xl cursor-ew-resize touch-none"
                 onMouseMove={handleSliderChange}
                 onClick={handleSliderChange}
+                onTouchStart={handleTouchSliderChange}
+                onTouchMove={handleTouchSliderChange}
               >
                 {/* Right Image (Background) */}
                 <div className="absolute inset-0">

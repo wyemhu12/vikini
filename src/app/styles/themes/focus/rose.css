@@ -5,6 +5,7 @@
 .theme-rose {
   --surface: #0b0708;
   --surface-muted: #151013;
+  --surface-elevated: #1f171c;
   --border: rgba(251, 113, 133, 0.16);
   --control-bg: rgba(255, 255, 255, 0.04);
   --control-bg-hover: rgba(255, 255, 255, 0.1);

@@ -5,6 +5,7 @@
 .theme-amber {
   --surface: #0a0805;
   --surface-muted: #14100a;
+  --surface-elevated: #1e1810;
   --border: rgba(245, 158, 11, 0.14);
   --control-bg: rgba(255, 255, 255, 0.04);
   --control-bg-hover: rgba(255, 255, 255, 0.1);

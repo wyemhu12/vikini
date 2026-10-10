@@ -5,6 +5,7 @@
 .theme-indigo {
   --surface: #060712;
   --surface-muted: #0f1220;
+  --surface-elevated: #161b30;
   --border: rgba(129, 140, 248, 0.18);
   --control-bg: rgba(255, 255, 255, 0.04);
   --control-bg-hover: rgba(255, 255, 255, 0.1);

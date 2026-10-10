@@ -5,6 +5,7 @@
 .theme-blueprint {
   --surface: #06080f;
   --surface-muted: #0e1422;
+  --surface-elevated: #131b2e;
   --border: rgba(96, 165, 250, 0.16);
   --control-bg: rgba(255, 255, 255, 0.04);
   --control-bg-hover: rgba(255, 255, 255, 0.1);

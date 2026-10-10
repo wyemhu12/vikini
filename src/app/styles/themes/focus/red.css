@@ -5,6 +5,7 @@
 .theme-red {
   --surface: #0a0505;
   --surface-muted: #120909;
+  --surface-elevated: #1c0f0f;
   --border: rgba(248, 113, 113, 0.16);
   --control-bg: rgba(255, 255, 255, 0.04);
   --control-bg-hover: rgba(255, 255, 255, 0.1);

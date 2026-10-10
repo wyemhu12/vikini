@@ -117,4 +117,13 @@ describe("HeaderBar", () => {
     renderHeader();
     expect(screen.getByText("V")).toBeInTheDocument();
   });
+
+  it("includes safe-area horizontal insets with md:px-6 reset for landscape viewport", () => {
+    const { container } = renderHeader();
+    const header = container.querySelector("header");
+    expect(header).toBeInTheDocument();
+    expect(header?.className).toContain("pl-[calc(1rem+var(--sal,0px))]");
+    expect(header?.className).toContain("pr-[calc(1rem+var(--sar,0px))]");
+    expect(header?.className).toContain("md:px-6");
+  });
 });

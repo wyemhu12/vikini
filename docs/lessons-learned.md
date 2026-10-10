@@ -92,6 +92,13 @@
 
 ## UI and Styling
 
+### 2026-10-11: Plain-text fenced code blocks clipped in chat (react-markdown v10)
+
+- **Symptom**: Fenced code blocks without a language (prompt templates) rendered as inline-code chips per line; long lines were cut off and unreadable.
+- **Root Cause**: `react-markdown` v10 no longer passes `inline`, and the `<pre>` child's `type` is the custom `code` component, not the string `"code"`. `PreBlock` only checked `type === "code"` or a `language-*` className, so language-less blocks fell back to raw `<pre>` + inline `SmartCode` (no wrap), clipped by the container's `overflow-hidden`.
+- **Fix**: Extracted a named `CodeRenderer` and matched `children.type === CodeRenderer` in `PreBlock`; plain `text` blocks in `SmartCode` now use `whitespace-pre-wrap break-words`.
+- **Prevention Rule**: When overriding `code` in react-markdown, never detect blocks via `type === "code"` or `inline`. Compare against the custom component reference (or the `pre` parent) and always test a fenced block with no language.
+
 ### 2026-09-27: Mobile & Short Viewport Sidebar Scroll Failure
 
 - **Symptom**: On mobile devices or short viewport windows, the chat list and footer in the sidebar were inaccessible; no scrollbar appeared and users could not scroll down.

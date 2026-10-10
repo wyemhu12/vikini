@@ -89,27 +89,36 @@ vi.mock("./ImageCompareModal", () => ({
   default: () => <div data-testid="compare-modal-mock" />,
 }));
 
-describe("GalleryView - Modal Close Button (UI-02)", () => {
+describe("GalleryView - Modal Close Button & Tokens (UI-02, M5, M8)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders image details modal with accessible close button", () => {
+  it("renders image details modal with accessible close buttons", () => {
     render(<GalleryView />);
 
     expect(screen.getAllByText("galleryImageDetails").length).toBeGreaterThanOrEqual(1);
 
-    const closeButton = screen.getByRole("button", { name: "close" });
-    expect(closeButton).toBeInTheDocument();
-    expect(closeButton.getAttribute("aria-label")).toBe("close");
+    const closeButtons = screen.getAllByRole("button", { name: "closeImageDetails" });
+    expect(closeButtons.length).toBeGreaterThanOrEqual(1);
+    expect(closeButtons[0].getAttribute("aria-label")).toBe("closeImageDetails");
   });
 
   it("calls setSelectedImage(null) when close button is clicked", () => {
     render(<GalleryView />);
 
-    const closeButton = screen.getByRole("button", { name: "close" });
-    fireEvent.click(closeButton);
+    const closeButtons = screen.getAllByRole("button", { name: "closeImageDetails" });
+    fireEvent.click(closeButtons[0]);
 
     expect(mockSetSelectedImage).toHaveBeenCalledWith(null);
+  });
+
+  it("uses text-(--accent-foreground) on Remix button rather than raw text-white", () => {
+    render(<GalleryView />);
+
+    const remixBtn = screen.getByRole("button", { name: /galleryRemix/i });
+    expect(remixBtn).toBeInTheDocument();
+    expect(remixBtn.className).toContain("text-(--accent-foreground)");
+    expect(remixBtn.className).not.toContain("text-white");
   });
 });

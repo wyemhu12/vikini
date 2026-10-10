@@ -5,6 +5,7 @@
 .theme-gold {
   --surface: #0b0905;
   --surface-muted: #141008;
+  --surface-elevated: #1f190e;
   --border: rgba(255, 215, 0, 0.25);
   --control-bg: rgba(255, 255, 255, 0.05);
   --control-bg-hover: rgba(255, 255, 255, 0.12);

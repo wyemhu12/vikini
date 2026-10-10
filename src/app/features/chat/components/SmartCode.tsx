@@ -145,7 +145,11 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
       <div
         className={`relative ${isCollapsed ? "max-h-[320px] overflow-hidden" : ""} transition-colors duration-300`}
       >
-        <pre className="p-4 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
+        <pre
+          className={`p-4 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20 ${
+            lang === "text" ? "whitespace-pre-wrap break-words" : ""
+          }`}
+        >
           <code
             className={`${className || ""} bg-transparent! text-[13px] leading-6 font-mono text-(--text-primary) p-0! block min-w-full`}
           >

@@ -8,6 +8,36 @@
 
 ---
 
+## 2026-10-11: Fix -- Plain-text code blocks bị cắt chữ trong chat
+
+- **Root cause**: `react-markdown` v10 không còn truyền prop `inline`, và phần tử con của `<pre>` có `type` là component `code` tùy biến (không phải chuỗi `"code"`). Fenced block không khai báo ngôn ngữ vì vậy rơi xuống nhánh `<pre>` thô, render như inline code (không xuống dòng) và bị `overflow-hidden` của container cắt mất.
+- **Fix**: `BubbleMarkdown.tsx` tách `CodeRenderer` thành hàm có tên để `PreBlock` nhận diện được; `SmartCode.tsx` bật `whitespace-pre-wrap break-words` cho block `text` để prompt/template hiển thị trọn câu.
+
+## 2026-10-11: Audit Remediation Phase 3 -- Theming, Mobile/Foldable & Gallery UX
+
+- **Pillar 1: Theming System & WCAG AA Contrast Compliance (THEME-01, THEME-02)**:
+  - **Orchid Theme Light Mode Alignment**: Cập nhật theme `orchid` thành tone `"light"` trong `src/lib/config/theme-config.ts` và thiết lập `color-scheme: light;` trong `src/app/styles/themes/_shared/base.css` và `src/app/styles/themes/glassmorphism/orchid.css` để đồng bộ trình duyệt, form controls và thanh cuộn.
+  - **Surface Elevation CSS Tokens**: Bổ sung đầy đủ token `--surface-elevated` cho 10 theme bị thiếu (focus themes: `blueprint`, `amber`, `charcoal`, `gold`, `indigo`, `red`, `rose`; RA2 themes: `allied`, `soviet`, `yuri`), triệt tiêu hiện tượng card nền trong suốt hoặc chìm vào nền chính.
+  - **Accent Contrast Compliance**: Chuẩn hóa màu chữ trên nút bấm hành động trong `ErrorBoundary.tsx` và `GalleryView.tsx` sang `text-(--accent-foreground)` thay vì raw color `text-white`, kết hợp `focus-visible:ring-2` accessible focus rings.
+  - **Automated Mathematical WCAG AA Contrast Suite**: Bổ sung unit test `src/lib/config/theme-config.test.ts` tính toán độ chói tương đối (relative luminance) xác thực 100% (16/16) themes đều đạt tỷ lệ tương phản WCAG AA ≥ 4.5:1 giữa `--accent` và `--accent-foreground`.
+- **Pillar 2: Mobile & Foldable Device Optimization (MOB-01, MOB-02, MOB-03, MOB-04)**:
+  - **Virtual Keyboard Resizing**: Khai báo `interactiveWidget: "resizes-content"` trong export `viewport` của `src/app/layout.tsx` theo chuẩn W3C VirtualKeyboard API, ngăn bàn phím ảo che khuất thanh chat controls trên mobile/tablet.
+  - **Landscape Safe-Area Insets**: Tích hợp các biến CSS safe-area-inset ngang (`--sal`, `--sar`) vào `HeaderBar.tsx` và nhánh non-landing của `ChatControls.tsx` khi xoay ngang máy, kết hợp `md:px-6` để triệt tiêu việc cộng dồn padding hai lần trên desktop.
+  - **Foldable Responsive Popovers**: Thiết lập trần chiều rộng `max-w-[min(var(--radix-popover-content-available-width,100vw),calc(100vw-2rem))]` trong `src/components/ui/popover.tsx`, bảo vệ popover không bị tràn viền màn hình ngoài của các thiết bị gập hẹp (như Galaxy Z Fold ~280px).
+  - **Drawer Touch Swipe & Snap-to-Origin**: Xây dựng tiện ích cử chỉ `drawerGesture.ts` (9 test cases biên) và tích hợp Framer Motion drag gestures (`drag="x"`, `dragDirectionLock`, `dragConstraints`, `dragElastic`, `dragSnapToOrigin`, `onDragEnd`) cho `Sidebar.tsx`, cho phép vuốt đóng drawer mượt mà và tự động hồi vị về x = 0 nếu không vượt ngưỡng đóng (-80px hoặc vận tốc -300px/s).
+- **Pillar 3: Gallery & Image Studio A11y & Interactions (UI-02, UI-03, API-02, A11Y-01)**:
+  - **Accessible Floating Close & Bilingual Label (UI-02 / M8)**: Khắc phục lỗi nút đóng modal chi tiết ảnh rỗng icon trong `GalleryView.tsx`. Bổ sung nút floating close bọc trong `div` (`lg:hidden`) và sidebar close button với nhãn song ngữ `closeImageDetails` ("Đóng chi tiết hình ảnh" / "Close image details") trong `vi.ts` và `en.ts`.
+  - **Touch Swipe Comparison Slider (UI-03)**: Bổ sung sự kiện vuốt chạm `onTouchStart`, `onTouchMove` và class `touch-none` cho thanh trượt so sánh ảnh trong `ImageCompareModal.tsx`, cho phép thao tác vuốt trơn tru trên màn hình cảm ứng di động.
+  - **Image Studio Inclusion in Gallery (API-02 / TC-GAL-04)**: Xác thực API Gallery `/api/gallery` hiển thị ảnh từ Image Studio, loại trừ `USER_TEMPLATES_STORE`, hỗ trợ bộ lọc `favorites=true` và bổ sung test suite kiểm tra query builder trong `src/app/api/gallery/route.test.ts`.
+  - **Canvas Keyboard Navigation (A11Y-01)**: Bổ sung `group-focus-within:opacity-100` và `group-focus-within:translate-y-0` cho lớp điều khiển ảnh trong `Canvas.tsx`, giúp người dùng khiếm thị hoặc điều hướng bằng bàn phím (Tab) hiển thị đầy đủ các nút chức năng.
+- **Verification Gate**:
+  - `npm run verify` (`npm run type-check; npm run lint; npm run test:run`) passed 100%.
+  - 106 test files passed, 1138 tests passed (0 failures).
+  - 0 TypeScript errors.
+  - 0 ESLint warnings / errors.
+
+---
+
 ## 2026-10-11: Fix IPv6 Literal Bracket Handling in SSRF Guard for Linux CI
 
 - **SSRF Guard IPv6 Bracket Normalization**:

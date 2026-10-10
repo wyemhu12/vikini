@@ -897,6 +897,7 @@ export const vi = {
   exportFailed: "Không thể xuất cuộc hội thoại",
   aiIsTyping: "AI đang soạn tin...",
   close: "Đóng",
+  closeImageDetails: "Đóng chi tiết hình ảnh",
   rename: "Đổi tên",
   delete: "Xóa",
   export: "Xuất file",

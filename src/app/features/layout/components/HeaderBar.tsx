@@ -69,7 +69,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
       md:sticky md:top-0 md:translate-y-0
       flex items-center justify-between 
       bg-transparent text-(--text-primary)
-      pt-[calc(1rem+var(--sat,0px))] pb-4 px-4 sm:px-6
+      pt-[calc(1rem+var(--sat,0px))] pb-4 pl-[calc(1rem+var(--sal,0px))] pr-[calc(1rem+var(--sar,0px))] sm:pl-[calc(1.5rem+var(--sal,0px))] sm:pr-[calc(1.5rem+var(--sar,0px))] md:px-6
       transition-colors duration-300
     "
     >

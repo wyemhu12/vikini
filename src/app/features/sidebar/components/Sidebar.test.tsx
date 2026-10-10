@@ -18,15 +18,28 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+// Captured props from motion.aside for drag behavior verification
+export let latestAsideProps: Record<string, unknown> = {};
+
 // Mock framer-motion
 vi.mock("framer-motion", () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   motion: {
     aside: React.forwardRef(function MockAside(
-      props: React.HTMLAttributes<HTMLElement>,
+      props: Record<string, unknown>,
       ref: React.Ref<HTMLElement>
     ) {
-      return <aside ref={ref} {...props} />;
+      latestAsideProps = props;
+      const {
+        drag: _drag,
+        dragDirectionLock: _dragDirectionLock,
+        dragConstraints: _dragConstraints,
+        dragElastic: _dragElastic,
+        dragSnapToOrigin: _dragSnapToOrigin,
+        onDragEnd: _onDragEnd,
+        ...htmlProps
+      } = props;
+      return <aside ref={ref} {...htmlProps} />;
     }),
     div: React.forwardRef(function MockDiv(
       props: React.HTMLAttributes<HTMLDivElement>,
@@ -122,5 +135,62 @@ describe("Sidebar component", () => {
     expect(mobileScrollContainer?.className).toContain("flex-1");
     expect(mobileScrollContainer?.className).toContain("min-h-0");
     expect(mobileScrollContainer?.className).toContain("overflow-y-auto");
+  });
+
+  it("attaches drag gesture props to mobile drawer motion.aside with snap-to-origin", () => {
+    render(<Sidebar chats={[]} mobileOpen={true} allConversations={[]} />);
+
+    expect(latestAsideProps.drag).toBe("x");
+    expect(latestAsideProps.dragDirectionLock).toBe(true);
+    expect(latestAsideProps.dragConstraints).toEqual({ left: 0, right: 0 });
+    expect(latestAsideProps.dragElastic).toEqual({ left: 0.5, right: 0 });
+    expect(latestAsideProps.dragSnapToOrigin).toBe(true);
+    expect(typeof latestAsideProps.onDragEnd).toBe("function");
+  });
+
+  it("calls onCloseMobile when user drags beyond close threshold (-120px)", () => {
+    const onCloseMobileMock = vi.fn();
+    render(
+      <Sidebar
+        chats={[]}
+        mobileOpen={true}
+        allConversations={[]}
+        onCloseMobile={onCloseMobileMock}
+      />
+    );
+
+    const onDragEnd = latestAsideProps.onDragEnd as (
+      event: unknown,
+      info: { offset: { x: number }; velocity: { x: number } }
+    ) => void;
+
+    expect(onDragEnd).toBeDefined();
+
+    // Drag beyond threshold (-120px)
+    onDragEnd(undefined, { offset: { x: -120 }, velocity: { x: 0 } });
+    expect(onCloseMobileMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call onCloseMobile when user drags below threshold (-50px)", () => {
+    const onCloseMobileMock = vi.fn();
+    render(
+      <Sidebar
+        chats={[]}
+        mobileOpen={true}
+        allConversations={[]}
+        onCloseMobile={onCloseMobileMock}
+      />
+    );
+
+    const onDragEnd = latestAsideProps.onDragEnd as (
+      event: unknown,
+      info: { offset: { x: number }; velocity: { x: number } }
+    ) => void;
+
+    expect(onDragEnd).toBeDefined();
+
+    // Drag below threshold (-50px)
+    onDragEnd(undefined, { offset: { x: -50 }, velocity: { x: 0 } });
+    expect(onCloseMobileMock).not.toHaveBeenCalled();
   });
 });

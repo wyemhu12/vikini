@@ -33,6 +33,7 @@ import {
 import { cn } from "@/lib/utils/cn";
 import { toast } from "@/lib/store/toastStore";
 import { CreateProjectModal } from "@/components/features/projects";
+import { shouldCloseDrawer } from "../utils/drawerGesture";
 import { useProjectStore } from "@/lib/store/projectStore";
 import type { FrontendConversation } from "../../chat/hooks/useConversation";
 
@@ -562,6 +563,16 @@ function Sidebar({
                       animate={{ x: 0 }}
                       exit={{ x: "-100%" }}
                       transition={{ duration: 0.25, ease: [0.0, 0.0, 0.2, 1.0] }}
+                      drag="x"
+                      dragDirectionLock
+                      dragConstraints={{ left: 0, right: 0 }}
+                      dragElastic={{ left: 0.5, right: 0 }}
+                      dragSnapToOrigin
+                      onDragEnd={(_, info) => {
+                        if (shouldCloseDrawer(info)) {
+                          onCloseMobile?.();
+                        }
+                      }}
                     >
                       <Dialog.Title className="sr-only">Navigation</Dialog.Title>
                       {/* Mobile header */}

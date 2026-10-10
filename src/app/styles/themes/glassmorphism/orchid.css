@@ -3,6 +3,7 @@
    ===================================================== */
 
 .theme-orchid {
+  color-scheme: light;
   --surface: #f3e8ff;
   --surface-gradient:
     radial-gradient(circle at 15% 20%, rgba(168, 85, 247, 0.12) 0%, transparent 8%),

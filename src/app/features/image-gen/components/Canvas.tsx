@@ -225,9 +225,9 @@ export default function Canvas({
               )}
 
               {/* Overlay with Controls */}
-              <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/40 to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3 overflow-y-auto overflow-x-hidden">
+              <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/40 to-black/40 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3 overflow-y-auto overflow-x-hidden">
                 {/* Top Metadata Badges */}
-                <div className="flex flex-wrap gap-1.5 transform -translate-y-2 group-hover:translate-y-0 transition-transform duration-300 content-start relative w-full shrink-0">
+                <div className="flex flex-wrap gap-1.5 transform -translate-y-2 group-hover:translate-y-0 group-focus-within:translate-y-0 transition-transform duration-300 content-start relative w-full shrink-0">
                   {item.model && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/80 text-white border border-white/10 backdrop-blur-md">
                       {item.model}
@@ -271,7 +271,7 @@ export default function Canvas({
                           e.stopPropagation();
                           onToggleFavorite(item);
                         }}
-                        className={`p-1.5 rounded-full backdrop-blur-md transition-colors border ${
+                        className={`p-1.5 rounded-full backdrop-blur-md transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) ${
                           item.isFavorite
                             ? "bg-pink-500/80 text-white border-pink-400/30 shadow-lg shadow-pink-500/30"
                             : "bg-white/10 hover:bg-pink-500/40 text-white/70 hover:text-white border-white/10"
@@ -284,7 +284,7 @@ export default function Canvas({
                     {item.id && (
                       <button
                         onClick={() => onDelete(item.id!)}
-                        className="p-1.5 rounded-full bg-red-500/20 hover:bg-red-500/80 text-red-200 hover:text-white backdrop-blur-md transition-colors border border-red-500/20"
+                        className="p-1.5 rounded-full bg-red-500/20 hover:bg-red-500/80 text-red-200 hover:text-white backdrop-blur-md transition-colors border border-red-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("galleryDeleteImage")}
                       >
                         <Trash2 className="w-3 h-3" />
@@ -294,7 +294,7 @@ export default function Canvas({
                 </div>
 
                 {/* Bottom Controls Area */}
-                <div className="flex flex-col gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 mt-auto shrink-0">
+                <div className="flex flex-col gap-2 transform translate-y-4 group-hover:translate-y-0 group-focus-within:translate-y-0 transition-transform duration-300 mt-auto shrink-0">
                   {/* Scrollable Prompt */}
                   <div className="max-h-[80px] overflow-y-auto custom-scrollbar bg-black/60 backdrop-blur-md p-2 rounded-lg border border-white/10 shadow-lg">
                     <p className="text-white/90 text-xs font-medium leading-relaxed font-mono">
@@ -315,7 +315,7 @@ export default function Canvas({
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       onClick={() => onRemix(item)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-purple-500/80 hover:bg-purple-600 text-white backdrop-blur-md transition-colors border border-purple-400/30 text-[11px] font-bold shadow-lg shadow-purple-900/40"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-purple-500/80 hover:bg-purple-600 text-white backdrop-blur-md transition-colors border border-purple-400/30 text-[11px] font-bold shadow-lg shadow-purple-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                       title={t("studioReuseTooltip")}
                     >
                       <RefreshCcw className="w-3 h-3" />{" "}
@@ -325,7 +325,7 @@ export default function Canvas({
                     {onEdit && (
                       <button
                         onClick={() => onEdit(item)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-blue-500/80 hover:bg-blue-600 text-white backdrop-blur-md transition-colors border border-blue-400/30 text-[11px] font-bold shadow-lg shadow-blue-900/40"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-blue-500/80 hover:bg-blue-600 text-white backdrop-blur-md transition-colors border border-blue-400/30 text-[11px] font-bold shadow-lg shadow-blue-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("studioEditTooltip")}
                       >
                         <Pencil className="w-3 h-3" />{" "}
@@ -337,7 +337,7 @@ export default function Canvas({
                     {onVariation && (
                       <button
                         onClick={() => onVariation(item)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-emerald-500/80 hover:bg-emerald-600 text-white backdrop-blur-md transition-colors border border-emerald-400/30 text-[11px] font-bold shadow-lg shadow-emerald-900/40"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-emerald-500/80 hover:bg-emerald-600 text-white backdrop-blur-md transition-colors border border-emerald-400/30 text-[11px] font-bold shadow-lg shadow-emerald-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("studioVariationTooltip")}
                       >
                         <Shuffle className="w-3 h-3" />{" "}
@@ -348,14 +348,14 @@ export default function Canvas({
                     <div className="flex gap-1.5 ml-auto">
                       <button
                         onClick={() => void downloadImage(item)}
-                        className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/5"
+                        className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("studioDownload")}
                       >
                         <Download className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => window.open(item.url, "_blank")}
-                        className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/5"
+                        className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("studioFullscreen")}
                       >
                         <ExternalLink className="w-3.5 h-3.5" />

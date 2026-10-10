@@ -147,7 +147,7 @@ export default function ChatControls({
         ${
           isLanding
             ? "relative z-40"
-            : "pb-[calc(1.5rem+var(--sab,0px))] md:pb-6 shadow-2xl md:shadow-none fixed bottom-0 left-0 right-0 z-40 bg-(--surface)/95 backdrop-blur-xl md:bg-transparent md:backdrop-blur-none md:static md:translate-y-0"
+            : "pb-[calc(1.5rem+var(--sab,0px))] md:pb-6 shadow-2xl md:shadow-none fixed bottom-0 left-0 right-0 z-40 bg-(--surface)/95 backdrop-blur-xl md:bg-transparent md:backdrop-blur-none md:static md:translate-y-0 pl-[calc(1rem+var(--sal,0px))] pr-[calc(1rem+var(--sar,0px))]"
         }
       `}
     >

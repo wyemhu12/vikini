@@ -132,9 +132,12 @@
 :root.theme-nebula,
 :root.theme-aqua,
 :root.theme-holo,
-:root.theme-orchid,
 :root.theme-sunset {
   color-scheme: dark;
+}
+
+:root.theme-orchid {
+  color-scheme: light;
 }
 
 :root[data-theme-tone="light"] {

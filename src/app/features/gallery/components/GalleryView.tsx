@@ -149,7 +149,7 @@ export function GalleryView() {
                     {g.compareImages[0] && g.compareImages[1] && (
                       <button
                         onClick={g.handleOpenCompare}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--accent) text-white font-bold shadow-lg shadow-(--accent)/20 hover:opacity-90 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--accent) text-(--accent-foreground) font-bold shadow-lg shadow-(--accent)/20 hover:opacity-90 transition-colors"
                       >
                         <GitCompare className="w-4 h-4" />
                         {g.t("compareNow") || "Compare"}
@@ -225,7 +225,7 @@ export function GalleryView() {
                         <div
                           className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
                             isSelectedForCompare
-                              ? "bg-(--accent) text-white"
+                              ? "bg-(--accent) text-(--accent-foreground)"
                               : "bg-black/50 text-white/70 border border-white/30"
                           }`}
                         >
@@ -278,6 +278,17 @@ export function GalleryView() {
                   {g.currentImageIndex + 1} / {g.filteredImages.length}
                 </div>
 
+                {/* Floating Mobile Close Button (wrapped in div to prevent [&>button]:hidden override) */}
+                <div className="absolute top-3 right-3 z-20 lg:hidden">
+                  <button
+                    onClick={() => g.setSelectedImage(null)}
+                    aria-label={g.t("closeImageDetails") || "Close image details"}
+                    className="p-2 rounded-full bg-black/60 backdrop-blur-md text-white/90 hover:text-white border border-white/20 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
                 <div className="flex flex-col lg:flex-row w-full max-h-[95vh] overflow-hidden">
                   {/* Image Area */}
                   <div className="flex-1 relative bg-black flex items-center justify-center min-h-[400px] lg:min-h-[600px] group">
@@ -327,8 +338,8 @@ export function GalleryView() {
                       <h3 className="font-bold text-lg">{g.t("galleryImageDetails")}</h3>
                       <button
                         onClick={() => g.setSelectedImage(null)}
-                        aria-label={g.t("close") || "Close"}
-                        className="p-2 hover:bg-(--surface-muted) rounded-full text-(--text-secondary) hover:text-(--text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 transition-colors"
+                        aria-label={g.t("closeImageDetails") || "Close image details"}
+                        className="p-2 hover:bg-(--surface-muted) rounded-full text-(--text-secondary) hover:text-(--text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) transition-colors"
                       >
                         <X className="w-5 h-5" />
                       </button>
@@ -382,7 +393,7 @@ export function GalleryView() {
                         </button>
                         <button
                           onClick={() => g.handleRemix(g.selectedImage!.prompt)}
-                          className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--accent) text-white hover:opacity-90 font-bold shadow-lg shadow-(--accent)/20 transition-colors"
+                          className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--accent) text-(--accent-foreground) hover:opacity-90 font-bold shadow-lg shadow-(--accent)/20 transition-colors"
                         >
                           <Sparkles className="w-4 h-4" /> {g.t("galleryRemix")}
                         </button>

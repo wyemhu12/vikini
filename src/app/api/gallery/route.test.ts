@@ -41,6 +41,7 @@ vi.mock("@/lib/utils/logger", () => ({
 
 import { GET } from "./route";
 import { auth } from "@/lib/features/auth/auth";
+import { MODEL_IDS } from "@/lib/utils/constants";
 
 // ============================================================================
 // Helpers
@@ -112,7 +113,7 @@ const AUTHENTICATED_SESSION = {
 
 const SAMPLE_CONVERSATIONS = [
   { id: "conv-1", model: "gemini-2.5-flash" },
-  { id: "conv-2", model: "vikini-image-studio" }, // should be filtered out
+  { id: "conv-2", model: "vikini-image-studio" }, // should be included (API-02)
   { id: "conv-3", model: null },
 ];
 
@@ -305,7 +306,7 @@ describe("/api/gallery", () => {
       expect(json.data.hasMore).toBe(false);
     });
 
-    it("should include images from Image Studio conversations in gallery (API-02 / TC-API-02)", async () => {
+    it("should include images from Image Studio conversations in gallery and assert query builder filters (API-02 / TC-GAL-04)", async () => {
       vi.mocked(auth).mockResolvedValue(
         AUTHENTICATED_SESSION as unknown as ReturnType<typeof auth> extends Promise<infer T>
           ? T
@@ -323,7 +324,7 @@ describe("/api/gallery", () => {
           originalOptions: { model: "gemini-3.1-flash-image" },
         },
       };
-      mockBothQueries(
+      const chain = mockBothQueries(
         { data: [{ id: "c1", model: "vikini-image-studio" }], error: null },
         { data: [studioImageMessage], error: null }
       );
@@ -335,6 +336,36 @@ describe("/api/gallery", () => {
       expect(json.data.images).toHaveLength(1);
       expect(json.data.images[0].url).toBe("https://cdn.example.com/studio1.png");
       expect(json.data.images[0].prompt).toBe("painted dragon");
+
+      // TC-GAL-04 / M2: Verify Query Builder filters
+      // (a) neq is called with ("conversations.model", MODEL_IDS.USER_TEMPLATES_STORE)
+      expect(chain.neq).toHaveBeenCalledWith("conversations.model", MODEL_IDS.USER_TEMPLATES_STORE);
+
+      // (b) No neq or eq call filters out MODEL_IDS.IMAGE_STUDIO
+      const neqCalls = (chain.neq as ReturnType<typeof vi.fn>).mock.calls;
+      const eqCalls = (chain.eq as ReturnType<typeof vi.fn>).mock.calls;
+      const filtersOutImageStudio = [...neqCalls, ...eqCalls].some((args) =>
+        args.includes(MODEL_IDS.IMAGE_STUDIO)
+      );
+      expect(filtersOutImageStudio).toBe(false);
+    });
+
+    it("should apply favorites filter eq('meta->>is_favorite', 'true') when favorites=true (TC-GAL-04)", async () => {
+      vi.mocked(auth).mockResolvedValue(
+        AUTHENTICATED_SESSION as unknown as ReturnType<typeof auth> extends Promise<infer T>
+          ? T
+          : never
+      );
+      const chain = mockBothQueries(
+        { data: SAMPLE_CONVERSATIONS, error: null },
+        { data: SAMPLE_MESSAGES, error: null }
+      );
+
+      const res = await GET(createRequest("/api/gallery?favorites=true"));
+      expect(res.status).toBe(200);
+
+      // (c) favorites=true -> eq("meta->>is_favorite", "true")
+      expect(chain.eq).toHaveBeenCalledWith("meta->>is_favorite", "true");
     });
 
     it("should return empty images when conversations data is null", async () => {

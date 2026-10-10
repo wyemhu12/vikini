@@ -5,6 +5,7 @@
 .theme-charcoal {
   --surface: #070707;
   --surface-muted: #111111;
+  --surface-elevated: #1a1a1a;
   --border: rgba(156, 163, 175, 0.16);
   --control-bg: rgba(255, 255, 255, 0.03);
   --control-bg-hover: rgba(255, 255, 255, 0.08);

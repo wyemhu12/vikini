@@ -890,6 +890,7 @@ export const en = {
   exportFailed: "Failed to export conversation",
   aiIsTyping: "AI is typing...",
   close: "Close",
+  closeImageDetails: "Close image details",
   rename: "Rename",
   delete: "Delete",
   export: "Export",

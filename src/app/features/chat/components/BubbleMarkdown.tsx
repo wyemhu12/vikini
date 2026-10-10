@@ -61,11 +61,21 @@ function parseChart(textContent: string): ChartData | null {
   return null;
 }
 
+function CodeRenderer({ inline, className, children }: CodeProps) {
+  return (
+    <SmartCode inline={inline ?? true} className={className}>
+      {children}
+    </SmartCode>
+  );
+}
+
 function PreBlock({ children }: MarkdownChildrenProps) {
   if (React.isValidElement(children)) {
     const childProps = (children.props || {}) as ReactElementProps;
     const className = childProps.className || "";
-    if (children.type === "code" || Boolean(className)) {
+    // react-markdown v10 passes our custom `code` component as the child type (not "code"),
+    // so fenced blocks without a language must be detected via CodeRenderer too.
+    if (children.type === "code" || children.type === CodeRenderer || Boolean(className)) {
       if (className.includes("language-json")) {
         const chart = parseChart(extractText(childProps.children));
         if (chart) return <ChartTool {...chart} />;
@@ -81,11 +91,7 @@ function PreBlock({ children }: MarkdownChildrenProps) {
 }
 
 const mdComponents = {
-  code: ({ inline, className, children }: CodeProps) => (
-    <SmartCode inline={inline ?? true} className={className}>
-      {children}
-    </SmartCode>
-  ),
+  code: CodeRenderer,
   pre: PreBlock,
   p: ({ children }: MarkdownChildrenProps) => (
     <p className="mb-5 last:mb-0 leading-relaxed break-words">{children}</p>
