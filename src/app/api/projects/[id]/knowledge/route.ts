@@ -21,6 +21,7 @@ import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { HTTP_STATUS } from "@/lib/utils/constants";
 import { logger } from "@/lib/utils/logger";
 import { isSupportedFileType, ALL_SUPPORTED_EXTENSIONS } from "@/types/projects";
+import { extractDocumentText, isBinaryCorruptText } from "@/lib/features/files/documentParsers";
 
 const routeLogger = logger.withContext("api/projects/[id]/knowledge");
 
@@ -91,6 +92,58 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       throw new NotFoundError("Project");
     }
 
+    // 4.5MB ceiling check on Content-Length (M-12, m-18)
+    const contentLength = req.headers.get("content-length");
+    if (contentLength && parseInt(contentLength, 10) > 4.5 * 1024 * 1024) {
+      return error("Payload exceeds 4.5MB limit", HTTP_STATUS.PAYLOAD_TOO_LARGE);
+    }
+
+    const contentType = req.headers.get("content-type") || "";
+
+    if (contentType.includes("multipart/form-data")) {
+      const form = await req.formData();
+
+      // Strict Rejection 400: embedding_model is immutable
+      if (form.has("embedding_model")) {
+        throw new ValidationError("embedding_model cannot be specified for knowledge uploads");
+      }
+
+      const file = form.get("file");
+      if (!file || !(file instanceof File)) {
+        throw new ValidationError("Missing file");
+      }
+
+      if (!isSupportedFileType(file.name)) {
+        throw new ValidationError(
+          `Unsupported file type. Allowed: ${ALL_SUPPORTED_EXTENSIONS.join(", ")}`
+        );
+      }
+
+      if (file.size > 4 * 1024 * 1024) {
+        throw new ValidationError("File size exceeds 4MB limit");
+      }
+
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const text = await extractDocumentText(buffer, file.type, file.name, 400000);
+      if (!text || isBinaryCorruptText(text)) {
+        throw new ValidationError("Could not extract clean text from document");
+      }
+
+      const isTruncated = text.length >= 400000;
+
+      const document = await uploadDocument({
+        projectId,
+        userId,
+        filename: file.name,
+        content: text,
+        mimeType: file.type || "text/plain",
+      });
+
+      routeLogger.info(`Uploaded document via multipart: ${document.filename} (${document.id})`);
+      return success({ document, truncated: isTruncated }, HTTP_STATUS.CREATED);
+    }
+
+    // JSON branch
     const rawBody = await req.json();
 
     // Strict Rejection 400: embedding_model is immutable and cannot be specified
@@ -123,9 +176,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       mimeType: parsed.mimeType,
     });
 
-    routeLogger.info(`Uploaded document: ${document.filename} (${document.id})`);
+    routeLogger.info(`Uploaded document via json: ${document.filename} (${document.id})`);
     return success({ document }, HTTP_STATUS.CREATED);
   } catch (err: unknown) {
+    console.warn(
+      "DIAGNOSTIC POST ERROR:",
+      err,
+      "CONTENT-LENGTH WAS:",
+      req.headers.get("content-length")
+    );
     routeLogger.error("Failed to upload document", err);
     if (err instanceof AppError) return errorFromAppError(err);
     if (err instanceof Error && err.message.includes("limit")) {

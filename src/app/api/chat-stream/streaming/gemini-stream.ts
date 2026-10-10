@@ -3,6 +3,8 @@ import {
   getModelMaxOutputTokens,
   modelSupportsThinking,
   normalizeModelForApi,
+  clampGeminiThinkingLevel,
+  type GeminiThinkingLevel,
 } from "@/lib/core/modelRegistry";
 import { executeFunction } from "@/lib/features/chat/functionRegistry";
 
@@ -22,6 +24,7 @@ import {
   processPostStream,
 } from "./post-processing";
 import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
+import { sendThinkingChunk, accumulateReasoning } from "./reasoningStreamHelper.server";
 
 // --- EXTRACTED FUNCTIONS ---
 
@@ -35,6 +38,12 @@ function sendInitialMetaEvents(
     gemMeta: ChatStreamParams["gemMeta"];
     modelMeta: ChatStreamParams["modelMeta"];
     model: string;
+    ragSources?: Array<{
+      filename: string;
+      documentId: string;
+      chunkId: string;
+      similarity: number;
+    }>;
   }
 ): void {
   const {
@@ -45,12 +54,20 @@ function sendInitialMetaEvents(
     gemMeta,
     modelMeta,
     model,
+    ragSources,
   } = params;
 
   if (createdConversation) {
     sendEvent(controller, "meta", {
       type: "conversationCreated",
       conversation: createdConversation,
+    });
+  }
+
+  if (ragSources && ragSources.length > 0) {
+    sendEvent(controller, "meta", {
+      type: "ragSources",
+      sources: ragSources,
     });
   }
 
@@ -112,14 +129,21 @@ async function executeStream(
     useTools: boolean;
     thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
     cachedContent?: string;
-    acc?: { full: string };
+    acc?: { full: string; reasoning?: string };
     abortSignal?: AbortSignal;
+    ragSources?: Array<{
+      filename: string;
+      documentId: string;
+      chunkId: string;
+      similarity: number;
+    }>;
   }
 ): Promise<StreamResult> {
   const { ai, model, contents, sysPrompt, safetySettings, thinkingLevel } = params;
 
   if (params.acc) {
     params.acc.full = "";
+    params.acc.reasoning = "";
   }
 
   // Resolve Thinking Models
@@ -127,19 +151,24 @@ async function executeStream(
   const normalized = normalizeModelForApi(model);
 
   // Thinking config - different API format for different model families
-  // Gemini 3: uses thinkingLevel (string: "low", "medium", "high")
+  // Gemini 3: uses thinkingLevel (string: "minimal", "low", "medium", "high")
   // Gemini 2.5: uses thinkingBudget (number: 0 = off, -1 = dynamic, or specific token count)
   let thinkingConfig:
-    | { thinkingLevel?: string; thinkingBudget?: number; includeThoughts?: boolean }
+    | { thinkingLevel?: GeminiThinkingLevel; thinkingBudget?: number; includeThoughts?: boolean }
     | undefined;
+
+  let effectiveThinkingLevel = thinkingLevel;
 
   if (thinkingLevel && thinkingLevel !== "off") {
     if (modelSupportsThinking(model)) {
-      // Gemini 3+: use thinkingLevel (string)
-      thinkingConfig = { thinkingLevel, includeThoughts: true };
+      // Gemini 3+: clamp level to model capabilities and send thinkingLevel
+      // INVARIANT: Never send thinkingBudget
+      const clampedLevel = clampGeminiThinkingLevel(model, thinkingLevel);
+      effectiveThinkingLevel = clampedLevel;
+      thinkingConfig = { thinkingLevel: clampedLevel, includeThoughts: true };
     } else if (normalized.startsWith("gemini-2.5")) {
-      // Gemini 2.5: use thinkingBudget (number)
-      // Map thinkingLevel to thinkingBudget: -1 = dynamic (auto-adjust based on complexity)
+      // Gemini 2.5: preserve backward compatibility for DEFAULT_MODEL
+      // INVARIANT: Never send thinkingLevel
       thinkingConfig = { thinkingBudget: -1, includeThoughts: true };
     }
     // Other models: no thinking config (would cause API error)
@@ -160,9 +189,9 @@ async function executeStream(
   const allResponseParts: unknown[] = [];
 
   const maxTokens = getModelMaxOutputTokens(model);
-  const timeoutMs = getStreamTimeout(model, thinkingLevel);
+  const timeoutMs = getStreamTimeout(model, effectiveThinkingLevel);
   streamLogger.info(
-    `Executing stream for model: ${model} with maxTokens: ${maxTokens}, timeout: ${timeoutMs}ms, thinkingLevel: ${thinkingLevel || "off"}`
+    `Executing stream for model: ${model} with maxTokens: ${maxTokens}, timeout: ${timeoutMs}ms, thinkingLevel: ${effectiveThinkingLevel || "off"}`
   );
 
   let systemInstruction: SystemInstruction | undefined = undefined;
@@ -226,9 +255,7 @@ async function executeStream(
     throw err;
   }
 
-  // State machine for thinking/text separation.
-  // Ensures thoughts are emitted BEFORE text, never interleaved.
-  let isInThinkingBlock = false;
+  let fullReasoning = "";
 
   for await (const chunk of stream) {
     if (params.abortSignal?.aborted) break;
@@ -260,26 +287,16 @@ async function executeStream(
         ) {
           const thoughtText =
             typeof part.thought === "string" ? part.thought : (part.text as string);
-          if (!isInThinkingBlock) {
-            isInThinkingBlock = true;
-            full += "<think>";
-            if (params.acc) params.acc.full = full;
-            sendEvent(controller, "token", { t: "<think>" });
+          if (thoughtText) {
+            fullReasoning = accumulateReasoning(fullReasoning, thoughtText);
+            if (params.acc) params.acc.reasoning = fullReasoning;
+            sendThinkingChunk(controller, thoughtText);
           }
-          full += thoughtText;
-          if (params.acc) params.acc.full = full;
-          sendEvent(controller, "token", { t: thoughtText });
           continue;
         }
 
-        // Handle TEXT parts - close thinking block first if open
+        // Handle TEXT parts
         if (typeof part.text === "string") {
-          if (isInThinkingBlock) {
-            isInThinkingBlock = false;
-            full += "</think>";
-            if (params.acc) params.acc.full = full;
-            sendEvent(controller, "token", { t: "</think>" });
-          }
           full += part.text;
           if (params.acc) params.acc.full = full;
           sendEvent(controller, "token", { t: part.text });
@@ -289,12 +306,8 @@ async function executeStream(
       // Fallback for non-candidates responses (v2 direct text, etc.)
       const t = safeText(chunk);
       if (t) {
-        if (isInThinkingBlock) {
-          isInThinkingBlock = false;
-          full += "</think>";
-          sendEvent(controller, "token", { t: "</think>" });
-        }
         full += t;
+        if (params.acc) params.acc.full = full;
         sendEvent(controller, "token", { t });
       }
     }
@@ -416,18 +429,29 @@ async function executeStream(
             { role: "model", parts: modelParts },
             { role: "user", parts: functionResponses.map((fr) => ({ functionResponse: fr })) },
           ];
+          const contConfig: Record<string, unknown> = {
+            abortSignal: params.abortSignal,
+            maxOutputTokens:
+              typeof maxTokens === "number" && !isNaN(maxTokens) ? maxTokens : undefined,
+            safetySettings:
+              Array.isArray(safetySettings) && safetySettings.length > 0
+                ? safetySettings
+                : undefined,
+          };
+          if (params.cachedContent) {
+            contConfig.cachedContent = params.cachedContent;
+          } else {
+            contConfig.systemInstruction = systemInstruction;
+            contConfig.tools =
+              params.useTools && Array.isArray(params.tools) && params.tools.length > 0
+                ? params.tools
+                : undefined;
+            contConfig.toolConfig = params.useTools ? params.toolConfig : undefined;
+          }
           const contResult = params.ai.models.generateContentStream({
             model: params.model,
             contents: contContents as unknown[],
-            config: {
-              systemInstruction,
-              tools:
-                params.useTools && Array.isArray(params.tools) && params.tools.length > 0
-                  ? params.tools
-                  : undefined,
-              // Preserve toolConfig for continuation calls
-              toolConfig: params.useTools ? params.toolConfig : undefined,
-            },
+            config: contConfig,
           });
           const contStream = contResult instanceof Promise ? await contResult : contResult;
           for await (const contChunk of contStream) {
@@ -446,15 +470,10 @@ async function executeStream(
     }
   }
 
-  // Close any remaining thinking block
-  if (isInThinkingBlock) {
-    full += "</think>";
-    if (params.acc) params.acc.full = full;
-    sendEvent(controller, "token", { t: "</think>" });
-  }
-
   return {
     full,
+    reasoning: fullReasoning || undefined,
+    ragSources: params.ragSources,
     groundingMetadata,
     urlContextMetadata,
     promptFeedback,
@@ -481,8 +500,14 @@ async function runStreamWithFallback(
     toolConfig?: Record<string, unknown>;
     thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
     cachedContent?: string;
-    acc?: { full: string };
+    acc?: { full: string; reasoning?: string };
     abortSignal?: AbortSignal;
+    ragSources?: Array<{
+      filename: string;
+      documentId: string;
+      chunkId: string;
+      similarity: number;
+    }>;
   }
 ): Promise<StreamResult> {
   const {
@@ -497,6 +522,7 @@ async function runStreamWithFallback(
     cachedContent,
     acc,
     abortSignal,
+    ragSources,
   } = params;
 
   // Helper to extract detailed error info from Gemini API errors
@@ -561,6 +587,7 @@ async function runStreamWithFallback(
       cachedContent,
       acc,
       abortSignal,
+      ragSources,
     });
   } catch (err) {
     if (abortSignal?.aborted) {
@@ -678,14 +705,15 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
     }
   }
 
-  const acc = { full: "" };
+  const acc = { full: "", reasoning: "" };
   let savedPartial = false;
 
   const savePartialOnce = async () => {
     if (savedPartial) return;
     savedPartial = true;
     const trimmed = acc.full.trim();
-    if (trimmed) {
+    const trimmedReasoning = acc.reasoning?.trim() || "";
+    if (trimmed || trimmedReasoning) {
       const balanced = balanceThinkTags(trimmed);
       try {
         await saveMessage({
@@ -699,6 +727,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
             status: "aborted",
             model,
             clientMessageId,
+            ...(trimmedReasoning ? { reasoning: trimmedReasoning } : {}),
           },
         });
       } catch (saveErr) {
@@ -723,6 +752,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           gemMeta,
           modelMeta,
           model,
+          ragSources: params.ragSources,
         });
 
         // Generate optimistic title if needed
@@ -747,6 +777,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           cachedContent: params.cachedContent,
           acc,
           abortSignal: ac.signal,
+          ragSources: params.ragSources,
         });
 
         // Check cancellation right after stream finishes
@@ -786,9 +817,11 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
         const sources = processGroundingMetadata(controller, streamResult.groundingMetadata);
         const urlContext = processUrlContextMetadata(controller, streamResult.urlContextMetadata);
 
-        // Post-stream processing: pass finalFull
+        // Post-stream processing: pass finalFull and reasoning
         await processPostStream(controller, {
           full: finalFull,
+          reasoning: streamResult.reasoning,
+          ragSources: params.ragSources,
           isActuallyBlocked,
           shouldGenerateTitle,
           conversationId,

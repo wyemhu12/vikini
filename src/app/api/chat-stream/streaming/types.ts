@@ -1,5 +1,7 @@
 // /app/api/chat-stream/streaming/types.ts
 
+import type { GeminiThinkingLevel } from "@/lib/core/modelRegistry";
+
 // Type definitions for conversation objects
 export interface CreatedConversation {
   id: string;
@@ -52,6 +54,8 @@ export interface UsageMetadata {
 
 export interface StreamResult {
   full: string;
+  reasoning?: string;
+  ragSources?: Array<{ filename: string; documentId: string; chunkId: string; similarity: number }>;
   groundingMetadata: unknown;
   urlContextMetadata: unknown;
   promptFeedback: unknown;
@@ -112,12 +116,15 @@ export interface ChatStreamParams {
         contents: unknown[];
         config: {
           systemInstruction?: string | unknown;
-          temperature?: number;
           tools?: unknown[];
           toolConfig?: unknown;
           safetySettings?: unknown[];
           maxOutputTokens?: number;
-          thinkingConfig?: unknown;
+          thinkingConfig?: {
+            thinkingLevel?: GeminiThinkingLevel;
+            thinkingBudget?: number;
+            includeThoughts?: boolean;
+          };
           cachedContent?: string;
           abortSignal?: AbortSignal;
         };
@@ -187,4 +194,10 @@ export interface ChatStreamParams {
   cachedContent?: string;
   clientMessageId?: string;
   signal?: AbortSignal;
+  ragSources?: Array<{
+    filename: string;
+    documentId: string;
+    chunkId: string;
+    similarity: number;
+  }>;
 }

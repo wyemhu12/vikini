@@ -21,6 +21,10 @@ vi.mock("@/lib/core/genaiClient", () => ({
   }),
 }));
 
+vi.mock("@/lib/core/limits", () => ({
+  getUserProfile: vi.fn(),
+}));
+
 vi.mock("@/lib/utils/logger", () => ({
   logger: {
     withContext: () => ({
@@ -35,6 +39,7 @@ vi.mock("@/lib/utils/logger", () => ({
 import { POST } from "./route";
 import { auth } from "@/lib/features/auth/auth";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
+import { getUserProfile } from "@/lib/core/limits";
 
 // ── Helpers ───────────────────────────────────────────────────────────
 const TEST_EMAIL = "test@example.com";
@@ -85,6 +90,10 @@ function mockRateLimitExceeded() {
 describe("/api/describe-image", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getUserProfile).mockResolvedValue({
+      rank: "basic",
+      is_blocked: false,
+    } as unknown as Awaited<ReturnType<typeof getUserProfile>>);
   });
 
   // ── Auth ─────────────────────────────────────────────────────────────
@@ -113,6 +122,57 @@ describe("/api/describe-image", () => {
 
       expect(res.status).toBe(429);
       expect(json.success).toBe(false);
+    });
+  });
+
+  // ── Gatekeeper ──────────────────────────────────────────────────────
+  describe("POST - Gatekeeper", () => {
+    it("should return 503 if user profile is unavailable", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+      vi.mocked(getUserProfile).mockResolvedValue(null);
+
+      const req = createRequest({ imageUrl: "data:image/png;base64,abc" });
+      const res = await POST(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(503);
+      expect(json.success).toBe(false);
+      expect(json.error.code).toBe("SERVICE_UNAVAILABLE");
+    });
+
+    it("should return 403 if user is blocked", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+      vi.mocked(getUserProfile).mockResolvedValue({
+        rank: "basic",
+        is_blocked: true,
+      } as unknown as Awaited<ReturnType<typeof getUserProfile>>);
+
+      const req = createRequest({ imageUrl: "data:image/png;base64,abc" });
+      const res = await POST(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(403);
+      expect(json.success).toBe(false);
+      expect(json.error.code).toBe("USER_BLOCKED");
+    });
+
+    it("should return 403 if user rank is not_whitelisted", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+      vi.mocked(getUserProfile).mockResolvedValue({
+        rank: "not_whitelisted",
+        is_blocked: false,
+      } as unknown as Awaited<ReturnType<typeof getUserProfile>>);
+
+      const req = createRequest({ imageUrl: "data:image/png;base64,abc" });
+      const res = await POST(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(403);
+      expect(json.success).toBe(false);
+      expect(json.error.code).toBe("ACCESS_PENDING");
     });
   });
 

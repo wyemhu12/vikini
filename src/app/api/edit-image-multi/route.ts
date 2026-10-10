@@ -16,12 +16,18 @@ import {
 } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
+import { getUserProfile } from "@/lib/core/limits";
+import { validateAndAuthorizeStoragePath } from "@/lib/features/chat/storageValidation";
+import { HTTP_STATUS } from "@/lib/utils/constants";
+
 const routeLogger = logger.withContext("edit-image-multi");
 
 /** Schema for a single edit turn */
 const editTurnSchema = z.object({
   role: z.enum(["user", "model"]),
   text: z.string().optional(),
+  storagePath: z.string().max(500).optional(),
+  imageUrl: z.string().optional(),
   imageBase64: z.string().optional(),
   imageMimeType: z.string().optional(),
   // Gemini multi-turn requires thought_signature for image parts from model responses
@@ -48,11 +54,31 @@ export const maxDuration = 60;
  * Build Gemini contents[] array from edit history.
  * Uses sliding window: keep first turn (original image) + last N turns
  * to stay within Gemini's ~14 image limit per request.
+ * Resolves images from Supabase storage when storagePath is provided (API-04 / B-2, M-4).
  */
-function buildGeminiContents(
-  editHistory: z.infer<typeof editTurnSchema>[]
-): Array<{ role: string; parts: Array<Record<string, unknown>> }> {
+async function buildGeminiContents(
+  editHistory: z.infer<typeof editTurnSchema>[],
+  userId: string,
+  conversationId: string,
+  supabase: ReturnType<typeof getSupabaseAdmin>
+): Promise<Array<{ role: string; parts: Array<Record<string, unknown>> }>> {
   const MAX_IMAGE_TURNS = 3; // Keep at most 3 image-bearing turns
+
+  async function resolveImageRaw(turn: z.infer<typeof editTurnSchema>): Promise<string> {
+    if (turn.storagePath) {
+      await validateAndAuthorizeStoragePath(supabase, userId, conversationId, turn.storagePath);
+      const { data, error } = await supabase.storage.from("attachments").download(turn.storagePath);
+      if (error || !data) {
+        throw new AppError("Failed to retrieve image from storage", 422, "IMAGE_NOT_FOUND");
+      }
+      const buffer = Buffer.from(await data.arrayBuffer());
+      return buffer.toString("base64");
+    }
+    if (turn.imageBase64) {
+      return turn.imageBase64.replace(/^data:[^;]+;base64,/, "");
+    }
+    throw new AppError("Missing image data for turn", 422, "MISSING_IMAGE_DATA");
+  }
 
   // Check if this is the first edit (no model responses yet)
   const hasModelResponse = editHistory.some((t) => t.role === "model" && t.thoughtSignature);
@@ -66,15 +92,13 @@ function buildGeminiContents(
     const parts: Array<Record<string, unknown>> = [];
 
     // Add source image
-    if (sourceTurn?.imageBase64) {
-      const raw = sourceTurn.imageBase64.replace(/^data:[^;]+;base64,/, "");
-      parts.push({
-        inlineData: {
-          data: raw,
-          mimeType: sourceTurn.imageMimeType || "image/png",
-        },
-      });
-    }
+    const raw = await resolveImageRaw(sourceTurn);
+    parts.push({
+      inlineData: {
+        data: raw,
+        mimeType: sourceTurn.imageMimeType || "image/png",
+      },
+    });
 
     // Add edit instruction
     const editText = lastUserTurn?.text || sourceTurn?.text || "Edit this image";
@@ -85,7 +109,9 @@ function buildGeminiContents(
 
   // Subsequent edits: use proper multi-turn with thought_signatures
   // Count model image turns for sliding window
-  const modelImageTurns = editHistory.filter((t) => t.role === "model" && t.imageBase64);
+  const modelImageTurns = editHistory.filter(
+    (t) => t.role === "model" && (t.storagePath || t.imageBase64)
+  );
 
   let filteredHistory = editHistory;
   if (modelImageTurns.length > MAX_IMAGE_TURNS) {
@@ -95,11 +121,12 @@ function buildGeminiContents(
     filteredHistory = [firstUserTurn, ...recentTurns];
   }
 
-  return filteredHistory.map((turn) => {
+  const results: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [];
+  for (const turn of filteredHistory) {
     const parts: Array<Record<string, unknown>> = [];
 
-    if (turn.imageBase64) {
-      const raw = turn.imageBase64.replace(/^data:[^;]+;base64,/, "");
+    if (turn.storagePath || turn.imageBase64) {
+      const raw = await resolveImageRaw(turn);
       const imagePart: Record<string, unknown> = {
         inlineData: {
           data: raw,
@@ -122,8 +149,10 @@ function buildGeminiContents(
       parts.push({ text: " " });
     }
 
-    return { role: turn.role, parts };
-  });
+    results.push({ role: turn.role, parts });
+  }
+
+  return results;
 }
 
 export async function POST(req: NextRequest) {
@@ -172,8 +201,24 @@ export async function POST(req: NextRequest) {
       throw new ForbiddenError("You don't have permission to edit images in this conversation");
     }
 
+    // 4.5 Gatekeeper check (M-19, M-23)
+    const profile = await getUserProfile(userId);
+    if (!profile) {
+      throw new AppError(
+        "Service unavailable",
+        HTTP_STATUS.SERVICE_UNAVAILABLE,
+        "SERVICE_UNAVAILABLE"
+      );
+    }
+    if (profile.is_blocked) {
+      throw new AppError("User is blocked", 403, "USER_BLOCKED");
+    }
+    if (profile.rank === "not_whitelisted") {
+      throw new AppError("Access pending approval", 403, "ACCESS_PENDING");
+    }
+
     // 5. Build Gemini contents
-    const contents = buildGeminiContents(editHistory);
+    const contents = await buildGeminiContents(editHistory, userId, conversationId, supabase);
     routeLogger.info(
       `Multi-turn edit: ${contents.length} turns, model: ${options?.model || "default"}`
     );
@@ -330,11 +375,11 @@ export async function POST(req: NextRequest) {
       throw new Error("Failed to save message");
     }
 
-    // 12. Return with the base64 so EditPanel can use it for next turn
+    // 12. Return with storagePath so EditPanel can use it for next turn (M-4, m-7, m-12)
     return success({
       message,
       imageUrl: finalUrl,
-      imageBase64: resultBase64,
+      storagePath,
       imageMimeType: resultMimeType,
       thoughtSignature: resultThoughtSignature,
     });

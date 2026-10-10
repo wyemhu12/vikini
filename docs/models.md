@@ -14,6 +14,15 @@
 > **Migration Notice (March 2026)**: `gemini-3-pro-preview` sẽ bị discontinue ngày 9/3/2026.
 > Vikini đã migrate sang `gemini-3.1-pro-preview`. Alias cũ (`gemini-3-pro`, `gemini-3-pro-preview`) tự động redirect.
 
+> [!IMPORTANT]
+> **Gemini Thinking Level & Sampling Migration (October 2026)**:
+>
+> - **Gemini 3+**: Chuyển đổi toàn diện sang `thinkingLevel` (`minimal`, `low`, `medium`, `high`) theo chuẩn Google GenAI SDK mới.
+> - **Gemini 2.5**: Tiếp tục sử dụng `thinkingBudget: -1` (dynamic thinking) cho backward compatibility với model mặc định `gemini-2.5-flash`.
+> - **Mutual Exclusion Invariant**: Tuyệt đối không gửi đồng thời `thinkingLevel` và `thinkingBudget` trong cùng một request config.
+> - **Sampling Parameters Sanitization**: Toàn bộ tham số sampling tùy biến (`temperature`, `top_p`, `top_k`) đã được loại bỏ khỏi các request gọi Gemini API (`gemini-stream.ts`, `autoTitleEngine.ts`, `fileProcessors.ts`) để tuân thủ khuyến nghị của Google và tránh lỗi 400 trong các thế hệ model mới.
+> - **Claude Thinking Toggle**: Giao diện hiển thị `off/high` nhất quán 100% với `anthropic-stream.ts`.
+
 ### gemini-3.1-pro-preview
 
 | Thuộc tính             | Giá trị                        |
@@ -27,7 +36,7 @@
 **Supported Features:**
 | Feature | Status |
 |---------|--------|
-| Thinking Mode | ✅ Supported (off, low, high) |
+| Thinking Mode | ✅ Supported (off, low, medium, high) |
 | Search Grounding | ✅ Supported |
 | URL Context | ✅ Supported |
 | Function Calling | ✅ Supported |

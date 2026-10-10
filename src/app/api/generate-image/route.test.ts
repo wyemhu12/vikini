@@ -40,7 +40,18 @@ vi.mock("@/lib/features/chat/messages", () => ({
 }));
 
 vi.mock("@/lib/core/batchGenQuota", () => ({
+  tryClaimBatchGenSlot: vi.fn().mockResolvedValue({ claimed: true, rollback: vi.fn() }),
+  BATCH_GEN_LIMITS: {
+    basic: { maxBatchSize: 2, quotas: { 2: 10 } },
+    pro: { maxBatchSize: 3, quotas: { 2: 10, 3: 10 } },
+    admin: { maxBatchSize: 4, quotas: { 2: 999, 3: 999, 4: 999 } },
+    not_whitelisted: { maxBatchSize: 1, quotas: {} },
+  },
   incrementBatchGenUsage: vi.fn(),
+}));
+
+vi.mock("@/lib/core/limits", () => ({
+  getUserProfile: vi.fn().mockResolvedValue({ rank: "basic", is_blocked: false }),
 }));
 
 vi.mock("@/lib/utils/logger", () => ({
@@ -57,6 +68,8 @@ vi.mock("@/lib/utils/logger", () => ({
 import { POST } from "./route";
 import { auth } from "@/lib/features/auth/auth";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
+import { getUserProfile } from "@/lib/core/limits";
+import { tryClaimBatchGenSlot } from "@/lib/core/batchGenQuota";
 
 // ── Helpers ───────────────────────────────────────────────────────────
 const TEST_EMAIL = "test@example.com";
@@ -113,6 +126,16 @@ const validBody = {
 describe("/api/generate-image", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getUserProfile).mockResolvedValue({
+      id: "u1",
+      email: TEST_EMAIL,
+      rank: "basic",
+      is_blocked: false,
+    });
+    vi.mocked(tryClaimBatchGenSlot).mockResolvedValue({
+      claimed: true,
+      rollback: vi.fn(),
+    });
   });
 
   // ────────────────────────────────────────────────────────────────────
@@ -562,6 +585,198 @@ describe("/api/generate-image", () => {
       const res = await POST(req);
 
       expect(res.status).toBe(422);
+    });
+
+    // ────────────────────────────────────────────────────────────────────
+    // Gatekeeper & Batch Gen Quota Tests (SEC-06)
+    // ────────────────────────────────────────────────────────────────────
+    it("should return 403 with code USER_BLOCKED if user profile is blocked", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: TEST_CONV_ID, user_id: TEST_EMAIL },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      vi.mocked(getUserProfile).mockResolvedValueOnce({
+        id: "u1",
+        email: TEST_EMAIL,
+        rank: "basic",
+        is_blocked: true,
+      });
+
+      const req = createRequest("POST", "/api/generate-image", validBody);
+      const res = await POST(req);
+
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json.error.code).toBe("USER_BLOCKED");
+    });
+
+    it("should return 403 with code ACCESS_PENDING if user profile rank is not_whitelisted", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: TEST_CONV_ID, user_id: TEST_EMAIL },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      vi.mocked(getUserProfile).mockResolvedValueOnce({
+        id: "u1",
+        email: TEST_EMAIL,
+        rank: "not_whitelisted",
+        is_blocked: false,
+      });
+
+      const req = createRequest("POST", "/api/generate-image", validBody);
+      const res = await POST(req);
+
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json.error.code).toBe("ACCESS_PENDING");
+    });
+
+    it("should return 503 SERVICE_UNAVAILABLE if getUserProfile returns null", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: TEST_CONV_ID, user_id: TEST_EMAIL },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      vi.mocked(getUserProfile).mockResolvedValueOnce(null);
+
+      const req = createRequest("POST", "/api/generate-image", validBody);
+      const res = await POST(req);
+
+      expect(res.status).toBe(503);
+      const json = await res.json();
+      expect(json.error.code).toBe("SERVICE_UNAVAILABLE");
+    });
+
+    it("should return 403 with code BATCH_SIZE_EXCEEDS_RANK if effectiveBatchSize exceeds rank max", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: TEST_CONV_ID, user_id: TEST_EMAIL },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      // basic rank has maxBatchSize: 2
+      vi.mocked(getUserProfile).mockResolvedValueOnce({
+        id: "u1",
+        email: TEST_EMAIL,
+        rank: "basic",
+        is_blocked: false,
+      });
+
+      const req = createRequest("POST", "/api/generate-image", {
+        ...validBody,
+        batchSize: 4,
+      });
+      const res = await POST(req);
+
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json.error.code).toBe("BATCH_SIZE_EXCEEDS_RANK");
+    });
+
+    it("should bypass quota claim if x-api-key header (BYOK) is present", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: TEST_CONV_ID, user_id: TEST_EMAIL },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+      vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+        generate: vi.fn().mockResolvedValue({
+          images: [{ url: "https://example.com/image.png" }],
+        }),
+      } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+
+      const req = new NextRequest(new URL("/api/generate-image", "http://localhost:3000"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": "my-custom-byok-key",
+        },
+        body: JSON.stringify({
+          ...validBody,
+          batchSize: 2,
+        }),
+      });
+
+      await POST(req);
+
+      // Should NOT call tryClaimBatchGenSlot when BYOK
+      expect(tryClaimBatchGenSlot).not.toHaveBeenCalled();
+    });
+
+    it("should call claim.rollback() if provider generation fails", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: TEST_CONV_ID, user_id: TEST_EMAIL },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      const mockRollback = vi.fn().mockResolvedValue(undefined);
+      vi.mocked(tryClaimBatchGenSlot).mockResolvedValueOnce({
+        claimed: true,
+        rollback: mockRollback,
+      });
+
+      const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+      vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+        generate: vi.fn().mockRejectedValue(new Error("Provider error")),
+      } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+
+      const req = createRequest("POST", "/api/generate-image", {
+        ...validBody,
+        batchSize: 2,
+      });
+
+      await POST(req);
+
+      expect(mockRollback).toHaveBeenCalled();
     });
   });
 });

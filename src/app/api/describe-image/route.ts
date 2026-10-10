@@ -6,6 +6,8 @@ import { consumeRateLimit } from "@/lib/core/rateLimit";
 import { UnauthorizedError, ValidationError, RateLimitError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { fetchSafeImage } from "@/lib/core/ssrfGuard.server";
+import { getUserProfile } from "@/lib/core/limits";
+import { HTTP_STATUS } from "@/lib/utils/constants";
 
 const routeLogger = logger.withContext("describe-image");
 
@@ -26,6 +28,22 @@ export async function POST(req: NextRequest) {
     const rl = await consumeRateLimit(`describe-image:${userId}`);
     if (!rl.allowed) {
       throw new RateLimitError("Too many requests. Please wait.");
+    }
+
+    // Gatekeeper check (M-19, m-28, M-23)
+    const profile = await getUserProfile(userId);
+    if (!profile) {
+      throw new AppError(
+        "Service unavailable",
+        HTTP_STATUS.SERVICE_UNAVAILABLE,
+        "SERVICE_UNAVAILABLE"
+      );
+    }
+    if (profile.is_blocked) {
+      throw new AppError("User is blocked", 403, "USER_BLOCKED");
+    }
+    if (profile.rank === "not_whitelisted") {
+      throw new AppError("Access pending approval", 403, "ACCESS_PENDING");
     }
 
     const body = await req.json();

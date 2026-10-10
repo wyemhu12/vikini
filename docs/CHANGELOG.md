@@ -8,6 +8,60 @@
 
 ---
 
+## 2026-10-08: Audit Remediation Phase 2 -- Streaming, RAG & Media Attachments
+
+- **Pillar 1: Streaming Reliability & Provider Normalization (STR-01, STR-02, STR-03)**:
+  - **OpenAI Vision Format & Think Tag Sanitization (STR-01)**: Chuẩn hóa tin nhắn có ảnh trong `openai-stream.ts` theo chuẩn OpenAI Vision Spec: chỉ ánh xạ ảnh cho tin nhắn `user`, hạ cấp tin nhắn ảnh của `assistant` trong lịch sử thành văn bản thuần. Lọc bỏ thẻ suy luận `<think>...</think>` khỏi lịch sử tin nhắn để tránh ô nhiễm context.
+  - **Gemini Context Cache Preservation (STR-02)**: Bảo toàn tham số `cachedContent` khi thực hiện tool continuation call trong `gemini-stream.ts`.
+  - **IME Telex Composition & Streaming Keyboard Guard (STR-03)**: Chặn submit ngoài ý muốn khi gõ Telex tiếng Việt (`isComposing` hoặc `keyCode === 229`) và ngăn ngắt stream khi nhấn phím Enter trên Desktop trong lúc model đang phản hồi.
+- **Pillar 2: Reasoning Stream Separation & End-to-End Encryption (M-1, M-6, M-8, M-9, M-10, M-13, M-15)**:
+  - **SSE Named Event Wire Protocol**: Tách biệt luồng suy luận thành event SSE chuẩn `event: thinking\ndata: {"type":"thinking","content":"..."}\n\n` trên cả 4 providers (`gemini-stream.ts`, `deepseek-stream.ts`, `anthropic-stream.ts`, `openai-stream.ts`).
+  - **Empty Answer Resilience**: Bổ sung cờ `emptyAnswerReason: "length" | "no_content"` trong `post-processing.ts` cho các trường hợp model cạn token hoặc chỉ sinh suy luận mà không có câu trả lời; hiển thị banner hướng dẫn người dùng giảm thinking level.
+  - **Data-at-Rest Encryption (AES-GCM)**: Tự động mã hóa `meta.reasoning` trước khi lưu vào CSDL qua `encryptMetaReasoning` và giải mã an toàn khi đọc qua `decryptMetaReasoning` (`messages.ts`, `/api/messages/route.ts`).
+  - **UI/UX Reasoning & RAG Citations**: Tích hợp hiển thị khối suy luận thời gian thực và trích dẫn tài liệu Knowledge Base (`ragSources`) ngay trong streaming bubble (`ChatApp.tsx`, `ChatMessagesArea.tsx`, `ChatBubble.tsx`).
+- **Pillar 3: RAG Knowledge Base Multipart Upload & Similarity Alignment (RAG-01, RAG-02)**:
+  - **Multipart Document Upload (RAG-01)**: Hỗ trợ upload tài liệu trực tiếp qua FormData multipart cho Knowledge Base (`/api/projects/[id]/knowledge`), thiết lập trần payload an toàn 4.5MB (HTTP 413) trước khi đọc body, trích xuất text với giới hạn 400.000 ký tự và cảnh báo `documentTruncatedNotice` cho người dùng.
+  - **Vector Similarity Threshold (RAG-02)**: Điều chỉnh ngưỡng tương đồng mặc định từ `0.7` về `0.5` trong `knowledge.server.ts` để cải thiện độ phủ truy hồi ngữ cảnh của RAG.
+- **Pillar 4: Project Deletion IDOR Protection (SEC-05)**:
+  - Kiểm tra quyền sở hữu project chặt chẽ trước khi xóa (`projects.server.ts`), giới hạn phạm vi xóa và hủy liên kết `conversations` chỉ áp dụng cho tài khoản người dùng hiện tại (`user_id = userId`).
+- **Pillar 5: Batch Image Generation Quota & Gatekeeper (SEC-06 / B-1)**:
+  - **Atomic Quota Claim-Then-Rollback**: Thiết kế lại `batchGenQuota.ts` với hàm nguyên tử `tryClaimBatchGenSlot` (kiểm tra hạn ngạch, tăng Redis counter và rollback khi provider ném lỗi). Hỗ trợ in-memory dev fallback khi môi trường dev không cấu hình Upstash Redis.
+  - **Gatekeeper Hardening**: Bổ sung chốt chặn trạng thái tài khoản fail-closed trong `/api/generate-image`, `/api/edit-image`, `/api/edit-image-multi`, và `/api/describe-image` (503 `SERVICE_UNAVAILABLE` nếu không tra cứu được hồ sơ, 403 `USER_BLOCKED` nếu tài khoản bị khóa, 403 `ACCESS_PENDING` nếu rank `not_whitelisted`).
+- **Pillar 6: Storage-Aware Image Editing & Lean Payloads (API-04 / B-2, M-4)**:
+  - **Storage Path Validation**: Tạo `storageValidation.ts` ngăn chặn triệt để directory traversal (`%2e%2e`, `%`, `\`, ký tự điều khiển) và xác thực quyền sở hữu storagePath thông qua bản ghi tin nhắn trong CSDL.
+  - **Lean Multi-Turn Payloads**: Loại bỏ hoàn toàn việc truyền chuỗi base64 nặng từ client lên server trong `/api/edit-image-multi` và `EditPanel.tsx`; server tự động tải ảnh nguồn qua Supabase Storage bằng `storagePath` và áp dụng sliding window tối đa 3 lượt ảnh.
+- **Verification Gate**:
+  - 100 test files passed, 1088 tests passed (0 failures).
+  - `npm run type-check`: 0 errors.
+  - `npm run lint`: 0 errors, 0 warnings.
+  - `npm run verify`: PASS.
+
+---
+
+## 2026-10-08: Gemini Thinking Level Migration & Sampling Parameters Sanitization
+
+- **Google Gemini API Migration (Deprecation Cleanup)**:
+  - **Thinking Level Migration**:
+    - Chuyển đổi toàn diện sang `thinkingLevel` (`minimal`, `low`, `medium`, `high`) cho họ mô hình Gemini 3+ (`gemini-3-flash-preview`, `gemini-3.1-pro-preview`, `gemini-3.1-flash-lite-preview`).
+    - Bảo toàn 100% backward compatibility cho mô hình mặc định `gemini-2.5-flash` qua nhánh `thinkingBudget: -1` (dynamic thinking).
+    - Thiết lập bất biến Mutual Exclusion: Tuyệt đối không gửi đồng thời `thinkingLevel` và `thinkingBudget` trong cùng một request config, triệt tiêu nguy cơ lỗi HTTP 400 INVALID_ARGUMENT.
+    - Bổ sung hàm thuần `getSupportedGeminiThinkingLevels` và `clampGeminiThinkingLevel` trong `src/lib/core/modelRegistry.ts` làm Single Source of Truth; server tự động kẹp bậc suy luận không được model hỗ trợ (ví dụ `minimal` -> `low` trên `gemini-3.1-pro-preview`).
+  - **Sampling Parameters Sanitization**:
+    - Loại bỏ hoàn toàn `temperature`, `top_p`, `top_k` khỏi các request gửi tới Gemini API (`gemini-stream.ts`, `autoTitleEngine.ts`, `fileProcessors.ts`).
+    - Xóa `temperature?: number` khỏi `ChatStreamParams.config` trong `types.ts` để kích hoạt TypeScript excess property check (Negative Probe).
+    - Bảo toàn 100% cấu hình sampling của Anthropic Claude (`temperature: 1` khi thinking, `0.7` khi tắt), OpenAI/Groq (`temperature: 0.7`), và DeepSeek (`temperature: 0.7`).
+    - Trong `autoTitleEngine.ts`: sử dụng enum `ThinkingLevel.MINIMAL` từ `@google/genai` cho Gemini 3 để chống tràn token suy luận (Reasoning Token Truncation) và bảo đảm type-check sạch.
+  - **Cross-Model UI Harmonization & Pure Derived State**:
+    - Trích xuất hàm thuần `getAvailableThinkingLevels` và `getEffectiveThinkingLevel` trong `useThinkingLevel.ts`: loại bỏ hoàn toàn `useEffect` auto-persist phá hủy state của người dùng khi reload trang hoặc ghé qua model không-thinking.
+    - Cập nhật `ThinkingLevelSelector.tsx` dựng options theo năng lực model thật (hiển thị `medium` cho Gemini 3.1 Pro), đồng bộ checkmark và nhãn theo `effectiveLevel`.
+    - Chuẩn hóa dropdown của Claude sang hiển thị `off/high` nhất quán với `anthropic-stream.ts`.
+  - **Co-located Unit Tests & Verification**:
+    - Viết mới: `src/lib/core/modelRegistry.test.ts` (10 tests), `src/lib/core/autoTitleEngine.test.ts` (6 tests), `src/lib/features/files/fileProcessors.test.ts` (2 tests).
+    - Mở rộng: `src/app/api/chat-stream/streaming/gemini-stream.test.ts` (thêm 5 tests, tổng 6 tests), `src/app/features/chat/components/hooks/useThinkingLevel.test.ts` (thêm 11 tests, tổng 18 tests).
+    - `npm run verify` sạch hoàn toàn (type-check + lint + test).
+
+---
+
 ## 2026-10-01: Audit Remediation Phase 1 -- Security, Admin Dashboard & Core Fixes
 
 - **Pillar 1: Security Hardening & Zero-Trust Tenant Isolation**:

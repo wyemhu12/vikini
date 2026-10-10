@@ -150,6 +150,15 @@ async function processPostStream(
     model?: string;
     /** Reason why answer content was empty despite thinking/CoT */
     emptyAnswerReason?: "length" | "no_content";
+    /** Full reasoning content (thoughts) */
+    reasoning?: string;
+    /** RAG knowledge sources */
+    ragSources?: Array<{
+      filename: string;
+      documentId: string;
+      chunkId: string;
+      similarity: number;
+    }>;
   }
 ): Promise<void> {
   const {
@@ -171,10 +180,40 @@ async function processPostStream(
     urlContext,
     model,
     emptyAnswerReason,
+    reasoning,
+    ragSources,
   } = params;
 
   const trimmed = full.trim();
-  if (!trimmed) return;
+  const trimmedReasoning = typeof reasoning === "string" ? reasoning.trim() : "";
+
+  // If both answer and reasoning are empty, nothing to persist
+  if (!trimmed && !trimmedReasoning) return;
+
+  // Case 1: Empty answer but non-empty reasoning (M-1, M-9, m-16)
+  if (!trimmed && trimmedReasoning) {
+    try {
+      await saveMessage({
+        conversationId,
+        userId,
+        role: "assistant",
+        content: "",
+        meta: {
+          reasoning: trimmedReasoning,
+          ...(model ? { model } : {}),
+          ...(emptyAnswerReason ? { emptyAnswerReason } : {}),
+          ...(sources && sources.length > 0 ? { sources } : {}),
+          ...(urlContext && urlContext.length > 0 ? { urlContext } : {}),
+          ...(ragSources && ragSources.length > 0 ? { ragSources } : {}),
+        },
+      });
+      // Do NOT append to context when content is empty (m-16)
+      // Do NOT generate title when content is empty
+    } catch (err) {
+      streamLogger.error("post-stream reasoning-only processing error:", err);
+    }
+    return;
+  }
 
   // Use array if available, fallback to single signature
   const signatures =
@@ -197,6 +236,7 @@ async function processPostStream(
         role: "assistant",
         content: trimmed,
         meta: {
+          ...(trimmedReasoning ? { reasoning: trimmedReasoning } : {}),
           ...(signatures && signatures.length > 0 ? { thoughtSignatures: signatures } : {}),
           // Include token usage metadata if available
           ...(usageMetadata?.promptTokenCount !== undefined
@@ -214,6 +254,7 @@ async function processPostStream(
           // Persist web search sources and URL context so they survive page reload
           ...(sources && sources.length > 0 ? { sources } : {}),
           ...(urlContext && urlContext.length > 0 ? { urlContext } : {}),
+          ...(ragSources && ragSources.length > 0 ? { ragSources } : {}),
           ...(model ? { model } : {}),
           ...(emptyAnswerReason ? { emptyAnswerReason } : {}),
         },

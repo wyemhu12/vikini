@@ -144,10 +144,11 @@ describe("createDeepSeekStream", () => {
 
     const output = await readStream(stream);
 
-    expect(output).toContain("<think>");
-    expect(output).toContain("Analyzing question...");
-    expect(output).toContain("</think>");
-    expect(output).toContain("The answer is 42.");
+    expect(output).toContain("event: thinking");
+    expect(output).toContain('"thinking":"Analyzing question..."');
+    expect(output).toContain("event: token");
+    expect(output).toContain('"t":"The answer is 42."');
+    expect(output).not.toContain("<think>");
   });
 
   it("emits emptyAnswerNotice meta event when finish_reason is length and no answer content was emitted", async () => {
@@ -198,8 +199,9 @@ describe("createDeepSeekStream", () => {
 
     const output = await readStream(stream);
 
-    // It should have auto-closed the thinking tag
-    expect(output).toContain("</think>");
+    expect(output).toContain("event: thinking");
+    expect(output).toContain("Deep thinking over extensive context...");
+    expect(output).not.toContain("<think>");
     // Does NOT contain hardcoded Vietnamese server text
     expect(output).not.toContain("Quá trình suy nghĩ đã đạt giới hạn độ dài token");
     // Emits meta event emptyAnswerNotice with reason: "length"
@@ -252,7 +254,9 @@ describe("createDeepSeekStream", () => {
 
     const output = await readStream(stream);
 
-    expect(output).toContain("</think>");
+    expect(output).toContain("event: thinking");
+    expect(output).toContain("Brief deliberation");
+    expect(output).not.toContain("<think>");
     expect(output).not.toContain("Mô hình đã hoàn tất suy nghĩ nhưng chưa xuất nội dung trả lời");
     expect(output).toContain("emptyAnswerNotice");
     expect(output).toContain('"reason":"no_content"');

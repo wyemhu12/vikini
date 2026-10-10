@@ -58,6 +58,38 @@ interface MessageRow {
   meta?: Record<string, unknown>;
 }
 
+export function encryptMetaReasoning(meta: Record<string, unknown> = {}): Record<string, unknown> {
+  if (typeof meta.reasoning === "string" && meta.reasoning.trim().length > 0) {
+    try {
+      const enc = encryptText(meta.reasoning);
+      if (enc) return { ...meta, reasoning: enc };
+    } catch (e) {
+      messagesLogger.error("Failed to encrypt meta.reasoning:", e);
+    }
+  }
+  return meta;
+}
+
+export function decryptMetaReasoning(meta?: Record<string, unknown>): Record<string, unknown> {
+  if (!meta || typeof meta.reasoning !== "string" || !meta.reasoning) return meta || {};
+  try {
+    const decrypted = decryptText(meta.reasoning);
+    return { ...meta, reasoning: decrypted };
+  } catch (e) {
+    messagesLogger.warn("Failed to decrypt meta.reasoning:", e);
+    // Identify ciphertext format from encryption.ts (IV:tag:data or IV:data) (m-38)
+    const isCiphertextHex =
+      /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/i.test(meta.reasoning) ||
+      /^[0-9a-f]{32}:[0-9a-f]+$/i.test(meta.reasoning);
+    if (isCiphertextHex) {
+      const { reasoning: _discarded, ...cleanMeta } = meta;
+      return cleanMeta;
+    }
+    // If it's legacy plaintext (e.g. contains colons like "Step 1: ..."), preserve safely
+    return { ...meta };
+  }
+}
+
 function mapMessageRow(row: MessageRow | null): Message | null {
   if (!row) return null;
 
@@ -69,13 +101,20 @@ function mapMessageRow(row: MessageRow | null): Message | null {
     messagesLogger.warn("Map Error:", e);
   }
 
+  let mappedMeta: Record<string, unknown> = row.meta || {};
+  try {
+    mappedMeta = decryptMetaReasoning(row.meta);
+  } catch (metaErr) {
+    messagesLogger.warn("Failed to decrypt meta:", metaErr);
+  }
+
   return {
     id: row.id,
     conversationId: row.conversation_id ?? row.conversationId ?? "",
     role: row.role,
     content: content,
     createdAt: row.created_at ?? row.createdAt ?? null,
-    meta: row.meta || {},
+    meta: mappedMeta,
   };
 }
 
@@ -104,7 +143,7 @@ export async function saveMessage(
       conversation_id: conversationId,
       role,
       content: contentToSave,
-      meta,
+      meta: encryptMetaReasoning(meta),
     })
     .select("*")
     .single();
@@ -225,7 +264,7 @@ export async function upsertMessage(
         .from("messages")
         .update({
           content: contentToSave,
-          meta: enrichedMeta,
+          meta: encryptMetaReasoning(enrichedMeta),
         })
         .eq("id", existingRow.id)
         .select("*")

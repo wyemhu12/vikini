@@ -7,6 +7,7 @@ import { sendEvent, getStreamTimeout, withTimeout, withIdleTimeout, streamLogger
 import { sendInitialMetaEvents, generateAndSendOptimisticTitle } from "./gemini-stream";
 import { processPostStream } from "./post-processing";
 import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
+import { sendThinkingChunk, accumulateReasoning } from "./reasoningStreamHelper.server";
 
 /**
  * DeepSeek V4 streaming with native thinking mode support.
@@ -44,6 +45,7 @@ export function createDeepSeekStream(params: {
   generateFinalTitle: ChatStreamParams["generateFinalTitle"];
   clientMessageId?: string;
   signal?: AbortSignal;
+  ragSources?: Array<{ filename: string; documentId: string; chunkId: string; similarity: number }>;
 }): ReadableStream<Uint8Array> {
   const {
     ai,
@@ -69,6 +71,7 @@ export function createDeepSeekStream(params: {
     generateFinalTitle,
     clientMessageId,
     signal,
+    ragSources,
   } = params;
 
   const ac = new AbortController();
@@ -89,14 +92,15 @@ export function createDeepSeekStream(params: {
     }
   }
 
-  const acc = { full: "" };
+  const acc = { full: "", reasoning: "" };
   let savedPartial = false;
 
   const savePartialOnce = async () => {
     if (savedPartial) return;
     savedPartial = true;
     const trimmed = acc.full.trim();
-    if (trimmed) {
+    const trimmedReasoning = acc.reasoning.trim();
+    if (trimmed || trimmedReasoning) {
       const balanced = balanceThinkTags(trimmed);
       try {
         await saveMessage({
@@ -110,6 +114,7 @@ export function createDeepSeekStream(params: {
             status: "aborted",
             model,
             clientMessageId,
+            ...(trimmedReasoning ? { reasoning: trimmedReasoning } : {}),
           },
         });
       } catch (saveErr) {
@@ -133,6 +138,7 @@ export function createDeepSeekStream(params: {
         gemMeta,
         modelMeta,
         model,
+        ragSources,
       });
 
       // 2. Optimistic Title
@@ -145,7 +151,7 @@ export function createDeepSeekStream(params: {
       );
 
       let full = "";
-      let isInThinkingBlock = false;
+      let fullReasoning = "";
       let streamFailed = false;
       let emptyAnswerReason: "length" | "no_content" | undefined;
 
@@ -238,28 +244,13 @@ export function createDeepSeekStream(params: {
           // OpenRouter may use `reasoning_content` or `reasoning` depending on version
           const reasoningText = delta?.reasoning_content || delta?.reasoning;
           if (reasoningText) {
-            if (!isInThinkingBlock) {
-              isInThinkingBlock = true;
-              const openTag = "<think>";
-              full += openTag;
-              acc.full = full;
-              sendEvent(controller, "token", { t: openTag });
-            }
-            full += reasoningText;
-            acc.full = full;
-            sendEvent(controller, "token", { t: reasoningText });
+            fullReasoning = accumulateReasoning(fullReasoning, reasoningText);
+            acc.reasoning = fullReasoning;
+            sendThinkingChunk(controller, reasoningText);
           }
 
           // Handle regular content
           if (delta?.content) {
-            // Close thinking block when content starts
-            if (isInThinkingBlock) {
-              isInThinkingBlock = false;
-              const closeTag = "</think>";
-              full += closeTag;
-              acc.full = full;
-              sendEvent(controller, "token", { t: closeTag });
-            }
             full += delta.content;
             acc.full = full;
             sendEvent(controller, "token", { t: delta.content });
@@ -280,22 +271,13 @@ export function createDeepSeekStream(params: {
           }
         }
 
-        // Close thinking block if stream ended during thinking
-        if (isInThinkingBlock) {
-          isInThinkingBlock = false;
-          const closeTag = "</think>";
-          full += closeTag;
-          acc.full = full;
-          sendEvent(controller, "token", { t: closeTag });
-        }
-
         // Diagnostic logging of final stream state
         streamLogger.info(
-          `[DeepSeek Stream] Completed chunks. Finish reason: "${lastFinishReason}", tokens: { prompt: ${promptTokens}, completion: ${completionTokens}, reasoning: ${reasoningTokens} }, fullLength: ${full.length}`
+          `[DeepSeek Stream] Completed chunks. Finish reason: "${lastFinishReason}", tokens: { prompt: ${promptTokens}, completion: ${completionTokens}, reasoning: ${reasoningTokens} }, fullLength: ${full.length}, reasoningLength: ${fullReasoning.length}`
         );
 
         // Check if stream ended completely empty (no reasoning tokens, no answer tokens)
-        if (!full.trim() && !isCancelled && !ac.signal.aborted) {
+        if (!full.trim() && !fullReasoning.trim() && !isCancelled && !ac.signal.aborted) {
           streamLogger.warn(
             `DeepSeek stream ended completely empty. finish_reason: "${lastFinishReason}"`
           );
@@ -313,12 +295,11 @@ export function createDeepSeekStream(params: {
           return;
         }
 
-        // Check if response contains any actual answer content outside thinking tags
-        const nonThinkingContent = full.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-        if (full.includes("<think>") && !nonThinkingContent) {
+        // Check if response contains thinking deliberation but without answer content
+        if (!full.trim() && fullReasoning.trim()) {
           emptyAnswerReason = lastFinishReason === "length" ? "length" : "no_content";
           streamLogger.warn(
-            `DeepSeek stream ended with thinking deliberation but without answer content. finish_reason: "${lastFinishReason}", fullLength: ${full.length}, reason: "${emptyAnswerReason}"`
+            `DeepSeek stream ended with thinking deliberation but without answer content. finish_reason: "${lastFinishReason}", reasoningLength: ${fullReasoning.length}, reason: "${emptyAnswerReason}"`
           );
 
           if (!isCancelled && !ac.signal.aborted) {
@@ -410,10 +391,12 @@ export function createDeepSeekStream(params: {
         return;
       }
 
-      // 3. Post Stream Processing — skip if stream failed with no content
-      if (!streamFailed || full.trim()) {
+      // 3. Post Stream Processing — skip if stream failed with no content and no reasoning
+      if (!streamFailed || full.trim() || fullReasoning.trim()) {
         await processPostStream(controller, {
           full,
+          reasoning: fullReasoning || undefined,
+          ragSources,
           isActuallyBlocked: false,
           shouldGenerateTitle,
           conversationId,

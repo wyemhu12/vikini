@@ -279,7 +279,7 @@ export async function searchKnowledge(
   }
 
   const supabase = getSupabaseAdmin();
-  const threshold = options?.threshold ?? 0.7;
+  const threshold = options?.threshold ?? 0.5;
   const limit = options?.limit ?? 5;
 
   kbLogger.info(`Search: project=${projectId}, threshold=${threshold}, limit=${limit}`);

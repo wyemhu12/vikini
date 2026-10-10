@@ -5,18 +5,14 @@ import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { ImageGenFactory } from "@/lib/features/image-gen/core/ImageGenFactory";
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { saveMessage } from "@/lib/features/chat/messages";
+import { assertConversationOwner } from "@/lib/features/chat/conversations";
 import { logger } from "@/lib/utils/logger";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
-import {
-  UnauthorizedError,
-  ValidationError,
-  ForbiddenError,
-  NotFoundError,
-  RateLimitError,
-  AppError,
-} from "@/lib/utils/errors";
+import { getUserProfile } from "@/lib/core/limits";
+import { tryClaimBatchGenSlot, BATCH_GEN_LIMITS } from "@/lib/core/batchGenQuota";
+import { UnauthorizedError, ValidationError, RateLimitError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
-import { incrementBatchGenUsage } from "@/lib/core/batchGenQuota";
+import { HTTP_STATUS } from "@/lib/utils/constants";
 
 const routeLogger = logger.withContext("generate-image");
 
@@ -93,41 +89,80 @@ export async function POST(req: NextRequest) {
     let { prompt } = parsed; // Prompt is mutable
     const { conversationId, options, batchSize } = parsed;
 
-    // 2.5 Verify conversation ownership
-    const supabaseCheck = getSupabaseAdmin();
-    const { data: conversation, error: convError } = await supabaseCheck
-      .from("conversations")
-      .select("id, user_id")
-      .eq("id", conversationId)
-      .single();
+    // 4. Verify conversation ownership
+    await assertConversationOwner(conversationId, userId);
 
-    if (convError || !conversation) {
-      throw new NotFoundError("Conversation");
+    // 5. User profile check & Gatekeeper (M-19, M-23: fail-closed 503 nếu lỗi/null, 403 nếu blocked/not_whitelisted)
+    const profile = await getUserProfile(userId);
+    if (!profile) {
+      throw new AppError(
+        "Service unavailable: unable to verify user profile",
+        HTTP_STATUS.SERVICE_UNAVAILABLE,
+        "SERVICE_UNAVAILABLE"
+      );
+    }
+    if (profile.is_blocked) {
+      throw new AppError("User is blocked", 403, "USER_BLOCKED");
+    }
+    if (profile.rank === "not_whitelisted") {
+      throw new AppError("Access pending approval", 403, "ACCESS_PENDING");
+    }
+    const rank = profile.rank || "basic";
+
+    // 6. Batch sizing & Rank maxBatchSize check TRƯỚC nhánh bypass BYOK (M-23)
+    const effectiveBatchSize =
+      batchSize ??
+      (options?.numberOfImages && options.numberOfImages > 1 ? options.numberOfImages : 1);
+    const maxBatchSize = BATCH_GEN_LIMITS[rank]?.maxBatchSize ?? 1;
+    if (effectiveBatchSize > maxBatchSize) {
+      throw new AppError("Batch size exceeds rank limit", 403, "BATCH_SIZE_EXCEEDS_RANK");
     }
 
-    if (conversation.user_id !== userId) {
-      throw new ForbiddenError("You don't have permission to add images to this conversation");
+    // 7. BYOK & Atomic quota claim
+    const apiKey = req.headers.get("x-api-key") || undefined;
+    const isByok = Boolean(apiKey && apiKey.trim().length > 0);
+
+    let claim: { claimed: boolean; rollback: () => Promise<void> } = {
+      claimed: true,
+      rollback: async () => {},
+    };
+    if (!isByok && effectiveBatchSize > 1) {
+      const claimRes = await tryClaimBatchGenSlot(userId, rank, effectiveBatchSize);
+      if (!claimRes.claimed) {
+        const statusCode =
+          claimRes.code === "SERVICE_UNAVAILABLE" ? HTTP_STATUS.SERVICE_UNAVAILABLE : 403;
+        throw new AppError(
+          claimRes.reason || "Quota exceeded",
+          statusCode,
+          claimRes.code || "BATCH_GEN_LIMIT_EXCEEDED"
+        );
+      }
+      claim = claimRes;
     }
 
-    // --- PROMPT ENHANCER LOGIC ---
-    const userOriginalPrompt = prompt; // QW2: Save before enhancement
-    let enhancerFailed = false;
-    if (options?.enhancer) {
-      routeLogger.info("[Enhancer] Original prompt:", prompt);
-      try {
-        const { getGenAIClient } = await import("@/lib/core/genaiClient");
-        const genAI = getGenAIClient();
+    // 8. Server-side override: ép numberOfImages = 1 (m-21)
+    if (options) options.numberOfImages = 1;
 
-        // Use latest Gemini Flash model for speed & low cost, or user's selected Gemini model
-        let enhancerModelId = "gemini-2.5-flash";
-        if (
-          options?.enhancerModel &&
-          String(options.enhancerModel).toLowerCase().includes("gemini")
-        ) {
-          enhancerModelId = options.enhancerModel;
-        }
+    try {
+      // --- PROMPT ENHANCER LOGIC ---
+      const userOriginalPrompt = prompt; // QW2: Save before enhancement
+      let enhancerFailed = false;
+      if (options?.enhancer) {
+        routeLogger.info("[Enhancer] Original prompt:", prompt);
+        try {
+          const { getGenAIClient } = await import("@/lib/core/genaiClient");
+          const genAI = getGenAIClient();
 
-        const enhancementPrompt = `You are a professional AI image prompt engineer. Enhance this prompt for maximum image quality.
+          // Use latest Gemini Flash model for speed & low cost, or user's selected Gemini model
+          let enhancerModelId = "gemini-2.5-flash";
+          if (
+            options?.enhancerModel &&
+            String(options.enhancerModel).toLowerCase().includes("gemini")
+          ) {
+            enhancerModelId = options.enhancerModel;
+          }
+
+          const enhancementPrompt = `You are a professional AI image prompt engineer. Enhance this prompt for maximum image quality.
 
 Rules:
 - Add specific visual details: lighting (volumetric, rim, ambient occlusion), texture, material
@@ -139,222 +174,218 @@ Rules:
 
 Original: "${prompt}"`;
 
-        // Note: Using @google/genai SDK format
-        const result = await genAI.models.generateContent({
-          model: enhancerModelId,
-          contents: [{ role: "user", parts: [{ text: enhancementPrompt }] }],
-        });
+          // Note: Using @google/genai SDK format
+          const result = await genAI.models.generateContent({
+            model: enhancerModelId,
+            contents: [{ role: "user", parts: [{ text: enhancementPrompt }] }],
+          });
 
-        let enhancedText = "";
-        // Try to get text from the result - handle both SDK versions
-        const textValue = result.text;
-        if (typeof textValue === "function") {
-          enhancedText = (textValue as () => string)();
-        } else if (typeof textValue === "string") {
-          enhancedText = textValue;
+          let enhancedText = "";
+          // Try to get text from the result - handle both SDK versions
+          const textValue = result.text;
+          if (typeof textValue === "function") {
+            enhancedText = (textValue as () => string)();
+          } else if (typeof textValue === "string") {
+            enhancedText = textValue;
+          } else {
+            enhancedText = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          }
+
+          if (enhancedText) {
+            routeLogger.info(`[Enhancer] Enhanced prompt:`, enhancedText.trim());
+            prompt = enhancedText.trim();
+          }
+        } catch (e) {
+          routeLogger.error("Prompt Enhancement Failed, using original:", e);
+          enhancerFailed = true;
+        }
+      }
+      // -----------------------------
+
+      // 3. Generate Image
+      // Determine provider based on model override or default
+      let providerName = "gemini-native"; // Default (Gemini Image Flash)
+      const modelName = options?.model?.toLowerCase();
+
+      // Auto-route to gemini-native when referenceImage(s) are provided
+      if (
+        options?.referenceImage ||
+        (options?.referenceImages && options.referenceImages.length > 0)
+      ) {
+        providerName = "gemini-native";
+      } else if (
+        modelName?.includes("gemini-3.1-flash-image") ||
+        modelName?.includes("gemini-3-pro-image") ||
+        modelName?.includes("imagen")
+      ) {
+        providerName = "gemini-native";
+      } else if (
+        modelName?.includes("flux") ||
+        modelName?.includes("replicate") ||
+        modelName?.includes("schnell")
+      ) {
+        providerName = "replicate";
+      } else if (
+        modelName?.includes("dall-e") ||
+        modelName?.includes("gpt-image") ||
+        modelName?.includes("gpt")
+      ) {
+        providerName = "openai";
+      }
+
+      const provider = ImageGenFactory.getProvider(providerName);
+
+      // Extract BYOK key from headers if present
+      const apiKey = req.headers.get("x-api-key") || undefined;
+
+      // Type assertion to ensure model mapping doesn't lose data
+      const results = await provider.generate(prompt, options as ImageGenOptions, apiKey);
+
+      if (!results || results.length === 0) {
+        throw new Error("No images generated");
+      }
+
+      const result = results[0]; // Handle first image for now
+      let finalUrl = result.url;
+      let storagePath = "";
+      let mimeType = "image/png";
+      let buffer: Buffer | null = null;
+      let filename = "";
+
+      // 4. Upload to Supabase
+      const supabase = getSupabaseAdmin();
+      const bucket = "attachments";
+
+      if (result.url.startsWith("data:image")) {
+        // Decode Base64
+        const parts = result.url.split(",");
+        const base64Data = parts[1];
+        mimeType = parts[0].match(/:(.*?);/)?.[1] || "image/png";
+        buffer = Buffer.from(base64Data, "base64");
+      } else if (result.url.startsWith("http")) {
+        // Fetch Remote URL (Gemini Temporary URL)
+        // console.log("Fetching remote image:", result.url);
+        const res = await fetch(result.url);
+        if (!res.ok) throw new Error("Failed to fetch image from provider");
+        const arrayBuffer = await res.arrayBuffer();
+        buffer = Buffer.from(arrayBuffer);
+        mimeType = res.headers.get("content-type") || "image/png";
+      }
+
+      if (buffer) {
+        const ext = mimeType.split("/")[1] || "png";
+        const uuid = crypto.randomUUID();
+        filename = `gen-${Date.now()}.${ext}`;
+        storagePath = `${userId}/${conversationId}/${uuid}-${filename}`;
+
+        // Upload Logic
+        const { error: uploadError } = await supabase.storage
+          .from(bucket)
+          .upload(storagePath, buffer, {
+            contentType: mimeType,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          routeLogger.error("Supabase Upload Error:", uploadError);
+          throw new Error("Failed to upload image");
+        }
+
+        // Get Signed URL (10 years) to ensure access even if bucket is private
+        // and prevent issues with public access policies.
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from(bucket)
+          .createSignedUrl(storagePath, 315360000); // 10 years in seconds
+
+        if (signedError || !signedData?.signedUrl) {
+          routeLogger.warn("Failed to create signed URL:", signedError);
+          // Fallback to public URL if signing fails (though unlikely)
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from(bucket).getPublicUrl(storagePath);
+          finalUrl = publicUrl;
         } else {
-          enhancedText = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          finalUrl = signedData.signedUrl;
         }
-
-        if (enhancedText) {
-          routeLogger.info(`[Enhancer] Enhanced prompt:`, enhancedText.trim());
-          prompt = enhancedText.trim();
-        }
-      } catch (e) {
-        routeLogger.error("Prompt Enhancement Failed, using original:", e);
-        enhancerFailed = true;
-      }
-    }
-    // -----------------------------
-
-    // 3. Generate Image
-    // Determine provider based on model override or default
-    let providerName = "gemini-native"; // Default (Gemini Image Flash)
-    const modelName = options?.model?.toLowerCase();
-
-    // Auto-route to gemini-native when referenceImage(s) are provided
-    if (
-      options?.referenceImage ||
-      (options?.referenceImages && options.referenceImages.length > 0)
-    ) {
-      providerName = "gemini-native";
-    } else if (
-      modelName?.includes("gemini-3.1-flash-image") ||
-      modelName?.includes("gemini-3-pro-image") ||
-      modelName?.includes("imagen")
-    ) {
-      providerName = "gemini-native";
-    } else if (
-      modelName?.includes("flux") ||
-      modelName?.includes("replicate") ||
-      modelName?.includes("schnell")
-    ) {
-      providerName = "replicate";
-    } else if (
-      modelName?.includes("dall-e") ||
-      modelName?.includes("gpt-image") ||
-      modelName?.includes("gpt")
-    ) {
-      providerName = "openai";
-    }
-
-    const provider = ImageGenFactory.getProvider(providerName);
-
-    // Extract BYOK key from headers if present
-    const apiKey = req.headers.get("x-api-key") || undefined;
-
-    // Type assertion to ensure model mapping doesn't lose data
-    const results = await provider.generate(prompt, options as ImageGenOptions, apiKey);
-
-    if (!results || results.length === 0) {
-      throw new Error("No images generated");
-    }
-
-    const result = results[0]; // Handle first image for now
-    let finalUrl = result.url;
-    let storagePath = "";
-    let mimeType = "image/png";
-    let buffer: Buffer | null = null;
-    let filename = "";
-
-    // 4. Upload to Supabase
-    const supabase = getSupabaseAdmin();
-    const bucket = "attachments";
-
-    if (result.url.startsWith("data:image")) {
-      // Decode Base64
-      const parts = result.url.split(",");
-      const base64Data = parts[1];
-      mimeType = parts[0].match(/:(.*?);/)?.[1] || "image/png";
-      buffer = Buffer.from(base64Data, "base64");
-    } else if (result.url.startsWith("http")) {
-      // Fetch Remote URL (Gemini Temporary URL)
-      // console.log("Fetching remote image:", result.url);
-      const res = await fetch(result.url);
-      if (!res.ok) throw new Error("Failed to fetch image from provider");
-      const arrayBuffer = await res.arrayBuffer();
-      buffer = Buffer.from(arrayBuffer);
-      mimeType = res.headers.get("content-type") || "image/png";
-    }
-
-    if (buffer) {
-      const ext = mimeType.split("/")[1] || "png";
-      const uuid = crypto.randomUUID();
-      filename = `gen-${Date.now()}.${ext}`;
-      storagePath = `${userId}/${conversationId}/${uuid}-${filename}`;
-
-      // Upload Logic
-      const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(storagePath, buffer, {
-          contentType: mimeType,
-          upsert: false,
-        });
-
-      if (uploadError) {
-        routeLogger.error("Supabase Upload Error:", uploadError);
-        throw new Error("Failed to upload image");
       }
 
-      // Get Signed URL (10 years) to ensure access even if bucket is private
-      // and prevent issues with public access policies.
-      const { data: signedData, error: signedError } = await supabase.storage
-        .from(bucket)
-        .createSignedUrl(storagePath, 315360000); // 10 years in seconds
+      // 5. Persist as Message (Critical for persistence)
+      // We create a message of role 'assistant'
+      const messageContent = `Generated Image: ${prompt}`;
 
-      if (signedError || !signedData?.signedUrl) {
-        routeLogger.warn("Failed to create signed URL:", signedError);
-        // Fallback to public URL if signing fails (though unlikely)
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from(bucket).getPublicUrl(storagePath);
-        finalUrl = publicUrl;
-      } else {
-        finalUrl = signedData.signedUrl;
-      }
-    }
+      // Ensure model is always present in originalOptions
+      const effectiveModel =
+        options?.model ||
+        (providerName === "gemini" || providerName === "gemini-native"
+          ? "Gemini Image Flash"
+          : providerName === "openai"
+            ? "GPT Image 2"
+            : providerName === "replicate"
+              ? "Flux"
+              : "Unknown");
 
-    // 5. Persist as Message (Critical for persistence)
-    // We create a message of role 'assistant'
-    const messageContent = `Generated Image: ${prompt}`;
+      const savedOptions = {
+        ...options,
+        model: effectiveModel,
+      };
 
-    // Ensure model is always present in originalOptions
-    const effectiveModel =
-      options?.model ||
-      (providerName === "gemini" || providerName === "gemini-native"
-        ? "Gemini Image Flash"
-        : providerName === "openai"
-          ? "GPT Image 2"
-          : providerName === "replicate"
-            ? "Flux"
-            : "Unknown");
+      const messageMeta = {
+        type: "image_gen",
+        prompt: prompt, // This is the ENHANCED prompt (modified by enhancer if enabled)
+        imageUrl: finalUrl, // Add imageUrl at top level for easy access
+        originalOptions: savedOptions, // Now always includes model
+        provider: providerName,
+        // QW2: Store both original and enhanced prompts for transparency
+        originalPrompt: options?.enhancer ? userOriginalPrompt : undefined,
+        enhancedPrompt: options?.enhancer ? prompt : undefined,
+        // P2-1: AI comment from interleaved text+image output
+        aiComment: result.aiComment,
+        // MT6: Token usage from provider
+        usage: result.metadata?.usage as Record<string, unknown> | undefined,
+        attachment: {
+          url: finalUrl,
+          storagePath: storagePath,
+          mimeType: mimeType,
+          filename: filename,
+        },
+        // Keep legacy metadata for backward compatibility if needed, but optional
+        metadata: {
+          imageUrl: finalUrl,
+          prompt: prompt,
+          originalOptions: savedOptions,
+        },
+      };
 
-    const savedOptions = {
-      ...options,
-      model: effectiveModel,
-    };
+      routeLogger.info("[Image Gen] Saving message with metadata:", {
+        prompt: messageMeta.prompt,
+        imageUrl: messageMeta.imageUrl,
+      });
 
-    const messageMeta = {
-      type: "image_gen",
-      prompt: prompt, // This is the ENHANCED prompt (modified by enhancer if enabled)
-      imageUrl: finalUrl, // Add imageUrl at top level for easy access
-      originalOptions: savedOptions, // Now always includes model
-      provider: providerName,
-      // QW2: Store both original and enhanced prompts for transparency
-      originalPrompt: options?.enhancer ? userOriginalPrompt : undefined,
-      enhancedPrompt: options?.enhancer ? prompt : undefined,
-      // P2-1: AI comment from interleaved text+image output
-      aiComment: result.aiComment,
-      // MT6: Token usage from provider
-      usage: result.metadata?.usage as Record<string, unknown> | undefined,
-      attachment: {
-        url: finalUrl,
-        storagePath: storagePath,
-        mimeType: mimeType,
-        filename: filename,
-      },
-      // Keep legacy metadata for backward compatibility if needed, but optional
-      metadata: {
+      // Save Message using existing helper
+      const message = await saveMessage(
+        userId, // Note: saveMessage uses userId for logging but check if it enforces RLS or ownership.
+        // `messages.ts` saveMessage doesn't seem to check ownership of conversation, assumes caller checks.
+        // Logic seems fine.
+        conversationId,
+        "assistant",
+        messageContent,
+        messageMeta
+      );
+
+      // 7. Return Success
+      return success({
+        message: message,
         imageUrl: finalUrl,
-        prompt: prompt,
-        originalOptions: savedOptions,
-      },
-    };
-
-    routeLogger.info("[Image Gen] Saving message with metadata:", {
-      prompt: messageMeta.prompt,
-      imageUrl: messageMeta.imageUrl,
-    });
-
-    // Save Message using existing helper
-    const message = await saveMessage(
-      userId, // Note: saveMessage uses userId for logging but check if it enforces RLS or ownership.
-      // `messages.ts` saveMessage doesn't seem to check ownership of conversation, assumes caller checks.
-      // Logic seems fine.
-      conversationId,
-      "assistant",
-      messageContent,
-      messageMeta
-    );
-
-    if (!message) {
-      throw new Error("Failed to save message");
+        enhancerFailed,
+      });
+    } catch (err) {
+      try {
+        await claim.rollback();
+      } catch (rbErr) {
+        routeLogger.warn("Rollback failed:", rbErr);
+      }
+      throw err;
     }
-
-    // 6. Track batch gen usage if applicable
-    if (batchSize && batchSize > 1) {
-      await incrementBatchGenUsage(userId, batchSize);
-    }
-
-    // 6. Skip inserting into 'attachments' table as these are generated images, not user uploads.
-    // The message meta contains the reference.
-
-    // 7. Return Success
-    return success({
-      message: message,
-      imageUrl: finalUrl,
-      enhancerFailed,
-    });
   } catch (err: unknown) {
     routeLogger.error("Image Gen Route Error:", err);
     if (err instanceof AppError) return errorFromAppError(err);

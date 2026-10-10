@@ -22,7 +22,9 @@ export interface ChatMessagesAreaProps {
   regenerating: boolean;
   isStreaming: boolean;
   streamingAssistant: string | null;
+  streamingThinking?: string;
   streamingSources?: unknown[];
+  streamingRagSources?: unknown[];
   streamingUrlContext?: unknown[];
   branchingMessageId: string | null;
   handleRegenerate: (m: FrontendMessage) => void;
@@ -57,7 +59,9 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
   regenerating,
   isStreaming,
   streamingAssistant,
+  streamingThinking,
   streamingSources,
+  streamingRagSources,
   streamingUrlContext,
   branchingMessageId,
   handleRegenerate,
@@ -272,7 +276,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
       )}
 
       {/* Active Streaming Bubble */}
-      {isStreaming && streamingAssistant !== null && (
+      {isStreaming && (streamingAssistant !== null || Boolean(streamingThinking)) && (
         <ChatBubble
           message={{
             id: "streaming-assistant",
@@ -280,7 +284,13 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
             content: streamingAssistant || "",
             sources: streamingSources,
             urlContext: streamingUrlContext,
-            meta: { model: currentConversation?.model || currentModel },
+            meta: {
+              model: currentConversation?.model || currentModel,
+              ...(streamingThinking ? { reasoning: streamingThinking } : {}),
+              ...(streamingRagSources && streamingRagSources.length > 0
+                ? { ragSources: streamingRagSources }
+                : {}),
+            },
           }}
           isLastAssistant={true}
           isStreaming={true}

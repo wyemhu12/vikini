@@ -5,6 +5,8 @@ export const DEFAULT_MODEL = "gemini-2.5-flash" as const;
 
 import { MODEL_IDS } from "@/lib/utils/constants";
 
+export type GeminiThinkingLevel = "minimal" | "low" | "medium" | "high";
+
 export interface SelectableModel {
   id: string;
   descKey: string;
@@ -13,6 +15,7 @@ export interface SelectableModel {
   contextWindow: number;
   maxOutputTokens?: number;
   category: "reasoning" | "low-latency";
+  supportedThinkingLevels?: readonly GeminiThinkingLevel[];
   providerId:
     | "gemini"
     | "grok"
@@ -62,6 +65,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     contextWindow: 1000000,
     maxOutputTokens: 65536,
     category: "low-latency",
+    supportedThinkingLevels: ["minimal", "low", "medium", "high"],
     providerId: "gemini",
   },
 
@@ -74,6 +78,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     contextWindow: 2000000,
     maxOutputTokens: 65536,
     category: "reasoning",
+    supportedThinkingLevels: ["low", "medium", "high"],
     providerId: "gemini",
   },
   {
@@ -84,6 +89,7 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     contextWindow: 1000000,
     maxOutputTokens: 65536,
     category: "low-latency",
+    supportedThinkingLevels: ["minimal", "low", "medium", "high"],
     providerId: "gemini",
   },
 
@@ -403,7 +409,45 @@ export function getModelMaxOutputTokens(modelId: unknown): number | undefined {
 export function modelSupportsThinking(modelId: unknown): boolean {
   const normalized = normalizeModelForApi(modelId);
   // Gemini 3+ and 3.1+ support thinkingLevel parameter
-  return normalized.startsWith("gemini-3") || normalized.startsWith("gemini-3.");
+  return normalized.startsWith("gemini-3");
+}
+
+/**
+ * Get supported thinking levels for a Gemini model.
+ * Single source of truth derived from SELECTABLE_MODELS with fallback for non-selectable Gemini 3 models.
+ */
+export function getSupportedGeminiThinkingLevels(modelId: unknown): readonly GeminiThinkingLevel[] {
+  const normalized = normalizeModelForApi(modelId);
+  const found = SELECTABLE_MODELS.find((m) => m.id === normalized);
+  if (found?.supportedThinkingLevels) {
+    return found.supportedThinkingLevels;
+  }
+  // Fallback cho các mô hình Gemini 3 có trong API_ALLOWED nhưng không nằm trong SELECTABLE_MODELS (ví dụ: gemini-3-pro-image)
+  if (normalized.startsWith("gemini-3")) {
+    if (normalized.includes("flash")) {
+      return ["minimal", "low", "medium", "high"];
+    }
+    return ["low", "medium", "high"];
+  }
+  return [];
+}
+
+/**
+ * Clamp requested thinking level to supported range for a Gemini model.
+ * If requested level is supported, returns it directly.
+ * Otherwise, clamps to the lowest supported level (supported[0]).
+ */
+export function clampGeminiThinkingLevel(
+  modelId: unknown,
+  requestedLevel: string
+): GeminiThinkingLevel {
+  const supported = getSupportedGeminiThinkingLevels(modelId);
+  if (supported.length === 0) return "low";
+  if (supported.includes(requestedLevel as GeminiThinkingLevel)) {
+    return requestedLevel as GeminiThinkingLevel;
+  }
+  // Chính sách kẹp: kẹp về bậc hợp lệ thấp nhất được hỗ trợ (phần tử đầu tiên)
+  return supported[0];
 }
 
 /**

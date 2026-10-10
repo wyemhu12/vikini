@@ -68,24 +68,46 @@ export default function ProjectPage() {
   }, [projectId, fetchDocuments]);
 
   // Upload document
-  const handleUpload = async (file: File, content: string) => {
-    const res = await fetch(`/api/projects/${projectId}/knowledge`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        filename: file.name,
-        content,
-        mimeType: file.type || "text/plain",
-      }),
-    });
+  const handleUpload = async (file: File, payload: FormData | string) => {
+    let res: Response;
+    if (payload instanceof FormData) {
+      res = await fetch(`/api/projects/${projectId}/knowledge`, {
+        method: "POST",
+        body: payload,
+      });
+    } else {
+      res = await fetch(`/api/projects/${projectId}/knowledge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          content: payload,
+          mimeType: file.type || "text/plain",
+        }),
+      });
+    }
 
-    const data = await res.json();
+    if (res.status === 413) {
+      throw new Error(
+        t("serverPayloadTooLarge") || "File quá lớn, vượt quá giới hạn tải lên của máy chủ"
+      );
+    }
+
+    let data: { success?: boolean; error?: { message?: string }; data?: { truncated?: boolean } };
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error(res.ok ? "Upload failed" : `Upload failed (${res.status})`);
+    }
+
     if (!data.success) {
       throw new Error(data.error?.message || t("uploadFailed"));
     }
 
     // Refresh both document list and project stats (document_count, storage_bytes)
     await Promise.all([fetchDocuments(), fetchProjects()]);
+
+    return { truncated: Boolean(data.data?.truncated) };
   };
 
   // Delete document

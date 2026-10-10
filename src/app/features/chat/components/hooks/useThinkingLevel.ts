@@ -2,6 +2,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  getSupportedGeminiThinkingLevels,
+  clampGeminiThinkingLevel,
+} from "@/lib/core/modelRegistry";
 
 /**
  * Thinking levels supported by AI models.
@@ -85,6 +89,61 @@ interface UseThinkingLevelResult {
 }
 
 /**
+ * Get available thinking levels for a model.
+ */
+export function getAvailableThinkingLevels(currentModel: string): ThinkingLevel[] {
+  if (isClaudeThinkingModel(currentModel)) return ["off", "high"];
+  if (isDeepSeekV4Model(currentModel)) return ["off", "low", "high"];
+  if (isGemini25Model(currentModel)) return ["off", "low", "high"];
+  const geminiSupported = getSupportedGeminiThinkingLevels(currentModel);
+  if (geminiSupported.length > 0) {
+    return ["off", ...geminiSupported];
+  }
+  return ["off", "low", "high"];
+}
+
+/**
+ * Single Source of Truth for effective thinking level derived at render time.
+ * Maps requested thinking level to valid supported level for the current model.
+ */
+export function getEffectiveThinkingLevel(
+  currentModel: string,
+  requestedLevel: ThinkingLevel
+): ThinkingLevel {
+  if (requestedLevel === "off" || !modelSupportsThinkingUI(currentModel)) {
+    return "off";
+  }
+
+  if (isClaudeThinkingModel(currentModel)) {
+    // Claude only supports off/high; any non-off level activates extended thinking (high)
+    return "high";
+  }
+
+  if (isDeepSeekV4Model(currentModel)) {
+    // DeepSeek V4: minimal/low/medium -> low, high -> high (matches deepseek-request-builder.ts:35-75)
+    if (requestedLevel === "high") {
+      return "high";
+    }
+    return "low";
+  }
+
+  if (isGemini25Model(currentModel)) {
+    // Gemini 2.5 dynamic thinking via thinkingBudget: -1
+    if (requestedLevel === "high") {
+      return "high";
+    }
+    return "low";
+  }
+
+  if (isGemini3Model(currentModel)) {
+    // Gemini 3: clamp directly based on model capabilities
+    return clampGeminiThinkingLevel(currentModel, requestedLevel);
+  }
+
+  return "off";
+}
+
+/**
  * Client-side preference store for Thinking Level.
  * - Persists to localStorage key: vikini.thinkingLevel
  * - Active for Gemini 2.5+ and Gemini 3+ models
@@ -95,26 +154,10 @@ export function useThinkingLevel(currentModel: string): UseThinkingLevelResult {
 
   // Thinking toggle visible for Gemini 2.5, Gemini 3, Claude Sonnet/Opus, and DeepSeek V4
   const isThinkingEnabled = modelSupportsThinkingUI(currentModel);
-  // Extended levels only for Gemini 3 Flash
-  const hasExtendedLevels = isGemini3FlashModel(currentModel);
-  // Claude models only support on/off (high)
-  const isClaudeModel = isClaudeThinkingModel(currentModel);
-  // DeepSeek V4 supports off/low/high - 3 levels
-  const isDeepSeek = isDeepSeekV4Model(currentModel);
-
+  // Extended levels check via supported levels
+  const hasExtendedLevels = getSupportedGeminiThinkingLevels(currentModel).includes("minimal");
   // Available levels based on model
-  // Claude Sonnet/Opus: simple on/off (high = budget_tokens)
-  // DeepSeek V4: off/low/high - 3 options
-  // Gemini 2.5: simple on/off (high = dynamic thinkingBudget)
-  // Gemini 3 Flash: full range
-  // Gemini 3 Pro: basic levels
-  const availableLevels: ThinkingLevel[] = isClaudeModel
-    ? ["off", "high"] // Claude: only on/off
-    : isDeepSeek
-      ? ["off", "low", "high"] // DeepSeek V4: off / standard / deep
-      : hasExtendedLevels
-        ? ["off", "minimal", "low", "medium", "high"]
-        : ["off", "low", "high"];
+  const availableLevels = getAvailableThinkingLevels(currentModel);
 
   // Load from localStorage on mount
   useEffect(() => {

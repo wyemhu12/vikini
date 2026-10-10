@@ -527,3 +527,32 @@
   - **Never use `new Function` or `eval` for user-supplied expressions.** Always use a deterministic tokenizer and AST/recursive descent parser.
   - **Any server-side HTTP fetch of external URLs must pass through `fetchSafeImage` / SSRF Guard**, strictly forbidding RFC 1918, loopback, link-local, and cloud metadata IPs at both hostname and resolved IP stages.
   - **Always filter and paginate at the database level (`.range()`)** using inner joins rather than fetching large datasets into Node.js application memory.
+
+### 2026-10-08: Audit Remediation Phase 2 -- Reasoning Separation, SSE Protocol, RAG Multipart & Storage Traversal
+
+- **Symptom**:
+  1. **Reasoning Stream Coupling & Leak**: Model reasoning tokens (`<think>` or thought chunks) were coupled with answer tokens or exposed as unencrypted raw text in CSDL, breaking copy/paste and leaking confidential thinking in exports. Empty answers when models exhausted tokens during thinking returned 502 error without explanation.
+  2. **OpenAI Vision Format & Thinking Pollution**: In history, assistant image messages formatted with `image_url` violated OpenAI vision specs causing API rejections, and raw `<think>` tags in history polluted subsequent model context.
+  3. **RAG Knowledge Base Upload Limits**: Uploading documents as base64 in JSON caused payload inflation, memory spikes, and failed on large PDFs. Search similarity threshold of 0.7 was too strict for cross-lingual Vietnamese RAG documents.
+  4. **Quota Race Condition & Rollback**: Batch image generation allowed parallel requests to bypass daily quotas, failed closed completely in dev environments without Redis, and failed to rollback claimed quotas when external image providers threw errors.
+  5. **Image Edit Heavy Payload & Traversal**: Multi-turn image editing transmitted megabytes of base64 data back and forth between client and server, risking payload overflow and opening path traversal vulnerabilities (`%2e%2e`, `\`, cross-user image references).
+
+- **Root Cause**:
+  1. Lack of dedicated named SSE event for thinking chunks (`event: thinking`), coupled with lack of encryption at rest for `meta.reasoning` in Postgres JSONB.
+  2. OpenAI vision specification only allows `image_url` in user roles; assistant roles only accept string content.
+  3. JSON payload parsing in Next.js route handlers hits strict body limits; base64 increases size by 33%.
+  4. Quota checking via separate read-then-increment operations suffered from race conditions under concurrent requests.
+  5. Multi-turn edit UI repeatedly serialized base64 canvas state instead of referencing persisted Supabase Storage paths.
+
+- **Fix**:
+  1. Standardized SSE named event `event: thinking\ndata: {"type":"thinking","content":"..."}\n\n` across all 4 stream providers. Implemented AES-GCM data-at-rest encryption for `meta.reasoning` in `messages.ts`.
+  2. Implemented `normalizeOpenAIMessages` in `openai-stream.ts` restricting `image_url` to user turns and stripping `<think>` tags via `stripThinkTags`.
+  3. Added multipart FormData upload with 4.5MB ceiling in `/api/projects/[id]/knowledge`, 400k character text extraction cap, and adjusted vector threshold to 0.5.
+  4. Built atomic `tryClaimBatchGenSlot` in `batchGenQuota.ts` with Redis INCR-check-DECR rollback and in-memory development fallback. Added fail-closed Gatekeeper checks across all image generation/editing endpoints.
+  5. Built `storageValidation.ts` rejecting traversal patterns (`%2e%2e`, `%`, `\`, control chars) and verifying storagePath ownership against user's message records. Switched `/api/edit-image-multi` to lean payloads without base64.
+
+- **Prevention Rule**:
+  - **Always stream AI thinking through a dedicated named event (`event: thinking`)** distinct from content tokens.
+  - **Always encrypt sensitive metadata at rest (`meta.reasoning`)** using authenticated AES-GCM before saving to PostgreSQL.
+  - **For multi-turn media workflows, never pass raw base64 through the client repeatedly.** Persist to secure storage immediately and pass verified, authorized storage paths.
+  - **Always enforce fail-closed Gatekeeper checks (status & rank)** before initiating expensive AI vision or generation tasks.

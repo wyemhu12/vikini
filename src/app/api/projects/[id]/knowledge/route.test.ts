@@ -26,6 +26,11 @@ vi.mock("@/types/projects", () => ({
   ALL_SUPPORTED_EXTENSIONS: [".txt", ".md", ".pdf"],
 }));
 
+vi.mock("@/lib/features/files/documentParsers", () => ({
+  extractDocumentText: vi.fn(),
+  isBinaryCorruptText: vi.fn(),
+}));
+
 vi.mock("@/lib/utils/logger", () => ({
   logger: {
     withContext: vi.fn(() => ({
@@ -55,6 +60,7 @@ import {
 } from "@/lib/features/projects/knowledge.server";
 import { getProject } from "@/lib/features/projects/projects.server";
 import { isSupportedFileType } from "@/types/projects";
+import { extractDocumentText, isBinaryCorruptText } from "@/lib/features/files/documentParsers";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -336,6 +342,229 @@ describe("/api/projects/[id]/knowledge", () => {
       expect(res.status).toBe(500);
       const json = await res.json();
       expect(json.success).toBe(false);
+    });
+
+    // ---------------- Multipart Tests ----------------
+    it("should return 413 when content-length exceeds 4.5MB", async () => {
+      mockAuthenticated();
+      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
+
+      const req = new NextRequest(
+        new URL(`/api/projects/${TEST_PROJECT_ID}/knowledge`, "http://localhost:3000"),
+        {
+          method: "POST",
+          headers: {
+            "content-type": "multipart/form-data; boundary=---boundary",
+          },
+          body: new Uint8Array(10),
+        }
+      );
+      const originalGet = req.headers.get.bind(req.headers);
+      vi.spyOn(req.headers, "get").mockImplementation((key: string) => {
+        if (key.toLowerCase() === "content-length") {
+          return String(5 * 1024 * 1024);
+        }
+        return originalGet(key);
+      });
+
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+      expect(res.status).toBe(413);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error.message).toContain("4.5MB");
+    });
+
+    it("should successfully upload document via multipart", async () => {
+      mockAuthenticated();
+      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
+      vi.mocked(isSupportedFileType).mockReturnValue(true);
+      vi.mocked(extractDocumentText).mockResolvedValue("Clean extracted document text");
+      vi.mocked(isBinaryCorruptText).mockReturnValue(false);
+      vi.mocked(uploadDocument).mockResolvedValue({
+        id: "doc-multi-1",
+        project_id: TEST_PROJECT_ID,
+        filename: "test.pdf",
+        mime_type: "application/pdf",
+        status: "completed",
+        document_type: "document",
+      } as never);
+
+      const formData = new FormData();
+      const file = new File(["dummy pdf content"], "test.pdf", { type: "application/pdf" });
+      formData.append("file", file);
+
+      const req = new NextRequest(
+        new URL(`/api/projects/${TEST_PROJECT_ID}/knowledge`, "http://localhost:3000"),
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+      expect(res.status).toBe(201);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.data.truncated).toBe(false);
+      expect(json.data.document.id).toBe("doc-multi-1");
+      expect(uploadDocument).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: TEST_PROJECT_ID,
+          userId: TEST_USER_EMAIL,
+          filename: "test.pdf",
+          content: "Clean extracted document text",
+          mimeType: "application/pdf",
+        })
+      );
+    });
+
+    it("should flag truncated: true when text extraction reaches 400000 chars", async () => {
+      mockAuthenticated();
+      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
+      vi.mocked(isSupportedFileType).mockReturnValue(true);
+      vi.mocked(extractDocumentText).mockResolvedValue("a".repeat(400000));
+      vi.mocked(isBinaryCorruptText).mockReturnValue(false);
+      vi.mocked(uploadDocument).mockResolvedValue({
+        id: "doc-multi-trunc",
+        project_id: TEST_PROJECT_ID,
+        filename: "long.pdf",
+        mime_type: "application/pdf",
+        status: "completed",
+        document_type: "document",
+      } as never);
+
+      const formData = new FormData();
+      const file = new File(["long content"], "long.pdf", { type: "application/pdf" });
+      formData.append("file", file);
+
+      const req = new NextRequest(
+        new URL(`/api/projects/${TEST_PROJECT_ID}/knowledge`, "http://localhost:3000"),
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+      expect(res.status).toBe(201);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.data.truncated).toBe(true);
+    });
+
+    it("should return 400 when multipart file exceeds 4MB", async () => {
+      mockAuthenticated();
+      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
+
+      const formData = new FormData();
+      // create real byte array > 4MB (4 * 1024 * 1024 + 1024 bytes)
+      const bigBytes = new Uint8Array(4 * 1024 * 1024 + 1024);
+      const file = new File([bigBytes], "large.pdf", { type: "application/pdf" });
+      formData.append("file", file);
+
+      const req = new NextRequest(
+        new URL(`/api/projects/${TEST_PROJECT_ID}/knowledge`, "http://localhost:3000"),
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error.message).toContain("File size exceeds 4MB limit");
+    });
+
+    it("should return 400 when multipart file type is unsupported", async () => {
+      mockAuthenticated();
+      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
+      vi.mocked(isSupportedFileType).mockReturnValue(false);
+
+      const formData = new FormData();
+      const file = new File(["binary"], "bad.exe", { type: "application/octet-stream" });
+      formData.append("file", file);
+
+      const req = new NextRequest(
+        new URL(`/api/projects/${TEST_PROJECT_ID}/knowledge`, "http://localhost:3000"),
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error.message).toContain("Unsupported file type");
+    });
+
+    it("should return 400 when multipart contains embedding_model", async () => {
+      mockAuthenticated();
+      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
+
+      const formData = new FormData();
+      const file = new File(["hello"], "valid.txt", { type: "text/plain" });
+      formData.append("file", file);
+      formData.append("embedding_model", "text-embedding-3-small");
+
+      const req = new NextRequest(
+        new URL(`/api/projects/${TEST_PROJECT_ID}/knowledge`, "http://localhost:3000"),
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error.message).toContain("embedding_model cannot be specified");
+    });
+
+    it("should return 400 when extractDocumentText returns null or corrupt text", async () => {
+      mockAuthenticated();
+      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
+      vi.mocked(isSupportedFileType).mockReturnValue(true);
+      vi.mocked(extractDocumentText).mockResolvedValue(null);
+
+      const formData = new FormData();
+      const file = new File(["bad data"], "corrupt.pdf", { type: "application/pdf" });
+      formData.append("file", file);
+
+      const req = new NextRequest(
+        new URL(`/api/projects/${TEST_PROJECT_ID}/knowledge`, "http://localhost:3000"),
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error.message).toContain("Could not extract clean text from document");
+    });
+
+    it("should return 400 when multipart form has no file", async () => {
+      mockAuthenticated();
+      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
+
+      const formData = new FormData();
+      formData.append("other_field", "value");
+
+      const req = new NextRequest(
+        new URL(`/api/projects/${TEST_PROJECT_ID}/knowledge`, "http://localhost:3000"),
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error.message).toContain("Missing file");
     });
   });
 

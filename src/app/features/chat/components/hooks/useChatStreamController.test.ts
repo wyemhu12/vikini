@@ -362,4 +362,61 @@ describe("useChatStreamController", () => {
     // Think tags should be balanced automatically
     expect(assistantMsg?.content).toContain("</think>");
   });
+
+  it("handles thinking event and ragSources meta event during stream", async () => {
+    const { result } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: "conv-1",
+      })
+    );
+
+    const encoder = new TextEncoder();
+    mockFetch.mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/api/chat")) {
+        const streamData = [
+          'event: meta\ndata: {"type":"ragSources","sources":[{"filename":"doc1.pdf","similarity":0.85}]}\n\n',
+          'event: thinking\ndata: {"thinking":"Suy nghĩ bước 1..."}\n\n',
+          'event: token\ndata: {"t":"Xin chào"}\n\n',
+        ];
+        let idx = 0;
+        return Promise.resolve({
+          ok: true,
+          body: {
+            getReader: () => ({
+              read: () => {
+                if (idx < streamData.length) {
+                  const chunk = streamData[idx++];
+                  return Promise.resolve({
+                    done: false,
+                    value: encoder.encode(chunk),
+                  });
+                }
+                return Promise.resolve({ done: true, value: undefined });
+              },
+              cancel: () => Promise.resolve(),
+            }),
+          },
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ success: true, data: { message: { id: "p-2" } } }),
+      });
+    });
+
+    await act(async () => {
+      await result.current.handleSend("Test thinking stream");
+    });
+
+    await waitFor(() => {
+      const msgs = result.current.messages;
+      const assistantMsg = msgs.find((m) => m.role === "assistant");
+      expect(assistantMsg).toBeDefined();
+      expect(assistantMsg?.content).toContain("Xin chào");
+      const meta = assistantMsg?.meta as Record<string, unknown> | undefined;
+      expect(meta?.reasoning).toBe("Suy nghĩ bước 1...");
+      expect(meta?.ragSources).toEqual([{ filename: "doc1.pdf", similarity: 0.85 }]);
+    });
+  });
 });

@@ -483,7 +483,7 @@ describe("knowledge.server", () => {
       expect(results).toEqual(mockSearchResults);
     });
 
-    it("should use default threshold 0.7 and limit 5 when options omitted", async () => {
+    it("should use default threshold 0.5 and limit 5 when options omitted", async () => {
       const mockVector = new Array(3072).fill(0.5);
       mockGenerateEmbedding.mockResolvedValueOnce(mockVector);
       mockSupabaseRpc.mockResolvedValueOnce({
@@ -496,7 +496,7 @@ describe("knowledge.server", () => {
       expect(mockSupabaseRpc).toHaveBeenCalledWith("match_project_knowledge", {
         p_project_id: "prj-1",
         query_embedding: expect.any(String),
-        match_threshold: 0.7,
+        match_threshold: 0.5,
         match_count: 5,
       });
     });

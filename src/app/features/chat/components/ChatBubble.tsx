@@ -152,8 +152,18 @@ export const ChatBubble = React.memo(
       isThinking: isStreamThinking,
     } = useMemo(() => {
       if (!isBot) return { thought: null, rest: effectiveRawContent, isThinking: false };
-      return extractThinking(effectiveRawContent);
-    }, [effectiveRawContent, isBot]);
+      const extracted = extractThinking(effectiveRawContent);
+      const metaReasoning =
+        typeof safeMessage.meta?.reasoning === "string" ? safeMessage.meta.reasoning : null;
+      if (metaReasoning) {
+        return {
+          thought: metaReasoning,
+          rest: extracted.rest,
+          isThinking: Boolean(isStreaming && isLastAssistant && !extracted.rest.trim()),
+        };
+      }
+      return extracted;
+    }, [effectiveRawContent, isBot, safeMessage.meta?.reasoning, isStreaming, isLastAssistant]);
 
     const deferredDisplayContent = useDeferredValue(displayContent);
     const hasContent = Boolean(displayContent?.trim()) || Boolean(thought?.trim());
@@ -309,9 +319,19 @@ export const ChatBubble = React.memo(
                   </div>
                 ))}
 
-              {isBot && (safeMessage.sources?.length ?? 0) > 0 && (
-                <SourceLinks sources={safeMessage.sources ?? []} />
-              )}
+              {isBot &&
+                ((safeMessage.sources?.length ?? 0) > 0 ||
+                  (Array.isArray(safeMessage.meta?.ragSources) &&
+                    safeMessage.meta.ragSources.length > 0)) && (
+                  <SourceLinks
+                    sources={safeMessage.sources ?? []}
+                    ragSources={
+                      Array.isArray(safeMessage.meta?.ragSources)
+                        ? safeMessage.meta.ragSources
+                        : undefined
+                    }
+                  />
+                )}
 
               {isBot && !isLoading && safeMessage.meta?.totalTokenCount && (
                 <div className="mt-2 flex justify-end">

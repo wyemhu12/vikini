@@ -77,7 +77,9 @@ export function useChatStreamController({
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingAssistant, setStreamingAssistant] = useState<string | null>(null);
+  const [streamingThinking, setStreamingThinking] = useState<string>("");
   const [streamingSources, setStreamingSources] = useState<unknown[]>([]);
+  const [streamingRagSources, setStreamingRagSources] = useState<unknown[]>([]);
   const [streamingUrlContext, setStreamingUrlContext] = useState<unknown[]>([]);
   const [regenerating, setRegenerating] = useState(false);
   const [streamError, setStreamError] = useState<StreamError | null>(null);
@@ -90,10 +92,12 @@ export function useChatStreamController({
   const currentClientMessageIdRef = useRef<string | null>(null);
   const currentTruncateClientMessageIdRef = useRef<string | null>(null);
   const localSourcesRef = useRef<unknown[]>([]);
+  const localRagSourcesRef = useRef<unknown[]>([]);
   const localUrlContextRef = useRef<unknown[]>([]);
   const hasStreamErrorRef = useRef<boolean>(false);
   const lastStreamErrorRef = useRef<StreamError | null>(null);
   const accumulatedAssistantRef = useRef<string>("");
+  const accumulatedThinkingRef = useRef<string>("");
   const emptyAnswerReasonRef = useRef<"length" | "no_content" | null>(null);
 
   const onTypewriterChunk = useCallback((chunk: string) => {
@@ -240,10 +244,13 @@ export function useChatStreamController({
       stopTypewriter(true);
 
       const rawContent = accumulatedAssistantRef.current || streamingAssistantRef.current || "";
+      const reasoning = accumulatedThinkingRef.current.trim();
       const trimmed = rawContent.trim();
-      if (!trimmed) {
+      if (!trimmed && !reasoning) {
         setIsStreaming(false);
         setStreamingAssistant(null);
+        setStreamingThinking("");
+        setStreamingRagSources([]);
         return;
       }
 
@@ -259,6 +266,10 @@ export function useChatStreamController({
         ...(emptyAnswerReasonRef.current
           ? { emptyAnswerReason: emptyAnswerReasonRef.current }
           : {}),
+        ...(reasoning ? { reasoning } : {}),
+        ...(localRagSourcesRef.current.length > 0
+          ? { ragSources: localRagSourcesRef.current }
+          : {}),
       };
 
       const assistantMsg: FrontendMessage = {
@@ -273,7 +284,9 @@ export function useChatStreamController({
       setMessages((prev) => [...normalizeMessages(prev), assistantMsg]);
       setIsStreaming(false);
       setStreamingAssistant(null);
+      setStreamingThinking("");
       setStreamingSources([]);
+      setStreamingRagSources([]);
       setStreamingUrlContext([]);
 
       if (isPartial && convId && clientMsgId) {
@@ -322,7 +335,9 @@ export function useChatStreamController({
         setIsStreaming(false);
         setRegenerating(false);
         setStreamingAssistant(null);
+        setStreamingThinking("");
         setStreamingSources([]);
+        setStreamingRagSources([]);
         setStreamingUrlContext([]);
       }
 
@@ -446,16 +461,20 @@ export function useChatStreamController({
       currentClientMessageIdRef.current = generateClientMessageId();
       currentTruncateClientMessageIdRef.current = options?.truncateClientMessageId || null;
       localSourcesRef.current = [];
+      localRagSourcesRef.current = [];
       localUrlContextRef.current = [];
       hasStreamErrorRef.current = false;
       lastStreamErrorRef.current = null;
       accumulatedAssistantRef.current = "";
+      accumulatedThinkingRef.current = "";
       emptyAnswerReasonRef.current = null;
 
       setInput("");
       setIsStreaming(true);
       setStreamingAssistant("");
+      setStreamingThinking("");
       setStreamingSources([]);
+      setStreamingRagSources([]);
       setStreamingUrlContext([]);
 
       if (typeof truncateFromIndex === "number") {
@@ -549,6 +568,11 @@ export function useChatStreamController({
         localSources.current = sources;
         localSourcesRef.current = sources;
       }
+      if (data?.type === "ragSources" && Array.isArray(data?.sources)) {
+        const sources = safeArray(data?.sources);
+        setStreamingRagSources(sources);
+        localRagSourcesRef.current = sources;
+      }
       if (data?.type === "urlContext") {
         const urls = safeArray(data?.urls);
         setStreamingUrlContext(urls);
@@ -613,6 +637,14 @@ export function useChatStreamController({
               }
               // Add to buffer instead of direct state update
               appendToTypewriterBuffer(tok);
+            }
+          }
+
+          if (event === "thinking") {
+            const thinkingChunk = typeof data?.thinking === "string" ? data.thinking : "";
+            if (thinkingChunk) {
+              accumulatedThinkingRef.current += thinkingChunk;
+              setStreamingThinking((prev) => (prev || "") + thinkingChunk);
             }
           }
 
@@ -979,7 +1011,9 @@ export function useChatStreamController({
     loadingMessages,
     isStreaming,
     streamingAssistant,
+    streamingThinking,
     streamingSources,
+    streamingRagSources,
     streamingUrlContext,
     regenerating,
     streamError,

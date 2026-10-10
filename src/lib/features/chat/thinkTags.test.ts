@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { balanceThinkTags } from "./thinkTags";
+import { balanceThinkTags, stripThinkTags } from "./thinkTags";
 
 describe("balanceThinkTags", () => {
   it("returns empty or falsy strings unchanged", () => {
@@ -36,5 +36,31 @@ describe("balanceThinkTags", () => {
   it("handles extra closing tags gracefully without modifying content", () => {
     const text = "<think>Thoughts</think></think>";
     expect(balanceThinkTags(text)).toBe(text);
+  });
+});
+
+describe("stripThinkTags", () => {
+  it("returns empty or falsy strings unchanged", () => {
+    expect(stripThinkTags("")).toBe("");
+  });
+
+  it("returns content without think tags unchanged", () => {
+    const text = "Hello world! This is a standard response.";
+    expect(stripThinkTags(text)).toBe(text);
+  });
+
+  it("strips closed <think> tags completely", () => {
+    const text = "<think>old thought</think>answer";
+    expect(stripThinkTags(text)).toBe("answer");
+  });
+
+  it("strips multiline think tags and trims whitespace", () => {
+    const text = "<think>\nStep 1: thinking\nStep 2: done\n</think>\n\nFinal answer.";
+    expect(stripThinkTags(text)).toBe("Final answer.");
+  });
+
+  it("strips unclosed think tags safely", () => {
+    const text = "<think>interrupted thinking...";
+    expect(stripThinkTags(text)).toBe("");
   });
 });

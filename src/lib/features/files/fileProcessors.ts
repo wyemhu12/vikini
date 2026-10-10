@@ -607,7 +607,6 @@ export async function analyzeWithAI(
     >[0]["contents"],
     config: {
       ...(opts.systemInstruction?.trim() ? { systemInstruction: opts.systemInstruction } : {}),
-      temperature: 0.2,
       maxOutputTokens: 2048,
     },
   });

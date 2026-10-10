@@ -20,6 +20,7 @@ export interface EditTurn {
   role: "user" | "model";
   text?: string;
   imageUrl?: string;
+  storagePath?: string;
   imageBase64?: string;
   imageMimeType?: string;
   /** Gemini multi-turn signature - must be passed back for image continuity */
@@ -83,7 +84,8 @@ export default function EditPanel({
           {
             role: "user",
             text: sourceImage.prompt || "Original image",
-            imageBase64: raw,
+            storagePath: sourceImage.storagePath,
+            imageBase64: sourceImage.storagePath ? undefined : raw,
             imageMimeType: blob.type || "image/png",
             imageUrl: sourceImage.url,
           },
@@ -94,7 +96,7 @@ export default function EditPanel({
       }
     };
     void initHistory();
-  }, [sourceImage.url]); // Only re-init when source image changes
+  }, [sourceImage.url, sourceImage.prompt, sourceImage.storagePath, t]); // Only re-init when source image changes
 
   // Auto-scroll to bottom when new messages appear
   useEffect(() => {
@@ -142,6 +144,18 @@ export default function EditPanel({
       try {
         const key = localStorage.getItem("vikini-gemini-key") || "";
 
+        // Strip heavy base64 strings when storagePath is present,
+        // and never send base64 for historical model turns (M-4, m-12)
+        const sanitizedHistory = updatedHistory.map((t) => ({
+          role: t.role,
+          text: t.text,
+          storagePath: t.storagePath,
+          imageUrl: t.imageUrl,
+          imageMimeType: t.imageMimeType,
+          thoughtSignature: t.thoughtSignature,
+          imageBase64: t.storagePath ? undefined : t.imageBase64,
+        }));
+
         const res = await fetch("/api/edit-image-multi", {
           method: "POST",
           headers: {
@@ -150,7 +164,7 @@ export default function EditPanel({
           },
           body: JSON.stringify({
             conversationId,
-            editHistory: updatedHistory,
+            editHistory: sanitizedHistory,
             parentMessageId: sourceImage.id,
             options: { model },
           }),
@@ -177,7 +191,7 @@ export default function EditPanel({
           | Record<string, unknown>
           | undefined;
         const imageUrl = responseData?.imageUrl as string | undefined;
-        const imageBase64 = responseData?.imageBase64 as string | undefined;
+        const storagePath = responseData?.storagePath as string | undefined;
         const imageMimeType = responseData?.imageMimeType as string | undefined;
         const thoughtSignature = responseData?.thoughtSignature as string | undefined;
 
@@ -185,11 +199,11 @@ export default function EditPanel({
           throw new Error("No image returned");
         }
 
-        // Add model response turn (include thoughtSignature for next API call)
+        // Add model response turn (include thoughtSignature and storagePath for next API call)
         const modelTurn: EditTurn = {
           role: "model",
           imageUrl,
-          imageBase64: imageBase64 || undefined,
+          storagePath,
           imageMimeType: imageMimeType || "image/png",
           thoughtSignature,
         };

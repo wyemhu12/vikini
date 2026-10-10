@@ -827,3 +827,27 @@ export async function branchConversation(
 
   return newConvo;
 }
+
+/**
+ * Asserts that the conversation exists and belongs to the given user.
+ * Throws NotFoundError (404) if the conversation is not found in database.
+ * Throws ForbiddenError (403) if the conversation belongs to a different user.
+ */
+export async function assertConversationOwner(
+  conversationId: string,
+  userId: string
+): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("conversations")
+    .select("id, user_id")
+    .eq("id", conversationId)
+    .single();
+
+  if (error || !data) {
+    throw new NotFoundError("Conversation");
+  }
+  if (data.user_id !== userId) {
+    throw new ForbiddenError("You don't have permission to access this conversation");
+  }
+}

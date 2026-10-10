@@ -141,7 +141,11 @@ export async function handleChatStreamCore({
   }
 
   // Load system prompt - GEM always takes priority
-  const { sysPrompt, gemLoadError } = await buildSystemPrompt(userId, conversationId, content);
+  const { sysPrompt, gemLoadError, ragSources } = await buildSystemPrompt(
+    userId,
+    conversationId,
+    content
+  );
 
   // Build message context with smart token window
   const messageContext = await buildMessageContext(
@@ -261,6 +265,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
     generateFinalTitle,
     clientMessageId: clientMessageId || undefined,
     signal: req.signal,
+    ragSources,
   };
 
   // Route to provider-specific stream
@@ -302,9 +307,19 @@ async function buildSystemPrompt(
   userId: string,
   conversationId: string,
   content: string
-): Promise<{ sysPrompt: string; gemLoadError: string }> {
+): Promise<{
+  sysPrompt: string;
+  gemLoadError: string;
+  ragSources: Array<{ filename: string; documentId: string; chunkId: string; similarity: number }>;
+}> {
   let sysPrompt = "";
   let gemLoadError = "";
+  let ragSources: Array<{
+    filename: string;
+    documentId: string;
+    chunkId: string;
+    similarity: number;
+  }> = [];
 
   // Step 1: Load GEM instructions FIRST (highest priority)
   let gemPrompt = "";
@@ -374,6 +389,7 @@ async function buildSystemPrompt(
   try {
     const ragContext = await buildRAGContext(userId, conversationId, content);
     if (ragContext.ragEnabled && ragContext.sources.length > 0) {
+      ragSources = ragContext.sources;
       coreLogger.info(
         `[RAG ACTIVE] ${ragContext.sources.length} KB chunks injected for conversation ${conversationId}`
       );
@@ -384,7 +400,7 @@ async function buildSystemPrompt(
     // Continue without RAG - non-blocking
   }
 
-  return { sysPrompt, gemLoadError };
+  return { sysPrompt, gemLoadError, ragSources };
 }
 
 interface CreateProviderStreamParams {

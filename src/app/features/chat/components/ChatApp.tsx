@@ -245,7 +245,9 @@ export default function ChatApp() {
     loadingMessages,
     isStreaming,
     streamingAssistant,
+    streamingThinking,
     streamingSources,
+    streamingRagSources,
     streamingUrlContext,
     regenerating,
     resetChatUI,
@@ -882,7 +884,9 @@ export default function ChatApp() {
               regenerating={regenerating}
               isStreaming={isStreaming}
               streamingAssistant={streamingAssistant}
+              streamingThinking={streamingThinking}
               streamingSources={streamingSources}
+              streamingRagSources={streamingRagSources}
               streamingUrlContext={streamingUrlContext}
               branchingMessageId={branchingMessageId}
               handleRegenerate={handleRegenerate}

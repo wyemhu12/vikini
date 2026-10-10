@@ -16,6 +16,8 @@ import {
 } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { fetchSafeImage } from "@/lib/core/ssrfGuard.server";
+import { getUserProfile } from "@/lib/core/limits";
+import { HTTP_STATUS } from "@/lib/utils/constants";
 
 const routeLogger = logger.withContext("edit-image");
 
@@ -78,6 +80,22 @@ export async function POST(req: NextRequest) {
 
     if (conversation.user_id !== userId) {
       throw new ForbiddenError("You don't have permission to edit images in this conversation");
+    }
+
+    // 4.5 Gatekeeper check (M-19, M-22, M-23)
+    const profile = await getUserProfile(userId);
+    if (!profile) {
+      throw new AppError(
+        "Service unavailable",
+        HTTP_STATUS.SERVICE_UNAVAILABLE,
+        "SERVICE_UNAVAILABLE"
+      );
+    }
+    if (profile.is_blocked) {
+      throw new AppError("User is blocked", 403, "USER_BLOCKED");
+    }
+    if (profile.rank === "not_whitelisted") {
+      throw new AppError("Access pending approval", 403, "ACCESS_PENDING");
     }
 
     // 5. Download source image safely and convert to base64

@@ -152,9 +152,13 @@ export default function InputForm({
   }, [input]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Bỏ qua nếu đang gõ tiếng Việt Telex / IME CJK composition hoặc Safari keyCode 229 (m-9)
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+
     if (e.key === "Enter" && !e.shiftKey) {
       if (window.innerWidth >= 768) {
         e.preventDefault();
+        if (isStreaming) return; // Chặn Enter khi đang stream
         handleSubmit();
       }
     }
@@ -169,7 +173,7 @@ export default function InputForm({
   }, [conversationId, isStreaming]);
 
   const handleSubmit = () => {
-    if (disabled || isSubmittingRef.current) return;
+    if (disabled || isSubmittingRef.current || isStreaming) return;
 
     if (isImageMode && onImageGen) {
       if (input.trim()) {

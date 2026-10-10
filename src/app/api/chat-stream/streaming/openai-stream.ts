@@ -6,7 +6,8 @@ import { StreamTimeoutError, type ChatStreamParams, type Message } from "./types
 import { sendEvent, getStreamTimeout, withTimeout, withIdleTimeout, streamLogger } from "./utils";
 import { sendInitialMetaEvents, generateAndSendOptimisticTitle } from "./gemini-stream";
 import { processPostStream } from "./post-processing";
-import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
+import { balanceThinkTags, stripThinkTags } from "@/lib/features/chat/thinkTags";
+import { sendThinkingChunk, accumulateReasoning } from "./reasoningStreamHelper.server";
 
 export function createOpenAICompatibleStream(params: {
   ai: OpenAI;
@@ -33,6 +34,7 @@ export function createOpenAICompatibleStream(params: {
   thinkingLevel?: string;
   clientMessageId?: string;
   signal?: AbortSignal;
+  ragSources?: Array<{ filename: string; documentId: string; chunkId: string; similarity: number }>;
 }): ReadableStream<Uint8Array> {
   const {
     ai,
@@ -58,6 +60,7 @@ export function createOpenAICompatibleStream(params: {
     thinkingLevel,
     clientMessageId,
     signal,
+    ragSources,
   } = params;
 
   const ac = new AbortController();
@@ -78,14 +81,15 @@ export function createOpenAICompatibleStream(params: {
     }
   }
 
-  const acc = { full: "" };
+  const acc = { full: "", reasoning: "" };
   let savedPartial = false;
 
   const savePartialOnce = async () => {
     if (savedPartial) return;
     savedPartial = true;
     const trimmed = acc.full.trim();
-    if (trimmed) {
+    const trimmedReasoning = acc.reasoning?.trim() || "";
+    if (trimmed || trimmedReasoning) {
       const balanced = balanceThinkTags(trimmed);
       try {
         await saveMessage({
@@ -99,6 +103,7 @@ export function createOpenAICompatibleStream(params: {
             status: "aborted",
             model,
             clientMessageId,
+            ...(trimmedReasoning ? { reasoning: trimmedReasoning } : {}),
           },
         });
       } catch (saveErr) {
@@ -122,6 +127,7 @@ export function createOpenAICompatibleStream(params: {
         gemMeta,
         modelMeta,
         model,
+        ragSources,
       });
 
       // 2. Optimistic Title
@@ -134,6 +140,7 @@ export function createOpenAICompatibleStream(params: {
       );
 
       let full = "";
+      let fullReasoning = "";
       let streamFailed = false;
 
       try {
@@ -143,7 +150,6 @@ export function createOpenAICompatibleStream(params: {
         type GeminiPart = { text?: string; inlineData?: { data: string; mimeType: string } };
 
         // Handle OpenRouter reasoning models (e.g. Grok 4.3)
-        // Extract <think> from assistant messages and map to reasoning_details if needed
         const isOrReasoning = isOpenRouterReasoningModel(model);
 
         const openAIMessages = [
@@ -151,33 +157,25 @@ export function createOpenAICompatibleStream(params: {
           ...(contents as Array<{ role: string; parts: GeminiPart[] }>)
             .map((m) => {
               const hasImages = m.parts.some((p) => p.inlineData);
-
-              let messageContent = m.parts.map((p) => p.text || "").join("");
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              let reasoningDetails: any = undefined;
-
-              // If it's an OpenRouter reasoning model and an assistant message,
-              // extract the <think>...</think> tag and put it in reasoning_details
-              if (isOrReasoning && m.role === "model" && messageContent.includes("<think>")) {
-                const thinkMatch = messageContent.match(/<think>([\s\S]*?)<\/think>/);
-                if (thinkMatch) {
-                  // OpenRouter accepts reasoning_details as a string or array?
-                  // The safest is sending it as it came out or as string. We'll pass it as text.
-                  // Or maybe just leave the <think> tags. Actually OpenRouter recommends passing them back in reasoning_details array.
-                  reasoningDetails = [{ type: "text", text: thinkMatch[1].trim() }];
-                  messageContent = messageContent
-                    .replace(/<think>[\s\S]*?<\/think>\n?/g, "")
-                    .trim();
-                }
-              }
+              const rawContent = m.parts.map((p) => p.text || "").join("");
+              const isModel = m.role === "model";
+              // Strip <think> tags from old history to avoid sending raw thought blocks to model (m-16)
+              const cleanContent = isModel ? stripThinkTags(rawContent) : rawContent;
 
               if (hasImages) {
-                // Multimodal message: use content array format
+                if (isModel) {
+                  // OpenAI spec prohibits image_url in assistant role -> degrade to pure text (m-2)
+                  return {
+                    role: "assistant" as const,
+                    content: cleanContent,
+                  };
+                }
+                // Multimodal user message: use content array format
                 const contentParts: Array<
                   { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
                 > = [];
-                if (messageContent) {
-                  contentParts.push({ type: "text" as const, text: messageContent });
+                if (cleanContent) {
+                  contentParts.push({ type: "text" as const, text: cleanContent });
                 }
                 for (const p of m.parts) {
                   if (p.inlineData) {
@@ -189,28 +187,20 @@ export function createOpenAICompatibleStream(params: {
                     });
                   }
                 }
-                const msg: Record<string, unknown> = {
-                  role: "assistant" as const,
+                return {
+                  role: "user" as const,
                   content: contentParts,
                 };
-                if (reasoningDetails) msg.reasoning_details = reasoningDetails;
-                return msg;
               }
-              const msg: Record<string, unknown> = {
-                role: m.role === "model" ? "assistant" : m.role,
-                content: messageContent,
+
+              return {
+                role: isModel ? ("assistant" as const) : m.role,
+                content: cleanContent,
               };
-              if (reasoningDetails) msg.reasoning_details = reasoningDetails;
-              return msg;
             })
-            .filter((m): m is Record<string, unknown> => {
-              if (m.role === "assistant") {
-                if (typeof m.content === "string") {
-                  return m.content.trim().length > 0;
-                }
-                if (Array.isArray(m.content)) {
-                  return m.content.length > 0;
-                }
+            .filter((m) => {
+              if (m.role === "assistant" && typeof m.content === "string") {
+                return m.content.trim().length > 0;
               }
               return true;
             }),
@@ -264,9 +254,6 @@ export function createOpenAICompatibleStream(params: {
         let completionTokens: number | undefined;
         let totalTokens: number | undefined;
         let reasoningTokens: number | undefined;
-
-        let inReasoningMode = false;
-
         for await (const chunk of guardedStream) {
           if (isCancelled || ac.signal.aborted) {
             break;
@@ -281,7 +268,6 @@ export function createOpenAICompatibleStream(params: {
           if (typeof reasoningDeltaRaw === "string") {
             reasoningDelta = reasoningDeltaRaw;
           } else if (Array.isArray(reasoningDeltaRaw)) {
-            // It's likely an array of objects like [{ type: "text", text: "..." }]
             reasoningDelta = reasoningDeltaRaw
               .map((r: unknown) => {
                 if (typeof r === "string") return r;
@@ -295,25 +281,13 @@ export function createOpenAICompatibleStream(params: {
           }
 
           if (reasoningDelta) {
-            if (!inReasoningMode) {
-              inReasoningMode = true;
-              full += "<think>\n";
-              acc.full = full;
-              sendEvent(controller, "token", { t: "<think>\n" });
-            }
-            full += reasoningDelta;
-            acc.full = full;
-            sendEvent(controller, "token", { t: reasoningDelta });
+            fullReasoning = accumulateReasoning(fullReasoning, reasoningDelta);
+            acc.reasoning = fullReasoning;
+            sendThinkingChunk(controller, reasoningDelta);
           }
 
           const text = (delta.content || "") as string;
           if (text) {
-            if (inReasoningMode) {
-              inReasoningMode = false;
-              full += "\n</think>\n\n";
-              acc.full = full;
-              sendEvent(controller, "token", { t: "\n</think>\n\n" });
-            }
             full += text;
             acc.full = full;
             sendEvent(controller, "token", { t: text });
@@ -414,10 +388,12 @@ export function createOpenAICompatibleStream(params: {
         return;
       }
 
-      // 3. Post Stream Processing — skip if stream failed with no content
-      if (!streamFailed || full.trim()) {
+      // 3. Post Stream Processing — skip if stream failed with no content and no reasoning
+      if (!streamFailed || full.trim() || fullReasoning.trim()) {
         await processPostStream(controller, {
           full,
+          reasoning: fullReasoning || undefined,
+          ragSources,
           isActuallyBlocked: false,
           shouldGenerateTitle,
           conversationId,

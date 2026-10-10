@@ -41,6 +41,10 @@ vi.mock("@/lib/features/chat/messages", () => ({
   saveMessage: vi.fn(),
 }));
 
+vi.mock("@/lib/core/limits", () => ({
+  getUserProfile: vi.fn(),
+}));
+
 vi.mock("@/lib/utils/logger", () => ({
   logger: {
     withContext: () => ({
@@ -55,6 +59,7 @@ vi.mock("@/lib/utils/logger", () => ({
 import { POST } from "./route";
 import { auth } from "@/lib/features/auth/auth";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
+import { getUserProfile } from "@/lib/core/limits";
 
 // ── Helpers ───────────────────────────────────────────────────────────
 const TEST_EMAIL = "test@example.com";
@@ -112,6 +117,10 @@ const validBody = {
 describe("/api/edit-image", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getUserProfile).mockResolvedValue({
+      rank: "basic",
+      is_blocked: false,
+    } as unknown as Awaited<ReturnType<typeof getUserProfile>>);
   });
 
   // ────────────────────────────────────────────────────────────────────

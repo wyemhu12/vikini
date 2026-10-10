@@ -24,7 +24,7 @@ interface KnowledgePanelProps {
   storageUsedBytes: number;
   storageMaxBytes: number;
   isLoading?: boolean;
-  onUpload: (file: File, content: string) => Promise<void>;
+  onUpload: (file: File, payload: FormData | string) => Promise<{ truncated?: boolean } | void>;
   onDelete: (documentId: string) => Promise<void>;
   onRefresh: () => void;
   className?: string;
@@ -59,13 +59,25 @@ export function KnowledgePanel({
       const file = e.target.files?.[0];
       if (!file) return;
 
+      if (file.size > 4 * 1024 * 1024) {
+        toast.error(t("fileSizeExceedsLimit") || "Dung lượng file vượt quá giới hạn 4MB");
+        e.target.value = "";
+        return;
+      }
+
       setError(null);
       setIsUploading(true);
 
       try {
-        // Read file content
-        const content = await file.text();
-        await onUpload(file, content);
+        const formData = new FormData();
+        formData.append("file", file);
+        const result = await onUpload(file, formData);
+        if (result && result.truncated) {
+          toast.info(
+            t("documentTruncatedNotice") ||
+              "Tài liệu dài đã được tự động cắt ngắn để phù hợp với giới hạn bộ nhớ."
+          );
+        }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Upload failed";
         logger.error("[KnowledgePanel] upload failed:", message);

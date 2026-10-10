@@ -386,9 +386,10 @@ describe("projects.server", () => {
   });
 
   describe("deleteProject", () => {
-    it("should unlink conversations and delete project", async () => {
-      const convEqMock = vi.fn().mockResolvedValue({ error: null });
-      const convUpdateMock = vi.fn().mockReturnValue({ eq: convEqMock });
+    it("should unlink user conversations and delete project successfully", async () => {
+      const convEqUserMock = vi.fn().mockResolvedValue({ error: null });
+      const convEqPrjMock = vi.fn().mockReturnValue({ eq: convEqUserMock });
+      const convUpdateMock = vi.fn().mockReturnValue({ eq: convEqPrjMock });
 
       const prjEqUserMock = vi.fn().mockResolvedValue({ error: null });
       const prjEqIdMock = vi.fn().mockReturnValue({ eq: prjEqUserMock });
@@ -396,24 +397,76 @@ describe("projects.server", () => {
 
       mockSupabaseFrom.mockImplementation((table: string) => {
         if (table === "conversations") {
-          return { update: convUpdateMock };
+          return {
+            update: convUpdateMock,
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ count: 0, error: null }),
+            }),
+          };
+        }
+        if (table === "knowledge_documents") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          };
         }
         if (table === "projects") {
-          return { delete: prjDeleteMock };
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: {
+                      id: "prj-del",
+                      user_id: "user-del",
+                      name: "Prj To Delete",
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            delete: prjDeleteMock,
+          };
         }
         return {};
       });
 
       await deleteProject("prj-del", "user-del");
 
-      // Verify conversation unlinked
+      // Verify conversation unlinked with both project_id AND user_id
       expect(convUpdateMock).toHaveBeenCalledWith({ project_id: null });
-      expect(convEqMock).toHaveBeenCalledWith("project_id", "prj-del");
+      expect(convEqPrjMock).toHaveBeenCalledWith("project_id", "prj-del");
+      expect(convEqUserMock).toHaveBeenCalledWith("user_id", "user-del");
 
-      // Verify project deleted
+      // Verify project deleted with ownership check
       expect(prjDeleteMock).toHaveBeenCalled();
       expect(prjEqIdMock).toHaveBeenCalledWith("id", "prj-del");
       expect(prjEqUserMock).toHaveBeenCalledWith("user_id", "user-del");
+    });
+
+    it("should throw NotFoundError when project does not exist or is not owned by user", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "projects") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  single: vi
+                    .fn()
+                    .mockResolvedValue({ data: null, error: { message: "Not found" } }),
+                }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      await expect(deleteProject("prj-del", "user-del")).rejects.toThrow("Project not found");
     });
   });
 

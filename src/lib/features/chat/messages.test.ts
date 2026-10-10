@@ -6,6 +6,8 @@ import {
   deleteMessage,
   deleteMessageByClientMessageId,
   deleteMessagesIncludingAndAfter,
+  encryptMetaReasoning,
+  decryptMetaReasoning,
 } from "./messages";
 import { ForbiddenError, NotFoundError } from "@/lib/utils/errors";
 
@@ -24,7 +26,10 @@ vi.mock("@/lib/core/supabase.server", () => ({
 
 vi.mock("@/lib/core/encryption", () => ({
   encryptText: (text: string) => `enc:${text}`,
-  decryptText: (text: string) => text.replace(/^enc:/, ""),
+  decryptText: (text: string) => {
+    if (text.startsWith("enc:")) return text.replace(/^enc:/, "");
+    throw new Error("Invalid ciphertext or decryption failure");
+  },
 }));
 
 describe("messages - upsert and tombstone logic", () => {
@@ -295,5 +300,38 @@ describe("messages - upsert and tombstone logic", () => {
 
     await deleteMessagesIncludingAndAfter("attacker@example.com", "conv-victim", "msg-1");
     expect(deleteMock).not.toHaveBeenCalled();
+  });
+
+  describe("encryptMetaReasoning & decryptMetaReasoning (TC-THINK-03A..D / m-19, m-38)", () => {
+    it("encrypts reasoning when non-empty string is provided (TC-THINK-03A)", () => {
+      const meta = { reasoning: "Initial reasoning text", clientMessageId: "c1" };
+      const encrypted = encryptMetaReasoning(meta);
+      expect(encrypted.reasoning).toBe("enc:Initial reasoning text");
+      expect(encrypted.clientMessageId).toBe("c1");
+    });
+
+    it("decrypts valid encrypted reasoning (TC-THINK-03B)", () => {
+      const meta = { reasoning: "enc:Decrypted thought content", clientMessageId: "c1" };
+      const decrypted = decryptMetaReasoning(meta);
+      expect(decrypted.reasoning).toBe("Decrypted thought content");
+    });
+
+    it("strips corrupted ciphertext hex format so hex garbage is removed (TC-THINK-03C)", () => {
+      // 24-hex:32-hex:ciphertext-hex
+      const corruptedCiphertext =
+        "0123456789abcdef01234567:0123456789abcdef0123456789abcdef:deadbeef1234";
+      const meta = { reasoning: corruptedCiphertext, flag: "kept" };
+      const result = decryptMetaReasoning(meta);
+      expect(result.reasoning).toBeUndefined();
+      expect(result.flag).toBe("kept");
+    });
+
+    it("preserves legacy plaintext containing colons safely without stripping (TC-THINK-03D / m-38)", () => {
+      const legacyPlaintext = "Bước 1: phân tích yêu cầu; Bước 2: xử lý";
+      const meta = { reasoning: legacyPlaintext, flag: "kept" };
+      const result = decryptMetaReasoning(meta);
+      expect(result.reasoning).toBe(legacyPlaintext);
+      expect(result.flag).toBe("kept");
+    });
   });
 });

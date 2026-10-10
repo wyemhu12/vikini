@@ -38,12 +38,15 @@ interface Message {
 
 interface MessageMeta {
   sources?: WebSearchSource[]; // Kết quả web search
+  ragSources?: RagSource[]; // Trích dẫn Knowledge Base RAG
+  reasoning?: string; // Khối suy luận tách biệt (được mã hóa AES khi lưu DB)
+  emptyAnswerReason?: "length" | "no_content"; // Lý do khi model chỉ sinh reasoning không có answer
   fileIds?: string[]; // IDs file đính kèm
   modelUsed?: string; // Model thực tế được sử dụng
   tokensUsed?: number; // Token count
 
   // Image Generation (type = "image_gen")
-  type?: "image_gen"; // Indicates this is a generated image message
+  type?: "image_gen" | "image_edit"; // Indicates this is a generated/edited image message
   prompt?: string; // Original prompt used for generation
   imageUrl?: string; // Public URL of generated image
   file?: {
@@ -52,11 +55,17 @@ interface MessageMeta {
     mimeType: string; // "image/png" etc.
     filename: string; // Original filename
   };
+  attachment?: {
+    url: string;
+    storagePath: string;
+    mimeType: string;
+    filename: string;
+  };
   originalOptions?: {
     aspectRatio?: string; // "1:1", "16:9", etc.
     style?: string; // Style preset used
     enhancer?: boolean; // AI prompt enhancement enabled
-    model?: string; // Image model used (gemini-flash-image, gemini-pro-image, flux, dall-e)
+    model?: string; // Image model used
   };
 }
 
@@ -261,7 +270,21 @@ interface TokenEvent {
   data: { token: string };
 }
 
-// Event: meta
+// Event: thinking (Named SSE event for real-time model reasoning stream)
+// Wire format:
+// event: thinking\n
+// data: {"type":"thinking","content":"..."}\n\n
+interface ThinkingEvent {
+  type: "thinking";
+  content: string;
+}
+
+// Event: meta (Conversation metadata or RAG citations)
+// Standard metadata wire format:
+// data: {"type":"meta","data":{"conversationId":"uuid","title":"..."}}\n\n
+// RAG sources wire format (issued once during stream start):
+// event: meta\n
+// data: {"type":"ragSources","ragSources":[{"filename":"...","similarity":0.85,"chunkContent":"..."}]}\n\n
 interface MetaEvent {
   type: "meta";
   data: {
@@ -269,6 +292,11 @@ interface MetaEvent {
     title: string;
     sources?: WebSearchSource[];
   };
+}
+
+interface RagSourcesMetaEvent {
+  type: "ragSources";
+  ragSources: RagSource[];
 }
 
 // Event: done

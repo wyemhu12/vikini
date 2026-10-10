@@ -235,9 +235,26 @@ describe("/api/batch-gen-quota", () => {
       const res = await GET();
       const json = await res.json();
 
-      expect(res.status).toBe(200);
       expect(json.data.quotas["2"].used).toBe(0);
       expect(json.data.quotas["2"].remaining).toBe(10);
+    });
+
+    it("should return empty quotas and maxBatchSize 1 for not_whitelisted rank", async () => {
+      mockAuthenticated();
+      vi.mocked(getUserProfile).mockResolvedValue({
+        id: TEST_USER_ID,
+        email: TEST_EMAIL,
+        rank: "not_whitelisted",
+        is_blocked: false,
+      });
+
+      const res = await GET();
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.data.rank).toBe("not_whitelisted");
+      expect(json.data.maxBatchSize).toBe(1);
+      expect(json.data.quotas).toEqual({});
     });
   });
 });

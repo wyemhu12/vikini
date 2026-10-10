@@ -93,12 +93,10 @@ export function safeText(respOrChunk: unknown): string {
     // Handle v2 direct text
     if (typeof obj?.text === "function") return obj.text();
     if (typeof obj?.text === "string" && !obj?.thought) return obj.text;
-    // Handle direct thought content (if thought is boolean true, text contains the thought)
-    if (obj?.thought === true && typeof obj?.text === "string") {
-      return `<think>${obj.text}</think>`;
+    // Handle direct thought content: thought parts must never leak into answer text (m-22)
+    if (obj?.thought === true || typeof obj?.thought === "string") {
+      return "";
     }
-    // Legacy: thought as string
-    if (typeof obj?.thought === "string") return `<think>${obj.thought}</think>`;
 
     const candidates = obj?.candidates;
     if (Array.isArray(candidates) && candidates[0]) {

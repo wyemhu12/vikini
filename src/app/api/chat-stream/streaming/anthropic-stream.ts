@@ -7,6 +7,7 @@ import { StreamTimeoutError, type ChatStreamParams, type CreatedConversation } f
 import { sendEvent, getStreamTimeout, withTimeout, withIdleTimeout, streamLogger } from "./utils";
 import { processPostStream } from "./post-processing";
 import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
+import { sendThinkingChunk, accumulateReasoning } from "./reasoningStreamHelper.server";
 
 export function createAnthropicStream({
   ai,
@@ -32,6 +33,7 @@ export function createAnthropicStream({
   thinkingLevel,
   clientMessageId,
   signal,
+  ragSources,
 }: Omit<ChatStreamParams, "ai"> & {
   ai: Anthropic;
   enableWebSearch: boolean;
@@ -68,14 +70,15 @@ export function createAnthropicStream({
     }
   }
 
-  const acc = { full: "" };
+  const acc = { full: "", reasoning: "" };
   let savedPartial = false;
 
   const savePartialOnce = async () => {
     if (savedPartial) return;
     savedPartial = true;
     const trimmed = acc.full.trim();
-    if (trimmed) {
+    const trimmedReasoning = acc.reasoning?.trim() || "";
+    if (trimmed || trimmedReasoning) {
       const balanced = balanceThinkTags(trimmed);
       try {
         await saveMessage({
@@ -89,6 +92,7 @@ export function createAnthropicStream({
             status: "aborted",
             model,
             clientMessageId,
+            ...(trimmedReasoning ? { reasoning: trimmedReasoning } : {}),
           },
         });
       } catch (saveErr) {
@@ -119,11 +123,17 @@ export function createAnthropicStream({
       };
       sendEvent(controller, "meta", meta);
 
+      if (ragSources && ragSources.length > 0) {
+        sendEvent(controller, "meta", {
+          type: "ragSources",
+          sources: ragSources,
+        });
+      }
+
       let full = "";
+      let fullReasoning = "";
       // Collect sources from web search results for persistence
       const collectedSources: Array<{ uri: string; title: string }> = [];
-      // Track Claude Extended Thinking state for <think> tag injection
-      let isInThinkingBlock = false;
       let streamFailed = false;
       try {
         // Map contents to Anthropic format with multimodal support
@@ -277,34 +287,13 @@ export function createAnthropicStream({
           }
 
           // Handle thinking deltas (Claude Extended Thinking)
-          // Inject as <think> tags so existing frontend ThinkingBlock renders it
           if (chunk.type === "content_block_delta" && chunk.delta.type === "thinking_delta") {
             const thinkingText = (chunk.delta as { thinking?: string }).thinking;
             if (thinkingText) {
-              if (!isInThinkingBlock) {
-                isInThinkingBlock = true;
-                const openTag = "<think>";
-                full += openTag;
-                acc.full = full;
-                sendEvent(controller, "token", { t: openTag });
-              }
-              full += thinkingText;
-              acc.full = full;
-              sendEvent(controller, "token", { t: thinkingText });
+              fullReasoning = accumulateReasoning(fullReasoning, thinkingText);
+              acc.reasoning = fullReasoning;
+              sendThinkingChunk(controller, thinkingText);
             }
-          }
-
-          // Close thinking block when a text block starts
-          if (
-            chunk.type === "content_block_start" &&
-            (chunk.content_block as { type?: string })?.type === "text" &&
-            isInThinkingBlock
-          ) {
-            isInThinkingBlock = false;
-            const closeTag = "</think>";
-            full += closeTag;
-            acc.full = full;
-            sendEvent(controller, "token", { t: closeTag });
           }
 
           // Handle tool_use blocks for function calling (get_current_time)
@@ -495,15 +484,6 @@ export function createAnthropicStream({
           }
         }
 
-        // Close any still-open thinking block
-        if (isInThinkingBlock) {
-          isInThinkingBlock = false;
-          const closeTag = "</think>";
-          full += closeTag;
-          acc.full = full;
-          sendEvent(controller, "token", { t: closeTag });
-        }
-
         // Send collected sources as SSE event (same format as Gemini grounding)
         if (collectedSources.length > 0) {
           // Deduplicate sources by URL
@@ -563,8 +543,8 @@ export function createAnthropicStream({
         return;
       }
 
-      // 3. Post Stream Processing — skip if stream failed with no content
-      if (!streamFailed || full.trim()) {
+      // 3. Post Stream Processing — skip if stream failed with no content and no reasoning
+      if (!streamFailed || full.trim() || fullReasoning.trim()) {
         // Deduplicate sources before persisting
         const seen = new Set<string>();
         const uniqueSources = collectedSources.filter((s) => {
@@ -575,6 +555,8 @@ export function createAnthropicStream({
 
         await processPostStream(controller, {
           full,
+          reasoning: fullReasoning || undefined,
+          ragSources,
           isActuallyBlocked: false,
           shouldGenerateTitle,
           conversationId,

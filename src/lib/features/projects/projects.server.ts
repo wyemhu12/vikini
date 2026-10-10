@@ -14,6 +14,7 @@ import {
   UserTier,
 } from "@/types/projects";
 import { logger } from "@/lib/utils/logger";
+import { NotFoundError } from "@/lib/utils/errors";
 
 const projectLogger = logger.withContext("projects");
 
@@ -216,10 +217,17 @@ export async function updateProject(
  * Delete a project (cascade deletes documents and chunks)
  */
 export async function deleteProject(projectId: string, userId: string): Promise<void> {
+  const project = await getProject(projectId, userId);
+  if (!project) throw new NotFoundError("Project");
+
   const supabase = getTypedSupabaseAdmin();
 
   // First, unlink conversations (they're preserved with project_id = NULL)
-  await supabase.from("conversations").update({ project_id: null }).eq("project_id", projectId);
+  await supabase
+    .from("conversations")
+    .update({ project_id: null })
+    .eq("project_id", projectId)
+    .eq("user_id", userId);
 
   // Delete project (CASCADE will delete documents and chunks)
   const { error } = await supabase

@@ -15,3 +15,13 @@ export function balanceThinkTags(content: string): string {
 
   return content;
 }
+
+/**
+ * Strips <think>...</think> reasoning blocks from content.
+ * Balances unclosed tags first to guarantee any dangling thought blocks are also stripped.
+ */
+export function stripThinkTags(content: string): string {
+  if (!content) return content;
+  const balanced = balanceThinkTags(content);
+  return balanced.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+}

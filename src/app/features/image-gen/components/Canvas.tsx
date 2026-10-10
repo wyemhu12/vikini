@@ -85,6 +85,8 @@ export interface GeneratedImage {
   tags?: string[];
   // P2-1: AI comment from interleaved text+image output
   aiComment?: string;
+  // API-04: Storage path for multi-turn editing without base64
+  storagePath?: string;
 }
 
 interface CanvasProps {

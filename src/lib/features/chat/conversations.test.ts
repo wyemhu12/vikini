@@ -1,8 +1,27 @@
 // Test file for conversations.ts
-import { describe, it, expect } from "vitest";
-import { mapConversationRow, DEFAULT_MODEL } from "./conversations";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { mapConversationRow, DEFAULT_MODEL, assertConversationOwner } from "./conversations";
+import { NotFoundError, ForbiddenError } from "@/lib/utils/errors";
+
+const mockSingle = vi.fn();
+const mockEq = vi.fn();
+const mockSelect = vi.fn();
+const mockFrom = vi.fn();
+
+vi.mock("@/lib/core/supabase.server", () => ({
+  getSupabaseAdmin: () => ({
+    from: mockFrom,
+  }),
+}));
 
 describe("Conversations", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFrom.mockReturnValue({ select: mockSelect });
+    mockSelect.mockReturnValue({ eq: mockEq });
+    mockEq.mockReturnValue({ single: mockSingle });
+  });
+
   describe("mapConversationRow", () => {
     it("should map snake_case row correctly", () => {
       const row = {
@@ -130,6 +149,40 @@ describe("Conversations", () => {
       expect(result).not.toBeNull();
       expect(result?.parentConversationId).toBe("parent-convo-123");
       expect(result?.forkedFromMessageId).toBe("msg-456");
+    });
+  });
+
+  describe("assertConversationOwner (SEC-01 / M-15, m-24, m-30)", () => {
+    it("resolves successfully when conversation belongs to user", async () => {
+      mockSingle.mockResolvedValue({
+        data: { id: "conv-1", user_id: "user-123" },
+        error: null,
+      });
+
+      await expect(assertConversationOwner("conv-1", "user-123")).resolves.toBeUndefined();
+      expect(mockFrom).toHaveBeenCalledWith("conversations");
+      expect(mockSelect).toHaveBeenCalledWith("id, user_id");
+      expect(mockEq).toHaveBeenCalledWith("id", "conv-1");
+    });
+
+    it("throws NotFoundError when conversation does not exist", async () => {
+      mockSingle.mockResolvedValue({
+        data: null,
+        error: { message: "Row not found" },
+      });
+
+      await expect(assertConversationOwner("non-existent", "user-123")).rejects.toThrow(
+        NotFoundError
+      );
+    });
+
+    it("throws ForbiddenError when conversation belongs to someone else (TC-MSG-01A)", async () => {
+      mockSingle.mockResolvedValue({
+        data: { id: "conv-1", user_id: "other-user" },
+        error: null,
+      });
+
+      await expect(assertConversationOwner("conv-1", "user-123")).rejects.toThrow(ForbiddenError);
     });
   });
 });

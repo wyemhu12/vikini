@@ -211,4 +211,60 @@ describe("InputForm", () => {
       );
     });
   });
+
+  describe("IME Telex and Streaming KeyDown handling (STR-03 / TC-STR-03A, TC-STR-03B)", () => {
+    it("does not call onSubmit and does not preventDefault during IME composition or keyCode 229 (TC-STR-03A)", () => {
+      const onSubmit = vi.fn();
+      render(<InputForm input="Xin chao" onChangeInput={vi.fn()} onSubmit={onSubmit} />);
+
+      const textarea = screen.getByPlaceholderText("Type a message...");
+
+      // 1. isComposing = true
+      const eventComposing = new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      });
+      Object.defineProperty(eventComposing, "isComposing", { value: true });
+      textarea.dispatchEvent(eventComposing);
+
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(eventComposing.defaultPrevented).toBe(false);
+
+      // 2. keyCode = 229 (IME processing keycode on mobile / Safari)
+      const event229 = new KeyboardEvent("keydown", {
+        key: "Enter",
+        keyCode: 229,
+        which: 229,
+        bubbles: true,
+        cancelable: true,
+      });
+      textarea.dispatchEvent(event229);
+
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(event229.defaultPrevented).toBe(false);
+    });
+
+    it("prevents Enter submit when isStreaming is true on desktop (TC-STR-03B)", () => {
+      const onSubmit = vi.fn();
+      render(
+        <InputForm
+          input="New message while streaming"
+          onChangeInput={vi.fn()}
+          onSubmit={onSubmit}
+          isStreaming={true}
+        />
+      );
+
+      const textarea = screen.getByPlaceholderText("Type a message...");
+
+      // Simulate desktop
+      window.innerWidth = 1024;
+
+      fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
+
+      // onSubmit must NOT be called
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -1,6 +1,7 @@
 // /lib/core/autoTitleEngine.ts
 // Auto-title generation (uses @google/genai via cached client)
 
+import { ThinkingLevel } from "@google/genai";
 import { getGenAIClient } from "@/lib/core/genaiClient";
 import { CONVERSATION_DEFAULTS } from "@/lib/utils/constants";
 import { logger } from "@/lib/utils/logger";
@@ -16,7 +17,6 @@ const PRIMARY_MODEL = "gemini-3-flash-preview";
 const FALLBACK_MODEL = "gemini-2.5-flash";
 
 interface GenerateTitleOptions {
-  temperature: number;
   maxOutputTokens: number;
 }
 
@@ -102,18 +102,22 @@ function titleFromUserMessage(userMessage: string): string {
  */
 async function generateTitleWithModel(
   promptText: string,
-  { temperature, maxOutputTokens }: GenerateTitleOptions
+  { maxOutputTokens }: GenerateTitleOptions
 ): Promise<string | null> {
   const ai = getGenAIClient();
 
   // Helper thực thi gọi model
   const attemptGenerate = async (modelId: string): Promise<string> => {
+    // Gemini 3 Flash mặc định bật suy luận mức "high". Khi giới hạn maxOutputTokens: 15/20,
+    // token suy luận có thể chiếm trọn ngân sách khiến tiêu đề bị rỗng.
+    // Giải pháp: Ép thinkingLevel: ThinkingLevel.MINIMAL cho Gemini 3 để dành trọn tokens cho tiêu đề.
+    const isGemini3 = modelId.startsWith("gemini-3");
     const res = await ai.models.generateContent({
       model: modelId,
       contents: [{ role: "user", parts: [{ text: promptText }] }],
       config: {
-        temperature,
         maxOutputTokens,
+        ...(isGemini3 ? { thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL } } : {}),
       },
     });
     return extractText(res);
@@ -142,7 +146,7 @@ export async function generateOptimisticTitle(userMessage: string): Promise<stri
   try {
     const raw = await generateTitleWithModel(
       `Summarize this into a 3-5 word title (plain text, no quotes):\n"${fallback}"`,
-      { temperature: 0.3, maxOutputTokens: 15 }
+      { maxOutputTokens: 15 }
     );
 
     const normalized = normalizeTitle(raw);
@@ -171,7 +175,7 @@ export async function generateFinalTitle({
 
     const raw = await generateTitleWithModel(
       `Generate a concise 3-6 word title for this conversation. Direct answer, no "Title:" prefix, no quotes.\n\n${transcript}`,
-      { temperature: 0.3, maxOutputTokens: 20 }
+      { maxOutputTokens: 20 }
     );
 
     const normalized = normalizeTitle(raw);

@@ -132,6 +132,10 @@ export function useImageGenStudio() {
           editDepth: meta.editDepth as number | undefined,
           tags: Array.isArray(meta.tags) ? (meta.tags as string[]) : undefined,
           aiComment: meta.aiComment as string | undefined,
+          storagePath:
+            ((meta.attachment as Record<string, unknown> | undefined)?.storagePath as
+              | string
+              | undefined) || (meta.storagePath as string | undefined),
         };
       })
       .reverse();
