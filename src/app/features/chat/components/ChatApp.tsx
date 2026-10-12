@@ -1,9 +1,8 @@
 "use client";
 
-import { useSession, signIn, signOut } from "next-auth/react";
+import React, { useEffect, useCallback, useState, lazy, Suspense } from "react";
 
 // UI Components
-import ChatMessagesArea from "./ChatMessagesArea";
 import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
 import AccessPendingScreen from "@/app/components/AccessPendingScreen";
@@ -12,98 +11,48 @@ import ChatControls from "./ChatControls";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import ToastContainer from "@/components/ui/ToastContainer";
 import StreamErrorBanner from "./StreamErrorBanner";
-import ChatModalsSection from "./ChatModalsSection";
 import ScrollToBottomButton from "./ScrollToBottomButton";
+import ChatOverlays from "./ChatOverlays";
+import ChatLoadingScreen from "./ChatLoadingScreen";
+import ChatThemeBackground from "./ChatThemeBackground";
+import ChatConversationView from "./ChatConversationView";
+import LandingDisclaimer from "./LandingDisclaimer";
+import { buildChatControlsProps } from "./chatControlsProps";
 
 const ProjectChatView = lazy(() => import("../../projects/components/ProjectChatView"));
-const ChatDeepResearch = lazy(() => import("./ChatDeepResearch"));
-const CommandPalette = lazy(() => import("./CommandPalette"));
-const KeyboardShortcutsModal = lazy(() => import("./KeyboardShortcutsModal"));
 
-import React, { useEffect, useMemo, useCallback, useState, useRef, lazy, Suspense } from "react";
-import { createDraftCoordinator } from "@/lib/features/chat/draftConversation";
-
+// Hooks
 import { useTheme } from "../hooks/useTheme";
-import {
-  useConversation,
-  type FrontendConversation,
-  type FrontendMessage,
-} from "../hooks/useConversation";
-import { useGemStore } from "../../gems/stores/useGemStore";
-import { usePersonaStore } from "../../personas/stores/usePersonaStore";
+import { useConversation } from "../hooks/useConversation";
+import { useTTS } from "../hooks/useTTS";
+import { useAuthGate } from "./hooks/useAuthGate";
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useDeepResearchMode } from "./hooks/useDeepResearchMode";
-import {
-  useThinkingLevel,
-  getLowerThinkingLevel,
-  type ThinkingLevel,
-} from "./hooks/useThinkingLevel";
-
-const ResearchReportPanel = lazy(() => import("../../research/components/ResearchReportPanel"));
-const ResearchThinkingPanel = lazy(() => import("../../research/components/ResearchThinkingPanel"));
-const EditPlanModal = lazy(() => import("../../research/components/EditPlanModal"));
 import { useChatStreamController } from "./hooks/useChatStreamController";
-import { useAllowedModels } from "./hooks/useAllowedModels";
 import { useImageGenController } from "./hooks/useImageGenController";
 import { useChatModals } from "./hooks/useChatModals";
 import { useChatTranslations, useLanguage } from "./hooks/useChatTranslations";
 import { useUrlSync } from "./hooks/useUrlSync";
-import { useTTS } from "../hooks/useTTS";
 import { useChatScroll } from "./hooks/useChatScroll";
+import { useLandingModel, useModelSelection } from "./hooks/useModelSelection";
+import { useConversationSelectors } from "./hooks/useConversationSelectors";
+import { useConversationBranching } from "./hooks/useConversationBranching";
+import { useChatAttachments } from "./hooks/useChatAttachments";
+import { useThinkingRegenerate } from "./hooks/useThinkingRegenerate";
+import { useGemPersonaSync } from "./hooks/useGemPersonaSync";
+import { useChatLayoutState } from "./hooks/useChatLayoutState";
+import { useProjectNavigation } from "./hooks/useProjectNavigation";
+import { useChatShortcuts } from "./hooks/useChatShortcuts";
+import { useResearchAwareSend } from "./hooks/useResearchAwareSend";
+import { useSidebarActions } from "./hooks/useSidebarActions";
+import { useRemixPrompt } from "./hooks/useRemixPrompt";
 
-// Utils & Constants
-import { DEFAULT_MODEL, SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
-import { logger } from "@/lib/utils/logger";
-import { MODEL_IDS } from "@/lib/utils/constants";
-import { toast } from "@/lib/store/toastStore";
-import { useProjectStore } from "@/lib/store/projectStore";
-import { useFiles } from "@/lib/features/files/useFiles";
-
-// ============================================
-// Type Definitions
-// ============================================
-
-/** Gem info attached to conversation */
-interface GemInfo {
-  name: string;
-  icon: string | null;
-  color: string | null;
-}
-
-/** Persona info attached to conversation */
-interface PersonaInfo {
-  name: string;
-  icon: string | null;
-  color: string | null;
-}
-
-/** Extended session user with rank */
-interface SessionUser {
-  email?: string | null;
-  name?: string | null;
-  image?: string | null;
-  rank?: string;
-  id?: string;
-}
-
-// Lazy-loaded modals for code splitting
-const UpgradeModal = lazy(() => import("@/app/components/UpgradeModal"));
-
-// ============================================
-// Main Component
-// ============================================
-
+/**
+ * Layout shell coordinator for the chat experience: wires domain hooks
+ * together and composes sidebar, header, chat area, controls and overlays.
+ */
 export default function ChatApp() {
-  const { data: session, status } = useSession();
-  const isAuthLoading = status === "loading";
-  const isAuthed = status === "authenticated" && !!session?.user?.email;
-
-  // SECURITY: If user has been blocked, force sign out and redirect
-  useEffect(() => {
-    if (session?.user?.rank === "__blocked__") {
-      void signOut({ callbackUrl: "/auth/error?error=blocked" });
-    }
-  }, [session?.user?.rank]);
+  const { session, isAuthLoading, isAuthed, isPendingAccess } = useAuthGate();
 
   const { theme } = useTheme();
   const { t: tRaw } = useLanguage();
@@ -112,158 +61,41 @@ export default function ChatApp() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // Mobile Sidebar State
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const closeMobileSidebar = useCallback(() => setMobileOpen(false), []);
-  const toggleMobileSidebar = useCallback(() => setMobileOpen((v) => !v), []);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [showMobileControls, setShowMobileControls] = useState(true);
-
   // Image Mode State (activated from DashboardView)
   const [pendingImageMode, setPendingImageMode] = useState(false);
   const activateImageMode = useCallback(() => setPendingImageMode(true), []);
 
   // Prompt Preview State (hover suggestion → preview in input)
   const [previewPrompt, setPreviewPrompt] = useState<string | null>(null);
-  const handlePromptPreview = useCallback((prompt: string | null) => {
-    setPreviewPrompt(prompt);
-  }, []);
 
-  // Project State
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [showProjectSettingsModal, setShowProjectSettingsModal] = useState(false);
-  const { projects } = useProjectStore();
 
-  // Allowed Models & Features
-  const { allowedModelIds, features, loading: modelsLoading } = useAllowedModels(isAuthed);
-  const isModelAllowed = useCallback(
-    (modelId: string) => {
-      if (modelsLoading) return true;
-      if (allowedModelIds.size === 0) return true;
-      return allowedModelIds.has(modelId);
-    },
-    [allowedModelIds, modelsLoading]
-  );
+  const { landingModel, saveLandingModel } = useLandingModel();
 
-  // Landing Page Model State
-  const [landingModel, setLandingModel] = useState<string>(DEFAULT_MODEL);
+  const conversation = useConversation();
+  const { conversations, selectedConversationId, createConversation, refreshConversations } =
+    conversation;
 
-  // Initialize Landing Model
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedModel = localStorage.getItem("vikini-landing-model");
-      if (savedModel && SELECTABLE_MODELS.some((m) => m.id === savedModel)) {
-        setLandingModel(savedModel);
-      }
-    }
-  }, []);
-
-  // Conversation Management
-  const {
-    conversations,
-    personalConversations,
-    selectedConversationId,
-    setSelectedConversationId,
-    createConversation,
-    refreshConversations,
-    renameConversationOptimistic,
-    renameConversation,
-    deleteConversation,
-    setConversationModel,
-    patchConversationModel,
-    patchConversationGem,
-    patchConversationPersona,
-    creatingConversation: isCreatingChatMode,
-    messages: rawMessages,
-  } = useConversation();
-
-  // Count prior messages that are stored in context for AI but hidden from UI
-  const contextMessagesCount = useMemo(() => {
-    const list = Array.isArray(rawMessages) ? rawMessages : [];
-    return list.filter((m) =>
-      Boolean((m.meta as Record<string, unknown> | undefined)?.isContextOnly)
-    ).length;
-  }, [rawMessages]);
-
-  // URL Sync Hook
   const { setSelectedConversationIdAndUrl, isRemixMode } = useUrlSync({
     selectedConversationId,
-    setSelectedConversationId,
+    setSelectedConversationId: conversation.setSelectedConversationId,
   });
 
-  // Filter: only personal chats (no project) and exclude Image Studio
-  const filteredConversations = useMemo(() => {
-    return (personalConversations || []).filter(
-      (c: FrontendConversation) => c.model !== MODEL_IDS.IMAGE_STUDIO
-    );
-  }, [personalConversations]);
+  const { contextMessagesCount, filteredConversations, currentConversation, parentConversation } =
+    useConversationSelectors({
+      conversations,
+      personalConversations: conversation.personalConversations,
+      rawMessages: conversation.messages,
+      selectedConversationId,
+    });
+  const currentModel = currentConversation?.model || landingModel;
 
-  // Web Search Preferences
-  const {
-    webSearchEnabled,
-    toggleWebSearch,
-    alwaysSearch,
-    toggleAlwaysSearch,
-    setServerWebSearch,
-    setServerWebSearchAvailable,
-  } = useWebSearchPreference();
-
-  // Deep Research Mode
-  const {
-    isDeepResearchMode,
-    enterDeepResearch,
-    exitDeepResearch,
-    currentTask,
-    pendingQuery,
-    isApproving,
-    selectedAgent,
-    setSelectedAgent,
-    startResearch,
-    approvePlan,
-    cancelResearch,
-    isReportPanelOpen,
-    openReportPanel,
-    closeReportPanel,
-    isThinkingPanelOpen,
-    openThinkingPanel,
-    closeThinkingPanel,
-  } = useDeepResearchMode();
-
-  // Modal states
+  const webSearch = useWebSearchPreference();
+  const research = useDeepResearchMode();
+  const { isDeepResearchMode, currentTask, pendingQuery } = research;
   const [isEditPlanOpen, setIsEditPlanOpen] = useState(false);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
 
-  // Feature permission
-  const deepResearchAllowed = features?.deep_research === true;
-
-  // Chat Stream Controller
-  const {
-    renderedMessages,
-    input,
-    setInput,
-    creatingConversation,
-    loadingMessages,
-    isStreaming,
-    streamingAssistant,
-    streamingThinking,
-    streamingSources,
-    streamingRagSources,
-    streamingUrlContext,
-    regenerating,
-    resetChatUI,
-    handleNewChat,
-    handleSelectConversation,
-    handleSend,
-    handleRegenerate,
-    handleContinue,
-    retrySave,
-    handleEdit,
-    handleStop,
-    streamError,
-    clearStreamError,
-    setMessages,
-  } = useChatStreamController({
+  const chat = useChatStreamController({
     isAuthed,
     selectedConversationId,
     setSelectedConversationId: setSelectedConversationIdAndUrl,
@@ -272,440 +104,128 @@ export default function ChatApp() {
       [createConversation, landingModel]
     ),
     refreshConversations,
-    renameConversationOptimistic,
-    onWebSearchMeta: ({ enabled, available }: { enabled?: boolean; available?: boolean }) => {
-      if (typeof enabled === "boolean") setServerWebSearch(enabled);
-      if (typeof available === "boolean") setServerWebSearchAvailable(available);
-    },
+    renameConversationOptimistic: conversation.renameConversationOptimistic,
+    onWebSearchMeta: webSearch.applyServerMeta,
+  });
+  const { renderedMessages, input, setInput, isStreaming, streamingAssistant } = chat;
+  const { handleNewChat, handleSelectConversation } = chat;
+
+  const branching = useConversationBranching({
+    selectedConversationId,
+    refreshConversations,
+    onBranchCreated: setSelectedConversationIdAndUrl,
+    t: tRaw,
   });
 
-  // Current Conversation & Model
-  const currentConversation = useMemo(
-    () => (conversations || []).find((c: FrontendConversation) => c?.id === selectedConversationId),
-    [conversations, selectedConversationId]
-  );
-  const currentModel = currentConversation?.model || landingModel;
+  const handleMessageSend = useResearchAwareSend({
+    input,
+    setInput,
+    handleSend: chat.handleSend,
+    isDeepResearchMode,
+    startResearch: research.startResearch,
+    selectedConversationId,
+    selectedProjectId,
+    gemId: (currentConversation as { gemId?: string })?.gemId,
+  });
 
-  const parentConversation = useMemo(
-    () =>
-      currentConversation?.parentConversationId
-        ? (conversations || []).find(
-            (c: FrontendConversation) => c?.id === currentConversation.parentConversationId
-          )
-        : null,
-    [conversations, currentConversation?.parentConversationId]
-  );
+  const attachments = useChatAttachments({
+    selectedConversationId,
+    renderedMessages,
+    landingModel,
+    createConversation,
+    setSelectedConversationIdAndUrl,
+  });
 
-  // Branch in new chat handler
-  const [branchingMessageId, setBranchingMessageId] = useState<string | null>(null);
+  const thinking = useThinkingRegenerate({
+    currentModel,
+    isStreaming,
+    handleRegenerate: chat.handleRegenerate,
+    t: tRaw,
+  });
 
-  const handleBranchMessage = useCallback(
-    async (messageId: string) => {
-      if (!selectedConversationId) return;
-
-      try {
-        setBranchingMessageId(messageId);
-        const res = await fetch(`/api/conversations/${selectedConversationId}/branch`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messageId,
-            titlePrefix: tRaw("branchTitlePrefix") || "[Nhánh]",
-          }),
-        });
-
-        const json = await res.json();
-        if (!res.ok || !json.success) {
-          throw new Error(
-            json.error?.message || tRaw("branchFailed") || "Failed to branch conversation"
-          );
-        }
-
-        const newConvo = json.data?.conversation;
-        if (newConvo?.id) {
-          toast.success(tRaw("branchSuccess") || "Đã tách cuộc trò chuyện thành công");
-          await refreshConversations();
-          setSelectedConversationIdAndUrl(newConvo.id);
-        }
-      } catch (err: unknown) {
-        const msg =
-          err instanceof Error
-            ? err.message
-            : tRaw("branchFailed") || "Failed to branch conversation";
-        logger.error("[ChatApp] Branch conversation error:", msg);
-        toast.error(msg);
-      } finally {
-        setBranchingMessageId(null);
-      }
-    },
-    [selectedConversationId, refreshConversations, setSelectedConversationIdAndUrl, tRaw]
-  );
-
-  // Intercept send for Deep Research
-  const handleMessageSend = useCallback(
-    (text?: string, fileIds?: string[]) => {
-      const finalQuery = text || input;
-      if (isDeepResearchMode) {
-        if (finalQuery.trim()) {
-          setInput("");
-          startResearch(
-            finalQuery,
-            selectedConversationId || undefined,
-            selectedProjectId || undefined,
-            (currentConversation as { gemId?: string })?.gemId || undefined
-          ).catch((e) => toast.error(e.message || "Failed to start research"));
-        }
-      } else {
-        handleSend(text, fileIds);
-      }
-    },
-    [
-      isDeepResearchMode,
-      startResearch,
-      handleSend,
-      selectedConversationId,
-      selectedProjectId,
-      currentConversation,
-      input,
-      setInput,
-    ]
-  );
-
-  // Draft conversation coordinator for New Chat file uploads
-  const isSelfInitiatedUploadRef = useRef(false);
-  const draftCoordinator = useMemo(
-    () =>
-      createDraftCoordinator({
-        createConversation: async () => {
-          const conv = await createConversation({ model: landingModel });
-          if (conv) {
-            setSelectedConversationIdAndUrl(conv.id);
-            return { id: conv.id };
-          }
-          return null;
-        },
-      }),
-    [createConversation, landingModel, setSelectedConversationIdAndUrl]
-  );
-
-  useEffect(() => {
-    draftCoordinator.reset();
-  }, [selectedConversationId, draftCoordinator]);
-
-  // File count for file manager button
-  const { fileCount } = useFiles(selectedConversationId);
-
-  // Compute which files have already been sent in messages (survives reload)
-  const sentMessageFileIds = useMemo(() => {
-    const ids: string[] = [];
-    for (const m of renderedMessages) {
-      if (m.role === "user" && m.meta) {
-        const meta = m.meta as Record<string, unknown>;
-        const fIds = meta["fileIds"];
-        if (Array.isArray(fIds)) {
-          ids.push(...(fIds as string[]));
-        }
-      }
-    }
-    return ids;
-  }, [renderedMessages]);
-
-  // Thinking Level Preference (Gemini 3 Thinking models)
-  const { thinkingLevel, setThinkingLevel, availableLevels } = useThinkingLevel(currentModel);
-  const lowerThinkingLevel = useMemo(
-    () => getLowerThinkingLevel(thinkingLevel, availableLevels),
-    [thinkingLevel, availableLevels]
-  );
-
-  const handleRegenerateWithLowerThinking = useCallback(
-    (targetMessage: FrontendMessage, newLevel: ThinkingLevel) => {
-      if (isStreaming) return;
-      setThinkingLevel(newLevel);
-      const levelKeyMap: Record<string, string> = {
-        high: "thinkingLevelHigh",
-        medium: "thinkingLevelMedium",
-        low: "thinkingLevelLow",
-        minimal: "thinkingLevelMinimal",
-        off: "webSearchOff",
-      };
-      const levelLabel = tRaw(levelKeyMap[newLevel] || "thinkingLevelLow");
-      toast.info(tRaw("regeneratingWithLowerThinking").replace("{level}", levelLabel));
-      void handleRegenerate(targetMessage);
-    },
-    [isStreaming, setThinkingLevel, handleRegenerate, tRaw]
-  );
-
-  // Modal Management Hook
   const modals = useChatModals({
     conversations: conversations || [],
     selectedConversationId,
-    deleteConversation,
-    renameConversation,
-    renameConversationOptimistic,
+    deleteConversation: conversation.deleteConversation,
+    renameConversation: conversation.renameConversation,
+    renameConversationOptimistic: conversation.renameConversationOptimistic,
     refreshConversations,
-    resetChatUI,
-    setMessages,
+    resetChatUI: chat.resetChatUI,
+    setMessages: chat.setMessages,
   });
 
-  // TTS Hook for reading AI responses aloud
-  const tts = useTTS();
+  const { isModelAllowed, features, handleModelChange } = useModelSelection({
+    isAuthed,
+    selectedConversationId,
+    saveLandingModel,
+    patchConversationModel: conversation.patchConversationModel,
+    setConversationModel: conversation.setConversationModel,
+    openUpgradeModal: modals.openUpgradeModal,
+    errorMessage: t.error,
+  });
 
-  // Image Generation Controller Hook
-  const {
-    lastGeneratedImage,
-    setLastGeneratedImage,
-    showEditImageModal,
-    setShowEditImageModal,
-    editingImagePrompt,
-    handleImageGen,
-    handleImageRegenerate,
-    handleImageEdit,
-    confirmImageEdit,
-  } = useImageGenController({
+  const tts = useTTS(); // Reads AI responses aloud
+
+  const imageGen = useImageGenController({
     selectedConversationId,
     createConversation,
     setSelectedConversationIdAndUrl,
     currentModel,
     t: tRaw,
     onSuccess: () => {
-      // Reload messages to show the generated image
-      if (selectedConversationId) {
-        void handleSelectConversation(selectedConversationId);
-      }
-      // Clear temporary state
-      setLastGeneratedImage(null);
+      // Reload messages to show the generated image, then clear temporary state
+      if (selectedConversationId) void handleSelectConversation(selectedConversationId);
+      imageGen.setLastGeneratedImage(null);
     },
   });
 
-  // Remix prompt logic
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const remixPrompt = sessionStorage.getItem("remixPrompt");
-      if (remixPrompt) {
-        setInput(remixPrompt);
-        sessionStorage.removeItem("remixPrompt");
-      }
-    }
-  }, [setInput]);
+  useRemixPrompt(setInput);
 
-  // Smart Auto-Scroll (extracted hook)
-  const {
-    scrollRef,
-    handleScroll,
-    handleTouchStart,
-    handleTouchEnd,
-    isAtBottom,
-    unreadCount,
-    scrollToBottom,
-  } = useChatScroll({
+  const scroll = useChatScroll({
     isStreaming,
     streamingAssistant,
     renderedMessagesLength: renderedMessages.length,
-    lastGeneratedImage,
+    lastGeneratedImage: imageGen.lastGeneratedImage,
     conversationId: selectedConversationId,
   });
 
-  // Model Change Handler
-  const handleModelChange = useCallback(
-    async (newModelId: string) => {
-      if (!isModelAllowed(newModelId)) {
-        const model = SELECTABLE_MODELS.find((m) => m.id === newModelId);
-        modals.openUpgradeModal(model?.name || newModelId);
-        return;
-      }
-      if (!selectedConversationId) {
-        setLandingModel(newModelId);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("vikini-landing-model", newModelId);
-        }
-        return;
-      }
-      try {
-        patchConversationModel?.(selectedConversationId, newModelId);
-        await setConversationModel?.(selectedConversationId, newModelId);
-      } catch (e) {
-        logger.error("Failed to change model:", e);
-        toast.error(t.error);
-      }
-    },
-    [
-      isModelAllowed,
-      selectedConversationId,
-      patchConversationModel,
-      setConversationModel,
-      t.error,
-      modals,
-    ]
-  );
+  useGemPersonaSync(conversation);
 
-  // Auto sign in
-  useEffect(() => {
-    if (!isAuthLoading && !isAuthed) void signIn();
-  }, [isAuthed, isAuthLoading]);
-
-  // Gem applied callback
-  const { setOnGemApplied } = useGemStore();
-  useEffect(() => {
-    setOnGemApplied((conversationId: string, gem: GemInfo | null) => {
-      patchConversationGem(conversationId, gem);
-      void refreshConversations();
-    });
-    return () => {
-      if (useGemStore.getState().setOnGemApplied) {
-        useGemStore.getState().setOnGemApplied(null);
-      }
-    };
-  }, [setOnGemApplied, patchConversationGem, refreshConversations]);
-
-  // Persona applied callback
-  const { setOnPersonaApplied } = usePersonaStore();
-  useEffect(() => {
-    setOnPersonaApplied((conversationId: string, persona: PersonaInfo | null) => {
-      patchConversationPersona(conversationId, persona);
-      void refreshConversations();
-    });
-    return () => {
-      if (usePersonaStore.getState().setOnPersonaApplied) {
-        usePersonaStore.getState().setOnPersonaApplied(null);
-      }
-    };
-  }, [setOnPersonaApplied, patchConversationPersona, refreshConversations]);
-
-  // Memoized callbacks
-  const memoizedOnSelectConversation = useCallback(
-    (id: string | null) => {
-      void handleSelectConversation(id);
-      closeMobileSidebar();
-    },
-    [handleSelectConversation, closeMobileSidebar]
-  );
-
-  // Sidebar-specific memoized callbacks (prevent re-renders via React.memo)
-  const memoizedOnNewChat = useCallback(() => {
-    void handleNewChat();
-    closeMobileSidebar();
-  }, [handleNewChat, closeMobileSidebar]);
-
-  // Extract stable refs from modals (these are useCallback-wrapped, so stable)
-  const { openRenameModal, openDeleteModal } = modals;
-
-  const memoizedOnRenameChat = useCallback(
-    (id: string) => openRenameModal(id, ""),
-    [openRenameModal]
-  );
-
-  const memoizedOnLogout = useCallback(() => signOut(), []);
-
-  const memoizedOnToggleCollapse = useCallback(() => setSidebarCollapsed((prev) => !prev), []);
-
-  const memoizedOnLogoClick = useCallback(() => {
+  const navigateHome = useCallback(() => {
     void handleSelectConversation(null);
     setSelectedProjectId(null);
-    closeMobileSidebar();
-  }, [handleSelectConversation, closeMobileSidebar]);
+  }, [handleSelectConversation]);
+  const layout = useChatLayoutState({ onNavigateHome: navigateHome });
+  const { closeMobileSidebar, sidebarCollapsed, showMobileControls } = layout;
 
-  const memoizedOnCreateProjectChat = useCallback(
-    async (projectId: string) => {
-      const conv = await createConversation({ title: "", projectId, model: landingModel });
-      if (conv) {
-        setSelectedConversationIdAndUrl(conv.id);
-        setSelectedProjectId(null);
-        closeMobileSidebar();
-      }
-    },
-    [createConversation, setSelectedConversationIdAndUrl, closeMobileSidebar]
-  );
+  const projectNav = useProjectNavigation({
+    selectedProjectId,
+    conversations,
+    setSelectedProjectId,
+    landingModel,
+    createConversation,
+    setSelectedConversationIdAndUrl,
+    handleSelectConversation,
+    closeMobileSidebar,
+  });
 
-  const memoizedOnSelectProject = useCallback(
-    (projectId: string) => {
-      setSelectedProjectId(projectId);
-      void handleSelectConversation(null);
-      closeMobileSidebar();
-    },
-    [handleSelectConversation, closeMobileSidebar]
-  );
+  const sidebarActions = useSidebarActions({
+    handleSelectConversation,
+    handleNewChat,
+    openRenameModal: modals.openRenameModal,
+    closeMobileSidebar,
+  });
 
-  const memoizedOnRenameProjectConversation = useCallback(
-    (id: string) => openRenameModal(id, ""),
-    [openRenameModal]
-  );
+  const shortcuts = useChatShortcuts({ onNewChat: handleNewChat });
 
-  const memoizedOnDeleteProjectConversation = useCallback(
-    (id: string) => openDeleteModal(id),
-    [openDeleteModal]
-  );
+  // Auth gates
+  if (isAuthLoading || !isAuthed) return <ChatLoadingScreen label={t.loading} />;
 
-  // Global Keyboard Shortcuts (Cmd+K / Ctrl+K and ?)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + K: Toggle Command Palette
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setIsCommandPaletteOpen((prev) => !prev);
-        return;
-      }
+  if (isPendingAccess) return <AccessPendingScreen />;
 
-      // Check if user is actively typing in an input or textarea
-      const target = e.target as HTMLElement | null;
-      const isInput =
-        target &&
-        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
-
-      // Cmd/Ctrl + Shift + O: New Chat
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "o") {
-        e.preventDefault();
-        void handleNewChat();
-        return;
-      }
-
-      // ?: Open keyboard shortcuts help modal (when not typing)
-      if (e.key === "?" && !isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        e.preventDefault();
-        setIsShortcutsModalOpen(true);
-        return;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleNewChat]);
-
-  // ============================================
-  // Render: Loading State
-  // ============================================
-  if (isAuthLoading || !isAuthed) {
-    return (
-      <div className="h-dvh w-full flex items-center justify-center bg-surface text-primary overflow-hidden">
-        <div className="absolute inset-0 z-0 bg-surface-muted opacity-80" />
-        <div className="relative animate-pulse flex flex-col items-center gap-6 z-10">
-          <div className="h-16 w-16 rounded-2xl border border-(--control-border) bg-control backdrop-blur-xl flex items-center justify-center text-3xl font-black shadow-2xl">
-            V
-          </div>
-          <div className="text-xs tracking-[0.4em] text-(--text-secondary) uppercase font-bold">
-            {t.loading}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ============================================
-  // Render: Access Pending
-  // ============================================
-  if (isAuthed && (session?.user as SessionUser | undefined)?.rank === "not_whitelisted") {
-    return <AccessPendingScreen />;
-  }
-
-  // ============================================
-  // Render: Main App
-  // ============================================
+  // Main app view state
   const showProjectView = selectedProjectId && !selectedConversationId;
-  const selectedProject = selectedProjectId
-    ? projects.find((p) => p.id === selectedProjectId)
-    : null;
-  const projectConversations = selectedProjectId
-    ? conversations.filter((c) => c.projectId === selectedProjectId)
-    : [];
+  const { selectedProject } = projectNav;
   const hasActiveResearch = isDeepResearchMode && (currentTask != null || pendingQuery != null);
   const showLanding =
     !isRemixMode &&
@@ -713,407 +233,163 @@ export default function ChatApp() {
     !hasActiveResearch &&
     (!selectedConversationId || renderedMessages.length === 0);
 
+  const controlsProps = buildChatControlsProps({
+    chat,
+    webSearch,
+    research,
+    thinking,
+    imageGen,
+    attachments,
+    handleSend: handleMessageSend,
+    currentModel,
+    handleModelChange,
+    isModelAllowed,
+    deepResearchAllowed: features?.deep_research === true,
+    currentConversation,
+    selectedConversationId,
+    showMobileControls,
+    initialImageMode: pendingImageMode || isRemixMode,
+    onImageModeConsumed: () => setPendingImageMode(false),
+    previewPrompt,
+  });
+
   return (
     <div className="h-dvh w-full text-primary overflow-hidden relative font-sans bg-surface">
       <ToastContainer />
       <div className="absolute inset-0 z-0 static-depth-bg pointer-events-none" />
 
-      {/* Stream Error Banner */}
-      <StreamErrorBanner error={streamError} onDismiss={clearStreamError} />
+      <StreamErrorBanner error={chat.streamError} onDismiss={chat.clearStreamError} />
 
-      {/* Sidebar */}
       <Sidebar
         conversations={filteredConversations}
         selectedConversationId={selectedConversationId}
-        onSelectConversation={memoizedOnSelectConversation}
-        onNewChat={memoizedOnNewChat}
-        onDeleteConversation={openDeleteModal}
-        onRenameChat={memoizedOnRenameChat}
-        onLogout={memoizedOnLogout}
-        mobileOpen={mobileOpen}
+        onSelectConversation={sidebarActions.onSelectConversation}
+        onNewChat={sidebarActions.onNewChat}
+        onDeleteConversation={modals.openDeleteModal}
+        onRenameChat={sidebarActions.onRenameChat}
+        onLogout={sidebarActions.onLogout}
+        mobileOpen={layout.mobileOpen}
         onCloseMobile={closeMobileSidebar}
         session={session}
         collapsed={sidebarCollapsed}
-        onToggleCollapse={memoizedOnToggleCollapse}
-        onLogoClick={memoizedOnLogoClick}
+        onToggleCollapse={layout.memoizedOnToggleCollapse}
+        onLogoClick={layout.memoizedOnLogoClick}
         allConversations={conversations}
-        onCreateProjectChat={memoizedOnCreateProjectChat}
-        onSelectProject={memoizedOnSelectProject}
-        onRenameProjectConversation={memoizedOnRenameProjectConversation}
-        onDeleteProjectConversation={memoizedOnDeleteProjectConversation}
-        isCreatingChat={isCreatingChatMode}
+        onCreateProjectChat={projectNav.memoizedOnCreateProjectChat}
+        onSelectProject={projectNav.memoizedOnSelectProject}
+        onRenameProjectConversation={sidebarActions.onRenameChat}
+        onDeleteProjectConversation={modals.openDeleteModal}
+        isCreatingChat={conversation.creatingConversation}
       />
 
-      {!mobileOpen && <FloatingMenuTrigger onClick={() => setMobileOpen((prev) => !prev)} />}
+      {!layout.mobileOpen && <FloatingMenuTrigger onClick={layout.toggleMobileSidebar} />}
 
       <div
         className={`@container/chat h-full flex flex-col relative z-10 transition-[padding] duration-300 ${sidebarCollapsed ? "md:pl-[calc(5rem+var(--sal,0px))]" : "md:pl-[calc(18rem+var(--sal,0px))] lg:pl-[calc(20rem+var(--sal,0px))]"} pr-[var(--sar,0px)]`}
       >
-        <HeaderBar onToggleSidebar={toggleMobileSidebar} showMobileControls={showMobileControls} />
+        <HeaderBar
+          onToggleSidebar={layout.toggleMobileSidebar}
+          showMobileControls={showMobileControls}
+        />
 
         <div
-          ref={scrollRef}
-          onScroll={handleScroll}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          onClick={() => {
-            if (showLanding || window.innerWidth >= 768) return;
-            setTimeout(() => {
-              const selection = window.getSelection();
-              if (selection && selection.toString().length > 0) return;
-              setShowMobileControls((prev) => !prev);
-            }, 10);
-          }}
+          ref={scroll.scrollRef}
+          onScroll={scroll.handleScroll}
+          onTouchStart={scroll.handleTouchStart}
+          onTouchEnd={scroll.handleTouchEnd}
+          onClick={() => layout.handleContentTap(showLanding)}
           className="flex-1 overflow-y-auto px-4 md:px-0 scroll-smooth relative pt-[calc(6rem+var(--sat,0px))] md:pt-0 pb-[calc(8rem+var(--sab,0px))] md:pb-0 cursor-pointer md:cursor-auto"
           role="log"
           aria-live="polite"
           aria-relevant="additions"
         >
-          {/* RA2 Theme Backgrounds */}
-          {mounted && (theme === "yuri" || theme === "allied" || theme === "soviet") && (
-            <div
-              className={`fixed top-0 left-0 right-0 bottom-0 z-0 pointer-events-none transition-[left] duration-300 ${sidebarCollapsed ? "md:left-[calc(5rem+var(--sal,0px))]" : "md:left-[calc(18rem+var(--sal,0px))] lg:left-[calc(20rem+var(--sal,0px))]"}`}
-              style={{
-                backgroundImage: `url('/assets/themes/${theme}.png')`,
-                backgroundSize: theme === "allied" ? "38%" : "35%",
-                backgroundPosition: "center center",
-                backgroundRepeat: "no-repeat",
-                opacity: theme === "soviet" ? 0.2 : theme === "yuri" ? 0.18 : 0.15,
-                filter:
-                  theme === "yuri"
-                    ? "drop-shadow(0 0 60px rgba(168, 85, 247, 0.5))"
-                    : theme === "allied"
-                      ? "drop-shadow(0 0 80px rgba(56, 189, 248, 0.4))"
-                      : "drop-shadow(0 0 60px rgba(239, 68, 68, 0.6)) drop-shadow(0 0 100px rgba(251, 191, 36, 0.3))",
-              }}
-            />
+          {mounted && theme && (
+            <ChatThemeBackground theme={theme} sidebarCollapsed={sidebarCollapsed} />
           )}
 
-          {/* Chat Content */}
           {showProjectView && selectedProject ? (
             <Suspense fallback={null}>
               <ProjectChatView
                 project={selectedProject}
-                conversations={projectConversations}
-                onNewChat={async () => {
-                  const conv = await createConversation({
-                    title: "",
-                    projectId: selectedProjectId!,
-                    model: landingModel,
-                  });
-                  if (conv) {
-                    setSelectedConversationIdAndUrl(conv.id);
-                    setSelectedProjectId(null);
-                  }
-                }}
-                onSelectConversation={(id) => {
-                  void handleSelectConversation(id);
-                  setSelectedProjectId(null);
-                }}
-                onOpenSettings={() => {
-                  setShowProjectSettingsModal(true);
-                }}
-                onRenameConversation={(id) => {
-                  modals.openRenameModal(id, "");
-                }}
-                onDeleteConversation={(id) => {
-                  modals.openDeleteModal(id);
-                }}
+                conversations={projectNav.projectConversations}
+                onNewChat={() => void projectNav.createProjectChat(selectedProject.id)}
+                onSelectConversation={projectNav.openProjectChat}
+                onOpenSettings={projectNav.openProjectSettings}
+                onRenameConversation={sidebarActions.onRenameChat}
+                onDeleteConversation={modals.openDeleteModal}
               />
             </Suspense>
           ) : showLanding ? (
             <div className="min-h-full flex flex-col items-center justify-center pb-[25vh] animate-in fade-in zoom-in duration-500">
               <DashboardView
                 onPromptSelect={setInput}
-                onPromptPreview={handlePromptPreview}
+                onPromptPreview={setPreviewPrompt}
                 onActivateImageMode={activateImageMode}
               >
                 {/* ChatControls rendered between greeting and chips */}
-                <ChatControls
-                  input={input}
-                  setInput={setInput}
-                  handleSend={handleMessageSend}
-                  handleStop={handleStop}
-                  isStreaming={isStreaming}
-                  creatingConversation={creatingConversation}
-                  regenerating={regenerating}
-                  streamingAssistant={streamingAssistant}
-                  disabled={creatingConversation}
-                  webSearchEnabled={webSearchEnabled}
-                  toggleWebSearch={toggleWebSearch}
-                  alwaysSearch={alwaysSearch}
-                  toggleAlwaysSearch={toggleAlwaysSearch}
-                  deepResearchEnabled={isDeepResearchMode}
-                  toggleDeepResearch={isDeepResearchMode ? exitDeepResearch : enterDeepResearch}
-                  deepResearchAllowed={deepResearchAllowed}
-                  thinkingLevel={thinkingLevel}
-                  setThinkingLevel={setThinkingLevel}
-                  currentModel={currentModel}
-                  handleModelChange={handleModelChange}
-                  isModelAllowed={isModelAllowed}
-                  currentGem={currentConversation?.gem}
-                  currentPersona={currentConversation?.persona}
-                  onImageGen={handleImageGen}
-                  selectedConversationId={selectedConversationId}
-                  showMobileControls={showMobileControls}
-                  initialImageMode={pendingImageMode || isRemixMode}
-                  onImageModeConsumed={() => setPendingImageMode(false)}
-                  isLanding={true}
-                  previewPrompt={previewPrompt}
-                  fileCount={fileCount}
-                  conversationId={selectedConversationId}
-                  sentMessageFileIds={sentMessageFileIds}
-                  ensureConversationId={draftCoordinator.ensureConversationId}
-                  isSelfInitiatedUploadRef={isSelfInitiatedUploadRef}
-                />
+                <ChatControls {...controlsProps} isLanding={true} />
               </DashboardView>
             </div>
-          ) : loadingMessages ? (
-            <div className="max-w-3xl mx-auto w-full py-8 flex flex-col items-center justify-center gap-4 min-h-[200px]">
-              <div className="w-8 h-8 border-2 border-(--accent) border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-(--text-secondary)">{t.loading || "Loading..."}</span>
-            </div>
           ) : (
-            <ChatMessagesArea
-              renderedMessages={renderedMessages}
+            <ChatConversationView
+              chat={chat}
+              imageGen={imageGen}
+              thinking={thinking}
+              branching={branching}
+              research={research}
+              showResearch={hasActiveResearch}
+              onEditPlan={() => setIsEditPlanOpen(true)}
               currentConversation={currentConversation}
               parentConversation={parentConversation}
               contextMessagesCount={contextMessagesCount}
               selectedConversationId={selectedConversationId}
               currentModel={currentModel}
-              lowerThinkingLevel={lowerThinkingLevel}
-              onRegenerateLowerThinking={handleRegenerateWithLowerThinking}
-              regenerating={regenerating}
-              isStreaming={isStreaming}
-              streamingAssistant={streamingAssistant}
-              streamingThinking={streamingThinking}
-              streamingSources={streamingSources}
-              streamingRagSources={streamingRagSources}
-              streamingUrlContext={streamingUrlContext}
-              branchingMessageId={branchingMessageId}
-              handleRegenerate={handleRegenerate}
-              handleContinue={handleContinue}
-              retrySave={retrySave}
-              handleEdit={handleEdit}
               openDeleteMessageModal={modals.openDeleteMessageModal}
-              handleImageRegenerate={handleImageRegenerate}
-              handleImageEdit={handleImageEdit}
-              handleBranchMessage={handleBranchMessage}
               setSelectedConversationIdAndUrl={setSelectedConversationIdAndUrl}
               tts={tts}
               tRaw={tRaw}
-              scrollContainerRef={scrollRef}
-              lastGeneratedImage={lastGeneratedImage}
-              studioGeneratingStatus={t.studioGeneratingStatus}
-            >
-              {/* Deep Research integration (extracted component) */}
-              {isDeepResearchMode && (currentTask || pendingQuery) && (
-                <Suspense fallback={null}>
-                  <ChatDeepResearch
-                    currentTask={currentTask}
-                    pendingQuery={pendingQuery}
-                    isApproving={isApproving}
-                    approvePlan={approvePlan}
-                    cancelResearch={cancelResearch}
-                    openReportPanel={openReportPanel}
-                    openThinkingPanel={openThinkingPanel}
-                    onEditPlan={() => setIsEditPlanOpen(true)}
-                    t={t}
-                  />
-                </Suspense>
-              )}
-            </ChatMessagesArea>
+              t={t}
+              scrollContainerRef={scroll.scrollRef}
+            />
           )}
         </div>
 
-        {/* Scroll to bottom button */}
         {!showProjectView && !showLanding && (
-          <div className="absolute right-[calc(1.5rem+var(--sar,0px))] bottom-[calc(8rem+var(--sab,0px))] z-20 pointer-events-auto">
-            <ScrollToBottomButton
-              isAtBottom={isAtBottom}
-              unreadCount={unreadCount}
-              onClick={() => scrollToBottom(true)}
+          <>
+            <div className="absolute right-[calc(1.5rem+var(--sar,0px))] bottom-[calc(8rem+var(--sab,0px))] z-20 pointer-events-auto">
+              <ScrollToBottomButton
+                isAtBottom={scroll.isAtBottom}
+                unreadCount={scroll.unreadCount}
+                onClick={() => scroll.scrollToBottom(true)}
+              />
+            </div>
+            <ChatControls
+              {...controlsProps}
+              selectedResearchAgent={research.selectedAgent}
+              onResearchAgentChange={research.setSelectedAgent}
             />
-          </div>
-        )}
-
-        {/* ChatControls at bottom - only when NOT landing and NOT project view */}
-        {!showProjectView && !showLanding && (
-          <ChatControls
-            input={input}
-            setInput={setInput}
-            handleSend={handleMessageSend}
-            handleStop={handleStop}
-            isStreaming={isStreaming}
-            creatingConversation={creatingConversation}
-            regenerating={regenerating}
-            streamingAssistant={streamingAssistant}
-            disabled={creatingConversation}
-            webSearchEnabled={webSearchEnabled}
-            toggleWebSearch={toggleWebSearch}
-            alwaysSearch={alwaysSearch}
-            toggleAlwaysSearch={toggleAlwaysSearch}
-            deepResearchEnabled={isDeepResearchMode}
-            toggleDeepResearch={isDeepResearchMode ? exitDeepResearch : enterDeepResearch}
-            deepResearchAllowed={deepResearchAllowed}
-            selectedResearchAgent={selectedAgent}
-            onResearchAgentChange={setSelectedAgent}
-            thinkingLevel={thinkingLevel}
-            setThinkingLevel={setThinkingLevel}
-            currentModel={currentModel}
-            handleModelChange={handleModelChange}
-            isModelAllowed={isModelAllowed}
-            currentGem={currentConversation?.gem}
-            currentPersona={currentConversation?.persona}
-            onImageGen={handleImageGen}
-            selectedConversationId={selectedConversationId}
-            showMobileControls={showMobileControls}
-            initialImageMode={pendingImageMode || isRemixMode}
-            onImageModeConsumed={() => setPendingImageMode(false)}
-            previewPrompt={previewPrompt}
-            fileCount={fileCount}
-            conversationId={selectedConversationId}
-            sentMessageFileIds={sentMessageFileIds}
-            ensureConversationId={draftCoordinator.ensureConversationId}
-            isSelfInitiatedUploadRef={isSelfInitiatedUploadRef}
-          />
+          </>
         )}
       </div>
 
-      {/* Landing Disclaimer - fixed at page bottom, sidebar-aware */}
       {showLanding && (
-        <div
-          className={`fixed bottom-[calc(0.5rem+var(--sab,0px))] inset-x-0 text-center z-30 pointer-events-none transition-[padding] duration-300 ${sidebarCollapsed ? "md:pl-[calc(5rem+var(--sal,0px))]" : "md:pl-[calc(18rem+var(--sal,0px))] lg:pl-[calc(20rem+var(--sal,0px))]"} pr-[var(--sar,0px)]`}
-        >
-          <p className="text-xs font-bold text-(--text-secondary) tracking-widest uppercase">
-            {t.aiDisclaimer}
-          </p>
-        </div>
+        <LandingDisclaimer text={t.aiDisclaimer} sidebarCollapsed={sidebarCollapsed} />
       )}
 
-      {/* Modals */}
-      <Suspense fallback={null}>
-        <UpgradeModal
-          isOpen={modals.showUpgradeModal}
-          onClose={modals.closeUpgradeModal}
-          modelName={modals.restrictedModel || ""}
-        />
-      </Suspense>
-
-      {/* Deep Research Report Panel */}
-      {isDeepResearchMode && isReportPanelOpen && currentTask && currentTask.reportText && (
-        <Suspense fallback={null}>
-          <ResearchReportPanel
-            title={currentTask.query}
-            report={currentTask.reportText}
-            sources={currentTask.sources}
-            isOpen={isReportPanelOpen}
-            onClose={closeReportPanel}
-            onOpenThoughts={() => {
-              // Only open thoughts if there is thinking data
-              if (currentTask.thinkingText) {
-                openThinkingPanel();
-              }
-            }}
-            onCreateConversation={
-              currentTask.conversationId
-                ? () => {
-                    closeReportPanel();
-                    exitDeepResearch();
-                    // Navigate to the conversation
-                    if (currentTask.conversationId) {
-                      setSelectedConversationIdAndUrl(currentTask.conversationId);
-                    }
-                  }
-                : undefined
-            }
-          />
-        </Suspense>
-      )}
-
-      {/* Deep Research Thinking Panel */}
-      {isDeepResearchMode && isThinkingPanelOpen && currentTask && (
-        <Suspense fallback={null}>
-          <ResearchThinkingPanel
-            title={currentTask.query}
-            isOpen={isThinkingPanelOpen}
-            onClose={closeThinkingPanel}
-            thinkingText={currentTask.thinkingText}
-            sources={currentTask.searchedSources}
-            isCompleted={currentTask.status === "completed" || currentTask.status === "failed"}
-          />
-        </Suspense>
-      )}
-
-      {/* Edit Plan Modal - replaces window.prompt() */}
-      {isDeepResearchMode && isEditPlanOpen && (
-        <Suspense fallback={null}>
-          <EditPlanModal
-            isOpen={isEditPlanOpen}
-            onClose={() => setIsEditPlanOpen(false)}
-            onSubmit={(feedback) => {
-              approvePlan(feedback).catch((e) =>
-                toast.error(e instanceof Error ? e.message : "Failed to revise plan")
-              );
-            }}
-          />
-        </Suspense>
-      )}
-
-      {/* Modals (extracted component) */}
-      <ChatModalsSection
-        showRenameModal={modals.showRenameModal}
-        closeRenameModal={modals.closeRenameModal}
-        renameValue={modals.renameValue}
-        setRenameValue={modals.setRenameValue}
-        confirmRename={modals.confirmRename}
-        showDeleteMessageModal={modals.showDeleteMessageModal}
-        closeDeleteMessageModal={modals.closeDeleteMessageModal}
-        confirmDeleteMessage={modals.confirmDeleteMessage}
-        showEditImageModal={showEditImageModal}
-        closeEditImageModal={() => setShowEditImageModal(false)}
-        editingImagePrompt={editingImagePrompt}
-        confirmImageEdit={confirmImageEdit}
-        selectedProjectId={selectedProjectId}
-        showProjectSettingsModal={showProjectSettingsModal}
-        closeProjectSettingsModal={() => setShowProjectSettingsModal(false)}
-        onCreateProjectChat={async (projectId) => {
-          const conv = await createConversation({ title: "", projectId, model: landingModel });
-          if (conv) {
-            setSelectedConversationIdAndUrl(conv.id);
-            setSelectedProjectId(null);
-          }
-        }}
-        onSelectChat={(chatId) => {
-          void handleSelectConversation(chatId);
-          setSelectedProjectId(null);
-        }}
+      <ChatOverlays
+        modals={modals}
+        imageGen={imageGen}
+        projectNav={projectNav}
+        research={research}
+        isEditPlanOpen={isEditPlanOpen}
+        closeEditPlan={() => setIsEditPlanOpen(false)}
+        shortcuts={shortcuts}
+        conversations={conversations || []}
+        onNewChat={handleNewChat}
+        onSelectConversation={handleSelectConversation}
+        onOpenResearchConversation={setSelectedConversationIdAndUrl}
         t={t}
       />
-
-      {/* Command Palette */}
-      {isCommandPaletteOpen && (
-        <Suspense fallback={null}>
-          <CommandPalette
-            isOpen={isCommandPaletteOpen}
-            onClose={() => setIsCommandPaletteOpen(false)}
-            onNewChat={() => void handleNewChat()}
-            onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
-            onSelectConversation={(id) => void handleSelectConversation(id)}
-            conversations={conversations || []}
-          />
-        </Suspense>
-      )}
-
-      {/* Keyboard Shortcuts Modal */}
-      {isShortcutsModalOpen && (
-        <Suspense fallback={null}>
-          <KeyboardShortcutsModal
-            isOpen={isShortcutsModalOpen}
-            onClose={() => setIsShortcutsModalOpen(false)}
-          />
-        </Suspense>
-      )}
     </div>
   );
 }

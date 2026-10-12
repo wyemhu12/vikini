@@ -31,7 +31,7 @@ interface GemInfo {
   color?: string | null;
 }
 
-interface ChatControlsProps {
+export interface ChatControlsProps {
   currentModel: string;
   handleModelChange: (model: string) => void;
   isModelAllowed: (model: string) => boolean;

@@ -31,7 +31,7 @@ function unwrapResponse<T>(json: unknown): T {
   return json as T;
 }
 
-interface UseDeepResearchModeReturn {
+export interface UseDeepResearchModeReturn {
   // Mode state
   isDeepResearchMode: boolean;
   enterDeepResearch: () => void;

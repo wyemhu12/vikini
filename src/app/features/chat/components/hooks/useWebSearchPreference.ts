@@ -114,6 +114,15 @@ export function useWebSearchPreference() {
     });
   }, [setCookie, webSearchEnabled]);
 
+  /** Applies web search meta reported by the server over SSE. */
+  const applyServerMeta = useCallback(
+    ({ enabled, available }: { enabled?: boolean; available?: boolean }) => {
+      if (typeof enabled === "boolean") setServerWebSearch(enabled);
+      if (typeof available === "boolean") setServerWebSearchAvailable(available);
+    },
+    []
+  );
+
   const serverHint = useMemo(() => {
     return serverWebSearchAvailable === false
       ? " (server: feature OFF)"
@@ -132,6 +141,7 @@ export function useWebSearchPreference() {
     setServerWebSearch,
     serverWebSearchAvailable,
     setServerWebSearchAvailable,
+    applyServerMeta,
     serverHint,
   };
 }
