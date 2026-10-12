@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { ProjectWithStats, UserTier } from "@/types/projects";
 
-interface ProjectLimits {
+export interface ProjectLimits {
   maxProjects: number;
   currentProjects: number;
   maxStorageBytesPerProject: number;

@@ -22,9 +22,11 @@
     "test:watch": "vitest --watch",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report",
     "verify": "npm run type-check && npm run lint && npm run test:run",
     "prepare": "husky",
-    "analyze": "cross-env ANALYZE=true next build"
+    "analyze": "cross-env ANALYZE=true next build --webpack"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
@@ -52,12 +54,11 @@
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.562.0",
     "mammoth": "^1.13.0",
-    "next": "^16.1.1",
-    "next-auth": "^5.0.0-beta.30",
+    "next": "^16.4.0",
+    "next-auth": "^5.0.0-beta.32",
     "next-themes": "^0.4.6",
     "openai": "^6.15.0",
     "pdf-parse": "^2.4.5",
-    "pg": "^8.16.3",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-markdown": "^10.1.0",
@@ -86,12 +87,12 @@
     "@typescript-eslint/eslint-plugin": "^8.50.1",
     "@typescript-eslint/parser": "^8.50.1",
     "@vitejs/plugin-react": "^4.7.0",
-    "@vitest/coverage-v8": "^4.0.16",
-    "@vitest/ui": "^4.0.16",
+    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/ui": "^4.1.11",
     "autoprefixer": "^10.4.23",
     "cross-env": "^10.1.0",
     "eslint": "^9.39.2",
-    "eslint-config-next": "^16.1.1",
+    "eslint-config-next": "^16.4.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "globals": "^16.5.0",
@@ -99,20 +100,25 @@
     "husky": "^9.1.7",
     "jsdom": "^27.0.1",
     "lint-staged": "^16.2.7",
-    "playwright": "^1.61.1",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.23",
     "prettier": "^3.7.4",
     "supabase": "^2.118.0",
     "tailwindcss": "^4.1.18",
+    "tsx": "^4.19.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.50.1",
-    "vitest": "^4.0.16"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": "24.x"
   },
   "overrides": {
-    "uuid": "^11.1.1"
+    "uuid": "^11.1.1",
+    "protobufjs": "^7.6.5",
+    "sharp": "^0.35.5",
+    "ws": "^8.21.0",
+    "source-map-js": "^1.2.2",
+    "postcss": "$postcss"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [

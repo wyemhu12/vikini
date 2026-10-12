@@ -8,6 +8,53 @@
 
 ---
 
+## 2026-10-12: Audit Cycle 2 -- E2E Testing Automation (Playwright) & Security/Dependency Hardening
+
+- **Pillar 1: End-to-End Testing Infrastructure (Playwright & Fail-Closed Sandbox)**:
+  - **Playwright Configuration & WebServer Isolation (`playwright.config.ts`)**:
+    - Thiết lập cổng độc lập `3100` (`http://127.0.0.1:3100`), tách biệt hoàn toàn khỏi dev server cổng `3000` của developer.
+    - Cấu hình auto-spawn webServer (`npm run dev -- -p 3100`) với mock environment variables an toàn cho CI/CD.
+    - Mặc định chạy offline với `grepInvert: /@online/`, bảo đảm không rò rỉ network ra bên ngoài.
+  - **Fail-Closed Network Guard (`tests/e2e/helpers/network-guard.ts`)**:
+    - Chốt chặn bắt mọi request `**/api/**` không được mock tường minh và trả HTTP 501 (`Not Implemented in E2E sandbox`), tự động fail test qua `assertNoUnhandledRequests()`.
+  - **Comprehensive Mock Harnesses & Session Emulation**:
+    - `mock-session.ts`: Giả lập NextAuth authenticated session kèm cookie `next-auth.session-token` và `authjs.session-token`, phân quyền user pro.
+    - `mock-ai-stream.ts`: Giả lập SSE protocol (`meta`, `thinking`, `token`, `done`) qua `ReadableStream` injection trong `window.fetch`.
+    - `mock-chat.ts`, `mock-projects.ts`, `mock-image-gen.ts`: Mock toàn bộ CRUD conversations, projects, files, SVG generation canvas, batch quotas và autocomplete suggestions.
+  - **Production-Grade E2E Test Suites (7/7 Tests Passed 100%)**:
+    - `smoke.test.ts`: Kiểm thử ứng dụng load không crash và kiểm tra trang 404.
+    - `auth-flow.spec.ts`: TC-E2E-01 (giao diện đăng nhập Warm Noir, song ngữ VI/EN toggle cập nhật văn bản), TC-E2E-02 Offline (click nút Google kích hoạt luồng Server Action an toàn).
+    - `user-journey.spec.ts`: TC-E2E-03 (luồng chat hoàn chỉnh: gửi prompt, stream token AI, thinking block, URL sync), TC-E2E-04 (Image Studio SVG generation & canvas render), TC-E2E-05 (tạo workspace project mới qua modal và hiển thị trên Sidebar).
+
+- **Pillar 2: Security & Dependency Hardening (0 High/Critical Vulnerabilities)**:
+  - **CVE & Package Audit (`package.json`)**:
+    - Nâng cấp `next@^16.4.0`, `next-auth@^5.0.0-beta.32`, `vitest@^4.1.11`, `eslint-config-next@^16.4.0`, `postcss@^8.5.23`.
+    - Cấu hình `overrides` an toàn cho `uuid`, `protobufjs`, `sharp`, `ws`, `source-map-js`, `postcss`.
+    - Gỡ bỏ thư viện `pg` thừa. Giữ `recharts` theo yêu cầu dự án.
+    - Kết quả `npm audit --omit=dev --audit-level=high`: **0 Critical, 0 High vulnerabilities**.
+  - **Next.js 16 Security & Dev Configurations (`next.config.ts`)**:
+    - Bổ sung `allowedDevOrigins: ["127.0.0.1", "localhost"]` giải quyết chặn cross-origin HMR của Next.js 16.
+    - Cập nhật CSP `connect-src` thêm `ws:` và `wss:` cho dev mode hot-reload.
+    - Tích hợp `@next/bundle-analyzer` kích hoạt độc lập qua script `npm run analyze`.
+  - **Bundle Splitting & Lazy Loading (`ChatApp.tsx`)**:
+    - Chuyển `ProjectChatView`, `ChatDeepResearch`, `ResearchReportPanel`, `ResearchThinkingPanel`, `EditPlanModal`, `CommandPalette`, `KeyboardShortcutsModal` sang `lazy()` kết hợp `Suspense`.
+
+- **Pillar 3: Database & Supabase RLS Hardening**:
+  - Migration bảo mật `supabase/migrations/20261012000000_rls_security_audit_cycle_2.sql` và rollback tương ứng:
+    - Khóa 4 hàm RPC `SECURITY DEFINER` (`match_knowledge_chunks`, `cleanup_deleted_conversations_cron`, `get_user_conversations_with_stats`, `search_user_conversations`).
+    - Thiết lập tường minh `SET search_path = public, extensions` bảo toàn tương thích `pgvector`.
+    - Rà soát toàn diện RLS policies trên tất cả các tables (`conversations`, `messages`, `projects`, `gems`, `attachments`...).
+    - Bổ sung script `scripts/introspect-rls.sql` và negative probe script `scripts/verify-rls-negative-probe.ts`.
+  - Cập nhật tài liệu bảo mật `docs/security.md`.
+
+- **Pillar 4: Production Fixes & Test Verification**:
+  - Khắc phục lỗi i18n thiếu key `{t("createProjectBtn")}` trong `CreateProjectModal.tsx`.
+  - Export interface `ProjectLimits` từ `src/lib/store/projectStore.ts`.
+  - Verification Gate Tier 2 (`npm run verify`): 112/112 test files passed, 1,201/1,201 unit tests passed, 0 TypeScript errors, 0 ESLint warnings.
+  - Verification E2E (`npx playwright test`): 7/7 e2e tests passed 100%.
+
+---
+
 ## 2026-10-12: Fix -- CI Test Failure on Ubuntu Runner (theme-config.test.ts)
 
 - **Root cause**: `theme-config.test.ts` duyệt toàn bộ file CSS đệ quy bao gồm cả thư mục `_shared/base.css`. Trên hệ thống file Linux (Ubuntu Runner), các thư mục bắt đầu bằng ký tự `_` được duyệt trước các chữ cái alphabet. Biểu thức chính quy `\.theme-${theme.id}\s*\{` đã vô tình khớp với `:root.theme-sunset { color-scheme: dark; }` và `:root.theme-orchid { color-scheme: light; }` trong `base.css` (vốn không chứa `--surface-elevated`), khiến test dừng sớm và báo lỗi sai.

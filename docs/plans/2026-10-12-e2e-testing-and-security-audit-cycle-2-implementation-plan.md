@@ -151,10 +151,10 @@ _Được tra cứu và xác thực trực tuyến theo chuẩn công nghệ qu�
 
 #### Giai Đoạn A: Security & Dependency Remediation (Khắc phục Lỗ hổng & Nợ Kỹ Thuật)
 
-- [ ] **Bước 1 (B1)**: Cập nhật `package.json` để loại bỏ dead dependency `pg`, **BẢO TOÀN `recharts`**:
+- [x] **Bước 1 (B1)**: Cập nhật `package.json` để loại bỏ dead dependency `pg`, **BẢO TOÀN `recharts`**:
   - Gỡ bỏ `"pg": "^8.16.3"`.
   - Giữ nguyên `"recharts": "^3.6.0"` phục vụ `ChartTool.tsx` và `BubbleMarkdown.tsx:40,81`.
-- [ ] **Bước 2 (B2, M15, M16, m4, m10, M12, m16, m22, m26)**: Khắc phục triệt để các lỗ hổng bảo mật Runtime Production và Test Tooling:
+- [x] **Bước 2 (B2, M15, M16, m4, m10, M12, m16, m22, m26)**: Khắc phục triệt để các lỗ hổng bảo mật Runtime Production và Test Tooling:
   - Cập nhật `"next": "^16.4.0"` (vá 2 CVEs Critical và các lỗi High).
   - Cập nhật `"eslint-config-next": "^16.4.0"` đồng bộ với `next`.
   - Cập nhật `"next-auth": "^5.0.0-beta.32"` (kéo theo `@auth/core@0.41.3`, vá 2 CVEs Critical).
@@ -184,16 +184,16 @@ _Được tra cứu và xác thực trực tuyến theo chuẩn công nghệ qu�
     npm audit --omit=dev --audit-level=high
     ```
     _(Bắt buộc exit code 0 tuyệt đối 100%, không còn bất kỳ lỗi High hay Critical nào trong production dependencies - M15)._
-- [ ] **Bước 3 (B2, m5)**: Cập nhật scripts trong `package.json`:
+- [x] **Bước 3 (B2, m5)**: Cập nhật scripts trong `package.json`:
   - `"analyze": "cross-env ANALYZE=true next build --webpack"` (kích hoạt Webpack analyzer trên Next.js 16).
   - `"test:e2e": "playwright test"`
   - `"test:e2e:ui": "playwright test --ui"`
   - `"test:e2e:debug": "playwright test --debug"`
   - `"test:e2e:report": "playwright show-report"`
-- [ ] **Bước 4 (M10)**: Sửa bug giao diện và chuẩn hóa TypeScript types:
+- [x] **Bước 4 (M10)**: Sửa bug giao diện và chuẩn hóa TypeScript types:
   - Sửa `src/components/features/projects/CreateProjectModal.tsx:227`: Đổi `{t("createProject")}` thành `{t("createProjectBtn")}` để nút hiển thị đúng văn bản "Tạo dự án" / "Create Project".
   - Sửa `src/lib/store/projectStore.ts:8`: Thêm từ khóa `export` cho `export interface ProjectLimits`.
-- [ ] **Bước 5 (m1, m11)**: Tối ưu Bundle Size trong `src/app/features/chat/components/ChatApp.tsx`:
+- [x] **Bước 5 (m1, m11)**: Tối ưu Bundle Size trong `src/app/features/chat/components/ChatApp.tsx`:
   - Đo lường First Load JS baseline bằng `npm run analyze`.
   - Áp dụng `React.lazy` / `dynamic` kết hợp `Suspense` cho các heavy panels: `ChatDeepResearch`, `ResearchReportPanel`, `ResearchThinkingPanel`, `EditPlanModal`, `ProjectChatView`.
   - Bọc điều kiện render mount: `{isCommandPaletteOpen && <CommandPalette ... />}` và `{isShortcutsModalOpen && <KeyboardShortcutsModal ... />}` (cả hai dùng Radix Dialog nên unmount sạch sẽ).
@@ -201,10 +201,10 @@ _Được tra cứu và xác thực trực tuyến theo chuẩn công nghệ qu�
 
 #### Giai Đoạn B: Supabase RLS Policies Hardening & Khóa Toàn Bộ 4 RPC (B4, B5, M12, m9, m15, m20, m25)
 
-- [ ] **Bước 6 (M12, m15)**: Soạn thảo script Introspection `scripts/introspect-rls.sql`:
+- [x] **Bước 6 (M12, m15)**: Soạn thảo script Introspection `scripts/introspect-rls.sql`:
   - Truy vấn `pg_proc WHERE prosecdef` và `pg_policies`, `storage.buckets`, `pg_extension` (để lấy schema chính xác của pgvector) trên Supabase SQL Editor / CLI.
   - Xuất ground truth hiện trạng trước khi áp dụng migration. Nếu phát hiện hàm `prosecdef` nào khác ngoài 4 hàm đã biết, bổ sung ngay vào migration (m15).
-- [ ] **Bước 7 (B4, M8, m9, M12)**: Tạo migration file `supabase/migrations/20261012000000_rls_security_audit_cycle_2.sql` và **Apply Migration qua Supabase Dashboard SQL Editor**:
+- [x] **Bước 7 (B4, M8, m9, M12)**: Tạo migration file `supabase/migrations/20261012000000_rls_security_audit_cycle_2.sql` và **Apply Migration qua Supabase Dashboard SQL Editor**:
   - Bọc toàn bộ migration trong `BEGIN; ... COMMIT;`:
 
     ```sql
@@ -249,10 +249,10 @@ _Được tra cứu và xác thực trực tuyến theo chuẩn công nghệ qu�
     COMMIT;
     ```
 
-- [ ] **Bước 8 (B5)**: Tạo rollback migration file đặt ngoài `supabase/migrations/` tại `database-migrations/rollback/20261012000000_rollback_rls_security_audit_cycle_2.sql`:
+- [x] **Bước 8 (B5)**: Tạo rollback migration file đặt ngoài `supabase/migrations/` tại `database-migrations/rollback/20261012000000_rollback_rls_security_audit_cycle_2.sql`:
   - Khôi phục tường minh `GRANT EXECUTE` cho `PUBLIC, anon, authenticated` trên 4 hàm RPC.
   - Khôi phục nguyên văn 5 `CREATE POLICY` trên `personas` từ `20260625_add_personas.sql:24-27` và `20260626_add_premade_personas.sql:5`.
-- [ ] **Bước 9 (M12, m20, m25)**: Tạo script kiểm thử tự động `scripts/verify-rls-negative-probe.ts`:
+- [x] **Bước 9 (M12, m20, m25)**: Tạo script kiểm thử tự động `scripts/verify-rls-negative-probe.ts`:
   - Khai báo mẫu `NEXT_PUBLIC_SUPABASE_ANON_KEY` trong `env.local.example` và `docs/security.md`.
   - Script đọc `process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY`, fail-fast nếu thiếu biến môi trường này khi chạy kiểm chứng live.
   - Gửi HTTP request tới PostgREST `/rest/v1/` với role `anon`.
@@ -264,14 +264,14 @@ _Được tra cứu và xác thực trực tuyến theo chuẩn công nghệ qu�
     - `increment_daily_research_count`: `{ p_user_id: "dummy-user", p_date: "2026-10-12" }`
     - `get_project_storage_bytes`: `{ p_project_id: "00000000-0000-0000-0000-000000000000" }`
     - _(Tuyệt đối không kiểm tra RPC ảo không tồn tại `get_daily_usage` - m25)._
-- [ ] **Bước 10 (M1, M8, m10)**: Đồng bộ tài liệu kỹ thuật:
+- [x] **Bước 10 (M1, M8, m10)**: Đồng bộ tài liệu kỹ thuật:
   - Cập nhật `docs/database-schema.md` mục 3 phản ánh đầy đủ chính sách RLS của 16 tables.
   - Cập nhật `docs/contracts.md` mục Chat Stream Events phản ánh đúng wire format thực tế.
   - Cập nhật `docs/security.md` và `docs/CHANGELOG.md`.
 
 #### Giai Đoạn C: Xây Dựng Hạ Tầng Playwright & Mocking Isolation
 
-- [ ] **Bước 11 (M14, m13, m14, m19, m21)**: Cập nhật `playwright.config.ts`:
+- [x] **Bước 11 (M14, m13, m14, m19, m21)**: Cập nhật `playwright.config.ts`:
   - Định nghĩa hằng số duy nhất:
     ```ts
     const E2E_PORT = 3100;
@@ -310,7 +310,7 @@ _Được tra cứu và xác thực trực tuyến theo chuẩn công nghệ qu�
     }
     ```
   - _Lưu ý (m19)_: Với `reuseExistingServer: !CI`, nếu cổng 3100 đã có tiến trình khác chạy thì Playwright sẽ dùng lại server đó. Người thực thi cần đảm bảo cổng 3100 được giải phóng trước khi test.
-- [ ] **Bước 12 (M3, M9, M17, M18, M19, m17, m23, m24) [Discovery Probe & Network Guard]**: Xây dựng Network Isolation Guard & Discovery Probe `tests/e2e/helpers/network-guard.ts`:
+- [x] **Bước 12 (M3, M9, M17, M18, M19, m17, m23, m24) [Discovery Probe & Network Guard]**: Xây dựng Network Isolation Guard & Discovery Probe `tests/e2e/helpers/network-guard.ts`:
   - Hàm `setupNetworkGuard(page, options?: { mode: "record" | "enforce" })`:
     - Chế độ `record`: Lắng nghe `page.on("request")` trên các routes `/auth/signin`, `/`, và `/images` để ghi nhận và xuất danh sách request mount-time thực tế.
     - Chế độ `enforce` (mặc định cho test runs): Đăng ký catch-all `page.route("**/api/**")` trả về 501 Not Implemented, lưu URL vào `unhandledRequests`.
@@ -332,12 +332,12 @@ _Được tra cứu và xác thực trực tuyến theo chuẩn công nghệ qu�
 | `POST`      | `**/api/chat-stream`           | `mock-ai-stream.ts` | SSE Stream: frames `meta`, `thinking`, `token`, `done`                                                                                | Runtime (gửi tin nhắn chat)                              |
 | `POST`      | `**/api/generate-image`        | `mock-image-gen.ts` | `{ success: true, data: { images: [...] } }`                                                                                          | Runtime (tạo ảnh)                                        |
 
-- [ ] **Bước 13 (M4, M7, M9, m12, m18)**: Xây dựng Session Mock Helper `tests/e2e/helpers/mock-session.ts`:
+- [x] **Bước 13 (M4, M7, M9, m12, m18)**: Xây dựng Session Mock Helper `tests/e2e/helpers/mock-session.ts`:
   - Hàm `mockAuthenticatedSession(page)`: Chặn `GET **/api/auth/session` trả về Session Object hợp lệ (`user: { id: "test-e2e@vikini.dev", email: "test-e2e@vikini.dev", name: "E2E Tester", rank: "pro" }`, `expires: new Date(Date.now() + 86400000).toISOString()`).
   - Hàm `mockUnauthenticatedSession(page)`: Chặn `GET **/api/auth/session` trả về `null` (`body: JSON.stringify(null)` với HTTP 200) cho `auth-flow.spec.ts` (m18).
   - Chặn `GET **/api/user/allowed-models` trả về `{ success: true, data: { allowed_models: ["gemini-2.5-flash", "gemini-3.1-flash-image", "claude-3-5-sonnet"], features: {} } }` (M9).
   - Không mock `/api/user/rank` (M9).
-- [ ] **Bước 14 (M9, M13, M17, M18, M19, m16, m23, m24, m32)**: Xây dựng Mock Chat & Real Streaming Helpers:
+- [x] **Bước 14 (M9, M13, M17, M18, M19, m16, m23, m24, m32)**: Xây dựng Mock Chat & Real Streaming Helpers:
   - **Xây dựng `tests/e2e/helpers/mock-chat.ts` (M9, M17, M18, M19, m23, m24, m32)**:
     - Nhập kiểu dữ liệu chuẩn:
 
@@ -434,7 +434,7 @@ _Được tra cứu và xác thực trực tuyến theo chuẩn công nghệ qu�
       - Trả về `ReadableStream` phát tuần tự các events có typewriter delay (`meta`, `thinking`, `token`, `done`).
       - Lắng nghe `req.signal.addEventListener("abort", ...)`: Gọi `controller.error(new DOMException("The user aborted a request.", "AbortError"))` để reject `reader.read()` bằng `AbortError`, giúp UI dọn dẹp sạch mà không ném lỗi unhandled (M13).
 
-- [ ] **Bước 15 (M5, M6, M9, M10, M19, m8, m16, m24, m29)**: Xây dựng Media & Projects Mock Helpers:
+- [x] **Bước 15 (M5, M6, M9, M10, M19, m8, m16, m24, m29)**: Xây dựng Media & Projects Mock Helpers:
   - `tests/e2e/helpers/mock-image-gen.ts`:
     - Import kiểu dữ liệu chuẩn (m29):
       ```ts
@@ -474,7 +474,7 @@ _Được tra cứu và xác thực trực tuyến theo chuẩn công nghệ qu�
     - Mock `POST **/api/projects` trả về `{ success: true, data: { project: { id: "proj-e2e-123", name: "Workspace E2E", ... } } }`.
     - Mock `GET **/api/files*`: Trả về `{ success: true, data: { files: [] } }` (M9).
 
-- [ ] **Bước 16 (m17, m24)**: Xây dựng Custom Fixture `tests/e2e/fixtures/test-fixtures.ts`:
+- [x] **Bước 16 (m17, m24)**: Xây dựng Custom Fixture `tests/e2e/fixtures/test-fixtures.ts`:
   - Đóng gói fixture `authedPage`:
     1. Đăng ký Network Isolation Guard (catch-all 501 ở chế độ enforce).
     2. Đăng ký session mock (`mockAuthenticatedSession`), `allowed-models`, `GET /api/projects`, `GET /api/files*`, và gọi `setupMockChat(page)` (mặc định `conv-e2e-123`).
@@ -484,14 +484,14 @@ _Được tra cứu và xác thực trực tuyến theo chuẩn công nghệ qu�
 
 #### Giai Đoạn D: Soạn Thảo E2E Test Specs & User Journey
 
-- [ ] **Bước 17 (M4, M9, M10, M11, m14, m18)**: Soạn thảo `tests/e2e/auth-flow.spec.ts`:
+- [x] **Bước 17 (M4, M9, M10, M11, m14, m18)**: Soạn thảo `tests/e2e/auth-flow.spec.ts`:
   - Mock session unauthenticated `GET **/api/auth/session` trả về `null` (m18).
   - Đăng ký `page.route("https://accounts.google.com/**", r => r.abort())` bảo vệ mọi test (m14).
   - Test 1: Truy cập `/auth/signin` kiểm tra layout Warm Noir, logo V, nút "Sign in with Google" và badge mã hóa.
   - Test 2: Chuyển đổi ngôn ngữ VI ↔ EN kiểm tra nút cập nhật chuỗi từ từ điển dịch: `"ĐĂNG NHẬP VỚI GOOGLE"` / `"SIGN IN WITH GOOGLE"` (M10).
   - Test 3 (`@online`): Click "Sign in with Google" kích hoạt Server Action `handleGoogleSignIn`, dùng `page.waitForRequest(/accounts\.google\.com/)` kiểm tra điều hướng Google OAuth có các tham số `client_id`, `redirect_uri` (M11).
   - Test 4 (Offline): Click "Sign in with Google" gửi request `POST /auth/signin` chứa header `Next-Action` và xử lý graceful failure khi không có kết nối ra ngoài (m14).
-- [ ] **Bước 18 (M1, M2, M5, M6, M9, M10, M13, M17, M18, M19, m24, m30, m31, m33)**: Soạn thảo `tests/e2e/user-journey.spec.ts`:
+- [x] **Bước 18 (M1, M2, M5, M6, M9, M10, M13, M17, M18, M19, m24, m30, m31, m33)**: Soạn thảo `tests/e2e/user-journey.spec.ts`:
   - Chặng 1: Mở `/` với authed session, xác nhận render `ChatApp`, mock `GET **/api/conversations*` và `GET **/api/projects` mount-time được đáp ứng sạch sẽ (M9).
   - Chặng 2: Nhập prompt `"Giải thích kiến trúc Vikini"`, bấm Send ➔ Kích hoạt `POST **/api/conversations*` trả về `data.conversation.id = "conv-e2e-123"`, **assert kiểm tra điều hướng URL chuyển sang hội thoại mới** (m30):
     ```ts
@@ -518,14 +518,14 @@ _Được tra cứu và xác thực trực tuyến theo chuẩn công nghệ qu�
        await expect(page.locator('img[src^="data:image/svg+xml"]')).toBeVisible();
        ```
   - Chặng 5: Mở Sidebar, bấm New Project (`+`), điền form `CreateProjectModal` (Tên: `"Workspace E2E"`), bấm nút `{t("createProjectBtn")}` ("Tạo dự án"). Xác nhận `"Workspace E2E"` xuất hiện trong Sidebar.
-- [ ] **Bước 19 (m10, m11, M15)**: Soạn thảo Báo cáo Audit Chu Kỳ 2 `docs/audit-report-2026-10-12-cycle-2.md`:
+- [x] **Bước 19 (m10, m11, M15)**: Soạn thảo Báo cáo Audit Chu Kỳ 2 `docs/audit-report-2026-10-12-cycle-2.md`:
   - Tổng hợp kết quả audit dependencies (100% 0 High / 0 Critical), bundle size, Supabase RLS hardening, kết quả E2E test runs.
   - Ghi nhận danh sách rủi ro chấp nhận còn lại (chỉ gồm ESLint dev toolchain và mammoth moderate - M15).
   - Ghi nhận technical debt kích thước file `ChatApp.tsx` (1100 dòng).
 
 #### Giai Đoạn E: Verification Gate & Quality Check
 
-- [ ] **Bước 20 (m10, M12, M15, M16, M18, m20, m25, m32)**: Thực thi toàn bộ kiểm thử chất lượng:
+- [x] **Bước 20 (m10, M12, M15, M16, M18, m20, m25, m32)**: Thực thi toàn bộ kiểm thử chất lượng:
   - `npm audit --omit=dev --audit-level=high` (**bắt buộc exit code 0 tuyệt đối 100%** - M15)
   - `npm run type-check` (**bắt buộc 0 errors**, lưu ý `tsconfig.json` bao phủ cả `tests/e2e/**` - M18)
   - `npm run lint` (**bắt buộc 0 errors**, các handler async Playwright có return/await đầy đủ tuân thủ no-floating-promises - m32)

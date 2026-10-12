@@ -12,12 +12,13 @@ import ChatControls from "./ChatControls";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import ToastContainer from "@/components/ui/ToastContainer";
 import StreamErrorBanner from "./StreamErrorBanner";
-import ProjectChatView from "../../projects/components/ProjectChatView";
-import ChatDeepResearch from "./ChatDeepResearch";
 import ChatModalsSection from "./ChatModalsSection";
 import ScrollToBottomButton from "./ScrollToBottomButton";
-import CommandPalette from "./CommandPalette";
-import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
+
+const ProjectChatView = lazy(() => import("../../projects/components/ProjectChatView"));
+const ChatDeepResearch = lazy(() => import("./ChatDeepResearch"));
+const CommandPalette = lazy(() => import("./CommandPalette"));
+const KeyboardShortcutsModal = lazy(() => import("./KeyboardShortcutsModal"));
 
 import React, { useEffect, useMemo, useCallback, useState, useRef, lazy, Suspense } from "react";
 import { createDraftCoordinator } from "@/lib/features/chat/draftConversation";
@@ -38,9 +39,9 @@ import {
   type ThinkingLevel,
 } from "./hooks/useThinkingLevel";
 
-import ResearchReportPanel from "../../research/components/ResearchReportPanel";
-import ResearchThinkingPanel from "../../research/components/ResearchThinkingPanel";
-import EditPlanModal from "../../research/components/EditPlanModal";
+const ResearchReportPanel = lazy(() => import("../../research/components/ResearchReportPanel"));
+const ResearchThinkingPanel = lazy(() => import("../../research/components/ResearchThinkingPanel"));
+const EditPlanModal = lazy(() => import("../../research/components/EditPlanModal"));
 import { useChatStreamController } from "./hooks/useChatStreamController";
 import { useAllowedModels } from "./hooks/useAllowedModels";
 import { useImageGenController } from "./hooks/useImageGenController";
@@ -790,34 +791,36 @@ export default function ChatApp() {
 
           {/* Chat Content */}
           {showProjectView && selectedProject ? (
-            <ProjectChatView
-              project={selectedProject}
-              conversations={projectConversations}
-              onNewChat={async () => {
-                const conv = await createConversation({
-                  title: "",
-                  projectId: selectedProjectId!,
-                  model: landingModel,
-                });
-                if (conv) {
-                  setSelectedConversationIdAndUrl(conv.id);
+            <Suspense fallback={null}>
+              <ProjectChatView
+                project={selectedProject}
+                conversations={projectConversations}
+                onNewChat={async () => {
+                  const conv = await createConversation({
+                    title: "",
+                    projectId: selectedProjectId!,
+                    model: landingModel,
+                  });
+                  if (conv) {
+                    setSelectedConversationIdAndUrl(conv.id);
+                    setSelectedProjectId(null);
+                  }
+                }}
+                onSelectConversation={(id) => {
+                  void handleSelectConversation(id);
                   setSelectedProjectId(null);
-                }
-              }}
-              onSelectConversation={(id) => {
-                void handleSelectConversation(id);
-                setSelectedProjectId(null);
-              }}
-              onOpenSettings={() => {
-                setShowProjectSettingsModal(true);
-              }}
-              onRenameConversation={(id) => {
-                modals.openRenameModal(id, "");
-              }}
-              onDeleteConversation={(id) => {
-                modals.openDeleteModal(id);
-              }}
-            />
+                }}
+                onOpenSettings={() => {
+                  setShowProjectSettingsModal(true);
+                }}
+                onRenameConversation={(id) => {
+                  modals.openRenameModal(id, "");
+                }}
+                onDeleteConversation={(id) => {
+                  modals.openDeleteModal(id);
+                }}
+              />
+            </Suspense>
           ) : showLanding ? (
             <div className="min-h-full flex flex-col items-center justify-center pb-[25vh] animate-in fade-in zoom-in duration-500">
               <DashboardView
@@ -905,17 +908,19 @@ export default function ChatApp() {
             >
               {/* Deep Research integration (extracted component) */}
               {isDeepResearchMode && (currentTask || pendingQuery) && (
-                <ChatDeepResearch
-                  currentTask={currentTask}
-                  pendingQuery={pendingQuery}
-                  isApproving={isApproving}
-                  approvePlan={approvePlan}
-                  cancelResearch={cancelResearch}
-                  openReportPanel={openReportPanel}
-                  openThinkingPanel={openThinkingPanel}
-                  onEditPlan={() => setIsEditPlanOpen(true)}
-                  t={t}
-                />
+                <Suspense fallback={null}>
+                  <ChatDeepResearch
+                    currentTask={currentTask}
+                    pendingQuery={pendingQuery}
+                    isApproving={isApproving}
+                    approvePlan={approvePlan}
+                    cancelResearch={cancelResearch}
+                    openReportPanel={openReportPanel}
+                    openThinkingPanel={openThinkingPanel}
+                    onEditPlan={() => setIsEditPlanOpen(true)}
+                    t={t}
+                  />
+                </Suspense>
               )}
             </ChatMessagesArea>
           )}
@@ -997,56 +1002,62 @@ export default function ChatApp() {
 
       {/* Deep Research Report Panel */}
       {isDeepResearchMode && isReportPanelOpen && currentTask && currentTask.reportText && (
-        <ResearchReportPanel
-          title={currentTask.query}
-          report={currentTask.reportText}
-          sources={currentTask.sources}
-          isOpen={isReportPanelOpen}
-          onClose={closeReportPanel}
-          onOpenThoughts={() => {
-            // Only open thoughts if there is thinking data
-            if (currentTask.thinkingText) {
-              openThinkingPanel();
-            }
-          }}
-          onCreateConversation={
-            currentTask.conversationId
-              ? () => {
-                  closeReportPanel();
-                  exitDeepResearch();
-                  // Navigate to the conversation
-                  if (currentTask.conversationId) {
-                    setSelectedConversationIdAndUrl(currentTask.conversationId);
+        <Suspense fallback={null}>
+          <ResearchReportPanel
+            title={currentTask.query}
+            report={currentTask.reportText}
+            sources={currentTask.sources}
+            isOpen={isReportPanelOpen}
+            onClose={closeReportPanel}
+            onOpenThoughts={() => {
+              // Only open thoughts if there is thinking data
+              if (currentTask.thinkingText) {
+                openThinkingPanel();
+              }
+            }}
+            onCreateConversation={
+              currentTask.conversationId
+                ? () => {
+                    closeReportPanel();
+                    exitDeepResearch();
+                    // Navigate to the conversation
+                    if (currentTask.conversationId) {
+                      setSelectedConversationIdAndUrl(currentTask.conversationId);
+                    }
                   }
-                }
-              : undefined
-          }
-        />
+                : undefined
+            }
+          />
+        </Suspense>
       )}
 
       {/* Deep Research Thinking Panel */}
       {isDeepResearchMode && isThinkingPanelOpen && currentTask && (
-        <ResearchThinkingPanel
-          title={currentTask.query}
-          isOpen={isThinkingPanelOpen}
-          onClose={closeThinkingPanel}
-          thinkingText={currentTask.thinkingText}
-          sources={currentTask.searchedSources}
-          isCompleted={currentTask.status === "completed" || currentTask.status === "failed"}
-        />
+        <Suspense fallback={null}>
+          <ResearchThinkingPanel
+            title={currentTask.query}
+            isOpen={isThinkingPanelOpen}
+            onClose={closeThinkingPanel}
+            thinkingText={currentTask.thinkingText}
+            sources={currentTask.searchedSources}
+            isCompleted={currentTask.status === "completed" || currentTask.status === "failed"}
+          />
+        </Suspense>
       )}
 
       {/* Edit Plan Modal - replaces window.prompt() */}
-      {isDeepResearchMode && (
-        <EditPlanModal
-          isOpen={isEditPlanOpen}
-          onClose={() => setIsEditPlanOpen(false)}
-          onSubmit={(feedback) => {
-            approvePlan(feedback).catch((e) =>
-              toast.error(e instanceof Error ? e.message : "Failed to revise plan")
-            );
-          }}
-        />
+      {isDeepResearchMode && isEditPlanOpen && (
+        <Suspense fallback={null}>
+          <EditPlanModal
+            isOpen={isEditPlanOpen}
+            onClose={() => setIsEditPlanOpen(false)}
+            onSubmit={(feedback) => {
+              approvePlan(feedback).catch((e) =>
+                toast.error(e instanceof Error ? e.message : "Failed to revise plan")
+              );
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Modals (extracted component) */}
@@ -1081,20 +1092,28 @@ export default function ChatApp() {
       />
 
       {/* Command Palette */}
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-        onNewChat={() => void handleNewChat()}
-        onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
-        onSelectConversation={(id) => void handleSelectConversation(id)}
-        conversations={conversations || []}
-      />
+      {isCommandPaletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette
+            isOpen={isCommandPaletteOpen}
+            onClose={() => setIsCommandPaletteOpen(false)}
+            onNewChat={() => void handleNewChat()}
+            onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
+            onSelectConversation={(id) => void handleSelectConversation(id)}
+            conversations={conversations || []}
+          />
+        </Suspense>
+      )}
 
       {/* Keyboard Shortcuts Modal */}
-      <KeyboardShortcutsModal
-        isOpen={isShortcutsModalOpen}
-        onClose={() => setIsShortcutsModalOpen(false)}
-      />
+      {isShortcutsModalOpen && (
+        <Suspense fallback={null}>
+          <KeyboardShortcutsModal
+            isOpen={isShortcutsModalOpen}
+            onClose={() => setIsShortcutsModalOpen(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

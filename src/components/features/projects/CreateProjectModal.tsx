@@ -224,7 +224,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
             </Button>
             <Button type="submit" disabled={isSubmitting || !name.trim()}>
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
-              {t("createProject")}
+              {t("createProjectBtn")}
             </Button>
           </div>
         </form>

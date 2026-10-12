@@ -8,32 +8,44 @@
 - `service_role` key **bypasses RLS** completely
 - App handles authorization in application code (checking `userId` before operations)
 
-### RLS Status (Updated 2026-05-03)
+### RLS Status (Updated 2026-10-12 — Audit Cycle 2)
 
-RLS has been **enabled** on all tables. However, most user data tables have **no SELECT/INSERT/UPDATE/DELETE policies** for `authenticated` or `anon` roles - only `service_role` can access them.
+RLS has been **enabled and hardened** across all tables. Most user data tables have **no SELECT/INSERT/UPDATE/DELETE policies** for `authenticated` or `anon` roles — only `service_role` can access them (server-side authorization model).
+
+In Audit Cycle 2 (2026-10-12), 4 `SECURITY DEFINER` RPC functions and 4 sensitive tables were hardened via migration `20261012000000_rls_security_audit_cycle_2.sql`:
+
+1. `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` on:
+   - `increment_daily_message_count(TEXT, DATE)`
+   - `increment_daily_research_count(TEXT, DATE)`
+   - `match_project_knowledge(UUID, VECTOR, DOUBLE PRECISION, INTEGER)` (protects against cross-tenant knowledge base exfiltration; preserves `search_path = public, extensions, pg_temp` for pgvector `<=>` operator)
+   - `get_project_storage_bytes(UUID)`
+2. Direct client permissions revoked on `daily_message_counts`, `daily_research_counts`, `research_tasks`, and `personas`.
 
 Config tables (`allowed_mime_types`, `rank_configs`) have read-only policies for authenticated users.
 
 > [!WARNING]
-> **If you add client-side Supabase calls with `anon` key in the future, you MUST add RLS policies for the affected tables.** Without policies, `anon`/`authenticated` users will get zero access (blocked by RLS).
+> **If you add client-side Supabase calls with `anon` key in the future, you MUST add RLS policies for the affected tables.** Without policies, `anon`/`authenticated` users will get zero access (blocked by RLS, error code 42501).
 
-### Tables with RLS Enabled
+### Tables with RLS Status
 
-| Table                  | Has Policies | Notes                             |
-| ---------------------- | ------------ | --------------------------------- |
-| `profiles`             | ❌           | Access via service_role only      |
-| `conversations`        | ❌           | Access via service_role only      |
-| `messages`             | ❌           | Access via service_role only      |
-| `gems`                 | ❌           | Access via service_role only      |
-| `gem_versions`         | ❌           | Access via service_role only      |
-| `gem_runs`             | ❌           | Access via service_role only      |
-| `daily_message_counts` | ❌           | Access via service_role only      |
-| `temp_user_ranks`      | ❌           | Access via service_role only      |
-| `projects`             | ✅           | Users manage own projects         |
-| `knowledge_documents`  | ✅           | Users manage own knowledge docs   |
-| `knowledge_chunks`     | ✅           | Users manage own knowledge chunks |
-| `allowed_mime_types`   | ✅           | Read-only for authenticated       |
-| `rank_configs`         | ✅           | Read-only for authenticated       |
+| Table                   | Has Policies | Notes                                        |
+| ----------------------- | ------------ | -------------------------------------------- |
+| `profiles`              | ❌           | Access via service_role only                 |
+| `conversations`         | ❌           | Access via service_role only                 |
+| `messages`              | ❌           | Access via service_role only                 |
+| `gems`                  | ❌           | Access via service_role only                 |
+| `gem_versions`          | ❌           | Access via service_role only                 |
+| `gem_runs`              | ❌           | Access via service_role only                 |
+| `daily_message_counts`  | ❌ (REVOKED) | Deny-by-default, service_role only (Cycle 2) |
+| `daily_research_counts` | ❌ (REVOKED) | Deny-by-default, service_role only (Cycle 2) |
+| `research_tasks`        | ❌ (REVOKED) | Deny-by-default, service_role only (Cycle 2) |
+| `personas`              | ❌ (REVOKED) | Deny-by-default, service_role only (Cycle 2) |
+| `temp_user_ranks`       | ❌           | Access via service_role only                 |
+| `projects`              | ✅           | Users manage own projects                    |
+| `knowledge_documents`   | ✅           | Users manage own knowledge docs              |
+| `knowledge_chunks`      | ✅           | Users manage own knowledge chunks            |
+| `allowed_mime_types`    | ✅           | Read-only for authenticated                  |
+| `rank_configs`          | ✅           | Read-only for authenticated                  |
 
 ### Adding Client-Side Supabase Access
 

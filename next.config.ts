@@ -3,6 +3,7 @@ import withBundleAnalyzer from "@next/bundle-analyzer";
 
 const config: NextConfig = {
   output: "standalone",
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   typescript: {
     // Removed ignoreBuildErrors to enforce type checking
     // Fix all TypeScript errors before building
@@ -73,7 +74,7 @@ const config: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.google.com",
+              "connect-src 'self' ws: wss: https://*.supabase.co https://*.googleapis.com https://*.google.com",
               "frame-ancestors 'self'",
             ].join("; "),
           },
