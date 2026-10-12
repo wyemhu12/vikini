@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   getSupportedGeminiThinkingLevels,
   clampGeminiThinkingLevel,
+  isGLMModel,
 } from "@/lib/core/modelRegistry";
 
 /**
@@ -71,7 +72,8 @@ export function modelSupportsThinkingUI(model: string): boolean {
     isGemini25Model(model) ||
     isGemini3Model(model) ||
     isClaudeThinkingModel(model) ||
-    isDeepSeekV4Model(model)
+    isDeepSeekV4Model(model) ||
+    isGLMModel(model)
   );
 }
 
@@ -92,6 +94,7 @@ interface UseThinkingLevelResult {
  * Get available thinking levels for a model.
  */
 export function getAvailableThinkingLevels(currentModel: string): ThinkingLevel[] {
+  if (isGLMModel(currentModel)) return ["off", "high"];
   if (isClaudeThinkingModel(currentModel)) return ["off", "high"];
   if (isDeepSeekV4Model(currentModel)) return ["off", "low", "high"];
   if (isGemini25Model(currentModel)) return ["off", "low", "high"];
@@ -112,6 +115,11 @@ export function getEffectiveThinkingLevel(
 ): ThinkingLevel {
   if (requestedLevel === "off" || !modelSupportsThinkingUI(currentModel)) {
     return "off";
+  }
+
+  if (isGLMModel(currentModel)) {
+    // GLM only supports off/high; any non-off level activates high reasoning
+    return "high";
   }
 
   if (isClaudeThinkingModel(currentModel)) {

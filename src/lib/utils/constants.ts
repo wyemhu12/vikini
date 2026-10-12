@@ -26,6 +26,8 @@ export const MODEL_IDS = {
   DEEPSEEK_V41_FLASH: "deepseek/deepseek-v4.1-flash",
   // DeepSeek V3.2 (via OpenRouter)
   DEEPSEEK_V32: "deepseek/deepseek-v3.2:floor",
+  // Z.ai / GLM models (via OpenRouter)
+  GLM_52: "z-ai/glm-5.2",
 } as const;
 
 export type ModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];

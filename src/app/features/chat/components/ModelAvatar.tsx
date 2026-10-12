@@ -153,6 +153,35 @@ const GenericAiLogo = ({ className }: { className?: string }) => {
   );
 };
 
+const GlmLogo = ({ className }: { className?: string }) => {
+  const id = React.useId();
+  const gradId = `glm-grad-${id}`;
+  return (
+    <svg
+      role="img"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      data-testid="glm-logo"
+    >
+      <defs>
+        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#1E40AF" />
+          <stop offset="100%" stopColor="#06B6D4" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+        stroke={`url(#${gradId})`}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
+
 export function ModelAvatar({ modelName, className = "" }: ModelAvatarProps) {
   if (!modelName) {
     return <span className={`font-black tracking-tighter ${className}`}>AI</span>;
@@ -188,6 +217,11 @@ export function ModelAvatar({ modelName, className = "" }: ModelAvatarProps) {
   // Groq / Llama (fast inference)
   if (name.includes("groq") || name.includes("llama") || name.includes("mixtral")) {
     return <FastInferenceLogo className={className} />;
+  }
+
+  // GLM / Z.ai
+  if (name.includes("glm") || name.includes("z-ai") || name.includes("zhipu")) {
+    return <GlmLogo className={className} />;
   }
 
   // Default / Generic AI

@@ -1,6 +1,11 @@
 // /app/api/chat-stream/streaming/openai-stream.ts
 import OpenAI from "openai";
-import { isDeepSeekV32Model, isOpenRouterReasoningModel } from "@/lib/core/modelRegistry";
+import {
+  isDeepSeekV32Model,
+  isOpenRouterReasoningModel,
+  isGLMModel,
+  GLM_MAX_OUTPUT_TOKENS,
+} from "@/lib/core/modelRegistry";
 
 import { StreamTimeoutError, type ChatStreamParams, type Message } from "./types";
 import { sendEvent, getStreamTimeout, withTimeout, withIdleTimeout, streamLogger } from "./utils";
@@ -211,20 +216,41 @@ export function createOpenAICompatibleStream(params: {
         // Inject OpenRouter web_search server tool for DeepSeek V3.2
         const useOpenRouterWebSearch = isDeepSeekV32Model(model) && enableWebSearch;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const createParams: Record<string, any> = {
+        const maxTokens = isGLMModel(model) ? GLM_MAX_OUTPUT_TOKENS : 8192;
+
+        const createParams: Record<string, unknown> = {
           model: model,
           messages: openAIMessages,
           stream: true,
           stream_options: { include_usage: true },
           temperature: 0.7,
-          max_tokens: 8192,
+          max_tokens: maxTokens,
         };
 
-        if (isOrReasoning && thinkingLevel) {
-          createParams.reasoning = {
-            effort: thinkingLevel === "high" ? "high" : "low",
+        if (isGLMModel(model)) {
+          createParams.provider = {
+            order: ["CoreWeave"],
+            quantizations: ["fp4"],
           };
+        }
+
+        if (isOrReasoning) {
+          const isGlm = isGLMModel(model);
+          const isThinkingOff = thinkingLevel === "off" || (isGlm && !thinkingLevel);
+
+          if (isThinkingOff) {
+            // Tắt suy luận cho GLM khi undefined hoặc "off"; cho Grok chỉ khi "off"
+            createParams.reasoning = { enabled: false };
+          } else if (thinkingLevel) {
+            const effort = isGlm
+              ? "high" // GLM 5.2 chỉ hỗ trợ ["xhigh", "high"]
+              : thinkingLevel === "high"
+                ? "high"
+                : "low"; // Grok 4.3 hỗ trợ low/medium/high
+            createParams.reasoning = { effort };
+          }
+          // Khi Grok 4.3 nhận thinkingLevel === undefined, không gắn createParams.reasoning,
+          // bảo toàn mặc định của OpenRouter (effort: "low")
         }
 
         if (useOpenRouterWebSearch) {
@@ -241,7 +267,7 @@ export function createOpenAICompatibleStream(params: {
         }
 
         const streamPromise = ai.chat.completions.create(
-          createParams as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
+          createParams as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
           { signal: ac.signal }
         );
 
@@ -349,8 +375,14 @@ export function createOpenAICompatibleStream(params: {
               error?: { message?: string };
             };
 
-            const isTokenLimit = err.status === 413 || err.code === "rate_limit_exceeded";
             const errorMessage = err.error?.message || err.message || "Stream error";
+            const isInsufficientCredits =
+              err.status === 402 || /insufficient credits|credit balance/i.test(errorMessage);
+            const isContextOverflow =
+              err.status === 400 &&
+              /context length|maximum context|context_length_exceeded/i.test(errorMessage);
+            const isTokenLimit =
+              err.status === 413 || err.code === "rate_limit_exceeded" || isContextOverflow;
 
             // Parse token info from error message if available
             let tokenInfo: { limit?: number; requested?: number } | null = null;
@@ -365,13 +397,30 @@ export function createOpenAICompatibleStream(params: {
               }
             }
 
-            sendEvent(controller, "error", {
-              message: errorMessage,
-              code: err.code || (isTokenLimit ? "token_limit_exceeded" : "stream_error"),
-              status: err.status || 500,
-              isTokenLimit,
-              tokenInfo,
-            });
+            if (isInsufficientCredits) {
+              sendEvent(controller, "error", {
+                message: "OpenRouter account balance is insufficient. Please check credits.",
+                code: "INSUFFICIENT_CREDITS",
+                status: 402,
+                isInsufficientCredits: true,
+              });
+            } else if (isTokenLimit) {
+              sendEvent(controller, "error", {
+                message: errorMessage,
+                code: isContextOverflow
+                  ? "CONTEXT_LENGTH_EXCEEDED"
+                  : err.code || "token_limit_exceeded",
+                status: err.status || 400,
+                isTokenLimit: true,
+                tokenInfo,
+              });
+            } else {
+              sendEvent(controller, "error", {
+                message: errorMessage,
+                code: err.code || "stream_error",
+                status: err.status || 500,
+              });
+            }
           }
         }
       }

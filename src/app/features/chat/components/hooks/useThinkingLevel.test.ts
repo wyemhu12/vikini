@@ -3,6 +3,7 @@ import {
   getLowerThinkingLevel,
   getAvailableThinkingLevels,
   getEffectiveThinkingLevel,
+  modelSupportsThinkingUI,
   type ThinkingLevel,
 } from "./useThinkingLevel";
 
@@ -77,6 +78,10 @@ describe("getAvailableThinkingLevels", () => {
   it("returns off, low, high for DeepSeek V4", () => {
     expect(getAvailableThinkingLevels("deepseek-v4-flash")).toEqual(["off", "low", "high"]);
   });
+
+  it("returns off, high for GLM 5.2", () => {
+    expect(getAvailableThinkingLevels("z-ai/glm-5.2")).toEqual(["off", "high"]);
+  });
 });
 
 describe("getEffectiveThinkingLevel", () => {
@@ -108,8 +113,23 @@ describe("getEffectiveThinkingLevel", () => {
     expect(getEffectiveThinkingLevel("gemini-2.5-flash", "high")).toBe("high");
   });
 
+  it("GLM 5.2 maps non-off levels to high and preserves off", () => {
+    expect(getEffectiveThinkingLevel("z-ai/glm-5.2", "off")).toBe("off");
+    expect(getEffectiveThinkingLevel("z-ai/glm-5.2", "low")).toBe("high");
+    expect(getEffectiveThinkingLevel("z-ai/glm-5.2", "medium")).toBe("high");
+    expect(getEffectiveThinkingLevel("z-ai/glm-5.2", "high")).toBe("high");
+  });
+
   it("Non-thinking model returns off", () => {
     expect(getEffectiveThinkingLevel("claude-haiku-3.5", "high")).toBe("off");
     expect(getEffectiveThinkingLevel("llama-3.3-70b-versatile", "low")).toBe("off");
+  });
+});
+
+describe("modelSupportsThinkingUI", () => {
+  it("returns true for GLM 5.2 and other supported models", () => {
+    expect(modelSupportsThinkingUI("z-ai/glm-5.2")).toBe(true);
+    expect(modelSupportsThinkingUI("gemini-3-flash-preview")).toBe(true);
+    expect(modelSupportsThinkingUI("llama-3.3-70b-versatile")).toBe(false);
   });
 });

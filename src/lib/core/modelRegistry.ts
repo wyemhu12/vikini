@@ -5,6 +5,8 @@ export const DEFAULT_MODEL = "gemini-2.5-flash" as const;
 
 import { MODEL_IDS } from "@/lib/utils/constants";
 
+export const GLM_MAX_OUTPUT_TOKENS = 65536 as const;
+
 export type GeminiThinkingLevel = "minimal" | "low" | "medium" | "high";
 
 export interface SelectableModel {
@@ -254,6 +256,20 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     category: "reasoning",
     providerId: "deepseek",
   },
+
+  // ═══════════════════════════════════════════════════════════
+  // Z.AI / GLM 5.2 (via OpenRouter → CoreWeave FP4)
+  // ═══════════════════════════════════════════════════════════
+  {
+    id: MODEL_IDS.GLM_52,
+    name: "GLM 5.2",
+    descKey: "modelDescGlm52",
+    tokenLimit: 1048576,
+    contextWindow: 1048576,
+    maxOutputTokens: GLM_MAX_OUTPUT_TOKENS,
+    category: "reasoning",
+    providerId: "openrouter-pay",
+  },
 ] as const;
 
 export const PROVIDER_LABELS: Record<string, string> = {
@@ -307,6 +323,9 @@ const API_ALLOWED = new Set([
 
   // DeepSeek Legacy via OpenRouter
   "deepseek/deepseek-v3.2:floor",
+
+  // Z.ai / GLM models (via OpenRouter)
+  MODEL_IDS.GLM_52,
 ]);
 
 // Back-compat aliases and deprecations.
@@ -340,6 +359,10 @@ export const MODEL_ALIASES: Record<string, string> = {
   "deepseek-reasoner": "deepseek-v4-flash", // Maps to thinking mode of V4 Flash
   "deepseek-v4-pro": "deepseek/deepseek-v4-pro", // Migrated to OpenRouter/Baidu (2026/08)
   "deepseek-v4.1-flash": "deepseek/deepseek-v4.1-flash",
+
+  // Z.ai / GLM aliases
+  "z-ai/glm-5.2-20260616": MODEL_IDS.GLM_52,
+  "glm-5.2": MODEL_IDS.GLM_52,
 } as const;
 
 export function isSelectableModelId(modelId: unknown): boolean {
@@ -519,13 +542,23 @@ export function isDeepSeekV32Model(modelId: unknown): boolean {
 }
 
 /**
- * Check if a model is an OpenRouter reasoning model (e.g. Grok 4.3)
+ * Check if a model is a Z.ai / GLM model.
+ */
+export function isGLMModel(modelId: unknown): boolean {
+  const id = String(modelId || "")
+    .trim()
+    .toLowerCase();
+  return id === MODEL_IDS.GLM_52 || id.startsWith("z-ai/glm") || id.startsWith("glm-");
+}
+
+/**
+ * Check if a model is an OpenRouter reasoning model (e.g. Grok 4.3, GLM 5.2)
  */
 export function isOpenRouterReasoningModel(modelId: unknown): boolean {
   const id = String(modelId || "")
     .trim()
     .toLowerCase();
-  return id.includes("x-ai/grok") || id.includes("o1") || id.includes("o3");
+  return id.includes("x-ai/grok") || id.includes("o1") || id.includes("o3") || isGLMModel(id);
 }
 
 /**

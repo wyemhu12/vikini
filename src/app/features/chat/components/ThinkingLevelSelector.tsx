@@ -16,7 +16,7 @@ import {
   isClaudeThinkingModel,
   getEffectiveThinkingLevel,
 } from "./hooks/useThinkingLevel";
-import { getSupportedGeminiThinkingLevels } from "@/lib/core/modelRegistry";
+import { getSupportedGeminiThinkingLevels, isGLMModel } from "@/lib/core/modelRegistry";
 
 interface ThinkingLevelSelectorProps {
   thinkingLevel: ThinkingLevel;
@@ -37,6 +37,7 @@ export default function ThinkingLevelSelector({
   const { t } = useLanguage();
   const isDeepSeek = isDeepSeekV4Model(currentModel);
   const isClaudeModel = isClaudeThinkingModel(currentModel);
+  const isGLM = isGLMModel(currentModel);
   const isGemini3 = isGemini3Model(currentModel);
   const geminiSupported = isGemini3 ? getSupportedGeminiThinkingLevels(currentModel) : [];
 
@@ -48,7 +49,7 @@ export default function ThinkingLevelSelector({
         { value: "low", label: t("thinkingLevelLow") || "STANDARD" },
         { value: "high", label: t("thinkingLevelHigh") || "DEEP" },
       ]
-    : isClaudeModel
+    : isClaudeModel || isGLM
       ? [
           { value: "off", label: t("webSearchOff") },
           { value: "high", label: t("thinkingLevelHigh") || "HIGH" },

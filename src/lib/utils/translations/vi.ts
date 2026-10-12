@@ -111,6 +111,9 @@ export const vi = {
     "DeepSeek V4.1 Flash - CED 1M context, đa phương thức, siêu nhanh. Vượt trội, hiệu quả và rẻ nhất trong các model DeepSeek.",
   modelDescDeepSeekV4Pro: "DeepSeek V4 Pro - suy luận mạnh (Giảm 75%)",
   modelDescDeepSeekV32: "DeepSeek V3.2 thông minh (~$0.28/M tokens)",
+  modelDescGlm52:
+    "GLM 5.2 (CoreWeave FP4) - Ngữ cảnh 1.05M, MoE 753B suy luận tác tử ($0.76/M vào, $2.42/M ra)",
+  insufficientCredits: "Số dư tài khoản OpenRouter không đủ. Vui lòng kiểm tra số dư.",
   // Web search
   webSearch: "Tìm kiếm Web",
   webSearchOn: "BẬT",

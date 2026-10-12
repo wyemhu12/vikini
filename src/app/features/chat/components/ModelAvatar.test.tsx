@@ -65,4 +65,13 @@ describe("ModelAvatar", () => {
     expect(grads.length).toBe(2);
     expect(grads[0].id).not.toBe(grads[1].id);
   });
+
+  it("renders GLM/Z.ai brand logo with sapphire-to-cyan gradient", () => {
+    const { container } = render(<ModelAvatar modelName="GLM 5.2" />);
+    const grad = container.querySelector("linearGradient");
+    expect(grad).toBeDefined();
+    expect(grad?.id).toContain("glm-grad");
+    const logo = container.querySelector('[data-testid="glm-logo"]');
+    expect(logo).toBeDefined();
+  });
 });

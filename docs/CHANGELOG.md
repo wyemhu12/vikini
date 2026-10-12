@@ -8,6 +8,31 @@
 
 ---
 
+## 2026-10-12: Feature -- Z.ai GLM 5.2 Model Integration (OpenRouter)
+
+- **Core Model Integration & Registration**:
+  - Đăng ký hằng số `GLM_52: "z-ai/glm-5.2"` vào `MODEL_IDS` (`src/lib/utils/constants.ts`).
+  - Cấu hình model trong `SELECTABLE_MODELS` với context window 1,048,576 tokens (~1M), provider `openrouter`, pricing $0.06/M input và $7.00/M output (`src/lib/core/modelRegistry.ts`).
+  - Đăng ký vào `API_ALLOWED`, `MODEL_ALIASES` (`glm-5.2`, `z-ai/glm-5.2-20260616`), và xây dựng hàm nhận diện SSOT `isGLMModel()`, đồng thời cập nhật `isOpenRouterReasoningModel()`.
+- **Reasoning Control & Scoped Token Ceilings**:
+  - **Scoped Output Token Limit**: Thiết lập trần `GLM_MAX_OUTPUT_TOKENS = 65536` riêng biệt cho GLM trong `src/app/api/chat-stream/streaming/openai-stream.ts`, bảo vệ các mô hình OpenAI-compatible khác (Haiku 64k, Grok 8k) không bị lỗi 400 do trần token không phù hợp.
+  - **Bidirectional Reasoning Dispatch**: Gửi tường minh `{ reasoning: { enabled: false } }` khi `thinkingLevel` là `undefined` hoặc `"off"` (do GLM mặc định bật suy luận trên OpenRouter), nâng mức suy luận thành `"high"` khi bật (`["xhigh", "high"]`), đồng thời giữ nguyên hành vi không can thiệp reasoning cho Grok 4.3.
+- **Error Handling & Resilient UX**:
+  - Bắt lỗi HTTP 402 (`INSUFFICIENT_CREDITS`) từ OpenRouter và hiển thị banner nạp credit trực quan trên `StreamErrorBanner.tsx`.
+  - Bắt lỗi HTTP 400 Context Overflow (`CONTEXT_LENGTH_EXCEEDED` kèm cờ `isTokenLimit: true`) để thông báo người dùng tối ưu hóa ngữ cảnh hội thoại.
+- **UI Components & Branding**:
+  - Thiết kế logo inline SVG `GlmLogo` gradient sapphire-to-cyan (`#1E40AF` → `#06B6D4`) với `React.useId()` chống xung đột SVG gradient ID trong `ModelAvatar.tsx`.
+  - Cập nhật `useThinkingLevel.ts` và `ThinkingLevelSelector.tsx` hỗ trợ 2 mức suy luận `off` và `high` dành riêng cho GLM.
+- **Database Migrations & Bilingual i18n**:
+  - Migration idempotent `database-migrations/20261012000000_add_glm_5_2.sql` cấp quyền truy cập mô hình cho hạng người dùng `admin` và `pro`.
+  - Bổ sung translation keys `modelDescGlm52` và `insufficientCredits` trong cả `en.ts` và `vi.ts` đạt 100% key parity.
+  - Cập nhật tài liệu kỹ thuật `docs/models.md` phản ánh đầy đủ thông số GLM 5.2.
+- **Comprehensive Co-located Test Suite & Verification**:
+  - Bổ sung unit tests cho `modelRegistry.test.ts`, `openai-stream.test.ts` (14 test cases kiểm thử token limits, reasoning modes, error mappings), `useThinkingLevel.test.ts`, và `ModelAvatar.test.tsx`.
+  - Verification Gate Tier 2 (`npm run verify`): 112/112 test files passed, 1199/1199 unit tests passed, 0 TypeScript errors, 0 ESLint warnings.
+
+---
+
 ## 2026-10-11: Audit Remediation Phase 4 -- Bilingual i18n, WCAG 2.2 Accessibility, Performance Optimization & Co-located Tests
 
 - **Pillar 1: Bilingual i18n Core Parity & Localization (I18N-01, I18N-02, Rule 04)**:

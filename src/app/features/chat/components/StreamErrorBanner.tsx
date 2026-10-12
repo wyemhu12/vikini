@@ -41,6 +41,13 @@ const StreamErrorBanner: React.FC<StreamErrorBannerProps> = ({ error, onDismiss 
       .replace("{{requested}}", error.tokenInfo.requested?.toLocaleString() || "?");
   } else if (error.code === "empty_response") {
     message = t("streamErrorEmptyResponse");
+  } else if (
+    error.code === "INSUFFICIENT_CREDITS" ||
+    (error as { isInsufficientCredits?: boolean }).isInsufficientCredits
+  ) {
+    message =
+      t("insufficientCredits") ||
+      "OpenRouter account balance is insufficient. Please check credits.";
   } else {
     message = error.message;
   }

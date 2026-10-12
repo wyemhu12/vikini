@@ -1,10 +1,16 @@
 import { describe, it, expect } from "vitest";
+import { MODEL_IDS } from "@/lib/utils/constants";
 import {
   DEFAULT_MODEL,
   modelSupportsThinking,
   getSupportedGeminiThinkingLevels,
   clampGeminiThinkingLevel,
   normalizeModelForApi,
+  isGLMModel,
+  isOpenRouterReasoningModel,
+  getModelTokenLimit,
+  getModelMaxOutputTokens,
+  GLM_MAX_OUTPUT_TOKENS,
 } from "./modelRegistry";
 
 describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
@@ -79,10 +85,35 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
     it("maps model aliases to canonical IDs", () => {
       expect(normalizeModelForApi("gemini-3-pro-preview")).toBe("gemini-3.1-pro-preview");
       expect(normalizeModelForApi("gemini-2.5-flash-preview")).toBe("gemini-2.5-flash");
+      expect(normalizeModelForApi("z-ai/glm-5.2-20260616")).toBe(MODEL_IDS.GLM_52);
+      expect(normalizeModelForApi("glm-5.2")).toBe(MODEL_IDS.GLM_52);
+      expect(normalizeModelForApi(MODEL_IDS.GLM_52)).toBe(MODEL_IDS.GLM_52);
     });
 
     it("falls back to DEFAULT_MODEL for unknown models", () => {
       expect(normalizeModelForApi("unknown-unsupported-model")).toBe(DEFAULT_MODEL);
+    });
+  });
+
+  describe("GLM 5.2 & Reasoning Registry Specifications", () => {
+    it("correctly identifies GLM models using isGLMModel SSOT", () => {
+      expect(isGLMModel(MODEL_IDS.GLM_52)).toBe(true);
+      expect(isGLMModel("z-ai/glm-5.2-20260616")).toBe(true);
+      expect(isGLMModel("glm-5.2")).toBe(true);
+      expect(isGLMModel("claude-sonnet-4.5")).toBe(false);
+      expect(isGLMModel("x-ai/grok-4.3")).toBe(false);
+    });
+
+    it("correctly registers GLM 5.2 in isOpenRouterReasoningModel", () => {
+      expect(isOpenRouterReasoningModel(MODEL_IDS.GLM_52)).toBe(true);
+      expect(isOpenRouterReasoningModel("x-ai/grok-4.3")).toBe(true);
+      expect(isOpenRouterReasoningModel("deepseek-v4-flash")).toBe(false);
+    });
+
+    it("returns correct tokenLimit and safe maxOutputTokens for GLM 5.2", () => {
+      expect(getModelTokenLimit(MODEL_IDS.GLM_52)).toBe(1048576);
+      expect(getModelMaxOutputTokens(MODEL_IDS.GLM_52)).toBe(GLM_MAX_OUTPUT_TOKENS);
+      expect(GLM_MAX_OUTPUT_TOKENS).toBe(65536);
     });
   });
 });

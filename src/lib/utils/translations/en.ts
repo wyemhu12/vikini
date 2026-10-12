@@ -108,6 +108,9 @@ export const en = {
     "DeepSeek V4.1 Flash - CED 1M context, multimodal, ultra-fast. Superior, efficient, and cheapest among DeepSeek models.",
   modelDescDeepSeekV4Pro: "DeepSeek V4 Pro - strong reasoning (75% off)",
   modelDescDeepSeekV32: "DeepSeek V3.2 intelligent (~$0.28/M tokens)",
+  modelDescGlm52:
+    "GLM 5.2 (CoreWeave FP4) - 1.05M context, MoE 753B agentic reasoning ($0.76/M in, $2.42/M out)",
+  insufficientCredits: "OpenRouter account balance is insufficient. Please check credits.",
   webSearch: "Web Search",
   webSearchOn: "ON",
   webSearchOff: "OFF",

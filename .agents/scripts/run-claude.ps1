@@ -1,4 +1,4 @@
-﻿# @ts-check
+# @ts-check
 param(
     [Parameter(Position=0)]
     [string]$PlanFile,
@@ -94,15 +94,17 @@ $output = $null | & $claudeExe @cliArgs 2>&1 | Out-String
 Write-Host $output
 
 # 8. Phân tích lỗi Quota / Auth để kích hoạt Fallback Trigger
-$isQuotaExceeded = $output -match "Usage limit reached" -or 
-                   $output -match "Rate limit" -or 
-                   $output -match "429" -or 
-                   $output -match "Failed to authenticate" -or
-                   $output -match "exceeded.*limit"
+$claudeExitCode = $LASTEXITCODE
+$isQuotaExceeded = ($claudeExitCode -ne 0) -and (
+    $output -match "Usage limit reached" -or 
+    $output -match "Rate limit reached" -or 
+    $output -match "Failed to authenticate" -or
+    $output -match "API Error: 429"
+)
 
 if ($isQuotaExceeded) {
     Write-Warning "[CLAUDE_PRO_QUOTA_EXCEEDED] Hết quota Claude Pro hoặc bị giới hạn tốc độ. Kích hoạt chuyển giao sang Fallback Reviewer (@reviewer)."
     exit 42
 }
 
-exit $LASTEXITCODE
+exit $claudeExitCode

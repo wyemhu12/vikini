@@ -264,12 +264,19 @@ Thinking mode cho phép AI "suy nghĩ sâu" trước khi trả lời, cải thi�
 > Khi thinking enabled, DeepSeek **bỏ qua** `temperature`, `top_p`, `presence_penalty`, `frequency_penalty`.
 > Response chứa `reasoning_content` (CoT) bên cạnh `content` — Vikini inject `<think>` tags để frontend ThinkingBlock render.
 
-### Vikini Implementation
+### Z.ai GLM 5.2 Thinking & Specs
 
-- **UI**: Dropdown selector cho Gemini 3 + DeepSeek V4 models
-- **Default**: "Off" (không bật thinking)
-- **Research mode**: Forced "high" (user không thể thay đổi)
-- **Storage**: `localStorage.vikini.thinkingLevel`
+| Thuộc tính             | Giá trị                                                     |
+| ---------------------- | ----------------------------------------------------------- |
+| **Tên hiển thị**       | GLM 5.2                                                     |
+| **ID Canonical**       | `z-ai/glm-5.2`                                              |
+| **Nhà phát triển**     | Z.ai (Zhipu AI) - Phát hành 06/2026                         |
+| **Provider Routing**   | **CoreWeave** (`coreweave/fp4`, FP4 precision, 100% uptime) |
+| **Kiến trúc**          | Mixture-of-Experts (MoE) 753B (IndexShare Attention)        |
+| **Context window**     | 1,048,576 tokens (~1.05M)                                   |
+| **Output token limit** | 65,536 (trần an toàn chat streaming)                        |
+| **Đơn giá API**        | $0.76/M input, $2.42/M output, $0.14/M cache read           |
+| **Thinking UI**        | `off` / `high` (tắt ngầm khi undefined/off; effort high)    |
 
 ---
 
@@ -277,13 +284,15 @@ Thinking mode cho phép AI "suy nghĩ sâu" trước khi trả lời, cải thi�
 
 Vikini tự động redirect các model ID cũ sang model mới:
 
-| Alias cũ               | → Redirect sang          |
-| ---------------------- | ------------------------ |
-| `deepseek-chat`        | `deepseek-v4-flash`      |
-| `deepseek-reasoner`    | `deepseek-v4-flash`      |
-| `gemini-3-pro`         | `gemini-3.1-pro-preview` |
-| `gemini-3-pro-preview` | `gemini-3.1-pro-preview` |
-| `gemini-2.0-flash`     | `gemini-2.5-flash`       |
+| Alias cũ                | → Redirect sang          |
+| ----------------------- | ------------------------ |
+| `deepseek-chat`         | `deepseek-v4-flash`      |
+| `deepseek-reasoner`     | `deepseek-v4-flash`      |
+| `gemini-3-pro`          | `gemini-3.1-pro-preview` |
+| `gemini-3-pro-preview`  | `gemini-3.1-pro-preview` |
+| `gemini-2.0-flash`      | `gemini-2.5-flash`       |
+| `z-ai/glm-5.2-20260616` | `z-ai/glm-5.2`           |
+| `glm-5.2`               | `z-ai/glm-5.2`           |
 
 ---
 
