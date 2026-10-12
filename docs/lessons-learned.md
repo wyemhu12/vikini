@@ -41,6 +41,13 @@
 
 ## CSS and Theming
 
+### 2026-10-12: Non-deterministic filesystem traversal in theme CSS test harness
+
+- **Symptom**: CI test failure on Ubuntu (`theme 'sunset' defines --surface-elevated: expected false to be true` and `theme 'orchid'`), while passing locally on Windows.
+- **Root Cause**: `theme-config.test.ts` recursively searched all CSS files in `src/app/styles/themes/` including `_shared/base.css`. On Linux ext4/ASCII ordering, `_shared` is visited first (starts with `_`). In `base.css`, rules `:root.theme-sunset { color-scheme: dark; }` and `:root.theme-orchid { color-scheme: light; }` matched the unanchored regex `\.theme-${theme.id}\s*\{`, causing the test to check `base.css` instead of the actual theme definition files (`glassmorphism/sunset.css`).
+- **Fix**: Excluded `_shared` directory from theme CSS traversal in `getCssFiles` and anchored the regex with `(?:^|\n)\.theme-${theme.id}\s*\{` to prevent matching `:root.theme-*`.
+- **Prevention**: In test harnesses that scan files dynamically, always exclude non-target directories (`_shared`, `common`) and anchor regex selectors to prevent false-positive matches on shared utility or reset rules.
+
 ### 2026-06-12: Dead shadcn CSS variables breaking components
 
 - **Symptom**: Tooltip invisible, Avatar fallback missing on all custom themes.

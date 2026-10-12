@@ -61,11 +61,12 @@ describe("theme-config", () => {
     const defaultAccentFgMatch = baseCssContent.match(/--accent-foreground:\s*([^;]+);/);
     const defaultAccentFg = defaultAccentFgMatch ? defaultAccentFgMatch[1].trim() : "#0a0a0a";
 
-    // Gather all CSS files recursively
+    // Gather all theme CSS files recursively (excluding _shared base/token files)
     function getCssFiles(dir: string): string[] {
       let results: string[] = [];
       const list = fs.readdirSync(dir);
       for (const file of list) {
+        if (file === "_shared") continue;
         const fullPath = path.join(dir, file);
         const stat = fs.statSync(fullPath);
         if (stat && stat.isDirectory()) {
@@ -85,7 +86,7 @@ describe("theme-config", () => {
         let selectorBlock = "";
         for (const file of cssFiles) {
           const content = fs.readFileSync(file, "utf-8");
-          const regex = new RegExp(`\\.theme-${theme.id}\\s*\\{([^}]+)\\}`, "s");
+          const regex = new RegExp(`(?:^|\\n)\\.theme-${theme.id}\\s*\\{([^}]+)\\}`, "s");
           const match = content.match(regex);
           if (match) {
             selectorBlock = match[1];

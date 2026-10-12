@@ -8,6 +8,13 @@
 
 ---
 
+## 2026-10-12: Fix -- CI Test Failure on Ubuntu Runner (theme-config.test.ts)
+
+- **Root cause**: `theme-config.test.ts` duyệt toàn bộ file CSS đệ quy bao gồm cả thư mục `_shared/base.css`. Trên hệ thống file Linux (Ubuntu Runner), các thư mục bắt đầu bằng ký tự `_` được duyệt trước các chữ cái alphabet. Biểu thức chính quy `\.theme-${theme.id}\s*\{` đã vô tình khớp với `:root.theme-sunset { color-scheme: dark; }` và `:root.theme-orchid { color-scheme: light; }` trong `base.css` (vốn không chứa `--surface-elevated`), khiến test dừng sớm và báo lỗi sai.
+- **Fix**: Loại bỏ thư mục `_shared` khỏi danh sách tìm kiếm file theme và neo đầu dòng `(?:^|\n)\.theme-${theme.id}\s*\{` để ngăn việc khớp nhầm các bộ chọn `:root.theme-*`.
+
+---
+
 ## 2026-10-12: Feature -- Z.ai GLM 5.2 Model Integration (OpenRouter)
 
 - **Core Model Integration & Registration**:
