@@ -43,7 +43,7 @@ export default defineConfig({
       GOOGLE_CLIENT_ID: "dummy-google-client-id.apps.googleusercontent.com",
       GOOGLE_CLIENT_SECRET: "dummy-google-client-secret",
       GEMINI_API_KEY: "dummy-gemini-key-for-e2e",
-      DATA_ENCRYPTION_KEY: "dummy-encryption-key-32-chars-long",
+      DATA_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       OPENROUTER_API_KEY: "",
       ANTHROPIC_API_KEY: "",
       DEEPSEEK_API_KEY: "",
