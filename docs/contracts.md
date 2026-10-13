@@ -492,7 +492,6 @@ Public routes: `/auth/signin`, `/auth/error`, `/auth/signout`, `/api/auth/*`.
 | POST                  | `/api/files/upload`                   | Upload file (FormData)                   |
 | GET/DELETE            | `/api/files`                          | List/delete files                        |
 | GET                   | `/api/files/[id]/url`                 | Get signed download URL                  |
-| POST                  | `/api/files/[id]/analyze`             | AI-powered file analysis                 |
 | DELETE                | `/api/messages/[id]`                  | Delete a single message                  |
 | POST                  | `/api/generate-image`                 | AI image generation                      |
 | GET/DELETE            | `/api/gallery`                        | Gallery CRUD                             |

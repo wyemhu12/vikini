@@ -6,8 +6,12 @@ import { NextRequest } from "next/server";
 // Mocks - declared BEFORE importing the route handlers
 // ---------------------------------------------------------------------------
 
-vi.mock("@/lib/features/auth/auth", () => ({
-  auth: vi.fn(),
+vi.mock("@/lib/features/auth/requireApprovedUser", () => ({
+  requireApprovedUser: vi.fn(),
+}));
+
+vi.mock("@/lib/core/rateLimit", () => ({
+  consumeRateLimit: vi.fn(),
 }));
 
 vi.mock("@/lib/features/projects/knowledge.server", () => ({
@@ -38,7 +42,9 @@ vi.mock("@/lib/utils/logger", () => ({
 // ---------------------------------------------------------------------------
 
 import { POST } from "./route";
-import { auth } from "@/lib/features/auth/auth";
+import { requireApprovedUser } from "@/lib/features/auth/requireApprovedUser";
+import { consumeRateLimit } from "@/lib/core/rateLimit";
+import { AccessPendingError, UnauthorizedError } from "@/lib/utils/errors";
 import { searchKnowledge } from "@/lib/features/projects/knowledge.server";
 import { getProject } from "@/lib/features/projects/projects.server";
 
@@ -58,14 +64,26 @@ function createRequest(method: string, url: string, body?: unknown): NextRequest
   return new NextRequest(new URL(url, "http://localhost:3000"), init);
 }
 
+type RateLimitResult = Awaited<ReturnType<typeof consumeRateLimit>>;
+
+function mockRateLimit(allowed: boolean) {
+  vi.mocked(consumeRateLimit).mockResolvedValue({
+    allowed,
+    limit: 10,
+    remaining: allowed ? 9 : 0,
+    resetInMs: allowed ? 0 : 30000,
+    retryAfterSeconds: allowed ? 0 : 30,
+    backend: "memory",
+  } as RateLimitResult);
+}
+
 function mockAuthenticated() {
-  vi.mocked(auth).mockResolvedValue({
-    user: { email: TEST_USER_EMAIL },
-  } as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireApprovedUser).mockResolvedValue({ userId: TEST_USER_EMAIL, rank: "basic" });
+  mockRateLimit(true);
 }
 
 function mockUnauthenticated() {
-  vi.mocked(auth).mockResolvedValue(null as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireApprovedUser).mockRejectedValue(new UnauthorizedError());
 }
 
 function createParams(id: string) {
@@ -100,6 +118,33 @@ describe("/api/projects/[id]/knowledge/search", () => {
       expect(res.status).toBe(401);
       const json = await res.json();
       expect(json.success).toBe(false);
+    });
+
+    it("should return 403 ACCESS_PENDING for unapproved users", async () => {
+      vi.mocked(requireApprovedUser).mockRejectedValue(new AccessPendingError());
+
+      const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge/search`, {
+        query: "hello",
+      });
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+
+      expect(res.status).toBe(403);
+      expect((await res.json()).error.code).toBe("ACCESS_PENDING");
+      expect(searchKnowledge).not.toHaveBeenCalled();
+    });
+
+    it("should return 429 when the search rate limit is exceeded", async () => {
+      mockAuthenticated();
+      mockRateLimit(false);
+
+      const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge/search`, {
+        query: "hello",
+      });
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+
+      expect(res.status).toBe(429);
+      expect(consumeRateLimit).toHaveBeenCalledWith(`knowledge-search:${TEST_USER_EMAIL}`);
+      expect(searchKnowledge).not.toHaveBeenCalled();
     });
 
     it("should return search results on success", async () => {

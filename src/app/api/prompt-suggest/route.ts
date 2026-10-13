@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/features/auth/auth";
+import { requireApprovedUser } from "@/lib/features/auth/requireApprovedUser";
 import { logger } from "@/lib/utils/logger";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
-import { UnauthorizedError, ValidationError, RateLimitError, AppError } from "@/lib/utils/errors";
+import { ValidationError, RateLimitError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 const routeLogger = logger.withContext("prompt-suggest");
@@ -16,11 +16,7 @@ export const maxDuration = 10;
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id || !session?.user?.email) {
-      throw new UnauthorizedError();
-    }
-    const userId = session.user.email.toLowerCase();
+    const { userId } = await requireApprovedUser();
 
     const rl = await consumeRateLimit(`prompt-suggest:${userId}`);
     if (!rl.allowed) {

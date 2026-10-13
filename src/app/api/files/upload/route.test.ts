@@ -6,8 +6,8 @@ import { NextRequest } from "next/server";
 // Mocks - declared BEFORE importing the route
 // ============================================================================
 
-vi.mock("@/app/api/conversations/auth", () => ({
-  requireUser: vi.fn(),
+vi.mock("@/lib/features/auth/requireApprovedUser", () => ({
+  requireApprovedUser: vi.fn(),
 }));
 
 vi.mock("@/lib/features/chat/conversations", () => ({
@@ -34,7 +34,8 @@ vi.mock("@/lib/utils/logger", () => ({
 // ============================================================================
 
 import { POST } from "./route";
-import { requireUser } from "@/app/api/conversations/auth";
+import { requireApprovedUser } from "@/lib/features/auth/requireApprovedUser";
+import { AccessPendingError, UnauthorizedError } from "@/lib/utils/errors";
 import { getConversation } from "@/lib/features/chat/conversations";
 import { uploadFile } from "@/lib/features/files/fileService.server";
 
@@ -46,21 +47,11 @@ const VALID_CONV_ID = "a1b2c3d4-e5f6-7890-abcd-ef0123456789";
 const VALID_FILE_ID = "f0e1d2c3-b4a5-1678-9012-abcdef012345";
 
 function mockUnauthorized() {
-  vi.mocked(requireUser).mockResolvedValue({
-    ok: false,
-    response: new Response(
-      JSON.stringify({ success: false, error: { message: "Unauthorized", code: "UNAUTHORIZED" } }),
-      { status: 401 }
-    ) as unknown as import("next/server").NextResponse,
-  });
+  vi.mocked(requireApprovedUser).mockRejectedValue(new UnauthorizedError());
 }
 
 function mockAuthorized(userId = "test@test.com") {
-  vi.mocked(requireUser).mockResolvedValue({
-    ok: true,
-    userId,
-    session: {},
-  });
+  vi.mocked(requireApprovedUser).mockResolvedValue({ userId, rank: "basic" });
 }
 
 function createFormDataRequest(fields: Record<string, string | File>): NextRequest {
@@ -99,6 +90,21 @@ describe("/api/files/upload", () => {
 
       expect(res.status).toBe(401);
       expect(json.success).toBe(false);
+    });
+
+    it("should return 403 ACCESS_PENDING for unapproved users without uploading", async () => {
+      vi.mocked(requireApprovedUser).mockRejectedValue(new AccessPendingError());
+
+      const req = createFormDataRequest({
+        conversationId: VALID_CONV_ID,
+        file: new File(["hello"], "test.txt", { type: "text/plain" }),
+      });
+      const res = await POST(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(403);
+      expect(json.error.code).toBe("ACCESS_PENDING");
+      expect(uploadFile).not.toHaveBeenCalled();
     });
   });
 

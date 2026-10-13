@@ -10,6 +10,14 @@ vi.mock("@/lib/features/auth/auth", () => ({
   auth: vi.fn(),
 }));
 
+vi.mock("@/lib/features/auth/requireApprovedUser", () => ({
+  requireApprovedUser: vi.fn(),
+}));
+
+vi.mock("@/lib/core/rateLimit", () => ({
+  consumeRateLimit: vi.fn(),
+}));
+
 vi.mock("@/lib/features/projects/knowledge.server", () => ({
   getProjectDocuments: vi.fn(),
   uploadDocument: vi.fn(),
@@ -52,6 +60,9 @@ vi.mock("@/lib/utils/logger", () => ({
 
 import { GET, POST, DELETE } from "./route";
 import { auth } from "@/lib/features/auth/auth";
+import { requireApprovedUser } from "@/lib/features/auth/requireApprovedUser";
+import { consumeRateLimit } from "@/lib/core/rateLimit";
+import { AccessPendingError, UnauthorizedError } from "@/lib/utils/errors";
 import {
   getProjectDocuments,
   uploadDocument,
@@ -83,10 +94,20 @@ function mockAuthenticated() {
   vi.mocked(auth).mockResolvedValue({
     user: { email: TEST_USER_EMAIL },
   } as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireApprovedUser).mockResolvedValue({ userId: TEST_USER_EMAIL, rank: "basic" });
+  vi.mocked(consumeRateLimit).mockResolvedValue({
+    allowed: true,
+    limit: 10,
+    remaining: 9,
+    resetInMs: 0,
+    retryAfterSeconds: 0,
+    backend: "memory",
+  } as Awaited<ReturnType<typeof consumeRateLimit>>);
 }
 
 function mockUnauthenticated() {
   vi.mocked(auth).mockResolvedValue(null as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireApprovedUser).mockRejectedValue(new UnauthorizedError());
 }
 
 function createParams(id: string) {
@@ -199,6 +220,45 @@ describe("/api/projects/[id]/knowledge", () => {
       expect(res.status).toBe(401);
       const json = await res.json();
       expect(json.success).toBe(false);
+    });
+
+    it("should return 403 ACCESS_PENDING for unapproved users without touching the project", async () => {
+      mockAuthenticated();
+      vi.mocked(requireApprovedUser).mockRejectedValue(new AccessPendingError());
+
+      const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge`, {
+        filename: "a.txt",
+        content: "hello",
+      });
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json.error.code).toBe("ACCESS_PENDING");
+      expect(getProject).not.toHaveBeenCalled();
+      expect(uploadDocument).not.toHaveBeenCalled();
+    });
+
+    it("should return 429 when the upload rate limit is exceeded", async () => {
+      mockAuthenticated();
+      vi.mocked(consumeRateLimit).mockResolvedValue({
+        allowed: false,
+        limit: 10,
+        remaining: 0,
+        resetInMs: 30000,
+        retryAfterSeconds: 30,
+        backend: "memory",
+      } as Awaited<ReturnType<typeof consumeRateLimit>>);
+
+      const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge`, {
+        filename: "a.txt",
+        content: "hello",
+      });
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+
+      expect(res.status).toBe(429);
+      expect(consumeRateLimit).toHaveBeenCalledWith(`knowledge-upload:${TEST_USER_EMAIL}`);
+      expect(uploadDocument).not.toHaveBeenCalled();
     });
 
     it("should upload a document successfully", async () => {

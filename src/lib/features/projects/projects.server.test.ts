@@ -84,22 +84,30 @@ describe("projects.server", () => {
 
   describe("getUserTier & getTierLimits", () => {
     it("should detect admin, pro, and basic tiers correctly", async () => {
-      const singleMock = vi.fn();
-      const eqMock = vi.fn().mockReturnValue({ single: singleMock });
+      const maybeSingleMock = vi.fn();
+      const eqMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock });
       const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
       mockSupabaseFrom.mockReturnValue({ select: selectMock });
 
-      singleMock.mockResolvedValueOnce({ data: { rank: "admin" } });
+      maybeSingleMock.mockResolvedValueOnce({ data: { rank: "admin" }, error: null });
       expect(await getUserTier("admin@test.com")).toBe("admin");
 
-      singleMock.mockResolvedValueOnce({ data: { rank: "PRO" } });
+      maybeSingleMock.mockResolvedValueOnce({ data: { rank: "PRO" }, error: null });
       expect(await getUserTier("pro@test.com")).toBe("pro");
 
-      singleMock.mockResolvedValueOnce({ data: { rank: "free" } });
+      maybeSingleMock.mockResolvedValueOnce({ data: { rank: "free" }, error: null });
       expect(await getUserTier("free@test.com")).toBe("basic");
 
-      singleMock.mockResolvedValueOnce({ data: null });
+      maybeSingleMock.mockResolvedValueOnce({ data: null, error: null });
       expect(await getUserTier("none@test.com")).toBe("basic");
+    });
+
+    it("should fail closed (503) when the profile query errors", async () => {
+      const maybeSingleMock = vi.fn().mockResolvedValue({ data: null, error: { message: "down" } });
+      const eqMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock });
+      mockSupabaseFrom.mockReturnValue({ select: vi.fn().mockReturnValue({ eq: eqMock }) });
+
+      await expect(getUserTier("x@test.com")).rejects.toMatchObject({ statusCode: 503 });
     });
 
     it("should return correct limits for tier", () => {
@@ -241,7 +249,7 @@ describe("projects.server", () => {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({ data: { rank: "basic" } }),
+                maybeSingle: vi.fn().mockResolvedValue({ data: { rank: "basic" }, error: null }),
               }),
             }),
           };
@@ -281,7 +289,7 @@ describe("projects.server", () => {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({ data: { rank: "basic" } }),
+                maybeSingle: vi.fn().mockResolvedValue({ data: { rank: "basic" }, error: null }),
               }),
             }),
           };
@@ -315,7 +323,7 @@ describe("projects.server", () => {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({ data: { rank: "admin" } }),
+                maybeSingle: vi.fn().mockResolvedValue({ data: { rank: "admin" }, error: null }),
               }),
             }),
           };
@@ -477,7 +485,7 @@ describe("projects.server", () => {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({ data: { rank: "basic" } }),
+                maybeSingle: vi.fn().mockResolvedValue({ data: { rank: "basic" }, error: null }),
               }),
             }),
           };

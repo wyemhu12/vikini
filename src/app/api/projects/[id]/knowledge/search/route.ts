@@ -4,10 +4,11 @@
  */
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/features/auth/auth";
+import { requireApprovedUser } from "@/lib/features/auth/requireApprovedUser";
+import { consumeRateLimit } from "@/lib/core/rateLimit";
 import { searchKnowledge } from "@/lib/features/projects/knowledge.server";
 import { getProject } from "@/lib/features/projects/projects.server";
-import { UnauthorizedError, ValidationError, NotFoundError, AppError } from "@/lib/utils/errors";
+import { ValidationError, NotFoundError, AppError, RateLimitError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { HTTP_STATUS } from "@/lib/utils/constants";
 import { logger } from "@/lib/utils/logger";
@@ -29,11 +30,11 @@ const searchSchema = z.object({
  */
 export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      throw new UnauthorizedError();
+    const { userId } = await requireApprovedUser();
+    const rl = await consumeRateLimit(`knowledge-search:${userId}`);
+    if (!rl.allowed) {
+      throw new RateLimitError("Too many requests. Please wait.", rl.retryAfterSeconds);
     }
-    const userId = session.user.email.toLowerCase();
     const { id: projectId } = await params;
 
     // Verify project exists and user owns it

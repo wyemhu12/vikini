@@ -7,7 +7,7 @@ vi.mock("@/lib/features/auth/auth", () => ({
 }));
 
 vi.mock("@/lib/core/limits", () => ({
-  getUserProfile: vi.fn(),
+  getUserProfileStrict: vi.fn(),
 }));
 
 const mockRedisGet = vi.fn();
@@ -34,7 +34,8 @@ vi.mock("@/lib/utils/logger", () => ({
 // ── Import route handlers AFTER mocks ─────────────────────────────────
 import { GET } from "./route";
 import { auth } from "@/lib/features/auth/auth";
-import { getUserProfile } from "@/lib/core/limits";
+import { getUserProfileStrict } from "@/lib/core/limits";
+import { ServiceUnavailableError } from "@/lib/utils/errors";
 import { getRedis } from "@/lib/core/batchGenQuota";
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -83,7 +84,7 @@ describe("/api/batch-gen-quota", () => {
 
     it("should return quota data on success for basic rank", async () => {
       mockAuthenticated();
-      vi.mocked(getUserProfile).mockResolvedValue({
+      vi.mocked(getUserProfileStrict).mockResolvedValue({
         id: TEST_USER_ID,
         email: TEST_EMAIL,
         rank: "basic",
@@ -107,7 +108,7 @@ describe("/api/batch-gen-quota", () => {
 
     it("should return quota data for pro rank", async () => {
       mockAuthenticated();
-      vi.mocked(getUserProfile).mockResolvedValue({
+      vi.mocked(getUserProfileStrict).mockResolvedValue({
         id: TEST_USER_ID,
         email: TEST_EMAIL,
         rank: "pro",
@@ -125,21 +126,47 @@ describe("/api/batch-gen-quota", () => {
       expect(json.data.quotas["3"]).toBeDefined();
     });
 
-    it("should default to basic rank when profile has no rank", async () => {
+    it("should use the most restrictive tier (never basic) when the profile is missing", async () => {
       mockAuthenticated();
-      vi.mocked(getUserProfile).mockResolvedValue(null);
+      vi.mocked(getUserProfileStrict).mockResolvedValue(null);
       mockRedisGet.mockResolvedValue(null);
 
       const res = await GET();
       const json = await res.json();
 
       expect(res.status).toBe(200);
-      expect(json.data.rank).toBe("basic");
+      expect(json.data.rank).toBe("not_whitelisted");
+      expect(json.data.maxBatchSize).toBe(1);
+    });
+
+    it("should return 503 when the profile cannot be read (fail-closed)", async () => {
+      mockAuthenticated();
+      vi.mocked(getUserProfileStrict).mockRejectedValue(new ServiceUnavailableError());
+
+      const res = await GET();
+
+      expect(res.status).toBe(503);
+    });
+
+    it("should return 403 USER_BLOCKED for blocked users", async () => {
+      mockAuthenticated();
+      vi.mocked(getUserProfileStrict).mockResolvedValue({
+        id: TEST_USER_ID,
+        email: TEST_EMAIL,
+        rank: "pro",
+        is_blocked: true,
+      });
+
+      const res = await GET();
+      const json = await res.json();
+
+      expect(res.status).toBe(403);
+      expect(json.error.code).toBe("USER_BLOCKED");
     });
 
     it("should handle Redis returning null (no usage yet)", async () => {
       mockAuthenticated();
-      vi.mocked(getUserProfile).mockResolvedValue({
+      vi.mocked(getUserProfileStrict).mockResolvedValue({
         id: TEST_USER_ID,
         email: TEST_EMAIL,
         rank: "basic",
@@ -157,7 +184,7 @@ describe("/api/batch-gen-quota", () => {
 
     it("should handle Redis errors gracefully and return used=0", async () => {
       mockAuthenticated();
-      vi.mocked(getUserProfile).mockResolvedValue({
+      vi.mocked(getUserProfileStrict).mockResolvedValue({
         id: TEST_USER_ID,
         email: TEST_EMAIL,
         rank: "basic",
@@ -175,7 +202,7 @@ describe("/api/batch-gen-quota", () => {
 
     it("should return remaining=0 when usage exceeds limit", async () => {
       mockAuthenticated();
-      vi.mocked(getUserProfile).mockResolvedValue({
+      vi.mocked(getUserProfileStrict).mockResolvedValue({
         id: TEST_USER_ID,
         email: TEST_EMAIL,
         rank: "basic",
@@ -193,7 +220,7 @@ describe("/api/batch-gen-quota", () => {
 
     it("should return 500 on unexpected error", async () => {
       mockAuthenticated();
-      vi.mocked(getUserProfile).mockRejectedValue(new Error("DB down"));
+      vi.mocked(getUserProfileStrict).mockRejectedValue(new Error("DB down"));
 
       const res = await GET();
       const json = await res.json();
@@ -206,7 +233,7 @@ describe("/api/batch-gen-quota", () => {
       vi.mocked(auth).mockResolvedValue({
         user: { email: "TEST@EXAMPLE.COM", id: TEST_USER_ID },
       } as unknown as Awaited<ReturnType<typeof auth>>);
-      vi.mocked(getUserProfile).mockResolvedValue({
+      vi.mocked(getUserProfileStrict).mockResolvedValue({
         id: TEST_USER_ID,
         email: TEST_EMAIL,
         rank: "basic",
@@ -224,7 +251,7 @@ describe("/api/batch-gen-quota", () => {
     // This test overrides getRedis so it must run last to avoid affecting other tests
     it("should handle Redis being unavailable (getRedis returns null)", async () => {
       mockAuthenticated();
-      vi.mocked(getUserProfile).mockResolvedValue({
+      vi.mocked(getUserProfileStrict).mockResolvedValue({
         id: TEST_USER_ID,
         email: TEST_EMAIL,
         rank: "basic",
@@ -241,7 +268,7 @@ describe("/api/batch-gen-quota", () => {
 
     it("should return empty quotas and maxBatchSize 1 for not_whitelisted rank", async () => {
       mockAuthenticated();
-      vi.mocked(getUserProfile).mockResolvedValue({
+      vi.mocked(getUserProfileStrict).mockResolvedValue({
         id: TEST_USER_ID,
         email: TEST_EMAIL,
         rank: "not_whitelisted",

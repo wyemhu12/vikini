@@ -4,6 +4,7 @@
 import { getSupabaseAdmin } from "./supabase.server";
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
+import { ServiceUnavailableError, UserBlockedError } from "@/lib/utils/errors";
 
 const limitsLogger = logger.withContext("limits");
 
@@ -23,6 +24,15 @@ export interface RankConfig {
     [key: string]: boolean;
   };
   allowed_models?: string[];
+}
+
+export type UserRank = RankConfig["rank"];
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  rank: string;
+  is_blocked: boolean;
 }
 
 export interface UserLimits extends RankConfig {
@@ -52,6 +62,31 @@ function getRedisOptional(): Redis | null {
   redis = new Redis({ url, token });
   return redis;
 }
+
+/** Ranks of approved users. Anything else is treated as unapproved. */
+const APPROVED_RANKS: ReadonlySet<string> = new Set(["basic", "pro", "admin"]);
+
+/** Used when an approved rank's config row is missing (keeps approved users working). */
+const BASIC_FALLBACK_CONFIG: RankConfig = {
+  rank: "basic",
+  daily_message_limit: 20,
+  daily_research_limit: 0,
+  max_file_size_mb: 5,
+  features: { web_search: false, unlimited_gems: false, deep_research: false },
+};
+
+/**
+ * Used for unapproved / unknown ranks when no config row exists, and for missing profiles.
+ * Denies everything (fail-closed).
+ */
+const DENY_CONFIG: RankConfig = {
+  rank: "not_whitelisted",
+  daily_message_limit: 0,
+  daily_research_limit: 0,
+  max_file_size_mb: 0,
+  features: { web_search: false, unlimited_gems: false, deep_research: false },
+  allowed_models: [],
+};
 
 const RANK_CONFIGS_CACHE_KEY = "rank_configs:all";
 const RANK_CONFIGS_TTL_SECONDS = 5 * 60; // 5 minutes
@@ -87,7 +122,8 @@ async function getRankConfigs(): Promise<Map<string, RankConfig>> {
   const { data, error } = await supabase.from("rank_configs").select("*").order("rank");
 
   if (error) {
-    throw new Error(`Failed to fetch rank configs: ${error.message}`);
+    limitsLogger.error("Failed to fetch rank configs:", error);
+    throw new ServiceUnavailableError("Unable to load rank configuration");
   }
 
   const configs = (data || []) as RankConfig[];
@@ -116,20 +152,17 @@ export async function getRankConfig(rank: string): Promise<RankConfig> {
   const configs = await getRankConfigs();
   const config = configs.get(rank);
 
-  if (!config) {
-    // Fallback to basic if rank not found
-    return (
-      configs.get("basic") || {
-        rank: "basic",
-        daily_message_limit: 20,
-        daily_research_limit: 0,
-        max_file_size_mb: 5,
-        features: { web_search: false, unlimited_gems: false, deep_research: false },
-      }
-    );
-  }
+  if (config) return config;
 
-  return config;
+  // Approved ranks fall back to basic; unapproved/unknown ranks are denied (never basic).
+  if (APPROVED_RANKS.has(rank)) {
+    limitsLogger.warn(`Rank config missing for "${rank}", falling back to basic`);
+    return configs.get("basic") || BASIC_FALLBACK_CONFIG;
+  }
+  if (rank !== "not_whitelisted") {
+    limitsLogger.error(`Unknown rank "${rank}", denying access`);
+  }
+  return DENY_CONFIG;
 }
 
 // =====================================================================================
@@ -137,10 +170,12 @@ export async function getRankConfig(rank: string): Promise<RankConfig> {
 // =====================================================================================
 
 /**
- * Get user profile from database.
+ * Get user profile from database (fail-closed).
  * userId is the canonical email (lowercased) after normalization.
+ * @returns the profile, or null only when no row exists
+ * @throws ServiceUnavailableError when the database query fails
  */
-export async function getUserProfile(userId: string) {
+export async function getUserProfileStrict(userId: string): Promise<UserProfile | null> {
   const supabase = getSupabaseAdmin();
 
   // CANONICAL: userId = email, so query by email directly
@@ -151,44 +186,51 @@ export async function getUserProfile(userId: string) {
     .maybeSingle();
 
   if (error) {
-    limitsLogger.warn("Error fetching user profile by email:", error);
-    return null;
+    limitsLogger.error("Error fetching user profile by email:", error);
+    throw new ServiceUnavailableError("Unable to verify user profile");
   }
 
-  return data as {
-    id: string;
-    email: string;
-    rank: string;
-    is_blocked: boolean;
-  } | null;
+  return data as UserProfile | null;
 }
 
 /**
- * Get complete user limits (profile + rank config)
+ * Get user profile from database.
+ * @returns the profile, or null when missing OR when the query fails —
+ *   callers must treat null as "deny" (see image routes' 503 handling)
+ */
+export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+  try {
+    return await getUserProfileStrict(userId);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get complete user limits (profile + rank config). Fail-closed:
+ * - missing profile → deny-all limits (rank "not_whitelisted")
+ * - blocked → UserBlockedError
+ * - database error → ServiceUnavailableError
  */
 export async function getUserLimits(userId: string): Promise<UserLimits> {
-  const profile = await getUserProfile(userId);
+  const profile = await getUserProfileStrict(userId);
 
   if (!profile) {
-    // User not found, return basic limits
-    const basicConfig = await getRankConfig("basic");
-    return {
-      userId,
-      email: "",
-      ...basicConfig,
-    };
+    return { ...DENY_CONFIG, userId, email: "" };
   }
 
   if (profile.is_blocked) {
-    throw new Error("User is blocked");
+    throw new UserBlockedError();
   }
 
   const rankConfig = await getRankConfig(profile.rank);
 
   return {
+    ...rankConfig,
     userId,
     email: profile.email,
-    ...rankConfig,
+    // Rank always comes from the profile, never from the (possibly fallback) config row
+    rank: APPROVED_RANKS.has(profile.rank) ? (profile.rank as UserRank) : "not_whitelisted",
   };
 }
 
@@ -211,8 +253,8 @@ export async function getDailyMessageCount(userId: string): Promise<number> {
     .maybeSingle();
 
   if (error) {
-    limitsLogger.warn("Error fetching daily message count:", error);
-    return 0;
+    limitsLogger.error("Error fetching daily message count:", error);
+    throw new ServiceUnavailableError("Unable to verify daily message quota");
   }
 
   return data?.count || 0;
@@ -275,39 +317,6 @@ export async function checkFileSize(
 }
 
 // =====================================================================================
-// Feature Flag Checking
-// =====================================================================================
-
-/**
- * Check if user has access to a specific feature
- */
-export async function hasFeature(userId: string, featureName: string): Promise<boolean> {
-  const limits = await getUserLimits(userId);
-  return limits.features[featureName] === true;
-}
-
-/**
- * Check if user has web search enabled
- */
-export async function hasWebSearch(userId: string): Promise<boolean> {
-  return hasFeature(userId, "web_search");
-}
-
-/**
- * Check if user has unlimited gems (can create/edit premade gems)
- */
-export async function hasUnlimitedGems(userId: string): Promise<boolean> {
-  return hasFeature(userId, "unlimited_gems");
-}
-
-/**
- * Check if user has deep research enabled
- */
-export async function hasDeepResearch(userId: string): Promise<boolean> {
-  return hasFeature(userId, "deep_research");
-}
-
-// =====================================================================================
 // Daily Research Count Functions
 // =====================================================================================
 
@@ -326,42 +335,11 @@ export async function getResearchDailyCount(userId: string): Promise<number> {
     .maybeSingle();
 
   if (error) {
-    limitsLogger.warn("Error fetching daily research count:", error);
-    return 0;
+    limitsLogger.error("Error fetching daily research count:", error);
+    throw new ServiceUnavailableError("Unable to verify daily research quota");
   }
 
   return data?.count || 0;
-}
-
-/**
- * Increment daily research count for user
- */
-export async function incrementResearchCount(userId: string): Promise<void> {
-  const supabase = getSupabaseAdmin();
-  const today = new Date().toISOString().split("T")[0];
-
-  // Try to increment existing row via RPC
-  const { error: rpcError } = await supabase.rpc("increment_daily_research_count", {
-    p_user_id: userId,
-    p_date: today,
-  });
-
-  if (rpcError) {
-    limitsLogger.warn("RPC increment failed, falling back to manual increment:", rpcError);
-    // Fallback: read current count, then upsert with count + 1.
-    // Cannot use SQL expressions in Supabase JS upsert, so read-then-write.
-    const currentCount = await getResearchDailyCount(userId);
-    const { error: insertError } = await supabase
-      .from("daily_research_counts")
-      .upsert(
-        { user_id: userId, date: today, count: currentCount + 1 },
-        { onConflict: "user_id,date" }
-      );
-
-    if (insertError) {
-      limitsLogger.warn("Error incrementing research count:", insertError);
-    }
-  }
 }
 
 /**
@@ -392,12 +370,16 @@ export async function tryClaimResearchSlot(userId: string): Promise<boolean> {
     // RPC failed - fall back to read-then-write. Not perfectly atomic but best effort.
     limitsLogger.warn("RPC increment failed, falling back to manual increment:", rpcError);
     const currentCount = await getResearchDailyCount(userId);
-    await supabase
+    const { error: upsertError } = await supabase
       .from("daily_research_counts")
       .upsert(
         { user_id: userId, date: today, count: currentCount + 1 },
         { onConflict: "user_id,date" }
       );
+    if (upsertError) {
+      limitsLogger.error("Fallback research count increment failed:", upsertError);
+      throw new ServiceUnavailableError("Unable to record research usage");
+    }
   }
 
   // 2. Read back the current count after increment
@@ -418,24 +400,6 @@ export async function tryClaimResearchSlot(userId: string): Promise<boolean> {
   }
 
   return true;
-}
-
-/**
- * Check if user can perform deep research (feature flag + daily limit).
- * Prefer tryClaimResearchSlot() when you intend to actually start a task -
- * it performs the check and increment atomically.
- */
-export async function canDoResearch(userId: string): Promise<boolean> {
-  const limits = await getUserLimits(userId);
-
-  // Check feature flag first
-  if (!limits.features.deep_research) {
-    return false;
-  }
-
-  // Check daily limit
-  const count = await getResearchDailyCount(userId);
-  return count < limits.daily_research_limit;
 }
 
 // =====================================================================================

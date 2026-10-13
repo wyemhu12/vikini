@@ -14,7 +14,7 @@ import {
   UserTier,
 } from "@/types/projects";
 import { logger } from "@/lib/utils/logger";
-import { NotFoundError } from "@/lib/utils/errors";
+import { NotFoundError, ServiceUnavailableError } from "@/lib/utils/errors";
 
 const projectLogger = logger.withContext("projects");
 
@@ -42,8 +42,15 @@ export function toProject(row: Tables<"projects">): Project {
 export async function getUserTier(userId: string): Promise<UserTier> {
   const supabase = getTypedSupabaseAdmin();
 
-  const { data } = await supabase.from("profiles").select("rank").eq("email", userId).single();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("rank")
+    .eq("email", userId)
+    .maybeSingle();
 
+  if (error) {
+    throw new ServiceUnavailableError("Unable to verify user tier");
+  }
   if (!data?.rank) return "basic";
 
   const rank = String(data.rank).toLowerCase();

@@ -9,6 +9,8 @@ export const maxDuration = 60;
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/features/auth/auth";
+import { requireApprovedUser } from "@/lib/features/auth/requireApprovedUser";
+import { consumeRateLimit } from "@/lib/core/rateLimit";
 import {
   getProjectDocuments,
   uploadDocument,
@@ -16,7 +18,13 @@ import {
   cleanupStuckProcessingDocuments,
 } from "@/lib/features/projects/knowledge.server";
 import { getProject } from "@/lib/features/projects/projects.server";
-import { UnauthorizedError, ValidationError, NotFoundError, AppError } from "@/lib/utils/errors";
+import {
+  UnauthorizedError,
+  ValidationError,
+  NotFoundError,
+  AppError,
+  RateLimitError,
+} from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { HTTP_STATUS } from "@/lib/utils/constants";
 import { logger } from "@/lib/utils/logger";
@@ -79,11 +87,11 @@ const uploadSchema = z.object({
  */
 export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      throw new UnauthorizedError();
+    const { userId } = await requireApprovedUser();
+    const rl = await consumeRateLimit(`knowledge-upload:${userId}`);
+    if (!rl.allowed) {
+      throw new RateLimitError("Too many requests. Please wait.", rl.retryAfterSeconds);
     }
-    const userId = session.user.email.toLowerCase();
     const { id: projectId } = await params;
 
     // Verify project exists and user owns it
@@ -179,13 +187,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     routeLogger.info(`Uploaded document via json: ${document.filename} (${document.id})`);
     return success({ document }, HTTP_STATUS.CREATED);
   } catch (err: unknown) {
-    console.warn(
-      "DIAGNOSTIC POST ERROR:",
-      err,
-      "CONTENT-LENGTH WAS:",
-      req.headers.get("content-length")
+    routeLogger.error(
+      `Failed to upload document (content-length: ${req.headers.get("content-length")})`,
+      err
     );
-    routeLogger.error("Failed to upload document", err);
     if (err instanceof AppError) return errorFromAppError(err);
     if (err instanceof Error && err.message.includes("limit")) {
       return error(err.message, HTTP_STATUS.FORBIDDEN);

@@ -1,7 +1,7 @@
 import { auth } from "@/lib/features/auth/auth";
-import { getUserProfile } from "@/lib/core/limits";
+import { getUserProfileStrict } from "@/lib/core/limits";
 import { logger } from "@/lib/utils/logger";
-import { UnauthorizedError, AppError } from "@/lib/utils/errors";
+import { UnauthorizedError, AppError, UserBlockedError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { getRedis, BATCH_GEN_LIMITS, type BatchGenLimitConfig } from "@/lib/core/batchGenQuota";
 
@@ -17,9 +17,11 @@ export async function GET() {
     const userId = session.user.email.toLowerCase();
 
     // 2. Get user rank
-    const profile = await getUserProfile(userId);
-    const rank = (profile?.rank || "basic") as keyof typeof BATCH_GEN_LIMITS;
-    const config: BatchGenLimitConfig = BATCH_GEN_LIMITS[rank] || BATCH_GEN_LIMITS.basic;
+    const profile = await getUserProfileStrict(userId);
+    if (profile?.is_blocked) throw new UserBlockedError();
+    // Missing profile or unknown rank gets the most restrictive tier, never basic
+    const rank = profile && profile.rank in BATCH_GEN_LIMITS ? profile.rank : "not_whitelisted";
+    const config: BatchGenLimitConfig = BATCH_GEN_LIMITS[rank];
 
     // 3. Get today's usage from Redis per batch size
     const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD

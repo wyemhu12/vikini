@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest } from "next/server";
-import { requireUser } from "@/app/api/conversations/auth";
+import { requireApprovedUser } from "@/lib/features/auth/requireApprovedUser";
 import { getConversation } from "@/lib/features/chat/conversations";
 import { uploadFile } from "@/lib/features/files/fileService.server";
 import { logger } from "@/lib/utils/logger";
@@ -17,10 +17,7 @@ const routeLogger = logger.withContext("/api/files/upload");
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireUser(req);
-    if (!auth.ok) return auth.response;
-
-    const { userId } = auth;
+    const { userId } = await requireApprovedUser();
     const form = await req.formData();
 
     const conversationId = String(form.get("conversationId") || "").trim();

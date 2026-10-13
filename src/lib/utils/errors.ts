@@ -52,6 +52,37 @@ export class ForbiddenError extends AppError {
 }
 
 /**
+ * Account pending admin approval (403)
+ */
+export class AccessPendingError extends AppError {
+  constructor(message: string = "Your account is pending admin approval") {
+    super(message, 403, "ACCESS_PENDING");
+    this.name = "AccessPendingError";
+  }
+}
+
+/**
+ * Account blocked by an admin (403)
+ */
+export class UserBlockedError extends AppError {
+  constructor(message: string = "User is blocked") {
+    super(message, 403, "USER_BLOCKED");
+    this.name = "UserBlockedError";
+  }
+}
+
+/**
+ * A dependency needed to authorize the request is unavailable (503).
+ * Thrown instead of silently granting access (fail-closed).
+ */
+export class ServiceUnavailableError extends AppError {
+  constructor(message: string = "Service temporarily unavailable") {
+    super(message, 503, "SERVICE_UNAVAILABLE");
+    this.name = "ServiceUnavailableError";
+  }
+}
+
+/**
  * Not found error (404)
  */
 export class NotFoundError extends AppError {
