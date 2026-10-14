@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-10-14: Siết chuẩn thẩm định của Fallback Reviewer (`@reviewer`)
+
+- **`.agents/agents/reviewer/agent.md`**: Các lượt approve của `@reviewer` thời còn chạy `gemini-3.8-flash` từng bị lật lại 2/4 lần (`ui-audit` Run 3 → Claude Run 4 tìm ra 3 MAJOR; `phase-2` Run 3 bị PO thu hồi → Run 4 tìm ra 5 MAJOR). Các quy tắc dưới đây áp dụng cho fallback hiện tại (`gemini-4-argon`).
+  - **Thẩm định độc lập**: không kế thừa kết luận Run trước; mỗi lỗi cũ kiểm lại trên code thật (`ĐÃ SỬA` / `SỬA MỘT PHẦN` / `CHƯA SỬA`); bắt buộc săn lỗi mới, báo cáo tách mục Kiểm Chứng Lỗi Cũ và Phát Hiện Mới.
+  - **Luật bằng chứng**: `[SRC]` phải trỏ vào code thật, trích plan thành `UNVERIFIED`; probe `node -e` chỉ chép snippet của plan không được dùng làm evidence.
+  - **Quy tắc approve**: approve không có phát hiện mới phải kèm mục Các Tấn Công Đã Thử (≥3, có bằng chứng); cấm từ ngữ tuyệt đối ("100%", "triệt để", "hoàn hảo"...).
+
+---
+
 ## 2026-10-14: Governance -- Upgrade .agents/ Subagents & Task-to-Model Routing to Gemini 4 Argon (`gemini-4-argon`)
 
 - **Subagent Model Upgrades (`.agents/agents/`)**:
