@@ -21,7 +21,7 @@ User (PM / QA) ──[Task]──▶ Orchestrator (Main Thread / Dispatcher)
                                   │
                                   ▼
                          [ Lead Architecture Reviewer ]
-                      (Claude Opus 5.5 CLI / Fallback Reviewer)
+                   (Claude Opus 5.5 CLI / Fallback Gemini 4 Argon)
                                   │
                         ┌─────────┴─────────┐
                         │                   │
@@ -84,21 +84,22 @@ Hệ thống sử dụng Hook tự động `PreToolUse` tại [code-freeze-guard
 
 ## 4. Agent Task-to-Model Routing Guide
 
-Hướng dẫn lựa chọn mô hình trí tuệ nhân tạo tối ưu chi phí và năng lực cho từng nhóm tác vụ của agent:
+Hướng dẫn lựa chọn mô hình trí tuệ nhân tạo tối ưu chi phí và năng lực cho từng nhóm tác vụ của agent theo kiến trúc **Orchestrator–Worker Split**:
 
 ### 4.1. Ma Trận Phân Bổ Tác Vụ Sang Model Tier
 
-| Nhóm Tác Vụ                                   | Khuyến Nghị Model Tier | Mô Hình Cụ Thể (2026)                                 | Cơ Sở Lựa Chọn                                                           |
-| :-------------------------------------------- | :--------------------: | :---------------------------------------------------- | :----------------------------------------------------------------------- |
-| **Lập kế hoạch kiến trúc (Planning)**         |    High / Thinking     | `gemini-3.8-flash` (max thinking) / `claude-opus-5-5` | Cần khả năng tổng hợp ngữ cảnh rộng và suy luận chiến lược sâu.          |
-| **Thẩm định & Review (Reviewing)**            |     Premium / Full     | `claude-opus-5-5` (Claude Pro CLI)                    | Yêu cầu đối kháng logic khắt khe, phát hiện edge cases và kiến trúc lỗi. |
-| **Phát triển tính năng & Debug phức tạp**     |       Full Model       | `gemini-3.8-flash` / Claude Sonnet                    | Cần phân tích luồng dữ liệu đa tệp và xử lý logic nghiệp vụ.             |
-| **Viết Unit Tests & Integration Tests**       |       Full Model       | `gemini-3.8-flash` / Claude Sonnet                    | Đòi hỏi hiểu sâu boundary conditions và chống specification gaming.      |
-| **Sửa lỗi chính tả, format, rename đơn giản** |    Smaller / Light     | Fast / Light tiers                                    | Thao tác tất định, có khuôn mẫu rõ ràng, không cần suy luận sâu.         |
-| **Cập nhật tài liệu văn bản thông thường**    |     Smaller Model      | Flash tiers                                           | Sinh văn bản mô tả, độ phức tạp logic thấp.                              |
+| Nhóm Tác Vụ                                   | Khuyến Nghị Model Tier | Mô Hình Cụ Thể (2026)                                           | Cơ Sở Lựa Chọn                                                                         |
+| :-------------------------------------------- | :--------------------: | :-------------------------------------------------------------- | :------------------------------------------------------------------------------------- |
+| **Lập kế hoạch kiến trúc (Planning)**         |    High / Thinking     | `gemini-4-argon` (max thinking) / `claude-opus-5-5`             | Cần khả năng tổng hợp ngữ cảnh rộng (1M context) và suy luận chiến lược sâu đa tầng.   |
+| **Thẩm định & Review (Reviewing)**            |     Premium / Full     | `claude-opus-5-5` (Claude Pro CLI) / Fallback: `gemini-4-argon` | Yêu cầu đối kháng logic khắt khe (S1–S6), phát hiện edge cases và lỗi kiến trúc.       |
+| **Phát triển tính năng & Debug phức tạp**     |       Full Model       | `gemini-4-argon` / `claude-sonnet-5-5` / `gemini-3.8-flash`     | Cần phân tích luồng dữ liệu đa tệp, xử lý race conditions và logic nghiệp vụ phức tạp. |
+| **Viết Unit Tests & Integration Tests**       |       Full Model       | `gemini-4-argon` / `gemini-3.8-flash` / `claude-sonnet-5-5`     | Đòi hỏi hiểu sâu boundary conditions, Test Contract và chống specification gaming.     |
+| **Sửa lỗi chính tả, format, rename đơn giản** |    Smaller / Light     | `gemini-3.8-flash` (Fast Worker — low/minimal thinking)         | Thao tác tất định, có khuôn mẫu rõ ràng, phản hồi tức thì, không cần suy luận sâu.     |
+| **Cập nhật tài liệu văn bản thông thường**    |     Smaller Model      | `gemini-3.8-flash` (Fast Worker)                                | Sinh văn bản mô tả chuẩn hóa, độ phức tạp logic thấp, tối ưu chi phí token.            |
 
-### 4.2. Nguyên Tắc & Nhận Thức Chi Phí (Cost Awareness)
+### 4.2. Nguyên Tắc Orchestrator–Worker Split & Nhận Thức Chi Phí (Cost Awareness)
 
+- **Phân tách Orchestrator / Deep Reasoning vs. Fast Worker**: Sử dụng `gemini-4-argon` (hoặc `claude-opus-5-5`) cho các tác vụ đòi hỏi suy luận kiến trúc, thẩm định kế hoạch (`@reviewer` fallback) và kiểm toán chất lượng (`@qa` fallback); sử dụng `gemini-3.8-flash` làm Fast Worker cho các tác vụ thực thi nhẹ, có tính tất định cao.
 - **Mặc định dùng Full Model khi chưa rõ ràng**: Tính đúng đắn của giải pháp luôn được ưu tiên hơn tiết kiệm chi phí (`Correctness > Cost savings`).
-- **Chi phí phát sinh chủ yếu từ vòng lặp retry**: Việc chọn mô hình quá yếu dẫn đến thất bại kiểm thử nhiều lần (fix ➔ verify ➔ fail ➔ fix) sẽ tốn kém token và thời gian gấp nhiều lần so với việc hoàn thành chuẩn xác ngay từ lượt đầu bằng Full Model.
+- **Chi phí phát sinh chủ yếu từ vòng lặp retry**: Việc chọn mô hình quá yếu dẫn đến thất bại kiểm thử nhiều lần (fix ➔ verify ➔ fail ➔ fix) sẽ tốn kém token và thời gian gấp nhiều lần so với việc hoàn thành chuẩn xác ngay từ lượt đầu bằng Full Model (`gemini-4-argon`).
 - **Tuyệt đối không dùng mô hình yếu cho phần nhạy cảm**: Các tác vụ liên quan đến bảo mật (Auth, RLS, Crypto, Migration) bắt buộc phải sử dụng Full Model.

@@ -90,7 +90,7 @@ Tests are NOT optional for server-side logic, utilities, and API helpers.
 
 ## File Size & Modularity Guidelines
 
-> Optimized for AI agent comprehension (Claude Opus 4.6, Gemini 3.1 Pro).
+> Optimized for AI agent comprehension (Claude Opus 4.6 / 5.5, Gemini 4 Argon, Gemini 3.1 Pro).
 > Industry consensus (2026): **150–500 lines/file** is the sweet spot.
 > Primary metric: **Single Responsibility Principle**. Line count is a heuristic, not a hard rule.
 

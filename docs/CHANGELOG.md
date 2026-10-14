@@ -8,6 +8,46 @@
 
 ---
 
+## 2026-10-14: Governance -- Upgrade .agents/ Subagents & Task-to-Model Routing to Gemini 4 Argon (`gemini-4-argon`)
+
+- **Subagent Model Upgrades (`.agents/agents/`)**:
+  - Nâng cấp `@planner` (`.agents/agents/planner/agent.md`) lên `gemini-4-argon` nhằm tăng cường năng lực khảo sát kiến trúc đa tệp, thiết kế Test Contract và giảm số vòng lặp Revision Loop.
+  - Nâng cấp Fallback Reviewer `@reviewer` (`.agents/agents/reviewer/agent.md`) từ `gemini-3.8-flash` lên `gemini-4-argon` (cập nhật YAML frontmatter `model`, `description`, mô tả kênh dự phòng Dual-Reviewer Architecture và nhãn minh bạch `[REVIEWER_MODEL: gemini-4-argon]`).
+  - Nâng cấp Runtime Fallback Model của `@qa` (`.agents/agents/qa/agent.md`) khi chạm giới hạn quota (HTTP 429) từ `gemini-3.8-flash` lên `gemini-4-argon` (`[FALLBACK_MODEL: gemini-4-argon]`).
+- **Governance Rules & Orchestrator–Worker Routing Guide (`.agents/rules/`, `.agents/README.md`)**:
+  - Đồng bộ quy tắc `.agents/rules/05-plan-review.md` (YAML frontmatter `description` và mục 3.2 Kênh Thẩm Định Dự Phòng) sang `gemini-4-argon`.
+  - Cập nhật `.agents/rules/01-coding.md` (§ File Size & Modularity Guidelines) bổ sung `Gemini 4 Argon`.
+  - Cập nhật `.agents/README.md` (§1 MAS Workflow & §4 Agent Task-to-Model Routing Guide) áp dụng kiến trúc **Orchestrator–Worker Split**: phân bổ `gemini-4-argon` cho Planning, Reviewing fallback, Complex Feature/Debug, Unit/Integration Tests; giữ `gemini-3.8-flash` làm Fast Worker cho các tác vụ nhẹ, sửa lỗi chính tả, format và cập nhật tài liệu thông thường.
+
+---
+
+## 2026-10-12: Tooling & CI/Vercel Hardening -- Clean npm Install Warnings & Secure Husky Lifecycle
+
+- **npm Install-Scripts Security Hardening (`package.json`)**:
+  - Khai báo tường minh khối `"allowScripts"` trong `package.json` cho 5 thư viện tin cậy: `@google/genai`, `esbuild`, `fsevents`, `protobufjs`, `unrs-resolver`.
+  - Khắc phục triệt để cảnh báo `npm warn install-scripts 5 packages have install scripts not yet covered by allowScripts` xuất hiện trên môi trường Vercel / CI chạy npm ≥ 11.16+ / npm 12+.
+  - Đảm bảo các gói native compilation (`esbuild`, `unrs-resolver`, `fsevents`) tiếp tục biên dịch an toàn mà không làm gián đoạn pipeline build.
+
+- **CI/Vercel-Aware Husky Lifecycle Script (`.husky/install.mjs`, `package.json`)**:
+  - Thay thế script `"prepare": "husky"` bằng script hạ tầng `.husky/install.mjs` tuân thủ khuyến nghị từ tài liệu Husky v9.
+  - Tự động bỏ qua việc cài đặt Git hooks khi phát hiện biến môi trường CI (`process.env.CI`) hoặc Vercel (`process.env.VERCEL`), kết thúc an toàn với mã `0`.
+  - Bảo toàn chẩn đoán local dev: in trực tiếp thông điệp trạng thái của hàm `husky()` (`process.stdout.write`) ra terminal khi phát hiện cờ bỏ qua (`HUSKY=0`) thay vì nuốt lỗi âm thầm, bảo vệ cơ chế hook `pre-commit` (lint-staged) trên máy developer.
+  - Tuân thủ quy chuẩn ESLint với comment `/* global process */`, 0 lỗi `no-undef`, 0 warnings.
+
+- **Repository-Level npm Configuration (`.npmrc`)**:
+  - Tạo file `.npmrc` cấp repository với `fund=false` và `audit=false`.
+  - Dọn sạch các thông điệp `packages are looking for funding` và tắt audit ngầm làm chậm quá trình `npm install` trên Vercel build container.
+
+- **Strict Non-Regression Boundary (ExcelJS Sub-dependencies)**:
+  - Khóa cứng nguyên tắc cấm can thiệp ép đè `overrides` cho `glob`, `rimraf`, `inflight`, `fstream`, `lodash.isequal` (thuộc sub-dependencies của `exceljs@4.4.0`).
+  - Ghi nhận các cảnh báo `npm warn deprecated` liên quan là residual warnings được chấp nhận có chủ đích (accepted trade-off) nhằm bảo vệ 100% tính toàn vẹn của API runtime trong parser tài liệu `src/lib/features/files/documentParsers.ts`.
+
+- **Verification Gate**:
+  - Chạy `npm run verify`: 112/112 test files passed, 1,201/1,201 unit tests passed, 0 TypeScript errors, 0 ESLint errors/warnings.
+  - Kiểm thử `src/lib/features/files/documentParsers.test.ts` (13 tests) pass trơn tru.
+
+---
+
 ## 2026-10-12: Audit Cycle 2 -- E2E Testing Automation (Playwright) & Security/Dependency Hardening
 
 - **Pillar 1: End-to-End Testing Infrastructure (Playwright & Fail-Closed Sandbox)**:

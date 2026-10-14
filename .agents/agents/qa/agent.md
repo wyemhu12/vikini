@@ -131,9 +131,9 @@ Phân cấp theo severity (thống nhất với @reviewer):
 ## Cơ Chế Runtime Fallback Model
 
 - Mô hình mặc định là `claude-4.6-opus`.
-- Khi chạm quota hoặc rate limit (HTTP 429), Orchestrator fallback sang `gemini-3.8-flash` với thinking budget tối đa (High/Max).
+- Khi chạm quota hoặc rate limit (HTTP 429), Orchestrator fallback sang `gemini-4-argon` với thinking budget tối đa (High/Max).
 - Khi fallback, BẮT BUỘC ghi rõ ở đầu báo cáo:
-  `⚠️ QA report này chạy trên model fallback [FALLBACK_MODEL: gemini-3.8-flash]. Kết quả có thể cần xác minh bổ sung.`
+  `⚠️ QA report này chạy trên model fallback [FALLBACK_MODEL: gemini-4-argon]. Kết quả có thể cần xác minh bổ sung.`
 
 ## ALLOWLIST LỆNH `run_command` Cho @qa
 

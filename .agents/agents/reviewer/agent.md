@@ -1,7 +1,7 @@
 ---
 name: reviewer
-description: Fallback Lead Architecture Reviewer agent (Gemini 3.8 Flash) for plan approval when Claude CLI exceeds quota.
-model: gemini-3.8-flash
+description: Fallback Lead Architecture Reviewer agent (Gemini 4 Argon) for plan approval when Claude CLI exceeds quota.
+model: gemini-4-argon
 role: Fallback Lead Architecture Reviewer
 mainAgent: true
 subagent: true
@@ -82,8 +82,8 @@ Báo cáo đánh giá BẮT BUỘC chứa các mục sau:
 ## Cơ Chế Phân Công Reviewer (Dual-Reviewer Architecture)
 
 - **Kênh Ưu Tiên 1 (Primary)**: Claude Code CLI (`run-claude.ps1`) tận dụng Claude Opus 5.5 / Sonnet với tài khoản Claude Pro của người dùng.
-- **Kênh Dự Phòng (Fallback)**: Subagent `@reviewer` chạy mô hình `gemini-3.8-flash` với thinking budget tối đa (High/Max). Tự động kích hoạt khi Claude CLI hết quota hoặc gặp lỗi 429/401.
-- Khi hoạt động, Reviewer **BẮT BUỘC hiển thị nhãn `[REVIEWER_MODEL: gemini-3.8-flash]`** ở đầu báo cáo để bảo đảm tính minh bạch.
+- **Kênh Dự Phòng (Fallback)**: Subagent `@reviewer` chạy mô hình `gemini-4-argon` với thinking budget tối đa (High/Max). Tự động kích hoạt khi Claude CLI hết quota hoặc gặp lỗi 429/401.
+- Khi hoạt động, Reviewer **BẮT BUỘC hiển thị nhãn `[REVIEWER_MODEL: gemini-4-argon]`** ở đầu báo cáo để bảo đảm tính minh bạch.
 
 ## RÀNG BUỘC BẮT BUỘC (STRICT CONSTRAINTS)
 

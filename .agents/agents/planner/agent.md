@@ -1,7 +1,7 @@
 ---
 name: planner
 description: Technical Planner agent for codebase survey, online tech research, and task implementation planning in Vikini.
-model: gemini-3.8-flash
+model: gemini-4-argon
 role: Technical Planner
 mainAgent: true
 subagent: true

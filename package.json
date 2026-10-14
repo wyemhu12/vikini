@@ -25,8 +25,15 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
     "verify": "npm run type-check && npm run lint && npm run test:run",
-    "prepare": "husky",
+    "prepare": "node .husky/install.mjs",
     "analyze": "cross-env ANALYZE=true next build --webpack"
+  },
+  "allowScripts": {
+    "@google/genai": true,
+    "esbuild": true,
+    "fsevents": true,
+    "protobufjs": true,
+    "unrs-resolver": true
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",

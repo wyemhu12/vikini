@@ -1,6 +1,6 @@
 ---
 trigger: always_on
-description: Multi-agent Plan-Review-Revise Loop protocol, strict code freeze, platform hook guard, zero-self-execution, uninterrupted chain, pre-flight gate, severity rubric, and dual-reviewer architecture (Claude CLI primary + Gemini Flash subagent fallback).
+description: Multi-agent Plan-Review-Revise Loop protocol, strict code freeze, platform hook guard, zero-self-execution, uninterrupted chain, pre-flight gate, severity rubric, and dual-reviewer architecture (Claude CLI primary + Gemini 4 Argon subagent fallback).
 ---
 
 # Giao Thức Plan - Review - Revise Loop & Cơ Chế Cưỡng Chế Thực Thi
@@ -38,7 +38,7 @@ Hệ thống thẩm định kiến trúc tại Vikini vận hành theo mô hình
    - Script tự động nạp prompt template chuẩn hóa (`.agents/scripts/claude-reviewer-prompt.md`) kèm đầy đủ bộ tài liệu vệ tinh (`allowlist.md`, `evidence-bar.md`, `mental-simulation.md`).
 2. **Kênh Thẩm Định Dự Phòng (Fallback Reviewer - Subagent `@reviewer`)**:
    - Khi Claude CLI hết quota Claude Pro (script trả về exit code `42` hoặc `[CLAUDE_PRO_QUOTA_EXCEEDED]`) hoặc gặp sự cố kết nối:
-   - Orchestrator **tự động chuyển giao ngay lập tức** sang subagent `@reviewer` (chạy mô hình `gemini-3.8-flash` với thinking budget tối đa).
+   - Orchestrator **tự động chuyển giao ngay lập tức** sang subagent `@reviewer` (chạy mô hình `gemini-4-argon` với thinking budget tối đa).
    - Subagent `@reviewer` thực hiện thẩm định 7 bước chuẩn mực theo đúng bộ 3 tài liệu vệ tinh trong `.agents/agents/reviewer/`.
 3. **Nguyên Tắc "Uninterrupted Execution Chain" & Tự Động Hóa Hoàn Toàn**:
    - Sau khi `@planner` hoàn thành soạn thảo, Orchestrator lập tức gọi Reviewer (Claude CLI trước, nếu fail exit 42 thì gọi `@reviewer`). Chuỗi chạy hoàn toàn tự động, không dừng lại xin phép hay hỏi quyền người dùng giữa chừng.
