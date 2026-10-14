@@ -4,7 +4,9 @@
 import { getSupabaseAdmin } from "./supabase.server";
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
-import { ServiceUnavailableError, UserBlockedError } from "@/lib/utils/errors";
+import { ForbiddenError, ServiceUnavailableError, UserBlockedError } from "@/lib/utils/errors";
+import { DEFAULT_MODEL, normalizeModelForApi, coerceStoredModel } from "./modelRegistry";
+import { MODEL_IDS } from "@/lib/utils/constants";
 
 const limitsLogger = logger.withContext("limits");
 
@@ -73,6 +75,7 @@ const BASIC_FALLBACK_CONFIG: RankConfig = {
   daily_research_limit: 0,
   max_file_size_mb: 5,
   features: { web_search: false, unlimited_gems: false, deep_research: false },
+  allowed_models: [DEFAULT_MODEL],
 };
 
 /**
@@ -439,5 +442,53 @@ export async function invalidateRankConfigsCache(): Promise<void> {
     } catch (err) {
       limitsLogger.warn("Failed to invalidate cache:", err);
     }
+  }
+}
+
+// =====================================================================================
+// Model Rank Gating
+// =====================================================================================
+
+/**
+ * Check whether a user's rank permits using the specified model.
+ * Fails closed (throws ServiceUnavailableError / UserBlockedError) if limits cannot be verified.
+ */
+export async function isModelAllowedForUser(userId: string, model: string): Promise<boolean> {
+  const limits = await getUserLimits(userId);
+  if (limits.rank === "not_whitelisted") {
+    return false;
+  }
+  const normalizedModel = normalizeModelForApi(model);
+  if (normalizedModel === MODEL_IDS.IMAGE_STUDIO || normalizedModel === MODEL_IDS.NOVELCRAFTER) {
+    return true;
+  }
+  const coercedModel = coerceStoredModel(model);
+  const allowedList = limits.allowed_models ?? [];
+  const allowedSet = new Set(
+    allowedList.flatMap((m) => [m, normalizeModelForApi(m), coerceStoredModel(m)])
+  );
+  return allowedSet.has(model) || allowedSet.has(normalizedModel) || allowedSet.has(coercedModel);
+}
+
+/**
+ * Enforce rank-based model access on the server.
+ * Throws ForbiddenError (403) if the user's rank is not permitted to use the model.
+ */
+export async function assertModelAllowedForUser(userId: string, model: string): Promise<void> {
+  const limits = await getUserLimits(userId);
+  if (limits.rank === "not_whitelisted") {
+    throw new ForbiddenError("User account is not approved to access AI models");
+  }
+  const normalizedModel = normalizeModelForApi(model);
+  if (normalizedModel === MODEL_IDS.IMAGE_STUDIO || normalizedModel === MODEL_IDS.NOVELCRAFTER) {
+    return;
+  }
+  const coercedModel = coerceStoredModel(model);
+  const allowedList = limits.allowed_models ?? [];
+  const allowedSet = new Set(
+    allowedList.flatMap((m) => [m, normalizeModelForApi(m), coerceStoredModel(m)])
+  );
+  if (!allowedSet.has(model) && !allowedSet.has(normalizedModel) && !allowedSet.has(coercedModel)) {
+    throw new ForbiddenError(`Model "${normalizedModel}" is not allowed for rank "${limits.rank}"`);
   }
 }

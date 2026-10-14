@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
+import { DEFAULT_MODEL } from "@/lib/core/modelRegistry";
 import { logger } from "@/lib/utils/logger";
 
 // Hook to fetch allowed models for current user
@@ -36,9 +36,9 @@ export function useAllowedModels(isAuthed: boolean) {
         setFeatures(feats);
       } catch (error) {
         logger.warn("Error fetching allowed models:", error);
-        // Fallback to allowing all models on error
+        // Fail closed to default model on error
         if (!cancelled) {
-          setAllowedModelIds(new Set(SELECTABLE_MODELS.map((m) => m.id)));
+          setAllowedModelIds(new Set([DEFAULT_MODEL]));
         }
       } finally {
         if (!cancelled) {

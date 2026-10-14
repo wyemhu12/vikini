@@ -392,7 +392,7 @@ export async function deleteMessage(userId: string, messageId: string): Promise<
   // 1. Fetch message and verify conversation ownership
   const { data: msg, error } = await supabase
     .from("messages")
-    .select("id, meta, conversation_id, conversations!inner(user_id)")
+    .select("id, meta, conversation_id, conversations!messages_conversation_id_fkey!inner(user_id)")
     .eq("id", messageId)
     .maybeSingle();
 
@@ -502,7 +502,7 @@ export async function deleteSingleMessage(userId: string, messageId: string) {
   // Since we are using admin client, we MUST manually verify user_id of the conversation
   const { data: msg, error } = await supabase
     .from("messages")
-    .select("conversation_id, meta, conversations!inner(user_id)")
+    .select("conversation_id, meta, conversations!messages_conversation_id_fkey!inner(user_id)")
     .eq("id", messageId)
     .single();
 

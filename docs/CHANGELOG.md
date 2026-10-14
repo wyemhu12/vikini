@@ -8,6 +8,61 @@
 
 ---
 
+## 2026-10-14: Feature -- Novelcrafter (Story & Script Studio) with Sudowrite 8-Node Story Bible & Layered GEM + Persona Routing
+
+- **Navigation, Studio Isolation & Core Constants (`src/lib/utils/constants.ts`, `src/lib/core/modelRegistry.ts`, `src/lib/core/limits.ts`, `src/app/features/sidebar/components/Sidebar.tsx`, `src/app/features/chat/components/hooks/useConversationSelectors.ts`, `src/app/features/chat/components/ChatApp.tsx`, `src/app/api/chat-stream/conversationLoader.ts`)**:
+  - Bổ sung `MODEL_IDS.NOVELCRAFTER = "vikini-novelcrafter"` vào `constants.ts`, cho phép bảo toàn model ID trong `normalizeModelForApi` (`modelRegistry.ts`) và cho phép user đã duyệt sử dụng các model nội bộ Studio (`IMAGE_STUDIO`, `NOVELCRAFTER`) trong `limits.ts`.
+  - Thêm nút **Novelcrafter** (`BookOpen` icon) nằm ngay phía trên **Image Studio** trong `Sidebar.tsx`, ẩn mục `Projects` khi ở `/novelcrafter`, và tách biệt hoàn toàn các truyện Novelcrafter khỏi danh sách Chat thường (`useConversationSelectors.ts`, `ChatApp.tsx`, `conversationLoader.ts`).
+- **Sudowrite 8-Node Story Bible & Layered GEM + Persona Prompt Engine (`src/lib/features/novelcrafter/types.ts`, `src/lib/features/novelcrafter/promptBuilder.ts`)**:
+  - Định nghĩa Zod v4 schemas cho `StoryBible` (Braindump, Genre, Style, Synopsis, Characters kèm `charactersVisibleToAI`, Worldbuilding kèm `worldbuildingVisibleToAI`, Outline), `NovelcrafterChapter` (`beats`, `content`, `summary`), `NovelcrafterRoutingConfig` (`masterGemId`, `masterPersonaId`, 5 slot tính năng `bible`, `write`, `rewrite`, `expand`, `brainstorm`), và `NovelcrafterHistoryCard`.
+  - Xây dựng `buildNovelcrafterSystemInstruction` theo kiến trúc **Ghép Tầng (Layered Mode)**: Tầng 1 `<task_instructions>` (GEM Tổng — ưu tiên số 1 tuyệt đối) + Tầng 2 `<style_preferences>` (Persona của tính năng hoặc kế thừa từ Persona Tổng qua `buildPersonaSystemPrompt`), không áp giới hạn cắt gọt 12,000 ký tự của Chat thường.
+  - Xây dựng `selectStoryBibleDependencies` và `buildNovelcrafterUserPrompt` tuân thủ đồ thị phụ thuộc 8 nút của Sudowrite Story Bible (tự động fallback từ `Synopsis` sang `Braindump` khi Synopsis trống, tôn trọng cờ hiển thị AI `charactersVisibleToAI` / `worldbuildingVisibleToAI`, và đóng gói `<story_bible>`, `<chapter_context>`, `<selected_text>`, `<feature_instruction>` vào User Prompt).
+- **Zero-Migration Encrypted Persistence & Multi-Provider SSE Stream Runner (`src/lib/features/novelcrafter/storyPersistence.server.ts`, `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts`, `src/app/api/novelcrafter/state/route.ts`, `src/app/api/novelcrafter/stream/route.ts`)**:
+  - Lưu trữ trạng thái truyện (`NovelcrafterStoryState`) dưới dạng JSON mã hóa AES-256-GCM trực tiếp (`encryptText` / `decryptText`) trong bảng `messages` (`role: "system"`, `meta.novelcrafterType = "story_state"`) kèm kiểm tra quyền sở hữu conversation (`user_id` & `model === "vikini-novelcrafter"`).
+  - Hỗ trợ đầy đủ SSE streaming đa nhà cung cấp (Gemini, Claude, Groq, OpenRouter) cho 5 nhóm công cụ AI của Novelcrafter kèm kiểm tra xác thực 3 tầng (`requireUser`, `consumeRateLimit`, `checkDailyMessageLimit`, `assertModelAllowedForUser`) và xử lý `request.signal` abort.
+- **3-Pane Sudowrite x Vikini Studio Workspace & Co-located Tests (`src/app/novelcrafter/page.tsx`, `src/app/features/novelcrafter/**`, `src/lib/utils/translations/vi.ts`, `src/lib/utils/translations/en.ts`)\*\*:
+  - Triển khai giao diện 3 cột (`NovelcrafterLeftNavigator`, `StoryBibleWorkspace` / `ChapterEditorWorkspace`, `NovelcrafterHistoryPane`), thanh công cụ `NovelcrafterTopBar` và hộp thoại `GemPersonaRoutingModal` hỗ trợ song ngữ Việt - Anh.
+  - Bổ sung đầy đủ co-located unit & integration tests tại `promptBuilder.test.ts`, `storyPersistence.server.test.ts`, `novelcrafterStreamRunner.server.test.ts`, `state/route.test.ts`, `stream/route.test.ts`, `modelRegistry.test.ts`, và `limits.test.ts`.
+
+---
+
+## 2026-10-14: Bug Fix -- Fix Delete Confirmation Modal Scrollbar Overflow & Gallery `PGRST201` Infinite Loading Loop
+
+- **Delete Confirmation Modal & Dialog Scrollport Fix (`src/components/ui/dialog.tsx`, `src/components/ui/alert-dialog.tsx`, `src/components/ui/confirm-dialog.tsx`, `src/app/features/chat/components/ChatModalsSection.tsx`, `src/app/styles/themes/_shared/base.css`, `src/app/features/image-gen/components/hooks/useImageGenStudio.ts`)**:
+  - Thêm `overflow-x-hidden` vào `DialogContent` và `AlertDialogContent` để ngăn trình duyệt tự động ép `overflow-x: auto` khi bật `overflow-y: auto`.
+  - Loại bỏ phần tử con `<div className="pointer-events-none absolute -inset-px ...">` gây tràn 1px ở cạnh phải/dưới trong `ConfirmDialogHost` và `ChatModalsSection`, thay bằng hiệu ứng viền và đổ bóng trực tiếp trên `DialogContent` (`border-(--danger)/30 ring-(--danger)/20 shadow-[0_0_40px_-10px_color-mix(in_srgb,var(--danger)_25%,transparent)]`).
+  - Bổ sung `height: 6px;` cho `::-webkit-scrollbar` và `::-webkit-scrollbar-corner { background: transparent; }` trong `base.css`.
+  - Sửa `handleDeleteProject` trong `useImageGenStudio.ts` dùng khóa dịch `studioDeleteProjectTitle` (`"Delete this project?"` / `"Xóa dự án này?"`) thay vì `deleteConfirm`.
+- **PostgREST `PGRST201` Disambiguation & Gallery Mapper (`src/lib/features/gallery/galleryMapper.ts`, `src/app/api/gallery/route.ts`, `src/app/api/gallery/[id]/route.ts`, `src/lib/features/chat/messages.ts`, `src/app/api/admin/stats/route.ts`)**:
+  - Chỉ định tường minh khóa ngoại `conversations!messages_conversation_id_fkey!inner` tại toàn bộ 5 truy vấn join giữa `messages` và `conversations`, khắc phục lỗi `PGRST201` (HTTP 500) phát sinh sau khi bảng `conversations` có thêm khóa ngoại thứ hai `conversations_forked_from_message_id_fkey`.
+  - Tách module `src/lib/features/gallery/galleryMapper.ts` (`isCiphertextHex`, `resolveMessageContent`, `paginateAndMapGalleryRows`) hỗ trợ `meta.editPrompt`, giải mã an toàn ciphertext hex mà không làm lộ chuỗi hex hay làm mất plaintext dưới `happy-dom`, kèm unit test co-located `galleryMapper.test.ts` và cập nhật `src/app/api/gallery/route.test.ts`.
+- **Gallery Infinite Scroll Loop & Concurrency Guard (`src/app/features/gallery/components/hooks/useGalleryController.ts`, `src/app/features/gallery/components/GalleryView.tsx`, `src/lib/utils/translations/en.ts`, `src/lib/utils/translations/vi.ts`)**:
+  - Khởi tạo `hasMore = false`, đặt `setHasMore(false)` kèm `toast.error(t("galleryLoadFailed"))` khi API lỗi, tách `isFetchingMoreRef` và `requestIdRef` để chống gọi trùng khi cuộn trang và chống race condition khi bật/tắt bộ lọc Favorites.
+  - Chỉ render phần tử sentinel `loadMoreRef` khi `!g.loading && g.hasMore && g.filteredImages.length > 0`, chấm dứt hiện tượng vòng xoay loading lặp vô tận và nhấp nháy `"Scroll to load more..."`.
+
+---
+
+## 2026-10-14: Feature -- Integrate Gemini 4 Argon (`gemini-4-argon`) Model & Server-Side Model Rank Gating
+
+- **Model Registry & Constants (`src/lib/utils/constants.ts`, `src/lib/core/modelRegistry.ts`)**:
+  - Bổ sung `MODEL_IDS.GEMINI_4_ARGON = "gemini-4-argon"` vào `SELECTABLE_MODELS`, `API_ALLOWED` và alias `"gemini-4-argon-preview"` trong `MODEL_ALIASES`.
+  - Cấu hình `tokenLimit: 1048576` (1M unified context window), `maxOutputTokens: 65536` (64K standard streaming cap), `supportedThinkingLevels: ["low", "medium", "high"]`, `providerId: "gemini"`, và helper `isGemini4Model()`.
+- **Server-Side Model Rank Gating (`src/lib/core/limits.ts`, `src/lib/features/chat/conversations.ts`, `src/app/api/chat-stream/`)**:
+  - Bổ sung `isModelAllowedForUser()` và `assertModelAllowedForUser()` trong `src/lib/core/limits.ts` (kèm `allowed_models: [DEFAULT_MODEL]` trong `BASIC_FALLBACK_CONFIG` và fail-closed `DEFAULT_MODEL` trong `useAllowedModels.ts`).
+  - Cưỡng chế kiểm tra quyền hạn model theo rank tại `setConversationModel`, `doSaveConversation` và `handleChatStreamCore`; bảo toàn `AppError` qua `conversationLoader.ts` và chỉ tăng `incrementDailyMessageCount` khi `response.ok` là `true`.
+- **Always-On Thinking, Implicit Caching Guard, Tool Context Circulation & 15m Timeout**:
+  - `useThinkingLevel.ts` & `ThinkingLevelSelector.tsx`: Ẩn tùy chọn `"off"` đối với dòng model Gemini 4 và tự động kẹp `"off"`/`"minimal"` về `"low"`.
+  - `gemini-stream.ts`: Đảm bảo `gemini-4-argon` luôn gửi `thinkingConfig: { thinkingLevel, includeThoughts: true }` (mặc định `"medium"` khi `undefined`, kẹp `"off"`/`"minimal"` về `"low"`). Xử lý lỗi HTTP 401/403/404 (`MODEL_TIER_RESTRICTED`) và `StreamTimeoutError` mà không retry nhánh `[TOOLS FALLBACK]`.
+  - `contextCache.ts`: Bỏ qua Explicit Context Caching (`caches.create`) cho `gemini-4*` để tận dụng cơ chế Implicit Caching tự động của Gemini 4 Argon.
+  - `contextBuilder.ts`: Bật Tool Context Circulation (`googleSearch` + `codeExecution` + `functionDeclarations` + `includeServerSideToolInvocations: true`) cho `gemini-4*`.
+  - `streaming/types.ts`, `streaming/utils.ts`, `chat-stream/route.ts`: Thêm `TIMEOUT_CONFIG.ARGON = 900000` (15 phút) và `export const maxDuration = 800`.
+- **Bilingual i18n, Database Migration & Co-located Tests**:
+  - Cập nhật `en.ts`, `vi.ts`, `useChatTranslations.ts` (`"gemini-4-argon"`, `"modelDescArgon4"`).
+  - Thêm migration `database-migrations/20261014000000_add_gemini_4_argon.sql` cấp quyền `gemini-4-argon` cho hạng `admin` và `pro`.
+  - Bổ sung đầy đủ unit tests tại `modelRegistry.test.ts`, `limits.test.ts`, `conversations.test.ts`, `contextCache.test.ts`, `contextBuilder.test.ts`, `gemini-stream.test.ts`, và `useThinkingLevel.test.ts`.
+
+---
+
 ## 2026-10-14: Siết chuẩn thẩm định của Fallback Reviewer (`@reviewer`)
 
 - **`.agents/agents/reviewer/agent.md`**: Các lượt approve của `@reviewer` thời còn chạy `gemini-3.8-flash` từng bị lật lại 2/4 lần (`ui-audit` Run 3 → Claude Run 4 tìm ra 3 MAJOR; `phase-2` Run 3 bị PO thu hồi → Run 4 tìm ra 5 MAJOR). Các quy tắc dưới đây áp dụng cho fallback hiện tại (`gemini-4-argon`).

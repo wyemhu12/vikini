@@ -18,7 +18,9 @@ import {
 } from "@/lib/core/modelRegistry";
 import { CLAUDE_API_MODELS, MODEL_IDS } from "@/lib/utils/constants";
 import { getOrCreateCompositeCache } from "@/lib/core/contextCache";
+import { assertModelAllowedForUser } from "@/lib/core/limits";
 import { error } from "@/lib/utils/apiResponse";
+import { AppError } from "@/lib/utils/errors";
 import { saveMessage, upsertMessage } from "@/lib/features/chat/messages";
 import { linkFilesToMessage } from "@/lib/features/files/fileService.server";
 import { setConversationAutoTitle } from "@/lib/features/chat/conversations";
@@ -98,6 +100,7 @@ export async function handleChatStreamCore({
   try {
     convContext = await loadOrCreateConversation(userId, conversationIdRaw);
   } catch (e) {
+    if (e instanceof AppError) throw e;
     const errorMsg = e as Error;
     return error(
       errorMsg?.message || "Failed to load/create conversation",
@@ -114,6 +117,11 @@ export async function handleChatStreamCore({
     model,
     modelLimitTokens,
   } = convContext;
+
+  // Enforce rank-based model access; throws ForbiddenError (403) or ServiceUnavailableError (503)
+  // directly to route.ts:108 so daily message count is NOT incremented on rejection.
+  await assertModelAllowedForUser(userId, model);
+
   const createdConversation = convContext.isNew ? conversation : null;
   const finalShouldGenerateTitle = shouldGenerateTitle && !regenerate;
 

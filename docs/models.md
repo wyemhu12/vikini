@@ -1,10 +1,48 @@
 # Danh sách Model và Tính năng - Vikini
 
-> **Updated**: 2026-05-03  
-> **Nguồn**: [Google AI - Gemini Models](https://ai.google.dev/gemini-api/docs/models), [DeepSeek API](https://api-docs.deepseek.com/), [OpenRouter](https://openrouter.ai)
+> **Updated**: 2026-10-14  
+> **Nguồn**: [Google AI - Gemini Models](https://ai.google.dev/gemini-api/docs/models), [What's new in Gemini 4 Argon](https://ai.google.dev/gemini-api/docs/latest-model), [DeepSeek API](https://api-docs.deepseek.com/), [OpenRouter](https://openrouter.ai)
 
 > [!NOTE]
 > Để tham khảo hướng dẫn phân bổ model cho AI Coding Agents, xem [Agent Task-to-Model Routing Guide](../.agents/README.md#agent-task-to-model-routing).
+
+---
+
+## Gemini 4 Series
+
+> [!IMPORTANT]
+> **Gemini 4 Argon Architecture & Policy (October 2026)**:
+>
+> - **Always-On Thinking**: `gemini-4-argon` không cho phép tắt thinking (`off`) và không hỗ trợ `minimal`. Các bậc hợp lệ là `low`, `medium` (mặc định), `high`.
+> - **Implicit Context Caching Only**: Tự động áp dụng chiết khấu 95% trên tiền tố lặp lại (tối thiểu 2,048 tokens); không hỗ trợ Explicit Context Caching (`caches.create`).
+> - **15-Minute Timeout**: Áp dụng `TIMEOUT_CONFIG.ARGON = 900,000ms` (15 phút) trên self-hosted Node.js và `maxDuration = 800s` trên Vercel Pro.
+> - **Paid-Tier Only**: Chỉ khả dụng trên khóa API Gemini trả phí (cấp quyền cho hạng `pro` và `admin`).
+
+### gemini-4-argon
+
+| Thuộc tính                | Giá trị                                            |
+| ------------------------- | -------------------------------------------------- |
+| **Tên hiển thị**          | Gemini 4 Argon                                     |
+| **Alias tương thích**     | `gemini-4-argon-preview`                           |
+| **Unified context limit** | 1,048,576 (1M)                                     |
+| **Output token limit**    | 65,536 (64K streaming standard)                    |
+| **Inputs**                | Text, Image, Video, Audio, PDF                     |
+| **Outputs**               | Text                                               |
+| **Pricing (Intro)**       | \$2.00 / 1M input, \$10.00 / 1M output (+thinking) |
+
+**Supported Features:**
+| Feature | Status |
+|---------|--------|
+| Thinking Mode | ✅ Always-On (`low`, `medium` default, `high` — no `off`) |
+| Search Grounding | ✅ Supported (with Tool Context Circulation) |
+| URL Context | ✅ Supported |
+| Function Calling | ✅ Supported |
+| Code Execution | ✅ Supported |
+| Structured Outputs | ✅ Supported |
+| Implicit Caching | ✅ Automatic (95% discount, min 2,048 tokens) |
+| Explicit Caching (`caches.create`) | ❌ Not supported |
+| Image Generation | ❌ Not supported |
+| Live API | ❌ Not supported |
 
 ---
 
@@ -17,7 +55,7 @@
 > [!IMPORTANT]
 > **Gemini Thinking Level & Sampling Migration (October 2026)**:
 >
-> - **Gemini 3+**: Chuyển đổi toàn diện sang `thinkingLevel` (`minimal`, `low`, `medium`, `high`) theo chuẩn Google GenAI SDK mới.
+> - **Gemini 3+ / 4+**: Chuyển đổi toàn diện sang `thinkingLevel` (`minimal`, `low`, `medium`, `high`) theo chuẩn Google GenAI SDK mới.
 > - **Gemini 2.5**: Tiếp tục sử dụng `thinkingBudget: -1` (dynamic thinking) cho backward compatibility với model mặc định `gemini-2.5-flash`.
 > - **Mutual Exclusion Invariant**: Tuyệt đối không gửi đồng thời `thinkingLevel` và `thinkingBudget` trong cùng một request config.
 > - **Sampling Parameters Sanitization**: Toàn bộ tham số sampling tùy biến (`temperature`, `top_p`, `top_k`) đã được loại bỏ khỏi các request gọi Gemini API (`gemini-stream.ts`, `autoTitleEngine.ts`, `fileProcessors.ts`) để tuân thủ khuyến nghị của Google và tránh lỗi 400 trong các thế hệ model mới.

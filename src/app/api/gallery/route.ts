@@ -2,44 +2,17 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
+import { decryptText } from "@/lib/core/encryption";
+import {
+  paginateAndMapGalleryRows,
+  type GalleryMessageRow,
+} from "@/lib/features/gallery/galleryMapper";
 import { MODEL_IDS } from "@/lib/utils/constants";
 import { UnauthorizedError, ValidationError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { logger } from "@/lib/utils/logger";
 
 const routeLogger = logger.withContext("GET /api/gallery");
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface MessageRow {
-  id: string;
-  content: string | null;
-  role?: string;
-  created_at: string;
-  meta: {
-    type?: string;
-    imageUrl?: string;
-    prompt?: string;
-    attachment?: { url?: string };
-    originalOptions?: {
-      aspectRatio?: string;
-      style?: string;
-      model?: string;
-    };
-  } | null;
-}
-
-interface GalleryImage {
-  id: string;
-  url: string;
-  prompt: string;
-  createdAt: string;
-  aspectRatio?: string;
-  style?: string;
-  model?: string;
-}
 
 // ============================================================================
 // Input Validation
@@ -81,7 +54,7 @@ export async function GET(req: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    // 3. DB-Level query: join messages with conversations
+    // 3. DB-Level query: join messages with conversations via explicit FK
     // SECURITY & SCOPE: Filters by user_id, excludes USER_TEMPLATES_STORE,
     // includes Image Studio, uses PostgREST JSONB filtering and DB pagination.
     let query = supabase
@@ -92,7 +65,7 @@ export async function GET(req: NextRequest) {
         content,
         created_at,
         meta,
-        conversations!inner(
+        conversations!messages_conversation_id_fkey!inner(
           user_id,
           model
         )
@@ -118,25 +91,8 @@ export async function GET(req: NextRequest) {
       throw dbError;
     }
 
-    const rawRows = (data || []) as unknown as MessageRow[];
-    const hasMore = rawRows.length > limit;
-    const items = hasMore ? rawRows.slice(0, limit) : rawRows;
-
-    const images: GalleryImage[] = items
-      .map((msg) => {
-        const meta = msg.meta;
-        const url = meta?.imageUrl || meta?.attachment?.url || "";
-        return {
-          id: msg.id,
-          url,
-          prompt: meta?.prompt || msg.content || "",
-          createdAt: msg.created_at,
-          aspectRatio: meta?.originalOptions?.aspectRatio,
-          style: meta?.originalOptions?.style,
-          model: meta?.originalOptions?.model,
-        };
-      })
-      .filter((img) => img.url);
+    const rawRows = (data || []) as unknown as GalleryMessageRow[];
+    const { images, hasMore } = paginateAndMapGalleryRows(rawRows, limit, decryptText);
 
     return success({ images, hasMore });
   } catch (err: unknown) {

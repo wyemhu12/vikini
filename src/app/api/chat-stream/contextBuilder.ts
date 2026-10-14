@@ -115,17 +115,17 @@ export function setupToolsAndSafety(
   toolConfig: Record<string, unknown> | undefined;
 } {
   const tools: Array<Record<string, unknown>> = [];
-  const isGemini3 = model.startsWith("gemini-3");
+  const isGemini3Or4 = model.startsWith("gemini-3") || model.startsWith("gemini-4");
   const useGoogleSearch = enableWebSearch && WEB_SEARCH_AVAILABLE;
 
   if (useGoogleSearch) {
     tools.push({ googleSearch: {} });
   }
 
-  // Gemini 3+ supports combining googleSearch with other tools via Tool Context Circulation.
+  // Gemini 3+ and Gemini 4+ support combining googleSearch with other tools via Tool Context Circulation.
   // Requires includeServerSideToolInvocations: true in toolConfig.
   // Gemini 2.5 CANNOT mix googleSearch with codeExecution/functionDeclarations - send search alone.
-  if (isGemini3 || !useGoogleSearch) {
+  if (isGemini3Or4 || !useGoogleSearch) {
     tools.push({ codeExecution: {} });
     const declarations = getAllDeclarations();
     if (declarations.length > 0) {
@@ -133,10 +133,10 @@ export function setupToolsAndSafety(
     }
   }
 
-  // Enable Tool Context Circulation for Gemini 3 when mixing built-in + custom tools
+  // Enable Tool Context Circulation for Gemini 3/4 when mixing built-in + custom tools
   // https://ai.google.dev/gemini-api/docs/tool-combination
   const toolConfig =
-    isGemini3 && useGoogleSearch ? { includeServerSideToolInvocations: true } : undefined;
+    isGemini3Or4 && useGoogleSearch ? { includeServerSideToolInvocations: true } : undefined;
 
   let safetySettings: unknown[] | null = null;
   const safetyJson = pickFirstEnv(["GEMINI_SAFETY_SETTINGS_JSON"]);

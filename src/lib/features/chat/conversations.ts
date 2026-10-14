@@ -16,6 +16,7 @@ import {
 } from "@/lib/core/cache";
 import { NotFoundError, ForbiddenError, DatabaseError } from "@/lib/utils/errors";
 import { decryptText } from "@/lib/core/encryption";
+import { assertModelAllowedForUser } from "@/lib/core/limits";
 
 // ------------------------------
 // Deduplication: Prevent race conditions when creating conversations
@@ -365,6 +366,9 @@ async function doSaveConversation(
   const supabase = getSupabaseAdmin();
   const title = typeof payload?.title === "string" ? payload.title : CONVERSATION_DEFAULTS.TITLE;
   const model = coerceStoredModel(payload?.model);
+  if (payload?.model !== undefined) {
+    await assertModelAllowedForUser(userId, model);
+  }
   const now = new Date().toISOString();
 
   const attempt1 = await supabase
@@ -482,6 +486,7 @@ export async function setConversationModel(
 
   // Validate model is in allowed list
   const finalModel = isSelectableModelId(model) ? model : DEFAULT_MODEL;
+  await assertModelAllowedForUser(userId, finalModel);
 
   // PERFORMANCE: Use RETURNING clause to avoid extra query
   const { data, error } = await supabase

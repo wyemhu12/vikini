@@ -1,5 +1,6 @@
 // /app/api/chat-stream/streaming/utils.ts
 import { logger } from "@/lib/utils/logger";
+import { normalizeModelForApi } from "@/lib/core/modelRegistry";
 import { TIMEOUT_CONFIG, StreamTimeoutError, type ThinkingLevel } from "./types";
 
 export const streamLogger = logger.withContext("/api/chat-stream");
@@ -19,6 +20,10 @@ function getStreamTimeout(model?: string, thinkingLevel?: ThinkingLevel): number
 
   // Model-specific timeouts with thinking level consideration
   if (model) {
+    const normalized = normalizeModelForApi(model);
+    if (normalized.startsWith("gemini-4") || model.includes("argon")) {
+      return TIMEOUT_CONFIG.ARGON;
+    }
     if (model.includes("pro")) {
       return isDeepThinking ? TIMEOUT_CONFIG.PRO_DEEP_THINKING : TIMEOUT_CONFIG.PRO;
     }
@@ -147,10 +152,12 @@ export function safeText(respOrChunk: unknown): string {
 }
 
 /**
- * Check if a model is Gemini 3 series (requires thoughtSignature handling)
+ * Check if a model is Gemini 3/4 series (requires thoughtSignature handling)
  */
 export function isGemini3Model(model: string): boolean {
   const gemini3Identifiers = [
+    "gemini-4-argon",
+    "gemini-4-argon-preview",
     "gemini-3-pro",
     "gemini-3-flash",
     "gemini-3-pro-preview",

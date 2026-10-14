@@ -1,6 +1,9 @@
 // /app/api/chat-stream/route.ts
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Maximum allowed duration on Vercel Pro (800s = 13m20s).
+// Self-hosted Node.js deployments enforce TIMEOUT_CONFIG.ARGON (900,000ms = 15m).
+export const maxDuration = 800;
 
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/features/auth/auth";
@@ -96,14 +99,16 @@ export async function POST(req: NextRequest) {
 
     const response = await handleChatStreamCore({ req, userId });
 
-    // Increment daily message count after successful stream initiation
-    try {
-      await incrementDailyMessageCount(userId);
-    } catch (err) {
-      routeLogger.error("Failed to increment message count:", err);
+    // Increment daily message count only after successful stream initiation
+    if (response.ok) {
+      try {
+        await incrementDailyMessageCount(userId);
+      } catch (err) {
+        routeLogger.error("Failed to increment message count:", err);
+      }
     }
 
-    perfMonitor.end(200, { streaming: true });
+    perfMonitor.end(response.status, { streaming: response.ok });
     return response;
   } catch (e) {
     routeLogger.error("Route error:", e);

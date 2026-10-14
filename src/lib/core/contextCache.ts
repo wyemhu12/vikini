@@ -118,8 +118,9 @@ export async function getOrCreateCompositeCache(
     return null;
   }
 
-  // Guard: only Gemini models support explicit caching
-  if (!config.model.startsWith("gemini-")) {
+  // Guard: only Gemini 2.5 / 3.x models support explicit caching.
+  // Gemini 4 Argon uses automatic implicit caching and does not support explicit caches.create().
+  if (!config.model.startsWith("gemini-") || config.model.startsWith("gemini-4")) {
     return null;
   }
 
@@ -212,8 +213,8 @@ export async function getOrCreateKBCache(
   kbContents: unknown[],
   ttlSeconds: number = KB_CACHE_TTL_SECONDS
 ): Promise<CacheResult | null> {
-  // Guard: only Gemini models
-  if (!model.startsWith("gemini-")) {
+  // Guard: only Gemini 2.5 / 3.x models support explicit caching
+  if (!model.startsWith("gemini-") || model.startsWith("gemini-4")) {
     return null;
   }
 

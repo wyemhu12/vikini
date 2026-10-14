@@ -6,23 +6,24 @@ import {
   getSupportedGeminiThinkingLevels,
   clampGeminiThinkingLevel,
   isGLMModel,
+  isGemini4Model,
 } from "@/lib/core/modelRegistry";
 
 /**
  * Thinking levels supported by AI models.
  * - "off" (default): No thinking mode
  * - "low": Faster responses, less reasoning
- * - "medium": Balanced (Gemini Flash only)
+ * - "medium": Balanced (Gemini Flash / Gemini 4 Argon)
  * - "high": Maximum reasoning depth
  * - "minimal": Near-zero thinking (Gemini Flash only)
  */
 export type ThinkingLevel = "off" | "high" | "low" | "medium" | "minimal";
 
 /**
- * Check if a model is a Gemini 3 model (supports thinkingLevel config)
+ * Check if a model is a Gemini 3 or Gemini 4 model (supports thinkingLevel config)
  */
 export function isGemini3Model(model: string): boolean {
-  return model.includes("gemini-3") || model.includes("gemini-3.");
+  return model.includes("gemini-3") || model.includes("gemini-3.") || model.includes("gemini-4");
 }
 
 /**
@@ -63,7 +64,7 @@ export function isDeepSeekV4Model(model: string): boolean {
 /**
  * Check if a model supports thinking UI toggle
  * - Gemini 2.5+: thinkingBudget
- * - Gemini 3+: thinkingLevel
+ * - Gemini 3+/4+: thinkingLevel
  * - Claude Sonnet/Opus: extended thinking (budget_tokens)
  * - DeepSeek V4: reasoning_content (high/max)
  */
@@ -98,6 +99,10 @@ export function getAvailableThinkingLevels(currentModel: string): ThinkingLevel[
   if (isClaudeThinkingModel(currentModel)) return ["off", "high"];
   if (isDeepSeekV4Model(currentModel)) return ["off", "low", "high"];
   if (isGemini25Model(currentModel)) return ["off", "low", "high"];
+  if (isGemini4Model(currentModel)) {
+    // Gemini 4 Argon cannot disable thinking; expose only ["low", "medium", "high"]
+    return [...getSupportedGeminiThinkingLevels(currentModel)];
+  }
   const geminiSupported = getSupportedGeminiThinkingLevels(currentModel);
   if (geminiSupported.length > 0) {
     return ["off", ...geminiSupported];
@@ -113,6 +118,14 @@ export function getEffectiveThinkingLevel(
   currentModel: string,
   requestedLevel: ThinkingLevel
 ): ThinkingLevel {
+  if (isGemini4Model(currentModel)) {
+    // Thinking cannot be disabled on Gemini 4; map "off" or "minimal" to "low"
+    return clampGeminiThinkingLevel(
+      currentModel,
+      requestedLevel === "off" ? "low" : requestedLevel
+    );
+  }
+
   if (requestedLevel === "off" || !modelSupportsThinkingUI(currentModel)) {
     return "off";
   }

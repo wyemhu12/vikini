@@ -470,8 +470,46 @@ describe("/api/gallery", () => {
 
       await GET(createRequest("/api/gallery?limit=20&offset=0"));
 
-      // Verify query used lowercased email
+      // Verify query used lowercased email and explicit FK constraint (PGRST201 fix)
       expect(chain.eq).toHaveBeenCalledWith("conversations.user_id", "test@example.com");
+      expect(chain.select).toHaveBeenCalledWith(
+        expect.stringContaining("conversations!messages_conversation_id_fkey!inner")
+      );
+    });
+
+    it("should map meta.editPrompt when meta.prompt is absent", async () => {
+      vi.mocked(auth).mockResolvedValue(
+        AUTHENTICATED_SESSION as unknown as ReturnType<typeof auth> extends Promise<infer T>
+          ? T
+          : never
+      );
+
+      mockBothQueries(
+        { data: SAMPLE_CONVERSATIONS, error: null },
+        {
+          data: [
+            {
+              id: "msg-edit-1",
+              content: "Edited Image: Add neon lights",
+              role: "assistant",
+              created_at: "2026-06-05T00:00:00Z",
+              meta: {
+                type: "image_edit",
+                imageUrl: "https://cdn.example.com/edit1.png",
+                editPrompt: "Add neon lights",
+              },
+            },
+          ],
+          error: null,
+        }
+      );
+
+      const res = await GET(createRequest("/api/gallery?limit=20&offset=0"));
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.data.images).toHaveLength(1);
+      expect(json.data.images[0].prompt).toBe("Add neon lights");
     });
 
     it("should paginate a large set correctly with explicit limit", async () => {

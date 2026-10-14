@@ -75,9 +75,11 @@ export function useGalleryController() {
 
   // Infinite scroll
   const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const isFetchingMoreRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   const PAGE_SIZE = 20;
 
@@ -85,12 +87,18 @@ export function useGalleryController() {
   const fetchImages = useCallback(
     async (isLoadMore = false) => {
       if (isLoadMore) {
+        if (isFetchingMoreRef.current) return;
+        isFetchingMoreRef.current = true;
         setLoadingMore(true);
       } else {
+        requestIdRef.current += 1;
+        isFetchingMoreRef.current = false;
+        setLoadingMore(false);
         setLoading(true);
         setOffset(0);
       }
 
+      const currentRequestId = requestIdRef.current;
       const currentOffset = isLoadMore ? offset : 0;
 
       try {
@@ -98,28 +106,47 @@ export function useGalleryController() {
         const res = await fetch(
           `/api/gallery?limit=${PAGE_SIZE}&offset=${currentOffset}${favParam}`
         );
-        if (res.ok) {
-          const json = await res.json();
-          const data = json.data || json;
-          const newImages = data.images || [];
 
-          if (isLoadMore) {
-            setImages((prev) => [...prev, ...newImages]);
-          } else {
-            setImages(newImages);
-          }
+        if (currentRequestId !== requestIdRef.current) return;
 
-          setHasMore(data.hasMore || false);
-          setOffset(currentOffset + newImages.length);
+        if (!res.ok) {
+          setHasMore(false);
+          toast.error(t("galleryLoadFailed"));
+          return;
         }
+
+        const json = await res.json();
+        if (currentRequestId !== requestIdRef.current) return;
+
+        const data = json.data || json;
+        const newImages = data.images || [];
+
+        if (isLoadMore) {
+          setImages((prev) => [...prev, ...newImages]);
+        } else {
+          setImages(newImages);
+        }
+
+        const nextHasMore = Boolean(data.hasMore) && newImages.length > 0;
+        setHasMore(nextHasMore);
+        setOffset(currentOffset + newImages.length);
       } catch (error) {
         logger.error("Failed to load gallery:", error);
+        if (currentRequestId === requestIdRef.current) {
+          setHasMore(false);
+          toast.error(t("galleryLoadFailed"));
+        }
       } finally {
-        setLoading(false);
-        setLoadingMore(false);
+        if (isLoadMore) {
+          isFetchingMoreRef.current = false;
+          setLoadingMore(false);
+        }
+        if (currentRequestId === requestIdRef.current && !isLoadMore) {
+          setLoading(false);
+        }
       }
     },
-    [offset, showFavoritesOnly]
+    [offset, showFavoritesOnly, t]
   );
 
   // Initial load
@@ -288,11 +315,11 @@ export function useGalleryController() {
         } else {
           const json = await res.json();
           logger.error("Delete failed:", json.error?.message || json.error);
-          toast.error("Failed to delete image");
+          toast.error(t("galleryDeleteFailed"));
         }
       } catch (error) {
         logger.error("Delete error:", error);
-        toast.error("Failed to delete image");
+        toast.error(t("galleryDeleteFailed"));
       } finally {
         setDeleting(null);
       }

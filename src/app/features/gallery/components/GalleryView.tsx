@@ -133,7 +133,7 @@ export function GalleryView() {
                 {g.t("galleryYourCreations")}
                 {!g.loading && (
                   <span className="ml-2 text-sm font-normal">
-                    ({g.filteredImages.length} images)
+                    ({g.filteredImages.length} {g.t("galleryImagesCount")})
                   </span>
                 )}
               </h2>
@@ -253,12 +253,12 @@ export function GalleryView() {
             )}
 
             {/* Infinite scroll trigger */}
-            {!g.loading && g.hasMore && (
+            {!g.loading && g.hasMore && g.filteredImages.length > 0 && (
               <div ref={g.loadMoreRef} className="flex justify-center py-8">
                 {g.loadingMore ? (
                   <Loader2 className="w-6 h-6 animate-spin text-(--accent)" />
                 ) : (
-                  <p className="text-sm text-(--text-secondary)">Scroll to load more...</p>
+                  <p className="text-sm text-(--text-secondary)">{g.t("galleryScrollForMore")}</p>
                 )}
               </div>
             )}

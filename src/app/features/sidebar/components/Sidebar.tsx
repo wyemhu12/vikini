@@ -29,6 +29,7 @@ import {
   Loader2,
   Search,
   X,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { toast } from "@/lib/store/toastStore";
@@ -327,6 +328,13 @@ function Sidebar({
           </>
         )}
         <SidebarButton
+          onClick={() => handleNavigation("/novelcrafter", isMobile)}
+          icon={BookOpen}
+          label={t("novelcrafterStudio")}
+          variant={pathname?.includes("/novelcrafter") ? "primary" : "default"}
+          isCollapsed={isCollapsed}
+        />
+        <SidebarButton
           onClick={() => handleNavigation("/images", isMobile)}
           icon={ImageIcon}
           label={t("imageStudio")}
@@ -385,60 +393,66 @@ function Sidebar({
           )}
 
           {/* Projects Section */}
-          {!isCollapsed && !pathname?.includes("/images") && (
-            <SidebarSection
-              label={t("projects")}
-              storageKey="projects"
-              defaultExpanded={true}
-              count={projects.length}
-              action={{
-                label: t("newProject"),
-                icon: <Plus className="h-4 w-4" />,
-                onClick: () => setShowCreateProject(true),
-              }}
-            >
-              {projects.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 py-4 text-center">
-                  <FolderPlus className="w-6 h-6 text-(--text-secondary) opacity-50" />
-                  <span className="text-xs text-(--text-secondary)">{t("noProjects")}</span>
-                  <span className="text-xs text-(--text-secondary)">{t("createProjectHint")}</span>
-                </div>
-              ) : (
-                projects.map((project) => {
-                  // Get conversations for this project
-                  const projectConvs = allConversations.filter((c) => c.projectId === project.id);
-                  return (
-                    <ProjectNode
-                      key={project.id}
-                      project={project}
-                      conversations={projectConvs}
-                      activeConversationId={currentId}
-                      onSelect={(projectId) => {
-                        if (onSelectProject) {
-                          onSelectProject(projectId);
-                        }
-                      }}
-                      onSelectConversation={(id) => {
-                        handleSelect(id);
-                      }}
-                      onNewChat={async (projectId) => {
-                        if (onCreateProjectChat) {
-                          await onCreateProjectChat(projectId);
-                        }
-                      }}
-                      onRenameConversation={onRenameProjectConversation}
-                      onDeleteConversation={onDeleteProjectConversation}
-                    />
-                  );
-                })
-              )}
-            </SidebarSection>
-          )}
+          {!isCollapsed &&
+            !pathname?.includes("/images") &&
+            !pathname?.includes("/novelcrafter") && (
+              <SidebarSection
+                label={t("projects")}
+                storageKey="projects"
+                defaultExpanded={true}
+                count={projects.length}
+                action={{
+                  label: t("newProject"),
+                  icon: <Plus className="h-4 w-4" />,
+                  onClick: () => setShowCreateProject(true),
+                }}
+              >
+                {projects.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 py-4 text-center">
+                    <FolderPlus className="w-6 h-6 text-(--text-secondary) opacity-50" />
+                    <span className="text-xs text-(--text-secondary)">{t("noProjects")}</span>
+                    <span className="text-xs text-(--text-secondary)">
+                      {t("createProjectHint")}
+                    </span>
+                  </div>
+                ) : (
+                  projects.map((project) => {
+                    // Get conversations for this project
+                    const projectConvs = allConversations.filter((c) => c.projectId === project.id);
+                    return (
+                      <ProjectNode
+                        key={project.id}
+                        project={project}
+                        conversations={projectConvs}
+                        activeConversationId={currentId}
+                        onSelect={(projectId) => {
+                          if (onSelectProject) {
+                            onSelectProject(projectId);
+                          }
+                        }}
+                        onSelectConversation={(id) => {
+                          handleSelect(id);
+                        }}
+                        onNewChat={async (projectId) => {
+                          if (onCreateProjectChat) {
+                            await onCreateProjectChat(projectId);
+                          }
+                        }}
+                        onRenameConversation={onRenameProjectConversation}
+                        onDeleteConversation={onDeleteProjectConversation}
+                      />
+                    );
+                  })
+                )}
+              </SidebarSection>
+            )}
 
           {/* Divider between Projects and Chats */}
-          {!isCollapsed && !pathname?.includes("/images") && (
-            <div className="h-px bg-(--border)/40 my-2 mx-2" />
-          )}
+          {!isCollapsed &&
+            !pathname?.includes("/images") &&
+            !pathname?.includes("/novelcrafter") && (
+              <div className="h-px bg-(--border)/40 my-2 mx-2" />
+            )}
 
           {/* Your chats Section */}
           {!isCollapsed && (

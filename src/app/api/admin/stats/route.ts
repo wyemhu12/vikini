@@ -30,7 +30,10 @@ export async function GET(req: NextRequest) {
 
       const { count: msgCount } = await supabase
         .from("messages")
-        .select("id, conversations!inner(user_id)", { count: "exact", head: true })
+        .select("id, conversations!messages_conversation_id_fkey!inner(user_id)", {
+          count: "exact",
+          head: true,
+        })
         .eq("conversations.user_id", canonicalEmail);
 
       return success({

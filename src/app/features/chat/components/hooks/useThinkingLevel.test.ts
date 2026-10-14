@@ -82,6 +82,10 @@ describe("getAvailableThinkingLevels", () => {
   it("returns off, high for GLM 5.2", () => {
     expect(getAvailableThinkingLevels("z-ai/glm-5.2")).toEqual(["off", "high"]);
   });
+
+  it("returns low, medium, high (without off) for Gemini 4 Argon", () => {
+    expect(getAvailableThinkingLevels("gemini-4-argon")).toEqual(["low", "medium", "high"]);
+  });
 });
 
 describe("getEffectiveThinkingLevel", () => {
@@ -94,6 +98,13 @@ describe("getEffectiveThinkingLevel", () => {
   it("Gemini 3.1 Pro clamps minimal to low", () => {
     expect(getEffectiveThinkingLevel("gemini-3.1-pro-preview", "minimal")).toBe("low");
     expect(getEffectiveThinkingLevel("gemini-3.1-pro-preview", "medium")).toBe("medium");
+  });
+
+  it("Gemini 4 Argon clamps off and minimal to low and preserves medium/high", () => {
+    expect(getEffectiveThinkingLevel("gemini-4-argon", "minimal")).toBe("low");
+    expect(getEffectiveThinkingLevel("gemini-4-argon", "off")).toBe("low");
+    expect(getEffectiveThinkingLevel("gemini-4-argon", "medium")).toBe("medium");
+    expect(getEffectiveThinkingLevel("gemini-4-argon", "high")).toBe("high");
   });
 
   it("Gemini 3 Flash preserves supported levels", () => {
@@ -127,8 +138,9 @@ describe("getEffectiveThinkingLevel", () => {
 });
 
 describe("modelSupportsThinkingUI", () => {
-  it("returns true for GLM 5.2 and other supported models", () => {
+  it("returns true for GLM 5.2, Gemini 4 Argon, and other supported models", () => {
     expect(modelSupportsThinkingUI("z-ai/glm-5.2")).toBe(true);
+    expect(modelSupportsThinkingUI("gemini-4-argon")).toBe(true);
     expect(modelSupportsThinkingUI("gemini-3-flash-preview")).toBe(true);
     expect(modelSupportsThinkingUI("llama-3.3-70b-versatile")).toBe(false);
   });

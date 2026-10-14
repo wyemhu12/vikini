@@ -43,18 +43,14 @@ export default function ConfirmDialogHost() {
   return (
     <Dialog open={open} onOpenChange={(next) => !next && !loading && settle(false)}>
       <DialogContent
-        className={isDanger ? "max-w-md ring-(--danger)/20" : "max-w-md"}
+        className={
+          isDanger
+            ? "max-w-md border-(--danger)/30 ring-(--danger)/20 shadow-[0_0_40px_-10px_color-mix(in_srgb,var(--danger)_25%,transparent)]"
+            : "max-w-md"
+        }
         onEscapeKeyDown={(e) => loading && e.preventDefault()}
         onInteractOutside={(e) => loading && e.preventDefault()}
       >
-        {/* Danger glow accent (Direction C touch) */}
-        {isDanger && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -inset-px -z-10 rounded-(--radius) bg-(--danger)/15 blur-2xl"
-          />
-        )}
-
         <DialogHeader>
           <div className="flex items-center gap-3">
             {isDanger && (

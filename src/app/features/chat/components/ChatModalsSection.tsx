@@ -110,11 +110,7 @@ export default function ChatModalsSection({
         open={showDeleteMessageModal}
         onOpenChange={(open) => !open && closeDeleteMessageModal()}
       >
-        <DialogContent className="max-w-md ring-(--danger)/20">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -inset-px -z-10 rounded-(--radius) bg-(--danger)/15 blur-2xl"
-          />
+        <DialogContent className="max-w-md border-(--danger)/30 ring-(--danger)/20 shadow-[0_0_40px_-10px_color-mix(in_srgb,var(--danger)_25%,transparent)]">
           <DialogHeader>
             <DialogTitle>{t.modalDeleteTitle || "Delete Message?"}</DialogTitle>
             <DialogDescription className="pt-1">

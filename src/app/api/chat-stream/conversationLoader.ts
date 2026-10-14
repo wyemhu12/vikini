@@ -1,9 +1,9 @@
 // /app/api/chat-stream/conversationLoader.ts
 
-import { CONVERSATION_DEFAULTS } from "@/lib/utils/constants";
+import { CONVERSATION_DEFAULTS, MODEL_IDS } from "@/lib/utils/constants";
 import { DEFAULT_MODEL, normalizeModelForApi, getModelTokenLimit } from "@/lib/core/modelRegistry";
 import { getConversation, saveConversation } from "@/lib/features/chat/conversations";
-import { NotFoundError } from "@/lib/utils/errors";
+import { AppError, NotFoundError, ValidationError } from "@/lib/utils/errors";
 import {
   deleteLastAssistantMessage,
   deleteMessagesIncludingAndAfter,
@@ -24,8 +24,14 @@ export async function loadOrCreateConversation(
       if (convo && convo.userId !== userId) {
         throw new NotFoundError("Conversation");
       }
+      if (
+        convo &&
+        (convo.model === MODEL_IDS.NOVELCRAFTER || convo.model === MODEL_IDS.IMAGE_STUDIO)
+      ) {
+        throw new ValidationError("Studio conversations cannot be used in chat-stream");
+      }
     } catch (err) {
-      if (err instanceof NotFoundError) throw err;
+      if (err instanceof AppError) throw err;
       convo = null;
     }
   }
@@ -36,6 +42,7 @@ export async function loadOrCreateConversation(
       convo = await saveConversation(userId, { title: CONVERSATION_DEFAULTS.TITLE });
       createdConversation = convo;
     } catch (e) {
+      if (e instanceof AppError) throw e;
       const error = e as Error;
       throw new Error(error?.message || "Failed to create conversation");
     }

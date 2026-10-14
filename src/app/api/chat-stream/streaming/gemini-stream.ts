@@ -1,6 +1,7 @@
 // /app/api/chat-stream/streaming/gemini-stream.ts
 import {
   getModelMaxOutputTokens,
+  isGemini4Model,
   modelSupportsThinking,
   normalizeModelForApi,
   clampGeminiThinkingLevel,
@@ -151,6 +152,7 @@ async function executeStream(
   const normalized = normalizeModelForApi(model);
 
   // Thinking config - different API format for different model families
+  // Gemini 4: Always-On thinking ("low", "medium", "high"; default "medium", cannot be disabled)
   // Gemini 3: uses thinkingLevel (string: "minimal", "low", "medium", "high")
   // Gemini 2.5: uses thinkingBudget (number: 0 = off, -1 = dynamic, or specific token count)
   let thinkingConfig:
@@ -159,7 +161,17 @@ async function executeStream(
 
   let effectiveThinkingLevel = thinkingLevel;
 
-  if (thinkingLevel && thinkingLevel !== "off") {
+  if (isGemini4Model(model)) {
+    const requested =
+      !thinkingLevel || thinkingLevel === "off"
+        ? thinkingLevel === "off"
+          ? "low"
+          : "medium"
+        : thinkingLevel;
+    const clampedLevel = clampGeminiThinkingLevel(model, requested);
+    effectiveThinkingLevel = clampedLevel;
+    thinkingConfig = { thinkingLevel: clampedLevel, includeThoughts: true };
+  } else if (thinkingLevel && thinkingLevel !== "off") {
     if (modelSupportsThinking(model)) {
       // Gemini 3+: clamp level to model capabilities and send thinkingLevel
       // INVARIANT: Never send thinkingBudget
@@ -533,6 +545,7 @@ async function runStreamWithFallback(
     code: string;
     status: number;
     isRateLimit: boolean;
+    isNonRetryableClientError: boolean;
     retryAfter?: number;
   } => {
     const e = err as {
@@ -549,6 +562,33 @@ async function runStreamWithFallback(
     // Try to extract message
     const message = e.message || e.error?.message || "Stream error";
 
+    // Check for non-retryable client / tier / permission errors (401/403/404 or free tier errors)
+    const isFreeTierOrPermissionError =
+      status === 401 ||
+      status === 403 ||
+      status === 404 ||
+      /free tier|permission_denied|not_found|not available on the free tier/i.test(message);
+
+    if (isFreeTierOrPermissionError) {
+      if (isGemini4Model(model) || /free tier|not available on the free tier/i.test(message)) {
+        return {
+          message:
+            "Gemini 4 Argon requires a paid-tier Gemini API key and is not available on the Free tier.",
+          code: "MODEL_TIER_RESTRICTED",
+          status: status === 500 ? 403 : status,
+          isRateLimit: false,
+          isNonRetryableClientError: true,
+        };
+      }
+      return {
+        message: message.length > 200 ? message.substring(0, 200) + "..." : message,
+        code: "STREAM_ERROR",
+        status,
+        isRateLimit: false,
+        isNonRetryableClientError: true,
+      };
+    }
+
     // For 429 errors, try to parse the nested JSON message
     if (isRateLimit && message.includes("exceeded your current quota")) {
       // Extract retry delay if present
@@ -560,6 +600,7 @@ async function runStreamWithFallback(
         code: "RATE_LIMIT_EXCEEDED",
         status: 429,
         isRateLimit: true,
+        isNonRetryableClientError: true,
         retryAfter,
       };
     }
@@ -570,6 +611,7 @@ async function runStreamWithFallback(
       code: isRateLimit ? "RATE_LIMIT_EXCEEDED" : "STREAM_ERROR",
       status,
       isRateLimit,
+      isNonRetryableClientError: isRateLimit,
     };
   };
 
@@ -590,7 +632,7 @@ async function runStreamWithFallback(
       ragSources,
     });
   } catch (err) {
-    if (abortSignal?.aborted) {
+    if (abortSignal?.aborted || err instanceof StreamTimeoutError) {
       throw err;
     }
 
@@ -602,14 +644,13 @@ async function runStreamWithFallback(
     // Extract error info before trying fallback
     const errorInfo = extractGeminiErrorInfo(err);
 
-    // For rate limit errors, don't retry - just send error immediately
-    if (errorInfo.isRateLimit) {
+    // For rate limit or non-retryable client/tier errors, don't retry - just send error immediately
+    if (errorInfo.isRateLimit || errorInfo.isNonRetryableClientError) {
       sendEvent(controller, "error", {
         message: errorInfo.message,
         code: errorInfo.code,
         status: errorInfo.status,
-        isRateLimit: true,
-        retryAfter: errorInfo.retryAfter,
+        ...(errorInfo.isRateLimit ? { isRateLimit: true, retryAfter: errorInfo.retryAfter } : {}),
       });
       throw err;
     }

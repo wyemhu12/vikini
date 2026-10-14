@@ -367,4 +367,99 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
     expect(continuationConfig.systemInstruction).toBeUndefined();
     expect(continuationConfig.tools).toBeUndefined();
   });
+
+  it("sets thinkingConfig with thinkingLevel: high and includeThoughts: true for Gemini 4 Argon", async () => {
+    const generateMock = vi.fn().mockImplementation(async function* () {
+      yield { candidates: [{ content: { parts: [{ text: "Argon response" }] } }] };
+    });
+
+    const params = createMockParams({
+      ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
+      model: "gemini-4-argon",
+      thinkingLevel: "high",
+    });
+
+    const reader = createChatReadableStream(params).getReader();
+    while (true) {
+      const { done } = await reader.read();
+      if (done) break;
+    }
+
+    expect(generateMock).toHaveBeenCalledTimes(1);
+    const callConfig = generateMock.mock.calls[0][0].config;
+    expect(callConfig.thinkingConfig).toEqual({
+      thinkingLevel: "high",
+      includeThoughts: true,
+    });
+    expect(callConfig.thinkingConfig).not.toHaveProperty("thinkingBudget");
+    expect(callConfig).not.toHaveProperty("temperature");
+    expect(callConfig).not.toHaveProperty("top_p");
+    expect(callConfig).not.toHaveProperty("top_k");
+  });
+
+  it("clamps minimal and off to low (Always-On Thinking) and defaults undefined to medium for Gemini 4 Argon", async () => {
+    for (const [requested, expected] of [
+      ["minimal", "low"],
+      ["off", "low"],
+      [undefined, "medium"],
+    ] as const) {
+      const generateMock = vi.fn().mockImplementation(async function* () {
+        yield { candidates: [{ content: { parts: [{ text: "Argon response" }] } }] };
+      });
+
+      const params = createMockParams({
+        ai: {
+          models: { generateContentStream: generateMock },
+        } as unknown as ChatStreamParams["ai"],
+        model: "gemini-4-argon",
+        thinkingLevel: requested,
+      });
+
+      const reader = createChatReadableStream(params).getReader();
+      while (true) {
+        const { done } = await reader.read();
+        if (done) break;
+      }
+
+      expect(generateMock).toHaveBeenCalledTimes(1);
+      const callConfig = generateMock.mock.calls[0][0].config;
+      expect(callConfig.thinkingConfig).toEqual({
+        thinkingLevel: expected,
+        includeThoughts: true,
+      });
+    }
+  });
+
+  it("emits MODEL_TIER_RESTRICTED without retrying tools fallback on HTTP 403 for gemini-4-argon", async () => {
+    const tierError = Object.assign(
+      new Error("Model gemini-4-argon is not available on the Free tier (PERMISSION_DENIED)"),
+      { status: 403 }
+    );
+    const generateMock = vi.fn().mockRejectedValue(tierError);
+
+    const params = createMockParams({
+      ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
+      model: "gemini-4-argon",
+      tools: [{ googleSearch: {} }],
+    });
+
+    const reader = createChatReadableStream(params).getReader();
+    const decoder = new TextDecoder();
+    let streamOutput = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      streamOutput += decoder.decode(value, { stream: true });
+    }
+
+    expect(generateMock).toHaveBeenCalledTimes(1);
+    expect(streamOutput).toContain('"code":"MODEL_TIER_RESTRICTED"');
+    expect(streamOutput).not.toContain("webSearchFallback");
+  });
+
+  it("returns 900000ms (15m) timeout for gemini-4-argon and gemini-4-argon-preview", async () => {
+    const { getStreamTimeout } = await import("./utils");
+    expect(getStreamTimeout("gemini-4-argon", "medium")).toBe(900000);
+    expect(getStreamTimeout("gemini-4-argon-preview", "low")).toBe(900000);
+  });
 });

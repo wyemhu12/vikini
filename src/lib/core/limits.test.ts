@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as limits from "./limits";
-import { ServiceUnavailableError, UserBlockedError } from "@/lib/utils/errors";
+import { ForbiddenError, ServiceUnavailableError, UserBlockedError } from "@/lib/utils/errors";
 
 const rpcMock = vi.fn();
 
@@ -242,6 +242,70 @@ describe("fail-closed limits", () => {
       await expect(limits.tryClaimResearchSlot("u@x.com")).rejects.toBeInstanceOf(
         ServiceUnavailableError
       );
+    });
+  });
+
+  describe("assertModelAllowedForUser & isModelAllowedForUser", () => {
+    const PRO_WITH_ARGON = {
+      ...PRO_ROW,
+      allowed_models: ["gemini-2.5-flash", "gemini-4-argon"],
+    };
+
+    beforeEach(() => {
+      setRankConfigs([BASIC_ROW, PRO_WITH_ARGON]);
+    });
+
+    it("allows pro/admin user when gemini-4-argon is in allowed_models", async () => {
+      setProfile(profile("pro"));
+      await expect(
+        limits.assertModelAllowedForUser("u@x.com", "gemini-4-argon")
+      ).resolves.toBeUndefined();
+      await expect(limits.isModelAllowedForUser("u@x.com", "gemini-4-argon-preview")).resolves.toBe(
+        true
+      );
+    });
+
+    it("rejects basic user requesting gemini-4-argon with ForbiddenError (403)", async () => {
+      setProfile(profile("basic"));
+      await expect(
+        limits.assertModelAllowedForUser("u@x.com", "gemini-4-argon")
+      ).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(limits.isModelAllowedForUser("u@x.com", "gemini-4-argon")).resolves.toBe(false);
+    });
+
+    it("rejects not_whitelisted user with ForbiddenError", async () => {
+      setProfile(profile("not_whitelisted"));
+      await expect(
+        limits.assertModelAllowedForUser("u@x.com", "gemini-2.5-flash")
+      ).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(limits.isModelAllowedForUser("u@x.com", "gemini-2.5-flash")).resolves.toBe(
+        false
+      );
+    });
+
+    it("fails closed with ServiceUnavailableError (503) on DB error", async () => {
+      setProfile(null, { message: "db connection failed" });
+      await expect(
+        limits.assertModelAllowedForUser("u@x.com", "gemini-4-argon")
+      ).rejects.toBeInstanceOf(ServiceUnavailableError);
+    });
+
+    it("allows MODEL_IDS.NOVELCRAFTER for basic/pro/admin users while blocking not_whitelisted (TC-01)", async () => {
+      setProfile(profile("basic"));
+      await expect(limits.isModelAllowedForUser("u@x.com", "vikini-novelcrafter")).resolves.toBe(
+        true
+      );
+      await expect(
+        limits.assertModelAllowedForUser("u@x.com", "vikini-novelcrafter")
+      ).resolves.toBeUndefined();
+
+      setProfile(profile("not_whitelisted"));
+      await expect(limits.isModelAllowedForUser("u@x.com", "vikini-novelcrafter")).resolves.toBe(
+        false
+      );
+      await expect(
+        limits.assertModelAllowedForUser("u@x.com", "vikini-novelcrafter")
+      ).rejects.toBeInstanceOf(ForbiddenError);
     });
   });
 });

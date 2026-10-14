@@ -43,6 +43,7 @@ const CHAT_TRANSLATION_KEYS = [
   "gemini-2.5-pro",
   "gemini-3-flash-preview",
   "gemini-3.1-pro-preview",
+  "gemini-4-argon",
   "gemini-3-flash",
   "gemini-3-pro",
   "modelDescClaudeHaiku",
@@ -55,6 +56,7 @@ const CHAT_TRANSLATION_KEYS = [
   "modelDescPro25",
   "modelDescFlash3",
   "modelDescPro31",
+  "modelDescArgon4",
   "modelDescFlashLite31",
   "gemini-3.1-flash-lite-preview",
   // Themes

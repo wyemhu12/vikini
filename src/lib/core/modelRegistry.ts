@@ -95,6 +95,19 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     providerId: "gemini",
   },
 
+  // Gemini 4 Series (Released Oct 2026)
+  {
+    id: MODEL_IDS.GEMINI_4_ARGON,
+    descKey: "modelDescArgon4",
+    name: "Gemini 4 Argon",
+    tokenLimit: 1048576, // 1M unified context window
+    contextWindow: 1048576,
+    maxOutputTokens: 65536, // 64K standard streaming limit
+    category: "reasoning",
+    supportedThinkingLevels: ["low", "medium", "high"],
+    providerId: "gemini",
+  },
+
   // ═══════════════════════════════════════════════════════════
   // GROK MODELS (xAI / OpenRouter)
   // ═══════════════════════════════════════════════════════════
@@ -299,6 +312,9 @@ const API_ALLOWED = new Set([
   "gemini-3.1-pro-preview",
   "gemini-3.1-flash-lite-preview",
 
+  // Gemini 4 (10/2026)
+  MODEL_IDS.GEMINI_4_ARGON,
+
   // Grok via OpenRouter
   "x-ai/grok-4.3",
 
@@ -348,6 +364,9 @@ export const MODEL_ALIASES: Record<string, string> = {
   "gemini-3.1-flash-lite": "gemini-3.1-flash-lite-preview",
   "gemini-3-pro-preview": "gemini-3.1-pro-preview",
 
+  // Gemini 4 aliases
+  "gemini-4-argon-preview": MODEL_IDS.GEMINI_4_ARGON,
+
   // Legacy Groq Llama models
   "llama3-70b-8192": "llama-3.3-70b-versatile",
   "llama3-8b-8192": "llama-3.1-8b-instant",
@@ -367,7 +386,7 @@ export const MODEL_ALIASES: Record<string, string> = {
 
 export function isSelectableModelId(modelId: unknown): boolean {
   const m = String(modelId || "").trim();
-  if (m === MODEL_IDS.IMAGE_STUDIO) return true;
+  if (m === MODEL_IDS.IMAGE_STUDIO || m === MODEL_IDS.NOVELCRAFTER) return true;
   return Boolean(m) && SELECTABLE_SET.has(m);
 }
 
@@ -380,7 +399,7 @@ export function normalizeModelForApi(modelId: unknown): string {
   const raw = String(modelId || "").trim();
   if (!raw) return DEFAULT_MODEL;
 
-  if (raw === MODEL_IDS.IMAGE_STUDIO) return raw;
+  if (raw === MODEL_IDS.IMAGE_STUDIO || raw === MODEL_IDS.NOVELCRAFTER) return raw;
 
   // Check aliases first
   if (MODEL_ALIASES[raw]) {
@@ -423,21 +442,29 @@ export function getModelMaxOutputTokens(modelId: unknown): number | undefined {
 }
 
 /**
+ * Check if a model belongs to the Gemini 4 family (where thinking cannot be disabled)
+ */
+export function isGemini4Model(modelId: unknown): boolean {
+  const normalized = normalizeModelForApi(modelId);
+  return normalized.startsWith("gemini-4");
+}
+
+/**
  * Check if a model supports thinking mode (thinkingConfig with thinkingLevel).
  *
- * IMPORTANT: Only Gemini 3+ models support the `thinkingLevel` parameter.
+ * IMPORTANT: Only Gemini 3+ and Gemini 4+ models support the `thinkingLevel` parameter.
  * Gemini 2.5 uses `thinkingBudget` (number) which has a different API format.
  * Sending `thinkingLevel` to Gemini 2.5 causes "Thinking level is not supported" error.
  */
 export function modelSupportsThinking(modelId: unknown): boolean {
   const normalized = normalizeModelForApi(modelId);
-  // Gemini 3+ and 3.1+ support thinkingLevel parameter
-  return normalized.startsWith("gemini-3");
+  // Hỗ trợ ThinkingConfig (thinkingLevel) cho các mô hình Gemini 3 và Gemini 4
+  return normalized.startsWith("gemini-3") || normalized.startsWith("gemini-4");
 }
 
 /**
  * Get supported thinking levels for a Gemini model.
- * Single source of truth derived from SELECTABLE_MODELS with fallback for non-selectable Gemini 3 models.
+ * Single source of truth derived from SELECTABLE_MODELS with fallback for non-selectable Gemini 3/4 models.
  */
 export function getSupportedGeminiThinkingLevels(modelId: unknown): readonly GeminiThinkingLevel[] {
   const normalized = normalizeModelForApi(modelId);
@@ -445,8 +472,8 @@ export function getSupportedGeminiThinkingLevels(modelId: unknown): readonly Gem
   if (found?.supportedThinkingLevels) {
     return found.supportedThinkingLevels;
   }
-  // Fallback cho các mô hình Gemini 3 có trong API_ALLOWED nhưng không nằm trong SELECTABLE_MODELS (ví dụ: gemini-3-pro-image)
-  if (normalized.startsWith("gemini-3")) {
+  // Fallback cho các mô hình Gemini 3/4 có trong API_ALLOWED nhưng không nằm trong SELECTABLE_MODELS (ví dụ: gemini-3-pro-image)
+  if (normalized.startsWith("gemini-3") || normalized.startsWith("gemini-4")) {
     if (normalized.includes("flash")) {
       return ["minimal", "low", "medium", "high"];
     }

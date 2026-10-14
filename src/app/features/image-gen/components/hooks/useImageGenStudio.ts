@@ -560,7 +560,7 @@ export function useImageGenStudio() {
   const handleDeleteProject = useCallback(
     async (id: string) => {
       const ok = await confirm({
-        title: t("deleteConfirm") || "Delete this project?",
+        title: t("studioDeleteProjectTitle") || "Delete this project?",
         description:
           t("studioDeleteProjectDesc") ||
           "All generated images in this project will be permanently deleted.",

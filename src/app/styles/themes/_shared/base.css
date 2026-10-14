@@ -183,10 +183,15 @@ body {
 /* Default Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
   @apply bg-[var(--control-border)] rounded-full;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Landscape Phones with low height (h <= 500px) */

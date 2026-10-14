@@ -308,6 +308,24 @@
 
 ## Database and Queries
 
+### 2026-10-14: PostgREST `PGRST201` Ambiguous Relationship Error & Dialog `-inset-px` Scrollport Overflow
+
+- **Symptom**:
+  1. `/gallery` displayed `"Your Creations (0 images)"` and `"No images found."` while spinning infinitely at the bottom and blinking `"Scroll to load more..."`.
+  2. Delete confirmation modal (`ConfirmDialogHost`) appeared off-center inside a double-bordered frame with thick horizontal and vertical scrollbars and showed `"Delete this conversation?"` when deleting an Image Studio project.
+- **Root Cause**:
+  1. Migration `20260916_add_conversation_branching.sql` added a second foreign key between `conversations` and `messages` (`conversations_forked_from_message_id_fkey` alongside `messages_conversation_id_fkey`). Queries using `.from("messages").select("..., conversations!inner(...)")` without specifying the foreign key constraint name failed in PostgREST 14.5 with `PGRST201: Could not embed because more than one relationship was found for 'messages' and 'conversations'`, returning HTTP 500.
+  2. In `useGalleryController.ts`, `hasMore` defaulted to `true` and was not set to `false` on `!res.ok` or `catch`, while `GalleryView.tsx` rendered the `loadMoreRef` sentinel even when `filteredImages.length === 0`. Toggling `loadingMore` recreated the `IntersectionObserver`, immediately re-firing `fetchImages(true)` in an infinite loop.
+  3. Adding `overflow-y-auto` to `DialogContent` caused the browser to compute `overflow-x: auto` per CSS Overflow Module Level 3. The danger glow child `<div className="absolute -inset-px ...">` extended 1px beyond `clientWidth` and `clientHeight`, triggering both vertical and unstyled horizontal scrollbars inside the dialog border.
+- **Fix**:
+  1. Disambiguated all 5 PostgREST joins between `messages` and `conversations` using `conversations!messages_conversation_id_fkey!inner(...)` across `gallery/route.ts`, `gallery/[id]/route.ts`, `messages.ts`, and `admin/stats/route.ts`.
+  2. Extracted `galleryMapper.ts` (`paginateAndMapGalleryRows`, `resolveMessageContent`) and hardened `useGalleryController.ts` (`hasMore = false` initial state, `setHasMore(false)` on error, `isFetchingMoreRef` + `requestIdRef` concurrency guards, and hiding sentinel when `filteredImages.length === 0`).
+  3. Added `overflow-x-hidden` to `DialogContent` and `AlertDialogContent`, replaced the `-inset-px` child div with direct outer box-shadow glow on `DialogContent`, added `height: 6px` and `::-webkit-scrollbar-corner` to `base.css`, and fixed `handleDeleteProject` to use `studioDeleteProjectTitle`.
+- **Prevention Rule**:
+  1. **Whenever a table pair has more than one foreign key relationship in Supabase/PostgREST, ALWAYS specify the explicit foreign key constraint name in embedded selects (`table!constraint_name!inner(...)`).**
+  2. **Never place `absolute -inset-px` decorative elements inside a container with `overflow-y: auto`**, and always pair `overflow-y-auto` on modals with `overflow-x-hidden`.
+  3. **In infinite scroll hooks, always initialize `hasMore` to `false`, explicitly set `hasMore = false` on any API/network error, and never render the intersection sentinel when the item list is empty.**
+
 ### 2026-02: Embedding dimension mismatch
 
 - **Symptom**: Vector insert failed with dimension error

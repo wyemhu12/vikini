@@ -27,15 +27,22 @@ export function useConversationSelectors({
     ).length;
   }, [rawMessages]);
 
-  // Filter: only personal chats (no project) and exclude Image Studio
+  // Filter: only personal chats (no project) and exclude Image Studio & Novelcrafter
   const filteredConversations = useMemo(() => {
     return (personalConversations || []).filter(
-      (c: FrontendConversation) => c.model !== MODEL_IDS.IMAGE_STUDIO
+      (c: FrontendConversation) =>
+        c.model !== MODEL_IDS.IMAGE_STUDIO && c.model !== MODEL_IDS.NOVELCRAFTER
     );
   }, [personalConversations]);
 
   const currentConversation = useMemo(
-    () => (conversations || []).find((c: FrontendConversation) => c?.id === selectedConversationId),
+    () =>
+      (conversations || []).find(
+        (c: FrontendConversation) =>
+          c?.id === selectedConversationId &&
+          c?.model !== MODEL_IDS.IMAGE_STUDIO &&
+          c?.model !== MODEL_IDS.NOVELCRAFTER
+      ),
     [conversations, selectedConversationId]
   );
 

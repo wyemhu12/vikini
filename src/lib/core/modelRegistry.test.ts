@@ -2,10 +2,13 @@ import { describe, it, expect } from "vitest";
 import { MODEL_IDS } from "@/lib/utils/constants";
 import {
   DEFAULT_MODEL,
+  isGemini4Model,
   modelSupportsThinking,
   getSupportedGeminiThinkingLevels,
   clampGeminiThinkingLevel,
   normalizeModelForApi,
+  isSelectableModelId,
+  coerceStoredModel,
   isGLMModel,
   isOpenRouterReasoningModel,
   getModelTokenLimit,
@@ -19,6 +22,7 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
       expect(modelSupportsThinking("gemini-3-flash-preview")).toBe(true);
       expect(modelSupportsThinking("gemini-3.1-pro-preview")).toBe(true);
       expect(modelSupportsThinking("gemini-3.1-flash-lite-preview")).toBe(true);
+      expect(modelSupportsThinking("gemini-4-argon")).toBe(true);
 
       expect(modelSupportsThinking("gemini-2.5-flash")).toBe(false);
       expect(modelSupportsThinking("gemini-2.5-pro")).toBe(false);
@@ -51,6 +55,10 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
       ]);
     });
 
+    it("returns low, medium, high for Gemini 4 Argon", () => {
+      expect(getSupportedGeminiThinkingLevels("gemini-4-argon")).toEqual(["low", "medium", "high"]);
+    });
+
     it("returns empty array for Gemini 2.5 models", () => {
       expect(getSupportedGeminiThinkingLevels("gemini-2.5-flash")).toEqual([]);
       expect(getSupportedGeminiThinkingLevels("gemini-2.5-pro")).toEqual([]);
@@ -68,12 +76,16 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
   describe("clampGeminiThinkingLevel", () => {
     it("clamps minimal to low on models without minimal support", () => {
       expect(clampGeminiThinkingLevel("gemini-3.1-pro-preview", "minimal")).toBe("low");
+      expect(clampGeminiThinkingLevel("gemini-4-argon", "minimal")).toBe("low");
+      expect(clampGeminiThinkingLevel("gemini-4-argon", "off")).toBe("low");
     });
 
     it("preserves valid supported levels", () => {
       expect(clampGeminiThinkingLevel("gemini-3-flash-preview", "minimal")).toBe("minimal");
       expect(clampGeminiThinkingLevel("gemini-3-flash-preview", "high")).toBe("high");
       expect(clampGeminiThinkingLevel("gemini-3.1-pro-preview", "medium")).toBe("medium");
+      expect(clampGeminiThinkingLevel("gemini-4-argon", "medium")).toBe("medium");
+      expect(clampGeminiThinkingLevel("gemini-4-argon", "high")).toBe("high");
     });
 
     it("returns low when model has no supported thinking levels", () => {
@@ -85,6 +97,8 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
     it("maps model aliases to canonical IDs", () => {
       expect(normalizeModelForApi("gemini-3-pro-preview")).toBe("gemini-3.1-pro-preview");
       expect(normalizeModelForApi("gemini-2.5-flash-preview")).toBe("gemini-2.5-flash");
+      expect(normalizeModelForApi("gemini-4-argon")).toBe(MODEL_IDS.GEMINI_4_ARGON);
+      expect(normalizeModelForApi("gemini-4-argon-preview")).toBe(MODEL_IDS.GEMINI_4_ARGON);
       expect(normalizeModelForApi("z-ai/glm-5.2-20260616")).toBe(MODEL_IDS.GLM_52);
       expect(normalizeModelForApi("glm-5.2")).toBe(MODEL_IDS.GLM_52);
       expect(normalizeModelForApi(MODEL_IDS.GLM_52)).toBe(MODEL_IDS.GLM_52);
@@ -92,6 +106,20 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
 
     it("falls back to DEFAULT_MODEL for unknown models", () => {
       expect(normalizeModelForApi("unknown-unsupported-model")).toBe(DEFAULT_MODEL);
+    });
+  });
+
+  describe("Gemini 4 Argon Specifications", () => {
+    it("correctly identifies Gemini 4 models via isGemini4Model", () => {
+      expect(isGemini4Model("gemini-4-argon")).toBe(true);
+      expect(isGemini4Model("gemini-4-argon-preview")).toBe(true);
+      expect(isGemini4Model("gemini-3.1-pro-preview")).toBe(false);
+      expect(isGemini4Model("gemini-2.5-flash")).toBe(false);
+    });
+
+    it("returns correct 1M unified tokenLimit and 64K maxOutputTokens for Gemini 4 Argon", () => {
+      expect(getModelTokenLimit("gemini-4-argon")).toBe(1048576);
+      expect(getModelMaxOutputTokens("gemini-4-argon")).toBe(65536);
     });
   });
 
@@ -114,6 +142,15 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
       expect(getModelTokenLimit(MODEL_IDS.GLM_52)).toBe(1048576);
       expect(getModelMaxOutputTokens(MODEL_IDS.GLM_52)).toBe(GLM_MAX_OUTPUT_TOKENS);
       expect(GLM_MAX_OUTPUT_TOKENS).toBe(65536);
+    });
+  });
+
+  describe("Novelcrafter Studio Pseudo-Model Registration (TC-01)", () => {
+    it("preserves MODEL_IDS.NOVELCRAFTER across isSelectableModelId, normalizeModelForApi, and coerceStoredModel", () => {
+      expect(MODEL_IDS.NOVELCRAFTER).toBe("vikini-novelcrafter");
+      expect(isSelectableModelId(MODEL_IDS.NOVELCRAFTER)).toBe(true);
+      expect(normalizeModelForApi(MODEL_IDS.NOVELCRAFTER)).toBe(MODEL_IDS.NOVELCRAFTER);
+      expect(coerceStoredModel(MODEL_IDS.NOVELCRAFTER)).toBe(MODEL_IDS.NOVELCRAFTER);
     });
   });
 });

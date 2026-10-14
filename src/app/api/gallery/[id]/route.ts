@@ -45,7 +45,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
                 id,
                 meta,
                 conversation_id,
-                conversations!inner (
+                conversations!messages_conversation_id_fkey!inner (
                     user_id
                 )
             `

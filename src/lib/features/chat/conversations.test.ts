@@ -1,12 +1,19 @@
 // Test file for conversations.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { mapConversationRow, DEFAULT_MODEL, assertConversationOwner } from "./conversations";
+import {
+  mapConversationRow,
+  DEFAULT_MODEL,
+  assertConversationOwner,
+  setConversationModel,
+} from "./conversations";
 import { NotFoundError, ForbiddenError } from "@/lib/utils/errors";
 
 const mockSingle = vi.fn();
 const mockEq = vi.fn();
 const mockSelect = vi.fn();
+const mockUpdate = vi.fn();
 const mockFrom = vi.fn();
+const mockAssertModelAllowedForUser = vi.fn();
 
 vi.mock("@/lib/core/supabase.server", () => ({
   getSupabaseAdmin: () => ({
@@ -14,12 +21,24 @@ vi.mock("@/lib/core/supabase.server", () => ({
   }),
 }));
 
+vi.mock("@/lib/core/limits", () => ({
+  assertModelAllowedForUser: (...args: unknown[]) => mockAssertModelAllowedForUser(...args),
+}));
+
+vi.mock("@/lib/core/cache", () => ({
+  getCachedConversations: vi.fn(),
+  setCachedConversations: vi.fn(),
+  invalidateConversationsCache: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe("Conversations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFrom.mockReturnValue({ select: mockSelect });
-    mockSelect.mockReturnValue({ eq: mockEq });
-    mockEq.mockReturnValue({ single: mockSingle });
+    mockFrom.mockReturnValue({ select: mockSelect, update: mockUpdate });
+    mockSelect.mockReturnValue({ eq: mockEq, single: mockSingle, maybeSingle: mockSingle });
+    mockEq.mockReturnValue({ single: mockSingle, maybeSingle: mockSingle, select: mockSelect });
+    mockUpdate.mockReturnValue({ eq: mockEq });
+    mockAssertModelAllowedForUser.mockResolvedValue(undefined);
   });
 
   describe("mapConversationRow", () => {
@@ -183,6 +202,40 @@ describe("Conversations", () => {
       });
 
       await expect(assertConversationOwner("conv-1", "user-123")).rejects.toThrow(ForbiddenError);
+    });
+  });
+
+  describe("setConversationModel", () => {
+    it("allows updating model to gemini-4-argon when assertModelAllowedForUser resolves", async () => {
+      mockSingle
+        .mockResolvedValueOnce({
+          data: { id: "conv-1", user_id: "user-123", title: "Chat", model: "gemini-2.5-flash" },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: { id: "conv-1", user_id: "user-123", title: "Chat", model: "gemini-4-argon" },
+          error: null,
+        });
+
+      const updated = await setConversationModel("user-123", "conv-1", "gemini-4-argon");
+      expect(mockAssertModelAllowedForUser).toHaveBeenCalledWith("user-123", "gemini-4-argon");
+      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ model: "gemini-4-argon" }));
+      expect(updated?.model).toBe("gemini-4-argon");
+    });
+
+    it("throws ForbiddenError and does not update DB when assertModelAllowedForUser rejects", async () => {
+      mockSingle.mockResolvedValueOnce({
+        data: { id: "conv-1", user_id: "user-123", title: "Chat", model: "gemini-2.5-flash" },
+        error: null,
+      });
+      mockAssertModelAllowedForUser.mockRejectedValueOnce(
+        new ForbiddenError('Model "gemini-4-argon" is not allowed for rank "basic"')
+      );
+
+      await expect(setConversationModel("user-123", "conv-1", "gemini-4-argon")).rejects.toThrow(
+        ForbiddenError
+      );
+      expect(mockUpdate).not.toHaveBeenCalled();
     });
   });
 });

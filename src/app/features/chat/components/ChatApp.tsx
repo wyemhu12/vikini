@@ -384,7 +384,7 @@ export default function ChatApp() {
         isEditPlanOpen={isEditPlanOpen}
         closeEditPlan={() => setIsEditPlanOpen(false)}
         shortcuts={shortcuts}
-        conversations={conversations || []}
+        conversations={filteredConversations}
         onNewChat={handleNewChat}
         onSelectConversation={handleSelectConversation}
         onOpenResearchConversation={setSelectedConversationIdAndUrl}
