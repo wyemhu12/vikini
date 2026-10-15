@@ -314,4 +314,73 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     expect(errorOutput).toContain("event: error\n");
     expect(errorOutput).toContain('"code":"STREAM_ERROR"');
   });
+
+  it("TC-02 & TC-09: configures Gemini 3 with ThinkingLevel.LOW + 4 BLOCK_NONE safetySettings and emits SSE error on empty/blocked stream", async () => {
+    async function* mockGemini3Generator() {
+      yield {
+        candidates: [
+          {
+            content: {
+              parts: [
+                { text: "Brief reasoning.", thought: true },
+                { text: "Gemini 3 prose output.", thought: false },
+              ],
+            },
+          },
+        ],
+      };
+    }
+
+    hoisted.generateContentStreamMock.mockResolvedValueOnce(mockGemini3Generator());
+
+    const gemini3Stream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: {
+        ...BASE_REQUEST,
+        model: "gemini-3.1-pro-preview",
+      },
+    });
+
+    const gemini3Sse = await readStreamText(gemini3Stream);
+    expect(hoisted.generateContentStreamMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "gemini-3.1-pro-preview",
+        config: expect.objectContaining({
+          thinkingConfig: {
+            thinkingLevel: "LOW",
+            includeThoughts: true,
+          },
+          safetySettings: expect.arrayContaining([
+            expect.objectContaining({ threshold: "BLOCK_NONE" }),
+          ]),
+        }),
+      })
+    );
+    expect(gemini3Sse).toContain('event: thinking\ndata: {"t":"Brief reasoning."}\n\n');
+    expect(gemini3Sse).toContain('event: token\ndata: {"t":"Gemini 3 prose output."}\n\n');
+    expect(gemini3Sse).toContain("event: done\n");
+
+    // Empty / blocked stream detection (TC-09)
+    async function* mockBlockedGenerator() {
+      yield {
+        promptFeedback: { blockReason: "SAFETY" },
+        candidates: [{ finishReason: "SAFETY", content: { parts: [] } }],
+      };
+    }
+
+    hoisted.generateContentStreamMock.mockResolvedValueOnce(mockBlockedGenerator());
+
+    const blockedStream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: {
+        ...BASE_REQUEST,
+        model: "gemini-3.1-pro-preview",
+      },
+    });
+
+    const blockedSse = await readStreamText(blockedStream);
+    expect(blockedSse).toContain("event: error\n");
+    expect(blockedSse).toContain("SAFETY");
+    expect(blockedSse).not.toContain("event: done\n");
+  });
 });

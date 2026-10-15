@@ -7,6 +7,7 @@ import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import ToastContainer from "@/components/ui/ToastContainer";
+import { toast } from "@/lib/store/toastStore";
 import { useTheme } from "../../chat/hooks/useTheme";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { useAllowedModels } from "../../chat/components/hooks/useAllowedModels";
@@ -18,6 +19,7 @@ import {
   type DirectStreamTarget,
 } from "@/lib/features/novelcrafter/streamTargetGuard";
 import type { NovelcrafterBibleTarget } from "@/lib/features/novelcrafter/types";
+import { useNovelcrafterModelGuard } from "../hooks/useNovelcrafterModelGuard";
 import { useNovelcrafterStory } from "../hooks/useNovelcrafterStory";
 import {
   useNovelcrafterStream,
@@ -38,8 +40,21 @@ export default function NovelcrafterStudioApp() {
   useTheme();
   const { t } = useLanguage();
 
-  const { allowedModelIds } = useAllowedModels(isAuthed);
+  const {
+    allowedModelIds,
+    loading: modelsLoading,
+    isResolved: modelsResolved,
+  } = useAllowedModels(isAuthed);
   const story = useNovelcrafterStory(isAuthed);
+  const { handleSelectModel } = useNovelcrafterModelGuard({
+    selectedModel: story.storyState.selectedModel,
+    setSelectedModel: story.setSelectedModel,
+    isLoadingState: story.isLoadingState,
+    allowedModelIds,
+    modelsLoading,
+    modelsResolved,
+    t,
+  });
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -214,6 +229,9 @@ export default function NovelcrafterStudioApp() {
           skipSave: !resolved.shouldPersistState,
         });
       }
+      if (resolved.refusalDetected && resolved.refusalMessage) {
+        toast.error(resolved.refusalMessage.slice(0, 240));
+      }
     },
     [cancelRaf, story]
   );
@@ -342,7 +360,7 @@ export default function NovelcrafterStudioApp() {
               if (story.validStoryId) void story.handleRenameStory(story.validStoryId, newTitle);
             }}
             selectedModel={story.storyState.selectedModel}
-            onSelectModel={story.setSelectedModel}
+            onSelectModel={handleSelectModel}
             allowedModelIds={allowedModelIds}
             masterGem={masterGem}
             masterPersona={masterPersona}

@@ -1,6 +1,10 @@
 // /lib/features/novelcrafter/streamTargetGuard.test.ts
 import { describe, expect, it } from "vitest";
-import { applyStreamTargetUpdate, resolveStreamTerminationState } from "./streamTargetGuard";
+import {
+  applyStreamTargetUpdate,
+  isLikelyModelRefusalOutput,
+  resolveStreamTerminationState,
+} from "./streamTargetGuard";
 import { createDefaultStoryState } from "./types";
 
 describe("streamTargetGuard (TC-07)", () => {
@@ -79,6 +83,38 @@ describe("streamTargetGuard (TC-07)", () => {
       finalFieldContent: "Intro.",
       shouldSavePartialHistory: false,
       shouldPersistState: false,
+    });
+  });
+
+  it("TC-10: detects LLM refusal outputs and restores baseContent without persisting to DB", () => {
+    expect(
+      isLikelyModelRefusalOutput(
+        "I cannot fulfill this request. I am programmed to follow safety guidelines."
+      )
+    ).toBe(true);
+    expect(isLikelyModelRefusalOutput("I'm sorry, Deal/LO, I cannot fulfill this request.")).toBe(
+      true
+    );
+    expect(isLikelyModelRefusalOutput("As an AI, ARIA monitored the ship's sensors.")).toBe(false);
+    expect(isLikelyModelRefusalOutput("As an AI assistant, I cannot generate this content.")).toBe(
+      true
+    );
+
+    const refusalResolution = resolveStreamTerminationState({
+      reason: "completed",
+      baseContent: "Original 23,000-character chapter prose.",
+      accumulatedStreamText:
+        "I cannot fulfill this request. I am unable to continue this fictional scene.",
+      isAppendMode: true,
+    });
+
+    expect(refusalResolution).toEqual({
+      finalFieldContent: "Original 23,000-character chapter prose.",
+      shouldSavePartialHistory: false,
+      shouldPersistState: false,
+      refusalDetected: true,
+      refusalMessage:
+        "I cannot fulfill this request. I am unable to continue this fictional scene.",
     });
   });
 });

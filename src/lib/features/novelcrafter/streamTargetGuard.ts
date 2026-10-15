@@ -117,6 +117,21 @@ export function applyStreamTargetUpdate(
 
 export type StreamTerminationReason = "completed" | "stopped" | "error";
 
+const REFUSAL_PREFIX_REGEX =
+  /^\s*(i cannot fulfill this request|i'm sorry,?\s+but i cannot|i'm sorry,?\s+[^,.]{1,30},\s+i cannot fulfill|i am unable to (fulfill|generate|continue|write)|as an ai(?:\s+(?:language model|assistant))?,?\s+i\s+(?:cannot|can't|am unable|do not|don't)|i cannot (continue|generate|write) this (story|scene|content))/i;
+
+/**
+ * Detects standard short LLM behavioral refusal responses so they are never appended
+ * into the author's chapter prose, scenes, or Story Bible fields during direct streaming.
+ */
+export function isLikelyModelRefusalOutput(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.length > 600) {
+    return false;
+  }
+  return REFUSAL_PREFIX_REGEX.test(trimmed);
+}
+
 export function resolveStreamTerminationState(params: {
   reason: StreamTerminationReason;
   baseContent: string;
@@ -126,15 +141,28 @@ export function resolveStreamTerminationState(params: {
   finalFieldContent: string;
   shouldSavePartialHistory: boolean;
   shouldPersistState: boolean;
+  refusalDetected?: boolean;
+  refusalMessage?: string;
 } {
   const { reason, baseContent, accumulatedStreamText, isAppendMode } = params;
-  const hasGeneratedTokens = accumulatedStreamText.trim().length > 0;
+  const trimmed = accumulatedStreamText.trim();
+  const hasGeneratedTokens = trimmed.length > 0;
 
   if (!hasGeneratedTokens) {
     return {
       finalFieldContent: baseContent,
       shouldSavePartialHistory: false,
       shouldPersistState: false,
+    };
+  }
+
+  if (isLikelyModelRefusalOutput(trimmed)) {
+    return {
+      finalFieldContent: baseContent,
+      shouldSavePartialHistory: false,
+      shouldPersistState: false,
+      refusalDetected: true,
+      refusalMessage: trimmed,
     };
   }
 

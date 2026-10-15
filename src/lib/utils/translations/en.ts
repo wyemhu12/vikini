@@ -1204,4 +1204,7 @@ export const en = {
   novelcrafterCollapseBible: "Collapse Story Bible",
   novelcrafterExpandBible: "Expand Story Bible",
   novelcrafterJumpToBible: "Jump to Story Bible",
+  novelcrafterModelLockedToast: "This model requires a higher account rank to use.",
+  novelcrafterModelFallbackToast:
+    "The selected model is not available for your account rank and was automatically switched to an allowed model.",
 } as const;

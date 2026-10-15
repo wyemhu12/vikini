@@ -9,6 +9,10 @@ import {
   applyFeedbackSuggestionToText,
   findQuoteRangeInText,
 } from "@/lib/features/novelcrafter/feedbackParser";
+import {
+  computeQuoteScrollTop,
+  measureCaretOffsetTop,
+} from "@/lib/features/novelcrafter/quoteScrollPositioning";
 import type {
   NovelcrafterChapter,
   NovelcrafterFeedbackItem,
@@ -72,6 +76,7 @@ export default function ChapterEditorWorkspace({
 }: ChapterEditorWorkspaceProps) {
   const { t } = useLanguage();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const scrollRafRef = useRef<number | null>(null);
 
   const [titleDraft, setTitleDraft] = useState(chapter.title);
   const [beatsOpen, setBeatsOpen] = useState(true);
@@ -89,6 +94,15 @@ export default function ChapterEditorWorkspace({
   });
 
   useEffect(() => setTitleDraft(chapter.title), [chapter.id, chapter.title]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current !== null && typeof window !== "undefined") {
+        window.cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
+      }
+    };
+  }, []);
 
   const feedbackItems = useMemo(() => chapter.feedbackItems ?? [], [chapter.feedbackItems]);
   const openFeedbackCount = useMemo(
@@ -128,7 +142,7 @@ export default function ChapterEditorWorkspace({
     const range = findQuoteRangeInText(chapter.content, item.quote);
     if (!range) return;
 
-    textareaRef.current.focus();
+    textareaRef.current.focus({ preventScroll: true });
     textareaRef.current.setSelectionRange(range.start, range.end);
     onSelectionChange({
       start: range.start,
@@ -136,13 +150,28 @@ export default function ChapterEditorWorkspace({
       text: chapter.content.slice(range.start, range.end),
     });
 
-    // Smoothly scroll scrollContainerRef to bring the quote into view
-    if (scrollContainerRef.current && textareaRef.current) {
-      const totalLen = Math.max(1, chapter.content.length);
-      const ratio = range.start / totalLen;
-      const targetTop =
-        textareaRef.current.offsetTop + ratio * textareaRef.current.offsetHeight - 150;
-      scrollContainerRef.current.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+    if (typeof window !== "undefined") {
+      if (scrollRafRef.current !== null) {
+        window.cancelAnimationFrame(scrollRafRef.current);
+      }
+      scrollRafRef.current = window.requestAnimationFrame(() => {
+        scrollRafRef.current = null;
+        const container = scrollContainerRef.current;
+        const textarea = textareaRef.current;
+        if (!container || !textarea) return;
+
+        const quoteOffsetTop = measureCaretOffsetTop(textarea, range.start);
+        const containerRect = container.getBoundingClientRect();
+        const textareaRect = textarea.getBoundingClientRect();
+        const targetTop = computeQuoteScrollTop({
+          textareaRectTop: textareaRect.top,
+          containerRectTop: containerRect.top,
+          containerScrollTop: container.scrollTop,
+          quoteOffsetTop,
+          containerClientHeight: container.clientHeight,
+        });
+        container.scrollTo({ top: targetTop, behavior: "smooth" });
+      });
     }
   };
 
@@ -345,8 +374,9 @@ export default function ChapterEditorWorkspace({
                   value={quickEditPrompt}
                   onChange={(e) => setQuickEditPrompt(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter")
+                    if (e.key === "Enter") {
                       handleRunRewrite("custom", t("novelcrafterQuickEditBtn"), quickEditPrompt);
+                    }
                     if (e.key === "Escape") setQuickEditOpen(false);
                   }}
                   autoFocus

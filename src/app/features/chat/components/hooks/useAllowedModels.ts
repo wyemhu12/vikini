@@ -7,12 +7,14 @@ export function useAllowedModels(isAuthed: boolean) {
   const [allowedModelIds, setAllowedModelIds] = useState<Set<string>>(new Set());
   const [features, setFeatures] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
+  const [isResolved, setIsResolved] = useState(false);
 
   useEffect(() => {
     if (!isAuthed) {
       setAllowedModelIds(new Set());
       setFeatures({});
       setLoading(false);
+      setIsResolved(false);
       return;
     }
 
@@ -21,6 +23,7 @@ export function useAllowedModels(isAuthed: boolean) {
     async function fetchAllowedModels() {
       try {
         setLoading(true);
+        setIsResolved(false);
         const res = await fetch("/api/user/allowed-models");
         if (!res.ok) throw new Error("Failed to fetch allowed models");
 
@@ -34,6 +37,7 @@ export function useAllowedModels(isAuthed: boolean) {
         // Return Set of allowed model IDs for easy checking
         setAllowedModelIds(new Set(allowed));
         setFeatures(feats);
+        setIsResolved(true);
       } catch (error) {
         logger.warn("Error fetching allowed models:", error);
         // Fail closed to default model on error
@@ -54,5 +58,5 @@ export function useAllowedModels(isAuthed: boolean) {
     };
   }, [isAuthed]);
 
-  return { allowedModelIds, features, loading };
+  return { allowedModelIds, features, loading, isResolved };
 }

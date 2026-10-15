@@ -2,7 +2,7 @@
 // Standalone multi-provider SSE stream runner for Novelcrafter Studio
 // Calls singleton clients in src/lib/core/ directly without Chat side-effects
 
-import { ThinkingLevel } from "@google/genai";
+import { HarmBlockThreshold, HarmCategory, ThinkingLevel } from "@google/genai";
 import { getGenAIClient } from "@/lib/core/genaiClient";
 import { getClaudeClient } from "@/lib/core/claudeClient";
 import { getDeepSeekClient } from "@/lib/core/deepseekClient";
@@ -13,6 +13,7 @@ import {
   getModelMaxOutputTokens,
   isDeepSeekDirectModel,
   isGemini4Model,
+  modelSupportsThinking,
   normalizeModelForApi,
   SELECTABLE_MODELS,
 } from "@/lib/core/modelRegistry";
@@ -138,10 +139,30 @@ export interface RunNovelcrafterStreamOptions {
 }
 
 const GEMINI_SDK_THINKING_LEVEL_MAP: Record<string, ThinkingLevel> = {
+  minimal: ThinkingLevel.MINIMAL,
   low: ThinkingLevel.LOW,
   medium: ThinkingLevel.MEDIUM,
   high: ThinkingLevel.HIGH,
 };
+
+const DEFAULT_NOVELCRAFTER_SAFETY_SETTINGS = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+];
 
 async function streamGeminiProvider(
   model: string,
@@ -160,6 +181,12 @@ async function streamGeminiProvider(
       thinkingLevel: GEMINI_SDK_THINKING_LEVEL_MAP[clamped] || ThinkingLevel.MEDIUM,
       includeThoughts: true,
     };
+  } else if (modelSupportsThinking(model) && model.startsWith("gemini-3")) {
+    const clamped = clampGeminiThinkingLevel(model, "low");
+    thinkingConfig = {
+      thinkingLevel: GEMINI_SDK_THINKING_LEVEL_MAP[clamped] || ThinkingLevel.LOW,
+      includeThoughts: true,
+    };
   }
 
   const responseStream = await client.models.generateContentStream({
@@ -169,15 +196,36 @@ async function streamGeminiProvider(
       systemInstruction,
       maxOutputTokens,
       thinkingConfig,
+      safetySettings: DEFAULT_NOVELCRAFTER_SAFETY_SETTINGS,
       abortSignal: signal,
     },
   });
 
+  let emittedTokenCount = 0;
+  let lastFinishReason: string | undefined;
+  let lastBlockReason: string | undefined;
+
   for await (const chunk of responseStream) {
     if (signal?.aborted) break;
 
-    const candidate = (chunk as { candidates?: Array<{ content?: { parts?: unknown[] } }> })
-      .candidates?.[0];
+    const typedChunk = chunk as {
+      text?: string;
+      promptFeedback?: { blockReason?: string };
+      candidates?: Array<{
+        finishReason?: string;
+        content?: { parts?: unknown[] };
+      }>;
+    };
+
+    if (typedChunk.promptFeedback?.blockReason) {
+      lastBlockReason = String(typedChunk.promptFeedback.blockReason);
+    }
+
+    const candidate = typedChunk.candidates?.[0];
+    if (candidate?.finishReason) {
+      lastFinishReason = String(candidate.finishReason);
+    }
+
     const parts = candidate?.content?.parts;
 
     if (Array.isArray(parts) && parts.length > 0) {
@@ -187,16 +235,25 @@ async function streamGeminiProvider(
           if (part.thought) {
             controller.enqueue(formatSseEvent("thinking", { t: part.text }));
           } else {
+            emittedTokenCount += 1;
             controller.enqueue(formatSseEvent("token", { t: part.text }));
           }
         }
       }
     } else {
-      const directText = (chunk as { text?: string }).text;
+      const directText = typedChunk.text;
       if (typeof directText === "string" && directText.length > 0) {
+        emittedTokenCount += 1;
         controller.enqueue(formatSseEvent("token", { t: directText }));
       }
     }
+  }
+
+  if (!signal?.aborted && emittedTokenCount === 0) {
+    const reasonDetail = lastBlockReason || lastFinishReason || "EMPTY_RESPONSE";
+    throw new Error(
+      `Model ${model} returned an empty response (reason: ${reasonDetail}). Please adjust the scene or switch models.`
+    );
   }
 }
 

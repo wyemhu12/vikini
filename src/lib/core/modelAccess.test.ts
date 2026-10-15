@@ -1,6 +1,6 @@
 // /lib/core/modelAccess.test.ts
 import { describe, expect, it } from "vitest";
-import { isModelAllowedById } from "./modelAccess";
+import { isModelAllowedById, reconcileAllowedStoryModel } from "./modelAccess";
 import { DEFAULT_MODEL } from "./modelRegistry";
 import { MODEL_IDS } from "../utils/constants";
 
@@ -38,5 +38,58 @@ describe("isModelAllowedById (TC-04)", () => {
   it("always permits studio model IDs", () => {
     expect(isModelAllowedById(MODEL_IDS.NOVELCRAFTER, [DEFAULT_MODEL])).toBe(true);
     expect(isModelAllowedById(MODEL_IDS.IMAGE_STUDIO, [DEFAULT_MODEL])).toBe(true);
+  });
+
+  it("TC-07: reconcileAllowedStoryModel preserves selection on network error (!isPermissionsResolved) or loading, and falls back safely when resolved", () => {
+    const basicAllowed = new Set(["gemini-2.5-flash", "gemini-2.5-pro"]);
+
+    // 1. Network error (!isPermissionsResolved) -> never overwrite author's selection
+    expect(
+      reconcileAllowedStoryModel("gemini-4-argon", new Set([DEFAULT_MODEL]), false, false)
+    ).toEqual({
+      model: "gemini-4-argon",
+      didFallback: false,
+    });
+
+    // 2. Still loading -> never overwrite
+    expect(reconcileAllowedStoryModel("gemini-4-argon", basicAllowed, true, true)).toEqual({
+      model: "gemini-4-argon",
+      didFallback: false,
+    });
+
+    // 3. Resolved and disallowed -> falls back to DEFAULT_MODEL if allowed, else first allowed selectable model
+    expect(
+      reconcileAllowedStoryModel(
+        "gemini-4-argon",
+        new Set([DEFAULT_MODEL]),
+        false,
+        true,
+        DEFAULT_MODEL
+      )
+    ).toEqual({
+      model: DEFAULT_MODEL,
+      didFallback: true,
+    });
+
+    expect(
+      reconcileAllowedStoryModel(
+        "gemini-4-argon",
+        basicAllowed,
+        false,
+        true,
+        "gemini-3-flash-preview"
+      )
+    ).toEqual({
+      model: "gemini-2.5-flash",
+      didFallback: true,
+    });
+
+    // 4. No selectable models in allowlist -> do not force invalid fallback
+    expect(
+      reconcileAllowedStoryModel("gemini-4-argon", new Set(["non-existent-id"]), false, true)
+    ).toEqual({
+      model: "gemini-4-argon",
+      didFallback: false,
+    });
   });
 });

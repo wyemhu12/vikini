@@ -68,4 +68,21 @@ describe("feedbackParser (TC-04)", () => {
       { type: "equal", text: " she" },
     ]);
   });
+
+  it("TC-04 Case 4D: falls back to an EDITORIAL card when !isStreaming and plain text has no <feedback_item> tags", () => {
+    const fallbackItems = parseFeedbackItems(
+      "I cannot fulfill this request due to content guidelines.",
+      { isStreaming: false, nowMs: 2000 }
+    );
+    expect(fallbackItems).toHaveLength(1);
+    expect(fallbackItems[0]).toEqual({
+      id: "fb-2000-1",
+      category: "EDITORIAL",
+      quote: "",
+      comment: "I cannot fulfill this request due to content guidelines.",
+      suggestion: "",
+      status: "open",
+      createdAt: 2000,
+    });
+  });
 });

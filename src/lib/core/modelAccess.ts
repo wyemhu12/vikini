@@ -3,6 +3,8 @@
 // Shares exact normalization logic with limits.ts without requiring server-side database dependencies.
 
 import {
+  DEFAULT_MODEL,
+  SELECTABLE_MODELS,
   isSelectableModelId,
   normalizeModelForApi,
   coerceStoredModel,
@@ -49,7 +51,11 @@ export function isModelAllowedById(
   }
 
   // Check reverse match against allowed items (if user has alias or normalized form in allowed list)
-  for (const item of allowedSet) {
+  for (const rawItem of allowedSet) {
+    const item = rawItem.trim();
+    if (!item || (!isSelectableModelId(item) && !Object.hasOwn(MODEL_ALIASES, item))) {
+      continue;
+    }
     if (
       item === trimmed ||
       item === normalized ||
@@ -62,4 +68,33 @@ export function isModelAllowedById(
   }
 
   return false;
+}
+
+/**
+ * Reconciles a persisted/selected story model against the user's resolved allowed models.
+ * Never overwrites the user's selection while permissions are loading or if the permission
+ * fetch failed (!isPermissionsResolved), or if no selectable models match the allowlist.
+ */
+export function reconcileAllowedStoryModel(
+  selectedModel: string,
+  allowedModelIds: ReadonlySet<string>,
+  modelsLoading: boolean,
+  isPermissionsResolved: boolean,
+  fallbackModel: string = DEFAULT_MODEL
+): { model: string; didFallback: boolean } {
+  if (!isPermissionsResolved || modelsLoading || allowedModelIds.size === 0) {
+    return { model: selectedModel, didFallback: false };
+  }
+  if (isModelAllowedById(selectedModel, allowedModelIds)) {
+    return { model: selectedModel, didFallback: false };
+  }
+  let targetFallback = fallbackModel;
+  if (!isModelAllowedById(targetFallback, allowedModelIds)) {
+    const firstAllowed = SELECTABLE_MODELS.find((m) => isModelAllowedById(m.id, allowedModelIds));
+    if (!firstAllowed) {
+      return { model: selectedModel, didFallback: false };
+    }
+    targetFallback = firstAllowed.id;
+  }
+  return { model: targetFallback, didFallback: true };
 }

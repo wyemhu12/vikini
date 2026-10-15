@@ -1209,4 +1209,7 @@ export const vi = {
   novelcrafterCollapseBible: "Thu gọn Story Bible",
   novelcrafterExpandBible: "Mở rộng Story Bible",
   novelcrafterJumpToBible: "Nhảy tới Story Bible",
+  novelcrafterModelLockedToast: "Mô hình này yêu cầu nâng cấp gói tài khoản để sử dụng.",
+  novelcrafterModelFallbackToast:
+    "Mô hình đã chọn không nằm trong gói tài khoản hiện tại, hệ thống đã tự động chuyển về mô hình hợp lệ.",
 } as const;

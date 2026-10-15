@@ -102,7 +102,15 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04, TC-05)", () => {
       });
       expect(result).toContain("<task_instructions>");
       expect(result).toContain(DEFAULT_NOVELCRAFTER_MASTER_INSTRUCTIONS);
+      expect(result).toContain("<studio_context>");
       expect(result).not.toContain("<style_preferences>");
+
+      const withCustomGem = buildNovelcrafterSystemInstruction({
+        masterGemInstructions: "Custom chat GEM prompt",
+        persona: null,
+      });
+      expect(withCustomGem).toContain("Custom chat GEM prompt");
+      expect(withCustomGem).toContain("<studio_context>");
     });
   });
 

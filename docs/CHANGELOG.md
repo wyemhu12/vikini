@@ -8,6 +8,23 @@
 
 ---
 
+## 2026-10-15: Bug Fix -- Novelcrafter Studio: Gemini 3+ Thinking & Safety Hardening, Rank Model Guard, Manuscript Refusal Protection & DOM Mirror Feedback Scroll Positioning
+
+- **Gemini 3+ Stream Hardening, Pro Rank Sync & Model Guard (`src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts`, `src/lib/core/modelAccess.ts`, `src/app/features/chat/components/hooks/useAllowedModels.ts`, `src/app/features/novelcrafter/hooks/useNovelcrafterModelGuard.ts`, `src/app/features/novelcrafter/components/NovelcrafterStudioApp.tsx`, `src/lib/utils/translations/vi.ts`, `src/lib/utils/translations/en.ts`)**:
+  - Đồng bộ cấu hình `rank_configs` trên Supabase bổ sung `"gemini-4-argon"` cho gói `pro` và xóa trực tiếp khóa cache Redis `rank_configs:all` (`exists === 0`).
+  - Cấu hình `thinkingConfig: { thinkingLevel: ThinkingLevel.LOW, includeThoughts: true }` cho dòng model Gemini 3 (`gemini-3-flash-preview`, `gemini-3.1-pro-preview`, `gemini-3.1-flash-lite-preview`), đồng bộ 4 danh mục `safetySettings` (`HarmBlockThreshold.BLOCK_NONE`) và phát hiện stream rỗng/bị chặn (`emittedTokenCount === 0`) để gửi sự kiện SSE `event: error` minh bạch về client.
+  - Xây dựng hook `useNovelcrafterModelGuard.ts` và hàm `reconcileAllowedStoryModel` (kèm cờ `isResolved` trong `useAllowedModels.ts` và khóa kiểm tra model hợp lệ trong vòng lặp reverse-match của `isModelAllowedById`) giúp chặn chọn model vượt cấp bậc tài khoản và tự động chuyển bản nháp cũ về model hợp lệ mà không bị ảnh hưởng khi lỗi mạng.
+- **Creative Fiction `<studio_context>` Framing & Manuscript Refusal Protection (`src/lib/features/novelcrafter/promptBuilder.ts`, `src/lib/features/novelcrafter/streamTargetGuard.ts`, `src/app/features/novelcrafter/components/NovelcrafterStudioApp.tsx`)**:
+  - Luôn gắn khối `<studio_context>` định danh không gian sáng tác tiểu thuyết hư cấu chuyên nghiệp trong `buildNovelcrafterSystemInstruction` ngay cả khi tác giả sử dụng `masterGemInstructions` tùy chỉnh.
+  - Bổ sung `isLikelyModelRefusalOutput` trong `streamTargetGuard.ts`: khi mô hình phát văn bản từ chối ngắn ở luồng ghi trực tiếp vào bản thảo (`chapter_prose`, `chapter_scenes`, `bible_field`), hệ thống khôi phục nguyên vẹn `target.baseContent`, hủy lưu DB (`shouldPersistState: false`, `shouldSavePartialHistory: false`) và hiển thị `toast.error` thay vì nối câu từ chối vào chương truyện của tác giả.
+- **DOM Mirror Feedback Quote Scroll Positioning (`src/lib/features/novelcrafter/quoteScrollPositioning.ts`, `src/app/features/novelcrafter/components/ChapterEditorWorkspace.tsx`)**:
+  - Thay thế công thức nội suy tỷ lệ ký tự sai lệch bằng module `quoteScrollPositioning.ts` (`measureCaretOffsetTop` sao chép 24 thuộc tính computed CSS sang phần tử DOM mirror ẩn với khối dọn dẹp `try ... finally`, kết hợp `computeQuoteScrollTop` đưa câu trích dẫn về vị trí 1/3 trên khung nhìn — Sudowrite Golden Third).
+  - Trong `ChapterEditorWorkspace.tsx`, gọi `focus({ preventScroll: true })`, `setSelectionRange(start, end)` và thực thi phép đo + `scrollTo({ behavior: "smooth" })` bên trong `requestAnimationFrame` có quản lý vòng đời `scrollRafRef` để triệt tiêu hành vi tự động cuộn lệch của trình duyệt.
+- **Co-located Unit Tests**:
+  - Bổ sung và mở rộng kiểm thử tại `quoteScrollPositioning.test.ts`, `modelAccess.test.ts`, `promptBuilder.test.ts`, `streamTargetGuard.test.ts`, `feedbackParser.test.ts`, và `novelcrafterStreamRunner.server.test.ts` (129/129 test files, 1,349/1,349 tests passed).
+
+---
+
 ## 2026-10-15: Feature & Bug Fix -- Novelcrafter Studio: Full-Width Document Canvas, Inline Unified Story Bible & Gemini 4 / Claude Model Stream Fix
 
 - **Full-Width Responsive Document Canvas (`src/app/features/novelcrafter/components/ChapterEditorWorkspace.tsx`, `src/app/features/novelcrafter/components/ChapterDraftBeatsCard.tsx`, `src/app/features/novelcrafter/hooks/useAutoResizeTextarea.ts`)**:
