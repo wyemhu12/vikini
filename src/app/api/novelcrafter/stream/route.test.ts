@@ -154,6 +154,17 @@ describe("POST /api/novelcrafter/stream integration tests (TC-07)", () => {
     });
     const res2 = await POST(reqPseudoModel);
     expect(res2.status).toBe(400);
+
+    const reqEmptyFeedback = new NextRequest("http://localhost/api/novelcrafter/stream", {
+      method: "POST",
+      body: JSON.stringify(
+        buildValidPayload({ feature: "feedback", chapterProse: "   ", selectedText: "" })
+      ),
+    });
+    const res3 = await POST(reqEmptyFeedback);
+    expect(res3.status).toBe(400);
+    const body3 = await res3.json();
+    expect(body3.error.code).toBe("VALIDATION_ERROR");
   });
 
   it("returns 403 FORBIDDEN when basic user requests a Pro model", async () => {

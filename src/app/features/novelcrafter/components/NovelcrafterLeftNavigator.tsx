@@ -2,14 +2,42 @@
 "use client";
 
 import React, { useState } from "react";
-import { BookMarked, Check, FileText, Pencil, Plus, Trash2, X } from "lucide-react";
+import {
+  BookMarked,
+  Check,
+  Compass,
+  Feather,
+  FileText,
+  Globe,
+  Lightbulb,
+  ListTree,
+  Pencil,
+  Plus,
+  ScrollText,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
+import { countChapterWords } from "@/lib/features/novelcrafter/draftStorage";
 import type { NovelcrafterChapter } from "@/lib/features/novelcrafter/types";
+import type { TranslationKey } from "@/lib/utils/translations";
+
+export type NovelcrafterBibleSectionId =
+  | "braindump"
+  | "genre"
+  | "style"
+  | "synopsis"
+  | "characters"
+  | "worldbuilding"
+  | "outline";
 
 interface NovelcrafterLeftNavigatorProps {
   isStoryBibleOpen: boolean;
-  onSelectStoryBible: () => void;
+  onToggleStoryBible: (open: boolean) => void;
+  activeBibleSection?: NovelcrafterBibleSectionId;
+  onJumpToBibleSection: (sectionId: NovelcrafterBibleSectionId) => void;
   chapters: NovelcrafterChapter[];
   activeChapterId: string;
   onSelectChapter: (chapterId: string) => void;
@@ -18,15 +46,25 @@ interface NovelcrafterLeftNavigatorProps {
   onDeleteChapter: (chapterId: string) => void;
 }
 
-function countWords(text: string): number {
-  const trimmed = text.trim();
-  if (!trimmed) return 0;
-  return trimmed.split(/\s+/).length;
-}
+const BIBLE_TOC_ITEMS: ReadonlyArray<{
+  id: NovelcrafterBibleSectionId;
+  labelKey: TranslationKey;
+  Icon: React.ComponentType<{ className?: string }>;
+}> = [
+  { id: "braindump", labelKey: "novelcrafterBraindumpLabel", Icon: Lightbulb },
+  { id: "genre", labelKey: "novelcrafterGenreLabel", Icon: Compass },
+  { id: "style", labelKey: "novelcrafterStyleLabel", Icon: Feather },
+  { id: "synopsis", labelKey: "novelcrafterSynopsisLabel", Icon: ScrollText },
+  { id: "characters", labelKey: "novelcrafterCharactersLabel", Icon: Users },
+  { id: "worldbuilding", labelKey: "novelcrafterWorldbuildingLabel", Icon: Globe },
+  { id: "outline", labelKey: "novelcrafterOutlineLabel", Icon: ListTree },
+];
 
 export default function NovelcrafterLeftNavigator({
   isStoryBibleOpen,
-  onSelectStoryBible,
+  onToggleStoryBible,
+  activeBibleSection,
+  onJumpToBibleSection,
   chapters,
   activeChapterId,
   onSelectChapter,
@@ -58,28 +96,8 @@ export default function NovelcrafterLeftNavigator({
     >
       <h2 className="sr-only">{t("novelcrafterChaptersTab")}</h2>
 
-      {/* Story Bible Primary Switch */}
-      <div className="p-3 border-b border-(--border)">
-        <button
-          type="button"
-          onClick={onSelectStoryBible}
-          aria-pressed={isStoryBibleOpen}
-          className={cn(
-            "w-full flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-xl border text-sm font-semibold transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-            isStoryBibleOpen
-              ? "bg-(--accent) text-(--accent-foreground) border-(--accent) shadow-sm"
-              : "bg-(--control-bg) hover:bg-(--control-bg-hover) border-(--control-border) text-(--text-primary)"
-          )}
-        >
-          <span className="flex items-center gap-2 truncate">
-            <BookMarked className="w-4 h-4 shrink-0" />
-            <span className="truncate">{t("novelcrafterStoryBibleTab")}</span>
-          </span>
-        </button>
-      </div>
-
-      {/* Chapters Header */}
-      <div className="px-3.5 pt-3 pb-2 flex items-center justify-between">
+      {/* Top: Chapters Header & List (Sudowrite Layout) */}
+      <div className="px-3.5 pt-3.5 pb-2 flex items-center justify-between shrink-0">
         <span className="text-xs font-bold uppercase tracking-wider text-(--text-secondary)">
           {t("novelcrafterChaptersTab")} ({chapters.length})
         </span>
@@ -94,12 +112,11 @@ export default function NovelcrafterLeftNavigator({
         </button>
       </div>
 
-      {/* Chapters List */}
-      <div className="flex-1 overflow-y-auto px-2.5 pb-4 space-y-1.5 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto px-2.5 pb-3 space-y-1.5 custom-scrollbar min-h-0">
         {chapters.map((chapter, index) => {
           const isSelected = !isStoryBibleOpen && chapter.id === activeChapterId;
           const isEditing = editingChapterId === chapter.id;
-          const words = countWords(chapter.content);
+          const words = countChapterWords(chapter.content);
 
           return (
             <div
@@ -166,7 +183,7 @@ export default function NovelcrafterLeftNavigator({
                         {index + 1}. {chapter.title}
                       </p>
                       <p className="text-xs text-(--text-secondary) opacity-80">
-                        {words} {t("novelcrafterWordsUnit")}
+                        {words.toLocaleString()} {t("novelcrafterWordsUnit")}
                       </p>
                     </div>
                   </button>
@@ -194,6 +211,63 @@ export default function NovelcrafterLeftNavigator({
             </div>
           );
         })}
+      </div>
+
+      {/* Bottom: Story Bible Toggle & Quick-Jump TOC (Sudowrite Bottom Navigator) */}
+      <div className="shrink-0 border-t border-(--border) bg-(--surface)/50 p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => onToggleStoryBible(!isStoryBibleOpen)}
+            aria-pressed={isStoryBibleOpen}
+            className="flex items-center gap-2 text-xs font-bold text-(--text-primary) hover:text-(--accent) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded-md py-0.5"
+          >
+            <BookMarked className="w-4 h-4 text-(--accent) shrink-0" />
+            <span>{t("novelcrafterStoryBibleTab")}</span>
+          </button>
+
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isStoryBibleOpen}
+            aria-label={t("novelcrafterStoryBibleTab")}
+            onClick={() => onToggleStoryBible(!isStoryBibleOpen)}
+            className={cn(
+              "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border border-transparent transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+              isStoryBibleOpen ? "bg-(--accent)" : "bg-(--control-bg-hover)"
+            )}
+          >
+            <span
+              className={cn(
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-(--surface-elevated) shadow-xs transition-transform",
+                isStoryBibleOpen ? "translate-x-4" : "translate-x-0"
+              )}
+            />
+          </button>
+        </div>
+
+        {/* 7 Quick-Jump Bible Sections */}
+        <nav aria-label={t("novelcrafterStoryBibleTab")} className="grid grid-cols-1 gap-0.5">
+          {BIBLE_TOC_ITEMS.map(({ id, labelKey, Icon }) => {
+            const isActive = isStoryBibleOpen && activeBibleSection === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onJumpToBibleSection(id)}
+                className={cn(
+                  "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors text-left focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+                  isActive
+                    ? "bg-(--accent)/15 text-(--accent) font-semibold"
+                    : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)/60"
+                )}
+              >
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">{t(labelKey)}</span>
+              </button>
+            );
+          })}
+        </nav>
       </div>
     </aside>
   );

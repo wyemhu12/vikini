@@ -20,6 +20,7 @@ import {
   type NovelcrafterFeatureSlot,
   type NovelcrafterRoutingConfig,
 } from "@/lib/features/novelcrafter/types";
+import type { TranslationKey } from "@/lib/utils/translations";
 import type { ClientGemItem, ClientPersonaItem } from "../hooks/useNovelcrafterStory";
 
 interface GemPersonaRoutingModalProps {
@@ -32,10 +33,11 @@ interface GemPersonaRoutingModalProps {
   onUpdateFeatureSlot: (slot: NovelcrafterFeatureSlot, value: string) => void;
 }
 
-const SLOT_LABEL_KEYS: Record<NovelcrafterFeatureSlot, string> = {
+const SLOT_LABEL_KEYS: Record<NovelcrafterFeatureSlot, TranslationKey> = {
   bible: "novelcrafterSlotBible",
   write: "novelcrafterSlotWrite",
   rewrite: "novelcrafterSlotRewrite",
+  feedback: "novelcrafterSlotFeedback",
   expand: "novelcrafterSlotExpand",
   brainstorm: "novelcrafterSlotBrainstorm",
 };
@@ -153,7 +155,7 @@ export default function GemPersonaRoutingModal({
             </select>
           </div>
 
-          {/* 5 Feature Persona Slots */}
+          {/* 6 Feature Persona Slots */}
           <div className="rounded-xl border border-(--border) bg-(--surface-muted)/30 p-4 space-y-3">
             <div className="flex items-center gap-2 text-sm font-bold text-(--text-primary)">
               <Sparkles className="w-4 h-4 text-(--accent)" />
@@ -184,13 +186,13 @@ export default function GemPersonaRoutingModal({
                         value="inherit"
                         className="bg-(--surface-elevated) text-(--text-primary)"
                       >
-                        ↳ {t("novelcrafterInheritMasterPersona")}
+                        {t("novelcrafterInheritMasterPersona")}
                       </option>
                       <option
                         value="none"
                         className="bg-(--surface-elevated) text-(--text-primary)"
                       >
-                        ✕ {t("novelcrafterNoPersonaOption")}
+                        {t("novelcrafterNoPersonaOption")}
                       </option>
                       {personas.map((persona) => (
                         <option
@@ -198,7 +200,7 @@ export default function GemPersonaRoutingModal({
                           value={persona.id}
                           className="bg-(--surface-elevated) text-(--text-primary)"
                         >
-                          🎭 {persona.name}
+                          {persona.name}
                         </option>
                       ))}
                     </select>

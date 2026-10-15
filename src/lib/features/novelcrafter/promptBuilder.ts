@@ -5,25 +5,27 @@ import {
   buildPersonaSystemPrompt,
   type PersonaPromptInput,
 } from "@/lib/features/personas/prompt-builder";
-import { ValidationError } from "@/lib/utils/errors";
+import { buildFeatureDirective } from "./featureDirectives";
 import {
   createDefaultStoryState,
   MAX_CHAPTER_CONTEXT_CHARS,
+  MAX_FEEDBACK_ITEMS_PER_CHAPTER,
   MAX_HISTORY_CARDS,
   MAX_PREVIOUS_CHAPTER_TAIL_CHARS,
+  NovelcrafterFeedbackItemSchema,
+  NovelcrafterHistoryCardSchema,
   NovelcrafterStoryStateSchema,
-  type NovelcrafterActionMode,
+  type BuildUserPromptInput,
   type NovelcrafterBibleTarget,
-  type NovelcrafterBrainstormCategory,
-  type NovelcrafterDescribeSense,
-  type NovelcrafterExpandMode,
   type NovelcrafterFeatureSlot,
-  type NovelcrafterRewriteMode,
+  type NovelcrafterPovOption,
   type NovelcrafterRoutingConfig,
   type NovelcrafterStoryState,
-  type NovelcrafterWriteMode,
+  type NovelcrafterTenseOption,
   type StoryBible,
 } from "./types";
+
+export type { BuildUserPromptInput } from "./types";
 
 export const DEFAULT_NOVELCRAFTER_MASTER_INSTRUCTIONS =
   "You are a master fiction novelist, screenwriter, and story architect working inside Novelcrafter Studio. Follow all narrative constraints, character voices, worldbuilding rules, and structural beats faithfully.";
@@ -37,6 +39,8 @@ export interface SelectedBibleDependencies {
   braindump?: string;
   genre?: string;
   style?: string;
+  pov?: NovelcrafterPovOption;
+  tense?: NovelcrafterTenseOption;
   synopsis?: string;
   synopsisIsBraindumpFallback?: boolean;
   characters?: string;
@@ -44,23 +48,19 @@ export interface SelectedBibleDependencies {
   outline?: string;
 }
 
-export interface BuildUserPromptInput {
-  feature: NovelcrafterFeatureSlot;
-  storyBible: StoryBible;
-  chapterTitle?: string;
-  chapterScenes?: string;
-  chapterProse?: string;
-  previousChapterProseTail?: string;
-  selectedText?: string;
-  bibleTarget?: NovelcrafterBibleTarget;
-  actionMode?: NovelcrafterActionMode;
-  writeMode?: NovelcrafterWriteMode;
-  rewriteMode?: NovelcrafterRewriteMode;
-  expandMode?: NovelcrafterExpandMode;
-  describeSenses?: NovelcrafterDescribeSense[];
-  brainstormCategory?: NovelcrafterBrainstormCategory;
-  customInstruction?: string;
-}
+const POV_LABELS: Record<NovelcrafterPovOption, string> = {
+  first_person: "1st Person (I/We)",
+  second_person: "2nd Person (You)",
+  third_person_limited: "3rd Person Limited",
+  third_person_omniscient: "3rd Person Omniscient",
+  third_person_objective: "3rd Person Objective",
+};
+
+const TENSE_LABELS: Record<NovelcrafterTenseOption, string> = {
+  past: "Past Tense",
+  present: "Present Tense",
+  future: "Future Tense",
+};
 
 /**
  * Resolve the effective Persona ID for a given feature slot.
@@ -132,6 +132,8 @@ export function selectStoryBibleDependencies(
   const braindump = storyBible.braindump.trim();
   const genre = storyBible.genre.trim();
   const style = storyBible.style.trim();
+  const pov = storyBible.pov || "third_person_limited";
+  const tense = storyBible.tense || "past";
   const rawSynopsis = storyBible.synopsis.trim();
   const effectiveSynopsis = rawSynopsis || braindump;
   const synopsisIsBraindumpFallback = !rawSynopsis && Boolean(braindump);
@@ -159,6 +161,8 @@ export function selectStoryBibleDependencies(
       case "outline":
         return {
           ...(genre ? { genre } : {}),
+          pov,
+          tense,
           ...(effectiveSynopsis
             ? { synopsis: effectiveSynopsis, synopsisIsBraindumpFallback }
             : {}),
@@ -169,6 +173,8 @@ export function selectStoryBibleDependencies(
         return {
           ...(genre ? { genre } : {}),
           ...(style ? { style } : {}),
+          pov,
+          tense,
           ...(effectiveSynopsis
             ? { synopsis: effectiveSynopsis, synopsisIsBraindumpFallback }
             : {}),
@@ -181,16 +187,20 @@ export function selectStoryBibleDependencies(
         return {
           ...(style ? { style } : {}),
           ...(genre ? { genre } : {}),
+          pov,
+          tense,
           ...(visibleCharacters ? { characters: visibleCharacters } : {}),
           ...(visibleWorldbuilding ? { worldbuilding: visibleWorldbuilding } : {}),
         };
     }
   }
 
-  if (feature === "write") {
+  if (feature === "write" || feature === "expand") {
     return {
       ...(style ? { style } : {}),
       ...(genre ? { genre } : {}),
+      pov,
+      tense,
       ...(visibleCharacters ? { characters: visibleCharacters } : {}),
       ...(visibleWorldbuilding ? { worldbuilding: visibleWorldbuilding } : {}),
     };
@@ -200,15 +210,21 @@ export function selectStoryBibleDependencies(
     return {
       ...(style ? { style } : {}),
       ...(genre ? { genre } : {}),
+      pov,
+      tense,
     };
   }
 
-  if (feature === "expand") {
+  if (feature === "feedback") {
     return {
-      ...(style ? { style } : {}),
       ...(genre ? { genre } : {}),
+      ...(style ? { style } : {}),
+      pov,
+      tense,
+      ...(effectiveSynopsis ? { synopsis: effectiveSynopsis, synopsisIsBraindumpFallback } : {}),
       ...(visibleCharacters ? { characters: visibleCharacters } : {}),
       ...(visibleWorldbuilding ? { worldbuilding: visibleWorldbuilding } : {}),
+      ...(outline ? { outline } : {}),
     };
   }
 
@@ -232,6 +248,13 @@ function formatStoryBibleXml(deps: SelectedBibleDependencies): string {
   if (deps.style) {
     nodes.push(`  <style>\n${deps.style}\n  </style>`);
   }
+  if (deps.pov || deps.tense) {
+    const povText = deps.pov ? POV_LABELS[deps.pov] : POV_LABELS.third_person_limited;
+    const tenseText = deps.tense ? TENSE_LABELS[deps.tense] : TENSE_LABELS.past;
+    nodes.push(
+      `  <narrative_pov_and_tense>POV: ${povText} | Tense: ${tenseText}</narrative_pov_and_tense>`
+    );
+  }
   if (deps.synopsis) {
     const attr = deps.synopsisIsBraindumpFallback ? ' fallback="braindump"' : "";
     nodes.push(`  <synopsis${attr}>\n${deps.synopsis}\n  </synopsis>`);
@@ -246,146 +269,6 @@ function formatStoryBibleXml(deps: SelectedBibleDependencies): string {
     nodes.push(`  <outline>\n${deps.outline}\n  </outline>`);
   }
   return `<story_bible>\n${nodes.join("\n")}\n</story_bible>`;
-}
-
-function buildFeatureDirective(input: BuildUserPromptInput): string {
-  const custom = input.customInstruction?.trim() || "";
-
-  if (input.feature === "bible") {
-    const target = input.bibleTarget;
-    if (!target) {
-      throw new ValidationError("bibleTarget is required when feature is 'bible'");
-    }
-    const mode = input.actionMode || "generate";
-
-    if (target === "draft") {
-      return [
-        "Write a rich, immersive chapter draft based on the provided <story_bible> (Style, Genre, Characters, Worldbuilding) and <chapter_context> (Scenes / Chapter Beats).",
-        custom ? `Additional Author Direction: ${custom}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
-    }
-
-    const currentSectionValue =
-      target === "scenes" ? input.chapterScenes?.trim() || "" : input.storyBible[target].trim();
-
-    if (mode === "rewrite" && !currentSectionValue && !custom) {
-      throw new ValidationError(
-        `Cannot rewrite empty Story Bible section '${target}' without instructions or existing text`
-      );
-    }
-
-    if (mode === "rewrite") {
-      return [
-        `Rewrite and improve the ${target.toUpperCase()} section based on the <story_bible> context.`,
-        currentSectionValue
-          ? `<current_${target}>\n${currentSectionValue}\n</current_${target}>`
-          : "",
-        custom
-          ? `Rewrite Instructions: ${custom}`
-          : "Enhance clarity, dramatic tension, and coherence.",
-      ]
-        .filter(Boolean)
-        .join("\n");
-    }
-
-    const targetGuides: Record<Exclude<NovelcrafterBibleTarget, "draft">, string> = {
-      synopsis:
-        "Generate a compelling, well-structured Synopsis covering the core setup, inciting incident, rising conflict, climax, and resolution based on the Braindump and Genre.",
-      characters:
-        "Generate detailed Character Profiles (names, roles, physical/personality traits, motivations, internal/external conflicts, and relationships) derived from the Synopsis.",
-      worldbuilding:
-        "Generate rich Worldbuilding elements (setting, atmosphere, rules/magic/technology systems, factions, and key locations) derived from the Synopsis.",
-      outline:
-        "Generate a structured, chapter-by-chapter Story Outline based on the Genre, Synopsis, Characters, and Worldbuilding.",
-      scenes:
-        "Generate detailed Scene Beats (Chapter Beats) for the current chapter based on the Story Outline, Genre, Style, Characters, Worldbuilding, and previous chapter continuity.",
-    };
-
-    return [targetGuides[target], custom ? `Additional Author Direction: ${custom}` : ""]
-      .filter(Boolean)
-      .join("\n");
-  }
-
-  if (input.feature === "write") {
-    const mode = input.writeMode || "auto";
-    if (mode === "guided" && custom) {
-      return `Continue writing the next passage of the chapter seamlessly following the preceding prose and scenes. Guided Direction: ${custom}`;
-    }
-    return "Continue writing the next passage of the chapter naturally and seamlessly from where the preceding prose ends, following the Chapter Scenes and Style.";
-  }
-
-  if (input.feature === "rewrite") {
-    const selected = input.selectedText?.trim() || "";
-    if (!selected) {
-      throw new ValidationError("selectedText is required for Rewrite feature");
-    }
-    const mode = input.rewriteMode || "rephrase";
-    const modeInstructions: Record<NovelcrafterRewriteMode, string> = {
-      rephrase: "Rephrase the <selected_text> to improve flow, rhythm, and word choice.",
-      shorter:
-        "Condense and tighten the <selected_text> to be more concise while preserving key meaning.",
-      more_descriptive:
-        "Rewrite the <selected_text> with richer sensory details, atmosphere, and evocative imagery.",
-      show_dont_tell:
-        "Rewrite the <selected_text> using 'Show, Don't Tell'—replace abstract exposition with concrete actions, body language, sensory cues, and subtext.",
-      more_inner_conflict:
-        "Rewrite the <selected_text> to heighten the character's internal conflict, emotional stakes, and psychological tension.",
-      custom: custom
-        ? `Rewrite the <selected_text> according to this instruction: ${custom}`
-        : "Rewrite and polish the <selected_text>.",
-    };
-    return [
-      modeInstructions[mode],
-      mode !== "custom" && custom ? `Additional note: ${custom}` : "",
-      "Return ONLY the rewritten passage ready to replace <selected_text>.",
-    ]
-      .filter(Boolean)
-      .join("\n");
-  }
-
-  if (input.feature === "expand") {
-    const selected = input.selectedText?.trim() || "";
-    if (!selected) {
-      throw new ValidationError("selectedText is required for Expand & Describe feature");
-    }
-    const mode = input.expandMode || "expand";
-    if (mode === "describe") {
-      const senses =
-        input.describeSenses && input.describeSenses.length > 0
-          ? input.describeSenses.join(", ")
-          : "sight, sound, smell, taste, touch, and metaphor";
-      return [
-        `Provide vivid sensory descriptions and metaphors for <selected_text>, focusing on: ${senses}.`,
-        custom ? `Additional focus: ${custom}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
-    }
-    return [
-      "Expand the <selected_text> to slow down the pacing, adding scene depth, dialogue beats, micro-actions, and atmosphere without rushing the plot.",
-      custom ? `Additional focus: ${custom}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
-  }
-
-  // feature === "brainstorm"
-  const category = input.brainstormCategory || "plot_twists";
-  const categoryLabels: Record<NovelcrafterBrainstormCategory, string> = {
-    plot_twists: "5 unexpected yet earned Plot Twists & narrative reversals",
-    character_names: "10 evocative Character Names & aliases with brief etymology/vibe notes",
-    world_objects: "5 unique Worldbuilding Elements, artifacts, locations, or cultural customs",
-    dialogue: "5 sharp, subtext-rich Dialogue lines or exchanges for the current scene",
-    scene_ideas: "5 compelling Scene Ideas & dramatic beats for what could happen next",
-  };
-  return [
-    `Brainstorm ${categoryLabels[category]} that fit the <story_bible> and current chapter.`,
-    custom ? `Specific Brainstorm Topic / Question: ${custom}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
 }
 
 /**
@@ -403,12 +286,17 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
 
   const includeScenes =
     input.feature === "write" ||
+    input.feature === "feedback" ||
     input.feature === "brainstorm" ||
     (input.feature === "bible" &&
       (input.bibleTarget === "draft" || input.bibleTarget === "scenes"));
 
   if (includeScenes && input.chapterScenes?.trim()) {
     chapterNodes.push(`  <scenes>\n${input.chapterScenes.trim()}\n  </scenes>`);
+  }
+
+  if (input.feature === "write" && input.keyDetails?.trim()) {
+    chapterNodes.push(`  <key_details>\n${input.keyDetails.trim()}\n  </key_details>`);
   }
 
   if (
@@ -421,7 +309,10 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
   }
 
   const includeProseWindow =
-    input.feature === "write" || input.feature === "rewrite" || input.feature === "expand";
+    input.feature === "write" ||
+    input.feature === "rewrite" ||
+    input.feature === "feedback" ||
+    input.feature === "expand";
 
   if (includeProseWindow && input.chapterProse?.trim()) {
     const proseWindow = input.chapterProse.trim().slice(-MAX_CHAPTER_CONTEXT_CHARS);
@@ -434,7 +325,10 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
     blocks.push(`<chapter_context>\n${chapterNodes.join("\n")}\n</chapter_context>`);
   }
 
-  if ((input.feature === "rewrite" || input.feature === "expand") && input.selectedText?.trim()) {
+  if (
+    (input.feature === "rewrite" || input.feature === "feedback" || input.feature === "expand") &&
+    input.selectedText?.trim()
+  ) {
     blocks.push(`<selected_text>\n${input.selectedText.trim()}\n</selected_text>`);
   }
 
@@ -444,14 +338,45 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
   return blocks.join("\n\n");
 }
 
+function preSanitizeStateCollections(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return raw;
+  }
+  const candidate = { ...(raw as Record<string, unknown>) };
+
+  if (Array.isArray(candidate.historyCards)) {
+    candidate.historyCards = candidate.historyCards
+      .filter((item) => NovelcrafterHistoryCardSchema.safeParse(item).success)
+      .slice(0, MAX_HISTORY_CARDS);
+  }
+
+  if (Array.isArray(candidate.chapters)) {
+    candidate.chapters = candidate.chapters.map((ch) => {
+      if (!ch || typeof ch !== "object" || Array.isArray(ch)) return ch;
+      const chapterRecord = { ...(ch as Record<string, unknown>) };
+      if (Array.isArray(chapterRecord.feedbackItems)) {
+        chapterRecord.feedbackItems = chapterRecord.feedbackItems
+          .filter((fb) => NovelcrafterFeedbackItemSchema.safeParse(fb).success)
+          .slice(0, MAX_FEEDBACK_ITEMS_PER_CHAPTER);
+      }
+      return chapterRecord;
+    });
+  }
+
+  return candidate;
+}
+
 /**
  * Safely parse or coerce an untrusted story state payload into a valid NovelcrafterStoryState.
+ * Filters malformed individual historyCards / feedbackItems before whole-object validation
+ * so a single bad item never resets a story's version or chapters (M21).
  */
 export function sanitizeStoryState(
   raw: unknown,
   defaultChapterTitle = "Chapter 1"
 ): NovelcrafterStoryState {
-  const parsed = NovelcrafterStoryStateSchema.safeParse(raw);
+  const preSanitized = preSanitizeStateCollections(raw);
+  const parsed = NovelcrafterStoryStateSchema.safeParse(preSanitized);
   if (parsed.success) {
     const state = parsed.data;
     const activeExists = state.chapters.some((c) => c.id === state.activeChapterId);

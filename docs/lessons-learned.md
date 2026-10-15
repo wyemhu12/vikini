@@ -519,6 +519,25 @@
   - In Vitest tests for streaming hooks, **NEVER leave stream readers hanging with unresolved promises** without calling cleanup (`resetChatUI` / `cancelStream` / `handleStop`).
   - For client storage hydration, **always latch state with `hasHydrated` before allowing write effects to localStorage**, preventing mount-time overwrite races.
 
+### 2026-10-15: Cross-Route Conversation Store Isolation, Silent Auto-Save Single-Flight Queue & Direct Streaming Target Guard
+
+- **Symptom**:
+  1. Navigating from main Chat (`/`) to Novelcrafter (`/novelcrafter`) when the user had 0 Novelcrafter stories left `selectedConversationId` in `useConversationStore` pointing to the regular Chat conversation ID. `useNovelcrafterStory` fired `GET/PUT /api/novelcrafter/state` with that Chat ID, triggering HTTP 400 (`Conversation is not a Novelcrafter story`), repeated `toast.error` popups every 900ms, and a stuck `"Unsaved"` badge.
+  2. Including the derived `stories` array in the `useEffect` dependency list of `loadState` caused every SWR/conversation list revalidation to re-run `loadState` and overwrite active keystrokes, while calling `setStoryState` with the server's `version`/`updatedAt` after each `PUT` caused `<textarea>` cursor jumps.
+  3. Switching chapters or stories while a direct-to-editor AI stream (`Write` / `First Draft`) was in flight risked bleeding streamed tokens into the newly selected chapter or story.
+- **Root Cause**:
+  1. Global `useConversationStore.selectedConversationId` is shared across routes (`/`, `/images`, `/novelcrafter`) without route-scoped model validation before firing studio-specific state APIs.
+  2. Coupling background persistence metadata (`version`, `updatedAt`) to React render state (`storyState`) and depending on unstable object/array references (`stories`) in data-fetching `useEffect` hooks.
+  3. Lack of an explicit target ownership guard (`ownerStoryId`, `chapterId`, `baseContent`) and epoch-fenced single-flight `PUT` serialization.
+- **Fix**:
+  1. Built `resolveValidNovelcrafterStoryId` and `NovelcrafterSyncCoordinator` (`src/lib/features/novelcrafter/storySyncCoordinator.ts`, `draftStorage.ts`) to strictly validate `selectedConversationId` against `MODEL_IDS.NOVELCRAFTER` and auto-create a story conversation with an `autoCreatePromise` lock and `onBeforeActivate` callback before `setSelectedConversationId`.
+  2. Implemented 0ms `localStorage` draft persistence with a 15-item LRU cap, 3,000ms idle background `PUT` debounce, single-flight serialized `PUT` queue with `storySwitchEpoch` fencing, and server-side optimistic concurrency (`expectedVersion` -> HTTP `409 Conflict` auto-recovery into a `[Conflict Backup]` History Card). Stored `serverVersionRef` in a `useRef` instead of calling `setStoryState` on `PUT` completion.
+  3. Added `streamTargetGuard.ts` (`DirectStreamTarget` & `resolveStreamTerminationState`) to bind live streams to `{ storyId, kind, chapterId, baseContent }` and cleanly commit or rollback on user stop/error.
+- **Prevention Rule**:
+  - **Always validate shared store IDs (`selectedConversationId`) against the active studio's `MODEL_IDS` before making studio-specific API calls.**
+  - **Never call React state setters solely to record server sync metadata (`version`/`updatedAt`) after background auto-save**; track sync versions in `useRef` so active editor inputs never re-render mid-typing.
+  - **Always bind direct-to-editor SSE streams to an immutable target descriptor (`storyId` + `chapterId`)** and verify ownership before applying each token chunk.
+
 ---
 
 ## Security, Multi-Tenancy & Query Isolation

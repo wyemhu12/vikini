@@ -8,7 +8,12 @@ import { getConversation, type Conversation } from "@/lib/features/chat/conversa
 import { MODEL_IDS, UUID_REGEX } from "@/lib/utils/constants";
 import { DatabaseError, NotFoundError, ValidationError } from "@/lib/utils/errors";
 import { logger } from "@/lib/utils/logger";
-import { createDefaultStoryState, MAX_HISTORY_CARDS, type NovelcrafterStoryState } from "./types";
+import {
+  createDefaultStoryState,
+  MAX_HISTORY_CARDS,
+  STALE_STORY_STATE_MESSAGE,
+  type NovelcrafterStoryState,
+} from "./types";
 import { sanitizeStoryState } from "./promptBuilder";
 
 const persistenceLogger = logger.withContext("novelcrafterPersistence");
@@ -136,16 +141,30 @@ export async function saveStoryState(
     }
   }
 
+  const metaVersion =
+    rows.length > 0 && typeof rows[0]?.meta?.version === "number"
+      ? Number(rows[0].meta.version)
+      : 0;
+  const metaUpdatedAt =
+    rows.length > 0 && typeof rows[0]?.meta?.updatedAt === "number"
+      ? Number(rows[0].meta.updatedAt)
+      : 0;
+  const effectiveExistingVersion = Math.max(existingState?.version ?? 0, metaVersion);
+  const effectiveExistingUpdatedAt = Math.max(existingState?.updatedAt ?? 0, metaUpdatedAt);
+
   if (
-    existingState &&
-    (state.updatedAt < existingState.updatedAt || state.version < existingState.version)
+    (existingState || metaVersion > 0) &&
+    (state.updatedAt < effectiveExistingUpdatedAt || state.version < effectiveExistingVersion)
   ) {
-    throw new ValidationError("Stale story state rejected");
+    throw new ValidationError(STALE_STORY_STATE_MESSAGE);
   }
 
   const sanitized = sanitizeStoryState(state);
-  const nextVersion = existingState ? Math.max(sanitized.version, existingState.version) + 1 : 1;
-  const nextUpdatedAt = Math.max(sanitized.updatedAt, existingState?.updatedAt ?? 0, Date.now());
+  const nextVersion =
+    existingState || metaVersion > 0
+      ? Math.max(sanitized.version, effectiveExistingVersion) + 1
+      : 1;
+  const nextUpdatedAt = Math.max(sanitized.updatedAt, effectiveExistingUpdatedAt, Date.now());
 
   const nextState: NovelcrafterStoryState = {
     ...sanitized,

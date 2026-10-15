@@ -4,16 +4,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
+import type { StreamTerminationReason } from "@/lib/features/novelcrafter/streamTargetGuard";
 import type {
   NovelcrafterActionMode,
   NovelcrafterBibleTarget,
   NovelcrafterBrainstormCategory,
   NovelcrafterDescribeSense,
+  NovelcrafterDevelopmentalCriterion,
   NovelcrafterExpandMode,
   NovelcrafterFeatureSlot,
+  NovelcrafterFeedbackMode,
   NovelcrafterHistoryCard,
   NovelcrafterRewriteMode,
   NovelcrafterRoutingConfig,
+  NovelcrafterToneShift,
   NovelcrafterWriteMode,
   StoryBible,
 } from "@/lib/features/novelcrafter/types";
@@ -26,7 +30,12 @@ export interface TriggerNovelcrafterStreamParams {
   bibleTarget?: NovelcrafterBibleTarget;
   actionMode?: NovelcrafterActionMode;
   writeMode?: NovelcrafterWriteMode;
+  toneShift?: NovelcrafterToneShift;
+  writeLengthWords?: number;
+  keyDetails?: string;
   rewriteMode?: NovelcrafterRewriteMode;
+  feedbackMode?: NovelcrafterFeedbackMode;
+  feedbackCriteria?: NovelcrafterDevelopmentalCriterion[];
   expandMode?: NovelcrafterExpandMode;
   describeSenses?: NovelcrafterDescribeSense[];
   brainstormCategory?: NovelcrafterBrainstormCategory;
@@ -43,6 +52,17 @@ export interface StreamingCardMeta {
   bibleTarget?: NovelcrafterBibleTarget;
 }
 
+export interface StreamTerminatedPayload {
+  storyId: string;
+  reason: StreamTerminationReason;
+  fullContent: string;
+  fullThinking: string;
+  resolvedModel: string;
+  resolvedGemName: string | null;
+  resolvedPersonaName: string | null;
+  params: TriggerNovelcrafterStreamParams;
+}
+
 interface UseNovelcrafterStreamOptions {
   selectedConversationId: string | null;
   ensureStoryConversation: () => Promise<string | null>;
@@ -52,24 +72,26 @@ interface UseNovelcrafterStreamOptions {
   activeChapterId: string;
   chapterTitle: string;
   chapterScenes: string;
+  chapterExtraInstructions?: string;
   chapterProse: string;
   previousChapterProseTail: string;
+  onStreamStarted?: (payload: { storyId: string; params: TriggerNovelcrafterStreamParams }) => void;
+  onStreamTokenChunk?: (payload: {
+    storyId: string;
+    fullContent: string;
+    params: TriggerNovelcrafterStreamParams;
+  }) => void;
+  onStreamTerminated?: (payload: StreamTerminatedPayload) => void;
   onCardCompleted: (card: NovelcrafterHistoryCard) => void;
 }
 
-export function useNovelcrafterStream({
-  selectedConversationId,
-  ensureStoryConversation,
-  selectedModel,
-  routing,
-  storyBible,
-  activeChapterId,
-  chapterTitle,
-  chapterScenes,
-  chapterProse,
-  previousChapterProseTail,
-  onCardCompleted,
-}: UseNovelcrafterStreamOptions) {
+export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
+  const { selectedConversationId } = options;
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
+
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [streamingThinking, setStreamingThinking] = useState("");
@@ -85,7 +107,6 @@ export function useNovelcrafterStream({
     setIsStreaming(false);
   }, []);
 
-  // Abort active stream if user switches stories or unmounts
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -98,10 +119,11 @@ export function useNovelcrafterStream({
   const triggerStream = useCallback(
     async (params: TriggerNovelcrafterStreamParams) => {
       stopStream();
+      const opts = optionsRef.current;
 
-      let targetConversationId = selectedConversationId;
+      let targetConversationId = opts.selectedConversationId;
       if (!targetConversationId) {
-        targetConversationId = await ensureStoryConversation();
+        targetConversationId = await opts.ensureStoryConversation();
       }
       if (!targetConversationId) return;
 
@@ -112,7 +134,7 @@ export function useNovelcrafterStream({
       setStreamingContent("");
       setStreamingThinking("");
       setStreamingMeta({
-        model: selectedModel,
+        model: opts.selectedModel,
         gemName: null,
         personaName: null,
         feature: params.feature,
@@ -120,11 +142,14 @@ export function useNovelcrafterStream({
         bibleTarget: params.bibleTarget,
       });
 
+      opts.onStreamStarted?.({ storyId: targetConversationId, params });
+
       let fullContent = "";
       let fullThinking = "";
       let resolvedGemName: string | null = null;
       let resolvedPersonaName: string | null = null;
-      let resolvedModel = selectedModel;
+      let resolvedModel = opts.selectedModel;
+      let terminationReason: StreamTerminationReason = "completed";
 
       try {
         const res = await fetch("/api/novelcrafter/stream", {
@@ -133,19 +158,25 @@ export function useNovelcrafterStream({
           signal: controller.signal,
           body: JSON.stringify({
             conversationId: targetConversationId,
-            model: selectedModel,
+            model: opts.selectedModel,
             feature: params.feature,
-            routing,
-            storyBible,
-            chapterTitle,
-            chapterScenes,
-            chapterProse,
-            previousChapterProseTail,
+            routing: opts.routing,
+            storyBible: opts.storyBible,
+            chapterTitle: opts.chapterTitle,
+            chapterScenes: opts.chapterScenes,
+            chapterExtraInstructions: opts.chapterExtraInstructions || "",
+            chapterProse: opts.chapterProse,
+            previousChapterProseTail: opts.previousChapterProseTail,
             selectedText: params.selectedText || "",
             bibleTarget: params.bibleTarget,
             actionMode: params.actionMode || "generate",
             writeMode: params.writeMode || "auto",
+            toneShift: params.toneShift,
+            writeLengthWords: params.writeLengthWords,
+            keyDetails: params.keyDetails,
             rewriteMode: params.rewriteMode || "rephrase",
+            feedbackMode: params.feedbackMode || "developmental",
+            feedbackCriteria: params.feedbackCriteria,
             expandMode: params.expandMode || "expand",
             describeSenses: params.describeSenses,
             brainstormCategory: params.brainstormCategory || "plot_twists",
@@ -154,9 +185,7 @@ export function useNovelcrafterStream({
         });
 
         if (!res.ok || !res.body) {
-          const errJson = (await res.json().catch(() => ({}))) as {
-            error?: { message?: string };
-          };
+          const errJson = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
           throw new Error(errJson.error?.message || `HTTP ${res.status}`);
         }
 
@@ -173,18 +202,12 @@ export function useNovelcrafterStream({
           buffer = frames.pop() || "";
 
           for (const frame of frames) {
-            const lines = frame.split("\n");
             let eventType = "message";
             let dataRaw = "";
-
-            for (const line of lines) {
-              if (line.startsWith("event:")) {
-                eventType = line.slice(6).trim();
-              } else if (line.startsWith("data:")) {
-                dataRaw += line.slice(5).trim();
-              }
+            for (const line of frame.split("\n")) {
+              if (line.startsWith("event:")) eventType = line.slice(6).trim();
+              else if (line.startsWith("data:")) dataRaw += line.slice(5).trim();
             }
-
             if (!dataRaw) continue;
             let parsedData: Record<string, unknown>;
             try {
@@ -195,7 +218,7 @@ export function useNovelcrafterStream({
 
             if (eventType === "meta") {
               resolvedModel =
-                typeof parsedData.model === "string" ? parsedData.model : selectedModel;
+                typeof parsedData.model === "string" ? parsedData.model : opts.selectedModel;
               resolvedGemName = typeof parsedData.gemName === "string" ? parsedData.gemName : null;
               resolvedPersonaName =
                 typeof parsedData.personaName === "string" ? parsedData.personaName : null;
@@ -218,6 +241,7 @@ export function useNovelcrafterStream({
               if (tChunk) {
                 fullContent += tChunk;
                 setStreamingContent(fullContent);
+                opts.onStreamTokenChunk?.({ storyId: targetConversationId, fullContent, params });
               }
             } else if (eventType === "error") {
               const errMsg =
@@ -228,49 +252,57 @@ export function useNovelcrafterStream({
             }
           }
         }
+      } catch (err: unknown) {
+        if (controller.signal.aborted) {
+          terminationReason = "stopped";
+        } else {
+          terminationReason = "error";
+          const msg = err instanceof Error ? err.message : "Failed to run AI tool";
+          streamHookLogger.error("Novelcrafter stream failed:", msg);
+          toast.error(msg);
+        }
+      } finally {
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null;
+          setIsStreaming(false);
+        }
+        if (controller.signal.aborted && terminationReason === "completed") {
+          terminationReason = "stopped";
+        }
 
-        if (!controller.signal.aborted && fullContent.trim().length > 0) {
-          const newCard: NovelcrafterHistoryCard = {
+        opts.onStreamTerminated?.({
+          storyId: targetConversationId,
+          reason: terminationReason,
+          fullContent,
+          fullThinking,
+          resolvedModel,
+          resolvedGemName,
+          resolvedPersonaName,
+          params,
+        });
+
+        if (fullContent.trim().length > 0) {
+          const cardFeature: NovelcrafterHistoryCard["feature"] =
+            params.feature === "feedback" ? "rewrite" : params.feature;
+          opts.onCardCompleted({
             id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            feature: params.feature,
+            feature: cardFeature,
+            subSlot: params.feature === "feedback" ? "feedback" : undefined,
+            actionLabel: params.subLabel,
             subLabel: params.subLabel,
             bibleTarget: params.bibleTarget,
-            chapterId: activeChapterId,
+            chapterId: opts.activeChapterId,
             content: fullContent.trim(),
             thinking: fullThinking.trim() || undefined,
             model: resolvedModel,
             gemName: resolvedGemName,
             personaName: resolvedPersonaName,
             createdAt: Date.now(),
-          };
-          onCardCompleted(newCard);
-        }
-      } catch (err: unknown) {
-        if (controller.signal.aborted) return;
-        const msg = err instanceof Error ? err.message : "Failed to run AI tool";
-        streamHookLogger.error("Novelcrafter stream failed:", msg);
-        toast.error(msg);
-      } finally {
-        if (abortControllerRef.current === controller) {
-          abortControllerRef.current = null;
-          setIsStreaming(false);
+          });
         }
       }
     },
-    [
-      stopStream,
-      selectedConversationId,
-      ensureStoryConversation,
-      selectedModel,
-      routing,
-      storyBible,
-      activeChapterId,
-      chapterTitle,
-      chapterScenes,
-      chapterProse,
-      previousChapterProseTail,
-      onCardCompleted,
-    ]
+    [stopStream]
   );
 
   return {

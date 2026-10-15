@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { ValidationError } from "@/lib/utils/errors";
 import {
   buildNovelcrafterSystemInstruction,
@@ -14,6 +15,9 @@ const FULL_STORY_BIBLE: StoryBible = {
   braindump: "Braindump raw seed idea about an astral lighthouse keeper.",
   genre: "Cosmic Mystery / Sci-Fi",
   style: "Lyrical third-person limited, rich sensory metaphors.",
+  styleMode: "custom",
+  pov: "third_person_limited",
+  tense: "past",
   synopsis: "Elara guards the edge of a collapsing star-reef and discovers a living signal.",
   characters: "Elara Vance: Stoic keeper. Kaelen: Rogue cartographer.",
   charactersVisibleToAI: true,
@@ -22,7 +26,7 @@ const FULL_STORY_BIBLE: StoryBible = {
   outline: "Act I: The Signal. Act II: The Descent. Act III: The Ignition.",
 };
 
-describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04)", () => {
+describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04, TC-05)", () => {
   describe("resolveEffectivePersonaId (TC-02)", () => {
     const baseRouting: NovelcrafterRoutingConfig = {
       masterGemId: "gem-master",
@@ -31,6 +35,7 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04)", () => {
         bible: "inherit",
         write: "none",
         rewrite: "p-custom-editor",
+        feedback: "inherit",
         expand: "inherit",
         brainstorm: "inherit",
       },
@@ -38,6 +43,7 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04)", () => {
 
     it("resolves inherit to masterPersonaId (Case A)", () => {
       expect(resolveEffectivePersonaId("bible", baseRouting)).toBe("p-master");
+      expect(resolveEffectivePersonaId("feedback", baseRouting)).toBe("p-master");
     });
 
     it("resolves none to null even when masterPersonaId is present (Case B)", () => {
@@ -100,7 +106,7 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04)", () => {
     });
   });
 
-  describe("Sudowrite 8-Node Dependency Graph & Visibility Settings (TC-04)", () => {
+  describe("Sudowrite 8-Node Dependency Graph & Visibility Settings (TC-04 & TC-05)", () => {
     it("Case 4A: bibleTarget='synopsis' includes ONLY braindump and genre", () => {
       const deps = selectStoryBibleDependencies("bible", FULL_STORY_BIBLE, "synopsis");
       expect(deps).toEqual({
@@ -161,7 +167,7 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04)", () => {
       expect(prompt).not.toContain("<characters>");
     });
 
-    it("Case 4D: bibleTarget='draft' includes style, genre, characters, worldbuilding, and chapter scenes (no braindump/outline)", () => {
+    it("Case 4D: bibleTarget='draft' includes style, genre, characters, worldbuilding, POV/Tense, and chapter scenes (no braindump/outline)", () => {
       const prompt = buildNovelcrafterUserPrompt({
         feature: "bible",
         bibleTarget: "draft",
@@ -169,13 +175,16 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04)", () => {
         storyBible: FULL_STORY_BIBLE,
         chapterTitle: "Chapter 1: The Signal",
         chapterScenes: "Beat 1: Elara hears the hum.\nBeat 2: She opens the hatch.",
+        chapterExtraInstructions: "Keep the pacing tense.",
       });
 
       expect(prompt).toContain("<style>");
       expect(prompt).toContain("<genre>");
+      expect(prompt).toContain("<narrative_pov_and_tense>");
       expect(prompt).toContain("<characters>");
       expect(prompt).toContain("<worldbuilding>");
       expect(prompt).toContain("<scenes>");
+      expect(prompt).toContain("Keep the pacing tense.");
       expect(prompt).not.toContain("<braindump>");
       expect(prompt).not.toContain("<outline>");
     });
@@ -212,6 +221,37 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04)", () => {
       ).toThrowError(ValidationError);
     });
 
+    it("TC-05 Case 5A & 5B: builds Feedback and Write Tone Shift user prompts with <narrative_pov_and_tense> and <key_details>", () => {
+      const feedbackPrompt = buildNovelcrafterUserPrompt({
+        feature: "feedback",
+        feedbackMode: "developmental",
+        feedbackCriteria: ["consistency", "pacing"],
+        storyBible: { ...FULL_STORY_BIBLE, pov: "first_person", tense: "present" },
+        chapterTitle: "Chapter 1",
+        chapterProse: "I opened the hatch and looked out at the stars.",
+      });
+
+      expect(feedbackPrompt).toContain("POV: 1st Person (I/We) | Tense: Present Tense");
+      expect(feedbackPrompt).toContain("<preceding_prose>");
+      expect(feedbackPrompt).toContain("<feedback_item>");
+
+      const writePrompt = buildNovelcrafterUserPrompt({
+        feature: "write",
+        writeMode: "tone_shift",
+        toneShift: "ominous",
+        writeLengthWords: 600,
+        keyDetails: "Elara's lantern is running out of oil.",
+        storyBible: FULL_STORY_BIBLE,
+        chapterProse: "The corridor darkened.",
+      });
+
+      expect(writePrompt).toContain(
+        "<key_details>\nElara's lantern is running out of oil.\n  </key_details>"
+      );
+      expect(writePrompt).toContain("600 words");
+      expect(writePrompt).toContain("Ominous");
+    });
+
     it("throws ValidationError when rewriting an empty Story Bible section without customInstruction", () => {
       const emptySynopsisBible: StoryBible = {
         ...FULL_STORY_BIBLE,
@@ -229,7 +269,7 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04)", () => {
     });
   });
 
-  describe("sanitizeStoryState", () => {
+  describe("sanitizeStoryState & 2-Way Rollback Compatibility (TC-05 Cases 5C & 5D — M21, M22)", () => {
     it("repairs invalid activeChapterId or falls back to default state on malformed input", () => {
       const valid = createDefaultStoryState("Chương 1");
       const repaired = sanitizeStoryState({
@@ -240,6 +280,161 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04)", () => {
 
       const fallback = sanitizeStoryState({ broken: true }, "Chương Mở Đầu");
       expect(fallback.chapters[0].title).toBe("Chương Mở Đầu");
+    });
+
+    it("TC-05 Case 5C & 5D (M21, M22): preserves v42 across legacy 1d78761 fixtures, malformed single cards, and instant rollback to strict 1d78761 schema", () => {
+      // (1) Legacy 1d78761 fixture (missing feedback slot, missing pov/tense/styleMode/feedbackItems/extraInstructions)
+      const legacyV42Fixture = {
+        version: 42,
+        selectedModel: "gemini-3-flash-preview",
+        isStoryBibleOpen: false,
+        activeChapterId: "ch-1",
+        storyBible: {
+          braindump: "Legacy braindump",
+          genre: "Sci-Fi",
+          style: "Crisp",
+          synopsis: "Legacy synopsis",
+          characters: "Hero",
+          charactersVisibleToAI: true,
+          worldbuilding: "World",
+          worldbuildingVisibleToAI: true,
+          outline: "Act 1",
+        },
+        chapters: [
+          {
+            id: "ch-1",
+            title: "Chapter 1",
+            scenes: "Scene 1",
+            content: "Preserved chapter content v42",
+            updatedAt: 99_000,
+          },
+        ],
+        routing: {
+          masterGemId: null,
+          masterPersonaId: null,
+          featurePersonas: {
+            bible: "inherit",
+            write: "inherit",
+            rewrite: "inherit",
+            expand: "inherit",
+            brainstorm: "inherit",
+          },
+        },
+        historyCards: [],
+        updatedAt: 99_000,
+      };
+
+      const forwardParsed = sanitizeStoryState(legacyV42Fixture);
+      expect(forwardParsed.version).toBe(42);
+      expect(forwardParsed.chapters[0].content).toBe("Preserved chapter content v42");
+      expect(forwardParsed.routing.featurePersonas.feedback).toBe("inherit");
+      expect(forwardParsed.storyBible.pov).toBe("third_person_limited");
+
+      // (2) Single malformed historyCard or feedbackItem is filtered without resetting v42 to v1
+      const withMalformedCard = sanitizeStoryState({
+        ...forwardParsed,
+        historyCards: [
+          {
+            id: "bad-card",
+            feature: "unknown_invalid_slot",
+            content: "x",
+            model: "m",
+            createdAt: 1,
+          },
+          {
+            id: "good-card",
+            feature: "rewrite",
+            subSlot: "feedback",
+            subLabel: "Feedback · Developmental",
+            content: "Valid summary",
+            model: "gemini-3-flash-preview",
+            createdAt: 2,
+          },
+        ],
+      });
+      expect(withMalformedCard.version).toBe(42);
+      expect(withMalformedCard.historyCards).toHaveLength(1);
+      expect(withMalformedCard.historyCards[0].id).toBe("good-card");
+
+      // (3) Instant Rollback to strict 1d78761 production schema after user ran Feedback (M22)
+      const Strict1d78761Schema = z.object({
+        version: z.number().int().nonnegative(),
+        selectedModel: z.string().min(1).max(100),
+        isStoryBibleOpen: z.boolean().default(true),
+        activeChapterId: z.string().min(1).max(100),
+        storyBible: z.object({
+          braindump: z.string().max(50_000).default(""),
+          genre: z.string().max(2_000).default(""),
+          style: z.string().max(10_000).default(""),
+          synopsis: z.string().max(30_000).default(""),
+          characters: z.string().max(50_000).default(""),
+          charactersVisibleToAI: z.boolean().default(true),
+          worldbuilding: z.string().max(50_000).default(""),
+          worldbuildingVisibleToAI: z.boolean().default(true),
+          outline: z.string().max(50_000).default(""),
+        }),
+        chapters: z
+          .array(
+            z.object({
+              id: z.string().min(1).max(100),
+              title: z.string().min(1).max(200),
+              scenes: z.string().max(30_000).default(""),
+              content: z.string().max(150_000).default(""),
+              updatedAt: z.number().int().nonnegative(),
+            })
+          )
+          .min(1),
+        routing: z.object({
+          masterGemId: z.string().max(100).nullable().default(null),
+          masterPersonaId: z.string().max(100).nullable().default(null),
+          featurePersonas: z.object({
+            bible: z.string().min(1).max(100).default("inherit"),
+            write: z.string().min(1).max(100).default("inherit"),
+            rewrite: z.string().min(1).max(100).default("inherit"),
+            expand: z.string().min(1).max(100).default("inherit"),
+            brainstorm: z.string().min(1).max(100).default("inherit"),
+          }),
+        }),
+        historyCards: z.array(
+          z.object({
+            id: z.string().min(1).max(100),
+            feature: z.enum(["bible", "write", "rewrite", "expand", "brainstorm"]),
+            subLabel: z.string().max(200).optional(),
+            content: z.string().max(150_000),
+            model: z.string().max(100),
+            createdAt: z.number().int().nonnegative(),
+          })
+        ),
+        updatedAt: z.number().int().nonnegative(),
+      });
+
+      const stateAfterFeedback = {
+        ...withMalformedCard,
+        chapters: [
+          {
+            ...withMalformedCard.chapters[0],
+            extraInstructions: "Extra chapter instruction",
+            feedbackItems: [
+              {
+                id: "fb-1",
+                category: "CONSISTENCY",
+                quote: "Preserved chapter",
+                comment: "Check consistency",
+                suggestion: "Updated chapter",
+                status: "open" as const,
+                createdAt: 100,
+              },
+            ],
+          },
+        ],
+      };
+
+      const rollbackParsed = Strict1d78761Schema.safeParse(stateAfterFeedback);
+      expect(rollbackParsed.success).toBe(true);
+      if (rollbackParsed.success) {
+        expect(rollbackParsed.data.version).toBe(42);
+        expect(rollbackParsed.data.chapters[0].content).toBe("Preserved chapter content v42");
+      }
     });
   });
 });

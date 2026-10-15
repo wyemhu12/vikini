@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
       return error("Unauthorized", HTTP_STATUS.UNAUTHORIZED, "UNAUTHORIZED");
     }
 
-    const rl = await consumeRateLimit(`novelcrafter-state:${email}`);
+    const rl = await consumeRateLimit(`novelcrafter-state-get:${email}`);
     if (!rl.allowed) {
       return rateLimitError("Rate limit exceeded", rl.retryAfterSeconds);
     }
@@ -74,7 +74,7 @@ export async function PUT(req: NextRequest) {
       return error("Unauthorized", HTTP_STATUS.UNAUTHORIZED, "UNAUTHORIZED");
     }
 
-    const rl = await consumeRateLimit(`novelcrafter-state:${email}`);
+    const rl = await consumeRateLimit(`novelcrafter-state-put:${email}`);
     if (!rl.allowed) {
       return rateLimitError("Rate limit exceeded", rl.retryAfterSeconds);
     }

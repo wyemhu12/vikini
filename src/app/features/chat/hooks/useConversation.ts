@@ -157,7 +157,14 @@ interface UseConversationReturn {
   loadingMessages: boolean;
   loadConversation: (id: string) => Promise<void>;
   createConversation: (
-    options?: { title?: string; model?: string; projectId?: string | null } | string
+    options?:
+      | {
+          title?: string;
+          model?: string;
+          projectId?: string | null;
+          onBeforeActivate?: (conversationId: string) => void;
+        }
+      | string
   ) => Promise<FrontendConversation | null>;
   renameConversation: (id: string, title: string) => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
@@ -362,15 +369,26 @@ export function useConversation(): UseConversationReturn {
 
   const createConversation = useCallback(
     async (
-      options: { title?: string; model?: string; projectId?: string | null } | string = {}
+      options:
+        | {
+            title?: string;
+            model?: string;
+            projectId?: string | null;
+            onBeforeActivate?: (conversationId: string) => void;
+          }
+        | string = {}
     ): Promise<FrontendConversation | null> => {
       if (creatingConversation) return null;
 
       const title = typeof options === "string" ? options : options.title;
       const model = typeof options === "string" ? undefined : options.model;
-      // Use projectId from options if provided, otherwise use currentProjectId from store
+      // Use projectId from options if explicitly provided (including null), otherwise use currentProjectId from store
       const projectId =
-        typeof options === "string" ? currentProjectId : (options.projectId ?? currentProjectId);
+        typeof options === "string"
+          ? currentProjectId
+          : "projectId" in options
+            ? (options.projectId ?? null)
+            : currentProjectId;
 
       setCreatingConversation(true);
       try {
@@ -387,6 +405,9 @@ export function useConversation(): UseConversationReturn {
         if (!backendConv?.id) return null;
 
         const conv = convertConversationToFrontend(backendConv);
+        if (typeof options !== "string") {
+          options.onBeforeActivate?.(conv.id);
+        }
         upsertConversation(conv);
         setActiveId(conv.id);
         setMessages([]);

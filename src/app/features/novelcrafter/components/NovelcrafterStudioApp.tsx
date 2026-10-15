@@ -1,33 +1,37 @@
 // /app/features/novelcrafter/components/NovelcrafterStudioApp.tsx
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import ToastContainer from "@/components/ui/ToastContainer";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useTheme } from "../../chat/hooks/useTheme";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { useAllowedModels } from "../../chat/components/hooks/useAllowedModels";
+import { countChapterWords } from "@/lib/features/novelcrafter/draftStorage";
+import { parseFeedbackItems } from "@/lib/features/novelcrafter/feedbackParser";
+import {
+  applyStreamTargetUpdate,
+  resolveStreamTerminationState,
+  type DirectStreamTarget,
+} from "@/lib/features/novelcrafter/streamTargetGuard";
+import type { NovelcrafterBibleTarget } from "@/lib/features/novelcrafter/types";
 import { useNovelcrafterStory } from "../hooks/useNovelcrafterStory";
-import { useNovelcrafterStream } from "../hooks/useNovelcrafterStream";
+import {
+  useNovelcrafterStream,
+  type StreamTerminatedPayload,
+  type TriggerNovelcrafterStreamParams,
+} from "../hooks/useNovelcrafterStream";
 import NovelcrafterTopBar from "./NovelcrafterTopBar";
-import NovelcrafterLeftNavigator from "./NovelcrafterLeftNavigator";
+import NovelcrafterLeftNavigator, {
+  type NovelcrafterBibleSectionId,
+} from "./NovelcrafterLeftNavigator";
 import StoryBibleWorkspace from "./StoryBibleWorkspace";
 import ChapterEditorWorkspace, { type EditorSelectionRange } from "./ChapterEditorWorkspace";
 import NovelcrafterHistoryPane from "./NovelcrafterHistoryPane";
 import GemPersonaRoutingModal from "./GemPersonaRoutingModal";
-import type { NovelcrafterBibleTarget } from "@/lib/features/novelcrafter/types";
 
 export default function NovelcrafterStudioApp() {
   const { data: session, status } = useSession();
@@ -43,47 +47,210 @@ export default function NovelcrafterStudioApp() {
   const [showLeftPane, setShowLeftPane] = useState(true);
   const [showRightPane, setShowRightPane] = useState(true);
   const [isRoutingModalOpen, setIsRoutingModalOpen] = useState(false);
-
-  // Rename story modal state
+  const [activeBibleSection, setActiveBibleSection] =
+    useState<NovelcrafterBibleSectionId>("braindump");
   const [renamingStoryId, setRenamingStoryId] = useState<string | null>(null);
   const [renameStoryTitle, setRenameStoryTitle] = useState("");
-
-  // Active editor selection range
   const [selection, setSelection] = useState<EditorSelectionRange | null>(null);
+  const [isDirectStreamingToChapter, setIsDirectStreamingToChapter] = useState(false);
+
+  const directStreamTargetRef = useRef<DirectStreamTarget | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const pendingChunkRef = useRef<{
+    storyId: string;
+    fullContent: string;
+    params: TriggerNovelcrafterStreamParams;
+  } | null>(null);
+
+  const cancelRaf = useCallback(() => {
+    if (rafIdRef.current !== null && typeof window !== "undefined") {
+      window.cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    pendingChunkRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    cancelRaf();
+    directStreamTargetRef.current = null;
+    setIsDirectStreamingToChapter(false);
+    return () => cancelRaf();
+  }, [story.selectedConversationId, cancelRaf]);
+
+  const handleStreamStarted = useCallback(
+    ({ storyId, params }: { storyId: string; params: TriggerNovelcrafterStreamParams }) => {
+      cancelRaf();
+      const currentState = story.latestStateRef.current.state;
+      const activeCh =
+        currentState.chapters.find((c) => c.id === currentState.activeChapterId) ||
+        currentState.chapters[0];
+      if (
+        params.feature === "write" ||
+        (params.feature === "bible" && params.bibleTarget === "draft")
+      ) {
+        directStreamTargetRef.current = {
+          storyId,
+          kind: "chapter_prose",
+          chapterId: activeCh.id,
+          baseContent: activeCh.content,
+        };
+        setIsDirectStreamingToChapter(true);
+      } else if (params.feature === "bible" && params.bibleTarget === "scenes") {
+        directStreamTargetRef.current = {
+          storyId,
+          kind: "chapter_scenes",
+          chapterId: activeCh.id,
+          baseContent: activeCh.scenes,
+        };
+        setIsDirectStreamingToChapter(true);
+      } else if (
+        params.feature === "bible" &&
+        params.bibleTarget &&
+        params.bibleTarget !== "draft" &&
+        params.bibleTarget !== "scenes"
+      ) {
+        const field = params.bibleTarget;
+        directStreamTargetRef.current = {
+          storyId,
+          kind: "bible_field",
+          bibleField: field,
+          baseContent: currentState.storyBible[field],
+        };
+        setIsDirectStreamingToChapter(false);
+      } else {
+        directStreamTargetRef.current = null;
+        setIsDirectStreamingToChapter(false);
+      }
+    },
+    [cancelRaf, story.latestStateRef]
+  );
+
+  const handleStreamTokenChunk = useCallback(
+    (payload: {
+      storyId: string;
+      fullContent: string;
+      params: TriggerNovelcrafterStreamParams;
+    }) => {
+      pendingChunkRef.current = payload;
+      if (rafIdRef.current !== null || typeof window === "undefined") return;
+      rafIdRef.current = window.requestAnimationFrame(() => {
+        rafIdRef.current = null;
+        const pending = pendingChunkRef.current;
+        if (!pending) return;
+
+        if (pending.params.feature === "feedback") {
+          if (story.latestStateRef.current.ownerStoryId !== pending.storyId) return;
+          const parsedItems = parseFeedbackItems(pending.fullContent, { isStreaming: true });
+          if (parsedItems.length === 0) return;
+          const currentState = story.latestStateRef.current.state;
+          story.applyDirectStoryState(
+            {
+              ...currentState,
+              chapters: currentState.chapters.map((ch) =>
+                ch.id === currentState.activeChapterId ? { ...ch, feedbackItems: parsedItems } : ch
+              ),
+            },
+            { skipSave: true }
+          );
+          return;
+        }
+
+        const target = directStreamTargetRef.current;
+        if (!target || target.storyId !== pending.storyId) return;
+        const applied = applyStreamTargetUpdate(
+          story.latestStateRef.current,
+          target,
+          pending.fullContent
+        );
+        if (applied.applied) story.applyDirectStoryState(applied.nextState, { skipSave: true });
+      });
+    },
+    [story]
+  );
+
+  const handleStreamTerminated = useCallback(
+    (payload: StreamTerminatedPayload) => {
+      cancelRaf();
+      setIsDirectStreamingToChapter(false);
+      if (payload.params.feature === "feedback") {
+        if (
+          story.latestStateRef.current.ownerStoryId === payload.storyId &&
+          payload.fullContent.trim()
+        ) {
+          const parsedItems = parseFeedbackItems(payload.fullContent, { isStreaming: false });
+          if (parsedItems.length > 0) {
+            story.updateChapterFeedbackItems(
+              story.latestStateRef.current.state.activeChapterId,
+              (existing) => [...parsedItems, ...existing.filter((i) => i.status === "resolved")],
+              true
+            );
+          }
+        }
+        directStreamTargetRef.current = null;
+        return;
+      }
+
+      const target = directStreamTargetRef.current;
+      directStreamTargetRef.current = null;
+      if (!target || story.latestStateRef.current.ownerStoryId !== target.storyId) return;
+
+      const resolved = resolveStreamTerminationState({
+        reason: payload.reason,
+        baseContent: target.baseContent,
+        accumulatedStreamText: payload.fullContent,
+        isAppendMode: target.kind === "chapter_prose",
+      });
+      const applied = applyStreamTargetUpdate(
+        story.latestStateRef.current,
+        { ...target, baseContent: "" },
+        resolved.finalFieldContent
+      );
+      if (applied.applied) {
+        story.applyDirectStoryState(applied.nextState, {
+          immediate: resolved.shouldPersistState,
+          skipSave: !resolved.shouldPersistState,
+        });
+      }
+    },
+    [cancelRaf, story]
+  );
 
   const stream = useNovelcrafterStream({
-    selectedConversationId: story.selectedConversationId,
-    ensureStoryConversation: story.handleCreateStory,
+    selectedConversationId: story.validStoryId,
+    ensureStoryConversation: () => story.ensureActiveStory(),
     selectedModel: story.storyState.selectedModel,
     routing: story.storyState.routing,
     storyBible: story.storyState.storyBible,
     activeChapterId: story.activeChapter.id,
     chapterTitle: story.activeChapter.title,
     chapterScenes: story.activeChapter.scenes,
+    chapterExtraInstructions: story.activeChapter.extraInstructions,
     chapterProse: story.activeChapter.content,
     previousChapterProseTail: story.previousChapterProseTail,
+    onStreamStarted: handleStreamStarted,
+    onStreamTokenChunk: handleStreamTokenChunk,
+    onStreamTerminated: handleStreamTerminated,
     onCardCompleted: story.prependHistoryCard,
   });
 
-  const masterGem = useMemo(() => {
-    const id = story.storyState.routing.masterGemId;
-    if (!id) return null;
-    return story.gems.find((g) => g.id === id) || null;
-  }, [story.gems, story.storyState.routing.masterGemId]);
-
-  const masterPersona = useMemo(() => {
-    const id = story.storyState.routing.masterPersonaId;
-    if (!id) return null;
-    return story.personas.find((p) => p.id === id) || null;
-  }, [story.personas, story.storyState.routing.masterPersonaId]);
+  const masterGem = useMemo(
+    () => story.gems.find((g) => g.id === story.storyState.routing.masterGemId) || null,
+    [story.gems, story.storyState.routing.masterGemId]
+  );
+  const masterPersona = useMemo(
+    () => story.personas.find((p) => p.id === story.storyState.routing.masterPersonaId) || null,
+    [story.personas, story.storyState.routing.masterPersonaId]
+  );
+  const chapterWordCount = useMemo(
+    () => countChapterWords(story.activeChapter?.content || ""),
+    [story.activeChapter?.content]
+  );
 
   const handleAppendToChapter = useCallback(
     (text: string) => {
       const current = story.activeChapter.content;
       const separator = current.trim().length > 0 ? "\n\n" : "";
-      story.updateChapter(story.activeChapter.id, {
-        content: `${current}${separator}${text}`,
-      });
+      story.updateChapter(story.activeChapter.id, { content: `${current}${separator}${text}` });
       story.setStoryBibleOpen(false);
     },
     [story]
@@ -91,13 +258,11 @@ export default function NovelcrafterStudioApp() {
 
   const handleReplaceSelection = useCallback(
     (text: string) => {
-      if (!selection) {
-        handleAppendToChapter(text);
-        return;
-      }
+      if (!selection) return handleAppendToChapter(text);
       const current = story.activeChapter.content;
-      const updated = current.slice(0, selection.start) + text + current.slice(selection.end);
-      story.updateChapter(story.activeChapter.id, { content: updated });
+      story.updateChapter(story.activeChapter.id, {
+        content: current.slice(0, selection.start) + text + current.slice(selection.end),
+      });
       setSelection(null);
       story.setStoryBibleOpen(false);
     },
@@ -106,31 +271,12 @@ export default function NovelcrafterStudioApp() {
 
   const handleApplyToBible = useCallback(
     (target: NovelcrafterBibleTarget, text: string) => {
-      if (target === "scenes") {
-        story.updateChapter(story.activeChapter.id, { scenes: text });
-      } else if (target === "draft") {
-        handleAppendToChapter(text);
-      } else {
-        story.updateStoryBible({ [target]: text });
-      }
+      if (target === "scenes") story.updateChapter(story.activeChapter.id, { scenes: text });
+      else if (target === "draft") handleAppendToChapter(text);
+      else story.updateStoryBible({ [target]: text });
     },
     [story, handleAppendToChapter]
   );
-
-  const openRenameStoryModal = useCallback(
-    (id: string) => {
-      const found = story.stories.find((s) => s.id === id);
-      setRenamingStoryId(id);
-      setRenameStoryTitle(found?.title || "");
-    },
-    [story.stories]
-  );
-
-  const confirmRenameStory = useCallback(async () => {
-    if (!renamingStoryId || !renameStoryTitle.trim()) return;
-    await story.handleRenameStory(renamingStoryId, renameStoryTitle.trim());
-    setRenamingStoryId(null);
-  }, [renamingStoryId, renameStoryTitle, story]);
 
   if (status === "loading") {
     return (
@@ -139,7 +285,6 @@ export default function NovelcrafterStudioApp() {
       </div>
     );
   }
-
   if (!isAuthed) {
     void signIn();
     return null;
@@ -153,7 +298,7 @@ export default function NovelcrafterStudioApp() {
 
       <Sidebar
         conversations={story.stories}
-        selectedConversationId={story.selectedConversationId}
+        selectedConversationId={story.validStoryId}
         onSelectConversation={(id) => {
           story.setSelectedConversationId(id);
           setMobileSidebarOpen(false);
@@ -164,7 +309,11 @@ export default function NovelcrafterStudioApp() {
         }}
         newChatLabel={t("novelcrafterNewStory")}
         onDeleteConversation={(id) => void story.handleDeleteStory(id)}
-        onRenameChat={openRenameStoryModal}
+        onRenameChat={(id) => {
+          const found = story.stories.find((s) => s.id === id);
+          setRenamingStoryId(id);
+          setRenameStoryTitle(found?.title || "");
+        }}
         onLogout={() => void signOut({ callbackUrl: "/auth/signin" })}
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
@@ -176,7 +325,6 @@ export default function NovelcrafterStudioApp() {
 
       {!mobileSidebarOpen && <FloatingMenuTrigger onClick={() => setMobileSidebarOpen(true)} />}
 
-      {/* Main Content Container */}
       <div
         className={`flex-1 h-full flex flex-col min-w-0 relative z-10 transition-[padding] duration-300 ${
           sidebarCollapsed
@@ -190,9 +338,7 @@ export default function NovelcrafterStudioApp() {
           <NovelcrafterTopBar
             storyTitle={currentTitle}
             onRenameTitle={(newTitle) => {
-              if (story.selectedConversationId) {
-                void story.handleRenameStory(story.selectedConversationId, newTitle);
-              }
+              if (story.validStoryId) void story.handleRenameStory(story.validStoryId, newTitle);
             }}
             selectedModel={story.storyState.selectedModel}
             onSelectModel={story.setSelectedModel}
@@ -201,19 +347,34 @@ export default function NovelcrafterStudioApp() {
             masterGem={masterGem}
             masterPersona={masterPersona}
             saveStatus={story.saveStatus}
+            chapterWordCount={chapterWordCount}
+            onRetrySave={() => void story.saveNow({ isManual: true })}
             onOpenRoutingModal={() => setIsRoutingModalOpen(true)}
             showLeftPane={showLeftPane}
             onToggleLeftPane={() => setShowLeftPane((p) => !p)}
             showRightPane={showRightPane}
             onToggleRightPane={() => setShowRightPane((p) => !p)}
+            renamingStoryId={renamingStoryId}
+            renameStoryTitle={renameStoryTitle}
+            onChangeRenameStoryTitle={setRenameStoryTitle}
+            onCloseRenameStoryModal={() => setRenamingStoryId(null)}
+            onConfirmRenameStory={() => {
+              if (!renamingStoryId || !renameStoryTitle.trim()) return;
+              void story.handleRenameStory(renamingStoryId, renameStoryTitle.trim());
+              setRenamingStoryId(null);
+            }}
           />
 
-          {/* 3-Pane Sudowrite Workspace */}
           <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
             {showLeftPane && (
               <NovelcrafterLeftNavigator
                 isStoryBibleOpen={story.storyState.isStoryBibleOpen}
-                onSelectStoryBible={() => story.setStoryBibleOpen(true)}
+                onToggleStoryBible={story.setStoryBibleOpen}
+                activeBibleSection={activeBibleSection}
+                onJumpToBibleSection={(sec) => {
+                  setActiveBibleSection(sec);
+                  story.setStoryBibleOpen(true);
+                }}
                 chapters={story.storyState.chapters}
                 activeChapterId={story.activeChapter.id}
                 onSelectChapter={story.selectChapter}
@@ -223,11 +384,11 @@ export default function NovelcrafterStudioApp() {
               />
             )}
 
-            {/* Center Pane: Story Bible OR Chapter Editor */}
             {story.storyState.isStoryBibleOpen ? (
               <StoryBibleWorkspace
                 storyBible={story.storyState.storyBible}
                 onUpdateStoryBible={story.updateStoryBible}
+                activeSection={activeBibleSection}
                 isStreaming={stream.isStreaming}
                 onTriggerStream={stream.triggerStream}
               />
@@ -235,15 +396,16 @@ export default function NovelcrafterStudioApp() {
               <ChapterEditorWorkspace
                 chapter={story.activeChapter}
                 onUpdateChapter={story.updateChapter}
+                onUpdateFeedbackItems={story.updateChapterFeedbackItems}
                 selection={selection}
                 onSelectionChange={setSelection}
                 isStreaming={stream.isStreaming}
+                isDirectStreamingToChapter={isDirectStreamingToChapter}
                 onTriggerStream={stream.triggerStream}
                 onStopStream={stream.stopStream}
               />
             )}
 
-            {/* Right Pane: AI History Cards */}
             {showRightPane && (
               <NovelcrafterHistoryPane
                 historyCards={story.storyState.historyCards}
@@ -263,7 +425,6 @@ export default function NovelcrafterStudioApp() {
         </div>
       </div>
 
-      {/* Layered GEM & Persona Routing Modal */}
       <GemPersonaRoutingModal
         isOpen={isRoutingModalOpen}
         onClose={() => setIsRoutingModalOpen(false)}
@@ -273,37 +434,6 @@ export default function NovelcrafterStudioApp() {
         onUpdateRouting={story.updateRouting}
         onUpdateFeatureSlot={story.updateFeaturePersonaSlot}
       />
-
-      {/* Rename Story Modal */}
-      <Dialog
-        open={Boolean(renamingStoryId)}
-        onOpenChange={(open) => !open && setRenamingStoryId(null)}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("renameChat")}</DialogTitle>
-          </DialogHeader>
-          <Input
-            type="text"
-            value={renameStoryTitle}
-            onChange={(e) => setRenameStoryTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void confirmRenameStory();
-            }}
-            autoFocus
-            className="h-11"
-            placeholder={t("novelcrafterStoryTitlePlaceholder")}
-          />
-          <DialogFooter className="gap-2">
-            <Button variant="ghost" onClick={() => setRenamingStoryId(null)}>
-              {t("cancel")}
-            </Button>
-            <Button onClick={() => void confirmRenameStory()} disabled={!renameStoryTitle.trim()}>
-              {t("save")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

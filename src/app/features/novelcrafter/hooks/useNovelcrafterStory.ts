@@ -4,51 +4,44 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConversation, type FrontendConversation } from "../../chat/hooks/useConversation";
 import { useLanguage } from "../../chat/hooks/useLanguage";
-import { useGemStore } from "../../gems/stores/useGemStore";
-import { usePersonaStore } from "../../personas/stores/usePersonaStore";
 import { MODEL_IDS } from "@/lib/utils/constants";
 import { confirm } from "@/lib/store/confirmStore";
 import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
 import {
+  hasUnsavedDraftContent,
+  promoteUnsavedDraftToStory,
+  readLocalStoryDraft,
+  removeLocalStoryDraft,
+  resolveValidNovelcrafterStoryId,
+} from "@/lib/features/novelcrafter/draftStorage";
+import {
+  NovelcrafterSyncCoordinator,
+  shouldApplyRemoteStoryLoad,
+  type StorySaveStatus,
+} from "@/lib/features/novelcrafter/storySyncCoordinator";
+import type { StoryScopedState } from "@/lib/features/novelcrafter/streamTargetGuard";
+import {
   createDefaultStoryState,
-  MAX_CHAPTERS,
-  MAX_HISTORY_CARDS,
-  type NovelcrafterChapter,
-  type NovelcrafterFeatureSlot,
-  type NovelcrafterHistoryCard,
-  type NovelcrafterRoutingConfig,
   type NovelcrafterStoryState,
-  type StoryBible,
 } from "@/lib/features/novelcrafter/types";
-import { sanitizeStoryState } from "@/lib/features/novelcrafter/promptBuilder";
+import {
+  loadAndReconcileStoryState,
+  spawnAndBindStoryConversation,
+  useNovelcrafterCatalog,
+  type ClientGemItem,
+  type ClientPersonaItem,
+} from "./useNovelcrafterCatalog";
+import { useNovelcrafterStateMutators } from "./useNovelcrafterStateMutators";
+import { useStoryPersistenceLifecycle } from "./useStoryPersistenceLifecycle";
+
+export type { ClientGemItem, ClientPersonaItem, StorySaveStatus };
 
 const storyLogger = logger.withContext("useNovelcrafterStory");
 
-export interface ClientGemItem {
-  id: string;
-  name: string;
-  description?: string;
-  icon?: string | null;
-  color?: string | null;
-}
-
-export interface ClientPersonaItem {
-  id: string;
-  name: string;
-  description?: string;
-  tone?: string;
-  icon?: string | null;
-  color?: string | null;
-}
-
-export type StorySaveStatus = "saved" | "saving" | "unsaved";
-
 export function useNovelcrafterStory(isAuthed: boolean) {
   const { t } = useLanguage();
-  const isGemModalOpen = useGemStore((s) => s.isOpen);
-  const isPersonaModalOpen = usePersonaStore((s) => s.isOpen);
-
+  const { gems, personas } = useNovelcrafterCatalog(isAuthed);
   const {
     conversations,
     selectedConversationId,
@@ -59,38 +52,95 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     creatingConversation,
   } = useConversation();
 
-  const stories = useMemo(() => {
-    return (conversations || []).filter(
-      (c: FrontendConversation) => c.model === MODEL_IDS.NOVELCRAFTER
-    );
-  }, [conversations]);
+  const coordinatorRef = useRef<NovelcrafterSyncCoordinator | null>(null);
+  if (!coordinatorRef.current) coordinatorRef.current = new NovelcrafterSyncCoordinator();
+  const coordinator = coordinatorRef.current;
 
-  const currentStory = useMemo(() => {
-    return stories.find((s) => s.id === selectedConversationId) || null;
-  }, [stories, selectedConversationId]);
+  const stories = useMemo(
+    () =>
+      (conversations || []).filter((c: FrontendConversation) => c.model === MODEL_IDS.NOVELCRAFTER),
+    [conversations]
+  );
+
+  const storiesRef = useRef(stories);
+  useEffect(() => {
+    storiesRef.current = stories;
+  }, [stories]);
+
+  const validStoryId = useMemo(
+    () => resolveValidNovelcrafterStoryId(selectedConversationId, stories),
+    [selectedConversationId, stories]
+  );
+
+  const currentStory = useMemo(
+    () => (validStoryId ? stories.find((s) => s.id === validStoryId) || null : null),
+    [stories, validStoryId]
+  );
 
   const [storyState, setStoryState] = useState<NovelcrafterStoryState>(() =>
     createDefaultStoryState(t("novelcrafterDefaultChapterTitle"))
   );
   const [isLoadingState, setIsLoadingState] = useState(false);
   const [saveStatus, setSaveStatus] = useState<StorySaveStatus>("saved");
-  const [gems, setGems] = useState<ClientGemItem[]>([]);
-  const [personas, setPersonas] = useState<ClientPersonaItem[]>([]);
 
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingSavePayloadRef = useRef<{
-    conversationId: string;
-    state: NovelcrafterStoryState;
-  } | null>(null);
-  const activeConversationIdRef = useRef<string | null>(selectedConversationId);
+  const latestStateRef = useRef<StoryScopedState>({ ownerStoryId: null, state: storyState });
+  const executeSaveRef = useRef<
+    (storyId: string, state: NovelcrafterStoryState, opts?: { epoch?: number }) => Promise<boolean>
+  >(async () => false);
+
+  const ensureActiveStory = useCallback(
+    async (seedState?: NovelcrafterStoryState): Promise<string | null> => {
+      if (validStoryId) return validStoryId;
+      const newId = await spawnAndBindStoryConversation({
+        knownStoryIds: storiesRef.current.map((s) => s.id),
+        stateToSeed: seedState ?? latestStateRef.current.state,
+        promoteUnsaved: true,
+        defaultStoryTitle: t("novelcrafterDefaultStoryTitle"),
+        coordinator,
+        latestStateRef,
+        setStoryState,
+        createConversation,
+      });
+      if (newId) {
+        void executeSaveRef.current(newId, latestStateRef.current.state, {
+          epoch: coordinator.getEpoch(newId),
+        });
+      }
+      return newId;
+    },
+    [validStoryId, t, coordinator, createConversation]
+  );
+
+  const {
+    scheduleSave,
+    saveNow,
+    executeCoordinatorSave,
+    cancelPendingSaveTimers,
+    flushLocalDraftSync,
+    dirtyStoryIdsRef,
+  } = useStoryPersistenceLifecycle({
+    isAuthed,
+    validStoryId,
+    coordinator,
+    latestStateRef,
+    setStoryState,
+    setSaveStatus,
+    ensureActiveStory,
+    t,
+  });
 
   useEffect(() => {
-    activeConversationIdRef.current = selectedConversationId;
-  }, [selectedConversationId]);
+    executeSaveRef.current = executeCoordinatorSave;
+  }, [executeCoordinatorSave]);
 
-  // Auto-select most recent story if none selected
+  // Auto-select most recent story unless user is typing an unsaved draft or creating a story (M19b, m24)
   useEffect(() => {
-    if (!selectedConversationId && stories.length > 0) {
+    if (coordinator.isCreatingStory()) return;
+    const hasActiveUnsavedDraft =
+      latestStateRef.current.ownerStoryId === null &&
+      hasUnsavedDraftContent(latestStateRef.current.state);
+
+    if (!selectedConversationId && stories.length > 0 && !hasActiveUnsavedDraft) {
       setSelectedConversationId(stories[0].id);
     } else if (
       selectedConversationId &&
@@ -99,216 +149,160 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     ) {
       setSelectedConversationId(stories[0].id);
     }
-  }, [selectedConversationId, stories, setSelectedConversationId]);
+  }, [selectedConversationId, stories, setSelectedConversationId, coordinator]);
 
-  // Load GEMs and Personas for Routing Modal & TopBar badges
-  const fetchGemsAndPersonas = useCallback(async () => {
-    if (!isAuthed) return;
-    try {
-      const [gemsRes, personasRes] = await Promise.all([
-        fetch("/api/gems"),
-        fetch("/api/personas"),
-      ]);
-      if (gemsRes.ok) {
-        const gJson = (await gemsRes.json()) as {
-          data?: { gems?: ClientGemItem[] };
-          gems?: ClientGemItem[];
-        };
-        setGems(gJson.data?.gems || gJson.gems || []);
-      }
-      if (personasRes.ok) {
-        const pJson = (await personasRes.json()) as {
-          data?: { personas?: ClientPersonaItem[] };
-          personas?: ClientPersonaItem[];
-        };
-        setPersonas(pJson.data?.personas || pJson.personas || []);
-      }
-    } catch (err: unknown) {
-      storyLogger.warn("Failed to fetch gems/personas:", err);
-    }
-  }, [isAuthed]);
+  const prevValidStoryIdRef = useRef<string | null>(validStoryId);
 
+  // Load & reconcile story state when validStoryId changes (M19, m24, m26)
   useEffect(() => {
-    void fetchGemsAndPersonas();
-  }, [fetchGemsAndPersonas, isGemModalOpen, isPersonaModalOpen]);
+    const prevStoryId = prevValidStoryIdRef.current;
+    prevValidStoryIdRef.current = validStoryId;
 
-  const persistStateToServer = useCallback(
-    async (targetConversationId: string, stateToSave: NovelcrafterStoryState) => {
-      try {
-        if (activeConversationIdRef.current === targetConversationId) {
-          setSaveStatus("saving");
-        }
-        const res = await fetch("/api/novelcrafter/state", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            conversationId: targetConversationId,
-            state: stateToSave,
-          }),
+    if (prevStoryId && prevStoryId !== validStoryId) {
+      cancelPendingSaveTimers();
+      const prevStillExists = storiesRef.current.some((s) => s.id === prevStoryId);
+      if (
+        prevStillExists &&
+        dirtyStoryIdsRef.current.has(prevStoryId) &&
+        latestStateRef.current.ownerStoryId === prevStoryId
+      ) {
+        const snapshot = latestStateRef.current.state;
+        flushLocalDraftSync(prevStoryId, snapshot);
+        void executeCoordinatorSave(prevStoryId, snapshot, {
+          epoch: coordinator.getEpoch(prevStoryId),
         });
-
-        if (!res.ok) {
-          const errJson = (await res.json().catch(() => ({}))) as {
-            error?: { message?: string };
-          };
-          throw new Error(errJson.error?.message || t("novelcrafterSaveError"));
-        }
-
-        const json = (await res.json()) as {
-          data?: { state?: NovelcrafterStoryState };
-        };
-        if (activeConversationIdRef.current === targetConversationId) {
-          if (json.data?.state) {
-            setStoryState((prev) => ({
-              ...prev,
-              version: json.data!.state!.version,
-              updatedAt: json.data!.state!.updatedAt,
-            }));
-          }
-          setSaveStatus("saved");
-        }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : t("novelcrafterSaveError");
-        storyLogger.error("Failed to save story state:", msg);
-        if (activeConversationIdRef.current === targetConversationId) {
-          setSaveStatus("unsaved");
-        }
-        toast.error(t("novelcrafterSaveError"));
       }
-    },
-    [t]
-  );
-
-  const flushPendingSave = useCallback(() => {
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
     }
-    const pending = pendingSavePayloadRef.current;
-    if (pending) {
-      pendingSavePayloadRef.current = null;
-      void persistStateToServer(pending.conversationId, pending.state);
-    }
-  }, [persistStateToServer]);
 
-  // Load story state when selectedConversationId changes
-  useEffect(() => {
-    flushPendingSave();
-
-    if (!isAuthed || !selectedConversationId) {
-      setStoryState(createDefaultStoryState(t("novelcrafterDefaultChapterTitle")));
-      setSaveStatus("saved");
+    if (!isAuthed || !validStoryId) {
+      if (!coordinator.isCreatingStory() && latestStateRef.current.ownerStoryId !== null) {
+        cancelPendingSaveTimers();
+        const fresh = createDefaultStoryState(t("novelcrafterDefaultChapterTitle"));
+        latestStateRef.current = { ownerStoryId: null, state: fresh };
+        setStoryState(fresh);
+        setSaveStatus("saved");
+      } else if (latestStateRef.current.ownerStoryId === null) {
+        const unsavedEnv = readLocalStoryDraft(null, t("novelcrafterDefaultChapterTitle"));
+        if (unsavedEnv?.dirty) {
+          latestStateRef.current = { ownerStoryId: null, state: unsavedEnv.state };
+          setStoryState(unsavedEnv.state);
+        }
+      }
       return;
     }
 
-    const isNovelcrafterConvo = stories.some((s) => s.id === selectedConversationId);
-    if (!isNovelcrafterConvo && stories.length > 0) {
+    const decision = shouldApplyRemoteStoryLoad({
+      storyId: validStoryId,
+      coordinator,
+      currentOwnerStoryId: latestStateRef.current.ownerStoryId,
+    });
+
+    if (decision.shouldPromoteUnsaved) {
+      const promoted = promoteUnsavedDraftToStory(
+        validStoryId,
+        latestStateRef.current.state,
+        coordinator,
+        { markSkipNextGet: false }
+      );
+      latestStateRef.current = { ownerStoryId: validStoryId, state: promoted };
+      setStoryState(promoted);
+      void executeCoordinatorSave(validStoryId, promoted, {
+        epoch: coordinator.getEpoch(validStoryId),
+      });
+      return;
+    }
+
+    if (!decision.shouldFetch) {
+      latestStateRef.current = { ownerStoryId: validStoryId, state: latestStateRef.current.state };
       return;
     }
 
     let cancelled = false;
     setIsLoadingState(true);
 
-    async function loadState(convId: string) {
-      try {
-        const res = await fetch(
-          `/api/novelcrafter/state?conversationId=${encodeURIComponent(convId)}`
-        );
-        if (!res.ok) {
-          throw new Error(t("novelcrafterLoadError"));
-        }
-        const json = (await res.json()) as {
-          data?: { state?: unknown };
-        };
+    void loadAndReconcileStoryState({
+      convId: validStoryId,
+      defaultChapterTitle: t("novelcrafterDefaultChapterTitle"),
+      loadErrorMsg: t("novelcrafterLoadError"),
+      coordinator,
+    })
+      .then((reconciled) => {
         if (cancelled) return;
-        const loaded = sanitizeStoryState(json.data?.state, t("novelcrafterDefaultChapterTitle"));
-        setStoryState(loaded);
-        setSaveStatus("saved");
-      } catch (err: unknown) {
+        latestStateRef.current = { ownerStoryId: validStoryId, state: reconciled.state };
+        setStoryState(reconciled.state);
+        if (reconciled.conflictDetected) toast.info(t("novelcrafterConflictBackupNotice"));
+        if (reconciled.shouldSyncDraftToServer) {
+          dirtyStoryIdsRef.current.add(validStoryId);
+          void executeCoordinatorSave(validStoryId, reconciled.state, {
+            epoch: coordinator.getEpoch(validStoryId),
+          });
+        } else {
+          dirtyStoryIdsRef.current.delete(validStoryId);
+          setSaveStatus("saved");
+        }
+      })
+      .catch((err: unknown) => {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : t("novelcrafterLoadError");
-          storyLogger.error("Failed to load story state:", msg);
+          storyLogger.error("Failed to load story state:", err);
           toast.error(t("novelcrafterLoadError"));
         }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingState(false);
-        }
-      }
-    }
-
-    void loadState(selectedConversationId);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingState(false);
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [isAuthed, selectedConversationId, stories, flushPendingSave, t]);
-
-  useEffect(() => {
-    return () => {
-      flushPendingSave();
-    };
-  }, [flushPendingSave]);
-
-  const scheduleSave = useCallback(
-    (updater: (prev: NovelcrafterStoryState) => NovelcrafterStoryState, immediate = false) => {
-      setStoryState((prev) => {
-        const now = Date.now();
-        const next: NovelcrafterStoryState = {
-          ...updater(prev),
-          updatedAt: Math.max(now, prev.updatedAt + 1),
-        };
-        const targetId = activeConversationIdRef.current;
-        if (targetId) {
-          if (saveTimerRef.current) {
-            clearTimeout(saveTimerRef.current);
-            saveTimerRef.current = null;
-          }
-          if (immediate) {
-            pendingSavePayloadRef.current = null;
-            void persistStateToServer(targetId, next);
-          } else {
-            setSaveStatus("unsaved");
-            pendingSavePayloadRef.current = { conversationId: targetId, state: next };
-            saveTimerRef.current = setTimeout(() => {
-              const payload = pendingSavePayloadRef.current;
-              pendingSavePayloadRef.current = null;
-              saveTimerRef.current = null;
-              if (payload) {
-                void persistStateToServer(payload.conversationId, payload.state);
-              }
-            }, 900);
-          }
-        }
-        return next;
-      });
-    },
-    [persistStateToServer]
-  );
+  }, [
+    isAuthed,
+    validStoryId,
+    coordinator,
+    cancelPendingSaveTimers,
+    dirtyStoryIdsRef,
+    flushLocalDraftSync,
+    executeCoordinatorSave,
+    t,
+  ]);
 
   const handleCreateStory = useCallback(async (): Promise<string | null> => {
     try {
-      flushPendingSave();
-      const created = await createConversation({
-        title: t("novelcrafterDefaultStoryTitle"),
-        model: MODEL_IDS.NOVELCRAFTER,
-      });
-      if (!created?.id) {
-        throw new Error(t("novelcrafterCreateStoryError"));
+      const prevOwner = latestStateRef.current.ownerStoryId;
+      if (prevOwner && dirtyStoryIdsRef.current.has(prevOwner)) {
+        cancelPendingSaveTimers();
+        flushLocalDraftSync(prevOwner, latestStateRef.current.state);
+        void executeCoordinatorSave(prevOwner, latestStateRef.current.state, {
+          epoch: coordinator.getEpoch(prevOwner),
+        });
       }
       const initialState = createDefaultStoryState(t("novelcrafterDefaultChapterTitle"));
-      activeConversationIdRef.current = created.id;
-      setSelectedConversationId(created.id);
-      setStoryState(initialState);
-      await persistStateToServer(created.id, initialState);
-      return created.id;
+      const newId = await spawnAndBindStoryConversation({
+        knownStoryIds: storiesRef.current.map((s) => s.id),
+        stateToSeed: initialState,
+        promoteUnsaved: false,
+        defaultStoryTitle: t("novelcrafterDefaultStoryTitle"),
+        coordinator,
+        latestStateRef,
+        setStoryState,
+        createConversation,
+      });
+      if (!newId) throw new Error(t("novelcrafterCreateStoryError"));
+      await executeCoordinatorSave(newId, initialState, { epoch: coordinator.getEpoch(newId) });
+      return newId;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t("novelcrafterCreateStoryError");
-      storyLogger.error("handleCreateStory failed:", msg);
+      storyLogger.error("handleCreateStory failed:", err);
       toast.error(t("novelcrafterCreateStoryError"));
       return null;
     }
-  }, [flushPendingSave, createConversation, t, setSelectedConversationId, persistStateToServer]);
+  }, [
+    dirtyStoryIdsRef,
+    cancelPendingSaveTimers,
+    flushLocalDraftSync,
+    executeCoordinatorSave,
+    coordinator,
+    t,
+    createConversation,
+  ]);
 
   const handleDeleteStory = useCallback(
     async (storyId: string) => {
@@ -318,16 +312,17 @@ export function useNovelcrafterStory(isAuthed: boolean) {
         variant: "danger",
       });
       if (!confirmed) return;
-
       try {
+        if (latestStateRef.current.ownerStoryId === storyId) cancelPendingSaveTimers();
+        dirtyStoryIdsRef.current.delete(storyId);
+        removeLocalStoryDraft(storyId);
         await deleteConversation(storyId);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : t("deleteFailed");
-        storyLogger.error("handleDeleteStory failed:", msg);
+        storyLogger.error("handleDeleteStory failed:", err);
         toast.error(t("deleteFailed"));
       }
     },
-    [t, deleteConversation]
+    [t, cancelPendingSaveTimers, dirtyStoryIdsRef, deleteConversation]
   );
 
   const handleRenameStory = useCallback(
@@ -337,227 +332,47 @@ export function useNovelcrafterStory(isAuthed: boolean) {
       try {
         await renameConversation(storyId, trimmed);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : t("renameChatFailed");
-        storyLogger.error("handleRenameStory failed:", msg);
+        storyLogger.error("handleRenameStory failed:", err);
         toast.error(t("renameChatFailed"));
       }
     },
     [renameConversation, t]
   );
 
-  const updateStoryBible = useCallback(
-    (patch: Partial<StoryBible>) => {
-      scheduleSave((prev) => ({
-        ...prev,
-        storyBible: { ...prev.storyBible, ...patch },
-      }));
-    },
-    [scheduleSave]
+  const mutators = useNovelcrafterStateMutators({ latestStateRef, setStoryState, scheduleSave, t });
+
+  const activeChapter = useMemo(
+    () =>
+      storyState.chapters.find((c) => c.id === storyState.activeChapterId) ||
+      storyState.chapters[0],
+    [storyState.chapters, storyState.activeChapterId]
   );
-
-  const updateRouting = useCallback(
-    (patch: Partial<NovelcrafterRoutingConfig>) => {
-      scheduleSave(
-        (prev) => ({
-          ...prev,
-          routing: {
-            ...prev.routing,
-            ...patch,
-            featurePersonas: {
-              ...prev.routing.featurePersonas,
-              ...(patch.featurePersonas || {}),
-            },
-          },
-        }),
-        true
-      );
-    },
-    [scheduleSave]
-  );
-
-  const updateFeaturePersonaSlot = useCallback(
-    (slot: NovelcrafterFeatureSlot, value: string) => {
-      scheduleSave(
-        (prev) => ({
-          ...prev,
-          routing: {
-            ...prev.routing,
-            featurePersonas: {
-              ...prev.routing.featurePersonas,
-              [slot]: value,
-            },
-          },
-        }),
-        true
-      );
-    },
-    [scheduleSave]
-  );
-
-  const setSelectedModel = useCallback(
-    (modelId: string) => {
-      scheduleSave((prev) => ({ ...prev, selectedModel: modelId }), true);
-    },
-    [scheduleSave]
-  );
-
-  const setStoryBibleOpen = useCallback(
-    (isOpen: boolean) => {
-      scheduleSave((prev) => ({ ...prev, isStoryBibleOpen: isOpen }));
-    },
-    [scheduleSave]
-  );
-
-  const selectChapter = useCallback(
-    (chapterId: string) => {
-      scheduleSave((prev) => ({
-        ...prev,
-        isStoryBibleOpen: false,
-        activeChapterId: chapterId,
-      }));
-    },
-    [scheduleSave]
-  );
-
-  const addChapter = useCallback(() => {
-    scheduleSave((prev) => {
-      if (prev.chapters.length >= MAX_CHAPTERS) return prev;
-      const nextIndex = prev.chapters.length + 1;
-      const newChapter: NovelcrafterChapter = {
-        id: `ch-${Date.now()}-${nextIndex}`,
-        title: `${t("novelcrafterChaptersTab")} ${nextIndex}`,
-        scenes: "",
-        content: "",
-        updatedAt: Date.now(),
-      };
-      return {
-        ...prev,
-        isStoryBibleOpen: false,
-        activeChapterId: newChapter.id,
-        chapters: [...prev.chapters, newChapter],
-      };
-    }, true);
-  }, [scheduleSave, t]);
-
-  const updateChapter = useCallback(
-    (
-      chapterId: string,
-      patch: Partial<Pick<NovelcrafterChapter, "title" | "scenes" | "content">>
-    ) => {
-      scheduleSave((prev) => ({
-        ...prev,
-        chapters: prev.chapters.map((ch) =>
-          ch.id === chapterId ? { ...ch, ...patch, updatedAt: Date.now() } : ch
-        ),
-      }));
-    },
-    [scheduleSave]
-  );
-
-  const deleteChapter = useCallback(
-    async (chapterId: string) => {
-      if (storyState.chapters.length <= 1) {
-        toast.info(t("novelcrafterMinOneChapterToast"));
-        return;
-      }
-      const confirmed = await confirm({
-        title: t("novelcrafterDeleteChapterConfirmTitle"),
-        description: t("novelcrafterDeleteChapterConfirmDesc"),
-        variant: "danger",
-      });
-      if (!confirmed) return;
-
-      scheduleSave((prev) => {
-        if (prev.chapters.length <= 1) return prev;
-        const remaining = prev.chapters.filter((ch) => ch.id !== chapterId);
-        const nextActive =
-          prev.activeChapterId === chapterId ? remaining[0].id : prev.activeChapterId;
-        return {
-          ...prev,
-          activeChapterId: nextActive,
-          chapters: remaining,
-        };
-      }, true);
-    },
-    [storyState.chapters.length, t, scheduleSave]
-  );
-
-  const prependHistoryCard = useCallback(
-    (card: NovelcrafterHistoryCard) => {
-      scheduleSave(
-        (prev) => ({
-          ...prev,
-          historyCards: [card, ...prev.historyCards].slice(0, MAX_HISTORY_CARDS),
-        }),
-        true
-      );
-    },
-    [scheduleSave]
-  );
-
-  const deleteHistoryCard = useCallback(
-    (cardId: string) => {
-      scheduleSave(
-        (prev) => ({
-          ...prev,
-          historyCards: prev.historyCards.filter((c) => c.id !== cardId),
-        }),
-        true
-      );
-    },
-    [scheduleSave]
-  );
-
-  const clearHistoryCards = useCallback(async () => {
-    const confirmed = await confirm({
-      title: t("novelcrafterClearHistoryConfirmTitle"),
-      description: t("novelcrafterClearHistoryConfirmDesc"),
-      variant: "danger",
-    });
-    if (!confirmed) return;
-
-    scheduleSave((prev) => ({ ...prev, historyCards: [] }), true);
-  }, [t, scheduleSave]);
-
-  const activeChapter = useMemo(() => {
-    return (
-      storyState.chapters.find((c) => c.id === storyState.activeChapterId) || storyState.chapters[0]
-    );
-  }, [storyState.chapters, storyState.activeChapterId]);
 
   const previousChapterProseTail = useMemo(() => {
     const idx = storyState.chapters.findIndex((c) => c.id === activeChapter?.id);
-    if (idx <= 0) return "";
-    return storyState.chapters[idx - 1]?.content?.slice(-2000) || "";
+    return idx > 0 ? storyState.chapters[idx - 1]?.content?.slice(-2000) || "" : "";
   }, [storyState.chapters, activeChapter]);
 
   return {
     stories,
     currentStory,
+    validStoryId,
     selectedConversationId,
     setSelectedConversationId,
     creatingConversation,
     storyState,
+    latestStateRef,
     activeChapter,
     previousChapterProseTail,
     isLoadingState,
     saveStatus,
     gems,
     personas,
+    ensureActiveStory,
+    saveNow,
     handleCreateStory,
     handleDeleteStory,
     handleRenameStory,
-    updateStoryBible,
-    updateRouting,
-    updateFeaturePersonaSlot,
-    setSelectedModel,
-    setStoryBibleOpen,
-    selectChapter,
-    addChapter,
-    updateChapter,
-    deleteChapter,
-    prependHistoryCard,
-    deleteHistoryCard,
-    clearHistoryCards,
+    ...mutators,
   };
 }

@@ -147,6 +147,39 @@ describe("/api/novelcrafter/state route integration tests (TC-07)", () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.data.state.version).toBe(2);
+      expect(hoisted.consumeRateLimitMock).toHaveBeenCalledWith(
+        "novelcrafter-state-put:writer@vikini.net"
+      );
+    });
+
+    it("TC-06 Case 6B: uses distinct rate-limit keys for GET vs PUT requests", async () => {
+      const validState = createDefaultStoryState("Chương 1");
+      hoisted.getStoryStateMock.mockResolvedValueOnce(validState);
+      hoisted.saveStoryStateMock.mockResolvedValueOnce({ ...validState, version: 2 });
+
+      const getReq = new NextRequest(
+        `http://localhost/api/novelcrafter/state?conversationId=${VALID_CONVO_ID}`
+      );
+      await GET(getReq);
+
+      const putReq = new NextRequest("http://localhost/api/novelcrafter/state", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: VALID_CONVO_ID,
+          state: validState,
+        }),
+      });
+      await PUT(putReq);
+
+      expect(hoisted.consumeRateLimitMock).toHaveBeenNthCalledWith(
+        1,
+        "novelcrafter-state-get:writer@vikini.net"
+      );
+      expect(hoisted.consumeRateLimitMock).toHaveBeenNthCalledWith(
+        2,
+        "novelcrafter-state-put:writer@vikini.net"
+      );
     });
   });
 });
