@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
+import ModelSelector from "@/app/features/chat/components/ModelSelector";
+import { isModelAllowedById } from "@/lib/core/modelAccess";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
 import type {
@@ -36,7 +37,6 @@ interface NovelcrafterTopBarProps {
   selectedModel: string;
   onSelectModel: (modelId: string) => void;
   allowedModelIds: Set<string>;
-  modelsLoading: boolean;
   masterGem: ClientGemItem | null;
   masterPersona: ClientPersonaItem | null;
   saveStatus: StorySaveStatus;
@@ -60,7 +60,6 @@ export default function NovelcrafterTopBar({
   selectedModel,
   onSelectModel,
   allowedModelIds,
-  modelsLoading,
   masterGem,
   masterPersona,
   saveStatus,
@@ -160,27 +159,13 @@ export default function NovelcrafterTopBar({
             </div>
           )}
 
-          <select
-            value={selectedModel}
-            onChange={(e) => onSelectModel(e.target.value)}
-            aria-label={t("selectModel")}
-            className="h-9 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) px-2.5 text-xs font-medium text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none transition-colors max-w-[180px] truncate"
-          >
-            {SELECTABLE_MODELS.map((m) => {
-              const isAllowed =
-                modelsLoading || allowedModelIds.size === 0 || allowedModelIds.has(m.id);
-              return (
-                <option
-                  key={m.id}
-                  value={m.id}
-                  disabled={!isAllowed}
-                  className="bg-(--surface-elevated) text-(--text-primary)"
-                >
-                  {m.name || m.id}
-                </option>
-              );
-            })}
-          </select>
+          <ModelSelector
+            currentModelId={selectedModel}
+            onSelectModel={onSelectModel}
+            isModelAllowed={(id) => isModelAllowedById(id, allowedModelIds)}
+            disabled={false}
+            expandDown={true}
+          />
 
           <button
             type="button"

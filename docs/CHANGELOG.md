@@ -8,6 +8,23 @@
 
 ---
 
+## 2026-10-15: Feature & Bug Fix -- Novelcrafter Studio: Full-Width Document Canvas, Inline Unified Story Bible & Gemini 4 / Claude Model Stream Fix
+
+- **Full-Width Responsive Document Canvas (`src/app/features/novelcrafter/components/ChapterEditorWorkspace.tsx`, `src/app/features/novelcrafter/components/ChapterDraftBeatsCard.tsx`, `src/app/features/novelcrafter/hooks/useAutoResizeTextarea.ts`)**:
+  - Gỡ bỏ giới hạn cố định `max-w-[820px]` trên khung văn bản chính và thẻ phân cảnh (Scenes / Beats), thay bằng hệ thống container co giãn thông minh `w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl` kết hợp lề `px-6 md:px-12 lg:px-16` giúp loại bỏ hoàn toàn khoảng trống đen lãng phí ở nửa phải màn hình rộng.
+  - Tách component chuyên biệt `ChapterDraftBeatsCard.tsx` cho thẻ phân cảnh chương và xây dựng hook `useAutoResizeTextarea.ts` hỗ trợ chuẩn CSS hiện đại `[field-sizing:content]` kết hợp JS fallback bảo toàn vị trí cuộn `scrollTop`.
+- **Hợp nhất Story Bible vào Luồng Cuộn Liền Mạch (Inline Unified Scroll Canvas) (`src/app/features/novelcrafter/components/InlineStoryBibleSection.tsx`, `src/app/features/novelcrafter/components/StoryBibleWorkspace.tsx`, `src/app/features/novelcrafter/components/StoryBibleSectionCard.tsx`, `src/app/features/novelcrafter/components/NovelcrafterStudioApp.tsx`, `src/app/features/novelcrafter/hooks/useNovelcrafterStateMutators.ts`)**:
+  - Thay thế cơ chế chuyển đổi cửa sổ độc quyền (`{isStoryBibleOpen ? <StoryBibleWorkspace /> : <ChapterEditorWorkspace />}`) bằng mô hình **Trang tài liệu thống nhất kiểu Sudowrite**: Khung truyện chính nằm trên, phân khu Hồ sơ Vũ trụ Truyện (Story Bible) dạng Accordion nằm ngay phía dưới, ngăn cách bởi đường viền mảnh và công tắc thu gọn/mở rộng linh hoạt.
+  - Tích hợp điều hướng nhảy mục từ cột trái (`NovelcrafterLeftNavigator.tsx`) với cơ chế nonce (`jumpRequest: { section, nonce }`), tự động mở Story Bible nếu đang đóng và cuộn mượt (`scrollIntoView({ behavior: "smooth" })`) đến đúng mục mà không gây hiện tượng tự động nhảy trang khi khởi động (cold-start).
+  - Tách thẻ `StoryBibleSectionCard.tsx` giảm kích thước `StoryBibleWorkspace.tsx` về dưới 370 dòng, tuân thủ nghiêm ngặt giới hạn file size.
+- **Khắc phục lỗi chạy Gemini 4 Argon & Claude OpenRouter Fallback (`src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts`, `src/lib/core/modelAccess.ts`, `src/app/features/novelcrafter/components/NovelcrafterTopBar.tsx`, `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.test.ts`, `src/lib/core/modelAccess.test.ts`)**:
+  - Cấu hình bắt buộc `thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM, includeThoughts: true }` theo enum chữ hoa chuẩn của SDK `@google/genai` cho Gemini 4 Argon (`gemini-4-argon`), sửa lỗi không sinh dữ liệu hoặc ném lỗi tham số không hợp lệ.
+  - Bổ sung cơ chế tự động định tuyến fallback sang OpenRouter cho các model Claude (`CLAUDE_API_MODELS.OPENROUTER`) khi môi trường server không trực tiếp khai báo `ANTHROPIC_API_KEY`.
+  - Tách module client-safe `isModelAllowedById` trong `modelAccess.ts` hỗ trợ chuẩn hóa alias và tích hợp component `ModelSelector.tsx` chuẩn hóa của Vikini lên thanh TopBar Novelcrafter.
+  - Bổ sung bộ kiểm thử co-located với 5/5 test case chạy xanh cho `novelcrafterStreamRunner.server.test.ts` và 6/6 test case cho `modelAccess.test.ts`.
+
+---
+
 ## 2026-10-15: Feature & UX Upgrade -- Novelcrafter Studio: Silent Auto-Save, Sudowrite Document Sheet Typography, Accordion Story Bible, In-Document Feedback Margin Gutter & Complete Sudowrite Tool Suite
 
 - **Silent Background Auto-Save, Single-Flight `PUT` Coordinator & Optimistic Concurrency (`src/lib/features/novelcrafter/storySyncCoordinator.ts`, `src/lib/features/novelcrafter/draftStorage.ts`, `src/lib/features/novelcrafter/storyPersistence.server.ts`, `src/app/api/novelcrafter/state/route.ts`, `src/app/features/novelcrafter/hooks/useStoryPersistenceLifecycle.ts`, `src/app/features/novelcrafter/hooks/useNovelcrafterStory.ts`)**:

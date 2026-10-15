@@ -1,17 +1,8 @@
 // /app/features/novelcrafter/components/StoryBibleWorkspace.tsx
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import {
-  BookOpen,
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  EyeOff,
-  RefreshCw,
-  Sparkles,
-  Wand2,
-} from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { BookOpen, X } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
 import {
@@ -19,25 +10,27 @@ import {
   NOVELCRAFTER_STYLE_MODES,
   NOVELCRAFTER_TENSE_OPTIONS,
   type NovelcrafterActionMode,
-  type NovelcrafterBibleTarget,
   type NovelcrafterPovOption,
   type NovelcrafterStyleMode,
   type NovelcrafterTenseOption,
   type StoryBible,
 } from "@/lib/features/novelcrafter/types";
+import { countChapterWords } from "@/lib/features/novelcrafter/draftStorage";
 import type { TranslationKey } from "@/lib/utils/translations";
 import type { TriggerNovelcrafterStreamParams } from "../hooks/useNovelcrafterStream";
 import type { NovelcrafterBibleSectionId } from "./NovelcrafterLeftNavigator";
+import StoryBibleSectionCard, { type BibleAiSection } from "./StoryBibleSectionCard";
 
-interface StoryBibleWorkspaceProps {
+export interface StoryBibleWorkspaceProps {
   storyBible: StoryBible;
   onUpdateStoryBible: (patch: Partial<StoryBible>) => void;
   activeSection?: NovelcrafterBibleSectionId;
+  jumpRequest?: { section: NovelcrafterBibleSectionId; nonce: number } | null;
+  embedded?: boolean;
+  onClose?: () => void;
   isStreaming: boolean;
   onTriggerStream: (params: TriggerNovelcrafterStreamParams) => Promise<void>;
 }
-
-type BibleAiSection = Exclude<NovelcrafterBibleTarget, "scenes" | "draft">;
 
 const STYLE_MODE_LABELS: Record<
   NovelcrafterStyleMode,
@@ -73,25 +66,18 @@ const ALL_SECTIONS: ReadonlyArray<NovelcrafterBibleSectionId> = [
 ];
 
 const TEXTAREA_CLS =
-  "w-full rounded-xl border border-(--border) bg-(--surface) px-4 py-3 text-[15px] leading-[1.7] text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none resize-y";
+  "w-full rounded-xl border border-(--border) bg-(--surface) px-4 py-3 text-[14px] leading-[1.65] text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none resize-y";
 
 export default function StoryBibleWorkspace({
   storyBible,
   onUpdateStoryBible,
-  activeSection,
+  jumpRequest,
+  embedded = false,
+  onClose,
   isStreaming,
   onTriggerStream,
 }: StoryBibleWorkspaceProps) {
   const { t } = useLanguage();
-  const sectionRefs = useRef<Record<NovelcrafterBibleSectionId, HTMLElement | null>>({
-    braindump: null,
-    genre: null,
-    style: null,
-    synopsis: null,
-    characters: null,
-    worldbuilding: null,
-    outline: null,
-  });
 
   const [openSections, setOpenSections] = useState<Record<NovelcrafterBibleSectionId, boolean>>({
     braindump: true,
@@ -103,171 +89,41 @@ export default function StoryBibleWorkspace({
     outline: true,
   });
 
-  const [rewriteOpenSection, setRewriteOpenSection] = useState<BibleAiSection | null>(null);
-  const [rewriteInstructions, setRewriteInstructions] = useState<Record<BibleAiSection, string>>({
-    synopsis: "",
-    characters: "",
-    worldbuilding: "",
-    outline: "",
-  });
-
+  // Scroll to section only upon explicit user jumpRequest (eliminates cold-start auto-scroll bug)
   useEffect(() => {
-    if (!activeSection) return;
-    setOpenSections((prev) => ({ ...prev, [activeSection]: true }));
-    const el = sectionRefs.current[activeSection];
-    if (el && typeof el.scrollIntoView === "function") {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [activeSection]);
+    if (!jumpRequest?.section) return;
+    const target = jumpRequest.section;
+    setOpenSections((prev) => ({ ...prev, [target]: true }));
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`bible-section-${target}`);
+      if (el && typeof el.scrollIntoView === "function") {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [jumpRequest]);
 
   const toggleSection = (id: NovelcrafterBibleSectionId) =>
     setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
 
-  const handleRunBibleAction = (
+  const handleRunAi = (
     target: BibleAiSection,
-    actionMode: NovelcrafterActionMode,
-    label: string
+    mode: NovelcrafterActionMode,
+    label: string,
+    customInstruction?: string
   ) => {
-    const customInstruction =
-      actionMode === "rewrite" ? rewriteInstructions[target]?.trim() || "" : "";
     void onTriggerStream({
       feature: "bible",
       bibleTarget: target,
-      actionMode,
+      actionMode: mode,
       subLabel: label,
-      customInstruction,
+      customInstruction: customInstruction || "",
     });
-    if (actionMode === "rewrite") setRewriteOpenSection(null);
   };
 
-  const renderAiControls = (target: BibleAiSection, titleLabel: string) => {
-    const isRewriteOpen = rewriteOpenSection === target;
-    const genLabel =
-      target === "outline"
-        ? t("novelcrafterGenerateOutlineCta")
-        : `${t("novelcrafterGenerateBtn")}: ${titleLabel}`;
-    return (
-      <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            disabled={isStreaming}
-            onClick={() => handleRunBibleAction(target, "generate", genLabel)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-(--accent) text-(--accent-foreground) hover:brightness-110 disabled:opacity-50 text-xs font-semibold shadow-xs transition-all"
-          >
-            <Wand2 className="w-3.5 h-3.5" />
-            <span>
-              {target === "outline"
-                ? t("novelcrafterGenerateOutlineCta")
-                : t("novelcrafterGenerateBtn")}
-            </span>
-          </button>
-          <button
-            type="button"
-            disabled={isStreaming}
-            aria-pressed={isRewriteOpen}
-            onClick={() => setRewriteOpenSection(isRewriteOpen ? null : target)}
-            className={cn(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors disabled:opacity-50",
-              isRewriteOpen
-                ? "bg-(--control-bg-hover) border-(--accent) text-(--accent)"
-                : "bg-(--control-bg) hover:bg-(--control-bg-hover) border-(--control-border) text-(--text-primary)"
-            )}
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>{t("novelcrafterRewriteBtn")}</span>
-          </button>
-        </div>
-        {isRewriteOpen && (
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              type="text"
-              value={rewriteInstructions[target]}
-              onChange={(e) =>
-                setRewriteInstructions((prev) => ({ ...prev, [target]: e.target.value }))
-              }
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !isStreaming)
-                  handleRunBibleAction(
-                    target,
-                    "rewrite",
-                    `${t("novelcrafterRewriteBtn")}: ${titleLabel}`
-                  );
-              }}
-              placeholder={t("novelcrafterRewriteInstructionPlaceholder")}
-              aria-label={t("novelcrafterRewriteInstructionPlaceholder")}
-              className="flex-1 min-w-0 h-9 rounded-xl border border-(--control-border) bg-(--control-bg) px-3 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
-            />
-            <button
-              type="button"
-              disabled={isStreaming}
-              onClick={() =>
-                handleRunBibleAction(
-                  target,
-                  "rewrite",
-                  `${t("novelcrafterRewriteBtn")}: ${titleLabel}`
-                )
-              }
-              className="h-9 px-3 rounded-xl bg-(--accent) text-(--accent-foreground) hover:brightness-110 disabled:opacity-50 text-xs font-semibold shrink-0"
-            >
-              {t("novelcrafterRunAction")}
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderVisibilityToggle = (visible: boolean, onToggle: () => void) => (
-    <button
-      type="button"
-      aria-pressed={visible}
-      onClick={onToggle}
-      className={cn(
-        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-medium",
-        visible
-          ? "bg-(--success)/10 border-(--success)/30 text-(--success)"
-          : "bg-(--control-bg) border-(--border) text-(--text-secondary)"
-      )}
-    >
-      {visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-      <span>{visible ? t("novelcrafterVisibleToAI") : t("novelcrafterHiddenFromAI")}</span>
-    </button>
-  );
-
-  const renderSectionHeader = (
-    id: NovelcrafterBibleSectionId,
-    titleKey: TranslationKey,
-    subtitleKey: TranslationKey,
-    extraRight?: React.ReactNode
-  ) => {
-    const isOpen = openSections[id];
-    return (
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
-        <button
-          type="button"
-          aria-expanded={isOpen}
-          onClick={() => toggleSection(id)}
-          className="text-left flex items-start gap-2.5 flex-1 min-w-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded-lg"
-        >
-          <span className="mt-1 p-1 rounded-md bg-(--control-bg) text-(--accent) shrink-0">
-            {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </span>
-          <div className="space-y-0.5 min-w-0">
-            <h2 className="text-[16px] md:text-[17px] font-semibold text-(--text-primary)">
-              {t(titleKey)}
-            </h2>
-            <p className="text-[13px] text-(--text-secondary) leading-relaxed">{t(subtitleKey)}</p>
-          </div>
-        </button>
-        {extraRight && <div className="shrink-0">{extraRight}</div>}
-      </div>
-    );
-  };
-
-  return (
-    <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar bg-(--surface)">
-      <div className="max-w-[880px] mx-auto space-y-4">
+  const content = (
+    <div className={cn("space-y-4", embedded ? "w-full" : "max-w-[880px] mx-auto")}>
+      {!embedded && (
         <div className="rounded-2xl border border-(--border) bg-(--surface-elevated)/60 p-4 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-start gap-3 min-w-0">
             <div className="p-2.5 rounded-xl bg-(--control-bg) border border-(--control-border) text-(--accent) shrink-0">
@@ -282,240 +138,266 @@ export default function StoryBibleWorkspace({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              const next = !ALL_SECTIONS.every((s) => openSections[s]);
-              setOpenSections({
-                braindump: next,
-                genre: next,
-                style: next,
-                synopsis: next,
-                characters: next,
-                worldbuilding: next,
-                outline: next,
-              });
-            }}
-            className="px-3 py-1.5 rounded-full border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary)"
-          >
-            {t("novelcrafterStoryBibleTab")}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const next = !ALL_SECTIONS.every((s) => openSections[s]);
+                setOpenSections({
+                  braindump: next,
+                  genre: next,
+                  style: next,
+                  synopsis: next,
+                  characters: next,
+                  worldbuilding: next,
+                  outline: next,
+                });
+              }}
+              className="px-3 py-1.5 rounded-full border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary)"
+            >
+              {ALL_SECTIONS.every((s) => openSections[s])
+                ? t("novelcrafterCollapseBible")
+                : t("novelcrafterExpandBible")}
+            </button>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label={t("close")}
+                className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
+      )}
 
-        {(
-          [
-            {
-              id: "braindump",
-              field: "braindump",
-              rows: 5,
-              label: "novelcrafterBraindumpLabel",
-              desc: "novelcrafterBraindumpDesc",
-              ph: "novelcrafterBraindumpPlaceholder",
-            },
-            {
-              id: "genre",
-              field: "genre",
-              rows: 2,
-              label: "novelcrafterGenreLabel",
-              desc: "novelcrafterGenreDesc",
-              ph: "novelcrafterGenrePlaceholder",
-            },
-          ] as const
-        ).map((sec) => (
-          <section
-            key={sec.id}
-            ref={(el) => {
-              sectionRefs.current[sec.id] = el;
-            }}
-            className="rounded-2xl border border-(--border) bg-(--surface-elevated)/50 p-5 space-y-3"
-          >
-            {renderSectionHeader(sec.id, sec.label, sec.desc)}
-            {openSections[sec.id] && (
-              <textarea
-                rows={sec.rows}
-                value={storyBible[sec.field]}
-                onChange={(e) => onUpdateStoryBible({ [sec.field]: e.target.value })}
-                placeholder={t(sec.ph)}
-                aria-label={t(sec.label)}
-                className={TEXTAREA_CLS}
-              />
-            )}
-          </section>
-        ))}
+      {/* 1. Braindump */}
+      <StoryBibleSectionCard
+        id="braindump"
+        titleKey="novelcrafterBraindumpLabel"
+        subtitleKey="novelcrafterBraindumpDesc"
+        isOpen={openSections.braindump}
+        onToggle={() => toggleSection("braindump")}
+        wordCount={countChapterWords(storyBible.braindump)}
+      >
+        <textarea
+          rows={5}
+          value={storyBible.braindump}
+          onChange={(e) => onUpdateStoryBible({ braindump: e.target.value })}
+          placeholder={t("novelcrafterBraindumpPlaceholder")}
+          aria-label={t("novelcrafterBraindumpLabel")}
+          className={TEXTAREA_CLS}
+        />
+      </StoryBibleSectionCard>
 
-        {/* 3. Style */}
-        <section
-          ref={(el) => {
-            sectionRefs.current.style = el;
-          }}
-          className="rounded-2xl border border-(--border) bg-(--surface-elevated)/50 p-5 space-y-3.5"
-        >
-          {renderSectionHeader("style", "novelcrafterStyleLabel", "novelcrafterStyleDesc")}
-          {openSections.style && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {NOVELCRAFTER_STYLE_MODES.map((mode) => {
-                  const active = (storyBible.styleMode ?? "custom") === mode;
-                  const info = STYLE_MODE_LABELS[mode];
-                  return (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => onUpdateStoryBible({ styleMode: mode })}
-                      className={cn(
-                        "p-3 rounded-xl border text-left transition-all",
-                        active
-                          ? "bg-(--accent)/15 border-(--accent) text-(--text-primary)"
-                          : "bg-(--control-bg) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
-                      )}
-                    >
-                      <p className="text-xs font-bold flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-(--accent)" />
-                        <span>{t(info.title)}</span>
-                      </p>
-                      <p className="text-[11px] opacity-80 mt-0.5">{t(info.desc)}</p>
-                    </button>
-                  );
-                })}
-              </div>
-              <textarea
-                rows={3}
-                value={storyBible.style}
-                onChange={(e) => onUpdateStoryBible({ style: e.target.value })}
-                placeholder={t("novelcrafterStylePlaceholder")}
-                aria-label={t("novelcrafterStyleLabel")}
-                className={TEXTAREA_CLS}
-              />
-            </div>
-          )}
-        </section>
+      {/* 2. Genre */}
+      <StoryBibleSectionCard
+        id="genre"
+        titleKey="novelcrafterGenreLabel"
+        subtitleKey="novelcrafterGenreDesc"
+        isOpen={openSections.genre}
+        onToggle={() => toggleSection("genre")}
+      >
+        <input
+          type="text"
+          value={storyBible.genre}
+          onChange={(e) => onUpdateStoryBible({ genre: e.target.value })}
+          placeholder={t("novelcrafterGenrePlaceholder")}
+          aria-label={t("novelcrafterGenreLabel")}
+          className="w-full h-10 rounded-xl border border-(--border) bg-(--surface) px-4 text-xs md:text-sm text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+        />
+      </StoryBibleSectionCard>
 
-        {(
-          [
-            {
-              id: "synopsis",
-              label: "novelcrafterSynopsisLabel",
-              desc: "novelcrafterSynopsisDesc",
-              ph: "novelcrafterSynopsisPlaceholder",
-              visField: null,
-            },
-            {
-              id: "characters",
-              label: "novelcrafterCharactersLabel",
-              desc: "novelcrafterCharactersDesc",
-              ph: "novelcrafterCharactersPlaceholder",
-              visField: "charactersVisibleToAI",
-            },
-            {
-              id: "worldbuilding",
-              label: "novelcrafterWorldbuildingLabel",
-              desc: "novelcrafterWorldbuildingDesc",
-              ph: "novelcrafterWorldbuildingPlaceholder",
-              visField: "worldbuildingVisibleToAI",
-            },
-          ] as const
-        ).map((sec) => (
-          <section
-            key={sec.id}
-            ref={(el) => {
-              sectionRefs.current[sec.id] = el;
-            }}
-            className="rounded-2xl border border-(--border) bg-(--surface-elevated)/50 p-5 space-y-3"
-          >
-            {renderSectionHeader(
-              sec.id,
-              sec.label,
-              sec.desc,
-              <div className="flex items-center gap-2 flex-wrap">
-                {sec.visField &&
-                  renderVisibilityToggle(storyBible[sec.visField], () =>
-                    onUpdateStoryBible({ [sec.visField]: !storyBible[sec.visField] })
+      {/* 3. Style */}
+      <StoryBibleSectionCard
+        id="style"
+        titleKey="novelcrafterStyleLabel"
+        subtitleKey="novelcrafterStyleDesc"
+        isOpen={openSections.style}
+        onToggle={() => toggleSection("style")}
+      >
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {NOVELCRAFTER_STYLE_MODES.map((mode) => {
+              const active = storyBible.styleMode === mode;
+              const meta = STYLE_MODE_LABELS[mode];
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => onUpdateStoryBible({ styleMode: mode })}
+                  aria-pressed={active}
+                  className={cn(
+                    "text-left p-3 rounded-xl border transition-all flex flex-col justify-between gap-1",
+                    active
+                      ? "bg-(--accent)/10 border-(--accent) text-(--accent)"
+                      : "bg-(--surface) border-(--border) text-(--text-primary) hover:border-(--control-border)"
                   )}
-                {renderAiControls(sec.id, t(sec.label))}
-              </div>
-            )}
-            {openSections[sec.id] && (
-              <textarea
-                rows={6}
-                value={storyBible[sec.id]}
-                onChange={(e) => onUpdateStoryBible({ [sec.id]: e.target.value })}
-                placeholder={t(sec.ph)}
-                aria-label={t(sec.label)}
-                className={TEXTAREA_CLS}
-              />
-            )}
-          </section>
-        ))}
-
-        {/* 7. Outline */}
-        <section
-          ref={(el) => {
-            sectionRefs.current.outline = el;
-          }}
-          className="rounded-2xl border border-(--border) bg-(--surface-elevated)/50 p-5 space-y-3.5"
-        >
-          {renderSectionHeader(
-            "outline",
-            "novelcrafterOutlineLabel",
-            "novelcrafterOutlineDesc",
-            renderAiControls("outline", t("novelcrafterOutlineLabel"))
-          )}
-          {openSections.outline && (
-            <div className="space-y-3">
-              <div className="rounded-xl border border-(--border) bg-(--surface)/70 p-3 space-y-2">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-bold text-(--text-secondary) mr-1">
-                    {t("novelcrafterPovLabel")}:
+                >
+                  <span className="text-xs font-semibold">{t(meta.title)}</span>
+                  <span className="text-[11px] text-(--text-secondary) leading-tight">
+                    {t(meta.desc)}
                   </span>
-                  {NOVELCRAFTER_POV_OPTIONS.map((pov) => (
-                    <button
-                      key={pov}
-                      type="button"
-                      onClick={() => onUpdateStoryBible({ pov })}
-                      className={cn(
-                        "px-2.5 py-1 rounded-full border text-xs font-medium transition-colors",
-                        (storyBible.pov ?? "third_person_limited") === pov
-                          ? "bg-(--accent)/15 border-(--accent) text-(--accent) font-semibold"
-                          : "bg-(--control-bg) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
-                      )}
-                    >
-                      {t(POV_LABELS[pov])}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-bold text-(--text-secondary) mr-1">
-                    {t("novelcrafterTenseLabel")}:
-                  </span>
-                  {NOVELCRAFTER_TENSE_OPTIONS.map((tense) => (
-                    <button
-                      key={tense}
-                      type="button"
-                      onClick={() => onUpdateStoryBible({ tense })}
-                      className={cn(
-                        "px-2.5 py-1 rounded-full border text-xs font-medium transition-colors",
-                        (storyBible.tense ?? "past") === tense
-                          ? "bg-(--accent)/15 border-(--accent) text-(--accent) font-semibold"
-                          : "bg-(--control-bg) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
-                      )}
-                    >
-                      {t(TENSE_LABELS[tense])}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <textarea
-                rows={7}
-                value={storyBible.outline}
-                onChange={(e) => onUpdateStoryBible({ outline: e.target.value })}
-                placeholder={t("novelcrafterOutlinePlaceholder")}
-                aria-label={t("novelcrafterOutlineLabel")}
-                className={TEXTAREA_CLS}
-              />
+                </button>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-(--text-secondary)">
+                {t("novelcrafterPovLabel")}
+              </label>
+              <select
+                value={storyBible.pov}
+                onChange={(e) =>
+                  onUpdateStoryBible({ pov: e.target.value as NovelcrafterPovOption })
+                }
+                className="w-full h-9 rounded-xl border border-(--border) bg-(--surface) px-3 text-xs text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
+              >
+                {NOVELCRAFTER_POV_OPTIONS.map((pov) => (
+                  <option key={pov} value={pov} className="bg-(--surface-elevated)">
+                    {t(POV_LABELS[pov])}
+                  </option>
+                ))}
+              </select>
             </div>
-          )}
-        </section>
-      </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-(--text-secondary)">
+                {t("novelcrafterTenseLabel")}
+              </label>
+              <select
+                value={storyBible.tense}
+                onChange={(e) =>
+                  onUpdateStoryBible({ tense: e.target.value as NovelcrafterTenseOption })
+                }
+                className="w-full h-9 rounded-xl border border-(--border) bg-(--surface) px-3 text-xs text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
+              >
+                {NOVELCRAFTER_TENSE_OPTIONS.map((tense) => (
+                  <option key={tense} value={tense} className="bg-(--surface-elevated)">
+                    {t(TENSE_LABELS[tense])}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <textarea
+            rows={3}
+            value={storyBible.style}
+            onChange={(e) => onUpdateStoryBible({ style: e.target.value })}
+            placeholder={t("novelcrafterStyleCustomPlaceholder")}
+            aria-label={t("novelcrafterStyleCustomPlaceholder")}
+            className={TEXTAREA_CLS}
+          />
+        </div>
+      </StoryBibleSectionCard>
+
+      {/* 4. Synopsis */}
+      <StoryBibleSectionCard
+        id="synopsis"
+        titleKey="novelcrafterSynopsisLabel"
+        subtitleKey="novelcrafterSynopsisDesc"
+        isOpen={openSections.synopsis}
+        onToggle={() => toggleSection("synopsis")}
+        wordCount={countChapterWords(storyBible.synopsis)}
+        aiTarget="synopsis"
+        isStreaming={isStreaming}
+        onRunAiAction={handleRunAi}
+      >
+        <textarea
+          rows={5}
+          value={storyBible.synopsis}
+          onChange={(e) => onUpdateStoryBible({ synopsis: e.target.value })}
+          placeholder={t("novelcrafterSynopsisPlaceholder")}
+          aria-label={t("novelcrafterSynopsisLabel")}
+          className={TEXTAREA_CLS}
+        />
+      </StoryBibleSectionCard>
+
+      {/* 5. Characters */}
+      <StoryBibleSectionCard
+        id="characters"
+        titleKey="novelcrafterCharactersLabel"
+        subtitleKey="novelcrafterCharactersDesc"
+        isOpen={openSections.characters}
+        onToggle={() => toggleSection("characters")}
+        wordCount={countChapterWords(storyBible.characters)}
+        visibleToAi={storyBible.charactersVisibleToAI}
+        onToggleVisibleToAi={() =>
+          onUpdateStoryBible({ charactersVisibleToAI: !storyBible.charactersVisibleToAI })
+        }
+        aiTarget="characters"
+        isStreaming={isStreaming}
+        onRunAiAction={handleRunAi}
+      >
+        <textarea
+          rows={6}
+          value={storyBible.characters}
+          onChange={(e) => onUpdateStoryBible({ characters: e.target.value })}
+          placeholder={t("novelcrafterCharactersPlaceholder")}
+          aria-label={t("novelcrafterCharactersLabel")}
+          className={TEXTAREA_CLS}
+        />
+      </StoryBibleSectionCard>
+
+      {/* 6. Worldbuilding */}
+      <StoryBibleSectionCard
+        id="worldbuilding"
+        titleKey="novelcrafterWorldbuildingLabel"
+        subtitleKey="novelcrafterWorldbuildingDesc"
+        isOpen={openSections.worldbuilding}
+        onToggle={() => toggleSection("worldbuilding")}
+        wordCount={countChapterWords(storyBible.worldbuilding)}
+        visibleToAi={storyBible.worldbuildingVisibleToAI}
+        onToggleVisibleToAi={() =>
+          onUpdateStoryBible({ worldbuildingVisibleToAI: !storyBible.worldbuildingVisibleToAI })
+        }
+        aiTarget="worldbuilding"
+        isStreaming={isStreaming}
+        onRunAiAction={handleRunAi}
+      >
+        <textarea
+          rows={6}
+          value={storyBible.worldbuilding}
+          onChange={(e) => onUpdateStoryBible({ worldbuilding: e.target.value })}
+          placeholder={t("novelcrafterWorldbuildingPlaceholder")}
+          aria-label={t("novelcrafterWorldbuildingLabel")}
+          className={TEXTAREA_CLS}
+        />
+      </StoryBibleSectionCard>
+
+      {/* 7. Outline */}
+      <StoryBibleSectionCard
+        id="outline"
+        titleKey="novelcrafterOutlineLabel"
+        subtitleKey="novelcrafterOutlineDesc"
+        isOpen={openSections.outline}
+        onToggle={() => toggleSection("outline")}
+        wordCount={countChapterWords(storyBible.outline)}
+        aiTarget="outline"
+        isStreaming={isStreaming}
+        onRunAiAction={handleRunAi}
+      >
+        <textarea
+          rows={6}
+          value={storyBible.outline}
+          onChange={(e) => onUpdateStoryBible({ outline: e.target.value })}
+          placeholder={t("novelcrafterOutlinePlaceholder")}
+          aria-label={t("novelcrafterOutlineLabel")}
+          className={TEXTAREA_CLS}
+        />
+      </StoryBibleSectionCard>
+    </div>
+  );
+
+  if (embedded) {
+    return <div className="w-full">{content}</div>;
+  }
+
+  return (
+    <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar bg-(--surface)">
+      {content}
     </div>
   );
 }

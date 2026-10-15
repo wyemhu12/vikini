@@ -471,7 +471,25 @@
   3. Replaced server-side hardcoded string injection with SSE `meta` event `{ type: "emptyAnswerNotice", reason: "length" | "no_content" }` persisted cleanly into `messages.meta.emptyAnswerReason`.
   4. Built `EmptyReasoningNotice.tsx` with 1-click "Tạo lại" and "Tạo lại với suy nghĩ thấp hơn" (calculated via pure helper `getLowerThinkingLevel`).
   5. Built `legacyNotice.ts` exact-match parser for backwards compatibility with historical messages already in the database.
-- **Prevention Rule**: **Never inject server-side localized notification strings into stream payloads or database message content.** Always emit structured SSE meta events and let the UI render localized, actionable recovery cards. For reasoning models, always provide a 1-click degradation path (reducing thinking budget) when the token limit is reached.
+
+### 2026-10-15: Gemini 4 Argon ThinkingConfig Enum, Claude OpenRouter Fallback & Unified Scroll Canvas Layout
+
+- **Symptom**:
+  1. In Novelcrafter Studio, choosing `gemini-4-argon` failed to stream content or threw SDK type errors; models like Claude Sonnet crashed with `Claude API key is not configured` when the server had no direct `ANTHROPIC_API_KEY`.
+  2. Novelcrafter top bar model dropdown used a raw HTML `<select>` with strict ID equality matching without alias or provider normalization, causing valid models to be disabled.
+  3. Story Bible and Chapter Editor were rendered conditionally mutually exclusive (`{isStoryBibleOpen ? <StoryBibleWorkspace /> : <ChapterEditorWorkspace />}`), forcing the user into a separate window instead of an inline unified canvas like Sudowrite. Prose canvas was artificially capped at `max-w-[820px]`, causing ~50% empty void on widescreen monitors.
+- **Root Cause**:
+  1. `@google/genai` requires `thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM, includeThoughts: true }` where `thinkingLevel` is an uppercase SDK enum (`"MEDIUM" | "LOW" | "HIGH"`), not a lowercase string. Anthropic streaming lacked automatic fallback to OpenRouter when `ANTHROPIC_API_KEY` was missing from the environment.
+  2. Model authorization check relied on strict string matching instead of shared normalization `[m, normalizeModelForApi(m), coerceStoredModel(m)]`.
+  3. UI layout separated Bible and Chapter into two view modes rather than embedding the Bible below the prose canvas in a single continuous document sheet with jump navigation nonces.
+- **Fix**:
+  1. In `novelcrafterStreamRunner.server.ts`, mapped Gemini 4 models to `@google/genai` `ThinkingLevel.MEDIUM` via `GEMINI_SDK_THINKING_LEVEL_MAP` and added OpenRouter fallback for Claude models. Added unit tests in `novelcrafterStreamRunner.server.test.ts`.
+  2. Extracted `isModelAllowedById` in `src/lib/core/modelAccess.ts` and integrated Vikini's standard `ModelSelector.tsx` into `NovelcrafterTopBar.tsx`.
+  3. Re-architected `ChapterEditorWorkspace.tsx` and `StoryBibleWorkspace.tsx` into a full-width responsive canvas (`max-w-5xl xl:max-w-6xl 2xl:max-w-7xl`), embedding `InlineStoryBibleSection.tsx` directly below the chapter editor with smooth auto-scroll on left navigator jump requests.
+- **Prevention Rule**:
+  - **Always use uppercase SDK enum values for `@google/genai` `thinkingConfig.thinkingLevel`** rather than lowercase strings.
+  - **Always normalize model IDs through `isModelAllowedById`** across all studio topbars to support provider aliases and coercion.
+  - **For multi-section creative writing tools, prefer a single unified document canvas** with accordion/collapsible sections and anchor jump nonces over mutually exclusive view switching.
 
 ## Vector Embeddings & Supabase TypeGen Lifecycle
 

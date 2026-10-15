@@ -2,11 +2,9 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, MessageSquareQuote, RefreshCw, Sparkles, Wand2, X } from "lucide-react";
+import { Loader2, MessageSquareQuote } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { toast } from "@/lib/store/toastStore";
-import { TRANSITION } from "@/lib/utils/motion";
 import {
   applyFeedbackSuggestionToText,
   findQuoteRangeInText,
@@ -15,11 +13,16 @@ import type {
   NovelcrafterChapter,
   NovelcrafterFeedbackItem,
   NovelcrafterRewriteMode,
+  StoryBible,
 } from "@/lib/features/novelcrafter/types";
 import type { TriggerNovelcrafterStreamParams } from "../hooks/useNovelcrafterStream";
+import type { NovelcrafterBibleSectionId } from "./NovelcrafterLeftNavigator";
 import ChapterAiToolbar from "./ChapterAiToolbar";
 import type { ActiveChapterToolMenu } from "./ChapterAiToolMenus";
 import ChapterFeedbackGutter from "./ChapterFeedbackGutter";
+import ChapterDraftBeatsCard from "./ChapterDraftBeatsCard";
+import InlineStoryBibleSection from "./InlineStoryBibleSection";
+import { useAutoResizeTextarea } from "../hooks/useAutoResizeTextarea";
 
 export interface EditorSelectionRange {
   start: number;
@@ -41,6 +44,13 @@ interface ChapterEditorWorkspaceProps {
   isDirectStreamingToChapter: boolean;
   onTriggerStream: (params: TriggerNovelcrafterStreamParams) => Promise<void>;
   onStopStream: () => void;
+  // Story Bible Props for Unified Inline Layout
+  storyBible: StoryBible;
+  onUpdateStoryBible: (patch: Partial<StoryBible>) => void;
+  isStoryBibleOpen: boolean;
+  onToggleStoryBible: (open: boolean) => void;
+  activeBibleSection?: NovelcrafterBibleSectionId;
+  bibleJumpRequest?: { section: NovelcrafterBibleSectionId; nonce: number } | null;
 }
 
 export default function ChapterEditorWorkspace({
@@ -53,9 +63,16 @@ export default function ChapterEditorWorkspace({
   isDirectStreamingToChapter,
   onTriggerStream,
   onStopStream,
+  storyBible,
+  onUpdateStoryBible,
+  isStoryBibleOpen,
+  onToggleStoryBible,
+  activeBibleSection,
+  bibleJumpRequest,
 }: ChapterEditorWorkspaceProps) {
   const { t } = useLanguage();
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
   const [titleDraft, setTitleDraft] = useState(chapter.title);
   const [beatsOpen, setBeatsOpen] = useState(true);
   const [activeMenu, setActiveMenu] = useState<ActiveChapterToolMenu>(null);
@@ -63,6 +80,13 @@ export default function ChapterEditorWorkspace({
   const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(null);
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const [quickEditPrompt, setQuickEditPrompt] = useState("");
+
+  const textareaRef = useAutoResizeTextarea<HTMLTextAreaElement>({
+    value: chapter.content,
+    minHeight: 420,
+    chapterId: chapter.id,
+    scrollContainerRef,
+  });
 
   useEffect(() => setTitleDraft(chapter.title), [chapter.id, chapter.title]);
 
@@ -103,6 +127,7 @@ export default function ChapterEditorWorkspace({
     if (!item.quote || !textareaRef.current) return;
     const range = findQuoteRangeInText(chapter.content, item.quote);
     if (!range) return;
+
     textareaRef.current.focus();
     textareaRef.current.setSelectionRange(range.start, range.end);
     onSelectionChange({
@@ -110,6 +135,15 @@ export default function ChapterEditorWorkspace({
       end: range.end,
       text: chapter.content.slice(range.start, range.end),
     });
+
+    // Smoothly scroll scrollContainerRef to bring the quote into view
+    if (scrollContainerRef.current && textareaRef.current) {
+      const totalLen = Math.max(1, chapter.content.length);
+      const ratio = range.start / totalLen;
+      const targetTop =
+        textareaRef.current.offsetTop + ratio * textareaRef.current.offsetHeight - 150;
+      scrollContainerRef.current.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+    }
   };
 
   const handleAcceptSuggestion = (item: NovelcrafterFeedbackItem) => {
@@ -219,9 +253,12 @@ export default function ChapterEditorWorkspace({
       />
 
       <div className="flex-1 min-h-0 mx-2 md:mx-4 my-2 md:my-3 rounded-2xl border border-(--border) bg-(--surface-elevated)/35 flex flex-col lg:flex-row overflow-hidden shadow-xs">
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col">
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col"
+        >
           {isDirectStreamingToChapter && (
-            <div className="mx-6 md:mx-12 lg:mx-16 mt-4 px-3.5 py-2 rounded-xl border border-(--accent)/40 bg-(--accent)/10 flex items-center justify-between gap-2 text-xs font-medium text-(--accent)">
+            <div className="mx-6 md:px-12 lg:px-16 mt-4 px-3.5 py-2 rounded-xl border border-(--accent)/40 bg-(--accent)/10 flex items-center justify-between gap-2 text-xs font-medium text-(--accent)">
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
                 <span>{t("novelcrafterDirectStreamingBanner")}</span>
@@ -246,107 +283,45 @@ export default function ChapterEditorWorkspace({
                 if (e.key === "Enter") e.currentTarget.blur();
               }}
               aria-label={t("novelcrafterRenameChapter")}
-              className="w-full max-w-[820px] bg-transparent text-[22px] md:text-[24px] font-semibold leading-[1.3] tracking-[-0.015em] text-(--text-primary) placeholder:text-(--text-secondary) border-b border-transparent hover:border-(--border) focus:border-(--accent) focus:outline-none pb-1 transition-colors"
+              className="w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl bg-transparent text-[22px] md:text-[24px] font-semibold leading-[1.3] tracking-[-0.015em] text-(--text-primary) placeholder:text-(--text-secondary) border-b border-transparent hover:border-(--border) focus:border-(--accent) focus:outline-none pb-1 transition-colors"
             />
           </div>
 
-          <AnimatePresence initial={false}>
-            {beatsOpen && (
-              <motion.section
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={TRANSITION.FAST}
-                className="px-6 md:px-12 lg:px-16 pb-4 overflow-hidden shrink-0"
-              >
-                <div className="max-w-[820px] rounded-2xl border border-(--border) bg-(--surface)/85 p-4 space-y-3 shadow-xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[13px] font-semibold text-(--text-secondary)">
-                      {t("novelcrafterChapterBeatsLabel")}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setBeatsOpen(false)}
-                      aria-label={t("close")}
-                      className="p-1 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover)"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <textarea
-                    rows={4}
-                    value={chapter.scenes}
-                    onChange={(e) => onUpdateChapter(chapter.id, { scenes: e.target.value })}
-                    placeholder={t("novelcrafterChapterBeatsPlaceholder")}
-                    aria-label={t("novelcrafterChapterBeatsLabel")}
-                    className="w-full rounded-xl border border-(--border) bg-(--surface-elevated)/60 px-4 py-3 text-[14px] leading-[1.65] tracking-[-0.005em] text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none resize-y"
-                  />
-                  <input
-                    type="text"
-                    value={chapter.extraInstructions ?? ""}
-                    onChange={(e) =>
-                      onUpdateChapter(chapter.id, { extraInstructions: e.target.value })
-                    }
-                    placeholder={t("novelcrafterExtraInstructionsPlaceholder")}
-                    aria-label={t("novelcrafterExtraInstructionsLabel")}
-                    className="w-full h-9 rounded-xl border border-(--border) bg-(--surface-elevated)/40 px-3.5 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
-                  />
-                  <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <button
-                        type="button"
-                        disabled={isStreaming}
-                        onClick={() =>
-                          void onTriggerStream({
-                            feature: "bible",
-                            bibleTarget: "scenes",
-                            actionMode: "generate",
-                            subLabel: t("novelcrafterGenerateBeatsBtn"),
-                          })
-                        }
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--text-primary) disabled:opacity-50"
-                      >
-                        <Wand2 className="w-3.5 h-3.5 text-(--accent)" />
-                        <span>{t("novelcrafterGenerateBeatsBtn")}</span>
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isStreaming}
-                        onClick={() =>
-                          void onTriggerStream({
-                            feature: "bible",
-                            bibleTarget: "scenes",
-                            actionMode: "rewrite",
-                            subLabel: t("novelcrafterRewriteBeatsBtn"),
-                          })
-                        }
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--text-primary) disabled:opacity-50"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5 text-(--text-secondary)" />
-                        <span>{t("novelcrafterRewriteBeatsBtn")}</span>
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={isStreaming}
-                      onClick={handleRunFirstDraft}
-                      className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold shadow-xs disabled:opacity-50"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>{t("novelcrafterGenerateDraftBtn")}</span>
-                    </button>
-                  </div>
-                </div>
-              </motion.section>
-            )}
-          </AnimatePresence>
+          <ChapterDraftBeatsCard
+            isOpen={beatsOpen}
+            onClose={() => setBeatsOpen(false)}
+            scenes={chapter.scenes}
+            onChangeScenes={(val) => onUpdateChapter(chapter.id, { scenes: val })}
+            extraInstructions={chapter.extraInstructions ?? ""}
+            onChangeExtraInstructions={(val) =>
+              onUpdateChapter(chapter.id, { extraInstructions: val })
+            }
+            isStreaming={isStreaming}
+            onGenerateBeats={() =>
+              void onTriggerStream({
+                feature: "bible",
+                bibleTarget: "scenes",
+                actionMode: "generate",
+                subLabel: t("novelcrafterGenerateBeatsBtn"),
+              })
+            }
+            onRewriteBeats={() =>
+              void onTriggerStream({
+                feature: "bible",
+                bibleTarget: "scenes",
+                actionMode: "rewrite",
+                subLabel: t("novelcrafterRewriteBeatsBtn"),
+              })
+            }
+            onRunFirstDraft={handleRunFirstDraft}
+          />
 
           {activeFeedbackItem && activeFeedbackItem.quote && (
             <div className="px-6 md:px-12 lg:px-16 pb-2 shrink-0">
               <button
                 type="button"
                 onClick={() => jumpToFeedbackQuote(activeFeedbackItem)}
-                className="w-full max-w-[820px] text-left rounded-xl bg-(--warning)/15 border-l-2 border-(--warning) px-3.5 py-2 flex items-center justify-between gap-2 text-xs text-(--text-primary) hover:bg-(--warning)/20 transition-colors"
+                className="w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl text-left rounded-xl bg-(--warning)/15 border-l-2 border-(--warning) px-3.5 py-2 flex items-center justify-between gap-2 text-xs text-(--text-primary) hover:bg-(--warning)/20 transition-colors"
               >
                 <span className="inline-flex items-center gap-2 min-w-0 truncate">
                   <MessageSquareQuote className="w-3.5 h-3.5 text-(--warning) shrink-0" />
@@ -364,7 +339,7 @@ export default function ChapterEditorWorkspace({
 
           {quickEditOpen && selection && (
             <div className="px-6 md:px-12 lg:px-16 pb-2 shrink-0">
-              <div className="max-w-[820px] flex items-center gap-2 rounded-xl border border-(--accent) bg-(--surface) p-2 shadow-sm">
+              <div className="w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl flex items-center gap-2 rounded-xl border border-(--accent) bg-(--surface) p-2 shadow-sm">
                 <input
                   type="text"
                   value={quickEditPrompt}
@@ -392,8 +367,9 @@ export default function ChapterEditorWorkspace({
             </div>
           )}
 
-          <div className="flex-1 px-6 md:px-12 lg:px-16 pb-10 flex flex-col">
+          <div className="px-6 md:px-12 lg:px-16 pb-6 flex flex-col">
             <textarea
+              key={chapter.id}
               ref={textareaRef}
               readOnly={isDirectStreamingToChapter}
               value={chapter.content}
@@ -410,7 +386,19 @@ export default function ChapterEditorWorkspace({
               }}
               placeholder={t("novelcrafterChapterEditorPlaceholder")}
               aria-label={chapter.title}
-              className="flex-1 w-full max-w-[820px] min-h-[420px] bg-transparent border-0 p-0 text-[16px] md:text-[17px] leading-[1.8] tracking-[-0.005em] antialiased text-(--text-primary) placeholder:text-(--text-secondary)/70 focus:outline-none resize-none custom-scrollbar"
+              className="w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl min-h-[420px] [field-sizing:content] bg-transparent border-0 p-0 text-[16px] md:text-[17px] leading-[1.8] tracking-[-0.005em] antialiased text-(--text-primary) placeholder:text-(--text-secondary)/70 focus:outline-none resize-none custom-scrollbar"
+            />
+
+            {/* Embedded Story Bible positioned directly below chapter prose */}
+            <InlineStoryBibleSection
+              isOpen={isStoryBibleOpen}
+              onToggle={() => onToggleStoryBible(!isStoryBibleOpen)}
+              storyBible={storyBible}
+              onUpdateStoryBible={onUpdateStoryBible}
+              activeSection={activeBibleSection}
+              jumpRequest={bibleJumpRequest}
+              isStreaming={isStreaming}
+              onTriggerStream={onTriggerStream}
             />
           </div>
         </div>

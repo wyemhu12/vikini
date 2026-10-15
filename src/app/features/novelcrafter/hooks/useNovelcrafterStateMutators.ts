@@ -140,7 +140,6 @@ export function useNovelcrafterStateMutators({
     (chapterId: string) => {
       commitStateChange((prev) => ({
         ...prev,
-        isStoryBibleOpen: false,
         activeChapterId: chapterId,
       }));
     },
@@ -163,7 +162,6 @@ export function useNovelcrafterStateMutators({
         };
         return {
           ...prev,
-          isStoryBibleOpen: false,
           activeChapterId: newChapter.id,
           chapters: [...prev.chapters, newChapter],
         };

@@ -253,8 +253,9 @@ export default function ChapterAiToolMenus({
               value={customRewritePrompt}
               onChange={(e) => setCustomRewritePrompt(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter")
+                if (e.key === "Enter") {
                   onRunRewrite("custom", t("novelcrafterRewriteCustom"), customRewritePrompt);
+                }
               }}
               placeholder={t("novelcrafterRewriteInstructionPlaceholder")}
               aria-label={t("novelcrafterRewriteInstructionPlaceholder")}

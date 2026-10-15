@@ -28,7 +28,6 @@ import NovelcrafterTopBar from "./NovelcrafterTopBar";
 import NovelcrafterLeftNavigator, {
   type NovelcrafterBibleSectionId,
 } from "./NovelcrafterLeftNavigator";
-import StoryBibleWorkspace from "./StoryBibleWorkspace";
 import ChapterEditorWorkspace, { type EditorSelectionRange } from "./ChapterEditorWorkspace";
 import NovelcrafterHistoryPane from "./NovelcrafterHistoryPane";
 import GemPersonaRoutingModal from "./GemPersonaRoutingModal";
@@ -39,7 +38,7 @@ export default function NovelcrafterStudioApp() {
   useTheme();
   const { t } = useLanguage();
 
-  const { allowedModelIds, loading: modelsLoading } = useAllowedModels(isAuthed);
+  const { allowedModelIds } = useAllowedModels(isAuthed);
   const story = useNovelcrafterStory(isAuthed);
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -49,6 +48,10 @@ export default function NovelcrafterStudioApp() {
   const [isRoutingModalOpen, setIsRoutingModalOpen] = useState(false);
   const [activeBibleSection, setActiveBibleSection] =
     useState<NovelcrafterBibleSectionId>("braindump");
+  const [bibleJumpRequest, setBibleJumpRequest] = useState<{
+    section: NovelcrafterBibleSectionId;
+    nonce: number;
+  } | null>(null);
   const [renamingStoryId, setRenamingStoryId] = useState<string | null>(null);
   const [renameStoryTitle, setRenameStoryTitle] = useState("");
   const [selection, setSelection] = useState<EditorSelectionRange | null>(null);
@@ -251,7 +254,6 @@ export default function NovelcrafterStudioApp() {
       const current = story.activeChapter.content;
       const separator = current.trim().length > 0 ? "\n\n" : "";
       story.updateChapter(story.activeChapter.id, { content: `${current}${separator}${text}` });
-      story.setStoryBibleOpen(false);
     },
     [story]
   );
@@ -264,7 +266,6 @@ export default function NovelcrafterStudioApp() {
         content: current.slice(0, selection.start) + text + current.slice(selection.end),
       });
       setSelection(null);
-      story.setStoryBibleOpen(false);
     },
     [selection, story, handleAppendToChapter]
   );
@@ -343,7 +344,6 @@ export default function NovelcrafterStudioApp() {
             selectedModel={story.storyState.selectedModel}
             onSelectModel={story.setSelectedModel}
             allowedModelIds={allowedModelIds}
-            modelsLoading={modelsLoading}
             masterGem={masterGem}
             masterPersona={masterPersona}
             saveStatus={story.saveStatus}
@@ -374,6 +374,7 @@ export default function NovelcrafterStudioApp() {
                 onJumpToBibleSection={(sec) => {
                   setActiveBibleSection(sec);
                   story.setStoryBibleOpen(true);
+                  setBibleJumpRequest({ section: sec, nonce: Date.now() });
                 }}
                 chapters={story.storyState.chapters}
                 activeChapterId={story.activeChapter.id}
@@ -384,27 +385,23 @@ export default function NovelcrafterStudioApp() {
               />
             )}
 
-            {story.storyState.isStoryBibleOpen ? (
-              <StoryBibleWorkspace
-                storyBible={story.storyState.storyBible}
-                onUpdateStoryBible={story.updateStoryBible}
-                activeSection={activeBibleSection}
-                isStreaming={stream.isStreaming}
-                onTriggerStream={stream.triggerStream}
-              />
-            ) : (
-              <ChapterEditorWorkspace
-                chapter={story.activeChapter}
-                onUpdateChapter={story.updateChapter}
-                onUpdateFeedbackItems={story.updateChapterFeedbackItems}
-                selection={selection}
-                onSelectionChange={setSelection}
-                isStreaming={stream.isStreaming}
-                isDirectStreamingToChapter={isDirectStreamingToChapter}
-                onTriggerStream={stream.triggerStream}
-                onStopStream={stream.stopStream}
-              />
-            )}
+            <ChapterEditorWorkspace
+              chapter={story.activeChapter}
+              onUpdateChapter={story.updateChapter}
+              onUpdateFeedbackItems={story.updateChapterFeedbackItems}
+              selection={selection}
+              onSelectionChange={setSelection}
+              isStreaming={stream.isStreaming}
+              isDirectStreamingToChapter={isDirectStreamingToChapter}
+              onTriggerStream={stream.triggerStream}
+              onStopStream={stream.stopStream}
+              storyBible={story.storyState.storyBible}
+              onUpdateStoryBible={story.updateStoryBible}
+              isStoryBibleOpen={story.storyState.isStoryBibleOpen}
+              onToggleStoryBible={story.setStoryBibleOpen}
+              activeBibleSection={activeBibleSection}
+              bibleJumpRequest={bibleJumpRequest}
+            />
 
             {showRightPane && (
               <NovelcrafterHistoryPane

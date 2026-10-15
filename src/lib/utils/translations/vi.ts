@@ -1206,4 +1206,7 @@ export const vi = {
   novelcrafterExtraInstructionsPlaceholder:
     "Ghi chú thêm về giọng điệu, chi tiết bắt buộc hoặc nhịp độ riêng cho chương này...",
   novelcrafterDirectStreamingBanner: "AI đang viết trực tiếp vào khung soạn thảo...",
+  novelcrafterCollapseBible: "Thu gọn Story Bible",
+  novelcrafterExpandBible: "Mở rộng Story Bible",
+  novelcrafterJumpToBible: "Nhảy tới Story Bible",
 } as const;

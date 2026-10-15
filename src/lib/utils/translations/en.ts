@@ -1201,4 +1201,7 @@ export const en = {
   novelcrafterExtraInstructionsPlaceholder:
     "Optional chapter-specific tone notes, required beats, or pacing instructions...",
   novelcrafterDirectStreamingBanner: "AI is streaming directly into the editor...",
+  novelcrafterCollapseBible: "Collapse Story Bible",
+  novelcrafterExpandBible: "Expand Story Bible",
+  novelcrafterJumpToBible: "Jump to Story Bible",
 } as const;

@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const hoisted = vi.hoisted(() => ({
   generateContentStreamMock: vi.fn(),
@@ -168,7 +168,92 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     expect(rawSse).toContain("event: done\n");
   });
 
-  it("maps Claude model IDs via CLAUDE_API_MODELS.ANTHROPIC and streams Anthropic events", async () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("TC-01: configures Gemini 4 Argon with uppercase ThinkingLevel.MEDIUM and maxOutputTokens", async () => {
+    async function* mockArgonGenerator() {
+      yield {
+        candidates: [
+          {
+            content: {
+              parts: [{ text: "Argon draft generated.", thought: false }],
+            },
+          },
+        ],
+      };
+    }
+
+    hoisted.generateContentStreamMock.mockResolvedValue(mockArgonGenerator());
+
+    const stream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: {
+        ...BASE_REQUEST,
+        model: "gemini-4-argon",
+      },
+    });
+
+    const rawSse = await readStreamText(stream);
+
+    expect(hoisted.generateContentStreamMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "gemini-4-argon",
+        config: expect.objectContaining({
+          maxOutputTokens: 65536,
+          thinkingConfig: {
+            thinkingLevel: "MEDIUM",
+            includeThoughts: true,
+          },
+        }),
+      })
+    );
+    expect(rawSse).toContain("Argon draft generated.");
+    expect(rawSse).toContain("event: done\n");
+  });
+
+  it("TC-02: falls back to OpenRouter for Claude models when ANTHROPIC_API_KEY is unset", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+
+    async function* mockOpenRouterGenerator() {
+      yield {
+        choices: [
+          {
+            delta: {
+              content: "Claude output via OpenRouter fallback.",
+            },
+          },
+        ],
+      };
+    }
+
+    hoisted.openRouterChatCreateMock.mockResolvedValue(mockOpenRouterGenerator());
+
+    const stream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: {
+        ...BASE_REQUEST,
+        model: "claude-sonnet-4.5",
+      },
+    });
+
+    const rawSse = await readStreamText(stream);
+
+    expect(hoisted.claudeMessagesCreateMock).not.toHaveBeenCalled();
+    expect(hoisted.openRouterChatCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "anthropic/claude-sonnet-4-6",
+      }),
+      expect.anything()
+    );
+    expect(rawSse).toContain("Claude output via OpenRouter fallback.");
+    expect(rawSse).toContain("event: done\n");
+  });
+
+  it("TC-03: maps Claude model IDs via CLAUDE_API_MODELS.ANTHROPIC when ANTHROPIC_API_KEY is present", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-anthropic-key");
+
     async function* mockClaudeGenerator() {
       yield {
         type: "content_block_delta",
@@ -190,7 +275,8 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     expect(hoisted.claudeMessagesCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "claude-sonnet-4-6",
-      })
+      }),
+      expect.anything()
     );
     expect(rawSse).toContain('event: token\ndata: {"t":"Claude narrative output."}\n\n');
     expect(rawSse).toContain("event: done\n");

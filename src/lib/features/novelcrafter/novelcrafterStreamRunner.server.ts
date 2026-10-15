@@ -2,20 +2,24 @@
 // Standalone multi-provider SSE stream runner for Novelcrafter Studio
 // Calls singleton clients in src/lib/core/ directly without Chat side-effects
 
+import { ThinkingLevel } from "@google/genai";
 import { getGenAIClient } from "@/lib/core/genaiClient";
 import { getClaudeClient } from "@/lib/core/claudeClient";
 import { getDeepSeekClient } from "@/lib/core/deepseekClient";
 import { getGroqClient } from "@/lib/core/groqClient";
 import { getOpenRouterClient } from "@/lib/core/openRouterClient";
 import {
+  clampGeminiThinkingLevel,
+  getModelMaxOutputTokens,
   isDeepSeekDirectModel,
+  isGemini4Model,
   normalizeModelForApi,
   SELECTABLE_MODELS,
 } from "@/lib/core/modelRegistry";
 import { getGemsForUser } from "@/lib/features/gems/gems";
 import { getPersonasForUser } from "@/lib/features/personas/personas";
 import type { PersonaPromptInput } from "@/lib/features/personas/prompt-builder";
-import { CLAUDE_API_MODELS } from "@/lib/utils/constants";
+import { CLAUDE_API_MODELS, MODEL_IDS } from "@/lib/utils/constants";
 import { logger } from "@/lib/utils/logger";
 import type { PersonaTone } from "@/types/persona";
 import {
@@ -133,6 +137,12 @@ export interface RunNovelcrafterStreamOptions {
   signal?: AbortSignal;
 }
 
+const GEMINI_SDK_THINKING_LEVEL_MAP: Record<string, ThinkingLevel> = {
+  low: ThinkingLevel.LOW,
+  medium: ThinkingLevel.MEDIUM,
+  high: ThinkingLevel.HIGH,
+};
+
 async function streamGeminiProvider(
   model: string,
   systemInstruction: string,
@@ -141,11 +151,24 @@ async function streamGeminiProvider(
   signal?: AbortSignal
 ): Promise<void> {
   const client = getGenAIClient();
+  const maxOutputTokens = getModelMaxOutputTokens(model);
+
+  let thinkingConfig: { thinkingLevel: ThinkingLevel; includeThoughts: boolean } | undefined;
+  if (isGemini4Model(model)) {
+    const clamped = clampGeminiThinkingLevel(model, "medium");
+    thinkingConfig = {
+      thinkingLevel: GEMINI_SDK_THINKING_LEVEL_MAP[clamped] || ThinkingLevel.MEDIUM,
+      includeThoughts: true,
+    };
+  }
+
   const responseStream = await client.models.generateContentStream({
     model,
     contents: [{ role: "user", parts: [{ text: userPrompt }] }],
     config: {
       systemInstruction,
+      maxOutputTokens,
+      thinkingConfig,
       abortSignal: signal,
     },
   });
@@ -188,13 +211,16 @@ async function streamAnthropicProvider(
   const anthropicMap = CLAUDE_API_MODELS.ANTHROPIC as Record<string, string>;
   const apiModel = anthropicMap[model] || model;
 
-  const stream = await client.messages.create({
-    model: apiModel,
-    max_tokens: 8192,
-    system: systemInstruction,
-    messages: [{ role: "user", content: userPrompt }],
-    stream: true,
-  });
+  const stream = await client.messages.create(
+    {
+      model: apiModel,
+      max_tokens: 8192,
+      system: systemInstruction,
+      messages: [{ role: "user", content: userPrompt }],
+      stream: true,
+    },
+    { signal }
+  );
 
   for await (const event of stream) {
     if (signal?.aborted) break;
@@ -226,14 +252,17 @@ async function streamOpenAICompatibleProvider(
       ? getGroqClient()
       : getOpenRouterClient();
 
-  const stream = await client.chat.completions.create({
-    model,
-    messages: [
-      { role: "system", content: systemInstruction },
-      { role: "user", content: userPrompt },
-    ],
-    stream: true,
-  });
+  const stream = await client.chat.completions.create(
+    {
+      model,
+      messages: [
+        { role: "system", content: systemInstruction },
+        { role: "user", content: userPrompt },
+      ],
+      stream: true,
+    },
+    { signal }
+  );
 
   for await (const chunk of stream) {
     if (signal?.aborted) break;
@@ -335,13 +364,32 @@ export function runNovelcrafterStream({
             signal
           );
         } else if (providerId === "anthropic") {
-          await streamAnthropicProvider(
-            normalizedModel,
-            systemInstruction,
-            userPrompt,
-            controller,
-            signal
-          );
+          if (process.env.ANTHROPIC_API_KEY) {
+            await streamAnthropicProvider(
+              normalizedModel,
+              systemInstruction,
+              userPrompt,
+              controller,
+              signal
+            );
+          } else {
+            const openRouterMap = CLAUDE_API_MODELS.OPENROUTER as Record<string, string>;
+            const openRouterModel =
+              openRouterMap[normalizedModel] ||
+              openRouterMap[MODEL_IDS.CLAUDE_HAIKU_45] ||
+              normalizedModel;
+            streamLogger.info(
+              `ANTHROPIC_API_KEY not set. Routing Claude model "${normalizedModel}" via OpenRouter ("${openRouterModel}").`
+            );
+            await streamOpenAICompatibleProvider(
+              "openrouter-pay",
+              openRouterModel,
+              systemInstruction,
+              userPrompt,
+              controller,
+              signal
+            );
+          }
         } else {
           await streamOpenAICompatibleProvider(
             providerId,
