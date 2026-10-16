@@ -1,7 +1,16 @@
 // /lib/features/novelcrafter/streamTargetGuard.ts
 // Pure target lock and termination state resolution for Novelcrafter Direct Live Streaming (M13, m16)
 
+import { FIELD_MAX_LENGTHS } from "./stateLimits";
 import type { NovelcrafterBibleTarget, NovelcrafterStoryState } from "./types";
+
+const TRUNCATION_NOTICE_SUFFIX = "\n\n[⚠️ Đã cắt bớt do vượt giới hạn độ dài thẻ (150.000 ký tự)]";
+
+export function stripCardTruncationNotice(text: string): string {
+  return text.endsWith(TRUNCATION_NOTICE_SUFFIX)
+    ? text.slice(0, -TRUNCATION_NOTICE_SUFFIX.length)
+    : text;
+}
 
 export interface StoryScopedState {
   ownerStoryId: string | null;
@@ -19,7 +28,7 @@ export interface DirectStreamTarget {
 }
 
 export function joinBaseAndStreamedText(baseContent: string, streamedText: string): string {
-  const trimmedStream = streamedText;
+  const trimmedStream = stripCardTruncationNotice(streamedText);
   if (!trimmedStream) {
     return baseContent;
   }
@@ -54,7 +63,10 @@ export function applyStreamTargetUpdate(
       found = true;
       return {
         ...ch,
-        content: joinBaseAndStreamedText(target.baseContent, streamedText),
+        content: joinBaseAndStreamedText(target.baseContent, streamedText).slice(
+          0,
+          FIELD_MAX_LENGTHS.chapterContent
+        ),
         updatedAt: now,
       };
     });
@@ -81,7 +93,7 @@ export function applyStreamTargetUpdate(
       found = true;
       return {
         ...ch,
-        scenes: streamedText,
+        scenes: stripCardTruncationNotice(streamedText).slice(0, FIELD_MAX_LENGTHS.chapterScenes),
         updatedAt: now,
       };
     });
@@ -102,12 +114,15 @@ export function applyStreamTargetUpdate(
     return { nextState: scoped.state, applied: false };
   }
 
+  const maxBibleChars =
+    target.bibleField === "synopsis" ? FIELD_MAX_LENGTHS.synopsis : FIELD_MAX_LENGTHS.characters;
+
   return {
     nextState: {
       ...scoped.state,
       storyBible: {
         ...scoped.state.storyBible,
-        [target.bibleField]: streamedText,
+        [target.bibleField]: stripCardTruncationNotice(streamedText).slice(0, maxBibleChars),
       },
       updatedAt: Math.max(scoped.state.updatedAt + 1, now),
     },
@@ -168,7 +183,7 @@ export function resolveStreamTerminationState(params: {
 
   const finalFieldContent = isAppendMode
     ? joinBaseAndStreamedText(baseContent, accumulatedStreamText)
-    : accumulatedStreamText;
+    : stripCardTruncationNotice(accumulatedStreamText);
 
   return {
     finalFieldContent,

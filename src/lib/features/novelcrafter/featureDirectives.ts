@@ -208,6 +208,33 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
     const lengthTarget = input.writeLengthWords
       ? `Target output length: approximately ${input.writeLengthWords} words.`
       : "";
+    if (mode === "first_draft_rough") {
+      return [
+        "Generate a complete, engaging Rough Draft of this chapter from start to finish based on the <story_bible> (Synopsis, Outline, Characters, Worldbuilding, Style, POV & Tense) and <chapter_context>.",
+        lengthTarget || "Target output length: approximately 800 to 1,200 words.",
+        custom ? `Additional Direction: ${custom}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
+    if (mode === "openings_3") {
+      return [
+        "Generate 3 distinct, compelling Chapter Openings (~200–300 words each) for this chapter:",
+        "1. Action/Conflict Hook",
+        "2. Sensory/Atmosphere Immersion",
+        "3. Character/Dialogue Hook",
+        "Format your output using EXACT delimiters so each option can be parsed into its own card:",
+        "=== OPENING 1: Action/Conflict Hook ===",
+        "[prose]",
+        "=== OPENING 2: Sensory/Atmosphere Immersion ===",
+        "[prose]",
+        "=== OPENING 3: Character/Dialogue Hook ===",
+        "[prose]",
+        custom ? `Additional Direction: ${custom}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
     if (mode === "tone_shift") {
       const tone = input.toneShift || "ominous";
       return [

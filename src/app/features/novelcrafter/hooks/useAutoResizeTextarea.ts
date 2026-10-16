@@ -1,7 +1,7 @@
 // /app/features/novelcrafter/hooks/useAutoResizeTextarea.ts
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 interface UseAutoResizeTextareaOptions {
   value: string;
@@ -13,9 +13,9 @@ interface UseAutoResizeTextareaOptions {
 /**
  * Auto-resizes textarea to match content height smoothly:
  * 1. Checks if modern browser supports native CSS `field-sizing: content`.
- * 2. In JS fallback: uses scrollHeight measurement with scrollTop preservation to avoid scroll jitter.
- * 3. Correctly shrinks when text is deleted down to `minHeight`.
- * 4. Resets cleanly when chapterId changes.
+ * 2. Guards against collapsed/hidden containers (`offsetParent === null || clientWidth === 0`) (NC-17).
+ * 3. Re-measures via ResizeObserver when a collapsed parent accordion opens.
+ * 4. Preserves scrollContainer.scrollTop to avoid scroll jitter.
  */
 export function useAutoResizeTextarea<T extends HTMLTextAreaElement = HTMLTextAreaElement>({
   value,
@@ -25,8 +25,9 @@ export function useAutoResizeTextarea<T extends HTMLTextAreaElement = HTMLTextAr
 }: UseAutoResizeTextareaOptions) {
   const textareaRef = useRef<T | null>(null);
   const isNativeSupportedRef = useRef<boolean | null>(null);
+  const lastMeasuredWidthRef = useRef<number>(0);
 
-  useEffect(() => {
+  const syncHeight = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
 
@@ -38,15 +39,17 @@ export function useAutoResizeTextarea<T extends HTMLTextAreaElement = HTMLTextAr
     }
 
     if (isNativeSupportedRef.current) {
-      // Native browser field-sizing handles auto-growth and auto-shrink
       return;
     }
 
-    // JS Fallback with scrollTop preservation to prevent scroll jump
+    // NC-17: Do not collapse height to minHeight when inside a hidden/collapsed container
+    if (el.offsetParent === null || el.clientWidth === 0) {
+      return;
+    }
+
     const scrollContainer = scrollContainerRef?.current;
     const prevScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
 
-    // Temporarily reset height to measure true content height for shrink/grow
     el.style.height = "auto";
     const newHeight = Math.max(minHeight, el.scrollHeight);
     el.style.height = `${newHeight}px`;
@@ -54,7 +57,27 @@ export function useAutoResizeTextarea<T extends HTMLTextAreaElement = HTMLTextAr
     if (scrollContainer && scrollContainer.scrollTop !== prevScrollTop) {
       scrollContainer.scrollTop = prevScrollTop;
     }
-  }, [value, minHeight, chapterId, scrollContainerRef]);
+  }, [minHeight, scrollContainerRef]);
+
+  useEffect(() => {
+    syncHeight();
+  }, [value, chapterId, syncHeight]);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const width = entry ? Math.round(entry.contentRect.width) : el.clientWidth;
+      if (width > 0 && width !== lastMeasuredWidthRef.current) {
+        lastMeasuredWidthRef.current = width;
+        syncHeight();
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [syncHeight]);
 
   return textareaRef;
 }

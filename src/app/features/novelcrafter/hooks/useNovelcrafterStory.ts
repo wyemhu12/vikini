@@ -36,7 +36,6 @@ import { useNovelcrafterStateMutators } from "./useNovelcrafterStateMutators";
 import { useStoryPersistenceLifecycle } from "./useStoryPersistenceLifecycle";
 
 export type { ClientGemItem, ClientPersonaItem, StorySaveStatus };
-
 const storyLogger = logger.withContext("useNovelcrafterStory");
 
 export function useNovelcrafterStory(isAuthed: boolean) {
@@ -61,7 +60,6 @@ export function useNovelcrafterStory(isAuthed: boolean) {
       (conversations || []).filter((c: FrontendConversation) => c.model === MODEL_IDS.NOVELCRAFTER),
     [conversations]
   );
-
   const storiesRef = useRef(stories);
   useEffect(() => {
     storiesRef.current = stories;
@@ -71,7 +69,6 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     () => resolveValidNovelcrafterStoryId(selectedConversationId, stories),
     [selectedConversationId, stories]
   );
-
   const currentStory = useMemo(
     () => (validStoryId ? stories.find((s) => s.id === validStoryId) || null : null),
     [stories, validStoryId]
@@ -118,6 +115,9 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     cancelPendingSaveTimers,
     flushLocalDraftSync,
     dirtyStoryIdsRef,
+    destructivePrompt,
+    confirmDestructiveSave,
+    reloadAfterDestructiveRejection,
   } = useStoryPersistenceLifecycle({
     isAuthed,
     validStoryId,
@@ -133,14 +133,12 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     executeSaveRef.current = executeCoordinatorSave;
   }, [executeCoordinatorSave]);
 
-  // Auto-select most recent story unless user is typing an unsaved draft or creating a story (M19b, m24)
   useEffect(() => {
     if (coordinator.isCreatingStory()) return;
-    const hasActiveUnsavedDraft =
+    const hasUnsaved =
       latestStateRef.current.ownerStoryId === null &&
       hasUnsavedDraftContent(latestStateRef.current.state);
-
-    if (!selectedConversationId && stories.length > 0 && !hasActiveUnsavedDraft) {
+    if (!selectedConversationId && stories.length > 0 && !hasUnsaved) {
       setSelectedConversationId(stories[0].id);
     } else if (
       selectedConversationId &&
@@ -153,16 +151,15 @@ export function useNovelcrafterStory(isAuthed: boolean) {
 
   const prevValidStoryIdRef = useRef<string | null>(validStoryId);
 
-  // Load & reconcile story state when validStoryId changes (M19, m24, m26)
   useEffect(() => {
     const prevStoryId = prevValidStoryIdRef.current;
     prevValidStoryIdRef.current = validStoryId;
 
     if (prevStoryId && prevStoryId !== validStoryId) {
       cancelPendingSaveTimers();
-      const prevStillExists = storiesRef.current.some((s) => s.id === prevStoryId);
+      const prevExists = storiesRef.current.some((s) => s.id === prevStoryId);
       if (
-        prevStillExists &&
+        prevExists &&
         dirtyStoryIdsRef.current.has(prevStoryId) &&
         latestStateRef.current.ownerStoryId === prevStoryId
       ) {
@@ -196,7 +193,6 @@ export function useNovelcrafterStory(isAuthed: boolean) {
       coordinator,
       currentOwnerStoryId: latestStateRef.current.ownerStoryId,
     });
-
     if (decision.shouldPromoteUnsaved) {
       const promoted = promoteUnsavedDraftToStory(
         validStoryId,
@@ -211,7 +207,6 @@ export function useNovelcrafterStory(isAuthed: boolean) {
       });
       return;
     }
-
     if (!decision.shouldFetch) {
       latestStateRef.current = { ownerStoryId: validStoryId, state: latestStateRef.current.state };
       return;
@@ -219,7 +214,6 @@ export function useNovelcrafterStory(isAuthed: boolean) {
 
     let cancelled = false;
     setIsLoadingState(true);
-
     void loadAndReconcileStoryState({
       convId: validStoryId,
       defaultChapterTitle: t("novelcrafterDefaultChapterTitle"),
@@ -250,7 +244,6 @@ export function useNovelcrafterStory(isAuthed: boolean) {
       .finally(() => {
         if (!cancelled) setIsLoadingState(false);
       });
-
     return () => {
       cancelled = true;
     };
@@ -339,15 +332,19 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     [renameConversation, t]
   );
 
-  const mutators = useNovelcrafterStateMutators({ latestStateRef, setStoryState, scheduleSave, t });
-
+  const mutators = useNovelcrafterStateMutators({
+    latestStateRef,
+    setStoryState,
+    scheduleSave,
+    coordinator,
+    t,
+  });
   const activeChapter = useMemo(
     () =>
       storyState.chapters.find((c) => c.id === storyState.activeChapterId) ||
       storyState.chapters[0],
     [storyState.chapters, storyState.activeChapterId]
   );
-
   const previousChapterProseTail = useMemo(() => {
     const idx = storyState.chapters.findIndex((c) => c.id === activeChapter?.id);
     return idx > 0 ? storyState.chapters[idx - 1]?.content?.slice(-2000) || "" : "";
@@ -366,6 +363,9 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     previousChapterProseTail,
     isLoadingState,
     saveStatus,
+    destructivePrompt,
+    confirmDestructiveSave,
+    reloadAfterDestructiveRejection,
     gems,
     personas,
     ensureActiveStory,

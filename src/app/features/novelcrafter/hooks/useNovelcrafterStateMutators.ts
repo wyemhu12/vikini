@@ -4,6 +4,7 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { confirm } from "@/lib/store/confirmStore";
 import { toast } from "@/lib/store/toastStore";
+import type { NovelcrafterSyncCoordinator } from "@/lib/features/novelcrafter/storySyncCoordinator";
 import type { StoryScopedState } from "@/lib/features/novelcrafter/streamTargetGuard";
 import {
   MAX_CHAPTERS,
@@ -14,14 +15,15 @@ import {
   type NovelcrafterHistoryCard,
   type NovelcrafterRoutingConfig,
   type NovelcrafterStoryState,
-  type StoryBible,
 } from "@/lib/features/novelcrafter/types";
 import type { TranslationKey } from "@/lib/utils/translations";
+import { useStoryBibleMutators } from "./useStoryBibleMutators";
 
 interface UseNovelcrafterStateMutatorsParams {
   latestStateRef: MutableRefObject<StoryScopedState>;
   setStoryState: Dispatch<SetStateAction<NovelcrafterStoryState>>;
   scheduleSave: (nextState: NovelcrafterStoryState, options?: { immediate?: boolean }) => void;
+  coordinator?: NovelcrafterSyncCoordinator;
   t: (key: TranslationKey) => string;
 }
 
@@ -29,6 +31,7 @@ export function useNovelcrafterStateMutators({
   latestStateRef,
   setStoryState,
   scheduleSave,
+  coordinator,
   t,
 }: UseNovelcrafterStateMutatorsParams) {
   const commitStateChange = useCallback(
@@ -36,18 +39,22 @@ export function useNovelcrafterStateMutators({
       updater: (prev: NovelcrafterStoryState) => NovelcrafterStoryState,
       options?: { immediate?: boolean; skipSave?: boolean }
     ) => {
+      const ownerId = latestStateRef.current.ownerStoryId;
       const prev = latestStateRef.current.state;
       const updated = updater(prev);
       if (updated === prev) return;
 
+      const confirmedVer =
+        ownerId && coordinator ? coordinator.getConfirmedVersion(ownerId) : prev.version;
       const now = Date.now();
       const nextState: NovelcrafterStoryState = {
         ...updated,
+        version: confirmedVer > 0 ? confirmedVer : prev.version,
         updatedAt: Math.max(now, prev.updatedAt + 1),
       };
 
       latestStateRef.current = {
-        ownerStoryId: latestStateRef.current.ownerStoryId,
+        ownerStoryId: ownerId,
         state: nextState,
       };
       setStoryState(nextState);
@@ -56,7 +63,7 @@ export function useNovelcrafterStateMutators({
         scheduleSave(nextState, { immediate: options?.immediate });
       }
     },
-    [latestStateRef, setStoryState, scheduleSave]
+    [latestStateRef, setStoryState, scheduleSave, coordinator]
   );
 
   const applyDirectStoryState = useCallback(
@@ -73,15 +80,7 @@ export function useNovelcrafterStateMutators({
     [latestStateRef, setStoryState, scheduleSave]
   );
 
-  const updateStoryBible = useCallback(
-    (patch: Partial<StoryBible>) => {
-      commitStateChange((prev) => ({
-        ...prev,
-        storyBible: { ...prev.storyBible, ...patch },
-      }));
-    },
-    [commitStateChange]
-  );
+  const bibleMutators = useStoryBibleMutators(commitStateChange, t);
 
   const updateRouting = useCallback(
     (patch: Partial<NovelcrafterRoutingConfig>) => {
@@ -110,10 +109,7 @@ export function useNovelcrafterStateMutators({
           ...prev,
           routing: {
             ...prev.routing,
-            featurePersonas: {
-              ...prev.routing.featurePersonas,
-              [slot]: value,
-            },
+            featurePersonas: { ...prev.routing.featurePersonas, [slot]: value },
           },
         }),
         { immediate: true }
@@ -138,10 +134,7 @@ export function useNovelcrafterStateMutators({
 
   const selectChapter = useCallback(
     (chapterId: string) => {
-      commitStateChange((prev) => ({
-        ...prev,
-        activeChapterId: chapterId,
-      }));
+      commitStateChange((prev) => ({ ...prev, activeChapterId: chapterId }));
     },
     [commitStateChange]
   );
@@ -201,11 +194,7 @@ export function useNovelcrafterStateMutators({
           ...prev,
           chapters: prev.chapters.map((ch) =>
             ch.id === chapterId
-              ? {
-                  ...ch,
-                  feedbackItems: updater(ch.feedbackItems ?? []),
-                  updatedAt: Date.now(),
-                }
+              ? { ...ch, feedbackItems: updater(ch.feedbackItems ?? []), updatedAt: Date.now() }
               : ch
           ),
         }),
@@ -234,11 +223,7 @@ export function useNovelcrafterStateMutators({
           const remaining = prev.chapters.filter((ch) => ch.id !== chapterId);
           const nextActive =
             prev.activeChapterId === chapterId ? remaining[0].id : prev.activeChapterId;
-          return {
-            ...prev,
-            activeChapterId: nextActive,
-            chapters: remaining,
-          };
+          return { ...prev, activeChapterId: nextActive, chapters: remaining };
         },
         { immediate: true }
       );
@@ -285,7 +270,7 @@ export function useNovelcrafterStateMutators({
 
   return {
     applyDirectStoryState,
-    updateStoryBible,
+    ...bibleMutators,
     updateRouting,
     updateFeaturePersonaSlot,
     setSelectedModel,

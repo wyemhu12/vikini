@@ -1,116 +1,159 @@
 // /app/api/novelcrafter/state/route.ts
-// GET & PUT encrypted Novelcrafter Story State
+// GET and PUT endpoints for Novelcrafter Story State (Story Bible, Chapters, History Cards, Routing)
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const maxDuration = 60;
-
-import { NextRequest } from "next/server";
-import { auth } from "@/lib/features/auth/auth";
-import { consumeRateLimit } from "@/lib/core/rateLimit";
+import { NextRequest, NextResponse } from "next/server";
 import { assertModelAllowedForUser } from "@/lib/core/limits";
-import { isSelectableModelId, normalizeModelForApi } from "@/lib/core/modelRegistry";
+import { consumeRateLimit } from "@/lib/core/rateLimit";
+import { auth } from "@/lib/features/auth/auth";
+import { isValidGenerationModel } from "@/lib/features/novelcrafter/modelGuards.server";
 import { getStoryState, saveStoryState } from "@/lib/features/novelcrafter/storyPersistence.server";
 import { NovelcrafterPutStateRequestSchema } from "@/lib/features/novelcrafter/types";
-import { HTTP_STATUS, MODEL_IDS, UUID_REGEX } from "@/lib/utils/constants";
-import { AppError } from "@/lib/utils/errors";
-import { error, errorFromAppError, rateLimitError, success } from "@/lib/utils/apiResponse";
+import { UUID_REGEX } from "@/lib/utils/constants";
+import {
+  AppError,
+  RateLimitError,
+  sanitizeError,
+  UnauthorizedError,
+  ValidationError,
+} from "@/lib/utils/errors";
 import { logger } from "@/lib/utils/logger";
 
 const routeLogger = logger.withContext("/api/novelcrafter/state");
-const MAX_STATE_PAYLOAD_BYTES = 2 * 1024 * 1024; // 2MB
 
-function isValidGenerationModel(modelId: string): boolean {
-  const trimmed = modelId.trim();
-  if (!trimmed || trimmed === MODEL_IDS.NOVELCRAFTER || trimmed === MODEL_IDS.IMAGE_STUDIO) {
-    return false;
+const MAX_STATE_BODY_BYTES = 2 * 1024 * 1024; // 2 MiB hard guard (P1)
+
+async function requireAuthenticatedEmail(): Promise<string> {
+  const session = await auth();
+  const userId = session?.user?.email?.toLowerCase()?.trim();
+  if (!userId) {
+    throw new UnauthorizedError("Authentication required");
   }
-  const normalized = normalizeModelForApi(trimmed);
-  if (normalized === MODEL_IDS.NOVELCRAFTER || normalized === MODEL_IDS.IMAGE_STUDIO) {
-    return false;
+  return userId;
+}
+
+function formatErrorResponse(error: unknown): NextResponse {
+  if (error instanceof AppError) {
+    if (error.code === "DESTRUCTIVE_SAVE_REJECTED") {
+      const extra = error as AppError & { previousChars?: number; nextChars?: number };
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            message: error.message,
+            code: error.code,
+          },
+          code: error.code,
+          previousChars: extra.previousChars ?? 0,
+          nextChars: extra.nextChars ?? 0,
+        },
+        { status: 409 }
+      );
+    }
+
+    const headers: Record<string, string> = {};
+    if (error instanceof RateLimitError && error.retryAfterSeconds) {
+      headers["Retry-After"] = String(error.retryAfterSeconds);
+    }
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          message: sanitizeError(error),
+          code: error.code,
+        },
+      },
+      { status: error.statusCode, headers }
+    );
   }
-  return isSelectableModelId(trimmed) || isSelectableModelId(normalized);
+
+  return NextResponse.json(
+    {
+      success: false,
+      error: {
+        message: sanitizeError(error),
+        code: "INTERNAL_ERROR",
+      },
+    },
+    { status: 500 }
+  );
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    const email = session?.user?.email?.toLowerCase();
-    if (!email) {
-      return error("Unauthorized", HTTP_STATUS.UNAUTHORIZED, "UNAUTHORIZED");
-    }
+    const userId = await requireAuthenticatedEmail();
 
-    const rl = await consumeRateLimit(`novelcrafter-state-get:${email}`);
+    const rl = await consumeRateLimit(`novelcrafter-state-get:${userId}`);
     if (!rl.allowed) {
-      return rateLimitError("Rate limit exceeded", rl.retryAfterSeconds);
+      throw new RateLimitError("Too many requests", rl.retryAfterSeconds);
     }
 
-    const conversationId = req.nextUrl.searchParams.get("conversationId")?.trim() || "";
-    if (!UUID_REGEX.test(conversationId)) {
-      return error("Invalid conversationId", HTTP_STATUS.BAD_REQUEST, "VALIDATION_ERROR");
+    const { searchParams } = new URL(req.url);
+    const conversationId = (searchParams.get("conversationId") || "").trim();
+
+    if (!conversationId || !UUID_REGEX.test(conversationId)) {
+      throw new ValidationError("Valid conversationId query parameter is required");
     }
 
-    const state = await getStoryState(email, conversationId);
-    return success({ conversationId, state });
-  } catch (err: unknown) {
-    routeLogger.error("GET /api/novelcrafter/state error:", err);
-    if (err instanceof AppError) {
-      return errorFromAppError(err);
-    }
-    return error(err, HTTP_STATUS.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR");
+    const state = await getStoryState(userId, conversationId);
+
+    return NextResponse.json({
+      success: true,
+      data: { state },
+    });
+  } catch (error: unknown) {
+    routeLogger.error("GET /api/novelcrafter/state failed:", error);
+    return formatErrorResponse(error);
   }
 }
 
 export async function PUT(req: NextRequest) {
-  const contentLength = Number(req.headers.get("content-length") || 0);
-  if (contentLength > MAX_STATE_PAYLOAD_BYTES) {
-    return error("Payload too large", HTTP_STATUS.PAYLOAD_TOO_LARGE, "PAYLOAD_TOO_LARGE");
-  }
-
   try {
-    const session = await auth();
-    const email = session?.user?.email?.toLowerCase();
-    if (!email) {
-      return error("Unauthorized", HTTP_STATUS.UNAUTHORIZED, "UNAUTHORIZED");
-    }
+    const userId = await requireAuthenticatedEmail();
 
-    const rl = await consumeRateLimit(`novelcrafter-state-put:${email}`);
+    const rl = await consumeRateLimit(`novelcrafter-state-put:${userId}`);
     if (!rl.allowed) {
-      return rateLimitError("Rate limit exceeded", rl.retryAfterSeconds);
+      throw new RateLimitError("Too many requests", rl.retryAfterSeconds);
     }
 
-    let rawBody: unknown;
+    const rawBody = await req.text();
+    const byteLength = new TextEncoder().encode(rawBody).byteLength;
+    if (byteLength > MAX_STATE_BODY_BYTES) {
+      throw new AppError("Story state payload exceeds 2MB limit", 413, "PAYLOAD_TOO_LARGE");
+    }
+
+    let parsedJson: unknown;
     try {
-      rawBody = await req.json();
+      parsedJson = rawBody ? JSON.parse(rawBody) : {};
     } catch {
-      return error("Invalid JSON payload", HTTP_STATUS.BAD_REQUEST, "VALIDATION_ERROR");
+      throw new ValidationError("Invalid JSON body");
     }
 
-    const parsed = NovelcrafterPutStateRequestSchema.safeParse(rawBody);
-    if (!parsed.success) {
-      const firstIssue = parsed.error.issues[0]?.message || "Invalid story state payload";
-      return error(firstIssue, HTTP_STATUS.BAD_REQUEST, "VALIDATION_ERROR");
-    }
-
-    const { conversationId, state } = parsed.data;
-
-    if (!isValidGenerationModel(state.selectedModel)) {
-      return error(
-        "Invalid selectedModel for story generation",
-        HTTP_STATUS.BAD_REQUEST,
-        "VALIDATION_ERROR"
+    const validated = NovelcrafterPutStateRequestSchema.safeParse(parsedJson);
+    if (!validated.success) {
+      throw new ValidationError(
+        validated.error.issues[0]?.message || "Invalid story state payload"
       );
     }
 
-    await assertModelAllowedForUser(email, state.selectedModel);
+    const { conversationId, state, allowDestructive } = validated.data;
 
-    const savedState = await saveStoryState(email, conversationId, state);
-    return success({ conversationId, state: savedState });
-  } catch (err: unknown) {
-    routeLogger.error("PUT /api/novelcrafter/state error:", err);
-    if (err instanceof AppError) {
-      return errorFromAppError(err);
+    if (!isValidGenerationModel(state.selectedModel)) {
+      throw new ValidationError(`Invalid generation model: ${state.selectedModel}`);
     }
-    return error(err, HTTP_STATUS.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR");
+
+    await assertModelAllowedForUser(userId, state.selectedModel);
+
+    const savedState = await saveStoryState(userId, conversationId, state, {
+      allowDestructive,
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: { state: savedState },
+    });
+  } catch (error: unknown) {
+    routeLogger.error("PUT /api/novelcrafter/state failed:", error);
+    return formatErrorResponse(error);
   }
 }

@@ -84,13 +84,16 @@ describe("POST /api/novelcrafter/stream integration tests (TC-07)", () => {
       userId: "writer@vikini.net",
       model: "vikini-novelcrafter",
     });
-    hoisted.runNovelcrafterStreamMock.mockReturnValue(
-      new ReadableStream({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode("event: done\ndata: {}\n\n"));
-          controller.close();
-        },
-      })
+    hoisted.runNovelcrafterStreamMock.mockImplementation(
+      (opts: { onFirstModelOutput?: () => void; onStreamComplete?: () => Promise<void> | void }) =>
+        new ReadableStream({
+          start(controller) {
+            opts.onFirstModelOutput?.();
+            controller.enqueue(new TextEncoder().encode("event: done\ndata: {}\n\n"));
+            controller.close();
+            void opts.onStreamComplete?.();
+          },
+        })
     );
   });
 
@@ -179,7 +182,7 @@ describe("POST /api/novelcrafter/stream integration tests (TC-07)", () => {
     expect(res.status).toBe(403);
   });
 
-  it("streams text/event-stream and increments daily message count on valid request", async () => {
+  it("streams text/event-stream and increments daily message count on first model output", async () => {
     const req = new NextRequest("http://localhost/api/novelcrafter/stream", {
       method: "POST",
       body: JSON.stringify(buildValidPayload()),
@@ -188,5 +191,28 @@ describe("POST /api/novelcrafter/stream integration tests (TC-07)", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toContain("text/event-stream");
     expect(hoisted.incrementDailyMessageCountMock).toHaveBeenCalledWith("writer@vikini.net");
+  });
+
+  it("does NOT increment daily message count if stream fails before first model output (NC-06 / Q2)", async () => {
+    hoisted.runNovelcrafterStreamMock.mockImplementationOnce(
+      (opts: { onStreamComplete?: () => Promise<void> | void }) =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(
+              new TextEncoder().encode('event: error\ndata: {"message":"Upstream 500"}\n\n')
+            );
+            controller.close();
+            void opts.onStreamComplete?.();
+          },
+        })
+    );
+
+    const req = new NextRequest("http://localhost/api/novelcrafter/stream", {
+      method: "POST",
+      body: JSON.stringify(buildValidPayload()),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(hoisted.incrementDailyMessageCountMock).not.toHaveBeenCalled();
   });
 });

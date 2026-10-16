@@ -4,6 +4,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
+import {
+  createRafStreamBatcher,
+  useNovelcrafterStreamStore,
+} from "@/lib/features/novelcrafter/novelcrafterStreamStore";
+import { pruneStoryBibleForStream } from "@/lib/features/novelcrafter/pruneStoryBibleForStream";
+import { NovelcrafterStreamRunRegistry } from "@/lib/features/novelcrafter/streamRunRegistry";
 import type { StreamTerminationReason } from "@/lib/features/novelcrafter/streamTargetGuard";
 import type {
   NovelcrafterActionMode,
@@ -14,6 +20,7 @@ import type {
   NovelcrafterExpandMode,
   NovelcrafterFeatureSlot,
   NovelcrafterFeedbackMode,
+  NovelcrafterFinishReason,
   NovelcrafterHistoryCard,
   NovelcrafterRewriteMode,
   NovelcrafterRoutingConfig,
@@ -21,6 +28,8 @@ import type {
   NovelcrafterWriteMode,
   StoryBible,
 } from "@/lib/features/novelcrafter/types";
+import { hasActiveOverlayInDom, shouldCancelStreamOnEscape } from "../utils/novelcrafterKeyboard";
+import { parseFinishReason, parseNovelcrafterSseFrame } from "../utils/novelcrafterSseParser";
 
 const streamHookLogger = logger.withContext("useNovelcrafterStream");
 
@@ -45,6 +54,7 @@ export interface TriggerNovelcrafterStreamParams {
 
 export interface StreamingCardMeta {
   model: string;
+  routedModel?: string;
   gemName: string | null;
   personaName: string | null;
   feature: NovelcrafterFeatureSlot;
@@ -58,6 +68,8 @@ export interface StreamTerminatedPayload {
   fullContent: string;
   fullThinking: string;
   resolvedModel: string;
+  routedModel?: string;
+  finishReason?: NovelcrafterFinishReason;
   resolvedGemName: string | null;
   resolvedPersonaName: string | null;
   params: TriggerNovelcrafterStreamParams;
@@ -92,56 +104,103 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
     optionsRef.current = options;
   }, [options]);
 
+  const registryRef = useRef<NovelcrafterStreamRunRegistry | null>(null);
+  if (!registryRef.current) registryRef.current = new NovelcrafterStreamRunRegistry();
+  const registry = registryRef.current;
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [streamingThinking, setStreamingThinking] = useState("");
   const [streamingMeta, setStreamingMeta] = useState<StreamingCardMeta | null>(null);
 
-  const abortControllerRef = useRef<AbortController | null>(null);
-
   const stopStream = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    const activeRunId = registry.getActiveRunId();
+    if (activeRunId) {
+      registry.endRun(activeRunId);
+      useNovelcrafterStreamStore.getState().finishStreamRun(activeRunId);
     }
     setIsStreaming(false);
-  }, []);
+  }, [registry]);
 
   useEffect(() => {
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+      registry.reset();
+      useNovelcrafterStreamStore.getState().resetStreamStore();
+    };
+  }, [selectedConversationId, registry]);
+
+  useEffect(() => {
+    if (!isStreaming) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        shouldCancelStreamOnEscape({
+          key: e.key,
+          defaultPrevented: e.defaultPrevented,
+          isStreaming,
+          hasOpenModalOrPopover: hasActiveOverlayInDom(),
+        })
+      ) {
+        e.preventDefault();
+        stopStream();
       }
     };
-  }, [selectedConversationId]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isStreaming, stopStream]);
 
   const triggerStream = useCallback(
     async (params: TriggerNovelcrafterStreamParams) => {
-      stopStream();
       const opts = optionsRef.current;
+      abortControllerRef.current?.abort();
+      const prevRunId = registry.getActiveRunId();
+      if (prevRunId) registry.endRun(prevRunId);
 
-      let targetConversationId = opts.selectedConversationId;
-      if (!targetConversationId) {
-        targetConversationId = await opts.ensureStoryConversation();
-      }
-      if (!targetConversationId) return;
+      const runId = registry.startRun({
+        targetStoryId: opts.selectedConversationId,
+        targetChapterId: opts.activeChapterId,
+        feature: params.feature,
+        bibleTarget: params.bibleTarget,
+        subLabel: params.subLabel,
+      });
+      if (!runId) return;
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      setIsStreaming(true);
-      setStreamingContent("");
-      setStreamingThinking("");
-      setStreamingMeta({
+      const targetConversationId =
+        opts.selectedConversationId || (await opts.ensureStoryConversation());
+      if (!targetConversationId) {
+        registry.endRun(runId);
+        return;
+      }
+      registry.promotePendingRunStory(runId, targetConversationId);
+
+      const initialMeta: StreamingCardMeta = {
         model: opts.selectedModel,
         gemName: null,
         personaName: null,
         feature: params.feature,
         subLabel: params.subLabel,
         bibleTarget: params.bibleTarget,
-      });
+      };
+      setIsStreaming(true);
+      setStreamingContent("");
+      setStreamingThinking("");
+      setStreamingMeta(initialMeta);
+      useNovelcrafterStreamStore.getState().beginStreamRun(runId, initialMeta);
 
+      const batcher = createRafStreamBatcher(runId, (rId, content, thinking) => {
+        if (registry.getActiveRunId() !== rId) return;
+        useNovelcrafterStreamStore.getState().flushStreamSnapshot(rId, content, thinking);
+        setStreamingContent(content);
+        setStreamingThinking(thinking);
+        opts.onStreamTokenChunk?.({ storyId: targetConversationId, fullContent: content, params });
+      });
       opts.onStreamStarted?.({ storyId: targetConversationId, params });
 
       let fullContent = "";
@@ -149,9 +208,64 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
       let resolvedGemName: string | null = null;
       let resolvedPersonaName: string | null = null;
       let resolvedModel = opts.selectedModel;
+      let routedModel: string | undefined;
+      let finishReason: NovelcrafterFinishReason | undefined;
       let terminationReason: StreamTerminationReason = "completed";
 
+      const processFrame = (frame: string) => {
+        const parsed = parseNovelcrafterSseFrame(frame);
+        if (!parsed) return;
+        const { eventType, parsedData } = parsed;
+        if (eventType === "meta") {
+          resolvedModel =
+            typeof parsedData.model === "string" ? parsedData.model : opts.selectedModel;
+          routedModel =
+            typeof parsedData.routedModel === "string" && parsedData.routedModel.trim()
+              ? parsedData.routedModel.trim()
+              : undefined;
+          resolvedGemName = typeof parsedData.gemName === "string" ? parsedData.gemName : null;
+          resolvedPersonaName =
+            typeof parsedData.personaName === "string" ? parsedData.personaName : null;
+          if (registry.getActiveRunId() === runId) {
+            const nextMeta: StreamingCardMeta = {
+              model: resolvedModel,
+              routedModel,
+              gemName: resolvedGemName,
+              personaName: resolvedPersonaName,
+              feature: params.feature,
+              subLabel: params.subLabel,
+              bibleTarget: params.bibleTarget,
+            };
+            setStreamingMeta(nextMeta);
+            useNovelcrafterStreamStore.getState().updateStreamMeta(runId, nextMeta);
+          }
+        } else if (eventType === "thinking") {
+          const tChunk = typeof parsedData.t === "string" ? parsedData.t : "";
+          if (tChunk) {
+            fullThinking += tChunk;
+            batcher.scheduleUpdate(fullContent, fullThinking);
+          }
+        } else if (eventType === "token") {
+          const tChunk = typeof parsedData.t === "string" ? parsedData.t : "";
+          if (tChunk) {
+            fullContent += tChunk;
+            batcher.scheduleUpdate(fullContent, fullThinking);
+          }
+        } else if (eventType === "done") {
+          finishReason = parseFinishReason(parsedData.finishReason) ?? finishReason;
+        } else if (eventType === "error") {
+          throw new Error(
+            typeof parsedData.message === "string" ? parsedData.message : "Stream error occurred"
+          );
+        }
+      };
+
       try {
+        const prunedBible = pruneStoryBibleForStream(
+          opts.storyBible,
+          params.feature,
+          params.bibleTarget
+        );
         const res = await fetch("/api/novelcrafter/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -161,7 +275,7 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
             model: opts.selectedModel,
             feature: params.feature,
             routing: opts.routing,
-            storyBible: opts.storyBible,
+            storyBible: prunedBible,
             chapterTitle: opts.chapterTitle,
             chapterScenes: opts.chapterScenes,
             chapterExtraInstructions: opts.chapterExtraInstructions || "",
@@ -183,126 +297,87 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
             customInstruction: params.customInstruction || "",
           }),
         });
-
         if (!res.ok || !res.body) {
           const errJson = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
           throw new Error(errJson.error?.message || `HTTP ${res.status}`);
         }
-
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
-
           const frames = buffer.split("\n\n");
           buffer = frames.pop() || "";
-
-          for (const frame of frames) {
-            let eventType = "message";
-            let dataRaw = "";
-            for (const line of frame.split("\n")) {
-              if (line.startsWith("event:")) eventType = line.slice(6).trim();
-              else if (line.startsWith("data:")) dataRaw += line.slice(5).trim();
-            }
-            if (!dataRaw) continue;
-            let parsedData: Record<string, unknown>;
-            try {
-              parsedData = JSON.parse(dataRaw) as Record<string, unknown>;
-            } catch {
-              continue;
-            }
-
-            if (eventType === "meta") {
-              resolvedModel =
-                typeof parsedData.model === "string" ? parsedData.model : opts.selectedModel;
-              resolvedGemName = typeof parsedData.gemName === "string" ? parsedData.gemName : null;
-              resolvedPersonaName =
-                typeof parsedData.personaName === "string" ? parsedData.personaName : null;
-              setStreamingMeta({
-                model: resolvedModel,
-                gemName: resolvedGemName,
-                personaName: resolvedPersonaName,
-                feature: params.feature,
-                subLabel: params.subLabel,
-                bibleTarget: params.bibleTarget,
-              });
-            } else if (eventType === "thinking") {
-              const tChunk = typeof parsedData.t === "string" ? parsedData.t : "";
-              if (tChunk) {
-                fullThinking += tChunk;
-                setStreamingThinking(fullThinking);
-              }
-            } else if (eventType === "token") {
-              const tChunk = typeof parsedData.t === "string" ? parsedData.t : "";
-              if (tChunk) {
-                fullContent += tChunk;
-                setStreamingContent(fullContent);
-                opts.onStreamTokenChunk?.({ storyId: targetConversationId, fullContent, params });
-              }
-            } else if (eventType === "error") {
-              const errMsg =
-                typeof parsedData.message === "string"
-                  ? parsedData.message
-                  : "Stream error occurred";
-              throw new Error(errMsg);
-            }
+          for (const frame of frames) processFrame(frame);
+        }
+        buffer += decoder.decode();
+        if (buffer.trim()) {
+          for (const frame of buffer.split("\n\n")) {
+            if (frame.trim()) processFrame(frame);
           }
         }
       } catch (err: unknown) {
         if (controller.signal.aborted) {
           terminationReason = "stopped";
+          finishReason = "aborted";
         } else {
           terminationReason = "error";
+          finishReason = "error";
           const msg = err instanceof Error ? err.message : "Failed to run AI tool";
           streamHookLogger.error("Novelcrafter stream failed:", msg);
           toast.error(msg);
         }
       } finally {
-        if (abortControllerRef.current === controller) {
-          abortControllerRef.current = null;
+        batcher.flushNow();
+        const wasCurrentRun = registry.endRun(runId);
+        if (wasCurrentRun) {
           setIsStreaming(false);
+          useNovelcrafterStreamStore.getState().finishStreamRun(runId);
         }
         if (controller.signal.aborted && terminationReason === "completed") {
           terminationReason = "stopped";
+          finishReason = "aborted";
         }
-
-        opts.onStreamTerminated?.({
-          storyId: targetConversationId,
-          reason: terminationReason,
-          fullContent,
-          fullThinking,
-          resolvedModel,
-          resolvedGemName,
-          resolvedPersonaName,
-          params,
-        });
-
-        if (fullContent.trim().length > 0) {
-          const cardFeature: NovelcrafterHistoryCard["feature"] =
-            params.feature === "feedback" ? "rewrite" : params.feature;
-          opts.onCardCompleted({
-            id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            feature: cardFeature,
-            subSlot: params.feature === "feedback" ? "feedback" : undefined,
-            actionLabel: params.subLabel,
-            subLabel: params.subLabel,
-            bibleTarget: params.bibleTarget,
-            chapterId: opts.activeChapterId,
-            content: fullContent.trim(),
-            thinking: fullThinking.trim() || undefined,
-            model: resolvedModel,
-            gemName: resolvedGemName,
-            personaName: resolvedPersonaName,
-            createdAt: Date.now(),
+        if (wasCurrentRun) {
+          opts.onStreamTerminated?.({
+            storyId: targetConversationId,
+            reason: terminationReason,
+            fullContent,
+            fullThinking,
+            resolvedModel,
+            routedModel,
+            finishReason,
+            resolvedGemName,
+            resolvedPersonaName,
+            params,
           });
+          if (fullContent.trim().length > 0) {
+            const cardFeature: NovelcrafterHistoryCard["feature"] =
+              params.feature === "feedback" ? "rewrite" : params.feature;
+            opts.onCardCompleted({
+              id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              feature: cardFeature,
+              subSlot: params.feature === "feedback" ? "feedback" : undefined,
+              actionLabel: params.subLabel,
+              subLabel: params.subLabel,
+              bibleTarget: params.bibleTarget,
+              chapterId: opts.activeChapterId,
+              content: fullContent.trim(),
+              thinking: fullThinking.trim() || undefined,
+              model: resolvedModel,
+              ...(routedModel ? { routedModel } : {}),
+              ...(finishReason ? { finishReason } : {}),
+              gemName: resolvedGemName,
+              personaName: resolvedPersonaName,
+              createdAt: Date.now(),
+            });
+          }
         }
       }
     },
-    [stopStream]
+    [registry]
   );
 
   return {

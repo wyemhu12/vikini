@@ -648,3 +648,31 @@
 - **Root Cause**: In WHATWG URL parsing, `new URL("http://[::1]/status").hostname` preserves brackets (`"[::1]"`). Node.js `net.isIP("[::1]")` returns 0 (false) because it only expects unbracketed IP strings. Consequently, bracketed IPv6 hostnames fell through to `dns.promises.lookup("[::1]")`. On Windows, WinSock `getaddrinfo` strips brackets and resolves `[::1]` to `::1`, so it passed locally. On Linux (glibc `getaddrinfo` in GitHub Actions CI), `[::1]` is treated as an invalid domain name, throwing `EAI_NONAME` / `ENOTFOUND` and resulting in `"Could not resolve host: [::1]"`.
 - **Fix**: Updated `isIpRestricted` and `validateSafeUrl` in `src/lib/core/ssrfGuard.server.ts` to unbracket IPv6 hostnames (`hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname`) before calling `net.isIP()`. This directly catches restricted IPv6 literals (such as `::1`, `fe80::`, `::ffff:`) at the direct IP check stage without attempting a DNS lookup. Added test coverage for bracketed IPv6 addresses in `src/lib/core/ssrfGuard.server.test.ts`.
 - **Prevention Rule**: **Always strip brackets from IPv6 hostnames obtained from `new URL().hostname` before passing them to `net.isIP()` or IP validation libraries.** Never rely on OS-specific `getaddrinfo` behavior for IPv6 literal hostnames.
+
+### 2026-10-16: Novelcrafter Comprehensive Audit -- Field-Level Schema Coercion, Serverless Stream Quota Reservation & Foldable Responsive Layout
+
+- **Symptom**:
+  1. **Whole-Story Reset on Single Field Overflow (`NC-01`)**: When a single chapter or Story Bible field slightly exceeded its Zod `.max(...)` limit, `NovelcrafterStoryStateSchema.safeParse` failed and `parseStoryStateOrDefault` fell back to `createDefaultStoryState`, wiping the user's entire manuscript on load.
+  2. **Destructive Overwrite on Empty Load Race (`NC-08`)**: If an uninitialized or fallback state triggered an auto-save over an existing multi-chapter story, `PUT /api/novelcrafter/state` could overwrite a large story with a blank template.
+  3. **Daily Quota Deduction Before First Model Token (`NC-06`)**: `POST /api/novelcrafter/stream` deducted the user's daily message quota before calling the upstream AI provider; if the provider threw a pre-stream error (429/503), the user lost quota without receiving output, while concurrent stream requests could race past the daily limit.
+  4. **History Cards Lacked Expand/Collapse & Model Provenance (`NC-12`, `NC-13`)**: Long AI outputs in the right History pane were either clipped with an internal nested scrollbar or lacked a clear expand/collapse toggle pushing sibling cards down, and cards did not display a model badge or OpenRouter fallback route.
+  5. **Cramped 3-Pane Layout on Mobile & Foldable Displays (`NC-R01`–`NC-R07`)**: Fixed sidebars (`w-56` left + `w-80` right + `w-80` feedback gutter) left insufficient horizontal width for the prose editor on phones, Galaxy Z Fold cover screens (`344–412px`), and foldable inner screens (`640–1179px`).
+
+- **Root Cause**:
+  1. Relying on top-level `Schema.safeParse` fallback to an empty default object instead of coercing and truncating individual fields prior to validation.
+  2. Lack of a server-side character-count shrinkage guard comparing existing vs. incoming story content before persisting.
+  3. Eager quota increment at route entry instead of an atomic Redis in-flight reservation (`INCR`/`DECR` with TTL) paired with lazy `onFirstModelOutput` commit.
+  4. Absence of `resolveModelDisplayInfo` badge rendering and document-flow collapsible height (`max-h-[180px]` -> `max-h-none`) in `NovelcrafterHistoryCardItem`.
+  5. Hardcoded desktop flex panes instead of a viewport-tier calculator (`resolveStudioLayout`) that switches sidebars and feedback gutters into accessible Radix Dialog drawers (`Sheet`) on `<1180px` viewports.
+
+- **Fix**:
+  1. Implemented `coerceStoryStateToLimits` (`stateLimits.ts`) to sanitize and clamp individual fields and append `CARD_TRUNCATION_NOTICE` to oversized history cards without resetting the story, plus `stripCardTruncationNotice` before inserting into prose.
+  2. Added `DESTRUCTIVE_SAVE_REJECTED` (`409`) in `storyPersistence.server.ts` whenever an existing story with `>= 500` chars is overwritten by `< 20%` of its content without `allowDestructive: true`, backed by `DestructiveSaveConfirmModal.tsx` and CAS `.eq("meta->>version", String(currentVersion))`.
+  3. Built `reserveNovelcrafterStreamQuota` (`streamQuotaGuard.server.ts`) using Upstash Redis `INCR`/`DECR` in-flight tracking and committing daily usage only on `onFirstModelOutput`.
+  4. Created `NovelcrafterCardMetaBadges.tsx` and `NovelcrafterHistoryCardItem.tsx` displaying provider-colored model badges (with `routedVia` tooltip and non-normal `finishReason` warning badge) and a full-width `[Đọc toàn bộ / Thu gọn]` button (`aria-expanded`, `aria-controls`) that expands cards in normal flex flow and pushes lower cards down.
+  5. Built `studioLayout.ts`, `useStudioLayout.ts`, `SheetSubToolbar.tsx`, `ChapterEmptyStateActions.tsx`, and `StoryBibleStructuredCards.tsx` delivering full Sudowrite UX parity and responsive drawers across Mobile, Galaxy Z Fold 8 cover/inner displays, iPhone Fold, and Desktop.
+
+- **Prevention Rule**:
+  - **Never fall back to an empty default document when a persisted user document fails schema validation.** Always run field-level coercion/clamping first and block unconfirmed destructive shrinkage (`< 20%` of `>= 500` chars) with HTTP `409`.
+  - **For streaming AI endpoints, reserve in-flight concurrency atomically (`INCR`/`DECR`) and only commit daily usage upon the first emitted model token (`onFirstModelOutput`).**
+  - **In multi-pane studio layouts, always compute pane modes (`docked` vs. `sheet` / `bottom-sheet`) from viewport width so the primary editor canvas never drops below `300px` on mobile/foldable cover screens or `460px` on foldable inner screens.**

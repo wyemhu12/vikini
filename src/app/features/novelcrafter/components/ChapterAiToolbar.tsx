@@ -1,13 +1,14 @@
 // /app/features/novelcrafter/components/ChapterAiToolbar.tsx
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   ChevronDown,
   Expand,
   Lightbulb,
   ListOrdered,
   MessageSquareQuote,
+  MoreHorizontal,
   PenTool,
   RefreshCw,
   Sparkles,
@@ -159,8 +160,36 @@ export default function ChapterAiToolbar({
   onRunBrainstorm,
 }: ChapterAiToolbarProps) {
   const { t } = useLanguage();
+  const [moreToolsOpen, setMoreToolsOpen] = useState(false);
   const toggleMenu = (menu: Exclude<ActiveChapterToolMenu, null>) =>
     onSelectMenu(activeMenu === menu ? null : menu);
+
+  const secondaryTools = [
+    {
+      key: "rewrite",
+      label: t("novelcrafterSlotRewrite"),
+      tip: t("novelcrafterRewriteTooltip"),
+      Icon: RefreshCw,
+    },
+    {
+      key: "feedback",
+      label: t("novelcrafterSlotFeedback"),
+      tip: t("novelcrafterFeedbackTooltip"),
+      Icon: MessageSquareQuote,
+    },
+    {
+      key: "expand",
+      label: t("novelcrafterSlotExpand"),
+      tip: t("novelcrafterExpandTooltip"),
+      Icon: Expand,
+    },
+    {
+      key: "brainstorm",
+      label: t("novelcrafterSlotBrainstorm"),
+      tip: t("novelcrafterBrainstormTooltip"),
+      Icon: Lightbulb,
+    },
+  ] as const;
 
   return (
     <div className="shrink-0 border-b border-(--border) bg-(--surface-muted)/60 backdrop-blur-md px-3 md:px-6 py-2.5 space-y-1.5">
@@ -171,7 +200,7 @@ export default function ChapterAiToolbar({
             disabled={isStreaming}
             onClick={onRunFirstDraft}
             title={t("novelcrafterFirstDraftTooltip")}
-            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-(--accent) text-(--accent-foreground) hover:brightness-110 shadow-sm text-xs md:text-[13px] font-semibold transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-(--accent) text-(--accent-foreground) hover:brightness-110 shadow-sm text-xs md:text-[13px] font-semibold transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
             <span>{t("novelcrafterFirstDraftCtaBtn")}</span>
@@ -222,52 +251,44 @@ export default function ChapterAiToolbar({
             </button>
           </div>
 
-          {(
-            [
-              {
-                key: "rewrite",
-                label: t("novelcrafterSlotRewrite"),
-                tip: t("novelcrafterRewriteTooltip"),
-                Icon: RefreshCw,
-              },
-              {
-                key: "feedback",
-                label: t("novelcrafterSlotFeedback"),
-                tip: t("novelcrafterFeedbackTooltip"),
-                Icon: MessageSquareQuote,
-              },
-              {
-                key: "expand",
-                label: t("novelcrafterSlotExpand"),
-                tip: t("novelcrafterExpandTooltip"),
-                Icon: Expand,
-              },
-              {
-                key: "brainstorm",
-                label: t("novelcrafterSlotBrainstorm"),
-                tip: t("novelcrafterBrainstormTooltip"),
-                Icon: Lightbulb,
-              },
-            ] as const
-          ).map(({ key, label, tip, Icon }) => (
-            <button
-              key={key}
-              type="button"
-              disabled={isStreaming}
-              aria-pressed={activeMenu === key}
-              onClick={() => toggleMenu(key)}
-              title={tip}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-xs md:text-[13px] font-semibold shadow-xs transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-                activeMenu === key
-                  ? "bg-(--accent) text-(--accent-foreground) border-(--accent)"
-                  : "bg-(--surface-elevated) hover:bg-(--control-bg-hover) border-(--control-border) text-(--text-primary)"
-              )}
-            >
-              <Icon className="w-3.5 h-3.5 text-(--accent) shrink-0" />
-              <span>{label}</span>
-            </button>
-          ))}
+          {/* Desktop/Tablet inline secondary tools, or expanded via More Tools on compact mobile */}
+          <div
+            className={cn(
+              "items-center gap-1.5 flex-wrap",
+              moreToolsOpen ? "flex" : "hidden lg:flex"
+            )}
+          >
+            {secondaryTools.map(({ key, label, tip, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                disabled={isStreaming}
+                aria-pressed={activeMenu === key}
+                onClick={() => toggleMenu(key)}
+                title={tip}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs md:text-[13px] font-semibold shadow-xs transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+                  activeMenu === key
+                    ? "bg-(--accent) text-(--accent-foreground) border-(--accent)"
+                    : "bg-(--surface-elevated) hover:bg-(--control-bg-hover) border-(--control-border) text-(--text-primary)"
+                )}
+              >
+                <Icon className="w-3.5 h-3.5 text-(--accent) shrink-0" />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Compact mobile/foldable More Tools toggle (NC-R03) */}
+          <button
+            type="button"
+            aria-expanded={moreToolsOpen}
+            onClick={() => setMoreToolsOpen((p) => !p)}
+            className="lg:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary)"
+          >
+            <MoreHorizontal className="w-3.5 h-3.5 text-(--accent)" />
+            <span>{t("novelcrafterMoreToolsBtn")}</span>
+          </button>
         </div>
 
         <div className="flex items-center gap-2">

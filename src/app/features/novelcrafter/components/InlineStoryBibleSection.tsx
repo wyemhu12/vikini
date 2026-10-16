@@ -20,6 +20,7 @@ interface InlineStoryBibleSectionProps {
   jumpRequest?: { section: NovelcrafterBibleSectionId; nonce: number } | null;
   isStreaming: boolean;
   onTriggerStream: (params: TriggerNovelcrafterStreamParams) => Promise<void>;
+  onSendOutlineToChapterScenes?: (beats: string) => void;
 }
 
 export default function InlineStoryBibleSection({
@@ -31,6 +32,7 @@ export default function InlineStoryBibleSection({
   jumpRequest,
   isStreaming,
   onTriggerStream,
+  onSendOutlineToChapterScenes,
 }: InlineStoryBibleSectionProps) {
   const { t } = useLanguage();
   const wasOpenRef = useRef(isOpen);
@@ -105,6 +107,7 @@ export default function InlineStoryBibleSection({
               onClose={onToggle}
               isStreaming={isStreaming}
               onTriggerStream={onTriggerStream}
+              onSendOutlineToChapterScenes={onSendOutlineToChapterScenes}
             />
           </motion.div>
         )}

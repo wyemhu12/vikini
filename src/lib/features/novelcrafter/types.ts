@@ -14,10 +14,8 @@ export const NOVELCRAFTER_HISTORY_CARD_FEATURE_SLOTS = [
   "expand",
   "brainstorm",
 ] as const;
-
 export type NovelcrafterHistoryCardFeatureSlot =
   (typeof NOVELCRAFTER_HISTORY_CARD_FEATURE_SLOTS)[number];
-
 export const NOVELCRAFTER_FEATURE_SLOTS = [
   "bible",
   "write",
@@ -26,9 +24,7 @@ export const NOVELCRAFTER_FEATURE_SLOTS = [
   "expand",
   "brainstorm",
 ] as const;
-
 export type NovelcrafterFeatureSlot = (typeof NOVELCRAFTER_FEATURE_SLOTS)[number];
-
 export const NOVELCRAFTER_BIBLE_TARGETS = [
   "synopsis",
   "characters",
@@ -37,15 +33,17 @@ export const NOVELCRAFTER_BIBLE_TARGETS = [
   "scenes",
   "draft",
 ] as const;
-
 export type NovelcrafterBibleTarget = (typeof NOVELCRAFTER_BIBLE_TARGETS)[number];
-
 export const NOVELCRAFTER_ACTION_MODES = ["generate", "rewrite"] as const;
 export type NovelcrafterActionMode = (typeof NOVELCRAFTER_ACTION_MODES)[number];
-
-export const NOVELCRAFTER_WRITE_MODES = ["auto", "guided", "tone_shift"] as const;
+export const NOVELCRAFTER_WRITE_MODES = [
+  "auto",
+  "guided",
+  "tone_shift",
+  "first_draft_rough",
+  "openings_3",
+] as const;
 export type NovelcrafterWriteMode = (typeof NOVELCRAFTER_WRITE_MODES)[number];
-
 export const NOVELCRAFTER_TONE_SHIFTS = [
   "ominous",
   "whimsical",
@@ -57,10 +55,8 @@ export const NOVELCRAFTER_TONE_SHIFTS = [
   "epic",
 ] as const;
 export type NovelcrafterToneShift = (typeof NOVELCRAFTER_TONE_SHIFTS)[number];
-
 export const NOVELCRAFTER_WRITE_LENGTH_OPTIONS = [150, 300, 600, 1000] as const;
 export type NovelcrafterWriteLengthOption = (typeof NOVELCRAFTER_WRITE_LENGTH_OPTIONS)[number];
-
 export const NOVELCRAFTER_REWRITE_MODES = [
   "rephrase",
   "shorter",
@@ -71,7 +67,6 @@ export const NOVELCRAFTER_REWRITE_MODES = [
   "custom",
 ] as const;
 export type NovelcrafterRewriteMode = (typeof NOVELCRAFTER_REWRITE_MODES)[number];
-
 export const NOVELCRAFTER_FEEDBACK_MODES = [
   "developmental",
   "line_editing",
@@ -81,7 +76,6 @@ export const NOVELCRAFTER_FEEDBACK_MODES = [
   "custom",
 ] as const;
 export type NovelcrafterFeedbackMode = (typeof NOVELCRAFTER_FEEDBACK_MODES)[number];
-
 export const NOVELCRAFTER_DEVELOPMENTAL_CRITERIA = [
   "consistency",
   "believability",
@@ -91,10 +85,8 @@ export const NOVELCRAFTER_DEVELOPMENTAL_CRITERIA = [
 ] as const;
 export type NovelcrafterDevelopmentalCriterion =
   (typeof NOVELCRAFTER_DEVELOPMENTAL_CRITERIA)[number];
-
 export const NOVELCRAFTER_EXPAND_MODES = ["expand", "describe"] as const;
 export type NovelcrafterExpandMode = (typeof NOVELCRAFTER_EXPAND_MODES)[number];
-
 export const NOVELCRAFTER_DESCRIBE_SENSES = [
   "sight",
   "sound",
@@ -104,7 +96,6 @@ export const NOVELCRAFTER_DESCRIBE_SENSES = [
   "metaphor",
 ] as const;
 export type NovelcrafterDescribeSense = (typeof NOVELCRAFTER_DESCRIBE_SENSES)[number];
-
 export const NOVELCRAFTER_BRAINSTORM_CATEGORIES = [
   "plot_twists",
   "character_names",
@@ -118,10 +109,8 @@ export const NOVELCRAFTER_BRAINSTORM_CATEGORIES = [
   "titles",
 ] as const;
 export type NovelcrafterBrainstormCategory = (typeof NOVELCRAFTER_BRAINSTORM_CATEGORIES)[number];
-
 export const NOVELCRAFTER_STYLE_MODES = ["featured", "match", "custom"] as const;
 export type NovelcrafterStyleMode = (typeof NOVELCRAFTER_STYLE_MODES)[number];
-
 export const NOVELCRAFTER_POV_OPTIONS = [
   "first_person",
   "second_person",
@@ -130,15 +119,43 @@ export const NOVELCRAFTER_POV_OPTIONS = [
   "third_person_objective",
 ] as const;
 export type NovelcrafterPovOption = (typeof NOVELCRAFTER_POV_OPTIONS)[number];
-
 export const NOVELCRAFTER_TENSE_OPTIONS = ["past", "present", "future"] as const;
 export type NovelcrafterTenseOption = (typeof NOVELCRAFTER_TENSE_OPTIONS)[number];
-
 export const MAX_CHAPTER_CONTEXT_CHARS = 8_000 as const;
 export const MAX_PREVIOUS_CHAPTER_TAIL_CHARS = 2_000 as const;
 export const MAX_HISTORY_CARDS = 50 as const;
 export const MAX_CHAPTERS = 100 as const;
 export const MAX_FEEDBACK_ITEMS_PER_CHAPTER = 50 as const;
+export const MAX_CHARACTER_CARDS = 15 as const;
+export const MAX_WORLD_ELEMENTS = 15 as const;
+export const MAX_OUTLINE_ITEMS = 40 as const;
+
+export const StoryBibleCharacterCardSchema = z.object({
+  id: z.string().min(1).max(100),
+  name: z.string().min(1).max(150),
+  role: z.string().max(150).default(""),
+  traits: z.string().max(4_000).default(""),
+  visibleToAI: z.boolean().default(true),
+});
+export type StoryBibleCharacterCard = z.infer<typeof StoryBibleCharacterCardSchema>;
+
+export const StoryBibleWorldElementSchema = z.object({
+  id: z.string().min(1).max(100),
+  name: z.string().min(1).max(150),
+  category: z.string().max(100).default(""),
+  description: z.string().max(4_000).default(""),
+  visibleToAI: z.boolean().default(true),
+});
+export type StoryBibleWorldElement = z.infer<typeof StoryBibleWorldElementSchema>;
+
+export const StoryBibleOutlineItemSchema = z.object({
+  id: z.string().min(1).max(100),
+  type: z.enum(["act", "chapter"]).default("chapter"),
+  title: z.string().min(1).max(200),
+  summary: z.string().max(4_000).default(""),
+  linkedChapterId: z.string().max(100).optional(),
+});
+export type StoryBibleOutlineItem = z.infer<typeof StoryBibleOutlineItemSchema>;
 
 export const StoryBibleSchema = z.object({
   braindump: z.string().max(50_000).default(""),
@@ -150,11 +167,13 @@ export const StoryBibleSchema = z.object({
   synopsis: z.string().max(30_000).default(""),
   characters: z.string().max(50_000).default(""),
   charactersVisibleToAI: z.boolean().default(true),
+  characterCards: z.array(StoryBibleCharacterCardSchema).max(MAX_CHARACTER_CARDS).default([]),
   worldbuilding: z.string().max(50_000).default(""),
   worldbuildingVisibleToAI: z.boolean().default(true),
+  worldElements: z.array(StoryBibleWorldElementSchema).max(MAX_WORLD_ELEMENTS).default([]),
   outline: z.string().max(50_000).default(""),
+  outlineItems: z.array(StoryBibleOutlineItemSchema).max(MAX_OUTLINE_ITEMS).default([]),
 });
-
 export type StoryBible = z.infer<typeof StoryBibleSchema>;
 
 export const NovelcrafterFeedbackItemSchema = z.object({
@@ -168,7 +187,6 @@ export const NovelcrafterFeedbackItemSchema = z.object({
   userReply: z.string().max(2_000).optional(),
   createdAt: z.number().int().nonnegative().default(0),
 });
-
 export type NovelcrafterFeedbackItem = z.infer<typeof NovelcrafterFeedbackItemSchema>;
 
 export const NovelcrafterChapterSchema = z.object({
@@ -183,7 +201,6 @@ export const NovelcrafterChapterSchema = z.object({
     .default([]),
   updatedAt: z.number().int().nonnegative(),
 });
-
 export type NovelcrafterChapter = z.infer<typeof NovelcrafterChapterSchema>;
 
 export const NovelcrafterFeaturePersonasSchema = z.object({
@@ -194,7 +211,6 @@ export const NovelcrafterFeaturePersonasSchema = z.object({
   expand: z.string().min(1).max(100).default("inherit"),
   brainstorm: z.string().min(1).max(100).default("inherit"),
 });
-
 export type NovelcrafterFeaturePersonas = z.infer<typeof NovelcrafterFeaturePersonasSchema>;
 
 export const NovelcrafterRoutingConfigSchema = z.object({
@@ -209,8 +225,16 @@ export const NovelcrafterRoutingConfigSchema = z.object({
     brainstorm: "inherit",
   }),
 });
-
 export type NovelcrafterRoutingConfig = z.infer<typeof NovelcrafterRoutingConfigSchema>;
+
+export const NOVELCRAFTER_FINISH_REASONS = [
+  "stop",
+  "length",
+  "safety",
+  "error",
+  "aborted",
+] as const;
+export type NovelcrafterFinishReason = (typeof NOVELCRAFTER_FINISH_REASONS)[number];
 
 export const NovelcrafterHistoryCardSchema = z.object({
   id: z.string().min(1).max(100),
@@ -223,11 +247,12 @@ export const NovelcrafterHistoryCardSchema = z.object({
   content: z.string().max(150_000),
   thinking: z.string().max(100_000).optional(),
   model: z.string().max(100),
+  routedModel: z.string().max(150).optional(),
+  finishReason: z.enum(NOVELCRAFTER_FINISH_REASONS).optional(),
   gemName: z.string().max(200).nullable().optional(),
   personaName: z.string().max(200).nullable().optional(),
   createdAt: z.number().int().nonnegative(),
 });
-
 export type NovelcrafterHistoryCard = z.infer<typeof NovelcrafterHistoryCardSchema>;
 
 export const NovelcrafterStoryStateSchema = z.object({
@@ -241,14 +266,13 @@ export const NovelcrafterStoryStateSchema = z.object({
   historyCards: z.array(NovelcrafterHistoryCardSchema).max(MAX_HISTORY_CARDS),
   updatedAt: z.number().int().nonnegative(),
 });
-
 export type NovelcrafterStoryState = z.infer<typeof NovelcrafterStoryStateSchema>;
 
 export const NovelcrafterPutStateRequestSchema = z.object({
   conversationId: z.string().regex(UUID_REGEX, "Invalid conversationId"),
   state: NovelcrafterStoryStateSchema,
+  allowDestructive: z.boolean().optional().default(false),
 });
-
 export type NovelcrafterPutStateRequest = z.infer<typeof NovelcrafterPutStateRequestSchema>;
 
 export interface BuildUserPromptInput {
@@ -328,7 +352,6 @@ export const NovelcrafterStreamRequestSchema = z
       });
     }
   });
-
 export type NovelcrafterStreamRequest = z.infer<typeof NovelcrafterStreamRequestSchema>;
 
 export function createDefaultStoryState(defaultChapterTitle = "Chapter 1"): NovelcrafterStoryState {
@@ -349,9 +372,12 @@ export function createDefaultStoryState(defaultChapterTitle = "Chapter 1"): Nove
       synopsis: "",
       characters: "",
       charactersVisibleToAI: true,
+      characterCards: [],
       worldbuilding: "",
       worldbuildingVisibleToAI: true,
+      worldElements: [],
       outline: "",
+      outlineItems: [],
     },
     chapters: [
       {

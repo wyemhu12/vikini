@@ -67,11 +67,6 @@ export interface ResolvedNovelcrafterRouting {
   personaName: string | null;
 }
 
-/**
- * Load the user's Master GEM and effective Feature Persona from DB/cache
- * and build the Layered Mode systemInstruction.
- * Gracefully falls back to null if a referenced GEM or Persona was deleted.
- */
 export async function resolveNovelcrafterRouting(
   userId: string,
   feature: NovelcrafterFeatureSlot,
@@ -125,17 +120,15 @@ export async function resolveNovelcrafterRouting(
     persona: personaInput,
   });
 
-  return {
-    systemInstruction,
-    gemName,
-    personaName,
-  };
+  return { systemInstruction, gemName, personaName };
 }
 
 export interface RunNovelcrafterStreamOptions {
   userId: string;
   request: NovelcrafterStreamRequest;
   signal?: AbortSignal;
+  onFirstModelOutput?: () => void;
+  onStreamComplete?: () => Promise<void> | void;
 }
 
 const GEMINI_SDK_THINKING_LEVEL_MAP: Record<string, ThinkingLevel> = {
@@ -146,14 +139,8 @@ const GEMINI_SDK_THINKING_LEVEL_MAP: Record<string, ThinkingLevel> = {
 };
 
 const DEFAULT_NOVELCRAFTER_SAFETY_SETTINGS = [
-  {
-    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-    threshold: HarmBlockThreshold.BLOCK_NONE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-    threshold: HarmBlockThreshold.BLOCK_NONE,
-  },
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
   {
     category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
     threshold: HarmBlockThreshold.BLOCK_NONE,
@@ -164,17 +151,30 @@ const DEFAULT_NOVELCRAFTER_SAFETY_SETTINGS = [
   },
 ];
 
+type EmitModelOutputFn = (type: "thinking" | "token", content: string) => void;
+
+function normalizeFinishReason(raw?: string): "stop" | "length" | "safety" {
+  const upper = (raw || "").toUpperCase();
+  if (upper.includes("MAX_TOKENS") || upper.includes("LENGTH")) return "length";
+  if (upper.includes("SAFETY") || upper.includes("BLOCK") || upper.includes("PROHIBITED")) {
+    return "safety";
+  }
+  return "stop";
+}
+
 async function streamGeminiProvider(
   model: string,
   systemInstruction: string,
   userPrompt: string,
-  controller: ReadableStreamDefaultController<Uint8Array>,
+  emitModelOutput: EmitModelOutputFn,
   signal?: AbortSignal
-): Promise<void> {
+): Promise<"stop" | "length" | "safety"> {
   const client = getGenAIClient();
   const maxOutputTokens = getModelMaxOutputTokens(model);
 
-  let thinkingConfig: { thinkingLevel: ThinkingLevel; includeThoughts: boolean } | undefined;
+  let thinkingConfig:
+    | { thinkingLevel?: ThinkingLevel; thinkingBudget?: number; includeThoughts: boolean }
+    | undefined;
   if (isGemini4Model(model)) {
     const clamped = clampGeminiThinkingLevel(model, "medium");
     thinkingConfig = {
@@ -185,6 +185,11 @@ async function streamGeminiProvider(
     const clamped = clampGeminiThinkingLevel(model, "low");
     thinkingConfig = {
       thinkingLevel: GEMINI_SDK_THINKING_LEVEL_MAP[clamped] || ThinkingLevel.LOW,
+      includeThoughts: true,
+    };
+  } else if (model.startsWith("gemini-2.5")) {
+    thinkingConfig = {
+      thinkingBudget: -1,
       includeThoughts: true,
     };
   }
@@ -201,7 +206,7 @@ async function streamGeminiProvider(
     },
   });
 
-  let emittedTokenCount = 0;
+  let emittedTokenChunks = 0;
   let lastFinishReason: string | undefined;
   let lastBlockReason: string | undefined;
 
@@ -227,43 +232,41 @@ async function streamGeminiProvider(
     }
 
     const parts = candidate?.content?.parts;
-
     if (Array.isArray(parts) && parts.length > 0) {
       for (const rawPart of parts) {
         const part = rawPart as { text?: string; thought?: boolean };
         if (typeof part.text === "string" && part.text.length > 0) {
           if (part.thought) {
-            controller.enqueue(formatSseEvent("thinking", { t: part.text }));
+            emitModelOutput("thinking", part.text);
           } else {
-            emittedTokenCount += 1;
-            controller.enqueue(formatSseEvent("token", { t: part.text }));
+            emittedTokenChunks += 1;
+            emitModelOutput("token", part.text);
           }
         }
       }
-    } else {
-      const directText = typedChunk.text;
-      if (typeof directText === "string" && directText.length > 0) {
-        emittedTokenCount += 1;
-        controller.enqueue(formatSseEvent("token", { t: directText }));
-      }
+    } else if (typeof typedChunk.text === "string" && typedChunk.text.length > 0) {
+      emittedTokenChunks += 1;
+      emitModelOutput("token", typedChunk.text);
     }
   }
 
-  if (!signal?.aborted && emittedTokenCount === 0) {
+  if (!signal?.aborted && emittedTokenChunks === 0) {
     const reasonDetail = lastBlockReason || lastFinishReason || "EMPTY_RESPONSE";
     throw new Error(
       `Model ${model} returned an empty response (reason: ${reasonDetail}). Please adjust the scene or switch models.`
     );
   }
+
+  return normalizeFinishReason(lastBlockReason || lastFinishReason);
 }
 
 async function streamAnthropicProvider(
   model: string,
   systemInstruction: string,
   userPrompt: string,
-  controller: ReadableStreamDefaultController<Uint8Array>,
+  emitModelOutput: EmitModelOutputFn,
   signal?: AbortSignal
-): Promise<void> {
+): Promise<"stop" | "length" | "safety"> {
   const client = getClaudeClient();
   const anthropicMap = CLAUDE_API_MODELS.ANTHROPIC as Record<string, string>;
   const apiModel = anthropicMap[model] || model;
@@ -279,20 +282,37 @@ async function streamAnthropicProvider(
     { signal }
   );
 
+  let emittedTokenChunks = 0;
+  let lastStopReason: string | undefined;
+
   for await (const event of stream) {
     if (signal?.aborted) break;
     const ev = event as {
       type?: string;
-      delta?: { type?: string; text?: string; thinking?: string };
+      delta?: { type?: string; text?: string; thinking?: string; stop_reason?: string };
     };
+    if (ev.delta?.stop_reason) {
+      lastStopReason = String(ev.delta.stop_reason);
+    }
     if (ev.type === "content_block_delta" && ev.delta) {
       if (ev.delta.type === "thinking_delta" && typeof ev.delta.thinking === "string") {
-        controller.enqueue(formatSseEvent("thinking", { t: ev.delta.thinking }));
+        emitModelOutput("thinking", ev.delta.thinking);
       } else if (ev.delta.type === "text_delta" && typeof ev.delta.text === "string") {
-        controller.enqueue(formatSseEvent("token", { t: ev.delta.text }));
+        if (ev.delta.text.length > 0) {
+          emittedTokenChunks += 1;
+          emitModelOutput("token", ev.delta.text);
+        }
       }
     }
   }
+
+  if (!signal?.aborted && emittedTokenChunks === 0) {
+    throw new Error(
+      `Model ${model} returned an empty response (reason: ${lastStopReason || "EMPTY_RESPONSE"}). Please adjust the scene or switch models.`
+    );
+  }
+
+  return normalizeFinishReason(lastStopReason);
 }
 
 async function streamOpenAICompatibleProvider(
@@ -300,9 +320,9 @@ async function streamOpenAICompatibleProvider(
   model: string,
   systemInstruction: string,
   userPrompt: string,
-  controller: ReadableStreamDefaultController<Uint8Array>,
+  emitModelOutput: EmitModelOutputFn,
   signal?: AbortSignal
-): Promise<void> {
+): Promise<"stop" | "length" | "safety"> {
   const client = isDeepSeekDirectModel(model)
     ? getDeepSeekClient()
     : providerId === "groq"
@@ -321,11 +341,15 @@ async function streamOpenAICompatibleProvider(
     { signal }
   );
 
+  let emittedTokenChunks = 0;
+  let lastFinishReason: string | undefined;
+
   for await (const chunk of stream) {
     if (signal?.aborted) break;
     const choice = (
       chunk as {
         choices?: Array<{
+          finish_reason?: string | null;
           delta?: {
             content?: string | null;
             reasoning_content?: string | null;
@@ -334,58 +358,68 @@ async function streamOpenAICompatibleProvider(
         }>;
       }
     ).choices?.[0];
+    if (choice?.finish_reason) {
+      lastFinishReason = String(choice.finish_reason);
+    }
     const delta = choice?.delta;
     if (!delta) continue;
 
     const reasoningText = delta.reasoning_content ?? delta.reasoning;
     if (typeof reasoningText === "string" && reasoningText.length > 0) {
-      controller.enqueue(formatSseEvent("thinking", { t: reasoningText }));
+      emitModelOutput("thinking", reasoningText);
     }
     if (typeof delta.content === "string" && delta.content.length > 0) {
-      controller.enqueue(formatSseEvent("token", { t: delta.content }));
+      emittedTokenChunks += 1;
+      emitModelOutput("token", delta.content);
     }
   }
+
+  if (!signal?.aborted && emittedTokenChunks === 0) {
+    throw new Error(
+      `Model ${model} returned an empty response (reason: ${lastFinishReason || "EMPTY_RESPONSE"}). Please adjust the scene or switch models.`
+    );
+  }
+
+  return normalizeFinishReason(lastFinishReason);
 }
 
-/**
- * Create a standalone SSE ReadableStream for Novelcrafter Studio.
- * Does NOT write chat messages or overwrite conversation titles.
- */
 export function runNovelcrafterStream({
   userId,
   request,
   signal,
+  onFirstModelOutput,
+  onStreamComplete,
 }: RunNovelcrafterStreamOptions): ReadableStream<Uint8Array> {
   const normalizedModel = normalizeModelForApi(request.model);
   const modelMeta = SELECTABLE_MODELS.find((m) => m.id === normalizedModel);
   const providerId = modelMeta?.providerId ?? "gemini";
 
-  const userPrompt = buildNovelcrafterUserPrompt({
-    feature: request.feature,
-    storyBible: request.storyBible,
-    chapterTitle: request.chapterTitle,
-    chapterScenes: request.chapterScenes,
-    chapterExtraInstructions: request.chapterExtraInstructions,
-    chapterProse: request.chapterProse,
-    previousChapterProseTail: request.previousChapterProseTail,
-    selectedText: request.selectedText,
-    bibleTarget: request.bibleTarget,
-    actionMode: request.actionMode,
-    writeMode: request.writeMode,
-    toneShift: request.toneShift,
-    writeLengthWords: request.writeLengthWords,
-    keyDetails: request.keyDetails,
-    rewriteMode: request.rewriteMode,
-    feedbackMode: request.feedbackMode,
-    feedbackCriteria: request.feedbackCriteria,
-    expandMode: request.expandMode,
-    describeSenses: request.describeSenses,
-    brainstormCategory: request.brainstormCategory,
-    customInstruction: request.customInstruction,
-  });
+  const openRouterMap = CLAUDE_API_MODELS.OPENROUTER as Record<string, string>;
+  const routedModel =
+    providerId === "anthropic" && !process.env.ANTHROPIC_API_KEY
+      ? openRouterMap[normalizedModel] ||
+        openRouterMap[MODEL_IDS.CLAUDE_HAIKU_45] ||
+        normalizedModel
+      : normalizedModel;
+
+  const userPrompt = buildNovelcrafterUserPrompt(request);
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
+      let hasEmittedFirstOutput = false;
+      const emitModelOutput: EmitModelOutputFn = (type, content) => {
+        if (!content) return;
+        if (!hasEmittedFirstOutput) {
+          hasEmittedFirstOutput = true;
+          try {
+            onFirstModelOutput?.();
+          } catch {
+            // Ignore callback errors
+          }
+        }
+        controller.enqueue(formatSseEvent(type, { t: content }));
+      };
+
       try {
         if (signal?.aborted) {
           controller.close();
@@ -406,54 +440,52 @@ export function runNovelcrafterStream({
         controller.enqueue(
           formatSseEvent("meta", {
             model: normalizedModel,
+            routedModel,
             gemName,
             personaName,
             feature: request.feature,
           })
         );
 
+        let finishReason: "stop" | "length" | "safety" = "stop";
+
         if (providerId === "gemini") {
-          await streamGeminiProvider(
+          finishReason = await streamGeminiProvider(
             normalizedModel,
             systemInstruction,
             userPrompt,
-            controller,
+            emitModelOutput,
             signal
           );
         } else if (providerId === "anthropic") {
           if (process.env.ANTHROPIC_API_KEY) {
-            await streamAnthropicProvider(
+            finishReason = await streamAnthropicProvider(
               normalizedModel,
               systemInstruction,
               userPrompt,
-              controller,
+              emitModelOutput,
               signal
             );
           } else {
-            const openRouterMap = CLAUDE_API_MODELS.OPENROUTER as Record<string, string>;
-            const openRouterModel =
-              openRouterMap[normalizedModel] ||
-              openRouterMap[MODEL_IDS.CLAUDE_HAIKU_45] ||
-              normalizedModel;
             streamLogger.info(
-              `ANTHROPIC_API_KEY not set. Routing Claude model "${normalizedModel}" via OpenRouter ("${openRouterModel}").`
+              `ANTHROPIC_API_KEY not set. Routing Claude model "${normalizedModel}" via OpenRouter ("${routedModel}").`
             );
-            await streamOpenAICompatibleProvider(
+            finishReason = await streamOpenAICompatibleProvider(
               "openrouter-pay",
-              openRouterModel,
+              routedModel,
               systemInstruction,
               userPrompt,
-              controller,
+              emitModelOutput,
               signal
             );
           }
         } else {
-          await streamOpenAICompatibleProvider(
+          finishReason = await streamOpenAICompatibleProvider(
             providerId,
             normalizedModel,
             systemInstruction,
             userPrompt,
-            controller,
+            emitModelOutput,
             signal
           );
         }
@@ -462,7 +494,9 @@ export function runNovelcrafterStream({
           controller.enqueue(
             formatSseEvent("done", {
               model: normalizedModel,
+              routedModel,
               feature: request.feature,
+              finishReason,
             })
           );
         }
@@ -478,6 +512,11 @@ export function runNovelcrafterStream({
           );
         }
       } finally {
+        try {
+          await onStreamComplete?.();
+        } catch (completeErr: unknown) {
+          streamLogger.error("onStreamComplete failed:", completeErr);
+        }
         try {
           controller.close();
         } catch {

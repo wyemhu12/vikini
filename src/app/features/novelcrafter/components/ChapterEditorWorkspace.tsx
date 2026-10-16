@@ -3,8 +3,11 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, MessageSquareQuote } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { toast } from "@/lib/store/toastStore";
+import { cn } from "@/lib/utils/cn";
+import { countChapterWords } from "@/lib/features/novelcrafter/draftStorage";
 import {
   applyFeedbackSuggestionToText,
   findQuoteRangeInText,
@@ -25,7 +28,9 @@ import ChapterAiToolbar from "./ChapterAiToolbar";
 import type { ActiveChapterToolMenu } from "./ChapterAiToolMenus";
 import ChapterFeedbackGutter from "./ChapterFeedbackGutter";
 import ChapterDraftBeatsCard from "./ChapterDraftBeatsCard";
+import ChapterEmptyStateActions from "./ChapterEmptyStateActions";
 import InlineStoryBibleSection from "./InlineStoryBibleSection";
+import SheetSubToolbar, { type EditorFontSizePreset } from "./SheetSubToolbar";
 import { useAutoResizeTextarea } from "../hooks/useAutoResizeTextarea";
 
 export interface EditorSelectionRange {
@@ -33,6 +38,12 @@ export interface EditorSelectionRange {
   end: number;
   text: string;
 }
+
+const FONT_SIZE_CLASSES: Record<EditorFontSizePreset, string> = {
+  sm: "text-[15px] leading-[1.75]",
+  md: "text-[16px] md:text-[17px] leading-[1.8]",
+  lg: "text-[18px] md:text-[19px] leading-[1.85]",
+};
 
 interface ChapterEditorWorkspaceProps {
   chapter: NovelcrafterChapter;
@@ -48,13 +59,15 @@ interface ChapterEditorWorkspaceProps {
   isDirectStreamingToChapter: boolean;
   onTriggerStream: (params: TriggerNovelcrafterStreamParams) => Promise<void>;
   onStopStream: () => void;
-  // Story Bible Props for Unified Inline Layout
   storyBible: StoryBible;
   onUpdateStoryBible: (patch: Partial<StoryBible>) => void;
   isStoryBibleOpen: boolean;
   onToggleStoryBible: (open: boolean) => void;
   activeBibleSection?: NovelcrafterBibleSectionId;
   bibleJumpRequest?: { section: NovelcrafterBibleSectionId; nonce: number } | null;
+  feedbackMode?: "inline" | "bottom-sheet";
+  focusMode?: boolean;
+  onToggleFocusMode?: () => void;
 }
 
 export default function ChapterEditorWorkspace({
@@ -73,6 +86,9 @@ export default function ChapterEditorWorkspace({
   onToggleStoryBible,
   activeBibleSection,
   bibleJumpRequest,
+  feedbackMode = "inline",
+  focusMode = false,
+  onToggleFocusMode,
 }: ChapterEditorWorkspaceProps) {
   const { t } = useLanguage();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -85,6 +101,7 @@ export default function ChapterEditorWorkspace({
   const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(null);
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const [quickEditPrompt, setQuickEditPrompt] = useState("");
+  const [fontSizePreset, setFontSizePreset] = useState<EditorFontSizePreset>("md");
 
   const textareaRef = useAutoResizeTextarea<HTMLTextAreaElement>({
     value: chapter.content,
@@ -94,21 +111,20 @@ export default function ChapterEditorWorkspace({
   });
 
   useEffect(() => setTitleDraft(chapter.title), [chapter.id, chapter.title]);
-
-  useEffect(() => {
-    return () => {
-      if (scrollRafRef.current !== null && typeof window !== "undefined") {
+  useEffect(
+    () => () => {
+      if (scrollRafRef.current !== null && typeof window !== "undefined")
         window.cancelAnimationFrame(scrollRafRef.current);
-        scrollRafRef.current = null;
-      }
-    };
-  }, []);
+    },
+    []
+  );
 
   const feedbackItems = useMemo(() => chapter.feedbackItems ?? [], [chapter.feedbackItems]);
   const openFeedbackCount = useMemo(
     () => feedbackItems.filter((item) => item.status === "open").length,
     [feedbackItems]
   );
+  const wordCount = useMemo(() => countChapterWords(chapter.content), [chapter.content]);
 
   useEffect(() => {
     if (openFeedbackCount > 0) setShowFeedbackGutter(true);
@@ -121,10 +137,7 @@ export default function ChapterEditorWorkspace({
 
   const handleTitleBlur = () => {
     const trimmed = titleDraft.trim();
-    if (!trimmed) {
-      setTitleDraft(chapter.title);
-      return;
-    }
+    if (!trimmed) return setTitleDraft(chapter.title);
     if (trimmed !== chapter.title) onUpdateChapter(chapter.id, { title: trimmed });
   };
 
@@ -136,8 +149,32 @@ export default function ChapterEditorWorkspace({
     onSelectionChange(end > start ? { start, end, text: el.value.slice(start, end) } : null);
   };
 
+  const handleApplyMarkdownFormat = (
+    fmt: "bold" | "italic" | "strike" | "h1" | "h2" | "ul" | "ol" | "hr"
+  ) => {
+    const el = textareaRef.current;
+    const content = chapter.content;
+    const start = el?.selectionStart ?? content.length;
+    const end = el?.selectionEnd ?? content.length;
+    const selected = content.slice(start, end) || "text";
+    const map = {
+      bold: `**${selected}**`,
+      italic: `*${selected}*`,
+      strike: `~~${selected}~~`,
+      h1: `\n# ${selected}\n`,
+      h2: `\n## ${selected}\n`,
+      ul: `\n- ${selected}`,
+      ol: `\n1. ${selected}`,
+      hr: `\n\n***\n\n`,
+    };
+    onUpdateChapter(chapter.id, {
+      content: `${content.slice(0, start)}${map[fmt]}${content.slice(end)}`,
+    });
+  };
+
   const jumpToFeedbackQuote = (item: NovelcrafterFeedbackItem) => {
     setActiveFeedbackId(item.id);
+    if (feedbackMode === "bottom-sheet") setShowFeedbackGutter(false);
     if (!item.quote || !textareaRef.current) return;
     const range = findQuoteRangeInText(chapter.content, item.quote);
     if (!range) return;
@@ -151,15 +188,12 @@ export default function ChapterEditorWorkspace({
     });
 
     if (typeof window !== "undefined") {
-      if (scrollRafRef.current !== null) {
-        window.cancelAnimationFrame(scrollRafRef.current);
-      }
+      if (scrollRafRef.current !== null) window.cancelAnimationFrame(scrollRafRef.current);
       scrollRafRef.current = window.requestAnimationFrame(() => {
         scrollRafRef.current = null;
         const container = scrollContainerRef.current;
         const textarea = textareaRef.current;
         if (!container || !textarea) return;
-
         const quoteOffsetTop = measureCaretOffsetTop(textarea, range.start);
         const containerRect = container.getBoundingClientRect();
         const textareaRect = textarea.getBoundingClientRect();
@@ -177,10 +211,7 @@ export default function ChapterEditorWorkspace({
 
   const handleAcceptSuggestion = (item: NovelcrafterFeedbackItem) => {
     const result = applyFeedbackSuggestionToText(chapter.content, item.quote, item.suggestion);
-    if (!result.applied) {
-      toast.info(t("novelcrafterQuoteModifiedBadge"));
-      return;
-    }
+    if (!result.applied) return toast.info(t("novelcrafterQuoteModifiedBadge"));
     onUpdateChapter(chapter.id, {
       content: result.updatedContent,
       feedbackItems: feedbackItems.map((f) =>
@@ -223,6 +254,53 @@ export default function ChapterEditorWorkspace({
     setQuickEditPrompt("");
   };
 
+  const gutterNode = (
+    <ChapterFeedbackGutter
+      feedbackItems={feedbackItems}
+      chapterContent={chapter.content}
+      activeFeedbackId={activeFeedbackId}
+      onSelectFeedback={jumpToFeedbackQuote}
+      onAcceptSuggestion={handleAcceptSuggestion}
+      onDismissFeedback={(itemId) => {
+        onUpdateFeedbackItems(
+          chapter.id,
+          (items) => items.map((f) => (f.id === itemId ? { ...f, status: "resolved" } : f)),
+          true
+        );
+        if (activeFeedbackId === itemId) setActiveFeedbackId(null);
+      }}
+      onRateFeedback={(itemId, rating) =>
+        onUpdateFeedbackItems(
+          chapter.id,
+          (items) => items.map((f) => (f.id === itemId ? { ...f, rating } : f)),
+          true
+        )
+      }
+      onReplyFeedback={(item, replyText) => {
+        onUpdateFeedbackItems(
+          chapter.id,
+          (items) => items.map((f) => (f.id === item.id ? { ...f, userReply: replyText } : f)),
+          true
+        );
+        void onTriggerStream({
+          feature: "feedback",
+          feedbackMode: "custom",
+          selectedText: item.quote || selection?.text || "",
+          customInstruction: `${item.comment}\nUser follow-up: ${replyText}`,
+          subLabel: `${t("novelcrafterSlotFeedback")} · ${item.category}`,
+        });
+      }}
+      onResolveAll={() =>
+        onUpdateFeedbackItems(
+          chapter.id,
+          (items) => items.map((f) => ({ ...f, status: "resolved" })),
+          true
+        )
+      }
+      onClearAll={() => onUpdateFeedbackItems(chapter.id, () => [], true)}
+    />
+  );
+
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-(--surface)">
       <ChapterAiToolbar
@@ -243,10 +321,8 @@ export default function ChapterEditorWorkspace({
         }}
         onRunRewrite={handleRunRewrite}
         onRunFeedback={(p) => {
-          if (!chapter.content.trim() && !selection?.text?.trim()) {
-            toast.info(t("novelcrafterSelectTextHint"));
-            return;
-          }
+          if (!chapter.content.trim() && !selection?.text?.trim())
+            return toast.info(t("novelcrafterSelectTextHint"));
           setShowFeedbackGutter(true);
           void onTriggerStream({
             feature: "feedback",
@@ -284,8 +360,17 @@ export default function ChapterEditorWorkspace({
       <div className="flex-1 min-h-0 mx-2 md:mx-4 my-2 md:my-3 rounded-2xl border border-(--border) bg-(--surface-elevated)/35 flex flex-col lg:flex-row overflow-hidden shadow-xs">
         <div
           ref={scrollContainerRef}
-          className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col"
+          className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col pb-[var(--nc-kb-offset,0px)]"
         >
+          <SheetSubToolbar
+            wordCount={wordCount}
+            fontSizePreset={fontSizePreset}
+            onChangeFontSizePreset={setFontSizePreset}
+            focusMode={focusMode}
+            onToggleFocusMode={() => onToggleFocusMode?.()}
+            onApplyMarkdownFormat={handleApplyMarkdownFormat}
+          />
+
           {isDirectStreamingToChapter && (
             <div className="mx-6 md:px-12 lg:px-16 mt-4 px-3.5 py-2 rounded-xl border border-(--accent)/40 bg-(--accent)/10 flex items-center justify-between gap-2 text-xs font-medium text-(--accent)">
               <span className="inline-flex items-center gap-2">
@@ -302,15 +387,13 @@ export default function ChapterEditorWorkspace({
             </div>
           )}
 
-          <div className="px-6 md:px-12 lg:px-16 pt-7 pb-3">
+          <div className="px-6 md:px-12 lg:px-16 pt-6 pb-3">
             <input
               type="text"
               value={titleDraft}
               onChange={(e) => setTitleDraft(e.target.value)}
               onBlur={handleTitleBlur}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.currentTarget.blur();
-              }}
+              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
               aria-label={t("novelcrafterRenameChapter")}
               className="w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl bg-transparent text-[22px] md:text-[24px] font-semibold leading-[1.3] tracking-[-0.015em] text-(--text-primary) placeholder:text-(--text-secondary) border-b border-transparent hover:border-(--border) focus:border-(--accent) focus:outline-none pb-1 transition-colors"
             />
@@ -345,6 +428,33 @@ export default function ChapterEditorWorkspace({
             onRunFirstDraft={handleRunFirstDraft}
           />
 
+          {chapter.content.trim().length === 0 && !isStreaming && (
+            <ChapterEmptyStateActions
+              disabled={isStreaming}
+              onAutoWriteOpening={() =>
+                void onTriggerStream({
+                  feature: "write",
+                  writeMode: "auto",
+                  subLabel: t("novelcrafterEmptyActionAutoWrite"),
+                })
+              }
+              onSuggestThreeOpenings={() =>
+                void onTriggerStream({
+                  feature: "write",
+                  writeMode: "openings_3",
+                  subLabel: t("novelcrafterEmptyActionOpenings3"),
+                })
+              }
+              onRoughDraftFromBeats={() =>
+                void onTriggerStream({
+                  feature: "write",
+                  writeMode: "first_draft_rough",
+                  subLabel: t("novelcrafterEmptyActionRoughDraft"),
+                })
+              }
+            />
+          )}
+
           {activeFeedbackItem && activeFeedbackItem.quote && (
             <div className="px-6 md:px-12 lg:px-16 pb-2 shrink-0">
               <button
@@ -374,9 +484,8 @@ export default function ChapterEditorWorkspace({
                   value={quickEditPrompt}
                   onChange={(e) => setQuickEditPrompt(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter")
                       handleRunRewrite("custom", t("novelcrafterQuickEditBtn"), quickEditPrompt);
-                    }
                     if (e.key === "Escape") setQuickEditOpen(false);
                   }}
                   autoFocus
@@ -416,10 +525,12 @@ export default function ChapterEditorWorkspace({
               }}
               placeholder={t("novelcrafterChapterEditorPlaceholder")}
               aria-label={chapter.title}
-              className="w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl min-h-[420px] [field-sizing:content] bg-transparent border-0 p-0 text-[16px] md:text-[17px] leading-[1.8] tracking-[-0.005em] antialiased text-(--text-primary) placeholder:text-(--text-secondary)/70 focus:outline-none resize-none custom-scrollbar"
+              className={cn(
+                "w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl min-h-[420px] [field-sizing:content] bg-transparent border-0 p-0 tracking-[-0.005em] antialiased text-(--text-primary) placeholder:text-(--text-secondary)/70 focus:outline-none resize-none custom-scrollbar",
+                FONT_SIZE_CLASSES[fontSizePreset]
+              )}
             />
 
-            {/* Embedded Story Bible positioned directly below chapter prose */}
             <InlineStoryBibleSection
               isOpen={isStoryBibleOpen}
               onToggle={() => onToggleStoryBible(!isStoryBibleOpen)}
@@ -429,56 +540,25 @@ export default function ChapterEditorWorkspace({
               jumpRequest={bibleJumpRequest}
               isStreaming={isStreaming}
               onTriggerStream={onTriggerStream}
+              onSendOutlineToChapterScenes={(beats) => {
+                const sep = chapter.scenes.trim() ? "\n\n" : "";
+                onUpdateChapter(chapter.id, { scenes: `${chapter.scenes}${sep}${beats.trim()}` });
+                setBeatsOpen(true);
+              }}
             />
           </div>
         </div>
 
-        {showFeedbackGutter && (
-          <ChapterFeedbackGutter
-            feedbackItems={feedbackItems}
-            chapterContent={chapter.content}
-            activeFeedbackId={activeFeedbackId}
-            onSelectFeedback={jumpToFeedbackQuote}
-            onAcceptSuggestion={handleAcceptSuggestion}
-            onDismissFeedback={(itemId) => {
-              onUpdateFeedbackItems(
-                chapter.id,
-                (items) => items.map((f) => (f.id === itemId ? { ...f, status: "resolved" } : f)),
-                true
-              );
-              if (activeFeedbackId === itemId) setActiveFeedbackId(null);
-            }}
-            onRateFeedback={(itemId, rating) =>
-              onUpdateFeedbackItems(
-                chapter.id,
-                (items) => items.map((f) => (f.id === itemId ? { ...f, rating } : f)),
-                true
-              )
-            }
-            onReplyFeedback={(item, replyText) => {
-              onUpdateFeedbackItems(
-                chapter.id,
-                (items) =>
-                  items.map((f) => (f.id === item.id ? { ...f, userReply: replyText } : f)),
-                true
-              );
-              void onTriggerStream({
-                feature: "feedback",
-                feedbackMode: "custom",
-                selectedText: item.quote || selection?.text || "",
-                customInstruction: `${item.comment}\nUser follow-up: ${replyText}`,
-                subLabel: `${t("novelcrafterSlotFeedback")} · ${item.category}`,
-              });
-            }}
-            onResolveAll={() =>
-              onUpdateFeedbackItems(
-                chapter.id,
-                (items) => items.map((f) => ({ ...f, status: "resolved" })),
-                true
-              )
-            }
-            onClearAll={() => onUpdateFeedbackItems(chapter.id, () => [], true)}
-          />
+        {showFeedbackGutter && feedbackMode === "inline" && gutterNode}
+        {feedbackMode === "bottom-sheet" && (
+          <Sheet open={showFeedbackGutter} onOpenChange={setShowFeedbackGutter}>
+            <SheetContent side="bottom" className="p-0 flex flex-col">
+              <SheetHeader className="sr-only">
+                <SheetTitle>{t("novelcrafterFeedbackDrawerTitle")}</SheetTitle>
+              </SheetHeader>
+              {gutterNode}
+            </SheetContent>
+          </Sheet>
         )}
       </div>
     </div>

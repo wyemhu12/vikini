@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
@@ -31,7 +32,14 @@ import type { TranslationKey } from "@/lib/utils/translations";
 import { fetchRemoteStoryState, putStoryStateOnServer } from "./useNovelcrafterCatalog";
 
 const lifecycleLogger = logger.withContext("useStoryPersistenceLifecycle");
-const FALLBACK_TRIM_PAYLOAD_BYTES = 1_200_000;
+const FALLBACK_TRIM_PAYLOAD_BYTES = 1_500_000;
+
+export interface DestructiveSavePromptState {
+  storyId: string;
+  previousChars: number;
+  nextChars: number;
+  pendingState: NovelcrafterStoryState;
+}
 
 interface UseStoryPersistenceLifecycleParams {
   isAuthed: boolean;
@@ -60,49 +68,59 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftThrottleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyStoryIdsRef = useRef<Set<string>>(new Set());
+  const quotaWarningShownRef = useRef(false);
+  const [destructivePrompt, setDestructivePrompt] = useState<DestructiveSavePromptState | null>(
+    null
+  );
 
   const cancelPendingSaveTimers = useCallback(() => {
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
-    if (retryTimerRef.current) {
-      clearTimeout(retryTimerRef.current);
-      retryTimerRef.current = null;
-    }
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    saveTimerRef.current = null;
+    retryTimerRef.current = null;
   }, []);
 
   const flushLocalDraftSync = useCallback(
-    (targetStoryId: string | null, stateToWrite: NovelcrafterStoryState) => {
-      if (draftThrottleTimerRef.current) {
-        clearTimeout(draftThrottleTimerRef.current);
-        draftThrottleTimerRef.current = null;
-      }
+    (targetStoryId: string | null, stateToWrite: NovelcrafterStoryState): boolean => {
+      if (draftThrottleTimerRef.current) clearTimeout(draftThrottleTimerRef.current);
+      draftThrottleTimerRef.current = null;
       const baseVersion = targetStoryId
         ? (coordinator.getServerMeta(targetStoryId)?.version ?? stateToWrite.version)
         : stateToWrite.version;
-      writeLocalStoryDraft(targetStoryId, stateToWrite, { baseVersion, dirty: true });
+      const ok = writeLocalStoryDraft(targetStoryId, stateToWrite, { baseVersion, dirty: true });
+      const quotaExceeded = !ok && typeof window !== "undefined";
+      if (quotaExceeded && !quotaWarningShownRef.current) {
+        quotaWarningShownRef.current = true;
+        toast.info(t("novelcrafterLocalStorageQuotaWarning"));
+      }
+      return quotaExceeded;
     },
-    [coordinator]
+    [coordinator, t]
   );
 
   const executeCoordinatorSave = useCallback(
     async (
       storyId: string,
       stateToSave: NovelcrafterStoryState,
-      options?: { epoch?: number; isManual?: boolean; isRetryAfterTrim?: boolean }
+      options?: {
+        epoch?: number;
+        isManual?: boolean;
+        isRetryAfterTrim?: boolean;
+        allowDestructive?: boolean;
+      }
     ): Promise<boolean> => {
       if (!isAuthed || !storyId) return false;
       if (latestStateRef.current.ownerStoryId === storyId) setSaveStatus("saving");
-
       const sendPut = (id: string, st: NovelcrafterStoryState) =>
-        putStoryStateOnServer(id, st, t("novelcrafterSaveError"));
-
+        putStoryStateOnServer(id, st, t("novelcrafterSaveError"), {
+          allowDestructive: options?.allowDestructive,
+        });
       const outcome = await coordinator.enqueueSave(storyId, stateToSave, sendPut, {
         epoch: options?.epoch,
       });
 
       if (outcome.status === "saved") {
+        setDestructivePrompt((prev) => (prev?.storyId === storyId ? null : prev));
         const syncedEnv = markLocalDraftSynced(
           storyId,
           outcome.version,
@@ -111,9 +129,26 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
         );
         if (!syncedEnv?.dirty) dirtyStoryIdsRef.current.delete(storyId);
         if (latestStateRef.current.ownerStoryId === storyId) {
+          latestStateRef.current.state = {
+            ...latestStateRef.current.state,
+            version: outcome.version,
+          };
           setSaveStatus(syncedEnv?.dirty ? "unsaved" : "saved");
         }
         return true;
+      }
+
+      if (outcome.status === "destructive_rejected") {
+        if (latestStateRef.current.ownerStoryId === storyId) {
+          setSaveStatus("error");
+          setDestructivePrompt({
+            storyId,
+            previousChars: outcome.previousChars,
+            nextChars: outcome.nextChars,
+            pendingState: stateToSave,
+          });
+        }
+        return false;
       }
 
       if (outcome.status === "rate_limited") {
@@ -133,10 +168,9 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
       }
 
       const presentation = resolveSaveFailurePresentation(outcome, Boolean(options?.isManual));
-
       if (presentation.shouldTrimPayloadAndRetry && !options?.isRetryAfterTrim) {
         const trimmed = enforceStatePayloadBudget(stateToSave, FALLBACK_TRIM_PAYLOAD_BYTES);
-        if (trimmed.fits && trimmed.state.historyCards.length < stateToSave.historyCards.length) {
+        if (trimmed.fits && (trimmed.trimmedHistoryCount > 0 || trimmed.trimmedFeedbackCount > 0)) {
           if (latestStateRef.current.ownerStoryId === storyId) {
             latestStateRef.current = { ownerStoryId: storyId, state: trimmed.state };
             setStoryState(trimmed.state);
@@ -147,6 +181,7 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
             isRetryAfterTrim: true,
           });
         }
+        toast.error(t("novelcrafterPayloadTooLargeError"));
       }
 
       if (outcome.status === "conflict" && presentation.shouldRunConflictRecovery) {
@@ -162,35 +197,28 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
               version: remoteState.version,
               updatedAt: remoteState.updatedAt,
             });
-
-            // 2nd epoch bump after GET finishes so any edits typed during GET are invalidated (M20)
             const postReconcileEpoch = coordinator.bumpEpoch(storyId);
             cancelPendingSaveTimers();
-
             const candidateLocalState =
               latestStateRef.current.ownerStoryId === storyId
                 ? latestStateRef.current.state
                 : outcome.unsavedState;
-
             const reconciled = reconcileStoryStateWithDraft(remoteState, {
               baseVersion: 0,
               dirty: true,
               savedAt: Date.now(),
               state: candidateLocalState,
             });
-
             if (latestStateRef.current.ownerStoryId === storyId) {
               latestStateRef.current = { ownerStoryId: storyId, state: reconciled.state };
               setStoryState(reconciled.state);
             }
-
             writeLocalStoryDraft(storyId, reconciled.state, {
               baseVersion: remoteState.version,
               dirty: reconciled.shouldSyncDraftToServer,
             });
             return { ...reconciled, postReconcileEpoch };
           });
-
           if (recoveryResult.conflictDetected) toast.info(t("novelcrafterConflictBackupNotice"));
           if (recoveryResult.shouldSyncDraftToServer) {
             return await executeCoordinatorSave(storyId, recoveryResult.state, {
@@ -198,7 +226,6 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
               isManual: options?.isManual,
             });
           }
-
           dirtyStoryIdsRef.current.delete(storyId);
           if (latestStateRef.current.ownerStoryId === storyId) setSaveStatus("saved");
           return true;
@@ -212,7 +239,9 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
       if (latestStateRef.current.ownerStoryId === storyId) {
         setSaveStatus(presentation.nextSaveStatus);
       }
-      if (presentation.shouldShowErrorToast) toast.error(t("novelcrafterSaveError"));
+      if (presentation.shouldShowErrorToast && outcome.status !== "payload_too_large") {
+        toast.error(t("novelcrafterSaveError"));
+      }
       return false;
     },
     [
@@ -226,13 +255,65 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
     ]
   );
 
+  const confirmDestructiveSave = useCallback(async () => {
+    if (!destructivePrompt) return;
+    const { storyId, pendingState } = destructivePrompt;
+    setDestructivePrompt(null);
+    await executeCoordinatorSave(storyId, pendingState, {
+      epoch: coordinator.getEpoch(storyId),
+      isManual: true,
+      allowDestructive: true,
+    });
+  }, [destructivePrompt, executeCoordinatorSave, coordinator]);
+
+  const reloadAfterDestructiveRejection = useCallback(async () => {
+    if (!destructivePrompt) return;
+    const { storyId } = destructivePrompt;
+    setDestructivePrompt(null);
+    try {
+      const remoteState = await fetchRemoteStoryState(
+        storyId,
+        t("novelcrafterDefaultChapterTitle"),
+        t("novelcrafterLoadError")
+      );
+      coordinator.seedServerMeta(storyId, {
+        version: remoteState.version,
+        updatedAt: remoteState.updatedAt,
+      });
+      coordinator.bumpEpoch(storyId);
+      if (latestStateRef.current.ownerStoryId === storyId) {
+        latestStateRef.current = { ownerStoryId: storyId, state: remoteState };
+        setStoryState(remoteState);
+        setSaveStatus("saved");
+      }
+      writeLocalStoryDraft(storyId, remoteState, {
+        baseVersion: remoteState.version,
+        dirty: false,
+      });
+    } catch (err: unknown) {
+      lifecycleLogger.error("Failed to reload after destructive save rejection:", err);
+      toast.error(t("novelcrafterLoadError"));
+    }
+  }, [destructivePrompt, t, coordinator, latestStateRef, setStoryState, setSaveStatus]);
+
   const scheduleSave = useCallback(
     (nextState: NovelcrafterStoryState, options?: { immediate?: boolean }) => {
       const ownerId = latestStateRef.current.ownerStoryId;
       if (draftThrottleTimerRef.current) clearTimeout(draftThrottleTimerRef.current);
       draftThrottleTimerRef.current = setTimeout(() => {
         draftThrottleTimerRef.current = null;
-        flushLocalDraftSync(latestStateRef.current.ownerStoryId, latestStateRef.current.state);
+        const quotaExceeded = flushLocalDraftSync(
+          latestStateRef.current.ownerStoryId,
+          latestStateRef.current.state
+        );
+        if (quotaExceeded && latestStateRef.current.ownerStoryId) {
+          cancelPendingSaveTimers();
+          void executeCoordinatorSave(
+            latestStateRef.current.ownerStoryId,
+            latestStateRef.current.state,
+            { epoch: coordinator.getEpoch(latestStateRef.current.ownerStoryId) }
+          );
+        }
       }, LOCAL_DRAFT_THROTTLE_MS);
 
       if (!ownerId) {
@@ -242,17 +323,14 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
         }
         return;
       }
-
       dirtyStoryIdsRef.current.add(ownerId);
       setSaveStatus("unsaved");
       cancelPendingSaveTimers();
-
       if (options?.immediate) {
         flushLocalDraftSync(ownerId, nextState);
         void executeCoordinatorSave(ownerId, nextState, { epoch: coordinator.getEpoch(ownerId) });
         return;
       }
-
       const scheduledEpoch = coordinator.getEpoch(ownerId);
       saveTimerRef.current = setTimeout(() => {
         saveTimerRef.current = null;
@@ -283,14 +361,10 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
       const currentOwnerId = latestStateRef.current.ownerStoryId;
       const currentState = latestStateRef.current.state;
       flushLocalDraftSync(currentOwnerId, currentState);
-
-      let targetStoryId = currentOwnerId || validStoryId;
-      if (!targetStoryId) {
-        targetStoryId = await ensureActiveStory(currentState);
-        if (!targetStoryId) return;
-      }
+      const targetStoryId =
+        currentOwnerId || validStoryId || (await ensureActiveStory(currentState));
+      if (!targetStoryId) return;
       if (isManual) coordinator.resetConsecutiveRecoveries(targetStoryId);
-
       await executeCoordinatorSave(targetStoryId, latestStateRef.current.state, {
         epoch: coordinator.getEpoch(targetStoryId),
         isManual,
@@ -320,9 +394,8 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
         });
       }
     };
-    const handlePageHide = () => {
+    const handlePageHide = () =>
       flushLocalDraftSync(latestStateRef.current.ownerStoryId, latestStateRef.current.state);
-    };
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
@@ -353,5 +426,8 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
     cancelPendingSaveTimers,
     flushLocalDraftSync,
     dirtyStoryIdsRef,
+    destructivePrompt,
+    confirmDestructiveSave,
+    reloadAfterDestructiveRejection,
   };
 }

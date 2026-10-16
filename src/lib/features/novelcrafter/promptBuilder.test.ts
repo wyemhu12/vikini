@@ -21,9 +21,12 @@ const FULL_STORY_BIBLE: StoryBible = {
   synopsis: "Elara guards the edge of a collapsing star-reef and discovers a living signal.",
   characters: "Elara Vance: Stoic keeper. Kaelen: Rogue cartographer.",
   charactersVisibleToAI: true,
+  characterCards: [],
   worldbuilding: "The Star-Reef: A graveyard of ancient Dyson shards.",
   worldbuildingVisibleToAI: true,
+  worldElements: [],
   outline: "Act I: The Signal. Act II: The Descent. Act III: The Ignition.",
+  outlineItems: [],
 };
 
 describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04, TC-05)", () => {

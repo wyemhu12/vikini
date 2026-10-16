@@ -67,6 +67,9 @@ interface ChapterAiToolMenusProps {
   ) => void;
 }
 
+const INPUT_CLS =
+  "h-8 rounded-lg border border-(--control-border) bg-(--control-bg) px-3 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none";
+
 export default function ChapterAiToolMenus({
   activeMenu,
   isStreaming,
@@ -97,12 +100,10 @@ export default function ChapterAiToolMenus({
     setSelectedCriteria((prev) =>
       prev.includes(crit) ? prev.filter((c) => c !== crit) : [...prev, crit]
     );
-
   const toggleSense = (sense: NovelcrafterDescribeSense) =>
     setSelectedSenses((prev) =>
       prev.includes(sense) ? prev.filter((s) => s !== sense) : [...prev, sense]
     );
-
   const triggerGuidedWrite = () =>
     onRunWrite({
       mode: "guided",
@@ -113,7 +114,7 @@ export default function ChapterAiToolMenus({
     });
 
   return (
-    <div className="pt-2.5 mt-1 border-t border-(--border) space-y-2.5">
+    <div className="pt-2.5 mt-1 border-t border-(--border) space-y-2.5 max-h-[55dvh] overflow-y-auto custom-scrollbar pr-1">
       {activeMenu === "write" && (
         <div className="space-y-2.5">
           <p className="flex items-center gap-1.5 text-xs text-(--text-secondary)">
@@ -149,7 +150,7 @@ export default function ChapterAiToolMenus({
               onChange={(e) => setKeyDetails(e.target.value)}
               placeholder={t("novelcrafterKeyDetailsPlaceholder")}
               aria-label={t("novelcrafterKeyDetailsLabel")}
-              className="h-8 rounded-lg border border-(--control-border) bg-(--control-bg) px-3 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className={INPUT_CLS}
             />
           </div>
 
@@ -174,12 +175,10 @@ export default function ChapterAiToolMenus({
                 type="text"
                 value={guidedDirection}
                 onChange={(e) => setGuidedDirection(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") triggerGuidedWrite();
-                }}
+                onKeyDown={(e) => e.key === "Enter" && triggerGuidedWrite()}
                 placeholder={t("novelcrafterGuidedPromptPlaceholder")}
                 aria-label={t("novelcrafterGuidedPromptPlaceholder")}
-                className="flex-1 min-w-0 h-8 rounded-lg border border-(--control-border) bg-(--control-bg) px-3 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                className={`flex-1 min-w-0 ${INPUT_CLS}`}
               />
               <button
                 type="button"
@@ -252,14 +251,13 @@ export default function ChapterAiToolMenus({
               type="text"
               value={customRewritePrompt}
               onChange={(e) => setCustomRewritePrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  onRunRewrite("custom", t("novelcrafterRewriteCustom"), customRewritePrompt);
-                }
-              }}
+              onKeyDown={(e) =>
+                e.key === "Enter" &&
+                onRunRewrite("custom", t("novelcrafterRewriteCustom"), customRewritePrompt)
+              }
               placeholder={t("novelcrafterRewriteInstructionPlaceholder")}
               aria-label={t("novelcrafterRewriteInstructionPlaceholder")}
-              className="flex-1 min-w-0 h-8 rounded-lg border border-(--control-border) bg-(--control-bg) px-3 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className={`flex-1 min-w-0 ${INPUT_CLS}`}
             />
             <button
               type="button"
@@ -302,7 +300,6 @@ export default function ChapterAiToolMenus({
               );
             })}
           </div>
-
           {feedbackMode === "developmental" && (
             <div className="flex items-center gap-1.5 flex-wrap">
               {NOVELCRAFTER_DEVELOPMENTAL_CRITERIA.map((crit) => {
@@ -326,7 +323,6 @@ export default function ChapterAiToolMenus({
               })}
             </div>
           )}
-
           {feedbackMode === "custom" && (
             <input
               type="text"
@@ -334,10 +330,9 @@ export default function ChapterAiToolMenus({
               onChange={(e) => setCustomFeedbackFocus(e.target.value)}
               placeholder={t("novelcrafterFeedbackCustomPlaceholder")}
               aria-label={t("novelcrafterFeedbackCustomPlaceholder")}
-              className="w-full h-8 rounded-lg border border-(--control-border) bg-(--control-bg) px-3 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className={`w-full ${INPUT_CLS}`}
             />
           )}
-
           <div className="flex justify-end">
             <button
               type="button"
@@ -425,7 +420,7 @@ export default function ChapterAiToolMenus({
             onChange={(e) => setBrainstormTopic(e.target.value)}
             placeholder={t("novelcrafterBrainstormTopicPlaceholder")}
             aria-label={t("novelcrafterBrainstormTopicPlaceholder")}
-            className="w-full h-8 rounded-lg border border-(--control-border) bg-(--control-bg) px-3 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className={`w-full ${INPUT_CLS}`}
           />
           <div className="flex items-center gap-1.5 flex-wrap">
             {NOVELCRAFTER_BRAINSTORM_CATEGORIES.map((catKey) => (

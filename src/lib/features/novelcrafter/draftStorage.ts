@@ -51,9 +51,14 @@ export function getDraftStorageKey(storyId: string | null | undefined): string {
 
 export function hasUnsavedDraftContent(state: NovelcrafterStoryState): boolean {
   for (const field of STORY_BIBLE_TEXT_FIELDS) {
-    if (state.storyBible[field].trim().length > 0) {
-      return true;
-    }
+    if (state.storyBible[field].trim().length > 0) return true;
+  }
+  if (
+    (state.storyBible.characterCards?.length ?? 0) > 0 ||
+    (state.storyBible.worldElements?.length ?? 0) > 0 ||
+    (state.storyBible.outlineItems?.length ?? 0) > 0
+  ) {
+    return true;
   }
   return state.chapters.some(
     (ch) =>
@@ -72,9 +77,7 @@ function updateDraftLruIndex(storage: Storage, storyId: string): void {
       : [];
     const deduped = [storyId, ...currentList.filter((id) => id !== storyId)];
     const kept = deduped.slice(0, MAX_CACHED_STORY_DRAFTS);
-    const evicted = deduped.slice(MAX_CACHED_STORY_DRAFTS);
-
-    for (const oldStoryId of evicted) {
+    for (const oldStoryId of deduped.slice(MAX_CACHED_STORY_DRAFTS)) {
       storage.removeItem(getDraftStorageKey(oldStoryId));
     }
     storage.setItem(DRAFT_LRU_INDEX_KEY, JSON.stringify(kept));
@@ -90,21 +93,16 @@ export function writeLocalStoryDraft(
 ): boolean {
   const storage = getSafeStorage();
   if (!storage) return false;
-
   const trimmedId = typeof storyId === "string" ? storyId.trim() : "";
-  const key = getDraftStorageKey(trimmedId || null);
   const envelope: NovelcrafterLocalDraftEnvelope = {
     baseVersion: Math.max(1, Math.trunc(options.baseVersion)),
     dirty: Boolean(options.dirty),
     savedAt: Date.now(),
     state,
   };
-
   try {
-    storage.setItem(key, JSON.stringify(envelope));
-    if (trimmedId) {
-      updateDraftLruIndex(storage, trimmedId);
-    }
+    storage.setItem(getDraftStorageKey(trimmedId || null), JSON.stringify(envelope));
+    if (trimmedId) updateDraftLruIndex(storage, trimmedId);
     return true;
   } catch {
     return false;
@@ -117,33 +115,25 @@ export function readLocalStoryDraft(
 ): NovelcrafterLocalDraftEnvelope | null {
   const storage = getSafeStorage();
   if (!storage) return null;
-
   try {
     const raw = storage.getItem(getDraftStorageKey(storyId));
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return null;
-    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
     const record = parsed as Record<string, unknown>;
-    if (!record.state || typeof record.state !== "object") {
-      return null;
-    }
+    if (!record.state || typeof record.state !== "object") return null;
     const sanitizedState = sanitizeStoryState(record.state, defaultChapterTitle);
     const baseVersion =
       typeof record.baseVersion === "number" && Number.isFinite(record.baseVersion)
         ? Math.max(1, Math.trunc(record.baseVersion))
         : sanitizedState.version;
-    const dirty = typeof record.dirty === "boolean" ? record.dirty : false;
-    const savedAt =
-      typeof record.savedAt === "number" && Number.isFinite(record.savedAt)
-        ? record.savedAt
-        : sanitizedState.updatedAt;
-
     return {
       baseVersion,
-      dirty,
-      savedAt,
+      dirty: typeof record.dirty === "boolean" ? record.dirty : false,
+      savedAt:
+        typeof record.savedAt === "number" && Number.isFinite(record.savedAt)
+          ? record.savedAt
+          : sanitizedState.updatedAt,
       state: sanitizedState,
     };
   } catch {
@@ -162,8 +152,10 @@ export function removeLocalStoryDraft(storyId: string | null | undefined): void 
       if (raw) {
         const parsed: unknown = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          const filtered = parsed.filter((id) => id !== trimmedId);
-          storage.setItem(DRAFT_LRU_INDEX_KEY, JSON.stringify(filtered));
+          storage.setItem(
+            DRAFT_LRU_INDEX_KEY,
+            JSON.stringify(parsed.filter((id) => id !== trimmedId))
+          );
         }
       }
     }
@@ -180,23 +172,15 @@ export function markLocalDraftSynced(
 ): NovelcrafterLocalDraftEnvelope | null {
   const current = readLocalStoryDraft(storyId);
   if (!current) return null;
-
   const hasNewerUnflushedEdits = current.state.updatedAt > ackedSnapshotUpdatedAt;
   const nextUpdatedAt = hasNewerUnflushedEdits
     ? Math.max(current.state.updatedAt, ackedServerUpdatedAt + 1)
     : ackedServerUpdatedAt;
-
-  const nextState: NovelcrafterStoryState = {
-    ...current.state,
-    version: ackedServerVersion,
-    updatedAt: nextUpdatedAt,
-  };
-
-  writeLocalStoryDraft(storyId, nextState, {
-    baseVersion: ackedServerVersion,
-    dirty: hasNewerUnflushedEdits,
-  });
-
+  writeLocalStoryDraft(
+    storyId,
+    { ...current.state, version: ackedServerVersion, updatedAt: nextUpdatedAt },
+    { baseVersion: ackedServerVersion, dirty: hasNewerUnflushedEdits }
+  );
   return readLocalStoryDraft(storyId);
 }
 
@@ -206,7 +190,6 @@ export function buildConflictBackupCard(
   nowMs = Date.now()
 ): NovelcrafterHistoryCard | null {
   const diffSections: string[] = [];
-
   for (const field of STORY_BIBLE_TEXT_FIELDS) {
     const localVal = localState.storyBible[field].trim();
     const remoteVal = remoteState.storyBible[field].trim();
@@ -214,64 +197,101 @@ export function buildConflictBackupCard(
       diffSections.push(`[Story Bible - ${field}]\n${localVal}`);
     }
   }
-
   const remoteChapterMap = new Map(remoteState.chapters.map((c) => [c.id, c]));
   for (const localCh of localState.chapters) {
     const remoteCh = remoteChapterMap.get(localCh.id);
     const localScenes = localCh.scenes.trim();
-    const remoteScenes = remoteCh?.scenes.trim() ?? "";
     const localContent = localCh.content.trim();
-    const remoteContent = remoteCh?.content.trim() ?? "";
-
-    if (localScenes && localScenes !== remoteScenes) {
+    if (localScenes && localScenes !== (remoteCh?.scenes.trim() ?? "")) {
       diffSections.push(`[${localCh.title} - Scenes]\n${localScenes}`);
     }
-    if (localContent && localContent !== remoteContent) {
+    if (localContent && localContent !== (remoteCh?.content.trim() ?? "")) {
       diffSections.push(`[${localCh.title} - Prose]\n${localContent}`);
     }
   }
-
-  if (diffSections.length === 0) {
-    return null;
-  }
-
-  const rawCombined = diffSections.join("\n\n---\n\n");
-  const content = rawCombined.slice(0, MAX_CONFLICT_BACKUP_CARD_CHARS);
-
+  if (diffSections.length === 0) return null;
   return {
     id: `conflict-backup-${nowMs}`,
     feature: "write",
     actionLabel: CONFLICT_BACKUP_ACTION_LABEL,
     subLabel: CONFLICT_BACKUP_ACTION_LABEL,
-    content,
+    content: diffSections.join("\n\n---\n\n").slice(0, MAX_CONFLICT_BACKUP_CARD_CHARS),
     model: localState.selectedModel,
     createdAt: nowMs,
   };
 }
 
+export interface PayloadBudgetFitResult {
+  state: NovelcrafterStoryState;
+  fits: boolean;
+  trimmedHistoryCount: number;
+  trimmedFeedbackCount: number;
+  largestFields?: string[];
+}
+
 export function enforceStatePayloadBudget(
   state: NovelcrafterStoryState,
   maxBytes: number = DEFAULT_MAX_STATE_PAYLOAD_BYTES
-): { state: NovelcrafterStoryState; fits: boolean } {
+): PayloadBudgetFitResult {
   const encoder = new TextEncoder();
   const measure = (candidate: NovelcrafterStoryState) =>
     encoder.encode(JSON.stringify(candidate)).byteLength;
 
   if (measure(state) <= maxBytes) {
-    return { state, fits: true };
+    return { state, fits: true, trimmedHistoryCount: 0, trimmedFeedbackCount: 0 };
   }
 
+  // Tier 1: Trim historyCards from oldest to newest down to 0
   let currentCards = [...state.historyCards];
+  let trimmedHistoryCount = 0;
   let candidate: NovelcrafterStoryState = { ...state, historyCards: currentCards };
 
   while (currentCards.length > 0 && measure(candidate) > maxBytes) {
     currentCards = currentCards.slice(0, currentCards.length - 1);
+    trimmedHistoryCount += 1;
     candidate = { ...candidate, historyCards: currentCards };
   }
 
+  if (measure(candidate) <= maxBytes) {
+    return { state: candidate, fits: true, trimmedHistoryCount, trimmedFeedbackCount: 0 };
+  }
+
+  // Tier 2: Trim resolved feedbackItems across chapters (NEVER touch open feedback, chapter prose, or Story Bible)
+  let trimmedFeedbackCount = 0;
+  const trimmedChapters = candidate.chapters.map((ch) => {
+    const openOnly = ch.feedbackItems.filter((item) => {
+      if (item.status === "resolved") {
+        trimmedFeedbackCount += 1;
+        return false;
+      }
+      return true;
+    });
+    return { ...ch, feedbackItems: openOnly };
+  });
+  candidate = { ...candidate, chapters: trimmedChapters };
+
+  const fits = measure(candidate) <= maxBytes;
+  if (fits) {
+    return { state: candidate, fits: true, trimmedHistoryCount, trimmedFeedbackCount };
+  }
+
+  const fieldSizes: Array<{ label: string; bytes: number }> = [
+    ...candidate.chapters.map((c) => ({
+      label: c.title,
+      bytes: encoder.encode(c.content + c.scenes).byteLength,
+    })),
+    {
+      label: "Story Bible",
+      bytes: encoder.encode(JSON.stringify(candidate.storyBible)).byteLength,
+    },
+  ].sort((a, b) => b.bytes - a.bytes);
+
   return {
     state: candidate,
-    fits: measure(candidate) <= maxBytes,
+    fits: false,
+    trimmedHistoryCount,
+    trimmedFeedbackCount,
+    largestFields: fieldSizes.slice(0, 3).map((f) => f.label),
   };
 }
 
@@ -285,21 +305,21 @@ export function reconcileStoryStateWithDraft(
   conflictDetected: boolean;
 } {
   if (!localEnvelope || !localEnvelope.dirty) {
-    return {
-      state: remoteState,
-      shouldSyncDraftToServer: false,
-      conflictDetected: false,
-    };
+    return { state: remoteState, shouldSyncDraftToServer: false, conflictDetected: false };
+  }
+
+  // NC-01 Guard: Never let an empty local draft overwrite a non-empty remote story
+  if (!hasUnsavedDraftContent(localEnvelope.state) && hasUnsavedDraftContent(remoteState)) {
+    return { state: remoteState, shouldSyncDraftToServer: false, conflictDetected: false };
   }
 
   if (localEnvelope.baseVersion >= remoteState.version) {
-    const reconciledState: NovelcrafterStoryState = {
-      ...localEnvelope.state,
-      version: remoteState.version,
-      updatedAt: Math.max(localEnvelope.state.updatedAt, remoteState.updatedAt + 1),
-    };
     return {
-      state: reconciledState,
+      state: {
+        ...localEnvelope.state,
+        version: remoteState.version,
+        updatedAt: Math.max(localEnvelope.state.updatedAt, remoteState.updatedAt + 1),
+      },
       shouldSyncDraftToServer: true,
       conflictDetected: false,
     };
@@ -308,35 +328,26 @@ export function reconcileStoryStateWithDraft(
   // Multi-device / multi-tab conflict: baseVersion < remoteState.version
   const backupCard = buildConflictBackupCard(localEnvelope.state, remoteState, nowMs);
   if (!backupCard) {
-    return {
-      state: remoteState,
-      shouldSyncDraftToServer: false,
-      conflictDetected: false,
-    };
+    return { state: remoteState, shouldSyncDraftToServer: false, conflictDetected: false };
   }
 
   const existingBackups: NovelcrafterHistoryCard[] = [];
   const otherCards: NovelcrafterHistoryCard[] = [];
-
   for (const card of remoteState.historyCards) {
     const isBackup =
       card.actionLabel === CONFLICT_BACKUP_ACTION_LABEL ||
       card.subLabel === CONFLICT_BACKUP_ACTION_LABEL;
     if (isBackup) {
-      if (existingBackups.length < MAX_CONFLICT_BACKUP_CARDS - 1) {
-        existingBackups.push(card);
-      }
+      if (existingBackups.length < MAX_CONFLICT_BACKUP_CARDS - 1) existingBackups.push(card);
     } else {
       otherCards.push(card);
     }
   }
 
-  const mergedCards = [backupCard, ...existingBackups, ...otherCards].slice(0, MAX_HISTORY_CARDS);
-
   return {
     state: {
       ...remoteState,
-      historyCards: mergedCards,
+      historyCards: [backupCard, ...existingBackups, ...otherCards].slice(0, MAX_HISTORY_CARDS),
       updatedAt: Math.max(remoteState.updatedAt + 1, nowMs),
     },
     shouldSyncDraftToServer: true,
@@ -359,13 +370,8 @@ export function promoteUnsavedDraftToStory(
     version: 1,
     updatedAt: Math.max(0, promotedState.updatedAt - 1),
   });
-  if (options?.markSkipNextGet !== false) {
-    coordinator.markSkipInitialGet(newStoryId);
-  }
-  writeLocalStoryDraft(newStoryId, promotedState, {
-    baseVersion: 1,
-    dirty: true,
-  });
+  if (options?.markSkipNextGet !== false) coordinator.markSkipInitialGet(newStoryId);
+  writeLocalStoryDraft(newStoryId, promotedState, { baseVersion: 1, dirty: true });
   removeLocalStoryDraft(null);
   return promotedState;
 }
@@ -377,23 +383,16 @@ export function resolveValidNovelcrafterStoryId(
 ): string | null {
   const trimmed = typeof selectedConversationId === "string" ? selectedConversationId.trim() : "";
   if (!trimmed) return null;
-
-  const isInStoriesList = stories.some(
-    (s) => s.id === trimmed && (!s.model || s.model === MODEL_IDS.NOVELCRAFTER)
-  );
-  if (isInStoriesList) {
+  if (
+    stories.some((s) => s.id === trimmed && (!s.model || s.model === MODEL_IDS.NOVELCRAFTER)) ||
+    coordinator?.isCandidateNewStoryId(trimmed)
+  ) {
     return trimmed;
   }
-
-  if (coordinator?.isCandidateNewStoryId(trimmed)) {
-    return trimmed;
-  }
-
   return null;
 }
 
 export function countChapterWords(text: string): number {
   const trimmed = text.trim();
-  if (!trimmed) return 0;
-  return trimmed.split(/\s+/).filter(Boolean).length;
+  return trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
 }

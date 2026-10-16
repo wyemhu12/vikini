@@ -6,14 +6,13 @@ import {
   type PersonaPromptInput,
 } from "@/lib/features/personas/prompt-builder";
 import { buildFeatureDirective } from "./featureDirectives";
+import { coerceStoryStateToLimits } from "./stateLimits";
+import { serializeStoryBibleWithStructuredCards } from "./storyBibleSerializer";
 import {
   createDefaultStoryState,
   MAX_CHAPTER_CONTEXT_CHARS,
-  MAX_FEEDBACK_ITEMS_PER_CHAPTER,
   MAX_HISTORY_CARDS,
   MAX_PREVIOUS_CHAPTER_TAIL_CHARS,
-  NovelcrafterFeedbackItemSchema,
-  NovelcrafterHistoryCardSchema,
   NovelcrafterStoryStateSchema,
   type BuildUserPromptInput,
   type NovelcrafterBibleTarget,
@@ -147,11 +146,12 @@ export function selectStoryBibleDependencies(
   const effectiveSynopsis = rawSynopsis || braindump;
   const synopsisIsBraindumpFallback = !rawSynopsis && Boolean(braindump);
 
+  const serialized = serializeStoryBibleWithStructuredCards(storyBible);
   const visibleCharacters =
-    storyBible.charactersVisibleToAI !== false ? storyBible.characters.trim() : "";
+    storyBible.charactersVisibleToAI !== false ? serialized.charactersText : "";
   const visibleWorldbuilding =
-    storyBible.worldbuildingVisibleToAI !== false ? storyBible.worldbuilding.trim() : "";
-  const outline = storyBible.outline.trim();
+    storyBible.worldbuildingVisibleToAI !== false ? serialized.worldbuildingText : "";
+  const outline = serialized.outlineText;
 
   if (feature === "bible") {
     switch (bibleTarget) {
@@ -347,53 +347,27 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
   return blocks.join("\n\n");
 }
 
-function preSanitizeStateCollections(raw: unknown): unknown {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return raw;
-  }
-  const candidate = { ...(raw as Record<string, unknown>) };
-
-  if (Array.isArray(candidate.historyCards)) {
-    candidate.historyCards = candidate.historyCards
-      .filter((item) => NovelcrafterHistoryCardSchema.safeParse(item).success)
-      .slice(0, MAX_HISTORY_CARDS);
-  }
-
-  if (Array.isArray(candidate.chapters)) {
-    candidate.chapters = candidate.chapters.map((ch) => {
-      if (!ch || typeof ch !== "object" || Array.isArray(ch)) return ch;
-      const chapterRecord = { ...(ch as Record<string, unknown>) };
-      if (Array.isArray(chapterRecord.feedbackItems)) {
-        chapterRecord.feedbackItems = chapterRecord.feedbackItems
-          .filter((fb) => NovelcrafterFeedbackItemSchema.safeParse(fb).success)
-          .slice(0, MAX_FEEDBACK_ITEMS_PER_CHAPTER);
-      }
-      return chapterRecord;
-    });
-  }
-
-  return candidate;
-}
-
 /**
  * Safely parse or coerce an untrusted story state payload into a valid NovelcrafterStoryState.
- * Filters malformed individual historyCards / feedbackItems before whole-object validation
- * so a single bad item never resets a story's version or chapters (M21).
+ * Applies field-level clamping and collection normalization via coerceStoryStateToLimits
+ * before Zod validation so a single oversized field never resets a story (NC-01).
  */
 export function sanitizeStoryState(
   raw: unknown,
   defaultChapterTitle = "Chapter 1"
 ): NovelcrafterStoryState {
-  const preSanitized = preSanitizeStateCollections(raw);
-  const parsed = NovelcrafterStoryStateSchema.safeParse(preSanitized);
-  if (parsed.success) {
-    const state = parsed.data;
-    const activeExists = state.chapters.some((c) => c.id === state.activeChapterId);
-    return {
-      ...state,
-      activeChapterId: activeExists ? state.activeChapterId : state.chapters[0].id,
-      historyCards: state.historyCards.slice(0, MAX_HISTORY_CARDS),
-    };
+  const coerced = coerceStoryStateToLimits(raw, defaultChapterTitle);
+  if (coerced) {
+    const parsed = NovelcrafterStoryStateSchema.safeParse(coerced);
+    if (parsed.success) {
+      const state = parsed.data;
+      const activeExists = state.chapters.some((c) => c.id === state.activeChapterId);
+      return {
+        ...state,
+        activeChapterId: activeExists ? state.activeChapterId : state.chapters[0].id,
+        historyCards: state.historyCards.slice(0, MAX_HISTORY_CARDS),
+      };
+    }
   }
   return createDefaultStoryState(defaultChapterTitle);
 }

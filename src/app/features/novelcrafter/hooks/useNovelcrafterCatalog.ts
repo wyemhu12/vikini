@@ -23,6 +23,7 @@ import {
 } from "@/lib/features/novelcrafter/draftStorage";
 import { sanitizeStoryState } from "@/lib/features/novelcrafter/promptBuilder";
 import {
+  extractDestructiveSaveRejection,
   isStaleStoryStateErrorResponse,
   type NovelcrafterSyncCoordinator,
   type SaveTransportResult,
@@ -58,8 +59,8 @@ export async function fetchRemoteStoryState(
     `/api/novelcrafter/state?conversationId=${encodeURIComponent(conversationId)}`
   );
   if (!res.ok) throw new Error(loadErrorMsg);
-  const json = (await res.json()) as { data?: { state?: unknown } };
-  return sanitizeStoryState(json.data?.state, defaultChapterTitle);
+  const json = (await res.json()) as { data?: { state?: unknown }; state?: unknown };
+  return sanitizeStoryState(json.data?.state ?? json.state, defaultChapterTitle);
 }
 
 export async function loadAndReconcileStoryState(params: {
@@ -141,7 +142,8 @@ export async function spawnAndBindStoryConversation(params: {
 export async function putStoryStateOnServer(
   storyId: string,
   preparedState: NovelcrafterStoryState,
-  fallbackErrorMsg: string
+  fallbackErrorMsg: string,
+  options?: { allowDestructive?: boolean }
 ): Promise<SaveTransportResult> {
   const budgeted = enforceStatePayloadBudget(preparedState, DEFAULT_MAX_STATE_PAYLOAD_BYTES);
   if (!budgeted.fits) return { status: "payload_too_large" };
@@ -150,7 +152,11 @@ export async function putStoryStateOnServer(
     const res = await fetch("/api/novelcrafter/state", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversationId: storyId, state: budgeted.state }),
+      body: JSON.stringify({
+        conversationId: storyId,
+        state: budgeted.state,
+        ...(options?.allowDestructive ? { allowDestructive: true } : {}),
+      }),
     });
     if (res.status === 429) {
       const retryHeader = Number(res.headers.get("Retry-After") || "3");
@@ -165,13 +171,25 @@ export async function putStoryStateOnServer(
 
     const json = (await res.json().catch(() => ({}))) as {
       data?: { state?: NovelcrafterStoryState };
-      error?: { message?: string };
+      state?: NovelcrafterStoryState;
+      error?: { message?: string; code?: string };
+      code?: string;
+      previousChars?: number;
+      nextChars?: number;
     };
     if (!res.ok) {
+      const destructiveRej = extractDestructiveSaveRejection(res.status, json);
+      if (destructiveRej) {
+        return {
+          status: "destructive_rejected",
+          previousChars: destructiveRej.previousChars,
+          nextChars: destructiveRej.nextChars,
+        };
+      }
       if (isStaleStoryStateErrorResponse(res.status, json)) return { status: "conflict" };
       return { status: "error", message: json.error?.message || fallbackErrorMsg };
     }
-    return { status: "saved", savedState: json.data?.state || budgeted.state };
+    return { status: "saved", savedState: json.data?.state || json.state || budgeted.state };
   } catch (err: unknown) {
     return {
       status: "error",
@@ -189,27 +207,34 @@ export function useNovelcrafterCatalog(isAuthed: boolean) {
 
   const refreshCatalog = useCallback(async () => {
     if (!isAuthed) return;
-    try {
-      const [gemsRes, personasRes] = await Promise.all([
-        fetch("/api/gems"),
-        fetch("/api/personas"),
-      ]);
-      if (gemsRes.ok) {
-        const gJson = (await gemsRes.json()) as {
-          data?: { gems?: ClientGemItem[] };
-          gems?: ClientGemItem[];
-        };
-        setGems(gJson.data?.gems || gJson.gems || []);
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const [gemsRes, personasRes] = await Promise.all([
+          fetch("/api/gems"),
+          fetch("/api/personas"),
+        ]);
+        if (gemsRes.ok) {
+          const gJson = (await gemsRes.json()) as {
+            data?: { gems?: ClientGemItem[] };
+            gems?: ClientGemItem[];
+          };
+          setGems(gJson.data?.gems || gJson.gems || []);
+        }
+        if (personasRes.ok) {
+          const pJson = (await personasRes.json()) as {
+            data?: { personas?: ClientPersonaItem[] };
+            personas?: ClientPersonaItem[];
+          };
+          setPersonas(pJson.data?.personas || pJson.personas || []);
+        }
+        if (gemsRes.ok && personasRes.ok) return;
+      } catch (err: unknown) {
+        catalogLogger.warn(`Failed to fetch gems/personas (attempt ${attempt}):`, err);
       }
-      if (personasRes.ok) {
-        const pJson = (await personasRes.json()) as {
-          data?: { personas?: ClientPersonaItem[] };
-          personas?: ClientPersonaItem[];
-        };
-        setPersonas(pJson.data?.personas || pJson.personas || []);
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, attempt * 600));
       }
-    } catch (err: unknown) {
-      catalogLogger.warn("Failed to fetch gems/personas:", err);
     }
   }, [isAuthed]);
 

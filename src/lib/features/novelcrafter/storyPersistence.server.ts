@@ -1,234 +1,266 @@
 // /lib/features/novelcrafter/storyPersistence.server.ts
-// Encrypted persistence for Novelcrafter Story State inside the messages table (Option A)
+// Server-side encrypted persistence for Novelcrafter Story State inside messages table
+// Uses AES-256-GCM directly without chat <think> stripping (S3)
 
-import { getSupabaseAdmin } from "@/lib/core/supabase.server";
-import { encryptText, decryptText } from "@/lib/core/encryption";
 import { invalidateConversationsCache } from "@/lib/core/cache";
-import { getConversation, type Conversation } from "@/lib/features/chat/conversations";
+import { decryptText, encryptText } from "@/lib/core/encryption";
+import { getSupabaseAdmin } from "@/lib/core/supabase.server";
+import { getConversation } from "@/lib/features/chat/conversations";
 import { MODEL_IDS, UUID_REGEX } from "@/lib/utils/constants";
-import { DatabaseError, NotFoundError, ValidationError } from "@/lib/utils/errors";
+import { AppError, DatabaseError, NotFoundError, ValidationError } from "@/lib/utils/errors";
 import { logger } from "@/lib/utils/logger";
+import { sanitizeStoryState } from "./promptBuilder";
 import {
   createDefaultStoryState,
-  MAX_HISTORY_CARDS,
   STALE_STORY_STATE_MESSAGE,
   type NovelcrafterStoryState,
 } from "./types";
-import { sanitizeStoryState } from "./promptBuilder";
 
-const persistenceLogger = logger.withContext("novelcrafterPersistence");
+const dbLogger = logger.withContext("novelcrafterPersistence");
 
-interface StoryStateMessageRow {
+export const NOVELCRAFTER_STATE_META_TYPE = "story_state" as const;
+export const DESTRUCTIVE_SAVE_MIN_CHARS = 2_000 as const;
+
+interface RawStateMessageRow {
   id: string;
   content: string | null;
   meta: Record<string, unknown> | null;
-  created_at?: string | null;
+  created_at: string;
+}
+
+export function computeTotalStoryContentChars(state: NovelcrafterStoryState): number {
+  const b = state.storyBible;
+  let total =
+    b.braindump.length +
+    b.genre.length +
+    b.style.length +
+    b.synopsis.length +
+    b.characters.length +
+    b.worldbuilding.length +
+    b.outline.length;
+
+  for (const c of b.characterCards || []) {
+    total += c.name.length + c.role.length + c.traits.length;
+  }
+  for (const w of b.worldElements || []) {
+    total += w.name.length + w.category.length + w.description.length;
+  }
+  for (const o of b.outlineItems || []) {
+    total += o.title.length + o.summary.length;
+  }
+  for (const ch of state.chapters) {
+    total += ch.title.length + ch.scenes.length + ch.content.length;
+  }
+  return total;
 }
 
 /**
- * Verify that the conversation exists, belongs to the authenticated user,
- * and is a Novelcrafter Studio conversation (`model === MODEL_IDS.NOVELCRAFTER`).
+ * Verify that conversationId is a valid UUID, belongs to userId,
+ * and is a dedicated Novelcrafter story conversation (model === "vikini-novelcrafter").
  */
 export async function verifyNovelcrafterConversationOwnership(
   userId: string,
   conversationId: string
-): Promise<Conversation> {
-  const trimmedId = String(conversationId || "").trim();
-  if (!UUID_REGEX.test(trimmedId)) {
+): Promise<void> {
+  if (!conversationId || !UUID_REGEX.test(conversationId)) {
     throw new ValidationError("Invalid conversationId");
   }
 
-  const convo = await getConversation(trimmedId);
-  if (!convo || convo.userId !== userId || convo.model !== MODEL_IDS.NOVELCRAFTER) {
-    throw new NotFoundError("Story");
+  const convo = await getConversation(conversationId);
+  if (!convo || convo.userId !== userId) {
+    throw new NotFoundError("Story conversation");
   }
 
-  return convo;
+  if (convo.model !== MODEL_IDS.NOVELCRAFTER) {
+    throw new NotFoundError("Story conversation");
+  }
 }
 
-function decodeStoredState(
-  encryptedContent: string | null | undefined,
-  defaultChapterTitle?: string
-): NovelcrafterStoryState | null {
-  if (!encryptedContent) return null;
-  const decrypted = decryptText(encryptedContent);
-  if (!decrypted) return null;
-  const parsed: unknown = JSON.parse(decrypted);
-  return sanitizeStoryState(parsed, defaultChapterTitle);
-}
-
-/**
- * Retrieve and decrypt the NovelcrafterStoryState for a story conversation.
- * Returns a fresh default state if no state row exists yet.
- */
-export async function getStoryState(
-  userId: string,
-  conversationId: string,
-  defaultChapterTitle = "Chapter 1"
-): Promise<NovelcrafterStoryState> {
-  await verifyNovelcrafterConversationOwnership(userId, conversationId);
-
+async function fetchStoryStateRows(conversationId: string): Promise<RawStateMessageRow[]> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("messages")
     .select("id, content, meta, created_at")
     .eq("conversation_id", conversationId)
-    .eq("meta->>novelcrafterType", "story_state")
+    .eq("meta->>novelcrafterType", NOVELCRAFTER_STATE_META_TYPE)
     .order("created_at", { ascending: false });
 
   if (error) {
-    persistenceLogger.error("Failed to fetch story_state messages:", error);
-    throw new DatabaseError(`Failed to load story state: ${error.message}`);
+    dbLogger.error("Failed to query story_state message:", error);
+    throw new DatabaseError("Failed to load story state");
   }
 
-  const rows = (data || []) as StoryStateMessageRow[];
-  if (rows.length === 0) {
-    return createDefaultStoryState(defaultChapterTitle);
-  }
+  const rows = (data ?? []) as RawStateMessageRow[];
 
-  // Clean up duplicate rows if concurrent initial inserts ever occurred
   if (rows.length > 1) {
     const duplicateIds = rows.slice(1).map((r) => r.id);
-    const { error: deleteErr } = await supabase.from("messages").delete().in("id", duplicateIds);
-    if (deleteErr) {
-      persistenceLogger.warn("Failed to delete duplicate story_state rows:", deleteErr);
+    const { error: delError } = await supabase.from("messages").delete().in("id", duplicateIds);
+    if (delError) {
+      dbLogger.warn("Failed to clean up duplicate story_state rows:", delError);
     }
   }
 
+  return rows;
+}
+
+/**
+ * Load and decrypt the NovelcrafterStoryState for a verified story conversation.
+ */
+export async function getStoryState(
+  userId: string,
+  conversationId: string
+): Promise<NovelcrafterStoryState> {
+  await verifyNovelcrafterConversationOwnership(userId, conversationId);
+
+  const rows = await fetchStoryStateRows(conversationId);
+  if (rows.length === 0 || !rows[0].content) {
+    return createDefaultStoryState();
+  }
+
   try {
-    const decoded = decodeStoredState(rows[0].content, defaultChapterTitle);
-    return decoded ?? createDefaultStoryState(defaultChapterTitle);
+    const decryptedJson = decryptText(rows[0].content);
+    const parsed: unknown = JSON.parse(decryptedJson);
+    return sanitizeStoryState(parsed);
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Unknown decryption error";
-    persistenceLogger.error("Failed to decrypt or parse story state:", msg);
-    throw new DatabaseError("Failed to decode encrypted story state");
+    dbLogger.error("Failed to decrypt or parse story_state payload, returning default:", err);
+    return createDefaultStoryState();
   }
 }
 
 /**
- * Encrypt and persist the NovelcrafterStoryState into the messages table.
- * Enforces monotonic updatedAt/version check to reject stale out-of-order network writes,
- * deduplicates extra state rows, and updates the parent conversation's updated_at timestamp.
+ * Encrypt and persist the NovelcrafterStoryState into a single system message row.
+ * Rejects stale overwrites (NC-08) and guards against accidental >90% content wipes.
  */
 export async function saveStoryState(
   userId: string,
   conversationId: string,
-  state: NovelcrafterStoryState
+  incomingState: NovelcrafterStoryState,
+  options?: { allowDestructive?: boolean }
 ): Promise<NovelcrafterStoryState> {
   await verifyNovelcrafterConversationOwnership(userId, conversationId);
 
-  const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("messages")
-    .select("id, content, meta, created_at")
-    .eq("conversation_id", conversationId)
-    .eq("meta->>novelcrafterType", "story_state")
-    .order("created_at", { ascending: false });
+  const sanitized = sanitizeStoryState(incomingState);
+  const rows = await fetchStoryStateRows(conversationId);
+  const existingRow = rows[0] ?? null;
+  const existingMeta = existingRow?.meta ?? null;
 
-  if (error) {
-    persistenceLogger.error("Failed to read existing story_state before save:", error);
-    throw new DatabaseError(`Failed to read story state: ${error.message}`);
-  }
+  let existingVersion = 0;
+  if (existingRow) {
+    const rawMetaVersion = existingMeta?.version;
+    const rawMetaUpdatedAt = existingMeta?.updatedAt;
+    existingVersion = typeof rawMetaVersion === "number" ? rawMetaVersion : 0;
+    const existingUpdatedAt = typeof rawMetaUpdatedAt === "number" ? rawMetaUpdatedAt : 0;
 
-  const rows = (data || []) as StoryStateMessageRow[];
-  let existingState: NovelcrafterStoryState | null = null;
-
-  if (rows.length > 0 && rows[0].content) {
-    try {
-      existingState = decodeStoredState(rows[0].content);
-    } catch {
-      existingState = null;
+    if (sanitized.version < existingVersion || sanitized.updatedAt < existingUpdatedAt) {
+      throw new ValidationError(STALE_STORY_STATE_MESSAGE);
     }
   }
 
-  const metaVersion =
-    rows.length > 0 && typeof rows[0]?.meta?.version === "number"
-      ? Number(rows[0].meta.version)
-      : 0;
-  const metaUpdatedAt =
-    rows.length > 0 && typeof rows[0]?.meta?.updatedAt === "number"
-      ? Number(rows[0].meta.updatedAt)
-      : 0;
-  const effectiveExistingVersion = Math.max(existingState?.version ?? 0, metaVersion);
-  const effectiveExistingUpdatedAt = Math.max(existingState?.updatedAt ?? 0, metaUpdatedAt);
+  const nextChars = computeTotalStoryContentChars(sanitized);
 
-  if (
-    (existingState || metaVersion > 0) &&
-    (state.updatedAt < effectiveExistingUpdatedAt || state.version < effectiveExistingVersion)
-  ) {
-    throw new ValidationError(STALE_STORY_STATE_MESSAGE);
+  if (existingRow && !options?.allowDestructive) {
+    let previousChars =
+      typeof existingMeta?.contentChars === "number" ? existingMeta.contentChars : -1;
+    if (previousChars < 0 && existingRow.content) {
+      try {
+        const decryptedExisting = decryptText(existingRow.content);
+        const parsedExisting = sanitizeStoryState(JSON.parse(decryptedExisting));
+        previousChars = computeTotalStoryContentChars(parsedExisting);
+      } catch {
+        previousChars = 0;
+      }
+    }
+    if (previousChars >= DESTRUCTIVE_SAVE_MIN_CHARS && nextChars < previousChars * 0.1) {
+      const destructiveErr = new AppError(
+        "Destructive save rejected: content dropped by more than 90%",
+        409,
+        "DESTRUCTIVE_SAVE_REJECTED"
+      ) as AppError & { previousChars: number; nextChars: number };
+      destructiveErr.previousChars = previousChars;
+      destructiveErr.nextChars = nextChars;
+      throw destructiveErr;
+    }
   }
 
-  const sanitized = sanitizeStoryState(state);
-  const nextVersion =
-    existingState || metaVersion > 0
-      ? Math.max(sanitized.version, effectiveExistingVersion) + 1
-      : 1;
-  const nextUpdatedAt = Math.max(sanitized.updatedAt, effectiveExistingUpdatedAt, Date.now());
-
-  const nextState: NovelcrafterStoryState = {
+  const now = Date.now();
+  const nextVersion = existingRow ? Math.max(sanitized.version, existingVersion) + 1 : 1;
+  const stateToSave: NovelcrafterStoryState = {
     ...sanitized,
     version: nextVersion,
-    updatedAt: nextUpdatedAt,
-    historyCards: sanitized.historyCards.slice(0, MAX_HISTORY_CARDS),
+    updatedAt: Math.max(sanitized.updatedAt, now),
   };
 
-  const encryptedContent = encryptText(JSON.stringify(nextState));
+  const encryptedContent = encryptText(JSON.stringify(stateToSave));
   const metaPayload = {
-    novelcrafterType: "story_state",
+    novelcrafterType: NOVELCRAFTER_STATE_META_TYPE,
     isContextOnly: true,
-    version: nextVersion,
-    updatedAt: nextUpdatedAt,
+    version: stateToSave.version,
+    updatedAt: stateToSave.updatedAt,
+    contentChars: nextChars,
   };
 
-  if (rows.length > 0) {
-    const primaryId = rows[0].id;
-    const { error: updateErr } = await supabase
+  const supabase = getSupabaseAdmin();
+
+  if (existingRow) {
+    const baseUpdate = supabase
       .from("messages")
       .update({
         role: "system",
         content: encryptedContent,
         meta: metaPayload,
       })
-      .eq("id", primaryId);
+      .eq("id", existingRow.id) as unknown as {
+      eq?: (
+        col: string,
+        val: string
+      ) => {
+        select?: (
+          cols: string
+        ) => Promise<{ data: Array<{ id: string }> | null; error: { message?: string } | null }>;
+      } & Promise<{ data: Array<{ id: string }> | null; error: { message?: string } | null }>;
+    } & Promise<{ data: Array<{ id: string }> | null; error: { message?: string } | null }>;
 
-    if (updateErr) {
-      persistenceLogger.error("Failed to update story_state message:", updateErr);
-      throw new DatabaseError(`Failed to update story state: ${updateErr.message}`);
+    let updateRes: { data: Array<{ id: string }> | null; error: { message?: string } | null };
+    if (typeof baseUpdate.eq === "function" && existingMeta?.version !== undefined) {
+      const withVersion = baseUpdate.eq("meta->>version", String(existingVersion));
+      updateRes =
+        typeof withVersion.select === "function"
+          ? await withVersion.select("id")
+          : await withVersion;
+      if (!updateRes.error && Array.isArray(updateRes.data) && updateRes.data.length === 0) {
+        throw new AppError(STALE_STORY_STATE_MESSAGE, 409, "STALE_STORY_STATE");
+      }
+    } else {
+      updateRes = await baseUpdate;
     }
 
-    if (rows.length > 1) {
-      const duplicateIds = rows.slice(1).map((r) => r.id);
-      const { error: deleteErr } = await supabase.from("messages").delete().in("id", duplicateIds);
-      if (deleteErr) {
-        persistenceLogger.warn("Failed to remove duplicate story_state rows:", deleteErr);
-      }
+    if (updateRes.error) {
+      dbLogger.error("Failed to update story_state message:", updateRes.error);
+      throw new DatabaseError("Failed to save story state");
     }
   } else {
-    const { error: insertErr } = await supabase.from("messages").insert({
+    const { error: insertError } = await supabase.from("messages").insert({
       conversation_id: conversationId,
       role: "system",
       content: encryptedContent,
       meta: metaPayload,
     });
 
-    if (insertErr) {
-      persistenceLogger.error("Failed to insert story_state message:", insertErr);
-      throw new DatabaseError(`Failed to save story state: ${insertErr.message}`);
+    if (insertError) {
+      dbLogger.error("Failed to insert story_state message:", insertError);
+      throw new DatabaseError("Failed to save story state");
     }
   }
 
-  const isoNow = new Date(nextUpdatedAt).toISOString();
-  const { error: convoUpdateErr } = await supabase
+  const { error: convoUpdateError } = await supabase
     .from("conversations")
-    .update({ updated_at: isoNow })
+    .update({ updated_at: new Date(stateToSave.updatedAt).toISOString() })
     .eq("id", conversationId);
 
-  if (convoUpdateErr) {
-    persistenceLogger.warn("Failed to touch conversation updated_at:", convoUpdateErr);
+  if (convoUpdateError) {
+    dbLogger.warn("Failed to touch conversation updated_at:", convoUpdateError);
   }
 
   await invalidateConversationsCache(userId);
-
-  return nextState;
+  return stateToSave;
 }

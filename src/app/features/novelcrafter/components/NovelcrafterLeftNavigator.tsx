@@ -92,7 +92,7 @@ export default function NovelcrafterLeftNavigator({
   return (
     <aside
       aria-label={t("novelcrafterChaptersTab")}
-      className="w-full md:w-64 lg:w-72 shrink-0 border-r border-(--border) bg-(--surface-muted)/60 flex flex-col min-h-0"
+      className="w-full md:w-64 lg:w-72 shrink-0 border-r border-(--border) bg-(--surface-muted)/60 flex flex-col min-h-0 h-full"
     >
       <h2 className="sr-only">{t("novelcrafterChaptersTab")}</h2>
 
@@ -114,7 +114,7 @@ export default function NovelcrafterLeftNavigator({
 
       <div className="flex-1 overflow-y-auto px-2.5 pb-3 space-y-1.5 custom-scrollbar min-h-0">
         {chapters.map((chapter, index) => {
-          const isSelected = !isStoryBibleOpen && chapter.id === activeChapterId;
+          const isSelected = chapter.id === activeChapterId;
           const isEditing = editingChapterId === chapter.id;
           const words = countChapterWords(chapter.content);
 
@@ -188,7 +188,8 @@ export default function NovelcrafterLeftNavigator({
                     </div>
                   </button>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
+                  {/* Touch-friendly visibility on mobile/foldable (NC-R02) */}
+                  <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
                     <button
                       type="button"
                       onClick={() => startEdit(chapter)}

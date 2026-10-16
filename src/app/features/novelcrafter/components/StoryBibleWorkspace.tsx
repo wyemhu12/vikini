@@ -20,6 +20,11 @@ import type { TranslationKey } from "@/lib/utils/translations";
 import type { TriggerNovelcrafterStreamParams } from "../hooks/useNovelcrafterStream";
 import type { NovelcrafterBibleSectionId } from "./NovelcrafterLeftNavigator";
 import StoryBibleSectionCard, { type BibleAiSection } from "./StoryBibleSectionCard";
+import {
+  StoryBibleCharacterCardsList,
+  StoryBibleOutlineItemsList,
+  StoryBibleWorldElementsList,
+} from "./StoryBibleStructuredCards";
 
 export interface StoryBibleWorkspaceProps {
   storyBible: StoryBible;
@@ -30,6 +35,7 @@ export interface StoryBibleWorkspaceProps {
   onClose?: () => void;
   isStreaming: boolean;
   onTriggerStream: (params: TriggerNovelcrafterStreamParams) => Promise<void>;
+  onSendOutlineToChapterScenes?: (beats: string) => void;
 }
 
 const STYLE_MODE_LABELS: Record<
@@ -76,9 +82,9 @@ export default function StoryBibleWorkspace({
   onClose,
   isStreaming,
   onTriggerStream,
+  onSendOutlineToChapterScenes,
 }: StoryBibleWorkspaceProps) {
   const { t } = useLanguage();
-
   const [openSections, setOpenSections] = useState<Record<NovelcrafterBibleSectionId, boolean>>({
     braindump: true,
     genre: true,
@@ -89,7 +95,6 @@ export default function StoryBibleWorkspace({
     outline: true,
   });
 
-  // Scroll to section only upon explicit user jumpRequest (eliminates cold-start auto-scroll bug)
   useEffect(() => {
     if (!jumpRequest?.section) return;
     const target = jumpRequest.section;
@@ -173,7 +178,6 @@ export default function StoryBibleWorkspace({
         </div>
       )}
 
-      {/* 1. Braindump */}
       <StoryBibleSectionCard
         id="braindump"
         titleKey="novelcrafterBraindumpLabel"
@@ -192,7 +196,6 @@ export default function StoryBibleWorkspace({
         />
       </StoryBibleSectionCard>
 
-      {/* 2. Genre */}
       <StoryBibleSectionCard
         id="genre"
         titleKey="novelcrafterGenreLabel"
@@ -210,7 +213,6 @@ export default function StoryBibleWorkspace({
         />
       </StoryBibleSectionCard>
 
-      {/* 3. Style */}
       <StoryBibleSectionCard
         id="style"
         titleKey="novelcrafterStyleLabel"
@@ -293,7 +295,6 @@ export default function StoryBibleWorkspace({
         </div>
       </StoryBibleSectionCard>
 
-      {/* 4. Synopsis */}
       <StoryBibleSectionCard
         id="synopsis"
         titleKey="novelcrafterSynopsisLabel"
@@ -315,7 +316,6 @@ export default function StoryBibleWorkspace({
         />
       </StoryBibleSectionCard>
 
-      {/* 5. Characters */}
       <StoryBibleSectionCard
         id="characters"
         titleKey="novelcrafterCharactersLabel"
@@ -331,17 +331,22 @@ export default function StoryBibleWorkspace({
         isStreaming={isStreaming}
         onRunAiAction={handleRunAi}
       >
-        <textarea
-          rows={6}
-          value={storyBible.characters}
-          onChange={(e) => onUpdateStoryBible({ characters: e.target.value })}
-          placeholder={t("novelcrafterCharactersPlaceholder")}
-          aria-label={t("novelcrafterCharactersLabel")}
-          className={TEXTAREA_CLS}
-        />
+        <div className="space-y-3">
+          <textarea
+            rows={5}
+            value={storyBible.characters}
+            onChange={(e) => onUpdateStoryBible({ characters: e.target.value })}
+            placeholder={t("novelcrafterCharactersPlaceholder")}
+            aria-label={t("novelcrafterCharactersLabel")}
+            className={TEXTAREA_CLS}
+          />
+          <StoryBibleCharacterCardsList
+            storyBible={storyBible}
+            onUpdateStoryBible={onUpdateStoryBible}
+          />
+        </div>
       </StoryBibleSectionCard>
 
-      {/* 6. Worldbuilding */}
       <StoryBibleSectionCard
         id="worldbuilding"
         titleKey="novelcrafterWorldbuildingLabel"
@@ -357,17 +362,22 @@ export default function StoryBibleWorkspace({
         isStreaming={isStreaming}
         onRunAiAction={handleRunAi}
       >
-        <textarea
-          rows={6}
-          value={storyBible.worldbuilding}
-          onChange={(e) => onUpdateStoryBible({ worldbuilding: e.target.value })}
-          placeholder={t("novelcrafterWorldbuildingPlaceholder")}
-          aria-label={t("novelcrafterWorldbuildingLabel")}
-          className={TEXTAREA_CLS}
-        />
+        <div className="space-y-3">
+          <textarea
+            rows={5}
+            value={storyBible.worldbuilding}
+            onChange={(e) => onUpdateStoryBible({ worldbuilding: e.target.value })}
+            placeholder={t("novelcrafterWorldbuildingPlaceholder")}
+            aria-label={t("novelcrafterWorldbuildingLabel")}
+            className={TEXTAREA_CLS}
+          />
+          <StoryBibleWorldElementsList
+            storyBible={storyBible}
+            onUpdateStoryBible={onUpdateStoryBible}
+          />
+        </div>
       </StoryBibleSectionCard>
 
-      {/* 7. Outline */}
       <StoryBibleSectionCard
         id="outline"
         titleKey="novelcrafterOutlineLabel"
@@ -379,22 +389,54 @@ export default function StoryBibleWorkspace({
         isStreaming={isStreaming}
         onRunAiAction={handleRunAi}
       >
-        <textarea
-          rows={6}
-          value={storyBible.outline}
-          onChange={(e) => onUpdateStoryBible({ outline: e.target.value })}
-          placeholder={t("novelcrafterOutlinePlaceholder")}
-          aria-label={t("novelcrafterOutlineLabel")}
-          className={TEXTAREA_CLS}
-        />
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={storyBible.pov}
+              onChange={(e) => onUpdateStoryBible({ pov: e.target.value as NovelcrafterPovOption })}
+              aria-label={t("novelcrafterPovLabel")}
+              className="h-7 rounded-full border border-(--border) bg-(--control-bg) px-2.5 text-xs font-medium text-(--text-primary)"
+            >
+              {NOVELCRAFTER_POV_OPTIONS.map((pov) => (
+                <option key={pov} value={pov} className="bg-(--surface-elevated)">
+                  {t(POV_LABELS[pov])}
+                </option>
+              ))}
+            </select>
+            <select
+              value={storyBible.tense}
+              onChange={(e) =>
+                onUpdateStoryBible({ tense: e.target.value as NovelcrafterTenseOption })
+              }
+              aria-label={t("novelcrafterTenseLabel")}
+              className="h-7 rounded-full border border-(--border) bg-(--control-bg) px-2.5 text-xs font-medium text-(--text-primary)"
+            >
+              {NOVELCRAFTER_TENSE_OPTIONS.map((tense) => (
+                <option key={tense} value={tense} className="bg-(--surface-elevated)">
+                  {t(TENSE_LABELS[tense])}
+                </option>
+              ))}
+            </select>
+          </div>
+          <textarea
+            rows={5}
+            value={storyBible.outline}
+            onChange={(e) => onUpdateStoryBible({ outline: e.target.value })}
+            placeholder={t("novelcrafterOutlinePlaceholder")}
+            aria-label={t("novelcrafterOutlineLabel")}
+            className={TEXTAREA_CLS}
+          />
+          <StoryBibleOutlineItemsList
+            storyBible={storyBible}
+            onUpdateStoryBible={onUpdateStoryBible}
+            onSendToChapterScenes={onSendOutlineToChapterScenes}
+          />
+        </div>
       </StoryBibleSectionCard>
     </div>
   );
 
-  if (embedded) {
-    return <div className="w-full">{content}</div>;
-  }
-
+  if (embedded) return <div className="w-full">{content}</div>;
   return (
     <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar bg-(--surface)">
       {content}

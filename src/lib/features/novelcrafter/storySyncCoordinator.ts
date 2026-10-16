@@ -12,22 +12,24 @@ export type SaveTransportResult =
   | { status: "saved"; savedState: NovelcrafterStoryState }
   | { status: "rate_limited"; retryAfterSeconds: number }
   | { status: "conflict" }
+  | { status: "destructive_rejected"; previousChars: number; nextChars: number }
   | { status: "payload_too_large" }
   | { status: "error"; message: string };
 
 export type SaveExecutionOutcome =
-  | {
-      status: "saved";
-      version: number;
-      updatedAt: number;
-      ackedSnapshotUpdatedAt: number;
-    }
+  | { status: "saved"; version: number; updatedAt: number; ackedSnapshotUpdatedAt: number }
   | { status: "rate_limited"; retryAfterMs: number }
   | {
       status: "conflict";
       unsavedState: NovelcrafterStoryState;
       newEpoch: number;
       canAutoRecover: boolean;
+    }
+  | {
+      status: "destructive_rejected";
+      previousChars: number;
+      nextChars: number;
+      unsavedState: NovelcrafterStoryState;
     }
   | { status: "superseded" }
   | { status: "payload_too_large" }
@@ -44,14 +46,19 @@ interface QueuedSaveEntry {
 }
 
 export function isStaleStoryStateErrorResponse(status: number, body: unknown): boolean {
-  if (status !== 400 || !body || typeof body !== "object") {
-    return false;
-  }
+  if ((status !== 400 && status !== 409) || !body || typeof body !== "object") return false;
   const record = body as Record<string, unknown>;
   const nestedError =
     record.error && typeof record.error === "object"
       ? (record.error as Record<string, unknown>)
       : null;
+  const code =
+    typeof nestedError?.code === "string"
+      ? nestedError.code
+      : typeof record.code === "string"
+        ? record.code
+        : "";
+  if (code === "STALE_STORY_STATE") return true;
   const message =
     typeof nestedError?.message === "string"
       ? nestedError.message
@@ -59,6 +66,38 @@ export function isStaleStoryStateErrorResponse(status: number, body: unknown): b
         ? record.message
         : "";
   return message.includes(STALE_STORY_STATE_MESSAGE);
+}
+
+export function extractDestructiveSaveRejection(
+  status: number,
+  body: unknown
+): { previousChars: number; nextChars: number } | null {
+  if (status !== 409 || !body || typeof body !== "object") return null;
+  const record = body as Record<string, unknown>;
+  const nestedError =
+    record.error && typeof record.error === "object"
+      ? (record.error as Record<string, unknown>)
+      : null;
+  const code =
+    typeof nestedError?.code === "string"
+      ? nestedError.code
+      : typeof record.code === "string"
+        ? record.code
+        : "";
+  if (code !== "DESTRUCTIVE_SAVE_REJECTED") return null;
+  const prev =
+    typeof record.previousChars === "number"
+      ? record.previousChars
+      : typeof nestedError?.previousChars === "number"
+        ? nestedError.previousChars
+        : 0;
+  const next =
+    typeof record.nextChars === "number"
+      ? record.nextChars
+      : typeof nestedError?.nextChars === "number"
+        ? nestedError.nextChars
+        : 0;
+  return { previousChars: prev, nextChars: next };
 }
 
 export class NovelcrafterSyncCoordinator {
@@ -94,6 +133,14 @@ export class NovelcrafterSyncCoordinator {
     return meta ? { ...meta } : undefined;
   }
 
+  getConfirmedVersion(storyId: string): number {
+    return this.metaByStory.get(storyId)?.version ?? 1;
+  }
+
+  advanceConfirmedVersion(storyId: string, version: number, updatedAt = Date.now()): void {
+    this.seedServerMeta(storyId, { version, updatedAt });
+  }
+
   getEpoch(storyId: string): number {
     return this.epochByStory.get(storyId) ?? 0;
   }
@@ -115,9 +162,7 @@ export class NovelcrafterSyncCoordinator {
 
   async runConflictRecovery<T>(storyId: string, recoveryStepFn: () => Promise<T>): Promise<T> {
     const existing = this.recoveringByStory.get(storyId);
-    if (existing) {
-      return existing as Promise<T>;
-    }
+    if (existing) return existing as Promise<T>;
     const promise = (async () => {
       try {
         return await recoveryStepFn();
@@ -143,15 +188,11 @@ export class NovelcrafterSyncCoordinator {
   }
 
   markSkipInitialGet(storyId: string): void {
-    if (storyId) {
-      this.skipInitialGetIds.add(storyId);
-    }
+    if (storyId) this.skipInitialGetIds.add(storyId);
   }
 
   consumeSkipInitialGet(storyId: string): boolean {
-    if (!storyId || !this.skipInitialGetIds.has(storyId)) {
-      return false;
-    }
+    if (!storyId || !this.skipInitialGetIds.has(storyId)) return false;
     this.skipInitialGetIds.delete(storyId);
     return true;
   }
@@ -160,12 +201,9 @@ export class NovelcrafterSyncCoordinator {
     knownStoryIds: Iterable<string>,
     createFn: () => Promise<string | null>
   ): Promise<string | null> {
-    if (this.creatingStoryPromise) {
-      return this.creatingStoryPromise;
-    }
+    if (this.creatingStoryPromise) return this.creatingStoryPromise;
     this.knownStoryIdsAtCreateStart = new Set(knownStoryIds);
     this.creatingStoryInFlight = true;
-
     const promise = (async () => {
       try {
         return await createFn();
@@ -175,16 +213,13 @@ export class NovelcrafterSyncCoordinator {
         this.knownStoryIdsAtCreateStart.clear();
       }
     })();
-
     this.creatingStoryPromise = promise;
     return promise;
   }
 
   private stampStateForPut(storyId: string, state: NovelcrafterStoryState): NovelcrafterStoryState {
     const meta = this.metaByStory.get(storyId);
-    if (!meta) {
-      return state;
-    }
+    if (!meta) return state;
     return {
       ...state,
       version: Math.max(state.version, meta.version),
@@ -236,12 +271,7 @@ export class NovelcrafterSyncCoordinator {
           const { version, updatedAt } = transportResult.savedState;
           this.seedServerMeta(storyId, { version, updatedAt });
           this.consecutiveRecoveriesByStory.set(storyId, 0);
-          lastOutcome = {
-            status: "saved",
-            version,
-            updatedAt,
-            ackedSnapshotUpdatedAt,
-          };
+          lastOutcome = { status: "saved", version, updatedAt, ackedSnapshotUpdatedAt };
         } else if (transportResult.status === "rate_limited") {
           this.queuedByStory.delete(storyId);
           return {
@@ -260,6 +290,16 @@ export class NovelcrafterSyncCoordinator {
             newEpoch,
             canAutoRecover: nextCount <= MAX_CONSECUTIVE_CONFLICT_RECOVERIES,
           };
+        } else if (transportResult.status === "destructive_rejected") {
+          const latestQueued = this.queuedByStory.get(storyId);
+          const unsavedState = latestQueued ? latestQueued.state : currentCandidate;
+          this.queuedByStory.delete(storyId);
+          return {
+            status: "destructive_rejected",
+            previousChars: transportResult.previousChars,
+            nextChars: transportResult.nextChars,
+            unsavedState,
+          };
         } else if (transportResult.status === "payload_too_large") {
           this.queuedByStory.delete(storyId);
           return { status: "payload_too_large" };
@@ -269,9 +309,7 @@ export class NovelcrafterSyncCoordinator {
         }
 
         const nextQueued = this.queuedByStory.get(storyId);
-        if (!nextQueued) {
-          return lastOutcome;
-        }
+        if (!nextQueued) return lastOutcome;
         this.queuedByStory.delete(storyId);
         currentCandidate = nextQueued.state;
         candidateEpoch = nextQueued.epoch;
@@ -337,6 +375,14 @@ export function resolveSaveFailurePresentation(
       shouldShowErrorToast: !outcome.canAutoRecover && isManual,
       shouldTrimPayloadAndRetry: false,
       shouldRunConflictRecovery: outcome.canAutoRecover,
+    };
+  }
+  if (outcome.status === "destructive_rejected") {
+    return {
+      nextSaveStatus: "unsaved",
+      shouldShowErrorToast: false,
+      shouldTrimPayloadAndRetry: false,
+      shouldRunConflictRecovery: false,
     };
   }
   if (outcome.status === "payload_too_large") {

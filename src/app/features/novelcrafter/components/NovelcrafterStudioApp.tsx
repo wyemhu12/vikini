@@ -1,31 +1,23 @@
 // /app/features/novelcrafter/components/NovelcrafterStudioApp.tsx
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import ToastContainer from "@/components/ui/ToastContainer";
-import { toast } from "@/lib/store/toastStore";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useTheme } from "../../chat/hooks/useTheme";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { useAllowedModels } from "../../chat/components/hooks/useAllowedModels";
 import { countChapterWords } from "@/lib/features/novelcrafter/draftStorage";
-import { parseFeedbackItems } from "@/lib/features/novelcrafter/feedbackParser";
-import {
-  applyStreamTargetUpdate,
-  resolveStreamTerminationState,
-  type DirectStreamTarget,
-} from "@/lib/features/novelcrafter/streamTargetGuard";
 import type { NovelcrafterBibleTarget } from "@/lib/features/novelcrafter/types";
 import { useNovelcrafterModelGuard } from "../hooks/useNovelcrafterModelGuard";
 import { useNovelcrafterStory } from "../hooks/useNovelcrafterStory";
-import {
-  useNovelcrafterStream,
-  type StreamTerminatedPayload,
-  type TriggerNovelcrafterStreamParams,
-} from "../hooks/useNovelcrafterStream";
+import { useNovelcrafterStream } from "../hooks/useNovelcrafterStream";
+import { useDirectStreamBridge } from "../hooks/useDirectStreamBridge";
+import { useStudioLayout } from "../hooks/useStudioLayout";
 import NovelcrafterTopBar from "./NovelcrafterTopBar";
 import NovelcrafterLeftNavigator, {
   type NovelcrafterBibleSectionId,
@@ -33,12 +25,14 @@ import NovelcrafterLeftNavigator, {
 import ChapterEditorWorkspace, { type EditorSelectionRange } from "./ChapterEditorWorkspace";
 import NovelcrafterHistoryPane from "./NovelcrafterHistoryPane";
 import GemPersonaRoutingModal from "./GemPersonaRoutingModal";
+import DestructiveSaveConfirmModal from "./DestructiveSaveConfirmModal";
 
 export default function NovelcrafterStudioApp() {
   const { data: session, status } = useSession();
   const isAuthed = status === "authenticated";
   useTheme();
   const { t } = useLanguage();
+  const layout = useStudioLayout();
 
   const {
     allowedModelIds,
@@ -60,6 +54,9 @@ export default function NovelcrafterStudioApp() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showLeftPane, setShowLeftPane] = useState(true);
   const [showRightPane, setShowRightPane] = useState(true);
+  const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
+  const [rightDrawerOpen, setRightDrawerOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [isRoutingModalOpen, setIsRoutingModalOpen] = useState(false);
   const [activeBibleSection, setActiveBibleSection] =
     useState<NovelcrafterBibleSectionId>("braindump");
@@ -70,171 +67,18 @@ export default function NovelcrafterStudioApp() {
   const [renamingStoryId, setRenamingStoryId] = useState<string | null>(null);
   const [renameStoryTitle, setRenameStoryTitle] = useState("");
   const [selection, setSelection] = useState<EditorSelectionRange | null>(null);
-  const [isDirectStreamingToChapter, setIsDirectStreamingToChapter] = useState(false);
 
-  const directStreamTargetRef = useRef<DirectStreamTarget | null>(null);
-  const rafIdRef = useRef<number | null>(null);
-  const pendingChunkRef = useRef<{
-    storyId: string;
-    fullContent: string;
-    params: TriggerNovelcrafterStreamParams;
-  } | null>(null);
-
-  const cancelRaf = useCallback(() => {
-    if (rafIdRef.current !== null && typeof window !== "undefined") {
-      window.cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
-    }
-    pendingChunkRef.current = null;
-  }, []);
-
-  useEffect(() => {
-    cancelRaf();
-    directStreamTargetRef.current = null;
-    setIsDirectStreamingToChapter(false);
-    return () => cancelRaf();
-  }, [story.selectedConversationId, cancelRaf]);
-
-  const handleStreamStarted = useCallback(
-    ({ storyId, params }: { storyId: string; params: TriggerNovelcrafterStreamParams }) => {
-      cancelRaf();
-      const currentState = story.latestStateRef.current.state;
-      const activeCh =
-        currentState.chapters.find((c) => c.id === currentState.activeChapterId) ||
-        currentState.chapters[0];
-      if (
-        params.feature === "write" ||
-        (params.feature === "bible" && params.bibleTarget === "draft")
-      ) {
-        directStreamTargetRef.current = {
-          storyId,
-          kind: "chapter_prose",
-          chapterId: activeCh.id,
-          baseContent: activeCh.content,
-        };
-        setIsDirectStreamingToChapter(true);
-      } else if (params.feature === "bible" && params.bibleTarget === "scenes") {
-        directStreamTargetRef.current = {
-          storyId,
-          kind: "chapter_scenes",
-          chapterId: activeCh.id,
-          baseContent: activeCh.scenes,
-        };
-        setIsDirectStreamingToChapter(true);
-      } else if (
-        params.feature === "bible" &&
-        params.bibleTarget &&
-        params.bibleTarget !== "draft" &&
-        params.bibleTarget !== "scenes"
-      ) {
-        const field = params.bibleTarget;
-        directStreamTargetRef.current = {
-          storyId,
-          kind: "bible_field",
-          bibleField: field,
-          baseContent: currentState.storyBible[field],
-        };
-        setIsDirectStreamingToChapter(false);
-      } else {
-        directStreamTargetRef.current = null;
-        setIsDirectStreamingToChapter(false);
-      }
-    },
-    [cancelRaf, story.latestStateRef]
-  );
-
-  const handleStreamTokenChunk = useCallback(
-    (payload: {
-      storyId: string;
-      fullContent: string;
-      params: TriggerNovelcrafterStreamParams;
-    }) => {
-      pendingChunkRef.current = payload;
-      if (rafIdRef.current !== null || typeof window === "undefined") return;
-      rafIdRef.current = window.requestAnimationFrame(() => {
-        rafIdRef.current = null;
-        const pending = pendingChunkRef.current;
-        if (!pending) return;
-
-        if (pending.params.feature === "feedback") {
-          if (story.latestStateRef.current.ownerStoryId !== pending.storyId) return;
-          const parsedItems = parseFeedbackItems(pending.fullContent, { isStreaming: true });
-          if (parsedItems.length === 0) return;
-          const currentState = story.latestStateRef.current.state;
-          story.applyDirectStoryState(
-            {
-              ...currentState,
-              chapters: currentState.chapters.map((ch) =>
-                ch.id === currentState.activeChapterId ? { ...ch, feedbackItems: parsedItems } : ch
-              ),
-            },
-            { skipSave: true }
-          );
-          return;
-        }
-
-        const target = directStreamTargetRef.current;
-        if (!target || target.storyId !== pending.storyId) return;
-        const applied = applyStreamTargetUpdate(
-          story.latestStateRef.current,
-          target,
-          pending.fullContent
-        );
-        if (applied.applied) story.applyDirectStoryState(applied.nextState, { skipSave: true });
-      });
-    },
-    [story]
-  );
-
-  const handleStreamTerminated = useCallback(
-    (payload: StreamTerminatedPayload) => {
-      cancelRaf();
-      setIsDirectStreamingToChapter(false);
-      if (payload.params.feature === "feedback") {
-        if (
-          story.latestStateRef.current.ownerStoryId === payload.storyId &&
-          payload.fullContent.trim()
-        ) {
-          const parsedItems = parseFeedbackItems(payload.fullContent, { isStreaming: false });
-          if (parsedItems.length > 0) {
-            story.updateChapterFeedbackItems(
-              story.latestStateRef.current.state.activeChapterId,
-              (existing) => [...parsedItems, ...existing.filter((i) => i.status === "resolved")],
-              true
-            );
-          }
-        }
-        directStreamTargetRef.current = null;
-        return;
-      }
-
-      const target = directStreamTargetRef.current;
-      directStreamTargetRef.current = null;
-      if (!target || story.latestStateRef.current.ownerStoryId !== target.storyId) return;
-
-      const resolved = resolveStreamTerminationState({
-        reason: payload.reason,
-        baseContent: target.baseContent,
-        accumulatedStreamText: payload.fullContent,
-        isAppendMode: target.kind === "chapter_prose",
-      });
-      const applied = applyStreamTargetUpdate(
-        story.latestStateRef.current,
-        { ...target, baseContent: "" },
-        resolved.finalFieldContent
-      );
-      if (applied.applied) {
-        story.applyDirectStoryState(applied.nextState, {
-          immediate: resolved.shouldPersistState,
-          skipSave: !resolved.shouldPersistState,
-        });
-      }
-      if (resolved.refusalDetected && resolved.refusalMessage) {
-        toast.error(resolved.refusalMessage.slice(0, 240));
-      }
-    },
-    [cancelRaf, story]
-  );
+  const {
+    isDirectStreamingToChapter,
+    handleStreamStarted,
+    handleStreamTokenChunk,
+    handleStreamTerminated,
+  } = useDirectStreamBridge({
+    selectedConversationId: story.selectedConversationId,
+    latestStateRef: story.latestStateRef,
+    applyDirectStoryState: story.applyDirectStoryState,
+    updateChapterFeedbackItems: story.updateChapterFeedbackItems,
+  });
 
   const stream = useNovelcrafterStream({
     selectedConversationId: story.validStoryId,
@@ -310,11 +154,54 @@ export default function NovelcrafterStudioApp() {
   }
 
   const currentTitle = story.currentStory?.title || t("novelcrafterDefaultStoryTitle");
+  const isLeftInline = layout.navigatorMode === "inline" && !focusMode;
+  const isRightInline = layout.historyMode === "inline" && !focusMode;
+
+  const navigatorNode = (
+    <NovelcrafterLeftNavigator
+      isStoryBibleOpen={story.storyState.isStoryBibleOpen}
+      onToggleStoryBible={story.setStoryBibleOpen}
+      activeBibleSection={activeBibleSection}
+      onJumpToBibleSection={(sec) => {
+        setActiveBibleSection(sec);
+        story.setStoryBibleOpen(true);
+        setBibleJumpRequest({ section: sec, nonce: Date.now() });
+        setLeftDrawerOpen(false);
+      }}
+      chapters={story.storyState.chapters}
+      activeChapterId={story.activeChapter.id}
+      onSelectChapter={(chId) => {
+        story.selectChapter(chId);
+        setLeftDrawerOpen(false);
+      }}
+      onAddChapter={story.addChapter}
+      onRenameChapter={(chapterId, title) => story.updateChapter(chapterId, { title })}
+      onDeleteChapter={(chapterId) => void story.deleteChapter(chapterId)}
+    />
+  );
+
+  const historyNode = (
+    <NovelcrafterHistoryPane
+      historyCards={story.storyState.historyCards}
+      isStreaming={stream.isStreaming}
+      streamingContent={stream.streamingContent}
+      streamingThinking={stream.streamingThinking}
+      streamingMeta={stream.streamingMeta}
+      hasActiveSelection={Boolean(selection && selection.text.length > 0)}
+      onAppendToChapter={handleAppendToChapter}
+      onReplaceSelection={handleReplaceSelection}
+      onApplyToBible={handleApplyToBible}
+      onDeleteCard={story.deleteHistoryCard}
+      onClearAllCards={() => void story.clearHistoryCards()}
+    />
+  );
 
   return (
-    <div className="h-dvh w-full text-(--text-primary) overflow-hidden relative font-sans bg-(--surface) flex">
+    <div
+      style={{ "--nc-kb-offset": `${layout.keyboardOffsetPx}px` } as React.CSSProperties}
+      className="h-dvh w-full text-(--text-primary) overflow-hidden relative font-sans bg-(--surface) flex"
+    >
       <ToastContainer />
-
       <Sidebar
         conversations={story.stories}
         selectedConversationId={story.validStoryId}
@@ -356,9 +243,9 @@ export default function NovelcrafterStudioApp() {
         <div className="flex-1 min-h-0 flex flex-col pt-[calc(3.5rem+var(--sat,0px))] md:pt-0">
           <NovelcrafterTopBar
             storyTitle={currentTitle}
-            onRenameTitle={(newTitle) => {
-              if (story.validStoryId) void story.handleRenameStory(story.validStoryId, newTitle);
-            }}
+            onRenameTitle={(newTitle) =>
+              story.validStoryId && void story.handleRenameStory(story.validStoryId, newTitle)
+            }
             selectedModel={story.storyState.selectedModel}
             onSelectModel={handleSelectModel}
             allowedModelIds={allowedModelIds}
@@ -366,12 +253,17 @@ export default function NovelcrafterStudioApp() {
             masterPersona={masterPersona}
             saveStatus={story.saveStatus}
             chapterWordCount={chapterWordCount}
+            historyCount={story.storyState.historyCards.length}
             onRetrySave={() => void story.saveNow({ isManual: true })}
             onOpenRoutingModal={() => setIsRoutingModalOpen(true)}
-            showLeftPane={showLeftPane}
-            onToggleLeftPane={() => setShowLeftPane((p) => !p)}
-            showRightPane={showRightPane}
-            onToggleRightPane={() => setShowRightPane((p) => !p)}
+            showLeftPane={isLeftInline ? showLeftPane : leftDrawerOpen}
+            onToggleLeftPane={() =>
+              isLeftInline ? setShowLeftPane((p) => !p) : setLeftDrawerOpen((p) => !p)
+            }
+            showRightPane={isRightInline ? showRightPane : rightDrawerOpen}
+            onToggleRightPane={() =>
+              isRightInline ? setShowRightPane((p) => !p) : setRightDrawerOpen((p) => !p)
+            }
             renamingStoryId={renamingStoryId}
             renameStoryTitle={renameStoryTitle}
             onChangeRenameStoryTitle={setRenameStoryTitle}
@@ -384,23 +276,16 @@ export default function NovelcrafterStudioApp() {
           />
 
           <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
-            {showLeftPane && (
-              <NovelcrafterLeftNavigator
-                isStoryBibleOpen={story.storyState.isStoryBibleOpen}
-                onToggleStoryBible={story.setStoryBibleOpen}
-                activeBibleSection={activeBibleSection}
-                onJumpToBibleSection={(sec) => {
-                  setActiveBibleSection(sec);
-                  story.setStoryBibleOpen(true);
-                  setBibleJumpRequest({ section: sec, nonce: Date.now() });
-                }}
-                chapters={story.storyState.chapters}
-                activeChapterId={story.activeChapter.id}
-                onSelectChapter={story.selectChapter}
-                onAddChapter={story.addChapter}
-                onRenameChapter={(chapterId, title) => story.updateChapter(chapterId, { title })}
-                onDeleteChapter={(chapterId) => void story.deleteChapter(chapterId)}
-              />
+            {isLeftInline && showLeftPane && navigatorNode}
+            {!isLeftInline && (
+              <Sheet open={leftDrawerOpen} onOpenChange={setLeftDrawerOpen}>
+                <SheetContent side="left" className="p-0 flex flex-col">
+                  <SheetHeader className="sr-only">
+                    <SheetTitle>{t("novelcrafterChaptersTab")}</SheetTitle>
+                  </SheetHeader>
+                  {navigatorNode}
+                </SheetContent>
+              </Sheet>
             )}
 
             <ChapterEditorWorkspace
@@ -419,22 +304,21 @@ export default function NovelcrafterStudioApp() {
               onToggleStoryBible={story.setStoryBibleOpen}
               activeBibleSection={activeBibleSection}
               bibleJumpRequest={bibleJumpRequest}
+              feedbackMode={layout.feedbackMode}
+              focusMode={focusMode}
+              onToggleFocusMode={() => setFocusMode((p) => !p)}
             />
 
-            {showRightPane && (
-              <NovelcrafterHistoryPane
-                historyCards={story.storyState.historyCards}
-                isStreaming={stream.isStreaming}
-                streamingContent={stream.streamingContent}
-                streamingThinking={stream.streamingThinking}
-                streamingMeta={stream.streamingMeta}
-                hasActiveSelection={Boolean(selection && selection.text.length > 0)}
-                onAppendToChapter={handleAppendToChapter}
-                onReplaceSelection={handleReplaceSelection}
-                onApplyToBible={handleApplyToBible}
-                onDeleteCard={story.deleteHistoryCard}
-                onClearAllCards={() => void story.clearHistoryCards()}
-              />
+            {isRightInline && showRightPane && historyNode}
+            {!isRightInline && (
+              <Sheet open={rightDrawerOpen} onOpenChange={setRightDrawerOpen}>
+                <SheetContent side="right" className="p-0 flex flex-col">
+                  <SheetHeader className="sr-only">
+                    <SheetTitle>{t("novelcrafterHistoryTitle")}</SheetTitle>
+                  </SheetHeader>
+                  {historyNode}
+                </SheetContent>
+              </Sheet>
             )}
           </div>
         </div>
@@ -448,6 +332,12 @@ export default function NovelcrafterStudioApp() {
         personas={story.personas}
         onUpdateRouting={story.updateRouting}
         onUpdateFeatureSlot={story.updateFeaturePersonaSlot}
+      />
+
+      <DestructiveSaveConfirmModal
+        prompt={story.destructivePrompt}
+        onConfirmOverwrite={() => void story.confirmDestructiveSave()}
+        onReloadSafe={() => void story.reloadAfterDestructiveRejection()}
       />
     </div>
   );

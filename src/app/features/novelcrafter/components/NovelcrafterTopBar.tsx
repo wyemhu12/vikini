@@ -41,6 +41,7 @@ interface NovelcrafterTopBarProps {
   masterPersona: ClientPersonaItem | null;
   saveStatus: StorySaveStatus;
   chapterWordCount: number;
+  historyCount?: number;
   onRetrySave: () => void;
   onOpenRoutingModal: () => void;
   showLeftPane: boolean;
@@ -64,6 +65,7 @@ export default function NovelcrafterTopBar({
   masterPersona,
   saveStatus,
   chapterWordCount,
+  historyCount = 0,
   onRetrySave,
   onOpenRoutingModal,
   showLeftPane,
@@ -96,14 +98,14 @@ export default function NovelcrafterTopBar({
     <>
       <header className="shrink-0 border-b border-(--border) bg-(--surface-muted)/90 backdrop-blur-xl px-3 md:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2 z-20">
         {/* Left: Pane Toggle + Story Title */}
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <button
             type="button"
             onClick={onToggleLeftPane}
             aria-pressed={showLeftPane}
             aria-label={t("novelcrafterToggleNavigatorPane")}
             className={cn(
-              "p-2 rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+              "p-2 rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0",
               showLeftPane
                 ? "bg-(--control-bg-hover) border-(--control-border) text-(--accent)"
                 : "bg-(--control-bg) border-(--border) text-(--text-secondary) hover:text-(--text-primary)"
@@ -113,7 +115,7 @@ export default function NovelcrafterTopBar({
           </button>
 
           <div className="flex items-center gap-2 min-w-0 flex-1 max-w-md">
-            <BookOpen className="w-4 h-4 text-(--accent) shrink-0" />
+            <BookOpen className="w-4 h-4 text-(--accent) shrink-0 hidden sm:inline" />
             <input
               type="text"
               value={titleDraft}
@@ -132,7 +134,7 @@ export default function NovelcrafterTopBar({
         </div>
 
         {/* Right: Silent Sudowrite Status + Model Selector + Master GEM/Persona + Routing + History Pane */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           {saveStatus === "error" ? (
             <button
               type="button"
@@ -194,7 +196,7 @@ export default function NovelcrafterTopBar({
           <button
             type="button"
             onClick={onOpenRoutingModal}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <Settings2 className="w-3.5 h-3.5 shrink-0" />
             <span className="hidden sm:inline">{t("novelcrafterRoutingButton")}</span>
@@ -206,13 +208,18 @@ export default function NovelcrafterTopBar({
             aria-pressed={showRightPane}
             aria-label={t("novelcrafterToggleHistoryPane")}
             className={cn(
-              "p-2 rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+              "relative inline-flex items-center gap-1 p-2 rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
               showRightPane
                 ? "bg-(--control-bg-hover) border-(--control-border) text-(--accent)"
                 : "bg-(--control-bg) border-(--border) text-(--text-secondary) hover:text-(--text-primary)"
             )}
           >
             <PanelRight className="w-4 h-4" />
+            {historyCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-(--accent)/20 text-(--accent) text-[10px] font-bold">
+                {historyCount}
+              </span>
+            )}
           </button>
         </div>
       </header>
