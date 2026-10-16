@@ -31,6 +31,7 @@ export default function DestructiveSaveConfirmModal({
   if (!prompt) return null;
 
   const descriptionText = t("novelcrafterDestructiveSaveDesc")
+    .replace("{prev}", prompt.previousChars.toLocaleString())
     .replace("{previous}", prompt.previousChars.toLocaleString())
     .replace("{next}", prompt.nextChars.toLocaleString());
 

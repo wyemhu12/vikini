@@ -280,7 +280,9 @@ export function StoryBibleOutlineItemsList({
             >
               <div className="flex items-center gap-1.5">
                 <span className="px-2 py-0.5 rounded bg-(--control-bg) border border-(--border) text-[11px] font-bold uppercase text-(--accent) shrink-0">
-                  {item.type}
+                  {item.type === "act"
+                    ? t("novelcrafterOutlineActPrefix")
+                    : t("novelcrafterChapterPrefix")}
                 </span>
                 <input
                   type="text"

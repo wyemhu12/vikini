@@ -78,6 +78,15 @@
 - **Fix**: Added 41 translation keys to config.ts, replaced all hardcoded strings with `t()` calls.
 - **Prevention**: Every new user-facing string MUST use the `t()` translation function. Never hardcode English or Vietnamese strings directly.
 
+### 2026-10-16: Translation key drift (`t(key: string)` returning raw codenames) & redundant parenthetical English in `vi.ts`
+
+- **Symptom**: Several buttons in Novelcrafter Studio rendered raw camelCase key codenames (`novelcrafterCardCollapse`, `novelcrafterAddCharacterCardBtn`, `novelcrafterAddOutlineActBtn`, `novelcrafterAddOutlineChapterBtn`), and Vietnamese UI labels contained redundant parenthetical English (`"Văn phong & Giọng kể (Style)"`, `"Thể loại (Genre)"`, `"Tóm tắt cốt truyện (Synopsis)"`, etc.).
+- **Root Cause**:
+  1. `useLanguage.ts` defines `t(key: string): string` which falls back to `String(key)` at runtime without a compile-time error when components call slightly different key names (`novelcrafterCardCollapse` vs `novelcrafterCollapseCard`, `*Btn` suffix vs no suffix).
+  2. Initial Vietnamese strings in `src/lib/utils/translations/vi.ts` included English feature terms in parentheses, cluttering the Vietnamese interface.
+- **Fix**: Synchronized all component translation keys across `src/lib/utils/translations/vi.ts` and `src/lib/utils/translations/en.ts`, localized outline item badges and chapter/act prefixes (`novelcrafterChapterPrefix`, `novelcrafterOutlineActPrefix`), and removed all unnecessary parenthetical English from `vi.ts`.
+- **Prevention**: Always cross-verify every `t("...")` key in newly created components against `vi.ts` and `en.ts`, and write pure, natural Vietnamese in `vi.ts` without appending English terms in parentheses.
+
 ### 2026-06-12: Hardcoded Vietnamese in toast messages
 
 - **Symptom**: `CreateProjectModal` had `"Đã tạo dự án..."` toast — Vietnamese-only, not translated.

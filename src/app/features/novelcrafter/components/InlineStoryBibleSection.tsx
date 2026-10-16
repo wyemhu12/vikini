@@ -65,9 +65,6 @@ export default function InlineStoryBibleSection({
           <div>
             <h3 className="text-sm md:text-base font-bold text-(--text-primary) flex items-center gap-1.5">
               <span>{t("novelcrafterStoryBibleTitle")}</span>
-              <span className="text-xs font-normal text-(--text-secondary) hidden sm:inline">
-                ({isOpen ? t("novelcrafterCollapseBible") : t("novelcrafterExpandBible")})
-              </span>
             </h3>
             <p className="text-xs text-(--text-secondary) leading-tight">
               {t("novelcrafterStoryBibleSubtitle")}

@@ -146,7 +146,7 @@ export function useNovelcrafterStateMutators({
         const nextIndex = prev.chapters.length + 1;
         const newChapter: NovelcrafterChapter = {
           id: `ch-${Date.now()}-${nextIndex}`,
-          title: `${t("novelcrafterChaptersTab")} ${nextIndex}`,
+          title: `${t("novelcrafterChapterPrefix")} ${nextIndex}`,
           scenes: "",
           extraInstructions: "",
           content: "",

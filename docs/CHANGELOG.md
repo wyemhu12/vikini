@@ -25,7 +25,9 @@
   - Thay thế cơ chế fallback xóa trắng truyện khi vượt giới hạn ký tự bằng `coerceStoryStateToLimits` (`stateLimits.ts`) cắt gọt an toàn từng trường độc lập.
   - Bổ sung chốt chặn **Chống ghi đè mất dữ liệu (`DESTRUCTIVE_SAVE_REJECTED` HTTP 409)** kèm hộp thoại xác nhận `DestructiveSaveConfirmModal.tsx` và kiểm tra CAS `.eq("meta->>version", ...)` tại `storyPersistence.server.ts`.
   - Xây dựng cơ chế giữ chỗ hạn ngạch đồng thời trên Upstash Redis (`reserveNovelcrafterStreamQuota`) kết hợp trừ lượt dùng hàng ngày trễ (`onFirstModelOutput`) để không làm mất lượt của người dùng nếu nhà cung cấp AI báo lỗi trước khi sinh chữ.
-- **Co-located Unit & Component Tests**:
+- **Co-located Unit & Component Tests & Bilingual Polish (`src/lib/utils/translations/vi.ts`, `src/lib/utils/translations/en.ts`)**:
+  - Đồng bộ toàn bộ khóa dịch thuật của các component mới (`NovelcrafterHistoryCardItem`, `NovelcrafterCardMetaBadges`, `StoryBibleStructuredCards`, `SheetSubToolbar`, `ChapterEmptyStateActions`, `DestructiveSaveConfirmModal`, `ChapterEditorWorkspace`, `useNovelcrafterStateMutators`, `useStoryBibleMutators`), khắc phục triệt để lỗi hiển thị tên biến thô (codenames) trên nút bấm.
+  - Làm sạch toàn bộ chuỗi tiếng Việt trong `vi.ts`, loại bỏ phần mở ngoặc tiếng Anh dư thừa để giao diện tiếng Việt tự nhiên và nhất quán.
   - Bổ sung kiểm thử cho `stateLimits.test.ts`, `modelDisplay.test.ts`, `studioLayout.test.ts`, `storyBibleSerializer.test.ts`, `streamQuotaGuard.server.test.ts`, và `NovelcrafterHistoryCardItem.test.tsx`.
 
 ---

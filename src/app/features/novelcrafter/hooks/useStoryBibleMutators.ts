@@ -164,8 +164,8 @@ export function useStoryBibleMutators(
           type,
           title:
             type === "act"
-              ? `Act ${current.filter((i) => i.type === "act").length + 1}`
-              : `${t("novelcrafterChaptersTab")} ${current.filter((i) => i.type === "chapter").length + 1}`,
+              ? `${t("novelcrafterOutlineActPrefix")} ${current.filter((i) => i.type === "act").length + 1}`
+              : `${t("novelcrafterChapterPrefix")} ${current.filter((i) => i.type === "chapter").length + 1}`,
           summary: "",
         };
         return {
