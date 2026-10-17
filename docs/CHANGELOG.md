@@ -8,6 +8,28 @@
 
 ---
 
+## 2026-10-17: Bug Fix & Hardening -- Novelcrafter Studio: Phase 1 & Phase 2 Comprehensive Audit Fixes, Stream Lifecycle Guard, Corrupted State Backup & Co-Located Test Suite
+
+- **Stream Lifecycle, Pending Story Promotion & Refusal Card Guard (`src/lib/features/novelcrafter/streamRunRegistry.ts`, `src/app/features/novelcrafter/hooks/useNovelcrafterStream.ts`, `src/app/features/novelcrafter/hooks/useDirectStreamBridge.ts`, `src/app/features/novelcrafter/components/NovelcrafterStudioApp.tsx`, `src/app/features/novelcrafter/components/ChapterEditorWorkspace.tsx`, `src/app/features/novelcrafter/components/StoryBibleWorkspace.tsx`)**:
+  - Sửa triệt để lỗi tự hủy stream (`abort()`) và kẹt `isStreaming = true` khi người dùng bấm công cụ AI lần đầu trên truyện mới (`selectedConversationId: null -> newStoryId`): khởi tạo `AbortController` và bật `isStreaming` trước khi `await ensureStoryConversation()`, bọc `try/catch/finally` với cờ `isPromotingStoryRef`, tách hàm thuần `shouldAbortStreamOnConversationChange` và tách riêng unmount cleanup effect.
+  - Đồng bộ `selectedConversationId: story.validStoryId` cho `useDirectStreamBridge` trong `NovelcrafterStudioApp.tsx`.
+  - Chặn tạo thẻ History rác khi mô hình phát văn bản từ chối (`isLikelyModelRefusalOutput` / `handledRefusal`) và hoãn hiển thị `toast.error` tới sau `onStreamTerminated` để tránh trùng lặp thông báo.
+- **Feedback Stream Merge & Reply Preservation (`src/lib/features/novelcrafter/feedbackParser.ts`, `src/app/features/novelcrafter/hooks/useDirectStreamBridge.ts`, `src/app/features/novelcrafter/components/ChapterEditorWorkspace.tsx`)**:
+  - Bổ sung hàm thuần `mergeStreamedFeedbackItems` và cố định `feedbackBaseItemsRef` khi bắt đầu stream `feedback`, bảo toàn nguyên vẹn các thẻ `resolved` và thẻ `open` đã có `userReply`/`rating` qua từng frame `requestAnimationFrame`, đồng thời truyền `replyToFeedbackId` khi phản hồi nhận xét.
+- **Serverless Quota Guard, Token-Only Quota Commit & Corrupted State Backup (`src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts`, `src/lib/features/novelcrafter/streamQuotaGuard.server.ts`, `src/lib/features/novelcrafter/storyPersistence.server.ts`, `src/lib/features/novelcrafter/draftStorage.ts`, `src/app/features/novelcrafter/hooks/useNovelcrafterCatalog.ts`, `src/app/features/novelcrafter/hooks/useNovelcrafterStory.ts`, `src/app/features/novelcrafter/hooks/useStoryPersistenceLifecycle.ts`, `src/app/features/novelcrafter/components/DestructiveSaveConfirmModal.tsx`)**:
+  - Chỉ gọi `onFirstModelOutput()` khi phát ra `token` chunk thực sự (không trừ hạn ngạch nếu mô hình chỉ phát `thinking` rồi lỗi), và làm sạch thông báo lỗi SSE qua `sanitizeError(err, true)`.
+  - Gia hạn TTL có điều kiện `redis.expire(key, INFLIGHT_TTL_SECONDS, "NX")` khi `inFlight > 1` và giải phóng bộ đếm nguyên tử bằng Lua script `DECR_AND_CLEANUP_LUA` qua `redis.eval`.
+  - Khi giải mã `story_state` thất bại, ném `AppError("Story state is unreadable", 500, "STORY_STATE_CORRUPTED")` thay vì trả về state rỗng mặc định; cô lập state ở phía client (`resolveStoryLoadFailureState`), khóa autosave (`shouldBlockAutosaveForStory`) và khóa editor (`isLoadLocked`), phân biệt lỗi mạng/DB tạm thời với lỗi hỏng giải mã (`resolveLoadLockRecoveryAction`), bảo vệ owner sau `await` (`shouldApplyLoadLockRetryResult`), và lưu bản sao lưu dòng hỏng vào dòng `messages` riêng (`meta.novelcrafterType = "story_state_corrupted_backup"`) trước khi ghi đè.
+- **Prompt Context Window, Structured Cards Rewrite, Parsers & UI/Bilingual Polish (`src/lib/features/novelcrafter/promptBuilder.ts`, `src/lib/features/novelcrafter/featureDirectives.ts`, `src/lib/features/novelcrafter/characterParser.ts`, `src/lib/features/novelcrafter/openingsParser.ts`, `src/lib/utils/translations/vi.ts`, `src/lib/utils/translations/en.ts`)**:
+  - Giữ 25% đầu chương (`4,500` ký tự) + 75% cuối chương (`13,500` ký tự) trong `<preceding_prose>` khi chương vượt quá `18,000` ký tự.
+  - Tích hợp `serializeStoryBibleWithStructuredCards` vào `buildBibleDirective` và nối `chapterExtraInstructions` vào đủ 5 sub-mode của `write`, `rewrite`, và 2 sub-mode của `expand`.
+  - Sửa regex `characterParser.ts` bảo toàn tên có dấu gạch nối (`Spider-Man`, `Jean-Luc Picard`, `T-800`) và sửa `openingsParser.ts` hỗ trợ tiêu đề bọc dấu `**`.
+  - Chuẩn hóa toàn bộ 9 vị trí `text-[10px]`/`text-[11px]`/`py-0.2` sang `text-xs`/`py-0.5` và cập nhật chuỗi dịch thuật từ 5 tính năng sang 6 tính năng.
+- **Co-located Unit Tests**:
+  - Tạo mới 6 file unit test (`characterParser.test.ts`, `openingsParser.test.ts`, `pruneStoryBibleForStream.test.ts`, `streamRunRegistry.test.ts`, `modelGuards.server.test.ts`, `novelcrafterStreamStore.test.ts`) và mở rộng 9 file unit test hiện có theo Test Contract TC-01..TC-10 (21/21 files, 97/97 tests trong phân hệ Novelcrafter pass 100%).
+
+---
+
 ## 2026-10-16: Feature, UX & Architecture Upgrade -- Novelcrafter Studio: Expandable History Cards with Model Badges, Sudowrite UX Parity, Foldable/Mobile Responsive Layout & Data Integrity Hardening
 
 - **Expandable History Cards & Model Provenance Badge (`src/app/features/novelcrafter/components/NovelcrafterHistoryCardItem.tsx`, `src/app/features/novelcrafter/components/NovelcrafterCardMetaBadges.tsx`, `src/app/features/novelcrafter/components/NovelcrafterHistoryPane.tsx`, `src/lib/features/novelcrafter/modelDisplay.ts`, `src/lib/features/novelcrafter/openingsParser.ts`)**:

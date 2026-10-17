@@ -13,7 +13,9 @@ import {
   promoteUnsavedDraftToStory,
   readLocalStoryDraft,
   removeLocalStoryDraft,
+  resolveStoryLoadFailureState,
   resolveValidNovelcrafterStoryId,
+  shouldBlockAutosaveForStory,
 } from "@/lib/features/novelcrafter/draftStorage";
 import {
   NovelcrafterSyncCoordinator,
@@ -66,8 +68,8 @@ export function useNovelcrafterStory(isAuthed: boolean) {
   }, [stories]);
 
   const validStoryId = useMemo(
-    () => resolveValidNovelcrafterStoryId(selectedConversationId, stories),
-    [selectedConversationId, stories]
+    () => resolveValidNovelcrafterStoryId(selectedConversationId, stories, coordinator),
+    [selectedConversationId, stories, coordinator]
   );
   const currentStory = useMemo(
     () => (validStoryId ? stories.find((s) => s.id === validStoryId) || null : null),
@@ -79,6 +81,20 @@ export function useNovelcrafterStory(isAuthed: boolean) {
   );
   const [isLoadingState, setIsLoadingState] = useState(false);
   const [saveStatus, setSaveStatus] = useState<StorySaveStatus>("saved");
+  const [loadErrorStoryId, setLoadErrorStoryId] = useState<string | null>(null);
+  const loadErrorStoryIdRef = useRef<string | null>(null);
+
+  const updateLoadErrorStoryId = useCallback((id: string | null) => {
+    loadErrorStoryIdRef.current = id;
+    setLoadErrorStoryId(id);
+  }, []);
+
+  const clearLoadErrorForStory = useCallback((storyId: string) => {
+    if (loadErrorStoryIdRef.current === storyId) {
+      loadErrorStoryIdRef.current = null;
+      setLoadErrorStoryId(null);
+    }
+  }, []);
 
   const latestStateRef = useRef<StoryScopedState>({ ownerStoryId: null, state: storyState });
   const executeSaveRef = useRef<
@@ -123,6 +139,8 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     validStoryId,
     coordinator,
     latestStateRef,
+    loadErrorStoryIdRef,
+    onClearLoadError: clearLoadErrorForStory,
     setStoryState,
     setSaveStatus,
     ensureActiveStory,
@@ -161,7 +179,8 @@ export function useNovelcrafterStory(isAuthed: boolean) {
       if (
         prevExists &&
         dirtyStoryIdsRef.current.has(prevStoryId) &&
-        latestStateRef.current.ownerStoryId === prevStoryId
+        latestStateRef.current.ownerStoryId === prevStoryId &&
+        !shouldBlockAutosaveForStory(prevStoryId, loadErrorStoryIdRef.current)
       ) {
         const snapshot = latestStateRef.current.state;
         flushLocalDraftSync(prevStoryId, snapshot);
@@ -172,6 +191,7 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     }
 
     if (!isAuthed || !validStoryId) {
+      updateLoadErrorStoryId(null);
       if (!coordinator.isCreatingStory() && latestStateRef.current.ownerStoryId !== null) {
         cancelPendingSaveTimers();
         const fresh = createDefaultStoryState(t("novelcrafterDefaultChapterTitle"));
@@ -194,6 +214,7 @@ export function useNovelcrafterStory(isAuthed: boolean) {
       currentOwnerStoryId: latestStateRef.current.ownerStoryId,
     });
     if (decision.shouldPromoteUnsaved) {
+      updateLoadErrorStoryId(null);
       const promoted = promoteUnsavedDraftToStory(
         validStoryId,
         latestStateRef.current.state,
@@ -222,6 +243,7 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     })
       .then((reconciled) => {
         if (cancelled) return;
+        updateLoadErrorStoryId(null);
         latestStateRef.current = { ownerStoryId: validStoryId, state: reconciled.state };
         setStoryState(reconciled.state);
         if (reconciled.conflictDetected) toast.info(t("novelcrafterConflictBackupNotice"));
@@ -237,6 +259,16 @@ export function useNovelcrafterStory(isAuthed: boolean) {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
+          cancelPendingSaveTimers();
+          dirtyStoryIdsRef.current.delete(validStoryId);
+          const fallbackScoped = resolveStoryLoadFailureState({
+            storyId: validStoryId,
+            defaultChapterTitle: t("novelcrafterDefaultChapterTitle"),
+          });
+          latestStateRef.current = fallbackScoped;
+          setStoryState(fallbackScoped.state);
+          updateLoadErrorStoryId(validStoryId);
+          setSaveStatus("error");
           storyLogger.error("Failed to load story state:", err);
           toast.error(t("novelcrafterLoadError"));
         }
@@ -255,13 +287,18 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     dirtyStoryIdsRef,
     flushLocalDraftSync,
     executeCoordinatorSave,
+    updateLoadErrorStoryId,
     t,
   ]);
 
   const handleCreateStory = useCallback(async (): Promise<string | null> => {
     try {
       const prevOwner = latestStateRef.current.ownerStoryId;
-      if (prevOwner && dirtyStoryIdsRef.current.has(prevOwner)) {
+      if (
+        prevOwner &&
+        dirtyStoryIdsRef.current.has(prevOwner) &&
+        !shouldBlockAutosaveForStory(prevOwner, loadErrorStoryIdRef.current)
+      ) {
         cancelPendingSaveTimers();
         flushLocalDraftSync(prevOwner, latestStateRef.current.state);
         void executeCoordinatorSave(prevOwner, latestStateRef.current.state, {
@@ -309,13 +346,14 @@ export function useNovelcrafterStory(isAuthed: boolean) {
         if (latestStateRef.current.ownerStoryId === storyId) cancelPendingSaveTimers();
         dirtyStoryIdsRef.current.delete(storyId);
         removeLocalStoryDraft(storyId);
+        clearLoadErrorForStory(storyId);
         await deleteConversation(storyId);
       } catch (err: unknown) {
         storyLogger.error("handleDeleteStory failed:", err);
         toast.error(t("deleteFailed"));
       }
     },
-    [t, cancelPendingSaveTimers, dirtyStoryIdsRef, deleteConversation]
+    [t, cancelPendingSaveTimers, dirtyStoryIdsRef, clearLoadErrorForStory, deleteConversation]
   );
 
   const handleRenameStory = useCallback(
@@ -354,6 +392,7 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     stories,
     currentStory,
     validStoryId,
+    loadErrorStoryId,
     selectedConversationId,
     setSelectedConversationId,
     creatingConversation,

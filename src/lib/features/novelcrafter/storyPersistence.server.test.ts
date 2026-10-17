@@ -36,12 +36,11 @@ vi.mock("@/lib/core/supabase.server", () => ({
         return {
           select: () => ({
             eq: (_col1: string, convId: string) => ({
-              eq: (_col2: string, _typeVal: string) => ({
+              eq: (_col2: string, typeVal: string) => ({
                 order: () =>
                   Promise.resolve({
                     data: hoisted.storedMessages.filter(
-                      (m) =>
-                        m.conversation_id === convId && m.meta?.novelcrafterType === "story_state"
+                      (m) => m.conversation_id === convId && m.meta?.novelcrafterType === typeVal
                     ),
                     error: null,
                   }),
@@ -102,10 +101,11 @@ vi.mock("@/lib/core/supabase.server", () => ({
 }));
 
 import { MODEL_IDS } from "@/lib/utils/constants";
-import { NotFoundError, ValidationError } from "@/lib/utils/errors";
+import { AppError, NotFoundError, ValidationError } from "@/lib/utils/errors";
 import { createDefaultStoryState } from "./types";
 import {
   getStoryState,
+  NOVELCRAFTER_CORRUPTED_BACKUP_META_TYPE,
   saveStoryState,
   verifyNovelcrafterConversationOwnership,
 } from "./storyPersistence.server";
@@ -221,5 +221,85 @@ describe("storyPersistence.server (TC-05)", () => {
     await expect(
       verifyNovelcrafterConversationOwnership(USER_ID, VALID_CONVO_ID)
     ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("TC-03A (Cases 3A-1..3A-5): throws STORY_STATE_CORRUPTED on decryption failure, blocks unconfirmed overwrites, and preserves corrupted backup row across subsequent saves", async () => {
+    hoisted.storedMessages.push({
+      id: "msg-corrupted-1",
+      conversation_id: VALID_CONVO_ID,
+      role: "system",
+      content: "corrupted-ciphertext",
+      meta: {
+        novelcrafterType: "story_state",
+        version: 2,
+        updatedAt: 1000,
+      },
+      created_at: new Date().toISOString(),
+    });
+
+    // Case 3A-1: getStoryState throws 500 STORY_STATE_CORRUPTED
+    await expect(getStoryState(USER_ID, VALID_CONVO_ID)).rejects.toMatchObject({
+      statusCode: 500,
+      code: "STORY_STATE_CORRUPTED",
+    });
+
+    // Case 3A-2: Unconfirmed save on corrupted row is ALWAYS rejected with 409 DESTRUCTIVE_SAVE_REJECTED even with large nextChars
+    const largeIncoming = createDefaultStoryState("Chương 1");
+    largeIncoming.version = 2;
+    largeIncoming.updatedAt = 2000;
+    largeIncoming.chapters[0].content = "A".repeat(5_000);
+
+    await expect(saveStoryState(USER_ID, VALID_CONVO_ID, largeIncoming)).rejects.toMatchObject({
+      statusCode: 409,
+      code: "DESTRUCTIVE_SAVE_REJECTED",
+      reason: "corrupted_remote",
+    });
+
+    // Case 3A-3: Confirmed recovery with allowDestructive: true bypasses stale check on corrupted row and inserts backup row
+    const recoveryState = createDefaultStoryState("Chương Khôi Phục");
+    recoveryState.version = 1;
+    recoveryState.updatedAt = 500;
+    recoveryState.chapters[0].content = "Nội dung khôi phục";
+
+    const recovered = await saveStoryState(USER_ID, VALID_CONVO_ID, recoveryState, {
+      allowDestructive: true,
+    });
+    expect(recovered.version).toBe(3);
+
+    const backupRowsAfterRecovery = hoisted.storedMessages.filter(
+      (m) => m.meta?.novelcrafterType === NOVELCRAFTER_CORRUPTED_BACKUP_META_TYPE
+    );
+    expect(backupRowsAfterRecovery).toHaveLength(1);
+    expect(backupRowsAfterRecovery[0].content).toBe("corrupted-ciphertext");
+
+    // Case 3A-4: Stale save on a healthy row is STILL rejected even if allowDestructive: true
+    const staleOnHealthy = {
+      ...recovered,
+      version: 1,
+      updatedAt: 500,
+    };
+    await expect(
+      saveStoryState(USER_ID, VALID_CONVO_ID, staleOnHealthy, { allowDestructive: true })
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    // Case 3A-5: Subsequent normal save updates main row to v4 while backup row survives intact
+    const nextEdit = {
+      ...recovered,
+      updatedAt: recovered.updatedAt + 1000,
+    };
+    nextEdit.chapters[0].content = "Nội dung chương v4";
+    const savedV4 = await saveStoryState(USER_ID, VALID_CONVO_ID, nextEdit);
+    expect(savedV4.version).toBe(4);
+
+    const loadedV4 = await getStoryState(USER_ID, VALID_CONVO_ID);
+    expect(loadedV4.version).toBe(4);
+    expect(loadedV4.chapters[0].content).toBe("Nội dung chương v4");
+
+    const backupRowsAfterV4 = hoisted.storedMessages.filter(
+      (m) => m.meta?.novelcrafterType === NOVELCRAFTER_CORRUPTED_BACKUP_META_TYPE
+    );
+    expect(backupRowsAfterV4).toHaveLength(1);
+    expect(backupRowsAfterV4[0].content).toBe("corrupted-ciphertext");
+    expect(AppError).toBeDefined();
   });
 });

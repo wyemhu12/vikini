@@ -50,6 +50,18 @@ export interface ClientPersonaItem {
   color?: string | null;
 }
 
+export class StoryLoadError extends Error {
+  readonly status: number;
+  readonly code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "StoryLoadError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 export async function fetchRemoteStoryState(
   conversationId: string,
   defaultChapterTitle: string,
@@ -58,7 +70,14 @@ export async function fetchRemoteStoryState(
   const res = await fetch(
     `/api/novelcrafter/state?conversationId=${encodeURIComponent(conversationId)}`
   );
-  if (!res.ok) throw new Error(loadErrorMsg);
+  if (!res.ok) {
+    const errJson = (await res.json().catch(() => ({}))) as {
+      error?: { message?: string; code?: string };
+      code?: string;
+    };
+    const errCode = errJson.error?.code || errJson.code;
+    throw new StoryLoadError(loadErrorMsg, res.status, errCode);
+  }
   const json = (await res.json()) as { data?: { state?: unknown }; state?: unknown };
   return sanitizeStoryState(json.data?.state ?? json.state, defaultChapterTitle);
 }

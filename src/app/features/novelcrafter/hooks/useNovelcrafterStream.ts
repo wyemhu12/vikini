@@ -9,8 +9,14 @@ import {
   useNovelcrafterStreamStore,
 } from "@/lib/features/novelcrafter/novelcrafterStreamStore";
 import { pruneStoryBibleForStream } from "@/lib/features/novelcrafter/pruneStoryBibleForStream";
-import { NovelcrafterStreamRunRegistry } from "@/lib/features/novelcrafter/streamRunRegistry";
-import type { StreamTerminationReason } from "@/lib/features/novelcrafter/streamTargetGuard";
+import {
+  NovelcrafterStreamRunRegistry,
+  shouldAbortStreamOnConversationChange,
+} from "@/lib/features/novelcrafter/streamRunRegistry";
+import {
+  isLikelyModelRefusalOutput,
+  type StreamTerminationReason,
+} from "@/lib/features/novelcrafter/streamTargetGuard";
 import type {
   NovelcrafterActionMode,
   NovelcrafterBibleTarget,
@@ -45,6 +51,7 @@ export interface TriggerNovelcrafterStreamParams {
   rewriteMode?: NovelcrafterRewriteMode;
   feedbackMode?: NovelcrafterFeedbackMode;
   feedbackCriteria?: NovelcrafterDevelopmentalCriterion[];
+  replyToFeedbackId?: string;
   expandMode?: NovelcrafterExpandMode;
   describeSenses?: NovelcrafterDescribeSense[];
   brainstormCategory?: NovelcrafterBrainstormCategory;
@@ -93,7 +100,7 @@ interface UseNovelcrafterStreamOptions {
     fullContent: string;
     params: TriggerNovelcrafterStreamParams;
   }) => void;
-  onStreamTerminated?: (payload: StreamTerminatedPayload) => void;
+  onStreamTerminated?: (payload: StreamTerminatedPayload) => { handledRefusal?: boolean } | void;
   onCardCompleted: (card: NovelcrafterHistoryCard) => void;
 }
 
@@ -108,6 +115,8 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
   if (!registryRef.current) registryRef.current = new NovelcrafterStreamRunRegistry();
   const registry = registryRef.current;
   const abortControllerRef = useRef<AbortController | null>(null);
+  const prevConversationIdRef = useRef<string | null>(selectedConversationId);
+  const isPromotingStoryRef = useRef(false);
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
@@ -126,13 +135,37 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
   }, [registry]);
 
   useEffect(() => {
+    const prevStoryId = prevConversationIdRef.current;
+    prevConversationIdRef.current = selectedConversationId;
+    const activeRunId = registry.getActiveRunId();
+    const activeTargetStoryId = activeRunId
+      ? registry.getTarget(activeRunId)?.targetStoryId
+      : undefined;
+
+    if (
+      shouldAbortStreamOnConversationChange({
+        prevStoryId,
+        nextStoryId: selectedConversationId,
+        activeTargetStoryId,
+        isPromotingPendingStory: isPromotingStoryRef.current,
+      })
+    ) {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+      registry.reset();
+      useNovelcrafterStreamStore.getState().resetStreamStore();
+      setIsStreaming(false);
+    }
+  }, [selectedConversationId, registry]);
+
+  useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
       registry.reset();
       useNovelcrafterStreamStore.getState().resetStreamStore();
     };
-  }, [selectedConversationId, registry]);
+  }, [registry]);
 
   useEffect(() => {
     if (!isStreaming) return;
@@ -172,14 +205,6 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      const targetConversationId =
-        opts.selectedConversationId || (await opts.ensureStoryConversation());
-      if (!targetConversationId) {
-        registry.endRun(runId);
-        return;
-      }
-      registry.promotePendingRunStory(runId, targetConversationId);
-
       const initialMeta: StreamingCardMeta = {
         model: opts.selectedModel,
         gemName: null,
@@ -193,6 +218,37 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
       setStreamingThinking("");
       setStreamingMeta(initialMeta);
       useNovelcrafterStreamStore.getState().beginStreamRun(runId, initialMeta);
+
+      let targetConversationId: string | null = opts.selectedConversationId;
+      if (!targetConversationId) {
+        try {
+          isPromotingStoryRef.current = true;
+          targetConversationId = await opts.ensureStoryConversation();
+          if (targetConversationId) {
+            registry.promotePendingRunStory(runId, targetConversationId);
+          }
+        } catch (err: unknown) {
+          streamHookLogger.error("Failed to ensure story conversation:", err);
+          targetConversationId = null;
+        } finally {
+          isPromotingStoryRef.current = false;
+        }
+      } else {
+        registry.promotePendingRunStory(runId, targetConversationId);
+      }
+
+      if (
+        !targetConversationId ||
+        controller.signal.aborted ||
+        registry.getActiveRunId() !== runId
+      ) {
+        const wasCurrentRun = registry.endRun(runId);
+        if (wasCurrentRun || !registry.isBusy()) {
+          setIsStreaming(false);
+          useNovelcrafterStreamStore.getState().finishStreamRun(runId);
+        }
+        return;
+      }
 
       const batcher = createRafStreamBatcher(runId, (rId, content, thinking) => {
         if (registry.getActiveRunId() !== rId) return;
@@ -211,6 +267,7 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
       let routedModel: string | undefined;
       let finishReason: NovelcrafterFinishReason | undefined;
       let terminationReason: StreamTerminationReason = "completed";
+      let pendingErrorToast: string | null = null;
 
       const processFrame = (frame: string) => {
         const parsed = parseNovelcrafterSseFrame(frame);
@@ -327,12 +384,12 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
           finishReason = "error";
           const msg = err instanceof Error ? err.message : "Failed to run AI tool";
           streamHookLogger.error("Novelcrafter stream failed:", msg);
-          toast.error(msg);
+          pendingErrorToast = msg;
         }
       } finally {
         batcher.flushNow();
         const wasCurrentRun = registry.endRun(runId);
-        if (wasCurrentRun) {
+        if (wasCurrentRun || !registry.isBusy()) {
           setIsStreaming(false);
           useNovelcrafterStreamStore.getState().finishStreamRun(runId);
         }
@@ -341,7 +398,7 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
           finishReason = "aborted";
         }
         if (wasCurrentRun) {
-          opts.onStreamTerminated?.({
+          const termResult = opts.onStreamTerminated?.({
             storyId: targetConversationId,
             reason: terminationReason,
             fullContent,
@@ -353,7 +410,14 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
             resolvedPersonaName,
             params,
           });
-          if (fullContent.trim().length > 0) {
+          if (pendingErrorToast && !termResult?.handledRefusal) {
+            toast.error(pendingErrorToast);
+          }
+          if (
+            fullContent.trim().length > 0 &&
+            !termResult?.handledRefusal &&
+            !isLikelyModelRefusalOutput(fullContent)
+          ) {
             const cardFeature: NovelcrafterHistoryCard["feature"] =
               params.feature === "feedback" ? "rewrite" : params.feature;
             opts.onCardCompleted({

@@ -1010,10 +1010,10 @@ export const vi = {
     "GEM Tổng giữ vai trò chỉ dẫn hệ thống ưu tiên số 1. Persona của từng tính năng bổ sung giọng điệu và phong cách viết.",
   novelcrafterMasterGemLabel: "1. Chọn GEM Tổng (Ưu tiên số 1)",
   novelcrafterMasterGemHint:
-    "Quy định thế giới quan, quy tắc cốt lõi và chỉ dẫn nền tảng cho toàn bộ 5 tính năng.",
+    "Quy định thế giới quan, quy tắc cốt lõi và chỉ dẫn nền tảng cho toàn bộ 6 tính năng.",
   novelcrafterMasterPersonaLabel: "2. Chọn Persona Tổng mặc định (Tùy chọn)",
   novelcrafterMasterPersonaHint: "Các tính năng để chế độ 'Kế thừa' sẽ tự động dùng Persona này.",
-  novelcrafterFeatureSlotsLabel: "3. Phân bổ Persona cho 5 Tính năng",
+  novelcrafterFeatureSlotsLabel: "3. Phân bổ Persona cho 6 Tính năng",
   novelcrafterInheritMasterPersona: "Kế thừa từ Persona Tổng",
   novelcrafterNoPersonaOption: "Tắt Persona ở tính năng này",
   novelcrafterManageGemsBtn: "Mở kho GEMs",
@@ -1219,6 +1219,10 @@ export const vi = {
   novelcrafterDestructiveSaveTitle: "Cảnh báo mất dữ liệu (>90%)",
   novelcrafterDestructiveSaveDesc:
     "Bản lưu này sẽ xóa hơn 90% nội dung truyện hiện có ({prev} → {next} ký tự). Bạn muốn khôi phục từ máy chủ hay xác nhận ghi đè?",
+  novelcrafterCorruptedStateTitle: "Bản lưu trên máy chủ không thể đọc",
+  novelcrafterCorruptedStateDesc:
+    "Dữ liệu truyện trên máy chủ đang bị lỗi giải mã. Bạn có muốn dùng bản nháp trên thiết bị này ({next} ký tự) để ghi đè và khôi phục truyện không? (Bản ghi lỗi cũ sẽ được sao lưu an toàn).",
+  novelcrafterCorruptedStateKeepLockedBtn: "Để sau (Giữ khóa an toàn)",
   novelcrafterReloadFromServer: "Tải lại từ máy chủ (An toàn)",
   novelcrafterDestructiveSaveReloadBtn: "Tải lại từ máy chủ (An toàn)",
   novelcrafterConfirmDestructiveOverwrite: "Xác nhận xóa & ghi đè",

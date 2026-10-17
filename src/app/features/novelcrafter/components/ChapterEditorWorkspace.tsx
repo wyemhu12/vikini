@@ -57,6 +57,7 @@ interface ChapterEditorWorkspaceProps {
   onSelectionChange: (sel: EditorSelectionRange | null) => void;
   isStreaming: boolean;
   isDirectStreamingToChapter: boolean;
+  isLoadLocked?: boolean;
   onTriggerStream: (params: TriggerNovelcrafterStreamParams) => Promise<void>;
   onStopStream: () => void;
   storyBible: StoryBible;
@@ -78,6 +79,7 @@ export default function ChapterEditorWorkspace({
   onSelectionChange,
   isStreaming,
   isDirectStreamingToChapter,
+  isLoadLocked = false,
   onTriggerStream,
   onStopStream,
   storyBible,
@@ -113,8 +115,9 @@ export default function ChapterEditorWorkspace({
   useEffect(() => setTitleDraft(chapter.title), [chapter.id, chapter.title]);
   useEffect(
     () => () => {
-      if (scrollRafRef.current !== null && typeof window !== "undefined")
+      if (scrollRafRef.current !== null && typeof window !== "undefined") {
         window.cancelAnimationFrame(scrollRafRef.current);
+      }
     },
     []
   );
@@ -227,19 +230,22 @@ export default function ChapterEditorWorkspace({
     return selected || null;
   };
 
-  const handleRunFirstDraft = () =>
+  const handleRunFirstDraft = () => {
+    if (isStreaming || isLoadLocked) return;
     void onTriggerStream({
       feature: "bible",
       bibleTarget: "draft",
       actionMode: "generate",
       subLabel: t("novelcrafterFirstDraftCtaBtn"),
     });
+  };
 
   const handleRunRewrite = (
     mode: NovelcrafterRewriteMode,
     label: string,
     customInstruction?: string
   ) => {
+    if (isStreaming || isLoadLocked) return;
     const selected = requireSelectionText();
     if (!selected) return;
     void onTriggerStream({
@@ -277,6 +283,7 @@ export default function ChapterEditorWorkspace({
         )
       }
       onReplyFeedback={(item, replyText) => {
+        if (isStreaming || isLoadLocked) return;
         onUpdateFeedbackItems(
           chapter.id,
           (items) => items.map((f) => (f.id === item.id ? { ...f, userReply: replyText } : f)),
@@ -288,6 +295,7 @@ export default function ChapterEditorWorkspace({
           selectedText: item.quote || selection?.text || "",
           customInstruction: `${item.comment}\nUser follow-up: ${replyText}`,
           subLabel: `${t("novelcrafterSlotFeedback")} · ${item.category}`,
+          replyToFeedbackId: item.id,
         });
       }}
       onResolveAll={() =>
@@ -306,7 +314,7 @@ export default function ChapterEditorWorkspace({
       <ChapterAiToolbar
         activeMenu={activeMenu}
         onSelectMenu={setActiveMenu}
-        isStreaming={isStreaming}
+        isStreaming={isStreaming || Boolean(isLoadLocked)}
         onStopStream={onStopStream}
         selectedCharCount={selection?.text.length ?? 0}
         beatsOpen={beatsOpen}
@@ -316,13 +324,16 @@ export default function ChapterEditorWorkspace({
         onToggleFeedbackGutter={() => setShowFeedbackGutter((p) => !p)}
         onRunFirstDraft={handleRunFirstDraft}
         onRunWrite={(p) => {
+          if (isStreaming || isLoadLocked) return;
           void onTriggerStream({ feature: "write", writeMode: p.mode, ...p });
           setActiveMenu(null);
         }}
         onRunRewrite={handleRunRewrite}
         onRunFeedback={(p) => {
-          if (!chapter.content.trim() && !selection?.text?.trim())
+          if (isStreaming || isLoadLocked) return;
+          if (!chapter.content.trim() && !selection?.text?.trim()) {
             return toast.info(t("novelcrafterSelectTextHint"));
+          }
           setShowFeedbackGutter(true);
           void onTriggerStream({
             feature: "feedback",
@@ -335,6 +346,7 @@ export default function ChapterEditorWorkspace({
           setActiveMenu(null);
         }}
         onRunExpand={(mode, label, senses) => {
+          if (isStreaming || isLoadLocked) return;
           const selected = requireSelectionText();
           if (!selected) return;
           void onTriggerStream({
@@ -347,6 +359,7 @@ export default function ChapterEditorWorkspace({
           setActiveMenu(null);
         }}
         onRunBrainstorm={(category, label, topic) => {
+          if (isStreaming || isLoadLocked) return;
           void onTriggerStream({
             feature: "brainstorm",
             brainstormCategory: category,
@@ -408,50 +421,55 @@ export default function ChapterEditorWorkspace({
             onChangeExtraInstructions={(val) =>
               onUpdateChapter(chapter.id, { extraInstructions: val })
             }
-            isStreaming={isStreaming}
-            onGenerateBeats={() =>
+            isStreaming={isStreaming || Boolean(isLoadLocked)}
+            onGenerateBeats={() => {
+              if (isStreaming || isLoadLocked) return;
               void onTriggerStream({
                 feature: "bible",
                 bibleTarget: "scenes",
                 actionMode: "generate",
                 subLabel: t("novelcrafterGenerateBeatsBtn"),
-              })
-            }
-            onRewriteBeats={() =>
+              });
+            }}
+            onRewriteBeats={() => {
+              if (isStreaming || isLoadLocked) return;
               void onTriggerStream({
                 feature: "bible",
                 bibleTarget: "scenes",
                 actionMode: "rewrite",
                 subLabel: t("novelcrafterRewriteBeatsBtn"),
-              })
-            }
+              });
+            }}
             onRunFirstDraft={handleRunFirstDraft}
           />
 
-          {chapter.content.trim().length === 0 && !isStreaming && (
+          {chapter.content.trim().length === 0 && !isStreaming && !isLoadLocked && (
             <ChapterEmptyStateActions
-              disabled={isStreaming}
-              onAutoWriteOpening={() =>
+              disabled={isStreaming || Boolean(isLoadLocked)}
+              onAutoWriteOpening={() => {
+                if (isStreaming || isLoadLocked) return;
                 void onTriggerStream({
                   feature: "write",
                   writeMode: "auto",
                   subLabel: t("novelcrafterEmptyActionAutoWrite"),
-                })
-              }
-              onSuggestThreeOpenings={() =>
+                });
+              }}
+              onSuggestThreeOpenings={() => {
+                if (isStreaming || isLoadLocked) return;
                 void onTriggerStream({
                   feature: "write",
                   writeMode: "openings_3",
                   subLabel: t("novelcrafterEmptyActionOpenings3"),
-                })
-              }
-              onRoughDraftFromBeats={() =>
+                });
+              }}
+              onRoughDraftFromBeats={() => {
+                if (isStreaming || isLoadLocked) return;
                 void onTriggerStream({
                   feature: "write",
                   writeMode: "first_draft_rough",
                   subLabel: t("novelcrafterEmptyActionRoughDraft"),
-                })
-              }
+                });
+              }}
             />
           )}
 
@@ -469,7 +487,7 @@ export default function ChapterEditorWorkspace({
                   </span>
                   <span className="truncate italic">&ldquo;{activeFeedbackItem.quote}&rdquo;</span>
                 </span>
-                <span className="text-[11px] font-semibold text-(--accent) shrink-0">
+                <span className="text-xs font-semibold text-(--accent) shrink-0">
                   {t("novelcrafterExcerptLocatorJump")}
                 </span>
               </button>
@@ -484,8 +502,9 @@ export default function ChapterEditorWorkspace({
                   value={quickEditPrompt}
                   onChange={(e) => setQuickEditPrompt(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter")
+                    if (e.key === "Enter") {
                       handleRunRewrite("custom", t("novelcrafterQuickEditBtn"), quickEditPrompt);
+                    }
                     if (e.key === "Escape") setQuickEditOpen(false);
                   }}
                   autoFocus
@@ -510,7 +529,7 @@ export default function ChapterEditorWorkspace({
             <textarea
               key={chapter.id}
               ref={textareaRef}
-              readOnly={isDirectStreamingToChapter}
+              readOnly={isDirectStreamingToChapter || Boolean(isLoadLocked)}
               value={chapter.content}
               onChange={(e) => onUpdateChapter(chapter.id, { content: e.target.value })}
               onSelect={handleSelectText}
@@ -538,7 +557,7 @@ export default function ChapterEditorWorkspace({
               onUpdateStoryBible={onUpdateStoryBible}
               activeSection={activeBibleSection}
               jumpRequest={bibleJumpRequest}
-              isStreaming={isStreaming}
+              isStreaming={isStreaming || Boolean(isLoadLocked)}
               onTriggerStream={onTriggerStream}
               onSendOutlineToChapterScenes={(beats) => {
                 const sep = chapter.scenes.trim() ? "\n\n" : "";

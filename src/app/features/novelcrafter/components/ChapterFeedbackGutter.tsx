@@ -218,11 +218,11 @@ export default function ChapterFeedbackGutter({
                 {/* 1. Category Badge + Accept (✓) / Dismiss (×) */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-(--accent)/15 text-(--accent) border border-(--accent)/30 text-[11px] font-bold uppercase tracking-wider">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-(--accent)/15 text-(--accent) border border-(--accent)/30 text-xs font-bold uppercase tracking-wider">
                       {item.category}
                     </span>
                     {isQuoteModified && (
-                      <span className="text-[11px] text-(--warning) font-medium">
+                      <span className="text-xs text-(--warning) font-medium">
                         {t("novelcrafterQuoteModifiedBadge")}
                       </span>
                     )}

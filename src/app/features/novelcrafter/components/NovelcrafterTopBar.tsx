@@ -216,7 +216,7 @@ export default function NovelcrafterTopBar({
           >
             <PanelRight className="w-4 h-4" />
             {historyCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-(--accent)/20 text-(--accent) text-[10px] font-bold">
+              <span className="px-1.5 py-0.5 rounded-full bg-(--accent)/20 text-(--accent) text-xs font-bold">
                 {historyCount}
               </span>
             )}

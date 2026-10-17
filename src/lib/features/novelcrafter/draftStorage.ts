@@ -5,6 +5,7 @@ import { MODEL_IDS } from "@/lib/utils/constants";
 import { sanitizeStoryState } from "./promptBuilder";
 import type { NovelcrafterSyncCoordinator } from "./storySyncCoordinator";
 import {
+  createDefaultStoryState,
   MAX_HISTORY_CARDS,
   type NovelcrafterHistoryCard,
   type NovelcrafterStoryState,
@@ -197,16 +198,38 @@ export function buildConflictBackupCard(
       diffSections.push(`[Story Bible - ${field}]\n${localVal}`);
     }
   }
+  const localCharCards = localState.storyBible.characterCards ?? [];
+  const remoteCharCards = remoteState.storyBible.characterCards ?? [];
+  if (
+    localCharCards.length > 0 &&
+    JSON.stringify(localCharCards) !== JSON.stringify(remoteCharCards)
+  ) {
+    diffSections.push(`[Story Bible - characterCards]\n${JSON.stringify(localCharCards)}`);
+  }
+  const localWorld = localState.storyBible.worldElements ?? [];
+  const remoteWorld = remoteState.storyBible.worldElements ?? [];
+  if (localWorld.length > 0 && JSON.stringify(localWorld) !== JSON.stringify(remoteWorld)) {
+    diffSections.push(`[Story Bible - worldElements]\n${JSON.stringify(localWorld)}`);
+  }
+  const localOutline = localState.storyBible.outlineItems ?? [];
+  const remoteOutline = remoteState.storyBible.outlineItems ?? [];
+  if (localOutline.length > 0 && JSON.stringify(localOutline) !== JSON.stringify(remoteOutline)) {
+    diffSections.push(`[Story Bible - outlineItems]\n${JSON.stringify(localOutline)}`);
+  }
   const remoteChapterMap = new Map(remoteState.chapters.map((c) => [c.id, c]));
   for (const localCh of localState.chapters) {
     const remoteCh = remoteChapterMap.get(localCh.id);
     const localScenes = localCh.scenes.trim();
     const localContent = localCh.content.trim();
+    const localExtra = (localCh.extraInstructions ?? "").trim();
     if (localScenes && localScenes !== (remoteCh?.scenes.trim() ?? "")) {
       diffSections.push(`[${localCh.title} - Scenes]\n${localScenes}`);
     }
     if (localContent && localContent !== (remoteCh?.content.trim() ?? "")) {
       diffSections.push(`[${localCh.title} - Prose]\n${localContent}`);
+    }
+    if (localExtra && localExtra !== (remoteCh?.extraInstructions ?? "").trim()) {
+      diffSections.push(`[${localCh.title} - Extra Instructions]\n${localExtra}`);
     }
   }
   if (diffSections.length === 0) return null;
@@ -395,4 +418,41 @@ export function resolveValidNovelcrafterStoryId(
 export function countChapterWords(text: string): number {
   const trimmed = text.trim();
   return trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
+}
+
+export function resolveStoryLoadFailureState(params: {
+  storyId: string;
+  defaultChapterTitle: string;
+}): { ownerStoryId: string; state: NovelcrafterStoryState } {
+  const localEnvelope = readLocalStoryDraft(params.storyId, params.defaultChapterTitle);
+  return {
+    ownerStoryId: params.storyId,
+    state: localEnvelope
+      ? localEnvelope.state
+      : createDefaultStoryState(params.defaultChapterTitle),
+  };
+}
+
+export function shouldBlockAutosaveForStory(
+  storyId: string | null,
+  loadErrorStoryId: string | null
+): boolean {
+  return Boolean(storyId && loadErrorStoryId && storyId === loadErrorStoryId);
+}
+
+export function resolveLoadLockRecoveryAction(
+  errorCode?: string | null
+): "overwrite_prompt" | "keep_locked" {
+  return errorCode === "STORY_STATE_CORRUPTED" ? "overwrite_prompt" : "keep_locked";
+}
+
+export function shouldApplyLoadLockRetryResult(params: {
+  targetStoryId: string | null;
+  currentOwnerStoryId: string | null;
+}): boolean {
+  return Boolean(
+    params.targetStoryId &&
+    params.currentOwnerStoryId &&
+    params.targetStoryId === params.currentOwnerStoryId
+  );
 }

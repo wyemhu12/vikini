@@ -295,7 +295,7 @@ export default function ChapterAiToolMenus({
                   )}
                 >
                   <p className="text-xs font-bold">{t(info.title)}</p>
-                  <p className="text-[11px] opacity-80 line-clamp-1">{t(info.desc)}</p>
+                  <p className="text-xs opacity-80 line-clamp-1">{t(info.desc)}</p>
                 </button>
               );
             })}

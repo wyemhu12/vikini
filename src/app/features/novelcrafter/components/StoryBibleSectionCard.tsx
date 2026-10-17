@@ -92,7 +92,7 @@ export default function StoryBibleSectionCard({
 
         <div className="flex items-center gap-2 flex-wrap shrink-0">
           {typeof wordCount === "number" && (
-            <span className="text-[11px] font-medium text-(--text-secondary) px-2 py-0.5 rounded-full bg-(--control-bg)">
+            <span className="text-xs font-medium text-(--text-secondary) px-2 py-0.5 rounded-full bg-(--control-bg)">
               {t("novelcrafterChapterWordsCount").replace("{count}", wordCount.toLocaleString())}
             </span>
           )}

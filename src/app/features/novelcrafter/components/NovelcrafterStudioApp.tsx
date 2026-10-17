@@ -74,7 +74,7 @@ export default function NovelcrafterStudioApp() {
     handleStreamTokenChunk,
     handleStreamTerminated,
   } = useDirectStreamBridge({
-    selectedConversationId: story.selectedConversationId,
+    selectedConversationId: story.validStoryId,
     latestStateRef: story.latestStateRef,
     applyDirectStoryState: story.applyDirectStoryState,
     updateChapterFeedbackItems: story.updateChapterFeedbackItems,
@@ -296,6 +296,9 @@ export default function NovelcrafterStudioApp() {
               onSelectionChange={setSelection}
               isStreaming={stream.isStreaming}
               isDirectStreamingToChapter={isDirectStreamingToChapter}
+              isLoadLocked={Boolean(
+                story.validStoryId && story.loadErrorStoryId === story.validStoryId
+              )}
               onTriggerStream={stream.triggerStream}
               onStopStream={stream.stopStream}
               storyBible={story.storyState.storyBible}

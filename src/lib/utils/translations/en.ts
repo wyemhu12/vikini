@@ -1000,11 +1000,11 @@ export const en = {
     "Master GEM acts as the #1 priority system instruction. Feature Personas provide supplementary tone and style.",
   novelcrafterMasterGemLabel: "1. Select Master GEM (Priority #1 - System Instruction)",
   novelcrafterMasterGemHint:
-    "Defines core rules, world constraints, and primary system instructions across all 5 features.",
+    "Defines core rules, world constraints, and primary system instructions across all 6 features.",
   novelcrafterMasterPersonaLabel: "2. Select Default Master Persona (Optional)",
   novelcrafterMasterPersonaHint:
     "Feature slots set to 'Inherit' will automatically use this Persona.",
-  novelcrafterFeatureSlotsLabel: "3. Assign Personas to 5 Sudowrite Feature Slots",
+  novelcrafterFeatureSlotsLabel: "3. Assign Personas to 6 Sudowrite Feature Slots",
   novelcrafterInheritMasterPersona: "Inherit from Master Persona",
   novelcrafterNoPersonaOption: "Disable Persona for this feature",
   novelcrafterManageGemsBtn: "Open GEMs Library",
@@ -1215,6 +1215,10 @@ export const en = {
   novelcrafterDestructiveSaveTitle: "Data Loss Warning (>90% Drop)",
   novelcrafterDestructiveSaveDesc:
     "This save would remove over 90% of your existing story content ({prev} → {next} chars). Would you like to reload from server or confirm overwrite?",
+  novelcrafterCorruptedStateTitle: "Unreadable Server Story State",
+  novelcrafterCorruptedStateDesc:
+    "The story state stored on the server could not be decrypted. Would you like to overwrite it using your local draft on this device ({next} chars) to recover the story? (The unreadable server record will be safely backed up).",
+  novelcrafterCorruptedStateKeepLockedBtn: "Keep Locked (Cancel)",
   novelcrafterReloadFromServer: "Reload from Server (Safe)",
   novelcrafterDestructiveSaveReloadBtn: "Reload from Server (Safe)",
   novelcrafterConfirmDestructiveOverwrite: "Confirm Overwrite",

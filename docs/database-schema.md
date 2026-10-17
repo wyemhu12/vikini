@@ -240,6 +240,7 @@ erDiagram
 
 > [!IMPORTANT]
 > **Mã hóa**: Cột `content` được mã hóa bằng `encryptText()` trước khi lưu và giải mã bằng `decryptText()` khi đọc. Xem `/lib/core/encryption.ts`.
+> **Novelcrafter Studio (`meta.novelcrafterType`)**: Các cuộc hội thoại Novelcrafter (`conversations.model = 'vikini-novelcrafter'`) lưu trạng thái bản thảo mã hóa AES-256-GCM trong bảng `messages` (`role = 'system'`) với `meta.novelcrafterType = 'story_state'` (`isContextOnly: true`, `version`, `updatedAt`, `contentChars`). Khi người dùng xác nhận khôi phục một bản ghi bị lỗi giải mã, bản gốc trước khi ghi đè được lưu trữ an toàn vào một dòng riêng có `meta.novelcrafterType = 'story_state_corrupted_backup'` (`sourceRowId`, `corruptedVersion`, `corruptedAt`).
 
 ---
 

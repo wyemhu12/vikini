@@ -67,3 +67,21 @@ export class NovelcrafterStreamRunRegistry {
     this.runs.clear();
   }
 }
+
+export function shouldAbortStreamOnConversationChange(params: {
+  prevStoryId: string | null;
+  nextStoryId: string | null;
+  activeTargetStoryId?: string | null;
+  isPromotingPendingStory?: boolean;
+}): boolean {
+  const { prevStoryId, nextStoryId, activeTargetStoryId, isPromotingPendingStory } = params;
+  if (prevStoryId === nextStoryId) return false;
+  if (
+    prevStoryId === null &&
+    nextStoryId !== null &&
+    (isPromotingPendingStory || activeTargetStoryId === nextStoryId)
+  ) {
+    return false;
+  }
+  return true;
+}

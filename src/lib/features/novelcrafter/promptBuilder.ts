@@ -324,7 +324,13 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
     input.feature === "expand";
 
   if (includeProseWindow && input.chapterProse?.trim()) {
-    const proseWindow = input.chapterProse.trim().slice(-MAX_CHAPTER_CONTEXT_CHARS);
+    const rawProse = input.chapterProse.trim();
+    let proseWindow = rawProse;
+    if (rawProse.length > MAX_CHAPTER_CONTEXT_CHARS) {
+      const headChars = Math.floor(MAX_CHAPTER_CONTEXT_CHARS * 0.25);
+      const tailChars = MAX_CHAPTER_CONTEXT_CHARS - headChars;
+      proseWindow = `${rawProse.slice(0, headChars)}\n...[middle of chapter omitted for context budget]...\n${rawProse.slice(-tailChars)}`;
+    }
     chapterNodes.push(`  <preceding_prose>\n${proseWindow}\n  </preceding_prose>`);
   }
 

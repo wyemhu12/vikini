@@ -10,6 +10,8 @@ const quotaLogger = logger.withContext("streamQuotaGuard");
 
 const INFLIGHT_KEY_PREFIX = "nc-stream-inflight";
 const INFLIGHT_TTL_SECONDS = 360;
+const DECR_AND_CLEANUP_LUA =
+  "local v = redis.call('DECR', KEYS[1]); if v <= 0 then redis.call('DEL', KEYS[1]); return 0; end; return v;";
 
 const localInFlightCounts = new Map<string, number>();
 
@@ -124,6 +126,8 @@ export async function reserveNovelcrafterStreamQuota(
   try {
     if (inFlight === 1) {
       await redis.expire(key, INFLIGHT_TTL_SECONDS);
+    } else {
+      await redis.expire(key, INFLIGHT_TTL_SECONDS, "NX");
     }
 
     const dailyCheck = await checkDailyMessageLimit(userId);
@@ -134,7 +138,7 @@ export async function reserveNovelcrafterStreamQuota(
     const effectiveCount = dailyCheck.count + inFlight;
 
     if (!dailyCheck.canSend || effectiveCount > dailyCheck.limit) {
-      await redis.decr(key);
+      await redis.eval(DECR_AND_CLEANUP_LUA, [key], []);
       return {
         allowed: false,
         count: Math.max(dailyCheck.count, effectiveCount - 1),
@@ -164,7 +168,7 @@ export async function reserveNovelcrafterStreamQuota(
           await commitPromise;
         }
         try {
-          await redis.decr(key);
+          await redis.eval(DECR_AND_CLEANUP_LUA, [key], []);
         } catch (decrErr: unknown) {
           quotaLogger.error("Failed to decrement Redis in-flight stream counter:", decrErr);
         }
@@ -172,7 +176,7 @@ export async function reserveNovelcrafterStreamQuota(
     };
   } catch (err: unknown) {
     try {
-      await redis.decr(key);
+      await redis.eval(DECR_AND_CLEANUP_LUA, [key], []);
     } catch (rollbackErr: unknown) {
       quotaLogger.error("Failed to rollback Redis in-flight stream counter:", rollbackErr);
     }

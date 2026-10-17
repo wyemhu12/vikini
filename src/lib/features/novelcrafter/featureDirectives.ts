@@ -2,6 +2,7 @@
 // Feature-specific prompt directives for Novelcrafter Studio (6 slots: bible, write, rewrite, feedback, expand, brainstorm)
 
 import { ValidationError } from "@/lib/utils/errors";
+import { serializeStoryBibleWithStructuredCards } from "./storyBibleSerializer";
 import {
   NOVELCRAFTER_DEVELOPMENTAL_CRITERIA,
   type BuildUserPromptInput,
@@ -91,8 +92,15 @@ function buildBibleDirective(input: BuildUserPromptInput, custom: string): strin
       .join("\n");
   }
 
-  const currentSectionValue =
-    target === "scenes" ? input.chapterScenes?.trim() || "" : input.storyBible[target].trim();
+  const serializedBible = serializeStoryBibleWithStructuredCards(input.storyBible);
+  const existingContentByTarget: Record<Exclude<NovelcrafterBibleTarget, "draft">, string> = {
+    synopsis: input.storyBible.synopsis.trim(),
+    characters: serializedBible.charactersText.trim(),
+    worldbuilding: serializedBible.worldbuildingText.trim(),
+    outline: serializedBible.outlineText.trim(),
+    scenes: input.chapterScenes?.trim() || "",
+  };
+  const currentSectionValue = existingContentByTarget[target];
 
   if (mode === "rewrite" && !currentSectionValue && !custom) {
     throw new ValidationError(
@@ -198,6 +206,9 @@ function buildFeedbackDirective(input: BuildUserPromptInput, custom: string): st
 
 export function buildFeatureDirective(input: BuildUserPromptInput): string {
   const custom = input.customInstruction?.trim() || "";
+  const chapterExtra = input.chapterExtraInstructions?.trim()
+    ? `Chapter Extra Instructions: ${input.chapterExtraInstructions.trim()}`
+    : "";
 
   if (input.feature === "bible") {
     return buildBibleDirective(input, custom);
@@ -212,6 +223,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
       return [
         "Generate a complete, engaging Rough Draft of this chapter from start to finish based on the <story_bible> (Synopsis, Outline, Characters, Worldbuilding, Style, POV & Tense) and <chapter_context>.",
         lengthTarget || "Target output length: approximately 800 to 1,200 words.",
+        chapterExtra,
         custom ? `Additional Direction: ${custom}` : "",
       ]
         .filter(Boolean)
@@ -230,6 +242,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
         "[prose]",
         "=== OPENING 3: Character/Dialogue Hook ===",
         "[prose]",
+        chapterExtra,
         custom ? `Additional Direction: ${custom}` : "",
       ]
         .filter(Boolean)
@@ -240,6 +253,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
       return [
         `Continue writing the next passage of the chapter while shifting the narrative tone to: ${TONE_SHIFT_DESCRIPTIONS[tone]}.`,
         lengthTarget,
+        chapterExtra,
         custom ? `Additional Direction: ${custom}` : "",
       ]
         .filter(Boolean)
@@ -249,6 +263,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
       return [
         `Continue writing the next passage of the chapter seamlessly following the preceding prose and scenes. Guided Direction: ${custom}`,
         lengthTarget,
+        chapterExtra,
       ]
         .filter(Boolean)
         .join("\n");
@@ -256,6 +271,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
     return [
       "Continue writing the next passage of the chapter naturally and seamlessly from where the preceding prose ends, following the Chapter Scenes and Style.",
       lengthTarget,
+      chapterExtra,
       custom ? `Additional Direction: ${custom}` : "",
     ]
       .filter(Boolean)
@@ -274,6 +290,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
         : REWRITE_MODE_INSTRUCTIONS[mode];
     return [
       baseInstruction,
+      chapterExtra,
       mode !== "custom" && custom ? `Additional note: ${custom}` : "",
       "Return ONLY the rewritten passage ready to replace <selected_text>.",
     ]
@@ -298,6 +315,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
           : "sight, sound, smell, taste, touch, and metaphor";
       return [
         `Provide vivid sensory descriptions and metaphors for <selected_text>, focusing on: ${senses}.`,
+        chapterExtra,
         custom ? `Additional focus: ${custom}` : "",
       ]
         .filter(Boolean)
@@ -305,6 +323,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
     }
     return [
       "Expand the <selected_text> to slow down the pacing, adding scene depth, dialogue beats, micro-actions, and atmosphere without rushing the plot.",
+      chapterExtra,
       custom ? `Additional focus: ${custom}` : "",
     ]
       .filter(Boolean)

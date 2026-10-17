@@ -1,6 +1,7 @@
 // /lib/features/novelcrafter/feedbackParser.ts
 // Structured parser, regex-safe quote locator, LCS word-level diff, and 1-click suggestion applier for Sudowrite-style Feedback
 
+import { normalizeFeedbackItems } from "./stateLimits";
 import { MAX_FEEDBACK_ITEMS_PER_CHAPTER, type NovelcrafterFeedbackItem } from "./types";
 
 export interface WordDiffSegment {
@@ -221,4 +222,35 @@ export function computeWordDiff(quote: string, suggestion: string): WordDiffSegm
   }
 
   return merged;
+}
+
+export function mergeStreamedFeedbackItems(params: {
+  parsedItems: NovelcrafterFeedbackItem[];
+  baseItems: NovelcrafterFeedbackItem[];
+  isReplyMode?: boolean;
+}): NovelcrafterFeedbackItem[] {
+  const { parsedItems, baseItems, isReplyMode } = params;
+  if (parsedItems.length === 0) {
+    return baseItems;
+  }
+
+  const retainedBase = isReplyMode
+    ? baseItems
+    : baseItems.filter(
+        (item) =>
+          item.status === "resolved" || Boolean(item.userReply?.trim()) || Boolean(item.rating)
+      );
+
+  const combined = [...parsedItems, ...retainedBase];
+  const seen = new Set<string>();
+  const deduped: NovelcrafterFeedbackItem[] = [];
+
+  for (const item of combined) {
+    const key = `${item.category.trim().toUpperCase()}::${item.quote.trim().toLowerCase()}::${item.comment.trim().toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(item);
+  }
+
+  return normalizeFeedbackItems(deduped);
 }

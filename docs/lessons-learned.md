@@ -685,3 +685,27 @@
   - **Never fall back to an empty default document when a persisted user document fails schema validation.** Always run field-level coercion/clamping first and block unconfirmed destructive shrinkage (`< 20%` of `>= 500` chars) with HTTP `409`.
   - **For streaming AI endpoints, reserve in-flight concurrency atomically (`INCR`/`DECR`) and only commit daily usage upon the first emitted model token (`onFirstModelOutput`).**
   - **In multi-pane studio layouts, always compute pane modes (`docked` vs. `sheet` / `bottom-sheet`) from viewport width so the primary editor canvas never drops below `300px` on mobile/foldable cover screens or `460px` on foldable inner screens.**
+
+### 2026-10-17: Novelcrafter Phase 1 & 2 Audit -- Pending-Story Stream Promotion, Corrupted Decryption Load-Lock & Incremental Feedback Stream Merging
+
+- **Symptom**:
+  1. **Self-Aborted First Stream on Unsaved Story**: Triggering an AI tool on a brand-new draft (`selectedConversationId: null`) caused `ensureStoryConversation()` to update `selectedConversationId` to `newStoryId`, which immediately triggered the `useEffect([selectedConversationId])` cleanup in `useNovelcrafterStream.ts` and `useDirectStreamBridge.ts`, aborting the in-flight stream and leaving `isStreaming` stuck if `registry.reset()` cleared the run before `finally`.
+  2. **Silent Data Loss Risk on Decryption Failure**: In `getStoryState`, a failed `decryptText` call caught the error and returned `createDefaultStoryState()` with HTTP `200`, risking client state pollution or accidental overwrite of an unreadable remote payload.
+  3. **Feedback Cards Wiped During Live Streaming**: `useDirectStreamBridge` overwrote `chapter.feedbackItems` on every `requestAnimationFrame` tick with `parseFeedbackItems(streamedText)` from an empty base, wiping previously `resolved` cards and `open` cards with user replies.
+  4. **Premature Quota Commit on Thinking Chunks & Redis Sliding TTL**: `emitModelOutput` triggered `onFirstModelOutput()` on `"thinking"` chunks even when zero prose tokens were generated, and `streamQuotaGuard.server.ts` lacked `NX` TTL refresh on `inFlight > 1` and atomic `DECR`+`DEL` cleanup.
+
+- **Root Cause**:
+  1. Conflating conversation-switch teardown with the `null -> newStoryId` promotion transition of an active pending run, and sharing a single effect for `[selectedConversationId]` change and component unmount.
+  2. Treating decryption/parse corruption in `storyPersistence.server.ts` as an empty new story instead of throwing a dedicated `500 STORY_STATE_CORRUPTED` error and locking client autosave until explicit user recovery.
+  3. Re-parsing cumulative feedback XML without snapshotting `feedbackBaseItemsRef` at stream start and merging via a mode-aware pure helper (`isReplyMode`).
+  4. Calling `onFirstModelOutput` unconditionally on any chunk type in `emitModelOutput` and issuing separate non-atomic Redis commands on release.
+
+- **Fix**:
+  1. Extracted `shouldAbortStreamOnConversationChange` in `streamRunRegistry.ts`, created `AbortController` + `setIsStreaming(true)` before `await ensureStoryConversation()` with `isPromotingStoryRef` and `try/catch/finally` protection, separated the unmount effect, and synchronized `selectedConversationId: story.validStoryId` in `NovelcrafterStudioApp.tsx`.
+  2. Changed `getStoryState` to throw `AppError("Story state is unreadable", 500, "STORY_STATE_CORRUPTED")`, added client load-lock isolation (`resolveStoryLoadFailureState`, `shouldBlockAutosaveForStory`, `resolveLoadLockRecoveryAction`, `shouldApplyLoadLockRetryResult`, `isLoadLocked`), enforced `409 DESTRUCTIVE_SAVE_REJECTED` (`reason: "corrupted_remote"`) on unconfirmed saves over corrupted rows, and preserved the original corrupted ciphertext in a separate `messages` row (`meta.novelcrafterType = "story_state_corrupted_backup"`) before overwriting.
+  3. Added `mergeStreamedFeedbackItems` in `feedbackParser.ts` and snapshotted `feedbackBaseItemsRef` on stream start in `useDirectStreamBridge.ts`.
+  4. Restricted `onFirstModelOutput()` to `type === "token"`, applied `sanitizeError(err, true)` on SSE errors, used `redis.expire(key, INFLIGHT_TTL_SECONDS, "NX")` when `inFlight > 1`, and used atomic Lua `DECR_AND_CLEANUP_LUA` via `redis.eval`.
+
+- **Prevention Rule**:
+  - **When a hook promotes a local draft from `null` to a newly created entity ID during an async operation, always guard `[entityId]` effects with an explicit promotion predicate (`prevId === null && (isPromoting || activeTargetId === nextId)`) and separate unmount cleanup into its own `useEffect(..., [])`.**
+  - **Never return a blank default state with HTTP 200 when decrypting persisted user data fails.** Throw a typed `500` error (`STORY_STATE_CORRUPTED`), lock client autosave/editing for that entity, verify entity ownership after any async recovery check, and archive the raw ciphertext into a dedicated backup record before allowing a confirmed overwrite.

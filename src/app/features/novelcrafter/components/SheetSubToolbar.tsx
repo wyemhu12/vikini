@@ -91,7 +91,7 @@ export default function SheetSubToolbar({
           className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-(--border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-(--text-primary) font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
         >
           <Type className="w-3.5 h-3.5 text-(--accent)" />
-          <span className="uppercase text-[11px]">{fontSizePreset}</span>
+          <span className="uppercase text-xs">{fontSizePreset}</span>
         </button>
 
         <button

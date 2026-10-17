@@ -21,6 +21,7 @@ import { getGemsForUser } from "@/lib/features/gems/gems";
 import { getPersonasForUser } from "@/lib/features/personas/personas";
 import type { PersonaPromptInput } from "@/lib/features/personas/prompt-builder";
 import { CLAUDE_API_MODELS, MODEL_IDS } from "@/lib/utils/constants";
+import { sanitizeError } from "@/lib/utils/errors";
 import { logger } from "@/lib/utils/logger";
 import type { PersonaTone } from "@/types/persona";
 import {
@@ -409,7 +410,7 @@ export function runNovelcrafterStream({
       let hasEmittedFirstOutput = false;
       const emitModelOutput: EmitModelOutputFn = (type, content) => {
         if (!content) return;
-        if (!hasEmittedFirstOutput) {
+        if (type === "token" && !hasEmittedFirstOutput) {
           hasEmittedFirstOutput = true;
           try {
             onFirstModelOutput?.();
@@ -504,9 +505,10 @@ export function runNovelcrafterStream({
         if (!signal?.aborted) {
           const rawMsg = err instanceof Error ? err.message : "Failed to generate story content";
           streamLogger.error("Novelcrafter stream failed:", rawMsg);
+          const safeMsg = sanitizeError(err, true);
           controller.enqueue(
             formatSseEvent("error", {
-              message: rawMsg,
+              message: safeMsg,
               code: "STREAM_ERROR",
             })
           );

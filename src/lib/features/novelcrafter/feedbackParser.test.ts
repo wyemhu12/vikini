@@ -4,8 +4,10 @@ import {
   applyFeedbackSuggestionToText,
   computeWordDiff,
   findQuoteRangeInText,
+  mergeStreamedFeedbackItems,
   parseFeedbackItems,
 } from "./feedbackParser";
+import type { NovelcrafterFeedbackItem } from "./types";
 
 describe("feedbackParser (TC-04)", () => {
   it("TC-04 Case 4A: parses only closed <feedback_item> blocks when isStreaming is true", () => {
@@ -84,5 +86,71 @@ describe("feedbackParser (TC-04)", () => {
       status: "open",
       createdAt: 2000,
     });
+  });
+
+  it("TC-10 Case 10A & 10B: mergeStreamedFeedbackItems preserves resolved/replied cards in normal mode and keeps all base cards in reply mode", () => {
+    const baseItems: NovelcrafterFeedbackItem[] = [
+      {
+        id: "fb-resolved",
+        category: "PACING",
+        quote: "Old quote 1",
+        comment: "Resolved comment",
+        suggestion: "",
+        status: "resolved",
+        createdAt: 100,
+      },
+      {
+        id: "fb-replied",
+        category: "CONSISTENCY",
+        quote: "Old quote 2",
+        comment: "Replied comment",
+        suggestion: "",
+        status: "open",
+        userReply: "Đã sửa",
+        createdAt: 200,
+      },
+      {
+        id: "fb-untouched",
+        category: "STYLE",
+        quote: "Old quote 3",
+        comment: "Untouched open comment",
+        suggestion: "",
+        status: "open",
+        createdAt: 300,
+      },
+    ];
+
+    const parsedItems: NovelcrafterFeedbackItem[] = [
+      {
+        id: "fb-new-1",
+        category: "PROSE",
+        quote: "New quote",
+        comment: "Fresh critique",
+        suggestion: "Better wording",
+        status: "open",
+        createdAt: 400,
+      },
+    ];
+
+    // Case 10A: Normal mode replaces untouched open card but preserves resolved & replied cards
+    const normalMerged = mergeStreamedFeedbackItems({
+      baseItems,
+      parsedItems,
+      isReplyMode: false,
+    });
+    expect(normalMerged.map((i) => i.id)).toEqual(["fb-new-1", "fb-resolved", "fb-replied"]);
+
+    // Case 10B: Reply mode keeps all baseItems and prepends parsedItems
+    const replyMerged = mergeStreamedFeedbackItems({
+      baseItems,
+      parsedItems,
+      isReplyMode: true,
+    });
+    expect(replyMerged.map((i) => i.id)).toEqual([
+      "fb-new-1",
+      "fb-resolved",
+      "fb-replied",
+      "fb-untouched",
+    ]);
   });
 });

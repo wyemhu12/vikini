@@ -19,6 +19,7 @@ import {
 const dbLogger = logger.withContext("novelcrafterPersistence");
 
 export const NOVELCRAFTER_STATE_META_TYPE = "story_state" as const;
+export const NOVELCRAFTER_CORRUPTED_BACKUP_META_TYPE = "story_state_corrupted_backup" as const;
 export const DESTRUCTIVE_SAVE_MIN_CHARS = 2_000 as const;
 
 interface RawStateMessageRow {
@@ -122,8 +123,8 @@ export async function getStoryState(
     const parsed: unknown = JSON.parse(decryptedJson);
     return sanitizeStoryState(parsed);
   } catch (err: unknown) {
-    dbLogger.error("Failed to decrypt or parse story_state payload, returning default:", err);
-    return createDefaultStoryState();
+    dbLogger.error("Failed to decrypt or parse story_state payload:", err);
+    throw new AppError("Story state is unreadable", 500, "STORY_STATE_CORRUPTED");
   }
 }
 
@@ -145,13 +146,28 @@ export async function saveStoryState(
   const existingMeta = existingRow?.meta ?? null;
 
   let existingVersion = 0;
+  let existingCorrupted = false;
+  let parsedExistingState: NovelcrafterStoryState | null = null;
+
   if (existingRow) {
     const rawMetaVersion = existingMeta?.version;
     const rawMetaUpdatedAt = existingMeta?.updatedAt;
     existingVersion = typeof rawMetaVersion === "number" ? rawMetaVersion : 0;
     const existingUpdatedAt = typeof rawMetaUpdatedAt === "number" ? rawMetaUpdatedAt : 0;
 
-    if (sanitized.version < existingVersion || sanitized.updatedAt < existingUpdatedAt) {
+    if (existingRow.content) {
+      try {
+        const decryptedExisting = decryptText(existingRow.content);
+        parsedExistingState = sanitizeStoryState(JSON.parse(decryptedExisting));
+      } catch {
+        existingCorrupted = true;
+      }
+    }
+
+    if (
+      !existingCorrupted &&
+      (sanitized.version < existingVersion || sanitized.updatedAt < existingUpdatedAt)
+    ) {
       throw new ValidationError(STALE_STORY_STATE_MESSAGE);
     }
   }
@@ -159,25 +175,47 @@ export async function saveStoryState(
   const nextChars = computeTotalStoryContentChars(sanitized);
 
   if (existingRow && !options?.allowDestructive) {
+    if (existingCorrupted) {
+      const fallbackPreviousChars =
+        typeof existingMeta?.contentChars === "number" && existingMeta.contentChars > 0
+          ? existingMeta.contentChars
+          : DESTRUCTIVE_SAVE_MIN_CHARS;
+      const corruptedErr = new AppError(
+        "Destructive save rejected: existing remote story state is corrupted and requires explicit confirmation before overwrite",
+        409,
+        "DESTRUCTIVE_SAVE_REJECTED"
+      ) as AppError & {
+        previousChars: number;
+        nextChars: number;
+        reason: "corrupted_remote";
+      };
+      corruptedErr.previousChars = fallbackPreviousChars;
+      corruptedErr.nextChars = nextChars;
+      corruptedErr.reason = "corrupted_remote";
+      throw corruptedErr;
+    }
+
     let previousChars =
       typeof existingMeta?.contentChars === "number" ? existingMeta.contentChars : -1;
-    if (previousChars < 0 && existingRow.content) {
-      try {
-        const decryptedExisting = decryptText(existingRow.content);
-        const parsedExisting = sanitizeStoryState(JSON.parse(decryptedExisting));
-        previousChars = computeTotalStoryContentChars(parsedExisting);
-      } catch {
-        previousChars = 0;
-      }
+    if (previousChars < 0 && parsedExistingState) {
+      previousChars = computeTotalStoryContentChars(parsedExistingState);
+    } else if (previousChars < 0) {
+      previousChars = 0;
     }
+
     if (previousChars >= DESTRUCTIVE_SAVE_MIN_CHARS && nextChars < previousChars * 0.1) {
       const destructiveErr = new AppError(
         "Destructive save rejected: content dropped by more than 90%",
         409,
         "DESTRUCTIVE_SAVE_REJECTED"
-      ) as AppError & { previousChars: number; nextChars: number };
+      ) as AppError & {
+        previousChars: number;
+        nextChars: number;
+        reason?: "content_drop";
+      };
       destructiveErr.previousChars = previousChars;
       destructiveErr.nextChars = nextChars;
+      destructiveErr.reason = "content_drop";
       throw destructiveErr;
     }
   }
@@ -202,6 +240,27 @@ export async function saveStoryState(
   const supabase = getSupabaseAdmin();
 
   if (existingRow) {
+    if (existingCorrupted && options?.allowDestructive && existingRow.content) {
+      const { error: backupError } = await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        role: "system",
+        content: existingRow.content,
+        meta: {
+          novelcrafterType: NOVELCRAFTER_CORRUPTED_BACKUP_META_TYPE,
+          isContextOnly: true,
+          corruptedAt: now,
+          sourceRowId: existingRow.id,
+          corruptedVersion: existingVersion,
+          previousMeta: existingMeta,
+        },
+      });
+
+      if (backupError) {
+        dbLogger.error("Failed to back up corrupted story_state row:", backupError);
+        throw new DatabaseError("Failed to preserve corrupted story state backup");
+      }
+    }
+
     const baseUpdate = supabase
       .from("messages")
       .update({

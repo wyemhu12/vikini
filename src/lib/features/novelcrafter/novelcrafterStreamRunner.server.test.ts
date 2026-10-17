@@ -383,4 +383,73 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     expect(blockedSse).toContain("SAFETY");
     expect(blockedSse).not.toContain("event: done\n");
   });
+
+  it("TC-01 Case 1A & 1B: only triggers onFirstModelOutput on token chunks (not thinking-only) and sanitizes upstream error messages", async () => {
+    const onFirstModelOutput = vi.fn();
+
+    async function* thinkingOnlyGenerator() {
+      yield {
+        candidates: [
+          {
+            content: {
+              parts: [{ text: "Planning only without prose...", thought: true }],
+            },
+          },
+        ],
+      };
+    }
+
+    hoisted.generateContentStreamMock.mockResolvedValueOnce(thinkingOnlyGenerator());
+
+    const thinkingOnlyStream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: BASE_REQUEST,
+      onFirstModelOutput,
+    });
+
+    const thinkingOnlySse = await readStreamText(thinkingOnlyStream);
+    expect(onFirstModelOutput).toHaveBeenCalledTimes(0);
+    expect(thinkingOnlySse).toContain("event: error\n");
+    expect(thinkingOnlySse).toContain('"code":"STREAM_ERROR"');
+
+    // Valid token chunk triggers onFirstModelOutput once
+    async function* validTokenGenerator() {
+      yield {
+        candidates: [
+          {
+            content: {
+              parts: [
+                { text: "Reasoning...", thought: true },
+                { text: "First prose token.", thought: false },
+                { text: "Second prose token.", thought: false },
+              ],
+            },
+          },
+        ],
+      };
+    }
+
+    hoisted.generateContentStreamMock.mockResolvedValueOnce(validTokenGenerator());
+    const validStream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: BASE_REQUEST,
+      onFirstModelOutput,
+    });
+    await readStreamText(validStream);
+    expect(onFirstModelOutput).toHaveBeenCalledTimes(1);
+
+    // Case 1B: Sensitive upstream error is sanitized via sanitizeError(err, true)
+    hoisted.generateContentStreamMock.mockRejectedValueOnce(
+      new Error("Fatal at 10.0.0.1 with GEMINI_API_KEY=secret123")
+    );
+    const sensitiveErrStream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: BASE_REQUEST,
+    });
+    const sensitiveErrSse = await readStreamText(sensitiveErrStream);
+    expect(sensitiveErrSse).toContain("event: error\n");
+    expect(sensitiveErrSse).toContain("An error occurred. Please try again later.");
+    expect(sensitiveErrSse).not.toContain("10.0.0.1");
+    expect(sensitiveErrSse).not.toContain("secret123");
+  });
 });

@@ -17,7 +17,11 @@ import {
   hasUnsavedDraftContent,
   LOCAL_DRAFT_THROTTLE_MS,
   markLocalDraftSynced,
+  readLocalStoryDraft,
   reconcileStoryStateWithDraft,
+  resolveLoadLockRecoveryAction,
+  shouldApplyLoadLockRetryResult,
+  shouldBlockAutosaveForStory,
   writeLocalStoryDraft,
 } from "@/lib/features/novelcrafter/draftStorage";
 import {
@@ -29,7 +33,11 @@ import {
 import type { StoryScopedState } from "@/lib/features/novelcrafter/streamTargetGuard";
 import type { NovelcrafterStoryState } from "@/lib/features/novelcrafter/types";
 import type { TranslationKey } from "@/lib/utils/translations";
-import { fetchRemoteStoryState, putStoryStateOnServer } from "./useNovelcrafterCatalog";
+import {
+  fetchRemoteStoryState,
+  putStoryStateOnServer,
+  StoryLoadError,
+} from "./useNovelcrafterCatalog";
 
 const lifecycleLogger = logger.withContext("useStoryPersistenceLifecycle");
 const FALLBACK_TRIM_PAYLOAD_BYTES = 1_500_000;
@@ -39,6 +47,7 @@ export interface DestructiveSavePromptState {
   previousChars: number;
   nextChars: number;
   pendingState: NovelcrafterStoryState;
+  reason?: "destructive_drop" | "corrupted_remote";
 }
 
 interface UseStoryPersistenceLifecycleParams {
@@ -46,6 +55,8 @@ interface UseStoryPersistenceLifecycleParams {
   validStoryId: string | null;
   coordinator: NovelcrafterSyncCoordinator;
   latestStateRef: MutableRefObject<StoryScopedState>;
+  loadErrorStoryIdRef: MutableRefObject<string | null>;
+  onClearLoadError?: (storyId: string) => void;
   setStoryState: Dispatch<SetStateAction<NovelcrafterStoryState>>;
   setSaveStatus: Dispatch<SetStateAction<StorySaveStatus>>;
   ensureActiveStory: (seedState?: NovelcrafterStoryState) => Promise<string | null>;
@@ -58,6 +69,8 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
     validStoryId,
     coordinator,
     latestStateRef,
+    loadErrorStoryIdRef,
+    onClearLoadError,
     setStoryState,
     setSaveStatus,
     ensureActiveStory,
@@ -69,6 +82,7 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
   const draftThrottleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyStoryIdsRef = useRef<Set<string>>(new Set());
   const quotaWarningShownRef = useRef(false);
+  const isRetryingLockedStoryRef = useRef<string | null>(null);
   const [destructivePrompt, setDestructivePrompt] = useState<DestructiveSavePromptState | null>(
     null
   );
@@ -120,6 +134,7 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
       });
 
       if (outcome.status === "saved") {
+        onClearLoadError?.(storyId);
         setDestructivePrompt((prev) => (prev?.storyId === storyId ? null : prev));
         const syncedEnv = markLocalDraftSynced(
           storyId,
@@ -146,6 +161,7 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
             previousChars: outcome.previousChars,
             nextChars: outcome.nextChars,
             pendingState: stateToSave,
+            reason: "destructive_drop",
           });
         }
         return false;
@@ -169,7 +185,11 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
 
       const presentation = resolveSaveFailurePresentation(outcome, Boolean(options?.isManual));
       if (presentation.shouldTrimPayloadAndRetry && !options?.isRetryAfterTrim) {
-        const trimmed = enforceStatePayloadBudget(stateToSave, FALLBACK_TRIM_PAYLOAD_BYTES);
+        const latestSourceState =
+          latestStateRef.current.ownerStoryId === storyId
+            ? latestStateRef.current.state
+            : stateToSave;
+        const trimmed = enforceStatePayloadBudget(latestSourceState, FALLBACK_TRIM_PAYLOAD_BYTES);
         if (trimmed.fits && (trimmed.trimmedHistoryCount > 0 || trimmed.trimmedFeedbackCount > 0)) {
           if (latestStateRef.current.ownerStoryId === storyId) {
             latestStateRef.current = { ownerStoryId: storyId, state: trimmed.state };
@@ -247,6 +267,7 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
     [
       isAuthed,
       latestStateRef,
+      onClearLoadError,
       setSaveStatus,
       coordinator,
       setStoryState,
@@ -268,6 +289,10 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
 
   const reloadAfterDestructiveRejection = useCallback(async () => {
     if (!destructivePrompt) return;
+    if (destructivePrompt.reason === "corrupted_remote") {
+      setDestructivePrompt(null);
+      return;
+    }
     const { storyId } = destructivePrompt;
     setDestructivePrompt(null);
     try {
@@ -306,7 +331,14 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
           latestStateRef.current.ownerStoryId,
           latestStateRef.current.state
         );
-        if (quotaExceeded && latestStateRef.current.ownerStoryId) {
+        if (
+          quotaExceeded &&
+          latestStateRef.current.ownerStoryId &&
+          !shouldBlockAutosaveForStory(
+            latestStateRef.current.ownerStoryId,
+            loadErrorStoryIdRef.current
+          )
+        ) {
           cancelPendingSaveTimers();
           void executeCoordinatorSave(
             latestStateRef.current.ownerStoryId,
@@ -323,6 +355,9 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
         }
         return;
       }
+      if (shouldBlockAutosaveForStory(ownerId, loadErrorStoryIdRef.current)) {
+        return;
+      }
       dirtyStoryIdsRef.current.add(ownerId);
       setSaveStatus("unsaved");
       cancelPendingSaveTimers();
@@ -334,7 +369,10 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
       const scheduledEpoch = coordinator.getEpoch(ownerId);
       saveTimerRef.current = setTimeout(() => {
         saveTimerRef.current = null;
-        if (latestStateRef.current.ownerStoryId === ownerId) {
+        if (
+          latestStateRef.current.ownerStoryId === ownerId &&
+          !shouldBlockAutosaveForStory(ownerId, loadErrorStoryIdRef.current)
+        ) {
           flushLocalDraftSync(ownerId, latestStateRef.current.state);
           void executeCoordinatorSave(ownerId, latestStateRef.current.state, {
             epoch: scheduledEpoch,
@@ -344,6 +382,7 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
     },
     [
       latestStateRef,
+      loadErrorStoryIdRef,
       isAuthed,
       flushLocalDraftSync,
       ensureActiveStory,
@@ -364,6 +403,91 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
       const targetStoryId =
         currentOwnerId || validStoryId || (await ensureActiveStory(currentState));
       if (!targetStoryId) return;
+
+      if (shouldBlockAutosaveForStory(targetStoryId, loadErrorStoryIdRef.current)) {
+        if (isRetryingLockedStoryRef.current === targetStoryId) return;
+        isRetryingLockedStoryRef.current = targetStoryId;
+        const snapshotStateForRecovery =
+          latestStateRef.current.ownerStoryId === targetStoryId
+            ? latestStateRef.current.state
+            : (readLocalStoryDraft(targetStoryId, t("novelcrafterDefaultChapterTitle"))?.state ??
+              currentState);
+        try {
+          const remoteState = await fetchRemoteStoryState(
+            targetStoryId,
+            t("novelcrafterDefaultChapterTitle"),
+            t("novelcrafterLoadError")
+          );
+          coordinator.seedServerMeta(targetStoryId, {
+            version: remoteState.version,
+            updatedAt: remoteState.updatedAt,
+          });
+          const postReconcileEpoch = coordinator.bumpEpoch(targetStoryId);
+          const localEnvelope = readLocalStoryDraft(
+            targetStoryId,
+            t("novelcrafterDefaultChapterTitle")
+          );
+          const reconciled = reconcileStoryStateWithDraft(remoteState, localEnvelope);
+          writeLocalStoryDraft(targetStoryId, reconciled.state, {
+            baseVersion: remoteState.version,
+            dirty: reconciled.shouldSyncDraftToServer,
+          });
+          onClearLoadError?.(targetStoryId);
+
+          const stillOnTargetStory = shouldApplyLoadLockRetryResult({
+            targetStoryId,
+            currentOwnerStoryId: latestStateRef.current.ownerStoryId,
+          });
+          if (stillOnTargetStory) {
+            latestStateRef.current = { ownerStoryId: targetStoryId, state: reconciled.state };
+            setStoryState(reconciled.state);
+            if (reconciled.conflictDetected) toast.info(t("novelcrafterConflictBackupNotice"));
+          }
+          if (reconciled.shouldSyncDraftToServer) {
+            dirtyStoryIdsRef.current.add(targetStoryId);
+            await executeCoordinatorSave(targetStoryId, reconciled.state, {
+              epoch: postReconcileEpoch,
+              isManual: true,
+            });
+          } else {
+            dirtyStoryIdsRef.current.delete(targetStoryId);
+            if (stillOnTargetStory) setSaveStatus("saved");
+          }
+        } catch (err: unknown) {
+          if (
+            !shouldApplyLoadLockRetryResult({
+              targetStoryId,
+              currentOwnerStoryId: latestStateRef.current.ownerStoryId,
+            })
+          ) {
+            return;
+          }
+          const action = resolveLoadLockRecoveryAction(
+            err instanceof StoryLoadError ? err.code : undefined
+          );
+          if (action === "overwrite_prompt") {
+            setDestructivePrompt({
+              storyId: targetStoryId,
+              previousChars: 0,
+              nextChars: snapshotStateForRecovery.chapters.reduce(
+                (acc, ch) => acc + ch.content.length,
+                0
+              ),
+              pendingState: snapshotStateForRecovery,
+              reason: "corrupted_remote",
+            });
+          } else {
+            setSaveStatus("error");
+            toast.error(t("novelcrafterLoadError"));
+          }
+        } finally {
+          if (isRetryingLockedStoryRef.current === targetStoryId) {
+            isRetryingLockedStoryRef.current = null;
+          }
+        }
+        return;
+      }
+
       if (isManual) coordinator.resetConsecutiveRecoveries(targetStoryId);
       await executeCoordinatorSave(targetStoryId, latestStateRef.current.state, {
         epoch: coordinator.getEpoch(targetStoryId),
@@ -373,6 +497,11 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
     [
       cancelPendingSaveTimers,
       latestStateRef,
+      loadErrorStoryIdRef,
+      onClearLoadError,
+      setStoryState,
+      setSaveStatus,
+      t,
       flushLocalDraftSync,
       validStoryId,
       ensureActiveStory,
@@ -387,7 +516,11 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
       const ownerId = latestStateRef.current.ownerStoryId;
       const currentState = latestStateRef.current.state;
       flushLocalDraftSync(ownerId, currentState);
-      if (ownerId && dirtyStoryIdsRef.current.has(ownerId)) {
+      if (
+        ownerId &&
+        dirtyStoryIdsRef.current.has(ownerId) &&
+        !shouldBlockAutosaveForStory(ownerId, loadErrorStoryIdRef.current)
+      ) {
         cancelPendingSaveTimers();
         void executeCoordinatorSave(ownerId, currentState, {
           epoch: coordinator.getEpoch(ownerId),
@@ -412,6 +545,7 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
     };
   }, [
     latestStateRef,
+    loadErrorStoryIdRef,
     flushLocalDraftSync,
     cancelPendingSaveTimers,
     coordinator,

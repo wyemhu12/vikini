@@ -278,6 +278,21 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04, TC-05)", () => {
         })
       ).toThrowError(ValidationError);
     });
+
+    it("TC-05: preserves 25% head and 75% tail of chapterProse when length exceeds MAX_CHAPTER_CONTEXT_CHARS (18,000)", () => {
+      const overBudgetProse = "HEAD_MARKER_START " + "M".repeat(25_000) + " TAIL_MARKER_END";
+      const prompt = buildNovelcrafterUserPrompt({
+        feature: "write",
+        writeMode: "auto",
+        storyBible: FULL_STORY_BIBLE,
+        chapterTitle: "Chapter 3",
+        chapterProse: overBudgetProse,
+      });
+
+      expect(prompt).toContain("HEAD_MARKER_START");
+      expect(prompt).toContain("...[middle of chapter omitted for context budget]...");
+      expect(prompt).toContain("TAIL_MARKER_END");
+    });
   });
 
   describe("sanitizeStoryState & 2-Way Rollback Compatibility (TC-05 Cases 5C & 5D — M21, M22)", () => {

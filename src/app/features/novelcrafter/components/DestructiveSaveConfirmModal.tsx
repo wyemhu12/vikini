@@ -30,10 +30,19 @@ export default function DestructiveSaveConfirmModal({
 
   if (!prompt) return null;
 
-  const descriptionText = t("novelcrafterDestructiveSaveDesc")
-    .replace("{prev}", prompt.previousChars.toLocaleString())
-    .replace("{previous}", prompt.previousChars.toLocaleString())
-    .replace("{next}", prompt.nextChars.toLocaleString());
+  const isCorruptedRemote = prompt.reason === "corrupted_remote";
+  const titleText = isCorruptedRemote
+    ? t("novelcrafterCorruptedStateTitle")
+    : t("novelcrafterDestructiveSaveTitle");
+  const descriptionText = isCorruptedRemote
+    ? t("novelcrafterCorruptedStateDesc").replace("{next}", prompt.nextChars.toLocaleString())
+    : t("novelcrafterDestructiveSaveDesc")
+        .replace("{prev}", prompt.previousChars.toLocaleString())
+        .replace("{previous}", prompt.previousChars.toLocaleString())
+        .replace("{next}", prompt.nextChars.toLocaleString());
+  const reloadBtnText = isCorruptedRemote
+    ? t("novelcrafterCorruptedStateKeepLockedBtn")
+    : t("novelcrafterDestructiveSaveReloadBtn");
 
   return (
     <Dialog open={Boolean(prompt)} onOpenChange={(open) => !open && onReloadSafe()}>
@@ -41,7 +50,7 @@ export default function DestructiveSaveConfirmModal({
         <DialogHeader>
           <div className="flex items-center gap-2.5 text-(--warning)">
             <AlertTriangle className="w-5 h-5 shrink-0" />
-            <DialogTitle>{t("novelcrafterDestructiveSaveTitle")}</DialogTitle>
+            <DialogTitle>{titleText}</DialogTitle>
           </div>
           <DialogDescription className="pt-2 text-xs md:text-sm text-(--text-secondary) leading-relaxed">
             {descriptionText}
@@ -56,7 +65,7 @@ export default function DestructiveSaveConfirmModal({
             className="w-full sm:w-auto inline-flex items-center gap-1.5"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>{t("novelcrafterDestructiveSaveReloadBtn")}</span>
+            <span>{reloadBtnText}</span>
           </Button>
           <Button
             type="button"

@@ -104,4 +104,15 @@ describe("storyBibleSerializer and domain helpers", () => {
     }
     expect(registry.isBusy()).toBe(false);
   });
+
+  it("omits cards with visibleToAI === false from serialized Story Bible text", () => {
+    const bible = createDefaultStoryState("gemini-2.5-flash").storyBible;
+    bible.characterCards = [
+      { id: "c1", name: "Visible Hero", role: "Lead", traits: "Kind", visibleToAI: true },
+      { id: "c2", name: "Hidden Villain", role: "Boss", traits: "Secret", visibleToAI: false },
+    ];
+    const serialized = serializeStoryBibleWithStructuredCards(bible);
+    expect(serialized.charactersText).toContain("Visible Hero");
+    expect(serialized.charactersText).not.toContain("Hidden Villain");
+  });
 });

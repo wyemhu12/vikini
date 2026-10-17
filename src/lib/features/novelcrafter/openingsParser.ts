@@ -7,7 +7,7 @@ export interface ParsedOpeningOption {
 }
 
 const OPENING_DELIMITERS =
-  /(?:^|\n)\s*(?:===\s*OPENING\s*(\d)\s*(?::\s*([^=\n]+?))?\s*===|#{2,3}\s*(?:Opening|Mở đầu|Phương án)\s*(\d)\s*(?::\s*([^\n]+))?)\s*\n/gi;
+  /(?:^|\n)[ \t]*(?:===+[ \t]*(?:\*\*)?OPENING[ \t]*(\d+)(?:\*\*)?[ \t]*(?:[:\-–—][ \t]*([^=\n]+?))?(?:\*\*)?[ \t]*===+|#{2,3}[ \t]*(?:\*\*)?(?:Opening|Mở đầu|Phương án)[ \t]*(\d+)(?:\*\*)?[ \t]*(?:[:\-–—][ \t]*([^\n]+?))?(?:\*\*)?)[ \t]*\n/gi;
 
 export function parseThreeOpenings(rawOutput: string): ParsedOpeningOption[] {
   const trimmed = rawOutput.trim();
@@ -25,7 +25,7 @@ export function parseThreeOpenings(rawOutput: string): ParsedOpeningOption[] {
     const endIdx =
       i + 1 < matches.length ? (matches[i + 1].index ?? trimmed.length) : trimmed.length;
     const num = match[1] || match[3] || String(i + 1);
-    const subtitle = (match[2] || match[4] || "").trim();
+    const subtitle = (match[2] || match[4] || "").replace(/^\*\*|\*\*$/g, "").trim();
     const content = trimmed.slice(startIdx, endIdx).trim();
     if (content) {
       results.push({

@@ -60,4 +60,62 @@ describe("featureDirectives (TC-05 Cases 5A & 5B)", () => {
     });
     expect(moreIntense).toContain("more intense, visceral, and gripping");
   });
+
+  it("TC-06 Case 6A & 6B: includes chapterExtraInstructions across all 5 write modes, rewrite, and both expand modes, and rewrites structured cards when freeform notes are empty", () => {
+    const extra = "Giữ giọng văn cổ phong";
+    const writeModes = ["first_draft_rough", "openings_3", "tone_shift", "guided", "auto"] as const;
+
+    for (const writeMode of writeModes) {
+      const dir = buildFeatureDirective({
+        feature: "write",
+        storyBible: defaultBible,
+        writeMode,
+        chapterExtraInstructions: extra,
+      });
+      expect(dir).toContain(`Chapter Extra Instructions: ${extra}`);
+    }
+
+    const rewriteDir = buildFeatureDirective({
+      feature: "rewrite",
+      storyBible: defaultBible,
+      selectedText: "Đoạn văn",
+      chapterExtraInstructions: extra,
+    });
+    expect(rewriteDir).toContain(`Chapter Extra Instructions: ${extra}`);
+
+    for (const expandMode of ["describe", "expand"] as const) {
+      const expandDir = buildFeatureDirective({
+        feature: "expand",
+        storyBible: defaultBible,
+        expandMode,
+        selectedText: "Đoạn văn",
+        chapterExtraInstructions: extra,
+      });
+      expect(expandDir).toContain(`Chapter Extra Instructions: ${extra}`);
+    }
+
+    // Case 6B: Bible rewrite with structured characterCards and empty free-form characters string
+    const bibleWithStructuredCard = {
+      ...defaultBible,
+      characters: "",
+      characterCards: [
+        {
+          id: "c1",
+          name: "Linh",
+          role: "Kiếm khách",
+          traits: "Lạnh lùng",
+          visibleToAI: true,
+        },
+      ],
+    };
+
+    const bibleRewrite = buildFeatureDirective({
+      feature: "bible",
+      bibleTarget: "characters",
+      actionMode: "rewrite",
+      storyBible: bibleWithStructuredCard,
+    });
+    expect(bibleRewrite).toContain("### Linh (Kiếm khách)");
+    expect(bibleRewrite).toContain("Lạnh lùng");
+  });
 });

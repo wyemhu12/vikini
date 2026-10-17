@@ -117,6 +117,7 @@ export default function StoryBibleWorkspace({
     label: string,
     customInstruction?: string
   ) => {
+    if (isStreaming) return;
     void onTriggerStream({
       feature: "bible",
       bibleTarget: target,
@@ -239,7 +240,7 @@ export default function StoryBibleWorkspace({
                   )}
                 >
                   <span className="text-xs font-semibold">{t(meta.title)}</span>
-                  <span className="text-[11px] text-(--text-secondary) leading-tight">
+                  <span className="text-xs text-(--text-secondary) leading-tight">
                     {t(meta.desc)}
                   </span>
                 </button>

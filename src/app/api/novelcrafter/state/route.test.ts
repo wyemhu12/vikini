@@ -26,7 +26,7 @@ vi.mock("@/lib/features/novelcrafter/storyPersistence.server", () => ({
   saveStoryState: hoisted.saveStoryStateMock,
 }));
 
-import { ForbiddenError } from "@/lib/utils/errors";
+import { AppError, ForbiddenError } from "@/lib/utils/errors";
 import { createDefaultStoryState } from "@/lib/features/novelcrafter/types";
 import { GET, PUT } from "./route";
 
@@ -82,6 +82,20 @@ describe("/api/novelcrafter/state route integration tests (TC-07)", () => {
       const body = await res.json();
       expect(body.success).toBe(true);
       expect(body.data.state.chapters[0].title).toBe("Chapter 1");
+    });
+
+    it("TC-03A: returns 500 with STORY_STATE_CORRUPTED when getStoryState fails decryption", async () => {
+      hoisted.getStoryStateMock.mockRejectedValueOnce(
+        new AppError("Story state is unreadable", 500, "STORY_STATE_CORRUPTED")
+      );
+
+      const req = new NextRequest(
+        `http://localhost/api/novelcrafter/state?conversationId=${VALID_CONVO_ID}`
+      );
+      const res = await GET(req);
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body.error.code).toBe("STORY_STATE_CORRUPTED");
     });
   });
 

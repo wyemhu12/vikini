@@ -14,7 +14,11 @@ import {
   readLocalStoryDraft,
   reconcileStoryStateWithDraft,
   removeLocalStoryDraft,
+  resolveLoadLockRecoveryAction,
+  resolveStoryLoadFailureState,
   resolveValidNovelcrafterStoryId,
+  shouldApplyLoadLockRetryResult,
+  shouldBlockAutosaveForStory,
   UNSAVED_DRAFT_STORAGE_KEY,
   writeLocalStoryDraft,
 } from "./draftStorage";
@@ -223,5 +227,92 @@ describe("draftStorage (TC-02 & TC-03)", () => {
     expect(getDraftStorageKey("new-story-1")).toBe("vikini:novelcrafter:draft:new-story-1");
     removeLocalStoryDraft("new-story-1");
     expect(readLocalStoryDraft("new-story-1")).toBeNull();
+  });
+
+  it("TC-03B (Cases 3B-1..3B-5) & structured card conflict backup: isolates failed story loads, blocks autosave on locked stories, and detects structured card diffs", () => {
+    // Case 3B-1: story without local draft returns clean default state with ownerStoryId = story-err-1
+    const fallback1 = resolveStoryLoadFailureState({
+      storyId: "story-err-1",
+      defaultChapterTitle: "Chương 1",
+    });
+    expect(fallback1.ownerStoryId).toBe("story-err-1");
+    expect(fallback1.state.chapters[0].content).toBe("");
+
+    // Case 3B-2: story with existing local draft preserves local draft state
+    const localSaved = createDefaultStoryState("Chương Local");
+    localSaved.chapters[0].content = "Nội dung bản nháp local được giữ lại";
+    writeLocalStoryDraft("story-err-2", localSaved, { baseVersion: 2, dirty: true });
+
+    const fallback2 = resolveStoryLoadFailureState({
+      storyId: "story-err-2",
+      defaultChapterTitle: "Chương 1",
+    });
+    expect(fallback2.ownerStoryId).toBe("story-err-2");
+    expect(fallback2.state.chapters[0].content).toBe("Nội dung bản nháp local được giữ lại");
+
+    // Case 3B-3: shouldBlockAutosaveForStory
+    expect(shouldBlockAutosaveForStory("story-err-1", "story-err-1")).toBe(true);
+    expect(shouldBlockAutosaveForStory("story-ok", "story-err-1")).toBe(false);
+    expect(shouldBlockAutosaveForStory("story-ok", null)).toBe(false);
+    expect(shouldBlockAutosaveForStory(null, "story-err-1")).toBe(false);
+
+    // Case 3B-4: resolveLoadLockRecoveryAction
+    expect(resolveLoadLockRecoveryAction("STORY_STATE_CORRUPTED")).toBe("overwrite_prompt");
+    expect(resolveLoadLockRecoveryAction("DATABASE_ERROR")).toBe("keep_locked");
+    expect(resolveLoadLockRecoveryAction("RATE_LIMIT_EXCEEDED")).toBe("keep_locked");
+    expect(resolveLoadLockRecoveryAction(undefined)).toBe("keep_locked");
+    expect(resolveLoadLockRecoveryAction(null)).toBe("keep_locked");
+
+    // Case 3B-5: shouldApplyLoadLockRetryResult
+    expect(
+      shouldApplyLoadLockRetryResult({
+        targetStoryId: "story-a",
+        currentOwnerStoryId: "story-a",
+      })
+    ).toBe(true);
+    expect(
+      shouldApplyLoadLockRetryResult({
+        targetStoryId: "story-a",
+        currentOwnerStoryId: "story-b",
+      })
+    ).toBe(false);
+    expect(
+      shouldApplyLoadLockRetryResult({
+        targetStoryId: "story-a",
+        currentOwnerStoryId: null,
+      })
+    ).toBe(false);
+    expect(
+      shouldApplyLoadLockRetryResult({
+        targetStoryId: null,
+        currentOwnerStoryId: "story-a",
+      })
+    ).toBe(false);
+
+    // Structured cards & extraInstructions conflict backup detection
+    const remoteState = {
+      ...createDefaultStoryState(),
+      version: 4,
+      updatedAt: 40_000,
+    };
+    const localWithCards = {
+      ...createDefaultStoryState(),
+      version: 2,
+      updatedAt: 20_000,
+    };
+    localWithCards.storyBible.characterCards = [
+      { id: "c1", name: "Kael", role: "Mage", traits: "Fierce", visibleToAI: false },
+    ];
+    localWithCards.chapters[0].extraInstructions = "Keep dialogue sharp";
+
+    const reconciledCards = reconcileStoryStateWithDraft(remoteState, {
+      baseVersion: 2,
+      dirty: true,
+      savedAt: 20_000,
+      state: localWithCards,
+    });
+    expect(reconciledCards.conflictDetected).toBe(true);
+    expect(reconciledCards.state.historyCards[0]?.content).toContain("Kael");
+    expect(reconciledCards.state.historyCards[0]?.content).toContain("Keep dialogue sharp");
   });
 });

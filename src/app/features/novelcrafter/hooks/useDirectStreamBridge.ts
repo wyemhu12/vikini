@@ -3,7 +3,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/lib/store/toastStore";
-import { parseFeedbackItems } from "@/lib/features/novelcrafter/feedbackParser";
+import {
+  mergeStreamedFeedbackItems,
+  parseFeedbackItems,
+} from "@/lib/features/novelcrafter/feedbackParser";
 import {
   applyStreamTargetUpdate,
   resolveStreamTerminationState,
@@ -42,6 +45,13 @@ export function useDirectStreamBridge({
 }: UseDirectStreamBridgeParams) {
   const [isDirectStreamingToChapter, setIsDirectStreamingToChapter] = useState(false);
   const directStreamTargetRef = useRef<DirectStreamTarget | null>(null);
+  const feedbackBaseItemsRef = useRef<{
+    storyId: string;
+    chapterId: string;
+    baseItems: NovelcrafterFeedbackItem[];
+    isReplyMode: boolean;
+    nowMs: number;
+  } | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const pendingChunkRef = useRef<{
     storyId: string;
@@ -60,6 +70,7 @@ export function useDirectStreamBridge({
   useEffect(() => {
     cancelRaf();
     directStreamTargetRef.current = null;
+    feedbackBaseItemsRef.current = null;
     setIsDirectStreamingToChapter(false);
     return () => cancelRaf();
   }, [selectedConversationId, cancelRaf]);
@@ -75,6 +86,21 @@ export function useDirectStreamBridge({
       const isDirectProse =
         (params.feature === "write" && params.writeMode !== "openings_3") ||
         (params.feature === "bible" && params.bibleTarget === "draft");
+
+      if (params.feature === "feedback") {
+        feedbackBaseItemsRef.current = {
+          storyId,
+          chapterId: activeCh.id,
+          baseItems: activeCh.feedbackItems ?? [],
+          isReplyMode: Boolean(params.replyToFeedbackId),
+          nowMs: Date.now(),
+        };
+        directStreamTargetRef.current = null;
+        setIsDirectStreamingToChapter(false);
+        return;
+      }
+
+      feedbackBaseItemsRef.current = null;
 
       if (isDirectProse) {
         directStreamTargetRef.current = {
@@ -129,14 +155,32 @@ export function useDirectStreamBridge({
 
         if (pending.params.feature === "feedback") {
           if (latestStateRef.current.ownerStoryId !== pending.storyId) return;
-          const parsedItems = parseFeedbackItems(pending.fullContent, { isStreaming: true });
+          const fbTarget = feedbackBaseItemsRef.current;
+          const targetChapterId =
+            fbTarget && fbTarget.storyId === pending.storyId
+              ? fbTarget.chapterId
+              : latestStateRef.current.state.activeChapterId;
+          const parsedItems = parseFeedbackItems(pending.fullContent, {
+            isStreaming: true,
+            nowMs: fbTarget?.nowMs,
+          });
           if (parsedItems.length === 0) return;
           const currentState = latestStateRef.current.state;
           applyDirectStoryState(
             {
               ...currentState,
               chapters: currentState.chapters.map((ch: NovelcrafterChapter) =>
-                ch.id === currentState.activeChapterId ? { ...ch, feedbackItems: parsedItems } : ch
+                ch.id === targetChapterId
+                  ? {
+                      ...ch,
+                      feedbackItems: mergeStreamedFeedbackItems({
+                        parsedItems,
+                        baseItems: fbTarget?.baseItems ?? ch.feedbackItems,
+                        isReplyMode:
+                          fbTarget?.isReplyMode ?? Boolean(pending.params.replyToFeedbackId),
+                      }),
+                    }
+                  : ch
               ),
             },
             { skipSave: true }
@@ -158,16 +202,30 @@ export function useDirectStreamBridge({
   );
 
   const handleStreamTerminated = useCallback(
-    (payload: StreamTerminatedPayload) => {
+    (payload: StreamTerminatedPayload): { handledRefusal?: boolean } | void => {
       cancelRaf();
       setIsDirectStreamingToChapter(false);
       if (payload.params.feature === "feedback") {
+        const fbTarget = feedbackBaseItemsRef.current;
+        feedbackBaseItemsRef.current = null;
         if (latestStateRef.current.ownerStoryId === payload.storyId && payload.fullContent.trim()) {
-          const parsedItems = parseFeedbackItems(payload.fullContent, { isStreaming: false });
+          const parsedItems = parseFeedbackItems(payload.fullContent, {
+            isStreaming: false,
+            nowMs: fbTarget?.nowMs,
+          });
+          const targetChapterId =
+            fbTarget && fbTarget.storyId === payload.storyId
+              ? fbTarget.chapterId
+              : latestStateRef.current.state.activeChapterId;
           if (parsedItems.length > 0) {
             updateChapterFeedbackItems(
-              latestStateRef.current.state.activeChapterId,
-              (existing) => [...parsedItems, ...existing.filter((i) => i.status === "resolved")],
+              targetChapterId,
+              (existing) =>
+                mergeStreamedFeedbackItems({
+                  parsedItems,
+                  baseItems: fbTarget?.baseItems ?? existing,
+                  isReplyMode: fbTarget?.isReplyMode ?? Boolean(payload.params.replyToFeedbackId),
+                }),
               true
             );
           }
@@ -199,6 +257,7 @@ export function useDirectStreamBridge({
       }
       if (resolved.refusalDetected && resolved.refusalMessage) {
         toast.error(resolved.refusalMessage.slice(0, 240));
+        return { handledRefusal: true };
       }
     },
     [cancelRaf, latestStateRef, applyDirectStoryState, updateChapterFeedbackItems]

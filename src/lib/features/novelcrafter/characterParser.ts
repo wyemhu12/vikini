@@ -32,7 +32,7 @@ export function parseCharacterCardsFromMarkdown(
     let name = rawHeader;
     let role = "";
     const parenMatch = rawHeader.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
-    const dashMatch = rawHeader.match(/^(.+?)\s*[—–-]\s*(.+)$/);
+    const dashMatch = rawHeader.match(/^(.+?)(?:\s+[—–-]\s+|\s*:\s*)(.+)$/);
     if (parenMatch) {
       name = parenMatch[1].trim();
       role = parenMatch[2].trim();
