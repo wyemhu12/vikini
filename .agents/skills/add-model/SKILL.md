@@ -1,5 +1,6 @@
 ---
-description: Step-by-step guide for adding new AI models to Vikini.
+name: add-model
+description: "MANDATORY when adding or modifying an AI model in src/lib/core/modelRegistry.ts (SELECTABLE_MODELS) or wiring a new provider client in src/lib/core/."
 ---
 
 # Adding New Models to Vikini

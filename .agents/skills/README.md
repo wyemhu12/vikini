@@ -16,7 +16,7 @@ Các kỹ năng phục vụ trực tiếp kiến trúc cốt lõi của Vikini (
 - [database-migration](./database-migration/SKILL.md): Quy trình di chuyển cơ sở dữ liệu Supabase, kiểm tra RLS (Row Level Security), cascade constraints và indexes hiệu năng cao.
 - [api-patterns](./api-patterns/SKILL.md): Cấu trúc API Route chuẩn mực (Validate ➔ Execute ➔ Respond), xử lý lỗi với `AppError`, xác thực bắt buộc qua `requireUser()`.
 - [add-feature](./add-feature/SKILL.md): Quy trình thêm tính năng mới tuần tự theo đúng ranh giới kiến trúc.
-- [add-model.md](./add-model.md): Quy trình thêm mô hình AI mới vào registry và cấu hình provider.
+- [add-model](./add-model/SKILL.md): Quy trình thêm mô hình AI mới vào registry và cấu hình provider.
 - [add-translation](./add-translation/SKILL.md): Hướng dẫn bổ sung khóa dịch song ngữ an toàn kiểu (Type-safe i18n).
 
 ### B. Nhóm Frontend Taste & Motion Polish
@@ -46,7 +46,7 @@ Thứ tự ưu tiên: **Vikini-First, Superpowers-Complementary** (xem [.agents/
 | **Database, Schema, RLS**                                        | [.agents/skills/database-migration/SKILL.md](./database-migration/SKILL.md) | Bắt buộc bật RLS cho 100% bảng mới; cascade foreign keys.                                     |
 | **API Route & Backend Helper**                                   | [.agents/skills/api-patterns/SKILL.md](./api-patterns/SKILL.md)             | Luôn dùng `requireUser()`, validate Zod schema trước khi execute.                             |
 | **Thêm Tính Năng Mới**                                           | [.agents/skills/add-feature/SKILL.md](./add-feature/SKILL.md)               | Tuân thủ ranh giới layer: `app/` mỏng, logic tại `lib/features/`.                             |
-| **Tích Hợp AI Model Mới**                                        | [.agents/skills/add-model.md](./add-model.md)                               | Xác minh SDK năm 2026, cập nhật registry và types.                                            |
+| **Tích Hợp AI Model Mới**                                        | [.agents/skills/add-model/SKILL.md](./add-model/SKILL.md)                   | Xác minh SDK năm 2026, cập nhật registry và types.                                            |
 | **Văn Bản UI / Thêm Khóa Dịch**                                  | [.agents/skills/add-translation/SKILL.md](./add-translation/SKILL.md)       | Đồng bộ cả `vi.ts` và `en.ts` theo [.agents/rules/04-bilingual.md](../rules/04-bilingual.md). |
 | **Câu Hỏi Kiến Trúc / Lịch Sử / Khôi Phục Ngữ Cảnh**             | [.agents/skills/vikini-investigate/SKILL.md](./vikini-investigate/SKILL.md) | Read-only tuyệt đối (`/how`, `/why`, `/recall`), có dẫn chứng `[SRC]`/`[CMD]`.                |
 | **Sửa Module Dùng Chung (`src/lib/core/`, `src/lib/features/`)** | [.agents/skills/vikini-investigate/SKILL.md](./vikini-investigate/SKILL.md) | Chạy `/blast-radius` lập bảng callers và co-located tests bị ảnh hưởng.                       |

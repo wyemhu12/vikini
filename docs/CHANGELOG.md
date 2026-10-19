@@ -8,6 +8,17 @@
 
 ---
 
+## 2026-10-19: Maintenance -- Vitest 4.1.12 & add-model SKILL.md
+
+- **Vitest 4.1.12 Upgrade (`package.json`, `package-lock.json`)**:
+  - Nâng cấp đồng thời 3 gói devDependencies trực tiếp (`vitest`, `@vitest/coverage-v8`, `@vitest/ui`) từ `^4.1.11` lên `^4.1.12` và tái sinh `package-lock.json` để toàn bộ 10 node (`vitest` và 9 gói `@vitest/*`) resolve về `4.1.12`.
+  - Ghi nhận trung thực: lỗ hổng `CVE-2026-84373` (`GHSA-82fw-gwwq-j7x9`, path traversal trong `@vitest/mocker`) đã được vá từ bản `4.1.11` (`npm audit` có 0 cảnh báo cho `vitest`/`@vitest/*` cả trước và sau nâng cấp); bản `4.1.12` bổ sung hardening cho manual/redirect mocks (`vitest` PR #11580) và nâng sàn semver trong `package.json`.
+- **Standardize `add-model` Skill (`.agents/skills/add-model/SKILL.md`, `.agents/skills/README.md`, `.gitignore`)**:
+  - Di chuyển `.agents/skills/add-model.md` sang cấu trúc thư mục `.agents/skills/add-model/SKILL.md` với YAML frontmatter chuẩn (`name: add-model`, `description: "MANDATORY when..."`) và giữ nguyên văn nội dung hướng dẫn, đồng bộ 8/8 skill nội bộ Vikini sang cấu trúc thư mục có trigger tự động.
+  - Cập nhật whitelist trong `.gitignore` từ `!.agents/skills/add-model.md` sang `!.agents/skills/add-model/`, cập nhật 2 liên kết định tuyến tại `.agents/skills/README.md`, và xóa file cũ `.agents/skills/add-model.md`.
+
+---
+
 ## 2026-10-19: Governance -- Swap Planner & Reviewer Execution Channels (Dual-Planner Claude CLI Primary + Dual-Reviewer @reviewer Primary)
 
 - **Dual-Planner Architecture (`.agents/scripts/claude-planner-prompt.md`, `.agents/scripts/run-claude.ps1`, `.agents/agents/planner/agent.md`)**:

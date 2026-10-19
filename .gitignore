@@ -39,7 +39,7 @@ pnpm-debug.log*
 .agents/skill
 .agents/skills/*
 !.agents/skills/README.md
-!.agents/skills/add-model.md
+!.agents/skills/add-model/
 !.agents/skills/api-patterns/
 !.agents/skills/streaming-patterns/
 !.agents/skills/database-migration/
