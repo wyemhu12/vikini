@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   CONFLICT_BACKUP_ACTION_LABEL,
   countChapterWords,
+  createChapterSnapshot,
   DRAFT_LRU_INDEX_KEY,
   enforceStatePayloadBudget,
   getDraftStorageKey,
@@ -314,5 +315,49 @@ describe("draftStorage (TC-02 & TC-03)", () => {
     expect(reconciledCards.conflictDetected).toBe(true);
     expect(reconciledCards.state.historyCards[0]?.content).toContain("Kael");
     expect(reconciledCards.state.historyCards[0]?.content).toContain("Keep dialogue sharp");
+  });
+
+  it("TC-306: creates deduplicated chapter snapshots (FIFO max 5) and trims oldest snapshots in Tier 2 payload budget without touching active chapter prose", () => {
+    const state = createDefaultStoryState();
+    const ch = state.chapters[0];
+    ch.content = "Phiên bản một của chương.";
+
+    const firstSnaps = createChapterSnapshot(ch, "Bản 1", 1000);
+    expect(firstSnaps).toHaveLength(1);
+    expect(firstSnaps[0].label).toBe("Bản 1");
+
+    // Identical content updates timestamp/label on the top snapshot instead of duplicating
+    const dedupedSnaps = createChapterSnapshot(
+      { ...ch, snapshots: firstSnaps },
+      "Bản 1 cập nhật",
+      2000
+    );
+    expect(dedupedSnaps).toHaveLength(1);
+    expect(dedupedSnaps[0].label).toBe("Bản 1 cập nhật");
+
+    // FIFO cap at 5 snapshots
+    let currentSnaps = dedupedSnaps;
+    for (let i = 2; i <= 6; i++) {
+      currentSnaps = createChapterSnapshot(
+        { ...ch, content: `Nội dung lần ${i} `.repeat(300), snapshots: currentSnaps },
+        `Bản ${i}`,
+        i * 1000
+      );
+    }
+    expect(currentSnaps).toHaveLength(5);
+    expect(currentSnaps[0].label).toBe("Bản 6");
+
+    // Tier 2 budget trimming removes oldest snapshots when historyCards are already empty
+    state.chapters[0].content = "Bản thảo chính hiện tại phải giữ nguyên.";
+    state.chapters[0].snapshots = currentSnaps;
+    const budgetResult = enforceStatePayloadBudget(state, 8_000);
+    expect(budgetResult.fits).toBe(true);
+    expect(budgetResult.trimmedSnapshotCount).toBeGreaterThan(0);
+    expect(budgetResult.state.chapters[0].content).toBe("Bản thảo chính hiện tại phải giữ nguyên.");
+
+    // Summary counts as unsaved draft content
+    const summaryOnlyState = createDefaultStoryState();
+    summaryOnlyState.chapters[0].summary = "Tóm tắt chương 1";
+    expect(hasUnsavedDraftContent(summaryOnlyState)).toBe(true);
   });
 });

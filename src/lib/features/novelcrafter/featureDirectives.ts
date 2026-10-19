@@ -99,12 +99,25 @@ function buildBibleDirective(input: BuildUserPromptInput, custom: string): strin
     worldbuilding: serializedBible.worldbuildingText.trim(),
     outline: serializedBible.outlineText.trim(),
     scenes: input.chapterScenes?.trim() || "",
+    chapter_summary: input.chapterSummary?.trim() || "",
   };
   const currentSectionValue = existingContentByTarget[target];
 
   if (mode === "rewrite" && !currentSectionValue && !custom) {
     throw new ValidationError(
       `Cannot rewrite empty Story Bible section '${target}' without instructions or existing text`
+    );
+  }
+
+  if (
+    target === "chapter_summary" &&
+    mode === "generate" &&
+    !input.chapterProse?.trim() &&
+    !input.chapterScenes?.trim() &&
+    !custom
+  ) {
+    throw new ValidationError(
+      "Cannot generate chapter summary: chapterProse or chapterScenes is required when both chapter prose and scene beats are empty"
     );
   }
 
@@ -133,6 +146,8 @@ function buildBibleDirective(input: BuildUserPromptInput, custom: string): strin
       "Generate a structured, chapter-by-chapter Story Outline based on the Genre, Synopsis, Characters, Worldbuilding, and Narrative POV/Tense.",
     scenes:
       "Generate detailed Scene Beats (Chapter Beats) for the current chapter based on the Story Outline, Genre, Style, Characters, Worldbuilding, and previous chapter continuity.",
+    chapter_summary:
+      "Write a concise 3-to-5 bullet Rolling Chapter Summary (150-300 words) capturing the key plot events, character state changes, revelations, and unresolved hooks from <preceding_prose> and <scenes> so subsequent chapters can use it as rolling story memory.",
   };
 
   return [targetGuides[target], custom ? `Additional Author Direction: ${custom}` : ""]

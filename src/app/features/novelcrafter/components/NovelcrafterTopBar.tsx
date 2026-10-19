@@ -6,7 +6,12 @@ import {
   AlertCircle,
   BookOpen,
   Check,
+  Clock,
   Crown,
+  Download,
+  FileCode2,
+  FileText,
+  Loader2,
   PanelLeft,
   PanelRight,
   Settings2,
@@ -19,6 +24,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ModelSelector from "@/app/features/chat/components/ModelSelector";
@@ -44,6 +58,11 @@ interface NovelcrafterTopBarProps {
   historyCount?: number;
   onRetrySave: () => void;
   onOpenRoutingModal: () => void;
+  onExportManuscript?: (options: {
+    format: "md" | "txt";
+    includeStoryBible: boolean;
+    includeChapterSummaries: boolean;
+  }) => void;
   showLeftPane: boolean;
   onToggleLeftPane: () => void;
   showRightPane: boolean;
@@ -68,6 +87,7 @@ export default function NovelcrafterTopBar({
   historyCount = 0,
   onRetrySave,
   onOpenRoutingModal,
+  onExportManuscript,
   showLeftPane,
   onToggleLeftPane,
   showRightPane,
@@ -80,6 +100,8 @@ export default function NovelcrafterTopBar({
 }: NovelcrafterTopBarProps) {
   const { t } = useLanguage();
   const [titleDraft, setTitleDraft] = useState(storyTitle);
+  const [exportIncludeBible, setExportIncludeBible] = useState(true);
+  const [exportIncludeSummaries, setExportIncludeSummaries] = useState(true);
 
   useEffect(() => {
     setTitleDraft(storyTitle);
@@ -133,7 +155,7 @@ export default function NovelcrafterTopBar({
           </div>
         </div>
 
-        {/* Right: Silent Sudowrite Status + Model Selector + Master GEM/Persona + Routing + History Pane */}
+        {/* Right: Silent Sudowrite Status + Model Selector + Master GEM/Persona + Routing + Export + History Pane */}
         <div className="flex items-center gap-2 flex-wrap">
           {saveStatus === "error" ? (
             <button
@@ -149,8 +171,22 @@ export default function NovelcrafterTopBar({
               aria-live="polite"
               className="hidden sm:inline-flex items-center gap-1.5 text-xs text-(--text-secondary) select-none px-1.5"
             >
-              <Check className="w-3.5 h-3.5 text-(--text-secondary)/80 shrink-0" />
-              <span>{t("novelcrafterSaved")}</span>
+              {saveStatus === "saving" ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 text-(--accent) animate-spin shrink-0" />
+                  <span>{t("novelcrafterSaving")}</span>
+                </>
+              ) : saveStatus === "unsaved" ? (
+                <>
+                  <Clock className="w-3.5 h-3.5 text-(--warning) shrink-0" />
+                  <span>{t("novelcrafterUnsaved")}</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-3.5 h-3.5 text-(--text-secondary)/80 shrink-0" />
+                  <span>{t("novelcrafterSaved")}</span>
+                </>
+              )}
               <span aria-hidden="true">·</span>
               <span>
                 {t("novelcrafterChapterWordsCount").replace(
@@ -201,6 +237,71 @@ export default function NovelcrafterTopBar({
             <Settings2 className="w-3.5 h-3.5 shrink-0" />
             <span className="hidden sm:inline">{t("novelcrafterRoutingButton")}</span>
           </button>
+
+          {onExportManuscript && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  title={t("novelcrafterExportMenuBtn")}
+                  aria-label={t("novelcrafterExportMenuBtn")}
+                  className="inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg border border-(--border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                >
+                  <Download className="w-3.5 h-3.5 text-(--accent) shrink-0" />
+                  <span className="hidden sm:inline">{t("novelcrafterExportMenuBtn")}</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel className="text-xs">
+                  {t("novelcrafterExportMenuBtn")}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={exportIncludeBible}
+                  onCheckedChange={(val) => setExportIncludeBible(Boolean(val))}
+                  onSelect={(e) => e.preventDefault()}
+                  className="text-xs"
+                >
+                  {t("novelcrafterExportIncludeBible")}
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={exportIncludeSummaries}
+                  onCheckedChange={(val) => setExportIncludeSummaries(Boolean(val))}
+                  onSelect={(e) => e.preventDefault()}
+                  className="text-xs"
+                >
+                  {t("novelcrafterExportIncludeSummaries")}
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() =>
+                    onExportManuscript({
+                      format: "md",
+                      includeStoryBible: exportIncludeBible,
+                      includeChapterSummaries: exportIncludeSummaries,
+                    })
+                  }
+                  className="text-xs gap-2"
+                >
+                  <FileCode2 className="w-3.5 h-3.5 text-(--accent)" />
+                  <span>{t("novelcrafterExportMarkdownBtn")}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    onExportManuscript({
+                      format: "txt",
+                      includeStoryBible: exportIncludeBible,
+                      includeChapterSummaries: exportIncludeSummaries,
+                    })
+                  }
+                  className="text-xs gap-2"
+                >
+                  <FileText className="w-3.5 h-3.5 text-(--text-secondary)" />
+                  <span>{t("novelcrafterExportPlainTextBtn")}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           <button
             type="button"

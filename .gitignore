@@ -35,9 +35,18 @@ pnpm-debug.log*
 .DS_Store
 *.pem
 
-# Agent Skills
+# Agent Skills (third-party installs ignored; Vikini-owned skills tracked)
 .agents/skill
-.agents/skills
+.agents/skills/*
+!.agents/skills/README.md
+!.agents/skills/add-model.md
+!.agents/skills/api-patterns/
+!.agents/skills/streaming-patterns/
+!.agents/skills/database-migration/
+!.agents/skills/add-feature/
+!.agents/skills/add-translation/
+!.agents/skills/vikini-investigate/
+!.agents/skills/vikini-simplify/
 .claude/skill
 .claude/skills
 

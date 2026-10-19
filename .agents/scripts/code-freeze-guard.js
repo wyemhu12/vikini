@@ -5,6 +5,7 @@
  * Policy: Option 2 (Scoped Protection — Decided by Product Manager / QA):
  *   - ALLOW writes to the plan/doc surface (docs/ and root planning artifacts).
  *   - ALLOW writes to external Antigravity artifacts (~/.gemini/antigravity/brain/).
+ *   - ALLOW Fast-Track micro-edits (replace_file_content, <= 40 lines) on UI/translation/styling surfaces without an approved plan.
  *   - With approved plan: ALLOW writes to non-sensitive frontend/UI/feature files.
  *   - ALWAYS ASK for sensitive core files (*.server.ts, database migrations, TEST_INFRA_FILES,
  *     test files under Test Integrity Guard, and .agents/ governance files).
@@ -46,7 +47,7 @@ const SAFE_SCRATCH_EXTENSIONS = [".md", ".json", ".ts", ".js", ".txt", ".csv", "
 /** Dangerous executable extensions explicitly rejected. */
 const DANGEROUS_EXTENSIONS = [".exe", ".dll", ".bat", ".cmd", ".ps1", ".sh", ".vbs"];
 
-/** Read-only verification commands mirroring the @reviewer / @qa ALLOWLIST for Vikini. */
+/** Read-only verification and multi-agent CLI dispatch commands mirroring the @planner / @reviewer / @qa ALLOWLIST for Vikini. */
 const READ_ONLY_COMMANDS = [
   /^npm run (?:type-check|lint|test:run|verify)$/,
   // Scoped Vitest runs: path arguments plus the stdout-only --reporter flag. Any
@@ -59,7 +60,7 @@ const READ_ONLY_COMMANDS = [
   /^npm ls(?: \S+)*$/,
   /^npm view \S+(?: \S+)*$/,
   /^git (?:status|diff|log|show|blame)(?: \S+)*$/,
-  /^powershell(?:\.exe)?\s+(?:-ExecutionPolicy\s+\w+\s+)?-File\s+\.agents[/\\]scripts[/\\]run-claude\.ps1(?:\s+.*)?$/,
+  /^powershell(?:\.exe)?\s+(?:-(?:NoProfile|ExecutionPolicy\s+\w+)\s+)*-File\s+["']?\.agents[/\\]scripts[/\\]run-claude\.ps1["']?(?:\s+.*)?$/,
   /^claude(?:\.exe)?(?:\s+.*)?$/,
 ];
 
@@ -160,7 +161,7 @@ export function isAntigravityArtifact(targetFile) {
 }
 
 /**
- * Checks if the current active plan has been approved by Reviewer (Claude CLI or @reviewer).
+ * Checks if the current active plan has been approved by Lead Reviewer (@reviewer primary or Claude CLI fallback).
  * Inspects .agents/.plan-approved or strictly the single latest plan in docs/plans/.
  *
  * Hardened Security Checks:
@@ -377,6 +378,54 @@ export function assessTestIntegrity(oldContent, newContent) {
   return signals;
 }
 
+/** Maximum lines on either side of a Fast-Track edit. */
+export const FAST_TRACK_MAX_LINES = 40;
+
+/** Reason returned when a Fast-Track micro-edit is allowed without an approved plan. */
+const FAST_TRACK_REASON =
+  "Fast-Track Mode: micro-edit (<= 40 lines) on UI/translation/styling surface.";
+
+/** Pure UI / translation / styling surfaces eligible for Fast-Track Mode. */
+const FAST_TRACK_PATHS = [
+  /^src\/lib\/utils\/translations\/(?:vi|en)\.ts$/,
+  /^src\/app\/styles\/.+\.css$/,
+  /^src\/(?:app\/(?!api\/)|components\/).+\.tsx$/,
+];
+
+/** Defence in depth: test/spec/server components are blocked by earlier gates too. */
+const FAST_TRACK_EXCLUDED_PATHS = /\.(?:test|spec|server)\.tsx$/;
+
+/** Content that must never ride the Fast-Track lane (D2). */
+const FAST_TRACK_FORBIDDEN_CONTENT = /["']use server["']|\bprocess\.env\b|\.server["']/;
+
+/**
+ * Counts lines the way editors do for a replacement chunk.
+ * @param {string} value
+ * @returns {number}
+ */
+export function countLines(value) {
+  return value.split(/\r?\n/).length;
+}
+
+/**
+ * Fast-Track Mode: a small replace_file_content edit on a pure UI surface may
+ * proceed without [PLAN_APPROVED]. Must run AFTER every Scoped Protection gate.
+ * @param {string} relative repo-relative POSIX path
+ * @param {GuardInput} input
+ * @returns {boolean}
+ */
+export function isFastTrackEligible(relative, input) {
+  if (input.toolName !== "replace_file_content") return false;
+  if (FAST_TRACK_EXCLUDED_PATHS.test(relative)) return false;
+  if (!FAST_TRACK_PATHS.some((pattern) => pattern.test(relative))) return false;
+  const { oldContent, newContent } = input;
+  if (typeof oldContent !== "string" || typeof newContent !== "string") return false;
+  if (oldContent === "" || newContent === "") return false;
+  if (countLines(oldContent) > FAST_TRACK_MAX_LINES) return false;
+  if (countLines(newContent) > FAST_TRACK_MAX_LINES) return false;
+  return !FAST_TRACK_FORBIDDEN_CONTENT.test(newContent);
+}
+
 /**
  * Decides whether a tool call may proceed without user confirmation.
  * Implements Option 2 (Scoped Protection).
@@ -420,7 +469,7 @@ export function decide(input, options = {}) {
       return { decision: "allow" };
     }
 
-    // 3. PRIORITY: Test Infrastructure Guard (checked BEFORE isTestFile)
+    // 3b. PRIORITY: Test Infrastructure Guard (checked BEFORE isTestFile)
     if (TEST_INFRA_FILES.includes(relative)) {
       return ask(
         [
@@ -483,7 +532,12 @@ export function decide(input, options = {}) {
       );
     }
 
-    // 8. General application / UI files: Scoped Protection
+    // 8. Fast-Track Mode: micro UI / translation / styling edits (05-plan-review.md §1.1)
+    if (isFastTrackEligible(relative, input)) {
+      return { decision: "allow", reason: FAST_TRACK_REASON };
+    }
+
+    // 9. General application / UI files: Scoped Protection
     const planApproved =
       options.planApproved !== undefined ? options.planApproved : isPlanApproved();
     if (planApproved) {
@@ -494,7 +548,7 @@ export function decide(input, options = {}) {
       [
         "\u26a0\ufe0f Code Freeze Guard: write targets a frozen path.",
         `Path: ${relative}`,
-        "Approve only if [PLAN_APPROVED] has been granted by @reviewer.",
+        "Approve only if [PLAN_APPROVED] has been granted by Lead Reviewer (@reviewer or Claude CLI fallback).",
       ].join("\n")
     );
   }

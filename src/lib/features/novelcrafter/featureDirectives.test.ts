@@ -118,4 +118,35 @@ describe("featureDirectives (TC-05 Cases 5A & 5B)", () => {
     expect(bibleRewrite).toContain("### Linh (Kiếm khách)");
     expect(bibleRewrite).toContain("Lạnh lùng");
   });
+
+  it("TC-303: builds chapter_summary directive in generate and rewrite modes and throws when chapterProse and chapterScenes are both empty", () => {
+    expect(() =>
+      buildFeatureDirective({
+        feature: "bible",
+        bibleTarget: "chapter_summary",
+        actionMode: "generate",
+        storyBible: defaultBible,
+        chapterProse: "   ",
+        chapterScenes: "",
+      })
+    ).toThrow(/chapterProse or chapterScenes is required/);
+
+    const genDir = buildFeatureDirective({
+      feature: "bible",
+      bibleTarget: "chapter_summary",
+      actionMode: "generate",
+      storyBible: defaultBible,
+      chapterProse: "Linh bước vào mật thất và tìm thấy cổ kiếm.",
+    });
+    expect(genDir).toContain("concise 3-to-5 bullet Rolling Chapter Summary");
+
+    const rewriteDir = buildFeatureDirective({
+      feature: "bible",
+      bibleTarget: "chapter_summary",
+      actionMode: "rewrite",
+      storyBible: defaultBible,
+      chapterSummary: "- Linh vào mật thất.",
+    });
+    expect(rewriteDir).toContain("- Linh vào mật thất.");
+  });
 });

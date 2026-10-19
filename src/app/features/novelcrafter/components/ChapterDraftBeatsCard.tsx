@@ -3,8 +3,9 @@
 
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { RefreshCw, Sparkles, Wand2, X } from "lucide-react";
+import { BookMarked, RefreshCw, Sparkles, Wand2, X } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
+import { MAX_CHAPTER_SUMMARY_CHARS } from "@/lib/features/novelcrafter/types";
 import { TRANSITION } from "@/lib/utils/motion";
 
 interface ChapterDraftBeatsCardProps {
@@ -14,6 +15,10 @@ interface ChapterDraftBeatsCardProps {
   onChangeScenes: (val: string) => void;
   extraInstructions: string;
   onChangeExtraInstructions: (val: string) => void;
+  summary?: string;
+  onChangeSummary?: (val: string) => void;
+  onSummarizeChapter?: () => void;
+  canSummarizeChapter?: boolean;
   isStreaming: boolean;
   onGenerateBeats: () => void;
   onRewriteBeats: () => void;
@@ -27,6 +32,10 @@ export default function ChapterDraftBeatsCard({
   onChangeScenes,
   extraInstructions,
   onChangeExtraInstructions,
+  summary = "",
+  onChangeSummary,
+  onSummarizeChapter,
+  canSummarizeChapter = false,
   isStreaming,
   onGenerateBeats,
   onRewriteBeats,
@@ -76,6 +85,39 @@ export default function ChapterDraftBeatsCard({
               aria-label={t("novelcrafterExtraInstructionsLabel")}
               className="w-full h-9 rounded-xl border border-(--border) bg-(--surface-elevated)/40 px-3.5 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             />
+
+            <div className="pt-2 border-t border-(--border)/60 space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-(--text-secondary)">
+                    {t("novelcrafterChapterSummaryLabel")}
+                  </span>
+                  <span className="text-xs text-(--text-secondary)/80">
+                    {summary.length}/{MAX_CHAPTER_SUMMARY_CHARS}
+                  </span>
+                </div>
+                {onSummarizeChapter && (
+                  <button
+                    type="button"
+                    disabled={isStreaming || !canSummarizeChapter}
+                    onClick={onSummarizeChapter}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--accent) disabled:opacity-50"
+                  >
+                    <BookMarked className="w-3.5 h-3.5" />
+                    <span>{t("novelcrafterSummarizeChapterBtn")}</span>
+                  </button>
+                )}
+              </div>
+              <textarea
+                rows={3}
+                maxLength={MAX_CHAPTER_SUMMARY_CHARS}
+                value={summary}
+                onChange={(e) => onChangeSummary?.(e.target.value)}
+                placeholder={t("novelcrafterChapterSummaryPlaceholder")}
+                aria-label={t("novelcrafterChapterSummaryLabel")}
+                className="w-full rounded-xl border border-(--border) bg-(--surface-elevated)/50 px-3.5 py-2 text-xs leading-[1.6] text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none resize-y"
+              />
+            </div>
 
             <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
               <div className="flex items-center gap-1.5 flex-wrap">

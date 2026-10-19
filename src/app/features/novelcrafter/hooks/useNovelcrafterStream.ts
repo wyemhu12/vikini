@@ -8,6 +8,7 @@ import {
   createRafStreamBatcher,
   useNovelcrafterStreamStore,
 } from "@/lib/features/novelcrafter/novelcrafterStreamStore";
+import { buildActiveCodexContextText } from "@/lib/features/novelcrafter/promptBuilder";
 import { pruneStoryBibleForStream } from "@/lib/features/novelcrafter/pruneStoryBibleForStream";
 import {
   NovelcrafterStreamRunRegistry,
@@ -92,8 +93,10 @@ interface UseNovelcrafterStreamOptions {
   chapterTitle: string;
   chapterScenes: string;
   chapterExtraInstructions?: string;
+  chapterSummary?: string;
   chapterProse: string;
   previousChapterProseTail: string;
+  previousChapterSummaries?: string;
   onStreamStarted?: (payload: { storyId: string; params: TriggerNovelcrafterStreamParams }) => void;
   onStreamTokenChunk?: (payload: {
     storyId: string;
@@ -318,10 +321,23 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
       };
 
       try {
+        const activeContextText = buildActiveCodexContextText({
+          feature: params.feature,
+          storyBible: opts.storyBible,
+          chapterTitle: opts.chapterTitle,
+          chapterScenes: opts.chapterScenes,
+          chapterSummary: opts.chapterSummary,
+          chapterExtraInstructions: opts.chapterExtraInstructions,
+          chapterProse: opts.chapterProse,
+          selectedText: params.selectedText,
+          keyDetails: params.keyDetails,
+          customInstruction: params.customInstruction,
+        });
         const prunedBible = pruneStoryBibleForStream(
           opts.storyBible,
           params.feature,
-          params.bibleTarget
+          params.bibleTarget,
+          activeContextText
         );
         const res = await fetch("/api/novelcrafter/stream", {
           method: "POST",
@@ -336,8 +352,10 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
             chapterTitle: opts.chapterTitle,
             chapterScenes: opts.chapterScenes,
             chapterExtraInstructions: opts.chapterExtraInstructions || "",
+            chapterSummary: opts.chapterSummary || "",
             chapterProse: opts.chapterProse,
             previousChapterProseTail: opts.previousChapterProseTail,
+            previousChapterSummaries: opts.previousChapterSummaries || "",
             selectedText: params.selectedText || "",
             bibleTarget: params.bibleTarget,
             actionMode: params.actionMode || "generate",

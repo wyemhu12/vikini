@@ -17,13 +17,17 @@ export interface StoryScopedState {
   state: NovelcrafterStoryState;
 }
 
-export type DirectStreamTargetKind = "chapter_prose" | "chapter_scenes" | "bible_field";
+export type DirectStreamTargetKind =
+  | "chapter_prose"
+  | "chapter_scenes"
+  | "chapter_summary"
+  | "bible_field";
 
 export interface DirectStreamTarget {
   storyId: string | null;
   kind: DirectStreamTargetKind;
   chapterId?: string;
-  bibleField?: Exclude<NovelcrafterBibleTarget, "draft" | "scenes">;
+  bibleField?: Exclude<NovelcrafterBibleTarget, "draft" | "scenes" | "chapter_summary">;
   baseContent: string;
 }
 
@@ -94,6 +98,33 @@ export function applyStreamTargetUpdate(
       return {
         ...ch,
         scenes: stripCardTruncationNotice(streamedText).slice(0, FIELD_MAX_LENGTHS.chapterScenes),
+        updatedAt: now,
+      };
+    });
+    if (!found) {
+      return { nextState: scoped.state, applied: false };
+    }
+    return {
+      nextState: {
+        ...scoped.state,
+        chapters: nextChapters,
+        updatedAt: Math.max(scoped.state.updatedAt + 1, now),
+      },
+      applied: true,
+    };
+  }
+
+  if (target.kind === "chapter_summary") {
+    if (!target.chapterId) {
+      return { nextState: scoped.state, applied: false };
+    }
+    let found = false;
+    const nextChapters = scoped.state.chapters.map((ch) => {
+      if (ch.id !== target.chapterId) return ch;
+      found = true;
+      return {
+        ...ch,
+        summary: stripCardTruncationNotice(streamedText).slice(0, FIELD_MAX_LENGTHS.chapterSummary),
         updatedAt: now,
       };
     });

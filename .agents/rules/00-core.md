@@ -40,7 +40,14 @@ description: Core identity, communication, stack, and behavioral boundaries.
 - **Minimal diffs**: See `.agents/rules/02-quality.md` for full policy.
 - **No guesswork**: If context is missing, request up to 3 specific files, then proceed.
 - **Git Operations**: NEVER work directly with git or create branches autonomously. Work strictly on local workspace files. ONLY commit and push when explicitly requested by the user.
-- **Zero-Self-Execution & Uninterrupted Chain**: Orchestrator never self-plans and never pauses between planning and reviewing. Planning requires subagent `@planner` and approval requires Lead Reviewer (Claude Code CLI via `.agents/scripts/run-claude.ps1` or fallback subagent `@reviewer`) with `[PLAN_APPROVED]`. See `.agents/rules/05-plan-review.md`.
+- **Zero-Self-Execution & Uninterrupted Chain**: Orchestrator never self-plans and never pauses between planning and reviewing. Planning requires Primary Planner (Claude Code CLI via `.agents/scripts/run-claude.ps1 -Role planner` or fallback subagent `@planner`) and approval requires Lead Reviewer (Primary subagent `@reviewer` or fallback Claude Code CLI via `.agents/scripts/run-claude.ps1 -Role reviewer`) with `[PLAN_APPROVED]`. See `.agents/rules/05-plan-review.md`.
+
+## Token Efficiency (tokenleak discipline)
+
+- **Locate before reading**: Use `grep_search` to find exact lines first, then call `view_file` with `StartLine`/`EndLine` for files > 400 lines.
+- **No duplicate reads**: Never re-read the same file range within a single session if the file has not changed.
+- **Bounded command output**: Scope test runs by path, use compact reporters (`--reporter=dot`), and cap git history (`git log -n <N>`). Never dump unbounded logs into context.
+- **Subagent delegation**: Prefer dispatching one `research` subagent for broad multi-file exploration over sequential main-thread reads.
 
 ## Git & Version Control
 

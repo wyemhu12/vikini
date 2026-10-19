@@ -5,31 +5,44 @@ description: Mandatory pre-work, post-change checklist, workflow enforcement, te
 
 # Quality Gates
 
-## Pre-Work Protocol (MANDATORY)
+## Pre-Work Protocol (MANDATORY Skill Triggers)
 
 Before writing any code, identify the task domain and read relevant documentation:
 
-| Domain                    | Read first                                                    | Workflow to follow                  |
-| ------------------------- | ------------------------------------------------------------- | ----------------------------------- |
-| Chat / Streaming          | docs/contracts.md, .agents/skills/streaming-patterns.md       |                                     |
-| Database / Schema         | docs/database-schema.md, .agents/skills/database-migration.md |                                     |
-| Auth / Security           | docs/security.md                                              |                                     |
-| UI Components             | .agents/rules/03-ui.md                                        |                                     |
-| Bug fixing                | docs/lessons-learned.md                                       | **.agents/workflows/debug.md**      |
-| API routes                | .agents/skills/api-patterns.md                                |                                     |
-| Projects / Knowledge Base | docs/features.md (section 2.10), docs/contracts.md            |                                     |
-| Image Studio / Gallery    | docs/features.md (sections 2.5, 2.6)                          |                                     |
-| Voice / Audio             | docs/features.md (section 2.7)                                |                                     |
-| New feature overview      | docs/features.md, docs/architecture.md                        |                                     |
-| Adding a new feature      | .agents/skills/add-feature.md                                 |                                     |
-| Feature / Task Planning   | docs/plans/, .agents/rules/05-plan-review.md                  | **.agents/rules/05-plan-review.md** |
-| Code quality review       | .agents/rules/01-coding.md                                    | **.agents/workflows/audit.md**      |
-| Refactoring / File split  | .agents/rules/01-coding.md (§ File Size & Modularity)         |                                     |
+| Domain                                        | Read first                                                             | Workflow to follow                  |
+| --------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------- |
+| Chat / Streaming                              | docs/contracts.md, .agents/skills/streaming-patterns/SKILL.md          |                                     |
+| Database / Schema                             | docs/database-schema.md, .agents/skills/database-migration/SKILL.md    |                                     |
+| Auth / Security                               | docs/security.md                                                       |                                     |
+| UI Components                                 | .agents/rules/03-ui.md                                                 |                                     |
+| UI text / Translations                        | .agents/skills/add-translation/SKILL.md, .agents/rules/04-bilingual.md |                                     |
+| Bug fixing                                    | docs/lessons-learned.md                                                | **.agents/workflows/debug.md**      |
+| API routes                                    | .agents/skills/api-patterns/SKILL.md                                   |                                     |
+| Projects / Knowledge Base                     | docs/features.md (section 2.10), docs/contracts.md                     |                                     |
+| Image Studio / Gallery                        | docs/features.md (sections 2.5, 2.6)                                   |                                     |
+| Voice / Audio                                 | docs/features.md (section 2.7)                                         |                                     |
+| New feature overview                          | docs/features.md, docs/architecture.md                                 |                                     |
+| Adding a new feature                          | .agents/skills/add-feature/SKILL.md                                    |                                     |
+| Architecture question / context recovery      | .agents/skills/vikini-investigate/SKILL.md                             |                                     |
+| Shared module change (lib/core, lib/features) | .agents/skills/vikini-investigate/SKILL.md (/blast-radius)             |                                     |
+| Simplify / dead code cleanup                  | .agents/skills/vikini-simplify/SKILL.md                                |                                     |
+| Feature / Task Planning                       | docs/plans/, .agents/rules/05-plan-review.md                           | **.agents/rules/05-plan-review.md** |
+| Code quality review                           | .agents/rules/01-coding.md                                             | **.agents/workflows/audit.md**      |
+| Refactoring / File split                      | .agents/rules/01-coding.md (§ File Size & Modularity)                  |                                     |
 
 <important>
 When a workflow or rule is listed in the table above, you MUST read and follow it step-by-step.
 Do NOT skip workflows. They are mandatory procedures, not optional references.
-For any new feature or non-trivial task, strict code freeze applies until token `[PLAN_APPROVED]` is issued by Lead Reviewer (Claude CLI hoặc `@reviewer` fallback) (see `.agents/rules/05-plan-review.md`).
+For any new feature or non-trivial task, strict code freeze applies until token `[PLAN_APPROVED]` is issued by Lead Reviewer (Primary `@reviewer` hoặc Fallback Claude CLI) (see `.agents/rules/05-plan-review.md`).
+</important>
+
+## Skill Precedence Hierarchy (Vikini-First, Superpowers-Complementary)
+
+- **Tầng 1 — Vikini Internal Governance & Skills (Primary / Mandatory)**: `.agents/rules/`, `.agents/workflows/`, chuỗi Planner (Claude CLI / `@planner`) → Reviewer (`@reviewer` / Claude CLI) → `@qa`, và `.agents/skills/*/SKILL.md` luôn được nạp và áp dụng trước tiên.
+- **Tầng 2 — Superpowers Plugin (Secondary / Complementary)**: Sau khi thỏa mãn Tầng 1, agent mới tự cân nhắc dùng thêm các skill bổ trợ của `superpowers` (`brainstorming`, `test-driven-development`, `systematic-debugging`, `verification-before-completion`). Khi có xung đột, Tầng 1 luôn thắng.
+
+<important>
+Các skill của `superpowers` (`using-git-worktrees`, `writing-plans`, `executing-plans`, `finishing-a-development-branch`) TUYỆT ĐỐI KHÔNG được ghi đè luật cấm git tự động (`.agents/rules/00-core.md`) hay quy trình duyệt plan (`.agents/rules/05-plan-review.md`). `writing-plans` chỉ được dùng làm kỹ thuật bổ trợ để viết đúng cấu trúc plan của Planner.
 </important>
 
 ## Post-Change Checklist (MANDATORY)
@@ -70,7 +83,7 @@ Khi một test case thất bại trong quá trình verify, agent BẮT BUỘC ph
   ➔ **SỬA CODE ỨNG DỤNG**. Tuyệt đối không chạm vào test file.
 - **Loại B (Test Harness Issue)**: Cấu hình mock, test harness hoặc import path bị lỗi thời do refactor, nhưng đặc tả nghiệp vụ không đổi.
   ➔ **ĐƯỢC PHÉP SỬA TEST HARNESS/MOCK**, nhưng KHÔNG được giảm số lượng `expect()` hay nới lỏng matcher.
-- **Loại C (Approved Spec Change)**: Đặc tả nghiệp vụ chính thức thay đổi theo Test Contract trong kế hoạch đã được Lead Reviewer (Claude CLI hoặc `@reviewer`) cấp thẻ `[PLAN_APPROVED]`.
+- **Loại C (Approved Spec Change)**: Đặc tả nghiệp vụ chính thức thay đổi theo Test Contract trong kế hoạch đã được Lead Reviewer (Primary `@reviewer` hoặc Fallback Claude CLI) cấp thẻ `[PLAN_APPROVED]`.
   ➔ **ĐƯỢC PHÉP CẬP NHẬT TEST CASES** tương ứng với Test Contract mới.
 
 <important>
@@ -90,9 +103,9 @@ NGHIÊM CẤM HẠ THẤP TIÊU CHUẨN TEST:
   - Tác tử độc lập chỉ kích hoạt khi người dùng (Product Manager) trực tiếp gọi `@qa` trong chat.
   - Nghiệm thu đối chiếu từng task cụ thể theo 7 bước, thi hành Verification Gate, săn lỗi chuyên sâu và Test Integrity Audit.
 - **Tham Chiếu Tài Sản Kỹ Thuật Sẵn Có**:
-  - Chuẩn SSE Stream: `.agents/skills/streaming-patterns.md` (events `token`, `meta`, `thinking`, `done`, `error`).
-  - Chuẩn Database Migrations: `.agents/skills/database-migration.md` (Supabase schema, RLS, cascade).
-  - Chuẩn API Route Architecture: `.agents/skills/api-patterns.md` (Validate → Execute → Respond, `requireUser()`).
+  - Chuẩn SSE Stream: `.agents/skills/streaming-patterns/SKILL.md` (events `token`, `meta`, `thinking`, `done`, `error`).
+  - Chuẩn Database Migrations: `.agents/skills/database-migration/SKILL.md` (Supabase schema, RLS, cascade).
+  - Chuẩn API Route Architecture: `.agents/skills/api-patterns/SKILL.md` (Validate → Execute → Respond, `requireUser()`).
 
 ## Governance-Only Changes (Quy Chuẩn Quản Trị)
 

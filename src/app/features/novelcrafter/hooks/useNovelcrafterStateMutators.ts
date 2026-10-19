@@ -4,6 +4,7 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { confirm } from "@/lib/store/confirmStore";
 import { toast } from "@/lib/store/toastStore";
+import { createChapterSnapshot } from "@/lib/features/novelcrafter/draftStorage";
 import type { NovelcrafterSyncCoordinator } from "@/lib/features/novelcrafter/storySyncCoordinator";
 import type { StoryScopedState } from "@/lib/features/novelcrafter/streamTargetGuard";
 import {
@@ -169,7 +170,13 @@ export function useNovelcrafterStateMutators({
       patch: Partial<
         Pick<
           NovelcrafterChapter,
-          "title" | "scenes" | "extraInstructions" | "content" | "feedbackItems"
+          | "title"
+          | "scenes"
+          | "extraInstructions"
+          | "content"
+          | "feedbackItems"
+          | "summary"
+          | "snapshots"
         >
       >
     ) => {
@@ -181,6 +188,77 @@ export function useNovelcrafterStateMutators({
       }));
     },
     [commitStateChange]
+  );
+
+  const createSnapshotForChapter = useCallback(
+    (chapterId: string, label?: string) => {
+      commitStateChange(
+        (prev) => ({
+          ...prev,
+          chapters: prev.chapters.map((ch) =>
+            ch.id === chapterId
+              ? {
+                  ...ch,
+                  snapshots: createChapterSnapshot(ch, label),
+                  updatedAt: Date.now(),
+                }
+              : ch
+          ),
+        }),
+        { immediate: true }
+      );
+      toast.success(t("novelcrafterSnapshotCreatedToast"));
+    },
+    [commitStateChange, t]
+  );
+
+  const deleteChapterSnapshot = useCallback(
+    (chapterId: string, snapshotId: string) => {
+      commitStateChange(
+        (prev) => ({
+          ...prev,
+          chapters: prev.chapters.map((ch) =>
+            ch.id === chapterId
+              ? {
+                  ...ch,
+                  snapshots: (ch.snapshots ?? []).filter((s) => s.id !== snapshotId),
+                  updatedAt: Date.now(),
+                }
+              : ch
+          ),
+        }),
+        { immediate: true }
+      );
+    },
+    [commitStateChange]
+  );
+
+  const restoreChapterSnapshot = useCallback(
+    (chapterId: string, snapshotId: string) => {
+      commitStateChange(
+        (prev) => ({
+          ...prev,
+          chapters: prev.chapters.map((ch) => {
+            if (ch.id !== chapterId) return ch;
+            const targetSnap = (ch.snapshots ?? []).find((s) => s.id === snapshotId);
+            if (!targetSnap) return ch;
+            const nextSnapshots =
+              ch.content.trim().length > 0 && ch.content !== targetSnap.content
+                ? createChapterSnapshot(ch, t("novelcrafterSnapshotAutoBackupLabel"))
+                : ch.snapshots;
+            return {
+              ...ch,
+              content: targetSnap.content,
+              ...(nextSnapshots ? { snapshots: nextSnapshots } : {}),
+              updatedAt: Date.now(),
+            };
+          }),
+        }),
+        { immediate: true }
+      );
+      toast.success(t("novelcrafterSnapshotRestoredToast"));
+    },
+    [commitStateChange, t]
   );
 
   const updateChapterFeedbackItems = useCallback(
@@ -278,6 +356,9 @@ export function useNovelcrafterStateMutators({
     selectChapter,
     addChapter,
     updateChapter,
+    createSnapshotForChapter,
+    deleteChapterSnapshot,
+    restoreChapterSnapshot,
     updateChapterFeedbackItems,
     deleteChapter,
     prependHistoryCard,

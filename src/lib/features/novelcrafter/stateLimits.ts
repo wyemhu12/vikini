@@ -4,10 +4,15 @@
 import { DEFAULT_MODEL } from "@/lib/core/modelRegistry";
 import {
   MAX_CHAPTERS,
+  MAX_CHAPTER_SNAPSHOTS,
+  MAX_CHAPTER_SUMMARY_CHARS,
   MAX_CHARACTER_CARDS,
+  MAX_CODEX_ALIASES,
+  MAX_CODEX_ALIAS_CHARS,
   MAX_FEEDBACK_ITEMS_PER_CHAPTER,
   MAX_HISTORY_CARDS,
   MAX_OUTLINE_ITEMS,
+  MAX_SNAPSHOT_LABEL_CHARS,
   MAX_WORLD_ELEMENTS,
   NOVELCRAFTER_BIBLE_TARGETS,
   NOVELCRAFTER_FEATURE_SLOTS,
@@ -15,6 +20,7 @@ import {
   NOVELCRAFTER_POV_OPTIONS,
   NOVELCRAFTER_STYLE_MODES,
   NOVELCRAFTER_TENSE_OPTIONS,
+  type NovelcrafterChapterSnapshot,
   type NovelcrafterFeedbackItem,
   type StoryBibleCharacterCard,
   type StoryBibleOutlineItem,
@@ -32,7 +38,10 @@ export const FIELD_MAX_LENGTHS = {
   chapterTitle: 200,
   chapterScenes: 30_000,
   chapterExtraInstructions: 4_000,
+  chapterSummary: MAX_CHAPTER_SUMMARY_CHARS,
   chapterContent: 150_000,
+  codexAlias: MAX_CODEX_ALIAS_CHARS,
+  snapshotLabel: MAX_SNAPSHOT_LABEL_CHARS,
   feedbackQuote: 10_000,
   feedbackComment: 10_000,
   feedbackSuggestion: 15_000,
@@ -98,6 +107,53 @@ export function normalizeFeedbackItems(raw: unknown): NovelcrafterFeedbackItem[]
   return [...openItems, ...resolvedItems].slice(0, MAX_FEEDBACK_ITEMS_PER_CHAPTER);
 }
 
+export function normalizeCodexAliases(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < raw.length && result.length < MAX_CODEX_ALIASES; i += 1) {
+    const trimmed = truncateText(raw[i], FIELD_MAX_LENGTHS.codexAlias).trim();
+    if (!trimmed) continue;
+    const key = trimmed.normalize("NFC").toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(trimmed);
+  }
+  return result.length > 0 ? result : undefined;
+}
+
+export function normalizeChapterSnapshots(
+  raw: unknown,
+  now = Date.now()
+): NovelcrafterChapterSnapshot[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const snapshots: NovelcrafterChapterSnapshot[] = [];
+  for (let i = 0; i < raw.length && snapshots.length < MAX_CHAPTER_SNAPSHOTS; i += 1) {
+    const entry = raw[i];
+    if (!entry || typeof entry !== "object") continue;
+    const obj = entry as Record<string, unknown>;
+    const id = truncateText(obj.id, 100, `snap-${i + 1}`).trim() || `snap-${i + 1}`;
+    const labelRaw = truncateText(obj.label, FIELD_MAX_LENGTHS.snapshotLabel).trim();
+    const content = truncateText(obj.content, FIELD_MAX_LENGTHS.chapterContent);
+    const wordCount =
+      typeof obj.wordCount === "number" && Number.isFinite(obj.wordCount) && obj.wordCount >= 0
+        ? Math.floor(obj.wordCount)
+        : 0;
+    const createdAt =
+      typeof obj.createdAt === "number" && Number.isFinite(obj.createdAt) && obj.createdAt >= 0
+        ? Math.floor(obj.createdAt)
+        : now;
+    snapshots.push({
+      id,
+      ...(labelRaw ? { label: labelRaw } : {}),
+      content,
+      wordCount,
+      createdAt,
+    });
+  }
+  return snapshots.length > 0 ? snapshots : undefined;
+}
+
 function normalizeCharacterCards(raw: unknown): StoryBibleCharacterCard[] {
   if (!Array.isArray(raw)) return [];
   const cards: StoryBibleCharacterCard[] = [];
@@ -107,12 +163,15 @@ function normalizeCharacterCards(raw: unknown): StoryBibleCharacterCard[] {
     const obj = entry as Record<string, unknown>;
     const name = truncateText(obj.name, 150).trim();
     if (!name) continue;
+    const aliases = normalizeCodexAliases(obj.aliases);
     cards.push({
       id: truncateText(obj.id, 100, `char-${i + 1}`).trim() || `char-${i + 1}`,
       name,
       role: truncateText(obj.role, 150),
       traits: truncateText(obj.traits, 4_000),
       visibleToAI: obj.visibleToAI !== false,
+      ...(aliases ? { aliases } : {}),
+      ...(typeof obj.alwaysInclude === "boolean" ? { alwaysInclude: obj.alwaysInclude } : {}),
     });
   }
   return cards;
@@ -127,12 +186,15 @@ function normalizeWorldElements(raw: unknown): StoryBibleWorldElement[] {
     const obj = entry as Record<string, unknown>;
     const name = truncateText(obj.name, 150).trim();
     if (!name) continue;
+    const aliases = normalizeCodexAliases(obj.aliases);
     elements.push({
       id: truncateText(obj.id, 100, `world-${i + 1}`).trim() || `world-${i + 1}`,
       name,
       category: truncateText(obj.category, 100),
       description: truncateText(obj.description, 4_000),
       visibleToAI: obj.visibleToAI !== false,
+      ...(aliases ? { aliases } : {}),
+      ...(typeof obj.alwaysInclude === "boolean" ? { alwaysInclude: obj.alwaysInclude } : {}),
     });
   }
   return elements;
@@ -206,6 +268,8 @@ export function coerceStoryStateToLimits(
     const id = truncateText(c.id, 100, `ch-${i + 1}`).trim() || `ch-${i + 1}`;
     const title =
       truncateText(c.title, FIELD_MAX_LENGTHS.chapterTitle, fallbackTitle).trim() || fallbackTitle;
+    const summary = truncateText(c.summary, FIELD_MAX_LENGTHS.chapterSummary);
+    const snapshots = normalizeChapterSnapshots(c.snapshots, now);
     chapters.push({
       id,
       title,
@@ -214,8 +278,10 @@ export function coerceStoryStateToLimits(
         c.extraInstructions,
         FIELD_MAX_LENGTHS.chapterExtraInstructions
       ),
+      ...(typeof c.summary === "string" ? { summary } : {}),
       content: truncateText(c.content, FIELD_MAX_LENGTHS.chapterContent),
       feedbackItems: normalizeFeedbackItems(c.feedbackItems),
+      ...(snapshots ? { snapshots } : {}),
       updatedAt:
         typeof c.updatedAt === "number" && Number.isFinite(c.updatedAt) && c.updatedAt >= 0
           ? Math.floor(c.updatedAt)

@@ -153,4 +153,19 @@ describe("feedbackParser (TC-04)", () => {
       "fb-untouched",
     ]);
   });
+
+  it("TC-307: computes accurate word-level diff on large chapters (>500 words) via common prefix/suffix stripping without falling back to full replacement", () => {
+    const prefixWords = Array.from({ length: 300 }, (_, i) => `word${i}`).join(" ");
+    const suffixWords = Array.from({ length: 300 }, (_, i) => `tail${i}`).join(" ");
+    const oldText = `${prefixWords} oldPhraseHere ${suffixWords}`;
+    const newText = `${prefixWords} newPhraseHere ${suffixWords}`;
+
+    const segments = computeWordDiff(oldText, newText);
+    expect(segments).toEqual([
+      { type: "equal", text: `${prefixWords} ` },
+      { type: "delete", text: "oldPhraseHere" },
+      { type: "insert", text: "newPhraseHere" },
+      { type: "equal", text: ` ${suffixWords}` },
+    ]);
+  });
 });

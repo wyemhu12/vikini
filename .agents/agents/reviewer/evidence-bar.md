@@ -52,4 +52,4 @@ Khi plan khẳng định một chính sách "được enforce" bằng công cụ
 
 ### 4.5.4 Risk Table Audit (Bắt buộc)
 
-Mọi rủi ro trong plan xếp hạng **Cao/Trung bình** PHẢI ánh xạ tới một technical control đã xác minh bằng `[CMD]`/`[SRC]` (hoặc bước Verification có Negative Probe cho control sẽ được thêm) trong `src/lib/core/` hoặc `src/lib/features/`. Rủi ro Cao không có control → `[BLOCKER]`; rủi ro Trung bình → `[MAJOR]`.
+Mọi rủi ro trong plan xếp hạng **Cao/Trung bình** PHẢI ánh xạ tới một technical control đã xác minh bằng `[CMD]`/`[SRC]` (hoặc bước Verification có Negative Probe cho control sẽ được thêm) trong mã nguồn/cấu hình thực tế của dự án (`src/lib/core/`, `src/lib/features/`, `src/app/`, hoặc `.agents/scripts/`). Rủi ro Cao không có control → `[BLOCKER]`; rủi ro Trung bình → `[MAJOR]`.

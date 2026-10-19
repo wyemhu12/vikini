@@ -8,10 +8,16 @@ import HeaderBar from "../../layout/components/HeaderBar";
 import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import ToastContainer from "@/components/ui/ToastContainer";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { toast } from "@/lib/store/toastStore";
+import { logger } from "@/lib/utils/logger";
 import { useTheme } from "../../chat/hooks/useTheme";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { useAllowedModels } from "../../chat/components/hooks/useAllowedModels";
 import { countChapterWords } from "@/lib/features/novelcrafter/draftStorage";
+import {
+  formatManuscriptExport,
+  triggerManuscriptDownload,
+} from "@/lib/features/novelcrafter/manuscriptExporter";
 import type { NovelcrafterBibleTarget } from "@/lib/features/novelcrafter/types";
 import { useNovelcrafterModelGuard } from "../hooks/useNovelcrafterModelGuard";
 import { useNovelcrafterStory } from "../hooks/useNovelcrafterStory";
@@ -90,8 +96,10 @@ export default function NovelcrafterStudioApp() {
     chapterTitle: story.activeChapter.title,
     chapterScenes: story.activeChapter.scenes,
     chapterExtraInstructions: story.activeChapter.extraInstructions,
+    chapterSummary: story.activeChapter.summary ?? "",
     chapterProse: story.activeChapter.content,
     previousChapterProseTail: story.previousChapterProseTail,
+    previousChapterSummaries: story.previousChapterSummaries,
     onStreamStarted: handleStreamStarted,
     onStreamTokenChunk: handleStreamTokenChunk,
     onStreamTerminated: handleStreamTerminated,
@@ -134,9 +142,15 @@ export default function NovelcrafterStudioApp() {
 
   const handleApplyToBible = useCallback(
     (target: NovelcrafterBibleTarget, text: string) => {
-      if (target === "scenes") story.updateChapter(story.activeChapter.id, { scenes: text });
-      else if (target === "draft") handleAppendToChapter(text);
-      else story.updateStoryBible({ [target]: text });
+      if (target === "scenes") {
+        story.updateChapter(story.activeChapter.id, { scenes: text });
+      } else if (target === "chapter_summary") {
+        story.updateChapter(story.activeChapter.id, { summary: text });
+      } else if (target === "draft") {
+        handleAppendToChapter(text);
+      } else {
+        story.updateStoryBible({ [target]: text });
+      }
     },
     [story, handleAppendToChapter]
   );
@@ -171,6 +185,7 @@ export default function NovelcrafterStudioApp() {
       chapters={story.storyState.chapters}
       activeChapterId={story.activeChapter.id}
       onSelectChapter={(chId) => {
+        setSelection(null);
         story.selectChapter(chId);
         setLeftDrawerOpen(false);
       }}
@@ -256,6 +271,23 @@ export default function NovelcrafterStudioApp() {
             historyCount={story.storyState.historyCards.length}
             onRetrySave={() => void story.saveNow({ isManual: true })}
             onOpenRoutingModal={() => setIsRoutingModalOpen(true)}
+            onExportManuscript={(opts) => {
+              try {
+                const payload = formatManuscriptExport({
+                  storyTitle: currentTitle,
+                  storyState: story.storyState,
+                  format: opts.format === "md" ? "markdown" : "txt",
+                  includeStoryBible: opts.includeStoryBible,
+                  includeChapterSummaries: opts.includeChapterSummaries,
+                });
+                triggerManuscriptDownload(payload);
+                toast.success(t("novelcrafterExportSuccessToast"));
+              } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : "Unknown error";
+                logger.error(`[NovelcrafterStudioApp] export manuscript failed: ${message}`);
+                toast.error(t("exportFailed") || message);
+              }
+            }}
             showLeftPane={isLeftInline ? showLeftPane : leftDrawerOpen}
             onToggleLeftPane={() =>
               isLeftInline ? setShowLeftPane((p) => !p) : setLeftDrawerOpen((p) => !p)
@@ -291,6 +323,9 @@ export default function NovelcrafterStudioApp() {
             <ChapterEditorWorkspace
               chapter={story.activeChapter}
               onUpdateChapter={story.updateChapter}
+              onCreateSnapshot={story.createSnapshotForChapter}
+              onRestoreSnapshot={story.restoreChapterSnapshot}
+              onDeleteSnapshot={story.deleteChapterSnapshot}
               onUpdateFeedbackItems={story.updateChapterFeedbackItems}
               selection={selection}
               onSelectionChange={setSelection}

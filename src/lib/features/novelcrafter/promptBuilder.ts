@@ -7,15 +7,20 @@ import {
 } from "@/lib/features/personas/prompt-builder";
 import { buildFeatureDirective } from "./featureDirectives";
 import { coerceStoryStateToLimits } from "./stateLimits";
-import { serializeStoryBibleWithStructuredCards } from "./storyBibleSerializer";
+import {
+  escapeXmlPromptText,
+  serializeStoryBibleWithStructuredCards,
+} from "./storyBibleSerializer";
 import {
   createDefaultStoryState,
   MAX_CHAPTER_CONTEXT_CHARS,
   MAX_HISTORY_CARDS,
   MAX_PREVIOUS_CHAPTER_TAIL_CHARS,
+  MAX_STORY_SO_FAR_CHARS,
   NovelcrafterStoryStateSchema,
   type BuildUserPromptInput,
   type NovelcrafterBibleTarget,
+  type NovelcrafterChapter,
   type NovelcrafterFeatureSlot,
   type NovelcrafterPovOption,
   type NovelcrafterRoutingConfig,
@@ -24,6 +29,7 @@ import {
   type StoryBible,
 } from "./types";
 
+export { escapeXmlPromptText } from "./storyBibleSerializer";
 export type { BuildUserPromptInput } from "./types";
 
 export const DEFAULT_NOVELCRAFTER_MASTER_INSTRUCTIONS =
@@ -127,6 +133,57 @@ export function buildNovelcrafterSystemInstruction({
   return `${taskBlock}\n\n${styleBlock}`;
 }
 
+export function buildActiveCodexContextText(input: Partial<BuildUserPromptInput>): string {
+  return [
+    input.chapterTitle,
+    input.chapterScenes,
+    input.chapterSummary,
+    input.chapterExtraInstructions,
+    input.chapterProse,
+    input.selectedText,
+    input.keyDetails,
+    input.customInstruction,
+  ]
+    .map((part) => part?.trim() || "")
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function buildPreviousChapterSummariesText(
+  chapters: readonly Pick<NovelcrafterChapter, "id" | "title" | "summary">[],
+  activeChapterId?: string,
+  maxChars: number = MAX_STORY_SO_FAR_CHARS
+): string {
+  if (!activeChapterId || chapters.length <= 1 || maxChars <= 0) return "";
+  const activeIndex = chapters.findIndex((ch) => ch.id === activeChapterId);
+  if (activeIndex <= 0) return "";
+
+  const collectedReversed: string[] = [];
+  let currentLength = 0;
+
+  for (let idx = activeIndex - 1; idx >= 0; idx -= 1) {
+    const ch = chapters[idx];
+    const summary = ch?.summary?.trim();
+    if (!summary) continue;
+
+    const title = ch.title?.trim() || `Chapter ${idx + 1}`;
+    const rawEntry = `### ${title}\n[${title}]: ${summary}`;
+    const separatorLen = collectedReversed.length > 0 ? 2 : 0;
+
+    if (currentLength + separatorLen + rawEntry.length <= maxChars) {
+      collectedReversed.push(rawEntry);
+      currentLength += separatorLen + rawEntry.length;
+    } else if (collectedReversed.length === 0) {
+      collectedReversed.push(rawEntry.slice(0, maxChars));
+      break;
+    } else {
+      break;
+    }
+  }
+
+  return collectedReversed.reverse().join("\n\n");
+}
+
 /**
  * Select the exact Story Bible nodes required for a given feature/target
  * according to Sudowrite's 8-Node Dependency Graph, Braindump fallback rule,
@@ -135,7 +192,8 @@ export function buildNovelcrafterSystemInstruction({
 export function selectStoryBibleDependencies(
   feature: NovelcrafterFeatureSlot,
   storyBible: StoryBible,
-  bibleTarget?: NovelcrafterBibleTarget
+  bibleTarget?: NovelcrafterBibleTarget,
+  activeContextText?: string
 ): SelectedBibleDependencies {
   const braindump = storyBible.braindump.trim();
   const genre = storyBible.genre.trim();
@@ -146,7 +204,16 @@ export function selectStoryBibleDependencies(
   const effectiveSynopsis = rawSynopsis || braindump;
   const synopsisIsBraindumpFallback = !rawSynopsis && Boolean(braindump);
 
-  const serialized = serializeStoryBibleWithStructuredCards(storyBible);
+  const isGlobalBibleTarget =
+    feature === "bible" &&
+    (bibleTarget === "synopsis" ||
+      bibleTarget === "characters" ||
+      bibleTarget === "worldbuilding" ||
+      bibleTarget === "outline");
+  const serialized = serializeStoryBibleWithStructuredCards(
+    storyBible,
+    isGlobalBibleTarget ? undefined : { activeContextText }
+  );
   const visibleCharacters =
     storyBible.charactersVisibleToAI !== false ? serialized.charactersText : "";
   const visibleWorldbuilding =
@@ -188,6 +255,17 @@ export function selectStoryBibleDependencies(
             ? { synopsis: effectiveSynopsis, synopsisIsBraindumpFallback }
             : {}),
           ...(outline ? { outline } : {}),
+          ...(visibleCharacters ? { characters: visibleCharacters } : {}),
+          ...(visibleWorldbuilding ? { worldbuilding: visibleWorldbuilding } : {}),
+        };
+      case "chapter_summary":
+        return {
+          ...(genre ? { genre } : {}),
+          pov,
+          tense,
+          ...(effectiveSynopsis
+            ? { synopsis: effectiveSynopsis, synopsisIsBraindumpFallback }
+            : {}),
           ...(visibleCharacters ? { characters: visibleCharacters } : {}),
           ...(visibleWorldbuilding ? { worldbuilding: visibleWorldbuilding } : {}),
         };
@@ -285,7 +363,13 @@ function formatStoryBibleXml(deps: SelectedBibleDependencies): string {
  * Story Bible is ALWAYS placed in contents (<story_bible>) and NEVER in systemInstruction.
  */
 export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string {
-  const deps = selectStoryBibleDependencies(input.feature, input.storyBible, input.bibleTarget);
+  const activeContextText = buildActiveCodexContextText(input);
+  const deps = selectStoryBibleDependencies(
+    input.feature,
+    input.storyBible,
+    input.bibleTarget,
+    activeContextText
+  );
   const storyBibleXml = formatStoryBibleXml(deps);
 
   const chapterNodes: string[] = [];
@@ -293,12 +377,29 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
     chapterNodes.push(`  <chapter_title>${input.chapterTitle.trim()}</chapter_title>`);
   }
 
+  const includeStorySoFar =
+    Boolean(input.previousChapterSummaries?.trim()) &&
+    (input.feature === "write" ||
+      input.feature === "feedback" ||
+      input.feature === "brainstorm" ||
+      (input.feature === "bible" &&
+        (input.bibleTarget === "draft" || input.bibleTarget === "scenes")));
+
+  if (includeStorySoFar && input.previousChapterSummaries) {
+    const cappedStorySoFar = input.previousChapterSummaries.trim().slice(-MAX_STORY_SO_FAR_CHARS);
+    chapterNodes.push(
+      `  <story_so_far>\n${escapeXmlPromptText(cappedStorySoFar)}\n  </story_so_far>`
+    );
+  }
+
   const includeScenes =
     input.feature === "write" ||
     input.feature === "feedback" ||
     input.feature === "brainstorm" ||
     (input.feature === "bible" &&
-      (input.bibleTarget === "draft" || input.bibleTarget === "scenes"));
+      (input.bibleTarget === "draft" ||
+        input.bibleTarget === "scenes" ||
+        input.bibleTarget === "chapter_summary"));
 
   if (includeScenes && input.chapterScenes?.trim()) {
     chapterNodes.push(`  <scenes>\n${input.chapterScenes.trim()}\n  </scenes>`);
@@ -321,7 +422,8 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
     input.feature === "write" ||
     input.feature === "rewrite" ||
     input.feature === "feedback" ||
-    input.feature === "expand";
+    input.feature === "expand" ||
+    (input.feature === "bible" && input.bibleTarget === "chapter_summary");
 
   if (includeProseWindow && input.chapterProse?.trim()) {
     const rawProse = input.chapterProse.trim();

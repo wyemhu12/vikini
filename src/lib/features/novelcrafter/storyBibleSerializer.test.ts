@@ -1,7 +1,10 @@
 // /lib/features/novelcrafter/storyBibleSerializer.test.ts
 import { describe, expect, it } from "vitest";
 import { createDefaultStoryState } from "./types";
-import { serializeStoryBibleWithStructuredCards } from "./storyBibleSerializer";
+import {
+  escapeXmlPromptText,
+  serializeStoryBibleWithStructuredCards,
+} from "./storyBibleSerializer";
 import { parseThreeOpenings } from "./openingsParser";
 import { parseCharacterCardsFromMarkdown } from "./characterParser";
 import { pruneStoryBibleForStream } from "./pruneStoryBibleForStream";
@@ -114,5 +117,57 @@ describe("storyBibleSerializer and domain helpers", () => {
     const serialized = serializeStoryBibleWithStructuredCards(bible);
     expect(serialized.charactersText).toContain("Visible Hero");
     expect(serialized.charactersText).not.toContain("Hidden Villain");
+  });
+
+  it("TC-302: serializes Codex aliases, filters by activeContextText, and escapes XML prompt delimiters", () => {
+    expect(escapeXmlPromptText("Tag <story_so_far> & </story_bible>")).toBe(
+      "Tag &lt;story_so_far&gt; &amp; &lt;/story_bible&gt;"
+    );
+
+    const bible = createDefaultStoryState("gemini-2.5-flash").storyBible;
+    bible.characterCards = [
+      {
+        id: "c1",
+        name: "Lâm Hàn",
+        aliases: ["Tiểu Hàn", "Kiếm Đế"],
+        role: "Main",
+        traits: "Kiếm đạo vô song",
+        visibleToAI: true,
+        alwaysInclude: false,
+      },
+      {
+        id: "c2",
+        name: "Tô Tuyết",
+        aliases: ["Tuyết Nhi"],
+        role: "Heroine",
+        traits: "Băng tâm",
+        visibleToAI: true,
+        alwaysInclude: true,
+      },
+      {
+        id: "c3",
+        name: "Trương Ba",
+        role: "Side",
+        traits: "Thợ rèn",
+        visibleToAI: true,
+        alwaysInclude: false,
+      },
+    ];
+
+    const filtered = serializeStoryBibleWithStructuredCards(bible, {
+      activeContextText: "Tiểu Hàn bước lên đài chiến.",
+    });
+    expect(filtered.charactersText).toContain("### Lâm Hàn (Main)");
+    expect(filtered.charactersText).toContain("Aliases: Tiểu Hàn, Kiếm Đế");
+    expect(filtered.charactersText).toContain("### Tô Tuyết (Heroine)");
+    expect(filtered.charactersText).not.toContain("Trương Ba");
+
+    const pruned = pruneStoryBibleForStream(
+      bible,
+      "write",
+      undefined,
+      "Tiểu Hàn bước lên đài chiến."
+    );
+    expect(pruned.characterCards.map((c) => c.id)).toEqual(["c1", "c2"]);
   });
 });

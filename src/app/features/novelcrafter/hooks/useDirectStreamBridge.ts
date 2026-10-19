@@ -118,11 +118,20 @@ export function useDirectStreamBridge({
           baseContent: activeCh.scenes,
         };
         setIsDirectStreamingToChapter(true);
+      } else if (params.feature === "bible" && params.bibleTarget === "chapter_summary") {
+        directStreamTargetRef.current = {
+          storyId,
+          kind: "chapter_summary",
+          chapterId: activeCh.id,
+          baseContent: activeCh.summary ?? "",
+        };
+        setIsDirectStreamingToChapter(true);
       } else if (
         params.feature === "bible" &&
         params.bibleTarget &&
         params.bibleTarget !== "draft" &&
-        params.bibleTarget !== "scenes"
+        params.bibleTarget !== "scenes" &&
+        params.bibleTarget !== "chapter_summary"
       ) {
         const field = params.bibleTarget;
         directStreamTargetRef.current = {

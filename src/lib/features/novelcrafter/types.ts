@@ -32,6 +32,7 @@ export const NOVELCRAFTER_BIBLE_TARGETS = [
   "outline",
   "scenes",
   "draft",
+  "chapter_summary",
 ] as const;
 export type NovelcrafterBibleTarget = (typeof NOVELCRAFTER_BIBLE_TARGETS)[number];
 export const NOVELCRAFTER_ACTION_MODES = ["generate", "rewrite"] as const;
@@ -129,6 +130,13 @@ export const MAX_FEEDBACK_ITEMS_PER_CHAPTER = 50 as const;
 export const MAX_CHARACTER_CARDS = 15 as const;
 export const MAX_WORLD_ELEMENTS = 15 as const;
 export const MAX_OUTLINE_ITEMS = 40 as const;
+export const MAX_CHAPTER_PROSE_CHARS = 150_000 as const;
+export const MAX_CODEX_ALIASES = 10 as const;
+export const MAX_CODEX_ALIAS_CHARS = 80 as const;
+export const MAX_CHAPTER_SUMMARY_CHARS = 4_000 as const;
+export const MAX_STORY_SO_FAR_CHARS = 6_000 as const;
+export const MAX_CHAPTER_SNAPSHOTS = 5 as const;
+export const MAX_SNAPSHOT_LABEL_CHARS = 120 as const;
 
 export const StoryBibleCharacterCardSchema = z.object({
   id: z.string().min(1).max(100),
@@ -136,6 +144,8 @@ export const StoryBibleCharacterCardSchema = z.object({
   role: z.string().max(150).default(""),
   traits: z.string().max(4_000).default(""),
   visibleToAI: z.boolean().default(true),
+  aliases: z.array(z.string().min(1).max(MAX_CODEX_ALIAS_CHARS)).max(MAX_CODEX_ALIASES).optional(),
+  alwaysInclude: z.boolean().optional(),
 });
 export type StoryBibleCharacterCard = z.infer<typeof StoryBibleCharacterCardSchema>;
 
@@ -145,6 +155,8 @@ export const StoryBibleWorldElementSchema = z.object({
   category: z.string().max(100).default(""),
   description: z.string().max(4_000).default(""),
   visibleToAI: z.boolean().default(true),
+  aliases: z.array(z.string().min(1).max(MAX_CODEX_ALIAS_CHARS)).max(MAX_CODEX_ALIASES).optional(),
+  alwaysInclude: z.boolean().optional(),
 });
 export type StoryBibleWorldElement = z.infer<typeof StoryBibleWorldElementSchema>;
 
@@ -189,16 +201,27 @@ export const NovelcrafterFeedbackItemSchema = z.object({
 });
 export type NovelcrafterFeedbackItem = z.infer<typeof NovelcrafterFeedbackItemSchema>;
 
+export const NovelcrafterChapterSnapshotSchema = z.object({
+  id: z.string().min(1).max(100),
+  label: z.string().max(MAX_SNAPSHOT_LABEL_CHARS).optional(),
+  content: z.string().max(MAX_CHAPTER_PROSE_CHARS),
+  wordCount: z.number().int().nonnegative(),
+  createdAt: z.number().int().nonnegative(),
+});
+export type NovelcrafterChapterSnapshot = z.infer<typeof NovelcrafterChapterSnapshotSchema>;
+
 export const NovelcrafterChapterSchema = z.object({
   id: z.string().min(1).max(100),
   title: z.string().min(1).max(200),
   scenes: z.string().max(30_000).default(""),
   extraInstructions: z.string().max(4_000).default(""),
-  content: z.string().max(150_000).default(""),
+  summary: z.string().max(MAX_CHAPTER_SUMMARY_CHARS).optional(),
+  content: z.string().max(MAX_CHAPTER_PROSE_CHARS).default(""),
   feedbackItems: z
     .array(NovelcrafterFeedbackItemSchema)
     .max(MAX_FEEDBACK_ITEMS_PER_CHAPTER)
     .default([]),
+  snapshots: z.array(NovelcrafterChapterSnapshotSchema).max(MAX_CHAPTER_SNAPSHOTS).optional(),
   updatedAt: z.number().int().nonnegative(),
 });
 export type NovelcrafterChapter = z.infer<typeof NovelcrafterChapterSchema>;
@@ -281,8 +304,10 @@ export interface BuildUserPromptInput {
   chapterTitle?: string;
   chapterScenes?: string;
   chapterExtraInstructions?: string;
+  chapterSummary?: string;
   chapterProse?: string;
   previousChapterProseTail?: string;
+  previousChapterSummaries?: string;
   selectedText?: string;
   bibleTarget?: NovelcrafterBibleTarget;
   actionMode?: NovelcrafterActionMode;
@@ -309,8 +334,10 @@ export const NovelcrafterStreamRequestSchema = z
     chapterTitle: z.string().max(200).optional().default(""),
     chapterScenes: z.string().max(30_000).optional().default(""),
     chapterExtraInstructions: z.string().max(4_000).optional().default(""),
+    chapterSummary: z.string().max(MAX_CHAPTER_SUMMARY_CHARS).optional(),
     chapterProse: z.string().max(150_000).optional().default(""),
     previousChapterProseTail: z.string().max(10_000).optional().default(""),
+    previousChapterSummaries: z.string().max(10_000).optional(),
     selectedText: z.string().max(20_000).optional().default(""),
     bibleTarget: z.enum(NOVELCRAFTER_BIBLE_TARGETS).optional(),
     actionMode: z.enum(NOVELCRAFTER_ACTION_MODES).optional().default("generate"),

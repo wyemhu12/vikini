@@ -41,16 +41,29 @@ export function computeTotalStoryContentChars(state: NovelcrafterStoryState): nu
     b.outline.length;
 
   for (const c of b.characterCards || []) {
-    total += c.name.length + c.role.length + c.traits.length;
+    total +=
+      c.name.length +
+      c.role.length +
+      c.traits.length +
+      (c.aliases ? c.aliases.join(", ").length : 0);
   }
   for (const w of b.worldElements || []) {
-    total += w.name.length + w.category.length + w.description.length;
+    total +=
+      w.name.length +
+      w.category.length +
+      w.description.length +
+      (w.aliases ? w.aliases.join(", ").length : 0);
   }
   for (const o of b.outlineItems || []) {
     total += o.title.length + o.summary.length;
   }
   for (const ch of state.chapters) {
-    total += ch.title.length + ch.scenes.length + ch.content.length;
+    total +=
+      ch.title.length +
+      ch.scenes.length +
+      ch.content.length +
+      (ch.summary?.length ?? 0) +
+      (ch.extraInstructions?.length ?? 0);
   }
   return total;
 }

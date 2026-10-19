@@ -229,14 +229,14 @@ User (PM) ──[Task]──▶ Orchestrator (Dispatcher)
                     (Zero-Self-Execution)
                               │
                               ▼
-                      [ @planner Subagent ]
-                      (Gemini 3.8 Flash)
+               [ Primary Planner: Claude Code CLI ]
+           (run-claude.ps1 -Role planner / Fallback: @planner)
                               │
                   (Uninterrupted Chain - KHÔNG ngắt quãng hỏi PM)
                               │
                               ▼
-                     [ @reviewer Subagent ]
-                     (Claude Opus 4.6 / Fallback Flash)
+               [ Primary Reviewer: @reviewer Subagent ]
+           (Gemini 4 Argon Max Thinking / Fallback: Claude CLI)
                               │
                      [ Thẩm định trực tuyến 2026 ]
                               │
@@ -245,8 +245,8 @@ User (PM) ──[Task]──▶ Orchestrator (Dispatcher)
            [CHANGES_REQUESTED]    [PLAN_APPROVED]
                     │                   │
                     ▼                   ▼
-         (Gửi lại @planner sửa)   [ Pre-Flight Gate ]
-         (Tối đa 3 vòng lặp)            │ (PASS)
+          (Gửi lại Planner sửa)   [ Pre-Flight Gate ]
+          (Tối đa 10 vòng lặp)          │ (PASS)
                                         ▼
                                [ Trình User (PM) Duyệt ]
                                         │
@@ -261,13 +261,13 @@ User (PM) ──[Task]──▶ Orchestrator (Dispatcher)
 
 1. **Platform Hook Code Freeze Guard**: Chốt chặn tầng máy chủ phát triển (`.agents/hooks.json` và `.agents/scripts/code-freeze-guard.js`). Áp dụng cơ chế **Scoped Protection (Phương án 2)**:
    - Tự động cho phép ghi vào UI components/hooks và feature logic sau khi plan được phê duyệt (`[PLAN_APPROVED]`).
-   - Luôn luôn khóa và hỏi User (`ask`) với các file nhạy cảm: `*.server.ts`, database migrations, cấu hình hạ tầng kiểm thử `TEST_INFRA_FILES`, và file test chịu Test Integrity Guard.
-2. **Zero-Self-Execution**: Orchestrator chỉ đóng vai trò điều phối viên; cấm tự lập kế hoạch trên luồng chính. Khâu lập kế hoạch bắt buộc 100% ủy quyền cho `@planner`.
-3. **Uninterrupted Execution Chain**: Luồng `[Task]` ➔ `[@planner]` ➔ `[@reviewer]` chạy tự động, liên tục; cấm dừng giữa chừng để hỏi ý kiến người dùng khi chưa có thẻ `[PLAN_APPROVED]`.
+   - Luôn luôn khóa và hỏi User (`ask`) với các file nhạy cảm: `*.server.ts`, database migrations, cấu hình hạ tầng kiểm thử `TEST_INFRA_FILES`, file test chịu Test Integrity Guard, và cấu hình quản trị `.agents/**`.
+2. **Zero-Self-Execution & Dual-Planner Architecture**: Orchestrator chỉ đóng vai trò điều phối viên; cấm tự lập kế hoạch trên luồng chính. Khâu lập kế hoạch bắt buộc 100% ủy quyền cho **Primary Planner** (Claude Code CLI qua `.agents/scripts/run-claude.ps1 -Role planner` nạp `.agents/scripts/claude-planner-prompt.md`) hoặc **Fallback Planner** (Subagent `@planner` chạy `gemini-4-argon` khi Claude CLI trả mã thoát `42`).
+3. **Dual-Reviewer Architecture & Uninterrupted Execution Chain**: Khâu thẩm định do **Primary Reviewer** (Subagent `@reviewer` chạy `gemini-4-argon` với thinking budget tối đa) thực hiện và ghi trực tiếp vào `## Audit History`, với **Fallback Reviewer** là Claude Code CLI (`.agents/scripts/run-claude.ps1 -Role reviewer`). Luồng `[Task]` ➔ `[Planner]` ➔ `[Reviewer]` chạy tự động, liên tục tối đa 10 vòng lặp; cấm dừng giữa chừng để hỏi ý kiến người dùng khi chưa có thẻ `[PLAN_APPROVED]`.
 4. **Pre-Flight Gate**: Chốt chặn 3 cổng bắt buộc trước khi xuất phản hồi xin mở khóa viết code:
    - **Gate 1 - Plan Persistence**: Kế hoạch được ghi vào `docs/plans/`.
-   - **Gate 2 - Reviewer Dispatch**: Kế hoạch đã qua thẩm định trực tuyến độc lập bởi `@reviewer`.
-   - **Gate 3 - Reviewer Approval Token**: Nhận thẻ `[PLAN_APPROVED]` trực tiếp từ `@reviewer`.
+   - **Gate 2 - Reviewer Dispatch**: Kế hoạch đã qua thẩm định trực tuyến độc lập bởi Lead Reviewer (`@reviewer` hoặc Fallback Claude Code CLI).
+   - **Gate 3 - Reviewer Approval Token**: File kế hoạch có `- **Status**: Approved` ở Header và nhận thẻ `[PLAN_APPROVED]` ở dòng cuối cùng từ Lead Reviewer.
 5. **Circuit Breaker**: Sau 10 vòng lặp revision không đạt phê duyệt, Orchestrator tự động ngắt chuỗi và trình báo cáo tổng hợp lỗi tồn đọng lên User (PM) quyết định.
 
 ### Bộ 3 Tài Liệu Vệ Tinh Của @reviewer:

@@ -5,6 +5,8 @@ import {
   CARD_TRUNCATION_NOTICE,
   coerceStoryStateToLimits,
   FIELD_MAX_LENGTHS,
+  normalizeChapterSnapshots,
+  normalizeCodexAliases,
   normalizeFeedbackItems,
   stripCardTruncationNotice,
   truncateText,
@@ -82,5 +84,22 @@ describe("stateLimits", () => {
     ]);
     expect(items).toHaveLength(1);
     expect(items[0].id).toBe("fb-1");
+  });
+
+  it("TC-305: normalizes Codex aliases and Chapter Snapshots within strict schema limits", () => {
+    const aliases = normalizeCodexAliases(["  Tiểu Bạch ", "tiểu bạch", "", "X".repeat(120)]);
+    expect(aliases).toEqual(["Tiểu Bạch", "X".repeat(FIELD_MAX_LENGTHS.codexAlias)]);
+    expect(normalizeCodexAliases([])).toBeUndefined();
+
+    const rawSnaps = Array.from({ length: 8 }, (_, idx) => ({
+      id: `snap-${idx}`,
+      label: `Bản lưu ${idx}`,
+      content: "Nội dung chương",
+      wordCount: 3,
+      createdAt: 1000 + idx,
+    }));
+    const snaps = normalizeChapterSnapshots(rawSnaps);
+    expect(snaps).toHaveLength(5);
+    expect(snaps?.[0].id).toBe("snap-0");
   });
 });

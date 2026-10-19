@@ -8,6 +8,61 @@
 
 ---
 
+## 2026-10-19: Governance -- Swap Planner & Reviewer Execution Channels (Dual-Planner Claude CLI Primary + Dual-Reviewer @reviewer Primary)
+
+- **Dual-Planner Architecture (`.agents/scripts/claude-planner-prompt.md`, `.agents/scripts/run-claude.ps1`, `.agents/agents/planner/agent.md`)**:
+  - Thiết lập **Claude Code CLI** làm **Primary Technical Planner** (`.agents/scripts/run-claude.ps1 -Role planner`) nạp prompt template mới `.agents/scripts/claude-planner-prompt.md` chứa đầy đủ 10 mục bắt buộc, 8 nguyên lý `pstack`, Tech Stack bất biến của Vikini, quy tắc Online Grounding 2026, và quy trình _In-Place Plan Updating_ cho Revision Loop.
+  - Cấu hình **Subagent `@planner`** (`gemini-4-argon` max thinking) làm **Fallback Technical Planner** tự động kích hoạt khi Claude Code CLI hết quota Claude Pro (`exit code 42` / `[CLAUDE_PRO_QUOTA_EXCEEDED]`) hoặc lỗi kết nối (`exit code 40/41`).
+  - Nâng cấp `.agents/scripts/run-claude.ps1` hỗ trợ đa chế độ `-Role planner|reviewer` (alias `-Mode`, hỗ trợ `plan|review`), `-Task` (alias `-Prompt`), `-PlanFile`, `-ArtifactFile`; bổ sung hàm `Normalize-PlanPath` xử lý an toàn đường dẫn file kế hoạch mới chưa tồn tại trên đĩa và chặn đường dẫn ngoài `docs/plans/*.md`; phân tách `--allowedTools` theo nguyên tắc Least Privilege (`Write,Edit` cho `planner`, chỉ `Edit` cho `reviewer`); tự động đồng bộ sang `-ArtifactFile`.
+- **Dual-Reviewer Architecture Đảo Chiều (`.agents/agents/reviewer/agent.md`, `.agents/scripts/claude-reviewer-prompt.md`, `.agents/rules/05-plan-review.md`)**:
+  - Thiết lập **Subagent `@reviewer`** (`gemini-4-argon` max thinking) làm **Primary Lead Architecture Reviewer**; bổ sung công cụ `write_to_file` và `replace_file_content` vào YAML frontmatter kèm ràng buộc **Audit-Only Write Scope** (chỉ được phép append `### Audit Run [X+1]` vào `## Audit History`, cập nhật dòng `- **Status**: Approved` / `Changes Requested` ở phần Header, và ghi thẻ `[PLAN_APPROVED]` ở dòng cuối cùng của file kế hoạch tại `docs/plans/*.md` cùng `implementation_plan.md`).
+  - Cập nhật **Claude Code CLI** (`.agents/scripts/run-claude.ps1 -Role reviewer` + `.agents/scripts/claude-reviewer-prompt.md`) làm **Fallback Reviewer** đồng bộ đủ 7 hạng mục Plan Completeness Gate, mục _Các Tấn Công Đã Thử_ và quy tắc cập nhật `- **Status**:` ở Header.
+- **Code Freeze Guard & Governance Docs Sync (`.agents/scripts/code-freeze-guard.js`, `.agents/scripts/code-freeze-guard.test.ts`, `.agents/rules/00-core.md`, `.agents/rules/01-coding.md`, `.agents/rules/02-quality.md`, `.agents/README.md`, `docs/architecture.md`, `docs/plans/README.md`)**:
+  - Mở rộng regex `READ_ONLY_COMMANDS` trong `.agents/scripts/code-freeze-guard.js` hỗ trợ cờ `-NoProfile` và đường dẫn bọc ngoặc kép cho `run-claude.ps1`; bổ sung 8 unit tests mới (`SW-G1..SW-G8`, nâng tổng số lên 92/92 tests pass) trong `.agents/scripts/code-freeze-guard.test.ts`.
+  - Đồng bộ hóa toàn bộ tài liệu Governance và Living Docs, tuân thủ nghiêm ngặt trần ký tự Governance (`.agents/rules/*.md <= 12,000` ký tự, `.agents/agents/*/agent.md <= 10,000` ký tự).
+
+---
+
+## 2026-10-19: Governance -- Vikini Skills Standardization (SKILL.md), pstack/fstack/AAS Curation & Fast-Track Mode
+
+- **Foreign Skills Cleanup (`.agents/skills/`, `.claude/skills/`, `skills-lock.json`, `.gitignore`)**:
+  - Gỡ bỏ 3 bộ skill bên thứ ba gây xung đột và tốn context (`redesign-existing-projects`, `design-taste-frontend`, `ux-ui-agent-skills`), xóa 2 NTFS junction tương ứng trong `.claude/skills/` và 2 entry trong `skills-lock.json`.
+  - Cập nhật `.gitignore` sang `.agents/skills/*` kèm danh sách whitelist `!` để git theo dõi chính thức các skill do Vikini sở hữu.
+- **Vikini Internal Skills Standardization (`.agents/skills/<name>/SKILL.md`, `.agents/skills/README.md`)**:
+  - Chuẩn hóa 5 skill kỹ thuật cốt lõi (`api-patterns`, `streaming-patterns`, `database-migration`, `add-feature`, `add-translation`) sang định dạng thư mục `.agents/skills/<name>/SKILL.md` với YAML frontmatter `name` và `description` dạng trigger bắt buộc (`MANDATORY when...`).
+  - Cập nhật toàn bộ đường dẫn tham chiếu trong `.agents/rules/`, `.agents/workflows/audit.md`, `.agents/agents/reviewer/mental-simulation.md`, `.agents/skills/add-model.md`, và bảng định tuyến tại `.agents/skills/README.md`.
+- **New Curated Workflow Skills (`.agents/skills/vikini-investigate/SKILL.md`, `.agents/skills/vikini-simplify/SKILL.md`)**:
+  - Bổ sung skill read-only `vikini-investigate` với 4 chế độ điều tra kiến trúc (`/how`, `/why`, `/recall`, `/blast-radius`) và skill rút gọn mã nguồn giữ nguyên hành vi `vikini-simplify` (`<= 150` dòng/file).
+- **4-Tier Skill Enforcement & Engineering Discipline (`.agents/rules/00-core.md`, `.agents/rules/02-quality.md`, `.agents/rules/03-ui.md`, `.agents/agents/planner/agent.md`, `.agents/agents/reviewer/agent.md`, `.agents/scripts/claude-reviewer-prompt.md`)**:
+  - Thiết lập cơ chế **Skill Precedence Hierarchy (`Vikini-First, Superpowers-Complementary`)** trong `02-quality.md`, quy tắc **Token Efficiency (`tokenleak` discipline)** trong `00-core.md`, và **4 UI States (`Loading`, `Empty`, `Error`, `Success`)** trong `03-ui.md`.
+  - Bổ sung các mục bắt buộc `Out of Scope`, `Skills Loaded & Applied`, `Caller-First Design Sketch`, và `8 Nguyên Lý Kỹ Thuật Cốt Lõi (pstack)` vào `@planner`, đồng thời tích hợp cổng kiểm tra tương ứng vào `@reviewer` và `claude-reviewer-prompt.md`.
+- **Fast-Track Mode for Micro-UI Edits (`.agents/rules/05-plan-review.md`, `.agents/scripts/code-freeze-guard.js`, `.agents/scripts/code-freeze-guard.test.ts`)**:
+  - Hỗ trợ **Fast-Track Mode (§1.1)**: cho phép `replace_file_content` `<= 40` dòng trên bề mặt UI/translation/styling (`src/lib/utils/translations/{vi,en}.ts`, `src/app/styles/**/*.css`, `src/app/**/*.tsx` trừ `api/`, `src/components/**/*.tsx`) khi chưa có `[PLAN_APPROVED]`, đặt sau toàn bộ các chốt chặn Scoped Protection và chặn nội dung nhạy cảm (`"use server"`, `process.env`, `*.server`).
+  - Bổ sung bộ unit test đầy đủ (`countLines`, `isFastTrackEligible`, `decide — Fast-Track Mode`, các case `FT-C1..C4`, `FT-H1..H7`, `FT-N1..N18`, `FT-R1..R3`) trong `.agents/scripts/code-freeze-guard.test.ts`.
+
+---
+
+## 2026-10-18: Feature & UX Upgrade -- Novelcrafter Studio Phase 3: Codex Alias Auto-Matching, Rolling Chapter Summary (<story_so_far>), Chapter Snapshots with Word-Level Diff, Inline Selection Action Bar & Manuscript Export (.md / .txt)
+
+- **Codex Alias & Context Auto-Matching (`src/lib/features/novelcrafter/codexMatcher.ts`, `src/lib/features/novelcrafter/storyBibleSerializer.ts`, `src/lib/features/novelcrafter/pruneStoryBibleForStream.ts`, `src/app/features/novelcrafter/components/StoryBibleStructuredCards.tsx`)**:
+  - Hỗ trợ `aliases` (tối đa 10 biệt danh/thẻ) và cờ `alwaysInclude` trên `StoryBibleCharacterCard` và `StoryBibleWorldElement`.
+  - Xây dựng bộ khớp ngữ cảnh thông minh `codexMatcher.ts` hỗ trợ ranh giới từ Unicode tiếng Việt (`(?<![\p{L}\p{N}_])...(?![\p{L}\p{N}_])` với cờ `iu`) và CJK fallback, tự động chỉ đưa các thẻ Codex xuất hiện trong chương hiện tại (hoặc được ghim `alwaysInclude: true`) vào prompt AI để tiết kiệm token context.
+  - Bổ sung hàm `escapeXmlPromptText` bảo vệ toàn bộ trường văn bản người dùng trước khi nhúng vào các khối XML trong `promptBuilder.ts`.
+- **Rolling Chapter Summary & Multi-Chapter Memory (`src/lib/features/novelcrafter/types.ts`, `src/lib/features/novelcrafter/featureDirectives.ts`, `src/lib/features/novelcrafter/promptBuilder.ts`, `src/lib/features/novelcrafter/streamTargetGuard.ts`, `src/app/features/novelcrafter/components/ChapterDraftBeatsCard.tsx`)**:
+  - Bổ sung trường `chapter.summary` (`MAX_CHAPTER_SUMMARY_CHARS = 4,000`) và đích stream trực tiếp `bibleTarget: "chapter_summary"` với nút **"Tóm tắt chương bằng AI"** ngay trong `ChapterDraftBeatsCard.tsx`.
+  - Tự động tổng hợp tóm tắt của các chương trước (`buildPreviousChapterSummariesText`, giới hạn `MAX_STORY_SO_FAR_CHARS = 6,000`) và bơm vào khối `<story_so_far>` bên trong `<chapter_context>` cho các tác vụ `write`, `rewrite`, `expand`, `feedback`, `brainstorm` và `bible (scenes/draft)`.
+- **Chapter Snapshots & Word-Level Diff Viewer (`src/lib/features/novelcrafter/draftStorage.ts`, `src/lib/features/novelcrafter/feedbackParser.ts`, `src/app/features/novelcrafter/hooks/useNovelcrafterStateMutators.ts`, `src/app/features/novelcrafter/components/ChapterSnapshotsModal.tsx`, `src/app/features/novelcrafter/components/SheetSubToolbar.tsx`)**:
+  - Hỗ trợ lưu tối đa 5 phiên bản Snapshot (`MAX_CHAPTER_SNAPSHOTS = 5`) cho mỗi chương với cơ chế chống trùng lặp nội dung, tự động sao lưu trước khi khôi phục, và **Tier 2 Payload Budget Trimming** trong `enforceStatePayloadBudget` (tự động cắt giảm các snapshot cũ nhất nếu tổng dung lượng vượt ngân sách 1.8MB mà không chạm vào văn xuôi chính).
+  - Nâng cấp `computeWordDiff` với bước cắt tiền tố và hậu tố chung $O(N)$ trước khi chạy LCS DP, giúp so sánh tức thì các chương dài trong `ChapterSnapshotsModal.tsx`.
+- **Inline Selection Action Bar (`src/app/features/novelcrafter/components/ChapterSelectionToolbar.tsx`, `src/app/features/novelcrafter/components/ChapterEditorWorkspace.tsx`)**:
+  - Hiển thị thanh công cụ nổi 1-click ngay khi bôi đen văn bản trong chương (`Rephrase`, `Show, Don't Tell`, `Shorter`, `Expand`, `Describe`, `Line Edit Feedback`, `Quick Edit Ctrl+K`).
+- **Manuscript Export (`src/lib/features/novelcrafter/manuscriptExporter.ts`, `src/app/features/novelcrafter/components/NovelcrafterTopBar.tsx`, `src/app/features/novelcrafter/components/NovelcrafterStudioApp.tsx`)**:
+  - Hỗ trợ xuất toàn bộ bản thảo truyện ra file Markdown (`.md`) hoặc Plain Text (`.txt`) với tùy chọn đính kèm Hồ sơ Truyện (`includeStoryBible`) và Tóm tắt Chương (`includeChapterSummaries`).
+- **Co-Located Unit Tests (TC-301..TC-308)**:
+  - Tạo mới `codexMatcher.test.ts` và `manuscriptExporter.test.ts`, đồng thời mở rộng 7 bộ unit test hiện có (`storyBibleSerializer.test.ts`, `featureDirectives.test.ts`, `promptBuilder.test.ts`, `stateLimits.test.ts`, `draftStorage.test.ts`, `feedbackParser.test.ts`, `streamTargetGuard.test.ts`).
+
+---
+
 ## 2026-10-17: Bug Fix & Hardening -- Novelcrafter Studio: Phase 1 & Phase 2 Comprehensive Audit Fixes, Stream Lifecycle Guard, Corrupted State Backup & Co-Located Test Suite
 
 - **Stream Lifecycle, Pending Story Promotion & Refusal Card Guard (`src/lib/features/novelcrafter/streamRunRegistry.ts`, `src/app/features/novelcrafter/hooks/useNovelcrafterStream.ts`, `src/app/features/novelcrafter/hooks/useDirectStreamBridge.ts`, `src/app/features/novelcrafter/components/NovelcrafterStudioApp.tsx`, `src/app/features/novelcrafter/components/ChapterEditorWorkspace.tsx`, `src/app/features/novelcrafter/components/StoryBibleWorkspace.tsx`)**:

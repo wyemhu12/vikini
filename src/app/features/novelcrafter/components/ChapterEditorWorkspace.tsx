@@ -29,6 +29,8 @@ import type { ActiveChapterToolMenu } from "./ChapterAiToolMenus";
 import ChapterFeedbackGutter from "./ChapterFeedbackGutter";
 import ChapterDraftBeatsCard from "./ChapterDraftBeatsCard";
 import ChapterEmptyStateActions from "./ChapterEmptyStateActions";
+import ChapterSelectionToolbar from "./ChapterSelectionToolbar";
+import ChapterSnapshotsModal from "./ChapterSnapshotsModal";
 import InlineStoryBibleSection from "./InlineStoryBibleSection";
 import SheetSubToolbar, { type EditorFontSizePreset } from "./SheetSubToolbar";
 import { useAutoResizeTextarea } from "../hooks/useAutoResizeTextarea";
@@ -48,6 +50,9 @@ const FONT_SIZE_CLASSES: Record<EditorFontSizePreset, string> = {
 interface ChapterEditorWorkspaceProps {
   chapter: NovelcrafterChapter;
   onUpdateChapter: (chapterId: string, patch: Partial<NovelcrafterChapter>) => void;
+  onCreateSnapshot?: (chapterId: string, label?: string) => void;
+  onRestoreSnapshot?: (chapterId: string, snapshotId: string) => void;
+  onDeleteSnapshot?: (chapterId: string, snapshotId: string) => void;
   onUpdateFeedbackItems: (
     chapterId: string,
     updater: (items: NovelcrafterFeedbackItem[]) => NovelcrafterFeedbackItem[],
@@ -74,6 +79,9 @@ interface ChapterEditorWorkspaceProps {
 export default function ChapterEditorWorkspace({
   chapter,
   onUpdateChapter,
+  onCreateSnapshot,
+  onRestoreSnapshot,
+  onDeleteSnapshot,
   onUpdateFeedbackItems,
   selection,
   onSelectionChange,
@@ -104,6 +112,7 @@ export default function ChapterEditorWorkspace({
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const [quickEditPrompt, setQuickEditPrompt] = useState("");
   const [fontSizePreset, setFontSizePreset] = useState<EditorFontSizePreset>("md");
+  const [snapshotsModalOpen, setSnapshotsModalOpen] = useState(false);
 
   const textareaRef = useAutoResizeTextarea<HTMLTextAreaElement>({
     value: chapter.content,
@@ -382,6 +391,8 @@ export default function ChapterEditorWorkspace({
             focusMode={focusMode}
             onToggleFocusMode={() => onToggleFocusMode?.()}
             onApplyMarkdownFormat={handleApplyMarkdownFormat}
+            snapshotsCount={(chapter.snapshots ?? []).length}
+            onOpenSnapshotsModal={() => setSnapshotsModalOpen(true)}
           />
 
           {isDirectStreamingToChapter && (
@@ -421,6 +432,18 @@ export default function ChapterEditorWorkspace({
             onChangeExtraInstructions={(val) =>
               onUpdateChapter(chapter.id, { extraInstructions: val })
             }
+            summary={chapter.summary ?? ""}
+            onChangeSummary={(val) => onUpdateChapter(chapter.id, { summary: val })}
+            canSummarizeChapter={Boolean(chapter.content.trim() || chapter.scenes.trim())}
+            onSummarizeChapter={() => {
+              if (isStreaming || isLoadLocked) return;
+              void onTriggerStream({
+                feature: "bible",
+                bibleTarget: "chapter_summary",
+                actionMode: (chapter.summary ?? "").trim() ? "rewrite" : "generate",
+                subLabel: t("novelcrafterSummarizeChapterBtn"),
+              });
+            }}
             isStreaming={isStreaming || Boolean(isLoadLocked)}
             onGenerateBeats={() => {
               if (isStreaming || isLoadLocked) return;
@@ -494,6 +517,36 @@ export default function ChapterEditorWorkspace({
             </div>
           )}
 
+          {selection && selection.text.trim().length > 0 && !isStreaming && !isLoadLocked && (
+            <ChapterSelectionToolbar
+              selectedCharCount={selection.text.length}
+              disabled={isStreaming || Boolean(isLoadLocked)}
+              onRunRewrite={(mode, label) => handleRunRewrite(mode, label)}
+              onRunExpand={(mode, label) => {
+                const selected = requireSelectionText();
+                if (!selected) return;
+                void onTriggerStream({
+                  feature: "expand",
+                  expandMode: mode,
+                  selectedText: selected,
+                  subLabel: label,
+                });
+              }}
+              onRunLineFeedback={(label) => {
+                const selected = requireSelectionText();
+                if (!selected) return;
+                setShowFeedbackGutter(true);
+                void onTriggerStream({
+                  feature: "feedback",
+                  feedbackMode: "line_editing",
+                  selectedText: selected,
+                  subLabel: label,
+                });
+              }}
+              onToggleQuickEdit={() => setQuickEditOpen((p) => !p)}
+            />
+          )}
+
           {quickEditOpen && selection && (
             <div className="px-6 md:px-12 lg:px-16 pb-2 shrink-0">
               <div className="w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl flex items-center gap-2 rounded-xl border border-(--accent) bg-(--surface) p-2 shadow-sm">
@@ -505,7 +558,10 @@ export default function ChapterEditorWorkspace({
                     if (e.key === "Enter") {
                       handleRunRewrite("custom", t("novelcrafterQuickEditBtn"), quickEditPrompt);
                     }
-                    if (e.key === "Escape") setQuickEditOpen(false);
+                    if (e.key === "Escape") {
+                      e.stopPropagation();
+                      setQuickEditOpen(false);
+                    }
                   }}
                   autoFocus
                   placeholder={t("novelcrafterRewriteInstructionPlaceholder")}
@@ -580,6 +636,17 @@ export default function ChapterEditorWorkspace({
           </Sheet>
         )}
       </div>
+
+      <ChapterSnapshotsModal
+        isOpen={snapshotsModalOpen}
+        onClose={() => setSnapshotsModalOpen(false)}
+        chapterTitle={chapter.title}
+        currentContent={chapter.content}
+        snapshots={chapter.snapshots ?? []}
+        onCreateSnapshot={(label) => onCreateSnapshot?.(chapter.id, label)}
+        onRestoreSnapshot={(snapId) => onRestoreSnapshot?.(chapter.id, snapId)}
+        onDeleteSnapshot={(snapId) => onDeleteSnapshot?.(chapter.id, snapId)}
+      />
     </div>
   );
 }

@@ -10,6 +10,9 @@ import {
   ARTIFACT_ROOT,
   TEST_INFRA_FILES,
   isPlanApproved,
+  countLines,
+  isFastTrackEligible,
+  FAST_TRACK_MAX_LINES,
 } from "./code-freeze-guard.js";
 
 describe("toRepoRelative", () => {
@@ -593,5 +596,391 @@ describe("isPlanApproved", () => {
   it("returns a boolean based on governance marker or latest plan check", () => {
     const approved = isPlanApproved();
     expect(typeof approved).toBe("boolean");
+  });
+});
+
+const makeLines = (n: number): string =>
+  Array.from({ length: n }, (_, i) => `line ${i + 1}`).join("\n");
+
+const makeFastTrackEdit = (
+  targetFile: string,
+  oldLines = 5,
+  newLines = 5,
+  toolName: string | undefined = "replace_file_content"
+) => ({
+  toolName,
+  targetFile,
+  oldContent: makeLines(oldLines),
+  newContent: makeLines(newLines),
+});
+
+describe("countLines", () => {
+  it("counts a single line without newline (FT-C1)", () => {
+    expect(countLines("a")).toBe(1);
+  });
+
+  it("counts exact 40-line boundary (FT-C2)", () => {
+    expect(FAST_TRACK_MAX_LINES).toBe(40);
+    expect(countLines(makeLines(40))).toBe(40);
+  });
+
+  it("splits CRLF line endings accurately (FT-C3)", () => {
+    expect(countLines("a\r\nb\r\nc")).toBe(3);
+  });
+
+  it("counts trailing newline conservatively as an extra line (FT-C4)", () => {
+    expect(countLines("a\n")).toBe(2);
+  });
+});
+
+describe("isFastTrackEligible", () => {
+  it("returns true for eligible UI, translation, and style paths within 40 lines", () => {
+    expect(
+      isFastTrackEligible(
+        "src/lib/utils/translations/vi.ts",
+        makeFastTrackEdit("src/lib/utils/translations/vi.ts")
+      )
+    ).toBe(true);
+    expect(
+      isFastTrackEligible(
+        "src/app/styles/themes/focus/amber.css",
+        makeFastTrackEdit("src/app/styles/themes/focus/amber.css")
+      )
+    ).toBe(true);
+    expect(
+      isFastTrackEligible(
+        "src/app/features/chat/components/ChatBubble.tsx",
+        makeFastTrackEdit("src/app/features/chat/components/ChatBubble.tsx", 40, 40)
+      )
+    ).toBe(true);
+  });
+
+  it("returns false for test, spec, and server .tsx files as defence in depth (FT-N18)", () => {
+    expect(
+      isFastTrackEligible(
+        "src/app/features/x/A.test.tsx",
+        makeFastTrackEdit("src/app/features/x/A.test.tsx")
+      )
+    ).toBe(false);
+    expect(
+      isFastTrackEligible(
+        "src/app/features/x/A.spec.tsx",
+        makeFastTrackEdit("src/app/features/x/A.spec.tsx")
+      )
+    ).toBe(false);
+    expect(
+      isFastTrackEligible(
+        "src/app/features/x/A.server.tsx",
+        makeFastTrackEdit("src/app/features/x/A.server.tsx")
+      )
+    ).toBe(false);
+    expect(
+      isFastTrackEligible("src/app/api/x/page.tsx", makeFastTrackEdit("src/app/api/x/page.tsx"))
+    ).toBe(false);
+  });
+});
+
+describe("decide — Fast-Track Mode", () => {
+  it("allows replace_file_content <= 40 lines on vi.ts and en.ts without plan approval (FT-H1, FT-H2)", () => {
+    const viDecision = decide(makeFastTrackEdit("src/lib/utils/translations/vi.ts", 5, 5), {
+      planApproved: false,
+    });
+    expect(viDecision.decision).toBe("allow");
+    expect(viDecision.reason).toContain("Fast-Track Mode");
+
+    const enDecision = decide(makeFastTrackEdit("src/lib/utils/translations/en.ts", 5, 5), {
+      planApproved: false,
+    });
+    expect(enDecision.decision).toBe("allow");
+    expect(enDecision.reason).toContain("Fast-Track Mode");
+  });
+
+  it("allows replace_file_content <= 40 lines on src/app/styles/**/*.css (FT-H3)", () => {
+    const decision = decide(makeFastTrackEdit("src/app/styles/themes/focus/amber.css", 5, 5), {
+      planApproved: false,
+    });
+    expect(decision.decision).toBe("allow");
+    expect(decision.reason).toContain("Fast-Track Mode");
+  });
+
+  it("allows exact 40-line upper boundary on src/app/**/*.tsx and src/components/**/*.tsx (FT-H4, FT-H5)", () => {
+    const appDecision = decide(
+      makeFastTrackEdit("src/app/features/chat/components/ChatBubble.tsx", 40, 40),
+      { planApproved: false }
+    );
+    expect(appDecision.decision).toBe("allow");
+    expect(appDecision.reason).toContain("Fast-Track Mode");
+
+    const compDecision = decide(makeFastTrackEdit("src/components/ui/button.tsx", 1, 3), {
+      planApproved: false,
+    });
+    expect(compDecision.decision).toBe("allow");
+    expect(compDecision.reason).toContain("Fast-Track Mode");
+  });
+
+  it("normalises Windows backslash paths for Fast-Track edits (FT-H6)", () => {
+    const winPath = ["src", "app", "features", "chat", "components", "ChatBubble.tsx"].join("\\");
+    const decision = decide(makeFastTrackEdit(winPath, 5, 5), { planApproved: false });
+    expect(decision.decision).toBe("allow");
+    expect(decision.reason).toContain("Fast-Track Mode");
+  });
+
+  it("allows multi-chunk replace_file_content payload when combined lines <= 40 (FT-H7)", () => {
+    const input = extractInput({
+      toolCall: {
+        name: "replace_file_content",
+        args: {
+          TargetFile: "src/app/features/chat/components/ChatBubble.tsx",
+          ReplacementChunks: [
+            { TargetContent: makeLines(20), ReplacementContent: makeLines(20) },
+            { TargetContent: makeLines(20), ReplacementContent: makeLines(20) },
+          ],
+        },
+      },
+    });
+    const decision = decide(input, { planApproved: false });
+    expect(decision.decision).toBe("allow");
+    expect(decision.reason).toContain("Fast-Track Mode");
+  });
+
+  it("rejects write_to_file, missing toolName, or non-exact toolName on Fast-Track paths (FT-N1, FT-N2, FT-N3)", () => {
+    const targets = [
+      "src/lib/utils/translations/vi.ts",
+      "src/app/styles/themes/focus/amber.css",
+      "src/app/features/chat/components/ChatBubble.tsx",
+      "src/components/ui/button.tsx",
+    ];
+    for (const target of targets) {
+      const writeDecision = decide(makeFastTrackEdit(target, 5, 5, "write_to_file"), {
+        planApproved: false,
+      });
+      expect(writeDecision.decision).toBe("ask");
+      expect(writeDecision.reason).toContain("write targets a frozen path");
+    }
+
+    const noToolDecision = decide(
+      {
+        targetFile: "src/app/features/chat/components/ChatBubble.tsx",
+        oldContent: makeLines(5),
+        newContent: makeLines(5),
+      },
+      { planApproved: false }
+    );
+    expect(noToolDecision.decision).toBe("ask");
+    expect(noToolDecision.reason).toContain("write targets a frozen path");
+
+    const multiToolDecision = decide(
+      makeFastTrackEdit(
+        "src/app/features/chat/components/ChatBubble.tsx",
+        5,
+        5,
+        "multi_replace_file_content"
+      ),
+      { planApproved: false }
+    );
+    expect(multiToolDecision.decision).toBe("ask");
+    expect(multiToolDecision.reason).toContain("write targets a frozen path");
+  });
+
+  it("rejects edits exceeding 40 lines on oldContent, newContent, or combined chunks (FT-N4, FT-N5, FT-N6)", () => {
+    const old41 = decide(
+      makeFastTrackEdit("src/app/features/chat/components/ChatBubble.tsx", 41, 5),
+      { planApproved: false }
+    );
+    expect(old41.decision).toBe("ask");
+    expect(old41.reason).toContain("write targets a frozen path");
+
+    const new41 = decide(
+      makeFastTrackEdit("src/app/features/chat/components/ChatBubble.tsx", 5, 41),
+      { planApproved: false }
+    );
+    expect(new41.decision).toBe("ask");
+    expect(new41.reason).toContain("write targets a frozen path");
+
+    const multi42 = extractInput({
+      toolCall: {
+        name: "replace_file_content",
+        args: {
+          TargetFile: "src/app/features/chat/components/ChatBubble.tsx",
+          ReplacementChunks: [
+            { TargetContent: makeLines(21), ReplacementContent: makeLines(21) },
+            { TargetContent: makeLines(21), ReplacementContent: makeLines(21) },
+          ],
+        },
+      },
+    });
+    const multiDecision = decide(multi42, { planApproved: false });
+    expect(multiDecision.decision).toBe("ask");
+    expect(multiDecision.reason).toContain("write targets a frozen path");
+  });
+
+  it("rejects missing or empty oldContent / newContent (FT-N7)", () => {
+    const file = "src/app/features/chat/components/ChatBubble.tsx";
+    for (const payload of [
+      { toolName: "replace_file_content", targetFile: file, newContent: "a" },
+      { toolName: "replace_file_content", targetFile: file, oldContent: "a" },
+      { toolName: "replace_file_content", targetFile: file, oldContent: "", newContent: "a" },
+      { toolName: "replace_file_content", targetFile: file, oldContent: "a", newContent: "" },
+    ]) {
+      const decision = decide(payload, { planApproved: false });
+      expect(decision.decision).toBe("ask");
+      expect(decision.reason).toContain("write targets a frozen path");
+    }
+  });
+
+  it("rejects API routes, business logic, path traversal, translations/index.ts, and globals.css (FT-N8, FT-N9, FT-N10, FT-N14, FT-N15, FT-N16)", () => {
+    const frozenPaths = [
+      "src/app/api/chat-stream/route.ts",
+      "src/app/api/foo/page.tsx",
+      "src/lib/features/chat/conversations.ts",
+      "src/lib/core/genaiClient.ts",
+      "src/app/../lib/core/x.tsx",
+      "src/lib/utils/translations/index.ts",
+      "src/app/globals.css",
+    ];
+    for (const target of frozenPaths) {
+      const decision = decide(makeFastTrackEdit(target, 5, 5), { planApproved: false });
+      expect(decision.decision).toBe("ask");
+      expect(decision.reason).toContain("write targets a frozen path");
+    }
+  });
+
+  it("keeps Scoped Protection gates ahead of Fast-Track for server, test, and governance files (FT-N11, FT-N12, FT-N13)", () => {
+    for (const serverFile of [
+      "src/lib/core/supabase.server.ts",
+      "src/app/features/x/Panel.server.tsx",
+    ]) {
+      const decision = decide(makeFastTrackEdit(serverFile, 5, 5), { planApproved: false });
+      expect(decision.decision).toBe("ask");
+      expect(decision.reason).toContain("sensitive server file (*.server.ts)");
+    }
+
+    const testDecision = decide(
+      makeFastTrackEdit("src/app/features/chat/components/ChatBubble.test.tsx", 5, 5),
+      { planApproved: false }
+    );
+    expect(testDecision.decision).toBe("ask");
+    expect(testDecision.reason).toContain("Test Integrity Guard");
+
+    const govDecision = decide(makeFastTrackEdit(".agents/rules/00-core.md", 5, 5), {
+      planApproved: false,
+    });
+    expect(govDecision.decision).toBe("ask");
+    expect(govDecision.reason).toContain("governance file in .agents/");
+  });
+
+  it("rejects Fast-Track edits introducing use server, process.env, or .server imports (FT-N17)", () => {
+    const file = "src/app/features/chat/components/ChatBubble.tsx";
+    const forbiddenSnippets = [
+      '"use server";\nexport async function act() {}',
+      "const secret = process.env.SECRET;",
+      'import { db } from "@/lib/core/supabase.server";',
+    ];
+    for (const snippet of forbiddenSnippets) {
+      const decision = decide(
+        {
+          toolName: "replace_file_content",
+          targetFile: file,
+          oldContent: "const a = 1;",
+          newContent: snippet,
+        },
+        { planApproved: false }
+      );
+      expect(decision.decision).toBe("ask");
+      expect(decision.reason).toContain("write targets a frozen path");
+    }
+  });
+
+  it("preserves existing planApproved behaviour for > 40 line UI edits and migration files (FT-R2, FT-R3)", () => {
+    const largeUiAllowed = decide(
+      makeFastTrackEdit("src/app/features/chat/components/ChatBubble.tsx", 41, 41),
+      { planApproved: true }
+    );
+    expect(largeUiAllowed.decision).toBe("allow");
+    expect(largeUiAllowed.reason).toBeUndefined();
+
+    const migrationAsked = decide(makeFastTrackEdit("supabase/migrations/x.sql", 5, 5), {
+      planApproved: true,
+    });
+    expect(migrationAsked.decision).toBe("ask");
+    expect(migrationAsked.reason).toContain("database migration");
+  });
+});
+
+describe("decide — Dual-Planner & Dual-Reviewer workflow (SW-G1..SW-G8)", () => {
+  it("allows Primary Planner invocation via run-claude.ps1 -Role planner with -PlanFile and -Task (SW-G1)", () => {
+    expect(
+      decide({
+        command:
+          'powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/2026-10-19-swap-planner-reviewer-workflow-implementation-plan.md -Task "Draft plan"',
+      }).decision
+    ).toBe("allow");
+  });
+
+  it("allows Fallback Reviewer invocation via run-claude.ps1 -Role reviewer with -NoProfile (SW-G2)", () => {
+    expect(
+      decide({
+        command:
+          "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role reviewer -PlanFile docs/plans/2026-10-19-swap-planner-reviewer-workflow-implementation-plan.md",
+      }).decision
+    ).toBe("allow");
+  });
+
+  it("allows -Mode plan, -Prompt, -ArtifactFile aliases and quoted script path (SW-G3)", () => {
+    expect(
+      decide({
+        command:
+          'powershell -ExecutionPolicy Bypass -File ".agents/scripts/run-claude.ps1" -Mode plan -PlanFile docs/plans/task.md -Prompt "Revise plan" -ArtifactFile C:/Users/wyemh/.gemini/antigravity/brain/conv/implementation_plan.md',
+      }).decision
+    ).toBe("allow");
+  });
+
+  it("asks when run-claude.ps1 is chained with && and a mutating command (SW-G4)", () => {
+    const decision = decide({
+      command:
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner && rm -rf src",
+    });
+    expect(decision.decision).toBe("ask");
+    expect(decision.reason).toContain("redirection, chaining or a mutating flag");
+  });
+
+  it("asks when run-claude.ps1 is chained with ; and a non-allowlisted command (SW-G5)", () => {
+    const decision = decide({
+      command:
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role reviewer; rm -rf src",
+    });
+    expect(decision.decision).toBe("ask");
+    expect(decision.reason).toContain("segment outside the read-only ALLOWLIST");
+  });
+
+  it("asks when run-claude.ps1 output is redirected to a file (SW-G6)", () => {
+    const decision = decide({
+      command:
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner > src/evil.ts",
+    });
+    expect(decision.decision).toBe("ask");
+    expect(decision.reason).toContain("redirection, chaining or a mutating flag");
+  });
+
+  it("asks when run-claude.ps1 includes a mutating flag such as --fix (SW-G7)", () => {
+    const decision = decide({
+      command:
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner --fix",
+    });
+    expect(decision.decision).toBe("ask");
+    expect(decision.reason).toContain("redirection, chaining or a mutating flag");
+  });
+
+  it("allows @reviewer replace_file_content updates on docs/plans/*.md while repo is frozen (SW-G8)", () => {
+    const decision = decide(
+      {
+        targetFile: "docs/plans/2026-10-19-swap-planner-reviewer-workflow-implementation-plan.md",
+        toolName: "replace_file_content",
+        oldContent: "- **Status**: Ready for Review",
+        newContent: "- **Status**: Approved",
+      },
+      { planApproved: false }
+    );
+    expect(decision.decision).toBe("allow");
   });
 });

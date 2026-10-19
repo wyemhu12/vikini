@@ -18,7 +18,7 @@ Use this to perform a focused code quality audit on a file or feature.
 
 3. **Check API patterns** (if API route):
    - Uses standardized error classes
-   - Follows response format from `.agents/skills/api-patterns.md`
+   - Follows response format from `.agents/skills/api-patterns/SKILL.md`
    - No raw `NextResponse.json({ error: ... })`
 
 4. **Check UI standards** (if UI component):

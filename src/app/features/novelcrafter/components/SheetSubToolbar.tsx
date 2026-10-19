@@ -6,6 +6,7 @@ import {
   Bold,
   Heading1,
   Heading2,
+  History,
   Italic,
   List,
   ListOrdered,
@@ -16,6 +17,7 @@ import {
   Type,
 } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
+import { MAX_CHAPTER_SNAPSHOTS } from "@/lib/features/novelcrafter/types";
 import { cn } from "@/lib/utils/cn";
 
 export type EditorFontSizePreset = "sm" | "md" | "lg";
@@ -29,6 +31,8 @@ interface SheetSubToolbarProps {
   onApplyMarkdownFormat: (
     format: "bold" | "italic" | "strike" | "h1" | "h2" | "ul" | "ol" | "hr"
   ) => void;
+  snapshotsCount?: number;
+  onOpenSnapshotsModal?: () => void;
 }
 
 export default function SheetSubToolbar({
@@ -38,6 +42,8 @@ export default function SheetSubToolbar({
   focusMode,
   onToggleFocusMode,
   onApplyMarkdownFormat,
+  snapshotsCount = 0,
+  onOpenSnapshotsModal,
 }: SheetSubToolbarProps) {
   const { t } = useLanguage();
 
@@ -82,6 +88,22 @@ export default function SheetSubToolbar({
         <span className="hidden sm:inline font-medium">
           {t("novelcrafterChapterWordsCount").replace("{count}", wordCount.toLocaleString())}
         </span>
+
+        {onOpenSnapshotsModal && (
+          <button
+            type="button"
+            onClick={onOpenSnapshotsModal}
+            title={t("novelcrafterSnapshotsBtn")}
+            aria-label={t("novelcrafterSnapshotsBtn")}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-(--border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-(--text-primary) font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
+          >
+            <History className="w-3.5 h-3.5 text-(--accent)" />
+            <span className="hidden md:inline">{t("novelcrafterSnapshotsBtn")}</span>
+            <span>
+              ({snapshotsCount}/{MAX_CHAPTER_SNAPSHOTS})
+            </span>
+          </button>
+        )}
 
         <button
           type="button"

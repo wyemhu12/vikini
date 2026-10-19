@@ -17,6 +17,7 @@ import {
   resolveValidNovelcrafterStoryId,
   shouldBlockAutosaveForStory,
 } from "@/lib/features/novelcrafter/draftStorage";
+import { buildPreviousChapterSummariesText } from "@/lib/features/novelcrafter/promptBuilder";
 import {
   NovelcrafterSyncCoordinator,
   shouldApplyRemoteStoryLoad,
@@ -387,6 +388,10 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     const idx = storyState.chapters.findIndex((c) => c.id === activeChapter?.id);
     return idx > 0 ? storyState.chapters[idx - 1]?.content?.slice(-2000) || "" : "";
   }, [storyState.chapters, activeChapter]);
+  const previousChapterSummaries = useMemo(
+    () => buildPreviousChapterSummariesText(storyState.chapters, activeChapter?.id),
+    [storyState.chapters, activeChapter?.id]
+  );
 
   return {
     stories,
@@ -400,6 +405,7 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     latestStateRef,
     activeChapter,
     previousChapterProseTail,
+    previousChapterSummaries,
     isLoadingState,
     saveStatus,
     destructivePrompt,

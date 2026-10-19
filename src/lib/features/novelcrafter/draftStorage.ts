@@ -6,7 +6,11 @@ import { sanitizeStoryState } from "./promptBuilder";
 import type { NovelcrafterSyncCoordinator } from "./storySyncCoordinator";
 import {
   createDefaultStoryState,
+  MAX_CHAPTER_SNAPSHOTS,
   MAX_HISTORY_CARDS,
+  MAX_SNAPSHOT_LABEL_CHARS,
+  type NovelcrafterChapter,
+  type NovelcrafterChapterSnapshot,
   type NovelcrafterHistoryCard,
   type NovelcrafterStoryState,
   type StoryBible,
@@ -50,6 +54,37 @@ export function getDraftStorageKey(storyId: string | null | undefined): string {
   return trimmed ? `${DRAFT_STORAGE_PREFIX}${trimmed}` : UNSAVED_DRAFT_STORAGE_KEY;
 }
 
+function createSnapshotId(nowMs: number): string {
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `snap-${nowMs}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function createChapterSnapshot(
+  chapter: Pick<NovelcrafterChapter, "content" | "snapshots">,
+  label?: string,
+  nowMs: number = Date.now()
+): NovelcrafterChapterSnapshot[] {
+  const existing = chapter.snapshots ?? [];
+  const trimmedLabel = label?.trim().slice(0, MAX_SNAPSHOT_LABEL_CHARS);
+  if (existing.length > 0 && existing[0].content === chapter.content) {
+    const updatedTop: NovelcrafterChapterSnapshot = {
+      ...existing[0],
+      ...(trimmedLabel ? { label: trimmedLabel } : {}),
+      createdAt: nowMs,
+    };
+    return [updatedTop, ...existing.slice(1)].slice(0, MAX_CHAPTER_SNAPSHOTS);
+  }
+  const nextSnapshot: NovelcrafterChapterSnapshot = {
+    id: createSnapshotId(nowMs),
+    ...(trimmedLabel ? { label: trimmedLabel } : {}),
+    content: chapter.content,
+    wordCount: countChapterWords(chapter.content),
+    createdAt: nowMs,
+  };
+  return [nextSnapshot, ...existing].slice(0, MAX_CHAPTER_SNAPSHOTS);
+}
+
 export function hasUnsavedDraftContent(state: NovelcrafterStoryState): boolean {
   for (const field of STORY_BIBLE_TEXT_FIELDS) {
     if (state.storyBible[field].trim().length > 0) return true;
@@ -65,7 +100,8 @@ export function hasUnsavedDraftContent(state: NovelcrafterStoryState): boolean {
     (ch) =>
       ch.content.trim().length > 0 ||
       ch.scenes.trim().length > 0 ||
-      (ch.extraInstructions ?? "").trim().length > 0
+      (ch.extraInstructions ?? "").trim().length > 0 ||
+      (ch.summary ?? "").trim().length > 0
   );
 }
 
@@ -222,6 +258,7 @@ export function buildConflictBackupCard(
     const localScenes = localCh.scenes.trim();
     const localContent = localCh.content.trim();
     const localExtra = (localCh.extraInstructions ?? "").trim();
+    const localSummary = (localCh.summary ?? "").trim();
     if (localScenes && localScenes !== (remoteCh?.scenes.trim() ?? "")) {
       diffSections.push(`[${localCh.title} - Scenes]\n${localScenes}`);
     }
@@ -230,6 +267,9 @@ export function buildConflictBackupCard(
     }
     if (localExtra && localExtra !== (remoteCh?.extraInstructions ?? "").trim()) {
       diffSections.push(`[${localCh.title} - Extra Instructions]\n${localExtra}`);
+    }
+    if (localSummary && localSummary !== (remoteCh?.summary ?? "").trim()) {
+      diffSections.push(`[${localCh.title} - Summary]\n${localSummary}`);
     }
   }
   if (diffSections.length === 0) return null;
@@ -248,6 +288,7 @@ export interface PayloadBudgetFitResult {
   state: NovelcrafterStoryState;
   fits: boolean;
   trimmedHistoryCount: number;
+  trimmedSnapshotCount: number;
   trimmedFeedbackCount: number;
   largestFields?: string[];
 }
@@ -261,7 +302,13 @@ export function enforceStatePayloadBudget(
     encoder.encode(JSON.stringify(candidate)).byteLength;
 
   if (measure(state) <= maxBytes) {
-    return { state, fits: true, trimmedHistoryCount: 0, trimmedFeedbackCount: 0 };
+    return {
+      state,
+      fits: true,
+      trimmedHistoryCount: 0,
+      trimmedSnapshotCount: 0,
+      trimmedFeedbackCount: 0,
+    };
   }
 
   // Tier 1: Trim historyCards from oldest to newest down to 0
@@ -276,10 +323,70 @@ export function enforceStatePayloadBudget(
   }
 
   if (measure(candidate) <= maxBytes) {
-    return { state: candidate, fits: true, trimmedHistoryCount, trimmedFeedbackCount: 0 };
+    return {
+      state: candidate,
+      fits: true,
+      trimmedHistoryCount,
+      trimmedSnapshotCount: 0,
+      trimmedFeedbackCount: 0,
+    };
   }
 
-  // Tier 2: Trim resolved feedbackItems across chapters (NEVER touch open feedback, chapter prose, or Story Bible)
+  // Tier 2: Trim oldest chapter snapshots across chapters before touching resolved feedback
+  let trimmedSnapshotCount = 0;
+  let workingChapters = candidate.chapters.map((ch) => ({
+    ...ch,
+    ...(ch.snapshots ? { snapshots: [...ch.snapshots] } : {}),
+  }));
+
+  while (measure(candidate) > maxBytes) {
+    let oldestChapterIndex = -1;
+    let oldestSnapshotIndex = -1;
+    let oldestCreatedAt = Number.POSITIVE_INFINITY;
+
+    for (let cIdx = 0; cIdx < workingChapters.length; cIdx += 1) {
+      const snaps = workingChapters[cIdx]?.snapshots;
+      if (!snaps || snaps.length === 0) continue;
+      for (let sIdx = snaps.length - 1; sIdx >= 0; sIdx -= 1) {
+        const snap = snaps[sIdx];
+        if (snap && snap.createdAt < oldestCreatedAt) {
+          oldestCreatedAt = snap.createdAt;
+          oldestChapterIndex = cIdx;
+          oldestSnapshotIndex = sIdx;
+        }
+      }
+    }
+
+    if (oldestChapterIndex === -1 || oldestSnapshotIndex === -1) {
+      break;
+    }
+
+    workingChapters = workingChapters.map((ch, idx) => {
+      if (idx !== oldestChapterIndex || !ch.snapshots) return ch;
+      const nextSnaps = ch.snapshots.filter((_, sIdx) => sIdx !== oldestSnapshotIndex);
+      const nextCh = { ...ch };
+      if (nextSnaps.length > 0) {
+        nextCh.snapshots = nextSnaps;
+      } else {
+        delete nextCh.snapshots;
+      }
+      return nextCh;
+    });
+    trimmedSnapshotCount += 1;
+    candidate = { ...candidate, chapters: workingChapters };
+  }
+
+  if (measure(candidate) <= maxBytes) {
+    return {
+      state: candidate,
+      fits: true,
+      trimmedHistoryCount,
+      trimmedSnapshotCount,
+      trimmedFeedbackCount: 0,
+    };
+  }
+
+  // Tier 3: Trim resolved feedbackItems across chapters (NEVER touch open feedback, chapter prose, or Story Bible)
   let trimmedFeedbackCount = 0;
   const trimmedChapters = candidate.chapters.map((ch) => {
     const openOnly = ch.feedbackItems.filter((item) => {
@@ -295,7 +402,13 @@ export function enforceStatePayloadBudget(
 
   const fits = measure(candidate) <= maxBytes;
   if (fits) {
-    return { state: candidate, fits: true, trimmedHistoryCount, trimmedFeedbackCount };
+    return {
+      state: candidate,
+      fits: true,
+      trimmedHistoryCount,
+      trimmedSnapshotCount,
+      trimmedFeedbackCount,
+    };
   }
 
   const fieldSizes: Array<{ label: string; bytes: number }> = [
@@ -313,6 +426,7 @@ export function enforceStatePayloadBudget(
     state: candidate,
     fits: false,
     trimmedHistoryCount,
+    trimmedSnapshotCount,
     trimmedFeedbackCount,
     largestFields: fieldSizes.slice(0, 3).map((f) => f.label),
   };

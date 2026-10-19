@@ -9,11 +9,13 @@ Thư mục này lưu trữ các bản kế hoạch thực thi (Implementation Pl
 
 ## Chu Trình Plan - Review - Revise Loop
 
-Tất cả các bản kế hoạch trong thư mục này được khởi tạo bởi subagent `@planner` và phê duyệt bởi Lead Reviewer trước khi triển khai (xem chi tiết tại `../../.agents/rules/05-plan-review.md`).
+Tất cả các bản kế hoạch trong thư mục này được khởi tạo bởi Technical Planner (Primary Claude Code CLI `-Role planner` / Fallback Subagent `@planner`) và phê duyệt bởi Lead Reviewer (Primary Subagent `@reviewer` / Fallback Claude Code CLI `-Role reviewer`) trước khi triển khai (xem chi tiết tại `../../.agents/rules/05-plan-review.md`).
 
 ## Ma Trận Kế Hoạch Triển Khai (Implementation Plans Status Matrix)
 
 | Ngày | Kế Hoạch Triển Khai | Trạng Thái | Mô Tả Tóm Tắt |
+| 2026-10-19 | [Swap Planner & Reviewer Execution Channels](./2026-10-19-swap-planner-reviewer-workflow-implementation-plan.md) | `Completed` | Đảo chiều kênh thực thi: Primary Planner dùng Claude Code CLI (Fallback `@planner` `gemini-4-argon`) và Primary Reviewer dùng Subagent `@reviewer` `gemini-4-argon` (Fallback Claude Code CLI). |
+| 2026-10-19 | [Vikini Skills Standardization & Fast-Track Mode](./2026-10-19-pstack-skills-and-fast-track-implementation-plan.md) | `Completed` | Chuẩn hóa hệ thống skill nội bộ `.agents/skills/<name>/SKILL.md`, 8 nguyên lý `pstack` và cơ chế Fast-Track Mode (`<= 40` dòng). |
 | 2026-10-12 | [Z.ai GLM 5.2 Model Integration](./2026-10-12-glm-5-2-model-integration-plan.md) | `Completed` | Tích hợp mô hình Z.ai GLM 5.2 (OpenRouter/CoreWeave FP4, 1.05M context), điều khiển reasoning hai chiều, scoped token limit và logo avatar. |
 | 2026-10-12 | [E2E Testing & Cycle 2 Security Audit](./2026-10-12-e2e-testing-and-security-audit-cycle-2-implementation-plan.md) | `Approved` | Tự động hóa E2E (Playwright), rà soát bảo mật dependencies (npm audit), hardening 4 hàm RPC SECURITY DEFINER và tối ưu hóa Supabase RLS. |
 | 2026-09-29 | [Docs, Rules & Agents Restructuring](./2026-09-29-docs-rules-agents-restructuring-implementation-plan.md) | `Completed` | Tái cấu trúc thư mục docs và hạ tầng tác tử theo chuẩn Diátaxis 2026, tối ưu CHANGELOG và chuẩn hóa đường dẫn. |

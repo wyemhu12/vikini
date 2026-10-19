@@ -4,6 +4,7 @@ import { ValidationError } from "@/lib/utils/errors";
 import {
   buildNovelcrafterSystemInstruction,
   buildNovelcrafterUserPrompt,
+  buildPreviousChapterSummariesText,
   DEFAULT_NOVELCRAFTER_MASTER_INSTRUCTIONS,
   resolveEffectivePersonaId,
   sanitizeStoryState,
@@ -461,6 +462,33 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04, TC-05)", () => {
         expect(rollbackParsed.data.version).toBe(42);
         expect(rollbackParsed.data.chapters[0].content).toBe("Preserved chapter content v42");
       }
+    });
+
+    it("TC-304: builds previousChapterSummaries rolling memory (<story_so_far>), escapes XML delimiters, and selects dependencies for chapter_summary", () => {
+      const chapters = [
+        { id: "ch-1", title: "Chương 1", summary: "Linh rời làng và nhận được <cổ kiếm>." },
+        { id: "ch-2", title: "Chương 2", summary: "Linh chiến đấu tại Vạn Kiếm Sơn." },
+        { id: "ch-3", title: "Chương 3", summary: "Chương hiện tại" },
+      ];
+      const rollingText = buildPreviousChapterSummariesText(chapters, "ch-3");
+      expect(rollingText).toContain("[Chương 1]: Linh rời làng");
+      expect(rollingText).toContain("[Chương 2]: Linh chiến đấu");
+      expect(rollingText).not.toContain("Chương 3");
+
+      const prompt = buildNovelcrafterUserPrompt({
+        feature: "write",
+        writeMode: "auto",
+        storyBible: FULL_STORY_BIBLE,
+        chapterTitle: "Chương 3",
+        previousChapterSummaries: rollingText,
+        chapterProse: "Bình minh ló rạng.",
+      });
+      expect(prompt).toContain("<story_so_far>");
+      expect(prompt).toContain("&lt;cổ kiếm&gt;");
+      expect(prompt).toContain("</story_so_far>");
+
+      const deps = selectStoryBibleDependencies("bible", FULL_STORY_BIBLE, "chapter_summary");
+      expect(deps.synopsis).toBe(FULL_STORY_BIBLE.synopsis);
     });
   });
 });

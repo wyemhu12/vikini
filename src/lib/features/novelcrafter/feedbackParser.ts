@@ -165,50 +165,82 @@ export function computeWordDiff(quote: string, suggestion: string): WordDiffSegm
   const a = tokenizeWordsAndSpaces(cleanQuote);
   const b = tokenizeWordsAndSpaces(cleanSuggestion);
 
-  // Guard against quadratic blowup on very long excerpts
-  if (a.length * b.length > 90_000) {
-    return [
-      { type: "delete", text: cleanQuote },
-      { type: "equal", text: " " },
-      { type: "insert", text: cleanSuggestion },
-    ];
+  let prefixLen = 0;
+  const minLen = Math.min(a.length, b.length);
+  while (prefixLen < minLen && a[prefixLen] === b[prefixLen]) {
+    prefixLen += 1;
   }
 
-  const m = a.length;
-  const n = b.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
-
-  for (let i = m - 1; i >= 0; i--) {
-    for (let j = n - 1; j >= 0; j--) {
-      if (a[i] === b[j]) {
-        dp[i][j] = 1 + dp[i + 1][j + 1];
-      } else {
-        dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
-      }
-    }
+  let suffixLen = 0;
+  while (
+    suffixLen < a.length - prefixLen &&
+    suffixLen < b.length - prefixLen &&
+    a[a.length - 1 - suffixLen] === b[b.length - 1 - suffixLen]
+  ) {
+    suffixLen += 1;
   }
+
+  const prefixTokens = a.slice(0, prefixLen);
+  const suffixTokens = suffixLen > 0 ? a.slice(a.length - suffixLen) : [];
+  const midA = a.slice(prefixLen, a.length - suffixLen);
+  const midB = b.slice(prefixLen, b.length - suffixLen);
 
   const rawSegments: WordDiffSegment[] = [];
-  let i = 0;
-  let j = 0;
-  while (i < m && j < n) {
-    if (a[i] === b[j]) {
-      rawSegments.push({ type: "equal", text: a[i] });
-      i++;
-      j++;
-    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-      rawSegments.push({ type: "delete", text: a[i] });
-      i++;
-    } else {
-      rawSegments.push({ type: "insert", text: b[j] });
-      j++;
+  if (prefixTokens.length > 0) {
+    rawSegments.push({ type: "equal", text: prefixTokens.join("") });
+  }
+
+  // Guard against quadratic blowup on very long changed middle windows
+  if (midA.length * midB.length > 90_000) {
+    if (midA.length > 0) {
+      rawSegments.push({ type: "delete", text: midA.join("") });
+    }
+    if (midA.length > 0 && midB.length > 0) {
+      rawSegments.push({ type: "equal", text: " " });
+    }
+    if (midB.length > 0) {
+      rawSegments.push({ type: "insert", text: midB.join("") });
+    }
+  } else if (midA.length > 0 || midB.length > 0) {
+    const m = midA.length;
+    const n = midB.length;
+    const dp: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+
+    for (let i = m - 1; i >= 0; i--) {
+      for (let j = n - 1; j >= 0; j--) {
+        if (midA[i] === midB[j]) {
+          dp[i][j] = 1 + dp[i + 1][j + 1];
+        } else {
+          dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+        }
+      }
+    }
+
+    let i = 0;
+    let j = 0;
+    while (i < m && j < n) {
+      if (midA[i] === midB[j]) {
+        rawSegments.push({ type: "equal", text: midA[i] });
+        i++;
+        j++;
+      } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+        rawSegments.push({ type: "delete", text: midA[i] });
+        i++;
+      } else {
+        rawSegments.push({ type: "insert", text: midB[j] });
+        j++;
+      }
+    }
+    while (i < m) {
+      rawSegments.push({ type: "delete", text: midA[i++] });
+    }
+    while (j < n) {
+      rawSegments.push({ type: "insert", text: midB[j++] });
     }
   }
-  while (i < m) {
-    rawSegments.push({ type: "delete", text: a[i++] });
-  }
-  while (j < n) {
-    rawSegments.push({ type: "insert", text: b[j++] });
+
+  if (suffixTokens.length > 0) {
+    rawSegments.push({ type: "equal", text: suffixTokens.join("") });
   }
 
   const merged: WordDiffSegment[] = [];

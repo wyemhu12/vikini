@@ -117,4 +117,22 @@ describe("streamTargetGuard (TC-07)", () => {
         "I cannot fulfill this request. I am unable to continue this fictional scene.",
     });
   });
+
+  it("applies live streamed tokens to chapter_summary target for matching storyId and chapterId", () => {
+    const state = createDefaultStoryState("Chapter 1");
+    const result = applyStreamTargetUpdate(
+      { ownerStoryId: "story-1", state },
+      {
+        storyId: "story-1",
+        kind: "chapter_summary",
+        chapterId: "ch-1",
+        baseContent: "",
+      },
+      "- Sự kiện 1\n- Sự kiện 2",
+      7000
+    );
+
+    expect(result.applied).toBe(true);
+    expect(result.nextState.chapters[0].summary).toBe("- Sự kiện 1\n- Sự kiện 2");
+  });
 });
