@@ -8,6 +8,10 @@ export function escapeXmlPromptText(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+export function unescapeXmlPromptText(text: string): string {
+  return text.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+
 export interface SerializeStoryBibleOptions {
   activeContextText?: string;
 }
@@ -24,9 +28,7 @@ export function serializeStoryBibleWithStructuredCards(
     .filter((c) => isCodexCardMatchedInContext(c, options?.activeContextText))
     .map((c) => {
       const aliasesLine =
-        c.aliases && c.aliases.length > 0
-          ? `\nAliases: ${c.aliases.map(escapeXmlPromptText).join(", ")}`
-          : "";
+        c.aliases && c.aliases.length > 0 ? `\nAliases: ${c.aliases.join(", ")}` : "";
       return `### ${c.name}${c.role ? ` (${c.role})` : ""}${aliasesLine}\n${c.traits ? c.traits.trim() : ""}`;
     })
     .join("\n\n");
@@ -37,9 +39,7 @@ export function serializeStoryBibleWithStructuredCards(
     .filter((w) => isCodexCardMatchedInContext(w, options?.activeContextText))
     .map((w) => {
       const aliasesLine =
-        w.aliases && w.aliases.length > 0
-          ? `\nAliases: ${w.aliases.map(escapeXmlPromptText).join(", ")}`
-          : "";
+        w.aliases && w.aliases.length > 0 ? `\nAliases: ${w.aliases.join(", ")}` : "";
       return `### ${w.name}${w.category ? ` [${w.category}]` : ""}${aliasesLine}\n${w.description ? w.description.trim() : ""}`;
     })
     .join("\n\n");

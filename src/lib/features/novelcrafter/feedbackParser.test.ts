@@ -2,12 +2,18 @@
 import { describe, expect, it } from "vitest";
 import {
   applyFeedbackSuggestionToText,
+  buildFeedbackReplyInstruction,
   computeWordDiff,
   findQuoteRangeInText,
   mergeStreamedFeedbackItems,
   parseFeedbackItems,
 } from "./feedbackParser";
-import type { NovelcrafterFeedbackItem } from "./types";
+import {
+  createDefaultStoryState,
+  MAX_CUSTOM_INSTRUCTION_CHARS,
+  NovelcrafterStreamRequestSchema,
+  type NovelcrafterFeedbackItem,
+} from "./types";
 
 describe("feedbackParser (TC-04)", () => {
   it("TC-04 Case 4A: parses only closed <feedback_item> blocks when isStreaming is true", () => {
@@ -167,5 +173,52 @@ describe("feedbackParser (TC-04)", () => {
       { type: "insert", text: "newPhraseHere" },
       { type: "equal", text: ` ${suffixWords}` },
     ]);
+  });
+
+  it("TC-B3-07: unescapes XML entities in <quote>, <comment>, and <suggestion> so findQuoteRangeInText matches raw chapter prose", () => {
+    const rawStream = [
+      "<feedback_item>",
+      "<category>prose</category>",
+      "<quote>Tom &amp; Jerry &lt;whispered&gt;</quote>",
+      "<comment>Avoid &lt;brackets&gt; &amp; clichés</comment>",
+      "<suggestion>Tom and Jerry whispered</suggestion>",
+      "</feedback_item>",
+    ].join("\n");
+
+    const items = parseFeedbackItems(rawStream, { isStreaming: false, nowMs: 3000 });
+    expect(items).toHaveLength(1);
+    expect(items[0]?.quote).toBe("Tom & Jerry <whispered>");
+    expect(items[0]?.comment).toBe("Avoid <brackets> & clichés");
+    expect(
+      findQuoteRangeInText("In the dark, Tom & Jerry <whispered> softly.", items[0]!.quote)
+    ).not.toBeNull();
+  });
+
+  it("TC-B6-02, TC-B6-03, TC-B6-04: buildFeedbackReplyInstruction clamps comment and replyText and stays within MAX_CUSTOM_INSTRUCTION_CHARS", () => {
+    // TC-B6-02: oversized clamping (20,000 + 5,000) -> exact clamped length 10_000 + 17 + 2_000 = 12_017
+    const clamped = buildFeedbackReplyInstruction("c".repeat(20_000), "r".repeat(5_000));
+    expect(clamped.reply).toHaveLength(2_000);
+    expect(clamped.instruction).toHaveLength(10_000 + 17 + 2_000);
+    expect(clamped.instruction.length).toBeLessThanOrEqual(MAX_CUSTOM_INSTRUCTION_CHARS);
+    expect(clamped.instruction.startsWith("c".repeat(10_000) + "\nUser follow-up: ")).toBe(true);
+
+    // TC-B6-03: normal lengths preserved verbatim
+    const normal = buildFeedbackReplyInstruction(" Câu hỏi ", " Sửa giúp ");
+    expect(normal).toEqual({
+      reply: "Sửa giúp",
+      instruction: "Câu hỏi\nUser follow-up: Sửa giúp",
+    });
+
+    // TC-B6-04: worst-case end-to-end passes NovelcrafterStreamRequestSchema
+    const parsed = NovelcrafterStreamRequestSchema.safeParse({
+      conversationId: "123e4567-e89b-12d3-a456-426614174000",
+      model: "gemini-2.5-flash",
+      feature: "feedback",
+      routing: createDefaultStoryState().routing,
+      storyBible: createDefaultStoryState().storyBible,
+      chapterProse: "Prose",
+      customInstruction: clamped.instruction,
+    });
+    expect(parsed.success).toBe(true);
   });
 });

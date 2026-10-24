@@ -36,24 +36,24 @@ Full type definitions: `docs/contracts.md` section 2 (Chat Stream Events).
 
 ### Server-side
 
-| File                                    | Responsibility                                         |
-| --------------------------------------- | ------------------------------------------------------ |
-| `app/api/chat-stream/route.ts`          | Entry point, auth, rate limiting                       |
-| `app/api/chat-stream/chatStreamCore.ts` | Context building, prompt construction                  |
-| `app/api/chat-stream/streaming.ts`      | ReadableStream creation, event serialization, timeouts |
+| File                                         | Responsibility                                 |
+| -------------------------------------------- | ---------------------------------------------- |
+| `src/app/api/chat-stream/route.ts`           | Entry point, auth, rate limiting               |
+| `src/app/api/chat-stream/chatStreamCore.ts`  | Context building, prompt construction          |
+| `src/app/api/chat-stream/streaming/utils.ts` | ReadableStream helpers (`sendEvent`), timeouts |
 
 ### Client-side
 
-| File                                                            | Responsibility                                 |
-| --------------------------------------------------------------- | ---------------------------------------------- |
-| `app/features/chat/components/hooks/useChatStreamController.ts` | SSE parser, typewriter buffer, stream state    |
-| `app/features/chat/components/ChatBubble.tsx`                   | ThinkingBlock, TypingCursor, message rendering |
-| `app/features/chat/components/ChatApp.tsx`                      | Smart auto-scroll logic                        |
+| File                                                                | Responsibility                                 |
+| ------------------------------------------------------------------- | ---------------------------------------------- |
+| `src/app/features/chat/components/hooks/useChatStreamController.ts` | SSE parser, typewriter buffer, stream state    |
+| `src/app/features/chat/components/ChatBubble.tsx`                   | ThinkingBlock, TypingCursor, message rendering |
+| `src/app/features/chat/components/ChatApp.tsx`                      | Smart auto-scroll logic                        |
 
 ## Server Pattern
 
 ```typescript
-// In streaming.ts — creating a ReadableStream
+// In streaming/utils.ts — creating a ReadableStream
 const stream = new ReadableStream({
   async start(controller) {
     const encoder = new TextEncoder();
@@ -111,7 +111,7 @@ Configured via `AbortController` with timeout signal.
 ## Adding a New Event Type
 
 1. Define the interface in `docs/contracts.md` section 2 (Chat Stream Events)
-2. Add serializer in `streaming.ts` — use the `send()` helper pattern
-3. Add parser case in `useChatStreamController.ts` — handle in the `processLine()` function
+2. Add serializer in `src/app/api/chat-stream/streaming/utils.ts` — use the `sendEvent()` helper pattern
+3. Add parser case in `src/app/features/chat/components/hooks/useChatStreamController.ts` — handle in the `parseSSEEvent()` function
 4. Update types in `src/types/` if needed
 5. Update this skill file with the new event type

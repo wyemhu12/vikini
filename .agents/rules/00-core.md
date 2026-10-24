@@ -50,16 +50,14 @@ description: Core identity, communication, stack, coding invariants, and behavio
 
 ## Token Efficiency (tokenleak discipline)
 
-- **Locate before reading**: Use `grep_search` to find exact lines first, then call `view_file` (`read_file`) with `StartLine`/`EndLine` for files > 400 lines.
-- **No duplicate reads**: Never re-read the same file range within a single session if the file has not changed.
-- **Bounded command output**: Scope test runs by path, use compact reporters (`--reporter=dot`), and cap git history (`git log -n <N>`). Never dump unbounded logs into context.
-- **Subagent delegation**: Prefer dispatching one `research` subagent for broad multi-file exploration over sequential main-thread reads.
+- **Locate & Read Once**: Dùng `grep_search` xác định dòng trước khi gọi `view_file`/`read_file` (`StartLine`/`EndLine` cho file > 400 dòng); không đọc lặp lại vùng file chưa đổi; ưu tiên 1 subagent `research` cho khảo sát đa file.
+- **Bounded Output**: Giới hạn phạm vi test theo path, dùng `--reporter=dot`, và giới hạn `git log -n <N>`.
 
 ## Git & Version Control
 
 <important>
 - **BANNED Mutating Git Commands**: NEVER autonomously run mutating git commands (`git add`, `git commit`, `git push`, `git checkout`, `git switch`, `git branch`, `git reset`, `git stash`, `git merge`, `git rebase`). ONLY commit and push when explicitly requested by the user.
-- **ALLOWED Read-Only Git Inspection**: Read-only git commands (`git status`, `git diff`, `git log -n <N>`, `git show`, `git blame`) are permitted for verification and auditing, matching `.agents/scripts/code-freeze-guard.js`.
+- **ALLOWED Read-Only Git Inspection**: Read-only git commands (`git status`, `git diff`, `git log -n <N>`, `git show`, `git blame` — không pathspec `.env*`, không `--no-index`) are permitted for verification and auditing, matching `.agents/scripts/code-freeze-guard.js`.
 - **Local files only**: Make all changes strictly on local workspace files.
 </important>
 

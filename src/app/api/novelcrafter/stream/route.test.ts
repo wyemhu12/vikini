@@ -215,4 +215,28 @@ describe("POST /api/novelcrafter/stream integration tests (TC-07)", () => {
     expect(res.status).toBe(200);
     expect(hoisted.incrementDailyMessageCountMock).not.toHaveBeenCalled();
   });
+
+  it("TC-B5-10 & TC-B5-11: enforces Strata admission before starting stream or consuming quota when model is strata-local", async () => {
+    vi.stubEnv("STRATA_ENABLED", "false");
+    const disabledReq = new NextRequest("http://localhost/api/novelcrafter/stream", {
+      method: "POST",
+      body: JSON.stringify(buildValidPayload({ model: "strata-local" })),
+    });
+    const disabledRes = await POST(disabledReq);
+    expect(disabledRes.status).toBe(503);
+    const disabledBody = await disabledRes.json();
+    expect(disabledBody.error.code).toBe("LOCAL_LLM_DISABLED");
+    expect(hoisted.runNovelcrafterStreamMock).not.toHaveBeenCalled();
+    expect(hoisted.incrementDailyMessageCountMock).not.toHaveBeenCalled();
+
+    vi.stubEnv("STRATA_ENABLED", "true");
+    const enabledReq = new NextRequest("http://localhost/api/novelcrafter/stream", {
+      method: "POST",
+      body: JSON.stringify(buildValidPayload({ model: "strata-local" })),
+    });
+    const enabledRes = await POST(enabledReq);
+    expect(enabledRes.status).toBe(200);
+    expect(hoisted.runNovelcrafterStreamMock).toHaveBeenCalledTimes(1);
+    vi.unstubAllEnvs();
+  });
 });

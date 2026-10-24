@@ -16,6 +16,7 @@ import {
 } from "@/lib/features/novelcrafter/streamRunRegistry";
 import {
   isLikelyModelRefusalOutput,
+  resolveStreamCloseOutcome,
   type StreamTerminationReason,
 } from "@/lib/features/novelcrafter/streamTargetGuard";
 import type {
@@ -36,7 +37,11 @@ import type {
   StoryBible,
 } from "@/lib/features/novelcrafter/types";
 import { hasActiveOverlayInDom, shouldCancelStreamOnEscape } from "../utils/novelcrafterKeyboard";
-import { parseFinishReason, parseNovelcrafterSseFrame } from "../utils/novelcrafterSseParser";
+import {
+  parseFinishReason,
+  parseNovelcrafterSseFrame,
+  readNovelcrafterSseStream,
+} from "../utils/novelcrafterSseParser";
 
 const streamHookLogger = logger.withContext("useNovelcrafterStream");
 
@@ -97,6 +102,7 @@ interface UseNovelcrafterStreamOptions {
   chapterProse: string;
   previousChapterProseTail: string;
   previousChapterSummaries?: string;
+  streamCutoffWarning?: string;
   onStreamStarted?: (payload: { storyId: string; params: TriggerNovelcrafterStreamParams }) => void;
   onStreamTokenChunk?: (payload: {
     storyId: string;
@@ -269,8 +275,10 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
       let resolvedModel = opts.selectedModel;
       let routedModel: string | undefined;
       let finishReason: NovelcrafterFinishReason | undefined;
+      let sawDoneEvent = false;
       let terminationReason: StreamTerminationReason = "completed";
       let pendingErrorToast: string | null = null;
+      let pendingWarningToast: string | null = null;
 
       const processFrame = (frame: string) => {
         const parsed = parseNovelcrafterSseFrame(frame);
@@ -312,6 +320,7 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
             batcher.scheduleUpdate(fullContent, fullThinking);
           }
         } else if (eventType === "done") {
+          sawDoneEvent = true;
           finishReason = parseFinishReason(parsedData.finishReason) ?? finishReason;
         } else if (eventType === "error") {
           throw new Error(
@@ -337,7 +346,8 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
           opts.storyBible,
           params.feature,
           params.bibleTarget,
-          activeContextText
+          activeContextText,
+          params.writeMode
         );
         const res = await fetch("/api/novelcrafter/stream", {
           method: "POST",
@@ -376,22 +386,15 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
           const errJson = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
           throw new Error(errJson.error?.message || `HTTP ${res.status}`);
         }
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const frames = buffer.split("\n\n");
-          buffer = frames.pop() || "";
-          for (const frame of frames) processFrame(frame);
-        }
-        buffer += decoder.decode();
-        if (buffer.trim()) {
-          for (const frame of buffer.split("\n\n")) {
-            if (frame.trim()) processFrame(frame);
-          }
+        await readNovelcrafterSseStream(res.body, processFrame);
+        const closure = resolveStreamCloseOutcome({
+          sawDoneEvent,
+          aborted: controller.signal.aborted,
+          finishReason,
+        });
+        finishReason = closure.finishReason;
+        if (closure.closedWithoutDone) {
+          pendingWarningToast = opts.streamCutoffWarning ?? null;
         }
       } catch (err: unknown) {
         if (controller.signal.aborted) {
@@ -430,6 +433,9 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
           });
           if (pendingErrorToast && !termResult?.handledRefusal) {
             toast.error(pendingErrorToast);
+          }
+          if (pendingWarningToast && !termResult?.handledRefusal) {
+            toast.warning(pendingWarningToast);
           }
           if (
             fullContent.trim().length > 0 &&

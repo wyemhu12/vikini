@@ -11,8 +11,8 @@ description: Plan-Review-Revise loop, Code Freeze enforcement, Fast-Track mode, 
 - **Ngoại Lệ Trước Khi Duyệt Plan**: Chỉ được ghi trên bề mặt kế hoạch (`docs/plans/*.md`, chỉ nhận đuôi `.md` trên toàn bộ `docs/**` và root planning artifacts) và `~/.gemini/antigravity/brain/`.
 - **Chính Sách Scoped Protection (Hook `PreToolUse` tại `.agents/scripts/code-freeze-guard.js`)**:
   1. _Chưa có `[PLAN_APPROVED]`_: Chặn và hỏi (`ask`) mọi thao tác ghi `src/**` hoặc lệnh ngoài allowlist, **trừ Fast-Track §1.1**.
-  2. _Đã có `[PLAN_APPROVED]`_: Tự động cho phép (`allow`) ghi vào UI components, hooks và business logic thông thường.
-  3. _5 Danh Mục File Nhạy Cảm Luôn Bị Khóa (`ask`)_: (a) `*.server.ts` (`src/lib/core/supabase.server.ts`), (b) database migrations (`supabase/migrations/`, `database-migrations/`, `*.sql`), (c) `TEST_INFRA_FILES` (`vitest.config.ts`, `eslint.config.mjs`, `package.json`, `tests/setup.ts`, `tsconfig.json`), (d) test files (`*.test.ts`, `*.test.tsx`, `*.spec.ts`, `*.spec.tsx`), (e) `.agents/**`.
+  2. _Đã có `[PLAN_APPROVED]` (**Plan Scope Guard**)_: Chỉ tự động cho phép (`allow`) ghi vào các file không nhạy cảm đã được khai báo rõ với nhãn `[NEW]`/`[MODIFY]`/`[DELETE]` trong `## Technical Plan` của plan đang Approved; mọi file ngoài danh sách khai báo trả `ask`.
+  3. _6 Danh Mục File Nhạy Cảm Luôn Bị Khóa (`ask`)_: (a) `*.server.ts` (`src/lib/core/supabase.server.ts`), (b) database migrations (`supabase/migrations/`, `database-migrations/`, `*.sql`), (c) `TEST_INFRA_FILES` (`vitest.config.ts`, `eslint.config.mjs`, `package.json`, `tests/setup.ts`, `tsconfig.json`), (d) test files (`*.test.ts`, `*.test.tsx`, `*.spec.ts`, `*.spec.tsx`), (e) `.agents/**`, (f) `PROTECTED_INFRA_FILES` (`scripts/code-freeze-guard.js`, `.claude/**`, `.husky/**`, `next.config.ts`, `package-lock.json`, `.npmrc`, `AGENTS.md`, `CLAUDE.md`).
 
 ### 1.1 Fast-Track Mode (Micro-UI & Translation Edits)
 
@@ -21,7 +21,7 @@ Cho phép thực thi trực tiếp (`allow`) không cần plan khi thỏa mãn *
 - **(a) Công cụ**: Chỉ `replace_file_content` hoặc `edit_file` (`write_to_file`/`write_file` luôn cần plan).
 - **(b) Bề mặt**: Khớp `src/lib/utils/translations/{vi,en}.ts`, `src/app/styles/**/*.css`, `src/app/**/*.tsx` (trừ `src/app/api/`), hoặc `src/components/**/*.tsx`; không phải `*.test.tsx`, `*.spec.tsx`, `*.server.tsx`.
 - **(c) Quy mô**: `TargetContent` và `ReplacementContent` không rỗng, mỗi bên `<= 40` dòng.
-- **(d) Nội dung**: Không chứa `"use server"`, `process.env`, hoặc `*.server`.
+- **(d) Nội dung**: Không chứa `"use server"`, `process.env`, `*.server`, hoặc các API có side-effect trên `.tsx` (`fetch`, `WebSocket`, `eval`, `Function`, `localStorage`, `sessionStorage`, `document.cookie`, `window.location`, `import(`, `dangerouslySetInnerHTML`).
 
 **4 Nghĩa vụ bắt buộc**: (1) Đọc `SKILL.md` liên quan (`.agents/skills/add-translation/SKILL.md`), (2) Ghi ở dòng đầu phản hồi: `📌 [Fast-Track | Skills: <tên-skill>]`, (3) Chạy `npm run type-check`, (4) Cấm chia nhỏ tính năng lớn thành nhiều lần gọi `<= 40` dòng (`[BLOCKER]`).
 
@@ -49,7 +49,7 @@ Cho phép thực thi trực tiếp (`allow`) không cần plan khi thỏa mãn *
 
 Mọi file trong `docs/plans/*.md` (**Single Source of Truth duy nhất**) gồm `## Technical Plan` (Planner) và `## Audit History` (Reviewer).
 
-- **Điều Kiện Mở Khóa (`isPlanApproved()` / `evaluateLatestDateGroupPlans()`)**: Lọc file `YYYY-MM-DD-*.md` có ngày `<= UTC today + 1 day`, sắp xếp theo ngày `YYYY-MM-DD` giảm dần (`mtimeMs` làm tie-breaker). Trong nhóm ngày mới nhất: nếu có bất kỳ plan nào đang chờ duyệt (`Ready for Review`, `Draft`, `In Review`, `Changes Requested`) thì **khóa fail-safe (`false`)**; chỉ mở khóa (`true`) khi có ít nhất 1 plan đạt `- **Status**: Approved` ở 30 dòng đầu VÀ dòng không rỗng cuối cùng `=== "[PLAN_APPROVED]"`.
+- **Điều Kiện Mở Khóa (`isPlanApproved()` / `plan-scope.js`)**: Trong nhóm ngày `YYYY-MM-DD` mới nhất (`<= UTC today + 1 day`), nếu có plan đang chờ duyệt thì khóa fail-safe (`false`); chỉ mở khóa (`true`) cho đúng các file khai báo `[NEW]`/`[MODIFY]`/`[DELETE]` khi có ít nhất 1 plan đạt `- **Status**: Approved` ở 30 dòng đầu VÀ dòng không rỗng cuối cùng `=== "[PLAN_APPROVED]"`.
 - **Single-Step Pre-Approved Plan Guard**: Chặn `write_to_file`/`write_file`/`Write` tạo/ghi đè 1 bước file trong `docs/plans/` đã gắn sẵn `Status: Approved` hoặc `[PLAN_APPROVED]`.
 - **Đóng `Status: Completed`**: Ở bước cuối sau khi hoàn tất task, bắt buộc đổi Header sang `- **Status**: Completed` để tự động khóa lại repo.
 

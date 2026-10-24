@@ -1,8 +1,25 @@
 // /lib/features/novelcrafter/feedbackParser.ts
 // Structured parser, regex-safe quote locator, LCS word-level diff, and 1-click suggestion applier for Sudowrite-style Feedback
 
-import { normalizeFeedbackItems } from "./stateLimits";
-import { MAX_FEEDBACK_ITEMS_PER_CHAPTER, type NovelcrafterFeedbackItem } from "./types";
+import { FIELD_MAX_LENGTHS, normalizeFeedbackItems } from "./stateLimits";
+import { unescapeXmlPromptText } from "./storyBibleSerializer";
+import {
+  MAX_CUSTOM_INSTRUCTION_CHARS,
+  MAX_FEEDBACK_ITEMS_PER_CHAPTER,
+  type NovelcrafterFeedbackItem,
+} from "./types";
+
+export function buildFeedbackReplyInstruction(
+  comment: string,
+  replyText: string
+): { instruction: string; reply: string } {
+  const reply = replyText.trim().slice(0, FIELD_MAX_LENGTHS.feedbackReply);
+  const safeComment = comment.trim().slice(0, FIELD_MAX_LENGTHS.feedbackComment);
+  return {
+    reply,
+    instruction: `${safeComment}\nUser follow-up: ${reply}`.slice(0, MAX_CUSTOM_INSTRUCTION_CHARS),
+  };
+}
 
 export interface WordDiffSegment {
   type: "equal" | "delete" | "insert";
@@ -38,9 +55,9 @@ export function parseFeedbackItems(
   while ((match = blockRegex.exec(rawText)) !== null) {
     const inner = match[1];
     const category = (extractXmlTag(inner, "category") || "EDITORIAL").toUpperCase().slice(0, 80);
-    const quote = extractXmlTag(inner, "quote").slice(0, 10_000);
-    const comment = extractXmlTag(inner, "comment").slice(0, 10_000);
-    const suggestion = extractXmlTag(inner, "suggestion").slice(0, 15_000);
+    const quote = unescapeXmlPromptText(extractXmlTag(inner, "quote")).slice(0, 10_000);
+    const comment = unescapeXmlPromptText(extractXmlTag(inner, "comment")).slice(0, 10_000);
+    const suggestion = unescapeXmlPromptText(extractXmlTag(inner, "suggestion")).slice(0, 15_000);
 
     if (comment) {
       idx += 1;
@@ -66,7 +83,7 @@ export function parseFeedbackItems(
         id: `fb-${nowMs}-1`,
         category: "EDITORIAL",
         quote: "",
-        comment: trimmed.slice(0, 10_000),
+        comment: unescapeXmlPromptText(trimmed).slice(0, 10_000),
         suggestion: "",
         status: "open",
         createdAt: nowMs,

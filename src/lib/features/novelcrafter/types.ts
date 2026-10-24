@@ -137,6 +137,7 @@ export const MAX_CHAPTER_SUMMARY_CHARS = 4_000 as const;
 export const MAX_STORY_SO_FAR_CHARS = 6_000 as const;
 export const MAX_CHAPTER_SNAPSHOTS = 5 as const;
 export const MAX_SNAPSHOT_LABEL_CHARS = 120 as const;
+export const MAX_CUSTOM_INSTRUCTION_CHARS = 15_000 as const;
 
 export const StoryBibleCharacterCardSchema = z.object({
   id: z.string().min(1).max(100),
@@ -354,7 +355,7 @@ export const NovelcrafterStreamRequestSchema = z
       .enum(NOVELCRAFTER_BRAINSTORM_CATEGORIES)
       .optional()
       .default("plot_twists"),
-    customInstruction: z.string().max(5_000).optional().default(""),
+    customInstruction: z.string().max(MAX_CUSTOM_INSTRUCTION_CHARS).optional().default(""),
   })
   .superRefine((val, ctx) => {
     if (val.feature === "bible" && !val.bibleTarget) {

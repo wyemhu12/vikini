@@ -86,8 +86,15 @@ export interface ConversationContext {
   modelLimitTokens: number;
 }
 
+export type ContextMessage = {
+  role: string;
+  content: string;
+  thoughtSignature?: string;
+  thoughtSignatures?: string[];
+};
+
 export interface MessageContext {
-  contextMessages: Array<{ role: string; content: string }>;
+  contextMessages: ContextMessage[];
   contents: Array<{ role: string; parts: unknown[] }>;
   contentsMeta?: Array<{ messageId?: string; fileIds?: string[] }>;
   currentTokenCount: number;

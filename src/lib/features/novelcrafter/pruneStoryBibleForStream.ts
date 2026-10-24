@@ -2,16 +2,38 @@
 // Strips unused Story Bible fields before POST /api/novelcrafter/stream to save bandwidth (NC-38)
 
 import { isCodexCardMatchedInContext } from "./codexMatcher";
-import type { NovelcrafterBibleTarget, NovelcrafterFeatureSlot, StoryBible } from "./types";
+import type {
+  NovelcrafterBibleTarget,
+  NovelcrafterFeatureSlot,
+  NovelcrafterWriteMode,
+  StoryBible,
+} from "./types";
+
+export function needsBraindumpForStream(
+  feature: NovelcrafterFeatureSlot,
+  bibleTarget: NovelcrafterBibleTarget | undefined,
+  writeMode: NovelcrafterWriteMode | undefined,
+  synopsis: string
+): boolean {
+  if (feature === "bible") {
+    return bibleTarget === "synopsis" || bibleTarget === "outline";
+  }
+  return feature === "write" && writeMode === "first_draft_rough" && !synopsis.trim();
+}
 
 export function pruneStoryBibleForStream(
   storyBible: StoryBible,
   feature: NovelcrafterFeatureSlot,
   bibleTarget?: NovelcrafterBibleTarget,
-  activeContextText?: string
+  activeContextText?: string,
+  writeMode?: NovelcrafterWriteMode
 ): StoryBible {
-  const needsBraindump =
-    feature === "bible" && (bibleTarget === "synopsis" || bibleTarget === "outline");
+  const needsBraindump = needsBraindumpForStream(
+    feature,
+    bibleTarget,
+    writeMode,
+    storyBible.synopsis
+  );
   const isGlobalBibleTarget =
     feature === "bible" &&
     (bibleTarget === "synopsis" ||

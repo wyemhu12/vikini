@@ -2,7 +2,11 @@
 // Pure target lock and termination state resolution for Novelcrafter Direct Live Streaming (M13, m16)
 
 import { FIELD_MAX_LENGTHS } from "./stateLimits";
-import type { NovelcrafterBibleTarget, NovelcrafterStoryState } from "./types";
+import type {
+  NovelcrafterBibleTarget,
+  NovelcrafterFinishReason,
+  NovelcrafterStoryState,
+} from "./types";
 
 const TRUNCATION_NOTICE_SUFFIX = "\n\n[⚠️ Đã cắt bớt do vượt giới hạn độ dài thẻ (150.000 ký tự)]";
 
@@ -221,4 +225,15 @@ export function resolveStreamTerminationState(params: {
     shouldSavePartialHistory: reason === "completed" || reason === "stopped" || reason === "error",
     shouldPersistState: true,
   };
+}
+
+export function resolveStreamCloseOutcome(params: {
+  sawDoneEvent: boolean;
+  aborted: boolean;
+  finishReason?: NovelcrafterFinishReason;
+}): { finishReason?: NovelcrafterFinishReason; closedWithoutDone: boolean } {
+  if (params.sawDoneEvent || params.aborted) {
+    return { finishReason: params.finishReason, closedWithoutDone: false };
+  }
+  return { finishReason: "length", closedWithoutDone: true };
 }

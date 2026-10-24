@@ -67,17 +67,18 @@ Mọi hoạt động trên codebase đều bị ràng buộc bởi 6 bộ quy t�
 
 ## 3. Cơ Chế Chốt Chặn Tầng Nền Tảng (Code Freeze Guard)
 
-Hệ thống sử dụng Hook tự động `PreToolUse` tại [code-freeze-guard.js](./scripts/code-freeze-guard.js) được kích hoạt qua [hooks.json](./hooks.json), áp dụng chính sách **Scoped Protection (Phương án 2)**:
+Hệ thống sử dụng Hook tự động `PreToolUse` tại [code-freeze-guard.js](./scripts/code-freeze-guard.js) được kích hoạt qua [hooks.json](./hooks.json) và `.claude/settings.json` (`"onFailure": "block"`), áp dụng chính sách **Scoped Protection (Phương án 2)** kết hợp **Plan Scope Guard** và **Token-Level Command Whitelist**:
 
 - **Trước khi có `[PLAN_APPROVED]`**:
-  - Tự động cho phép (`allow`) ghi vào `docs/**` và các artifacts lập kế hoạch.
-  - Chặn lại và hỏi xác nhận (`ask`) với mọi thao tác ghi vào `src/**` hoặc lệnh ngoài allowlist (trừ Fast-Track Mode §1.1).
-- **Sau khi có `[PLAN_APPROVED]`**:
-  - Tự động cho phép (`allow`) ghi vào các tệp UI components, hooks, và business logic thông thường.
-  - **Luôn Luôn Khóa Chặt (`ask`)**: Đối với các tệp nhạy cảm cốt lõi:
+  - Tự động cho phép (`allow`) ghi vào `docs/**` (chỉ tệp `.md`) và các artifacts lập kế hoạch.
+  - Chặn lại và hỏi xác nhận (`ask`) với mọi thao tác ghi vào `src/**` hoặc lệnh ngoài allowlist token-level (`command-policy.js`), trừ Fast-Track Mode §1.1 (không chứa API side-effect trên `.tsx`).
+- **Sau khi có `[PLAN_APPROVED]` (`Plan Scope Guard`)**:
+  - Chỉ tự động cho phép (`allow`) ghi vào các tệp không nhạy cảm đã được khai báo rõ với nhãn `[NEW]`/`[MODIFY]`/`[DELETE]` trong `## Technical Plan` của bản kế hoạch đang Approved (`plan-scope.js`); mọi tệp ngoài danh sách khai báo đều trả `ask`.
+  - **Luôn Luôn Khóa Chặt (`ask`)**: Đối với 6 danh mục tệp nhạy cảm cốt lõi (so khớp không phân biệt hoa thường trên NTFS):
     - Tệp server chứa secret: `*.server.ts`.
     - Tệp cơ sở dữ liệu: `supabase/migrations/`, `*.sql`.
-    - Hạ tầng kiểm thử: `vitest.config.ts`, `eslint.config.mjs`, `package.json`, `tsconfig.json`.
+    - Hạ tầng kiểm thử (`TEST_INFRA_FILES`): `vitest.config.ts`, `eslint.config.mjs`, `package.json`, `tsconfig.json`, `.husky/pre-commit`, `.github/workflows/ci.yml`.
+    - Hạ tầng harness & cấu hình (`PROTECTED_INFRA_FILES`): `scripts/code-freeze-guard.js`, `.claude/**`, `.husky/**`, `next.config.ts`, `package-lock.json`, `.npmrc`, `AGENTS.md`, `CLAUDE.md`.
     - Tệp kiểm thử chịu Test Integrity Guard và cấu hình quản trị `.agents/**`.
 
 ---

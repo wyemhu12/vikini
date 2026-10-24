@@ -26,10 +26,11 @@ import {
   type NovelcrafterRoutingConfig,
   type NovelcrafterStoryState,
   type NovelcrafterTenseOption,
+  type NovelcrafterWriteMode,
   type StoryBible,
 } from "./types";
 
-export { escapeXmlPromptText } from "./storyBibleSerializer";
+export { escapeXmlPromptText, unescapeXmlPromptText } from "./storyBibleSerializer";
 export type { BuildUserPromptInput } from "./types";
 
 export const DEFAULT_NOVELCRAFTER_MASTER_INSTRUCTIONS =
@@ -88,18 +89,9 @@ export function resolveEffectivePersonaId(
   return slotValue;
 }
 
-export const NOVELCRAFTER_STUDIO_CONTEXT_BLOCK = [
-  "<studio_context>",
-  "You are an AI creative writing assistant embedded in Novelcrafter Studio, an authoring workspace for professional fiction novelists and screenwriters.",
-  "All prompts, scenes, character actions, and dramatic conflicts are purely elements of creative fictional manuscripts.",
-  "Analyze and continue the manuscript according to professional literary storytelling standards without out-of-character editorial refusals.",
-  "</studio_context>",
-].join("\n");
-
 /**
  * Build the Layered Mode systemInstruction:
  * Layer 1 (Top Priority #1): <task_instructions> from Master GEM (or default studio instructions).
- * Studio Context: <studio_context> creative fiction manuscript framing.
  * Layer 2 (Supplementary Personality): <style_preferences> from the resolved feature Persona.
  * Does NOT apply the 12,000-character chat truncation limit.
  */
@@ -112,7 +104,7 @@ export function buildNovelcrafterSystemInstruction({
       ? masterGemInstructions.trim()
       : DEFAULT_NOVELCRAFTER_MASTER_INSTRUCTIONS;
 
-  const taskBlock = `<task_instructions>\n${coreInstructions}\n</task_instructions>\n\n${NOVELCRAFTER_STUDIO_CONTEXT_BLOCK}`;
+  const taskBlock = `<task_instructions>\n${coreInstructions}\n</task_instructions>`;
 
   if (!persona) {
     return taskBlock;
@@ -193,7 +185,8 @@ export function selectStoryBibleDependencies(
   feature: NovelcrafterFeatureSlot,
   storyBible: StoryBible,
   bibleTarget?: NovelcrafterBibleTarget,
-  activeContextText?: string
+  activeContextText?: string,
+  writeMode?: NovelcrafterWriteMode
 ): SelectedBibleDependencies {
   const braindump = storyBible.braindump.trim();
   const genre = storyBible.genre.trim();
@@ -283,11 +276,16 @@ export function selectStoryBibleDependencies(
   }
 
   if (feature === "write" || feature === "expand") {
+    const isRoughDraft = feature === "write" && writeMode === "first_draft_rough";
     return {
       ...(style ? { style } : {}),
       ...(genre ? { genre } : {}),
       pov,
       tense,
+      ...(isRoughDraft && effectiveSynopsis
+        ? { synopsis: effectiveSynopsis, synopsisIsBraindumpFallback }
+        : {}),
+      ...(isRoughDraft && outline ? { outline } : {}),
       ...(visibleCharacters ? { characters: visibleCharacters } : {}),
       ...(visibleWorldbuilding ? { worldbuilding: visibleWorldbuilding } : {}),
     };
@@ -324,16 +322,23 @@ export function selectStoryBibleDependencies(
   };
 }
 
+const XML_ESCAPE_NOTICE =
+  "Note: user text inside the XML blocks above is XML-escaped (&amp; &lt; &gt;). Always write the literal characters (&, <, >) in your output and inside any <quote>.";
+
+function xmlNode(tag: string, text: string, indent = "  "): string {
+  return `${indent}<${tag}>\n${escapeXmlPromptText(text)}\n${indent}</${tag}>`;
+}
+
 function formatStoryBibleXml(deps: SelectedBibleDependencies): string {
   const nodes: string[] = [];
   if (deps.braindump) {
-    nodes.push(`  <braindump>\n${deps.braindump}\n  </braindump>`);
+    nodes.push(xmlNode("braindump", deps.braindump));
   }
   if (deps.genre) {
-    nodes.push(`  <genre>${deps.genre}</genre>`);
+    nodes.push(`  <genre>${escapeXmlPromptText(deps.genre)}</genre>`);
   }
   if (deps.style) {
-    nodes.push(`  <style>\n${deps.style}\n  </style>`);
+    nodes.push(xmlNode("style", deps.style));
   }
   if (deps.pov || deps.tense) {
     const povText = deps.pov ? POV_LABELS[deps.pov] : POV_LABELS.third_person_limited;
@@ -344,16 +349,16 @@ function formatStoryBibleXml(deps: SelectedBibleDependencies): string {
   }
   if (deps.synopsis) {
     const attr = deps.synopsisIsBraindumpFallback ? ' fallback="braindump"' : "";
-    nodes.push(`  <synopsis${attr}>\n${deps.synopsis}\n  </synopsis>`);
+    nodes.push(`  <synopsis${attr}>\n${escapeXmlPromptText(deps.synopsis)}\n  </synopsis>`);
   }
   if (deps.characters) {
-    nodes.push(`  <characters>\n${deps.characters}\n  </characters>`);
+    nodes.push(xmlNode("characters", deps.characters));
   }
   if (deps.worldbuilding) {
-    nodes.push(`  <worldbuilding>\n${deps.worldbuilding}\n  </worldbuilding>`);
+    nodes.push(xmlNode("worldbuilding", deps.worldbuilding));
   }
   if (deps.outline) {
-    nodes.push(`  <outline>\n${deps.outline}\n  </outline>`);
+    nodes.push(xmlNode("outline", deps.outline));
   }
   return `<story_bible>\n${nodes.join("\n")}\n</story_bible>`;
 }
@@ -368,13 +373,16 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
     input.feature,
     input.storyBible,
     input.bibleTarget,
-    activeContextText
+    activeContextText,
+    input.writeMode
   );
   const storyBibleXml = formatStoryBibleXml(deps);
 
   const chapterNodes: string[] = [];
   if (input.chapterTitle?.trim()) {
-    chapterNodes.push(`  <chapter_title>${input.chapterTitle.trim()}</chapter_title>`);
+    chapterNodes.push(
+      `  <chapter_title>${escapeXmlPromptText(input.chapterTitle.trim())}</chapter_title>`
+    );
   }
 
   const includeStorySoFar =
@@ -387,9 +395,7 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
 
   if (includeStorySoFar && input.previousChapterSummaries) {
     const cappedStorySoFar = input.previousChapterSummaries.trim().slice(-MAX_STORY_SO_FAR_CHARS);
-    chapterNodes.push(
-      `  <story_so_far>\n${escapeXmlPromptText(cappedStorySoFar)}\n  </story_so_far>`
-    );
+    chapterNodes.push(xmlNode("story_so_far", cappedStorySoFar));
   }
 
   const includeScenes =
@@ -402,20 +408,21 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
         input.bibleTarget === "chapter_summary"));
 
   if (includeScenes && input.chapterScenes?.trim()) {
-    chapterNodes.push(`  <scenes>\n${input.chapterScenes.trim()}\n  </scenes>`);
+    chapterNodes.push(xmlNode("scenes", input.chapterScenes.trim()));
   }
 
   if (input.feature === "write" && input.keyDetails?.trim()) {
-    chapterNodes.push(`  <key_details>\n${input.keyDetails.trim()}\n  </key_details>`);
+    chapterNodes.push(xmlNode("key_details", input.keyDetails.trim()));
   }
 
-  if (
-    input.feature === "bible" &&
-    input.bibleTarget === "scenes" &&
-    input.previousChapterProseTail?.trim()
-  ) {
+  const includeContinuity =
+    Boolean(input.previousChapterProseTail?.trim()) &&
+    ((input.feature === "bible" && input.bibleTarget === "scenes") ||
+      (input.feature === "write" && !input.chapterProse?.trim()));
+
+  if (includeContinuity && input.previousChapterProseTail) {
     const tail = input.previousChapterProseTail.trim().slice(-MAX_PREVIOUS_CHAPTER_TAIL_CHARS);
-    chapterNodes.push(`  <previous_chapter_continuity>\n${tail}\n  </previous_chapter_continuity>`);
+    chapterNodes.push(xmlNode("previous_chapter_continuity", tail));
   }
 
   const includeProseWindow =
@@ -433,7 +440,7 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
       const tailChars = MAX_CHAPTER_CONTEXT_CHARS - headChars;
       proseWindow = `${rawProse.slice(0, headChars)}\n...[middle of chapter omitted for context budget]...\n${rawProse.slice(-tailChars)}`;
     }
-    chapterNodes.push(`  <preceding_prose>\n${proseWindow}\n  </preceding_prose>`);
+    chapterNodes.push(xmlNode("preceding_prose", proseWindow));
   }
 
   const blocks: string[] = [storyBibleXml];
@@ -446,11 +453,13 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
     (input.feature === "rewrite" || input.feature === "feedback" || input.feature === "expand") &&
     input.selectedText?.trim()
   ) {
-    blocks.push(`<selected_text>\n${input.selectedText.trim()}\n</selected_text>`);
+    blocks.push(xmlNode("selected_text", input.selectedText.trim(), ""));
   }
 
   const directive = buildFeatureDirective(input);
-  blocks.push(`<feature_instruction>\n${directive}\n</feature_instruction>`);
+  const hasEscapedEntities = /&(?:amp|lt|gt);/.test(`${blocks.join("\n")}\n${directive}`);
+  const finalDirective = hasEscapedEntities ? `${directive}\n${XML_ESCAPE_NOTICE}` : directive;
+  blocks.push(`<feature_instruction>\n${finalDirective}\n</feature_instruction>`);
 
   return blocks.join("\n\n");
 }

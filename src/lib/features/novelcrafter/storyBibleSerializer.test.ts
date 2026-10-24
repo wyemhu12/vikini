@@ -4,7 +4,9 @@ import { createDefaultStoryState } from "./types";
 import {
   escapeXmlPromptText,
   serializeStoryBibleWithStructuredCards,
+  unescapeXmlPromptText,
 } from "./storyBibleSerializer";
+import { formatManuscriptExport } from "./manuscriptExporter";
 import { parseThreeOpenings } from "./openingsParser";
 import { parseCharacterCardsFromMarkdown } from "./characterParser";
 import { pruneStoryBibleForStream } from "./pruneStoryBibleForStream";
@@ -169,5 +171,40 @@ describe("storyBibleSerializer and domain helpers", () => {
       "Tiểu Hàn bước lên đài chiến."
     );
     expect(pruned.characterCards.map((c) => c.id)).toEqual(["c1", "c2"]);
+  });
+
+  it("TC-B3-04 & TC-B3-05: preserves raw unescaped text for manuscript export and round-trips escape/unescape without double-unescaping", () => {
+    const state = createDefaultStoryState("Chapter 1");
+    state.storyBible.characterCards = [
+      {
+        id: "c1",
+        name: "Linh & Phong",
+        aliases: ["A&B"],
+        role: "Lead",
+        traits: "Lời <thề>",
+        visibleToAI: true,
+      },
+    ];
+
+    const serialized = serializeStoryBibleWithStructuredCards(state.storyBible);
+    expect(serialized.charactersText).toContain("Aliases: A&B");
+    expect(serialized.charactersText).toContain("Lời <thề>");
+    expect(serialized.charactersText).not.toContain("&amp;");
+
+    const exportedMd = formatManuscriptExport({
+      storyTitle: "Test Story",
+      storyState: state,
+      format: "markdown",
+      includeStoryBible: true,
+    });
+    expect(exportedMd.content).toContain("Aliases: A&B");
+    expect(exportedMd.content).toContain("Lời <thề>");
+    expect(exportedMd.content).not.toContain("&amp;");
+
+    // TC-B3-05: round-trip & single-level unescape
+    for (const s of ["A & B < C > D", "&lt;tag&gt; &amp; literal", ""]) {
+      expect(unescapeXmlPromptText(escapeXmlPromptText(s))).toBe(s);
+    }
+    expect(unescapeXmlPromptText("&amp;lt;")).toBe("&lt;");
   });
 });

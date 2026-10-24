@@ -2,7 +2,10 @@
 // Feature-specific prompt directives for Novelcrafter Studio (6 slots: bible, write, rewrite, feedback, expand, brainstorm)
 
 import { ValidationError } from "@/lib/utils/errors";
-import { serializeStoryBibleWithStructuredCards } from "./storyBibleSerializer";
+import {
+  escapeXmlPromptText,
+  serializeStoryBibleWithStructuredCards,
+} from "./storyBibleSerializer";
 import {
   NOVELCRAFTER_DEVELOPMENTAL_CRITERIA,
   type BuildUserPromptInput,
@@ -82,7 +85,7 @@ function buildBibleDirective(input: BuildUserPromptInput, custom: string): strin
   const mode = input.actionMode || "generate";
 
   if (target === "draft") {
-    const extra = input.chapterExtraInstructions?.trim() || "";
+    const extra = escapeXmlPromptText(input.chapterExtraInstructions?.trim() || "");
     return [
       "Write a rich, immersive chapter draft based on the provided <story_bible> (Style, Genre, Characters, Worldbuilding, POV & Tense) and <chapter_context> (Scenes / Chapter Beats).",
       extra ? `Chapter Extra Instructions: ${extra}` : "",
@@ -125,7 +128,7 @@ function buildBibleDirective(input: BuildUserPromptInput, custom: string): strin
     return [
       `Rewrite and improve the ${target.toUpperCase()} section based on the <story_bible> context.`,
       currentSectionValue
-        ? `<current_${target}>\n${currentSectionValue}\n</current_${target}>`
+        ? `<current_${target}>\n${escapeXmlPromptText(currentSectionValue)}\n</current_${target}>`
         : "",
       custom
         ? `Rewrite Instructions: ${custom}`
@@ -220,9 +223,10 @@ function buildFeedbackDirective(input: BuildUserPromptInput, custom: string): st
 }
 
 export function buildFeatureDirective(input: BuildUserPromptInput): string {
-  const custom = input.customInstruction?.trim() || "";
-  const chapterExtra = input.chapterExtraInstructions?.trim()
-    ? `Chapter Extra Instructions: ${input.chapterExtraInstructions.trim()}`
+  const custom = escapeXmlPromptText(input.customInstruction?.trim() || "");
+  const extraRaw = input.chapterExtraInstructions?.trim() || "";
+  const chapterExtra = extraRaw
+    ? `Chapter Extra Instructions: ${escapeXmlPromptText(extraRaw)}`
     : "";
 
   if (input.feature === "bible") {

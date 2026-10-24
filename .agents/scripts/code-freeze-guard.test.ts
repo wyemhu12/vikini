@@ -12,6 +12,8 @@ import {
   ARTIFACT_ROOT,
   REPO_ROOT,
   TEST_INFRA_FILES,
+  PROTECTED_INFRA_FILES,
+  isProtectedInfraFile,
   isPlanApproved,
   hasApprovedPlanHeader,
   hasCompletedPlanHeader,
@@ -20,6 +22,7 @@ import {
   isSelfForgedPlanWrite,
   evaluateLatestDateGroupPlans,
   formatHookOutput,
+  runHook,
   countLines,
   isFastTrackEligible,
   FAST_TRACK_MAX_LINES,
@@ -195,23 +198,36 @@ describe("decide — Scoped Protection (Option 2)", () => {
   });
 
   describe("when plan IS approved (planApproved: true)", () => {
-    it("allows writes to UI components and app pages", () => {
+    it("allows writes to UI components and app pages declared in the approved plan", () => {
       expect(
-        decide({ targetFile: "src/components/Header.tsx" }, { planApproved: true }).decision
+        decide(
+          { targetFile: "src/components/Header.tsx" },
+          { planApproved: true, approvedFiles: ["src/components/Header.tsx"] }
+        ).decision
       ).toBe("allow");
-      expect(decide({ targetFile: "src/app/page.tsx" }, { planApproved: true }).decision).toBe(
-        "allow"
-      );
       expect(
-        decide({ targetFile: "src/app/features/chat/ChatView.tsx" }, { planApproved: true })
-          .decision
+        decide(
+          { targetFile: "src/app/page.tsx" },
+          { planApproved: true, approvedFiles: ["src/app/page.tsx"] }
+        ).decision
+      ).toBe("allow");
+      expect(
+        decide(
+          { targetFile: "src/app/features/chat/ChatView.tsx" },
+          { planApproved: true, approvedFiles: ["src/app/features/chat/ChatView.tsx"] }
+        ).decision
       ).toBe("allow");
     });
 
-    it("allows writes to general feature business logic", () => {
+    it("allows writes to general feature business logic declared in the approved plan", () => {
       expect(
-        decide({ targetFile: "src/lib/features/chat/conversationCRUD.ts" }, { planApproved: true })
-          .decision
+        decide(
+          { targetFile: "src/lib/features/chat/conversationCRUD.ts" },
+          {
+            planApproved: true,
+            approvedFiles: ["src/lib/features/chat/conversationCRUD.ts"],
+          }
+        ).decision
       ).toBe("allow");
     });
 
@@ -904,7 +920,10 @@ describe("decide — Fast-Track Mode", () => {
   it("preserves existing planApproved behaviour for > 40 line UI edits and migration files (FT-R2, FT-R3)", () => {
     const largeUiAllowed = decide(
       makeFastTrackEdit("src/app/features/chat/components/ChatBubble.tsx", 41, 41),
-      { planApproved: true }
+      {
+        planApproved: true,
+        approvedFiles: ["src/app/features/chat/components/ChatBubble.tsx"],
+      }
     );
     expect(largeUiAllowed.decision).toBe("allow");
     expect(largeUiAllowed.reason).toBeUndefined();
@@ -1425,13 +1444,13 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       expect(isSelfForgedPlanWrite(undefined)).toBe(false);
     });
 
-    it("verifies .agents/hooks.json matcher includes all 6 write/edit/command tools", () => {
+    it("verifies .agents/hooks.json matcher includes all write/edit/command/read tools", () => {
       const hooksJson = JSON.parse(
         fs.readFileSync(path.join(REPO_ROOT, ".agents", "hooks.json"), "utf8")
       );
       const matcher = hooksJson?.["code-freeze-guard"]?.PreToolUse?.[0]?.matcher;
       expect(matcher).toBe(
-        "write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file|run_command"
+        "write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file|run_command|view_file|read_file"
       );
     });
   });
@@ -1498,14 +1517,16 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       const ruleFiles = fs.readdirSync(rulesDir).filter((f) => f.endsWith(".md"));
       let alwaysOnTotal = 0;
 
+      const breakdown: Record<string, number> = {};
       for (const file of ruleFiles) {
         const content = fs.readFileSync(path.join(rulesDir, file), "utf8");
         expect(content.length, `Rule ${file} <= 12,000 chars`).toBeLessThanOrEqual(12000);
         if (/^trigger:\s*always_on\s*$/m.test(content)) {
           alwaysOnTotal += content.length;
+          breakdown[file] = content.length;
         }
       }
-      expect(alwaysOnTotal).toBeLessThan(18000);
+      expect(alwaysOnTotal, JSON.stringify(breakdown)).toBeLessThan(18000);
 
       for (const agent of ["planner", "reviewer", "qa"]) {
         const agentPath = path.join(REPO_ROOT, ".agents", "agents", agent, "agent.md");
@@ -1599,6 +1620,396 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       expect(ps1Source).toContain("Bash(git difftool*),Bash(* --config*),Bash(* -c *)");
       expect(ps1Source).toContain("[System.IO.Path]::IsPathRooted($trimmedArtifact)");
       expect(ps1Source).toContain("$resolvedArtifactFile");
+    });
+  });
+
+  describe("Agent Harness Security Hardening — TC-C..TC-I & WP1..WP3", () => {
+    it("TC-C: blocks Grep tool from reading .env* via path or glob while allowing safe searches", () => {
+      const grepEnvPath = decide(
+        { toolName: "Grep", targetFile: ".env.local" },
+        { planApproved: true }
+      );
+      expect(grepEnvPath.decision).toBe("ask");
+      expect(grepEnvPath.reason).toContain(".env");
+
+      const grepEnvGlob = decide(
+        { toolName: "Grep", targetFile: "src", searchGlob: ".env*" },
+        { planApproved: true }
+      );
+      expect(grepEnvGlob.decision).toBe("ask");
+      expect(grepEnvGlob.reason).toContain(".env");
+
+      const grepEnvGlobOnly = decide(
+        extractInput({
+          hook_event_name: "PreToolUse",
+          tool_name: "Grep",
+          tool_input: { glob: "**/.env*" },
+        }),
+        { planApproved: true }
+      );
+      expect(grepEnvGlobOnly.decision).toBe("ask");
+      expect(grepEnvGlobOnly.reason).toContain(".env");
+
+      const grepSafe = decide(
+        { toolName: "Grep", targetFile: "src", searchGlob: "*.ts" },
+        { planApproved: false }
+      );
+      expect(grepSafe.decision).toBe("allow");
+    });
+
+    it("TC-D & TC-E: enforces PROTECTED_INFRA_FILES and case-insensitive NTFS checks while allowing Read", () => {
+      for (const p of [
+        ...PROTECTED_INFRA_FILES,
+        ".claude/skills/vikini-debug/SKILL.md",
+        ".husky/pre-push",
+      ]) {
+        expect(isProtectedInfraFile(p), p).toBe(true);
+        const res = decide(
+          { toolName: "Edit", targetFile: p },
+          { planApproved: true, approvedFiles: [p] }
+        );
+        expect(res.decision, p).toBe("ask");
+        expect(res.reason, p).toContain("Infrastructure Guard");
+      }
+
+      for (const variant of [
+        "claude.md",
+        "Agents.md",
+        ".Claude/Settings.json",
+        "NEXT.CONFIG.TS",
+        ".AGENTS/rules/00-core.md",
+      ]) {
+        const res = decide(
+          { toolName: "Edit", targetFile: variant },
+          { planApproved: true, approvedFiles: [variant] }
+        );
+        expect(res.decision, variant).toBe("ask");
+      }
+
+      const pkgRes = decide(
+        { toolName: "Edit", targetFile: "package.json" },
+        { planApproved: true, approvedFiles: ["package.json"] }
+      );
+      expect(pkgRes.decision).toBe("ask");
+      expect(pkgRes.reason).toContain("Test Infrastructure Guard");
+
+      for (const readableInfra of ["CLAUDE.md", "next.config.ts"]) {
+        expect(
+          decide({ toolName: "Read", targetFile: readableInfra }, { planApproved: false }).decision
+        ).toBe("allow");
+      }
+    });
+
+    it("TC-F3: enforces Plan Scope Guard at Gate 9 and keeps sensitive gates ahead of declared files", () => {
+      expect(
+        decide(
+          { targetFile: "src/components/Header.tsx" },
+          { planApproved: true, approvedFiles: ["src/components/Header.tsx"] }
+        ).decision
+      ).toBe("allow");
+
+      const undeclaredSrc = decide(
+        { targetFile: "src/components/Footer.tsx" },
+        { planApproved: true, approvedFiles: ["src/components/Header.tsx"] }
+      );
+      expect(undeclaredSrc.decision).toBe("ask");
+      expect(undeclaredSrc.reason).toContain(
+        "not declared with [NEW]/[MODIFY]/[DELETE] in the active approved plan"
+      );
+
+      const undeclaredPublic = decide(
+        { targetFile: "public/logo.svg" },
+        { planApproved: true, approvedFiles: ["src/components/Header.tsx"] }
+      );
+      expect(undeclaredPublic.decision).toBe("ask");
+      expect(undeclaredPublic.reason).toContain("not declared");
+
+      const notApproved = decide(
+        { targetFile: "src/components/Header.tsx" },
+        { planApproved: false }
+      );
+      expect(notApproved.decision).toBe("ask");
+      expect(notApproved.reason).toContain("write targets a frozen path");
+
+      const approvedNoFiles = decide(
+        { targetFile: "src/components/Header.tsx" },
+        { planApproved: true }
+      );
+      expect(approvedNoFiles.decision).toBe("ask");
+      expect(approvedNoFiles.reason).toContain("not declared");
+
+      const declaredServer = decide(
+        { targetFile: "src/lib/core/x.server.ts" },
+        { planApproved: true, approvedFiles: ["src/lib/core/x.server.ts"] }
+      );
+      expect(declaredServer.decision).toBe("ask");
+      expect(declaredServer.reason).toContain("sensitive server file");
+
+      const declaredInfra = decide(
+        { targetFile: "scripts/code-freeze-guard.js" },
+        { planApproved: true, approvedFiles: ["scripts/code-freeze-guard.js"] }
+      );
+      expect(declaredInfra.decision).toBe("ask");
+      expect(declaredInfra.reason).toContain("Infrastructure Guard");
+
+      const caseInsensitiveDeclared = decide(
+        { targetFile: "src/app.tsx" },
+        { planApproved: true, approvedFiles: ["src/App.tsx"] }
+      );
+      expect(caseInsensitiveDeclared.decision).toBe("allow");
+    });
+
+    it("TC-G1 & TC-G2: runHook exits 0 on invalid JSON / normal allow and exits 2 on internal error; module import has no side-effect", () => {
+      const badJson = runHook("not json");
+      expect(badJson.exitCode).toBe(0);
+      expect(JSON.parse(badJson.stdout).decision).toBe("ask");
+
+      const okCmd = runHook(
+        '{"hook_event_name":"PreToolUse","tool_input":{"command":"git status"}}'
+      );
+      expect(okCmd.exitCode).toBe(0);
+      expect(okCmd.stdout).toBe("");
+
+      const crashRes = runHook("{}", {
+        decide: () => {
+          throw new Error("boom");
+        },
+      });
+      expect(crashRes.exitCode).toBe(2);
+      expect(crashRes.stderr).toContain("failing closed");
+      expect(JSON.parse(crashRes.stdout).decision).toBe("ask");
+
+      const importProbe = spawnSync(
+        process.execPath,
+        ["--input-type=module", "-e", "await import('./.agents/scripts/code-freeze-guard.js')"],
+        { cwd: REPO_ROOT, encoding: "utf8" }
+      );
+      expect(importProbe.status).toBe(0);
+      expect(importProbe.stdout).toBe("");
+    });
+
+    it("TC-G3: blocks side-effect APIs in Fast-Track .tsx edits while allowing pure styling/translation edits", () => {
+      const tsxPath = "src/app/features/chat/components/ChatBubble.tsx";
+      for (const snippet of [
+        'fetch("/api")',
+        "new WebSocket(u)",
+        "eval(s)",
+        'new Function("x")',
+        "localStorage.setItem('a','b')",
+        "sessionStorage.getItem('a')",
+        "document.cookie = 'a=1'",
+        "window.location.href = u",
+        'await import("./x")',
+        "dangerouslySetInnerHTML={{__html:x}}",
+        'window["fe"+"tch"]',
+        "navigator.sendBeacon('/x')",
+      ]) {
+        const res = decide(
+          {
+            toolName: "replace_file_content",
+            targetFile: tsxPath,
+            oldContent: "const a = 1;",
+            newContent: snippet,
+          },
+          { planApproved: false }
+        );
+        expect(res.decision, snippet).toBe("ask");
+      }
+
+      const pureTsx = decide(
+        {
+          toolName: "replace_file_content",
+          targetFile: tsxPath,
+          oldContent: '<div className="p-1" />',
+          newContent: '<div className="p-2" />',
+        },
+        { planApproved: false }
+      );
+      expect(pureTsx.decision).toBe("allow");
+
+      const translationFetchText = decide(
+        {
+          toolName: "replace_file_content",
+          targetFile: "src/lib/utils/translations/en.ts",
+          oldContent: 'err: "Error"',
+          newContent: 'err: "Failed to fetch data"',
+        },
+        { planApproved: false }
+      );
+      expect(translationFetchText.decision).toBe("allow");
+    });
+
+    it("TC-G4 & TC-G5: verifies run-claude.ps1 $PSScriptRoot hardening and existence of paths in streaming-patterns & mental-simulation", () => {
+      const ps1 = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "scripts", "run-claude.ps1"),
+        "utf8"
+      );
+      expect(ps1).toContain("$PSScriptRoot");
+      expect(ps1).not.toContain("(Get-Location).Path");
+      expect(ps1).toContain("Push-Location -LiteralPath $repoRoot");
+      expect(ps1).toContain("Pop-Location");
+      expect(ps1).toContain("Bash(git *.env*)");
+      expect(ps1).toContain("Bash(git * --no-index*)");
+      expect(ps1).toContain("Edit(.claude/**)");
+      expect(ps1).toContain("PowerShell");
+
+      for (const docRel of [
+        ".agents/skills/streaming-patterns/SKILL.md",
+        ".agents/agents/reviewer/mental-simulation.md",
+      ]) {
+        const text = fs.readFileSync(path.join(REPO_ROOT, docRel), "utf8");
+        const matches = [...text.matchAll(/`(src\/[^`\s]+)`/g)];
+        expect(matches.length, docRel).toBeGreaterThan(0);
+        for (const m of matches) {
+          const raw = m[1];
+          if (raw.includes("*")) continue;
+          const [filePart, linePart] = raw.split(":");
+          const full = path.join(REPO_ROOT, filePart);
+          expect(fs.existsSync(full), `${docRel} -> ${raw}`).toBe(true);
+          if (linePart && /^\d+$/.test(linePart)) {
+            const lineNum = Number(linePart);
+            const fileLines = fs.readFileSync(full, "utf8").split(/\r?\n/);
+            expect(fileLines[lineNum - 1], `${raw} line ${lineNum}`).toContain("maxDuration");
+          }
+        }
+      }
+    });
+
+    it("TC-H & TC-I: verifies budget fixture, 02-quality table removal, 05-plan-review additions, and Claude Code surface", () => {
+      const computeAlwaysOnBudget = (entries: Array<{ content: string }>) =>
+        entries
+          .filter((e) => /^trigger:\s*always_on\s*$/m.test(e.content))
+          .reduce((sum, e) => sum + e.content.length, 0);
+
+      const r00 = fs.readFileSync(path.join(REPO_ROOT, ".agents", "rules", "00-core.md"), "utf8");
+      const r02 = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "rules", "02-quality.md"),
+        "utf8"
+      );
+      const r05 = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "rules", "05-plan-review.md"),
+        "utf8"
+      );
+
+      const realTotal = computeAlwaysOnBudget([
+        { content: r00 },
+        { content: r02 },
+        { content: r05 },
+      ]);
+      expect(realTotal).toBeLessThanOrEqual(17000);
+
+      const overBudgetFixture = computeAlwaysOnBudget([
+        { content: r00 },
+        { content: r02 + "x".repeat(4000) },
+        { content: r05 },
+      ]);
+      expect(overBudgetFixture).toBeGreaterThanOrEqual(18000);
+
+      expect(r02).not.toContain("| :---");
+      expect(r05).toContain("Plan Scope Guard");
+      expect(r05).toContain("CLAUDE.md");
+
+      const claudeSettings = JSON.parse(
+        fs.readFileSync(path.join(REPO_ROOT, ".claude", "settings.json"), "utf8")
+      );
+      const preToolUse = claudeSettings?.hooks?.PreToolUse?.[0];
+      for (const tool of ["Bash", "PowerShell", "Read", "Grep", "Edit", "Write"]) {
+        expect(preToolUse?.matcher).toContain(tool);
+      }
+      expect(preToolUse?.hooks?.[0]?.onFailure).toBe("block");
+      expect(preToolUse?.hooks?.[0]?.args?.[0]).toMatch(
+        /\/\.agents\/scripts\/code-freeze-guard\.js$/
+      );
+      expect(claudeSettings?.permissions?.deny).toContain("Read(.env*)");
+
+      const localSettings = fs.readFileSync(
+        path.join(REPO_ROOT, ".claude", "settings.local.json"),
+        "utf8"
+      );
+      for (const banned of ["git add", "git commit", "git push", "git checkout", "deep-research"]) {
+        expect(localSettings).not.toContain(banned);
+      }
+
+      const claudeMd = fs.readFileSync(path.join(REPO_ROOT, "CLAUDE.md"), "utf8");
+      expect(claudeMd).toMatch(/^@\.agents\/rules\/00-core\.md$/m);
+      expect(claudeMd).toMatch(/^@\.agents\/rules\/05-plan-review\.md$/m);
+
+      for (const skill of [
+        "vikini-debug",
+        "vikini-audit",
+        "vikini-investigate",
+        "vikini-simplify",
+      ]) {
+        const srcSkill = fs.readFileSync(
+          path.join(REPO_ROOT, ".agents", "skills", skill, "SKILL.md"),
+          "utf8"
+        );
+        const stubSkill = fs.readFileSync(
+          path.join(REPO_ROOT, ".claude", "skills", skill, "SKILL.md"),
+          "utf8"
+        );
+        const srcDesc = srcSkill.match(/^description:\s*(.+)$/m)?.[1];
+        const stubDesc = stubSkill.match(/^description:\s*(.+)$/m)?.[1];
+        expect(stubDesc, skill).toBeDefined();
+        expect(stubDesc, skill).toBe(srcDesc);
+        expect(stubSkill, skill).toContain(`.agents/skills/${skill}/SKILL.md`);
+      }
+
+      const gitignore = fs.readFileSync(path.join(REPO_ROOT, ".gitignore"), "utf8");
+      expect(gitignore).toContain("!.claude/skills/vikini-*/");
+      expect(gitignore).toContain("/.superpowers/");
+      expect(gitignore).toContain("*.tmp.md");
+    });
+
+    it("WP1, WP2 & WP3: end-to-end process probes for direct hook, root proxy, and Antigravity view_file .env", () => {
+      const payload = JSON.stringify({
+        hook_event_name: "PreToolUse",
+        permission_mode: "dontAsk",
+        tool_name: "Bash",
+        tool_input: {
+          command: "git status (Remove-Item -Recurse src)",
+        },
+      });
+
+      const directGuard = path.join(REPO_ROOT, ".agents", "scripts", "code-freeze-guard.js");
+      const wp1 = spawnSync(process.execPath, [directGuard], {
+        input: payload,
+        encoding: "utf8",
+      });
+      expect(wp1.status).toBe(0);
+      expect(JSON.parse(wp1.stdout)).toMatchObject({
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "deny",
+        },
+      });
+
+      const proxyGuard = path.join(REPO_ROOT, "scripts", "code-freeze-guard.js");
+      const wp2 = spawnSync(process.execPath, [proxyGuard], {
+        input: payload,
+        encoding: "utf8",
+      });
+      expect(wp2.status).toBe(0);
+      expect(JSON.parse(wp2.stdout)).toMatchObject({
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "deny",
+        },
+      });
+
+      const wp3 = spawnSync(process.execPath, [directGuard], {
+        input: JSON.stringify({
+          toolCall: {
+            name: "view_file",
+            args: { Path: ".env.local" },
+          },
+        }),
+        encoding: "utf8",
+      });
+      expect(wp3.status).toBe(0);
+      expect(JSON.parse(wp3.stdout)).toMatchObject({
+        decision: "ask",
+      });
     });
   });
 });

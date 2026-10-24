@@ -1328,6 +1328,8 @@ export const en = {
   novelcrafterExportIncludeBible: "Include Story Bible",
   novelcrafterExportIncludeSummaries: "Include Chapter Summaries",
   novelcrafterExportSuccessToast: "Manuscript exported!",
+  novelcrafterStreamCutoffWarning:
+    "The AI stream closed before finishing (possibly a server time limit). Any partial output has been kept.",
   // Local LLM (Strata Engine)
   modelCategoryLocal: "Local Models",
   modelDescStrataLocal: "Qwen3.8 125B MoE running locally via Strata (32K context)",

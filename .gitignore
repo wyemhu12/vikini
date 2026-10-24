@@ -50,7 +50,13 @@ pnpm-debug.log*
 !.agents/skills/vikini-debug/
 !.agents/skills/vikini-audit/
 .claude/skill
-.claude/skills
+.claude/skills/*
+!.claude/skills/vikini-*/
+
+# Root temporary & superpowers scratch files
+*.tmp.md
+/temp.html
+/.superpowers/
 
 # Supabase temp
 supabase/.temp/

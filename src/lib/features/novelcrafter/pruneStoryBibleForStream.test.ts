@@ -1,6 +1,6 @@
 // /lib/features/novelcrafter/pruneStoryBibleForStream.test.ts
 import { describe, expect, it } from "vitest";
-import { pruneStoryBibleForStream } from "./pruneStoryBibleForStream";
+import { needsBraindumpForStream, pruneStoryBibleForStream } from "./pruneStoryBibleForStream";
 import { createDefaultStoryState, type StoryBible } from "./types";
 
 describe("pruneStoryBibleForStream", () => {
@@ -42,6 +42,47 @@ describe("pruneStoryBibleForStream", () => {
     expect(forSynopsis.braindump).toBe("Raw braindump notes");
     expect(forOutline.braindump).toBe("Raw braindump notes");
     expect(forWrite.braindump).toBe("");
+  });
+
+  it("TC-B1-04 & TC-B1-05: retains braindump fallback only when synopsis is empty for writeMode='first_draft_rough'", () => {
+    const emptySynopsisBible: StoryBible = {
+      ...sampleBible,
+      synopsis: "   ",
+      braindump: "Seed idea",
+    };
+
+    // TC-B1-04: first_draft_rough with empty synopsis keeps braindump
+    const roughEmptySynopsis = pruneStoryBibleForStream(
+      emptySynopsisBible,
+      "write",
+      undefined,
+      "",
+      "first_draft_rough"
+    );
+    expect(roughEmptySynopsis.braindump).toBe("Seed idea");
+    expect(needsBraindumpForStream("write", undefined, "first_draft_rough", "   ")).toBe(true);
+
+    // TC-B1-05 (negative): first_draft_rough with non-empty synopsis, auto mode, or rewrite strips braindump
+    const roughWithSynopsis = pruneStoryBibleForStream(
+      sampleBible,
+      "write",
+      undefined,
+      "",
+      "first_draft_rough"
+    );
+    expect(roughWithSynopsis.braindump).toBe("");
+
+    const autoEmptySynopsis = pruneStoryBibleForStream(
+      emptySynopsisBible,
+      "write",
+      undefined,
+      "",
+      "auto"
+    );
+    expect(autoEmptySynopsis.braindump).toBe("");
+
+    const rewriteEmptySynopsis = pruneStoryBibleForStream(emptySynopsisBible, "rewrite");
+    expect(rewriteEmptySynopsis.braindump).toBe("");
   });
 
   it("filters out individual cards with visibleToAI === false while keeping visible ones", () => {

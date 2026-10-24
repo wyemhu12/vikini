@@ -18,6 +18,7 @@ import { useLanguage } from "../../chat/hooks/useLanguage";
 import { toast } from "@/lib/store/toastStore";
 import { cn } from "@/lib/utils/cn";
 import { computeWordDiff, findQuoteRangeInText } from "@/lib/features/novelcrafter/feedbackParser";
+import { FIELD_MAX_LENGTHS } from "@/lib/features/novelcrafter/stateLimits";
 import type { NovelcrafterFeedbackItem } from "@/lib/features/novelcrafter/types";
 
 interface ChapterFeedbackGutterProps {
@@ -367,6 +368,7 @@ export default function ChapterFeedbackGutter({
                   >
                     <textarea
                       rows={2}
+                      maxLength={FIELD_MAX_LENGTHS.feedbackReply}
                       value={currentReplyText}
                       onChange={(e) =>
                         setReplyDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))

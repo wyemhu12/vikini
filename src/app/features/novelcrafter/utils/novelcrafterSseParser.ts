@@ -36,3 +36,26 @@ export function parseFinishReason(raw: unknown): NovelcrafterFinishReason | unde
   }
   return undefined;
 }
+
+export async function readNovelcrafterSseStream(
+  body: ReadableStream<Uint8Array>,
+  onFrame: (frame: string) => void
+): Promise<void> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const frames = buffer.split("\n\n");
+    buffer = frames.pop() || "";
+    for (const frame of frames) onFrame(frame);
+  }
+  buffer += decoder.decode();
+  if (buffer.trim()) {
+    for (const frame of buffer.split("\n\n")) {
+      if (frame.trim()) onFrame(frame);
+    }
+  }
+}

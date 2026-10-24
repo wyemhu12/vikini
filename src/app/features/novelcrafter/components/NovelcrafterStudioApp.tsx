@@ -100,6 +100,7 @@ export default function NovelcrafterStudioApp() {
     chapterProse: story.activeChapter.content,
     previousChapterProseTail: story.previousChapterProseTail,
     previousChapterSummaries: story.previousChapterSummaries,
+    streamCutoffWarning: t("novelcrafterStreamCutoffWarning"),
     onStreamStarted: handleStreamStarted,
     onStreamTokenChunk: handleStreamTokenChunk,
     onStreamTerminated: handleStreamTerminated,

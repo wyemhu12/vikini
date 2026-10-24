@@ -3,7 +3,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { assertModelAllowedForUser } from "@/lib/core/limits";
+import { isStrataLocalModel } from "@/lib/core/modelRegistry";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
+import { getStrataAdmission } from "@/lib/core/strataQueue";
 import { auth } from "@/lib/features/auth/auth";
 import { isValidGenerationModel } from "@/lib/features/novelcrafter/modelGuards.server";
 import { runNovelcrafterStream } from "@/lib/features/novelcrafter/novelcrafterStreamRunner.server";
@@ -97,6 +99,13 @@ export async function POST(req: NextRequest) {
 
     await assertModelAllowedForUser(userId, payload.model);
     await verifyNovelcrafterConversationOwnership(userId, payload.conversationId);
+
+    if (isStrataLocalModel(payload.model)) {
+      const admission = getStrataAdmission();
+      if (!admission.ok) {
+        throw new AppError(admission.message, admission.status, admission.code);
+      }
+    }
 
     const quotaReservation = await reserveNovelcrafterStreamQuota(userId);
     if (!quotaReservation.allowed) {

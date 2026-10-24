@@ -21,7 +21,7 @@
 
 **Nhóm C — Git Read-Only**
 
-- `git status`, `git diff`, `git log`, `git show`, `git blame`
+- `git status`, `git diff`, `git log`, `git show`, `git blame` (không pathspec/`rev:` trỏ `.env*`, không `--no-index`, không ký tự glob)
 
 ## CẤM TUYỆT ĐỐI
 

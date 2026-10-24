@@ -5,8 +5,13 @@ const hoisted = vi.hoisted(() => ({
   generateContentStreamMock: vi.fn(),
   claudeMessagesCreateMock: vi.fn(),
   openRouterChatCreateMock: vi.fn(),
+  streamStrataProviderMock: vi.fn(),
   getGemsForUserMock: vi.fn(),
   getPersonasForUserMock: vi.fn(),
+}));
+
+vi.mock("./novelcrafterStrataProvider.server", () => ({
+  streamStrataProvider: hoisted.streamStrataProviderMock,
 }));
 
 vi.mock("@/lib/core/genaiClient", () => ({
@@ -451,5 +456,60 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     expect(sensitiveErrSse).toContain("An error occurred. Please try again later.");
     expect(sensitiveErrSse).not.toContain("10.0.0.1");
     expect(sensitiveErrSse).not.toContain("secret123");
+  });
+
+  it("TC-B5-08 & TC-B5-09: routes strata-local to streamStrataProvider (never OpenRouter/GenAI/Claude) and emits LOCAL_LLM_BUSY error on StrataQueueFullError", async () => {
+    const { isStrataLocalModel } = await import("@/lib/core/modelRegistry");
+    const { StrataQueueFullError } = await import("@/lib/features/local-llm/errors");
+
+    expect(isStrataLocalModel("strata-local")).toBe(true);
+
+    hoisted.streamStrataProviderMock.mockReset();
+    hoisted.streamStrataProviderMock.mockImplementationOnce(
+      async ({
+        emitModelOutput,
+      }: {
+        emitModelOutput: (event: "thinking" | "token", text: string) => void;
+      }) => {
+        emitModelOutput("token", "Local Strata chapter prose.");
+        return "stop";
+      }
+    );
+
+    const onFirstModelOutput = vi.fn();
+    const localStream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: {
+        ...BASE_REQUEST,
+        model: "strata-local",
+      },
+      onFirstModelOutput,
+    });
+
+    const localSse = await readStreamText(localStream);
+    expect(hoisted.streamStrataProviderMock).toHaveBeenCalledTimes(1);
+    expect(hoisted.openRouterChatCreateMock).toHaveBeenCalledTimes(0);
+    expect(hoisted.generateContentStreamMock).toHaveBeenCalledTimes(0);
+    expect(hoisted.claudeMessagesCreateMock).toHaveBeenCalledTimes(0);
+    expect(onFirstModelOutput).toHaveBeenCalledTimes(1);
+    expect(localSse).toContain('event: token\ndata: {"t":"Local Strata chapter prose."}\n\n');
+    expect(localSse).toContain("event: done\n");
+
+    // Queue full error case
+    const onQueueFullFirstOutput = vi.fn();
+    hoisted.streamStrataProviderMock.mockRejectedValueOnce(new StrataQueueFullError());
+    const busyStream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: {
+        ...BASE_REQUEST,
+        model: "strata-local",
+      },
+      onFirstModelOutput: onQueueFullFirstOutput,
+    });
+    const busySse = await readStreamText(busyStream);
+    expect(onQueueFullFirstOutput).toHaveBeenCalledTimes(0);
+    expect(busySse).toContain("event: error\n");
+    expect(busySse).toContain('"code":"STREAM_ERROR"');
+    expect(busySse).toContain('"message":"Local model queue is full"');
   });
 });

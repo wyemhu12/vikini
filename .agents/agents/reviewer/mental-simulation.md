@@ -49,14 +49,14 @@
 - TUYỆT ĐỐI không log credentials, API keys hoặc bearer tokens khi bắt exception.
 - KIỂM SOÁT thời gian thực thi serverless phù hợp từng loại route:
   - Deep Research stream: `maxDuration = 800` (`src/app/api/deep-research/[taskId]/stream/route.ts:8`).
-  - Image generation & editing: `maxDuration = 60` (`src/app/api/edit-image/route.ts:33`).
+  - Image generation & editing: `maxDuration = 60` (`src/app/api/edit-image/route.ts:36`).
   - Cron jobs: `maxDuration = 60` (`src/app/api/cron/cleanup/route.ts:9`).
-  - Image description & standard APIs: `maxDuration = 30` (`src/app/api/describe-image/route.ts:15`).
+  - Image description & standard APIs: `maxDuration = 30` (`src/app/api/describe-image/route.ts:18`).
 
 **Domain: Open Inquiry (Viết lại 100% cho Vikini)**
 
 - _Model Registry & Multi-Provider_: Khảo sát `src/lib/core/modelRegistry.ts`, kiểm tra mapping định danh mô hình, provider order.
-- _Context Window & Quota Budget_: Đối soát token context (1M tokens) và trần output tokens (`effectiveMaxTokens`) tại `src/lib/core/limits.ts` và `src/lib/features/chat/batchGenQuota.ts`.
+- _Context Window & Quota Budget_: Đối soát token context (1M tokens) và trần output tokens (`effectiveMaxTokens`) tại `src/lib/core/limits.ts` và `src/lib/core/batchGenQuota.ts`.
 - _Reasoning Token Truncation Risk_: Phòng ngừa sự cố cắt ngắn chuỗi tư duy AI (bài học kinh nghiệm từ commit `093d2d2` khi token reasoning `<think>` chiếm trọn `max_tokens` khiến câu trả lời bị rỗng).
 - _Hệ Thống Dịch Song Ngữ_: Kiểm tra tuân thủ `.agents/rules/04-bilingual.md`, không hardcode text thô, bảo đảm tính đồng bộ giữa `vi.ts` và `en.ts`.
 - _Vòng Đời Quản Lý Attachments_: Quản lý vòng đời file 30 ngày TTL, hàm RPC dọn dẹp, và xử lý stream đa phương tiện (ảnh, tài liệu PDF, audio).

@@ -716,3 +716,49 @@
 - **Prevention Rule**:
   - **When a hook promotes a local draft from `null` to a newly created entity ID during an async operation, always guard `[entityId]` effects with an explicit promotion predicate (`prevId === null && (isPromoting || activeTargetId === nextId)`) and separate unmount cleanup into its own `useEffect(..., [])`.**
   - **Never return a blank default state with HTTP 200 when decrypting persisted user data fails.** Throw a typed `500` error (`STORY_STATE_CORRUPTED`), lock client autosave/editing for that entity, verify entity ownership after any async recovery check, and archive the raw ciphertext into a dedicated backup record before allowing a confirmed overwrite.
+
+### 2026-10-24: Novelcrafter Prompt XML Escaping Boundaries, Strata Local Routing, SSE Cutoff Handling & Chat `thoughtSignatures` Preservation
+
+- **Symptom**:
+  1. **XML Prompt Injection & Entity Corruption Risk (B3)**: Only `story_so_far` and Codex `aliases` were escaped with `escapeXmlPromptText`; user prose, scenes, selected text, custom instructions, and Story Bible fields were interpolated raw into XML tags. Conversely, escaping `aliases` inside `storyBibleSerializer.ts` risked leaking `&amp;` / `&lt;` HTML entities into `.md`/`.txt` exports (`manuscriptExporter.ts`), and `<quote>` blocks emitted by the model in Feedback mode could contain XML entities that failed `findQuoteRangeInText`.
+  2. **Rough Draft Missing Synopsis/Outline & Empty Chapter Write Missing Continuity (B1, B2)**: `featureDirectives.ts` instructed `writeMode: "first_draft_rough"` to rely on Synopsis and Outline in `<story_bible>`, but `selectStoryBibleDependencies` and `pruneStoryBibleForStream` omitted them; writing a new empty chapter (`feature === "write" && !chapterProse?.trim()`) omitted `<previous_chapter_continuity>`.
+  3. **Strata Local Model Falling Through to OpenRouter in Novelcrafter (B5)**: `novelcrafterStreamRunner.server.ts` lacked a `providerId === "local"` branch, sending `strata-local` to `getOpenRouterClient()`.
+  4. **Feedback Reply 400 Validation Error & Silent SSE Cutoff (B6, B7)**: Combining `item.comment` (up to 10,000 chars) + `replyText` (up to 2,000 chars) into `customInstruction` exceeded the 5,000-char limit in `NovelcrafterStreamRequestSchema`. When an SSE stream closed without `event: done` (e.g., `maxDuration = 300`), the client marked the run `completed` with `finishReason = undefined` and no warning.
+  5. **Chat `thoughtSignatures` Stripped in `contextBuilder.ts` (B8)**: `messages.meta.thoughtSignatures` was persisted in PostgreSQL, but `buildMessageContext` in `src/app/api/chat-stream/contextBuilder.ts` constructed `{ role: msg.role, content: msg.content }` before calling `mapMessages`, dropping previous turns' `thoughtSignatures` for Gemini 3/4.
+
+- **Root Cause**:
+  1. Applying XML escaping piecemeal inside a shared data serializer (`storyBibleSerializer.ts`) instead of uniformly at the XML prompt assembly boundary (`promptBuilder.ts`, `featureDirectives.ts`) paired with entity decoding at the XML response parser boundary (`feedbackParser.ts`).
+  2. Missing `writeMode` parameter in `selectStoryBibleDependencies` / `pruneStoryBibleForStream` and overly narrow `includeContinuity` condition in `promptBuilder.ts`.
+  3. Shared `ModelSelector` exposed `providerId: "local"` in Novelcrafter without corresponding provider dispatch and pre-quota admission check in `/api/novelcrafter/stream`.
+  4. Schema limit (`5,000` chars) was sized only for manual single-field custom instructions rather than composite reply instructions (`comment + reply`), and SSE loop termination assumed normal stream close implied a completed generation.
+  5. `contextBuilder.ts` projected database rows down to `{ role, content }` without forwarding provider-required metadata (`thoughtSignatures` / legacy `thoughtSignature`) expected by downstream `mapMessages` (`thought-signatures.ts`).
+
+- **Fix**:
+  1. Kept `serializeStoryBibleWithStructuredCards` raw for exports, applied `escapeXmlPromptText` once at every XML tag interpolation point in `promptBuilder.ts` (`xmlNode`) and `featureDirectives.ts` (after slicing context/tail windows), added conditional `XML_ESCAPE_NOTICE`, and decoded entities via `unescapeXmlPromptText` in `parseFeedbackItems`. Removed `<studio_context>` (`NOVELCRAFTER_STUDIO_CONTEXT_BLOCK`) from system instructions (B4).
+  2. Passed `writeMode` to `selectStoryBibleDependencies` and `pruneStoryBibleForStream` so `first_draft_rough` includes `synopsis` (with `braindump` fallback) and `outline`, and enabled `<previous_chapter_continuity>` when `feature === "write" && !chapterProse?.trim()`.
+  3. Created `novelcrafterStrataProvider.server.ts` (`streamStrataProvider` with FIFO queue slot release in `finally`, `fitStrataPrompt`, creative sampling, and `StrataOfflineError` mapping), wired `providerId === "local"` in `novelcrafterStreamRunner.server.ts`, and added `getStrataAdmission()` before quota reservation in `src/app/api/novelcrafter/stream/route.ts`.
+  4. Raised `MAX_CUSTOM_INSTRUCTION_CHARS` to `15_000`, added `buildFeedbackReplyInstruction` clamping comment + reply, added `maxLength={FIELD_MAX_LENGTHS.feedbackReply}` in `ChapterFeedbackGutter.tsx`, and added `readNovelcrafterSseStream` + `resolveStreamCloseOutcome` (`finishReason: "length"`, `closedWithoutDone: true`) with bilingual warning toast `novelcrafterStreamCutoffWarning`.
+  5. Added `extractThoughtSignatures(meta)` in `contextBuilder.ts` and typed `ContextMessage` in `chatStreamHelpers.ts` so assistant `thoughtSignatures` / `thoughtSignature` flow into `mapMessages`.
+
+- **Prevention Rule**:
+  - **Always escape format-specific delimiters (such as XML `<`, `>`, `&`) at the final prompt assembly boundary—never inside shared serializers that also feed file exporters—and always slice character budgets before escaping so entity sequences are never split mid-token.**
+  - **When building message context from database rows (`contextBuilder.ts`), never strip provider-required turn metadata (`thoughtSignatures`) before passing messages to provider mappers (`mapMessages`), and always validate/narrow untrusted JSONB fields before forwarding.**
+  - **Whenever a shared UI selector (`ModelSelector`) exposes a new `providerId`, audit every stream runner and API route that consumes that selector (`chatStreamCore` and `novelcrafterStreamRunner`) to ensure provider parity.**
+
+### 2026-10-24: Agent Harness Security Audit -- PowerShell Subexpression Bypass in `\S+` Allowlists & Prettier Table Padding in `always_on` Rules
+
+- **Symptom**:
+  1. **Command Allowlist Bypass (`P0-1`)**: Commands such as `git status (Remove-Item -Recurse src)` and `git diff <(cat .env)` were granted `decision: "allow"` by `code-freeze-guard.js` because `READ_ONLY_COMMANDS` used `(?: \S+)*` and `SHELL_ESCAPE_HATCHES` only blacklisted `[;|&`]|\$\(|>>?|\btee\b`, missing PowerShell grouping `(...)`, array subexpressions `@(...)`, scriptblocks `{...}`, Bash process substitution `<(...)`, and Unicode smart quotes.
+  2. **Governance Character Budget Failure (`P0-4` / `TC-08`)**: `npx vitest run .agents/scripts/code-freeze-guard.test.ts` failed at `TC-08` (`expected 19434 to be less than 18000`) because the combined character count of `00-core.md`, `02-quality.md`, and `05-plan-review.md` exceeded the 18,000-character `always_on` budget.
+
+- **Root Cause**:
+  1. Relying on character blacklists and greedy `\S+` regexes for shell command validation instead of tokenizing arguments and validating each token against a strict positive character whitelist (`SAFE_TOKEN`).
+  2. Using multi-column Markdown tables (especially with sparse or empty third columns) inside `always_on` rule files (`02-quality.md`), which `lint-staged` (`prettier --write` on `*.md`) automatically pads with whitespace on every commit, inflating line lengths to ~170 characters per row.
+
+- **Fix**:
+  1. Extracted `command-policy.js` with `tokenizeSegment`, `isSafeUnquotedToken`, and per-command validators (`validateGitArgs`, `validateVitestArgs`, `validateRunClaudeArgs`) that reject all unquoted shell metacharacters, smart quotes, `.env*` secret paths/globs (`isEnvSecretPath`), and `git --no-index`. Also added `plan-scope.js` (`P1-7`) to restrict approved plan writes to `[NEW]`/`[MODIFY]`/`[DELETE]` declared files and `PROTECTED_INFRA_FILES` (`P0-3`) for harness/build configs.
+  2. Converted the Markdown tables in `02-quality.md` into compact bullet lists (`- **<Domain>**: <files> → <skill>`), reducing the `always_on` character total from `19,434` to `< 15,000` characters while preserving all 15 mandatory M5 items.
+
+- **Prevention Rule**:
+  - **Never validate shell command arguments with `\S+` plus a character blacklist.** Always tokenize commands and enforce a strict per-token positive character whitelist (`SAFE_TOKEN`), allowing quotes only in explicitly designated parameter slots.
+  - **Never use multi-column Markdown tables with sparse/empty cells in `always_on` governance rule files (`.agents/rules/*.md`).** Use bullet lists instead so `prettier --write` does not pad rows and breach the `< 18,000` character budget.

@@ -29,6 +29,7 @@ import {
   buildNovelcrafterUserPrompt,
   resolveEffectivePersonaId,
 } from "./promptBuilder";
+import { streamStrataProvider } from "./novelcrafterStrataProvider.server";
 import type {
   NovelcrafterFeatureSlot,
   NovelcrafterRoutingConfig,
@@ -152,7 +153,7 @@ const DEFAULT_NOVELCRAFTER_SAFETY_SETTINGS = [
   },
 ];
 
-type EmitModelOutputFn = (type: "thinking" | "token", content: string) => void;
+export type EmitModelOutputFn = (type: "thinking" | "token", content: string) => void;
 
 function normalizeFinishReason(raw?: string): "stop" | "length" | "safety" {
   const upper = (raw || "").toUpperCase();
@@ -316,32 +317,12 @@ async function streamAnthropicProvider(
   return normalizeFinishReason(lastStopReason);
 }
 
-async function streamOpenAICompatibleProvider(
-  providerId: string,
-  model: string,
-  systemInstruction: string,
-  userPrompt: string,
+export async function consumeOpenAICompatibleChunks(
+  stream: AsyncIterable<unknown>,
   emitModelOutput: EmitModelOutputFn,
+  modelLabel: string,
   signal?: AbortSignal
 ): Promise<"stop" | "length" | "safety"> {
-  const client = isDeepSeekDirectModel(model)
-    ? getDeepSeekClient()
-    : providerId === "groq"
-      ? getGroqClient()
-      : getOpenRouterClient();
-
-  const stream = await client.chat.completions.create(
-    {
-      model,
-      messages: [
-        { role: "system", content: systemInstruction },
-        { role: "user", content: userPrompt },
-      ],
-      stream: true,
-    },
-    { signal }
-  );
-
   let emittedTokenChunks = 0;
   let lastFinishReason: string | undefined;
 
@@ -377,11 +358,40 @@ async function streamOpenAICompatibleProvider(
 
   if (!signal?.aborted && emittedTokenChunks === 0) {
     throw new Error(
-      `Model ${model} returned an empty response (reason: ${lastFinishReason || "EMPTY_RESPONSE"}). Please adjust the scene or switch models.`
+      `Model ${modelLabel} returned an empty response (reason: ${lastFinishReason || "EMPTY_RESPONSE"}). Please adjust the scene or switch models.`
     );
   }
 
   return normalizeFinishReason(lastFinishReason);
+}
+
+async function streamOpenAICompatibleProvider(
+  providerId: string,
+  model: string,
+  systemInstruction: string,
+  userPrompt: string,
+  emitModelOutput: EmitModelOutputFn,
+  signal?: AbortSignal
+): Promise<"stop" | "length" | "safety"> {
+  const client = isDeepSeekDirectModel(model)
+    ? getDeepSeekClient()
+    : providerId === "groq"
+      ? getGroqClient()
+      : getOpenRouterClient();
+
+  const stream = await client.chat.completions.create(
+    {
+      model,
+      messages: [
+        { role: "system", content: systemInstruction },
+        { role: "user", content: userPrompt },
+      ],
+      stream: true,
+    },
+    { signal }
+  );
+
+  return consumeOpenAICompatibleChunks(stream, emitModelOutput, model, signal);
 }
 
 export function runNovelcrafterStream({
@@ -480,6 +490,13 @@ export function runNovelcrafterStream({
               signal
             );
           }
+        } else if (providerId === "local") {
+          finishReason = await streamStrataProvider({
+            systemInstruction,
+            userPrompt,
+            emitModelOutput,
+            signal,
+          });
         } else {
           finishReason = await streamOpenAICompatibleProvider(
             providerId,

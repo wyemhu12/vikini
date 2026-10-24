@@ -1334,6 +1334,8 @@ export const vi = {
   novelcrafterExportIncludeBible: "Kèm Hồ sơ Truyện (Story Bible)",
   novelcrafterExportIncludeSummaries: "Kèm Tóm tắt Chương",
   novelcrafterExportSuccessToast: "Đã xuất file bản thảo!",
+  novelcrafterStreamCutoffWarning:
+    "Kết nối AI bị đóng trước khi hoàn tất (có thể do giới hạn thời gian máy chủ). Phần nội dung đã nhận được đã được giữ lại.",
   // Local LLM (Strata Engine)
   modelCategoryLocal: "Local Models",
   modelDescStrataLocal: "Qwen3.8 125B MoE chạy cục bộ qua Strata (32K ngữ cảnh)",

@@ -9,9 +9,28 @@ import {
   estimateTokens,
   envFlag,
   stripOuterQuotes,
+  type ContextMessage,
   type MessageContext,
 } from "./chatStreamHelpers";
 import { mapMessages } from "./streaming";
+
+export function extractThoughtSignatures(
+  meta: unknown
+): Pick<ContextMessage, "thoughtSignature" | "thoughtSignatures"> {
+  if (typeof meta !== "object" || meta === null) return {};
+  const record = meta as Record<string, unknown>;
+  const list = Array.isArray(record.thoughtSignatures)
+    ? record.thoughtSignatures.filter((s): s is string => typeof s === "string" && s.length > 0)
+    : [];
+  const legacy =
+    typeof record.thoughtSignature === "string" && record.thoughtSignature
+      ? record.thoughtSignature
+      : undefined;
+  return {
+    ...(list.length > 0 ? { thoughtSignatures: list } : {}),
+    ...(legacy ? { thoughtSignature: legacy } : {}),
+  };
+}
 
 export interface BuildMessageContextOptions {
   skipSlidingTrim?: boolean;
@@ -25,7 +44,7 @@ export async function buildMessageContext(
   modelLimitTokens: number,
   options?: BuildMessageContextOptions
 ): Promise<MessageContext> {
-  let contextMessages: Array<{ role: string; content: string }> = [];
+  let contextMessages: ContextMessage[] = [];
   let contents: Array<{ role: string; parts: unknown[] }> = [
     { role: "user", parts: [{ text: content }] },
   ];
@@ -45,7 +64,7 @@ export async function buildMessageContext(
         m.content.trim().length > 0
     );
 
-    const messagesToKeep: Array<{ role: string; content: string }> = [];
+    const messagesToKeep: ContextMessage[] = [];
     const contentsMetaToKeep: Array<{ messageId?: string; fileIds?: string[] }> = [];
     const skipSlidingTrim = options?.skipSlidingTrim === true;
     const effectiveLimit = skipSlidingTrim
@@ -60,7 +79,11 @@ export async function buildMessageContext(
       const msgTokens = estimateTokens(msg.content);
 
       if (currentTokenCount + msgTokens < effectiveLimit - safetyBuffer) {
-        messagesToKeep.unshift({ role: msg.role, content: msg.content });
+        messagesToKeep.unshift({
+          role: msg.role,
+          content: msg.content,
+          ...(msg.role === "assistant" ? extractThoughtSignatures(msg.meta) : {}),
+        });
         contentsMetaToKeep.unshift({
           messageId: msg.id,
           fileIds: Array.isArray(msg.meta?.fileIds) ? (msg.meta.fileIds as string[]) : undefined,

@@ -7,28 +7,22 @@ description: Pre-work skill triggers, verification tiers, test triage, and post-
 
 ## Pre-Work Protocol (MANDATORY Skill Triggers)
 
-Before writing any code, identify the task domain and read relevant documentation:
+Before writing any code, identify the task domain and read relevant documentation/skills:
 
-| Domain                                        | Read first                                                             | Workflow / Skill to follow               |
-| :-------------------------------------------- | :--------------------------------------------------------------------- | :--------------------------------------- |
-| Chat / Streaming                              | docs/contracts.md, .agents/skills/streaming-patterns/SKILL.md          |                                          |
-| Database / Schema                             | docs/database-schema.md, .agents/skills/database-migration/SKILL.md    |                                          |
-| Auth / Security                               | docs/security.md                                                       |                                          |
-| UI Components                                 | .agents/rules/03-ui.md                                                 |                                          |
-| UI text / Translations                        | .agents/skills/add-translation/SKILL.md, .agents/rules/04-bilingual.md |                                          |
-| Bug fixing                                    | docs/lessons-learned.md                                                | **.agents/skills/vikini-debug/SKILL.md** |
-| API routes                                    | .agents/skills/api-patterns/SKILL.md                                   |                                          |
-| Projects / Knowledge Base                     | docs/features.md (section 2.10), docs/contracts.md                     |                                          |
-| Image Studio / Gallery                        | docs/features.md (sections 2.5, 2.6)                                   |                                          |
-| Voice / Audio                                 | docs/features.md (section 2.7)                                         |                                          |
-| New feature overview                          | docs/features.md, docs/architecture.md                                 |                                          |
-| Adding a new feature                          | .agents/skills/add-feature/SKILL.md                                    |                                          |
-| Architecture question / context recovery      | .agents/skills/vikini-investigate/SKILL.md                             |                                          |
-| Shared module change (lib/core, lib/features) | .agents/skills/vikini-investigate/SKILL.md (/blast-radius)             |                                          |
-| Simplify / dead code cleanup                  | .agents/skills/vikini-simplify/SKILL.md                                |                                          |
-| Feature / Task Planning                       | docs/plans/, .agents/rules/05-plan-review.md                           | **.agents/rules/05-plan-review.md**      |
-| Code quality review                           | .agents/rules/01-coding.md                                             | **.agents/skills/vikini-audit/SKILL.md** |
-| Refactoring / File split                      | .agents/rules/01-coding.md (§ File Size & Modularity)                  |                                          |
+- **Chat / Streaming**: `docs/contracts.md`, `.agents/skills/streaming-patterns/SKILL.md`
+- **Database / Schema**: `docs/database-schema.md`, `.agents/skills/database-migration/SKILL.md`
+- **Auth / Security**: `docs/security.md`
+- **UI Components**: `.agents/rules/03-ui.md`
+- **UI text / Translations**: `.agents/skills/add-translation/SKILL.md`, `.agents/rules/04-bilingual.md`
+- **Bug fixing**: `docs/lessons-learned.md` → **.agents/skills/vikini-debug/SKILL.md**
+- **API routes**: `.agents/skills/api-patterns/SKILL.md`
+- **Projects / Knowledge Base**: `docs/features.md` (§2.10), `docs/contracts.md`
+- **Image Studio / Gallery / Voice**: `docs/features.md` (§2.5–2.7)
+- **New feature / Overview**: `docs/features.md`, `docs/architecture.md`, `.agents/skills/add-feature/SKILL.md`
+- **Architecture / Blast-radius (`lib/core`, `lib/features`)**: `.agents/skills/vikini-investigate/SKILL.md`
+- **Simplify / Dead code cleanup**: `.agents/skills/vikini-simplify/SKILL.md`
+- **Feature / Task Planning**: `docs/plans/`, **.agents/rules/05-plan-review.md**
+- **Code quality review / Refactoring**: `.agents/rules/01-coding.md` → **.agents/skills/vikini-audit/SKILL.md**
 
 <important>
 When a rule or skill is listed above, you MUST read and follow it step-by-step.
@@ -46,15 +40,9 @@ Các skill của `superpowers` (`using-git-worktrees`, `writing-plans`, `executi
 
 ## Post-Change Checklist (MANDATORY)
 
-| Tier  | When                    | Command              | Purpose                                          |
-| :---- | :---------------------- | :------------------- | :----------------------------------------------- |
-| **1** | After each edit         | `npm run type-check` | Instant sanity check — catches type errors early |
-| **2** | After completing a task | `npm run verify`     | Full quality gate (type-check + lint + tests)    |
-| **3** | Before merge/deploy     | CI pipeline          | Independent verification in clean environment    |
-
-<important>
-Tier 1 after every edit. Tier 2 before declaring a task done (never skip). Add/update co-located tests before Tier 2, then update `docs/CHANGELOG.md` and related docs.
-</important>
+- **Tier 1 (After each edit)**: `npm run type-check` — Instant sanity check to catch type errors early.
+- **Tier 2 (After completing a task)**: `npm run verify` — Full quality gate (type-check + lint + tests). Add/update co-located tests before Tier 2, then update `docs/CHANGELOG.md` and related docs.
+- **Tier 3 (Before merge/deploy)**: CI pipeline — Independent verification in clean environment.
 
 ## Windows PowerShell 5.1 Terminal Guidance
 
@@ -78,10 +66,6 @@ NGHIÊM CẤM HẠ THẤP TIÊU CHUẨN TEST: Cấm xóa `expect()`, comment-out
 
 - **Audit Định Kỳ (`.agents/skills/vikini-audit/SKILL.md`)**: Rà soát chất lượng code, kiến trúc và dead code theo file/feature.
 - **Tác Tử Nghiệm Thu On-Demand (`@qa`)**: Chỉ kích hoạt khi user gọi `@qa` trong chat để nghiệm thu 7 bước (`[QA_PASSED]` / `[QA_FAILED]`).
-- **Tham Chiếu Kỹ Thuật**:
-  - Chuẩn SSE Stream: `.agents/skills/streaming-patterns/SKILL.md` (`token`, `meta`, `thinking`, `done`, `error`).
-  - Chuẩn Database Migrations: `.agents/skills/database-migration/SKILL.md` (Supabase schema, RLS, cascade).
-  - Chuẩn API Route Architecture: `.agents/skills/api-patterns/SKILL.md` (Validate → Execute → Respond, `await auth()` + `UnauthorizedError` hoặc `requireUser()` tại `/api/conversations/**`, `/api/files/**`, `/api/messages/**`, `/api/user-templates/**`).
 
 ## Governance Character Limits
 

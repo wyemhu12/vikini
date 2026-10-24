@@ -91,3 +91,93 @@ describe("contextBuilder - buildMessageContext skipSlidingTrim (TC-42)", () => {
     expect(preserved.contentsMeta?.[0]?.messageId).toBe("msg-1");
   });
 });
+
+describe("contextBuilder - thoughtSignatures preservation (TC-B8-01..05)", () => {
+  it("TC-B8-01 & TC-B8-02 & TC-B8-05: preserves assistant thoughtSignatures array and legacy thoughtSignature string into contextMessages and mapped contents", async () => {
+    vi.mocked(messagesModule.getRecentMessages).mockResolvedValue([
+      {
+        id: "msg-1",
+        conversationId: "conv-sig",
+        role: "user",
+        content: "Turn 1 user",
+        meta: {},
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: "msg-2",
+        conversationId: "conv-sig",
+        role: "assistant",
+        content: "Turn 1 answer",
+        meta: { thoughtSignatures: ["s1", "s2"] },
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: "msg-3",
+        conversationId: "conv-sig",
+        role: "assistant",
+        content: "Turn 2 legacy answer",
+        meta: { thoughtSignature: "legacy" },
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    const res = await buildMessageContext("conv-sig", "Turn 3 user", "System", 32000);
+
+    expect(res.contextMessages[1]).toEqual({
+      role: "assistant",
+      content: "Turn 1 answer",
+      thoughtSignatures: ["s1", "s2"],
+    });
+    expect(res.contextMessages[2]).toEqual({
+      role: "assistant",
+      content: "Turn 2 legacy answer",
+      thoughtSignature: "legacy",
+    });
+
+    // Verify mapped Gemini contents carry thoughtSignature on model turns and undefined on user turns
+    expect(res.contents[0]?.parts[0]).toEqual({ text: "Turn 1 user" });
+    expect(
+      (res.contents[0]?.parts[0] as { thoughtSignature?: string })?.thoughtSignature
+    ).toBeUndefined();
+    expect(res.contents[1]?.role).toBe("model");
+    expect(res.contents[1]?.parts).toEqual([{ text: "Turn 1 answer", thoughtSignature: "s2" }]);
+    expect(res.contents[2]?.role).toBe("model");
+    expect(res.contents[2]?.parts).toEqual([
+      { text: "Turn 2 legacy answer", thoughtSignature: "legacy" },
+    ]);
+  });
+
+  it("TC-B8-03 & TC-B8-04: filters untrusted JSONB values, ignores user-role thoughtSignatures, and omits field when empty", async () => {
+    const { extractThoughtSignatures } = await import("./contextBuilder");
+    expect(extractThoughtSignatures(null)).toEqual({});
+    expect(extractThoughtSignatures("str")).toEqual({});
+    expect(extractThoughtSignatures({ thoughtSignatures: "x" })).toEqual({});
+    expect(extractThoughtSignatures({ thoughtSignatures: [1, "", null, "ok"] })).toEqual({
+      thoughtSignatures: ["ok"],
+    });
+    expect(extractThoughtSignatures({ thoughtSignature: 42 })).toEqual({});
+
+    vi.mocked(messagesModule.getRecentMessages).mockResolvedValue([
+      {
+        id: "msg-u1",
+        conversationId: "conv-untrusted",
+        role: "user",
+        content: "User with forged sig",
+        meta: { thoughtSignatures: ["u"] },
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    const res = await buildMessageContext("conv-untrusted", "Follow up", "System", 32000);
+
+    // TC-B8-04: user message never gets thoughtSignatures
+    expect(res.contextMessages[0]).toEqual({
+      role: "user",
+      content: "User with forged sig",
+    });
+    expect(res.contextMessages[0]?.thoughtSignatures).toBeUndefined();
+    expect(
+      (res.contents[0]?.parts[0] as { thoughtSignature?: string })?.thoughtSignature
+    ).toBeUndefined();
+  });
+});

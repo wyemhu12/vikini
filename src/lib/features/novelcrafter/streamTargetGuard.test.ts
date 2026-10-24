@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyStreamTargetUpdate,
   isLikelyModelRefusalOutput,
+  resolveStreamCloseOutcome,
   resolveStreamTerminationState,
 } from "./streamTargetGuard";
 import { createDefaultStoryState } from "./types";
@@ -134,5 +135,42 @@ describe("streamTargetGuard (TC-07)", () => {
 
     expect(result.applied).toBe(true);
     expect(result.nextState.chapters[0].summary).toBe("- Sự kiện 1\n- Sự kiện 2");
+  });
+
+  it("TC-B7-01 & TC-B7-02: resolveStreamCloseOutcome synthesizes finishReason='length' and closedWithoutDone=true on unexpected stream close, and false on normal done or user abort", () => {
+    // TC-B7-01: stream closes without done event and not aborted
+    expect(
+      resolveStreamCloseOutcome({
+        sawDoneEvent: false,
+        aborted: false,
+        finishReason: undefined,
+      })
+    ).toEqual({
+      finishReason: "length",
+      closedWithoutDone: true,
+    });
+
+    // TC-B7-02 (negative): normal done event or user abort does not synthesize cutoff warning
+    expect(
+      resolveStreamCloseOutcome({
+        sawDoneEvent: true,
+        aborted: false,
+        finishReason: "stop",
+      })
+    ).toEqual({
+      finishReason: "stop",
+      closedWithoutDone: false,
+    });
+
+    expect(
+      resolveStreamCloseOutcome({
+        sawDoneEvent: false,
+        aborted: true,
+        finishReason: "aborted",
+      })
+    ).toEqual({
+      finishReason: "aborted",
+      closedWithoutDone: false,
+    });
   });
 });

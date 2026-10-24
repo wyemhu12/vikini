@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils/cn";
 import { countChapterWords } from "@/lib/features/novelcrafter/draftStorage";
 import {
   applyFeedbackSuggestionToText,
+  buildFeedbackReplyInstruction,
   findQuoteRangeInText,
 } from "@/lib/features/novelcrafter/feedbackParser";
 import {
@@ -293,16 +294,17 @@ export default function ChapterEditorWorkspace({
       }
       onReplyFeedback={(item, replyText) => {
         if (isStreaming || isLoadLocked) return;
+        const { instruction, reply } = buildFeedbackReplyInstruction(item.comment, replyText);
         onUpdateFeedbackItems(
           chapter.id,
-          (items) => items.map((f) => (f.id === item.id ? { ...f, userReply: replyText } : f)),
+          (items) => items.map((f) => (f.id === item.id ? { ...f, userReply: reply } : f)),
           true
         );
         void onTriggerStream({
           feature: "feedback",
           feedbackMode: "custom",
           selectedText: item.quote || selection?.text || "",
-          customInstruction: `${item.comment}\nUser follow-up: ${replyText}`,
+          customInstruction: instruction,
           subLabel: `${t("novelcrafterSlotFeedback")} · ${item.category}`,
           replyToFeedbackId: item.id,
         });
