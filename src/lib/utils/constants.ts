@@ -31,6 +31,8 @@ export const MODEL_IDS = {
   DEEPSEEK_V32: "deepseek/deepseek-v3.2:floor",
   // Z.ai / GLM models (via OpenRouter)
   GLM_52: "z-ai/glm-5.2",
+  // Local LLM (Strata Engine)
+  STRATA_LOCAL: "strata-local",
 } as const;
 
 export type ModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];
@@ -128,3 +130,23 @@ export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
  * Feature flag for virtualized chat list (safe rollout: default false)
  */
 export const ENABLE_VIRTUALIZED_CHAT = false;
+
+/**
+ * Default configurations for Strata Local LLM
+ */
+export const STRATA_DEFAULTS = {
+  BASE_URL: "http://127.0.0.1:8080/v1",
+  MODEL_ID: "orcarouter-qwen3.8-flash-next-uncensored-iq3_xxs",
+  DISPLAY_NAME: "Orcarouter-qwen3.8-flash-next-uncensored-iq3",
+  CONTEXT_WINDOW: 32768,
+  CTX_SLACK: 8,
+  PROMPT_SAFETY_TOKENS: 512,
+  RAW_CONTEXT_CEILING_TOKENS: 128000,
+  REQUEST_TIMEOUT_MS: 300000,
+  IDLE_TIMEOUT_MS: 120000,
+  QUEUE_MAX_PENDING: 2,
+  QUEUE_MAX_WAIT_MS: 120000,
+  HEALTH_CACHE_TTL_MS: 5000,
+  HEALTH_TIMEOUT_MS: 2000,
+  COUNT_TOKENS_TIMEOUT_MS: 3000,
+} as const;
