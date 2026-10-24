@@ -8,6 +8,13 @@
 
 ---
 
+## 2026-10-24: Governance -- Hardening Mode 4 /blast-radius (`vikini-investigate`)
+
+- **Blast-Radius & Claude CLI (`.agents/skills/vikini-investigate/SKILL.md`, `.agents/scripts/run-claude.ps1`, `docs/lessons-learned.md`)**:
+  - Bổ sung 5 bước (A–E: dynamic import, DI/interface, transitive 3 tầng, disambiguation/alias, mocked tests) cùng 2 cột `Tầng (1/2/3)` và `Cách tham chiếu` vào Mode 4 `/blast-radius`; thêm `Escape-NativeArg` trong `run-claude.ps1` cho PowerShell 5.1.
+
+---
+
 ## 2026-10-24: Feature -- Tích Hợp Local LLM (Strata Engine - 32K Context, Story Sampling & FIFO Queue)
 
 - **Strata Core & Queue Infrastructure (`src/lib/utils/constants.ts`, `src/lib/core/{strataConfig,strataClient,strataQueue,modelRegistry}.ts`, `env.local.example`)**:

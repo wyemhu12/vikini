@@ -81,16 +81,32 @@ MANDATORY before modifying any exported function, type, constant, or class in `s
 
 ### Procedure
 
-1. Run `grep_search` across `src/` and `tests/` for all import sites and call sites of the target symbol (including `@/lib/...` path aliases and relative imports).
-2. Locate all co-located unit/integration tests (`*.test.ts`, `*.test.tsx`) covering the module and its callers.
+1. **Static imports**: `grep_search` across `src/` and `tests/` for import sites and call sites of the target symbol (`@/lib/...` aliases and relative imports).
+2. **(A) Dynamic imports**: Grep `import\(["'][^"']*<module-tail>["']\)` (both `@/...` alias and relative paths) and destructuring near `await import(`.
+   - Example probe: `getSupabaseAdmin` → `src/app/api/chat-stream/attachmentProcessor.ts:139`, `src/app/api/deep-research/[taskId]/stream/route.ts:143,174`.
+3. **(B) DI / interface properties**: If the symbol is assigned to an object property, passed as an argument, or satisfies an interface/type, locate that interface/type and grep `<Interface>\["<prop>"\]` plus property call/destructuring sites.
+   - Example probe: `upsertAssistantMessage` (`chatStreamCore.ts:237,290`) → `ChatStreamParams` (`streaming/types.ts:176`) → 5 stream engines (`gemini`, `openai`, `deepseek`, `anthropic`, `strata`) + `post-processing.ts`.
+4. **(C) Transitive callers (max 3 tiers)**: For each caller that is an exported function, repeat steps 1–3 up to 3 tiers (`tối đa 3 tầng`).
+   - Stop condition: stop at a route handler (`src/app/api/**/route.ts`), `page.tsx`, component (`*.tsx`), or tier 3.
+   - Example probe: `saveMessage` (`messages.ts:121`) → `upsertMessage` / `handleChatStreamCore` → `POST /api/messages`, `POST /api/chat-stream` (tiers 2–3).
+5. **(D) Same-name disambiguation**: Read import/definition lines at each hit to confirm it resolves to the target symbol.
+   - Discard shadowed locals or unrelated same-name object properties, and grep `<symbol> as ` for import aliases.
+   - Example probe: `saveMessage as insertUserMessage` (`chatStreamCore.ts:27`) → call site at `:156`.
+6. **(E) Mocked tests**: Grep `vi\.mock\(["'][^"']*<module-tail>["']` and `vi\.mocked\(<symbol>\)` across test files.
+   - List test files that only mock the module separately; they must still be re-run when signatures or return shapes change.
+   - Example probe: `src/app/api/messages/route.test.ts:10` and `src/app/api/chat-stream/route.test.ts:23`.
+7. **Co-located tests**: Locate all `*.test.ts` / `*.test.tsx` covering the module and every tier 1–3 caller.
 
 ### Required Output
 
-| Caller                | `file:line` | Usage Pattern            | Compatible? (`Yes` / `No` + Reason)   |
-| --------------------- | ----------- | ------------------------ | ------------------------------------- |
-| Module / route / hook | Exact line  | How args/return are used | Whether proposed change breaks caller |
+| Caller                | `file:line` | Tầng (1/2/3)     | Cách tham chiếu (static import / dynamic import / qua interface / mock) | Usage Pattern                      | Compatible? (`Yes` / `No` + Reason)   |
+| --------------------- | ----------- | ---------------- | ----------------------------------------------------------------------- | ---------------------------------- | ------------------------------------- |
+| Module / route / hook | Exact line  | `1`, `2`, or `3` | `static import`                                                         | Direct or transitive call          | Whether proposed change breaks caller |
+| Lazy consumer         | Exact line  | `1`              | `dynamic import`                                                        | `await import(...)` destructuring  | Check async import & signature        |
+| DI consumer / stream  | Exact line  | `2`              | `qua interface`                                                         | Called via `<Interface>["<prop>"]` | Check interface property contract     |
+| Mocked test file      | Exact line  | `1`–`3`          | `mock`                                                                  | `vi.mock(...)` / `vi.mocked(...)`  | Must re-run & sync mock factory       |
 
-- **Co-Located Tests Affected**: List every `*.test.ts` file that must be run or updated per Test Contract.
+- **Co-Located Tests Affected**: List every `*.test.ts` file from steps 6–7 (including mock-only test files) that must be run or updated per Test Contract.
 - **Migration Rule**: If any caller is marked `No`, the implementation plan MUST include explicit migration steps for that caller.
 
 ---

@@ -252,6 +252,13 @@
 
 ## API and Streaming
 
+### 2026-10-24: Single-pass grep misses dynamic imports, DI properties, aliases and mocks in blast-radius
+
+- **Symptom**: Running 1-hop `grep_search` on a shared symbol missed dynamic `await import(...)` sites (`getSupabaseAdmin` in `attachmentProcessor.ts:139` and `deep-research/[taskId]/stream/route.ts:143,174`), DI interface properties (`upsertAssistantMessage` via `ChatStreamParams` across 5 stream engines + `post-processing.ts`), aliased imports (`saveMessage as insertUserMessage` in `chatStreamCore.ts:27,156`), tier 2–3 route callers (`POST /api/chat-stream`, `POST /api/messages`), and `vi.mock(...)` test suites; meanwhile PowerShell 5.1 stripped unescaped `"` inside `run-claude.ps1` `--settings` JSON when whitespace occurred at an odd quote count.
+- **Root Cause**: Mode 4 (`/blast-radius`) in `.agents/skills/vikini-investigate/SKILL.md` only instructed 1-hop static import/call grepping without tracing `import()`, interface properties, import aliases, transitive callers (tiers 2–3), or `vi.mock` factories, and `run-claude.ps1` passed raw JSON to `& $claudeExe` on PowerShell 5.1 where `NeedQuotes()` only quotes arguments when whitespace is at an even `"` count.
+- **Fix**: Hardened Mode 4 in `.agents/skills/vikini-investigate/SKILL.md` with steps (A) dynamic imports, (B) DI/interface properties, (C) 3-tier transitive callers stopping at routes/pages/components, (D) same-name & alias disambiguation, and (E) mocked tests, plus `Tầng (1/2/3)` and `Cách tham chiếu` output columns; added `Escape-NativeArg` in `.agents/scripts/run-claude.ps1`.
+- **Prevention Rule**: Always execute all 5 steps (A–E) of Mode 4 (`/blast-radius`) in `.agents/skills/vikini-investigate/SKILL.md` when analyzing impact on shared symbols, and always escape embedded `"` (`Escape-NativeArg`) with an even-quote whitespace anchor when passing JSON arguments to native executables in Windows PowerShell 5.1.
+
 ### 2026-10-01: Multi-Turn File Context Leak & Binary Corrupt Text Extraction in Chat Streams
 
 - **Symptom**:

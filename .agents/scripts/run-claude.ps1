@@ -36,6 +36,19 @@ function Normalize-PlanPath([string]$RawPath) {
     return $candidate
 }
 
+# PowerShell 5.1 không tự escape dấu ngoặc kép (") bên trong tham số khi gọi native executable (& $claudeExe),
+# khiến Windows CRT (CommandLineToArgvW) cắt bỏ toàn bộ dấu " trong JSON của --settings và nội dung -p.
+function Escape-NativeArg([string]$Value) {
+    if ($PSVersionTable.PSVersion.Major -ge 7 -or [string]::IsNullOrEmpty($Value)) {
+        return $Value
+    }
+    $escaped = $Value -replace '(\\*)"', '$1$1\"'
+    if ($escaped -match '\s') {
+        $escaped = $escaped -replace '(\\+)$', '$1$1'
+    }
+    return $escaped
+}
+
 # 0. Thiết lập UTF-8 encoding toàn diện cho PowerShell 5.1 và tiến trình con
 if (Get-Command chcp.com -ErrorAction SilentlyContinue) {
     chcp.com 65001 >$null
@@ -193,11 +206,12 @@ if ($normalizedRole -eq "planner") {
 }
 
 # Lớp 1: Gắn trực tiếp code-freeze-guard.js làm PreToolUse hook với "onFailure":"block" (BLK-03, BLK-04, MAJ-10, MAJ-12)
-$claudeHookSettings = '{"hooks":{"PreToolUse":[{"matcher":"Write|Edit|MultiEdit|Bash|Read","hooks":[{"type":"command","command":"node .agents/scripts/code-freeze-guard.js","onFailure":"block"}]}]}}'
+$claudeHookSettings = Escape-NativeArg '{"hooks": {"PreToolUse":[{"matcher":"Write|Edit|MultiEdit|Bash|Read","hooks":[{"type":"command","command":"node .agents/scripts/code-freeze-guard.js","onFailure":"block"}]}]}}'
+$escapedPrompt = Escape-NativeArg $prompt
 
 # 6. Chuẩn bị cờ thực thi với --permission-mode dontAsk và --settings
 $cliArgs = @(
-    "-p", $prompt,
+    "-p", $escapedPrompt,
     "--permission-mode", "dontAsk",
     "--settings", $claudeHookSettings,
     "--allowedTools", $allowedTools,
