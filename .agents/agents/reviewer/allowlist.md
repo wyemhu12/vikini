@@ -13,18 +13,13 @@
 - `npm run test:run`, `npx vitest run <path>`, `npx vitest list --filesOnly`
 - `npm run verify`
 
-**Nhóm B — Wiring & Negative Probes (không ghi file)**
+**Nhóm B — Wiring & Documentation Verification Probes (không ghi file)**
 
 - `npx eslint --print-config <path>`
-- `<snippet> | npx eslint --stdin --stdin-filename <path>` — KHÔNG kèm `--fix`, `--rule`, `--no-config-lookup`, `-c` hay cờ nào ghi đè cấu hình dự án (probe phải chạy trên cấu hình thật).
+- `node scripts/verify-docs.mjs` (hoặc kèm `--strict-shorthand`, `--expected-headings=<N>`)
 - `npm ls <pkg>`, `npm view <pkg> version|versions|time|deprecated`
 
-**Nhóm C — Runtime Semantic Probes (in-memory)**
-
-- `node -e "<script>"`, `npx tsx -e "<script>"` — CHỈ để kiểm tra hành vi thuần: thứ tự async/event loop, normalize/filter chuỗi, parse Zod schema, hàm tiện ích không cần I/O ngoài.
-- Script probe **CẤM**: ghi/xóa/đổi tên file (`fs.write*`, `fs.rm*`, `fs.rename*`...), `child_process`, mở kết nối mạng hoặc DB, đọc/in `process.env` hay file `.env*`.
-
-**Nhóm D — Git Read-Only**
+**Nhóm C — Git Read-Only**
 
 - `git status`, `git diff`, `git log`, `git show`, `git blame`
 
@@ -32,7 +27,7 @@
 
 - Lệnh có side-effect lên file, DB, state, dependencies: `npm install|ci|update|uninstall`, `npm run build`, mọi lệnh `git` ghi (`add`, `commit`, `checkout`, `switch`, `reset`, `stash`, `push`...), `rm`, `mv`, `cp`, `mkdir`, `chmod`, `chown`.
 - Tuyệt đối cấm các công cụ không thuộc tech stack Vikini (ví dụ: Prisma CLI `npx prisma`).
-- Mọi cờ mutating: `--fix`, `--write`, `--force`, `-i`.
-- Chuyển hướng output ra file (`>`, `>>`, `tee`, `Out-File`, `Set-Content`, `Add-Content`).
+- Mọi cờ mutating hoặc nạp config ngoài: `--fix`, `--write`, `--force`, `--output`, `--outputFile`, `--config`, `-c`, `--root`, `--dir`, `-u`, `--update`, `--coverage`, `-i`.
+- Chuyển hướng output hoặc nối chuỗi lệnh (`|`, `;`, `&&`, `>`, `>>`, `tee`, `Out-File`, `Set-Content`, `Add-Content`).
 - Đọc hoặc in secrets (`.env*`, `printenv`, `env`, `Get-ChildItem env:`).
-- Bất kỳ lệnh nào ngoài 4 nhóm trên. Nếu cần lệnh khác để xác minh → ghi `UNVERIFIED` kèm lệnh đề xuất cho User tự chạy, KHÔNG tự chạy.
+- Bất kỳ lệnh nào ngoài các nhóm trên. Nếu cần lệnh khác để xác minh → ghi `UNVERIFIED` kèm lệnh đề xuất cho User tự chạy, KHÔNG tự chạy.

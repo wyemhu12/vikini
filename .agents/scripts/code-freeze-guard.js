@@ -60,15 +60,17 @@ const READ_ONLY_COMMANDS = [
   /^npm ls(?: \S+)*$/,
   /^npm view \S+(?: \S+)*$/,
   /^git (?:status|diff|log|show|blame)(?: \S+)*$/,
-  /^powershell(?:\.exe)?\s+(?:-(?:NoProfile|ExecutionPolicy\s+\w+)\s+)*-File\s+["']?\.agents[/\\]scripts[/\\]run-claude\.ps1["']?(?:\s+.*)?$/,
-  /^claude(?:\.exe)?(?:\s+.*)?$/,
+  /^powershell(?:\.exe)?\s+(?:-(?:NoProfile|ExecutionPolicy\s+(?:Bypass|RemoteSigned|Unrestricted))\s+)*-File\s+["']?\.agents[/\\]scripts[/\\]run-claude\.ps1["']?(?:\s+(?:-CheckOnly|-(?:Role|Mode)\s+(?:planner|reviewer|plan|review)|-PlanFile\s+["']?docs[/\\]plans[/\\][A-Za-z0-9._-]+\.md["']?|-Model\s+[A-Za-z0-9._-]+|-(?:Task|Prompt)\s+(?:"[^"]*"|'[^']*'|\S+)|-ArtifactFile\s+["']?(?!.*\.\.)[^\s"']*[/\\]\.gemini[/\\]antigravity[/\\]brain[/\\][^\s"']+\.md["']?))*\s*$/i,
+  /^claude(?:\.exe)?\s+(?:--version|-v|--help|-h|-p\s+["']?ping["']?)$/i,
+  /^node\s+["']?(?:\.[\/\\])?scripts[\/\\]verify-docs\.mjs["']?(?:\s+(?:--strict-shorthand|--expected-headings=\d+))*$/,
 ];
 
 /** Shell constructs that can turn an allowed command into a mutating one. */
 const SHELL_ESCAPE_HATCHES = /[;|&`]|\$\(|>>?|\btee\b/;
 
-/** Flags that rewrite files even when the base command is read-only. */
-const MUTATING_FLAGS = /--fix\b|--write\b|--force\b|--output\b|-i\b/;
+/** Flags that rewrite files or load external executable configs even when the base command is read-only. */
+const MUTATING_FLAGS =
+  /(?:^|\s)(?:--fix|--write|--force|--output|--outputFile|--config|--root|--dir|--globalSetup|--setupFiles|--extcmd|--update|--coverage)(?:\s|=|$)|(?:^|\s)-(?:c|u|i)(?:\s|=|$)/;
 
 /** Config files that decide which tests run and which test modifiers are allowed. */
 export const TEST_INFRA_FILES = [
@@ -161,77 +163,167 @@ export function isAntigravityArtifact(targetFile) {
 }
 
 /**
- * Checks if the current active plan has been approved by Lead Reviewer (@reviewer primary or Claude CLI fallback).
- * Inspects .agents/.plan-approved or strictly the single latest plan in docs/plans/.
+ * Checks whether the first 30 lines of a plan file contain an explicit
+ * `- **Status**: Approved` or `- **Trạng thái**: Approved` header line.
  *
- * Hardened Security Checks:
- * 1. Checks .agents/.plan-approved first (governance-protected marker).
- * 2. Scans ONLY the single latest plan (entries[0]), preventing older finished tasks
- *    from unfreezing active unfinished tasks.
- * 3. Rejects if header Status is pending review (Draft / In Review / Ready for Review / Changes Requested).
- * 4. Strictly requires [PLAN_APPROVED] on the non-blank last line of the file (no loose regex).
- *
+ * @param {string | undefined} content
  * @returns {boolean}
  */
-export function isPlanApproved() {
-  const markerPath = path.resolve(REPO_ROOT, ".agents/.plan-approved");
-  if (fs.existsSync(markerPath)) {
-    try {
-      const markerContent = fs.readFileSync(markerPath, "utf8").trim();
-      if (markerContent === "true" || markerContent === "APPROVED") {
-        return true;
-      }
-      if (markerContent.startsWith("{")) {
-        const data = JSON.parse(markerContent);
-        if (data.approved === true) return true;
-      }
-    } catch {
-      // Fall through to file inspection
+export function hasApprovedPlanHeader(content) {
+  if (typeof content !== "string" || !content.trim()) return false;
+  const headerLines = content.split(/\r?\n/).slice(0, 30).join("\n");
+  return /^(?:-\s*)?\*\*(?:Status|Trạng thái)\*\*:\s*Approved\s*$/im.test(headerLines);
+}
+
+/**
+ * Checks whether the first 30 lines of a plan file contain an explicit
+ * `- **Status**: Completed` or `- **Trạng thái**: Completed` header line.
+ *
+ * @param {string | undefined} content
+ * @returns {boolean}
+ */
+export function hasCompletedPlanHeader(content) {
+  if (typeof content !== "string" || !content.trim()) return false;
+  const headerLines = content.split(/\r?\n/).slice(0, 30).join("\n");
+  return /^(?:-\s*)?\*\*(?:Status|Trạng thái)\*\*:\s*Completed\s*$/im.test(headerLines);
+}
+
+/**
+ * Checks whether the last non-blank line of a plan file strictly equals `"[PLAN_APPROVED]"`.
+ *
+ * @param {string | undefined} content
+ * @returns {boolean}
+ */
+export function hasApprovedPlanFooter(content) {
+  if (typeof content !== "string" || !content.trim()) return false;
+  const lines = content.split(/\r?\n/);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const trimmed = lines[i].trim();
+    if (trimmed.length > 0) {
+      return trimmed === "[PLAN_APPROVED]";
     }
   }
+  return false;
+}
 
-  const plansDir = path.resolve(REPO_ROOT, "docs/plans");
-  if (fs.existsSync(plansDir)) {
-    try {
-      const entries = fs
-        .readdirSync(plansDir)
-        .filter((file) => file.endsWith(".md") && file !== "README.md")
-        .map((file) => path.join(plansDir, file));
-      if (entries.length > 0) {
-        // Sort strictly by modification time descending
-        entries.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
-        const latestPlanPath = entries[0];
-        const content = fs.readFileSync(latestPlanPath, "utf8");
+/**
+ * Evaluates raw markdown content of a single plan file in docs/plans/*.md
+ * to determine if it is currently in an active Approved state.
+ *
+ * @param {string | undefined} content
+ * @returns {boolean}
+ */
+export function evaluatePlanApprovalContent(content) {
+  return hasApprovedPlanHeader(content) && hasApprovedPlanFooter(content);
+}
 
-        // Check 1: Header status check (first 30 lines)
-        const headerLines = content.split(/\r?\n/).slice(0, 30).join("\n");
-        const isPending =
-          /(?:\*\*|\b)(?:Status|Trạng thái)(?:\*\*|\b)?\s*:\s*(?:Draft|In Review|Ready for Review|Changes Requested|Chờ Duyệt)/i.test(
-            headerLines
-          );
-        if (isPending) {
-          return false;
-        }
+/**
+ * Single-Step Pre-Approved Plan Guard helper: detects whether a full-file write
+ * (`write_to_file` / `write_file`) targeting `docs/plans/*.md` pre-populates
+ * `Status: Approved` in the first 30 lines OR `[PLAN_APPROVED]` on the last non-blank line.
+ *
+ * Legitimate technical plans discussing `[PLAN_APPROVED]` inside the markdown body
+ * have `Status: Ready for Review` in the header and do not end with `[PLAN_APPROVED]`,
+ * so they are NOT falsely blocked.
+ *
+ * @param {string | undefined} newContent
+ * @returns {boolean}
+ */
+export function isSelfForgedPlanWrite(newContent) {
+  return hasApprovedPlanHeader(newContent) || hasApprovedPlanFooter(newContent);
+}
 
-        // Check 2: Strict last non-blank line check for approval token
-        const nonBlankLines = content
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .filter(Boolean);
-        if (nonBlankLines.length === 0) {
-          return false;
-        }
+/**
+ * Evaluates all plan files in `docs/plans/` deterministically:
+ * 1. Extracts the `YYYY-MM-DD` date prefix from `filename` (`/^(\d{4}-\d{2}-\d{2})-/`).
+ * 2. Filters out any file without a valid `YYYY-MM-DD` date prefix or whose `datePrefix`
+ *    exceeds `maxDatePrefix` (defaults to UTC today + 1 day for timezone safety, preventing
+ *    future-dated filenames like `2099-01-01-x.md` from permanently overshadowing active plans — `MIN-04`).
+ * 3. Sorts descending by `datePrefix` first (`b.datePrefix.localeCompare(a.datePrefix)`),
+ *    using `mtimeMs` descending only as a tie-breaker within the same date prefix
+ *    (preventing `git clone`/`checkout` mtime resets from surfacing older dates).
+ * 4. Inspects ALL plans sharing the newest valid date prefix (`latestDatePrefix`):
+ *    - Fail-safe freeze: If ANY plan in the newest date group is neither `Completed`
+ *      nor `Approved` (e.g. a newly created `Ready for Review` or `Changes Requested`
+ *      plan on the same day), immediately returns `false`.
+ *    - Returns `true` if and only if at least one plan in the newest date group is
+ *      `Approved` (`evaluatePlanApprovalContent(plan.content) === true`) and none are pending.
+ *
+ * @param {Array<{ filename: string, mtimeMs: number, content: string }>} planEntries
+ * @param {{ maxDatePrefix?: string }} [options]
+ * @returns {boolean}
+ */
+export function evaluateLatestDateGroupPlans(planEntries, options = {}) {
+  if (!Array.isArray(planEntries) || planEntries.length === 0) return false;
 
-        const lastLine = nonBlankLines[nonBlankLines.length - 1];
-        if (lastLine === "[PLAN_APPROVED]" || lastLine.endsWith("[PLAN_APPROVED]")) {
-          return true;
-        }
-      }
-    } catch {
+  const maxDatePrefix =
+    typeof options.maxDatePrefix === "string" && /^\d{4}-\d{2}-\d{2}$/.test(options.maxDatePrefix)
+      ? options.maxDatePrefix
+      : new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+
+  const withPrefix = planEntries
+    .map((entry) => {
+      const base = path.basename(entry.filename);
+      const match = base.match(/^(\d{4}-\d{2}-\d{2})-/);
+      return {
+        ...entry,
+        datePrefix: match ? match[1] : "",
+      };
+    })
+    .filter((item) => item.datePrefix !== "" && item.datePrefix <= maxDatePrefix);
+
+  if (withPrefix.length === 0) return false;
+
+  withPrefix.sort((a, b) => {
+    if (a.datePrefix !== b.datePrefix) {
+      return b.datePrefix.localeCompare(a.datePrefix);
+    }
+    return b.mtimeMs - a.mtimeMs;
+  });
+
+  const latestDatePrefix = withPrefix[0].datePrefix;
+  const latestGroup = withPrefix.filter((item) => item.datePrefix === latestDatePrefix);
+
+  let hasAtLeastOneApproved = false;
+  for (const plan of latestGroup) {
+    if (evaluatePlanApprovalContent(plan.content)) {
+      hasAtLeastOneApproved = true;
+    } else if (!hasCompletedPlanHeader(plan.content)) {
       return false;
     }
   }
 
+  return hasAtLeastOneApproved;
+}
+
+/**
+ * Checks whether an active approved implementation plan exists in `docs/plans/*.md`
+ * (Single Source of Truth — legacy marker check removed per MAJ-07;
+ * preserves `export` and `REPO_ROOT` per MAJ-09).
+ *
+ * @returns {boolean}
+ */
+export function isPlanApproved() {
+  try {
+    const plansDir = path.join(REPO_ROOT, "docs", "plans");
+    if (!fs.existsSync(plansDir)) return false;
+
+    const planEntries = fs
+      .readdirSync(plansDir)
+      .filter((f) => f.endsWith(".md") && f.toLowerCase() !== "readme.md")
+      .map((f) => {
+        const fullPath = path.join(plansDir, f);
+        return {
+          filename: f,
+          mtimeMs: fs.statSync(fullPath).mtimeMs,
+          content: fs.readFileSync(fullPath, "utf8"),
+        };
+      });
+
+    return evaluateLatestDateGroupPlans(planEntries);
+  } catch {
+    // ignore fs errors -> fail closed
+  }
   return false;
 }
 
@@ -415,7 +507,7 @@ export function countLines(value) {
  * @returns {boolean}
  */
 export function isFastTrackEligible(relative, input) {
-  if (input.toolName !== "replace_file_content") return false;
+  if (input.toolName !== "replace_file_content" && input.toolName !== "edit_file") return false;
   if (FAST_TRACK_EXCLUDED_PATHS.test(relative)) return false;
   if (!FAST_TRACK_PATHS.some((pattern) => pattern.test(relative))) return false;
   const { oldContent, newContent } = input;
@@ -441,6 +533,26 @@ export function decide(input, options = {}) {
   });
 
   if (input.targetFile) {
+    // 0. Read Guard for .env* secrets (when invoked as PreToolUse hook for Read/read_file/view_file)
+    if (
+      input.toolName === "Read" ||
+      input.toolName === "read_file" ||
+      input.toolName === "view_file"
+    ) {
+      const baseName = path.basename(toPosix(input.targetFile));
+      const relCandidate = toRepoRelative(input.targetFile);
+      if (
+        /^\.env(?:\..+)?$/i.test(baseName) ||
+        (relCandidate !== null &&
+          (relCandidate.startsWith(".env") || relCandidate.includes("/.env")))
+      ) {
+        return ask(
+          `\u26a0\ufe0f Code Freeze Guard: reading .env* secret files is prohibited (${input.targetFile}).`
+        );
+      }
+      return { decision: "allow" };
+    }
+
     // 1. External path checks (must be valid Antigravity artifact)
     if (toRepoRelative(input.targetFile) === null) {
       if (isAntigravityArtifact(input.targetFile)) {
@@ -466,6 +578,29 @@ export function decide(input, options = {}) {
       UNFROZEN_PREFIXES.some((prefix) => relative.startsWith(prefix)) ||
       UNFROZEN_FILES.includes(relative);
     if (unfrozen) {
+      // Layer 2 (BLK-03, BLK-04): Only .md files are allowed inside ALL unfrozen documentation
+      // paths (docs/** and root planning artifacts), preventing creation of executable
+      // docs/notes/x.test.mjs, docs/plans/x.test.mjs, or *.js/*.ts anywhere under docs/**.
+      if (!relative.toLowerCase().endsWith(".md")) {
+        return ask(
+          `\u26a0\ufe0f Code Freeze Guard: only .md files are allowed inside unfrozen documentation paths (${relative}).`
+        );
+      }
+
+      // Single-Step Pre-Approved Plan Guard: block full-file creation/overwrite
+      // (write_to_file / write_file / Write) on docs/plans/ if it pre-populates
+      // Status: Approved in the header or [PLAN_APPROVED] on the last non-blank line.
+      if (
+        (relative === "docs/plans" || relative.startsWith("docs/plans/")) &&
+        (input.toolName === "write_to_file" ||
+          input.toolName === "write_file" ||
+          input.toolName === "Write") &&
+        isSelfForgedPlanWrite(input.newContent)
+      ) {
+        return ask(
+          `\u26a0\ufe0f Plan Self-Forgery Guard (Single-Step Pre-Approved Plan Guard): Không được phép dùng ${input.toolName} để tạo mới hoặc ghi đè file kế hoạch (${relative}) đã gắn sẵn 'Status: Approved' hoặc thẻ '[PLAN_APPROVED]' ở dòng cuối. Kế hoạch mới phải có 'Status: Ready for Review' và chỉ được phê duyệt qua replace_file_content/edit_file bởi Lead Reviewer.`
+        );
+      }
       return { decision: "allow" };
     }
 
@@ -641,7 +776,7 @@ export function extractInput(payload) {
         ? root.tool_name
         : undefined;
 
-  const rawTarget = unwrapJsonString(args.TargetFile ?? args.file_path ?? args.path);
+  const rawTarget = unwrapJsonString(args.TargetFile ?? args.Path ?? args.file_path ?? args.path);
   const targetFile = typeof rawTarget === "string" ? rawTarget : undefined;
 
   const rawCommand = unwrapJsonString(args.CommandLine ?? args.Command ?? args.command);
@@ -650,7 +785,7 @@ export function extractInput(payload) {
   let newContent;
   let oldContent;
 
-  // Handle multi-chunk replace payloads (ReplacementChunks[])
+  // Handle multi-chunk replace payloads (ReplacementChunks[] or edits[])
   if (Array.isArray(args.ReplacementChunks) && args.ReplacementChunks.length > 0) {
     const oldParts = [];
     const newParts = [];
@@ -662,21 +797,44 @@ export function extractInput(payload) {
     }
     if (oldParts.length > 0) oldContent = oldParts.join("\n");
     if (newParts.length > 0) newContent = newParts.join("\n");
+  } else if (Array.isArray(args.edits) && args.edits.length > 0) {
+    const oldParts = [];
+    const newParts = [];
+    for (const edit of args.edits) {
+      if (edit && typeof edit === "object") {
+        if (typeof edit.old_string === "string") oldParts.push(edit.old_string);
+        if (typeof edit.new_string === "string") newParts.push(edit.new_string);
+      }
+    }
+    if (oldParts.length > 0) oldContent = oldParts.join("\n");
+    if (newParts.length > 0) newContent = newParts.join("\n");
   } else {
     const rawNew =
       args.CodeContent ??
+      args.Content ??
       args.ReplacementContent ??
+      args.Replacement ??
       args.content ??
+      args.new_string ??
       args.new_content ??
       args.replacement_content;
     newContent = typeof rawNew === "string" ? rawNew : undefined;
 
-    const rawOld = args.TargetContent ?? args.old_content ?? args.target_content;
+    const rawOld =
+      args.TargetContent ??
+      args.Target ??
+      args.old_string ??
+      args.old_content ??
+      args.target_content;
     oldContent = typeof rawOld === "string" ? rawOld : undefined;
   }
 
-  // Only read disk if write_to_file (full-file write), NOT for replace_file_content or partial edits!
-  if (toolName === "write_to_file" && oldContent === undefined && targetFile) {
+  // Only read disk if write_to_file / write_file / Write (full-file write), NOT for replace_file_content or partial edits!
+  if (
+    (toolName === "write_to_file" || toolName === "write_file" || toolName === "Write") &&
+    oldContent === undefined &&
+    targetFile
+  ) {
     try {
       const absolute = path.resolve(REPO_ROOT, toPosix(targetFile));
       if (fs.existsSync(absolute) && fs.statSync(absolute).isFile()) {
@@ -696,7 +854,44 @@ export function extractInput(payload) {
   };
 }
 
-/** Reads the payload from stdin and writes the decision to stdout. */
+/**
+ * Formats the guard decision for either Google Antigravity hooks (`{ decision, reason }`)
+ * or Claude Code CLI `PreToolUse` hooks (`{ hookSpecificOutput }` or `null` on allow).
+ *
+ * Per Claude Code Hooks & Permissions docs:
+ * 1. Top-level `decision` is invalid for `PreToolUse` schema validation (`MAJ-10`), so when
+ *    `root.hook_event_name === "PreToolUse"` we NEVER include `decision` at the top level.
+ * 2. Returning `permissionDecision: "allow"` from a `PreToolUse` hook skips `--allowedTools` and
+ *    `dontAsk` auto-deny (`BLK-04`), whereas `permissionDecision: "defer"` in `-p` non-interactive
+ *    mode is designed for `claude -p --resume` and risks exiting with code `2` (`MAJ-12`).
+ *    Conversely, exiting `0` with NO stdout output is documented across Claude Code docs as letting
+ *    the tool call proceed through normal permission evaluation (`--allowedTools` +
+ *    `--disallowedTools` + `dontAsk`). Therefore, when `result.decision === "allow"` for
+ *    `PreToolUse`, `formatHookOutput` returns `null` so `main()` writes nothing to stdout and exits `0`.
+ *
+ * @param {GuardDecision} result
+ * @param {unknown} rawPayload
+ * @returns {Record<string, unknown> | null}
+ */
+export function formatHookOutput(result, rawPayload) {
+  const root = /** @type {Record<string, any>} */ (rawPayload ?? {});
+  if (root.hook_event_name === "PreToolUse") {
+    if (result.decision === "allow") {
+      return null;
+    }
+    const permissionDecision = root.permission_mode === "dontAsk" ? "deny" : "ask";
+    return {
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision,
+        ...(result.reason ? { permissionDecisionReason: result.reason } : {}),
+      },
+    };
+  }
+  return result;
+}
+
+/** Reads the payload from stdin and writes the formatted decision to stdout. */
 function main() {
   let raw = "";
   process.stdin.setEncoding("utf8");
@@ -706,8 +901,11 @@ function main() {
   process.stdin.on("end", () => {
     /** @type {GuardDecision} */
     let result;
+    /** @type {unknown} */
+    let parsedPayload;
     try {
-      result = decide(extractInput(JSON.parse(raw)));
+      parsedPayload = JSON.parse(raw);
+      result = decide(extractInput(parsedPayload));
     } catch {
       // Fail CLOSED: an unreadable payload must never silently unfreeze the repo.
       result = {
@@ -716,7 +914,10 @@ function main() {
           "\u26a0\ufe0f Code Freeze Guard: payload could not be parsed \u2014 failing closed.",
       };
     }
-    process.stdout.write(JSON.stringify(result));
+    const output = formatHookOutput(result, parsedPayload);
+    if (output !== null) {
+      process.stdout.write(JSON.stringify(output));
+    }
   });
 }
 

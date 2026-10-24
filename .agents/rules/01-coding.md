@@ -1,6 +1,7 @@
 ---
-trigger: always_on
-description: TypeScript enforcement, project structure, naming conventions, and machine enforcement status.
+trigger: glob
+globs: "*.ts, *.tsx, *.js, *.mjs, **/*.ts, **/*.tsx, **/*.js, **/*.mjs"
+description: Coding standards, TypeScript discipline, error handling, testing, and code organization rules.
 ---
 
 # Coding Standards
@@ -90,7 +91,7 @@ Tests are NOT optional for server-side logic, utilities, and API helpers.
 
 ## File Size & Modularity Guidelines
 
-> Optimized for AI agent comprehension (Claude Opus 4.6 / 5.5, Gemini 4 Argon, Gemini 3.1 Pro).
+> Optimized for AI agent comprehension (Gemini 4 Argon, Claude Opus 5.5, Claude Sonnet 5.5, Gemini 3.8 Flash).
 > Industry consensus (2026): **150–500 lines/file** is the sweet spot.
 > Primary metric: **Single Responsibility Principle**. Line count is a heuristic, not a hard rule.
 

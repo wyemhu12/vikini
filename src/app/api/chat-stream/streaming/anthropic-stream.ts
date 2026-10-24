@@ -27,7 +27,7 @@ export function createAnthropicStream({
   userId,
   contextMessages,
   appendToContext,
-  saveMessage,
+  upsertAssistantMessage,
   setConversationAutoTitle,
   generateFinalTitle,
   thinkingLevel,
@@ -45,7 +45,7 @@ export function createAnthropicStream({
   userId: string;
   contextMessages: { role: string; content: string }[];
   appendToContext: ChatStreamParams["appendToContext"];
-  saveMessage: ChatStreamParams["saveMessage"];
+  upsertAssistantMessage: ChatStreamParams["upsertAssistantMessage"];
   setConversationAutoTitle: ChatStreamParams["setConversationAutoTitle"];
   generateFinalTitle: ChatStreamParams["generateFinalTitle"];
   thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
@@ -81,7 +81,7 @@ export function createAnthropicStream({
     if (trimmed || trimmedReasoning) {
       const balanced = balanceThinkTags(trimmed);
       try {
-        await saveMessage({
+        await upsertAssistantMessage({
           conversationId,
           userId,
           role: "assistant",
@@ -564,7 +564,7 @@ export function createAnthropicStream({
           contextMessages,
           content,
           appendToContext,
-          saveMessage,
+          upsertAssistantMessage,
           setConversationAutoTitle,
           generateFinalTitle,
           sources: uniqueSources.length > 0 ? uniqueSources : undefined,

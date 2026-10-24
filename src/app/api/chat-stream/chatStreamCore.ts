@@ -21,7 +21,7 @@ import { getOrCreateCompositeCache } from "@/lib/core/contextCache";
 import { assertModelAllowedForUser } from "@/lib/core/limits";
 import { error } from "@/lib/utils/apiResponse";
 import { AppError } from "@/lib/utils/errors";
-import { saveMessage, upsertMessage } from "@/lib/features/chat/messages";
+import { saveMessage as insertUserMessage, upsertMessage } from "@/lib/features/chat/messages";
 import { linkFilesToMessage } from "@/lib/features/files/fileService.server";
 import { setConversationAutoTitle } from "@/lib/features/chat/conversations";
 import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
@@ -138,7 +138,13 @@ export async function handleChatStreamCore({
   if (!skipSaveUserMessage) {
     try {
       const userMeta = fileIds && fileIds.length > 0 ? { fileIds } : undefined;
-      const savedUserMsg = await saveMessage(userId, conversationId, "user", content, userMeta);
+      const savedUserMsg = await insertUserMessage(
+        userId,
+        conversationId,
+        "user",
+        content,
+        userMeta
+      );
       if (fileIds && fileIds.length > 0 && savedUserMsg?.id) {
         await linkFilesToMessage(userId, conversationId, fileIds, savedUserMsg.id);
       }
@@ -212,7 +218,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
   );
 
   // Create stream
-  const saveMessageCompat = async ({
+  const upsertAssistantMessage = async ({
     conversationId,
     userId,
     role,
@@ -265,7 +271,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
     content,
     contextMessages: messageContext.contextMessages,
     appendToContext: async () => {},
-    saveMessage: saveMessageCompat,
+    upsertAssistantMessage,
     setConversationAutoTitle: async (userId: string, conversationId: string, title: string) => {
       await setConversationAutoTitle(userId, conversationId, title);
     },

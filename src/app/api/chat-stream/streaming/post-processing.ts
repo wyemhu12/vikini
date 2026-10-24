@@ -133,7 +133,7 @@ async function processPostStream(
     contextMessages: Message[];
     content: string;
     appendToContext: ChatStreamParams["appendToContext"];
-    saveMessage: ChatStreamParams["saveMessage"];
+    upsertAssistantMessage: ChatStreamParams["upsertAssistantMessage"];
     setConversationAutoTitle: ChatStreamParams["setConversationAutoTitle"];
     generateFinalTitle: ChatStreamParams["generateFinalTitle"];
     /** @deprecated Use thoughtSignatures instead */
@@ -170,7 +170,7 @@ async function processPostStream(
     contextMessages,
     content,
     appendToContext,
-    saveMessage,
+    upsertAssistantMessage,
     setConversationAutoTitle,
     generateFinalTitle,
     thoughtSignature,
@@ -193,7 +193,7 @@ async function processPostStream(
   // Case 1: Empty answer but non-empty reasoning (M-1, M-9, m-16)
   if (!trimmed && trimmedReasoning) {
     try {
-      await saveMessage({
+      await upsertAssistantMessage({
         conversationId,
         userId,
         role: "assistant",
@@ -230,7 +230,7 @@ async function processPostStream(
         content: trimmed,
         ...(signatures && signatures.length > 0 ? { thoughtSignatures: signatures } : {}),
       }),
-      saveMessage({
+      upsertAssistantMessage({
         conversationId,
         userId,
         role: "assistant",

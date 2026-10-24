@@ -117,7 +117,45 @@ if ($normalizedRole -eq "planner" -and -not $planExists -and [string]::IsNullOrW
     exit 1
 }
 
-# 5. Nạp prompt template và phân quyền công cụ theo Role
+# 4b. Kiểm tra bảo mật tham số ArtifactFile (nếu có truyền — B1, MIN-05):
+# Bắt buộc phải là đường dẫn tuyệt đối (IsPathRooted), nằm trong ~/.gemini/antigravity/brain/ và có đuôi .md.
+$resolvedArtifactFile = ""
+if (-not [string]::IsNullOrWhiteSpace($ArtifactFile)) {
+    $trimmedArtifact = $ArtifactFile.Trim()
+    if (-not [System.IO.Path]::IsPathRooted($trimmedArtifact)) {
+        Write-Error "[INVALID_ARTIFACT_PATH] ArtifactFile bắt buộc phải là đường dẫn tuyệt đối (IsPathRooted): '$ArtifactFile'."
+        exit 43
+    }
+    $brainRoot = [System.IO.Path]::GetFullPath((Join-Path $env:USERPROFILE ".gemini\antigravity\brain"))
+    if (-not $brainRoot.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $brainRoot += [System.IO.Path]::DirectorySeparatorChar
+    }
+    try {
+        $candidateArtifact = [System.IO.Path]::GetFullPath($trimmedArtifact)
+    } catch {
+        Write-Error "[INVALID_ARTIFACT_PATH] Đường dẫn ArtifactFile không hợp lệ: '$ArtifactFile'."
+        exit 43
+    }
+    if (
+        $trimmedArtifact.Contains("..") -or
+        (-not $candidateArtifact.StartsWith($brainRoot, [System.StringComparison]::OrdinalIgnoreCase)) -or
+        ([System.IO.Path]::GetExtension($candidateArtifact) -inotmatch '^\.md$')
+    ) {
+        Write-Error "[INVALID_ARTIFACT_PATH] ArtifactFile ('$ArtifactFile') bắt buộc phải nằm trong '$brainRoot' và có phần mở rộng '.md'."
+        exit 43
+    }
+    $resolvedArtifactFile = $candidateArtifact
+}
+
+# 5. Nạp prompt template và phân quyền công cụ tối thiểu 4 lớp theo Role:
+# Lớp 3: Đồng bộ danh sách Bash read-only với Nhóm A-D của allowlist.md, bắt buộc có dấu cách trước '*' (BLK-03, MAJ-05)
+$sharedAllowedBash = "Bash(npm run type-check),Bash(npm run lint),Bash(npm run test:run),Bash(npm run test:run *),Bash(npm run verify),Bash(npx tsc --noEmit),Bash(npx tsc --showConfig),Bash(npx eslint --print-config *),Bash(npx vitest run *),Bash(npx vitest list --filesOnly),Bash(node scripts/verify-docs.mjs),Bash(node scripts/verify-docs.mjs *),Bash(npm ls),Bash(npm ls *),Bash(npm view *),Bash(git status),Bash(git status *),Bash(git log *),Bash(git diff *),Bash(git show *),Bash(git blame *)"
+
+# Lớp 4: Chặn đọc secrets .env* (MAJ-08), chặn Edit đệ quy trên mã nguồn/hạ tầng (MAJ-04),
+# chặn gọi đệ quy powershell/pwsh/claude (MIN-06), chặn git difftool & các cờ nạp code/config (BLK-03),
+# chặn cờ ghi file (BLK-02), và chặn git mutating
+$sharedDisallowed = "Read(.env*),Read(**/.env*),Edit(src/**),Edit(.agents/**),Edit(scripts/**),Edit(supabase/**),Edit(tests/**),Bash(powershell *),Bash(pwsh *),Bash(claude *),Bash(git difftool*),Bash(* --config*),Bash(* -c *),Bash(* --root*),Bash(* --dir*),Bash(* --globalSetup*),Bash(* --setupFiles*),Bash(* --extcmd*),Bash(git * --output*),Bash(* --output=*),Bash(* --output *),Bash(* --outputFile*),Bash(* --fix*),Bash(* --write*),Bash(* -u),Bash(* -u *),Bash(* --update*),Bash(* --coverage*),Bash(git add*),Bash(git commit*),Bash(git push*),Bash(git checkout*),Bash(git switch*),Bash(git reset*),Bash(git branch*),Bash(git stash*),Bash(git merge*),Bash(git rebase*)"
+
 if ($normalizedRole -eq "planner") {
     $planMode = if ($planExists) { "REVISION_OR_UPDATE" } else { "CREATE_NEW" }
     Write-Host "[CLAUDE_PLANNER] Bắt đầu lập kế hoạch ($planMode): $relPlanFile"
@@ -131,13 +169,15 @@ if ($normalizedRole -eq "planner") {
     } else {
         $Task
     }
-    $artifactTarget = if ([string]::IsNullOrWhiteSpace($ArtifactFile)) { "(None - write to $relPlanFile only)" } else { $ArtifactFile }
+    $artifactTarget = if ([string]::IsNullOrWhiteSpace($resolvedArtifactFile)) { "(None - write to $relPlanFile only)" } else { $resolvedArtifactFile }
     $rawTemplate = Get-Content -Path $templatePath -Raw -Encoding UTF8
     $prompt = $rawTemplate.Replace("{{PLAN_FILE}}", $relPlanFile)
     $prompt = $prompt.Replace("{{ARTIFACT_FILE}}", $artifactTarget)
     $prompt = $prompt.Replace("{{PLAN_MODE}}", $planMode)
     $prompt = $prompt.Replace("{{TASK_BRIEF}}", $taskBrief)
-    $allowedTools = "Read,Write,Edit,Glob,Grep,LS,WebSearch,WebFetch,Bash(npm:*,git:*,npx:*,node:*)"
+    # Lớp 2: Chỉ cho phép tạo/sửa file .md trong docs/plans/ (BLK-03, BLK-04)
+    $allowedTools = "Read,Glob,Grep,LS,WebSearch,WebFetch,Edit(docs/plans/*.md),$sharedAllowedBash"
+    $disallowedTools = $sharedDisallowed
 } else {
     Write-Host "[CLAUDE_REVIEWER] Bắt đầu thẩm định kế hoạch (Fallback Reviewer): $relPlanFile"
     $templatePath = Join-Path $PSScriptRoot "claude-reviewer-prompt.md"
@@ -146,11 +186,23 @@ if ($normalizedRole -eq "planner") {
         exit 1
     }
     $prompt = (Get-Content -Path $templatePath -Raw -Encoding UTF8).Replace("{{PLAN_FILE}}", $relPlanFile)
-    $allowedTools = "Read,Edit,Glob,Grep,LS,WebSearch,WebFetch,Bash(npm:*,git:*,npx:*,node:*)"
+    # Lớp 2: Reviewer bị thu hồi công cụ Write ở cấp độ tool (bare 'Write' trong --disallowedTools)
+    # và chỉ được phép Edit(docs/plans/*.md) trên file kế hoạch đã tồn tại (BLK-03, BLK-04, MAJ-04)
+    $allowedTools = "Read,Glob,Grep,LS,WebSearch,WebFetch,Edit(docs/plans/*.md),$sharedAllowedBash"
+    $disallowedTools = "Write,$sharedDisallowed"
 }
 
-# 6. Chuẩn bị cờ thực thi
-$cliArgs = @("-p", $prompt, "--allowedTools", $allowedTools, "--dangerously-skip-permissions")
+# Lớp 1: Gắn trực tiếp code-freeze-guard.js làm PreToolUse hook với "onFailure":"block" (BLK-03, BLK-04, MAJ-10, MAJ-12)
+$claudeHookSettings = '{"hooks":{"PreToolUse":[{"matcher":"Write|Edit|MultiEdit|Bash|Read","hooks":[{"type":"command","command":"node .agents/scripts/code-freeze-guard.js","onFailure":"block"}]}]}}'
+
+# 6. Chuẩn bị cờ thực thi với --permission-mode dontAsk và --settings
+$cliArgs = @(
+    "-p", $prompt,
+    "--permission-mode", "dontAsk",
+    "--settings", $claudeHookSettings,
+    "--allowedTools", $allowedTools,
+    "--disallowedTools", $disallowedTools
+)
 if ($Model) {
     $cliArgs += @("--model", $Model)
 }
@@ -178,15 +230,15 @@ if ($isQuotaExceeded) {
     exit 42
 }
 
-# 9. Sync to ArtifactFile when specified
-if (($claudeExitCode -eq 0) -and (-not [string]::IsNullOrWhiteSpace($ArtifactFile)) -and (Test-Path -LiteralPath $relPlanFile)) {
+# 9. Sync to ArtifactFile when specified (sử dụng $resolvedArtifactFile đã chuẩn hóa — MIN-05)
+if (($claudeExitCode -eq 0) -and (-not [string]::IsNullOrWhiteSpace($resolvedArtifactFile)) -and (Test-Path -LiteralPath $relPlanFile)) {
     try {
-        $artifactDir = Split-Path -Parent $ArtifactFile
+        $artifactDir = Split-Path -Parent $resolvedArtifactFile
         if ($artifactDir -and -not (Test-Path -LiteralPath $artifactDir)) {
             New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
         }
-        Copy-Item -LiteralPath $relPlanFile -Destination $ArtifactFile -Force
-        Write-Host "[ARTIFACT_SYNCED] Synced $relPlanFile to $ArtifactFile"
+        Copy-Item -LiteralPath $relPlanFile -Destination $resolvedArtifactFile -Force
+        Write-Host "[ARTIFACT_SYNCED] Synced $relPlanFile to $resolvedArtifactFile"
     } catch {
         Write-Warning "[ARTIFACT_SYNC_WARNING] Failed to sync ArtifactFile: $($_.Exception.Message)"
     }

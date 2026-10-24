@@ -719,7 +719,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
     userId,
     contextMessages,
     appendToContext,
-    saveMessage,
+    upsertAssistantMessage,
     setConversationAutoTitle,
     generateOptimisticTitle,
     generateFinalTitle,
@@ -757,7 +757,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
     if (trimmed || trimmedReasoning) {
       const balanced = balanceThinkTags(trimmed);
       try {
-        await saveMessage({
+        await upsertAssistantMessage({
           conversationId,
           userId,
           role: "assistant",
@@ -870,7 +870,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           contextMessages,
           content,
           appendToContext,
-          saveMessage,
+          upsertAssistantMessage,
           setConversationAutoTitle,
           generateFinalTitle,
           thoughtSignatures: streamResult.thoughtSignatures,

@@ -4,14 +4,14 @@ import type { ChatStreamParams } from "./types";
 
 describe("processPostStream (M-1, M-9, m-16)", () => {
   let appendToContext: ChatStreamParams["appendToContext"];
-  let saveMessage: ChatStreamParams["saveMessage"];
+  let upsertAssistantMessage: ChatStreamParams["upsertAssistantMessage"];
   let setConversationAutoTitle: ChatStreamParams["setConversationAutoTitle"];
   let generateFinalTitle: ChatStreamParams["generateFinalTitle"];
   let controller: ReadableStreamDefaultController<Uint8Array>;
 
   beforeEach(() => {
     appendToContext = vi.fn().mockResolvedValue(undefined);
-    saveMessage = vi.fn().mockResolvedValue({});
+    upsertAssistantMessage = vi.fn().mockResolvedValue({});
     setConversationAutoTitle = vi.fn().mockResolvedValue(undefined);
     generateFinalTitle = vi.fn().mockResolvedValue("New Title");
     controller = {
@@ -35,12 +35,12 @@ describe("processPostStream (M-1, M-9, m-16)", () => {
       ...baseParams,
       full: "Hello world response",
       appendToContext,
-      saveMessage,
+      upsertAssistantMessage,
       setConversationAutoTitle,
       generateFinalTitle,
     });
 
-    expect(saveMessage).toHaveBeenCalledWith(
+    expect(upsertAssistantMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         conversationId: "conv-1",
         userId: "user-1",
@@ -60,12 +60,12 @@ describe("processPostStream (M-1, M-9, m-16)", () => {
       reasoning: "Thought for a while but hit token limit",
       emptyAnswerReason: "length",
       appendToContext,
-      saveMessage,
+      upsertAssistantMessage,
       setConversationAutoTitle,
       generateFinalTitle,
     });
 
-    expect(saveMessage).toHaveBeenCalledWith({
+    expect(upsertAssistantMessage).toHaveBeenCalledWith({
       conversationId: "conv-1",
       userId: "user-1",
       role: "assistant",
@@ -90,12 +90,12 @@ describe("processPostStream (M-1, M-9, m-16)", () => {
       full: "   ",
       reasoning: "   ",
       appendToContext,
-      saveMessage,
+      upsertAssistantMessage,
       setConversationAutoTitle,
       generateFinalTitle,
     });
 
-    expect(saveMessage).not.toHaveBeenCalled();
+    expect(upsertAssistantMessage).not.toHaveBeenCalled();
     expect(appendToContext).not.toHaveBeenCalled();
   });
 });

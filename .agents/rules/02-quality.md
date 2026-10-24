@@ -1,6 +1,6 @@
 ---
 trigger: always_on
-description: Mandatory pre-work, post-change checklist, workflow enforcement, test triage, and quality protocols.
+description: Pre-work skill triggers, verification tiers, test triage, and post-fix protocols.
 ---
 
 # Quality Gates
@@ -9,151 +9,92 @@ description: Mandatory pre-work, post-change checklist, workflow enforcement, te
 
 Before writing any code, identify the task domain and read relevant documentation:
 
-| Domain                                        | Read first                                                             | Workflow to follow                  |
-| --------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------- |
-| Chat / Streaming                              | docs/contracts.md, .agents/skills/streaming-patterns/SKILL.md          |                                     |
-| Database / Schema                             | docs/database-schema.md, .agents/skills/database-migration/SKILL.md    |                                     |
-| Auth / Security                               | docs/security.md                                                       |                                     |
-| UI Components                                 | .agents/rules/03-ui.md                                                 |                                     |
-| UI text / Translations                        | .agents/skills/add-translation/SKILL.md, .agents/rules/04-bilingual.md |                                     |
-| Bug fixing                                    | docs/lessons-learned.md                                                | **.agents/workflows/debug.md**      |
-| API routes                                    | .agents/skills/api-patterns/SKILL.md                                   |                                     |
-| Projects / Knowledge Base                     | docs/features.md (section 2.10), docs/contracts.md                     |                                     |
-| Image Studio / Gallery                        | docs/features.md (sections 2.5, 2.6)                                   |                                     |
-| Voice / Audio                                 | docs/features.md (section 2.7)                                         |                                     |
-| New feature overview                          | docs/features.md, docs/architecture.md                                 |                                     |
-| Adding a new feature                          | .agents/skills/add-feature/SKILL.md                                    |                                     |
-| Architecture question / context recovery      | .agents/skills/vikini-investigate/SKILL.md                             |                                     |
-| Shared module change (lib/core, lib/features) | .agents/skills/vikini-investigate/SKILL.md (/blast-radius)             |                                     |
-| Simplify / dead code cleanup                  | .agents/skills/vikini-simplify/SKILL.md                                |                                     |
-| Feature / Task Planning                       | docs/plans/, .agents/rules/05-plan-review.md                           | **.agents/rules/05-plan-review.md** |
-| Code quality review                           | .agents/rules/01-coding.md                                             | **.agents/workflows/audit.md**      |
-| Refactoring / File split                      | .agents/rules/01-coding.md (§ File Size & Modularity)                  |                                     |
+| Domain                                        | Read first                                                             | Workflow / Skill to follow               |
+| :-------------------------------------------- | :--------------------------------------------------------------------- | :--------------------------------------- |
+| Chat / Streaming                              | docs/contracts.md, .agents/skills/streaming-patterns/SKILL.md          |                                          |
+| Database / Schema                             | docs/database-schema.md, .agents/skills/database-migration/SKILL.md    |                                          |
+| Auth / Security                               | docs/security.md                                                       |                                          |
+| UI Components                                 | .agents/rules/03-ui.md                                                 |                                          |
+| UI text / Translations                        | .agents/skills/add-translation/SKILL.md, .agents/rules/04-bilingual.md |                                          |
+| Bug fixing                                    | docs/lessons-learned.md                                                | **.agents/skills/vikini-debug/SKILL.md** |
+| API routes                                    | .agents/skills/api-patterns/SKILL.md                                   |                                          |
+| Projects / Knowledge Base                     | docs/features.md (section 2.10), docs/contracts.md                     |                                          |
+| Image Studio / Gallery                        | docs/features.md (sections 2.5, 2.6)                                   |                                          |
+| Voice / Audio                                 | docs/features.md (section 2.7)                                         |                                          |
+| New feature overview                          | docs/features.md, docs/architecture.md                                 |                                          |
+| Adding a new feature                          | .agents/skills/add-feature/SKILL.md                                    |                                          |
+| Architecture question / context recovery      | .agents/skills/vikini-investigate/SKILL.md                             |                                          |
+| Shared module change (lib/core, lib/features) | .agents/skills/vikini-investigate/SKILL.md (/blast-radius)             |                                          |
+| Simplify / dead code cleanup                  | .agents/skills/vikini-simplify/SKILL.md                                |                                          |
+| Feature / Task Planning                       | docs/plans/, .agents/rules/05-plan-review.md                           | **.agents/rules/05-plan-review.md**      |
+| Code quality review                           | .agents/rules/01-coding.md                                             | **.agents/skills/vikini-audit/SKILL.md** |
+| Refactoring / File split                      | .agents/rules/01-coding.md (§ File Size & Modularity)                  |                                          |
 
 <important>
-When a workflow or rule is listed in the table above, you MUST read and follow it step-by-step.
-Do NOT skip workflows. They are mandatory procedures, not optional references.
-For any new feature or non-trivial task, strict code freeze applies until token `[PLAN_APPROVED]` is issued by Lead Reviewer (Primary `@reviewer` hoặc Fallback Claude CLI) (see `.agents/rules/05-plan-review.md`).
+When a rule or skill is listed above, you MUST read and follow it step-by-step.
+Strict code freeze applies to new features and non-trivial tasks until `[PLAN_APPROVED]` is issued by Lead Reviewer (`@reviewer` or Claude CLI; see `.agents/rules/05-plan-review.md`).
 </important>
 
 ## Skill Precedence Hierarchy (Vikini-First, Superpowers-Complementary)
 
-- **Tầng 1 — Vikini Internal Governance & Skills (Primary / Mandatory)**: `.agents/rules/`, `.agents/workflows/`, chuỗi Planner (Claude CLI / `@planner`) → Reviewer (`@reviewer` / Claude CLI) → `@qa`, và `.agents/skills/*/SKILL.md` luôn được nạp và áp dụng trước tiên.
-- **Tầng 2 — Superpowers Plugin (Secondary / Complementary)**: Sau khi thỏa mãn Tầng 1, agent mới tự cân nhắc dùng thêm các skill bổ trợ của `superpowers` (`brainstorming`, `test-driven-development`, `systematic-debugging`, `verification-before-completion`). Khi có xung đột, Tầng 1 luôn thắng.
+- **Tầng 1 — Vikini Internal Governance & Skills (Primary / Mandatory)**: `.agents/rules/`, `.agents/skills/*/SKILL.md`, và chuỗi Planner (Claude CLI / `@planner`) → Reviewer (`@reviewer` / Claude CLI) → `@qa` luôn được áp dụng trước tiên.
+- **Tầng 2 — Superpowers Plugin (Secondary / Complementary)**: Chỉ dùng bổ trợ (`brainstorming`, `test-driven-development`, `systematic-debugging`, `verification-before-completion`) sau khi thỏa mãn Tầng 1. Khi xung đột, Tầng 1 luôn thắng.
 
 <important>
-Các skill của `superpowers` (`using-git-worktrees`, `writing-plans`, `executing-plans`, `finishing-a-development-branch`) TUYỆT ĐỐI KHÔNG được ghi đè luật cấm git tự động (`.agents/rules/00-core.md`) hay quy trình duyệt plan (`.agents/rules/05-plan-review.md`). `writing-plans` chỉ được dùng làm kỹ thuật bổ trợ để viết đúng cấu trúc plan của Planner.
+Các skill của `superpowers` (`using-git-worktrees`, `writing-plans`, `executing-plans`, `finishing-a-development-branch`) TUYỆT ĐỐI KHÔNG được ghi đè luật cấm git mutating tự động (`.agents/rules/00-core.md`) hay quy trình duyệt plan (`.agents/rules/05-plan-review.md`).
 </important>
 
 ## Post-Change Checklist (MANDATORY)
 
-Use the appropriate verification tier:
-
 | Tier  | When                    | Command              | Purpose                                          |
-| ----- | ----------------------- | -------------------- | ------------------------------------------------ |
+| :---- | :---------------------- | :------------------- | :----------------------------------------------- |
 | **1** | After each edit         | `npm run type-check` | Instant sanity check — catches type errors early |
 | **2** | After completing a task | `npm run verify`     | Full quality gate (type-check + lint + tests)    |
 | **3** | Before merge/deploy     | CI pipeline          | Independent verification in clean environment    |
 
 <important>
-Tier 1 after every edit. Tier 2 before declaring a task done. Never skip Tier 2.
-If logic changed, add or update tests before running Tier 2.
+Tier 1 after every edit. Tier 2 before declaring a task done (never skip). Add/update co-located tests before Tier 2, then update `docs/CHANGELOG.md` and related docs.
 </important>
-
-After verification, also:
-
-- Update `docs/CHANGELOG.md` with a summary of what changed
-- Update related docs if any interface, API, models or schema changed
 
 ## Windows PowerShell 5.1 Terminal Guidance
 
 <important>
-Khi chạy thủ công chuỗi lệnh kiểm thử trong terminal Windows (PowerShell 5.1):
-- **CẤM** dùng toán tử `&&` giữa các lệnh (PowerShell 5.1 sẽ ném lỗi cú pháp parser).
-- **BẮT BUỘC** dùng dấu chấm phẩy `;` để nối lệnh:
-  `npm run type-check; npm run lint; npm run test:run`
-- Lưu ý: Lệnh `npm run verify` trong `package.json` vẫn sử dụng `&&` an toàn vì npm thực thi scripts thông qua shell `cmd.exe`.
+Trong terminal Windows (PowerShell 5.1), **CẤM** dùng toán tử `&&`; **BẮT BUỘC** dùng dấu `;`: `npm run type-check; npm run lint; npm run test:run`.
 </important>
 
 ## Test Failure Triage Protocol (Giao Thức Xử Lý Lỗi Test)
 
-Khi một test case thất bại trong quá trình verify, agent BẮT BUỘC phân loại nguyên nhân theo 3 loại:
+Khi test thất bại, BẮT BUỘC phân loại theo 3 loại:
 
-- **Loại A (Code Bug)**: Mã nguồn ứng dụng có lỗi logic so với đặc tả.
-  ➔ **SỬA CODE ỨNG DỤNG**. Tuyệt đối không chạm vào test file.
-- **Loại B (Test Harness Issue)**: Cấu hình mock, test harness hoặc import path bị lỗi thời do refactor, nhưng đặc tả nghiệp vụ không đổi.
-  ➔ **ĐƯỢC PHÉP SỬA TEST HARNESS/MOCK**, nhưng KHÔNG được giảm số lượng `expect()` hay nới lỏng matcher.
-- **Loại C (Approved Spec Change)**: Đặc tả nghiệp vụ chính thức thay đổi theo Test Contract trong kế hoạch đã được Lead Reviewer (Primary `@reviewer` hoặc Fallback Claude CLI) cấp thẻ `[PLAN_APPROVED]`.
-  ➔ **ĐƯỢC PHÉP CẬP NHẬT TEST CASES** tương ứng với Test Contract mới.
+- **Loại A (Code Bug)**: Code ứng dụng sai đặc tả ➔ **SỬA CODE ỨNG DỤNG**, cấm chạm vào test file.
+- **Loại B (Test Harness Issue)**: Mock/import lỗi thời do refactor ➔ **ĐƯỢC SỬA HARNESS/MOCK**, cấm giảm `expect()` hay nới lỏng matcher.
+- **Loại C (Approved Spec Change)**: Đặc tả đổi theo Test Contract đã có `[PLAN_APPROVED]` ➔ **ĐƯỢC CẬP NHẬT TEST CASES** theo Test Contract mới.
 
 <important>
-NGHIÊM CẤM HẠ THẤP TIÊU CHUẨN TEST:
-- CẤM xóa `expect()` hoặc comment-out test cases.
-- CẤM nới lỏng matcher (ví dụ: đổi `toEqual` thành `toBeDefined`).
-- CẤM thêm `.skip`, `.only`, `xit`, `fit`, `.skipIf`, `.fails` mà không có căn cứ Loại C.
-- Mọi hành vi làm yếu test sẽ bị Test Integrity Guard ở tầng platform phát hiện và @qa đánh lỗi [BLOCKER].
+NGHIÊM CẤM HẠ THẤP TIÊU CHUẨN TEST: Cấm xóa `expect()`, comment-out test, nới lỏng matcher (`toEqual` → `toBeDefined`), hoặc thêm `.skip`, `.only`, `xit`, `fit`, `.skipIf`, `.fails` mà không có căn cứ Loại C (`[BLOCKER]`).
 </important>
 
 ## Phân Định Ranh Giới: Audit Định Kỳ vs. Nghiệm Thu @qa
 
-- **Quy trình Audit Định Kỳ (`.agents/workflows/audit.md`)**:
-  - Dành cho việc rà soát mã nguồn toàn diện theo chu kỳ (sprint/release) hoặc trước khi merge PR lớn.
-  - Quét dead code, phân tích dependencies, kiểm tra kiến trúc tổng thể.
-- **Tác Tử Nghiệm Thu On-Demand (`@qa`)**:
-  - Tác tử độc lập chỉ kích hoạt khi người dùng (Product Manager) trực tiếp gọi `@qa` trong chat.
-  - Nghiệm thu đối chiếu từng task cụ thể theo 7 bước, thi hành Verification Gate, săn lỗi chuyên sâu và Test Integrity Audit.
-- **Tham Chiếu Tài Sản Kỹ Thuật Sẵn Có**:
-  - Chuẩn SSE Stream: `.agents/skills/streaming-patterns/SKILL.md` (events `token`, `meta`, `thinking`, `done`, `error`).
+- **Audit Định Kỳ (`.agents/skills/vikini-audit/SKILL.md`)**: Rà soát chất lượng code, kiến trúc và dead code theo file/feature.
+- **Tác Tử Nghiệm Thu On-Demand (`@qa`)**: Chỉ kích hoạt khi user gọi `@qa` trong chat để nghiệm thu 7 bước (`[QA_PASSED]` / `[QA_FAILED]`).
+- **Tham Chiếu Kỹ Thuật**:
+  - Chuẩn SSE Stream: `.agents/skills/streaming-patterns/SKILL.md` (`token`, `meta`, `thinking`, `done`, `error`).
   - Chuẩn Database Migrations: `.agents/skills/database-migration/SKILL.md` (Supabase schema, RLS, cascade).
-  - Chuẩn API Route Architecture: `.agents/skills/api-patterns/SKILL.md` (Validate → Execute → Respond, `requireUser()`).
+  - Chuẩn API Route Architecture: `.agents/skills/api-patterns/SKILL.md` (Validate → Execute → Respond, `await auth()` + `UnauthorizedError` hoặc `requireUser()` tại `/api/conversations/**`, `/api/files/**`, `/api/messages/**`, `/api/user-templates/**`).
 
-## Governance-Only Changes (Quy Chuẩn Quản Trị)
+## Governance Character Limits
 
-Khi tạo mới hoặc cập nhật các tài liệu governance (`.agents/rules/`, `.agents/agents/`, `docs/plans/`):
+- File Rules (`.agents/rules/*.md`): BẮT BUỘC `<= 12,000` ký tự (tổng `always_on` `< 18,000` ký tự).
+- File Agents (`.agents/agents/*/agent.md`): BẮT BUỘC `<= 10,000` ký tự.
+- Đường dẫn nội bộ viết dạng relative path từ repo root (`.agents/rules/01-coding.md`, `src/lib/core/...`).
 
-- Bắt buộc có Frontmatter YAML chuẩn xác (`trigger`, `description`, `tools`, `model`...).
-- Tuân thủ chuẩn GitHub Flavored Markdown (GFM).
-- Đường dẫn file nội bộ viết dạng relative path từ repo root (`.agents/rules/01-coding.md`, `src/lib/core/...`).
-- Giới hạn dung lượng ký tự nghiêm ngặt (Character Limit):
-  - File Rules (`.agents/rules/*.md`): BẮT BUỘC `≤ 12,000` ký tự.
-  - File Agents (`.agents/agents/*/agent.md`): BẮT BUỘC `≤ 10,000` ký tự.
+## Debugging & Post-Fix Protocol (MANDATORY — `.agents/skills/vikini-debug/SKILL.md`)
 
-## After Fixing a Bug (MANDATORY Post-Fix Protocol)
+- **Debugging 6 bước (cấm sửa code khi chưa xác nhận root cause)**: (1) Preparation (`docs/lessons-learned.md`), (2) Root Cause, (3) Pattern Analysis, (4) Hypothesis & minimal test, (5) Implementation, (6) **Circuit Breaker**: nếu 3 lần sửa thất bại ➔ DỪNG LẠI và xuất `"ARCHITECTURAL ALERT: 3 fixes failed. Recommendation: Discuss refactoring."`
+- **Post-Fix 5 bước bắt buộc**: (1) `npm run verify`, (2) Ghi `docs/lessons-learned.md` (Symptom, Root Cause, Fix, Prevention Rule), (3) Nếu lặp 3+ lần thì rút trích thành rule trong `.agents/rules/`, (4) Cập nhật `docs/CHANGELOG.md`, (5) Kết thúc bằng: `Lesson recorded in docs/lessons-learned.md: [one-line description]`.
 
-<important>
-After EVERY bug fix, you MUST execute ALL of the following steps in order:
-</important>
+## Bilingual & Minimal Diffs
 
-1. **Verify** -- Run `npm run verify`
-2. **Record the lesson** -- Add entry to `docs/lessons-learned.md`:
-   - Symptom: What went wrong
-   - Root Cause: Why it happened
-   - Fix: What was changed
-   - Prevention Rule: How to avoid this in the future
-3. **Check for pattern promotion** -- If the same category of mistake appears 3+ times in lessons-learned, extract a formal rule into the appropriate `.agents/rules/` file
-4. **Update CHANGELOG** -- Add the fix to `docs/CHANGELOG.md`
-5. **Confirm** -- End with: `Lesson recorded in docs/lessons-learned.md: [one-line description]`
-
-## Debugging Protocol (MANDATORY for complex/recurring bugs)
-
-<important>
-For any bug that is not trivially obvious, you MUST follow the debug workflow in `.agents/workflows/debug.md`.
-Do NOT propose fixes without a confirmed root cause.
-</important>
-
-1. **Preparation** -- Read `docs/lessons-learned.md` to check if the pattern was seen before
-2. **Root Cause** -- Gather evidence first. No code changes until root cause is identified
-3. **Pattern Analysis** -- Find a working example of the same pattern in the codebase
-4. **Hypothesis** -- Formulate "X is broken because Y" and verify with a minimal test
-5. **Implementation** -- Only fix after hypothesis is proven. Then run post-fix protocol above
-6. **Circuit Breaker** -- If 3 fix attempts fail: STOP. Output: "ARCHITECTURAL ALERT: 3 fixes failed. Recommendation: Discuss refactoring."
-
-## Bilingual Enforcement
-
-See `.agents/rules/04-bilingual.md` for full requirements. In short: every new UI-facing text MUST use the translation system.
-
-## Minimal Diffs Policy
-
-- Change only what is necessary. No formatting noise.
-- Follow the coding style of the file being edited.
-- Do not reformat code where logic was not modified.
+- **Bilingual**: Mọi văn bản UI mới BẮT BUỘC dùng hệ thống dịch thuật (`.agents/rules/04-bilingual.md`, `.agents/skills/add-translation/SKILL.md`).
+- **Minimal Diffs**: Chỉ sửa đúng phạm vi cần thiết, không format lại vùng code không liên quan.

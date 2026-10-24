@@ -18,7 +18,7 @@ Evidence hợp lệ CHỈ gồm 4 loại (ghi rõ loại trong ma trận):
 Với MỌI hành vi thư viện mà plan dựa vào để đảm bảo tính đúng (ví dụ: Supabase client transaction/RPC, NextAuth `auth()` session validation, Upstash Redis rate limit pipeline, `@google/genai` model streaming, SSE chat response format):
 
 - `view_file` trực tiếp vào `node_modules/<lib>` hoặc `src/lib/core/` và trích dẫn `file:line`.
-- Khi hành vi kiểm được bằng code thuần không cần DB/network → chạy probe `node -e`/`npx tsx -e` (xem ALLOWLIST) để xác nhận.
+- Khi hành vi kiểm chứng được qua unit test co-located sẵn có → chạy `npx vitest run <path>` (xem `.agents/agents/reviewer/allowlist.md`) để xác nhận.
 - Mô tả của `@planner` về hành vi thư viện LUÔN bị coi là **chưa xác minh** cho đến khi có `[SRC]` hoặc `[CMD]`.
 
 ### 4.5.2 Adversarial Timeline (Bắt buộc cho S3, S5 và mọi cơ chế đồng thời / bất đồng bộ)
@@ -44,11 +44,10 @@ BẮT BUỘC phủ tối thiểu 4 trục đối kháng (trục không áp dụn
 
 Khi plan khẳng định một chính sách "được enforce" bằng công cụ (ESLint rule, `tsconfig` flag, hook, script CI, Zod schema, Supabase RLS policy):
 
-- **Chứng minh wiring**: rule/flag thực sự có hiệu lực trên path mục tiêu (ví dụ: `npx eslint --print-config <path>` cho thấy rule ở mức `error`; `npx tsc --showConfig` cho compiler flag).
-- **Chứng minh bắt lỗi (Negative Probe)**: đưa một đoạn code VI PHẠM vào qua stdin, xác nhận exit code ≠ 0 kèm đúng rule id. Ví dụ:
-  `"const x: any = 1; export default x;" | npx eslint --stdin --stdin-filename src/__probe__.ts`
+- **Chứng minh Wiring & Baseline**: rule/flag thực sự có hiệu lực trên path mục tiêu (ví dụ: `npx eslint --print-config <path>` cho thấy rule ở mức `error`; `npx tsc --showConfig` cho compiler flag; `npx tsc --noEmit` hoặc `node scripts/verify-docs.mjs` xác nhận baseline).
+- **Chứng minh bắt lỗi (Negative Probe)**: thực thi các test case âm tính co-located qua `npx vitest run <path>` hoặc kiểm tra bước Negative Probe tường minh trong mục Verification Plan / Test Contract của kế hoạch (xác nhận input vi phạm trả về lỗi/chặn đúng thiết kế).
 - "Chạy sạch trên codebase hiện tại" CHỈ chứng minh trạng thái hiện tại sạch, KHÔNG chứng minh rule hoạt động → tự nó KHÔNG đủ cho PASS.
-- Nếu rule chưa tồn tại trong config mà plan chỉ _dự định_ thêm → plan phải có bước Verification chứa chính Negative Probe đó; thiếu → `[MAJOR]`.
+- Nếu rule/guard chưa tồn tại trong config mà plan chỉ _dự định_ thêm → plan phải có bước Verification chứa chính Negative Probe đó; thiếu → `[MAJOR]`.
 
 ### 4.5.4 Risk Table Audit (Bắt buộc)
 

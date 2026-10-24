@@ -109,16 +109,17 @@ const legacyPatterns = [
   { name: "docs/model-routing.md", regex: /docs\/model-routing\.md/ },
   { name: "docs/superpowers/", regex: /docs\/superpowers\// },
   { name: ".agent/rules/ (typo)", regex: /\.agent\/rules\// },
+  { name: ".agents/workflows/ (deprecated)", regex: /\.agents\/workflows\// },
 ];
 
 let legacyMatches = [];
 for (const file of allMdFiles) {
   const rel = path.relative(REPO_ROOT, file).replace(/\\/g, "/");
-  // Exclude archive, changelog, and current plan from legacy negative grep
+  // Exclude archive, changelog, and historical plan files from legacy negative grep
   if (
     rel.startsWith("docs/archive/") ||
     rel === "docs/CHANGELOG.md" ||
-    rel.includes("2026-09-29-docs-rules-agents-restructuring")
+    (rel.startsWith("docs/plans/") && rel !== "docs/plans/README.md")
   ) {
     continue;
   }
@@ -153,7 +154,6 @@ const shorthandScope = allMdFiles.filter((f) => {
     rel.startsWith(".agents/rules/") ||
     rel.startsWith(".agents/agents/") ||
     (rel.startsWith(".agents/skills/") && !rel.includes("ux-ui-agent-skills")) ||
-    rel.startsWith(".agents/workflows/") ||
     rel === "docs/architecture.md" ||
     rel === "docs/lessons-learned.md" ||
     rel === "docs/README.md" ||

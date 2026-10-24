@@ -9,7 +9,7 @@ Read this skill when adding a new AI model to the system.
 
 ## Step 1: Update Model Registry
 
-File: `lib/core/modelRegistry.ts`
+File: `src/lib/core/modelRegistry.ts`
 
 Find the `SELECTABLE_MODELS` array and add a new entry:
 
@@ -25,7 +25,7 @@ Find the `SELECTABLE_MODELS` array and add a new entry:
 }
 ```
 
-> **Note**: Always verify the `providerId` and `category` values against `lib/core/modelRegistry.ts` for the latest list.
+> **Note**: Always verify the `providerId` and `category` values against `src/lib/core/modelRegistry.ts` for the latest list.
 
 ### Field Guide
 
@@ -34,7 +34,7 @@ Find the `SELECTABLE_MODELS` array and add a new entry:
 
 ## Step 2: Add Translations
 
-Add a description key for the new model in `lib/utils/config.ts`:
+Add a description key for the new model in `src/lib/utils/translations/vi.ts` and `src/lib/utils/translations/en.ts`:
 
 ```typescript
 // In translations.vi

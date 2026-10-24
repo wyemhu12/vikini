@@ -1,4 +1,6 @@
+import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { describe, it, expect } from "vitest";
 import {
   decide,
@@ -8,8 +10,16 @@ import {
   isTestFile,
   assessTestIntegrity,
   ARTIFACT_ROOT,
+  REPO_ROOT,
   TEST_INFRA_FILES,
   isPlanApproved,
+  hasApprovedPlanHeader,
+  hasCompletedPlanHeader,
+  hasApprovedPlanFooter,
+  evaluatePlanApprovalContent,
+  isSelfForgedPlanWrite,
+  evaluateLatestDateGroupPlans,
+  formatHookOutput,
   countLines,
   isFastTrackEligible,
   FAST_TRACK_MAX_LINES,
@@ -982,5 +992,613 @@ describe("decide — Dual-Planner & Dual-Reviewer workflow (SW-G1..SW-G8)", () =
       { planApproved: false }
     );
     expect(decision.decision).toBe("allow");
+  });
+});
+
+describe("Governance 2.0 Remake — TC-01..TC-08", () => {
+  describe("TC-01: hasApprovedPlanHeader, hasApprovedPlanFooter, evaluatePlanApprovalContent", () => {
+    it("recognises Approved header and strict [PLAN_APPROVED] footer across LF and CRLF", () => {
+      const validLf = [
+        "# Implementation Plan",
+        "- **Date**: 2026-10-19",
+        "- **Status**: Approved",
+        "",
+        "## Technical Plan",
+        "Details...",
+        "",
+        "[PLAN_APPROVED]",
+        "",
+      ].join("\n");
+      expect(hasApprovedPlanHeader(validLf)).toBe(true);
+      expect(hasApprovedPlanFooter(validLf)).toBe(true);
+      expect(evaluatePlanApprovalContent(validLf)).toBe(true);
+
+      const validCrlfVi = [
+        "# Kế Hoạch Triển Khai",
+        "- **Trạng thái**: approved",
+        "Nội dung...",
+        "[PLAN_APPROVED]",
+        "   ",
+      ].join("\r\n");
+      expect(hasApprovedPlanHeader(validCrlfVi)).toBe(true);
+      expect(hasApprovedPlanFooter(validCrlfVi)).toBe(true);
+      expect(evaluatePlanApprovalContent(validCrlfVi)).toBe(true);
+    });
+  });
+
+  describe("TC-02: evaluateLatestDateGroupPlans & Completed lifecycle (M4, MAJ-06, MAJ-07, MAJ-11, MIN-04)", () => {
+    it("TC-02(a): returns false when header is Completed even if [PLAN_APPROVED] remains at footer", () => {
+      const completedPlan = [
+        "# Plan",
+        "- **Status**: Completed",
+        "Body...",
+        "[PLAN_APPROVED]",
+      ].join("\n");
+      expect(hasCompletedPlanHeader(completedPlan)).toBe(true);
+      expect(hasApprovedPlanHeader(completedPlan)).toBe(false);
+      expect(evaluatePlanApprovalContent(completedPlan)).toBe(false);
+    });
+
+    it("TC-02(b): freezes (returns false) when same-day group has both Approved and Ready for Review plans", () => {
+      const entries = [
+        {
+          filename: "2026-10-19-approved.md",
+          mtimeMs: 2000,
+          content: "# Plan 1\n- **Status**: Approved\n\n[PLAN_APPROVED]\n",
+        },
+        {
+          filename: "2026-10-19-new-draft.md",
+          mtimeMs: 1000,
+          content: "# Plan 2\n- **Status**: Ready for Review\n",
+        },
+      ];
+      expect(evaluateLatestDateGroupPlans(entries, { maxDatePrefix: "2026-10-20" })).toBe(false);
+    });
+
+    it("TC-02(c): prioritises YYYY-MM-DD date prefix over mtimeMs after git clone/checkout", () => {
+      const entries = [
+        {
+          filename: "2026-10-08-old-approved.md",
+          mtimeMs: 999999,
+          content: "# Old Plan\n- **Status**: Approved\n\n[PLAN_APPROVED]\n",
+        },
+        {
+          filename: "2026-10-19-new-pending.md",
+          mtimeMs: 1000,
+          content: "# New Plan\n- **Status**: Ready for Review\n",
+        },
+      ];
+      expect(evaluateLatestDateGroupPlans(entries, { maxDatePrefix: "2026-10-20" })).toBe(false);
+    });
+
+    it("TC-02(d): returns false when all 4 plans in the 2026-10-19 group are Completed (MAJ-06)", () => {
+      const makeCompleted = (name: string, mtimeMs: number) => ({
+        filename: name,
+        mtimeMs,
+        content: `# ${name}\n- **Status**: Completed\n\n[PLAN_APPROVED]\n`,
+      });
+      const entries = [
+        makeCompleted("2026-10-19-pstack-skills-and-fast-track-implementation-plan.md", 100),
+        makeCompleted("2026-10-19-swap-planner-reviewer-workflow-implementation-plan.md", 200),
+        makeCompleted("2026-10-19-vitest-upgrade-and-add-model-skill.md", 300),
+        makeCompleted("2026-10-19-remake-agents-governance-v2-implementation-plan.md", 400),
+      ];
+      expect(evaluateLatestDateGroupPlans(entries, { maxDatePrefix: "2026-10-20" })).toBe(false);
+    });
+
+    it("TC-02(e): filters out spoofed future date prefixes > maxDatePrefix (MIN-04)", () => {
+      const entries = [
+        {
+          filename: "2099-01-01-spoof.md",
+          mtimeMs: 999999,
+          content: "# Spoof\n- **Status**: Approved\n\n[PLAN_APPROVED]\n",
+        },
+        {
+          filename: "2026-10-19-completed.md",
+          mtimeMs: 1000,
+          content: "# Done\n- **Status**: Completed\n\n[PLAN_APPROVED]\n",
+        },
+      ];
+      expect(evaluateLatestDateGroupPlans(entries, { maxDatePrefix: "2026-10-20" })).toBe(false);
+    });
+
+    it("TC-02(g): returns false when 2026-10-19 is Approved (higher mtimeMs) but 2026-10-23 is Ready for Review (MAJ-11)", () => {
+      const entries = [
+        {
+          filename: "2026-10-19-remake-agents-governance-v2-implementation-plan.md",
+          mtimeMs: 500000,
+          content: "# Plan\n- **Status**: Approved\n\n[PLAN_APPROVED]\n",
+        },
+        {
+          filename: "2026-10-23-strata-local-llm-implementation-plan.md",
+          mtimeMs: 100000,
+          content: "# Strata Plan\n- **Status**: Ready for Review\n",
+        },
+      ];
+      expect(evaluateLatestDateGroupPlans(entries, { maxDatePrefix: "2026-10-24" })).toBe(false);
+    });
+
+    it("returns true when 3 plans on 2026-10-19 are Completed and 1 is Approved with no pending plans", () => {
+      const entries = [
+        {
+          filename: "2026-10-19-a.md",
+          mtimeMs: 100,
+          content: "# A\n- **Status**: Completed\n\n[PLAN_APPROVED]\n",
+        },
+        {
+          filename: "2026-10-19-b.md",
+          mtimeMs: 200,
+          content: "# B\n- **Status**: Completed\n\n[PLAN_APPROVED]\n",
+        },
+        {
+          filename: "2026-10-19-c.md",
+          mtimeMs: 300,
+          content: "# C\n- **Status**: Completed\n\n[PLAN_APPROVED]\n",
+        },
+        {
+          filename: "2026-10-19-d.md",
+          mtimeMs: 400,
+          content: "# D\n- **Status**: Approved\n\n[PLAN_APPROVED]\n",
+        },
+      ];
+      expect(evaluateLatestDateGroupPlans(entries, { maxDatePrefix: "2026-10-20" })).toBe(true);
+    });
+  });
+
+  describe("TC-03: Trailing prose rejection on [PLAN_APPROVED]", () => {
+    it("rejects plans where the last line only ends with or mentions [PLAN_APPROVED] in prose", () => {
+      for (const badFooter of [
+        "# Plan\n- **Status**: Approved\nDo đó chưa cấp [PLAN_APPROVED]",
+        "# Plan\n- **Status**: Approved\nKết luận: [PLAN_APPROVED]",
+        "# Plan\n- **Status**: Approved\n`[PLAN_APPROVED]`",
+      ]) {
+        expect(hasApprovedPlanFooter(badFooter)).toBe(false);
+        expect(evaluatePlanApprovalContent(badFooter)).toBe(false);
+      }
+    });
+  });
+
+  describe("TC-04: Single-Step Pre-Approved Plan Guard & .md-Only Guard across docs/** (BLK-03, BLK-04)", () => {
+    it("TC-04(a): blocks write_to_file / write_file / Write on docs/plans/*.md when pre-populated with Approved or [PLAN_APPROVED]", () => {
+      for (const toolName of ["write_to_file", "write_file", "Write"]) {
+        const resHeader = decide(
+          {
+            toolName,
+            targetFile: "docs/plans/2026-10-19-attack.md",
+            newContent: "# Plan\n- **Status**: Approved\n\n## Technical Plan\n",
+          },
+          { planApproved: false }
+        );
+        expect(resHeader.decision).toBe("ask");
+        expect(resHeader.reason).toContain("Plan Self-Forgery Guard");
+
+        const resFooter = decide(
+          {
+            toolName,
+            targetFile: "docs/plans/2026-10-19-attack.md",
+            newContent: "# Plan\n- **Status**: Ready for Review\n\n[PLAN_APPROVED]\n",
+          },
+          { planApproved: false }
+        );
+        expect(resFooter.decision).toBe("ask");
+        expect(resFooter.reason).toContain("Plan Self-Forgery Guard");
+      }
+    });
+
+    it("allows write_to_file / write_file / Write on docs/plans/*.md when Status is Ready for Review and [PLAN_APPROVED] only appears in body text", () => {
+      const validDraft = [
+        "# Implementation Plan",
+        "- **Status**: Ready for Review",
+        "",
+        "## Technical Plan",
+        "Reviewer will append `[PLAN_APPROVED]` at the end after auditing.",
+        "",
+        "## Audit History",
+      ].join("\n");
+      expect(isSelfForgedPlanWrite(validDraft)).toBe(false);
+      expect(
+        decide(
+          {
+            toolName: "write_file",
+            targetFile: "docs/plans/2026-10-19-legit.md",
+            newContent: validDraft,
+          },
+          { planApproved: false }
+        ).decision
+      ).toBe("allow");
+    });
+
+    it("TC-04(b) & TC-04(c): blocks non-.md files across ALL unfrozen documentation paths (docs/plans/* and docs/notes/*)", () => {
+      for (const badDocPath of [
+        "docs/plans/x.test.mjs",
+        "docs/notes/x.test.mjs",
+        "docs/evil.js",
+        "docs/plans/helper.ts",
+      ]) {
+        const res = decide(
+          {
+            toolName: "Write",
+            targetFile: badDocPath,
+            newContent: "export default {};",
+          },
+          { planApproved: false }
+        );
+        expect(res.decision, badDocPath).toBe("ask");
+        expect(res.reason, badDocPath).toContain(
+          "only .md files are allowed inside unfrozen documentation paths"
+        );
+      }
+    });
+  });
+
+  describe("TC-05: Gate 3 Edit/edit_file, extractInput aliases, formatHookOutput & Read .env* Guard (BLK-03, BLK-04, MAJ-08, MAJ-10, MAJ-12)", () => {
+    it("TC-05(a): allows replace_file_content, edit_file, and Edit to approve an existing plan in docs/plans/*.md", () => {
+      for (const toolName of ["replace_file_content", "edit_file", "Edit"]) {
+        const res = decide(
+          {
+            toolName,
+            targetFile: "docs/plans/2026-10-19-x.md",
+            oldContent: "- **Status**: Ready for Review",
+            newContent: "- **Status**: Approved\n\n[PLAN_APPROVED]",
+          },
+          { planApproved: false }
+        );
+        expect(res.decision, toolName).toBe("allow");
+      }
+    });
+
+    it("TC-05(b): extracts Path/Content/Replacement/Target and Claude CLI Edit old_string/new_string", () => {
+      const claudeEdit = extractInput({
+        hook_event_name: "PreToolUse",
+        tool_name: "Edit",
+        tool_input: {
+          file_path: "src/a.ts",
+          old_string: "const a = 1;",
+          new_string: "const a = 2;",
+        },
+      });
+      expect(claudeEdit).toMatchObject({
+        toolName: "Edit",
+        targetFile: "src/a.ts",
+        oldContent: "const a = 1;",
+        newContent: "const a = 2;",
+      });
+
+      const agyEdit = extractInput({
+        toolCall: {
+          name: "edit_file",
+          args: {
+            Path: "src/components/Button.tsx",
+            Target: "oldLine",
+            Replacement: "newLine",
+          },
+        },
+      });
+      expect(agyEdit).toMatchObject({
+        toolName: "edit_file",
+        targetFile: "src/components/Button.tsx",
+        oldContent: "oldLine",
+        newContent: "newLine",
+      });
+    });
+
+    it("TC-05(c) & TC-05(e): formatHookOutput returns null on PreToolUse allow (no stdout, exit 0) and permissionDecision: deny on ask under dontAsk without top-level decision", () => {
+      const allowOut = formatHookOutput(
+        { decision: "allow" },
+        { hook_event_name: "PreToolUse", permission_mode: "dontAsk" }
+      );
+      expect(allowOut).toBeNull();
+
+      const denyOut = formatHookOutput(
+        { decision: "ask", reason: "blocked by guard" },
+        { hook_event_name: "PreToolUse", permission_mode: "dontAsk" }
+      );
+      expect(denyOut).not.toBeNull();
+      expect(denyOut).not.toHaveProperty("decision");
+      expect(denyOut).toEqual({
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "deny",
+          permissionDecisionReason: "blocked by guard",
+        },
+      });
+
+      const antigravityOut = formatHookOutput(
+        { decision: "ask", reason: "blocked" },
+        { toolCall: { name: "write_to_file", args: {} } }
+      );
+      expect(antigravityOut).toEqual({ decision: "ask", reason: "blocked" });
+    });
+
+    it("verifies CLI process exits 0 with empty stdout on PreToolUse allow and valid hookSpecificOutput JSON on PreToolUse deny (Wiring Probe 1)", () => {
+      const guardScript = path.join(REPO_ROOT, ".agents", "scripts", "code-freeze-guard.js");
+
+      const allowProc = spawnSync(process.execPath, [guardScript], {
+        input: JSON.stringify({
+          hook_event_name: "PreToolUse",
+          permission_mode: "dontAsk",
+          tool_name: "Write",
+          tool_input: {
+            file_path: "docs/plans/2026-10-23-test.md",
+            content: "# Plan\n- **Status**: Ready for Review\n",
+          },
+        }),
+        encoding: "utf8",
+      });
+      expect(allowProc.status).toBe(0);
+      expect(allowProc.stdout).toBe("");
+
+      const denyProc = spawnSync(process.execPath, [guardScript], {
+        input: JSON.stringify({
+          hook_event_name: "PreToolUse",
+          permission_mode: "dontAsk",
+          tool_name: "Write",
+          tool_input: {
+            file_path: "docs/notes/x.test.mjs",
+            content: "console.error(1);",
+          },
+        }),
+        encoding: "utf8",
+      });
+      expect(denyProc.status).toBe(0);
+      const parsed = JSON.parse(denyProc.stdout);
+      expect(parsed).not.toHaveProperty("decision");
+      expect(parsed).toMatchObject({
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "deny",
+        },
+      });
+    });
+
+    it("TC-05(d): blocks reading .env* secret files via Read, read_file, or view_file while allowing normal files (MAJ-08)", () => {
+      for (const toolName of ["Read", "read_file", "view_file"]) {
+        for (const secretPath of [
+          ".env",
+          ".env.local",
+          ".env.production",
+          "C:/Users/wyemh/vikini/.env.local",
+        ]) {
+          const res = decide({ toolName, targetFile: secretPath }, { planApproved: true });
+          expect(res.decision, `${toolName}:${secretPath}`).toBe("ask");
+          expect(res.reason).toContain("reading .env* secret files is prohibited");
+        }
+        const safeRead = decide(
+          { toolName, targetFile: "src/lib/core/modelRegistry.ts" },
+          { planApproved: false }
+        );
+        expect(safeRead.decision).toBe("allow");
+      }
+    });
+
+    it("supports edit_file in Fast-Track Mode without plan approval", () => {
+      const editFileDecision = decide(
+        makeFastTrackEdit("src/lib/utils/translations/vi.ts", 5, 5, "edit_file"),
+        { planApproved: false }
+      );
+      expect(editFileDecision.decision).toBe("allow");
+      expect(editFileDecision.reason).toContain("Fast-Track Mode");
+    });
+
+    it("extracts multi-chunk edits[] array from Claude MultiEdit tool payload", () => {
+      const multiEditInput = extractInput({
+        hook_event_name: "PreToolUse",
+        tool_name: "MultiEdit",
+        tool_input: {
+          file_path: "src/components/Card.tsx",
+          edits: [
+            { old_string: "old1", new_string: "new1" },
+            { old_string: "old2", new_string: "new2" },
+          ],
+        },
+      });
+      expect(multiEditInput).toMatchObject({
+        toolName: "MultiEdit",
+        targetFile: "src/components/Card.tsx",
+        oldContent: "old1\nold2",
+        newContent: "new1\nnew2",
+      });
+    });
+
+    it("handles empty or non-dated plan entries safely in evaluateLatestDateGroupPlans", () => {
+      expect(evaluateLatestDateGroupPlans([])).toBe(false);
+      expect(
+        evaluateLatestDateGroupPlans([
+          {
+            filename: "README.md",
+            mtimeMs: 1000,
+            content: "- **Status**: Approved\n[PLAN_APPROVED]",
+          },
+          {
+            filename: "notes.md",
+            mtimeMs: 2000,
+            content: "- **Status**: Approved\n[PLAN_APPROVED]",
+          },
+        ])
+      ).toBe(false);
+    });
+
+    it("returns false for undefined or empty strings in plan header/footer helpers", () => {
+      expect(hasApprovedPlanHeader(undefined)).toBe(false);
+      expect(hasCompletedPlanHeader("")).toBe(false);
+      expect(hasApprovedPlanFooter("   \n  ")).toBe(false);
+      expect(isSelfForgedPlanWrite(undefined)).toBe(false);
+    });
+
+    it("verifies .agents/hooks.json matcher includes all 6 write/edit/command tools", () => {
+      const hooksJson = JSON.parse(
+        fs.readFileSync(path.join(REPO_ROOT, ".agents", "hooks.json"), "utf8")
+      );
+      const matcher = hooksJson?.["code-freeze-guard"]?.PreToolUse?.[0]?.matcher;
+      expect(matcher).toBe(
+        "write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file|run_command"
+      );
+    });
+  });
+
+  describe("TC-06 & TC-07: Command allowlist hardening (claude, run-claude.ps1, git difftool, config flags, verify-docs.mjs)", () => {
+    it("TC-06: allows safe claude probes, hyphenated test filenames (batch-c.test.ts), and valid run-claude.ps1 invocations", () => {
+      for (const cmd of [
+        "claude --version",
+        "claude -v",
+        "claude --help",
+        "claude -p ping",
+        'claude -p "ping"',
+        "npx vitest run src/lib/features/chat/batch-c.test.ts",
+        "npx vitest run src/lib/features/chat/part-u.test.ts",
+        "npx vitest run src/lib/features/chat/item-i.test.ts",
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role reviewer -PlanFile docs/plans/task.md",
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/task.md -ArtifactFile C:/Users/wyemh/.gemini/antigravity/brain/conv/implementation_plan.md",
+      ]) {
+        expect(decide({ command: cmd }).decision, cmd).toBe("allow");
+      }
+    });
+
+    it("TC-06 Negative: blocks git difftool, --config/-c flags, claude bypass flags, and invalid run-claude.ps1 arguments", () => {
+      for (const badCmd of [
+        'git difftool -y -x "node exploit.js" HEAD~1',
+        "npx vitest run --config docs/plans/x.mjs",
+        "npx vitest run -c docs/plans/x.mjs",
+        "npx vitest run --root docs/plans",
+        "npx vitest run --dir docs/plans",
+        "npx eslint --print-config src/a.ts -c docs/plans/x.mjs",
+        "claude -p 'edit src/app/page.tsx' --dangerously-skip-permissions",
+        "claude --permission-mode bypassPermissions -p hi",
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile src/app/page.tsx",
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/task.md -ArtifactFile src/app/page.tsx",
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/task.md -ArtifactFile C:/Users/wyemh/.gemini/antigravity/brain/../evil.md",
+      ]) {
+        expect(decide({ command: badCmd }).decision, badCmd).toBe("ask");
+      }
+    });
+
+    it("TC-07: allows node scripts/verify-docs.mjs with forward or backslashes and valid flags", () => {
+      for (const cmd of [
+        "node scripts/verify-docs.mjs",
+        "node ./scripts/verify-docs.mjs --strict-shorthand",
+        "node scripts\\verify-docs.mjs --strict-shorthand --expected-headings=113",
+        "node .\\scripts\\verify-docs.mjs --expected-headings=113",
+      ]) {
+        expect(decide({ command: cmd }).decision, cmd).toBe("allow");
+      }
+
+      for (const badCmd of [
+        "node scripts/verify-docs.mjs; rm -rf src",
+        "node scripts/other-script.mjs",
+        "node scripts/verify-docs.mjs --unknown-flag",
+      ]) {
+        expect(decide({ command: badCmd }).decision, badCmd).toBe("ask");
+      }
+    });
+  });
+
+  describe("TC-08: Governance character limits, Normative Preservation Matrix & 4-layer run-claude.ps1 verification", () => {
+    it("enforces rule/agent character budgets and < 18,000 chars total for always_on rules", () => {
+      const rulesDir = path.join(REPO_ROOT, ".agents", "rules");
+      const ruleFiles = fs.readdirSync(rulesDir).filter((f) => f.endsWith(".md"));
+      let alwaysOnTotal = 0;
+
+      for (const file of ruleFiles) {
+        const content = fs.readFileSync(path.join(rulesDir, file), "utf8");
+        expect(content.length, `Rule ${file} <= 12,000 chars`).toBeLessThanOrEqual(12000);
+        if (/^trigger:\s*always_on\s*$/m.test(content)) {
+          alwaysOnTotal += content.length;
+        }
+      }
+      expect(alwaysOnTotal).toBeLessThan(18000);
+
+      for (const agent of ["planner", "reviewer", "qa"]) {
+        const agentPath = path.join(REPO_ROOT, ".agents", "agents", agent, "agent.md");
+        const content = fs.readFileSync(agentPath, "utf8");
+        expect(content.length, `${agent}/agent.md <= 10,000 chars`).toBeLessThanOrEqual(10000);
+        expect(content).toMatch(/^model:\s*pro\s*$/m);
+        expect(content).not.toMatch(/^role:/m);
+        if (agent === "reviewer") {
+          expect(content.length).toBeLessThan(7500);
+          expect(content).not.toMatch(/^\s*-\s*write_to_file\s*$/m);
+        }
+      }
+    });
+
+    it("preserves all 15 mandatory items in the Normative Preservation Matrix (M5)", () => {
+      const r00 = fs.readFileSync(path.join(REPO_ROOT, ".agents", "rules", "00-core.md"), "utf8");
+      const r01 = fs.readFileSync(path.join(REPO_ROOT, ".agents", "rules", "01-coding.md"), "utf8");
+      const r02 = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "rules", "02-quality.md"),
+        "utf8"
+      );
+      const r03 = fs.readFileSync(path.join(REPO_ROOT, ".agents", "rules", "03-ui.md"), "utf8");
+      const r04 = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "rules", "04-bilingual.md"),
+        "utf8"
+      );
+      const r05 = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "rules", "05-plan-review.md"),
+        "utf8"
+      );
+
+      // 00-core.md invariants & git split
+      expect(r00).toContain("Core Coding & Testing Invariants");
+      expect(r00).toContain("BANNED Mutating Git Commands");
+      expect(r00).toContain("ALLOWED Read-Only Git Inspection");
+
+      // 01-coding.md & 03-ui.md globs + 04-bilingual.md src/ path
+      expect(r01).toContain(
+        'globs: "*.ts, *.tsx, *.js, *.mjs, **/*.ts, **/*.tsx, **/*.js, **/*.mjs"'
+      );
+      expect(r03).toContain('globs: "*.tsx, *.css, **/*.tsx, **/*.css"');
+      expect(r04).toContain("src/lib/utils/translations/");
+
+      // 8 mandatory items in 02-quality.md
+      expect(r02).toContain(".agents/skills/vikini-debug/SKILL.md");
+      expect(r02).toContain(".agents/skills/vikini-audit/SKILL.md");
+      expect(r02).not.toContain(".agents/workflows/");
+      expect(r02).toContain("Skill Precedence Hierarchy");
+      expect(r02).toContain("npm run type-check; npm run lint; npm run test:run");
+      expect(r02).toContain("Loại A");
+      expect(r02).toContain("Loại B");
+      expect(r02).toContain("Loại C");
+      expect(r02).toContain("12,000");
+      expect(r02).toContain("10,000");
+      expect(r02).toContain("ARCHITECTURAL ALERT: 3 fixes failed");
+
+      // 7 mandatory items in 05-plan-review.md
+      expect(r05).toContain("Scoped Protection");
+      expect(r05).toContain("Fast-Track Mode");
+      expect(r05).toContain("Zero-Self-Execution");
+      expect(r05).toContain("10 vòng lặp");
+      expect(r05).toContain("[BLOCKER]");
+      expect(r05).toContain("[MAJOR]");
+      expect(r05).toContain("[MINOR]");
+      expect(r05).toContain("Status: Completed");
+      expect(r05).toContain("Pre-Flight Gate");
+    });
+
+    it("verifies 4-layer defense in run-claude.ps1 and removal of .plan-approved in code-freeze-guard.js", () => {
+      const guardSource = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "scripts", "code-freeze-guard.js"),
+        "utf8"
+      );
+      expect(guardSource).not.toContain(".plan-approved");
+      expect(guardSource).toContain("export function isPlanApproved()");
+
+      const ps1Source = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "scripts", "run-claude.ps1"),
+        "utf8"
+      );
+      expect(ps1Source).not.toContain("--dangerously-skip-permissions");
+      expect(ps1Source).toContain('"--permission-mode", "dontAsk"');
+      expect(ps1Source).toContain('"--settings", $claudeHookSettings');
+      expect(ps1Source).toContain('"onFailure":"block"');
+      expect(ps1Source).toContain("Edit(docs/plans/*.md)");
+      expect(ps1Source).toContain('$disallowedTools = "Write,$sharedDisallowed"');
+      expect(ps1Source).toContain("Bash(git diff *)");
+      expect(ps1Source).not.toContain("Bash(git diff*)");
+      expect(ps1Source).toContain("Read(.env*),Read(**/.env*)");
+      expect(ps1Source).toContain("Bash(powershell *),Bash(pwsh *),Bash(claude *)");
+      expect(ps1Source).toContain("Bash(git difftool*),Bash(* --config*),Bash(* -c *)");
+      expect(ps1Source).toContain("[System.IO.Path]::IsPathRooted($trimmedArtifact)");
+      expect(ps1Source).toContain("$resolvedArtifactFile");
+    });
   });
 });

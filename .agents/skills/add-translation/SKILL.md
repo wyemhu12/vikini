@@ -9,7 +9,7 @@ Read this skill when adding new user-visible text to any component.
 
 ## Translation Files
 
-Location: `lib/utils/translations/` — separate files for each language:
+Location: `src/lib/utils/translations/` — separate files for each language:
 
 - `vi.ts` — Vietnamese translations
 - `en.ts` — English translations
@@ -22,13 +22,13 @@ Location: `lib/utils/translations/` — separate files for each language:
 2. **Add to BOTH `vi.ts` and `en.ts`** — always add to both simultaneously:
 
 ```typescript
-// In lib/utils/translations/vi.ts
+// In src/lib/utils/translations/vi.ts
 export const vi = {
   // ... existing keys
   newFeatureKey: "Văn bản tiếng Việt",
 };
 
-// In lib/utils/translations/en.ts
+// In src/lib/utils/translations/en.ts
 export const en = {
   // ... existing keys
   newFeatureKey: "English text",

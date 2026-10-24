@@ -53,7 +53,7 @@ function createMockParams(overrides: Partial<ChatStreamParams> = {}): ChatStream
     userId: "user-1",
     contextMessages: [],
     appendToContext: vi.fn(),
-    saveMessage: vi.fn().mockResolvedValue({}),
+    upsertAssistantMessage: vi.fn().mockResolvedValue({}),
     setConversationAutoTitle: vi.fn(),
     generateOptimisticTitle: vi.fn(),
     generateFinalTitle: vi.fn(),
@@ -68,8 +68,8 @@ describe("gemini-stream - Abort handling and safety net", () => {
     vi.clearAllMocks();
   });
 
-  it("calls saveMessage with isPartial: true when aborted during for await loop (Q1, S1)", async () => {
-    const saveMessageMock = vi.fn().mockResolvedValue({});
+  it("calls upsertAssistantMessage with isPartial: true when aborted during for await loop (Q1, S1)", async () => {
+    const upsertAssistantMessageMock = vi.fn().mockResolvedValue({});
     const postProcessing = await import("./post-processing");
 
     const abortController = new AbortController();
@@ -95,7 +95,7 @@ describe("gemini-stream - Abort handling and safety net", () => {
     const params = createMockParams({
       ai: mockAi as unknown as ChatStreamParams["ai"],
       model: "gemini-3-flash-preview",
-      saveMessage: saveMessageMock,
+      upsertAssistantMessage: upsertAssistantMessageMock,
       signal: abortController.signal,
     });
 
@@ -111,9 +111,9 @@ describe("gemini-stream - Abort handling and safety net", () => {
     // Verify processPostStream was NOT called
     expect(postProcessing.processPostStream).not.toHaveBeenCalled();
 
-    // Verify saveMessage WAS called with isPartial: true and the accumulated text
-    expect(saveMessageMock).toHaveBeenCalledTimes(1);
-    expect(saveMessageMock).toHaveBeenCalledWith(
+    // Verify upsertAssistantMessage WAS called with isPartial: true and the accumulated text
+    expect(upsertAssistantMessageMock).toHaveBeenCalledTimes(1);
+    expect(upsertAssistantMessageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         conversationId: "conv-1",
         userId: "user-1",

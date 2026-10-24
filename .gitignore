@@ -47,6 +47,8 @@ pnpm-debug.log*
 !.agents/skills/add-translation/
 !.agents/skills/vikini-investigate/
 !.agents/skills/vikini-simplify/
+!.agents/skills/vikini-debug/
+!.agents/skills/vikini-audit/
 .claude/skill
 .claude/skills
 

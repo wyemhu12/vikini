@@ -2,7 +2,7 @@
 
 > **Purpose**: Log of recurring mistakes that agents make during development.
 > Agents MUST read this file before debugging or fixing bugs.
-> Updated automatically after each bug fix via the `/post-fix` workflow.
+> Updated automatically after each bug fix via `.agents/skills/vikini-debug/SKILL.md` (`/post-fix` protocol).
 
 ## How This File Works
 

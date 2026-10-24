@@ -39,7 +39,7 @@ export function createDeepSeekStream(params: {
   content: string;
   contextMessages: Message[];
   appendToContext: ChatStreamParams["appendToContext"];
-  saveMessage: ChatStreamParams["saveMessage"];
+  upsertAssistantMessage: ChatStreamParams["upsertAssistantMessage"];
   setConversationAutoTitle: ChatStreamParams["setConversationAutoTitle"];
   generateOptimisticTitle: ChatStreamParams["generateOptimisticTitle"];
   generateFinalTitle: ChatStreamParams["generateFinalTitle"];
@@ -65,7 +65,7 @@ export function createDeepSeekStream(params: {
     content,
     contextMessages,
     appendToContext,
-    saveMessage,
+    upsertAssistantMessage,
     setConversationAutoTitle,
     generateOptimisticTitle,
     generateFinalTitle,
@@ -103,7 +103,7 @@ export function createDeepSeekStream(params: {
     if (trimmed || trimmedReasoning) {
       const balanced = balanceThinkTags(trimmed);
       try {
-        await saveMessage({
+        await upsertAssistantMessage({
           conversationId,
           userId,
           role: "assistant",
@@ -404,7 +404,7 @@ export function createDeepSeekStream(params: {
           contextMessages,
           content,
           appendToContext,
-          saveMessage,
+          upsertAssistantMessage,
           setConversationAutoTitle,
           generateFinalTitle,
           model,

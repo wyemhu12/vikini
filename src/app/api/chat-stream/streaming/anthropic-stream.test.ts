@@ -71,7 +71,7 @@ describe("createAnthropicStream (M-1, M-2, m-15)", () => {
     content: "Hello Claude",
     contextMessages: [],
     appendToContext: vi.fn().mockResolvedValue(undefined),
-    saveMessage: vi.fn().mockResolvedValue({}),
+    upsertAssistantMessage: vi.fn().mockResolvedValue({}),
     setConversationAutoTitle: vi.fn().mockResolvedValue(undefined),
     generateFinalTitle: vi.fn().mockResolvedValue(null),
     generateOptimisticTitle: vi.fn().mockResolvedValue(null),

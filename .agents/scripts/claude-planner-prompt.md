@@ -17,7 +17,7 @@ Trước khi viết bất kỳ dòng kế hoạch nào, bạn BẮT BUỘC phả
 2. `.agents/rules/01-coding.md`: Cấm tuyệt đối `any`, cấm `console.log`, bắt buộc co-located tests (`*.test.ts`), giới hạn kích thước file 150–400 dòng.
 3. `.agents/rules/02-quality.md`: Bảng **Pre-Work Protocol (MANDATORY Skill Triggers)**, Test Failure Triage Protocol, và giới hạn ký tự Governance (`.agents/rules/*.md <= 12,000` ký tự; `.agents/agents/*/agent.md <= 10,000` ký tự).
 4. `.agents/rules/05-plan-review.md`: Cấu trúc phân khu kép (`## Technical Plan` & `## Audit History`), quy trình Dual-Planner & Dual-Reviewer.
-5. **Nạp `SKILL.md` theo miền nghiệp vụ**: Nếu task chạm vào API route (`.agents/skills/api-patterns/SKILL.md`), SSE streaming (`.agents/skills/streaming-patterns/SKILL.md`), DB migration (`.agents/skills/database-migration/SKILL.md`), UI translation (`.agents/skills/add-translation/SKILL.md`), tạo tính năng mới (`.agents/skills/add-feature/SKILL.md`), hoặc khảo sát kiến trúc / shared modules (`.agents/skills/vikini-investigate/SKILL.md`), bạn BẮT BUỘC đọc file `SKILL.md` tương ứng và ghi nhận vào bảng **Skills Loaded & Applied**.
+5. **Nạp `SKILL.md` theo miền nghiệp vụ**: Nếu task chạm vào API route (`.agents/skills/api-patterns/SKILL.md`), SSE streaming (`.agents/skills/streaming-patterns/SKILL.md`), DB migration (`.agents/skills/database-migration/SKILL.md`), UI translation (`.agents/skills/add-translation/SKILL.md`), tạo tính năng mới (`.agents/skills/add-feature/SKILL.md`), gỡ lỗi / hậu kiểm (`.agents/skills/vikini-debug/SKILL.md`), kiểm toán chất lượng (`.agents/skills/vikini-audit/SKILL.md`), hoặc khảo sát kiến trúc / shared modules (`.agents/skills/vikini-investigate/SKILL.md`), bạn BẮT BUỘC đọc file `SKILL.md` tương ứng và ghi nhận vào bảng **Skills Loaded & Applied**.
 
 ## 2. Cấu Trúc File Kế Hoạch & 10 Mục Bắt Buộc
 
@@ -61,7 +61,7 @@ Tiếp theo là 2 phân khu cấp hai (`##`):
   4. **Type System Discipline**: TypeScript strict mode, dùng `unknown` narrowing; cấm tuyệt đối `any`.
   5. **Make Operations Idempotent**: Mọi migration SQL, retry handler và state update phải an toàn khi chạy lặp lại.
   6. **Prove It Works**: Mọi thay đổi logic phải đi kèm test co-located, wiring probe và lệnh kiểm chứng cụ thể.
-  7. **Fix Root Causes**: Xử lý tận gốc nguyên nhân theo `.agents/workflows/debug.md`.
+  7. **Fix Root Causes**: Xử lý tận gốc nguyên nhân theo `.agents/skills/vikini-debug/SKILL.md`.
   8. **Minimize Reader Load**: Thiết kế từ phía caller trước; giữ hàm < 50 dòng, file 150–400 dòng.
 - **Tech Stack Bất Biến Của Vikini**:
   - Next.js 16 (App Router), React 19, TypeScript strict mode, Tailwind CSS 4, Framer Motion, Shadcn/UI, Lucide Icons, Supabase (PostgreSQL + Auth), NextAuth v5, Upstash Redis, Google Gemini (`@google/genai`), Anthropic Claude, Groq, OpenRouter, Zustand, SWR.

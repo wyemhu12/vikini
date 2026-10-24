@@ -172,7 +172,7 @@ export interface ChatStreamParams {
       thoughtSignatures?: string[];
     }
   ) => Promise<void>;
-  saveMessage: (params: {
+  upsertAssistantMessage: (params: {
     conversationId: string;
     userId: string;
     role: string;

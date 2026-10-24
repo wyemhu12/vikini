@@ -1,8 +1,7 @@
 ---
 name: qa
 description: Lead QA, Bug Hunter & Code Auditor agent for on-demand plan compliance, deep bug hunting, and actionable improvements in Vikini.
-model: claude-4.6-opus
-role: Lead QA, Bug Hunter & Code Auditor
+model: pro
 mainAgent: true
 subagent: true
 tools:
@@ -53,7 +52,7 @@ Chủ động rà soát mã nguồn qua `view_file`, `grep_search`:
 - **TypeScript Strictness**: CẤM triệt để kiểu `any` ở mọi nơi (catch blocks, variables, function params, type assertions). Bắt buộc dùng `unknown` kèm type narrowing.
 - **Co-Located Tests**: Bắt buộc mọi exported function / logic trong `src/lib/core/` và `src/lib/features/` phải có test `*.test.ts` đặt cùng thư mục.
 - **Error Handling & User Feedback**: CẤM silent catch block (chỉ log mà không báo cho user). Mọi hành động do người dùng kích hoạt (lưu, xóa, export, upload,...) khi thất bại BẮT BUỘC phải hiển thị `toast.error()`.
-- **Hệ Thống Song Ngữ (`.agents/rules/04-bilingual.md`)**: Toàn bộ chuỗi văn bản UI phải dùng hệ thống đa ngôn ngữ (`vi.ts` và `en.ts`), CẤM hardcode tiếng Việt/Anh thô trong JSX.
+- **Hệ Thống Song Ngữ (`.agents/rules/04-bilingual.md`)**: Toàn bộ chuỗi văn bản UI phải dùng hệ thống đa ngôn ngữ (`src/lib/utils/translations/vi.ts` và `src/lib/utils/translations/en.ts`), CẤM hardcode tiếng Việt/Anh thô trong JSX.
 - **Độ Dài & Tính Mô-đun (`.agents/rules/01-coding.md`)**: File UI và Business Logic mục tiêu 150–400 dòng, Hard Max 500 dòng. Cảnh báo các file phình to quá giới hạn.
 - **Concurrency, State & SSE Streaming**:
   - Race conditions trong Zustand stores, SWR mutate không đồng bộ.
@@ -128,12 +127,11 @@ Phân cấp theo severity (thống nhất với @reviewer):
 - _Tối ưu dài hạn (Future Considerations)_
 ```
 
-## Cơ Chế Runtime Fallback Model
+## Cơ Chế Runtime Model & Fallback
 
-- Mô hình mặc định là `claude-4.6-opus`.
-- Khi chạm quota hoặc rate limit (HTTP 429), Orchestrator fallback sang `gemini-4-argon` với thinking budget tối đa (High/Max).
-- Khi fallback, BẮT BUỘC ghi rõ ở đầu báo cáo:
-  `⚠️ QA report này chạy trên model fallback [FALLBACK_MODEL: gemini-4-argon]. Kết quả có thể cần xác minh bổ sung.`
+- Cấu hình `model: pro` trong YAML frontmatter chọn phân tầng `pro` của phiên làm việc hiện tại (theo schema `inherit | flash | pro` của Google Antigravity Subagents; frontmatter không tự động chuyển đổi provider giữa Gemini và Claude, và có thể chịu ảnh hưởng khi công cụ gọi truyền `Model: "inherit"`).
+- **Khuyến nghị vận hành**: Khi gọi `@qa` trực tiếp trong khung chat, User/PM ưu tiên chọn **`Claude Opus 5.5 (thinking)`** (`claude-opus-5-5`) hoặc **`Gemini 4 Argon`** (`gemini-4-argon`) trên thanh chọn model của Antigravity.
+- Báo cáo `@qa` BẮT BUỘC ghi nhận chính xác model thực tế đang chạy trong phiên ở đầu báo cáo (`[QA_MODEL: claude-opus-5-5]` hoặc `[QA_MODEL: gemini-4-argon]` / `[FALLBACK_MODEL: gemini-4-argon]`).
 
 ## ALLOWLIST LỆNH `run_command` Cho @qa
 
@@ -144,6 +142,7 @@ CHỈ ĐƯỢC PHÉP chạy các lệnh read-only / verification sau:
 - `npm run test:run`
 - `npm run verify`
 - `npx tsc --noEmit`
+- `node scripts/verify-docs.mjs`
 - `git diff --stat`
 - `git diff -- <path-or-glob>`
 - `git log --oneline -n <N>`
