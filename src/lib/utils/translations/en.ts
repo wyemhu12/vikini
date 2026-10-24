@@ -1328,4 +1328,37 @@ export const en = {
   novelcrafterExportIncludeBible: "Include Story Bible",
   novelcrafterExportIncludeSummaries: "Include Chapter Summaries",
   novelcrafterExportSuccessToast: "Manuscript exported!",
+  // Local LLM (Strata Engine)
+  modelCategoryLocal: "Local Models",
+  modelDescStrataLocal: "Qwen3.8 125B MoE running locally via Strata (32K context)",
+  localLlmOnline: "Online",
+  localLlmOffline: "Offline – start Strata",
+  localLlmBusy: "Busy",
+  localLlmChecking: "Checking…",
+  localLlmQueued: "Waiting in queue ({position})",
+  localPromptProgress: "Reading context {pct}%",
+  thinkingBudgetHint: "≤ {n} tokens",
+  thinkingLiveStats: "Thinking · ≈{tokens} tokens · {seconds}s",
+  thinkingDoneStats: "Thought · ≈{tokens} tokens · {seconds}s",
+  localSamplingTitle: "Sampling Parameters",
+  localSamplingModeDefault: "Default (Qwen Standard)",
+  localSamplingModeCreative: "Story Writing (Creative)",
+  localSamplingModeCustom: "Custom",
+  localSamplingReset: "Reset to default",
+  localSamplingTempDesc: "Creativity & word variety (0.85 recommended for fiction)",
+  localSamplingTopPDesc: "Nucleus vocabulary pool (0.92 widens literary vocabulary)",
+  localSamplingTopKDesc: "Max candidate tokens per step (25–30 for story writing)",
+  localSamplingMinPDesc: "3-bit quant noise floor (0.03–0.05 blocks stray tokens)",
+  localSamplingPresenceDesc: "Anti-repetition while keeping character names (0.60 for fiction)",
+  localLlmErrorOffline:
+    "Local Strata server is offline. Please start Strata at 127.0.0.1:8080 and try again.",
+  localLlmErrorStarting:
+    "Strata engine is loading the model into GPU/RAM. Please wait a few seconds and try again.",
+  localLlmErrorBusy: "Local model queue is full. Please wait for the current request to finish.",
+  localLlmErrorQueueTimeout: "Timed out waiting in the local model queue (120s). Please try again.",
+  localLlmErrorContextOverflow:
+    "Context exceeds the local model 32K budget (requested {{requested}} / limit {{limit}} tokens). Lower the Thinking level or start a new chat.",
+  localLlmErrorImages:
+    "The local model does not support image attachments on the current turn. Please remove the image or switch models.",
+  localLlmErrorDisabled: "Local LLM (Strata) is disabled in server configuration.",
 } as const;

@@ -4,6 +4,7 @@
 import useSWR from "swr";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Conversation } from "@/lib/features/chat/conversations";
+import type { ThinkingStatsSnapshot, LocalStreamProgress } from "@/lib/features/chat/thinkingStats";
 import { logger } from "@/lib/utils/logger";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { toast } from "@/lib/store/toastStore";
@@ -37,6 +38,8 @@ export interface FrontendMessage {
   meta?: {
     imageUrl?: string;
     prompt?: string;
+    thinkingStats?: ThinkingStatsSnapshot;
+    localProgress?: LocalStreamProgress;
     originalOptions?: {
       aspectRatio?: string;
       style?: string;

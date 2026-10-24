@@ -5,6 +5,7 @@ import { GitFork, Sparkles } from "lucide-react";
 import ChatBubble from "./ChatBubble";
 import type { FrontendConversation, FrontendMessage } from "../hooks/useConversation";
 import type { ThinkingLevel } from "./hooks/useThinkingLevel";
+import type { ThinkingStatsSnapshot, LocalStreamProgress } from "@/lib/features/chat/thinkingStats";
 import { ENABLE_VIRTUALIZED_CHAT } from "@/lib/utils/constants";
 import {
   createSizeCache,
@@ -23,6 +24,8 @@ export interface ChatMessagesAreaProps {
   isStreaming: boolean;
   streamingAssistant: string | null;
   streamingThinking?: string;
+  streamingThinkingStats?: ThinkingStatsSnapshot | null;
+  streamingLocalProgress?: LocalStreamProgress | null;
   streamingSources?: unknown[];
   streamingRagSources?: unknown[];
   streamingUrlContext?: unknown[];
@@ -60,6 +63,8 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
   isStreaming,
   streamingAssistant,
   streamingThinking,
+  streamingThinkingStats,
+  streamingLocalProgress,
   streamingSources,
   streamingRagSources,
   streamingUrlContext,
@@ -276,26 +281,31 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
       )}
 
       {/* Active Streaming Bubble */}
-      {isStreaming && (streamingAssistant !== null || Boolean(streamingThinking)) && (
-        <ChatBubble
-          message={{
-            id: "streaming-assistant",
-            role: "assistant",
-            content: streamingAssistant || "",
-            sources: streamingSources,
-            urlContext: streamingUrlContext,
-            meta: {
-              model: currentConversation?.model || currentModel,
-              ...(streamingThinking ? { reasoning: streamingThinking } : {}),
-              ...(streamingRagSources && streamingRagSources.length > 0
-                ? { ragSources: streamingRagSources }
-                : {}),
-            },
-          }}
-          isLastAssistant={true}
-          isStreaming={true}
-        />
-      )}
+      {isStreaming &&
+        (streamingAssistant !== null ||
+          Boolean(streamingThinking) ||
+          Boolean(streamingLocalProgress)) && (
+          <ChatBubble
+            message={{
+              id: "streaming-assistant",
+              role: "assistant",
+              content: streamingAssistant || "",
+              sources: streamingSources,
+              urlContext: streamingUrlContext,
+              meta: {
+                model: currentConversation?.model || currentModel,
+                ...(streamingThinking ? { reasoning: streamingThinking } : {}),
+                ...(streamingThinkingStats ? { thinkingStats: streamingThinkingStats } : {}),
+                ...(streamingLocalProgress ? { localProgress: streamingLocalProgress } : {}),
+                ...(streamingRagSources && streamingRagSources.length > 0
+                  ? { ragSources: streamingRagSources }
+                  : {}),
+              },
+            }}
+            isLastAssistant={true}
+            isStreaming={true}
+          />
+        )}
 
       {/* Deep Research or other appended cards */}
       {children}

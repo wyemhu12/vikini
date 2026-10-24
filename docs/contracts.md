@@ -1,6 +1,6 @@
 # Data Contracts & Protocols - Vikini
 
-> **Updated**: 2026-05-03  
+> **Updated**: 2026-10-24  
 > **Purpose**: Single source of truth for data shapes, API protocols, and endpoint contracts.  
 > **Note**: This file merges the former `api-reference.md`. All endpoint info lives here now.
 
@@ -257,7 +257,15 @@ interface ChatStreamRequest {
   regenerate?: boolean; // Tạo lại response
   truncateMessageId?: string; // Xóa messages sau ID này
   skipSaveUserMessage?: boolean; // Không lưu tin nhắn user
-  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal"; // Gemini 3 thinking mode
+  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal"; // Gemini 3 / Strata thinking mode
+  strataSampling?: {
+    mode?: "default" | "creative" | "custom";
+    temperature?: number;
+    top_p?: number;
+    top_k?: number;
+    min_p?: number;
+    presence_penalty?: number;
+  };
 }
 ```
 
@@ -504,6 +512,7 @@ Public routes: `/auth/signin`, `/auth/error`, `/auth/signout`, `/api/auth/*`.
 | GET/POST              | `/api/admin/gems`                     | Admin: premade GEM management            |
 | GET/PATCH             | `/api/admin/rank-configs`             | Admin: rank configuration                |
 | GET                   | `/api/files/cleanup`                  | Cron: cleanup expired files (30-day TTL) |
+| GET                   | `/api/local-llm/health`               | Local LLM (Strata) status & queue health |
 
 ### Rate Limiting
 

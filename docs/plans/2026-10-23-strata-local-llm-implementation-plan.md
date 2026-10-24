@@ -1,7 +1,7 @@
 # Kế Hoạch Triển Khai: Tích Hợp Local LLM Qua Bộ Máy Suy Luận Strata (Qwen3.8-Flash-Next 125B MoE)
 
 - **Revision**: 3
-- **Status**: Approved
+- **Status**: Completed
 - **Date**: 2026-10-23
 - **Author**: Subagent @planner ([PLANNER_MODEL: gemini-4-argon])
 
@@ -802,7 +802,7 @@ Kết cục: không lộ model trên UI, không chạm DB, không cần in-memor
   - Hệ quả: nếu `STRATA_ENABLED=false` hoặc hàng đợi đầy (`429 LOCAL_LLM_BUSY`), lệnh Regenerate/Edit của user vẫn xóa mất các tin nhắn phía sau trong DB hoặc ghi thêm bản ghi user message mồ côi vào DB trước khi bị chặn ở dòng 280.
 - **Bằng chứng `[SRC]` (Frontend & i18n wiring)**:
   - Tại `src/app/features/chat/components/hooks/useChatStreamController.ts:722`, khi `fetch("/api/chat-stream")` trả về HTTP `503` hoặc `429`, dòng `if (!res.ok || !res.body) throw new Error("Stream failed");` ném lỗi chung mà không đọc JSON body (`code: "LOCAL_LLM_BUSY"` / `"LOCAL_LLM_DISABLED"`). Khối `catch (e)` ở dòng 740–745 chỉ ghi `logger.error("Stream error:", e)` và gọi `finalizeAssistantMessage("error", convId)` (hàm này return sớm ở dòng 254 khi chưa có nội dung), **không** gọi `setStreamError` và **không** gọi `onStreamError` hay `toast.error()`.
-  - Bước 4.6 nêu _"Lỗi `LOCAL\__`đi qua`onStreamError`, sau đó UI hiện toast bằng key i18n tương ứng"* và Bước 4.1 thêm 7 key `localLlmError\*`vào`vi.ts`/`en.ts`. Tuy nhiên, khảo sát `src/app/features/chat/components/ChatApp.tsx:98-109`cho thấy`ChatApp`không truyền callback`onStreamError`vào`useChatStreamController`, mà chỉ render `<StreamErrorBanner error={chat.streamError} />`ở dòng 261. Trong khi đó,`src/app/features/chat/components/StreamErrorBanner.tsx:38-53` chỉ dịch 3 mã cố định (`STREAM_INTERRUPTED`, ` UPSTREAM_TIMEOUT`, `MODEL_OVERLOADED`) và in nguyên `error.message`cho các mã khác. Cả`ChatApp.tsx`lẫn`StreamErrorBanner.tsx`đều chưa có mặt trong danh sách`[MODIFY]` tại Mục 5.
+  - Bước 4.6 nêu \_"Lỗi `LOCAL\__`đi qua`onStreamError`, sau đó UI hiện toast bằng key i18n tương ứng"\* và Bước 4.1 thêm 7 key `localLlmError\*`vào`vi.ts`/`en.ts`. Tuy nhiên, khảo sát `src/app/features/chat/components/ChatApp.tsx:98-109`cho thấy`ChatApp`không truyền callback`onStreamError`vào`useChatStreamController`, mà chỉ render `<StreamErrorBanner error={chat.streamError} />`ở dòng 261. Trong khi đó,`src/app/features/chat/components/StreamErrorBanner.tsx:38-53` chỉ dịch 3 mã cố định (`STREAM_INTERRUPTED`, ` UPSTREAM_TIMEOUT`, `MODEL_OVERLOADED`) và in nguyên `error.message`cho các mã khác. Cả`ChatApp.tsx`lẫn`StreamErrorBanner.tsx`đều chưa có mặt trong danh sách`[MODIFY]` tại Mục 5.
 - **Yêu cầu sửa**:
   1. Kiểm tra điều kiện chặn sớm (`!isStrataEnabled()` hoặc hàng đợi đã đầy) ngay sau `assertModelAllowedForUser(userId, model)` tại `src/app/api/chat-stream/chatStreamCore.ts:123` **trước khi** gọi `handleMessageTruncation` và `saveMessage` (hoặc thực thi `getStrataAdmission()` kèm `try/finally` bao trọn phần xử lý sau khi giữ chỗ để giải phóng slot nếu bất kỳ bước chuẩn bị nào ném lỗi trước khi tạo `ReadableStream`).
   2. Trong `useChatStreamController.ts:722`, khi `!res.ok`, đọc JSON lỗi từ response (hoặc phát lỗi qua SSE `error` event) để cập nhật `setStreamError({ message, code })` và gọi `toast.error()` / dịch mã lỗi `LOCAL_*` trong `StreamErrorBanner.tsx` (hoặc nơi nhận `onStreamError`), đồng thời liệt kê đầy đủ các file UI cần sửa trong Mục 5.

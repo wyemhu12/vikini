@@ -1,7 +1,7 @@
 # Danh sách Model và Tính năng - Vikini
 
-> **Updated**: 2026-10-14  
-> **Nguồn**: [Google AI - Gemini Models](https://ai.google.dev/gemini-api/docs/models), [What's new in Gemini 4 Argon](https://ai.google.dev/gemini-api/docs/latest-model), [DeepSeek API](https://api-docs.deepseek.com/), [OpenRouter](https://openrouter.ai)
+> **Updated**: 2026-10-24  
+> **Nguồn**: [Google AI - Gemini Models](https://ai.google.dev/gemini-api/docs/models), [What's new in Gemini 4 Argon](https://ai.google.dev/gemini-api/docs/latest-model), [DeepSeek API](https://api-docs.deepseek.com/), [OpenRouter](https://openrouter.ai), [Strata Local Inference Engine](https://github.com/Niko1221/Strata)
 
 > [!NOTE]
 > Để tham khảo hướng dẫn phân bổ model cho AI Coding Agents, xem [Agent Task-to-Model Routing Guide](../.agents/README.md#agent-task-to-model-routing).
@@ -315,6 +315,22 @@ Thinking mode cho phép AI "suy nghĩ sâu" trước khi trả lời, cải thi�
 | **Output token limit** | 65,536 (trần an toàn chat streaming)                        |
 | **Đơn giá API**        | $0.76/M input, $2.42/M output, $0.14/M cache read           |
 | **Thinking UI**        | `off` / `high` (tắt ngầm khi undefined/off; effort high)    |
+
+---
+
+## Local Models (Strata Engine - 32K Context)
+
+| Thuộc tính             | Giá trị                                                                   |
+| ---------------------- | ------------------------------------------------------------------------- |
+| **Tên hiển thị**       | `Orcarouter-qwen3.8-flash-next-uncensored-iq3`                            |
+| **ID Nội bộ**          | `strata-local` (`providerId: "local"`, `category: "local"`)               |
+| **ID Upstream**        | `orcarouter-qwen3.8-flash-next-uncensored-iq3_xxs` (125B MoE, `qwen4exp`) |
+| **Engine**             | Strata Local Inference (`http://127.0.0.1:8080/v1`, loopback-only)        |
+| **Context window**     | 32,768 tokens (32K, `--kv int8 --prefill 512`)                            |
+| **Output token limit** | 16,384 tokens (thinking `high`: 12K reasoning + 4K answer reserve)        |
+| **Thinking UI**        | `off` (mặc định) / `low` (≤4K) / `medium` (≤8K) / `high` (≤12K)           |
+| **Sampling Presets**   | Mặc định Qwen / Viết truyện (`creative`) / Tùy chỉnh (`custom`)           |
+| **Inputs**             | Text + Text-extracted Documents (không hỗ trợ Image/Audio/Video/Web)      |
 
 ---
 

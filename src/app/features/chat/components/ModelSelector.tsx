@@ -1,11 +1,18 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Check, ChevronDown, Cpu, Zap, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Cpu, Zap, Sparkles, Server } from "lucide-react";
 import Image from "next/image";
-import { SELECTABLE_MODELS, PROVIDER_LABELS, SelectableModel } from "@/lib/core/modelRegistry";
+import {
+  SELECTABLE_MODELS,
+  PROVIDER_LABELS,
+  SelectableModel,
+  isStrataLocalModel,
+} from "@/lib/core/modelRegistry";
 import { Card } from "@/components/ui/card";
 import { useLanguage } from "../hooks/useLanguage";
+import { useLocalLlmHealth, type LocalLlmStatus } from "../hooks/useLocalLlmHealth";
+import LocalLlmStatusDot from "./LocalLlmStatusDot";
 
 const PROVIDER_IDS = [
   "gemini",
@@ -16,6 +23,7 @@ const PROVIDER_IDS = [
   "groq",
   "openrouter-free",
   "openrouter-pay",
+  "local",
 ] as const;
 
 const PROVIDER_LOGOS: Record<string, string> = {
@@ -38,6 +46,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   groq: "from-orange-600/20 to-red-500/20 border-orange-500/50",
   "openrouter-free": "from-indigo-500/20 to-purple-500/20 border-indigo-500/50",
   "openrouter-pay": "from-indigo-500/20 to-purple-500/20 border-indigo-500/50",
+  local: "from-teal-500/20 to-emerald-500/20 border-teal-500/50",
 };
 
 // Logos that are black and need to be inverted on dark backgrounds
@@ -78,27 +87,46 @@ export default function ModelSelector({
     [currentModelId]
   );
 
+  const isCurrentLocal = isStrataLocalModel(currentModelId);
+  const { status: localStatus } = useLocalLlmHealth({
+    active: isCurrentLocal || isOpen,
+  });
+  const isLocalVisible =
+    localStatus === "online" || localStatus === "busy" || localStatus === "offline";
+
+  const visibleProviderIds = useMemo(
+    () => PROVIDER_IDS.filter((pid) => (pid === "local" ? isLocalVisible : true)),
+    [isLocalVisible]
+  );
+
   // --- SERVICE VIEW LOGIC ---
   const modelsByCategory = useMemo(() => {
-    const groups: Record<"reasoning" | "low-latency", SelectableModel[]> = {
+    const groups: Record<"reasoning" | "low-latency" | "local", SelectableModel[]> = {
       reasoning: [],
       "low-latency": [],
+      local: [],
     };
 
     SELECTABLE_MODELS.forEach((model) => {
+      if (model.providerId === "local" && !isLocalVisible) {
+        return;
+      }
       if (groups[model.category]) {
         groups[model.category].push(model);
       }
     });
 
     return groups;
-  }, []);
+  }, [isLocalVisible]);
 
   // --- PROVIDERS VIEW LOGIC ---
   const filteredModelsByProvider = useMemo(() => {
     if (activeTab !== "providers") return [];
-    return SELECTABLE_MODELS.filter((m) => m.providerId === activeProviderFilter);
-  }, [activeTab, activeProviderFilter]);
+    return SELECTABLE_MODELS.filter((m) => {
+      if (m.providerId === "local" && !isLocalVisible) return false;
+      return m.providerId === activeProviderFilter;
+    });
+  }, [activeTab, activeProviderFilter, isLocalVisible]);
 
   if (disabled) {
     return (
@@ -117,6 +145,7 @@ export default function ModelSelector({
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 md:hover:bg-(--control-bg) p-1 px-4 py-1.5 transition-colors md:shadow-none shadow-lg group text-(--text-primary)"
       >
+        {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
         <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">
           {currentModel?.name || currentModelId}
         </span>
@@ -165,7 +194,7 @@ export default function ModelSelector({
               <div className="flex flex-col">
                 {/* Horizontal Provider Filter Scroll -> REPLACED WITH GRID */}
                 <div className="grid grid-cols-3 gap-2 p-2 border-b border-(--border)">
-                  {PROVIDER_IDS.map((pid) => {
+                  {visibleProviderIds.map((pid) => {
                     const logoSrc = PROVIDER_LOGOS[pid];
                     const isActive = activeProviderFilter === pid;
                     const needsInvert = NEEDS_INVERSION.has(pid);
@@ -193,6 +222,8 @@ export default function ModelSelector({
                               className={`object-contain drop-shadow-sm transition-colors ${needsInvert ? "invert brightness-200" : ""}`}
                             />
                           </div>
+                        ) : pid === "local" ? (
+                          <Server className="w-8 h-8 shrink-0" />
                         ) : (
                           <Sparkles className="w-8 h-8 shrink-0" />
                         )}
@@ -222,6 +253,7 @@ export default function ModelSelector({
                         model={model}
                         isActive={model.id === currentModelId}
                         isAllowed={isModelAllowed(model.id)}
+                        localStatus={localStatus}
                         onSelect={() => {
                           onSelectModel(model.id);
                           setIsOpen(false);
@@ -249,6 +281,7 @@ export default function ModelSelector({
                         model={model}
                         isActive={model.id === currentModelId}
                         isAllowed={isModelAllowed(model.id)}
+                        localStatus={localStatus}
                         onSelect={() => {
                           onSelectModel(model.id);
                           setIsOpen(false);
@@ -271,6 +304,7 @@ export default function ModelSelector({
                         model={model}
                         isActive={model.id === currentModelId}
                         isAllowed={isModelAllowed(model.id)}
+                        localStatus={localStatus}
                         onSelect={() => {
                           onSelectModel(model.id);
                           setIsOpen(false);
@@ -279,6 +313,31 @@ export default function ModelSelector({
                     ))}
                   </div>
                 </div>
+
+                {/* Local Models Group */}
+                {modelsByCategory.local.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-(--accent) sticky top-0 bg-(--surface-muted) z-10">
+                      <Server className="w-3 h-3" />
+                      {t("modelCategoryLocal") || "Local Models"}
+                    </div>
+                    <div className="space-y-1">
+                      {modelsByCategory.local.map((model) => (
+                        <ModelItem
+                          key={model.id}
+                          model={model}
+                          isActive={model.id === currentModelId}
+                          isAllowed={isModelAllowed(model.id)}
+                          localStatus={localStatus}
+                          onSelect={() => {
+                            onSelectModel(model.id);
+                            setIsOpen(false);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -292,20 +351,29 @@ interface ModelItemProps {
   model: SelectableModel;
   isActive: boolean;
   isAllowed: boolean;
+  localStatus: LocalLlmStatus;
   onSelect: () => void;
 }
 
-function ModelItem({ model, isActive, isAllowed, onSelect }: ModelItemProps) {
+function ModelItem({ model, isActive, isAllowed, localStatus, onSelect }: ModelItemProps) {
   const { t } = useLanguage();
+  const isLocal = isStrataLocalModel(model.id);
+  const isOfflineLocal = isLocal && localStatus === "offline";
+  const isDisabled = !isAllowed || isOfflineLocal;
+
   return (
     <button
-      onClick={() => onSelect()}
+      disabled={isDisabled}
+      onClick={() => {
+        if (!isDisabled) onSelect();
+      }}
       className={`w-full text-left flex items-start gap-3 p-2 rounded-lg transition-colors group ${
         isActive ? "bg-(--control-bg-hover)" : "hover:bg-(--control-bg)"
-      } ${!isAllowed ? "opacity-50 cursor-not-allowed" : ""}`}
+      } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
+          {isLocal && <LocalLlmStatusDot status={localStatus} />}
           <span
             className={`text-sm font-medium ${isActive ? "text-(--text-primary)" : "text-(--text-secondary) group-hover:text-(--text-primary)"}`}
           >

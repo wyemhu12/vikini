@@ -65,6 +65,8 @@ export default function ChatConversationView({
       isStreaming={chat.isStreaming}
       streamingAssistant={chat.streamingAssistant}
       streamingThinking={chat.streamingThinking}
+      streamingThinkingStats={chat.streamingThinkingStats}
+      streamingLocalProgress={chat.streamingLocalProgress}
       streamingSources={chat.streamingSources}
       streamingRagSources={chat.streamingRagSources}
       streamingUrlContext={chat.streamingUrlContext}

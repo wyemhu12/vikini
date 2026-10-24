@@ -15,8 +15,11 @@ import {
   isDeepSeekDirectModel,
   isDeepSeekV4ProModel,
   isDeepSeekV41FlashModel,
+  isStrataLocalModel,
 } from "@/lib/core/modelRegistry";
-import { CLAUDE_API_MODELS, MODEL_IDS } from "@/lib/utils/constants";
+import { CLAUDE_API_MODELS, MODEL_IDS, STRATA_DEFAULTS } from "@/lib/utils/constants";
+import { getStrataAdmission } from "@/lib/core/strataQueue";
+import type { StrataSamplingInput } from "@/lib/features/local-llm/strataThinking";
 import { getOrCreateCompositeCache } from "@/lib/core/contextCache";
 import { assertModelAllowedForUser } from "@/lib/core/limits";
 import { error } from "@/lib/utils/apiResponse";
@@ -37,6 +40,7 @@ import {
   createOpenAICompatibleStream,
   createDeepSeekStream,
   createAnthropicStream,
+  createStrataStream,
   type ChatStreamParams,
 } from "./streaming";
 import { chatStreamRequestSchema, type ChatStreamRequest } from "./validators";
@@ -82,6 +86,7 @@ export async function handleChatStreamCore({
     clientMessageId,
     skipSaveUserMessage,
     thinkingLevel,
+    strataSampling,
     fileIds,
   } = body;
 
@@ -121,6 +126,16 @@ export async function handleChatStreamCore({
   // Enforce rank-based model access; throws ForbiddenError (403) or ServiceUnavailableError (503)
   // directly to route.ts:108 so daily message count is NOT incremented on rejection.
   await assertModelAllowedForUser(userId, model);
+
+  // Pre-DB admission check for Local Strata LLM (M-1):
+  // Reject with 503 LOCAL_LLM_DISABLED or 429 LOCAL_LLM_BUSY before mutating DB or messages.
+  const isLocalModel = isStrataLocalModel(model);
+  if (isLocalModel) {
+    const admission = getStrataAdmission();
+    if (!admission.ok) {
+      return error(admission.message, admission.status, admission.code);
+    }
+  }
 
   const createdConversation = convContext.isNew ? conversation : null;
   const finalShouldGenerateTitle = shouldGenerateTitle && !regenerate;
@@ -166,7 +181,8 @@ export async function handleChatStreamCore({
     conversationId,
     content,
     sysPrompt,
-    modelLimitTokens
+    modelLimitTokens,
+    { skipSlidingTrim: isLocalModel }
   );
 
   // Process files + attachments (provider-aware, with priority for newly attached files)
@@ -176,7 +192,7 @@ export async function handleChatStreamCore({
     messageContext.contents,
     sysPrompt,
     messageContext.currentTokenCount,
-    modelLimitTokens,
+    isLocalModel ? STRATA_DEFAULTS.RAW_CONTEXT_CEILING_TOKENS : modelLimitTokens,
     model,
     fileIds,
     messageContext.contentsMeta,
@@ -289,6 +305,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
     requestedModel,
     finalSysPromptWithCharts,
     contents,
+    contentsMeta: messageContext.contentsMeta,
     tools,
     safetySettings,
     toolConfig,
@@ -296,6 +313,7 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
     modelMeta,
     sharedParams,
     thinkingLevel,
+    strataSampling,
     regenerate: Boolean(regenerate),
   });
 
@@ -423,6 +441,7 @@ interface CreateProviderStreamParams {
   requestedModel: string;
   finalSysPromptWithCharts: string;
   contents: Array<{ role: string; parts: unknown[] }>;
+  contentsMeta?: Array<{ messageId?: string; fileIds?: string[] }>;
   tools: Array<Record<string, unknown>>;
   safetySettings: unknown[] | null;
   toolConfig: Record<string, unknown> | undefined;
@@ -441,6 +460,7 @@ interface CreateProviderStreamParams {
   };
   sharedParams: Record<string, unknown>;
   thinkingLevel?: string;
+  strataSampling?: StrataSamplingInput;
   regenerate: boolean;
 }
 
@@ -452,6 +472,7 @@ async function createProviderStream(
     ai,
     finalSysPromptWithCharts,
     contents,
+    contentsMeta,
     tools,
     safetySettings,
     toolConfig,
@@ -459,8 +480,24 @@ async function createProviderStream(
     modelMeta,
     sharedParams,
     thinkingLevel,
+    strataSampling,
     regenerate,
   } = params;
+
+  if (isStrataLocalModel(model)) {
+    return createStrataStream({
+      ...sharedParams,
+      model,
+      sysPrompt: finalSysPromptWithCharts,
+      contents,
+      contentsMeta,
+      gemMeta,
+      modelMeta: { ...modelMeta, apiModel: model },
+      thinkingLevel: thinkingLevel as "off" | "low" | "medium" | "high" | "minimal" | undefined,
+      strataSampling,
+      regenerate,
+    } as unknown as Parameters<typeof createStrataStream>[0]);
+  }
 
   const isDeepSeekDirect = isDeepSeekDirectModel(model);
   const isDeepSeekV4Pro = isDeepSeekV4ProModel(model);

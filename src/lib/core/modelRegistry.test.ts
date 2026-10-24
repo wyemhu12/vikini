@@ -14,6 +14,10 @@ import {
   getModelTokenLimit,
   getModelMaxOutputTokens,
   GLM_MAX_OUTPUT_TOKENS,
+  isStrataLocalModel,
+  modelSupportsWebSearch,
+  SELECTABLE_MODELS,
+  PROVIDER_LABELS,
 } from "./modelRegistry";
 
 describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
@@ -151,6 +155,25 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
       expect(isSelectableModelId(MODEL_IDS.NOVELCRAFTER)).toBe(true);
       expect(normalizeModelForApi(MODEL_IDS.NOVELCRAFTER)).toBe(MODEL_IDS.NOVELCRAFTER);
       expect(coerceStoredModel(MODEL_IDS.NOVELCRAFTER)).toBe(MODEL_IDS.NOVELCRAFTER);
+    });
+  });
+
+  describe("Strata Local Model Registration (TC-37)", () => {
+    it("identifies strata-local via isStrataLocalModel, disables web search, and registers under Local Models", () => {
+      expect(isStrataLocalModel("strata-local")).toBe(true);
+      expect(isStrataLocalModel("gemini-3-flash-preview")).toBe(false);
+      expect(modelSupportsWebSearch("strata-local")).toBe(false);
+      expect(isSelectableModelId("strata-local")).toBe(true);
+      expect(normalizeModelForApi("strata-local")).toBe("strata-local");
+      expect(PROVIDER_LABELS.local).toBe("Local Models");
+
+      const entry = SELECTABLE_MODELS.find((m) => m.id === "strata-local");
+      expect(entry).toBeDefined();
+      expect(entry?.name).toBe("Orcarouter-qwen3.8-flash-next-uncensored-iq3");
+      expect(entry?.providerId).toBe("local");
+      expect(entry?.category).toBe("local");
+      expect(entry?.tokenLimit).toBe(32768);
+      expect(entry?.maxOutputTokens).toBe(16384);
     });
   });
 });

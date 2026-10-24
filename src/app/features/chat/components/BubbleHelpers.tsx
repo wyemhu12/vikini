@@ -6,12 +6,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Brain } from "lucide-react";
+import {
+  formatThinkingDuration,
+  type ThinkingStatsSnapshot,
+} from "@/lib/features/chat/thinkingStats";
 
 // ============================================
 // Typing Dots (loading animation)
 // ============================================
 
-export const TypingDots = React.memo(function TypingDots() {
+export const TypingDots = React.memo(function TypingDots({ statusText }: { statusText?: string }) {
   const dotVariants = {
     initial: { y: 0, opacity: 0.4 },
     animate: { y: -4, opacity: 1 },
@@ -37,6 +41,9 @@ export const TypingDots = React.memo(function TypingDots() {
           className="w-1.5 h-1.5 bg-(--accent) rounded-full"
         />
       ))}
+      {statusText && (
+        <span className="text-xs text-(--text-secondary) font-medium ml-1.5">{statusText}</span>
+      )}
     </motion.div>
   );
 });
@@ -64,9 +71,11 @@ export const TypingCursor = React.memo(function TypingCursor() {
 export const ThinkingBlock = React.memo(function ThinkingBlock({
   content,
   t,
+  stats,
 }: {
   content: string;
   t: (key: string) => string;
+  stats?: ThinkingStatsSnapshot | null;
 }) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -78,6 +87,12 @@ export const ThinkingBlock = React.memo(function ThinkingBlock({
     }
   }, [content, isCollapsed]);
 
+  const headerLabel = stats
+    ? (stats.live ? t("thinkingLiveStats") : t("thinkingDoneStats"))
+        .replace("{tokens}", stats.tokens.toLocaleString())
+        .replace("{seconds}", formatThinkingDuration(stats.elapsedMs))
+    : t("thinkingProcess") || "Thinking Process";
+
   return (
     <div className="mb-4 rounded-lg border border-(--border) overflow-hidden bg-(--control-bg)">
       <button
@@ -87,7 +102,7 @@ export const ThinkingBlock = React.memo(function ThinkingBlock({
         className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.98]"
       >
         <Brain className="w-3 h-3" />
-        <span>{t("thinkingProcess") || "Thinking Process"}</span>
+        <span>{headerLabel}</span>
         <motion.div
           className="ml-auto"
           animate={{ rotate: isCollapsed ? -90 : 0 }}

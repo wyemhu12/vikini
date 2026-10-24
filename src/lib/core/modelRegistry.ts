@@ -3,7 +3,7 @@
 
 export const DEFAULT_MODEL = "gemini-2.5-flash" as const;
 
-import { MODEL_IDS } from "@/lib/utils/constants";
+import { MODEL_IDS, STRATA_DEFAULTS } from "@/lib/utils/constants";
 
 export const GLM_MAX_OUTPUT_TOKENS = 65536 as const;
 
@@ -16,7 +16,7 @@ export interface SelectableModel {
   tokenLimit: number;
   contextWindow: number;
   maxOutputTokens?: number;
-  category: "reasoning" | "low-latency";
+  category: "reasoning" | "low-latency" | "local";
   supportedThinkingLevels?: readonly GeminiThinkingLevel[];
   providerId:
     | "gemini"
@@ -26,7 +26,8 @@ export interface SelectableModel {
     | "openrouter-pay"
     | "openai"
     | "deepseek"
-    | "groq";
+    | "groq"
+    | "local";
 }
 
 // Models shown in the UI selector (store these IDs in DB)
@@ -283,6 +284,20 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     category: "reasoning",
     providerId: "openrouter-pay",
   },
+
+  // ═══════════════════════════════════════════════════════════
+  // LOCAL MODELS (Strata Local Inference Engine)
+  // ═══════════════════════════════════════════════════════════
+  {
+    id: MODEL_IDS.STRATA_LOCAL,
+    name: STRATA_DEFAULTS.DISPLAY_NAME,
+    descKey: "modelDescStrataLocal",
+    tokenLimit: STRATA_DEFAULTS.CONTEXT_WINDOW,
+    contextWindow: STRATA_DEFAULTS.CONTEXT_WINDOW,
+    maxOutputTokens: 16384,
+    category: "local",
+    providerId: "local",
+  },
 ] as const;
 
 export const PROVIDER_LABELS: Record<string, string> = {
@@ -294,6 +309,7 @@ export const PROVIDER_LABELS: Record<string, string> = {
   groq: "Groq", // Groq Cloud
   "openrouter-free": "OpenRouter (Free)",
   "openrouter-pay": "OpenRouter (Pay)",
+  local: "Local Models",
 };
 
 const SELECTABLE_SET = new Set(SELECTABLE_MODELS.map((m) => m.id));
@@ -342,6 +358,9 @@ const API_ALLOWED = new Set([
 
   // Z.ai / GLM models (via OpenRouter)
   MODEL_IDS.GLM_52,
+
+  // Local LLM (Strata Engine)
+  MODEL_IDS.STRATA_LOCAL,
 ]);
 
 // Back-compat aliases and deprecations.
@@ -543,6 +562,15 @@ export function modelSupportsDeepSeekThinking(modelId: unknown): boolean {
 }
 
 /**
+ * Check if a model is the local Strata LLM model.
+ */
+export function isStrataLocalModel(modelId: unknown): boolean {
+  const raw = String(modelId || "").trim();
+  if (!raw) return false;
+  return normalizeModelForApi(raw) === MODEL_IDS.STRATA_LOCAL;
+}
+
+/**
  * Check if a model supports web search (grounding).
  * DeepSeek V4 (direct API) has no web search tool.
  * DeepSeek V3.2 (OpenRouter) supports web search via `openrouter:web_search` server tool.
@@ -552,6 +580,7 @@ export function modelSupportsWebSearch(modelId: unknown): boolean {
   const id = String(modelId || "")
     .trim()
     .toLowerCase();
+  if (isStrataLocalModel(id)) return false;
   if (isDeepSeekDirectModel(id)) return false;
   if (isDeepSeekV4ProModel(id)) return false;
   return true;

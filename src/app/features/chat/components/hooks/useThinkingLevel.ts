@@ -7,6 +7,7 @@ import {
   clampGeminiThinkingLevel,
   isGLMModel,
   isGemini4Model,
+  isStrataLocalModel,
 } from "@/lib/core/modelRegistry";
 
 /**
@@ -62,14 +63,23 @@ export function isDeepSeekV4Model(model: string): boolean {
 }
 
 /**
+ * Check if a model is the local Strata LLM model (supports off/low/medium/high thinking budget)
+ */
+export function isStrataLocalThinkingModel(model: string): boolean {
+  return isStrataLocalModel(model);
+}
+
+/**
  * Check if a model supports thinking UI toggle
  * - Gemini 2.5+: thinkingBudget
  * - Gemini 3+/4+: thinkingLevel
  * - Claude Sonnet/Opus: extended thinking (budget_tokens)
  * - DeepSeek V4: reasoning_content (high/max)
+ * - Local Strata LLM: reasoning_effort + reasoning_budget_tokens
  */
 export function modelSupportsThinkingUI(model: string): boolean {
   return (
+    isStrataLocalThinkingModel(model) ||
     isGemini25Model(model) ||
     isGemini3Model(model) ||
     isClaudeThinkingModel(model) ||
@@ -95,6 +105,9 @@ interface UseThinkingLevelResult {
  * Get available thinking levels for a model.
  */
 export function getAvailableThinkingLevels(currentModel: string): ThinkingLevel[] {
+  if (isStrataLocalThinkingModel(currentModel)) {
+    return ["off", "low", "medium", "high"];
+  }
   if (isGLMModel(currentModel)) return ["off", "high"];
   if (isClaudeThinkingModel(currentModel)) return ["off", "high"];
   if (isDeepSeekV4Model(currentModel)) return ["off", "low", "high"];
@@ -127,6 +140,14 @@ export function getEffectiveThinkingLevel(
   }
 
   if (requestedLevel === "off" || !modelSupportsThinkingUI(currentModel)) {
+    return "off";
+  }
+
+  if (isStrataLocalThinkingModel(currentModel)) {
+    if (requestedLevel === "minimal") return "low";
+    if (requestedLevel === "low" || requestedLevel === "medium" || requestedLevel === "high") {
+      return requestedLevel;
+    }
     return "off";
   }
 

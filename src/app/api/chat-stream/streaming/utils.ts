@@ -1,11 +1,20 @@
 // /app/api/chat-stream/streaming/utils.ts
 import { logger } from "@/lib/utils/logger";
-import { normalizeModelForApi } from "@/lib/core/modelRegistry";
+import { normalizeModelForApi, isStrataLocalModel } from "@/lib/core/modelRegistry";
+import { getStrataConfig } from "@/lib/core/strataConfig";
 import { TIMEOUT_CONFIG, StreamTimeoutError, type ThinkingLevel } from "./types";
 
 export const streamLogger = logger.withContext("/api/chat-stream");
 
 function getStreamTimeout(model?: string, thinkingLevel?: ThinkingLevel): number {
+  if (model && isStrataLocalModel(model)) {
+    try {
+      return getStrataConfig().requestTimeoutMs;
+    } catch {
+      return TIMEOUT_CONFIG.STRATA_LOCAL;
+    }
+  }
+
   // Environment variable override takes priority
   const envTimeout = process.env.STREAM_TIMEOUT_MS;
   if (envTimeout) {

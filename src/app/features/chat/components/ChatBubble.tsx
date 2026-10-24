@@ -19,6 +19,7 @@ import ImageGenPreview from "./ImageGenPreview";
 import TokenBadge from "./TokenBadge";
 import { FileInMessage } from "./FileInMessage";
 import { parseLegacyNotice } from "@/lib/features/chat/legacyNotice";
+import type { ThinkingStatsSnapshot, LocalStreamProgress } from "@/lib/features/chat/thinkingStats";
 import { EmptyReasoningNotice } from "./EmptyReasoningNotice";
 import type { ThinkingLevel } from "./hooks/useThinkingLevel";
 
@@ -32,6 +33,8 @@ export interface MessageMeta {
   promptTokenCount?: number;
   candidatesTokenCount?: number;
   thoughtsTokenCount?: number;
+  thinkingStats?: ThinkingStatsSnapshot;
+  localProgress?: LocalStreamProgress;
   isPartial?: boolean;
   aborted?: boolean;
   status?: string;
@@ -167,9 +170,38 @@ export const ChatBubble = React.memo(
 
     const deferredDisplayContent = useDeferredValue(displayContent);
     const hasContent = Boolean(displayContent?.trim()) || Boolean(thought?.trim());
+    const localProgress = safeMessage.meta?.localProgress;
+    const typingStatusText = useMemo(() => {
+      if (!localProgress) return undefined;
+      if (localProgress.type === "localQueue") {
+        return (t("localLlmQueued") || "Waiting in queue ({position})").replace(
+          "{position}",
+          String(localProgress.position)
+        );
+      }
+      if (localProgress.type === "localPromptProgress") {
+        const pct = Math.min(
+          100,
+          Math.max(
+            0,
+            Math.round(
+              ((localProgress.cache + localProgress.processed) / Math.max(1, localProgress.total)) *
+                100
+            )
+          )
+        );
+        return (t("localPromptProgress") || "Reading context {pct}%").replace("{pct}", String(pct));
+      }
+      return undefined;
+    }, [localProgress, t]);
+
     const isLoading = isBot && isLastAssistant && (props.regenerating || !hasContent);
     const showTyping =
-      isLoading || (isBot && isLastAssistant && isStreamThinking && !displayContent.trim());
+      isLoading ||
+      (isBot &&
+        isLastAssistant &&
+        (isStreamThinking || Boolean(localProgress)) &&
+        !displayContent.trim());
 
     return (
       <motion.div
@@ -238,11 +270,15 @@ export const ChatBubble = React.memo(
                   aria-busy={isStreaming && isLastAssistant}
                 >
                   {thought && typeof thought === "string" && (
-                    <ThinkingBlock content={thought} t={t} />
+                    <ThinkingBlock
+                      content={thought}
+                      t={t}
+                      stats={safeMessage.meta?.thinkingStats}
+                    />
                   )}
                   {(!hasContent && isLoading) || (showTyping && !displayContent.trim()) ? (
-                    <div role="status" aria-label={t("aiIsTyping")}>
-                      <TypingDots />
+                    <div role="status" aria-label={typingStatusText || t("aiIsTyping")}>
+                      <TypingDots statusText={typingStatusText} />
                     </div>
                   ) : (
                     <>
@@ -406,6 +442,8 @@ export const ChatBubble = React.memo(
   },
   (p, n) =>
     p.message === n.message &&
+    p.message?.meta?.thinkingStats === n.message?.meta?.thinkingStats &&
+    p.message?.meta?.localProgress === n.message?.meta?.localProgress &&
     p.isLastAssistant === n.isLastAssistant &&
     p.regenerating === n.regenerating &&
     p.isStreaming === n.isStreaming &&

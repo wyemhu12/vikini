@@ -5,7 +5,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { logger } from "@/lib/utils/logger";
 import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
 import { mergeMessages } from "@/lib/features/chat/messageMerge";
+import type { LocalStreamProgress } from "@/lib/features/chat/thinkingStats";
 import { toast } from "@/lib/store/toastStore";
+import { useLanguage } from "../../hooks/useLanguage";
+import { resolveStreamErrorMessage } from "../StreamErrorBanner";
+import { readStoredStrataSampling } from "./useStrataSampling";
+import { useThinkingStats } from "./useThinkingStats";
 import { useTypewriterBuffer } from "./useTypewriterBuffer";
 
 interface FrontendMessage {
@@ -69,6 +74,8 @@ export function useChatStreamController({
   onWebSearchMeta,
   onStreamError,
 }: UseChatStreamControllerParams) {
+  const { t } = useLanguage();
+  const thinkingStats = useThinkingStats();
   const [messages, setMessages] = useState<FrontendMessage[]>([]);
   const messagesRef = useRef<FrontendMessage[]>([]);
   const [input, setInput] = useState("");
@@ -78,6 +85,9 @@ export function useChatStreamController({
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingAssistant, setStreamingAssistant] = useState<string | null>(null);
   const [streamingThinking, setStreamingThinking] = useState<string>("");
+  const [streamingLocalProgress, setStreamingLocalProgress] = useState<LocalStreamProgress | null>(
+    null
+  );
   const [streamingSources, setStreamingSources] = useState<unknown[]>([]);
   const [streamingRagSources, setStreamingRagSources] = useState<unknown[]>([]);
   const [streamingUrlContext, setStreamingUrlContext] = useState<unknown[]>([]);
@@ -242,6 +252,8 @@ export function useChatStreamController({
   const finalizeAssistantMessage = useCallback(
     (status: "aborted" | "error" | "complete", convId: string | null) => {
       stopTypewriter(true);
+      thinkingStats.markAnswer();
+      setStreamingLocalProgress(null);
 
       const rawContent = accumulatedAssistantRef.current || streamingAssistantRef.current || "";
       const reasoning = accumulatedThinkingRef.current.trim();
@@ -267,6 +279,7 @@ export function useChatStreamController({
           ? { emptyAnswerReason: emptyAnswerReasonRef.current }
           : {}),
         ...(reasoning ? { reasoning } : {}),
+        ...(thinkingStats.stats ? { thinkingStats: { ...thinkingStats.stats, live: false } } : {}),
         ...(localRagSourcesRef.current.length > 0
           ? { ragSources: localRagSourcesRef.current }
           : {}),
@@ -332,6 +345,8 @@ export function useChatStreamController({
       } else {
         stopTypewriter(false);
         typewriterBufferRef.current = "";
+        thinkingStats.reset();
+        setStreamingLocalProgress(null);
         setIsStreaming(false);
         setRegenerating(false);
         setStreamingAssistant(null);
@@ -473,6 +488,8 @@ export function useChatStreamController({
       setIsStreaming(true);
       setStreamingAssistant("");
       setStreamingThinking("");
+      thinkingStats.reset();
+      setStreamingLocalProgress(null);
       setStreamingSources([]);
       setStreamingRagSources([]);
       setStreamingUrlContext([]);
@@ -592,6 +609,25 @@ export function useChatStreamController({
       ) {
         emptyAnswerReasonRef.current = data.reason;
       }
+      if (data?.type === "localQueue" && typeof data.position === "number") {
+        setStreamingLocalProgress({
+          type: "localQueue",
+          position: data.position,
+        });
+      }
+      if (
+        data?.type === "localPromptProgress" &&
+        typeof data.total === "number" &&
+        typeof data.processed === "number"
+      ) {
+        setStreamingLocalProgress({
+          type: "localPromptProgress",
+          total: data.total,
+          cache: typeof data.cache === "number" ? data.cache : 0,
+          processed: data.processed,
+          time_ms: typeof data.time_ms === "number" ? data.time_ms : 0,
+        });
+      }
     },
     [
       setSelectedConversationId,
@@ -633,6 +669,8 @@ export function useChatStreamController({
               // Start typewriter on first token
               if (isFirstToken) {
                 isFirstToken = false;
+                thinkingStats.markAnswer();
+                setStreamingLocalProgress(null);
                 startTypewriter();
               }
               // Add to buffer instead of direct state update
@@ -645,6 +683,8 @@ export function useChatStreamController({
             if (thinkingChunk) {
               accumulatedThinkingRef.current += thinkingChunk;
               setStreamingThinking((prev) => (prev || "") + thinkingChunk);
+              thinkingStats.markThinking(thinkingChunk);
+              setStreamingLocalProgress(null);
             }
           }
 
@@ -668,6 +708,7 @@ export function useChatStreamController({
             lastStreamErrorRef.current = errorData;
             setStreamError(errorData);
             onStreamError?.(errorData);
+            toast.error(resolveStreamErrorMessage(errorData, t));
           }
         }
       }
@@ -690,8 +731,8 @@ export function useChatStreamController({
       const fileIds = options.fileIds;
 
       try {
-        // Read thinkingLevel from localStorage (set by useThinkingLevel hook)
-        let thinkingLevel: string | undefined;
+        // Read thinkingLevel from localStorage (set by useThinkingLevel hook; default "off" per PD6)
+        let thinkingLevel = "off";
         try {
           const stored = localStorage.getItem("vikini.thinkingLevel");
           if (stored && ["off", "high", "low", "medium", "minimal"].includes(stored)) {
@@ -700,6 +741,8 @@ export function useChatStreamController({
         } catch {
           // Ignore localStorage errors
         }
+
+        const strataSampling = readStoredStrataSampling(thinkingLevel !== "off");
 
         const res = await fetch("/api/chat-stream", {
           method: "POST",
@@ -713,13 +756,46 @@ export function useChatStreamController({
             truncateClientMessageId: options?.truncateClientMessageId,
             regenerate,
             skipSaveUserMessage,
-            ...(thinkingLevel ? { thinkingLevel } : {}),
+            thinkingLevel,
+            ...(strataSampling ? { strataSampling } : {}),
             ...(fileIds && fileIds.length > 0 ? { fileIds } : {}),
           }),
           signal,
         });
 
-        if (!res.ok || !res.body) throw new Error("Stream failed");
+        if (!res.ok || !res.body) {
+          let errMsg = "Stream failed";
+          let errCode: string | undefined;
+          try {
+            const rawJson: unknown = await res.json();
+            if (typeof rawJson === "object" && rawJson !== null) {
+              const errField = (rawJson as { error?: unknown }).error;
+              if (typeof errField === "object" && errField !== null) {
+                const msg = (errField as { message?: unknown }).message;
+                const code = (errField as { code?: unknown }).code;
+                if (typeof msg === "string" && msg) errMsg = msg;
+                if (typeof code === "string" && code) errCode = code;
+              } else if (typeof errField === "string" && errField) {
+                errMsg = errField;
+              }
+            }
+          } catch {
+            // Ignore JSON parse error on non-JSON failure responses
+          }
+
+          const errData: StreamError = {
+            message: errMsg,
+            code: errCode,
+            status: res.status,
+          };
+          hasStreamErrorRef.current = true;
+          lastStreamErrorRef.current = errData;
+          setStreamError(errData);
+          onStreamError?.(errData);
+          toast.error(resolveStreamErrorMessage(errData, t));
+          finalizeAssistantMessage("error", convId);
+          return;
+        }
 
         const reader = res.body.getReader();
         const localSources = { current: [] as unknown[] };
@@ -1012,6 +1088,8 @@ export function useChatStreamController({
     isStreaming,
     streamingAssistant,
     streamingThinking,
+    streamingThinkingStats: thinkingStats.stats,
+    streamingLocalProgress,
     streamingSources,
     streamingRagSources,
     streamingUrlContext,

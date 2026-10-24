@@ -1,5 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { setupToolsAndSafety } from "./contextBuilder";
+import { describe, it, expect, vi } from "vitest";
+import { setupToolsAndSafety, buildMessageContext } from "./contextBuilder";
+import * as messagesModule from "@/lib/features/chat/messages";
+
+vi.mock("@/lib/features/chat/messages", () => ({
+  getRecentMessages: vi.fn(),
+}));
 
 describe("contextBuilder - setupToolsAndSafety", () => {
   it("enables googleSearch + codeExecution + functionDeclarations + includeServerSideToolInvocations for gemini-4-argon when web search is enabled (TC-ARGON-08)", () => {
@@ -46,5 +51,43 @@ describe("contextBuilder - setupToolsAndSafety", () => {
       ])
     );
     expect(toolConfig).toBeUndefined();
+  });
+});
+
+describe("contextBuilder - buildMessageContext skipSlidingTrim (TC-42)", () => {
+  it("preserves messages up to RAW_CONTEXT_CEILING_TOKENS when skipSlidingTrim is true and trims with 4000 safetyBuffer when false", async () => {
+    const dbMessages = Array.from({ length: 10 }, (_, idx) => ({
+      id: `msg-${idx + 1}`,
+      conversationId: "conv-1",
+      role: (idx % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+      content: "word ".repeat(300), // ~430 tokens per message
+      meta: {},
+      createdAt: new Date().toISOString(),
+    }));
+
+    vi.mocked(messagesModule.getRecentMessages).mockResolvedValue(dbMessages);
+
+    // With modelLimitTokens = 6000 and skipSlidingTrim = false:
+    // safetyBuffer = 4000 -> effective budget = 2000 tokens -> trims older messages
+    const trimmed = await buildMessageContext(
+      "conv-cloud",
+      "Latest question",
+      "System prompt",
+      6000,
+      { skipSlidingTrim: false }
+    );
+    expect(trimmed.contextMessages.length).toBeLessThan(10);
+
+    // With skipSlidingTrim = true:
+    // uses RAW_CONTEXT_CEILING_TOKENS (96000) and safetyBuffer = 0 -> preserves all 10 messages
+    const preserved = await buildMessageContext(
+      "conv-local",
+      "Latest question",
+      "System prompt",
+      6000,
+      { skipSlidingTrim: true }
+    );
+    expect(preserved.contextMessages).toHaveLength(10);
+    expect(preserved.contentsMeta?.[0]?.messageId).toBe("msg-1");
   });
 });

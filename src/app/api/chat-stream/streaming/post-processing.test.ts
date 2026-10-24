@@ -98,4 +98,39 @@ describe("processPostStream (M-1, M-9, m-16)", () => {
     expect(upsertAssistantMessage).not.toHaveBeenCalled();
     expect(appendToContext).not.toHaveBeenCalled();
   });
+
+  it("merges extraMeta (thinkingStats) into persisted assistant message meta (TC-40)", async () => {
+    const thinkingStats = {
+      tokens: 128,
+      durationMs: 4200,
+      effort: "low" as const,
+      truncated: false,
+    };
+
+    await processPostStream(controller, {
+      ...baseParams,
+      model: "strata-local",
+      full: "Final local answer",
+      reasoning: "Step by step reasoning",
+      extraMeta: { thinkingStats },
+      appendToContext,
+      upsertAssistantMessage,
+      setConversationAutoTitle,
+      generateFinalTitle,
+    });
+
+    expect(upsertAssistantMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "conv-1",
+        userId: "user-1",
+        role: "assistant",
+        content: "Final local answer",
+        meta: expect.objectContaining({
+          reasoning: "Step by step reasoning",
+          model: "strata-local",
+          thinkingStats,
+        }),
+      })
+    );
+  });
 });

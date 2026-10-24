@@ -5,6 +5,7 @@ export { createChatReadableStream } from "./gemini-stream";
 export { createOpenAICompatibleStream } from "./openai-stream";
 export { createDeepSeekStream } from "./deepseek-stream";
 export { createAnthropicStream } from "./anthropic-stream";
+export { createStrataStream } from "./strata-stream";
 export { sendEvent, safeText, isGemini3Model } from "./utils";
 export {
   mapMessages,

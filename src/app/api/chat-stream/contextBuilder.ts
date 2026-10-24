@@ -2,6 +2,7 @@
 
 import { getRecentMessages, type Message } from "@/lib/features/chat/messages";
 import { pickFirstEnv } from "@/lib/utils/config";
+import { STRATA_DEFAULTS } from "@/lib/utils/constants";
 import { getAllDeclarations } from "@/lib/features/chat/functionRegistry";
 import {
   coreLogger,
@@ -12,11 +13,17 @@ import {
 } from "./chatStreamHelpers";
 import { mapMessages } from "./streaming";
 
+export interface BuildMessageContextOptions {
+  skipSlidingTrim?: boolean;
+  maxRawEstimateTokens?: number;
+}
+
 export async function buildMessageContext(
   conversationId: string,
   content: string,
   sysPrompt: string,
-  modelLimitTokens: number
+  modelLimitTokens: number,
+  options?: BuildMessageContextOptions
 ): Promise<MessageContext> {
   let contextMessages: Array<{ role: string; content: string }> = [];
   let contents: Array<{ role: string; parts: unknown[] }> = [
@@ -40,15 +47,19 @@ export async function buildMessageContext(
 
     const messagesToKeep: Array<{ role: string; content: string }> = [];
     const contentsMetaToKeep: Array<{ messageId?: string; fileIds?: string[] }> = [];
-    // Adaptive safety buffer: smaller for large context models (1M+)
-    const safetyBuffer = modelLimitTokens >= 500000 ? 2000 : 4000;
+    const skipSlidingTrim = options?.skipSlidingTrim === true;
+    const effectiveLimit = skipSlidingTrim
+      ? (options?.maxRawEstimateTokens ?? STRATA_DEFAULTS.RAW_CONTEXT_CEILING_TOKENS)
+      : modelLimitTokens;
+    // Adaptive safety buffer: 0 when anchor fitter handles trimming, smaller for large context models (1M+)
+    const safetyBuffer = skipSlidingTrim ? 0 : modelLimitTokens >= 500000 ? 2000 : 4000;
 
     // Process from newest to oldest
     for (let i = validRows.length - 1; i >= 0; i--) {
       const msg = validRows[i];
       const msgTokens = estimateTokens(msg.content);
 
-      if (currentTokenCount + msgTokens < modelLimitTokens - safetyBuffer) {
+      if (currentTokenCount + msgTokens < effectiveLimit - safetyBuffer) {
         messagesToKeep.unshift({ role: msg.role, content: msg.content });
         contentsMetaToKeep.unshift({
           messageId: msg.id,

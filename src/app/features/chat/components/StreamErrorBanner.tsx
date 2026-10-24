@@ -14,6 +14,60 @@ interface StreamErrorBannerProps {
   onDismiss: () => void;
 }
 
+/**
+ * Resolves a localized, user-facing message for a StreamError, including all `LOCAL_*` codes (`TC-45`).
+ */
+export function resolveStreamErrorMessage(error: StreamError, t: (key: string) => string): string {
+  switch (error.code) {
+    case "LOCAL_LLM_DISABLED":
+      return t("localLlmErrorDisabled") || error.message;
+    case "LOCAL_LLM_OFFLINE":
+      return t("localLlmErrorOffline") || error.message;
+    case "LOCAL_LLM_STARTING":
+      return t("localLlmErrorStarting") || error.message;
+    case "LOCAL_LLM_BUSY":
+      return t("localLlmErrorBusy") || error.message;
+    case "LOCAL_QUEUE_TIMEOUT":
+      return t("localLlmErrorQueueTimeout") || error.message;
+    case "LOCAL_IMAGES_UNSUPPORTED":
+      return t("localLlmErrorImages") || error.message;
+    case "LOCAL_CONTEXT_OVERFLOW": {
+      const template = t("localLlmErrorContextOverflow") || error.message;
+      const limitStr =
+        typeof error.tokenInfo?.limit === "number"
+          ? error.tokenInfo.limit.toLocaleString("en-US")
+          : "?";
+      const requestedStr =
+        typeof error.tokenInfo?.requested === "number"
+          ? error.tokenInfo.requested.toLocaleString("en-US")
+          : "?";
+      return template.replace("{{limit}}", limitStr).replace("{{requested}}", requestedStr);
+    }
+    default:
+      break;
+  }
+
+  if (error.isTokenLimit && error.tokenInfo) {
+    return t("tokenLimitError")
+      .replace("{{limit}}", error.tokenInfo.limit?.toLocaleString() || "?")
+      .replace("{{requested}}", error.tokenInfo.requested?.toLocaleString() || "?");
+  }
+  if (error.code === "empty_response") {
+    return t("streamErrorEmptyResponse");
+  }
+  if (
+    error.code === "INSUFFICIENT_CREDITS" ||
+    (error as { isInsufficientCredits?: boolean }).isInsufficientCredits
+  ) {
+    return (
+      t("insufficientCredits") ||
+      "OpenRouter account balance is insufficient. Please check credits."
+    );
+  }
+
+  return error.message;
+}
+
 // ============================================
 // Component Implementation
 // ============================================
@@ -33,24 +87,7 @@ const StreamErrorBanner: React.FC<StreamErrorBannerProps> = ({ error, onDismiss 
       ? t("rateLimitTitle")
       : t("error");
 
-  // Determine message based on error type
-  let message: string;
-  if (error.isTokenLimit && error.tokenInfo) {
-    message = t("tokenLimitError")
-      .replace("{{limit}}", error.tokenInfo.limit?.toLocaleString() || "?")
-      .replace("{{requested}}", error.tokenInfo.requested?.toLocaleString() || "?");
-  } else if (error.code === "empty_response") {
-    message = t("streamErrorEmptyResponse");
-  } else if (
-    error.code === "INSUFFICIENT_CREDITS" ||
-    (error as { isInsufficientCredits?: boolean }).isInsufficientCredits
-  ) {
-    message =
-      t("insufficientCredits") ||
-      "OpenRouter account balance is insufficient. Please check credits.";
-  } else {
-    message = error.message;
-  }
+  let message = resolveStreamErrorMessage(error, t);
 
   // Add retry info for rate limit errors
   const retryAfter = (error as { retryAfter?: number }).retryAfter;

@@ -14,6 +14,7 @@ import {
   isGemini3Model,
   isDeepSeekV4Model,
   isClaudeThinkingModel,
+  isStrataLocalThinkingModel,
   getEffectiveThinkingLevel,
 } from "./hooks/useThinkingLevel";
 import {
@@ -31,6 +32,7 @@ interface ThinkingLevelSelectorProps {
 interface ThinkingOption {
   value: ThinkingLevel;
   label: string;
+  hint?: string;
 }
 
 export default function ThinkingLevelSelector({
@@ -39,6 +41,7 @@ export default function ThinkingLevelSelector({
   currentModel,
 }: ThinkingLevelSelectorProps) {
   const { t } = useLanguage();
+  const isLocal = isStrataLocalThinkingModel(currentModel);
   const isDeepSeek = isDeepSeekV4Model(currentModel);
   const isClaudeModel = isClaudeThinkingModel(currentModel);
   const isGLM = isGLMModel(currentModel);
@@ -48,37 +51,56 @@ export default function ThinkingLevelSelector({
 
   // Build options based on model
   // DeepSeek V4: off / low(=reasoning_effort:high) / high(=reasoning_effort:max)
-  const options: ThinkingOption[] = isDeepSeek
+  const options: ThinkingOption[] = isLocal
     ? [
         { value: "off", label: t("webSearchOff") },
-        { value: "low", label: t("thinkingLevelLow") || "STANDARD" },
-        { value: "high", label: t("thinkingLevelHigh") || "DEEP" },
+        {
+          value: "low",
+          label: t("thinkingLevelLow") || "LOW",
+          hint: (t("thinkingBudgetHint") || "≤ {n} tokens").replace("{n}", "4K"),
+        },
+        {
+          value: "medium",
+          label: t("thinkingLevelMedium") || "MEDIUM",
+          hint: (t("thinkingBudgetHint") || "≤ {n} tokens").replace("{n}", "8K"),
+        },
+        {
+          value: "high",
+          label: t("thinkingLevelHigh") || "HIGH",
+          hint: (t("thinkingBudgetHint") || "≤ {n} tokens").replace("{n}", "12K"),
+        },
       ]
-    : isClaudeModel || isGLM
+    : isDeepSeek
       ? [
           { value: "off", label: t("webSearchOff") },
-          { value: "high", label: t("thinkingLevelHigh") || "HIGH" },
+          { value: "low", label: t("thinkingLevelLow") || "STANDARD" },
+          { value: "high", label: t("thinkingLevelHigh") || "DEEP" },
         ]
-      : isGemini3 && geminiSupported.length > 0
+      : isClaudeModel || isGLM
         ? [
-            ...(isGemini4 ? [] : [{ value: "off" as ThinkingLevel, label: t("webSearchOff") }]),
-            ...geminiSupported.map((lvl) => ({
-              value: lvl as ThinkingLevel,
-              label:
-                lvl === "minimal"
-                  ? t("thinkingLevelMinimal") || "MINIMAL"
-                  : lvl === "low"
-                    ? t("thinkingLevelLow") || "LOW"
-                    : lvl === "medium"
-                      ? t("thinkingLevelMedium") || "MEDIUM"
-                      : t("thinkingLevelHigh") || "HIGH",
-            })),
-          ]
-        : [
             { value: "off", label: t("webSearchOff") },
-            { value: "low", label: t("thinkingLevelLow") || "LOW" },
             { value: "high", label: t("thinkingLevelHigh") || "HIGH" },
-          ];
+          ]
+        : isGemini3 && geminiSupported.length > 0
+          ? [
+              ...(isGemini4 ? [] : [{ value: "off" as ThinkingLevel, label: t("webSearchOff") }]),
+              ...geminiSupported.map((lvl) => ({
+                value: lvl as ThinkingLevel,
+                label:
+                  lvl === "minimal"
+                    ? t("thinkingLevelMinimal") || "MINIMAL"
+                    : lvl === "low"
+                      ? t("thinkingLevelLow") || "LOW"
+                      : lvl === "medium"
+                        ? t("thinkingLevelMedium") || "MEDIUM"
+                        : t("thinkingLevelHigh") || "HIGH",
+              })),
+            ]
+          : [
+              { value: "off", label: t("webSearchOff") },
+              { value: "low", label: t("thinkingLevelLow") || "LOW" },
+              { value: "high", label: t("thinkingLevelHigh") || "HIGH" },
+            ];
 
   const effectiveLevel = getEffectiveThinkingLevel(currentModel, thinkingLevel);
   const currentOption = options.find((o) => o.value === effectiveLevel) || options[0];
@@ -108,7 +130,12 @@ export default function ThinkingLevelSelector({
               effectiveLevel === option.value ? "bg-(--control-bg-hover) text-(--text-primary)" : ""
             }`}
           >
-            <span className="text-xs font-bold uppercase tracking-wider">{option.label}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider">{option.label}</span>
+              {option.hint && (
+                <span className="text-xs text-(--text-secondary) font-normal">({option.hint})</span>
+              )}
+            </div>
             {effectiveLevel === option.value && (
               <div className="bg-(--accent) rounded-full p-0.5">
                 <Check className="w-2.5 h-2.5 text-(--surface)" />

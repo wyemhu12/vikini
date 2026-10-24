@@ -8,6 +8,24 @@
 
 ---
 
+## 2026-10-24: Feature -- Tích Hợp Local LLM (Strata Engine - 32K Context, Story Sampling & FIFO Queue)
+
+- **Strata Core & Queue Infrastructure (`src/lib/utils/constants.ts`, `src/lib/core/{strataConfig,strataClient,strataQueue,modelRegistry}.ts`, `env.local.example`)**:
+  - Đăng ký mô hình cục bộ `Orcarouter-qwen3.8-flash-next-uncensored-iq3` (`id: "strata-local"`, `providerId: "local"`, `category: "local"`, `tokenLimit: 32768`, `maxOutputTokens: 16384`) trong nhóm riêng **Local Models** (`PROVIDER_LABELS.local`), tắt tìm kiếm web (`modelSupportsWebSearch = false`).
+  - Xây dựng `strataConfig.ts` (chốt chặn bảo mật SSRF chỉ cho phép loopback `127.0.0.1` / `localhost` / `::1`), `strataClient.ts` (OpenAI SDK singleton với `maxRetries: 0`, `checkStrataHealth` có bộ nhớ đệm 5s + in-flight dedupe, và `countStrataPromptTokens` truyền `output_config.effort` khớp Jinja template Qwen3.8), và `strataQueue.ts` (hàng đợi FIFO tuần tự `concurrency = 1`, `maxPending = 2`, kèm cổng kiểm tra `getStrataAdmission()` trước khi ghi DB).
+- **Thinking Budget, Sampling Presets & 32K Anchor-Window Context Fitter (`src/lib/features/local-llm/{strataThinking,strataContextFit,errors}.ts`, `src/app/api/chat-stream/{validators,contextBuilder}.ts`)**:
+  - Thiết lập bảng ngân sách suy luận `STRATA_THINKING_TABLE` (`off`: tắt thinking, `low`: 4K, `medium`: 8K, `high`: 12K) tuân thủ quy tắc dự trữ câu trả lời `#984` của Strata (`serve/server.py:5022-5029`).
+  - Bổ sung 3 chế độ thông số sinh văn bản (`STRATA_SAMPLING_PRESETS`: `default` chuẩn Qwen, `creative` tối ưu viết truyện chống lặp từ/liệt kê, và `custom` có `sanitizeStrataSampling` ép miền hợp lệ cho `temperature`, `top_p`, `top_k`, `min_p`, `presence_penalty`) cùng schema kiểm tra `strataSamplingSchema`.
+  - Triển khai `strataContextFit.ts` cắt tỉa lịch sử hội thoại theo điểm neo cố định (`fnv1aHash(id) % 4 === 0`) kết hợp `skipSlidingTrim: true` trong `contextBuilder.ts` để giữ nguyên tiền tố KV cache (`Prompt Reuse > 90%`) và loại bỏ hoàn toàn `<think>` khỏi lịch sử các lượt trước.
+- **SSE Streaming Engine & Health Endpoint (`src/app/api/chat-stream/streaming/{strata-stream,strata-stream-reader,post-processing,types,utils,index}.ts`, `src/app/api/chat-stream/chatStreamCore.ts`, `src/app/api/local-llm/health/route.ts`)**:
+  - Xây dựng `createStrataStream` và `consumeStrataChunks` tách biệt luồng `reasoning_content` (`event: thinking`) và `content` (`event: token`), điều tiết sự kiện `localPromptProgress` tối đa 1 lần/giây, tự động gắn `TIMEOUT_CONFIG.STRATA_LOCAL = 300,000ms` (5 phút) ưu tiên trước `STREAM_TIMEOUT_MS`, hủy kết nối upstream tức thì qua `AbortSignal`, và lưu `extraMeta.thinkingStats` vào cơ sở dữ liệu.
+  - Bổ sung route `GET /api/local-llm/health` bảo vệ bởi `await auth()` + `UnauthorizedError`.
+- **Chat UI Controls, Live Thinking Telemetry & Bilingual Support (`src/app/features/chat/components/{ModelSelector,ThinkingLevelSelector,LocalSamplingSettings,LocalLlmStatusDot,ChatControls,BubbleHelpers,ChatBubble,ChatConversationView,ChatMessagesArea,StreamErrorBanner}.tsx`, `src/app/features/chat/components/hooks/{useThinkingLevel,useThinkingStats,useStrataSampling,useChatStreamController}.ts`, `src/app/features/chat/hooks/{useLocalLlmHealth,useConversation}.ts`, `src/lib/features/chat/thinkingStats.ts`, `src/lib/utils/translations/{vi,en}.ts`)**:
+  - Thêm mục **Local Models** kèm đèn báo trạng thái `LocalLlmStatusDot` trong `ModelSelector.tsx` (tự động ẩn khi `STRATA_ENABLED=false` và khóa chọn khi server offline).
+  - Thêm nút & popover **Thông số sinh văn bản (`LocalSamplingSettings.tsx`)** cạnh nút mức độ suy nghĩ trên thanh công cụ chat khi chọn model local; hiển thị tiến độ nạp prompt / vị trí hàng đợi trong `TypingDots` và số token + thời gian suy nghĩ trực tiếp trong `ThinkingBlock`; bổ sung 29 khóa dịch song ngữ Việt/Anh và 15 file unit test (`94/94` tests pass).
+
+---
+
 ## 2026-10-24: Refactor -- Đồng Bộ Định Danh Lưu Trữ Tin Nhắn Trong Chat Stream (`insertUserMessage` & `upsertAssistantMessage`)
 
 - **Chat Stream Message Persistence Naming (`src/app/api/chat-stream/chatStreamCore.ts`, `src/app/api/chat-stream/streaming/{types,post-processing,gemini-stream,openai-stream,deepseek-stream,anthropic-stream}.ts`)**:

@@ -85,6 +85,7 @@ export type ThinkingLevel = "off" | "low" | "medium" | "high" | "minimal";
  */
 export const TIMEOUT_CONFIG = {
   ARGON: 900000, // 15 minutes for Gemini 4 Argon (per Google migration guide)
+  STRATA_LOCAL: 300000, // 5 minutes for Local Strata LLM (Qwen3.8 125B MoE)
   PRO: 300000, // 5 minutes for Pro models
   PRO_DEEP_THINKING: 600000, // 10 minutes for Pro + Deep Thinking
   FLASH: 240000, // 4 minutes for Flash models

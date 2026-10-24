@@ -1334,4 +1334,39 @@ export const vi = {
   novelcrafterExportIncludeBible: "Kèm Hồ sơ Truyện (Story Bible)",
   novelcrafterExportIncludeSummaries: "Kèm Tóm tắt Chương",
   novelcrafterExportSuccessToast: "Đã xuất file bản thảo!",
+  // Local LLM (Strata Engine)
+  modelCategoryLocal: "Local Models",
+  modelDescStrataLocal: "Qwen3.8 125B MoE chạy cục bộ qua Strata (32K ngữ cảnh)",
+  localLlmOnline: "Đang trực tuyến",
+  localLlmOffline: "Ngoại tuyến – hãy khởi động Strata",
+  localLlmBusy: "Đang bận xử lý",
+  localLlmChecking: "Đang kiểm tra…",
+  localLlmQueued: "Đang chờ tới lượt ({position})",
+  localPromptProgress: "Đang đọc ngữ cảnh {pct}%",
+  thinkingBudgetHint: "≤ {n} token",
+  thinkingLiveStats: "Đang suy nghĩ · ≈{tokens} token · {seconds}s",
+  thinkingDoneStats: "Đã suy nghĩ · ≈{tokens} token · {seconds}s",
+  localSamplingTitle: "Thông số sáng tạo (Sampling)",
+  localSamplingModeDefault: "Mặc định (Chuẩn Qwen)",
+  localSamplingModeCreative: "Viết truyện (Sáng tạo)",
+  localSamplingModeCustom: "Tùy chỉnh",
+  localSamplingReset: "Khôi phục mặc định",
+  localSamplingTempDesc: "Độ bay bổng của câu chữ (0.85 khuyên dùng viết truyện)",
+  localSamplingTopPDesc: "Độ rộng vốn từ hạt nhân (0.92 mở rộng từ vựng văn học)",
+  localSamplingTopKDesc: "Số từ ứng viên tối đa mỗi bước (25–30 cho viết truyện)",
+  localSamplingMinPDesc: "Ngưỡng lọc nhiễu lượng tử 3-bit (0.03–0.05 chặn từ lạ)",
+  localSamplingPresenceDesc: "Chống lặp từ nhưng giữ tên nhân vật (0.60 cho viết truyện)",
+  localLlmErrorOffline:
+    "Máy chủ Strata cục bộ đang tắt. Vui lòng khởi động Strata tại 127.0.0.1:8080 rồi thử lại.",
+  localLlmErrorStarting:
+    "Bộ máy Strata đang nạp mô hình vào GPU/RAM. Vui lòng đợi vài giây rồi thử lại.",
+  localLlmErrorBusy:
+    "Mô hình cục bộ đang xử lý tối đa yêu cầu trong hàng đợi. Vui lòng đợi lượt hiện tại hoàn tất.",
+  localLlmErrorQueueTimeout:
+    "Đã hết thời gian chờ hàng đợi mô hình cục bộ (120 giây). Vui lòng thử lại.",
+  localLlmErrorContextOverflow:
+    "Ngữ cảnh vượt giới hạn 32K của mô hình cục bộ (yêu cầu {{requested}} / tối đa {{limit}} token). Hãy giảm mức Suy nghĩ hoặc tạo cuộc hội thoại mới.",
+  localLlmErrorImages:
+    "Mô hình cục bộ hiện chưa hỗ trợ đọc hình ảnh ở lượt chat này. Vui lòng gỡ ảnh đính kèm hoặc chọn mô hình khác.",
+  localLlmErrorDisabled: "Mô hình cục bộ (Strata) hiện đang tắt trong cấu hình máy chủ.",
 } as const;

@@ -8,6 +8,7 @@ import { useLanguage } from "../hooks/useLanguage";
 
 import ModelSelector from "./ModelSelector";
 import ThinkingLevelSelector from "./ThinkingLevelSelector";
+import LocalSamplingSettings from "./LocalSamplingSettings";
 import InputForm from "./InputForm";
 import FileManagerPanel from "./FileManagerPanel";
 import GemQuickSwitch from "../../../features/gems/components/GemQuickSwitch";
@@ -21,6 +22,7 @@ import {
   modelSupportsWebSearch,
   isDeepSeekV32Model,
   modelSupportsDeepResearch,
+  isStrataLocalModel,
 } from "@/lib/core/modelRegistry";
 import type { ResearchAgent } from "@/lib/features/research/types";
 
@@ -127,6 +129,7 @@ export default function ChatControls({
   const canWebSearch = modelSupportsWebSearch(currentModel);
   const canDeepResearch = modelSupportsDeepResearch(currentModel);
   const isV32 = isDeepSeekV32Model(currentModel);
+  const isLocal = isStrataLocalModel(currentModel);
 
   const { t } = useLanguage();
   const tRecord = useMemo(
@@ -207,7 +210,7 @@ export default function ChatControls({
               </button>
             </>
           )}
-          {/* Thinking Level Selector - For Gemini 2.5+ and 3+ models */}
+          {/* Thinking Level Selector - For Gemini 2.5+, 3+ and Local Strata models */}
           {modelSupportsThinkingUI(currentModel) && (
             <>
               <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
@@ -215,6 +218,17 @@ export default function ChatControls({
                 thinkingLevel={thinkingLevel}
                 setThinkingLevel={setThinkingLevel}
                 currentModel={currentModel}
+              />
+            </>
+          )}
+          {/* Local Sampling Settings (Default / Story Writing / Custom) - For Strata Local LLM */}
+          {isLocal && (
+            <>
+              <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
+              <LocalSamplingSettings
+                currentModel={currentModel}
+                thinkingLevel={thinkingLevel}
+                disabled={isStreaming || regenerating}
               />
             </>
           )}

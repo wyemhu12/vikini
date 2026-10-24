@@ -1,6 +1,6 @@
 # Features - Vikini
 
-> **Updated**: 2026-05-03
+> **Updated**: 2026-10-24
 
 ---
 
@@ -28,6 +28,7 @@
 | **Voice Input (STT)**     | ✅ Hoàn thành | Web Speech API + waveform                    |
 | **TTS Playback**          | ✅ Hoàn thành | Read AI responses aloud                      |
 | **Bilingual UI**          | ✅ Hoàn thành | Vietnamese/English support                   |
+| **Local LLM (Strata)**    | ✅ Hoàn thành | 32K Local Inference + Story Sampling + Queue |
 
 ---
 
@@ -318,6 +319,28 @@ Extended timeouts cho Deep Thinking mode:
 - `/lib/features/projects/` - Business logic
 
 **Route**: Click project trong sidebar
+
+---
+
+### 2.11 Local LLM Integration (Strata Engine - 32K Context)
+
+**Mô tả**: Tích hợp mô hình chạy cục bộ `Orcarouter-qwen3.8-flash-next-uncensored-iq3` (`strata-local`) qua bộ máy suy luận Strata (`http://127.0.0.1:8080/v1`) trong mục riêng **Local Models** của `ModelSelector`.
+
+**Tính năng chính**:
+
+- **Kiểm soát Thinking theo Request**: 4 mức `off` (mặc định, `reasoning_effort: "none"`) / `low` (`4,096` tokens) / `medium` (`8,192` tokens) / `high` (`12,288` tokens), tương thích quy tắc dự trữ câu trả lời `#984` của Strata.
+- **Popover Thông Số Sinh Văn Bản (`LocalSamplingSettings`)**: 3 chế độ **Mặc định Qwen** (`default`), **Viết truyện** (`creative` — tối ưu viết tiểu thuyết sáng tạo chống lặp từ và chống liệt kê), và **Tùy chỉnh** (`custom` với 5 thanh trượt `temperature`, `top_p`, `top_k`, `min_p`, `presence_penalty`).
+- **Quản lý 32K Context & Tái sử dụng KV Cache (`strataContextFit`)**: Cắt tỉa cửa sổ hội thoại theo điểm neo cố định (`FNV-1a hash % 4 === 0`), loại bỏ thẻ `<think>` khỏi lịch sử để giữ tỷ lệ Prompt Reuse > 90%, và đo token chính xác qua `/v1/messages/count_tokens` (tối đa 3 lần gọi).
+- **Hàng đợi FIFO Tuần tự (`strataQueue`) & Timeout 300s**: Khóa cứng `concurrency = 1` (`maxPending = 2`) kèm kiểm tra Pre-DB Admission Gate (`getStrataAdmission`) để bảo vệ 12GB VRAM / 64GB RAM.
+- **Hiển thị Trạng thái & Tiến độ Thời gian thực**: Đèn báo trạng thái Online/Loading/Offline (`GET /api/local-llm/health`), tiến độ nạp ngữ cảnh & vị trí hàng đợi trong `TypingDots`, và bộ đếm token/thời gian suy nghĩ trực tiếp trong `ThinkingBlock`.
+
+**Files**:
+
+- `src/lib/core/strataConfig.ts`, `src/lib/core/strataClient.ts`, `src/lib/core/strataQueue.ts`
+- `src/lib/features/local-llm/strataThinking.ts`, `src/lib/features/local-llm/strataContextFit.ts`, `src/lib/features/local-llm/errors.ts`
+- `src/app/api/chat-stream/streaming/strata-stream.ts`, `src/app/api/chat-stream/streaming/strata-stream-reader.ts`
+- `src/app/api/local-llm/health/route.ts`
+- `src/app/features/chat/components/LocalSamplingSettings.tsx`, `src/app/features/chat/components/LocalLlmStatusDot.tsx`
 
 ## 3. Roadmap (Dự kiến)
 

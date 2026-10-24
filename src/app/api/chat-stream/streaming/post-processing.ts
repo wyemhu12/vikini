@@ -159,6 +159,8 @@ async function processPostStream(
       chunkId: string;
       similarity: number;
     }>;
+    /** Optional provider-specific metadata to persist on the assistant message */
+    extraMeta?: Record<string, unknown>;
   }
 ): Promise<void> {
   const {
@@ -182,6 +184,7 @@ async function processPostStream(
     emptyAnswerReason,
     reasoning,
     ragSources,
+    extraMeta,
   } = params;
 
   const trimmed = full.trim();
@@ -205,6 +208,7 @@ async function processPostStream(
           ...(sources && sources.length > 0 ? { sources } : {}),
           ...(urlContext && urlContext.length > 0 ? { urlContext } : {}),
           ...(ragSources && ragSources.length > 0 ? { ragSources } : {}),
+          ...(extraMeta ? extraMeta : {}),
         },
       });
       // Do NOT append to context when content is empty (m-16)
@@ -257,6 +261,7 @@ async function processPostStream(
           ...(ragSources && ragSources.length > 0 ? { ragSources } : {}),
           ...(model ? { model } : {}),
           ...(emptyAnswerReason ? { emptyAnswerReason } : {}),
+          ...(extraMeta ? extraMeta : {}),
         },
       }),
     ]);

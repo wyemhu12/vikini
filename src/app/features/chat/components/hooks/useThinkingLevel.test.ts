@@ -4,6 +4,7 @@ import {
   getAvailableThinkingLevels,
   getEffectiveThinkingLevel,
   modelSupportsThinkingUI,
+  isStrataLocalThinkingModel,
   type ThinkingLevel,
 } from "./useThinkingLevel";
 
@@ -143,5 +144,16 @@ describe("modelSupportsThinkingUI", () => {
     expect(modelSupportsThinkingUI("gemini-4-argon")).toBe(true);
     expect(modelSupportsThinkingUI("gemini-3-flash-preview")).toBe(true);
     expect(modelSupportsThinkingUI("llama-3.3-70b-versatile")).toBe(false);
+  });
+
+  it("supports strata-local with off/low/medium/high and clamps minimal to low (TC-39)", () => {
+    expect(isStrataLocalThinkingModel("strata-local")).toBe(true);
+    expect(modelSupportsThinkingUI("strata-local")).toBe(true);
+    expect(getAvailableThinkingLevels("strata-local")).toEqual(["off", "low", "medium", "high"]);
+    expect(getEffectiveThinkingLevel("strata-local", "off")).toBe("off");
+    expect(getEffectiveThinkingLevel("strata-local", "minimal")).toBe("low");
+    expect(getEffectiveThinkingLevel("strata-local", "low")).toBe("low");
+    expect(getEffectiveThinkingLevel("strata-local", "medium")).toBe("medium");
+    expect(getEffectiveThinkingLevel("strata-local", "high")).toBe("high");
   });
 });
