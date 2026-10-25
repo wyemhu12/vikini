@@ -434,31 +434,31 @@ $$;
 
 ## 3. Row Level Security (RLS) & RPC Security Definer (Cycle 2 Audit)
 
-| Bảng                    | RLS Enabled | Policies | Ghi chú                                                            |
-| ----------------------- | ----------- | -------- | ------------------------------------------------------------------ |
-| `profiles`              | ✅          | ❌       | Chỉ `service_role` truy cập                                        |
-| `conversations`         | ✅          | ❌       | Chỉ `service_role` truy cập                                        |
-| `messages`              | ✅          | ❌       | Chỉ `service_role` truy cập                                        |
-| `gems`                  | ✅          | ❌       | Chỉ `service_role` truy cập                                        |
-| `gem_versions`          | ✅          | ❌       | Chỉ `service_role` truy cập                                        |
-| `gem_runs`              | ✅          | ❌       | Chỉ `service_role` truy cập                                        |
-| `files`                 | ✅          | ❌       | UNRESTRICTED - chỉ `service_role`                                  |
-| `projects`              | ✅          | ✅       | Users manage own projects (`user_id = auth.jwt()->>'email'`)       |
-| `knowledge_documents`   | ✅          | ✅       | Users manage own knowledge docs (`user_id = auth.jwt()->>'email'`) |
-| `knowledge_chunks`      | ✅          | ✅       | Users manage own knowledge chunks                                  |
-| `rank_configs`          | ✅          | ✅       | Read-only cho authenticated                                        |
-| `daily_message_counts`  | ✅          | ❌       | Deny-all cho anon/authenticated, chỉ `service_role` & RPCs         |
-| `daily_research_counts` | ✅          | ❌       | Deny-all cho anon/authenticated, chỉ `service_role` & RPCs         |
-| `research_tasks`        | ✅          | ❌       | Deny-all cho anon/authenticated, chỉ `service_role`                |
-| `personas`              | ✅          | ❌       | Đã xóa 5 permissive policies, chỉ `service_role` truy cập          |
-| `temp_user_ranks`       | ✅          | ❌       | Bảng nội bộ mapping rank, chỉ `service_role`                       |
+| Bảng                    | RLS Enabled | Policies | Ghi chú                                                                             |
+| ----------------------- | ----------- | -------- | ----------------------------------------------------------------------------------- |
+| `profiles`              | ✅          | ❌       | Chỉ `service_role` truy cập                                                         |
+| `conversations`         | ✅          | ❌       | Chỉ `service_role` truy cập                                                         |
+| `messages`              | ✅          | ❌       | Chỉ `service_role` truy cập                                                         |
+| `gems`                  | ✅          | ❌       | Chỉ `service_role` truy cập                                                         |
+| `gem_versions`          | ✅          | ❌       | Chỉ `service_role` truy cập                                                         |
+| `gem_runs`              | ✅          | ❌       | Chỉ `service_role` truy cập                                                         |
+| `files`                 | ✅          | ❌       | UNRESTRICTED - chỉ `service_role`                                                   |
+| `projects`              | ✅          | ✅       | Users manage own projects (`user_id = auth.jwt()->>'email'`)                        |
+| `knowledge_documents`   | ✅          | ✅       | Users manage own knowledge docs (`user_id = auth.jwt()->>'email'`)                  |
+| `knowledge_chunks`      | ✅          | ✅       | Users manage own knowledge chunks                                                   |
+| `rank_configs`          | ✅          | ✅       | Read-only cho authenticated                                                         |
+| `daily_message_counts`  | ✅          | ❌       | Deny-all cho anon/authenticated, chỉ `service_role` & RPCs                          |
+| `daily_research_counts` | ✅          | ❌       | **Legacy (không còn code ứng dụng dùng; chờ D1)** — Deny-all cho anon/authenticated |
+| `research_tasks`        | ✅          | ❌       | **Legacy (không còn code ứng dụng dùng; chờ D1)** — Deny-all cho anon/authenticated |
+| `personas`              | ✅          | ❌       | Đã xóa 5 permissive policies, chỉ `service_role` truy cập                           |
+| `temp_user_ranks`       | ✅          | ❌       | Bảng nội bộ mapping rank, chỉ `service_role`                                        |
 
 ### 3.1 Khóa Hàm RPC SECURITY DEFINER (Hardened in Cycle 2)
 
 Cả 4 hàm RPC sau đều được thu hồi quyền thực thi từ `PUBLIC`, `anon`, `authenticated` và chỉ cấp riêng cho `service_role`, kèm `SET search_path = public, extensions, pg_temp` để chống Search Path Hijacking:
 
 1. `increment_daily_message_count(TEXT, DATE)`: Cập nhật biến đếm tin nhắn hàng ngày.
-2. `increment_daily_research_count(TEXT, DATE)`: Cập nhật biến đếm tác vụ nghiên cứu hàng ngày.
+2. `increment_daily_research_count(TEXT, DATE)`: **Legacy (không còn code ứng dụng dùng; chờ D1)** — Cập nhật biến đếm tác vụ nghiên cứu hàng ngày (cột `rank_configs.daily_research_limit` cũng giữ nguyên dạng legacy).
 3. `match_project_knowledge(UUID, VECTOR, DOUBLE PRECISION, INTEGER)`: Tìm kiếm vector RAG (bắt buộc giữ `extensions` cho toán tử `<=>` của pgvector).
 4. `get_project_storage_bytes(UUID)`: Tính tổng dung lượng file của dự án.
 

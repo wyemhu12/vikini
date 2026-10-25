@@ -38,6 +38,8 @@ interface InputFormProps {
   ensureConversationId?: () => Promise<string>;
   /** Optional ref indicating upload was initiated from the current UI */
   isSelfInitiatedUploadRef?: React.MutableRefObject<boolean>;
+  /** Composer-level controls (model / thinking) rendered right-aligned before Mic/Send. */
+  trailingControls?: React.ReactNode;
 }
 
 export default function InputForm({
@@ -55,6 +57,7 @@ export default function InputForm({
   sentMessageFileIds = [],
   ensureConversationId,
   isSelfInitiatedUploadRef,
+  trailingControls,
 }: InputFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -246,10 +249,35 @@ export default function InputForm({
           t={tRecord}
         />
 
-        {/* Input row */}
+        {/* Input row: always 2 rows (Row 1: full-width textarea; Row 2: [+] left, model/thinking/mic/send right) */}
         <div
-          className={`flex flex-wrap md:flex-nowrap items-end gap-2 p-2 ${fileCount > 0 || uploadQueue.length > 0 ? "pt-0" : ""}`}
+          className={`flex flex-wrap items-end gap-2 p-2 ${fileCount > 0 || uploadQueue.length > 0 ? "pt-0" : ""}`}
         >
+          {/* Text Area */}
+          <div className="order-first basis-full min-w-0 relative">
+            {isImageMode && (
+              <div className="absolute -top-6 left-0 text-xs font-semibold uppercase tracking-wider text-(--accent) animate-in fade-in slide-in-from-bottom-1 bg-(--surface-elevated) px-2 py-0.5 rounded-full border border-(--accent)/30 shadow-sm">
+                {t("imageModeLabel") || "IMAGE GENERATION MODE"}
+              </div>
+            )}
+            <Textarea
+              ref={textareaRef}
+              rows={1}
+              value={input}
+              onChange={(e) => onChangeInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              placeholder={
+                isImageMode
+                  ? t("imagePlaceholder") || "Describe the image you want to generate..."
+                  : t("placeholder") || "Message..."
+              }
+              disabled={disabled}
+              className={`max-h-[200px] min-h-[40px] h-10 w-full resize-none bg-transparent px-2 py-2.5 text-[15px] placeholder:text-(--text-secondary) outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--text-secondary) italic" : "text-(--text-primary)"}`}
+            />
+          </div>
+
           {/* Plus Menu Trigger */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -292,32 +320,9 @@ export default function InputForm({
             aria-label={t("uploadFile") || "Upload file"}
           />
 
-          {/* Text Area */}
-          <div className="order-first basis-full md:order-none md:basis-auto md:flex-1 min-w-0 relative">
-            {isImageMode && (
-              <div className="absolute -top-6 left-0 text-xs font-semibold uppercase tracking-wider text-(--accent) animate-in fade-in slide-in-from-bottom-1 bg-(--surface-elevated) px-2 py-0.5 rounded-full border border-(--accent)/30 shadow-sm">
-                {t("imageModeLabel") || "IMAGE GENERATION MODE"}
-              </div>
-            )}
-            <Textarea
-              ref={textareaRef}
-              rows={1}
-              value={input}
-              onChange={(e) => onChangeInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              placeholder={
-                isImageMode
-                  ? t("imagePlaceholder") || "Describe the image you want to generate..."
-                  : t("placeholder") || "Message..."
-              }
-              disabled={disabled}
-              className={`max-h-[200px] min-h-[40px] h-10 w-full resize-none bg-transparent py-2.5 text-[15px] placeholder:text-(--text-secondary) outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--text-secondary) italic" : "text-(--text-primary)"}`}
-            />
-          </div>
+          <div className="flex items-center gap-1 @sm/chat:gap-2 ml-auto min-w-0">
+            {!isImageMode && trailingControls}
 
-          <div className="flex items-center gap-2 ml-auto md:ml-0 shrink-0">
             {isImageMode && (
               <button
                 type="button"

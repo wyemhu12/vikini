@@ -61,13 +61,14 @@ const NEEDS_INVERSION = new Set([
 ]);
 
 interface ModelSelectorProps {
-  // ... (keep interface)
   currentModelId: string;
   onSelectModel: (id: string) => void;
   isModelAllowed: (id: string) => boolean;
   disabled: boolean;
   /** If true, dropdown expands downward (landing page). Default: upward (chat view). */
   expandDown?: boolean;
+  /** Visual variant: "toolbar" (default, top bar / Novelcrafter) or "inline" (inside chat input bar). */
+  variant?: "toolbar" | "inline";
 }
 
 export default function ModelSelector({
@@ -76,6 +77,7 @@ export default function ModelSelector({
   isModelAllowed,
   disabled,
   expandDown = false,
+  variant = "toolbar",
 }: ModelSelectorProps) {
   const { t } = useLanguage();
   // ... (keep state)
@@ -129,11 +131,22 @@ export default function ModelSelector({
     });
   }, [activeTab, activeProviderFilter, isLocalVisible]);
 
+  const modelDisplayName = currentModel?.name || currentModelId;
+  const isInline = variant === "inline";
+
   if (disabled) {
+    if (isInline) {
+      return (
+        <div className="h-10 inline-flex items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-(--text-secondary) opacity-50 cursor-not-allowed">
+          {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
+          <span className="truncate max-w-[7rem] @sm/chat:max-w-[12rem]">{modelDisplayName}</span>
+        </div>
+      );
+    }
     return (
       <div className="flex items-center rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 p-1 px-4 py-1.5 opacity-50 cursor-not-allowed">
         <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary)">
-          {currentModel?.name || currentModelId}
+          {modelDisplayName}
         </span>
       </div>
     );
@@ -143,24 +156,39 @@ export default function ModelSelector({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       {/* TRIGGER BUTTON */}
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 md:hover:bg-(--control-bg) p-1 px-4 py-1.5 transition-colors md:shadow-none shadow-lg group text-(--text-primary)"
-        >
-          {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
-          <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">
-            {currentModel?.name || currentModelId}
-          </span>
-          <ChevronDown
-            className={`w-3 h-3 text-(--text-secondary) transition-transform ${isOpen ? "rotate-180" : ""}`}
-          />
-        </button>
+        {isInline ? (
+          <button
+            type="button"
+            aria-label={`${t("selectModel")}: ${modelDisplayName}`}
+            className="h-10 inline-flex items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.97]"
+          >
+            {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
+            <span className="truncate max-w-[7rem] @sm/chat:max-w-[12rem]">{modelDisplayName}</span>
+            <ChevronDown
+              className={`w-3.5 h-3.5 shrink-0 text-(--text-secondary) transition-transform ${isOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 md:hover:bg-(--control-bg) p-1 px-4 py-1.5 transition-colors md:shadow-none shadow-lg group text-(--text-primary)"
+          >
+            {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
+            <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">
+              {modelDisplayName}
+            </span>
+            <ChevronDown
+              className={`w-3 h-3 text-(--text-secondary) transition-transform ${isOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+        )}
       </PopoverTrigger>
 
       {/* DROPDOWN CONTENT */}
       <PopoverContent
         side={expandDown ? "bottom" : "top"}
-        align="start"
+        align={isInline ? "end" : "start"}
+        collisionPadding={isInline ? 8 : undefined}
         sideOffset={8}
         className="w-[min(350px,calc(100vw-2rem))] p-0 border-0 bg-transparent shadow-none"
       >

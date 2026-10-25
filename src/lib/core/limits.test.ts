@@ -86,9 +86,8 @@ describe("incrementDailyMessageCount", () => {
 const BASIC_ROW = {
   rank: "basic",
   daily_message_limit: 100,
-  daily_research_limit: 0,
   max_file_size_mb: 10,
-  features: { web_search: true, unlimited_gems: true, deep_research: false },
+  features: { web_search: true, unlimited_gems: true },
   allowed_models: ["gemini-2.5-flash"],
 };
 const PRO_ROW = { ...BASIC_ROW, rank: "pro", daily_message_limit: 500 };
@@ -209,39 +208,11 @@ describe("fail-closed limits", () => {
     });
   });
 
-  describe("tryClaimResearchSlot", () => {
-    const RESEARCH_ROW = {
-      ...PRO_ROW,
-      daily_research_limit: 2,
-      features: { ...PRO_ROW.features, deep_research: true },
-    };
-
-    beforeEach(() => {
-      rpcMock.mockReset();
-      rpcMock.mockResolvedValue({ data: null, error: null });
-      setProfile(profile("pro"));
-      setRankConfigs([BASIC_ROW, RESEARCH_ROW]);
-    });
-
-    it("returns false without claiming when the feature is disabled", async () => {
-      setRankConfigs([BASIC_ROW, PRO_ROW]);
-      await expect(limits.tryClaimResearchSlot("u@x.com")).resolves.toBe(false);
-      expect(rpcMock).not.toHaveBeenCalled();
-    });
-
-    it("claims a slot within the limit and rejects over the limit", async () => {
-      tableResults.daily_research_counts = { data: { count: 2 }, error: null };
-      await expect(limits.tryClaimResearchSlot("u@x.com")).resolves.toBe(true);
-
-      tableResults.daily_research_counts = { data: { count: 3 }, error: null };
-      await expect(limits.tryClaimResearchSlot("u@x.com")).resolves.toBe(false);
-    });
-
-    it("throws 503 instead of allowing unlimited research when the count cannot be read", async () => {
-      tableResults.daily_research_counts = { data: null, error: { message: "down" } };
-      await expect(limits.tryClaimResearchSlot("u@x.com")).rejects.toBeInstanceOf(
-        ServiceUnavailableError
-      );
+  describe("legacy research helpers removed (T6)", () => {
+    it("does not export removed research quota helpers", () => {
+      const claimKey = ["tryClaim", "Research", "Slot"].join("");
+      expect(claimKey in limits).toBe(false);
+      expect("getResearchDailyCount" in limits).toBe(false);
     });
   });
 

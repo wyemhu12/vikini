@@ -48,7 +48,7 @@
 - THIẾT LẬP timeout, retry, fallback giữa các provider, và thông báo lỗi rõ ràng qua UI (`StreamErrorBanner`, `toast.error()`).
 - TUYỆT ĐỐI không log credentials, API keys hoặc bearer tokens khi bắt exception.
 - KIỂM SOÁT thời gian thực thi serverless phù hợp từng loại route:
-  - Deep Research stream: `maxDuration = 800` (`src/app/api/deep-research/[taskId]/stream/route.ts:8`).
+  - Chat stream (SSE): `maxDuration = 800` (`src/app/api/chat-stream/route.ts:6`).
   - Image generation & editing: `maxDuration = 60` (`src/app/api/edit-image/route.ts:36`).
   - Cron jobs: `maxDuration = 60` (`src/app/api/cron/cleanup/route.ts:9`).
   - Image description & standard APIs: `maxDuration = 30` (`src/app/api/describe-image/route.ts:18`).

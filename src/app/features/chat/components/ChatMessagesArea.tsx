@@ -307,7 +307,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
           />
         )}
 
-      {/* Deep Research or other appended cards */}
+      {/* Appended cards slot */}
       {children}
 
       {/* Generated image preview */}

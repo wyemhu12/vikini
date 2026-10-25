@@ -27,6 +27,7 @@ interface ThinkingLevelSelectorProps {
   thinkingLevel: ThinkingLevel;
   setThinkingLevel: (level: ThinkingLevel) => void;
   currentModel: string;
+  expandDown?: boolean;
 }
 
 interface ThinkingOption {
@@ -39,6 +40,7 @@ export default function ThinkingLevelSelector({
   thinkingLevel,
   setThinkingLevel,
   currentModel,
+  expandDown = false,
 }: ThinkingLevelSelectorProps) {
   const { t } = useLanguage();
   const isLocal = isStrataLocalThinkingModel(currentModel);
@@ -104,24 +106,33 @@ export default function ThinkingLevelSelector({
 
   const effectiveLevel = getEffectiveThinkingLevel(currentModel, thinkingLevel);
   const currentOption = options.find((o) => o.value === effectiveLevel) || options[0];
-  const displayLabel = `${t("thinkingLevel") || "THINKING"}: ${currentOption.label}`;
+  const isThinkingActive = effectiveLevel !== "off";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          aria-label={t("thinkingLevelTooltip")}
-          className="flex items-center gap-1.5 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 px-4 py-1.5 transition-colors group text-(--text-primary) hover:bg-(--control-bg)"
+          type="button"
+          aria-label={`${t("thinkingLevel")}: ${currentOption.label}`}
           title={t("thinkingLevelTooltip")}
+          className={`h-10 inline-flex items-center gap-1.5 rounded-full px-2.5 @sm/chat:px-3 text-xs font-semibold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.97] ${
+            isThinkingActive
+              ? "bg-(--accent)/15 text-(--accent) border border-(--accent)/30 hover:bg-(--accent)/25"
+              : "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)"
+          }`}
         >
-          <Brain className="w-3 h-3 text-(--text-secondary) md:hidden" />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">
-            {displayLabel}
-          </span>
-          <ChevronDown className="w-3 h-3 text-(--text-secondary) transition-transform" />
+          <Brain className="w-4 h-4 shrink-0" />
+          <span className="hidden @sm/chat:inline">{currentOption.label}</span>
+          <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-70" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="center" sideOffset={8} className="min-w-[160px]">
+      <DropdownMenuContent
+        side={expandDown ? "bottom" : "top"}
+        align="end"
+        collisionPadding={8}
+        sideOffset={8}
+        className="min-w-[160px]"
+      >
         {options.map((option) => (
           <DropdownMenuItem
             key={option.value}

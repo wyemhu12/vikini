@@ -8,6 +8,19 @@
 
 ---
 
+## 2026-10-25: Refactor & UI/UX -- Remove Deep Research Feature & Compact Chat Composer (Move Model & Thinking Selectors Into Chat Bar)
+
+- **Complete Deep Research Feature Removal (`src/app/api/deep-research/**`, `src/lib/features/research/**`, `src/app/features/research/**`, `src/app/features/chat/components/{ChatDeepResearch,hooks/useDeepResearchMode,hooks/useResearchAwareSend,ChatApp,ChatConversationView,ChatOverlays,DashboardView,ChatMessagesArea}.ts(x)`, `src/lib/core/{genaiClient,limits,modelRegistry}.ts`, `src/app/admin/components/RankConfigManager.tsx`, `src/app/api/admin/rank-configs/route.ts`, `src/lib/utils/translations/{vi,en}.ts`)\*\*:
+  - Xóa hoàn toàn 17 file mã nguồn và test của tính năng Nghiên Cứu Sâu (4 API routes `/api/deep-research/**`, `researchService.server.ts`, `types.ts`, 7 UI components trong `src/app/features/research/components/**`, `ChatDeepResearch.tsx`, `useDeepResearchMode.ts`, `useResearchAwareSend.ts`).
+  - Dọn dẹp các hàm lõi không còn dùng (`createResearchInteraction`, `getResearchInteraction` trong `genaiClient.ts`; `getResearchDailyCount`, `tryClaimResearchSlot` và các trường `daily_research_limit` / `features.deep_research` trong `limits.ts`; `modelSupportsDeepResearch` trong `modelRegistry.ts`).
+  - Gỡ bỏ ô `Daily Research Limit` cùng nút/modal `Configure Features` trong `RankConfigManager.tsx`, bỏ nhánh ghi `daily_research_limit` trong `PATCH /api/admin/rank-configs`, và xóa 46 khóa dịch `deepResearch*` / `configureFeatures` / `dailyResearchLimit` đồng thời ở `vi.ts` và `en.ts`.
+- **Compact Chat Toolbar & Inline Composer Controls (`src/app/features/chat/components/{InputModelControls,InputForm,ChatControls,ModelSelector,ThinkingLevelSelector}.tsx`)**:
+  - Thu gọn thanh công cụ phía trên khung chat (`ChatControls.tsx`) bằng cách đưa bộ chọn **Model** (`ModelSelector` với `variant="inline"`) và **Mức độ suy luận** (`ThinkingLevelSelector` kèm icon `Brain`) xuống nằm bên trong thanh nhập chat (`InputForm.tsx` qua prop `trailingControls`) ở cụm bên phải trước nút Mic và Send (tương tự giao diện Gemini / ChatGPT).
+  - Chuyển `InputForm.tsx` sang bố cục 2 hàng thống nhất trên mọi kích thước màn hình (hàng 1: ô nhập văn bản rộng toàn khung `basis-full`; hàng 2: nút `[+]` bên trái và cụm `[Model ▾] [🧠 Level ▾] [Mic] [Send]` bên phải, tự động ẩn Model/Thinking khi bật chế độ Tạo ảnh).
+  - Bổ sung 2 file unit test mới (`genaiClient.test.ts`, `InputModelControls.test.tsx`) và cập nhật 5 file test co-located (`limits.test.ts`, `modelRegistry.test.ts`, `InputForm.test.tsx`, `rank-configs/route.test.ts`, `allowed-models/route.test.ts`).
+
+---
+
 ## 2026-10-25: Feature -- Novelcrafter Prompt Studio (`/novelcrafter/prompts`) & Custom Write Word Length (`50–4000` Words)
 
 - **Custom Write Word Count Input & Preset Upgrade (`src/lib/features/novelcrafter/{types,writeLength}.ts`, `src/app/features/novelcrafter/components/{ChapterAiToolbar,ChapterAiToolMenus}.tsx`)**:

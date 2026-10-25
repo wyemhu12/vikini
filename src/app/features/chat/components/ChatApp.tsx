@@ -27,7 +27,6 @@ import { useConversation } from "../hooks/useConversation";
 import { useTTS } from "../hooks/useTTS";
 import { useAuthGate } from "./hooks/useAuthGate";
 import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
-import { useDeepResearchMode } from "./hooks/useDeepResearchMode";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 import { useImageGenController } from "./hooks/useImageGenController";
 import { useChatModals } from "./hooks/useChatModals";
@@ -43,7 +42,6 @@ import { useGemPersonaSync } from "./hooks/useGemPersonaSync";
 import { useChatLayoutState } from "./hooks/useChatLayoutState";
 import { useProjectNavigation } from "./hooks/useProjectNavigation";
 import { useChatShortcuts } from "./hooks/useChatShortcuts";
-import { useResearchAwareSend } from "./hooks/useResearchAwareSend";
 import { useSidebarActions } from "./hooks/useSidebarActions";
 import { useRemixPrompt } from "./hooks/useRemixPrompt";
 
@@ -91,9 +89,6 @@ export default function ChatApp() {
   const currentModel = currentConversation?.model || landingModel;
 
   const webSearch = useWebSearchPreference();
-  const research = useDeepResearchMode();
-  const { isDeepResearchMode, currentTask, pendingQuery } = research;
-  const [isEditPlanOpen, setIsEditPlanOpen] = useState(false);
 
   const chat = useChatStreamController({
     isAuthed,
@@ -107,7 +102,7 @@ export default function ChatApp() {
     renameConversationOptimistic: conversation.renameConversationOptimistic,
     onWebSearchMeta: webSearch.applyServerMeta,
   });
-  const { renderedMessages, input, setInput, isStreaming, streamingAssistant } = chat;
+  const { renderedMessages, setInput, isStreaming, streamingAssistant } = chat;
   const { handleNewChat, handleSelectConversation } = chat;
 
   const branching = useConversationBranching({
@@ -115,17 +110,6 @@ export default function ChatApp() {
     refreshConversations,
     onBranchCreated: setSelectedConversationIdAndUrl,
     t: tRaw,
-  });
-
-  const handleMessageSend = useResearchAwareSend({
-    input,
-    setInput,
-    handleSend: chat.handleSend,
-    isDeepResearchMode,
-    startResearch: research.startResearch,
-    selectedConversationId,
-    selectedProjectId,
-    gemId: (currentConversation as { gemId?: string })?.gemId,
   });
 
   const attachments = useChatAttachments({
@@ -154,7 +138,7 @@ export default function ChatApp() {
     setMessages: chat.setMessages,
   });
 
-  const { isModelAllowed, features, handleModelChange } = useModelSelection({
+  const { isModelAllowed, handleModelChange } = useModelSelection({
     isAuthed,
     selectedConversationId,
     saveLandingModel,
@@ -226,25 +210,19 @@ export default function ChatApp() {
   // Main app view state
   const showProjectView = selectedProjectId && !selectedConversationId;
   const { selectedProject } = projectNav;
-  const hasActiveResearch = isDeepResearchMode && (currentTask != null || pendingQuery != null);
   const showLanding =
-    !isRemixMode &&
-    !showProjectView &&
-    !hasActiveResearch &&
-    (!selectedConversationId || renderedMessages.length === 0);
+    !isRemixMode && !showProjectView && (!selectedConversationId || renderedMessages.length === 0);
 
   const controlsProps = buildChatControlsProps({
     chat,
     webSearch,
-    research,
     thinking,
     imageGen,
     attachments,
-    handleSend: handleMessageSend,
+    handleSend: chat.handleSend,
     currentModel,
     handleModelChange,
     isModelAllowed,
-    deepResearchAllowed: features?.deep_research === true,
     currentConversation,
     selectedConversationId,
     showMobileControls,
@@ -344,9 +322,6 @@ export default function ChatApp() {
               imageGen={imageGen}
               thinking={thinking}
               branching={branching}
-              research={research}
-              showResearch={hasActiveResearch}
-              onEditPlan={() => setIsEditPlanOpen(true)}
               currentConversation={currentConversation}
               parentConversation={parentConversation}
               contextMessagesCount={contextMessagesCount}
@@ -371,11 +346,7 @@ export default function ChatApp() {
                 onClick={() => scroll.scrollToBottom(true)}
               />
             </div>
-            <ChatControls
-              {...controlsProps}
-              selectedResearchAgent={research.selectedAgent}
-              onResearchAgentChange={research.setSelectedAgent}
-            />
+            <ChatControls {...controlsProps} />
           </>
         )}
       </div>
@@ -388,14 +359,10 @@ export default function ChatApp() {
         modals={modals}
         imageGen={imageGen}
         projectNav={projectNav}
-        research={research}
-        isEditPlanOpen={isEditPlanOpen}
-        closeEditPlan={() => setIsEditPlanOpen(false)}
         shortcuts={shortcuts}
         conversations={filteredConversations}
         onNewChat={handleNewChat}
         onSelectConversation={handleSelectConversation}
-        onOpenResearchConversation={setSelectedConversationIdAndUrl}
         t={t}
       />
     </div>

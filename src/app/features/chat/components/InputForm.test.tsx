@@ -267,4 +267,59 @@ describe("InputForm", () => {
       expect(onSubmit).not.toHaveBeenCalled();
     });
   });
+
+  describe("Composer Trailing Controls & Two-Row Layout (T1, T2, T4)", () => {
+    it("renders trailingControls before VoiceButton and Send button in normal chat mode (T1)", () => {
+      render(
+        <InputForm
+          input=""
+          onChangeInput={vi.fn()}
+          onSubmit={vi.fn()}
+          trailingControls={<div data-testid="trailing" />}
+        />
+      );
+
+      const trailing = screen.getByTestId("trailing");
+      const voice = screen.getByTestId("voice-button");
+      const send = screen.getByRole("button", { name: /^send$/i });
+
+      expect(
+        trailing.compareDocumentPosition(voice) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(
+        trailing.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    });
+
+    it("hides trailingControls in image generation mode while keeping Cancel Image Mode button (T2)", () => {
+      render(
+        <InputForm
+          input=""
+          onChangeInput={vi.fn()}
+          onSubmit={vi.fn()}
+          initialImageMode={true}
+          trailingControls={<div data-testid="trailing" />}
+        />
+      );
+
+      expect(screen.queryByTestId("trailing")).toBeNull();
+      expect(screen.getByRole("button", { name: /cancel image mode/i })).toBeInTheDocument();
+    });
+
+    it("places textarea before Add button in DOM with basis-full and without md:basis-auto (T4)", () => {
+      render(<InputForm input="" onChangeInput={vi.fn()} onSubmit={vi.fn()} />);
+
+      const textarea = screen.getByPlaceholderText("Type a message...");
+      const addButton = screen.getByRole("button", { name: /addAttachment/i });
+
+      expect(
+        textarea.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+
+      const wrapper = textarea.parentElement;
+      expect(wrapper).not.toBeNull();
+      expect(wrapper?.className).toContain("basis-full");
+      expect(wrapper?.className).not.toContain("md:basis-auto");
+    });
+  });
 });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { MODEL_IDS } from "@/lib/utils/constants";
+import * as registry from "./modelRegistry";
 import {
   DEFAULT_MODEL,
   isGemini4Model,
@@ -174,6 +175,13 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
       expect(entry?.category).toBe("local");
       expect(entry?.tokenLimit).toBe(32768);
       expect(entry?.maxOutputTokens).toBe(16384);
+    });
+  });
+
+  describe("Legacy Capability Helper Removal Negative Probe (T7)", () => {
+    it("does not export removed capability helper", () => {
+      const helperKey = ["modelSupports", "Deep", "Research"].join("");
+      expect(helperKey in registry).toBe(false);
     });
   });
 });

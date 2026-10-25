@@ -16,10 +16,10 @@ In Audit Cycle 2 (2026-10-12), 4 `SECURITY DEFINER` RPC functions and 4 sensitiv
 
 1. `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` on:
    - `increment_daily_message_count(TEXT, DATE)`
-   - `increment_daily_research_count(TEXT, DATE)`
+   - `increment_daily_research_count(TEXT, DATE)` _(legacy — không còn code ứng dụng dùng; chờ D1)_
    - `match_project_knowledge(UUID, VECTOR, DOUBLE PRECISION, INTEGER)` (protects against cross-tenant knowledge base exfiltration; preserves `search_path = public, extensions, pg_temp` for pgvector `<=>` operator)
    - `get_project_storage_bytes(UUID)`
-2. Direct client permissions revoked on `daily_message_counts`, `daily_research_counts`, `research_tasks`, and `personas`.
+2. Direct client permissions revoked on `daily_message_counts`, `daily_research_counts` _(legacy)_, `research_tasks` _(legacy)_, and `personas`.
 
 Config tables (`allowed_mime_types`, `rank_configs`) have read-only policies for authenticated users.
 
@@ -28,24 +28,24 @@ Config tables (`allowed_mime_types`, `rank_configs`) have read-only policies for
 
 ### Tables with RLS Status
 
-| Table                   | Has Policies | Notes                                        |
-| ----------------------- | ------------ | -------------------------------------------- |
-| `profiles`              | ❌           | Access via service_role only                 |
-| `conversations`         | ❌           | Access via service_role only                 |
-| `messages`              | ❌           | Access via service_role only                 |
-| `gems`                  | ❌           | Access via service_role only                 |
-| `gem_versions`          | ❌           | Access via service_role only                 |
-| `gem_runs`              | ❌           | Access via service_role only                 |
-| `daily_message_counts`  | ❌ (REVOKED) | Deny-by-default, service_role only (Cycle 2) |
-| `daily_research_counts` | ❌ (REVOKED) | Deny-by-default, service_role only (Cycle 2) |
-| `research_tasks`        | ❌ (REVOKED) | Deny-by-default, service_role only (Cycle 2) |
-| `personas`              | ❌ (REVOKED) | Deny-by-default, service_role only (Cycle 2) |
-| `temp_user_ranks`       | ❌           | Access via service_role only                 |
-| `projects`              | ✅           | Users manage own projects                    |
-| `knowledge_documents`   | ✅           | Users manage own knowledge docs              |
-| `knowledge_chunks`      | ✅           | Users manage own knowledge chunks            |
-| `allowed_mime_types`    | ✅           | Read-only for authenticated                  |
-| `rank_configs`          | ✅           | Read-only for authenticated                  |
+| Table                   | Has Policies | Notes                                                                                        |
+| ----------------------- | ------------ | -------------------------------------------------------------------------------------------- |
+| `profiles`              | ❌           | Access via service_role only                                                                 |
+| `conversations`         | ❌           | Access via service_role only                                                                 |
+| `messages`              | ❌           | Access via service_role only                                                                 |
+| `gems`                  | ❌           | Access via service_role only                                                                 |
+| `gem_versions`          | ❌           | Access via service_role only                                                                 |
+| `gem_runs`              | ❌           | Access via service_role only                                                                 |
+| `daily_message_counts`  | ❌ (REVOKED) | Deny-by-default, service_role only (Cycle 2)                                                 |
+| `daily_research_counts` | ❌ (REVOKED) | Legacy (không còn code ứng dụng dùng; chờ D1) — Deny-by-default, service_role only (Cycle 2) |
+| `research_tasks`        | ❌ (REVOKED) | Legacy (không còn code ứng dụng dùng; chờ D1) — Deny-by-default, service_role only (Cycle 2) |
+| `personas`              | ❌ (REVOKED) | Deny-by-default, service_role only (Cycle 2)                                                 |
+| `temp_user_ranks`       | ❌           | Access via service_role only                                                                 |
+| `projects`              | ✅           | Users manage own projects                                                                    |
+| `knowledge_documents`   | ✅           | Users manage own knowledge docs                                                              |
+| `knowledge_chunks`      | ✅           | Users manage own knowledge chunks                                                            |
+| `allowed_mime_types`    | ✅           | Read-only for authenticated                                                                  |
+| `rank_configs`          | ✅           | Read-only for authenticated                                                                  |
 
 ### Adding Client-Side Supabase Access
 

@@ -5,22 +5,12 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useLanguage } from "../hooks/useLanguage";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Pencil,
-  GraduationCap,
-  CodeXml,
-  BarChart3,
-  Sparkles,
-  ChevronRight,
-  X,
-  Microscope,
-} from "lucide-react";
+import { Pencil, GraduationCap, CodeXml, BarChart3, Sparkles, ChevronRight, X } from "lucide-react";
 
 interface DashboardViewProps {
   onPromptSelect?: (prompt: string) => void;
   onPromptPreview?: (prompt: string | null) => void;
   onActivateImageMode?: () => void;
-  isDeepResearchMode?: boolean;
   children?: React.ReactNode; // Slot for ChatControls between greeting and chips
 }
 
@@ -98,7 +88,6 @@ export default function DashboardView({
   onPromptSelect,
   onPromptPreview,
   onActivateImageMode,
-  isDeepResearchMode = false,
   children,
 }: DashboardViewProps) {
   const { data: session } = useSession();
@@ -168,56 +157,33 @@ export default function DashboardView({
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="text-center mb-8 flex flex-col items-center"
       >
-        {isDeepResearchMode ? (
-          <>
-            <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-(--accent)/10 text-(--accent) border border-(--accent)/20 text-xs font-semibold uppercase tracking-widest shadow-[0_0_15px_var(--glow)]">
-              <Microscope className="w-3.5 h-3.5" />
-              {t("deepResearch")}
-            </div>
-            <h1
-              className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight"
-              style={{ letterSpacing: "-0.03em", textWrap: "balance" }}
-            >
-              {t("deepResearchQuery")}
-            </h1>
-            <p className="mt-2 text-sm md:text-base text-(--text-secondary)">
-              {t("deepResearchDesc")}
-            </p>
-          </>
-        ) : (
-          <>
-            <h1
-              className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight"
-              style={{ letterSpacing: "-0.03em", textWrap: "balance" }}
-            >
-              {t(greetingKey)}, {userName}
-            </h1>
-            <p className="mt-2 text-sm md:text-base text-(--text-secondary)">
-              {t("landingSubtitle")}
-            </p>
-          </>
-        )}
+        <h1
+          className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight"
+          style={{ letterSpacing: "-0.03em", textWrap: "balance" }}
+        >
+          {t(greetingKey)}, {userName}
+        </h1>
+        <p className="mt-2 text-sm md:text-base text-(--text-secondary)">{t("landingSubtitle")}</p>
       </motion.div>
 
       {/* ── Slot: ChatControls goes here ── */}
       {children && <div className="w-full mb-3">{children}</div>}
 
       {/* ── Suggestion Chips + Dropdown wrapper ── */}
-      {!isDeepResearchMode && (
-        <div className="relative w-full flex flex-col items-center">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
-            className="flex flex-wrap items-center justify-center gap-2"
-          >
-            {CATEGORIES.map((cat) => {
-              const isActive = activeCategory === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => handleCategoryClick(cat.id)}
-                  className={`
+      <div className="relative w-full flex flex-col items-center">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
+          className="flex flex-wrap items-center justify-center gap-2"
+        >
+          {CATEGORIES.map((cat) => {
+            const isActive = activeCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => handleCategoryClick(cat.id)}
+                className={`
                   inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium
                   transition-[background-color,color,border-color,transform,box-shadow] duration-200 border active:scale-[0.95]
                   ${
@@ -226,58 +192,58 @@ export default function DashboardView({
                       : "bg-(--surface-muted)/50 text-(--text-secondary) border-(--border) hover:bg-(--control-bg-hover) hover:text-(--text-primary) hover:border-(--accent)/20"
                   }
                 `}
-                >
-                  {cat.icon}
-                  <span>{t(cat.labelKey)}</span>
-                </button>
-              );
-            })}
-          </motion.div>
-
-          {/* ── Suggestions Dropdown Panel (absolute so it doesn't push content) ── */}
-          <AnimatePresence mode="wait">
-            {activeCat && (
-              <motion.div
-                key={activeCat.id}
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25, ease: "easeInOut" }}
-                className="absolute top-full left-1/2 -translate-x-1/2 w-full max-w-md mt-2 z-50"
               >
-                <div className="rounded-2xl border border-(--border) bg-(--surface-muted)/60 backdrop-blur-2xl shadow-2xl overflow-hidden">
-                  {/* Category Header */}
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-(--border)">
-                    <div className="flex items-center gap-2 text-(--accent) text-sm font-semibold">
-                      {activeCat.icon}
-                      <span>{t(activeCat.labelKey)}</span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setActiveCategory(null);
-                        onPromptPreview?.(null);
-                      }}
-                      className="p-1 rounded-full text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+                {cat.icon}
+                <span>{t(cat.labelKey)}</span>
+              </button>
+            );
+          })}
+        </motion.div>
 
-                  {/* Suggestions List */}
-                  <div className="py-1">
-                    {activeCat.suggestions.map((sug, idx) => (
-                      <button
-                        key={sug.labelKey}
-                        onMouseEnter={() => {
-                          setHoveredSuggestion(idx);
-                          handleSuggestionHover(sug.prompt || null);
-                        }}
-                        onMouseLeave={() => {
-                          setHoveredSuggestion(null);
-                          handleSuggestionHover(null);
-                        }}
-                        onClick={() => handleSuggestionClick(sug)}
-                        className={`
+        {/* ── Suggestions Dropdown Panel (absolute so it doesn't push content) ── */}
+        <AnimatePresence mode="wait">
+          {activeCat && (
+            <motion.div
+              key={activeCat.id}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="absolute top-full left-1/2 -translate-x-1/2 w-full max-w-md mt-2 z-50"
+            >
+              <div className="rounded-2xl border border-(--border) bg-(--surface-muted)/60 backdrop-blur-2xl shadow-2xl overflow-hidden">
+                {/* Category Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-(--border)">
+                  <div className="flex items-center gap-2 text-(--accent) text-sm font-semibold">
+                    {activeCat.icon}
+                    <span>{t(activeCat.labelKey)}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setActiveCategory(null);
+                      onPromptPreview?.(null);
+                    }}
+                    className="p-1 rounded-full text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Suggestions List */}
+                <div className="py-1">
+                  {activeCat.suggestions.map((sug, idx) => (
+                    <button
+                      key={sug.labelKey}
+                      onMouseEnter={() => {
+                        setHoveredSuggestion(idx);
+                        handleSuggestionHover(sug.prompt || null);
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredSuggestion(null);
+                        handleSuggestionHover(null);
+                      }}
+                      onClick={() => handleSuggestionClick(sug)}
+                      className={`
                         w-full flex items-center justify-between px-4 py-3 text-left text-sm
                         transition-[background-color,color] duration-150 group cursor-pointer
                         ${
@@ -286,24 +252,23 @@ export default function DashboardView({
                             : "text-(--text-secondary) hover:text-(--text-primary)"
                         }
                       `}
-                      >
-                        <span className="flex-1 truncate">{t(sug.labelKey)}</span>
-                        <ChevronRight
-                          className={`w-4 h-4 shrink-0 ml-2 transition-[opacity,transform,color] duration-200 ${
-                            hoveredSuggestion === idx
-                              ? "opacity-100 translate-x-0 text-(--accent)"
-                              : "opacity-0 -translate-x-1"
-                          }`}
-                        />
-                      </button>
-                    ))}
-                  </div>
+                    >
+                      <span className="flex-1 truncate">{t(sug.labelKey)}</span>
+                      <ChevronRight
+                        className={`w-4 h-4 shrink-0 ml-2 transition-[opacity,transform,color] duration-200 ${
+                          hoveredSuggestion === idx
+                            ? "opacity-100 translate-x-0 text-(--accent)"
+                            : "opacity-0 -translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  ))}
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

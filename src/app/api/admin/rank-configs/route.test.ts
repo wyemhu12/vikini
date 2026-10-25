@@ -292,27 +292,7 @@ describe("/api/admin/rank-configs", () => {
       );
     });
 
-    it("should return 400 for invalid daily_research_limit", async () => {
-      mockAdmin();
-      const req = createRequest("PATCH", "/api/admin/rank-configs", {
-        configs: [
-          {
-            rank: "basic",
-            daily_message_limit: 100,
-            max_file_size_mb: 10,
-            daily_research_limit: -1,
-          },
-        ],
-      });
-      const res = await PATCH(req);
-      expect(res.status).toBe(400);
-      const json = await res.json();
-      expect(json.error.message).toContain(
-        "daily_research_limit must be an integer between 0 and 2147483647"
-      );
-    });
-
-    it("should update configs successfully including daily_research_limit", async () => {
+    it("should ignore legacy daily_research_limit field and omit it from database update payload (T8)", async () => {
       mockAdmin();
       mockEq.mockResolvedValue({ error: null });
 
@@ -322,7 +302,7 @@ describe("/api/admin/rank-configs", () => {
             rank: "basic",
             daily_message_limit: 100,
             max_file_size_mb: 20,
-            daily_research_limit: 5,
+            daily_research_limit: -1,
             features: { imageGen: true },
             allowed_models: ["gemini-2.5-flash"],
           },
@@ -334,11 +314,8 @@ describe("/api/admin/rank-configs", () => {
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(json.data.updated).toBe(true);
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          daily_research_limit: 5,
-        })
-      );
+      expect(mockUpdate).toHaveBeenCalledTimes(1);
+      expect(mockUpdate.mock.calls[0][0]).not.toHaveProperty("daily_research_limit");
     });
 
     it("should return 500 on database error during update", async () => {

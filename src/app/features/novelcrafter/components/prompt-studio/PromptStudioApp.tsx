@@ -3,9 +3,18 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowLeft, ScrollText } from "lucide-react";
+import { ArrowLeft, Check, Globe, Palette, ScrollText } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import ToastContainer from "@/components/ui/ToastContainer";
+import { THEME_CONFIG } from "@/lib/config/theme-config";
 import { useLanguage } from "../../../chat/hooks/useLanguage";
 import { useTheme } from "../../../chat/hooks/useTheme";
 import { usePromptStudioController } from "../../hooks/usePromptStudioController";
@@ -14,8 +23,8 @@ import PromptStudioActionList from "./PromptStudioActionList";
 import PromptStudioPresetBar from "./PromptStudioPresetBar";
 
 export default function PromptStudioApp() {
-  useTheme();
-  const { t } = useLanguage();
+  const { theme, setTheme } = useTheme();
+  const { t, language, setLanguage } = useLanguage();
   const c = usePromptStudioController();
 
   return (
@@ -47,6 +56,50 @@ export default function PromptStudioApp() {
               {t("novelcrafterPromptStudioSubtitle")}
             </p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setLanguage(language === "vi" ? "en" : "vi")}
+            aria-label={t("selectLanguage")}
+            title={t("selectLanguage")}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-bold uppercase text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+          >
+            <Globe className="w-3.5 h-3.5 text-(--accent) shrink-0" />
+            <span>{language === "vi" ? "VN" : "EN"}</span>
+          </button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={t("selectTheme")}
+                title={t("selectTheme")}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-semibold text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              >
+                <Palette className="w-3.5 h-3.5 text-(--accent) shrink-0" />
+                <span>{t("themes")}</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-56 max-h-80 overflow-y-auto custom-scrollbar"
+            >
+              <DropdownMenuLabel className="text-xs">{t("themes")}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {THEME_CONFIG.map((tItem) => (
+                <DropdownMenuItem
+                  key={tItem.id}
+                  onClick={() => setTheme(tItem.id)}
+                  className="text-xs flex items-center justify-between gap-2 cursor-pointer"
+                >
+                  <span className="truncate">{t(tItem.labelKey) || tItem.id}</span>
+                  {theme === tItem.id && <Check className="w-3.5 h-3.5 text-(--accent) shrink-0" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 

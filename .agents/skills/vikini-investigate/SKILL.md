@@ -83,7 +83,7 @@ MANDATORY before modifying any exported function, type, constant, or class in `s
 
 1. **Static imports**: `grep_search` across `src/` and `tests/` for import sites and call sites of the target symbol (`@/lib/...` aliases and relative imports).
 2. **(A) Dynamic imports**: Grep `import\(["'][^"']*<module-tail>["']\)` (both `@/...` alias and relative paths) and destructuring near `await import(`.
-   - Example probe: `getSupabaseAdmin` → `src/app/api/chat-stream/attachmentProcessor.ts:139`, `src/app/api/deep-research/[taskId]/stream/route.ts:143,174`.
+   - Example probe: `getSupabaseAdmin` → `src/app/api/chat-stream/attachmentProcessor.ts:139`.
 3. **(B) DI / interface properties**: If the symbol is assigned to an object property, passed as an argument, or satisfies an interface/type, locate that interface/type and grep `<Interface>\["<prop>"\]` plus property call/destructuring sites.
    - Example probe: `upsertAssistantMessage` (`chatStreamCore.ts:237,290`) → `ChatStreamParams` (`streaming/types.ts:176`) → 5 stream engines (`gemini`, `openai`, `deepseek`, `anthropic`, `strata`) + `post-processing.ts`.
 4. **(C) Transitive callers (max 3 tiers)**: For each caller that is an exported function, repeat steps 1–3 up to 3 tiers (`tối đa 3 tầng`).

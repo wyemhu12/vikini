@@ -12,13 +12,16 @@ import {
   Download,
   FileCode2,
   FileText,
+  Globe,
   Loader2,
+  Palette,
   PanelLeft,
   PanelRight,
   ScrollText,
   Settings2,
   UserCheck,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +41,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ModelSelector from "@/app/features/chat/components/ModelSelector";
+import { THEME_CONFIG } from "@/lib/config/theme-config";
 import { isModelAllowedById } from "@/lib/core/modelAccess";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
@@ -100,7 +104,8 @@ export default function NovelcrafterTopBar({
   onCloseRenameStoryModal,
   onConfirmRenameStory,
 }: NovelcrafterTopBarProps) {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
+  const { theme, setTheme } = useTheme();
   const [titleDraft, setTitleDraft] = useState(storyTitle);
   const [exportIncludeBible, setExportIncludeBible] = useState(true);
   const [exportIncludeSummaries, setExportIncludeSummaries] = useState(true);
@@ -314,6 +319,48 @@ export default function NovelcrafterTopBar({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+
+          <button
+            type="button"
+            onClick={() => setLanguage(language === "vi" ? "en" : "vi")}
+            aria-label={t("selectLanguage")}
+            title={t("selectLanguage")}
+            className="hidden md:inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-bold uppercase text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
+          >
+            <Globe className="w-3.5 h-3.5 text-(--accent) shrink-0" />
+            <span>{language === "vi" ? "VN" : "EN"}</span>
+          </button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={t("selectTheme")}
+                title={t("selectTheme")}
+                className="hidden md:inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
+              >
+                <Palette className="w-3.5 h-3.5 text-(--accent) shrink-0" />
+                <span className="hidden xl:inline">{t("themes")}</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-56 max-h-80 overflow-y-auto custom-scrollbar"
+            >
+              <DropdownMenuLabel className="text-xs">{t("themes")}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {THEME_CONFIG.map((tItem) => (
+                <DropdownMenuItem
+                  key={tItem.id}
+                  onClick={() => setTheme(tItem.id)}
+                  className="text-xs flex items-center justify-between gap-2 cursor-pointer"
+                >
+                  <span className="truncate">{t(tItem.labelKey) || tItem.id}</span>
+                  {theme === tItem.id && <Check className="w-3.5 h-3.5 text-(--accent) shrink-0" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <button
             type="button"

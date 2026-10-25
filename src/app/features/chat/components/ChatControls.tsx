@@ -3,28 +3,23 @@
 
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { FolderOpen, AlertTriangle, Microscope } from "lucide-react";
+import { FolderOpen, AlertTriangle } from "lucide-react";
 import { useLanguage } from "../hooks/useLanguage";
 
-import ModelSelector from "./ModelSelector";
-import ThinkingLevelSelector from "./ThinkingLevelSelector";
 import LocalSamplingSettings from "./LocalSamplingSettings";
 import InputForm from "./InputForm";
+import InputModelControls from "./InputModelControls";
 import FileManagerPanel from "./FileManagerPanel";
 import GemQuickSwitch from "../../../features/gems/components/GemQuickSwitch";
 import PersonaQuickSwitch from "../../../features/personas/components/PersonaQuickSwitch";
-import ResearchAgentSelector from "../../../features/research/components/ResearchAgentSelector";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
-import { type ThinkingLevel, modelSupportsThinkingUI } from "./hooks/useThinkingLevel";
+import { type ThinkingLevel } from "./hooks/useThinkingLevel";
 import {
   modelSupportsWebSearch,
   isDeepSeekV32Model,
-  modelSupportsDeepResearch,
   isStrataLocalModel,
 } from "@/lib/core/modelRegistry";
-import type { ResearchAgent } from "@/lib/features/research/types";
 
 /** Gem info for display */
 interface GemInfo {
@@ -45,12 +40,6 @@ export interface ChatControlsProps {
   toggleWebSearch: () => void;
   alwaysSearch: boolean;
   toggleAlwaysSearch: () => void;
-  // Deep Research
-  deepResearchEnabled: boolean;
-  toggleDeepResearch: () => void;
-  deepResearchAllowed: boolean;
-  selectedResearchAgent?: ResearchAgent;
-  onResearchAgentChange?: (agent: ResearchAgent) => void;
   // Thinking Level
   thinkingLevel: ThinkingLevel;
   setThinkingLevel: (level: ThinkingLevel) => void;
@@ -91,12 +80,6 @@ export default function ChatControls({
   toggleWebSearch,
   alwaysSearch,
   toggleAlwaysSearch,
-  // Deep Research
-  deepResearchEnabled,
-  toggleDeepResearch,
-  deepResearchAllowed,
-  selectedResearchAgent,
-  onResearchAgentChange,
   // Thinking Level
   thinkingLevel,
   setThinkingLevel,
@@ -131,7 +114,6 @@ export default function ChatControls({
   const displayValue = previewPrompt !== null ? previewPrompt : input;
   const isShowingPreview = previewPrompt !== null && previewPrompt !== "";
   const canWebSearch = modelSupportsWebSearch(currentModel);
-  const canDeepResearch = modelSupportsDeepResearch(currentModel);
   const isV32 = isDeepSeekV32Model(currentModel);
   const isLocal = isStrataLocalModel(currentModel);
 
@@ -142,23 +124,8 @@ export default function ChatControls({
   );
 
   const [showFileManager, setShowFileManager] = useState(false);
-  const [showAgentSelector, setShowAgentSelector] = useState(false);
 
   const controls: { key: string; node: React.ReactNode }[] = [
-    {
-      key: "model",
-      node: (
-        <div className="shrink-0 whitespace-nowrap">
-          <ModelSelector
-            currentModelId={currentModel}
-            onSelectModel={handleModelChange}
-            isModelAllowed={isModelAllowed}
-            disabled={isStreaming || regenerating}
-            expandDown={isLanding}
-          />
-        </div>
-      ),
-    },
     {
       key: "web",
       node: (
@@ -213,21 +180,6 @@ export default function ChatControls({
     });
   }
 
-  if (modelSupportsThinkingUI(currentModel)) {
-    controls.push({
-      key: "thinking",
-      node: (
-        <div className="shrink-0 whitespace-nowrap">
-          <ThinkingLevelSelector
-            thinkingLevel={thinkingLevel}
-            setThinkingLevel={setThinkingLevel}
-            currentModel={currentModel}
-          />
-        </div>
-      ),
-    });
-  }
-
   if (isLocal) {
     controls.push({
       key: "local-sampling",
@@ -238,59 +190,6 @@ export default function ChatControls({
             thinkingLevel={thinkingLevel}
             disabled={isStreaming || regenerating}
           />
-        </div>
-      ),
-    });
-  }
-
-  if (canDeepResearch) {
-    controls.push({
-      key: "deep-research",
-      node: (
-        <div className="flex items-center gap-1 shrink-0 whitespace-nowrap">
-          <button
-            type="button"
-            onClick={deepResearchAllowed ? toggleDeepResearch : undefined}
-            disabled={!deepResearchAllowed}
-            title={!deepResearchAllowed ? t("deepResearchNotAllowed") : t("deepResearchDesc")}
-            aria-pressed={deepResearchEnabled}
-            className={`shrink-0 whitespace-nowrap text-xs font-semibold uppercase tracking-wider px-3 py-1.5 transition-all duration-200 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
-              !deepResearchAllowed
-                ? "text-(--text-secondary) opacity-40 cursor-not-allowed"
-                : deepResearchEnabled
-                  ? "text-(--accent) md:bg-(--control-bg-hover)"
-                  : "text-(--text-secondary) hover:text-(--text-primary)"
-            }`}
-          >
-            <Microscope className="w-3.5 h-3.5" />
-            {t("deepResearch")}
-          </button>
-          {deepResearchEnabled && (
-            <Popover open={showAgentSelector} onOpenChange={setShowAgentSelector}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="shrink-0 whitespace-nowrap text-xs font-semibold px-2.5 py-1 rounded-full bg-(--accent)/15 text-(--accent) border border-(--accent)/20 hover:bg-(--accent)/25 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95]"
-                  title={t("deepResearchSelectAgent")}
-                >
-                  {selectedResearchAgent === "deep-research-max-preview-04-2026"
-                    ? t("deepResearchAgentMax")
-                    : t("deepResearchAgentDeep")}
-                </button>
-              </PopoverTrigger>
-              {onResearchAgentChange && (
-                <PopoverContent side="top" align="start" className="w-80 p-3">
-                  <ResearchAgentSelector
-                    selectedAgent={selectedResearchAgent || "deep-research-preview-04-2026"}
-                    onSelect={(agent) => {
-                      onResearchAgentChange(agent);
-                      setShowAgentSelector(false);
-                    }}
-                  />
-                </PopoverContent>
-              )}
-            </Popover>
-          )}
         </div>
       ),
     });
@@ -412,6 +311,17 @@ export default function ChatControls({
             sentMessageFileIds={sentMessageFileIds}
             ensureConversationId={ensureConversationId}
             isSelfInitiatedUploadRef={isSelfInitiatedUploadRef}
+            trailingControls={
+              <InputModelControls
+                currentModel={currentModel}
+                onSelectModel={handleModelChange}
+                isModelAllowed={isModelAllowed}
+                thinkingLevel={thinkingLevel}
+                setThinkingLevel={setThinkingLevel}
+                disabled={isStreaming || regenerating}
+                expandDown={isLanding}
+              />
+            }
           />
         </div>
       </div>

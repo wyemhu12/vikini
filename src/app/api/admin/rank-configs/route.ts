@@ -64,7 +64,6 @@ export async function PATCH(req: NextRequest) {
         rank?: string;
         daily_message_limit?: unknown;
         max_file_size_mb?: unknown;
-        daily_research_limit?: unknown;
         features?: unknown;
         allowed_models?: string[];
       };
@@ -104,21 +103,6 @@ export async function PATCH(req: NextRequest) {
         features: configObj.features,
         allowed_models: configObj.allowed_models || [],
       };
-
-      // Validate optional daily_research_limit
-      if (configObj.daily_research_limit !== undefined) {
-        if (
-          typeof configObj.daily_research_limit !== "number" ||
-          !Number.isInteger(configObj.daily_research_limit) ||
-          configObj.daily_research_limit < 0 ||
-          configObj.daily_research_limit > MAX_INT4
-        ) {
-          throw new ValidationError(
-            "daily_research_limit must be an integer between 0 and 2147483647"
-          );
-        }
-        updatePayload.daily_research_limit = configObj.daily_research_limit;
-      }
 
       const { error: dbError } = await supabase
         .from("rank_configs")

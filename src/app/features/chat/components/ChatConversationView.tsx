@@ -1,26 +1,20 @@
 // /app/features/chat/components/ChatConversationView.tsx
 "use client";
 
-import React, { lazy, Suspense } from "react";
+import React from "react";
 import ChatMessagesArea from "./ChatMessagesArea";
 import type { FrontendConversation } from "../hooks/useConversation";
 import type { useTTS } from "../hooks/useTTS";
 import type { useChatStreamController } from "./hooks/useChatStreamController";
 import type { useImageGenController } from "./hooks/useImageGenController";
 import type { useThinkingRegenerate } from "./hooks/useThinkingRegenerate";
-import type { UseDeepResearchModeReturn } from "./hooks/useDeepResearchMode";
 import type { UseConversationBranchingReturn } from "./hooks/useConversationBranching";
-
-const ChatDeepResearch = lazy(() => import("./ChatDeepResearch"));
 
 interface ChatConversationViewProps {
   chat: ReturnType<typeof useChatStreamController>;
   imageGen: ReturnType<typeof useImageGenController>;
   thinking: ReturnType<typeof useThinkingRegenerate>;
   branching: UseConversationBranchingReturn;
-  research: UseDeepResearchModeReturn;
-  showResearch: boolean;
-  onEditPlan: () => void;
   currentConversation: FrontendConversation | undefined;
   parentConversation: FrontendConversation | null | undefined;
   contextMessagesCount: number;
@@ -34,15 +28,12 @@ interface ChatConversationViewProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
-/** Active conversation: loading spinner, message list and inline deep research progress. */
+/** Active conversation: loading spinner and message list. */
 export default function ChatConversationView({
   chat,
   imageGen,
   thinking,
   branching,
-  research,
-  showResearch,
-  onEditPlan,
   t,
   ...rest
 }: ChatConversationViewProps) {
@@ -80,22 +71,6 @@ export default function ChatConversationView({
       handleImageEdit={imageGen.handleImageEdit}
       lastGeneratedImage={imageGen.lastGeneratedImage}
       studioGeneratingStatus={t.studioGeneratingStatus}
-    >
-      {showResearch && (
-        <Suspense fallback={null}>
-          <ChatDeepResearch
-            currentTask={research.currentTask}
-            pendingQuery={research.pendingQuery}
-            isApproving={research.isApproving}
-            approvePlan={research.approvePlan}
-            cancelResearch={research.cancelResearch}
-            openReportPanel={research.openReportPanel}
-            openThinkingPanel={research.openThinkingPanel}
-            onEditPlan={onEditPlan}
-            t={t}
-          />
-        </Suspense>
-      )}
-    </ChatMessagesArea>
+    />
   );
 }

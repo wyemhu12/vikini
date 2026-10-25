@@ -6,17 +6,12 @@ import type { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import type { useImageGenController } from "./hooks/useImageGenController";
 import type { useThinkingRegenerate } from "./hooks/useThinkingRegenerate";
 import type { useChatAttachments } from "./hooks/useChatAttachments";
-import type { UseDeepResearchModeReturn } from "./hooks/useDeepResearchMode";
 
-type SharedChatControlsProps = Omit<
-  ChatControlsProps,
-  "isLanding" | "selectedResearchAgent" | "onResearchAgentChange"
->;
+type SharedChatControlsProps = Omit<ChatControlsProps, "isLanding">;
 
 interface BuildChatControlsPropsInput {
   chat: ReturnType<typeof useChatStreamController>;
   webSearch: ReturnType<typeof useWebSearchPreference>;
-  research: UseDeepResearchModeReturn;
   thinking: ReturnType<typeof useThinkingRegenerate>;
   imageGen: ReturnType<typeof useImageGenController>;
   attachments: ReturnType<typeof useChatAttachments>;
@@ -24,7 +19,6 @@ interface BuildChatControlsPropsInput {
   currentModel: string;
   handleModelChange: (modelId: string) => void;
   isModelAllowed: (modelId: string) => boolean;
-  deepResearchAllowed: boolean;
   currentConversation: FrontendConversation | undefined;
   selectedConversationId: string | null;
   showMobileControls: boolean;
@@ -37,7 +31,6 @@ interface BuildChatControlsPropsInput {
 export function buildChatControlsProps({
   chat,
   webSearch,
-  research,
   thinking,
   imageGen,
   attachments,
@@ -57,11 +50,6 @@ export function buildChatControlsProps({
     toggleWebSearch: webSearch.toggleWebSearch,
     alwaysSearch: webSearch.alwaysSearch,
     toggleAlwaysSearch: webSearch.toggleAlwaysSearch,
-    deepResearchEnabled: research.isDeepResearchMode,
-    toggleDeepResearch: research.isDeepResearchMode
-      ? research.exitDeepResearch
-      : research.enterDeepResearch,
-    deepResearchAllowed: rest.deepResearchAllowed,
     thinkingLevel: thinking.thinkingLevel,
     setThinkingLevel: thinking.setThinkingLevel,
     currentModel: rest.currentModel,
