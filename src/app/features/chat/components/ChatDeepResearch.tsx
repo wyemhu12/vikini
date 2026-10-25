@@ -42,7 +42,7 @@ export default function ChatDeepResearch({
   if (!currentTask && pendingQuery) {
     return (
       <div className="flex w-full flex-col gap-3 py-6">
-        <div className="flex max-w-[95%] lg:max-w-[90%] gap-4 items-start">
+        <div className="flex max-w-[95%] gap-4 items-start">
           <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
             <Microscope className="w-4 h-4" />
           </div>
@@ -58,7 +58,7 @@ export default function ChatDeepResearch({
 
   return (
     <div className="flex w-full flex-col gap-3 py-6">
-      <div className="flex max-w-[95%] lg:max-w-[90%] gap-4 items-start">
+      <div className="flex max-w-[95%] gap-4 items-start">
         <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
           <Microscope className="w-4 h-4" />
         </div>

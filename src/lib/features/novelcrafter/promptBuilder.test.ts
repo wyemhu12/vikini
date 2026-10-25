@@ -846,6 +846,23 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04, TC-05)", () => {
       if (!fail15001.success) {
         expect(fail15001.error.issues[0]?.path).toEqual(["customInstruction"]);
       }
+
+      const okSelected150k = NovelcrafterStreamRequestSchema.safeParse({
+        ...basePayload,
+        feature: "feedback",
+        selectedText: "x".repeat(150_000),
+      });
+      expect(okSelected150k.success).toBe(true);
+
+      const failSelected150001 = NovelcrafterStreamRequestSchema.safeParse({
+        ...basePayload,
+        feature: "feedback",
+        selectedText: "x".repeat(150_001),
+      });
+      expect(failSelected150001.success).toBe(false);
+      if (!failSelected150001.success) {
+        expect(failSelected150001.error.issues[0]?.path).toEqual(["selectedText"]);
+      }
     });
   });
 });

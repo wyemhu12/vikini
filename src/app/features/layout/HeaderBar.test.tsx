@@ -163,4 +163,10 @@ describe("HeaderBar", () => {
     const focusVisibleBtn = container.querySelector(".focus-visible\\:ring-2");
     expect(focusVisibleBtn).not.toBeNull();
   });
+
+  it("adds md:hidden class when hideOnDesktop is true (Step C7)", () => {
+    const { container } = renderHeader({ hideOnDesktop: true });
+    const header = container.querySelector("header");
+    expect(header?.className).toContain("md:hidden");
+  });
 });

@@ -248,7 +248,7 @@ export default function InputForm({
 
         {/* Input row */}
         <div
-          className={`flex items-end gap-2 p-2 ${fileCount > 0 || uploadQueue.length > 0 ? "pt-0" : ""}`}
+          className={`flex flex-wrap md:flex-nowrap items-end gap-2 p-2 ${fileCount > 0 || uploadQueue.length > 0 ? "pt-0" : ""}`}
         >
           {/* Plus Menu Trigger */}
           <DropdownMenu>
@@ -293,7 +293,7 @@ export default function InputForm({
           />
 
           {/* Text Area */}
-          <div className="flex-1 min-w-0 relative">
+          <div className="order-first basis-full md:order-none md:basis-auto md:flex-1 min-w-0 relative">
             {isImageMode && (
               <div className="absolute -top-6 left-0 text-xs font-semibold uppercase tracking-wider text-(--accent) animate-in fade-in slide-in-from-bottom-1 bg-(--surface-elevated) px-2 py-0.5 rounded-full border border-(--accent)/30 shadow-sm">
                 {t("imageModeLabel") || "IMAGE GENERATION MODE"}
@@ -313,52 +313,53 @@ export default function InputForm({
                   : t("placeholder") || "Message..."
               }
               disabled={disabled}
-              className={`max-h-[200px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[15px] placeholder:text-(--text-secondary) outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--text-secondary) italic" : "text-(--text-primary)"}`}
-              style={{ height: "40px" }}
+              className={`max-h-[200px] min-h-[40px] h-10 w-full resize-none bg-transparent py-2.5 text-[15px] placeholder:text-(--text-secondary) outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--text-secondary) italic" : "text-(--text-primary)"}`}
             />
           </div>
 
-          {isImageMode && (
-            <button
-              type="button"
-              onClick={() => setIsImageMode(false)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--danger) transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95]"
-              title={t("cancelImageMode") || "Cancel Image Mode"}
-              aria-label={t("cancelImageMode") || "Cancel image mode"}
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
-
-          {/* Voice Input Button */}
-          {!isImageMode && (
-            <VoiceButton
-              onTranscript={setVoiceTranscript}
-              onFinalTranscript={(text) => onChangeInput(input + (input ? " " : "") + text)}
-              disabled={disabled || isStreaming}
-              language={language === "vi" ? "vi-VN" : "en-US"}
-              t={tRecord}
-            />
-          )}
-
-          {/* Send / Stop Button */}
-          <button
-            type="submit"
-            disabled={isButtonDisabled}
-            className={sendButtonClasses}
-            title={isStreaming ? t("stopBtn") || "Stop" : t("send") || "Send"}
-            aria-label={
-              isStreaming ? t("stopGeneration") || "Stop generation" : t("send") || "Send message"
-            }
-          >
-            {isStreaming ? (
-              <Square className="w-4 h-4 fill-current" />
-            ) : isImageMode ? (
-              <ImageIcon className="w-5 h-5" />
-            ) : (
-              <SendHorizontal className="w-5 h-5" />
+          <div className="flex items-center gap-2 ml-auto md:ml-0 shrink-0">
+            {isImageMode && (
+              <button
+                type="button"
+                onClick={() => setIsImageMode(false)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--danger) transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95]"
+                title={t("cancelImageMode") || "Cancel Image Mode"}
+                aria-label={t("cancelImageMode") || "Cancel image mode"}
+              >
+                <X className="w-5 h-5" />
+              </button>
             )}
-          </button>
+
+            {/* Voice Input Button */}
+            {!isImageMode && (
+              <VoiceButton
+                onTranscript={setVoiceTranscript}
+                onFinalTranscript={(text) => onChangeInput(input + (input ? " " : "") + text)}
+                disabled={disabled || isStreaming}
+                language={language === "vi" ? "vi-VN" : "en-US"}
+                t={tRecord}
+              />
+            )}
+
+            {/* Send / Stop Button */}
+            <button
+              type="submit"
+              disabled={isButtonDisabled}
+              className={sendButtonClasses}
+              title={isStreaming ? t("stopBtn") || "Stop" : t("send") || "Send"}
+              aria-label={
+                isStreaming ? t("stopGeneration") || "Stop generation" : t("send") || "Send message"
+              }
+            >
+              {isStreaming ? (
+                <Square className="w-4 h-4 fill-current" />
+              ) : isImageMode ? (
+                <ImageIcon className="w-5 h-5" />
+              ) : (
+                <SendHorizontal className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Keyboard shortcut hints */}

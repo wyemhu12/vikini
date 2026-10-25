@@ -64,7 +64,7 @@ const TokenBadge = memo(function TokenBadge({
   if (tooltipLines.length === 0) {
     return (
       <span
-        className={`inline-flex items-center gap-1 text-xs text-secondary/60 select-none opacity-50 hover:opacity-100 transition-opacity ${className}`}
+        className={`inline-flex items-center gap-1 text-xs text-(--text-secondary) select-none opacity-50 hover:opacity-100 transition-opacity ${className}`}
       >
         <Sparkles className="w-3 h-3" />
         <span className="tabular-nums">
@@ -79,7 +79,8 @@ const TokenBadge = memo(function TokenBadge({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`inline-flex items-center gap-1 text-xs text-secondary/60 hover:text-secondary active:text-secondary transition-colors select-none opacity-50 hover:opacity-100 transition-opacity ${className}`}
+          aria-label={t("tokenUsageAria")}
+          className={`inline-flex items-center gap-1 text-xs text-(--text-secondary) hover:text-(--text-primary) active:text-(--text-primary) transition-[color,opacity] select-none opacity-50 hover:opacity-100 rounded-sm focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${className}`}
           onClick={() => setOpen(!open)}
         >
           <Sparkles className="w-3 h-3" />
@@ -91,7 +92,7 @@ const TokenBadge = memo(function TokenBadge({
       <PopoverContent
         side="top"
         align="end"
-        className="w-auto text-xs bg-surface-elevated border border-token px-3 py-2"
+        className="w-auto text-xs bg-(--surface-elevated) border border-(--border) px-3 py-2"
         sideOffset={4}
       >
         <div className="flex flex-col gap-0.5">

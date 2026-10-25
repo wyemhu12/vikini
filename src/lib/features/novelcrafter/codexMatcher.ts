@@ -8,6 +8,14 @@ function escapeRegExp(value: string): string {
 }
 
 const CJK_SCRIPT_REGEX = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+const WORD_CHAR_REGEX = /[\p{L}\p{N}_]/u;
+
+export interface CodexMentionRange {
+  entityId: string;
+  entityKind: "character" | "world";
+  start: number;
+  end: number;
+}
 
 export function parseAliasesInput(raw: string): string[] {
   if (!raw || typeof raw !== "string") return [];
@@ -91,4 +99,106 @@ export function matchCodexEntitiesInContext(
   }
 
   return { matchedCharacterIds, matchedWorldElementIds };
+}
+
+interface CodexSearchTerm {
+  entityId: string;
+  entityKind: "character" | "world";
+  termLower: string;
+  length: number;
+  isCjk: boolean;
+  order: number;
+}
+
+function collectCodexSearchTerms(storyBible: StoryBible): CodexSearchTerm[] {
+  const terms: CodexSearchTerm[] = [];
+  let order = 0;
+
+  const addTerm = (raw: string, entityId: string, entityKind: "character" | "world") => {
+    const trimmed = raw.trim();
+    if (trimmed.length < 2 || !entityId) return;
+    terms.push({
+      entityId,
+      entityKind,
+      termLower: trimmed.toLowerCase(),
+      length: trimmed.length,
+      isCjk: CJK_SCRIPT_REGEX.test(trimmed),
+      order: order++,
+    });
+  };
+
+  for (const card of storyBible.characterCards || []) {
+    addTerm(card.name, card.id, "character");
+    for (const alias of card.aliases ?? []) {
+      addTerm(alias, card.id, "character");
+    }
+  }
+
+  for (const el of storyBible.worldElements || []) {
+    addTerm(el.name, el.id, "world");
+    for (const alias of el.aliases ?? []) {
+      addTerm(alias, el.id, "world");
+    }
+  }
+
+  return terms;
+}
+
+export function findCodexMentionRanges(
+  storyBible: StoryBible,
+  text: string,
+  maxRanges = 2000
+): CodexMentionRange[] {
+  if (!text || maxRanges <= 0) return [];
+  const terms = collectCodexSearchTerms(storyBible);
+  if (terms.length === 0) return [];
+
+  const textLower = text.toLowerCase();
+  const candidates: Array<CodexMentionRange & { order: number }> = [];
+
+  for (const item of terms) {
+    let fromIdx = 0;
+    while (fromIdx <= textLower.length - item.length) {
+      const found = textLower.indexOf(item.termLower, fromIdx);
+      if (found === -1) break;
+      const end = found + item.length;
+      const validBoundary =
+        item.isCjk ||
+        ((found === 0 || !WORD_CHAR_REGEX.test(text[found - 1])) &&
+          (end === text.length || !WORD_CHAR_REGEX.test(text[end])));
+
+      if (validBoundary) {
+        candidates.push({
+          entityId: item.entityId,
+          entityKind: item.entityKind,
+          start: found,
+          end,
+          order: item.order,
+        });
+      }
+      fromIdx = found + 1;
+    }
+  }
+
+  if (candidates.length === 0) return [];
+
+  candidates.sort(
+    (a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start || a.order - b.order
+  );
+
+  const selected: CodexMentionRange[] = [];
+  for (const cand of candidates) {
+    const overlaps = selected.some((s) => cand.start < s.end && s.start < cand.end);
+    if (!overlaps) {
+      selected.push({
+        entityId: cand.entityId,
+        entityKind: cand.entityKind,
+        start: cand.start,
+        end: cand.end,
+      });
+    }
+  }
+
+  selected.sort((a, b) => a.start - b.start);
+  return selected.slice(0, maxRanges);
 }

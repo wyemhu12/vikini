@@ -25,6 +25,7 @@ interface StoryBibleSectionCardProps {
   onToggleVisibleToAi?: () => void;
   aiTarget?: BibleAiSection;
   isStreaming?: boolean;
+  headingLevel?: 2 | 3;
   onRunAiAction?: (
     target: BibleAiSection,
     mode: NovelcrafterActionMode,
@@ -45,12 +46,14 @@ export default function StoryBibleSectionCard({
   onToggleVisibleToAi,
   aiTarget,
   isStreaming = false,
+  headingLevel = 2,
   onRunAiAction,
   children,
 }: StoryBibleSectionCardProps) {
   const { t } = useLanguage();
   const [rewriteOpen, setRewriteOpen] = useState(false);
   const [rewriteInstruction, setRewriteInstruction] = useState("");
+  const HeadingTag = headingLevel === 3 ? "h3" : "h2";
 
   const handleRun = (mode: NovelcrafterActionMode) => {
     if (!aiTarget || !onRunAiAction) return;
@@ -83,9 +86,9 @@ export default function StoryBibleSectionCard({
             {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </span>
           <div className="space-y-0.5 min-w-0">
-            <h2 className="text-sm md:text-base font-semibold text-(--text-primary)">
+            <HeadingTag className="text-sm md:text-base font-semibold text-(--text-primary)">
               {t(titleKey)}
-            </h2>
+            </HeadingTag>
             <p className="text-xs text-(--text-secondary) leading-relaxed">{t(subtitleKey)}</p>
           </div>
         </button>

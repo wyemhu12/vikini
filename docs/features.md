@@ -342,6 +342,27 @@ Extended timeouts cho Deep Thinking mode:
 - `src/app/api/local-llm/health/route.ts`
 - `src/app/features/chat/components/LocalSamplingSettings.tsx`, `src/app/features/chat/components/LocalLlmStatusDot.tsx`
 
+---
+
+### 2.12 Novelcrafter Studio (Rich Manuscript Editor & 4-Tier Responsive Workspace)
+
+**Mô tả**: Không gian sáng tác tiểu thuyết chuyên biệt tại `/novelcrafter` tích hợp Story Bible (Codex nhân vật, bối cảnh thế giới, dàn ý), các công cụ AI viết/biên tập trực tiếp (First Draft, Write, Rewrite, Expand, Describe, Brainstorm, Feedback), và trình soạn thảo bản thảo đa lớp trang trí.
+
+**Tính năng chính**:
+
+- **Rich Manuscript Editor (`contentEditable="plaintext-only"`)**: Định dạng trực tiếp (`H1`, `H2`, **in đậm**, _in nghiêng_, ~~gạch ngang~~, ngắt cảnh `***`, danh sách), tùy chỉnh kiểu chữ & trang giấy (`serif`/`sans`/`mono`, cỡ chữ, giãn dòng, thụt lề đoạn văn), bảo toàn chỉ số ký tự `1:1` với chuỗi Markdown gốc và hỗ trợ gõ tiếng Việt Telex/VNI + IME.
+- **Lớp Trang Trí Nội Tuyến (Inline Decorations)**: Gạch chân màu hổ phách `<mark data-feedback-id>` cho câu trích dẫn nhận xét mở (click để nhảy tới thẻ nhận xét bên lề), tô sáng thực thể `<span data-codex-id>` cho nhân vật và địa danh trong Story Bible kèm popover xem trước (`CodexEntityPreview`), và duy trì vùng bôi đen `.nc-selection` khi thao tác trên thanh công cụ AI.
+- **Floating Selection Bubble & Quick Edit (`Ctrl+K`)**: Thanh công cụ nổi ngay trên/dưới đoạn văn bôi đen với menu Rewrite, Describe, Expand, Feedback và ô nhập lệnh sửa nhanh tại chỗ.
+- **Bố Cục 4 Tầng Màn Hình (`useDockedPanes` & `studioLayout`)**: Tự động điều phối số lượng bảng điều khiển mở đồng thời (`maxDockedSidePanes`: `0` trên Mobile/Tablet `<1180px`, `1` trên Laptop `1180–1535px`, `2` trên Desktop `1536–1919px`, `3` trên Full HD/QHD `>=1920px`), ẩn Header toàn cục trên desktop và đưa thanh `ChapterAiToolbar` lên toàn chiều rộng.
+
+**Files**:
+
+- `src/lib/features/novelcrafter/manuscriptMarkup.ts`, `src/lib/features/novelcrafter/manuscriptDecorations.ts`, `src/lib/features/novelcrafter/manuscriptHistory.ts`, `src/lib/features/novelcrafter/manuscriptTypography.ts`, `src/lib/features/novelcrafter/selectionBubblePlacement.ts`, `src/lib/features/novelcrafter/studioLayout.ts`
+- `src/app/features/novelcrafter/components/NovelcrafterStudioApp.tsx`, `src/app/features/novelcrafter/components/ChapterEditorWorkspace.tsx`, `src/app/features/novelcrafter/components/ChapterManuscriptEditor.tsx`, `src/app/features/novelcrafter/components/ChapterSelectionToolbar.tsx`, `src/app/features/novelcrafter/components/ChapterAiToolbar.tsx`
+- `src/app/features/novelcrafter/hooks/useManuscriptEditor.ts`, `src/app/features/novelcrafter/hooks/useChapterEditorController.ts`, `src/app/features/novelcrafter/hooks/useDockedPanes.ts`
+
+**Route**: `/novelcrafter`
+
 ## 3. Roadmap (Dự kiến)
 
 | Tính năng           | Priority | Effort    | Notes                       |

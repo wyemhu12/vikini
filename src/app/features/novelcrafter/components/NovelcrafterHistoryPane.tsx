@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import { ChevronsDownUp, ChevronsUpDown, Loader2, Sparkles } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { toast } from "@/lib/store/toastStore";
+import { cn } from "@/lib/utils/cn";
 import { logger } from "@/lib/utils/logger";
 import type {
   NovelcrafterBibleTarget,
@@ -26,6 +27,7 @@ interface NovelcrafterHistoryPaneProps {
   onApplyToBible: (target: NovelcrafterBibleTarget, text: string) => void;
   onDeleteCard: (cardId: string) => void;
   onClearAllCards: () => void;
+  isInSheet?: boolean;
 }
 
 export default function NovelcrafterHistoryPane({
@@ -40,6 +42,7 @@ export default function NovelcrafterHistoryPane({
   onApplyToBible,
   onDeleteCard,
   onClearAllCards,
+  isInSheet = false,
 }: NovelcrafterHistoryPaneProps) {
   const { t } = useLanguage();
   const [allExpanded, setAllExpanded] = useState<boolean | null>(null);
@@ -61,7 +64,12 @@ export default function NovelcrafterHistoryPane({
       className="w-full md:w-80 lg:w-96 shrink-0 border-l border-(--border) bg-(--surface-muted)/60 flex flex-col min-h-0 h-full"
     >
       {/* Header */}
-      <div className="px-4 py-3 border-b border-(--border) flex items-center justify-between gap-2 shrink-0">
+      <div
+        className={cn(
+          "px-4 py-3 border-b border-(--border) flex items-center justify-between gap-2 shrink-0",
+          isInSheet && "pr-10"
+        )}
+      >
         <div className="flex items-center gap-2 min-w-0">
           <Sparkles className="w-4 h-4 text-(--accent) shrink-0" />
           <h2 className="text-xs md:text-sm font-bold text-(--text-primary) truncate">

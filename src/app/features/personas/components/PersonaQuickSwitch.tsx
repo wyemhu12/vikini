@@ -5,8 +5,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { usePersonaStore } from "../stores/usePersonaStore";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import type { PersonaForUI } from "./PersonaPreview";
-import { Settings, Sparkles } from "lucide-react";
+import { Settings, Sparkles, UserX } from "lucide-react";
 import { toast } from "@/lib/store/toastStore";
+import { logger } from "@/lib/utils/logger";
 import { DynamicIcon } from "@/components/ui/DynamicIcon";
 
 interface PersonaQuickSwitchProps {
@@ -28,15 +29,22 @@ export default function PersonaQuickSwitch({
     if (open && personas.length === 0) {
       setLoading(true);
       fetch("/api/personas")
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
         .then((json) => {
           const data = json.data || json;
           setPersonas(Array.isArray(data?.personas) ? data.personas : []);
         })
-        .catch(() => {})
+        .catch((error: unknown) => {
+          logger.error("[PersonaQuickSwitch] Failed to load personas:", error);
+          toast.error(t("personaLoadFailed"));
+          setPersonas([]);
+        })
         .finally(() => setLoading(false));
     }
-  }, [open, personas.length]);
+  }, [open, personas.length, t]);
 
   const applyPersona = async (
     personaId: string | null,
@@ -52,8 +60,9 @@ export default function PersonaQuickSwitch({
       if (!res.ok) throw new Error("Failed to apply persona");
       triggerPersonaApplied(conversationId, personaInfo);
       setOpen(false);
-    } catch (_e) {
-      toast.error("Failed to apply persona");
+    } catch (error: unknown) {
+      logger.error("[PersonaQuickSwitch] Failed to apply persona:", error);
+      toast.error(t("personaApplyFailed"));
     }
   };
 
@@ -61,7 +70,9 @@ export default function PersonaQuickSwitch({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25 transition-colors"
+          type="button"
+          aria-haspopup="dialog"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-(--accent)/15 text-(--accent) border border-(--accent)/25 hover:bg-(--accent)/25 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           title={currentPersona ? currentPersona.name : t("selectPersona") || "Select Persona"}
         >
           {currentPersona ? (
@@ -86,20 +97,25 @@ export default function PersonaQuickSwitch({
           {loading ? (
             <div className="p-2 text-xs text-(--text-secondary) text-center">{t("loading")}</div>
           ) : personas.length === 0 ? (
-            <div className="p-2 text-xs text-(--text-secondary) text-center">No Personas found</div>
+            <div className="p-2 text-xs text-(--text-secondary) text-center">
+              {t("personaNoneFound")}
+            </div>
           ) : (
             <div className="space-y-1">
               {currentPersona && (
                 <button
+                  type="button"
                   onClick={() => applyPersona(null, null)}
-                  className="w-full text-left px-2 py-1.5 rounded-md text-xs text-(--danger) hover:bg-(--danger)/10 transition-colors flex items-center gap-2"
+                  className="w-full text-left px-2 py-1.5 rounded-md text-xs text-(--danger) hover:bg-(--danger)/10 transition-colors flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
                 >
-                  <span className="w-4 text-center"></span> Remove Persona
+                  <UserX className="w-3.5 h-3.5 shrink-0" />
+                  <span>{t("personaRemove")}</span>
                 </button>
               )}
               {personas.map((p) => (
                 <button
                   key={p.id}
+                  type="button"
                   onClick={() =>
                     applyPersona(p.id, {
                       name: p.name,
@@ -107,7 +123,7 @@ export default function PersonaQuickSwitch({
                       color: p.color || null,
                     })
                   }
-                  className="w-full text-left px-2 py-1.5 rounded-md text-xs text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors flex items-center gap-2"
+                  className="w-full text-left px-2 py-1.5 rounded-md text-xs text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
                 >
                   <span className="text-sm w-4 shrink-0 flex items-center justify-center">
                     <DynamicIcon name={p.icon} className="w-3.5 h-3.5" />
@@ -120,11 +136,12 @@ export default function PersonaQuickSwitch({
         </div>
         <div className="pt-2 border-t border-(--border)">
           <button
+            type="button"
             onClick={() => {
               setOpen(false);
               openPersonaModal();
             }}
-            className="w-full text-center px-2 py-1.5 rounded-md text-xs font-medium bg-(--control-bg) hover:bg-(--control-bg-hover) text-(--text-primary) transition-colors flex justify-center items-center gap-1.5"
+            className="w-full text-center px-2 py-1.5 rounded-md text-xs font-medium bg-(--control-bg) hover:bg-(--control-bg-hover) text-(--text-primary) transition-colors flex justify-center items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <Settings className="w-3.5 h-3.5" /> {t("managePersonas") || "Manage Personas"}
           </button>

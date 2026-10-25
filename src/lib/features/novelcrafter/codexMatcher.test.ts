@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   doesCodexTermMatchContext,
+  findCodexMentionRanges,
   formatAliasesInput,
   isCodexCardMatchedInContext,
   matchCodexEntitiesInContext,
@@ -125,6 +126,153 @@ describe("codexMatcher (Phase 3.1)", () => {
       expect(result.matchedCharacterIds.has("c3")).toBe(false); // Excluded via visibleToAI: false
       expect(result.matchedWorldElementIds.has("w1")).toBe(true); // Matched via alias "Kiếm Sơn"
       expect(result.matchedWorldElementIds.has("w2")).toBe(false); // Unmatched
+    });
+  });
+
+  describe("findCodexMentionRanges (TC-CODEX)", () => {
+    it("CX-1: matches longest alias first without overlapping shorter name ('Tiểu Minh' before 'Minh')", () => {
+      const storyBible = {
+        ...createDefaultStoryState().storyBible,
+        characterCards: [
+          {
+            id: "char_minh",
+            name: "Minh",
+            aliases: ["Tiểu Minh"],
+            role: "Lead",
+            traits: "",
+            visibleToAI: true,
+          },
+        ],
+      };
+      const text = "Tiểu Minh gặp Minh.";
+      const ranges = findCodexMentionRanges(storyBible, text);
+      expect(ranges).toEqual([
+        {
+          entityId: "char_minh",
+          entityKind: "character",
+          start: 0,
+          end: 9,
+        },
+        {
+          entityId: "char_minh",
+          entityKind: "character",
+          start: 14,
+          end: 18,
+        },
+      ]);
+    });
+
+    it("CX-2: enforces Unicode letter boundaries and does not match inside 'Minhanh'", () => {
+      const storyBible = {
+        ...createDefaultStoryState().storyBible,
+        characterCards: [
+          {
+            id: "char_minh",
+            name: "Minh",
+            role: "Lead",
+            traits: "",
+            visibleToAI: true,
+          },
+        ],
+      };
+      expect(findCodexMentionRanges(storyBible, "Minhanh bước đi.")).toEqual([]);
+    });
+
+    it("CX-3: matches CJK terms without spaces ('李明')", () => {
+      const storyBible = {
+        ...createDefaultStoryState().storyBible,
+        characterCards: [
+          {
+            id: "char_liming",
+            name: "李明",
+            role: "Lead",
+            traits: "",
+            visibleToAI: true,
+          },
+        ],
+      };
+      const ranges = findCodexMentionRanges(storyBible, "他叫李明。");
+      expect(ranges).toEqual([
+        {
+          entityId: "char_liming",
+          entityKind: "character",
+          start: 2,
+          end: 4,
+        },
+      ]);
+    });
+
+    it("CX-4 (Negative): ignores 1-character names and safely escapes regex metacharacters ('C++ (x)')", () => {
+      const storyBible = {
+        ...createDefaultStoryState().storyBible,
+        characterCards: [
+          {
+            id: "char_one",
+            name: "A",
+            role: "Skip",
+            traits: "",
+            visibleToAI: true,
+          },
+          {
+            id: "char_meta",
+            name: "C++ (x)",
+            role: "Tech",
+            traits: "",
+            visibleToAI: true,
+          },
+        ],
+      };
+      const text = "A uses C++ (x) in battle.";
+      const ranges = findCodexMentionRanges(storyBible, text);
+      expect(ranges).toEqual([
+        {
+          entityId: "char_meta",
+          entityKind: "character",
+          start: 7,
+          end: 14,
+        },
+      ]);
+    });
+
+    it("CX-5: caps returned mention ranges at maxRanges (default 2000)", () => {
+      const storyBible = {
+        ...createDefaultStoryState().storyBible,
+        characterCards: Array.from({ length: 15 }, (_, i) => ({
+          id: `c_${i}`,
+          name: `NhânVật${i}`,
+          aliases: Array.from({ length: 10 }, (__, j) => `BiệtDanh${i}_${j}`),
+          role: "",
+          traits: "",
+          visibleToAI: true,
+        })),
+      };
+      const repeated = "NhânVật0 ".repeat(5000);
+      const ranges = findCodexMentionRanges(storyBible, repeated);
+      expect(ranges).toHaveLength(2000);
+    });
+
+    it("CX-6: tags worldbuilding elements with entityKind 'world'", () => {
+      const storyBible = {
+        ...createDefaultStoryState().storyBible,
+        worldElements: [
+          {
+            id: "world_ht",
+            name: "Hà Thành",
+            category: "City",
+            description: "",
+            visibleToAI: true,
+          },
+        ],
+      };
+      const ranges = findCodexMentionRanges(storyBible, "Đêm mưa ở Hà Thành.");
+      expect(ranges).toEqual([
+        {
+          entityId: "world_ht",
+          entityKind: "world",
+          start: 10,
+          end: 18,
+        },
+      ]);
     });
   });
 });

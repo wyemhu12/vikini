@@ -1,56 +1,53 @@
 // /lib/features/novelcrafter/quoteScrollPositioning.test.ts
-import { describe, expect, it, vi } from "vitest";
-import {
-  computeQuoteScrollTop,
-  measureCaretOffsetTop,
-  MIRROR_STYLE_PROPERTIES,
-} from "./quoteScrollPositioning";
+import { describe, expect, it } from "vitest";
+import * as quoteScrollModule from "./quoteScrollPositioning";
+import { computeQuoteScrollTop } from "./quoteScrollPositioning";
 
-describe("quoteScrollPositioning (TC-04, TC-05)", () => {
-  it("TC-04: computes Golden Third scroll top and clamps negative values to 0", () => {
-    expect(MIRROR_STYLE_PROPERTIES).toHaveLength(24);
-
-    const target = computeQuoteScrollTop({
-      textareaRectTop: 100,
-      containerRectTop: 50,
+describe("quoteScrollPositioning (TC-SCROLL)", () => {
+  it("SC-1: computes Golden Third scroll top from targetRectTop and container metrics", () => {
+    const scrollTop = computeQuoteScrollTop({
+      targetRectTop: 900,
+      containerRectTop: 100,
       containerScrollTop: 200,
-      quoteOffsetTop: 800,
-      containerClientHeight: 900,
+      containerClientHeight: 600,
     });
-    // textareaTopInScrollContent = 100 - 50 + 200 = 250
-    // viewportPadding = Math.min(220, Math.max(100, 900 * 0.3 = 270)) = 220
-    // targetTop = 250 + 800 - 220 = 830
-    expect(target).toBe(830);
+    // targetTopInScrollContent = 900 - 100 + 200 = 1000
+    // viewportPadding = Math.min(220, Math.max(100, Math.round(600 * 0.3))) = 180
+    // scrollTop = 1000 - 180 = 820
+    expect(scrollTop).toBe(820);
+  });
 
+  it("SC-2: clamps negative scroll top values to 0", () => {
     const clamped = computeQuoteScrollTop({
-      textareaRectTop: 10,
-      containerRectTop: 50,
+      targetRectTop: 110,
+      containerRectTop: 100,
       containerScrollTop: 0,
-      quoteOffsetTop: 20,
       containerClientHeight: 600,
     });
     expect(clamped).toBe(0);
   });
 
-  it("TC-05: copies 24 style properties and removes temporary mirror node in finally even on error", () => {
-    const textarea = document.createElement("textarea");
-    textarea.value = "First paragraph.\n\nSecond paragraph with highlighted quote.";
-    document.body.appendChild(textarea);
-
-    const initialChildCount = document.body.childElementCount;
-    const offset = measureCaretOffsetTop(textarea, 18);
-    expect(typeof offset).toBe("number");
-    expect(document.body.childElementCount).toBe(initialChildCount);
-
-    // Simulate error when reading marker.offsetTop and verify cleanup still runs
-    const spy = vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementationOnce(() => {
-      throw new Error("Simulated layout error");
+  it("SC-3: clamps Golden Third viewport padding between 100px (small height) and 220px (large height)", () => {
+    const smallHeight = computeQuoteScrollTop({
+      targetRectTop: 500,
+      containerRectTop: 100,
+      containerScrollTop: 0,
+      containerClientHeight: 200, // 200 * 0.3 = 60 -> clamped to 100
     });
+    expect(smallHeight).toBe(400 - 100);
 
-    expect(() => measureCaretOffsetTop(textarea, 10)).toThrow("Simulated layout error");
-    expect(document.body.childElementCount).toBe(initialChildCount);
+    const largeHeight = computeQuoteScrollTop({
+      targetRectTop: 500,
+      containerRectTop: 100,
+      containerScrollTop: 0,
+      containerClientHeight: 2000, // 2000 * 0.3 = 600 -> clamped to 220
+    });
+    expect(largeHeight).toBe(400 - 220);
+  });
 
-    spy.mockRestore();
-    document.body.removeChild(textarea);
+  it("SC-4 (Negative): does not export legacy measureCaretOffsetTop or MIRROR_STYLE_PROPERTIES", () => {
+    const exportedKeys = Object.keys(quoteScrollModule);
+    expect(exportedKeys).not.toContain("measureCaretOffsetTop");
+    expect(exportedKeys).not.toContain("MIRROR_STYLE_PROPERTIES");
   });
 });

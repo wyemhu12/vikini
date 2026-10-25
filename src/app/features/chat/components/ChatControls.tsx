@@ -33,6 +33,10 @@ interface GemInfo {
   color?: string | null;
 }
 
+function ControlDivider() {
+  return <div className="hidden md:block h-3 w-px bg-(--border) mx-1 shrink-0" />;
+}
+
 export interface ChatControlsProps {
   currentModel: string;
   handleModelChange: (model: string) => void;
@@ -140,27 +144,11 @@ export default function ChatControls({
   const [showFileManager, setShowFileManager] = useState(false);
   const [showAgentSelector, setShowAgentSelector] = useState(false);
 
-  return (
-    <motion.div
-      initial={false}
-      animate={{ y: showMobileControls ? 0 : "100%" }}
-      transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
-      className={`
-        w-full max-w-4xl mx-auto px-4 md:px-6
-        ${
-          isLanding
-            ? "relative z-40"
-            : "pb-[calc(1.5rem+var(--sab,0px))] md:pb-6 shadow-2xl md:shadow-none fixed bottom-0 left-0 right-0 z-40 bg-(--surface)/95 backdrop-blur-xl md:bg-transparent md:backdrop-blur-none md:static md:translate-y-0 pl-[calc(1rem+var(--sal,0px))] pr-[calc(1rem+var(--sar,0px))]"
-        }
-      `}
-    >
-      {/* Static Floating Controls Toolbar */}
-      <div
-        className={`flex flex-wrap items-center justify-center gap-2 ${isLanding ? "mb-2 pt-0" : "mb-4 pt-4 md:pt-0"}`}
-      >
-        {/* Mobile: no container border, each button is a separate chip */}
-        {/* Desktop: unified toolbar with border */}
-        <div className="flex flex-wrap items-center justify-center gap-2 @sm/chat:gap-3 @md/chat:gap-4 md:gap-0 md:rounded-full md:bg-(--control-bg) md:border md:border-(--control-border) md:p-1 md:shadow-lg">
+  const controls: { key: string; node: React.ReactNode }[] = [
+    {
+      key: "model",
+      node: (
+        <div className="shrink-0 whitespace-nowrap">
           <ModelSelector
             currentModelId={currentModel}
             onSelectModel={handleModelChange}
@@ -168,13 +156,19 @@ export default function ChatControls({
             disabled={isStreaming || regenerating}
             expandDown={isLanding}
           />
-
-          <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
+        </div>
+      ),
+    },
+    {
+      key: "web",
+      node: (
+        <div className="flex items-center shrink-0 whitespace-nowrap">
           <button
+            type="button"
             onClick={canWebSearch ? toggleWebSearch : undefined}
             disabled={!canWebSearch}
             title={!canWebSearch ? t("webSearchNotSupported") : undefined}
-            className={`text-xs font-semibold uppercase tracking-wider px-3 py-1.5 transition-all duration-200 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
+            className={`shrink-0 whitespace-nowrap text-xs font-semibold uppercase tracking-wider px-3 py-1.5 transition-all duration-200 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
               !canWebSearch
                 ? "text-(--text-secondary) opacity-40 cursor-not-allowed"
                 : webSearchEnabled
@@ -182,7 +176,7 @@ export default function ChatControls({
                   : "text-(--text-secondary) hover:text-(--text-primary)"
             }`}
           >
-            WEB{" "}
+            {t("webSearchLabel")}{" "}
             {!canWebSearch
               ? t("webSearchOff")
               : webSearchEnabled
@@ -194,137 +188,208 @@ export default function ChatControls({
               {t("webSearchPricingNote")}
             </span>
           )}
-          {canWebSearch && currentModel && currentModel.startsWith("gemini") && (
-            <>
-              <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
-              <button
-                onClick={toggleAlwaysSearch}
-                className={`text-xs font-semibold uppercase tracking-wider px-3 py-1.5 transition-all duration-200 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
-                  alwaysSearch
-                    ? "text-(--accent) md:bg-(--control-bg-hover)"
-                    : "text-(--text-secondary) hover:text-(--text-primary)"
-                }`}
-                title={t("alwaysSearchTooltip")}
-              >
-                {t("alwaysSearch")} {alwaysSearch ? t("webSearchOn") : t("webSearchOff")}
-              </button>
-            </>
-          )}
-          {/* Thinking Level Selector - For Gemini 2.5+, 3+ and Local Strata models */}
-          {modelSupportsThinkingUI(currentModel) && (
-            <>
-              <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
-              <ThinkingLevelSelector
-                thinkingLevel={thinkingLevel}
-                setThinkingLevel={setThinkingLevel}
-                currentModel={currentModel}
-              />
-            </>
-          )}
-          {/* Local Sampling Settings (Default / Story Writing / Custom) - For Strata Local LLM */}
-          {isLocal && (
-            <>
-              <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
-              <LocalSamplingSettings
-                currentModel={currentModel}
-                thinkingLevel={thinkingLevel}
-                disabled={isStreaming || regenerating}
-              />
-            </>
-          )}
-          {/* Deep Research Toggle - Gemini models only */}
-          {canDeepResearch && (
-            <>
-              <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
-              <button
-                onClick={deepResearchAllowed ? toggleDeepResearch : undefined}
-                disabled={!deepResearchAllowed}
-                title={!deepResearchAllowed ? t("deepResearchNotAllowed") : t("deepResearchDesc")}
-                aria-pressed={deepResearchEnabled}
-                className={`text-xs font-semibold uppercase tracking-wider px-3 py-1.5 transition-all duration-200 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
-                  !deepResearchAllowed
-                    ? "text-(--text-secondary) opacity-40 cursor-not-allowed"
-                    : deepResearchEnabled
-                      ? "text-(--accent) md:bg-(--control-bg-hover)"
-                      : "text-(--text-secondary) hover:text-(--text-primary)"
-                }`}
-              >
-                <Microscope className="w-3.5 h-3.5" />
-                {t("deepResearch")}
-              </button>
-              {/* Agent Selector Popover */}
-              {deepResearchEnabled && (
-                <Popover open={showAgentSelector} onOpenChange={setShowAgentSelector}>
-                  <PopoverTrigger asChild>
-                    <button
-                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-(--accent)/15 text-(--accent) border border-(--accent)/20 hover:bg-(--accent)/25 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95]"
-                      title={t("deepResearchSelectAgent")}
-                    >
-                      {selectedResearchAgent === "deep-research-max-preview-04-2026"
-                        ? t("deepResearchAgentMax")
-                        : t("deepResearchAgentDeep")}
-                    </button>
-                  </PopoverTrigger>
-                  {onResearchAgentChange && (
-                    <PopoverContent side="top" align="start" className="w-80 p-3">
-                      <ResearchAgentSelector
-                        selectedAgent={selectedResearchAgent || "deep-research-preview-04-2026"}
-                        onSelect={(agent) => {
-                          onResearchAgentChange(agent);
-                          setShowAgentSelector(false);
-                        }}
-                      />
-                    </PopoverContent>
-                  )}
-                </Popover>
-              )}
-            </>
-          )}
-          <GemQuickSwitch currentGem={currentGem || null} conversationId={selectedConversationId} />
-          <PersonaQuickSwitch
-            currentPersona={currentPersona || null}
-            conversationId={selectedConversationId}
+        </div>
+      ),
+    },
+  ];
+
+  if (canWebSearch && currentModel && currentModel.startsWith("gemini")) {
+    controls.push({
+      key: "always-search",
+      node: (
+        <button
+          type="button"
+          onClick={toggleAlwaysSearch}
+          className={`shrink-0 whitespace-nowrap text-xs font-semibold uppercase tracking-wider px-3 py-1.5 transition-all duration-200 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
+            alwaysSearch
+              ? "text-(--accent) md:bg-(--control-bg-hover)"
+              : "text-(--text-secondary) hover:text-(--text-primary)"
+          }`}
+          title={t("alwaysSearchTooltip")}
+        >
+          {t("alwaysSearch")} {alwaysSearch ? t("webSearchOn") : t("webSearchOff")}
+        </button>
+      ),
+    });
+  }
+
+  if (modelSupportsThinkingUI(currentModel)) {
+    controls.push({
+      key: "thinking",
+      node: (
+        <div className="shrink-0 whitespace-nowrap">
+          <ThinkingLevelSelector
+            thinkingLevel={thinkingLevel}
+            setThinkingLevel={setThinkingLevel}
+            currentModel={currentModel}
           />
-          {currentGem && currentPersona && (
-            <>
-              <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
-              <div
-                className="flex items-center justify-center p-1 rounded-full text-(--warning) bg-(--warning)/10 cursor-help"
-                title={
-                  t("conflictWarning") ||
-                  " Both GEM and Persona are active. If instructions conflict, GEM will be prioritized."
-                }
-              >
-                <AlertTriangle className="w-3.5 h-3.5" />
-              </div>
-            </>
-          )}
-          {fileCount > 0 && (
-            <>
-              <div className="hidden md:block h-3 w-px bg-(--border) mx-1" />
-              <div className="relative">
+        </div>
+      ),
+    });
+  }
+
+  if (isLocal) {
+    controls.push({
+      key: "local-sampling",
+      node: (
+        <div className="shrink-0 whitespace-nowrap">
+          <LocalSamplingSettings
+            currentModel={currentModel}
+            thinkingLevel={thinkingLevel}
+            disabled={isStreaming || regenerating}
+          />
+        </div>
+      ),
+    });
+  }
+
+  if (canDeepResearch) {
+    controls.push({
+      key: "deep-research",
+      node: (
+        <div className="flex items-center gap-1 shrink-0 whitespace-nowrap">
+          <button
+            type="button"
+            onClick={deepResearchAllowed ? toggleDeepResearch : undefined}
+            disabled={!deepResearchAllowed}
+            title={!deepResearchAllowed ? t("deepResearchNotAllowed") : t("deepResearchDesc")}
+            aria-pressed={deepResearchEnabled}
+            className={`shrink-0 whitespace-nowrap text-xs font-semibold uppercase tracking-wider px-3 py-1.5 transition-all duration-200 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
+              !deepResearchAllowed
+                ? "text-(--text-secondary) opacity-40 cursor-not-allowed"
+                : deepResearchEnabled
+                  ? "text-(--accent) md:bg-(--control-bg-hover)"
+                  : "text-(--text-secondary) hover:text-(--text-primary)"
+            }`}
+          >
+            <Microscope className="w-3.5 h-3.5" />
+            {t("deepResearch")}
+          </button>
+          {deepResearchEnabled && (
+            <Popover open={showAgentSelector} onOpenChange={setShowAgentSelector}>
+              <PopoverTrigger asChild>
                 <button
-                  onClick={() => setShowFileManager((v) => !v)}
-                  className={`text-xs font-semibold uppercase tracking-wider px-3 py-1.5 transition-all duration-200 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
-                    showFileManager
-                      ? "text-(--accent) md:bg-(--control-bg-hover)"
-                      : "text-(--text-secondary) hover:text-(--accent)"
-                  }`}
+                  type="button"
+                  className="shrink-0 whitespace-nowrap text-xs font-semibold px-2.5 py-1 rounded-full bg-(--accent)/15 text-(--accent) border border-(--accent)/20 hover:bg-(--accent)/25 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95]"
+                  title={t("deepResearchSelectAgent")}
                 >
-                  <FolderOpen className="w-3.5 h-3.5" />
-                  {t("files")} ({fileCount})
+                  {selectedResearchAgent === "deep-research-max-preview-04-2026"
+                    ? t("deepResearchAgentMax")
+                    : t("deepResearchAgentDeep")}
                 </button>
-                {conversationId && (
-                  <FileManagerPanel
-                    conversationId={conversationId}
-                    isOpen={showFileManager}
-                    onClose={() => setShowFileManager(false)}
-                    t={tRecord}
+              </PopoverTrigger>
+              {onResearchAgentChange && (
+                <PopoverContent side="top" align="start" className="w-80 p-3">
+                  <ResearchAgentSelector
+                    selectedAgent={selectedResearchAgent || "deep-research-preview-04-2026"}
+                    onSelect={(agent) => {
+                      onResearchAgentChange(agent);
+                      setShowAgentSelector(false);
+                    }}
                   />
-                )}
-              </div>
-            </>
+                </PopoverContent>
+              )}
+            </Popover>
           )}
+        </div>
+      ),
+    });
+  }
+
+  controls.push({
+    key: "gem",
+    node: (
+      <div className="shrink-0 whitespace-nowrap">
+        <GemQuickSwitch currentGem={currentGem || null} conversationId={selectedConversationId} />
+      </div>
+    ),
+  });
+
+  controls.push({
+    key: "persona",
+    node: (
+      <div className="shrink-0 whitespace-nowrap">
+        <PersonaQuickSwitch
+          currentPersona={currentPersona || null}
+          conversationId={selectedConversationId}
+        />
+      </div>
+    ),
+  });
+
+  if (currentGem && currentPersona) {
+    controls.push({
+      key: "conflict",
+      node: (
+        <div
+          className="flex items-center justify-center p-1 rounded-full text-(--warning) bg-(--warning)/10 cursor-help shrink-0"
+          title={
+            t("conflictWarning") ||
+            " Both GEM and Persona are active. If instructions conflict, GEM will be prioritized."
+          }
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+        </div>
+      ),
+    });
+  }
+
+  if (fileCount > 0) {
+    controls.push({
+      key: "files",
+      node: (
+        <div className="relative shrink-0 whitespace-nowrap">
+          <button
+            type="button"
+            onClick={() => setShowFileManager((v) => !v)}
+            className={`shrink-0 whitespace-nowrap text-xs font-semibold uppercase tracking-wider px-3 py-1.5 transition-all duration-200 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
+              showFileManager
+                ? "text-(--accent) md:bg-(--control-bg-hover)"
+                : "text-(--text-secondary) hover:text-(--accent)"
+            }`}
+          >
+            <FolderOpen className="w-3.5 h-3.5" />
+            {t("files")} ({fileCount})
+          </button>
+          {conversationId && (
+            <FileManagerPanel
+              conversationId={conversationId}
+              isOpen={showFileManager}
+              onClose={() => setShowFileManager(false)}
+              t={tRecord}
+            />
+          )}
+        </div>
+      ),
+    });
+  }
+
+  return (
+    <motion.div
+      initial={false}
+      animate={{ y: showMobileControls ? 0 : "100%" }}
+      transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+      className={`
+        w-full max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 md:px-6
+        ${
+          isLanding
+            ? "relative z-40"
+            : "pb-[calc(1.5rem+var(--sab,0px))] md:pb-6 shadow-2xl md:shadow-none fixed bottom-0 left-0 right-0 z-40 bg-(--surface)/95 backdrop-blur-xl md:bg-transparent md:backdrop-blur-none md:static md:translate-y-0 pl-[calc(1rem+var(--sal,0px))] pr-[calc(1rem+var(--sar,0px))]"
+        }
+      `}
+    >
+      {/* Static Floating Controls Toolbar */}
+      <div
+        className={`flex items-center justify-center ${isLanding ? "mb-2 pt-0" : "mb-4 pt-4 md:pt-0"}`}
+      >
+        {/* Mobile: horizontal scroll without wrapping; Desktop: unified 1-row toolbar with border */}
+        <div className="flex flex-nowrap overflow-x-auto [scrollbar-width:none] items-center justify-start md:justify-center md:overflow-visible gap-2 @sm/chat:gap-3 @md/chat:gap-4 md:gap-0 md:rounded-full md:bg-(--control-bg) md:border md:border-(--control-border) md:p-1 md:shadow-lg max-w-full">
+          {controls.map((c, i) => (
+            <React.Fragment key={c.key}>
+              {i > 0 && <ControlDivider />}
+              {c.node}
+            </React.Fragment>
+          ))}
         </div>
       </div>
 

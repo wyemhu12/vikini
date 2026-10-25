@@ -211,7 +211,7 @@ export const ChatBubble = React.memo(
         className={`group flex w-full flex-col gap-3 py-6 ${isBot ? "" : "items-end"}`}
       >
         <div
-          className={`flex max-w-[95%] lg:max-w-[90%] gap-4 ${isBot ? "items-start" : "flex-row-reverse items-start"}`}
+          className={`flex max-w-[95%] gap-4 ${isBot ? "items-start" : "flex-row-reverse items-start"}`}
         >
           <BubbleAvatar
             isBot={isBot}

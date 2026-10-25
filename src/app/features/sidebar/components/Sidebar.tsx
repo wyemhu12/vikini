@@ -76,6 +76,7 @@ interface SidebarProps {
   onDeleteChat?: (id: string) => void;
   onNewChat?: () => void;
   newChatLabel?: string;
+  conversationsLabel?: string;
   onLogout?: () => void;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
@@ -174,6 +175,7 @@ function Sidebar({
   onDeleteChat,
   onNewChat,
   newChatLabel,
+  conversationsLabel,
   onLogout,
   mobileOpen = false,
   onCloseMobile,
@@ -457,7 +459,7 @@ function Sidebar({
           {/* Your chats Section */}
           {!isCollapsed && (
             <SidebarSection
-              label={t("yourChats")}
+              label={conversationsLabel || t("yourChats")}
               storageKey="your-chats"
               defaultExpanded={true}
               count={list.length}

@@ -14,31 +14,30 @@ import {
   Minimize2,
   Minus,
   Strikethrough,
-  Type,
 } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
+import type { ManuscriptFormat } from "@/lib/features/novelcrafter/manuscriptMarkup";
+import type { ManuscriptTypography } from "@/lib/features/novelcrafter/manuscriptTypography";
 import { MAX_CHAPTER_SNAPSHOTS } from "@/lib/features/novelcrafter/types";
 import { cn } from "@/lib/utils/cn";
-
-export type EditorFontSizePreset = "sm" | "md" | "lg";
+import { MANUSCRIPT_SHEET_PADDING_CLASS } from "../utils/manuscriptSheetClasses";
+import ManuscriptTypographyMenu from "./ManuscriptTypographyMenu";
 
 interface SheetSubToolbarProps {
   wordCount: number;
-  fontSizePreset: EditorFontSizePreset;
-  onChangeFontSizePreset: (preset: EditorFontSizePreset) => void;
+  typography: ManuscriptTypography;
+  onChangeTypography: (patch: Partial<ManuscriptTypography>) => void;
   focusMode: boolean;
   onToggleFocusMode: () => void;
-  onApplyMarkdownFormat: (
-    format: "bold" | "italic" | "strike" | "h1" | "h2" | "ul" | "ol" | "hr"
-  ) => void;
+  onApplyMarkdownFormat: (format: ManuscriptFormat) => void;
   snapshotsCount?: number;
   onOpenSnapshotsModal?: () => void;
 }
 
 export default function SheetSubToolbar({
   wordCount,
-  fontSizePreset,
-  onChangeFontSizePreset,
+  typography,
+  onChangeTypography,
   focusMode,
   onToggleFocusMode,
   onApplyMarkdownFormat,
@@ -46,12 +45,6 @@ export default function SheetSubToolbar({
   onOpenSnapshotsModal,
 }: SheetSubToolbarProps) {
   const { t } = useLanguage();
-
-  const cycleFontSize = () => {
-    const order: EditorFontSizePreset[] = ["sm", "md", "lg"];
-    const next = order[(order.indexOf(fontSizePreset) + 1) % order.length];
-    onChangeFontSizePreset(next);
-  };
 
   const formatButtons = [
     { key: "bold", label: t("novelcrafterFormatBold"), Icon: Bold },
@@ -67,7 +60,10 @@ export default function SheetSubToolbar({
   return (
     <div
       data-testid="sheet-sub-toolbar"
-      className="px-4 md:px-12 lg:px-16 py-2 border-b border-(--border)/60 bg-(--surface)/40 flex items-center justify-between gap-2 flex-wrap shrink-0"
+      className={cn(
+        MANUSCRIPT_SHEET_PADDING_CLASS,
+        "py-2 border-b border-(--border)/60 bg-(--surface)/40 flex items-center justify-between gap-2 flex-wrap shrink-0"
+      )}
     >
       <div className="flex items-center gap-1 flex-wrap">
         {formatButtons.map(({ key, label, Icon }) => (
@@ -95,7 +91,7 @@ export default function SheetSubToolbar({
             onClick={onOpenSnapshotsModal}
             title={t("novelcrafterSnapshotsBtn")}
             aria-label={t("novelcrafterSnapshotsBtn")}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-(--border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-(--text-primary) font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-(--border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-(--text-primary) font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <History className="w-3.5 h-3.5 text-(--accent)" />
             <span className="hidden md:inline">{t("novelcrafterSnapshotsBtn")}</span>
@@ -105,16 +101,7 @@ export default function SheetSubToolbar({
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={cycleFontSize}
-          title={t("novelcrafterFontSizeLabel")}
-          aria-label={t("novelcrafterFontSizeLabel")}
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-(--border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-(--text-primary) font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
-        >
-          <Type className="w-3.5 h-3.5 text-(--accent)" />
-          <span className="uppercase text-xs">{fontSizePreset}</span>
-        </button>
+        <ManuscriptTypographyMenu typography={typography} onChangeTypography={onChangeTypography} />
 
         <button
           type="button"
@@ -122,7 +109,7 @@ export default function SheetSubToolbar({
           onClick={onToggleFocusMode}
           title={t("novelcrafterFocusModeToggle")}
           className={cn(
-            "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)",
+            "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
             focusMode
               ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
               : "bg-(--control-bg) border-(--border) text-(--text-secondary) hover:text-(--text-primary)"

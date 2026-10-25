@@ -48,7 +48,7 @@ export default function ChatConversationView({
 }: ChatConversationViewProps) {
   if (chat.loadingMessages) {
     return (
-      <div className="max-w-3xl mx-auto w-full py-8 flex flex-col items-center justify-center gap-4 min-h-[200px]">
+      <div className="max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto w-full py-8 flex flex-col items-center justify-center gap-4 min-h-[200px]">
         <div className="w-8 h-8 border-2 border-(--accent) border-t-transparent rounded-full animate-spin" />
         <span className="text-sm text-(--text-secondary)">{t.loading || "Loading..."}</span>
       </div>

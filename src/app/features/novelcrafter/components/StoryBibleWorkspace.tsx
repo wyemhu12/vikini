@@ -1,7 +1,7 @@
 // /app/features/novelcrafter/components/StoryBibleWorkspace.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import { BookOpen, X } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
@@ -85,6 +85,9 @@ export default function StoryBibleWorkspace({
   onSendOutlineToChapterScenes,
 }: StoryBibleWorkspaceProps) {
   const { t } = useLanguage();
+  const povSelectId = useId();
+  const tenseSelectId = useId();
+  const sectionHeadingLevel: 2 | 3 = embedded ? 3 : 2;
   const [openSections, setOpenSections] = useState<Record<NovelcrafterBibleSectionId, boolean>>({
     braindump: true,
     genre: true,
@@ -186,6 +189,7 @@ export default function StoryBibleWorkspace({
         isOpen={openSections.braindump}
         onToggle={() => toggleSection("braindump")}
         wordCount={countChapterWords(storyBible.braindump)}
+        headingLevel={sectionHeadingLevel}
       >
         <textarea
           rows={5}
@@ -203,6 +207,7 @@ export default function StoryBibleWorkspace({
         subtitleKey="novelcrafterGenreDesc"
         isOpen={openSections.genre}
         onToggle={() => toggleSection("genre")}
+        headingLevel={sectionHeadingLevel}
       >
         <input
           type="text"
@@ -220,6 +225,7 @@ export default function StoryBibleWorkspace({
         subtitleKey="novelcrafterStyleDesc"
         isOpen={openSections.style}
         onToggle={() => toggleSection("style")}
+        headingLevel={sectionHeadingLevel}
       >
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -249,10 +255,11 @@ export default function StoryBibleWorkspace({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium text-(--text-secondary)">
+              <label htmlFor={povSelectId} className="text-xs font-medium text-(--text-secondary)">
                 {t("novelcrafterPovLabel")}
               </label>
               <select
+                id={povSelectId}
                 value={storyBible.pov}
                 onChange={(e) =>
                   onUpdateStoryBible({ pov: e.target.value as NovelcrafterPovOption })
@@ -267,10 +274,14 @@ export default function StoryBibleWorkspace({
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-(--text-secondary)">
+              <label
+                htmlFor={tenseSelectId}
+                className="text-xs font-medium text-(--text-secondary)"
+              >
                 {t("novelcrafterTenseLabel")}
               </label>
               <select
+                id={tenseSelectId}
                 value={storyBible.tense}
                 onChange={(e) =>
                   onUpdateStoryBible({ tense: e.target.value as NovelcrafterTenseOption })
@@ -305,6 +316,7 @@ export default function StoryBibleWorkspace({
         wordCount={countChapterWords(storyBible.synopsis)}
         aiTarget="synopsis"
         isStreaming={isStreaming}
+        headingLevel={sectionHeadingLevel}
         onRunAiAction={handleRunAi}
       >
         <textarea
@@ -330,6 +342,7 @@ export default function StoryBibleWorkspace({
         }
         aiTarget="characters"
         isStreaming={isStreaming}
+        headingLevel={sectionHeadingLevel}
         onRunAiAction={handleRunAi}
       >
         <div className="space-y-3">
@@ -361,6 +374,7 @@ export default function StoryBibleWorkspace({
         }
         aiTarget="worldbuilding"
         isStreaming={isStreaming}
+        headingLevel={sectionHeadingLevel}
         onRunAiAction={handleRunAi}
       >
         <div className="space-y-3">
@@ -388,6 +402,7 @@ export default function StoryBibleWorkspace({
         wordCount={countChapterWords(storyBible.outline)}
         aiTarget="outline"
         isStreaming={isStreaming}
+        headingLevel={sectionHeadingLevel}
         onRunAiAction={handleRunAi}
       >
         <div className="space-y-3">
@@ -395,7 +410,7 @@ export default function StoryBibleWorkspace({
             <select
               value={storyBible.pov}
               onChange={(e) => onUpdateStoryBible({ pov: e.target.value as NovelcrafterPovOption })}
-              aria-label={t("novelcrafterPovLabel")}
+              aria-label={t("novelcrafterOutlinePovLabel")}
               className="h-7 rounded-full border border-(--border) bg-(--control-bg) px-2.5 text-xs font-medium text-(--text-primary)"
             >
               {NOVELCRAFTER_POV_OPTIONS.map((pov) => (
@@ -409,7 +424,7 @@ export default function StoryBibleWorkspace({
               onChange={(e) =>
                 onUpdateStoryBible({ tense: e.target.value as NovelcrafterTenseOption })
               }
-              aria-label={t("novelcrafterTenseLabel")}
+              aria-label={t("novelcrafterOutlineTenseLabel")}
               className="h-7 rounded-full border border-(--border) bg-(--control-bg) px-2.5 text-xs font-medium text-(--text-primary)"
             >
               {NOVELCRAFTER_TENSE_OPTIONS.map((tense) => (

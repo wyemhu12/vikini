@@ -6,8 +6,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { BookOpen, ChevronDown, ChevronUp } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { TRANSITION } from "@/lib/utils/motion";
+import { cn } from "@/lib/utils/cn";
 import type { StoryBible } from "@/lib/features/novelcrafter/types";
 import type { TriggerNovelcrafterStreamParams } from "../hooks/useNovelcrafterStream";
+import { MANUSCRIPT_SHEET_CLASS } from "../utils/manuscriptSheetClasses";
 import type { NovelcrafterBibleSectionId } from "./NovelcrafterLeftNavigator";
 import StoryBibleWorkspace from "./StoryBibleWorkspace";
 
@@ -50,7 +52,7 @@ export default function InlineStoryBibleSection({
   };
 
   return (
-    <div className="w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl pt-6 pb-12 space-y-4">
+    <div className={cn(MANUSCRIPT_SHEET_CLASS, "pt-6 pb-12 space-y-4")}>
       {/* Divider & Header */}
       <div className="flex items-center justify-between gap-3 border-t border-(--border) pt-6 flex-wrap">
         <button
@@ -63,9 +65,9 @@ export default function InlineStoryBibleSection({
             <BookOpen className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm md:text-base font-bold text-(--text-primary) flex items-center gap-1.5">
+            <h2 className="text-sm md:text-base font-bold text-(--text-primary) flex items-center gap-1.5">
               <span>{t("novelcrafterStoryBibleTitle")}</span>
-            </h3>
+            </h2>
             <p className="text-xs text-(--text-secondary) leading-tight">
               {t("novelcrafterStoryBibleSubtitle")}
             </p>

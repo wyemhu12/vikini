@@ -195,7 +195,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
   }, [renderedMessages, startIndex, endIndex]);
 
   return (
-    <div className="max-w-3xl mx-auto w-full py-8 space-y-2">
+    <div className="max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto w-full py-8 space-y-2">
       {/* Origin Breadcrumb if conversation is a branch */}
       {currentConversation?.parentConversationId && (
         <div className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-(--surface-elevated)/60 border border-(--border) text-xs text-(--text-secondary) w-fit backdrop-blur-sm animate-in fade-in duration-200">
@@ -313,7 +313,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
       {/* Generated image preview */}
       {lastGeneratedImage && (
         <div className="flex w-full flex-col gap-3 py-6">
-          <div className="flex max-w-[95%] lg:max-w-[90%] gap-4 items-start">
+          <div className="flex max-w-[95%] gap-4 items-start">
             <ChatBubble
               message={{
                 id: "temp-image",

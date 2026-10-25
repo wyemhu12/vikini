@@ -1,7 +1,7 @@
 // /app/features/novelcrafter/components/ChapterAiToolbar.tsx
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import {
   ChevronDown,
   Expand,
@@ -14,6 +14,12 @@ import {
   Sparkles,
   Square,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
 import type {
@@ -102,7 +108,7 @@ export const BRAINSTORM_LABELS: Record<NovelcrafterBrainstormCategory, Translati
 
 export const LENGTH_PRESETS = [150, 300, 500, 750] as const;
 
-interface ChapterAiToolbarProps {
+export interface ChapterAiToolbarProps {
   activeMenu: ActiveChapterToolMenu;
   onSelectMenu: (menu: ActiveChapterToolMenu) => void;
   isStreaming: boolean;
@@ -160,7 +166,6 @@ export default function ChapterAiToolbar({
   onRunBrainstorm,
 }: ChapterAiToolbarProps) {
   const { t } = useLanguage();
-  const [moreToolsOpen, setMoreToolsOpen] = useState(false);
   const toggleMenu = (menu: Exclude<ActiveChapterToolMenu, null>) =>
     onSelectMenu(activeMenu === menu ? null : menu);
 
@@ -191,16 +196,48 @@ export default function ChapterAiToolbar({
     },
   ] as const;
 
+  const renderToolBtn = ({
+    key,
+    label,
+    tip,
+    Icon,
+    extraClass,
+  }: (typeof secondaryTools)[number] & { extraClass?: string }) => (
+    <button
+      key={key}
+      type="button"
+      disabled={isStreaming}
+      aria-pressed={activeMenu === key}
+      onClick={() => toggleMenu(key)}
+      title={tip}
+      className={cn(
+        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs md:text-[13px] font-semibold shadow-xs transition-all disabled:opacity-50 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+        activeMenu === key
+          ? "bg-(--accent) text-(--accent-foreground) border-(--accent)"
+          : "bg-(--surface-elevated) hover:bg-(--control-bg-hover) border-(--control-border) text-(--text-primary)",
+        extraClass
+      )}
+    >
+      <Icon
+        className={cn(
+          "w-3.5 h-3.5 shrink-0",
+          activeMenu === key ? "text-(--accent-foreground)" : "text-(--accent)"
+        )}
+      />
+      <span>{label}</span>
+    </button>
+  );
+
   return (
-    <div className="shrink-0 border-b border-(--border) bg-(--surface-muted)/60 backdrop-blur-md px-3 md:px-6 py-2.5 space-y-1.5">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-1.5 flex-wrap">
+    <div className="shrink-0 border-b border-(--border) bg-(--surface-muted)/60 backdrop-blur-md px-3 md:px-6 py-2 space-y-1.5">
+      <div className="flex items-center justify-between gap-2 flex-nowrap overflow-hidden">
+        <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto [scrollbar-width:none] min-w-0">
           <button
             type="button"
             disabled={isStreaming}
             onClick={onRunFirstDraft}
             title={t("novelcrafterFirstDraftTooltip")}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-(--accent) text-(--accent-foreground) hover:brightness-110 shadow-sm text-xs md:text-[13px] font-semibold transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-(--accent) text-(--accent-foreground) hover:brightness-110 shadow-sm text-xs md:text-[13px] font-semibold transition-all disabled:opacity-50 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
             <span>{t("novelcrafterFirstDraftCtaBtn")}</span>
@@ -211,7 +248,7 @@ export default function ChapterAiToolbar({
             aria-pressed={beatsOpen}
             onClick={onToggleBeats}
             className={cn(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs md:text-[13px] font-medium transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs md:text-[13px] font-medium transition-all shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
               beatsOpen
                 ? "bg-(--surface-elevated) border-(--control-border) text-(--accent) shadow-xs"
                 : "bg-(--control-bg) hover:bg-(--control-bg-hover) border-(--border) text-(--text-secondary) hover:text-(--text-primary)"
@@ -221,15 +258,15 @@ export default function ChapterAiToolbar({
             <span>{t("novelcrafterChapterBeatsLabel")}</span>
           </button>
 
-          <span className="h-4 w-px bg-(--border) mx-0.5 hidden sm:inline-block" />
+          <span className="h-4 w-px bg-(--border) mx-0.5 hidden sm:inline-block shrink-0" />
 
-          <div className="inline-flex items-center rounded-full border border-(--control-border) bg-(--surface-elevated) shadow-xs overflow-hidden">
+          <div className="inline-flex items-center rounded-full border border-(--control-border) bg-(--surface-elevated) shadow-xs overflow-hidden shrink-0">
             <button
               type="button"
               disabled={isStreaming}
               onClick={() => onRunWrite({ mode: "auto", subLabel: t("novelcrafterWriteAuto") })}
               title={t("novelcrafterWriteTooltip")}
-              className="inline-flex items-center gap-1.5 pl-3.5 pr-2.5 py-1.5 text-xs md:text-[13px] font-semibold text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="inline-flex items-center gap-1.5 pl-3.5 pr-2.5 py-1.5 text-xs md:text-[13px] font-semibold text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors disabled:opacity-50 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
               <PenTool className="w-3.5 h-3.5 text-(--accent) shrink-0" />
               <span>{t("novelcrafterSlotWrite")}</span>
@@ -251,49 +288,46 @@ export default function ChapterAiToolbar({
             </button>
           </div>
 
-          {/* Desktop/Tablet inline secondary tools, or expanded via More Tools on compact mobile */}
-          <div
-            className={cn(
-              "items-center gap-1.5 flex-wrap",
-              moreToolsOpen ? "flex" : "hidden lg:flex"
-            )}
-          >
-            {secondaryTools.map(({ key, label, tip, Icon }) => (
+          <span className="h-4 w-px bg-(--border) mx-0.5 hidden lg:inline-block shrink-0" />
+
+          {/* Rewrite & Feedback visible on lg+ */}
+          {renderToolBtn({ ...secondaryTools[0], extraClass: "hidden lg:inline-flex" })}
+          {renderToolBtn({ ...secondaryTools[1], extraClass: "hidden lg:inline-flex" })}
+
+          {/* Expand & Brainstorm visible on xl+ */}
+          {renderToolBtn({ ...secondaryTools[2], extraClass: "hidden xl:inline-flex" })}
+          {renderToolBtn({ ...secondaryTools[3], extraClass: "hidden xl:inline-flex" })}
+
+          {/* Overflow DropdownMenu for <xl (shows all 4 on <lg, or Expand+Brainstorm on lg..xl) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <button
-                key={key}
                 type="button"
                 disabled={isStreaming}
-                aria-pressed={activeMenu === key}
-                onClick={() => toggleMenu(key)}
-                title={tip}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs md:text-[13px] font-semibold shadow-xs transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-                  activeMenu === key
-                    ? "bg-(--accent) text-(--accent-foreground) border-(--accent)"
-                    : "bg-(--surface-elevated) hover:bg-(--control-bg-hover) border-(--control-border) text-(--text-primary)"
-                )}
+                className="xl:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
               >
-                <Icon className="w-3.5 h-3.5 text-(--accent) shrink-0" />
-                <span>{label}</span>
+                <MoreHorizontal className="w-3.5 h-3.5 text-(--accent)" />
+                <span>{t("novelcrafterMoreToolsBtn")}</span>
               </button>
-            ))}
-          </div>
-
-          {/* Compact mobile/foldable More Tools toggle (NC-R03) */}
-          <button
-            type="button"
-            aria-expanded={moreToolsOpen}
-            onClick={() => setMoreToolsOpen((p) => !p)}
-            className="lg:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary)"
-          >
-            <MoreHorizontal className="w-3.5 h-3.5 text-(--accent)" />
-            <span>{t("novelcrafterMoreToolsBtn")}</span>
-          </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-44">
+              {secondaryTools.map(({ key, label, Icon }, idx) => (
+                <DropdownMenuItem
+                  key={key}
+                  onSelect={() => toggleMenu(key)}
+                  className={cn("gap-2", idx < 2 && "lg:hidden")}
+                >
+                  <Icon className="w-3.5 h-3.5 text-(--accent)" />
+                  <span>{label}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {selectedCharCount > 0 && (
-            <span className="text-xs px-2.5 py-1 rounded-full bg-(--accent)/15 text-(--accent) border border-(--accent)/30 font-medium">
+            <span className="hidden sm:inline-block text-xs px-2.5 py-1 rounded-full bg-(--accent)/15 text-(--accent) border border-(--accent)/30 font-medium whitespace-nowrap">
               {t("novelcrafterSelectedChars").replace("{count}", String(selectedCharCount))}
             </span>
           )}
@@ -303,7 +337,7 @@ export default function ChapterAiToolbar({
             aria-pressed={showFeedbackGutter}
             onClick={onToggleFeedbackGutter}
             className={cn(
-              "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+              "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs font-semibold transition-colors whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
               showFeedbackGutter || openFeedbackCount > 0
                 ? "bg-(--accent)/15 border-(--accent)/40 text-(--accent)"
                 : "bg-(--control-bg) border-(--border) text-(--text-secondary) hover:text-(--text-primary)"
@@ -319,7 +353,7 @@ export default function ChapterAiToolbar({
             <button
               type="button"
               onClick={onStopStream}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-(--danger) text-(--danger-foreground) hover:bg-(--danger-hover) text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-(--danger) text-(--danger-foreground) hover:bg-(--danger-hover) text-xs font-semibold transition-colors whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
               <Square className="w-3.5 h-3.5" />
               <span>{t("stopBtn")}</span>

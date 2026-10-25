@@ -120,7 +120,7 @@ export default function NovelcrafterTopBar({
     <>
       <header className="shrink-0 border-b border-(--border) bg-(--surface-muted)/90 backdrop-blur-xl px-3 md:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2 z-20">
         {/* Left: Pane Toggle + Story Title */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex items-center gap-2 basis-full sm:basis-0 sm:flex-1 min-w-0">
           <button
             type="button"
             onClick={onToggleLeftPane}
@@ -150,13 +150,13 @@ export default function NovelcrafterTopBar({
               }}
               placeholder={t("novelcrafterStoryTitlePlaceholder")}
               aria-label={t("novelcrafterStoryTitlePlaceholder")}
-              className="w-full min-w-0 bg-transparent text-sm md:text-base font-bold text-(--text-primary) placeholder:text-(--text-secondary) rounded-md px-2 py-1 border border-transparent hover:border-(--border) focus:border-(--control-border) focus:bg-(--control-bg) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none transition-colors truncate"
+              className="w-full min-w-32 bg-transparent text-base sm:text-base md:text-base font-bold text-(--text-primary) placeholder:text-(--text-secondary) rounded-md px-2 py-1 border border-transparent hover:border-(--border) focus:border-(--control-border) focus:bg-(--control-bg) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none transition-colors truncate"
             />
           </div>
         </div>
 
-        {/* Right: Silent Sudowrite Status + Model Selector + Master GEM/Persona + Routing + Export + History Pane */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Right: Silent Status + Model Selector + Master GEM/Persona + Routing + Export + History Pane */}
+        <div className="w-full sm:w-auto flex items-center gap-2 flex-nowrap overflow-x-auto [scrollbar-width:none]">
           {saveStatus === "error" ? (
             <button
               type="button"

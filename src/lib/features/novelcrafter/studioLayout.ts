@@ -1,8 +1,9 @@
 // /lib/features/novelcrafter/studioLayout.ts
-// Pure responsive layout calculator for Novelcrafter Studio across Compact, Medium (Foldable), and Expanded viewports
+// Pure responsive layout calculator for Novelcrafter Studio across Compact, Medium, and Expanded viewports
 
 export type StudioViewportTier = "compact" | "medium" | "expanded";
 export type StudioPaneMode = "docked" | "sheet" | "bottom-sheet";
+export type DockedPaneId = "navigator" | "history" | "feedback";
 
 export interface StudioLayoutConfig {
   tier: StudioViewportTier;
@@ -14,6 +15,33 @@ export interface StudioLayoutConfig {
   gutterWidthPx: number;
   minEditorWidthPx: number;
   allowDualDockedSidebars: boolean;
+  maxDockedSidePanes: 0 | 1 | 2 | 3;
+}
+
+export function applyDockedPaneToggle(
+  openOrder: readonly DockedPaneId[],
+  pane: DockedPaneId,
+  maxDocked: number
+): DockedPaneId[] {
+  if (!Number.isFinite(maxDocked) || maxDocked <= 0) {
+    return [];
+  }
+  if (openOrder.includes(pane)) {
+    return openOrder.filter((id) => id !== pane);
+  }
+  const next = [...openOrder, pane];
+  if (next.length > maxDocked) {
+    return next.slice(next.length - maxDocked);
+  }
+  return next;
+}
+
+export function resolveInitialDockedPanes(maxDocked: number): DockedPaneId[] {
+  if (!Number.isFinite(maxDocked) || maxDocked <= 0) {
+    return [];
+  }
+  const defaults: readonly DockedPaneId[] = ["navigator", "history"];
+  return defaults.slice(0, Math.min(defaults.length, Math.floor(maxDocked)));
 }
 
 export function resolveStudioLayout(containerWidthPx: number): StudioLayoutConfig {
@@ -30,6 +58,7 @@ export function resolveStudioLayout(containerWidthPx: number): StudioLayoutConfi
       gutterWidthPx: width,
       minEditorWidthPx: Math.max(300, width - 24),
       allowDualDockedSidebars: false,
+      maxDockedSidePanes: 0,
     };
   }
 
@@ -45,19 +74,21 @@ export function resolveStudioLayout(containerWidthPx: number): StudioLayoutConfi
       gutterWidthPx: 320,
       minEditorWidthPx: 460,
       allowDualDockedSidebars: false,
+      maxDockedSidePanes: 0,
     };
   }
 
-  const isUltraWide = width >= 1480;
+  const maxDockedSidePanes: 1 | 2 | 3 = width >= 1920 ? 3 : width >= 1536 ? 2 : 1;
   return {
     tier: "expanded",
     leftPaneMode: "docked",
     rightPaneMode: "docked",
-    feedbackGutterMode: isUltraWide ? "docked" : "sheet",
+    feedbackGutterMode: "docked",
     leftWidthPx: width >= 1440 ? 256 : 224,
     rightWidthPx: width >= 1440 ? 360 : 320,
     gutterWidthPx: 320,
     minEditorWidthPx: 640,
-    allowDualDockedSidebars: true,
+    allowDualDockedSidebars: maxDockedSidePanes >= 2,
+    maxDockedSidePanes,
   };
 }

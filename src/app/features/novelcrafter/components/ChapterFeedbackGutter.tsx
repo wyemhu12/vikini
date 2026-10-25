@@ -1,7 +1,7 @@
 // /app/features/novelcrafter/components/ChapterFeedbackGutter.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   ChevronDown,
@@ -32,6 +32,7 @@ interface ChapterFeedbackGutterProps {
   onReplyFeedback: (item: NovelcrafterFeedbackItem, replyText: string) => void;
   onResolveAll: () => void;
   onClearAll: () => void;
+  isInSheet?: boolean;
 }
 
 export default function ChapterFeedbackGutter({
@@ -45,11 +46,27 @@ export default function ChapterFeedbackGutter({
   onReplyFeedback,
   onResolveAll,
   onClearAll,
+  isInSheet = false,
 }: ChapterFeedbackGutterProps) {
   const { t } = useLanguage();
+  const listRef = useRef<HTMLDivElement | null>(null);
   const [statusFilter, setStatusFilter] = useState<"open" | "resolved">("open");
   const [menuOpen, setMenuOpen] = useState(false);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!activeFeedbackId || !listRef.current) return;
+    const escaped =
+      typeof CSS !== "undefined" && typeof CSS.escape === "function"
+        ? CSS.escape(activeFeedbackId)
+        : activeFeedbackId.replace(/[^A-Za-z0-9_-]/g, "");
+    const cardEl = listRef.current.querySelector<HTMLElement>(
+      `[data-feedback-card-id="${escaped}"]`
+    );
+    if (cardEl && typeof cardEl.scrollIntoView === "function") {
+      cardEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [activeFeedbackId]);
 
   const openItems = useMemo(
     () => feedbackItems.filter((item) => item.status === "open"),
@@ -100,8 +117,13 @@ export default function ChapterFeedbackGutter({
       aria-label={t("novelcrafterSlotFeedback")}
       className="w-full lg:w-80 xl:w-88 shrink-0 border-t lg:border-t-0 lg:border-l border-(--border) bg-(--surface)/60 flex flex-col min-h-0"
     >
-      {/* Top Gutter Filter & Navigation Header (Sudowrite Margin Bar) */}
-      <div className="px-3.5 py-2.5 border-b border-(--border) flex items-center justify-between gap-2 shrink-0">
+      {/* Top Gutter Filter & Navigation Header */}
+      <div
+        className={cn(
+          "px-3.5 py-2.5 border-b border-(--border) flex items-center justify-between gap-2 shrink-0",
+          isInSheet && "pr-10"
+        )}
+      >
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -136,7 +158,7 @@ export default function ChapterFeedbackGutter({
             type="button"
             onClick={() => handleStep(-1)}
             disabled={visibleItems.length === 0}
-            aria-label={t("novelcrafterExcerptLocatorJump")}
+            aria-label={t("novelcrafterFeedbackPrevItem")}
             className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <ChevronUp className="w-3.5 h-3.5" />
@@ -145,7 +167,7 @@ export default function ChapterFeedbackGutter({
             type="button"
             onClick={() => handleStep(1)}
             disabled={visibleItems.length === 0}
-            aria-label={t("novelcrafterExcerptLocatorJump")}
+            aria-label={t("novelcrafterFeedbackNextItem")}
             className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <ChevronDown className="w-3.5 h-3.5" />
@@ -154,7 +176,8 @@ export default function ChapterFeedbackGutter({
             type="button"
             onClick={() => setMenuOpen((p) => !p)}
             aria-expanded={menuOpen}
-            aria-label={t("novelcrafterSlotFeedback")}
+            aria-haspopup="menu"
+            aria-label={t("novelcrafterFeedbackMoreActions")}
             className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <MoreHorizontal className="w-3.5 h-3.5" />
@@ -188,7 +211,7 @@ export default function ChapterFeedbackGutter({
       </div>
 
       {/* Scrollable Feedback Cards List */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 custom-scrollbar">
         {visibleItems.length === 0 ? (
           <div className="py-10 px-4 text-center space-y-2">
             <MessageSquareQuote className="w-7 h-7 text-(--text-secondary) opacity-40 mx-auto" />
@@ -208,6 +231,7 @@ export default function ChapterFeedbackGutter({
             return (
               <article
                 key={item.id}
+                data-feedback-card-id={item.id}
                 onClick={() => onSelectFeedback(item)}
                 className={cn(
                   "rounded-2xl border p-3.5 space-y-2.5 transition-all cursor-pointer",
@@ -261,7 +285,7 @@ export default function ChapterFeedbackGutter({
                   {item.comment}
                 </p>
 
-                {/* 3. Word-Level Diff Box (Sudowrite Strikethrough + Highlight) */}
+                {/* 3. Word-Level Diff Box (Strikethrough + Highlight) */}
                 {diffSegments.length > 0 && (
                   <div className="rounded-xl border border-(--border) bg-(--surface)/90 p-3 text-xs md:text-[13px] leading-relaxed">
                     {diffSegments.map((seg, idx) => {
@@ -331,7 +355,7 @@ export default function ChapterFeedbackGutter({
                         onRateFeedback(item.id, item.rating === "up" ? undefined : "up")
                       }
                       aria-pressed={item.rating === "up"}
-                      aria-label={t("novelcrafterFeedbackAcceptBtn")}
+                      aria-label={t("novelcrafterFeedbackRateUp")}
                       className={cn(
                         "p-1.5 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)",
                         item.rating === "up"
@@ -347,7 +371,7 @@ export default function ChapterFeedbackGutter({
                         onRateFeedback(item.id, item.rating === "down" ? undefined : "down")
                       }
                       aria-pressed={item.rating === "down"}
-                      aria-label={t("novelcrafterFeedbackDismissBtn")}
+                      aria-label={t("novelcrafterFeedbackRateDown")}
                       className={cn(
                         "p-1.5 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)",
                         item.rating === "down"

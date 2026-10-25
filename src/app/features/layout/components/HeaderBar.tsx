@@ -23,6 +23,7 @@ import { ChevronDown, Check, Settings, Menu } from "lucide-react";
 interface HeaderBarProps {
   onToggleSidebar?: () => void;
   showMobileControls?: boolean;
+  hideOnDesktop?: boolean;
 }
 
 const THEME_GROUP_LABELS: Record<ThemeGroup, TranslationKey> = {
@@ -31,7 +32,11 @@ const THEME_GROUP_LABELS: Record<ThemeGroup, TranslationKey> = {
   "Red Alert 2": "themeRa2",
 };
 
-const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileControls = true }) => {
+const HeaderBar: React.FC<HeaderBarProps> = ({
+  onToggleSidebar,
+  showMobileControls = true,
+  hideOnDesktop = false,
+}) => {
   const { theme, setTheme } = useTheme();
   const { t, language, setLanguage } = useLanguage();
   const [mounted, setMounted] = React.useState(false);
@@ -70,15 +75,15 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ onToggleSidebar, showMobileContro
       initial={false}
       animate={{ y: showMobileControls ? 0 : "-100%" }}
       transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
-      className="
+      className={`
       chat-header-bar
       fixed top-0 left-0 right-0 z-20 
       md:sticky md:top-0 md:translate-y-0
-      flex items-center justify-between 
+      ${hideOnDesktop ? "flex md:hidden" : "flex"} items-center justify-between 
       bg-transparent text-(--text-primary)
       pt-[calc(1rem+var(--sat,0px))] pb-4 pl-[calc(1rem+var(--sal,0px))] pr-[calc(1rem+var(--sar,0px))] sm:pl-[calc(1.5rem+var(--sal,0px))] sm:pr-[calc(1.5rem+var(--sar,0px))] md:px-6
       transition-colors duration-300
-    "
+    `}
     >
       <div className="flex items-center gap-4 min-w-0">
         {/* Mobile sidebar toggle - HIDDEN in favor of Floating Bubble */}

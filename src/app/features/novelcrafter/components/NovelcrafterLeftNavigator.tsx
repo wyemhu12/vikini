@@ -44,6 +44,7 @@ interface NovelcrafterLeftNavigatorProps {
   onAddChapter: () => void;
   onRenameChapter: (chapterId: string, newTitle: string) => void;
   onDeleteChapter: (chapterId: string) => void;
+  isInSheet?: boolean;
 }
 
 const BIBLE_TOC_ITEMS: ReadonlyArray<{
@@ -71,6 +72,7 @@ export default function NovelcrafterLeftNavigator({
   onAddChapter,
   onRenameChapter,
   onDeleteChapter,
+  isInSheet = false,
 }: NovelcrafterLeftNavigatorProps) {
   const { t } = useLanguage();
   const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
@@ -96,8 +98,13 @@ export default function NovelcrafterLeftNavigator({
     >
       <h2 className="sr-only">{t("novelcrafterChaptersTab")}</h2>
 
-      {/* Top: Chapters Header & List (Sudowrite Layout) */}
-      <div className="px-3.5 pt-3.5 pb-2 flex items-center justify-between shrink-0">
+      {/* Top: Chapters Header & List */}
+      <div
+        className={cn(
+          "px-3.5 pt-3.5 pb-2 flex items-center justify-between shrink-0",
+          isInSheet && "pr-10"
+        )}
+      >
         <span className="text-xs font-bold uppercase tracking-wider text-(--text-secondary)">
           {t("novelcrafterChaptersTab")} ({chapters.length})
         </span>
@@ -214,7 +221,7 @@ export default function NovelcrafterLeftNavigator({
         })}
       </div>
 
-      {/* Bottom: Story Bible Toggle & Quick-Jump TOC (Sudowrite Bottom Navigator) */}
+      {/* Bottom: Story Bible Toggle & Quick-Jump TOC */}
       <div className="shrink-0 border-t border-(--border) bg-(--surface)/50 p-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <button
