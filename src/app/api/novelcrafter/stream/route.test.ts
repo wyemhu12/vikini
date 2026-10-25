@@ -239,4 +239,28 @@ describe("POST /api/novelcrafter/stream integration tests (TC-07)", () => {
     expect(hoisted.runNovelcrafterStreamMock).toHaveBeenCalledTimes(1);
     vi.unstubAllEnvs();
   });
+
+  it("WL-06 & RT-01..RT-03: returns 400 VALIDATION_ERROR for out-of-range writeLengthWords, invalid or duplicate contextNodes, or oversized promptDirectiveOverride without starting stream", async () => {
+    const invalidPayloads = [
+      buildValidPayload({ writeLengthWords: 4001 }),
+      buildValidPayload({ writeLengthWords: 49 }),
+      buildValidPayload({ contextNodes: ["bogus_node"] }),
+      buildValidPayload({ contextNodes: ["synopsis", "synopsis"] }),
+      buildValidPayload({ promptDirectiveOverride: "x".repeat(4001) }),
+    ];
+
+    for (const payload of invalidPayloads) {
+      const req = new NextRequest("http://localhost/api/novelcrafter/stream", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error.code).toBe("VALIDATION_ERROR");
+    }
+
+    expect(hoisted.runNovelcrafterStreamMock).not.toHaveBeenCalled();
+    expect(hoisted.incrementDailyMessageCountMock).not.toHaveBeenCalled();
+  });
 });

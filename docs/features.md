@@ -354,14 +354,21 @@ Extended timeouts cho Deep Thinking mode:
 - **Lớp Trang Trí Nội Tuyến (Inline Decorations)**: Gạch chân màu hổ phách `<mark data-feedback-id>` cho câu trích dẫn nhận xét mở (click để nhảy tới thẻ nhận xét bên lề), tô sáng thực thể `<span data-codex-id>` cho nhân vật và địa danh trong Story Bible kèm popover xem trước (`CodexEntityPreview`), và duy trì vùng bôi đen `.nc-selection` khi thao tác trên thanh công cụ AI.
 - **Floating Selection Bubble & Quick Edit (`Ctrl+K`)**: Thanh công cụ nổi ngay trên/dưới đoạn văn bôi đen với menu Rewrite, Describe, Expand, Feedback và ô nhập lệnh sửa nhanh tại chỗ.
 - **Bố Cục 4 Tầng Màn Hình (`useDockedPanes` & `studioLayout`)**: Tự động điều phối số lượng bảng điều khiển mở đồng thời (`maxDockedSidePanes`: `0` trên Mobile/Tablet `<1180px`, `1` trên Laptop `1180–1535px`, `2` trên Desktop `1536–1919px`, `3` trên Full HD/QHD `>=1920px`), ẩn Header toàn cục trên desktop và đưa thanh `ChapterAiToolbar` lên toàn chiều rộng.
+- **Độ Dài Từ Tùy Chỉnh Khi Viết Tiếp (`writeLength`)**: Các mốc chọn nhanh (`~300`, `~600`, `~1000`, `~2000` từ) kết hợp ô nhập số từ tùy ý (`50–4000` từ) trong menu **Viết tiếp** (`ChapterAiToolMenus.tsx`), tự động kẹp biên an toàn qua `clampWriteLengthWords`.
+- **Prompt Studio (`/novelcrafter/prompts`)**: Trang quản lý toàn diện toàn bộ **37 nút/chế độ AI** thuộc 6 nhóm tính năng (`bible`, `write`, `rewrite`, `feedback`, `expand`, `brainstorm`):
+  - Chỉnh sửa nội dung chỉ dẫn gốc (`promptDirectiveOverride`) với các biến động (`{{tone}}`, `{{criteria}}`, `{{senses}}`, `{{category}}`) trong khi khóa cứng các phần đuôi định dạng bắt buộc của bộ phân tích (`FEEDBACK_FORMAT_CONTRACT`, `=== OPENING 1/2/3 ===`, `<current_<target>>`).
+  - Bật/tắt độc lập **11 nút ngữ cảnh** Story Bible & Chương (`synopsis`, `outline`, `characters`, `worldbuilding`, `style`, `genre`, `pov_tense`, `story_so_far`, `scenes`, `previous_chapter_continuity`, `preceding_prose`) kèm khóa an toàn cho các nút bắt buộc (`bible:chapter_summary`, `feedback:*`, `write:auto|guided|tone_shift`).
+  - Hỗ trợ **3 Bộ mẫu tích hợp** (`default`, `lean_context`, `deep_continuity`), lưu tối đa **20 Bộ mẫu cá nhân** trong `localStorage` (`vikini:novelcrafter:prompt-studio`), và khung **Xem trước XML trực tiếp (Live XML Preview)**.
 
 **Files**:
 
 - `src/lib/features/novelcrafter/manuscriptMarkup.ts`, `src/lib/features/novelcrafter/manuscriptDecorations.ts`, `src/lib/features/novelcrafter/manuscriptHistory.ts`, `src/lib/features/novelcrafter/manuscriptTypography.ts`, `src/lib/features/novelcrafter/selectionBubblePlacement.ts`, `src/lib/features/novelcrafter/studioLayout.ts`
-- `src/app/features/novelcrafter/components/NovelcrafterStudioApp.tsx`, `src/app/features/novelcrafter/components/ChapterEditorWorkspace.tsx`, `src/app/features/novelcrafter/components/ChapterManuscriptEditor.tsx`, `src/app/features/novelcrafter/components/ChapterSelectionToolbar.tsx`, `src/app/features/novelcrafter/components/ChapterAiToolbar.tsx`
-- `src/app/features/novelcrafter/hooks/useManuscriptEditor.ts`, `src/app/features/novelcrafter/hooks/useChapterEditorController.ts`, `src/app/features/novelcrafter/hooks/useDockedPanes.ts`
+- `src/lib/features/novelcrafter/contextNodes.ts`, `src/lib/features/novelcrafter/writeLength.ts`, `src/lib/features/novelcrafter/promptActions.ts`, `src/lib/features/novelcrafter/promptDirectiveDefaults.ts`, `src/lib/features/novelcrafter/storyBibleDependencies.ts`, `src/lib/features/novelcrafter/promptStudioPresets.ts`, `src/lib/features/novelcrafter/promptStudioSettings.ts`, `src/lib/features/novelcrafter/promptStudioStore.ts`, `src/lib/features/novelcrafter/promptStudioPreview.ts`, `src/lib/features/novelcrafter/streamRequestBody.ts`
+- `src/app/features/novelcrafter/components/NovelcrafterStudioApp.tsx`, `src/app/features/novelcrafter/components/ChapterEditorWorkspace.tsx`, `src/app/features/novelcrafter/components/ChapterManuscriptEditor.tsx`, `src/app/features/novelcrafter/components/ChapterSelectionToolbar.tsx`, `src/app/features/novelcrafter/components/ChapterAiToolbar.tsx`, `src/app/features/novelcrafter/components/prompt-studio/PromptStudioApp.tsx`
+- `src/app/features/novelcrafter/hooks/useManuscriptEditor.ts`, `src/app/features/novelcrafter/hooks/useChapterEditorController.ts`, `src/app/features/novelcrafter/hooks/useDockedPanes.ts`, `src/app/features/novelcrafter/hooks/usePromptStudioController.ts`
+- `src/app/novelcrafter/prompts/page.tsx`
 
-**Route**: `/novelcrafter`
+**Route**: `/novelcrafter`, `/novelcrafter/prompts`
 
 ## 3. Roadmap (Dự kiến)
 

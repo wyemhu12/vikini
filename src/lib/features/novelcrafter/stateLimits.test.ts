@@ -101,5 +101,8 @@ describe("stateLimits", () => {
     const snaps = normalizeChapterSnapshots(rawSnaps);
     expect(snaps).toHaveLength(5);
     expect(snaps?.[0].id).toBe("snap-0");
+
+    expect(FIELD_MAX_LENGTHS.promptDirectiveOverride).toBe(4_000);
+    expect(FIELD_MAX_LENGTHS.promptPresetName).toBe(80);
   });
 });

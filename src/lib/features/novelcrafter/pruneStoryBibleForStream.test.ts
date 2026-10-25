@@ -110,4 +110,54 @@ describe("pruneStoryBibleForStream", () => {
     expect(pruned.worldbuilding).toBe("");
     expect(pruned.worldElements).toEqual([]);
   });
+
+  it("PR-02..PR-05: respects bible:draft braindump fallback, custom contextNodes pruning, and preserves target field during bible rewrite", () => {
+    const emptySynopsisBible: StoryBible = {
+      ...sampleBible,
+      synopsis: "   ",
+      braindump: "Draft fallback seed",
+      outline: "Full outline",
+    };
+
+    // PR-02: bibleTarget='draft' retains braindump when synopsis is empty
+    const draftPruned = pruneStoryBibleForStream(emptySynopsisBible, "bible", "draft");
+    expect(draftPruned.braindump).toBe("Draft fallback seed");
+
+    // PR-03: write with contextNodes=['synopsis','outline'] retains braindump when synopsis is empty
+    const writeWithSynopsisNode = pruneStoryBibleForStream(
+      emptySynopsisBible,
+      "write",
+      undefined,
+      "",
+      "auto",
+      ["synopsis", "outline"]
+    );
+    expect(writeWithSynopsisNode.braindump).toBe("Draft fallback seed");
+    expect(writeWithSynopsisNode.outline).toBe("Full outline");
+    expect(writeWithSynopsisNode.characters).toBe("");
+    expect(writeWithSynopsisNode.characterCards).toEqual([]);
+
+    // PR-04: write with contextNodes=['style','scenes'] strips characters, worldbuilding, synopsis, outline
+    const leanPruned = pruneStoryBibleForStream(sampleBible, "write", undefined, "", "auto", [
+      "style",
+      "scenes",
+    ]);
+    expect(leanPruned.characters).toBe("");
+    expect(leanPruned.characterCards).toEqual([]);
+    expect(leanPruned.worldbuilding).toBe("");
+    expect(leanPruned.worldElements).toEqual([]);
+    expect(leanPruned.synopsis).toBe("");
+
+    // PR-05: bible rewrite target field is preserved even when omitted from contextNodes
+    const rewriteCharactersPruned = pruneStoryBibleForStream(
+      sampleBible,
+      "bible",
+      "characters",
+      "",
+      undefined,
+      ["synopsis"]
+    );
+    expect(rewriteCharactersPruned.characters).toBe("Freeform character notes");
+    expect(rewriteCharactersPruned.characterCards).toHaveLength(1);
+  });
 });

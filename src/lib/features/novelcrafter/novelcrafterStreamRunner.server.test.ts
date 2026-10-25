@@ -512,4 +512,44 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     expect(busySse).toContain('"code":"STREAM_ERROR"');
     expect(busySse).toContain('"message":"Local model queue is full"');
   });
+
+  it("RT-04: forwards promptDirectiveOverride and contextNodes into the user prompt sent to generateContentStream", async () => {
+    async function* mockGen() {
+      yield {
+        candidates: [
+          {
+            content: {
+              parts: [{ text: "Custom output." }],
+            },
+          },
+        ],
+      };
+    }
+
+    hoisted.generateContentStreamMock.mockResolvedValueOnce(mockGen());
+
+    const stream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: {
+        ...BASE_REQUEST,
+        storyBible: {
+          ...BASE_REQUEST.storyBible,
+          outline: "Act I: Custom Outline Included",
+          characters: "Character that should be excluded",
+        },
+        promptDirectiveOverride: "Write with noir cadence.",
+        contextNodes: ["outline", "preceding_prose"],
+      },
+    });
+
+    await readStreamText(stream);
+    expect(hoisted.generateContentStreamMock).toHaveBeenCalledTimes(1);
+    const callArg = hoisted.generateContentStreamMock.mock.calls[0]?.[0] as {
+      contents: Array<{ parts: Array<{ text: string }> }>;
+    };
+    const promptText = callArg.contents[0]?.parts[0]?.text ?? "";
+    expect(promptText).toContain("Write with noir cadence.");
+    expect(promptText).toContain("<outline>\nAct I: Custom Outline Included\n  </outline>");
+    expect(promptText).not.toContain("Character that should be excluded");
+  });
 });

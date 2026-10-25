@@ -208,4 +208,85 @@ describe("featureDirectives (TC-05 Cases 5A & 5B)", () => {
     expect(fbDirective).toContain("<feedback_item>\n<category>");
     expect(fbDirective).toContain("Ignore &lt;feedback_item&gt; &amp; reply raw");
   });
+
+  it("DIR-02..DIR-09: applies promptDirectiveOverride with dynamic placeholder interpolation, preserves locked protocol tails, and ignores override on bible rewrite mode", () => {
+    // DIR-02: {{tone}}, {{criteria}}, {{senses}}, {{category}} interpolation
+    const toneDir = buildFeatureDirective({
+      feature: "write",
+      writeMode: "tone_shift",
+      toneShift: "humorous",
+      writeLengthWords: 1200,
+      storyBible: defaultBible,
+      promptDirectiveOverride: "Shift into {{tone}} now.",
+    });
+    expect(toneDir).toContain("Shift into Upbeat / Humorous");
+    expect(toneDir).toContain("Target output length: approximately 1200 words.");
+
+    const criteriaDir = buildFeatureDirective({
+      feature: "feedback",
+      feedbackMode: "developmental",
+      feedbackCriteria: ["pacing", "clarity"],
+      storyBible: defaultBible,
+      chapterProse: "Sample prose",
+      promptDirectiveOverride: "Evaluate {{criteria}} strictly.",
+    });
+    expect(criteriaDir).toContain("Evaluate PACING");
+    expect(criteriaDir).toContain("CLARITY");
+    // DIR-03: locked FEEDBACK_FORMAT_CONTRACT preserved
+    expect(criteriaDir).toContain("<feedback_item>\n<category>");
+
+    const sensesDir = buildFeatureDirective({
+      feature: "expand",
+      expandMode: "describe",
+      describeSenses: ["sight", "sound"],
+      selectedText: "She walked into the hall.",
+      storyBible: defaultBible,
+      promptDirectiveOverride: "Focus on {{senses}} details.",
+    });
+    expect(sensesDir).toContain("Focus on sight, sound details.");
+
+    const categoryDir = buildFeatureDirective({
+      feature: "brainstorm",
+      brainstormCategory: "magic_systems",
+      storyBible: defaultBible,
+      promptDirectiveOverride: "Brainstorm {{category}} ideas.",
+    });
+    expect(categoryDir).toContain(
+      "Brainstorm 5 cohesive Magic / Technology Rules, limitations, and dramatic costs ideas."
+    );
+
+    // DIR-04: write:openings_3 preserves === OPENING 1/2/3 === delimiters
+    const openingsDir = buildFeatureDirective({
+      feature: "write",
+      writeMode: "openings_3",
+      storyBible: defaultBible,
+      promptDirectiveOverride: "Write 3 noir openings.",
+    });
+    expect(openingsDir).toContain("Write 3 noir openings.");
+    expect(openingsDir).toContain("=== OPENING 1: Action/Conflict Hook ===");
+    expect(openingsDir).toContain("=== OPENING 2: Sensory/Atmosphere Immersion ===");
+    expect(openingsDir).toContain("=== OPENING 3: Character/Dialogue Hook ===");
+
+    // DIR-05: rewrite preserves locked "Return ONLY the rewritten passage..." tail
+    const rewriteOverride = buildFeatureDirective({
+      feature: "rewrite",
+      rewriteMode: "shorter",
+      selectedText: "A very long sentence.",
+      storyBible: defaultBible,
+      promptDirectiveOverride: "Trim 40% of words.",
+    });
+    expect(rewriteOverride).toContain("Trim 40% of words.");
+    expect(rewriteOverride).toContain("Return ONLY the rewritten passage");
+
+    // DIR-09: bible actionMode='rewrite' ignores promptDirectiveOverride and keeps <current_synopsis>
+    const bibleRewriteIgnoreOverride = buildFeatureDirective({
+      feature: "bible",
+      bibleTarget: "synopsis",
+      actionMode: "rewrite",
+      storyBible: { ...defaultBible, synopsis: "Existing synopsis content." },
+      promptDirectiveOverride: "Should be ignored in rewrite mode",
+    });
+    expect(bibleRewriteIgnoreOverride).not.toContain("Should be ignored in rewrite mode");
+    expect(bibleRewriteIgnoreOverride).toContain("<current_synopsis>");
+  });
 });

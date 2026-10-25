@@ -10,6 +10,7 @@ import {
   isStrataLocalModel,
 } from "@/lib/core/modelRegistry";
 import { Card } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useLanguage } from "../hooks/useLanguage";
 import { useLocalLlmHealth, type LocalLlmStatus } from "../hooks/useLocalLlmHealth";
 import LocalLlmStatusDot from "./LocalLlmStatusDot";
@@ -139,31 +140,31 @@ export default function ModelSelector({
   }
 
   return (
-    <div className="relative z-50">
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       {/* TRIGGER BUTTON */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 md:hover:bg-(--control-bg) p-1 px-4 py-1.5 transition-colors md:shadow-none shadow-lg group text-(--text-primary)"
-      >
-        {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
-        <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">
-          {currentModel?.name || currentModelId}
-        </span>
-        <ChevronDown
-          className={`w-3 h-3 text-(--text-secondary) transition-transform ${isOpen ? "rotate-180" : ""}`}
-        />
-      </button>
-
-      {/* DROPDOWN BACKDROP (to close on click outside) */}
-      {isOpen && (
-        <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsOpen(false)} />
-      )}
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 md:hover:bg-(--control-bg) p-1 px-4 py-1.5 transition-colors md:shadow-none shadow-lg group text-(--text-primary)"
+        >
+          {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
+          <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">
+            {currentModel?.name || currentModelId}
+          </span>
+          <ChevronDown
+            className={`w-3 h-3 text-(--text-secondary) transition-transform ${isOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+      </PopoverTrigger>
 
       {/* DROPDOWN CONTENT */}
-      {isOpen && (
-        <Card
-          className={`absolute ${expandDown ? "top-full mt-2 origin-top-left" : "bottom-full mb-2 origin-bottom-left"} left-0 w-[min(350px,calc(100vw-2rem))] max-h-[min(450px,50vh)] bg-(--surface-muted) border border-(--border) rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150 ease-out`}
-        >
+      <PopoverContent
+        side={expandDown ? "bottom" : "top"}
+        align="start"
+        sideOffset={8}
+        className="w-[min(350px,calc(100vw-2rem))] p-0 border-0 bg-transparent shadow-none"
+      >
+        <Card className="w-full max-h-[min(450px,50vh)] bg-(--surface-muted) border border-(--border) rounded-xl shadow-2xl overflow-hidden flex flex-col">
           {/* TABS HEADER */}
           <div className="flex items-center p-1 bg-(--control-bg) border-b border-(--border) shrink-0">
             <button
@@ -342,8 +343,8 @@ export default function ModelSelector({
             )}
           </div>
         </Card>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

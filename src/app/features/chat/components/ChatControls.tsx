@@ -370,7 +370,7 @@ export default function ChatControls({
       animate={{ y: showMobileControls ? 0 : "100%" }}
       transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
       className={`
-        w-full max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 md:px-6
+        w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-4 md:px-6
         ${
           isLanding
             ? "relative z-40"
@@ -380,10 +380,10 @@ export default function ChatControls({
     >
       {/* Static Floating Controls Toolbar */}
       <div
-        className={`flex items-center justify-center ${isLanding ? "mb-2 pt-0" : "mb-4 pt-4 md:pt-0"}`}
+        className={`flex items-center justify-start md:justify-center overflow-x-auto md:overflow-visible [scrollbar-width:none] max-w-full ${isLanding ? "mb-2 pt-0" : "mb-4 pt-4 md:pt-0"}`}
       >
-        {/* Mobile: horizontal scroll without wrapping; Desktop: unified 1-row toolbar with border */}
-        <div className="flex flex-nowrap overflow-x-auto [scrollbar-width:none] items-center justify-start md:justify-center md:overflow-visible gap-2 @sm/chat:gap-3 @md/chat:gap-4 md:gap-0 md:rounded-full md:bg-(--control-bg) md:border md:border-(--control-border) md:p-1 md:shadow-lg max-w-full">
+        {/* Mobile: horizontal scroll without wrapping; Desktop: unified w-max pill so border always encloses all controls */}
+        <div className="inline-flex w-max flex-nowrap items-center justify-center gap-2 @sm/chat:gap-3 @md/chat:gap-4 md:gap-0 md:rounded-full md:bg-(--control-bg) md:border md:border-(--control-border) md:p-1 md:shadow-lg">
           {controls.map((c, i) => (
             <React.Fragment key={c.key}>
               {i > 0 && <ControlDivider />}

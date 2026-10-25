@@ -2,7 +2,8 @@
 "use client";
 
 import React from "react";
-import { Crown, ExternalLink, Layers, Sparkles, UserCheck } from "lucide-react";
+import Link from "next/link";
+import { Crown, ExternalLink, Layers, ScrollText, Sparkles, UserCheck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -208,6 +209,27 @@ export default function GemPersonaRoutingModal({
                 );
               })}
             </div>
+          </div>
+
+          {/* Prompt Studio Entry Card */}
+          <div className="rounded-xl border border-(--control-border) bg-(--surface-muted)/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm font-bold text-(--text-primary)">
+                <ScrollText className="w-4 h-4 text-(--accent)" />
+                <span>{t("novelcrafterPromptStudioOpen")}</span>
+              </div>
+              <p className="text-xs text-(--text-secondary)">
+                {t("novelcrafterPromptStudioRoutingHint")}
+              </p>
+            </div>
+            <Link
+              href="/novelcrafter/prompts"
+              onClick={onClose}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold shrink-0 transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            >
+              <ScrollText className="w-3.5 h-3.5" />
+              <span>{t("novelcrafterPromptStudioOpen")}</span>
+            </Link>
           </div>
         </div>
 

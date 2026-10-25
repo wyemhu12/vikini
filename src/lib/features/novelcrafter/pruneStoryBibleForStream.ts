@@ -2,6 +2,7 @@
 // Strips unused Story Bible fields before POST /api/novelcrafter/stream to save bandwidth (NC-38)
 
 import { isCodexCardMatchedInContext } from "./codexMatcher";
+import type { NovelcrafterContextNode } from "./contextNodes";
 import type {
   NovelcrafterBibleTarget,
   NovelcrafterFeatureSlot,
@@ -13,12 +14,22 @@ export function needsBraindumpForStream(
   feature: NovelcrafterFeatureSlot,
   bibleTarget: NovelcrafterBibleTarget | undefined,
   writeMode: NovelcrafterWriteMode | undefined,
-  synopsis: string
+  synopsis: string,
+  contextNodes?: readonly NovelcrafterContextNode[]
 ): boolean {
+  const synopsisEmpty = !synopsis.trim();
   if (feature === "bible") {
-    return bibleTarget === "synopsis" || bibleTarget === "outline";
+    if (bibleTarget === "synopsis" || bibleTarget === "outline") {
+      return true;
+    }
+    if (bibleTarget === "draft" && synopsisEmpty) {
+      return contextNodes === undefined || contextNodes.includes("synopsis");
+    }
   }
-  return feature === "write" && writeMode === "first_draft_rough" && !synopsis.trim();
+  if (contextNodes !== undefined) {
+    return contextNodes.includes("synopsis") && synopsisEmpty;
+  }
+  return feature === "write" && writeMode === "first_draft_rough" && synopsisEmpty;
 }
 
 export function pruneStoryBibleForStream(
@@ -26,13 +37,15 @@ export function pruneStoryBibleForStream(
   feature: NovelcrafterFeatureSlot,
   bibleTarget?: NovelcrafterBibleTarget,
   activeContextText?: string,
-  writeMode?: NovelcrafterWriteMode
+  writeMode?: NovelcrafterWriteMode,
+  contextNodes?: readonly NovelcrafterContextNode[]
 ): StoryBible {
   const needsBraindump = needsBraindumpForStream(
     feature,
     bibleTarget,
     writeMode,
-    storyBible.synopsis
+    storyBible.synopsis,
+    contextNodes
   );
   const isGlobalBibleTarget =
     feature === "bible" &&
@@ -43,19 +56,39 @@ export function pruneStoryBibleForStream(
   const effectiveContext =
     isGlobalBibleTarget || activeContextText === undefined ? undefined : activeContextText;
 
+  const nodeSet = contextNodes !== undefined ? new Set(contextNodes) : null;
+  const isTarget = (target: NovelcrafterBibleTarget) =>
+    feature === "bible" && bibleTarget === target;
+
+  const keepSynopsis = !nodeSet || nodeSet.has("synopsis") || isTarget("synopsis");
+  const keepOutline = !nodeSet || nodeSet.has("outline") || isTarget("outline");
+  const keepStyle = !nodeSet || nodeSet.has("style");
+  const keepGenre = !nodeSet || nodeSet.has("genre");
+  const keepCharacters =
+    storyBible.charactersVisibleToAI &&
+    (!nodeSet || nodeSet.has("characters") || isTarget("characters"));
+  const keepWorldbuilding =
+    storyBible.worldbuildingVisibleToAI &&
+    (!nodeSet || nodeSet.has("worldbuilding") || isTarget("worldbuilding"));
+
   return {
     ...storyBible,
     braindump: needsBraindump ? storyBible.braindump : "",
-    characters: storyBible.charactersVisibleToAI ? storyBible.characters : "",
-    characterCards: storyBible.charactersVisibleToAI
+    synopsis: keepSynopsis ? storyBible.synopsis : "",
+    outline: keepOutline ? storyBible.outline : "",
+    outlineItems: keepOutline ? storyBible.outlineItems : [],
+    style: keepStyle ? storyBible.style : "",
+    genre: keepGenre ? storyBible.genre : "",
+    characters: keepCharacters ? storyBible.characters : "",
+    characterCards: keepCharacters
       ? (storyBible.characterCards || []).filter((c) =>
           effectiveContext !== undefined
             ? isCodexCardMatchedInContext(c, effectiveContext)
             : c.visibleToAI !== false
         )
       : [],
-    worldbuilding: storyBible.worldbuildingVisibleToAI ? storyBible.worldbuilding : "",
-    worldElements: storyBible.worldbuildingVisibleToAI
+    worldbuilding: keepWorldbuilding ? storyBible.worldbuilding : "",
+    worldElements: keepWorldbuilding
       ? (storyBible.worldElements || []).filter((w) =>
           effectiveContext !== undefined
             ? isCodexCardMatchedInContext(w, effectiveContext)

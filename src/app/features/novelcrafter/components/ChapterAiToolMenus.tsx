@@ -6,6 +6,8 @@ import { Info, Sparkles, Wand2 } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
 import {
+  MAX_WRITE_LENGTH_WORDS,
+  MIN_WRITE_LENGTH_WORDS,
   NOVELCRAFTER_BRAINSTORM_CATEGORIES,
   NOVELCRAFTER_DESCRIBE_SENSES,
   NOVELCRAFTER_DEVELOPMENTAL_CRITERIA,
@@ -20,6 +22,7 @@ import {
   type NovelcrafterToneShift,
   type NovelcrafterWriteMode,
 } from "@/lib/features/novelcrafter/types";
+import { clampWriteLengthWords } from "@/lib/features/novelcrafter/writeLength";
 import {
   BRAINSTORM_LABELS,
   DEV_CRITERIA_LABELS,
@@ -82,6 +85,7 @@ export default function ChapterAiToolMenus({
   const { t } = useLanguage();
   const [guidedDirection, setGuidedDirection] = useState("");
   const [writeLengthWords, setWriteLengthWords] = useState<number>(300);
+  const [customLengthDraft, setCustomLengthDraft] = useState<string>("300");
   const [keyDetails, setKeyDetails] = useState("");
   const [customRewritePrompt, setCustomRewritePrompt] = useState("");
   const [feedbackMode, setFeedbackMode] = useState<NovelcrafterFeedbackMode>("developmental");
@@ -122,7 +126,7 @@ export default function ChapterAiToolMenus({
             <span>{t("novelcrafterWriteTooltip")}</span>
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-medium text-(--text-secondary) shrink-0">
                 {t("novelcrafterWriteLengthLabel")}:
               </span>
@@ -131,9 +135,13 @@ export default function ChapterAiToolMenus({
                   <button
                     key={len}
                     type="button"
-                    onClick={() => setWriteLengthWords(len)}
+                    aria-pressed={writeLengthWords === len}
+                    onClick={() => {
+                      setWriteLengthWords(len);
+                      setCustomLengthDraft(String(len));
+                    }}
                     className={cn(
-                      "px-2 py-1 rounded-md border text-xs font-medium transition-colors",
+                      "px-2 py-1 rounded-md border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
                       writeLengthWords === len
                         ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
                         : "bg-(--control-bg) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
@@ -142,6 +150,40 @@ export default function ChapterAiToolMenus({
                     ~{len}
                   </button>
                 ))}
+                <div className="inline-flex items-center gap-1.5 ml-1">
+                  <input
+                    type="number"
+                    min={MIN_WRITE_LENGTH_WORDS}
+                    max={MAX_WRITE_LENGTH_WORDS}
+                    step={50}
+                    inputMode="numeric"
+                    value={customLengthDraft}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomLengthDraft(val);
+                      if (val.trim()) {
+                        setWriteLengthWords(clampWriteLengthWords(val, writeLengthWords));
+                      }
+                    }}
+                    onBlur={() => {
+                      const clamped = clampWriteLengthWords(customLengthDraft, writeLengthWords);
+                      setWriteLengthWords(clamped);
+                      setCustomLengthDraft(String(clamped));
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        const clamped = clampWriteLengthWords(customLengthDraft, writeLengthWords);
+                        setWriteLengthWords(clamped);
+                        setCustomLengthDraft(String(clamped));
+                      }
+                    }}
+                    aria-label={t("novelcrafterWriteLengthCustomLabel")}
+                    className="w-20 h-7 rounded-md border border-(--control-border) bg-(--control-bg) px-2 text-xs font-medium text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                  />
+                  <span className="text-xs text-(--text-secondary)">
+                    {t("novelcrafterWriteLengthCustomHint")}
+                  </span>
+                </div>
               </div>
             </div>
             <input

@@ -762,3 +762,25 @@
 - **Prevention Rule**:
   - **Never validate shell command arguments with `\S+` plus a character blacklist.** Always tokenize commands and enforce a strict per-token positive character whitelist (`SAFE_TOKEN`), allowing quotes only in explicitly designated parameter slots.
   - **Never use multi-column Markdown tables with sparse/empty cells in `always_on` governance rule files (`.agents/rules/*.md`).** Use bullet lists instead so `prettier --write` does not pad rows and breach the `< 18,000` character budget.
+
+### 2026-10-25: Unconditional `fs.readFileSync` on Gitignored Local Config (`.claude/settings.local.json`) Breaks Clean CI Checkouts & GitHub Actions Node 20 Runtime Deprecation
+
+- **Symptom**:
+  1. **CI Unit Test Failure (`ENOENT`)**: `npm run test:run` failed in GitHub Actions Linux runner at `.agents/scripts/code-freeze-guard.test.ts:1925:32` (`TC-H & TC-I: Claude Code surface (.claude/settings.json, CLAUDE.md, .claude/skills/)`) with `Error: ENOENT: no such file or directory, open '/home/runner/work/vikini/vikini/.claude/settings.local.json'`, even though the test passed locally.
+  2. **GitHub Actions Node 20 Deprecation Warning**: CI emitted `"Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4"` despite `package.json` (`engines.node: "24.x"`) and `.nvmrc` (`24`) already targeting Node.js 24.
+- **Root Cause**:
+  1. `.claude/settings.local.json` is an optional per-developer local overrides file ignored by Git (`.gitignore` line 55: `.claude/settings.local.json`). On a developer machine where the file exists, `fs.readFileSync(path.join(REPO_ROOT, ".claude", "settings.local.json"), "utf8")` succeeded; on a clean CI checkout where gitignored files are absent, `fs.readFileSync` threw `ENOENT`.
+  2. GitHub Actions steps (`actions/checkout@v4`, `actions/setup-node@v4`) declare their own internal JavaScript action runtime (`runs.using: node20` in `v4` vs `runs.using: node24` in `v5`), which is independent of the project Node version configured via `setup-node`.
+- **Fix**:
+  1. Replaced direct `fs.readFileSync` on `.claude/settings.local.json` in `.agents/scripts/code-freeze-guard.test.ts` with an inline `readOptionalText(filePath)` helper (`fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : ""`), added an explicit assertion verifying the missing-file branch returns `""`, and preserved all 5 negative security assertions (`not.toContain(banned)`).
+  2. Upgraded `.github/workflows/ci.yml` from `actions/checkout@v4` and `actions/setup-node@v4` to `@v5` (`runs.using: node24`) and switched `node-version: 24` to `node-version-file: .nvmrc`.
+- **Prevention Rule**:
+  - **Never call `fs.readFileSync` unconditionally in tests on files listed in `.gitignore` (such as `.claude/settings.local.json` or `.env.local`).** Always check `fs.existsSync` first when asserting optional local-only configuration invariants so tests pass on both developer workstations and clean CI checkouts.
+  - **When upgrading the repository Node.js major version in `.nvmrc` and `package.json`, simultaneously upgrade GitHub Actions (`actions/checkout`, `actions/setup-node`) to the major version whose `action.yml` targets the matching `node<N>` runtime and bind `node-version-file: .nvmrc`.**
+
+### 2026-10-25: `overflow-x-auto` Toolbar Containers Clip Non-Portaled `position: absolute` Dropdowns (`ModelSelector`)
+
+- **Symptom**: Clicking the model selector button (`DEEPSEEK V4.1 FLASH ⌄`) in `NovelcrafterTopBar` (and `ChatControls`) rotated the chevron icon (`isOpen = true`) but the model selection dropdown did not appear on screen.
+- **Root Cause**: Adding `overflow-x-auto` to horizontal toolbar wrappers (`NovelcrafterTopBar.tsx` and `ChatControls.tsx`) caused the browser to compute `overflow-y: auto` per CSS Overflow Module Level 3, turning the 36px-high toolbar row into a vertical scroll/clipping container. Unlike `GemQuickSwitch`, `PersonaQuickSwitch`, `ThinkingLevelSelector`, and `LocalSamplingSettings` (which render via Radix `PopoverPrimitive.Portal` / `DropdownMenuPrimitive.Portal` at `document.body`), `ModelSelector.tsx` rendered an inline `<Card className="absolute top-full mt-2 ...">` inside the toolbar DOM subtree, which was 100% clipped outside the 36px toolbar box.
+- **Fix**: Wrapped `ModelSelector.tsx` in Radix `<Popover open={isOpen} onOpenChange={setIsOpen}>`, `<PopoverTrigger asChild>`, and `<PopoverContent side={expandDown ? "bottom" : "top"} align="start" sideOffset={8}>` (which portals into `document.body` at `z-(--z-popover)`), and scoped horizontal scroll on `NovelcrafterTopBar.tsx` (`sm:overflow-visible`) and `ChatControls.tsx` (`md:overflow-visible`).
+- **Prevention Rule**: **Never render floating menus, popovers, or dropdowns as non-portaled `position: absolute` children inside toolbars or headers that may use `overflow-x-auto`, `overflow-hidden`, or `backdrop-blur-*`.** Always render floating menus through a `document.body` Portal (`@/components/ui/popover` or `@/components/ui/dropdown-menu`).

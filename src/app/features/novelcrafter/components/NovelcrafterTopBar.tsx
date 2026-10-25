@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
   BookOpen,
@@ -14,6 +15,7 @@ import {
   Loader2,
   PanelLeft,
   PanelRight,
+  ScrollText,
   Settings2,
   UserCheck,
 } from "lucide-react";
@@ -156,7 +158,7 @@ export default function NovelcrafterTopBar({
         </div>
 
         {/* Right: Silent Status + Model Selector + Master GEM/Persona + Routing + Export + History Pane */}
-        <div className="w-full sm:w-auto flex items-center gap-2 flex-nowrap overflow-x-auto [scrollbar-width:none]">
+        <div className="w-full sm:w-auto flex items-center gap-2 flex-nowrap overflow-x-auto sm:overflow-visible [scrollbar-width:none]">
           {saveStatus === "error" ? (
             <button
               type="button"
@@ -237,6 +239,16 @@ export default function NovelcrafterTopBar({
             <Settings2 className="w-3.5 h-3.5 shrink-0" />
             <span className="hidden sm:inline">{t("novelcrafterRoutingButton")}</span>
           </button>
+
+          <Link
+            href="/novelcrafter/prompts"
+            aria-label={t("novelcrafterPromptStudioOpen")}
+            title={t("novelcrafterPromptStudioOpen")}
+            className="inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-semibold text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
+          >
+            <ScrollText className="w-3.5 h-3.5 text-(--accent) shrink-0" />
+            <span className="hidden sm:inline">{t("novelcrafterPromptStudioOpen")}</span>
+          </Link>
 
           {onExportManuscript && (
             <DropdownMenu>

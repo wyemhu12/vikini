@@ -6,7 +6,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { BookMarked, RefreshCw, Sparkles, Wand2, X } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { MAX_CHAPTER_SUMMARY_CHARS } from "@/lib/features/novelcrafter/types";
+import { cn } from "@/lib/utils/cn";
 import { TRANSITION } from "@/lib/utils/motion";
+import {
+  MANUSCRIPT_SHEET_CLASS,
+  MANUSCRIPT_SHEET_PADDING_CLASS,
+} from "../utils/manuscriptSheetClasses";
 
 interface ChapterDraftBeatsCardProps {
   isOpen: boolean;
@@ -51,9 +56,14 @@ export default function ChapterDraftBeatsCard({
           animate={{ height: "auto", opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={TRANSITION.FAST}
-          className="px-6 md:px-12 lg:px-16 pb-4 overflow-hidden shrink-0"
+          className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "pb-4 overflow-hidden shrink-0")}
         >
-          <div className="w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl rounded-2xl border border-(--border) bg-(--surface)/85 p-4 space-y-3 shadow-xs">
+          <div
+            className={cn(
+              MANUSCRIPT_SHEET_CLASS,
+              "rounded-2xl border border-(--border) bg-(--surface)/85 p-4 space-y-3 shadow-xs"
+            )}
+          >
             <div className="flex items-center justify-between gap-2">
               <span className="text-[13px] font-semibold text-(--text-secondary)">
                 {t("novelcrafterChapterBeatsLabel")}

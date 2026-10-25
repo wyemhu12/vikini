@@ -186,7 +186,7 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04, TC-05)", () => {
       expect(prompt).not.toContain("<characters>");
     });
 
-    it("Case 4D: bibleTarget='draft' includes style, genre, characters, worldbuilding, POV/Tense, and chapter scenes (no braindump/outline)", () => {
+    it("Case 4D (PB-02): bibleTarget='draft' includes synopsis, outline, style, genre, characters, worldbuilding, POV/Tense, and chapter scenes (with braindump fallback when synopsis is empty)", () => {
       const prompt = buildNovelcrafterUserPrompt({
         feature: "bible",
         bibleTarget: "draft",
@@ -197,6 +197,8 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04, TC-05)", () => {
         chapterExtraInstructions: "Keep the pacing tense.",
       });
 
+      expect(prompt).toContain("<synopsis>");
+      expect(prompt).toContain("<outline>");
       expect(prompt).toContain("<style>");
       expect(prompt).toContain("<genre>");
       expect(prompt).toContain("<narrative_pov_and_tense>");
@@ -205,7 +207,16 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04, TC-05)", () => {
       expect(prompt).toContain("<scenes>");
       expect(prompt).toContain("Keep the pacing tense.");
       expect(prompt).not.toContain("<braindump>");
-      expect(prompt).not.toContain("<outline>");
+
+      const fallbackDraftPrompt = buildNovelcrafterUserPrompt({
+        feature: "bible",
+        bibleTarget: "draft",
+        actionMode: "generate",
+        storyBible: { ...FULL_STORY_BIBLE, synopsis: "   " },
+        chapterTitle: "Chapter 1",
+        chapterScenes: "Beat 1",
+      });
+      expect(fallbackDraftPrompt).toContain('<synopsis fallback="braindump">');
     });
 
     it("Case 4E: rewrite & expand include <selected_text>, <chapter_context> capped at 8,000 chars, and throw ValidationError when selectedText is missing", () => {
@@ -863,6 +874,54 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04, TC-05)", () => {
       if (!failSelected150001.success) {
         expect(failSelected150001.error.issues[0]?.path).toEqual(["selectedText"]);
       }
+    });
+
+    it("PB-01 & PB-03..PB-07: respects custom contextNodes for Story Bible and Chapter Context while keeping required nodes intact", () => {
+      // PB-03: write:auto with custom contextNodes including outline & synopsis
+      const withOutline = buildNovelcrafterUserPrompt({
+        feature: "write",
+        writeMode: "auto",
+        storyBible: FULL_STORY_BIBLE,
+        chapterTitle: "Ch 2",
+        chapterScenes: "Beat 1",
+        chapterProse: "Prose",
+        contextNodes: ["synopsis", "outline", "preceding_prose"],
+      });
+      expect(withOutline).toContain("<synopsis>");
+      expect(withOutline).toContain("<outline>");
+      expect(withOutline).not.toContain("<characters>");
+      expect(withOutline).not.toContain("<worldbuilding>");
+      expect(withOutline).not.toContain("<scenes>");
+      expect(withOutline).toContain("<preceding_prose>");
+
+      // PB-04 & PB-06: omitting story_so_far, scenes, previous_chapter_continuity, preceding_prose
+      const strippedChapterNodes = buildNovelcrafterUserPrompt({
+        feature: "write",
+        writeMode: "auto",
+        storyBible: FULL_STORY_BIBLE,
+        chapterTitle: "Ch 2",
+        previousChapterSummaries: "[Ch 1]: Summary",
+        previousChapterProseTail: "Tail of Ch 1",
+        chapterScenes: "Beat 1",
+        chapterProse: "",
+        contextNodes: ["style"],
+      });
+      expect(strippedChapterNodes).toContain("<style>");
+      expect(strippedChapterNodes).not.toContain("<story_so_far>");
+      expect(strippedChapterNodes).not.toContain("<scenes>");
+      expect(strippedChapterNodes).not.toContain("<previous_chapter_continuity>");
+      expect(strippedChapterNodes).not.toContain("<preceding_prose>");
+
+      // PB-07: feedback with contextNodes=[] still retains required preceding_prose
+      const fbMinimal = buildNovelcrafterUserPrompt({
+        feature: "feedback",
+        feedbackMode: "developmental",
+        storyBible: FULL_STORY_BIBLE,
+        chapterProse: "Required chapter prose for feedback.",
+        contextNodes: [],
+      });
+      expect(fbMinimal).toContain("<preceding_prose>");
+      expect(fbMinimal).toContain("Required chapter prose for feedback.");
     });
   });
 });

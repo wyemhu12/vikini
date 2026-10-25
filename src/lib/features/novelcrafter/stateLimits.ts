@@ -2,6 +2,7 @@
 // Field-level sanitization and non-destructive clamping to prevent whole-story resets (NC-01)
 
 import { DEFAULT_MODEL } from "@/lib/core/modelRegistry";
+import { MAX_PROMPT_DIRECTIVE_OVERRIDE_CHARS } from "./contextNodes";
 import {
   MAX_CHAPTERS,
   MAX_CHAPTER_SNAPSHOTS,
@@ -48,6 +49,8 @@ export const FIELD_MAX_LENGTHS = {
   feedbackReply: 2_000,
   historyCardContent: 150_000,
   historyCardThinking: 100_000,
+  promptDirectiveOverride: MAX_PROMPT_DIRECTIVE_OVERRIDE_CHARS,
+  promptPresetName: 80,
 } as const;
 
 export function truncateText(val: unknown, max: number, fallback = ""): string {

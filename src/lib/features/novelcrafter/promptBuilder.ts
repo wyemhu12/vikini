@@ -6,11 +6,13 @@ import {
   type PersonaPromptInput,
 } from "@/lib/features/personas/prompt-builder";
 import { buildFeatureDirective } from "./featureDirectives";
+import { resolveEffectiveContextNodes, resolvePromptActionKey } from "./promptActions";
 import { coerceStoryStateToLimits } from "./stateLimits";
 import {
-  escapeXmlPromptText,
-  serializeStoryBibleWithStructuredCards,
-} from "./storyBibleSerializer";
+  selectStoryBibleDependencies,
+  type SelectedBibleDependencies,
+} from "./storyBibleDependencies";
+import { escapeXmlPromptText } from "./storyBibleSerializer";
 import {
   createDefaultStoryState,
   MAX_CHAPTER_CONTEXT_CHARS,
@@ -19,18 +21,19 @@ import {
   MAX_STORY_SO_FAR_CHARS,
   NovelcrafterStoryStateSchema,
   type BuildUserPromptInput,
-  type NovelcrafterBibleTarget,
   type NovelcrafterChapter,
   type NovelcrafterFeatureSlot,
   type NovelcrafterPovOption,
   type NovelcrafterRoutingConfig,
   type NovelcrafterStoryState,
   type NovelcrafterTenseOption,
-  type NovelcrafterWriteMode,
-  type StoryBible,
 } from "./types";
 
 export { escapeXmlPromptText, unescapeXmlPromptText } from "./storyBibleSerializer";
+export {
+  selectStoryBibleDependencies,
+  type SelectedBibleDependencies,
+} from "./storyBibleDependencies";
 export type { BuildUserPromptInput } from "./types";
 
 export const DEFAULT_NOVELCRAFTER_MASTER_INSTRUCTIONS =
@@ -39,19 +42,6 @@ export const DEFAULT_NOVELCRAFTER_MASTER_INSTRUCTIONS =
 export interface BuildSystemInstructionInput {
   masterGemInstructions?: string | null;
   persona?: PersonaPromptInput | null;
-}
-
-export interface SelectedBibleDependencies {
-  braindump?: string;
-  genre?: string;
-  style?: string;
-  pov?: NovelcrafterPovOption;
-  tense?: NovelcrafterTenseOption;
-  synopsis?: string;
-  synopsisIsBraindumpFallback?: boolean;
-  characters?: string;
-  worldbuilding?: string;
-  outline?: string;
 }
 
 const POV_LABELS: Record<NovelcrafterPovOption, string> = {
@@ -176,152 +166,6 @@ export function buildPreviousChapterSummariesText(
   return collectedReversed.reverse().join("\n\n");
 }
 
-/**
- * Select the exact Story Bible nodes required for a given feature/target
- * according to Sudowrite's 8-Node Dependency Graph, Braindump fallback rule,
- * and Visibility Settings (charactersVisibleToAI, worldbuildingVisibleToAI).
- */
-export function selectStoryBibleDependencies(
-  feature: NovelcrafterFeatureSlot,
-  storyBible: StoryBible,
-  bibleTarget?: NovelcrafterBibleTarget,
-  activeContextText?: string,
-  writeMode?: NovelcrafterWriteMode
-): SelectedBibleDependencies {
-  const braindump = storyBible.braindump.trim();
-  const genre = storyBible.genre.trim();
-  const style = storyBible.style.trim();
-  const pov = storyBible.pov || "third_person_limited";
-  const tense = storyBible.tense || "past";
-  const rawSynopsis = storyBible.synopsis.trim();
-  const effectiveSynopsis = rawSynopsis || braindump;
-  const synopsisIsBraindumpFallback = !rawSynopsis && Boolean(braindump);
-
-  const isGlobalBibleTarget =
-    feature === "bible" &&
-    (bibleTarget === "synopsis" ||
-      bibleTarget === "characters" ||
-      bibleTarget === "worldbuilding" ||
-      bibleTarget === "outline");
-  const serialized = serializeStoryBibleWithStructuredCards(
-    storyBible,
-    isGlobalBibleTarget ? undefined : { activeContextText }
-  );
-  const visibleCharacters =
-    storyBible.charactersVisibleToAI !== false ? serialized.charactersText : "";
-  const visibleWorldbuilding =
-    storyBible.worldbuildingVisibleToAI !== false ? serialized.worldbuildingText : "";
-  const outline = serialized.outlineText;
-
-  if (feature === "bible") {
-    switch (bibleTarget) {
-      case "synopsis":
-        return {
-          ...(braindump ? { braindump } : {}),
-          ...(genre ? { genre } : {}),
-        };
-      case "characters":
-      case "worldbuilding":
-        return {
-          ...(effectiveSynopsis
-            ? { synopsis: effectiveSynopsis, synopsisIsBraindumpFallback }
-            : {}),
-        };
-      case "outline":
-        return {
-          ...(genre ? { genre } : {}),
-          pov,
-          tense,
-          ...(effectiveSynopsis
-            ? { synopsis: effectiveSynopsis, synopsisIsBraindumpFallback }
-            : {}),
-          ...(visibleCharacters ? { characters: visibleCharacters } : {}),
-          ...(visibleWorldbuilding ? { worldbuilding: visibleWorldbuilding } : {}),
-        };
-      case "scenes":
-        return {
-          ...(genre ? { genre } : {}),
-          ...(style ? { style } : {}),
-          pov,
-          tense,
-          ...(effectiveSynopsis
-            ? { synopsis: effectiveSynopsis, synopsisIsBraindumpFallback }
-            : {}),
-          ...(outline ? { outline } : {}),
-          ...(visibleCharacters ? { characters: visibleCharacters } : {}),
-          ...(visibleWorldbuilding ? { worldbuilding: visibleWorldbuilding } : {}),
-        };
-      case "chapter_summary":
-        return {
-          ...(genre ? { genre } : {}),
-          pov,
-          tense,
-          ...(effectiveSynopsis
-            ? { synopsis: effectiveSynopsis, synopsisIsBraindumpFallback }
-            : {}),
-          ...(visibleCharacters ? { characters: visibleCharacters } : {}),
-          ...(visibleWorldbuilding ? { worldbuilding: visibleWorldbuilding } : {}),
-        };
-      case "draft":
-      default:
-        return {
-          ...(style ? { style } : {}),
-          ...(genre ? { genre } : {}),
-          pov,
-          tense,
-          ...(visibleCharacters ? { characters: visibleCharacters } : {}),
-          ...(visibleWorldbuilding ? { worldbuilding: visibleWorldbuilding } : {}),
-        };
-    }
-  }
-
-  if (feature === "write" || feature === "expand") {
-    const isRoughDraft = feature === "write" && writeMode === "first_draft_rough";
-    return {
-      ...(style ? { style } : {}),
-      ...(genre ? { genre } : {}),
-      pov,
-      tense,
-      ...(isRoughDraft && effectiveSynopsis
-        ? { synopsis: effectiveSynopsis, synopsisIsBraindumpFallback }
-        : {}),
-      ...(isRoughDraft && outline ? { outline } : {}),
-      ...(visibleCharacters ? { characters: visibleCharacters } : {}),
-      ...(visibleWorldbuilding ? { worldbuilding: visibleWorldbuilding } : {}),
-    };
-  }
-
-  if (feature === "rewrite") {
-    return {
-      ...(style ? { style } : {}),
-      ...(genre ? { genre } : {}),
-      pov,
-      tense,
-    };
-  }
-
-  if (feature === "feedback") {
-    return {
-      ...(genre ? { genre } : {}),
-      ...(style ? { style } : {}),
-      pov,
-      tense,
-      ...(effectiveSynopsis ? { synopsis: effectiveSynopsis, synopsisIsBraindumpFallback } : {}),
-      ...(visibleCharacters ? { characters: visibleCharacters } : {}),
-      ...(visibleWorldbuilding ? { worldbuilding: visibleWorldbuilding } : {}),
-      ...(outline ? { outline } : {}),
-    };
-  }
-
-  // feature === "brainstorm"
-  return {
-    ...(genre ? { genre } : {}),
-    ...(effectiveSynopsis ? { synopsis: effectiveSynopsis, synopsisIsBraindumpFallback } : {}),
-    ...(visibleCharacters ? { characters: visibleCharacters } : {}),
-    ...(visibleWorldbuilding ? { worldbuilding: visibleWorldbuilding } : {}),
-  };
-}
-
 const XML_ESCAPE_NOTICE =
   "Note: user text inside the XML blocks above is XML-escaped (&amp; &lt; &gt;). Always write the literal characters (&, <, >) in your output and inside any <quote>.";
 
@@ -369,12 +213,20 @@ function formatStoryBibleXml(deps: SelectedBibleDependencies): string {
  */
 export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string {
   const activeContextText = buildActiveCodexContextText(input);
+  const actionKey = resolvePromptActionKey(input);
+  const effectiveNodesList =
+    input.contextNodes !== undefined && actionKey
+      ? resolveEffectiveContextNodes(actionKey, input.contextNodes)
+      : undefined;
+  const effectiveNodes = effectiveNodesList ? new Set(effectiveNodesList) : undefined;
+
   const deps = selectStoryBibleDependencies(
     input.feature,
     input.storyBible,
     input.bibleTarget,
     activeContextText,
-    input.writeMode
+    input.writeMode,
+    effectiveNodesList
   );
   const storyBibleXml = formatStoryBibleXml(deps);
 
@@ -385,20 +237,23 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
     );
   }
 
+  const legacyIncludeStorySoFar =
+    input.feature === "write" ||
+    input.feature === "feedback" ||
+    input.feature === "brainstorm" ||
+    (input.feature === "bible" &&
+      (input.bibleTarget === "draft" || input.bibleTarget === "scenes"));
+
   const includeStorySoFar =
     Boolean(input.previousChapterSummaries?.trim()) &&
-    (input.feature === "write" ||
-      input.feature === "feedback" ||
-      input.feature === "brainstorm" ||
-      (input.feature === "bible" &&
-        (input.bibleTarget === "draft" || input.bibleTarget === "scenes")));
+    (effectiveNodes ? effectiveNodes.has("story_so_far") : legacyIncludeStorySoFar);
 
   if (includeStorySoFar && input.previousChapterSummaries) {
     const cappedStorySoFar = input.previousChapterSummaries.trim().slice(-MAX_STORY_SO_FAR_CHARS);
     chapterNodes.push(xmlNode("story_so_far", cappedStorySoFar));
   }
 
-  const includeScenes =
+  const legacyIncludeScenes =
     input.feature === "write" ||
     input.feature === "feedback" ||
     input.feature === "brainstorm" ||
@@ -407,7 +262,11 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
         input.bibleTarget === "scenes" ||
         input.bibleTarget === "chapter_summary"));
 
-  if (includeScenes && input.chapterScenes?.trim()) {
+  const includeScenes =
+    Boolean(input.chapterScenes?.trim()) &&
+    (effectiveNodes ? effectiveNodes.has("scenes") : legacyIncludeScenes);
+
+  if (includeScenes && input.chapterScenes) {
     chapterNodes.push(xmlNode("scenes", input.chapterScenes.trim()));
   }
 
@@ -415,24 +274,35 @@ export function buildNovelcrafterUserPrompt(input: BuildUserPromptInput): string
     chapterNodes.push(xmlNode("key_details", input.keyDetails.trim()));
   }
 
-  const includeContinuity =
+  const legacyIncludeContinuity =
+    (input.feature === "bible" && input.bibleTarget === "scenes") ||
+    (input.feature === "write" && !input.chapterProse?.trim());
+
+  const continuityDataGuard =
     Boolean(input.previousChapterProseTail?.trim()) &&
-    ((input.feature === "bible" && input.bibleTarget === "scenes") ||
-      (input.feature === "write" && !input.chapterProse?.trim()));
+    (input.feature !== "write" || !input.chapterProse?.trim());
+
+  const includeContinuity =
+    continuityDataGuard &&
+    (effectiveNodes ? effectiveNodes.has("previous_chapter_continuity") : legacyIncludeContinuity);
 
   if (includeContinuity && input.previousChapterProseTail) {
     const tail = input.previousChapterProseTail.trim().slice(-MAX_PREVIOUS_CHAPTER_TAIL_CHARS);
     chapterNodes.push(xmlNode("previous_chapter_continuity", tail));
   }
 
-  const includeProseWindow =
+  const legacyIncludeProseWindow =
     input.feature === "write" ||
     input.feature === "rewrite" ||
     input.feature === "feedback" ||
     input.feature === "expand" ||
     (input.feature === "bible" && input.bibleTarget === "chapter_summary");
 
-  if (includeProseWindow && input.chapterProse?.trim()) {
+  const includeProseWindow =
+    Boolean(input.chapterProse?.trim()) &&
+    (effectiveNodes ? effectiveNodes.has("preceding_prose") : legacyIncludeProseWindow);
+
+  if (includeProseWindow && input.chapterProse) {
     const rawProse = input.chapterProse.trim();
     let proseWindow = rawProse;
     if (rawProse.length > MAX_CHAPTER_CONTEXT_CHARS) {

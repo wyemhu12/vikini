@@ -8,8 +8,11 @@ import {
   createRafStreamBatcher,
   useNovelcrafterStreamStore,
 } from "@/lib/features/novelcrafter/novelcrafterStreamStore";
-import { buildActiveCodexContextText } from "@/lib/features/novelcrafter/promptBuilder";
-import { pruneStoryBibleForStream } from "@/lib/features/novelcrafter/pruneStoryBibleForStream";
+import {
+  ensurePromptStudioHydrated,
+  usePromptStudioStore,
+} from "@/lib/features/novelcrafter/promptStudioStore";
+import { buildNovelcrafterStreamRequestBody } from "@/lib/features/novelcrafter/streamRequestBody";
 import {
   NovelcrafterStreamRunRegistry,
   shouldAbortStreamOnConversationChange,
@@ -330,57 +333,18 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
       };
 
       try {
-        const activeContextText = buildActiveCodexContextText({
-          feature: params.feature,
-          storyBible: opts.storyBible,
-          chapterTitle: opts.chapterTitle,
-          chapterScenes: opts.chapterScenes,
-          chapterSummary: opts.chapterSummary,
-          chapterExtraInstructions: opts.chapterExtraInstructions,
-          chapterProse: opts.chapterProse,
-          selectedText: params.selectedText,
-          keyDetails: params.keyDetails,
-          customInstruction: params.customInstruction,
+        await ensurePromptStudioHydrated();
+        const body = buildNovelcrafterStreamRequestBody({
+          conversationId: targetConversationId,
+          options: opts,
+          params,
+          promptSettings: usePromptStudioStore.getState().settings,
         });
-        const prunedBible = pruneStoryBibleForStream(
-          opts.storyBible,
-          params.feature,
-          params.bibleTarget,
-          activeContextText,
-          params.writeMode
-        );
         const res = await fetch("/api/novelcrafter/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           signal: controller.signal,
-          body: JSON.stringify({
-            conversationId: targetConversationId,
-            model: opts.selectedModel,
-            feature: params.feature,
-            routing: opts.routing,
-            storyBible: prunedBible,
-            chapterTitle: opts.chapterTitle,
-            chapterScenes: opts.chapterScenes,
-            chapterExtraInstructions: opts.chapterExtraInstructions || "",
-            chapterSummary: opts.chapterSummary || "",
-            chapterProse: opts.chapterProse,
-            previousChapterProseTail: opts.previousChapterProseTail,
-            previousChapterSummaries: opts.previousChapterSummaries || "",
-            selectedText: params.selectedText || "",
-            bibleTarget: params.bibleTarget,
-            actionMode: params.actionMode || "generate",
-            writeMode: params.writeMode || "auto",
-            toneShift: params.toneShift,
-            writeLengthWords: params.writeLengthWords,
-            keyDetails: params.keyDetails,
-            rewriteMode: params.rewriteMode || "rephrase",
-            feedbackMode: params.feedbackMode || "developmental",
-            feedbackCriteria: params.feedbackCriteria,
-            expandMode: params.expandMode || "expand",
-            describeSenses: params.describeSenses,
-            brainstormCategory: params.brainstormCategory || "plot_twists",
-            customInstruction: params.customInstruction || "",
-          }),
+          body: JSON.stringify(body),
         });
         if (!res.ok || !res.body) {
           const errJson = (await res.json().catch(() => ({}))) as { error?: { message?: string } };

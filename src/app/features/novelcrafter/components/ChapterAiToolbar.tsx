@@ -22,15 +22,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
-import type {
-  NovelcrafterBrainstormCategory,
-  NovelcrafterDescribeSense,
-  NovelcrafterDevelopmentalCriterion,
-  NovelcrafterExpandMode,
-  NovelcrafterFeedbackMode,
-  NovelcrafterRewriteMode,
-  NovelcrafterToneShift,
-  NovelcrafterWriteMode,
+import {
+  NOVELCRAFTER_WRITE_LENGTH_OPTIONS,
+  type NovelcrafterBrainstormCategory,
+  type NovelcrafterDescribeSense,
+  type NovelcrafterDevelopmentalCriterion,
+  type NovelcrafterExpandMode,
+  type NovelcrafterFeedbackMode,
+  type NovelcrafterRewriteMode,
+  type NovelcrafterToneShift,
+  type NovelcrafterWriteMode,
 } from "@/lib/features/novelcrafter/types";
 import type { TranslationKey } from "@/lib/utils/translations";
 import ChapterAiToolMenus, { type ActiveChapterToolMenu } from "./ChapterAiToolMenus";
@@ -106,7 +107,7 @@ export const BRAINSTORM_LABELS: Record<NovelcrafterBrainstormCategory, Translati
   titles: "novelcrafterBrainstormTitles",
 };
 
-export const LENGTH_PRESETS = [150, 300, 500, 750] as const;
+export const LENGTH_PRESETS = NOVELCRAFTER_WRITE_LENGTH_OPTIONS;
 
 export interface ChapterAiToolbarProps {
   activeMenu: ActiveChapterToolMenu;

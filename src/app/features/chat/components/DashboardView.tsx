@@ -160,7 +160,7 @@ export default function DashboardView({
   );
 
   return (
-    <div className="flex flex-col items-center w-full max-w-3xl mx-auto px-4">
+    <div className="flex flex-col items-center w-full max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4">
       {/* ── Greeting Section ── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

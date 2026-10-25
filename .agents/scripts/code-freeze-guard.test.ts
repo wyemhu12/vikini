@@ -1922,9 +1922,14 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       );
       expect(claudeSettings?.permissions?.deny).toContain("Read(.env*)");
 
-      const localSettings = fs.readFileSync(
-        path.join(REPO_ROOT, ".claude", "settings.local.json"),
-        "utf8"
+      // .claude/settings.local.json is a gitignored, per-developer file: absent on clean CI checkouts.
+      const readOptionalText = (filePath: string): string =>
+        fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
+
+      expect(readOptionalText(path.join(REPO_ROOT, ".claude", "__missing__.json"))).toBe("");
+
+      const localSettings = readOptionalText(
+        path.join(REPO_ROOT, ".claude", "settings.local.json")
       );
       for (const banned of ["git add", "git commit", "git push", "git checkout", "deep-research"]) {
         expect(localSettings).not.toContain(banned);

@@ -4,6 +4,11 @@
 import { z } from "zod";
 import { DEFAULT_MODEL } from "@/lib/core/modelRegistry";
 import { UUID_REGEX } from "@/lib/utils/constants";
+import {
+  MAX_PROMPT_DIRECTIVE_OVERRIDE_CHARS,
+  NOVELCRAFTER_CONTEXT_NODES,
+  type NovelcrafterContextNode,
+} from "./contextNodes";
 
 export const STALE_STORY_STATE_MESSAGE = "Stale story state rejected" as const;
 
@@ -56,8 +61,10 @@ export const NOVELCRAFTER_TONE_SHIFTS = [
   "epic",
 ] as const;
 export type NovelcrafterToneShift = (typeof NOVELCRAFTER_TONE_SHIFTS)[number];
-export const NOVELCRAFTER_WRITE_LENGTH_OPTIONS = [150, 300, 600, 1000] as const;
+export const NOVELCRAFTER_WRITE_LENGTH_OPTIONS = [300, 600, 1000, 2000] as const;
 export type NovelcrafterWriteLengthOption = (typeof NOVELCRAFTER_WRITE_LENGTH_OPTIONS)[number];
+export const MIN_WRITE_LENGTH_WORDS = 50 as const;
+export const MAX_WRITE_LENGTH_WORDS = 4000 as const;
 export const NOVELCRAFTER_REWRITE_MODES = [
   "rephrase",
   "shorter",
@@ -323,6 +330,8 @@ export interface BuildUserPromptInput {
   describeSenses?: NovelcrafterDescribeSense[];
   brainstormCategory?: NovelcrafterBrainstormCategory;
   customInstruction?: string;
+  promptDirectiveOverride?: string;
+  contextNodes?: NovelcrafterContextNode[];
 }
 
 export const NovelcrafterStreamRequestSchema = z
@@ -344,7 +353,12 @@ export const NovelcrafterStreamRequestSchema = z
     actionMode: z.enum(NOVELCRAFTER_ACTION_MODES).optional().default("generate"),
     writeMode: z.enum(NOVELCRAFTER_WRITE_MODES).optional().default("auto"),
     toneShift: z.enum(NOVELCRAFTER_TONE_SHIFTS).optional(),
-    writeLengthWords: z.number().int().min(50).max(4000).optional(),
+    writeLengthWords: z
+      .number()
+      .int()
+      .min(MIN_WRITE_LENGTH_WORDS)
+      .max(MAX_WRITE_LENGTH_WORDS)
+      .optional(),
     keyDetails: z.string().max(4_000).optional().default(""),
     rewriteMode: z.enum(NOVELCRAFTER_REWRITE_MODES).optional().default("rephrase"),
     feedbackMode: z.enum(NOVELCRAFTER_FEEDBACK_MODES).optional().default("developmental"),
@@ -356,6 +370,11 @@ export const NovelcrafterStreamRequestSchema = z
       .optional()
       .default("plot_twists"),
     customInstruction: z.string().max(MAX_CUSTOM_INSTRUCTION_CHARS).optional().default(""),
+    promptDirectiveOverride: z.string().max(MAX_PROMPT_DIRECTIVE_OVERRIDE_CHARS).optional(),
+    contextNodes: z
+      .array(z.enum(NOVELCRAFTER_CONTEXT_NODES))
+      .max(NOVELCRAFTER_CONTEXT_NODES.length)
+      .optional(),
   })
   .superRefine((val, ctx) => {
     if (val.feature === "bible" && !val.bibleTarget) {
@@ -377,6 +396,13 @@ export const NovelcrafterStreamRequestSchema = z
         code: "custom",
         path: ["chapterProse"],
         message: "chapterProse or selectedText is required when feature is 'feedback'",
+      });
+    }
+    if (val.contextNodes && new Set(val.contextNodes).size !== val.contextNodes.length) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["contextNodes"],
+        message: "contextNodes must be unique",
       });
     }
   });
