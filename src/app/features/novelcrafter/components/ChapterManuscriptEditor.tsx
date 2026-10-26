@@ -244,36 +244,38 @@ const ChapterManuscriptEditor = forwardRef<ManuscriptEditorHandle, ChapterManusc
         scrollToFeedback: (feedbackId: string) => {
           const root = rootRef.current;
           if (!root || !isSafeDecorationId(feedbackId)) return false;
+          const item = feedbackItems.find((f) => f.id === feedbackId);
+          const range = item
+            ? findQuoteRangeInText(content, item.quote) ||
+              (item.suggestion ? findQuoteRangeInText(content, item.suggestion) : null)
+            : null;
           const markEl = root.querySelector<HTMLElement>(
             `[data-feedback-id="${escapeSelectorId(feedbackId)}"]`
           );
-          if (!markEl) return false;
+          if (!markEl && !range) return false;
+
+          if (range) {
+            root.focus({ preventScroll: true });
+            setIsFocused(true);
+            setCaretRange(range.start, range.end);
+            setSelectionOffsets(root, range.start, range.end);
+            onSelectionChange({
+              start: range.start,
+              end: range.end,
+              text: content.slice(range.start, range.end),
+            });
+          }
 
           const container = scrollContainerRef?.current;
-          if (container) {
+          const targetEl = markEl ?? root.querySelector<HTMLElement>(".nc-selection");
+          if (container && targetEl) {
             const targetTop = computeQuoteScrollTop({
-              targetRectTop: markEl.getBoundingClientRect().top,
+              targetRectTop: targetEl.getBoundingClientRect().top,
               containerRectTop: container.getBoundingClientRect().top,
               containerScrollTop: container.scrollTop,
               containerClientHeight: container.clientHeight,
             });
             container.scrollTo({ top: targetTop, behavior: "smooth" });
-          }
-
-          const item = feedbackItems.find((f) => f.id === feedbackId);
-          if (item?.quote) {
-            const range = findQuoteRangeInText(content, item.quote);
-            if (range) {
-              root.focus({ preventScroll: true });
-              setIsFocused(true);
-              setCaretRange(range.start, range.end);
-              setSelectionOffsets(root, range.start, range.end);
-              onSelectionChange({
-                start: range.start,
-                end: range.end,
-                text: content.slice(range.start, range.end),
-              });
-            }
           }
           return true;
         },

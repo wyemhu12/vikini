@@ -260,34 +260,36 @@ export default function ChapterEditorWorkspace({
             />
           )}
 
-          {controller.activeFeedbackItem && controller.activeFeedbackItem.quote && (
-            <div className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "pb-2 shrink-0")}>
-              <button
-                type="button"
-                onClick={() =>
-                  controller.activeFeedbackItem &&
-                  controller.jumpToFeedbackQuote(controller.activeFeedbackItem)
-                }
-                className={cn(
-                  MANUSCRIPT_SHEET_CLASS,
-                  "text-left rounded-xl bg-(--warning)/15 border-l-2 border-(--warning) px-3.5 py-2 flex items-center justify-between gap-2 text-xs text-(--text-primary) hover:bg-(--warning)/20 transition-colors"
-                )}
-              >
-                <span className="inline-flex items-center gap-2 min-w-0 truncate">
-                  <MessageSquareQuote className="w-3.5 h-3.5 text-(--warning) shrink-0" />
-                  <span className="font-semibold uppercase text-(--warning)">
-                    [{controller.activeFeedbackItem.category}]
+          {feedbackPane.isOpen &&
+            controller.activeFeedbackItem?.status === "open" &&
+            controller.activeFeedbackItem.quote && (
+              <div className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "pb-2 shrink-0")}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    controller.activeFeedbackItem &&
+                    controller.jumpToFeedbackQuote(controller.activeFeedbackItem)
+                  }
+                  className={cn(
+                    MANUSCRIPT_SHEET_CLASS,
+                    "text-left rounded-xl bg-(--warning)/15 border-l-2 border-(--warning) px-3.5 py-2 flex items-center justify-between gap-2 text-xs text-(--text-primary) hover:bg-(--warning)/20 transition-colors"
+                  )}
+                >
+                  <span className="inline-flex items-center gap-2 min-w-0 truncate">
+                    <MessageSquareQuote className="w-3.5 h-3.5 text-(--warning) shrink-0" />
+                    <span className="font-semibold uppercase text-(--warning)">
+                      [{controller.activeFeedbackItem.category}]
+                    </span>
+                    <span className="truncate italic">
+                      &ldquo;{controller.activeFeedbackItem.quote}&rdquo;
+                    </span>
                   </span>
-                  <span className="truncate italic">
-                    &ldquo;{controller.activeFeedbackItem.quote}&rdquo;
+                  <span className="text-xs font-semibold text-(--accent) shrink-0">
+                    {t("novelcrafterExcerptLocatorJump")}
                   </span>
-                </span>
-                <span className="text-xs font-semibold text-(--accent) shrink-0">
-                  {t("novelcrafterExcerptLocatorJump")}
-                </span>
-              </button>
-            </div>
-          )}
+                </button>
+              </div>
+            )}
 
           <div className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "pb-6 flex flex-col")}>
             <ChapterManuscriptEditor
