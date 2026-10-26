@@ -112,9 +112,11 @@
     - Bọc `PromptSourceTooltip` quanh 3 nút card khởi đầu: `Auto Write Opening` (`write:auto`), `Suggest 3 Openings` (`write:openings_3`), `Rough Draft from Beats` (`write:first_draft_rough`).
 13. `[MODIFY]` `src/app/features/novelcrafter/components/ChapterSelectionToolbar.tsx`
     - Bọc `PromptSourceTooltip` quanh các mục trong menu `Rewrite` dropdown (`rewrite:${mode}`), nút `Describe` (`expand:describe`), nút `Expand` (`expand:expand`), nút `Feedback` (`feedback:line_editing`), và nút submit `Quick Edit` (`rewrite:custom`).
-14. `[MODIFY]` `docs/features.md`
+14. `[MODIFY]` `src/app/features/novelcrafter/components/prompt-studio/promptStudioLabels.ts`
+    - Loại bỏ circular runtime import từ `../ChapterAiToolbar` bằng cách khai báo trực tiếp các khóa dịch `TranslationKey` cho `feedback:*` và `brainstorm:*`, tránh lỗi Temporal Dead Zone (TDZ) khi prerender `/novelcrafter`.
+15. `[MODIFY]` `docs/features.md`
     - Bổ sung tài liệu đặc tả tính năng Dynamic Prompt Source Tooltips trong Novelcrafter Studio.
-15. `[MODIFY]` `docs/CHANGELOG.md`
+16. `[MODIFY]` `docs/CHANGELOG.md`
     - Ghi nhận nhật ký cập nhật tính năng.
 
 #### Xóa (`[DELETE]`)

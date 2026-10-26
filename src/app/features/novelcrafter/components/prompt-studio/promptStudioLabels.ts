@@ -6,7 +6,6 @@ import type { NovelcrafterPromptActionKey } from "@/lib/features/novelcrafter/pr
 import type { NovelcrafterBuiltInPresetId } from "@/lib/features/novelcrafter/promptStudioPresets";
 import type { NovelcrafterFeatureSlot } from "@/lib/features/novelcrafter/types";
 import type { TranslationKey } from "@/lib/utils/translations";
-import { BRAINSTORM_LABELS, FEEDBACK_MODE_LABELS } from "../ChapterAiToolbar";
 
 export const PROMPT_GROUP_LABELS: Record<NovelcrafterFeatureSlot, TranslationKey> = {
   bible: "novelcrafterPromptStudioGroupBible",
@@ -37,24 +36,24 @@ export const PROMPT_ACTION_LABELS: Record<NovelcrafterPromptActionKey, Translati
   "rewrite:more_inner_conflict": "novelcrafterRewriteInnerConflict",
   "rewrite:more_intense": "novelcrafterRewriteMoreIntense",
   "rewrite:custom": "novelcrafterRewriteCustom",
-  "feedback:developmental": FEEDBACK_MODE_LABELS.developmental.title,
-  "feedback:line_editing": FEEDBACK_MODE_LABELS.line_editing.title,
-  "feedback:dialogue": FEEDBACK_MODE_LABELS.dialogue.title,
-  "feedback:copy_editing": FEEDBACK_MODE_LABELS.copy_editing.title,
-  "feedback:beta_read": FEEDBACK_MODE_LABELS.beta_read.title,
-  "feedback:custom": FEEDBACK_MODE_LABELS.custom.title,
+  "feedback:developmental": "novelcrafterFeedbackDevelopmental",
+  "feedback:line_editing": "novelcrafterFeedbackLine",
+  "feedback:dialogue": "novelcrafterFeedbackDialogue",
+  "feedback:copy_editing": "novelcrafterFeedbackCopy",
+  "feedback:beta_read": "novelcrafterFeedbackBetaRead",
+  "feedback:custom": "novelcrafterFeedbackCustom",
   "expand:expand": "novelcrafterExpandPassage",
   "expand:describe": "novelcrafterPromptActionExpandDescribe",
-  "brainstorm:plot_twists": BRAINSTORM_LABELS.plot_twists,
-  "brainstorm:character_names": BRAINSTORM_LABELS.character_names,
-  "brainstorm:world_objects": BRAINSTORM_LABELS.world_objects,
-  "brainstorm:dialogue": BRAINSTORM_LABELS.dialogue,
-  "brainstorm:scene_ideas": BRAINSTORM_LABELS.scene_ideas,
-  "brainstorm:characters": BRAINSTORM_LABELS.characters,
-  "brainstorm:settings": BRAINSTORM_LABELS.settings,
-  "brainstorm:magic_systems": BRAINSTORM_LABELS.magic_systems,
-  "brainstorm:conflicts": BRAINSTORM_LABELS.conflicts,
-  "brainstorm:titles": BRAINSTORM_LABELS.titles,
+  "brainstorm:plot_twists": "novelcrafterBrainstormTwists",
+  "brainstorm:character_names": "novelcrafterBrainstormNames",
+  "brainstorm:world_objects": "novelcrafterBrainstormWorld",
+  "brainstorm:dialogue": "novelcrafterBrainstormDialogue",
+  "brainstorm:scene_ideas": "novelcrafterBrainstormScenes",
+  "brainstorm:characters": "novelcrafterBrainstormCharacters",
+  "brainstorm:settings": "novelcrafterBrainstormSettings",
+  "brainstorm:magic_systems": "novelcrafterBrainstormMagic",
+  "brainstorm:conflicts": "novelcrafterBrainstormConflicts",
+  "brainstorm:titles": "novelcrafterBrainstormTitles",
 };
 
 export const CONTEXT_NODE_LABELS: Record<NovelcrafterContextNode, TranslationKey> = {

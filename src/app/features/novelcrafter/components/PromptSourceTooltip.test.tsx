@@ -4,6 +4,8 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createDefaultPromptStudioSettings } from "@/lib/features/novelcrafter/promptStudioSettings";
 import { usePromptStudioStore } from "@/lib/features/novelcrafter/promptStudioStore";
+import ChapterAiToolbar, { BRAINSTORM_LABELS, FEEDBACK_MODE_LABELS } from "./ChapterAiToolbar";
+import { PROMPT_ACTION_LABELS } from "./prompt-studio/promptStudioLabels";
 import { PromptSourceTooltip } from "./PromptSourceTooltip";
 
 describe("PromptSourceTooltip", () => {
@@ -118,5 +120,13 @@ describe("PromptSourceTooltip", () => {
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
+  });
+
+  it("evaluates ChapterAiToolbar and promptStudioLabels without circular import TDZ and keeps label parity", () => {
+    expect(PROMPT_ACTION_LABELS["feedback:developmental"]).toBe(
+      FEEDBACK_MODE_LABELS.developmental.title
+    );
+    expect(PROMPT_ACTION_LABELS["brainstorm:plot_twists"]).toBe(BRAINSTORM_LABELS.plot_twists);
+    expect(typeof ChapterAiToolbar).toBe("function");
   });
 });
