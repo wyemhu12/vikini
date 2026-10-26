@@ -34,7 +34,9 @@ import {
   type NovelcrafterWriteMode,
 } from "@/lib/features/novelcrafter/types";
 import type { TranslationKey } from "@/lib/utils/translations";
+import type { NovelcrafterPromptActionKey } from "@/lib/features/novelcrafter/promptActions";
 import ChapterAiToolMenus, { type ActiveChapterToolMenu } from "./ChapterAiToolMenus";
+import PromptSourceTooltip from "./PromptSourceTooltip";
 
 export const TONE_LABELS: Record<NovelcrafterToneShift, TranslationKey> = {
   ominous: "novelcrafterToneOminous",
@@ -170,79 +172,98 @@ export default function ChapterAiToolbar({
   const toggleMenu = (menu: Exclude<ActiveChapterToolMenu, null>) =>
     onSelectMenu(activeMenu === menu ? null : menu);
 
-  const secondaryTools = [
+  const secondaryTools: ReadonlyArray<{
+    key: Exclude<ActiveChapterToolMenu, "write" | null>;
+    actionKey: NovelcrafterPromptActionKey;
+    label: string;
+    tip: string;
+    Icon: typeof RefreshCw;
+  }> = [
     {
       key: "rewrite",
+      actionKey: "rewrite:rephrase",
       label: t("novelcrafterSlotRewrite"),
       tip: t("novelcrafterRewriteTooltip"),
       Icon: RefreshCw,
     },
     {
       key: "feedback",
+      actionKey: "feedback:developmental",
       label: t("novelcrafterSlotFeedback"),
       tip: t("novelcrafterFeedbackTooltip"),
       Icon: MessageSquareQuote,
     },
     {
       key: "expand",
+      actionKey: "expand:expand",
       label: t("novelcrafterSlotExpand"),
       tip: t("novelcrafterExpandTooltip"),
       Icon: Expand,
     },
     {
       key: "brainstorm",
+      actionKey: "brainstorm:plot_twists",
       label: t("novelcrafterSlotBrainstorm"),
       tip: t("novelcrafterBrainstormTooltip"),
       Icon: Lightbulb,
     },
-  ] as const;
+  ];
 
   const renderToolBtn = ({
     key,
+    actionKey,
     label,
     tip,
     Icon,
     extraClass,
   }: (typeof secondaryTools)[number] & { extraClass?: string }) => (
-    <button
-      key={key}
-      type="button"
-      disabled={isStreaming}
-      aria-pressed={activeMenu === key}
-      onClick={() => toggleMenu(key)}
-      title={tip}
-      className={cn(
-        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs md:text-[13px] font-semibold shadow-xs transition-all disabled:opacity-50 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-        activeMenu === key
-          ? "bg-(--accent) text-(--accent-foreground) border-(--accent)"
-          : "bg-(--surface-elevated) hover:bg-(--control-bg-hover) border-(--control-border) text-(--text-primary)",
-        extraClass
-      )}
-    >
-      <Icon
+    <PromptSourceTooltip key={key} actionKey={actionKey} disabled={isStreaming} side="bottom">
+      <button
+        type="button"
+        disabled={isStreaming}
+        aria-pressed={activeMenu === key}
+        onClick={() => toggleMenu(key)}
+        title={tip}
         className={cn(
-          "w-3.5 h-3.5 shrink-0",
-          activeMenu === key ? "text-(--accent-foreground)" : "text-(--accent)"
+          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs md:text-[13px] font-semibold shadow-xs transition-all disabled:opacity-50 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+          activeMenu === key
+            ? "bg-(--accent) text-(--accent-foreground) border-(--accent)"
+            : "bg-(--surface-elevated) hover:bg-(--control-bg-hover) border-(--control-border) text-(--text-primary)",
+          extraClass
         )}
-      />
-      <span>{label}</span>
-    </button>
+      >
+        <Icon
+          className={cn(
+            "w-3.5 h-3.5 shrink-0",
+            activeMenu === key ? "text-(--accent-foreground)" : "text-(--accent)"
+          )}
+        />
+        <span>{label}</span>
+      </button>
+    </PromptSourceTooltip>
   );
 
   return (
     <div className="shrink-0 border-b border-(--border) bg-(--surface-muted)/60 backdrop-blur-md px-3 md:px-6 py-2 space-y-1.5">
       <div className="flex items-center justify-between gap-2 flex-nowrap overflow-hidden">
         <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto [scrollbar-width:none] min-w-0">
-          <button
-            type="button"
+          <PromptSourceTooltip
+            actionKey="bible:draft"
+            actionMode="generate"
             disabled={isStreaming}
-            onClick={onRunFirstDraft}
-            title={t("novelcrafterFirstDraftTooltip")}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-(--accent) text-(--accent-foreground) hover:brightness-110 shadow-sm text-xs md:text-[13px] font-semibold transition-all disabled:opacity-50 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            side="bottom"
           >
-            <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            <span>{t("novelcrafterFirstDraftCtaBtn")}</span>
-          </button>
+            <button
+              type="button"
+              disabled={isStreaming}
+              onClick={onRunFirstDraft}
+              title={t("novelcrafterFirstDraftTooltip")}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-(--accent) text-(--accent-foreground) hover:brightness-110 shadow-sm text-xs md:text-[13px] font-semibold transition-all disabled:opacity-50 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            >
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <span>{t("novelcrafterFirstDraftCtaBtn")}</span>
+            </button>
+          </PromptSourceTooltip>
 
           <button
             type="button"
@@ -262,16 +283,18 @@ export default function ChapterAiToolbar({
           <span className="h-4 w-px bg-(--border) mx-0.5 hidden sm:inline-block shrink-0" />
 
           <div className="inline-flex items-center rounded-full border border-(--control-border) bg-(--surface-elevated) shadow-xs overflow-hidden shrink-0">
-            <button
-              type="button"
-              disabled={isStreaming}
-              onClick={() => onRunWrite({ mode: "auto", subLabel: t("novelcrafterWriteAuto") })}
-              title={t("novelcrafterWriteTooltip")}
-              className="inline-flex items-center gap-1.5 pl-3.5 pr-2.5 py-1.5 text-xs md:text-[13px] font-semibold text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors disabled:opacity-50 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
-            >
-              <PenTool className="w-3.5 h-3.5 text-(--accent) shrink-0" />
-              <span>{t("novelcrafterSlotWrite")}</span>
-            </button>
+            <PromptSourceTooltip actionKey="write:auto" disabled={isStreaming} side="bottom">
+              <button
+                type="button"
+                disabled={isStreaming}
+                onClick={() => onRunWrite({ mode: "auto", subLabel: t("novelcrafterWriteAuto") })}
+                title={t("novelcrafterWriteTooltip")}
+                className="inline-flex items-center gap-1.5 pl-3.5 pr-2.5 py-1.5 text-xs md:text-[13px] font-semibold text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors disabled:opacity-50 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              >
+                <PenTool className="w-3.5 h-3.5 text-(--accent) shrink-0" />
+                <span>{t("novelcrafterSlotWrite")}</span>
+              </button>
+            </PromptSourceTooltip>
             <button
               type="button"
               disabled={isStreaming}

@@ -13,6 +13,7 @@ import { useLanguage } from "../../chat/hooks/useLanguage";
 import type { SelectionBubblePlacement } from "@/lib/features/novelcrafter/selectionBubblePlacement";
 import type { NovelcrafterRewriteMode } from "@/lib/features/novelcrafter/types";
 import { cn } from "@/lib/utils/cn";
+import PromptSourceTooltip from "./PromptSourceTooltip";
 
 export interface ChapterSelectionQuickEditProps {
   open: boolean;
@@ -110,56 +111,68 @@ export default function ChapterSelectionToolbar({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-44">
             {rewritePresets.map((preset) => (
-              <DropdownMenuItem
+              <PromptSourceTooltip
                 key={preset.mode}
-                onSelect={() => onRewrite(preset.mode, preset.label)}
+                actionKey={`rewrite:${preset.mode}`}
+                disabled={disabled}
+                side="right"
               >
-                {preset.label}
-              </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onRewrite(preset.mode, preset.label)}>
+                  {preset.label}
+                </DropdownMenuItem>
+              </PromptSourceTooltip>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onDescribe(t("novelcrafterDescribeAll"))}
-          className={btnCls}
-        >
-          <Eye className="w-3.5 h-3.5 text-(--accent)" />
-          <span>{t("novelcrafterBubbleDescribeBtn")}</span>
-        </button>
+        <PromptSourceTooltip actionKey="expand:describe" disabled={disabled} side="top">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onDescribe(t("novelcrafterDescribeAll"))}
+            className={btnCls}
+          >
+            <Eye className="w-3.5 h-3.5 text-(--accent)" />
+            <span>{t("novelcrafterBubbleDescribeBtn")}</span>
+          </button>
+        </PromptSourceTooltip>
 
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onExpand(t("novelcrafterExpandPassage"))}
-          className={btnCls}
-        >
-          <Maximize2 className="w-3.5 h-3.5 text-(--accent)" />
-          <span>{t("novelcrafterBubbleExpandBtn")}</span>
-        </button>
+        <PromptSourceTooltip actionKey="expand:expand" disabled={disabled} side="top">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onExpand(t("novelcrafterExpandPassage"))}
+            className={btnCls}
+          >
+            <Maximize2 className="w-3.5 h-3.5 text-(--accent)" />
+            <span>{t("novelcrafterBubbleExpandBtn")}</span>
+          </button>
+        </PromptSourceTooltip>
 
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onFeedback(t("novelcrafterFeedbackLine"))}
-          className={btnCls}
-        >
-          <MessageSquareQuote className="w-3.5 h-3.5 text-(--warning)" />
-          <span>{t("novelcrafterBubbleFeedbackBtn")}</span>
-        </button>
+        <PromptSourceTooltip actionKey="feedback:line_editing" disabled={disabled} side="top">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onFeedback(t("novelcrafterFeedbackLine"))}
+            className={btnCls}
+          >
+            <MessageSquareQuote className="w-3.5 h-3.5 text-(--warning)" />
+            <span>{t("novelcrafterBubbleFeedbackBtn")}</span>
+          </button>
+        </PromptSourceTooltip>
 
-        <button
-          type="button"
-          disabled={disabled}
-          aria-pressed={quickEdit.open}
-          onClick={quickEdit.onToggle}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-(--accent)/15 border border-(--accent)/40 hover:bg-(--accent)/25 text-xs font-semibold text-(--accent) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none disabled:opacity-50 shrink-0"
-        >
-          <Wand2 className="w-3.5 h-3.5" />
-          <span>{t("novelcrafterQuickEditBtn")}</span>
-        </button>
+        <PromptSourceTooltip actionKey="rewrite:custom" disabled={disabled} side="top">
+          <button
+            type="button"
+            disabled={disabled}
+            aria-pressed={quickEdit.open}
+            onClick={quickEdit.onToggle}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-(--accent)/15 border border-(--accent)/40 hover:bg-(--accent)/25 text-xs font-semibold text-(--accent) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none disabled:opacity-50 shrink-0"
+          >
+            <Wand2 className="w-3.5 h-3.5" />
+            <span>{t("novelcrafterQuickEditBtn")}</span>
+          </button>
+        </PromptSourceTooltip>
       </div>
 
       {quickEdit.open && (
@@ -183,14 +196,16 @@ export default function ChapterSelectionToolbar({
             aria-label={t("novelcrafterRewriteInstructionPlaceholder")}
             className="flex-1 min-w-48 h-7 rounded-md bg-(--surface) border border-(--border) px-2 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:border-(--accent)"
           />
-          <button
-            type="button"
-            disabled={disabled || !quickEdit.prompt.trim()}
-            onClick={quickEdit.onSubmit}
-            className="px-2.5 py-1 rounded-md bg-(--accent) text-(--accent-foreground) text-xs font-semibold transition-opacity disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
-          >
-            {t("novelcrafterQuickEditSubmitBtn")}
-          </button>
+          <PromptSourceTooltip actionKey="rewrite:custom" disabled={disabled} side="top">
+            <button
+              type="button"
+              disabled={disabled || !quickEdit.prompt.trim()}
+              onClick={quickEdit.onSubmit}
+              className="px-2.5 py-1 rounded-md bg-(--accent) text-(--accent-foreground) text-xs font-semibold transition-opacity disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            >
+              {t("novelcrafterQuickEditSubmitBtn")}
+            </button>
+          </PromptSourceTooltip>
         </div>
       )}
     </div>

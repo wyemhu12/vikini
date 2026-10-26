@@ -12,6 +12,7 @@ import {
   MANUSCRIPT_SHEET_CLASS,
   MANUSCRIPT_SHEET_PADDING_CLASS,
 } from "../utils/manuscriptSheetClasses";
+import PromptSourceTooltip from "./PromptSourceTooltip";
 
 interface ChapterDraftBeatsCardProps {
   isOpen: boolean;
@@ -107,15 +108,21 @@ export default function ChapterDraftBeatsCard({
                   </span>
                 </div>
                 {onSummarizeChapter && (
-                  <button
-                    type="button"
-                    disabled={isStreaming || !canSummarizeChapter}
-                    onClick={onSummarizeChapter}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--accent) disabled:opacity-50"
+                  <PromptSourceTooltip
+                    actionKey="bible:chapter_summary"
+                    actionMode={summary.trim() ? "rewrite" : "generate"}
+                    disabled={isStreaming}
                   >
-                    <BookMarked className="w-3.5 h-3.5" />
-                    <span>{t("novelcrafterSummarizeChapterBtn")}</span>
-                  </button>
+                    <button
+                      type="button"
+                      disabled={isStreaming || !canSummarizeChapter}
+                      onClick={onSummarizeChapter}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--accent) disabled:opacity-50"
+                    >
+                      <BookMarked className="w-3.5 h-3.5" />
+                      <span>{t("novelcrafterSummarizeChapterBtn")}</span>
+                    </button>
+                  </PromptSourceTooltip>
                 )}
               </div>
               <textarea
@@ -131,34 +138,52 @@ export default function ChapterDraftBeatsCard({
 
             <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  type="button"
+                <PromptSourceTooltip
+                  actionKey="bible:scenes"
+                  actionMode="generate"
                   disabled={isStreaming}
-                  onClick={onGenerateBeats}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--text-primary) disabled:opacity-50"
                 >
-                  <Wand2 className="w-3.5 h-3.5 text-(--accent)" />
-                  <span>{t("novelcrafterGenerateBeatsBtn")}</span>
-                </button>
-                <button
-                  type="button"
+                  <button
+                    type="button"
+                    disabled={isStreaming}
+                    onClick={onGenerateBeats}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--text-primary) disabled:opacity-50"
+                  >
+                    <Wand2 className="w-3.5 h-3.5 text-(--accent)" />
+                    <span>{t("novelcrafterGenerateBeatsBtn")}</span>
+                  </button>
+                </PromptSourceTooltip>
+                <PromptSourceTooltip
+                  actionKey="bible:scenes"
+                  actionMode="rewrite"
                   disabled={isStreaming}
-                  onClick={onRewriteBeats}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--text-primary) disabled:opacity-50"
                 >
-                  <RefreshCw className="w-3.5 h-3.5 text-(--text-secondary)" />
-                  <span>{t("novelcrafterRewriteBeatsBtn")}</span>
-                </button>
+                  <button
+                    type="button"
+                    disabled={isStreaming}
+                    onClick={onRewriteBeats}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--text-primary) disabled:opacity-50"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-(--text-secondary)" />
+                    <span>{t("novelcrafterRewriteBeatsBtn")}</span>
+                  </button>
+                </PromptSourceTooltip>
               </div>
-              <button
-                type="button"
+              <PromptSourceTooltip
+                actionKey="bible:draft"
+                actionMode="generate"
                 disabled={isStreaming}
-                onClick={onRunFirstDraft}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold shadow-xs disabled:opacity-50"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>{t("novelcrafterGenerateDraftBtn")}</span>
-              </button>
+                <button
+                  type="button"
+                  disabled={isStreaming}
+                  onClick={onRunFirstDraft}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold shadow-xs disabled:opacity-50"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{t("novelcrafterGenerateDraftBtn")}</span>
+                </button>
+              </PromptSourceTooltip>
             </div>
           </div>
         </motion.section>

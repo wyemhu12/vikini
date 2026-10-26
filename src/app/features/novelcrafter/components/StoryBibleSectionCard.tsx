@@ -11,6 +11,7 @@ import type {
   NovelcrafterBibleTarget,
 } from "@/lib/features/novelcrafter/types";
 import type { NovelcrafterBibleSectionId } from "./NovelcrafterLeftNavigator";
+import PromptSourceTooltip from "./PromptSourceTooltip";
 
 export type BibleAiSection = Exclude<NovelcrafterBibleTarget, "scenes" | "draft">;
 
@@ -121,34 +122,48 @@ export default function StoryBibleSectionCard({
 
           {aiTarget && onRunAiAction && (
             <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
+              <PromptSourceTooltip
+                actionKey={`bible:${aiTarget}`}
+                actionMode="generate"
+                bibleTarget={aiTarget}
                 disabled={isStreaming}
-                onClick={() => handleRun("generate")}
-                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-(--accent) text-(--accent-foreground) hover:brightness-110 disabled:opacity-50 text-xs font-semibold shadow-xs"
               >
-                <Wand2 className="w-3.5 h-3.5" />
-                <span>
-                  {aiTarget === "outline"
-                    ? t("novelcrafterGenerateOutlineCta")
-                    : t("novelcrafterGenerateBtn")}
-                </span>
-              </button>
-              <button
-                type="button"
+                <button
+                  type="button"
+                  disabled={isStreaming}
+                  onClick={() => handleRun("generate")}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-(--accent) text-(--accent-foreground) hover:brightness-110 disabled:opacity-50 text-xs font-semibold shadow-xs"
+                >
+                  <Wand2 className="w-3.5 h-3.5" />
+                  <span>
+                    {aiTarget === "outline"
+                      ? t("novelcrafterGenerateOutlineCta")
+                      : t("novelcrafterGenerateBtn")}
+                  </span>
+                </button>
+              </PromptSourceTooltip>
+              <PromptSourceTooltip
+                actionKey={`bible:${aiTarget}`}
+                actionMode="rewrite"
+                bibleTarget={aiTarget}
                 disabled={isStreaming}
-                aria-pressed={rewriteOpen}
-                onClick={() => setRewriteOpen((p) => !p)}
-                className={cn(
-                  "inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors disabled:opacity-50",
-                  rewriteOpen
-                    ? "bg-(--control-bg-hover) border-(--accent) text-(--accent)"
-                    : "bg-(--control-bg) hover:bg-(--control-bg-hover) border-(--control-border) text-(--text-primary)"
-                )}
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>{t("novelcrafterRewriteBtn")}</span>
-              </button>
+                <button
+                  type="button"
+                  disabled={isStreaming}
+                  aria-pressed={rewriteOpen}
+                  onClick={() => setRewriteOpen((p) => !p)}
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors disabled:opacity-50",
+                    rewriteOpen
+                      ? "bg-(--control-bg-hover) border-(--accent) text-(--accent)"
+                      : "bg-(--control-bg) hover:bg-(--control-bg-hover) border-(--control-border) text-(--text-primary)"
+                  )}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>{t("novelcrafterRewriteBtn")}</span>
+                </button>
+              </PromptSourceTooltip>
             </div>
           )}
         </div>
@@ -167,14 +182,21 @@ export default function StoryBibleSectionCard({
             aria-label={t("novelcrafterRewriteInstructionPlaceholder")}
             className="flex-1 min-w-0 h-8 rounded-lg border border-(--control-border) bg-(--control-bg) px-3 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           />
-          <button
-            type="button"
+          <PromptSourceTooltip
+            actionKey={`bible:${aiTarget}`}
+            actionMode="rewrite"
+            bibleTarget={aiTarget}
             disabled={isStreaming}
-            onClick={() => handleRun("rewrite")}
-            className="h-8 px-3 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 disabled:opacity-50 text-xs font-semibold shrink-0"
           >
-            {t("novelcrafterRunAction")}
-          </button>
+            <button
+              type="button"
+              disabled={isStreaming}
+              onClick={() => handleRun("rewrite")}
+              className="h-8 px-3 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 disabled:opacity-50 text-xs font-semibold shrink-0"
+            >
+              {t("novelcrafterRunAction")}
+            </button>
+          </PromptSourceTooltip>
         </div>
       )}
 

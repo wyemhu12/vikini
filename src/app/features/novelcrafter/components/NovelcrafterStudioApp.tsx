@@ -164,9 +164,14 @@ export default function NovelcrafterStudioApp() {
 
   const handleAppendToChapter = useCallback(
     (text: string) => {
-      const current = story.activeChapter.content;
-      const separator = current.trim().length > 0 ? "\n\n" : "";
-      story.updateChapter(story.activeChapter.id, { content: `${current}${separator}${text}` });
+      const cleanCurrent = story.activeChapter.content.replace(/\s+$/, "");
+      const cleanText = text
+        .trim()
+        .replace(/\r\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n");
+      if (!cleanText) return;
+      const nextContent = cleanCurrent.length > 0 ? `${cleanCurrent}\n\n${cleanText}` : cleanText;
+      story.updateChapter(story.activeChapter.id, { content: nextContent });
     },
     [story]
   );
@@ -175,8 +180,12 @@ export default function NovelcrafterStudioApp() {
     (text: string) => {
       if (!selection) return handleAppendToChapter(text);
       const current = story.activeChapter.content;
+      const cleanText = text
+        .trim()
+        .replace(/\r\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n");
       story.updateChapter(story.activeChapter.id, {
-        content: current.slice(0, selection.start) + text + current.slice(selection.end),
+        content: current.slice(0, selection.start) + cleanText + current.slice(selection.end),
       });
       setSelection(null);
     },

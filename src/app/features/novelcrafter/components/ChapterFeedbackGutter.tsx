@@ -32,6 +32,7 @@ interface ChapterFeedbackGutterProps {
   onReplyFeedback: (item: NovelcrafterFeedbackItem, replyText: string) => void;
   onResolveAll: () => void;
   onClearAll: () => void;
+  onClose?: () => void;
   isInSheet?: boolean;
 }
 
@@ -46,6 +47,7 @@ export default function ChapterFeedbackGutter({
   onReplyFeedback,
   onResolveAll,
   onClearAll,
+  onClose,
   isInSheet = false,
 }: ChapterFeedbackGutterProps) {
   const { t } = useLanguage();
@@ -182,6 +184,17 @@ export default function ChapterFeedbackGutter({
           >
             <MoreHorizontal className="w-3.5 h-3.5" />
           </button>
+          {onClose && !isInSheet && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t("close")}
+              title={t("close")}
+              className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {menuOpen && (
             <div className="absolute right-0 top-8 z-30 w-44 rounded-xl border border-(--border) bg-(--surface-elevated) shadow-lg p-1.5 space-y-1">
@@ -280,10 +293,42 @@ export default function ChapterFeedbackGutter({
                   </div>
                 </div>
 
-                {/* 2. Editorial Critique Comment */}
-                <p className="text-xs md:text-[13px] leading-relaxed text-(--text-primary)">
-                  {item.comment}
-                </p>
+                {/* 2. Editorial Critique Comment (Bullet Points) */}
+                <ul className="space-y-1.5 text-xs md:text-[13px] leading-relaxed text-(--text-primary)">
+                  {item.comment
+                    .split(/\r?\n+/)
+                    .flatMap((line) =>
+                      line
+                        .replace(/^\s*(?:[-*•]|\d+[.)])\s+/, "")
+                        .trim()
+                        .split(/(?<=[.!?])\s+(?=[A-ZÀ-Ỹ"“‘])/)
+                    )
+                    .map((pt) => pt.trim())
+                    .filter(Boolean)
+                    .map((point, ptIdx) => (
+                      <li key={ptIdx} className="flex items-start gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="mt-2 h-1.5 w-1.5 rounded-full bg-(--accent) shrink-0"
+                        />
+                        <span>
+                          {point.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((part, i) =>
+                            part.startsWith("**") && part.endsWith("**") ? (
+                              <strong key={i} className="font-semibold text-(--text-primary)">
+                                {part.slice(2, -2)}
+                              </strong>
+                            ) : part.startsWith("*") && part.endsWith("*") ? (
+                              <em key={i} className="italic text-(--accent)">
+                                {part.slice(1, -1)}
+                              </em>
+                            ) : (
+                              part
+                            )
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                </ul>
 
                 {/* 3. Word-Level Diff Box (Strikethrough + Highlight) */}
                 {diffSegments.length > 0 && (

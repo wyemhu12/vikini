@@ -418,6 +418,8 @@ const ChapterManuscriptEditor = forwardRef<ManuscriptEditorHandle, ChapterManusc
             content.length === 0 &&
               "before:content-[attr(data-placeholder)] before:text-(--text-secondary)/70 before:pointer-events-none before:float-left before:h-0",
             "[&_.nc-line]:min-h-[1.6em]",
+            "[&_.nc-line:not(:last-child)_br]:hidden",
+            "[&_.nc-blank]:min-h-[0.85em] [&_.nc-blank]:leading-[0.85]",
             "[&_.nc-h1]:text-[1.55em] [&_.nc-h1]:font-semibold [&_.nc-h1]:leading-[1.3] [&_.nc-h1]:mt-4 [&_.nc-h1]:mb-2",
             "[&_.nc-h2]:text-[1.3em] [&_.nc-h2]:font-semibold [&_.nc-h2]:leading-[1.35] [&_.nc-h2]:mt-3 [&_.nc-h2]:mb-1.5",
             "[&_.nc-sceneBreak]:text-center [&_.nc-sceneBreak]:tracking-[0.5em] [&_.nc-sceneBreak]:text-(--text-secondary) [&_.nc-sceneBreak]:my-4",

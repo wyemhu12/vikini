@@ -127,6 +127,7 @@ export default function ChapterEditorWorkspace({
       onReplyFeedback={controller.handleReplyFeedback}
       onResolveAll={controller.handleResolveAllFeedback}
       onClearAll={controller.handleClearAllFeedback}
+      onClose={feedbackPane.close}
       isInSheet={isInSheet}
     />
   );

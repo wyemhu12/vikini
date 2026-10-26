@@ -8,6 +8,17 @@
 
 ---
 
+## 2026-10-26: Feature & UI/UX -- Dynamic Prompt Studio Source Tooltips Across All Novelcrafter AI Action Buttons
+
+- **Dynamic Prompt Context Source Resolver (`src/lib/features/novelcrafter/promptSourceSummary.ts`, `src/lib/features/novelcrafter/promptSourceSummary.test.ts`)**:
+  - Xây dựng pure function `resolvePromptSourceSummary(actionKey, settings, options)` phân tách 11 nút ngữ cảnh của 37 hành động AI thành nhóm **Hồ sơ Truyện (`<story_bible>`)**, **Ngữ cảnh Chương (`<chapter_context>`)**, và **Đầu vào trực tiếp cố định** (`<braindump>`, `<selected_text>`, `<current_section>`, `<key_details>`), đồng thời tự động bù các required nodes (`preceding_prose`, `scenes`) và đánh dấu cờ `isCustomized` / `hasCustomDirective` theo cấu hình Prompt Studio.
+- **Radix Portal Source Tooltip & Full Studio Button Coverage (`src/app/features/novelcrafter/components/{PromptSourceTooltip,PromptSourceTooltip.test,ChapterAiBrainstormMenu,StoryBibleSectionCard,ChapterAiToolbar,ChapterAiToolMenus,ChapterDraftBeatsCard,ChapterEmptyStateActions,ChapterSelectionToolbar}.tsx`, `src/lib/utils/translations/{vi,en}.ts`)**:
+  - Triển khai component `PromptSourceTooltip` sử dụng `@radix-ui/react-tooltip` `<TooltipPrimitive.Portal>` để chống cắt viền bởi các khung cuộn `overflow-hidden` / `overflow-x-auto`, tự động đồng bộ đa tab qua `ensurePromptStudioHydrated()` trên sự kiện `focus` và `storage`.
+  - Tách `ChapterAiBrainstormMenu.tsx` khỏi `ChapterAiToolMenus.tsx` để bảo toàn giới hạn <= 500 dòng và gắn `PromptSourceTooltip` lên toàn bộ nút AI sinh văn bản trên 6 bề mặt của Novelcrafter Studio.
+  - Bổ sung 10 khóa dịch song ngữ Việt/Anh (`novelcrafterTooltip*`), sửa lỗi khoảng cách dòng trống kép trong `ChapterManuscriptEditor.tsx`, và bổ sung bộ chọn Ngôn ngữ / Giao diện màu trên `NovelcrafterTopBar.tsx` & `PromptStudioApp.tsx`.
+
+---
+
 ## 2026-10-25: Refactor & UI/UX -- Remove Deep Research Feature & Compact Chat Composer (Move Model & Thinking Selectors Into Chat Bar)
 
 - **Complete Deep Research Feature Removal (`src/app/api/deep-research/**`, `src/lib/features/research/**`, `src/app/features/research/**`, `src/app/features/chat/components/{ChatDeepResearch,hooks/useDeepResearchMode,hooks/useResearchAwareSend,ChatApp,ChatConversationView,ChatOverlays,DashboardView,ChatMessagesArea}.ts(x)`, `src/lib/core/{genaiClient,limits,modelRegistry}.ts`, `src/app/admin/components/RankConfigManager.tsx`, `src/app/api/admin/rank-configs/route.ts`, `src/lib/utils/translations/{vi,en}.ts`)\*\*:

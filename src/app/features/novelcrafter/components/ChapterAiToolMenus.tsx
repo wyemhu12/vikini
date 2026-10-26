@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils/cn";
 import {
   MAX_WRITE_LENGTH_WORDS,
   MIN_WRITE_LENGTH_WORDS,
-  NOVELCRAFTER_BRAINSTORM_CATEGORIES,
   NOVELCRAFTER_DESCRIBE_SENSES,
   NOVELCRAFTER_DEVELOPMENTAL_CRITERIA,
   NOVELCRAFTER_FEEDBACK_MODES,
@@ -23,14 +22,15 @@ import {
   type NovelcrafterWriteMode,
 } from "@/lib/features/novelcrafter/types";
 import { clampWriteLengthWords } from "@/lib/features/novelcrafter/writeLength";
+import ChapterAiBrainstormMenu from "./ChapterAiBrainstormMenu";
 import {
-  BRAINSTORM_LABELS,
   DEV_CRITERIA_LABELS,
   FEEDBACK_MODE_LABELS,
   LENGTH_PRESETS,
   SENSE_LABELS,
   TONE_LABELS,
 } from "./ChapterAiToolbar";
+import PromptSourceTooltip from "./PromptSourceTooltip";
 
 export type ActiveChapterToolMenu =
   | "write"
@@ -96,7 +96,6 @@ export default function ChapterAiToolMenus({
   const [selectedSenses, setSelectedSenses] = useState<NovelcrafterDescribeSense[]>([
     ...NOVELCRAFTER_DESCRIBE_SENSES,
   ]);
-  const [brainstormTopic, setBrainstormTopic] = useState("");
 
   if (!activeMenu) return null;
 
@@ -197,21 +196,23 @@ export default function ChapterAiToolMenus({
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <button
-              type="button"
-              disabled={isStreaming}
-              onClick={() =>
-                onRunWrite({
-                  mode: "auto",
-                  writeLengthWords,
-                  keyDetails: keyDetails.trim() || undefined,
-                  subLabel: t("novelcrafterWriteAuto"),
-                })
-              }
-              className="px-3.5 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
-            >
-              {t("novelcrafterWriteAuto")}
-            </button>
+            <PromptSourceTooltip actionKey="write:auto" disabled={isStreaming} side="bottom">
+              <button
+                type="button"
+                disabled={isStreaming}
+                onClick={() =>
+                  onRunWrite({
+                    mode: "auto",
+                    writeLengthWords,
+                    keyDetails: keyDetails.trim() || undefined,
+                    subLabel: t("novelcrafterWriteAuto"),
+                  })
+                }
+                className="px-3.5 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
+              >
+                {t("novelcrafterWriteAuto")}
+              </button>
+            </PromptSourceTooltip>
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <input
                 type="text"
@@ -222,14 +223,16 @@ export default function ChapterAiToolMenus({
                 aria-label={t("novelcrafterGuidedPromptPlaceholder")}
                 className={`flex-1 min-w-0 ${INPUT_CLS}`}
               />
-              <button
-                type="button"
-                disabled={isStreaming}
-                onClick={triggerGuidedWrite}
-                className="px-3 py-1.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-semibold text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
-              >
-                {t("novelcrafterWriteGuided")}
-              </button>
+              <PromptSourceTooltip actionKey="write:guided" disabled={isStreaming} side="bottom">
+                <button
+                  type="button"
+                  disabled={isStreaming}
+                  onClick={triggerGuidedWrite}
+                  className="px-3 py-1.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-semibold text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
+                >
+                  {t("novelcrafterWriteGuided")}
+                </button>
+              </PromptSourceTooltip>
             </div>
           </div>
 
@@ -238,23 +241,29 @@ export default function ChapterAiToolMenus({
               {t("novelcrafterWriteToneShift")}:
             </span>
             {NOVELCRAFTER_TONE_SHIFTS.map((tone) => (
-              <button
+              <PromptSourceTooltip
                 key={tone}
-                type="button"
+                actionKey="write:tone_shift"
                 disabled={isStreaming}
-                onClick={() =>
-                  onRunWrite({
-                    mode: "tone_shift",
-                    toneShift: tone,
-                    writeLengthWords,
-                    keyDetails: keyDetails.trim() || undefined,
-                    subLabel: `${t("novelcrafterWriteToneShift")}: ${t(TONE_LABELS[tone])}`,
-                  })
-                }
-                className="px-2.5 py-1 rounded-full border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
+                side="bottom"
               >
-                {t(TONE_LABELS[tone])}
-              </button>
+                <button
+                  type="button"
+                  disabled={isStreaming}
+                  onClick={() =>
+                    onRunWrite({
+                      mode: "tone_shift",
+                      toneShift: tone,
+                      writeLengthWords,
+                      keyDetails: keyDetails.trim() || undefined,
+                      subLabel: `${t("novelcrafterWriteToneShift")}: ${t(TONE_LABELS[tone])}`,
+                    })
+                  }
+                  className="px-2.5 py-1 rounded-full border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
+                >
+                  {t(TONE_LABELS[tone])}
+                </button>
+              </PromptSourceTooltip>
             ))}
           </div>
         </div>
@@ -277,15 +286,21 @@ export default function ChapterAiToolMenus({
                 ["more_intense", t("novelcrafterRewriteMoreIntense")],
               ] as const
             ).map(([modeKey, modeLabel]) => (
-              <button
+              <PromptSourceTooltip
                 key={modeKey}
-                type="button"
+                actionKey={`rewrite:${modeKey}`}
                 disabled={isStreaming}
-                onClick={() => onRunRewrite(modeKey, modeLabel)}
-                className="px-2.5 py-1.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
+                side="bottom"
               >
-                {modeLabel}
-              </button>
+                <button
+                  type="button"
+                  disabled={isStreaming}
+                  onClick={() => onRunRewrite(modeKey, modeLabel)}
+                  className="px-2.5 py-1.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
+                >
+                  {modeLabel}
+                </button>
+              </PromptSourceTooltip>
             ))}
           </div>
           <div className="flex items-center gap-2">
@@ -301,16 +316,18 @@ export default function ChapterAiToolMenus({
               aria-label={t("novelcrafterRewriteInstructionPlaceholder")}
               className={`flex-1 min-w-0 ${INPUT_CLS}`}
             />
-            <button
-              type="button"
-              disabled={isStreaming}
-              onClick={() =>
-                onRunRewrite("custom", t("novelcrafterRewriteCustom"), customRewritePrompt)
-              }
-              className="px-3 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
-            >
-              {t("novelcrafterRewriteCustom")}
-            </button>
+            <PromptSourceTooltip actionKey="rewrite:custom" disabled={isStreaming} side="bottom">
+              <button
+                type="button"
+                disabled={isStreaming}
+                onClick={() =>
+                  onRunRewrite("custom", t("novelcrafterRewriteCustom"), customRewritePrompt)
+                }
+                className="px-3 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
+              >
+                {t("novelcrafterRewriteCustom")}
+              </button>
+            </PromptSourceTooltip>
           </div>
         </div>
       )}
@@ -325,20 +342,21 @@ export default function ChapterAiToolMenus({
             {NOVELCRAFTER_FEEDBACK_MODES.map((mode) => {
               const info = FEEDBACK_MODE_LABELS[mode];
               return (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setFeedbackMode(mode)}
-                  className={cn(
-                    "p-2 rounded-xl border text-left transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-                    feedbackMode === mode
-                      ? "bg-(--accent)/15 border-(--accent) text-(--text-primary)"
-                      : "bg-(--control-bg) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
-                  )}
-                >
-                  <p className="text-xs font-bold">{t(info.title)}</p>
-                  <p className="text-xs opacity-80 line-clamp-1">{t(info.desc)}</p>
-                </button>
+                <PromptSourceTooltip key={mode} actionKey={`feedback:${mode}`} side="bottom">
+                  <button
+                    type="button"
+                    onClick={() => setFeedbackMode(mode)}
+                    className={cn(
+                      "p-2 rounded-xl border text-left transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+                      feedbackMode === mode
+                        ? "bg-(--accent)/15 border-(--accent) text-(--text-primary)"
+                        : "bg-(--control-bg) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
+                    )}
+                  >
+                    <p className="text-xs font-bold">{t(info.title)}</p>
+                    <p className="text-xs opacity-80 line-clamp-1">{t(info.desc)}</p>
+                  </button>
+                </PromptSourceTooltip>
               );
             })}
           </div>
@@ -376,27 +394,33 @@ export default function ChapterAiToolMenus({
             />
           )}
           <div className="flex justify-end">
-            <button
-              type="button"
+            <PromptSourceTooltip
+              actionKey={`feedback:${feedbackMode}`}
               disabled={isStreaming}
-              onClick={() =>
-                onRunFeedback({
-                  mode: feedbackMode,
-                  criteria: feedbackMode === "developmental" ? selectedCriteria : undefined,
-                  customInstruction:
-                    feedbackMode === "custom" ? customFeedbackFocus.trim() : undefined,
-                  subLabel: `${t("novelcrafterSlotFeedback")} · ${t(FEEDBACK_MODE_LABELS[feedbackMode].title)}`,
-                })
-              }
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring)"
+              side="bottom"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>
-                {feedbackMode === "developmental"
-                  ? t("novelcrafterFeedbackRunDevelopmental")
-                  : t("novelcrafterRunAction")}
-              </span>
-            </button>
+              <button
+                type="button"
+                disabled={isStreaming}
+                onClick={() =>
+                  onRunFeedback({
+                    mode: feedbackMode,
+                    criteria: feedbackMode === "developmental" ? selectedCriteria : undefined,
+                    customInstruction:
+                      feedbackMode === "custom" ? customFeedbackFocus.trim() : undefined,
+                    subLabel: `${t("novelcrafterSlotFeedback")} · ${t(FEEDBACK_MODE_LABELS[feedbackMode].title)}`,
+                  })
+                }
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring)"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>
+                  {feedbackMode === "developmental"
+                    ? t("novelcrafterFeedbackRunDevelopmental")
+                    : t("novelcrafterRunAction")}
+                </span>
+              </button>
+            </PromptSourceTooltip>
           </div>
         </div>
       )}
@@ -429,57 +453,35 @@ export default function ChapterAiToolMenus({
             })}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              disabled={isStreaming}
-              onClick={() => onRunExpand("expand", t("novelcrafterExpandPassage"))}
-              className="px-3 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring)"
-            >
-              {t("novelcrafterExpandPassage")}
-            </button>
-            <button
-              type="button"
-              disabled={isStreaming}
-              onClick={() => onRunExpand("describe", t("novelcrafterDescribeAll"), selectedSenses)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-semibold text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
-            >
-              <Wand2 className="w-3.5 h-3.5 text-(--accent)" />
-              <span>{t("novelcrafterDescribeAll")}</span>
-            </button>
+            <PromptSourceTooltip actionKey="expand:expand" disabled={isStreaming} side="bottom">
+              <button
+                type="button"
+                disabled={isStreaming}
+                onClick={() => onRunExpand("expand", t("novelcrafterExpandPassage"))}
+                className="px-3 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring)"
+              >
+                {t("novelcrafterExpandPassage")}
+              </button>
+            </PromptSourceTooltip>
+            <PromptSourceTooltip actionKey="expand:describe" disabled={isStreaming} side="bottom">
+              <button
+                type="button"
+                disabled={isStreaming}
+                onClick={() =>
+                  onRunExpand("describe", t("novelcrafterDescribeAll"), selectedSenses)
+                }
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-semibold text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
+              >
+                <Wand2 className="w-3.5 h-3.5 text-(--accent)" />
+                <span>{t("novelcrafterDescribeAll")}</span>
+              </button>
+            </PromptSourceTooltip>
           </div>
         </div>
       )}
 
       {activeMenu === "brainstorm" && (
-        <div className="space-y-2">
-          <p className="flex items-center gap-1.5 text-xs text-(--text-secondary)">
-            <Info className="w-3.5 h-3.5 text-(--accent) shrink-0" />
-            <span>{t("novelcrafterBrainstormTooltip")}</span>
-          </p>
-          <input
-            type="text"
-            value={brainstormTopic}
-            onChange={(e) => setBrainstormTopic(e.target.value)}
-            placeholder={t("novelcrafterBrainstormTopicPlaceholder")}
-            aria-label={t("novelcrafterBrainstormTopicPlaceholder")}
-            className={`w-full ${INPUT_CLS}`}
-          />
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {NOVELCRAFTER_BRAINSTORM_CATEGORIES.map((catKey) => (
-              <button
-                key={catKey}
-                type="button"
-                disabled={isStreaming}
-                onClick={() =>
-                  onRunBrainstorm(catKey, t(BRAINSTORM_LABELS[catKey]), brainstormTopic)
-                }
-                className="px-2.5 py-1.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
-              >
-                {t(BRAINSTORM_LABELS[catKey])}
-              </button>
-            ))}
-          </div>
-        </div>
+        <ChapterAiBrainstormMenu isStreaming={isStreaming} onRunBrainstorm={onRunBrainstorm} />
       )}
     </div>
   );
