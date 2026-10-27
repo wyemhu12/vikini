@@ -3,7 +3,7 @@ param(
     [Parameter(Position=0)]
     [string]$PlanFile = "",
 
-    [ValidateSet("planner", "reviewer", "plan", "review")]
+    [ValidateSet("planner", "reviewer", "plan", "review", "critic")]
     [Alias("Mode")]
     [string]$Role = "planner",
 
@@ -17,7 +17,7 @@ param(
     [switch]$CheckOnly
 )
 
-$normalizedRole = if ($Role -in @("reviewer", "review")) { "reviewer" } else { "planner" }
+$normalizedRole = if ($Role -in @("reviewer", "review")) { "reviewer" } elseif ($Role -eq "critic") { "critic" } else { "planner" }
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 
 function Normalize-PlanPath([string]$RawPath) {
@@ -123,9 +123,16 @@ try {
     }
 
     $planExists = Test-Path -LiteralPath $relPlanFile
-    if ($normalizedRole -eq "reviewer" -and -not $planExists) {
+    if (($normalizedRole -in @("reviewer", "critic")) -and (-not $planExists)) {
         Write-Error "[PLAN_NOT_FOUND] Không tìm thấy file kế hoạch để thẩm định tại: $relPlanFile"
         exit 1
+    }
+    if ($normalizedRole -eq "critic") {
+        $headerLines = (Get-Content -LiteralPath $relPlanFile -TotalCount 30 -Encoding UTF8) -join "`n"
+        if ($headerLines -notmatch '(?im)^(?:-\s*)?\*\*(?:Status|Trạng thái)\*\*:\s*Awaiting Critic\s*$') {
+            Write-Error "[CRITIC_NOT_PENDING] Kế hoạch '$relPlanFile' không ở trạng thái '- **Status**: Awaiting Critic'. Chỉ gọi -Role critic sau khi Primary Reviewer phê duyệt kế hoạch nhạy cảm."
+            exit 1
+        }
     }
     if ($normalizedRole -eq "planner" -and -not $planExists -and [string]::IsNullOrWhiteSpace($Task)) {
         Write-Error "[TASK_REQUIRED] Khi tạo file kế hoạch mới ($relPlanFile), bắt buộc truyền yêu cầu qua tham số -Task (hoặc -Prompt)."
@@ -164,7 +171,7 @@ try {
 
     # 5. Nạp prompt template và phân quyền công cụ tối thiểu 4 lớp theo Role:
     # Lớp 3: Đồng bộ danh sách Bash read-only với Nhóm A-D của allowlist.md, bắt buộc có dấu cách trước '*' (BLK-03, MAJ-05)
-    $sharedAllowedBash = "Bash(npm run type-check),Bash(npm run lint),Bash(npm run test:run),Bash(npm run test:run *),Bash(npm run verify),Bash(npx tsc --noEmit),Bash(npx tsc --showConfig),Bash(npx eslint --print-config *),Bash(npx vitest run *),Bash(npx vitest list --filesOnly),Bash(node scripts/verify-docs.mjs),Bash(node scripts/verify-docs.mjs *),Bash(npm ls),Bash(npm ls *),Bash(npm view *),Bash(git status),Bash(git status *),Bash(git log *),Bash(git diff *),Bash(git show *),Bash(git blame *)"
+    $sharedAllowedBash = "Bash(npm run type-check),Bash(npm run lint),Bash(npm run test:run),Bash(npm run test:run *),Bash(npm run verify),Bash(npx tsc --noEmit),Bash(npx tsc --showConfig),Bash(npx eslint --print-config *),Bash(npx vitest run *),Bash(npx vitest list --filesOnly),Bash(node scripts/verify-docs.mjs),Bash(node scripts/verify-docs.mjs *),Bash(node scripts/verify-plan.mjs *),Bash(npm ls),Bash(npm ls *),Bash(npm view *),Bash(git status),Bash(git status *),Bash(git log *),Bash(git diff *),Bash(git show *),Bash(git blame *)"
 
     # Lớp 4: Chặn đọc secrets .env* (MAJ-08, P1-5), chặn Edit đệ quy trên mã nguồn/hạ tầng (MAJ-04, P0-3),
     # chặn gọi đệ quy powershell/pwsh/claude (MIN-06), chặn git difftool & các cờ nạp code/config (BLK-03),
@@ -194,14 +201,21 @@ try {
         $allowedTools = "Read,Glob,Grep,LS,WebSearch,WebFetch,Edit(docs/plans/*.md),$sharedAllowedBash"
         $disallowedTools = $sharedDisallowed
     } else {
-        Write-Host "[CLAUDE_REVIEWER] Bắt đầu thẩm định kế hoạch (Fallback Reviewer): $relPlanFile"
+        $reviewMode = if ($normalizedRole -eq "critic") { "CROSS_MODEL_CRITIC" } else { "FALLBACK_REVIEW" }
+        $logPrefix = if ($normalizedRole -eq "critic") {
+            "[CLAUDE_CRITIC] Bắt đầu phản biện chéo kế hoạch (Cross-Model Critic)"
+        } else {
+            "[CLAUDE_REVIEWER] Bắt đầu thẩm định kế hoạch (Fallback Reviewer)"
+        }
+        Write-Host "${logPrefix}: $relPlanFile"
         $templatePath = Join-Path $PSScriptRoot "claude-reviewer-prompt.md"
         if (-not (Test-Path $templatePath)) {
             Write-Error "[PROMPT_TEMPLATE_MISSING] Không tìm thấy template tại: $templatePath"
             exit 1
         }
-        $prompt = (Get-Content -Path $templatePath -Raw -Encoding UTF8).Replace("{{PLAN_FILE}}", $relPlanFile)
-        # Lớp 2: Reviewer bị thu hồi công cụ Write ở cấp độ tool (bare 'Write' trong --disallowedTools)
+        $rawTemplate = Get-Content -Path $templatePath -Raw -Encoding UTF8
+        $prompt = $rawTemplate.Replace("{{PLAN_FILE}}", $relPlanFile).Replace("{{REVIEW_MODE}}", $reviewMode)
+        # Lớp 2: Reviewer/Critic bị thu hồi công cụ Write ở cấp độ tool (bare 'Write' trong --disallowedTools)
         # và chỉ được phép Edit(docs/plans/*.md) trên file kế hoạch đã tồn tại (BLK-03, BLK-04, MAJ-04)
         $allowedTools = "Read,Glob,Grep,LS,WebSearch,WebFetch,Edit(docs/plans/*.md),$sharedAllowedBash"
         $disallowedTools = "Write,$sharedDisallowed"
@@ -241,7 +255,13 @@ try {
     )
 
     if ($isQuotaExceeded) {
-        $fallbackTarget = if ($normalizedRole -eq "planner") { "Fallback Planner (@planner)" } else { "Primary Reviewer (@reviewer)" }
+        $fallbackTarget = if ($normalizedRole -eq "planner") {
+            "Fallback Planner (@planner)"
+        } elseif ($normalizedRole -eq "critic") {
+            "Circuit Breaker (User) - không tự fallback về Gemini vì Gemini đã là Primary Reviewer"
+        } else {
+            "Primary Reviewer (@reviewer)"
+        }
         Write-Warning "[CLAUDE_PRO_QUOTA_EXCEEDED] Hết quota Claude Pro hoặc bị giới hạn tốc độ ($normalizedRole). Kích hoạt chuyển giao sang $fallbackTarget."
         exit 42
     }

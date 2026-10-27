@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { describe, it, expect, vi } from "vitest";
 import {
+  evaluatePlanApprovalContent,
   extractDeclaredFiles,
   getActiveApprovedPlans,
   getApprovedPlanScope,
@@ -117,6 +118,38 @@ describe("plan-scope (P1-7)", () => {
         files: [],
       });
       spy.mockRestore();
+    });
+  });
+
+  describe("PS-AC: Awaiting Critic intermediate status", () => {
+    it("PS-AC1: evaluatePlanApprovalContent returns false when Status is Awaiting Critic even with [PLAN_APPROVED] footer", () => {
+      const content = [
+        "# Plan",
+        "- **Status**: Awaiting Critic",
+        "## Technical Plan",
+        "- `[MODIFY]` `.agents/rules/05-plan-review.md`",
+        "",
+        "[PLAN_APPROVED]",
+      ].join("\n");
+      expect(evaluatePlanApprovalContent(content)).toBe(false);
+    });
+
+    it("PS-AC2: getActiveApprovedPlans returns empty array (fail-safe lock) when newest date group has an Awaiting Critic plan", () => {
+      const entries = [
+        {
+          filename: "2026-10-27-approved.md",
+          mtimeMs: 1000,
+          content:
+            "# Approved\n- **Status**: Approved\n## Technical Plan\n- `[MODIFY]` `src/a.ts`\n\n[PLAN_APPROVED]\n",
+        },
+        {
+          filename: "2026-10-27-awaiting-critic.md",
+          mtimeMs: 2000,
+          content:
+            "# Critic Pending\n- **Status**: Awaiting Critic\n## Technical Plan\n- `[MODIFY]` `.agents/rules/05-plan-review.md`\n\n[PLAN_APPROVED]\n",
+        },
+      ];
+      expect(getActiveApprovedPlans(entries, { maxDatePrefix: "2026-10-28" })).toEqual([]);
     });
   });
 });

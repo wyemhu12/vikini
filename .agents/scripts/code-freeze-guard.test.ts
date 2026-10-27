@@ -1532,7 +1532,7 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
         const agentPath = path.join(REPO_ROOT, ".agents", "agents", agent, "agent.md");
         const content = fs.readFileSync(agentPath, "utf8");
         expect(content.length, `${agent}/agent.md <= 10,000 chars`).toBeLessThanOrEqual(10000);
-        expect(content).toMatch(/^model:\s*pro\s*$/m);
+        expect(content).toMatch(/^model:\s*inherit\s*$/m);
         expect(content).not.toMatch(/^role:/m);
         if (agent === "reviewer") {
           expect(content.length).toBeLessThan(7500);

@@ -1,7 +1,7 @@
 ---
 name: planner
 description: Fallback Technical Planner agent (Gemini 4 Argon) for codebase survey, online tech research, and task implementation planning when Primary Claude CLI Planner exceeds quota.
-model: pro
+model: inherit
 mainAgent: true
 subagent: true
 tools:

@@ -190,4 +190,79 @@ describe("command-policy (P0-1 & P1-5)", () => {
       expect(tokenizeSegment("   ")).toEqual({ ok: false, kind: "allowlist" });
     });
   });
+
+  describe("TC-D: verify-plan.mjs & critic role", () => {
+    it("TC-D1: allows node scripts/verify-plan.mjs with exactly one unquoted docs/plans/*.md path", () => {
+      expect(evaluateCommand("node scripts/verify-plan.mjs docs/plans/x.md")).toEqual({ ok: true });
+      expect(evaluateCommand("node ./scripts/verify-plan.mjs docs/plans/x.md")).toEqual({
+        ok: true,
+      });
+      expect(evaluateCommand("node scripts\\verify-plan.mjs docs\\plans\\x.md")).toEqual({
+        ok: true,
+      });
+    });
+
+    it("TC-D2: blocks verify-plan.mjs with missing/multiple args, non-plan paths, traversal, quotes, flags, or chaining", () => {
+      const blocked = [
+        "node scripts/verify-plan.mjs",
+        "node scripts/verify-plan.mjs docs/plans/a.md docs/plans/b.md",
+        "node scripts/verify-plan.mjs src/a.md",
+        "node scripts/verify-plan.mjs docs/plans/x.txt",
+        "node scripts/verify-plan.mjs docs/plans/../x.md",
+        "node scripts/verify-plan.mjs 'docs/plans/x.md'",
+        "node scripts/verify-plan.mjs docs/plans/x.md --fix",
+        "node scripts/verify-plan.mjs docs/plans/x.md; rm -rf src",
+      ];
+      for (const cmd of blocked) {
+        expect(evaluateCommand(cmd).ok).toBe(false);
+      }
+    });
+
+    it("TC-D3: blocks verify-plan.mjs targeting .env* paths with secret-file reason", () => {
+      for (const cmd of [
+        "node scripts/verify-plan.mjs .env.md",
+        "node scripts/verify-plan.mjs docs/plans/.env.md",
+      ]) {
+        const res = evaluateCommand(cmd);
+        expect(res.ok).toBe(false);
+        if (!res.ok) {
+          expect(res.reason).toContain(".env");
+        }
+      }
+    });
+
+    it("TC-D4: allows run-claude.ps1 with -Role critic", () => {
+      expect(
+        evaluateCommand(
+          "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role critic -PlanFile docs/plans/x.md"
+        )
+      ).toEqual({ ok: true });
+    });
+
+    it("TC-D5: blocks invalid or quoted critic roles", () => {
+      expect(
+        evaluateCommand(
+          "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role critics -PlanFile docs/plans/x.md"
+        ).ok
+      ).toBe(false);
+      expect(
+        evaluateCommand(
+          "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role 'critic' -PlanFile docs/plans/x.md"
+        ).ok
+      ).toBe(false);
+    });
+
+    it("TC-D6: preserves existing -PlanFile validation behavior after helper extraction", () => {
+      expect(
+        evaluateCommand(
+          "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role reviewer -PlanFile docs/plans/2026-10-25-plan.md"
+        )
+      ).toEqual({ ok: true });
+      expect(
+        evaluateCommand(
+          "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role reviewer -PlanFile docs/plans/../secret.md"
+        ).ok
+      ).toBe(false);
+    });
+  });
 });

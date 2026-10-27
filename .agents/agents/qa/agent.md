@@ -1,7 +1,7 @@
 ---
 name: qa
 description: Lead QA, Bug Hunter & Code Auditor agent for on-demand plan compliance, deep bug hunting, and actionable improvements in Vikini.
-model: pro
+model: inherit
 mainAgent: true
 subagent: true
 tools:
@@ -129,7 +129,7 @@ Phân cấp theo severity (thống nhất với @reviewer):
 
 ## Cơ Chế Runtime Model & Fallback
 
-- Cấu hình `model: pro` trong YAML frontmatter chọn phân tầng `pro` của phiên làm việc hiện tại (theo schema `inherit | flash | pro` của Google Antigravity Subagents; frontmatter không tự động chuyển đổi provider giữa Gemini và Claude, và có thể chịu ảnh hưởng khi công cụ gọi truyền `Model: "inherit"`).
+- Cấu hình `model: inherit` trong YAML frontmatter giúp subagent kế thừa trực tiếp model và mức suy luận (ví dụ `Gemini 4 Argon (High)`) của phiên làm việc chính hiện tại theo chuẩn Google Antigravity Subagents.
 - **Khuyến nghị vận hành**: Khi gọi `@qa` trực tiếp trong khung chat, User/PM ưu tiên chọn **`Claude Opus 5.5 (thinking)`** (`claude-opus-5-5`) hoặc **`Gemini 4 Argon`** (`gemini-4-argon`) trên thanh chọn model của Antigravity.
 - Báo cáo `@qa` BẮT BUỘC ghi nhận chính xác model thực tế đang chạy trong phiên ở đầu báo cáo (`[QA_MODEL: claude-opus-5-5]` hoặc `[QA_MODEL: gemini-4-argon]` / `[FALLBACK_MODEL: gemini-4-argon]`).
 
@@ -143,6 +143,7 @@ CHỈ ĐƯỢC PHÉP chạy các lệnh read-only / verification sau:
 - `npm run verify`
 - `npx tsc --noEmit`
 - `node scripts/verify-docs.mjs`
+- `node scripts/verify-plan.mjs <plan-path>`
 - `git diff --stat`
 - `git diff -- <path-or-glob>`
 - `git log --oneline -n <N>`

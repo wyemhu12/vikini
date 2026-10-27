@@ -271,10 +271,11 @@ User (PM) ──[Task]──▶ Orchestrator (Dispatcher)
    - **Gate 3 - Reviewer Approval Token**: File kế hoạch có `- **Status**: Approved` ở Header và nhận thẻ `[PLAN_APPROVED]` ở dòng cuối cùng từ Lead Reviewer.
 5. **Circuit Breaker**: Sau 10 vòng lặp revision không đạt phê duyệt, Orchestrator tự động ngắt chuỗi và trình báo cáo tổng hợp lỗi tồn đọng lên User (PM) quyết định.
 
-### Bộ 3 Tài Liệu Vệ Tinh Của @reviewer:
+### Bộ 3 Tài Liệu Vệ Tinh & Script Kiểm Chứng Của @reviewer:
 
-- **`allowlist.md`**: Quy định 4 nhóm lệnh `run_command` read-only được phép chạy để kiểm chứng kết luận. Cấm tuyệt đối lệnh mutating.
-- **`evidence-bar.md`**: Chuẩn hóa 4 loại bằng chứng bắt buộc (`[CMD]`, `[SRC]`, `[ADV]`, `[URL]`), quy trình Negative Probe cho Zod/RLS/Redis, và Adversarial Timeline 4 trục.
+- **`scripts/verify-plan.mjs`**: Script kiểm chứng tất định 7 heading bắt buộc của `## Technical Plan`, đối chiếu mọi trích dẫn `file:line` với codebase thật, phát hiện cờ `CRITIC_REQUIRED` (cho plan chạm Security, Governance, hoặc Database để kích hoạt Cross-Model Critic `-Role critic`), và kiểm tra sàn `#### Critic Findings` (tối thiểu 3 mục có `file:line` hợp lệ).
+- **`allowlist.md`**: Quy định các nhóm lệnh `run_command` read-only được phép chạy để kiểm chứng kết luận (gồm cả `node scripts/verify-plan.mjs <plan-path>`). Cấm lệnh mutating.
+- **`evidence-bar.md`**: Chuẩn hóa 4 loại bằng chứng bắt buộc (`[CMD]`, `[SRC]`, `[ADV]`, `[URL]`), quy tắc `N/A` / `UNVERIFIED` / cấm tự trích plan / escalate severity, quy trình Negative Probe cho Zod/RLS/Redis, và Adversarial Timeline 4 trục.
 - **`mental-simulation.md`**: 6 kịch bản đối kháng bắt buộc S1–S6 (Cold-start, SSE streaming teardown, Supabase PostgreSQL temporal logic, cross-task state, 3-tier auth, external resilience & serverless cap 800s/60s/30s) và Domain Open Inquiry riêng cho Vikini.
 
 ### Subagent Nghiệm Thu Độc Lập (@qa)

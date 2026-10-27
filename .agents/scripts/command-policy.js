@@ -229,6 +229,25 @@ function validateGitArgs(rest) {
 }
 
 /**
+ * Shared validator for `docs/plans/<name>.md` tokens (used by -PlanFile and verify-plan.mjs).
+ *
+ * @param {CommandToken | undefined} tok
+ * @param {{ requireUnquoted?: boolean }} [options]
+ * @returns {{ ok: true } | { ok: false, kind: 'env' | 'allowlist' }}
+ */
+function validatePlanPathToken(tok, options = {}) {
+  if (!tok) return { ok: false, kind: "allowlist" };
+  if (options.requireUnquoted && tok.quote !== "none") {
+    return { ok: false, kind: "allowlist" };
+  }
+  if (isEnvSecretPath(tok.value)) return { ok: false, kind: "env" };
+  if (tok.value.includes("..") || !/^docs[/\\]plans[/\\][A-Za-z0-9._-]+\.md$/i.test(tok.value)) {
+    return { ok: false, kind: "allowlist" };
+  }
+  return { ok: true };
+}
+
+/**
  * Validates arguments after `powershell(.exe)?` for `.agents/scripts/run-claude.ps1`.
  *
  * @param {CommandToken[]} rest
@@ -282,21 +301,14 @@ function validateRunClaudeArgs(rest) {
       if (
         !valTok ||
         valTok.quote !== "none" ||
-        !/^(?:planner|reviewer|plan|review)$/i.test(valTok.value)
+        !/^(?:planner|reviewer|plan|review|critic)$/i.test(valTok.value)
       ) {
         return { ok: false, kind: "allowlist" };
       }
       idx += 2;
     } else if (param === "-planfile") {
-      const valTok = rest[idx + 1];
-      if (!valTok) return { ok: false, kind: "allowlist" };
-      if (isEnvSecretPath(valTok.value)) return { ok: false, kind: "env" };
-      if (
-        valTok.value.includes("..") ||
-        !/^docs[/\\]plans[/\\][A-Za-z0-9._-]+\.md$/i.test(valTok.value)
-      ) {
-        return { ok: false, kind: "allowlist" };
-      }
+      const check = validatePlanPathToken(rest[idx + 1]);
+      if (!check.ok) return check;
       idx += 2;
     } else if (param === "-model") {
       const valTok = rest[idx + 1];
@@ -501,6 +513,13 @@ function evaluateSingleSegment(segment) {
       }
     }
     return { ok: true };
+  }
+
+  // 7. node scripts/verify-plan.mjs <docs/plans/*.md>
+  if (t0.value === "node" && t1 && /^(?:\.[/\\])?scripts[/\\]verify-plan\.mjs$/.test(t1.value)) {
+    const rest = tokens.slice(2);
+    if (rest.length !== 1) return { ok: false, kind: "allowlist" };
+    return validatePlanPathToken(rest[0], { requireUnquoted: true });
   }
 
   return { ok: false, kind: "allowlist" };
