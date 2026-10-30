@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-10-30: Cleanup -- Remove 4 Deprecated OpenRouter Free Models
+
+- **OpenRouter Free Model Registry & Translation Cleanup (`src/lib/core/{modelRegistry,modelRegistry.test}.ts`, `src/lib/utils/translations/{vi,en}.ts`)**:
+  - Gỡ bỏ 4 model không còn miễn phí trên OpenRouter (`meta-llama/llama-4-maverick:free`, `meta-llama/llama-3.3-70b-instruct:free`, `google/gemma-3-27b-it:free`, `mistral/mistral-small-3.1-24b-instruct:free`) khỏi `SELECTABLE_MODELS` và `API_ALLOWED` trong `src/lib/core/modelRegistry.ts`, đảm bảo các cuộc trò chuyện hoặc request cũ sử dụng những ID này tự động fallback an toàn về `DEFAULT_MODEL` (`gemini-2.5-flash`).
+  - Giữ nguyên tab `OpenRouter (Free)` (`providerId: "openrouter-free"`) trong bộ chọn model để tự động hiển thị trạng thái trống `"Sẽ có sau"` / `"Available later"` giống tab `GPT` cho các model miễn phí bổ sung trong tương lai.
+  - Xóa đồng thời 4 khóa dịch mô tả không còn sử dụng (`modelDescLlama4Maverick`, `modelDescLlama33Instruct`, `modelDescGemma3`, `modelDescMistralSmall`) trong `vi.ts` và `en.ts`, đồng thời bổ sung bộ unit test `TC-ORF-01..08` trong `src/lib/core/modelRegistry.test.ts`.
+
+---
+
 ## 2026-10-27: Governance & Tooling -- Optimize `@reviewer` for Gemini 4 Argon (High), Add Deterministic `scripts/verify-plan.mjs`, & Enforce Cross-Model Critic Pass
 
 - **Goal-Oriented Reviewer & Implicit-Caching Prompt Architecture (`.agents/agents/{reviewer,planner,qa}/agent.md`, `.agents/scripts/claude-reviewer-prompt.md`, `.agents/agents/reviewer/{allowlist,evidence-bar,mental-simulation}.md`)**:

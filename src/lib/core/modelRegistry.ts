@@ -145,52 +145,6 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
   },
 
   // ═══════════════════════════════════════════════════════════
-  // OPENROUTER FREE MODELS (December 2025)
-  // ═══════════════════════════════════════════════════════════
-
-  // Meta Llama 4 - Free via OpenRouter
-  {
-    id: "meta-llama/llama-4-maverick:free",
-    name: "Llama 4 Maverick (Free)",
-    descKey: "modelDescLlama4Maverick",
-    tokenLimit: 256000,
-    contextWindow: 25600,
-    category: "reasoning",
-    providerId: "openrouter-free",
-  },
-  {
-    id: "meta-llama/llama-3.3-70b-instruct:free",
-    name: "Llama 3.3 70B Instruct (Free)",
-    descKey: "modelDescLlama33Instruct",
-    tokenLimit: 128000,
-    contextWindow: 128000,
-    category: "reasoning",
-    providerId: "openrouter-free",
-  },
-
-  // Google Gemma - Free
-  {
-    id: "google/gemma-3-27b-it:free",
-    name: "Gemma 3 27B (Free)",
-    descKey: "modelDescGemma3",
-    tokenLimit: 96000,
-    contextWindow: 96000,
-    category: "low-latency",
-    providerId: "openrouter-free",
-  },
-
-  // Mistral - Free
-  {
-    id: "mistral/mistral-small-3.1-24b-instruct:free",
-    name: "Mistral Small 3.1 24B (Free)",
-    descKey: "modelDescMistralSmall",
-    tokenLimit: 32000,
-    contextWindow: 32000,
-    category: "low-latency",
-    providerId: "openrouter-free",
-  },
-
-  // ═══════════════════════════════════════════════════════════
   // CLAUDE MODELS (Anthropic API)
   // Get API key at: https://console.anthropic.com/
   // Free tier: $10/month, 5 req/min
@@ -337,12 +291,6 @@ const API_ALLOWED = new Set([
   // Llama via Groq
   "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant",
-
-  // OpenRouter Free Models
-  "meta-llama/llama-4-maverick:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-3-27b-it:free",
-  "mistral/mistral-small-3.1-24b-instruct:free",
 
   // Claude (Anthropic)
   "claude-haiku-4.5",

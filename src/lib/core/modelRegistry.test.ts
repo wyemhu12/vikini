@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { MODEL_IDS } from "@/lib/utils/constants";
+import { en } from "@/lib/utils/translations/en";
+import { vi } from "@/lib/utils/translations/vi";
 import * as registry from "./modelRegistry";
 import {
   DEFAULT_MODEL,
@@ -182,6 +184,68 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
     it("does not export removed capability helper", () => {
       const helperKey = ["modelSupports", "Deep", "Research"].join("");
       expect(helperKey in registry).toBe(false);
+    });
+  });
+
+  describe("OpenRouter Free Model Removal (TC-ORF)", () => {
+    const REMOVED_OPENROUTER_FREE_IDS = [
+      "meta-llama/llama-4-maverick:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "google/gemma-3-27b-it:free",
+      "mistral/mistral-small-3.1-24b-instruct:free",
+    ] as const;
+
+    const REMOVED_DESC_KEYS = [
+      "modelDescLlama4Maverick",
+      "modelDescLlama33Instruct",
+      "modelDescGemma3",
+      "modelDescMistralSmall",
+    ] as const;
+
+    it.each(REMOVED_OPENROUTER_FREE_IDS)(
+      "TC-ORF-01 & TC-ORF-02: %s is no longer selectable and falls back to DEFAULT_MODEL",
+      (id) => {
+        expect(SELECTABLE_MODELS.some((m) => m.id === id)).toBe(false);
+        expect(isSelectableModelId(id)).toBe(false);
+        expect(normalizeModelForApi(id)).toBe(DEFAULT_MODEL);
+        expect(coerceStoredModel(id)).toBe(DEFAULT_MODEL);
+        expect(getModelTokenLimit(id)).toBe(getModelTokenLimit(DEFAULT_MODEL));
+      }
+    );
+
+    it("TC-ORF-03 & TC-ORF-04: retains openrouter-free provider label with an empty model list", () => {
+      const openRouterFreeModels = SELECTABLE_MODELS.filter(
+        (m) => m.providerId === "openrouter-free"
+      );
+      expect(openRouterFreeModels).toHaveLength(0);
+      expect(PROVIDER_LABELS["openrouter-free"]).toBe("OpenRouter (Free)");
+    });
+
+    it("TC-ORF-05: removes all :free models from SELECTABLE_MODELS", () => {
+      const freeSuffixModels = SELECTABLE_MODELS.filter((m) => m.id.endsWith(":free"));
+      expect(freeSuffixModels).toHaveLength(0);
+    });
+
+    it.each(REMOVED_DESC_KEYS)(
+      "TC-ORF-06: removes orphaned translation key %s from both en and vi",
+      (key) => {
+        expect(Object.hasOwn(en, key)).toBe(false);
+        expect(Object.hasOwn(vi, key)).toBe(false);
+      }
+    );
+
+    it("TC-ORF-07: preserves valid en and vi translation keys for all remaining SELECTABLE_MODELS", () => {
+      for (const model of SELECTABLE_MODELS) {
+        expect(Object.hasOwn(en, model.descKey)).toBe(true);
+        expect(Object.hasOwn(vi, model.descKey)).toBe(true);
+      }
+    });
+
+    it("TC-ORF-08: preserves Groq llama-3.3-70b-versatile model without regression", () => {
+      expect(isSelectableModelId("llama-3.3-70b-versatile")).toBe(true);
+      expect(normalizeModelForApi("llama-3.3-70b-versatile")).toBe("llama-3.3-70b-versatile");
+      const groqModel = SELECTABLE_MODELS.find((m) => m.id === "llama-3.3-70b-versatile");
+      expect(groqModel?.providerId).toBe("groq");
     });
   });
 });
