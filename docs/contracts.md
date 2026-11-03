@@ -1,6 +1,6 @@
 # Data Contracts & Protocols - Vikini
 
-> **Updated**: 2026-10-24  
+> **Updated**: 2026-11-02  
 > **Purpose**: Single source of truth for data shapes, API protocols, and endpoint contracts.  
 > **Note**: This file merges the former `api-reference.md`. All endpoint info lives here now.
 
@@ -15,10 +15,24 @@ interface Conversation {
   id: string; // UUID
   userId: string; // Email người dùng (lowercase)
   title: string; // Tiêu đề (mặc định: "New Chat")
-  model: string; // Model AI (e.g. "gemini-3-flash-preview")
+  model: string; // Model AI (e.g. "gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-4-argon")
   gemId: string | null; // GEM đang áp dụng
-  createdAt: string; // ISO timestamp
-  updatedAt: string; // ISO timestamp
+  projectId: string | null; // Project chứa cuộc hội thoại
+  parentConversationId?: string | null; // Cuộc hội thoại gốc nếu rẽ nhánh
+  forkedFromMessageId?: string | null; // Tin nhắn mốc rẽ nhánh
+  lastMessagePreview: string | null; // Đoạn xem trước tin nhắn cuối
+  gem: {
+    name: string;
+    icon: string | null;
+    color: string | null;
+  } | null;
+  persona: {
+    name: string;
+    icon: string | null;
+    color: string | null;
+  } | null;
+  createdAt: string | null; // ISO timestamp
+  updatedAt: string | null; // ISO timestamp
 }
 ```
 
@@ -30,23 +44,37 @@ interface Conversation {
 interface Message {
   id: string; // UUID
   conversationId: string; // FK → Conversation
-  role: "user" | "assistant"; // Vai trò
-  content: string; // Nội dung (đã giải mã)
+  role: "user" | "assistant" | "system"; // Vai trò
+  content: string; // Nội dung (đã giải mã AES-256-GCM)
   meta: MessageMeta | null; // Dữ liệu bổ sung
-  createdAt: string; // ISO timestamp
+  createdAt: string | null; // ISO timestamp
 }
 
 interface MessageMeta {
-  sources?: WebSearchSource[]; // Kết quả web search
+  type?: "image_gen" | "image_edit" | "text" | "chart";
+  sources?: WebSearchSource[]; // Kết quả web search grounding
   ragSources?: RagSource[]; // Trích dẫn Knowledge Base RAG
-  reasoning?: string; // Khối suy luận tách biệt (được mã hóa AES khi lưu DB)
+  urlContext?: Array<{ retrievedUrl: string; status: string }>; // URL Context grounding
+  reasoning?: string; // Khối suy luận tách biệt (được mã hóa AES-256-GCM khi lưu DB)
+  /** @deprecated Use thoughtSignatures array instead */
+  thoughtSignature?: string;
+  thoughtSignatures?: string[]; // Chữ ký suy luận đa lượt (Gemini 3 / 4 Argon)
+  thinkingStats?: { tokens: number; elapsedMs: number }; // Thống kê thời gian & token suy luận
   emptyAnswerReason?: "length" | "no_content"; // Lý do khi model chỉ sinh reasoning không có answer
   fileIds?: string[]; // IDs file đính kèm
-  modelUsed?: string; // Model thực tế được sử dụng
-  tokensUsed?: number; // Token count
+  model?: string; // Model thực tế được sử dụng
+  promptTokenCount?: number; // Input tokens
+  candidatesTokenCount?: number; // Output tokens
+  thoughtsTokenCount?: number; // Thinking tokens
+  totalTokenCount?: number; // Tổng số tokens
+  clientMessageId?: string; // ID định danh từ client (dùng cho upsert/abort)
+  isPartial?: boolean; // Tin nhắn dừng giữa chừng (abort/cutoff)
+  aborted?: boolean;
+  status?: "aborted";
+  isContextOnly?: boolean; // Ngữ cảnh ẩn (rẽ nhánh hội thoại hoặc Novelcrafter state)
+  novelcrafterType?: "story_state" | "story_state_corrupted_backup";
 
-  // Image Generation (type = "image_gen")
-  type?: "image_gen" | "image_edit"; // Indicates this is a generated/edited image message
+  // Image Generation (type = "image_gen" | "image_edit")
   prompt?: string; // Original prompt used for generation
   imageUrl?: string; // Public URL of generated image
   file?: {
@@ -56,10 +84,10 @@ interface MessageMeta {
     filename: string; // Original filename
   };
   attachment?: {
-    url: string;
+    url?: string;
     storagePath: string;
-    mimeType: string;
-    filename: string;
+    mimeType?: string;
+    filename?: string;
   };
   originalOptions?: {
     aspectRatio?: string; // "1:1", "16:9", etc.
@@ -70,9 +98,15 @@ interface MessageMeta {
 }
 
 interface WebSearchSource {
+  uri: string;
   title: string;
-  url: string;
-  snippet?: string;
+}
+
+interface RagSource {
+  filename: string;
+  documentId: string;
+  chunkId: string;
+  similarity: number;
 }
 ```
 
@@ -216,7 +250,7 @@ interface Project {
   description: string | null; // Mô tả
   icon: string; // Emoji (default: 📁)
   color: string; // Hex color (default: #6366f1)
-  embeddingModel: string; // "text-embedding-004" | "gemini-embedding-001"
+  embeddingModel: "gemini-embedding-2"; // Model bất biến 3072 chiều
   createdAt: string;
   updatedAt: string;
 }
@@ -250,14 +284,17 @@ interface KnowledgeDocument {
 ### Chat Stream Request
 
 ```typescript
-// POST /api/chat-stream
+// POST /api/chat-stream (src/app/api/chat-stream/validators.ts)
 interface ChatStreamRequest {
   conversationId?: string; // UUID (optional - tạo mới nếu không có)
-  content: string; // Tin nhắn (min: 1 char)
+  content: string; // Tin nhắn
   regenerate?: boolean; // Tạo lại response
-  truncateMessageId?: string; // Xóa messages sau ID này
-  skipSaveUserMessage?: boolean; // Không lưu tin nhắn user
-  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal"; // Gemini 3 / Strata thinking mode
+  truncateMessageId?: string | null; // Xóa messages từ ID này khi chỉnh sửa/regenerate
+  truncateClientMessageId?: string | null; // Fallback xóa theo clientMessageId
+  clientMessageId?: string | null; // UUID định danh tin nhắn phía client
+  skipSaveUserMessage?: boolean; // Không lưu tin nhắn user mới
+  thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high"; // Mức độ suy luận
+  fileIds?: string[]; // Danh sách UUID file đính kèm (max 10)
   strataSampling?: {
     mode?: "default" | "creative" | "custom";
     temperature?: number;
@@ -271,52 +308,81 @@ interface ChatStreamRequest {
 
 ### Chat Stream Events (SSE)
 
+Mọi sự kiện SSE được phát qua `sendEvent(controller, event, data)` tại `src/app/api/chat-stream/streaming/utils.ts` theo wire format chuẩn `event: <event>\ndata: <JSON>\n\n`:
+
 ```typescript
-// Event: token
-interface TokenEvent {
-  type: "token";
-  data: { token: string };
+// event: token
+// data: {"t":"..."}
+interface TokenEventPayload {
+  t: string;
 }
 
-// Event: thinking (Named SSE event for real-time model reasoning stream)
-// Wire format:
-// event: thinking\n
-// data: {"type":"thinking","content":"..."}\n\n
-interface ThinkingEvent {
-  type: "thinking";
-  content: string;
+// event: thinking (luồng suy luận thời gian thực)
+// data: {"thinking":"..."}
+interface ThinkingEventPayload {
+  thinking: string;
 }
 
-// Event: meta (Conversation metadata or RAG citations)
-// Standard metadata wire format:
-// data: {"type":"meta","data":{"conversationId":"uuid","title":"..."}}\n\n
-// RAG sources wire format (issued once during stream start):
-// event: meta\n
-// data: {"type":"ragSources","ragSources":[{"filename":"...","similarity":0.85,"chunkContent":"..."}]}\n\n
-interface MetaEvent {
-  type: "meta";
-  data: {
-    conversationId: string;
-    title: string;
-    sources?: WebSearchSource[];
-  };
+// event: meta (Discriminated union theo trường `type`)
+type MetaEventPayload =
+  | { type: "conversationCreated"; conversation: Conversation }
+  | { type: "ragSources"; sources: RagSource[] }
+  | { type: "webSearch"; enabled: boolean; available: boolean; cookie?: string }
+  | {
+      type: "gem";
+      gemId: string | null;
+      hasSystemInstruction: boolean;
+      systemInstructionChars: number;
+      error?: string | null;
+    }
+  | { type: "model"; model: string; isDefault: boolean }
+  | { type: "optimisticTitle"; conversationId: string; title: string }
+  | { type: "finalTitle"; conversationId: string; title: string }
+  | { type: "sources"; sources: WebSearchSource[] }
+  | { type: "urlContext"; urls: Array<{ retrievedUrl: string; status: string }> }
+  | {
+      type: "safety";
+      blocked: boolean;
+      blockReason?: string | null;
+      finishReason?: string | null;
+      safetyRatings?: unknown;
+    }
+  | { type: "webSearchFallback"; message: string }
+  | {
+      type: "usageMetadata";
+      promptTokenCount?: number;
+      candidatesTokenCount?: number;
+      thoughtsTokenCount?: number;
+      cachedContentTokenCount?: number;
+      totalTokenCount?: number;
+    }
+  | { type: "emptyAnswerNotice"; reason: "length" | "no_content" }
+  | { type: "localQueue"; position: number }
+  | {
+      type: "localPromptProgress";
+      total: number;
+      cache: number;
+      processed: number;
+      time_ms: number;
+    };
+
+// event: done
+// data: {"ok":true}
+interface DoneEventPayload {
+  ok: boolean;
 }
 
-interface RagSourcesMetaEvent {
-  type: "ragSources";
-  ragSources: RagSource[];
-}
-
-// Event: done
-interface DoneEvent {
-  type: "done";
-  data: {};
-}
-
-// Event: error
-interface ErrorEvent {
-  type: "error";
-  data: { error: string; message?: string };
+// event: error
+// data: {"message":"...","code":"...","status":500}
+interface ErrorEventPayload {
+  message: string;
+  code?: string;
+  status?: number;
+  isTimeout?: boolean;
+  isRateLimit?: boolean;
+  retryAfter?: number;
+  isTokenLimit?: boolean;
+  tokenInfo?: unknown;
 }
 ```
 
@@ -359,7 +425,7 @@ interface DeleteGemRequest {
 interface CreateConversationRequest {
   title?: string;
   model?: string;
-  gemId?: string;
+  projectId?: string | null;
 }
 
 // PATCH /api/conversations (Update)
@@ -367,7 +433,15 @@ interface UpdateConversationRequest {
   id: string; // UUID - Bắt buộc
   title?: string; // Đổi tiêu đề
   gemId?: string | null; // Đổi/xóa GEM
+  personaId?: string | null; // Đổi/xóa Persona
+  projectId?: string | null; // Chuyển/xóa Project
   model?: string; // Đổi model
+}
+
+// POST /api/conversations/[id]/branch (Branch / Fork Conversation)
+interface BranchConversationRequest {
+  messageId: string; // UUID tin nhắn mốc để rẽ nhánh - Bắt buộc
+  titlePrefix?: string; // Tiền tố tiêu đề nhánh (max 40 ký tự)
 }
 ```
 
@@ -413,14 +487,14 @@ interface KnowledgeSearchRequest {
   matchCount?: number; // Default 5
 }
 
-// Knowledge Search Result
+// Knowledge Search Result (RPC match_project_knowledge)
 interface KnowledgeSearchResult {
   id: string;
-  content: string;
-  similarity: number;
+  document_id: string;
   filename: string;
-  chunk_index: number;
+  content: string;
   metadata: Record<string, unknown>;
+  similarity: number;
 }
 ```
 
@@ -490,29 +564,47 @@ Public routes: `/auth/signin`, `/auth/error`, `/auth/signout`, `/api/auth/*`.
 
 ### Key Endpoints
 
-| Method                | Endpoint                              | Description                              |
-| --------------------- | ------------------------------------- | ---------------------------------------- |
-| POST                  | `/api/chat-stream`                    | Send message, receive SSE stream         |
-| GET                   | `/api/conversations`                  | List all user conversations              |
-| GET                   | `/api/conversations?id={uuid}`        | Get conversation with messages           |
-| POST/PATCH/DELETE     | `/api/conversations`                  | CRUD operations                          |
-| GET/POST/PATCH/DELETE | `/api/gems`                           | GEM CRUD operations                      |
-| POST                  | `/api/files/upload`                   | Upload file (FormData)                   |
-| GET/DELETE            | `/api/files`                          | List/delete files                        |
-| GET                   | `/api/files/[id]/url`                 | Get signed download URL                  |
-| DELETE                | `/api/messages/[id]`                  | Delete a single message                  |
-| POST                  | `/api/generate-image`                 | AI image generation                      |
-| GET/DELETE            | `/api/gallery`                        | Gallery CRUD                             |
-| GET                   | `/api/user/allowed-models`            | Get user's allowed models by rank        |
-| GET/POST              | `/api/projects`                       | List/create projects                     |
-| GET/PATCH/DELETE      | `/api/projects/[id]`                  | Single project CRUD                      |
-| GET/POST/DELETE       | `/api/projects/[id]/knowledge`        | Knowledge document management            |
-| POST                  | `/api/projects/[id]/knowledge/search` | RAG similarity search                    |
-| GET/PATCH             | `/api/admin/users`                    | Admin: user management                   |
-| GET/POST              | `/api/admin/gems`                     | Admin: premade GEM management            |
-| GET/PATCH             | `/api/admin/rank-configs`             | Admin: rank configuration                |
-| GET                   | `/api/files/cleanup`                  | Cron: cleanup expired files (30-day TTL) |
-| GET                   | `/api/local-llm/health`               | Local LLM (Strata) status & queue health |
+| Method                | Endpoint                              | Description                                                |
+| --------------------- | ------------------------------------- | ---------------------------------------------------------- |
+| POST                  | `/api/chat-stream`                    | Send message, receive multi-provider SSE stream            |
+| GET                   | `/api/conversations`                  | List all user conversations                                |
+| GET/PUT               | `/api/conversations?id={uuid}`        | Get conversation with decrypted messages                   |
+| POST/PATCH/DELETE     | `/api/conversations`                  | Conversation CRUD operations                               |
+| POST                  | `/api/conversations/[id]/branch`      | Branch (fork) conversation from a specific message         |
+| POST/DELETE           | `/api/messages`                       | Save partial message / delete by `clientMessageId`         |
+| DELETE                | `/api/messages/[id]`                  | Delete a single message by ID                              |
+| PATCH                 | `/api/messages/[id]/favorite`         | Toggle favorite/bookmark on a message                      |
+| PATCH                 | `/api/messages/[id]/tag`              | Add/remove tag on a message                                |
+| GET/POST/PATCH/DELETE | `/api/gems`                           | User GEM CRUD operations                                   |
+| POST                  | `/api/gems/preview`                   | Preview GEM response with draft instructions               |
+| GET/POST/PATCH/DELETE | `/api/personas`                       | User Persona CRUD operations                               |
+| GET/POST/DELETE       | `/api/user-templates`                 | User prompt template CRUD                                  |
+| POST                  | `/api/prompt-suggest`                 | AI prompt enhancement & suggestion                         |
+| POST                  | `/api/files/upload`                   | Upload file (FormData) to Supabase Storage                 |
+| GET/DELETE            | `/api/files`                          | List/delete files                                          |
+| GET                   | `/api/files/[id]/url`                 | Get signed download URL                                    |
+| POST                  | `/api/generate-image`                 | AI image generation (Gemini, DALL-E, Flux)                 |
+| POST                  | `/api/edit-image`                     | Single-image AI editing                                    |
+| POST                  | `/api/edit-image-multi`               | Multi-reference AI image editing                           |
+| POST                  | `/api/describe-image`                 | Vision AI image analysis & prompt extraction               |
+| GET                   | `/api/batch-gen-quota`                | Check batch image generation quota                         |
+| GET/DELETE            | `/api/gallery`                        | Gallery list & bulk delete                                 |
+| DELETE                | `/api/gallery/[id]`                   | Delete single gallery image                                |
+| GET                   | `/api/user/allowed-models`            | Get user's allowed models & features by rank               |
+| GET/POST              | `/api/projects`                       | List/create projects                                       |
+| GET/PATCH/DELETE      | `/api/projects/[id]`                  | Single project CRUD                                        |
+| GET/POST/DELETE       | `/api/projects/[id]/knowledge`        | Knowledge document upload & management                     |
+| POST                  | `/api/projects/[id]/knowledge/search` | RAG similarity search (`match_project_knowledge`)          |
+| GET/PUT               | `/api/novelcrafter/state`             | Load/save encrypted Novelcrafter story state (CAS guarded) |
+| POST                  | `/api/novelcrafter/stream`            | Novelcrafter AI writing/editing/feedback SSE stream        |
+| GET                   | `/api/local-llm/health`               | Local LLM (Strata) status & FIFO queue health              |
+| GET/PATCH             | `/api/admin/users`                    | Admin: user rank & block management                        |
+| GET/POST              | `/api/admin/gems`                     | Admin: premade GEM management                              |
+| GET/POST/PATCH/DELETE | `/api/admin/personas`                 | Admin: premade Persona management                          |
+| GET/PATCH             | `/api/admin/rank-configs`             | Admin: rank configuration                                  |
+| GET                   | `/api/admin/audit-log`                | Admin: view administrative audit logs                      |
+| GET                   | `/api/admin/stats`                    | Admin: system usage statistics                             |
+| GET/POST              | `/api/cron/cleanup`                   | Cron: cleanup expired files (30-day TTL) & stuck RAG docs  |
 
 ### Rate Limiting
 

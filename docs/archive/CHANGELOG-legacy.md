@@ -1,7 +1,73 @@
 # CHANGELOG Legacy Archive -- Vikini
 
-> Lưu trữ lịch sử phát hành dự án Vikini cho các bản ghi từ ngày 2026-10-19 trở về trước (<= 2026-10-19).
+> Lưu trữ lịch sử phát hành dự án Vikini cho các bản ghi từ ngày 2026-10-24 trở về trước (<= 2026-10-24).
 > File này chỉ phục vụ mục đích tra cứu lịch sử, không chỉnh sửa trực tiếp.
+
+---
+
+## 2026-10-24: Security & Governance -- Agent Harness Security Hardening (`P0` / `P1` / `P2`)
+
+- **Token-Level Command Whitelist & Secret Path Guard (`.agents/scripts/{command-policy,guard-paths,code-freeze-guard}.js`, `.agents/hooks.json`, `.agents/scripts/run-claude.ps1`)**:
+  - **P0-1 (Token Whitelist)**: Thay thế cơ chế blacklist ký tự (`SHELL_ESCAPE_HATCHES`) và regex `\S+` bằng trình phân tích token `command-policy.js` (`tokenizeSegment`, `isSafeUnquotedToken`, `evaluateCommand`), chặn hoàn toàn PowerShell grouping/subexpressions/scriptblocks/splatting (`(...)`, `$(...)`, `@(...)`, `{...}`), Bash process substitution (`<(...)`, `>(...)`), Unicode smart quotes (U+2018–U+201F), và tham số tiêm lệnh trong `run-claude.ps1 -Task`.
+  - **P0-3 (Protected Harness & Infra Guard)**: Bổ sung `PROTECTED_INFRA_FILES` (`scripts/code-freeze-guard.js`, `.claude/settings.json`, `.claude/settings.local.json`, `.husky/install.mjs`, `next.config.ts`, `package-lock.json`, `.npmrc`, `AGENTS.md`, `CLAUDE.md`) và `PROTECTED_INFRA_PREFIXES` (`.claude/`, `.husky/`) cùng chuẩn hóa không phân biệt hoa thường (`normalizeForCompare`) trên NTFS.
+  - **P1-5 (`.env*` Secret Protection)**: Chặn truy cập `.env*` qua đối số `git status|diff|log|show|blame` (bao gồm `<rev>:<path>`, `--no-index`, và ký tự glob `*?[]`), bổ sung kiểm tra `Grep` (`path` + `glob`) trong `decide()`, và thêm `view_file|read_file` vào matcher của `.agents/hooks.json`.
+- **Plan Scope Guard, Always-On Rule Budget & Claude Code Surface (`.agents/scripts/plan-scope.js`, `.agents/rules/{00-core,02-quality,05-plan-review}.md`, `CLAUDE.md`, `.claude/settings.json`, `.claude/settings.local.json`, `.claude/skills/vikini-*/SKILL.md`, `.gitignore`)**:
+  - **P1-7 (Plan Scope Guard)**: Trích xuất `extractDeclaredFiles`, `getActiveApprovedPlans`, `getApprovedPlanScope` trong `plan-scope.js` để khi plan đạt `Approved`, hệ thống chỉ tự động mở khóa đúng các file được khai báo `[NEW]`/`[MODIFY]`/`[DELETE]` trong `## Technical Plan` và trả `ask` cho mọi file ngoài phạm vi.
+  - **P0-4 (TC-08 Character Budget Fix)**: Chuyển các bảng markdown bị Prettier pad khoảng trắng trong `.agents/rules/02-quality.md` sang danh sách bullet, đưa tổng ký tự 3 tệp `always_on` xuống `< 15,000` ký tự (dưới ngưỡng `< 18,000` của `TC-08`) đồng thời bảo toàn đầy đủ 15 mục bắt buộc trong Normative Preservation Matrix (M5).
+  - **P1-6 (Claude Code Governance Surface)**: Thêm `CLAUDE.md` nạp `@AGENTS.md`, `@.agents/rules/00-core.md`, `@.agents/rules/05-plan-review.md`; thêm `.claude/settings.json` gắn `PreToolUse` hook với `"onFailure": "block"` và deny list cho `.env*` / git mutating; dọn dẹp `.claude/settings.local.json`; thêm 4 stub skill `.claude/skills/vikini-{debug,audit,investigate,simplify}/SKILL.md`.
+  - **P2 (Fail-Closed Exit Code 2, Fast-Track `.tsx` Hardening, `$PSScriptRoot` & Docs Sync)**: Bổ sung `runHook` + `installCrashHandlers` thoát mã `2` khi có lỗi nội bộ; mở rộng `FAST_TRACK_FORBIDDEN_CONTENT_TSX` chặn các API mạng/storage/eval trên `.tsx`; cố định `$repoRoot` từ `$PSScriptRoot` kèm `Push-Location`/`Pop-Location` trong `run-claude.ps1`; cập nhật đường dẫn trong `streaming-patterns/SKILL.md` và `mental-simulation.md`; thêm 3 file test co-located mới (`guard-paths.test.ts`, `plan-scope.test.ts`, `command-policy.test.ts` — `151/151` tests pass).
+
+---
+
+## 2026-10-24: Bugfix -- Khắc Phục 8 Lỗi Novelcrafter Studio & Bảo Toàn `thoughtSignatures` Trong Chat (`B1`–`B8`)
+
+- **Novelcrafter Prompt Builder, XML Escaping & System Context (`src/lib/features/novelcrafter/{promptBuilder,featureDirectives,storyBibleSerializer,pruneStoryBibleForStream,feedbackParser}.ts`)**:
+  - **B1 (Rough Draft Synopsis/Outline Dependencies)**: Bổ sung tham số `writeMode` vào `selectStoryBibleDependencies` và `pruneStoryBibleForStream` (`needsBraindumpForStream`), gửi đầy đủ `<synopsis>` (kèm fallback `<synopsis fallback="braindump">` khi synopsis trống) và `<outline>` cho chế độ `writeMode: "first_draft_rough"`.
+  - **B2 (Empty Chapter Write Continuity)**: Mở rộng điều kiện `<previous_chapter_continuity>` trong `buildNovelcrafterUserPrompt` cho cả trường hợp viết chương mới còn trống (`feature === "write" && !chapterProse?.trim()`), cắt cửa sổ `MAX_PREVIOUS_CHAPTER_TAIL_CHARS` (`2,000` ký tự) trước khi escape XML.
+  - **B3 (Boundary XML Escaping & Feedback Entity Decoding)**: Giữ nguyên văn dữ liệu thô tại `serializeStoryBibleWithStructuredCards` để không làm hỏng file xuất bản thảo (`manuscriptExporter.ts`), áp dụng `escapeXmlPromptText` một lần duy nhất tại toàn bộ ranh giới ghép thẻ XML trong `promptBuilder.ts` (`xmlNode`) và `featureDirectives.ts` kèm chỉ dẫn có điều kiện `XML_ESCAPE_NOTICE`, và giải mã thực thể XML bằng `unescapeXmlPromptText` trong `parseFeedbackItems`.
+  - **B4 (Remove `<studio_context>`)**: Xóa bỏ khối `NOVELCRAFTER_STUDIO_CONTEXT_BLOCK` (`<studio_context>...</studio_context>`) khỏi `buildNovelcrafterSystemInstruction`.
+- **Strata Local Provider Routing, Feedback Reply Limit & SSE Cutoff Handling (`src/lib/features/novelcrafter/{novelcrafterStrataProvider.server,novelcrafterStreamRunner.server,types,streamTargetGuard}.ts`, `src/app/api/novelcrafter/stream/route.ts`, `src/app/features/novelcrafter/{utils/novelcrafterSseParser.ts,hooks/useNovelcrafterStream.ts,components/NovelcrafterStudioApp.tsx,components/ChapterEditorWorkspace.tsx,components/ChapterFeedbackGutter.tsx}`, `src/lib/utils/translations/{vi,en}.ts`)**:
+  - **B5 (Strata Local Model Support)**: Tạo `novelcrafterStrataProvider.server.ts` (`streamStrataProvider` với quản lý hàng đợi FIFO `release()` trong `finally`, `fitStrataPrompt` 32K, `NOVELCRAFTER_STRATA_THINKING_LEVEL = "low"`, `NOVELCRAFTER_STRATA_SAMPLING = { mode: "creative" }`, và ánh xạ lỗi kết nối sang `StrataOfflineError`), trích xuất `consumeOpenAICompatibleChunks` và nối nhánh `providerId === "local"` trong `novelcrafterStreamRunner.server.ts`, đồng thời kiểm tra `getStrataAdmission()` trước khi giữ chỗ quota tại `POST /api/novelcrafter/stream`.
+  - **B6 (Feedback Reply 400 Defense)**: Nâng trần `MAX_CUSTOM_INSTRUCTION_CHARS` lên `15,000` trong `NovelcrafterStreamRequestSchema`, bổ sung helper `buildFeedbackReplyInstruction` cắt an toàn `comment` + `replyText`, và gắn `maxLength={FIELD_MAX_LENGTHS.feedbackReply}` (`2,000`) cho ô nhập phản hồi trong `ChapterFeedbackGutter.tsx`.
+  - **B7 (SSE Stream Cutoff without `done` Event)**: Trích xuất `readNovelcrafterSseStream` (flush cả frame cuối chưa có `\n\n`) và `resolveStreamCloseOutcome` (`finishReason: "length"`, `closedWithoutDone: true`), giữ lại phần văn bản đã stream và hiển thị cảnh báo song ngữ `novelcrafterStreamCutoffWarning` khi luồng SSE đóng đột ngột không có sự kiện `done`.
+  - _Ghi chú nợ kỹ thuật (Tech Debt)_: Các file hiện hữu `promptBuilder.ts`, `novelcrafterStreamRunner.server.ts`, và `useNovelcrafterStream.ts` đã vượt ngưỡng khuyến nghị 350–400 dòng từ trước; trong phạm vi sửa lỗi này đã trích xuất logic mới sang `novelcrafterStrataProvider.server.ts` và `novelcrafterSseParser.ts` để giảm dòng ròng và ghi nhận tách module nhỏ hơn ở đợt refactor tiếp theo.
+- **Chat Multi-Turn `thoughtSignatures` Preservation (`src/app/api/chat-stream/{chatStreamHelpers,contextBuilder}.ts`)**:
+  - **B8**: Bổ sung kiểu `ContextMessage` và hàm `extractThoughtSignatures(meta)` lọc an toàn dữ liệu JSONB để truyền `thoughtSignatures` / `thoughtSignature` của các lượt `assistant` trước đó vào `mapMessages`, đảm bảo Gemini 3 và Gemini 4 Argon nhận đầy đủ chữ ký suy luận qua nhiều lượt hội thoại.
+
+---
+
+## 2026-10-24: Governance -- Hardening Mode 4 /blast-radius (`vikini-investigate`)
+
+- **Blast-Radius & Claude CLI (`.agents/skills/vikini-investigate/SKILL.md`, `.agents/scripts/run-claude.ps1`, `docs/lessons-learned.md`)**:
+  - Bổ sung 5 bước (A–E: dynamic import, DI/interface, transitive 3 tầng, disambiguation/alias, mocked tests) cùng 2 cột `Tầng (1/2/3)` và `Cách tham chiếu` vào Mode 4 `/blast-radius`; thêm `Escape-NativeArg` trong `run-claude.ps1` cho PowerShell 5.1.
+
+---
+
+## 2026-10-24: Feature -- Tích Hợp Local LLM (Strata Engine - 32K Context, Story Sampling & FIFO Queue)
+
+- **Strata Core & Queue Infrastructure (`src/lib/utils/constants.ts`, `src/lib/core/{strataConfig,strataClient,strataQueue,modelRegistry}.ts`, `env.local.example`)**:
+  - Đăng ký mô hình cục bộ `Orcarouter-qwen3.8-flash-next-uncensored-iq3` (`id: "strata-local"`, `providerId: "local"`, `category: "local"`, `tokenLimit: 32768`, `maxOutputTokens: 16384`) trong nhóm riêng **Local Models** (`PROVIDER_LABELS.local`), tắt tìm kiếm web (`modelSupportsWebSearch = false`).
+  - Xây dựng `strataConfig.ts` (chốt chặn bảo mật SSRF chỉ cho phép loopback `127.0.0.1` / `localhost` / `::1`), `strataClient.ts` (OpenAI SDK singleton với `maxRetries: 0`, `checkStrataHealth` có bộ nhớ đệm 5s + in-flight dedupe, và `countStrataPromptTokens` truyền `output_config.effort` khớp Jinja template Qwen3.8), và `strataQueue.ts` (hàng đợi FIFO tuần tự `concurrency = 1`, `maxPending = 2`, kèm cổng kiểm tra `getStrataAdmission()` trước khi ghi DB).
+- **Thinking Budget, Sampling Presets & 32K Anchor-Window Context Fitter (`src/lib/features/local-llm/{strataThinking,strataContextFit,errors}.ts`, `src/app/api/chat-stream/{validators,contextBuilder}.ts`)**:
+  - Thiết lập bảng ngân sách suy luận `STRATA_THINKING_TABLE` (`off`: tắt thinking, `low`: 4K, `medium`: 8K, `high`: 12K) tuân thủ quy tắc dự trữ câu trả lời `#984` của Strata (`serve/server.py:5022-5029`).
+  - Bổ sung 3 chế độ thông số sinh văn bản (`STRATA_SAMPLING_PRESETS`: `default` chuẩn Qwen, `creative` tối ưu viết truyện chống lặp từ/liệt kê, và `custom` có `sanitizeStrataSampling` ép miền hợp lệ cho `temperature`, `top_p`, `top_k`, `min_p`, `presence_penalty`) cùng schema kiểm tra `strataSamplingSchema`.
+  - Triển khai `strataContextFit.ts` cắt tỉa lịch sử hội thoại theo điểm neo cố định (`fnv1aHash(id) % 4 === 0`) kết hợp `skipSlidingTrim: true` trong `contextBuilder.ts` để giữ nguyên tiền tố KV cache (`Prompt Reuse > 90%`) và loại bỏ hoàn toàn `<think>` khỏi lịch sử các lượt trước.
+- **SSE Streaming Engine & Health Endpoint (`src/app/api/chat-stream/streaming/{strata-stream,strata-stream-reader,post-processing,types,utils,index}.ts`, `src/app/api/chat-stream/chatStreamCore.ts`, `src/app/api/local-llm/health/route.ts`)**:
+  - Xây dựng `createStrataStream` và `consumeStrataChunks` tách biệt luồng `reasoning_content` (`event: thinking`) và `content` (`event: token`), điều tiết sự kiện `localPromptProgress` tối đa 1 lần/giây, tự động gắn `TIMEOUT_CONFIG.STRATA_LOCAL = 300,000ms` (5 phút) ưu tiên trước `STREAM_TIMEOUT_MS`, hủy kết nối upstream tức thì qua `AbortSignal`, và lưu `extraMeta.thinkingStats` vào cơ sở dữ liệu.
+  - Bổ sung route `GET /api/local-llm/health` bảo vệ bởi `await auth()` + `UnauthorizedError`.
+- **Chat UI Controls, Live Thinking Telemetry & Bilingual Support (`src/app/features/chat/components/{ModelSelector,ThinkingLevelSelector,LocalSamplingSettings,LocalLlmStatusDot,ChatControls,BubbleHelpers,ChatBubble,ChatConversationView,ChatMessagesArea,StreamErrorBanner}.tsx`, `src/app/features/chat/components/hooks/{useThinkingLevel,useThinkingStats,useStrataSampling,useChatStreamController}.ts`, `src/app/features/chat/hooks/{useLocalLlmHealth,useConversation}.ts`, `src/lib/features/chat/thinkingStats.ts`, `src/lib/utils/translations/{vi,en}.ts`)**:
+  - Thêm mục **Local Models** kèm đèn báo trạng thái `LocalLlmStatusDot` trong `ModelSelector.tsx` (tự động ẩn khi `STRATA_ENABLED=false` và khóa chọn khi server offline).
+  - Thêm nút & popover **Thông số sinh văn bản (`LocalSamplingSettings.tsx`)** cạnh nút mức độ suy nghĩ trên thanh công cụ chat khi chọn model local; hiển thị tiến độ nạp prompt / vị trí hàng đợi trong `TypingDots` và số token + thời gian suy nghĩ trực tiếp trong `ThinkingBlock`; bổ sung 29 khóa dịch song ngữ Việt/Anh và 15 file unit test (`94/94` tests pass).
+
+---
+
+## 2026-10-24: Refactor -- Đồng Bộ Định Danh Lưu Trữ Tin Nhắn Trong Chat Stream (`insertUserMessage` & `upsertAssistantMessage`)
+
+- **Chat Stream Message Persistence Naming (`src/app/api/chat-stream/chatStreamCore.ts`, `src/app/api/chat-stream/streaming/{types,post-processing,gemini-stream,openai-stream,deepseek-stream,anthropic-stream}.ts`)**:
+  - Đổi tên import `saveMessage` thành alias `insertUserMessage` tại `chatStreamCore.ts` để phản ánh rõ hành vi `INSERT` một chiều cho tin nhắn của User (không gắn `clientMessageId` của Assistant).
+  - Đổi tên hàm `saveMessageCompat` và thuộc tính `ChatStreamParams.saveMessage` thành `upsertAssistantMessage` xuyên suốt `chatStreamCore.ts`, `types.ts`, `post-processing.ts` và 4 provider stream engines (`gemini-stream.ts`, `openai-stream.ts`, `deepseek-stream.ts`, `anthropic-stream.ts`).
+- **Co-Located Stream Unit Tests (`src/app/api/chat-stream/streaming/{gemini-stream,openai-stream,deepseek-stream,anthropic-stream,post-processing}.test.ts`)**:
+  - Đồng bộ thuộc tính mock sang `upsertAssistantMessage` theo Test Contract (Loại C — Approved Spec Change), bảo toàn 100% số lượng `expect()` và độ chặt của matcher.
 
 ---
 

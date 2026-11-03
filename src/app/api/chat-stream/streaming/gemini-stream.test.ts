@@ -15,7 +15,8 @@ vi.mock("@/lib/features/chat/functionRegistry", () => ({
   executeFunction: vi.fn().mockResolvedValue({ status: "success", result: "mock tool output" }),
 }));
 
-vi.mock("./thought-signatures", () => ({
+vi.mock("./thought-signatures", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./thought-signatures")>()),
   extractAllThoughtSignatures: () => [],
 }));
 
@@ -165,7 +166,7 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
     expect(callConfig).not.toHaveProperty("top_k");
   });
 
-  it("sets thinkingConfig with thinkingBudget: -1 for Gemini 2.5", async () => {
+  it("TC-GS-01: normalizes legacy gemini-2.5-flash to gemini-3.5-flash-lite with thinkingLevel and no thinkingBudget", async () => {
     const generateMock = vi.fn().mockImplementation(async function* () {
       yield { candidates: [{ content: { parts: [{ text: "Response" }] } }] };
     });
@@ -183,14 +184,237 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
     }
 
     expect(generateMock).toHaveBeenCalledTimes(1);
-    const callConfig = generateMock.mock.calls[0][0].config;
+    const callArg = generateMock.mock.calls[0][0];
+    expect(callArg.model).toBe("gemini-3.5-flash-lite");
 
+    const callConfig = callArg.config;
     expect(callConfig.thinkingConfig).toEqual({
-      thinkingBudget: -1,
+      thinkingLevel: "high",
       includeThoughts: true,
     });
-    expect(callConfig.thinkingConfig).not.toHaveProperty("thinkingLevel");
+    expect(callConfig.thinkingConfig).not.toHaveProperty("thinkingBudget");
     expect(callConfig).not.toHaveProperty("temperature");
+  });
+
+  it("TC-GS-02: clamps minimal thinkingLevel to low for gemini-3.8-flash", async () => {
+    const generateMock = vi.fn().mockImplementation(async function* () {
+      yield { candidates: [{ content: { parts: [{ text: "Response" }] } }] };
+    });
+
+    const params = createMockParams({
+      ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
+      model: "gemini-3.8-flash",
+      thinkingLevel: "minimal",
+    });
+
+    const reader = createChatReadableStream(params).getReader();
+    while (true) {
+      const { done } = await reader.read();
+      if (done) break;
+    }
+
+    expect(generateMock).toHaveBeenCalledTimes(1);
+    const callConfig = generateMock.mock.calls[0][0].config;
+    expect(callConfig.thinkingConfig).toEqual({
+      thinkingLevel: "low",
+      includeThoughts: true,
+    });
+  });
+
+  it("TC-GS-03: continuation call preserves normalized model, thinkingLevel, functionResponse id/name, and injects DUMMY_THOUGHT_SIGNATURE when missing", async () => {
+    let callCount = 0;
+    const generateMock = vi.fn().mockImplementation(async function* () {
+      callCount++;
+      if (callCount === 1) {
+        yield {
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    functionCall: {
+                      name: "getTime",
+                      args: {},
+                      id: "fc-1",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        };
+      } else {
+        yield {
+          candidates: [
+            {
+              content: {
+                parts: [{ text: "The time is noon." }],
+              },
+            },
+          ],
+        };
+      }
+    });
+
+    const params = createMockParams({
+      ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
+      model: "gemini-2.5-pro",
+      thinkingLevel: "medium",
+      tools: [{ functionDeclarations: [{ name: "getTime" }] }],
+    });
+
+    const reader = createChatReadableStream(params).getReader();
+    while (true) {
+      const { done } = await reader.read();
+      if (done) break;
+    }
+
+    expect(generateMock).toHaveBeenCalledTimes(2);
+    const contCall = generateMock.mock.calls[1][0];
+    expect(contCall.model).toBe("gemini-3.8-flash");
+    expect(contCall.config.thinkingConfig).toEqual({ thinkingLevel: "medium" });
+
+    const contContents = contCall.contents as Array<{ role: string; parts: unknown[] }>;
+    const modelTurn = contContents[contContents.length - 2];
+    const userTurn = contContents[contContents.length - 1];
+
+    expect(modelTurn?.role).toBe("model");
+    expect(modelTurn?.parts).toEqual([
+      {
+        functionCall: {
+          name: "getTime",
+          args: {},
+          id: "fc-1",
+        },
+        thoughtSignature: "context_engineering_is_the_way_to_go",
+      },
+    ]);
+    expect(userTurn?.role).toBe("user");
+    expect(userTurn?.parts).toEqual([
+      {
+        functionResponse: {
+          name: "getTime",
+          id: "fc-1",
+          response: { result: "mock tool output" },
+        },
+      },
+    ]);
+  });
+
+  it("TC-GS-04: continuation call preserves real thoughtSignature on functionCall part without overwriting", async () => {
+    let callCount = 0;
+    const generateMock = vi.fn().mockImplementation(async function* () {
+      callCount++;
+      if (callCount === 1) {
+        yield {
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    functionCall: {
+                      name: "getTime",
+                      args: {},
+                      id: "fc-1",
+                    },
+                    thoughtSignature: "sig-real",
+                  },
+                ],
+              },
+            },
+          ],
+        };
+      } else {
+        yield {
+          candidates: [
+            {
+              content: {
+                parts: [{ text: "Done." }],
+              },
+            },
+          ],
+        };
+      }
+    });
+
+    const params = createMockParams({
+      ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
+      model: "gemini-3.8-flash",
+      thinkingLevel: "medium",
+      tools: [{ functionDeclarations: [{ name: "getTime" }] }],
+    });
+
+    const reader = createChatReadableStream(params).getReader();
+    while (true) {
+      const { done } = await reader.read();
+      if (done) break;
+    }
+
+    const contCall = generateMock.mock.calls[1][0];
+    const contContents = contCall.contents as Array<{ role: string; parts: unknown[] }>;
+    const modelTurn = contContents[contContents.length - 2];
+    expect(modelTurn?.parts).toEqual([
+      {
+        functionCall: {
+          name: "getTime",
+          args: {},
+          id: "fc-1",
+        },
+        thoughtSignature: "sig-real",
+      },
+    ]);
+  });
+
+  it("TC-GS-05: continuation call omits thinkingConfig when thinkingLevel is off", async () => {
+    let callCount = 0;
+    const generateMock = vi.fn().mockImplementation(async function* () {
+      callCount++;
+      if (callCount === 1) {
+        yield {
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    functionCall: {
+                      name: "getTime",
+                      args: {},
+                      id: "fc-1",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        };
+      } else {
+        yield {
+          candidates: [
+            {
+              content: {
+                parts: [{ text: "Done." }],
+              },
+            },
+          ],
+        };
+      }
+    });
+
+    const params = createMockParams({
+      ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
+      model: "gemini-3.8-flash",
+      thinkingLevel: "off",
+      tools: [{ functionDeclarations: [{ name: "getTime" }] }],
+    });
+
+    const reader = createChatReadableStream(params).getReader();
+    while (true) {
+      const { done } = await reader.read();
+      if (done) break;
+    }
+
+    const contCall = generateMock.mock.calls[1][0];
+    expect(contCall.config).not.toHaveProperty("thinkingConfig");
   });
 
   it("clamps minimal to low for Gemini 3.1 Pro", async () => {

@@ -3,6 +3,7 @@
 
 import {
   DEFAULT_MODEL,
+  MODEL_ALIASES,
   PROVIDER_LABELS,
   SELECTABLE_MODELS,
   normalizeModelForApi,
@@ -38,12 +39,15 @@ export function resolveModelDisplayInfo(
     };
   }
 
-  const mappedRaw = DIRECT_API_MODEL_DISPLAY_MAP[raw] || raw;
+  const mappedRaw = Object.hasOwn(DIRECT_API_MODEL_DISPLAY_MAP, raw)
+    ? DIRECT_API_MODEL_DISPLAY_MAP[raw]
+    : raw;
   const exact = SELECTABLE_MODELS.find((m) => m.id === mappedRaw);
   const normalized = normalizeModelForApi(mappedRaw);
+  const isRegisteredAlias = Object.hasOwn(MODEL_ALIASES, mappedRaw);
   const byNormalized =
     exact ||
-    (normalized !== DEFAULT_MODEL || mappedRaw === DEFAULT_MODEL
+    (normalized !== DEFAULT_MODEL || mappedRaw === DEFAULT_MODEL || isRegisteredAlias
       ? SELECTABLE_MODELS.find((m) => m.id === normalized)
       : undefined);
 

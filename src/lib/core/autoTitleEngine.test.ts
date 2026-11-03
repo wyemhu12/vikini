@@ -91,7 +91,7 @@ describe("autoTitleEngine - Title generation & sampling sanitization", () => {
       expect(firstCall.config).not.toHaveProperty("temperature");
     });
 
-    it("falls back to FALLBACK_MODEL without thinkingConfig when PRIMARY_MODEL fails", async () => {
+    it("TC-AT-01 & TC-AT-02: falls back to gemini-3.5-flash-lite with ThinkingLevel.MINIMAL when PRIMARY_MODEL fails", async () => {
       // Primary model fails, fallback model succeeds
       mockGenerateContent
         .mockRejectedValueOnce(new Error("Primary 503 error"))
@@ -113,11 +113,21 @@ describe("autoTitleEngine - Title generation & sampling sanitization", () => {
         true
       );
 
-      // Verify fallback model call has no thinkingConfig
+      // TC-AT-02: Verify primary call uses gemini-3-flash-preview with MINIMAL
+      const primaryCall = mockGenerateContent.mock.calls[0][0];
+      expect(primaryCall.model).toBe("gemini-3-flash-preview");
+      expect(primaryCall.config).toEqual({
+        maxOutputTokens: 20,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+      });
+
+      // TC-AT-01: Verify fallback model call uses gemini-3.5-flash-lite with MINIMAL
       const fallbackCall = mockGenerateContent.mock.calls[1][0];
-      expect(fallbackCall.model).toBe("gemini-2.5-flash");
-      expect(fallbackCall.config).toEqual({ maxOutputTokens: 20 });
-      expect(fallbackCall.config).not.toHaveProperty("thinkingConfig");
+      expect(fallbackCall.model).toBe("gemini-3.5-flash-lite");
+      expect(fallbackCall.config).toEqual({
+        maxOutputTokens: 20,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+      });
       expect(fallbackCall.config).not.toHaveProperty("temperature");
     });
   });

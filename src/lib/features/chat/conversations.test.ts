@@ -64,8 +64,8 @@ describe("Conversations", () => {
       expect(result?.updatedAt).toBe("2024-01-02T00:00:00Z");
       expect(result?.lastMessagePreview).toBe("Hello world");
       expect(result?.gemId).toBe("gem-123");
-      // Model should be coerced to a valid model (gemini-pro -> gemini-2.5-flash via alias)
-      expect(result?.model).toBe("gemini-2.5-flash");
+      // Model should be coerced to a valid model (gemini-pro -> DEFAULT_MODEL via fallback)
+      expect(result?.model).toBe(DEFAULT_MODEL);
     });
 
     it("should map camelCase row correctly", () => {
@@ -86,8 +86,8 @@ describe("Conversations", () => {
       expect(result?.userId).toBe("user2@example.com");
       expect(result?.title).toBe("Another Test");
       expect(result?.gemId).toBeNull();
-      // Model should be coerced to a valid model (gemini-1.5-pro -> gemini-2.5-flash via alias)
-      expect(result?.model).toBe("gemini-2.5-flash");
+      // Model should be coerced to a valid model (gemini-1.5-pro -> DEFAULT_MODEL via alias)
+      expect(result?.model).toBe(DEFAULT_MODEL);
     });
 
     it("should return null for null input", () => {

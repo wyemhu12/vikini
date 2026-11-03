@@ -1,7 +1,7 @@
 # Danh sách Model và Tính năng - Vikini
 
-> **Updated**: 2026-10-24  
-> **Nguồn**: [Google AI - Gemini Models](https://ai.google.dev/gemini-api/docs/models), [What's new in Gemini 4 Argon](https://ai.google.dev/gemini-api/docs/latest-model), [DeepSeek API](https://api-docs.deepseek.com/), [OpenRouter](https://openrouter.ai), [Strata Local Inference Engine](https://github.com/Niko1221/Strata)
+> **Updated**: 2026-11-02  
+> **Nguồn**: [Google AI - Gemini Models](https://ai.google.dev/gemini-api/docs/models), [What's new in Gemini 4 Argon](https://ai.google.dev/gemini-api/docs/latest-model), [Anthropic Claude Docs](https://docs.anthropic.com/), [DeepSeek API](https://api-docs.deepseek.com/), [OpenRouter](https://openrouter.ai), [Groq Cloud](https://console.groq.com/docs/models), [Strata Local Inference Engine](https://github.com/Niko1221/Strata)
 
 > [!NOTE]
 > Để tham khảo hướng dẫn phân bổ model cho AI Coding Agents, xem [Agent Task-to-Model Routing Guide](../.agents/README.md#agent-task-to-model-routing).
@@ -53,10 +53,10 @@
 > Vikini đã migrate sang `gemini-3.1-pro-preview`. Alias cũ (`gemini-3-pro`, `gemini-3-pro-preview`) tự động redirect.
 
 > [!IMPORTANT]
-> **Gemini Thinking Level & Sampling Migration (October 2026)**:
+> **Gemini Thinking Level & Sampling Migration (November 2026)**:
 >
 > - **Gemini 3+ / 4+**: Chuyển đổi toàn diện sang `thinkingLevel` (`minimal`, `low`, `medium`, `high`) theo chuẩn Google GenAI SDK mới.
-> - **Gemini 2.5**: Tiếp tục sử dụng `thinkingBudget: -1` (dynamic thinking) cho backward compatibility với model mặc định `gemini-2.5-flash`.
+> - **Gemini 2.5 Deprecation (Shutdown 01/12/2026)**: `gemini-2.5-flash` và `gemini-2.5-pro` đã được thay thế bởi `gemini-3.5-flash-lite` (`DEFAULT_MODEL` mới) và `gemini-3.8-flash`; toàn bộ nhánh `thinkingBudget` cũ đã được gỡ bỏ và các ID cũ được ánh xạ tự động qua `MODEL_ALIASES`.
 > - **Mutual Exclusion Invariant**: Tuyệt đối không gửi đồng thời `thinkingLevel` và `thinkingBudget` trong cùng một request config.
 > - **Sampling Parameters Sanitization**: Toàn bộ tham số sampling tùy biến (`temperature`, `top_p`, `top_k`) đã được loại bỏ khỏi các request gọi Gemini API (`gemini-stream.ts`, `autoTitleEngine.ts`, `fileProcessors.ts`) để tuân thủ khuyến nghị của Google và tránh lỗi 400 trong các thế hệ model mới.
 > - **Claude Thinking Toggle**: Giao diện hiển thị `off/high` nhất quán 100% với `anthropic-stream.ts`.
@@ -86,15 +86,39 @@
 
 ---
 
-### gemini-3-pro-image-preview
+### gemini-3.1-flash-lite-preview
 
-| Thuộc tính             | Giá trị            |
-| ---------------------- | ------------------ |
-| **Tên hiển thị**       | Gemini 3 Pro Image |
-| **Input token limit**  | 65,536 (65K)       |
-| **Output token limit** | 32,768 (32K)       |
-| **Inputs**             | Text, Image        |
-| **Outputs**            | Text, Image        |
+| Thuộc tính             | Giá trị                        |
+| ---------------------- | ------------------------------ |
+| **Tên hiển thị**       | Gemini 3.1 Flash-Lite          |
+| **Alias tương thích**  | `gemini-3.1-flash-lite`        |
+| **Input token limit**  | 1,000,000 (1M)                 |
+| **Output token limit** | 65,536 (65K)                   |
+| **Category**           | Low-latency                    |
+| **Inputs**             | Text, Image, Video, Audio, PDF |
+| **Outputs**            | Text                           |
+
+**Supported Features:**
+| Feature | Status |
+|---------|--------|
+| Thinking Mode | ✅ Supported (`off`, `minimal`, `low`, `medium`, `high`) |
+| Search Grounding | ✅ Supported |
+| URL Context | ✅ Supported |
+| Function Calling | ✅ Supported |
+| Structured Outputs | ✅ Supported |
+
+---
+
+### gemini-3-pro-image
+
+| Thuộc tính             | Giá trị                      |
+| ---------------------- | ---------------------------- |
+| **Tên hiển thị**       | Gemini 3 Pro Image           |
+| **Alias tương thích**  | `gemini-3-pro-image-preview` |
+| **Input token limit**  | 65,536 (65K)                 |
+| **Output token limit** | 32,768 (32K)                 |
+| **Inputs**             | Text, Image                  |
+| **Outputs**            | Text, Image                  |
 
 **Supported Features:**
 | Feature | Status |
@@ -116,6 +140,7 @@
 | Thuộc tính             | Giá trị                        |
 | ---------------------- | ------------------------------ |
 | **Tên hiển thị**       | Gemini 3 Flash                 |
+| **Alias tương thích**  | `gemini-3-flash`               |
 | **Input token limit**  | 1,048,576 (1M)                 |
 | **Output token limit** | 65,536 (65K)                   |
 | **Inputs**             | Text, Image, Video, Audio, PDF |
@@ -124,7 +149,7 @@
 **Supported Features:**
 | Feature | Status |
 |---------|--------|
-| Thinking Mode | ✅ Supported (off, minimal, low, medium, high) |
+| Thinking Mode | ✅ Supported (`off`, `minimal`, `low`, `medium`, `high`) |
 | Search Grounding | ✅ Supported |
 | URL Context | ✅ Supported |
 | Function Calling | ✅ Supported |
@@ -135,39 +160,91 @@
 | Live API | ❌ Not supported |
 
 > [!NOTE]
-> Flash models support thêm 2 thinking levels: `minimal` và `medium` (4 levels thay vì 3).
+> Các model Flash-Lite và Gemini 3 Flash (`gemini-3.5-flash-lite`, `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview`) hỗ trợ thêm mức `minimal` bên cạnh `low`, `medium`, `high`. Các model `gemini-3.8-flash`, `gemini-3.1-pro-preview` và `gemini-4-argon` chỉ hỗ trợ `low`, `medium`, `high` (`minimal` không được hỗ trợ trên `gemini-3.8-flash` và sẽ gây lỗi HTTP 400 nếu gửi lên).
 
 ---
 
-## Gemini 2.5 Series
+## Gemini 3.5 & 3.8 Series (Replacing Gemini 2.5 Series)
 
-### gemini-2.5-flash
+### gemini-3.5-flash-lite
 
-| Thuộc tính             | Giá trị          |
-| ---------------------- | ---------------- |
-| **Tên hiển thị**       | Gemini 2.5 Flash |
-| **Input token limit**  | 1,000,000 (1M)   |
-| **Output token limit** | 65,535           |
-| **Category**           | Low-latency      |
-
----
-
-### gemini-2.5-pro
-
-| Thuộc tính             | Giá trị                 |
-| ---------------------- | ----------------------- |
-| **Tên hiển thị**       | Gemini 2.5 Pro          |
-| **Input token limit**  | 2,000,000 (2M)          |
-| **Output token limit** | 65,535                  |
-| **Category**           | Low-latency / Reasoning |
+| Thuộc tính             | Giá trị                                       |
+| ---------------------- | --------------------------------------------- |
+| **Tên hiển thị**       | Gemini 3.5 Flash-Lite (`DEFAULT_MODEL`)       |
+| **Input token limit**  | 1,048,576 (1M)                                |
+| **Output token limit** | 65,536 (64K)                                  |
+| **Category**           | Low-latency                                   |
+| **Thinking Levels**    | `minimal` (mặc định), `low`, `medium`, `high` |
 
 ---
 
-## DeepSeek V4 Models (Direct API)
+### gemini-3.8-flash
+
+| Thuộc tính             | Giá trị                                                         |
+| ---------------------- | --------------------------------------------------------------- |
+| **Tên hiển thị**       | Gemini 3.8 Flash                                                |
+| **Input token limit**  | 1,048,576 (1M)                                                  |
+| **Output token limit** | 65,536 (64K)                                                    |
+| **Category**           | Reasoning                                                       |
+| **Thinking Levels**    | `low`, `medium` (mặc định), `high` (**không** hỗ trợ `minimal`) |
+
+---
+
+## Anthropic Claude 4.5 Series
+
+### claude-sonnet-4.5
+
+| Thuộc tính            | Giá trị                     |
+| --------------------- | --------------------------- |
+| **Tên hiển thị**      | Claude 4.5 Sonnet           |
+| **Input token limit** | 200,000 (200K)              |
+| **Category**          | Reasoning                   |
+| **Provider**          | Anthropic Direct API        |
+| **API Key**           | `ANTHROPIC_API_KEY`         |
+| **Thinking Mode**     | ✅ Supported (`off`/`high`) |
+
+---
+
+### claude-haiku-4.5
+
+| Thuộc tính            | Giá trị                     |
+| --------------------- | --------------------------- |
+| **Tên hiển thị**      | Claude 4.5 Haiku (Fast)     |
+| **Input token limit** | 200,000 (200K)              |
+| **Category**          | Low-latency                 |
+| **Provider**          | Anthropic Direct API        |
+| **API Key**           | `ANTHROPIC_API_KEY`         |
+| **Thinking Mode**     | ✅ Supported (`off`/`high`) |
+
+---
+
+## xAI Grok & Groq Llama Series
+
+### x-ai/grok-4.3
+
+| Thuộc tính            | Giá trị                         |
+| --------------------- | ------------------------------- |
+| **Tên hiển thị**      | Grok 4.3                        |
+| **Input token limit** | 131,072 (128K)                  |
+| **Category**          | Reasoning                       |
+| **Provider**          | OpenRouter (`providerId: grok`) |
+| **API Key**           | `OPENROUTER_API_KEY`            |
+
+---
+
+### llama-3.3-70b-versatile & llama-3.1-8b-instant
+
+| Model                     | Tên hiển thị            | Context Window | Category    | Provider                | API Key          |
+| ------------------------- | ----------------------- | -------------- | ----------- | ----------------------- | ---------------- |
+| `llama-3.3-70b-versatile` | Llama 3.3 70B Versatile | 128,000        | Reasoning   | Groq (`provider: groq`) | `LLAMA3_API_KEY` |
+| `llama-3.1-8b-instant`    | Llama 3.1 8B Instant    | 128,000        | Low-latency | Groq (`provider: groq`) | `LLAMA3_API_KEY` |
+
+---
+
+## DeepSeek V4 & V4.1 Models (Direct API & OpenRouter)
 
 > [!IMPORTANT]
-> **Deprecation Notice**: `deepseek-chat` và `deepseek-reasoner` sẽ bị deprecated vào **2026/07/24**.
-> Vikini đã map chúng sang `deepseek-v4-flash` qua alias. Dùng V4 models cho mọi tích hợp mới.
+> **Deprecation Notice**: `deepseek-chat` và `deepseek-reasoner` đã bị deprecated (**2026/07/24**) và tự động map sang `deepseek-v4-flash` qua alias. `deepseek-v4-pro` đã được di trú sang `deepseek/deepseek-v4-pro` qua OpenRouter (Baidu Qianfan FP8, 1M context).
 
 ### deepseek-v4-flash
 
@@ -193,27 +270,25 @@
 
 ---
 
-### deepseek-v4-pro
+### deepseek/deepseek-v4-pro
 
-| Thuộc tính             | Giá trị                                 |
-| ---------------------- | --------------------------------------- |
-| **Tên hiển thị**       | DeepSeek V4 Pro                         |
-| **Input token limit**  | 128,000                                 |
-| **Output token limit** | 8,192                                   |
-| **Category**           | Reasoning                               |
-| **Provider**           | Direct API (`https://api.deepseek.com`) |
-| **API Key**            | `DEEPSEEK_API_KEY`                      |
-| **Pricing**            | Đang giảm 75% đến 2026/05/31            |
+| Thuộc tính             | Giá trị                                                        |
+| ---------------------- | -------------------------------------------------------------- |
+| **Tên hiển thị**       | DeepSeek V4 Pro                                                |
+| **Alias tương thích**  | `deepseek-v4-pro`                                              |
+| **Input token limit**  | **1,000,000** (1M)                                             |
+| **Output token limit** | **65,536** (65K)                                               |
+| **Category**           | Reasoning                                                      |
+| **Provider**           | OpenRouter → Baidu Qianfan (`providerId: openrouter-pay`, FP8) |
+| **API Key**            | `OPENROUTER_API_KEY`                                           |
 
 **Supported Features:**
 | Feature | Status |
 |---------|--------|
-| Thinking Mode | ✅ Default enabled (`reasoning_content`) |
+| Thinking Mode | ✅ Supported (`reasoning: { effort }` via OpenRouter) |
 | Reasoning Effort | ✅ `high` (default), `max` |
-| Tool Calls | ✅ Supported (incl. thinking + tools) |
-| Streaming | ✅ SSE with `reasoning_content` delta |
-| Context Caching | ✅ 90% input cost reduction on cache hit |
-| Image Input | ❌ Not supported |
+| Tool Calls | ✅ Supported |
+| Streaming | ✅ SSE with `delta.reasoning_content` / `delta.reasoning` |
 | Image Generation | ❌ Not supported |
 
 ---
@@ -278,17 +353,17 @@
 
 Thinking mode cho phép AI "suy nghĩ sâu" trước khi trả lời, cải thiện quality cho các task phức tạp.
 
-### Gemini 3 Thinking
+### Gemini 3 & Gemini 4 Thinking
 
-| Level     | Mô tả                        | Models      |
-| --------- | ---------------------------- | ----------- |
-| `off`     | Không bật thinking (default) | Pro + Flash |
-| `minimal` | Gần như không suy nghĩ       | Flash only  |
-| `low`     | Nhanh, ít reasoning          | Pro + Flash |
-| `medium`  | Cân bằng                     | Flash only  |
-| `high`    | Maximum reasoning depth      | Pro + Flash |
+| Level     | Mô tả                                      | Models hỗ trợ                                                                                                            |
+| --------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `off`     | Không bật thinking (default trên Gemini 3) | `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview`, `gemini-3.1-pro-preview` (không hỗ trợ trên `gemini-4-argon`) |
+| `minimal` | Gần như không suy nghĩ                     | `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview`                                                                |
+| `low`     | Nhanh, ít reasoning                        | `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview`, `gemini-3.1-pro-preview`, `gemini-4-argon`                    |
+| `medium`  | Cân bằng (default trên `gemini-4-argon`)   | `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview`, `gemini-3.1-pro-preview`, `gemini-4-argon`                    |
+| `high`    | Maximum reasoning depth                    | `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview`, `gemini-3.1-pro-preview`, `gemini-4-argon`                    |
 
-**Thought Signatures**: Khi `includeThoughts: true`, API trả về `thoughtSignature` trong response. Signature này PHẢI được gửi lại trong các turn tiếp theo để duy trì reasoning chain.
+**Thought Signatures**: Khi `includeThoughts: true`, API trả về `thoughtSignature` / `thoughtSignatures` trong response. Các chữ ký này PHẢI được bảo toàn qua `extractThoughtSignatures(meta)` và gửi lại trong các turn tiếp theo để duy trì reasoning chain.
 
 ### DeepSeek V4 Thinking
 
@@ -336,17 +411,36 @@ Thinking mode cho phép AI "suy nghĩ sâu" trước khi trả lời, cải thi�
 
 ## Model Aliases
 
-Vikini tự động redirect các model ID cũ sang model mới:
+Vikini tự động redirect các model ID cũ sang model canonical hiện hành (`src/lib/core/modelRegistry.ts`):
 
-| Alias cũ                | → Redirect sang          |
-| ----------------------- | ------------------------ |
-| `deepseek-chat`         | `deepseek-v4-flash`      |
-| `deepseek-reasoner`     | `deepseek-v4-flash`      |
-| `gemini-3-pro`          | `gemini-3.1-pro-preview` |
-| `gemini-3-pro-preview`  | `gemini-3.1-pro-preview` |
-| `gemini-2.0-flash`      | `gemini-2.5-flash`       |
-| `z-ai/glm-5.2-20260616` | `z-ai/glm-5.2`           |
-| `glm-5.2`               | `z-ai/glm-5.2`           |
+| Alias cũ                     | → Redirect sang                 |
+| ---------------------------- | ------------------------------- |
+| `gemini-2.0-flash`           | `gemini-3.5-flash-lite`         |
+| `gemini-2.0-flash-exp`       | `gemini-3.5-flash-lite`         |
+| `gemini-1.5-pro`             | `gemini-3.5-flash-lite`         |
+| `gemini-1.5-flash`           | `gemini-3.5-flash-lite`         |
+| `gemini-2.5-flash`           | `gemini-3.5-flash-lite`         |
+| `gemini-2.5-pro`             | `gemini-3.8-flash`              |
+| `gemini-3-flash`             | `gemini-3-flash-preview`        |
+| `gemini-3-pro-image-preview` | `gemini-3-pro-image`            |
+| `gemini-3-pro`               | `gemini-3.1-pro-preview`        |
+| `gemini-3-pro-preview`       | `gemini-3.1-pro-preview`        |
+| `gemini-3.1-pro`             | `gemini-3.1-pro-preview`        |
+| `gemini-3.1-flash-lite`      | `gemini-3.1-flash-lite-preview` |
+| `gemini-4-argon-preview`     | `gemini-4-argon`                |
+| `llama3-70b-8192`            | `llama-3.3-70b-versatile`       |
+| `llama3-8b-8192`             | `llama-3.1-8b-instant`          |
+| `llama-3.1-70b-versatile`    | `llama-3.3-70b-versatile`       |
+| `llama-3.1-70b-specdec`      | `llama-3.3-70b-versatile`       |
+| `deepseek-chat`              | `deepseek-v4-flash`             |
+| `deepseek-reasoner`          | `deepseek-v4-flash`             |
+| `deepseek-v4-pro`            | `deepseek/deepseek-v4-pro`      |
+| `deepseek-v4.1-flash`        | `deepseek/deepseek-v4.1-flash`  |
+| `z-ai/glm-5.2-20260616`      | `z-ai/glm-5.2`                  |
+| `glm-5.2`                    | `z-ai/glm-5.2`                  |
+
+> [!NOTE]
+> Các model OpenRouter Free cũ đã ngừng miễn phí (`meta-llama/llama-4-maverick:free`, `meta-llama/llama-3.3-70b-instruct:free`, `google/gemma-3-27b-it:free`, `mistral/mistral-small-3.1-24b-instruct:free`) đã được gỡ khỏi `SELECTABLE_MODELS` và tự động fallback an toàn về `DEFAULT_MODEL` (`gemini-3.5-flash-lite`) qua `coerceStoredModel()`.
 
 ---
 

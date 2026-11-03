@@ -8,23 +8,29 @@ Vikini là một nền tảng Web AI tiên tiến, cung cấp trải nghiệm l�
 
 ### 💬 Hệ Thống Chat & Trải Nghiệm Streaming
 
-- **Real-time Streaming**: Trải nghiệm chat mượt mà chuẩn chuyên nghiệp với hiệu ứng Typewriter, tự động cuộn (smart auto-scroll) và hiển thị tiến trình tư duy "Thinking" của AI (dành cho Gemini 3).
-- **Đa Năng & Đa Mô Hình**: Tích hợp các AI mạnh mẽ, hiển thị chi tiết số lượng token sử dụng (Token Count Display) và bảo mật tin nhắn bằng chuẩn mã hóa AES-256-GCM.
+- **Real-time Streaming**: Trải nghiệm chat mượt mà chuẩn chuyên nghiệp với hiệu ứng Typewriter, tự động cuộn (smart auto-scroll), rẽ nhánh hội thoại (Branching) và hiển thị tiến trình tư duy "Thinking" trực tiếp (hỗ trợ Gemini 4 Argon, Gemini 3 / 3.1, Claude 4.5, DeepSeek V4 / V4.1, GLM 5.2 và Local LLM Strata).
+- **Đa Năng & Đa Mô Hình**: Tích hợp các AI đám mây và mô hình chạy cục bộ (**Local LLM Strata Engine** 32K context), hiển thị chi tiết số lượng token sử dụng (Token Count Display) và bảo mật tin nhắn bằng chuẩn mã hóa AES-256-GCM.
 - **Voice Features**: Hỗ trợ nhập liệu bằng giọng nói (Speech-to-Text) kèm biểu đồ sóng âm và tính năng đọc phản hồi của AI (Text-to-Speech) tự động nhận diện ngôn ngữ.
+
+### ✍️ Novelcrafter Studio & Prompt Studio
+
+- **Không gian sáng tác tiểu thuyết (`/novelcrafter`)**: Tích hợp Story Bible (Codex nhân vật/thế giới tự động khớp biệt danh, tóm tắt chương lũy tiến `<story_so_far>`), trình soạn thảo bản thảo `contentEditable="plaintext-only"` có trang trí nội tuyến (gạch chân nhận xét, tô sáng thực thể Codex), lưu Snapshot so sánh từ (word-level diff), và xuất bản thảo `.md`/`.txt`.
+- **Prompt Studio (`/novelcrafter/prompts`)**: Tùy chỉnh toàn diện chỉ dẫn gốc và công tắc bật/tắt 11 nút ngữ cảnh cho toàn bộ 37 hành động AI, kèm thẻ xem trước nguồn ngữ cảnh động (`PromptSourceTooltip`) trên mọi nút AI trong Studio.
 
 ### 📚 Projects & Knowledge Base (RAG)
 
 - **Quản lý theo dự án**: Tổ chức các cuộc hội thoại và dữ liệu theo từng Project riêng biệt với giao diện tập trung.
-- **Tương tác tài liệu**: Người dùng có thể tải lên các tài liệu để xây dựng kho kiến thức riêng (Knowledge Base). Hệ thống sẽ tự động phân mảnh (auto-chunking) và sử dụng công nghệ RAG (Retrieval-Augmented Generation) để AI có thể trả lời dựa trên ngữ cảnh tài liệu chuẩn xác.
+- **Tương tác tài liệu**: Người dùng có thể tải lên các tài liệu để xây dựng kho kiến thức riêng (Knowledge Base). Hệ thống tự động phân mảnh (auto-chunking) và sử dụng vector embedding 3072 chiều (`gemini-embedding-2`) cùng công nghệ RAG (Retrieval-Augmented Generation) để AI trả lời chuẩn xác dựa trên ngữ cảnh tài liệu.
 
 ### 🎨 Image Studio & Gallery
 
-- **AI Image Generation**: Công cụ tạo ảnh chuyên nghiệp hỗ trợ nhiều model như Gemini Image Flash, DALL-E 3, Flux Pro. Có sẵn các phong cách (style presets), tùy chỉnh tỷ lệ ảnh và tính năng AI cải thiện câu lệnh (prompt enhancement).
+- **AI Image Generation & Editing**: Công cụ tạo ảnh, sửa ảnh đa lớp và phân tích ảnh Vision chuyên nghiệp hỗ trợ Gemini Image Flash, Gemini 3 Pro Image, DALL-E 3, Flux Pro. Có sẵn các phong cách (style presets), tùy chỉnh tỷ lệ ảnh và tính năng AI cải thiện câu lệnh (prompt enhancement).
 - **Gallery**: Thư viện quản lý ảnh với cuộn vô hạn (Infinite scroll), chế độ xem toàn màn hình (Image Lightbox), và tính năng so sánh hai ảnh (Image Compare) bằng overlay slider hoặc side-by-side.
 
-### 🤖 Hệ Thống GEMs (AI Personas)
+### 🤖 Hệ Thống GEMs & Personas
 
-- Cho phép tạo và sử dụng các "Nhân vật AI" (GEMs) với các hướng dẫn hệ thống (system instructions) riêng biệt, phục vụ cho các quy trình làm việc chuyên sâu hoặc nhập vai. Hỗ trợ lưu trữ phiên bản (versioning) khi có sự thay đổi.
+- **GEMs**: Cho phép tạo và sử dụng các "Nhân vật AI" (GEMs) với hướng dẫn hệ thống (system instructions) riêng biệt và lịch sử phiên bản (`gem_versions`).
+- **Personas**: Cá nhân hóa giọng điệu (tone), quy tắc trình bày và ngữ cảnh cá nhân của người dùng, chuyển đổi nhanh ngay trên khung chat.
 
 ### 📁 Quản Lý File Tiện Lợi
 
@@ -32,7 +38,7 @@ Vikini là một nền tảng Web AI tiên tiến, cung cấp trải nghiệm l�
 
 ### ⚙️ Quản Trị Hệ Thống (Admin Dashboard)
 
-- Cung cấp giao diện quản lý tập trung cho Admin: kiểm soát người dùng, phân quyền (Rank Limits), cấu hình giới hạn Rate Limiting và quản lý các GEM hệ thống.
+- Cung cấp giao diện quản lý tập trung cho Admin: kiểm soát người dùng, phân quyền (Rank Limits), quản lý GEMs/Personas hệ thống, xem nhật ký kiểm toán (`Audit Logs`) và thống kê sử dụng.
 
 ## 3. Nền Tảng Công Nghệ
 
@@ -41,9 +47,9 @@ Vikini được xây dựng dựa trên một kiến trúc hiện đại, đảm
 - **Core & Frontend**: Next.js 16 (App Router), TypeScript (strict), Tailwind CSS 4.
 - **Giao Diện (UI/UX)**: Shadcn/UI, Radix UI, Framer Motion (xử lý animation), Lucide Icons. Thiết kế tuân theo hệ thống Theme linh hoạt và phong cách Glassmorphism.
 - **State Management**: Zustand (Client state), SWR (Server state).
-- **Backend & Database**: Supabase (PostgreSQL, Supabase Auth, Storage).
+- **Backend, Auth & Database**: NextAuth v5 (Google OAuth), Supabase (PostgreSQL + `pgvector`, Storage).
 - **Cache & Rate Limit**: Upstash Redis.
-- **AI Integration**: `@google/genai` (Gemini), kết hợp với cấu trúc Provider linh hoạt hỗ trợ Claude, Groq, OpenRouter và các dịch vụ tạo ảnh Replicate, OpenAI.
+- **AI Integration**: `@google/genai` (Gemini), kết hợp với cấu trúc Provider linh hoạt hỗ trợ Anthropic Claude, DeepSeek, Groq, OpenRouter, Local LLM (Strata Engine) và các dịch vụ tạo ảnh Replicate, OpenAI.
 
 ## 4. Trải Nghiệm Người Dùng (UX/UI) & Điểm Nhấn Thiết Kế
 

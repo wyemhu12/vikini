@@ -7,15 +7,16 @@ import { UnauthorizedError, ValidationError, RateLimitError, AppError } from "@/
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { fetchSafeImage } from "@/lib/core/ssrfGuard.server";
 import { getUserProfile } from "@/lib/core/limits";
+import { DEFAULT_MODEL } from "@/lib/core/modelRegistry";
+import { buildMinimalThinkingConfig, extractGeminiResponseText } from "@/lib/core/geminiSdkHelpers";
 import { HTTP_STATUS } from "@/lib/utils/constants";
 
 const routeLogger = logger.withContext("describe-image");
+export const maxDuration = 30;
 
 const schema = z.object({
   imageUrl: z.string().min(1, "Image URL is required"),
 });
-
-export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
   try {
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
     const genAI = getGenAIClient();
 
     const result = await genAI.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: DEFAULT_MODEL,
       contents: [
         {
           role: "user",
@@ -98,17 +99,12 @@ Return ONLY the prompt text, no intro or explanation. Keep under 200 words.`,
           ],
         },
       ],
+      config: {
+        thinkingConfig: buildMinimalThinkingConfig(DEFAULT_MODEL),
+      },
     });
 
-    let description = "";
-    const textValue = result.text;
-    if (typeof textValue === "function") {
-      description = (textValue as () => string)();
-    } else if (typeof textValue === "string") {
-      description = textValue;
-    } else {
-      description = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    }
+    const description = extractGeminiResponseText(result);
 
     return success({ description: description.trim() });
   } catch (err: unknown) {

@@ -1,34 +1,38 @@
 # Features - Vikini
 
-> **Updated**: 2026-10-24
+> **Updated**: 2026-11-02
 
 ---
 
 ## 1. Danh Sách Tính Năng
 
-| Tính năng                 | Trạng thái    | Mô tả                                        |
-| ------------------------- | ------------- | -------------------------------------------- |
-| **Chat Streaming**        | ✅ Hoàn thành | SSE streaming với Gemini AI                  |
-| **Enhanced Streaming UX** | ✅ Hoàn thành | Typewriter, auto-scroll, animations          |
-| **Conversations**         | ✅ Hoàn thành | CRUD + auto-title + URL sync                 |
-| **GEMs System**           | ✅ Hoàn thành | Custom AI personas với versioning            |
-| **File System**           | ✅ Hoàn thành | Upload, preview, 30-day TTL, inline-first UX |
-| **Image Studio**          | ✅ Hoàn thành | AI Image Generation (Gemini, DALL-E, Flux)   |
-| **Gallery**               | ✅ Hoàn thành | Image management với infinite scroll         |
-| **Image Lightbox**        | ✅ Hoàn thành | Fullscreen view + zoom controls              |
-| **Image Compare**         | ✅ Hoàn thành | Side-by-side & overlay comparison            |
-| **Projects**              | ✅ Hoàn thành | Knowledge Base theo project                  |
-| **Token Count Display**   | ✅ Hoàn thành | Hiển thị token usage per message             |
-| **Message Encryption**    | ✅ Hoàn thành | AES-256-GCM                                  |
-| **Rate Limiting**         | ✅ Hoàn thành | Redis-based per user                         |
-| **Daily Message Limits**  | ✅ Hoàn thành | Theo rank                                    |
-| **Web Search**            | ✅ Hoàn thành | Optional, rank-gated                         |
-| **Admin Dashboard**       | ✅ Hoàn thành | User/GEM/Rank management                     |
-| **Google OAuth**          | ✅ Hoàn thành | NextAuth v5                                  |
-| **Voice Input (STT)**     | ✅ Hoàn thành | Web Speech API + waveform                    |
-| **TTS Playback**          | ✅ Hoàn thành | Read AI responses aloud                      |
-| **Bilingual UI**          | ✅ Hoàn thành | Vietnamese/English support                   |
-| **Local LLM (Strata)**    | ✅ Hoàn thành | 32K Local Inference + Story Sampling + Queue |
+| Tính năng                 | Trạng thái    | Mô tả                                                                              |
+| ------------------------- | ------------- | ---------------------------------------------------------------------------------- |
+| **Chat Streaming**        | ✅ Hoàn thành | SSE streaming đa mô hình (Gemini, Claude, DeepSeek, Grok, Groq, GLM, Strata)       |
+| **Enhanced Streaming UX** | ✅ Hoàn thành | Typewriter buffer, smart auto-scroll, live thinking telemetry, animations          |
+| **Conversations**         | ✅ Hoàn thành | CRUD + auto-title + URL sync + rẽ nhánh (Branching) + đánh dấu yêu thích & gắn thẻ |
+| **GEMs System**           | ✅ Hoàn thành | Custom AI system instructions với versioning                                       |
+| **Personas System**       | ✅ Hoàn thành | Cá nhân hóa giọng điệu (tone), định dạng trình bày và ngữ cảnh người dùng          |
+| **User Prompt Templates** | ✅ Hoàn thành | Lưu trữ mẫu câu lệnh cá nhân & gợi ý prompt thông minh (`/api/prompt-suggest`)     |
+| **File System**           | ✅ Hoàn thành | Upload, preview, 30-day TTL, inline-first UX                                       |
+| **Image Studio**          | ✅ Hoàn thành | Tạo ảnh, sửa ảnh đa lớp & mô tả ảnh AI (Gemini, DALL-E, Flux)                      |
+| **Gallery**               | ✅ Hoàn thành | Image management với infinite scroll                                               |
+| **Image Lightbox**        | ✅ Hoàn thành | Fullscreen view + zoom controls                                                    |
+| **Image Compare**         | ✅ Hoàn thành | Side-by-side & overlay comparison                                                  |
+| **Projects**              | ✅ Hoàn thành | Knowledge Base RAG theo project (`gemini-embedding-2` 3072 chiều)                  |
+| **Novelcrafter Studio**   | ✅ Hoàn thành | Không gian sáng tác tiểu thuyết, Story Bible, Rich Manuscript Editor & Export      |
+| **Prompt Studio**         | ✅ Hoàn thành | Tùy chỉnh chỉ dẫn gốc, 11 nút ngữ cảnh & Dynamic Source Tooltips cho 37 nút AI     |
+| **Local LLM (Strata)**    | ✅ Hoàn thành | 32K Local Inference + Story Sampling + Hàng đợi FIFO                               |
+| **Token Count Display**   | ✅ Hoàn thành | Hiển thị token usage (Input / Output / Thinking) per message                       |
+| **Message Encryption**    | ✅ Hoàn thành | AES-256-GCM cho cả `content` và `meta.reasoning`                                   |
+| **Rate Limiting**         | ✅ Hoàn thành | Redis-based per user / IP                                                          |
+| **Daily Message Limits**  | ✅ Hoàn thành | Theo rank (`rank_configs`)                                                         |
+| **Web Search**            | ✅ Hoàn thành | Optional, rank-gated (Google Search Grounding + URL Context)                       |
+| **Admin Dashboard**       | ✅ Hoàn thành | Quản lý Users, GEMs, Personas, Rank Limits, Audit Logs & Thống kê                  |
+| **Google OAuth**          | ✅ Hoàn thành | NextAuth v5                                                                        |
+| **Voice Input (STT)**     | ✅ Hoàn thành | Web Speech API + waveform                                                          |
+| **TTS Playback**          | ✅ Hoàn thành | Read AI responses aloud                                                            |
+| **Bilingual UI**          | ✅ Hoàn thành | Vietnamese/English support                                                         |
 
 ---
 
@@ -39,34 +43,49 @@
 **Luồng xử lý**:
 
 ```
-User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemini API → Stream Response → Save to DB
+User Input → Rate Limit Check → Daily Limit Check → Build Context → AI Provider Stream → Save to DB
 ```
+
+**Tính năng mở rộng**:
+
+- **Conversation Branching (Rẽ nhánh)**: Tạo cuộc hội thoại nhánh từ bất kỳ tin nhắn nào (`POST /api/conversations/[id]/branch`) kèm ngữ cảnh kế thừa.
+- **Message Organization**: Đánh dấu yêu thích (`PATCH /api/messages/[id]/favorite`) và gắn thẻ phân loại (`PATCH /api/messages/[id]/tag`).
+- **User Prompt Templates & Suggestions**: Quản lý mẫu prompt cá nhân (`GET/POST/DELETE /api/user-templates`) và gợi ý câu lệnh (`POST /api/prompt-suggest`).
+- **Inline Composer Controls**: Bộ chọn Model (`ModelSelector`) và mức độ suy luận (`ThinkingLevelSelector`) tích hợp gọn ngay trong thanh nhập chat (`InputModelControls.tsx` bên trong `InputForm.tsx`).
 
 **Files liên quan**:
 
-- `/app/api/chat-stream/route.ts` - Entry point
-- `/app/api/chat-stream/chatStreamCore.ts` - Core logic
-- `/lib/features/chat/conversations.ts` - Conversation CRUD
-- `/lib/features/chat/messages.ts` - Message CRUD
-- `/lib/core/genaiClient.ts` - Gemini client
+- `src/app/api/chat-stream/route.ts` - Entry point
+- `src/app/api/chat-stream/chatStreamCore.ts` - Core orchestration logic
+- `src/app/api/chat-stream/streaming/` - Multi-provider SSE stream engines (`gemini-stream.ts`, `anthropic-stream.ts`, `deepseek-stream.ts`, `openai-stream.ts`, `strata-stream.ts`, `post-processing.ts`)
+- `src/lib/features/chat/conversations.ts` - Conversation CRUD & Branching
+- `src/lib/features/chat/messages.ts` - Message CRUD & AES encryption
+- `src/app/api/conversations/[id]/branch/route.ts` - Conversation branching API
+- `src/app/api/messages/[id]/favorite/route.ts`, `src/app/api/messages/[id]/tag/route.ts` - Message favorites & tags
+- `src/app/api/user-templates/route.ts`, `src/app/api/prompt-suggest/route.ts` - Prompt templates & AI suggestions
+- `src/lib/core/genaiClient.ts`, `src/lib/core/claudeClient.ts`, `src/lib/core/deepseekClient.ts`, `src/lib/core/openRouterClient.ts`, `src/lib/core/groqClient.ts`, `src/lib/core/strataClient.ts` - AI provider clients
 
 ---
 
-### 2.2 GEMs (AI Personas)
+### 2.2 GEMs & Personas (AI Assistants & Personalization)
 
-**Mô tả**: Custom system instructions có thể gắn vào conversation.
+**Mô tả**:
 
-**Loại GEM**:
+- **GEMs**: Custom system instructions chuyên sâu gắn vào conversation (có lưu lịch sử phiên bản `gem_versions` mỗi khi đổi `instructions` và xem thử qua `POST /api/gems/preview`).
+- **Personas**: Cấu hình phong cách giao tiếp cá nhân hóa (`tone`, `useEmojis`, `useHeadersLists`, `userContext`, `customInstructions`) có thể chuyển đổi nhanh trên thanh công cụ chat (`PersonaQuickSwitch.tsx`).
 
-- **Premade**: GEM hệ thống (read-only), quản lý qua Admin
-- **Custom**: User tự tạo
+**Phân loại**:
 
-**Versioning**: Mỗi lần đổi `instructions` → tạo bản ghi mới trong `gem_versions`.
+- **Premade**: GEM / Persona hệ thống (read-only với user thường), quản lý qua Admin Dashboard.
+- **Custom**: User tự tạo và quản lý.
 
 **Files**:
 
-- `/app/api/gems/route.ts` - API
-- `/lib/features/gems/gems.ts` - Business logic
+- `src/app/api/gems/route.ts`, `src/app/api/gems/preview/route.ts` - GEMs API
+- `src/lib/features/gems/gems.ts` - GEMs business logic
+- `src/app/api/personas/route.ts` - Personas API
+- `src/lib/features/personas/personas.ts` - Personas business logic
+- `src/app/features/personas/components/PersonaQuickSwitch.tsx`, `src/app/features/personas/components/PersonasModal.tsx` - Personas UI
 
 ---
 
@@ -74,21 +93,22 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 
 **Quy trình**:
 
-1. Validate MIME type và size
+1. Validate MIME type và size (blacklist các định dạng thực thi nguy hiểm)
 2. Upload lên Supabase Storage
 3. Parse/extract text (PDF, text files)
 4. Đếm tokens
 5. Đưa vào context khi chat (inline-first UX)
 
-**TTL**: 30 ngày (cleanup via cron)
+**TTL**: 30 ngày (cleanup qua cron `GET/POST /api/cron/cleanup`)
 
 **Lưu trữ**: Single `files` table (thay thế dual storage cũ)
 
 **Files**:
 
-- `/app/api/files/upload/route.ts`
-- `/lib/features/files/fileService.server.ts`
-- `/lib/features/files/fileValidation.ts`
+- `src/app/api/files/upload/route.ts`, `src/app/api/files/route.ts`, `src/app/api/files/[id]/url/route.ts`
+- `src/app/api/cron/cleanup/route.ts`
+- `src/lib/features/files/fileService.server.ts`
+- `src/lib/features/files/fileValidation.ts`
 - Components: `FilePreviewCard`, `FilePreviewArea`, `FileLightbox`, `FileInMessage`
 
 ---
@@ -100,8 +120,9 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 **Capabilities (trong Admin panel)**:
 
 - Quản lý users: thay đổi rank, block/unblock
-- Quản lý premade GEMs: CRUD hệ thống GEMs
-- Cấu hình rank limits: daily messages, max file size, features, allowed models
+- Quản lý premade GEMs & premade Personas: CRUD hệ thống GEMs và Personas mẫu
+- Cấu hình rank limits: daily messages, max file size, features (`web_search`, `unlimited_gems`), allowed models
+- Xem nhật ký kiểm toán quản trị (`AuditLogViewer`) và tổng quan thống kê hệ thống (`StatisticsOverview`)
 - Song ngữ VN/EN
 - Nút quay lại trang chủ Vikini
 
@@ -114,18 +135,24 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 | File size limits (`FILE_MAX_SIZE_MB` / `rank_configs`) | Vercel Env / Admin Dashboard | Theo rank trong `rank_configs`                  |
 | Whitelist emails                                       | Vercel Environment Variables | Quyết định ai được đăng ký                      |
 | Database schema, RLS policies                          | Supabase Dashboard           | DBA level                                       |
-| Cron jobs                                              | Vercel Cron                  | File cleanup (30-day TTL)                       |
+| Cron jobs (`CRON_SECRET`)                              | Vercel Cron                  | File cleanup (30-day TTL) & stuck RAG docs      |
 
 **Files**:
 
-- `/app/admin/page.tsx` - Server component với auth guard
-- `/app/admin/components/AdminDashboard.tsx` - Main layout + tabs
-- `/app/admin/components/UserManager.tsx` - User CRUD
-- `/app/admin/components/RankConfigManager.tsx` - Limits config
-- `/app/admin/components/GemsManager.tsx` - System GEMs
-- `/app/api/admin/users/route.ts` - User API
-- `/app/api/admin/rank-configs/route.ts` - Rank config API
-- `/app/api/admin/gems/route.ts` - GEMs API
+- `src/app/admin/page.tsx` - Server component với auth guard
+- `src/app/admin/components/AdminDashboard.tsx` - Main layout + tabs
+- `src/app/admin/components/UserManager.tsx` - User CRUD
+- `src/app/admin/components/RankConfigManager.tsx` - Limits config
+- `src/app/admin/components/GemsManager.tsx` - System GEMs
+- `src/app/admin/components/PersonasManager.tsx` - System Personas
+- `src/app/admin/components/AuditLogViewer.tsx` - Admin audit logs
+- `src/app/admin/components/StatisticsOverview.tsx` - System statistics
+- `src/app/api/admin/users/route.ts` - User API
+- `src/app/api/admin/rank-configs/route.ts` - Rank config API
+- `src/app/api/admin/gems/route.ts` - GEMs API
+- `src/app/api/admin/personas/route.ts` - Personas API
+- `src/app/api/admin/audit-log/route.ts` - Audit log API
+- `src/app/api/admin/stats/route.ts` - Stats API
 
 **Route**: `/admin`
 
@@ -133,11 +160,11 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 
 ### 2.5 Image Studio
 
-**Mô tả**: Công cụ tạo ảnh AI với nhiều model và style.
+**Mô tả**: Công cụ tạo ảnh, chỉnh sửa ảnh đa lớp và phân tích ảnh AI với nhiều model và style.
 
 **Models hỗ trợ**:
 
-- **Gemini Image Flash (Nano Banana 2)**: Default, miễn phí
+- **Gemini Image Flash (Nano Banana 2) & Gemini 3 Pro Image**: Default, tích hợp trực tiếp
 - **DALL-E 3**: Yêu cầu OpenAI API key (BYOK)
 - **Flux Pro**: Yêu cầu Replicate API key (BYOK)
 
@@ -146,12 +173,18 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 - Style presets (Anime, Photorealistic, Watercolor, etc.)
 - Aspect ratio controls (1:1, 16:9, 9:16, etc.)
 - Prompt enhancement (AI cải thiện prompt)
+- Chỉnh sửa ảnh đơn & đa ảnh tham chiếu (`/api/edit-image`, `/api/edit-image-multi`)
+- Phân tích & mô tả ảnh bằng Vision AI (`/api/describe-image`)
+- Kiểm tra hạn ngạch tạo ảnh hàng loạt (`/api/batch-gen-quota`)
 - Download và remix
 
 **Files**:
 
-- `/app/features/image-gen/` - UI Components
-- `/app/api/generate-image/route.ts` - API
+- `src/app/features/image-gen/` - UI Components
+- `src/app/api/generate-image/route.ts` - Tạo ảnh AI
+- `src/app/api/edit-image/route.ts`, `src/app/api/edit-image-multi/route.ts` - Chỉnh sửa ảnh AI
+- `src/app/api/describe-image/route.ts` - Mô tả ảnh Vision
+- `src/app/api/batch-gen-quota/route.ts` - Quota tạo ảnh
 
 **Route**: `/image-studio`
 
@@ -159,7 +192,7 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 
 ### 2.6 Gallery
 
-**Mô tả**: Quản lý tất cả ảnh đã tạo trong chat.
+**Mô tả**: Quản lý tất cả ảnh đã tạo trong chat và Image Studio.
 
 **Tính năng**:
 
@@ -167,16 +200,16 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 - Search by prompt
 - Filter by date/model
 - Remix to chat
-- Delete với confirmation
+- Delete với confirmation (`DELETE /api/gallery`, `DELETE /api/gallery/[id]`)
 - **Image Lightbox**: Fullscreen view với zoom controls
 - **Image Compare**: So sánh 2 ảnh (side-by-side hoặc overlay slider)
 - Navigation arrows (prev/next) với keyboard support
 
 **Files**:
 
-- `/app/features/gallery/` - UI Components
-- `/app/features/gallery/components/ImageCompareModal.tsx` - Compare modal
-- `/app/api/gallery/route.ts` - API
+- `src/app/features/gallery/` - UI Components
+- `src/app/features/gallery/components/ImageCompareModal.tsx` - Compare modal
+- `src/app/api/gallery/route.ts`, `src/app/api/gallery/[id]/route.ts` - API
 
 **Route**: `/gallery`
 
@@ -195,40 +228,41 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → Gemi
 
 **Files**:
 
-- `/app/features/chat/components/VoiceButton.tsx` - Voice input
-- `/app/features/chat/hooks/useTTS.ts` - TTS hook
+- `src/app/features/chat/components/VoiceButton.tsx` - Voice input button
+- `src/lib/features/voice/useSpeechRecognition.ts` - STT hook
+- `src/lib/features/voice/useSpeechSynthesis.ts` - TTS hook
 
 ---
 
 ### 2.8 Token Count Display
 
-**Mô tả**: Hiển thị token usage từ Gemini API cho mỗi AI message.
+**Mô tả**: Hiển thị token usage từ AI Provider cho mỗi AI message.
 
 **Tính năng**:
 
 - Badge hiển thị total tokens ở góc dưới-phải của message
-- Tooltip breakdown: Input / Output / Thinking tokens
+- Tooltip breakdown: Input (`promptTokenCount`) / Output (`candidatesTokenCount`) / Thinking (`thoughtsTokenCount`)
 - Format số lớn (1.2K, 1.5M)
 - Lưu vào DB trong `messages.meta`
 
 **Data Flow**:
 
 ```
-Gemini API Response → usageMetadata → SSE event → Save to DB → Load với messages → TokenBadge UI
+AI Provider Response → usageMetadata → SSE event: meta (type: "usageMetadata") → Save to DB → Load với messages → TokenBadge UI
 ```
 
 **Token Types**:
 
 - **Input**: Prompt + system instructions + conversation history
 - **Output**: Tokens AI đã generate
-- **Thinking**: Internal reasoning (Gemini 3 với thinking enabled)
+- **Thinking**: Internal reasoning (Gemini 3 / 3.1 / 4 Argon, Claude 4.5, DeepSeek V4, GLM 5.2, Strata Local)
 
 **Files**:
 
-- `/app/api/chat-stream/streaming.ts` - Extract usageMetadata
-- `/app/features/chat/components/TokenBadge.tsx` - UI component
-- `/app/features/chat/components/ChatBubble.tsx` - Integration
-- `/lib/features/chat/messages.ts` - MessageMeta interface
+- `src/app/api/chat-stream/streaming/post-processing.ts`, `src/app/api/chat-stream/streaming/gemini-stream.ts`, `src/app/api/chat-stream/streaming/strata-stream.ts` - Extract & emit `usageMetadata`
+- `src/app/features/chat/components/TokenBadge.tsx` - UI component
+- `src/app/features/chat/components/ChatBubble.tsx` - Integration
+- `src/lib/features/chat/messages.ts` - `MessageMeta` interface
 
 ---
 
@@ -238,11 +272,11 @@ Gemini API Response → usageMetadata → SSE event → Save to DB → Load vớ
 
 #### Typewriter Buffer
 
-Decouple network streaming từ visual rendering để text xuất hiện mượt mà:
+Decouple network streaming từ visual rendering để text xuất hiện mượt mà (`useTypewriterBuffer.ts`):
 
-- Buffer tokens từ SSE → drain theo tốc độ ~333 chars/giây
-- Khi stream xong, đợi buffer drain tự nhiên (max 3s)
-- Flush ngay nếu buffer > 2000 chars
+- Buffer tokens từ SSE → drain mượt theo từng frame
+- Khi stream xong (`done`), gọi `stopTypewriter(true)` để flush toàn bộ buffer ngay lập tức
+- Tự động flush nhanh nếu buffer tích tụ lớn
 
 #### Smart Auto-Scroll
 
@@ -255,11 +289,12 @@ Logic thông minh cho auto-scroll trong chat:
 
 #### ThinkingBlock Animation
 
-Hiển thị AI thinking process (Gemini 3 models):
+Hiển thị AI thinking process (Gemini 4 Argon, Gemini 3 / 3.1, Claude 4.5, DeepSeek V4 / V4.1, GLM 5.2, Strata Local):
 
 - Default collapsed (click để expand)
 - Smooth collapse/expand animation với Framer Motion
 - Auto-scroll content khi expanded và đang streaming
+- Hiển thị trực tiếp số token suy nghĩ và thời gian suy luận (`thinkingStats`)
 - Max height 384px với scroll overflow
 
 #### Typing Cursor
@@ -271,21 +306,25 @@ Hiển thị AI thinking process (Gemini 3 models):
 
 - Fade + slide animation khi message xuất hiện trong chat
 
-#### Deep Thinking Timeout
+#### Deep Thinking & Provider Timeouts
 
-Extended timeouts cho Deep Thinking mode:
+Extended timeouts trong `TIMEOUT_CONFIG` (`src/app/api/chat-stream/streaming/types.ts`):
 
-| Model | Normal | Deep Thinking |
-| ----- | ------ | ------------- |
-| Pro   | 5 min  | 10 min        |
-| Flash | 4 min  | 8 min         |
+| Model Tier      | Normal | Deep Thinking |
+| --------------- | ------ | ------------- |
+| Gemini 4 Argon  | 15 min | 15 min        |
+| Pro Models      | 5 min  | 10 min        |
+| Flash Models    | 4 min  | 8 min         |
+| Strata Local    | 5 min  | 5 min         |
+| Default / Other | 3 min  | 3 min         |
 
 **Files**:
 
-- `/app/features/chat/components/hooks/useChatStreamController.ts` - Typewriter buffer, auto-load
-- `/app/features/chat/components/ChatBubble.tsx` - ThinkingBlock, TypingCursor, animations
-- `/app/features/chat/components/ChatApp.tsx` - Smart auto-scroll
-- `/app/api/chat-stream/streaming.ts` - Deep thinking timeout
+- `src/app/features/chat/components/hooks/useChatStreamController.ts` - Stream controller
+- `src/app/features/chat/components/hooks/useTypewriterBuffer.ts` - Typewriter buffer
+- `src/app/features/chat/components/ChatBubble.tsx` - ThinkingBlock, TypingCursor, animations
+- `src/app/features/chat/components/ChatApp.tsx` - Smart auto-scroll orchestration
+- `src/app/api/chat-stream/streaming/types.ts` - `TIMEOUT_CONFIG`
 
 ---
 
@@ -299,7 +338,7 @@ Extended timeouts cho Deep Thinking mode:
 - Upload documents để tạo knowledge base (giới hạn 5MB và tối đa 500 chunks (~350–400 KB text))
 - Native Batching qua Google GenAI SDK (`@google/genai` 2.10.0) với định dạng Content objects `{ role: "user", parts: [{ text }] }`
 - Pre-insert chunk validation: kiểm tra dung lượng và số chunks trước khi tạo bản ghi DB, tránh rò rỉ quota tài liệu
-- Auto-cleanup 15 phút: Dọn dẹp tài liệu kẹt processing qua cron job định kỳ và opportunistic cleanup trên API GET
+- Auto-cleanup 15 phút: Dọn dẹp tài liệu kẹt processing qua cron job định kỳ (`/api/cron/cleanup`) và opportunistic cleanup trên API GET
 - RAG search trực tiếp qua Postgres RPC `match_project_knowledge` (zero sample chunk overhead)
 - Project settings modal với delete confirmation đẹp
 - Bilingual support (Vietnamese/English)
@@ -313,10 +352,10 @@ Extended timeouts cho Deep Thinking mode:
 
 **Files**:
 
-- `/app/features/projects/` - UI Components
-- `/components/features/projects/` - Shared components
-- `/app/api/projects/` - API routes
-- `/lib/features/projects/` - Business logic
+- `src/app/features/projects/` - UI Components
+- `src/components/features/projects/` - Shared components
+- `src/app/api/projects/` - API routes
+- `src/lib/features/projects/` - Business logic
 
 **Route**: Click project trong sidebar
 
@@ -373,12 +412,13 @@ Extended timeouts cho Deep Thinking mode:
 
 ## 3. Roadmap (Dự kiến)
 
-| Tính năng           | Priority | Effort    | Notes                       |
-| ------------------- | -------- | --------- | --------------------------- |
-| Multi-model support | High     | Medium    | Thêm Claude, GPT            |
-| Code Artifacts      | High     | High      | Render HTML/React real-time |
-| ~~Knowledge Base~~  | ~~Done~~ | ~~Done~~  | ✅ Implemented via Projects |
-| Plugin System       | Low      | Very High | Extensibility               |
+| Tính năng               | Priority | Effort    | Notes                                                                    |
+| ----------------------- | -------- | --------- | ------------------------------------------------------------------------ |
+| ~~Multi-model support~~ | ~~Done~~ | ~~Done~~  | ✅ Implemented (Gemini, Claude, DeepSeek, Grok, Groq, GLM, Strata Local) |
+| ~~Knowledge Base~~      | ~~Done~~ | ~~Done~~  | ✅ Implemented via Projects (`gemini-embedding-2`)                       |
+| ~~Creative Writing~~    | ~~Done~~ | ~~Done~~  | ✅ Implemented via Novelcrafter Studio & Prompt Studio                   |
+| Code Artifacts          | High     | High      | Render HTML/React real-time                                              |
+| Plugin System           | Low      | Very High | Extensibility                                                            |
 
 ---
 
@@ -390,13 +430,22 @@ graph TD
     Auth --> Admin
     Auth --> ImageStudio
     Auth --> Gallery
+    Auth --> Novelcrafter[Novelcrafter Studio]
 
     Chat --> Conversations
     Chat --> Messages
     Chat --> Streaming
+    Chat --> LocalLLM[Local LLM Strata]
 
     Conversations --> GEMs
+    Conversations --> Personas
+    Conversations --> Projects[Projects & RAG]
     Conversations --> Files[File System]
+    Conversations --> Branching[Conversation Branching]
+
+    Novelcrafter --> PromptStudio[Prompt Studio]
+    Novelcrafter --> Messages
+    Novelcrafter --> GEMs
 
     Messages --> Encryption
     Messages --> ImageGen[Image Generation]
@@ -407,7 +456,9 @@ graph TD
 
     Admin --> UserManagement
     Admin --> GEMManagement
+    Admin --> PersonaManagement[Persona Management]
     Admin --> RankConfig
+    Admin --> AuditLogs[Audit Logs & Stats]
 
     RankConfig --> DailyLimits
     RankConfig --> RateLimiting

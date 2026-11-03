@@ -1,6 +1,6 @@
 # Database Schema - Vikini
 
-> **Updated**: 2026-10-01  
+> **Updated**: 2026-11-02  
 > **Database**: Supabase PostgreSQL
 
 ---
@@ -11,14 +11,17 @@
 erDiagram
     profiles ||--o{ conversations : "owns"
     profiles ||--o{ gems : "creates"
+    profiles ||--o{ personas : "creates"
     profiles ||--o{ daily_message_counts : "tracks"
     profiles ||--o{ projects : "owns"
+    profiles ||--o{ admin_audit_logs : "logs"
     profiles }o--|| rank_configs : "has rank"
     profiles }o--o| temp_user_ranks : "mapped from"
 
     conversations ||--o{ messages : "contains"
     conversations ||--o{ files : "has"
     conversations }o--o| gems : "uses"
+    conversations }o--o| personas : "uses"
     conversations }o--o| projects : "belongs to"
 
     gems ||--o{ gem_versions : "has versions"
@@ -49,7 +52,9 @@ erDiagram
         text user_id FK
         text title
         text model
+        text last_message_preview
         uuid gem_id FK
+        uuid persona_id FK
         uuid project_id FK
         uuid parent_conversation_id FK
         uuid forked_from_message_id FK
@@ -191,14 +196,14 @@ erDiagram
 
 ### 2.2 `rank_configs` - Cấu hình xếp hạng
 
-| Cột                   | Kiểu          | Ràng buộc     | Mô tả                                         |
-| --------------------- | ------------- | ------------- | --------------------------------------------- |
-| `rank`                | `TEXT`        | PRIMARY KEY   | Tên rank: `basic`, `pro`, `admin`             |
-| `daily_message_limit` | `INTEGER`     | NOT NULL      | Giới hạn tin nhắn/ngày                        |
-| `max_file_size_mb`    | `INTEGER`     | NOT NULL      | Giới hạn file upload (MB)                     |
-| `features`            | `JSONB`       | DEFAULT '{}'  | Feature flags: `web_search`, `unlimited_gems` |
-| `allowed_models`      | `JSONB`       | DEFAULT '[]'  | Danh sách model AI được phép sử dụng          |
-| `updated_at`          | `TIMESTAMPTZ` | DEFAULT now() | Thời gian cập nhật                            |
+| Cột                   | Kiểu          | Ràng buộc                           | Mô tả                                                                                                                                  |
+| --------------------- | ------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `rank`                | `TEXT`        | PRIMARY KEY                         | Tên rank: `basic`, `pro`, `admin`                                                                                                      |
+| `daily_message_limit` | `INTEGER`     | NOT NULL                            | Giới hạn tin nhắn/ngày                                                                                                                 |
+| `max_file_size_mb`    | `INTEGER`     | NOT NULL                            | Giới hạn file upload (MB)                                                                                                              |
+| `features`            | `JSONB`       | DEFAULT '{}'                        | Feature flags: `web_search`, `unlimited_gems`                                                                                          |
+| `allowed_models`      | `JSONB`       | DEFAULT '["gemini-3.5-flash-lite"]' | Danh sách model AI được phép sử dụng (migrated từ `gemini-2.5-flash`/`gemini-2.5-pro` sang `gemini-3.5-flash-lite`/`gemini-3.8-flash`) |
+| `updated_at`          | `TIMESTAMPTZ` | DEFAULT now()                       | Thời gian cập nhật                                                                                                                     |
 
 **Dữ liệu mặc định**:
 | Rank | Messages/Day | Max File | Features |
@@ -217,13 +222,16 @@ erDiagram
 | `user_id`                | `TEXT`        | NOT NULL                        | Email người dùng (lowercase)            |
 | `title`                  | `TEXT`        | DEFAULT 'New Chat'              | Tiêu đề (auto-generated)                |
 | `model`                  | `TEXT`        |                                 | Model AI đang sử dụng                   |
-| `gem_id`                 | `UUID`        | FK → gems(id)                   | GEM được áp dụng (nullable)             |
+| `last_message_preview`   | `TEXT`        |                                 | Đoạn xem trước tin nhắn gần nhất        |
+| `gem_id`                 | `UUID`        | FK → gems(id) nullable          | GEM được áp dụng                        |
+| `persona_id`             | `UUID`        | FK → personas(id) nullable      | Persona cá nhân hóa được áp dụng        |
+| `project_id`             | `UUID`        | FK → projects(id) nullable      | Dự án chứa cuộc hội thoại               |
 | `parent_conversation_id` | `UUID`        | FK → conversations(id) nullable | Cuộc hội thoại gốc nếu là nhánh tách ra |
 | `forked_from_message_id` | `UUID`        | FK → messages(id) nullable      | Tin nhắn mốc được chọn để rẽ nhánh      |
 | `created_at`             | `TIMESTAMPTZ` | DEFAULT now()                   | Thời gian tạo                           |
 | `updated_at`             | `TIMESTAMPTZ` | DEFAULT now()                   | Thời gian cập nhật                      |
 
-**Index**: `idx_conversations_user_id`, `idx_conversations_updated_at`, `idx_conversations_parent_id`, `idx_conversations_forked_from_msg`
+**Index**: `idx_conversations_user_id`, `idx_conversations_updated_at`, `idx_conversations_persona_id`, `idx_conversations_parent_id`, `idx_conversations_forked_from_msg`
 
 ---
 
@@ -233,7 +241,7 @@ erDiagram
 | ----------------- | ------------- | ---------------------- | -------------------------------------- |
 | `id`              | `UUID`        | PRIMARY KEY            | ID tin nhắn                            |
 | `conversation_id` | `UUID`        | FK → conversations(id) | Cuộc hội thoại chứa tin nhắn           |
-| `role`            | `TEXT`        | NOT NULL               | `user` hoặc `assistant`                |
+| `role`            | `TEXT`        | NOT NULL               | `user`, `assistant`, hoặc `system`     |
 | `content`         | `TEXT`        |                        | Nội dung (**đã mã hóa AES**)           |
 | `meta`            | `JSONB`       |                        | Dữ liệu bổ sung (sources, attachments) |
 | `created_at`      | `TIMESTAMPTZ` | DEFAULT now()          | Thời gian tạo                          |
@@ -385,11 +393,51 @@ erDiagram
 
 ---
 
-### 2.13 Database Functions & RPC
+### 2.13 `personas` - Cấu hình phong cách cá nhân hóa
+
+| Cột                   | Kiểu           | Ràng buộc         | Mô tả                                |
+| --------------------- | -------------- | ----------------- | ------------------------------------ |
+| `id`                  | `UUID`         | PRIMARY KEY       | ID của Persona                       |
+| `user_id`             | `TEXT`         | NOT NULL          | Email người sở hữu                   |
+| `name`                | `VARCHAR(100)` | NOT NULL          | Tên hiển thị                         |
+| `description`         | `TEXT`         | DEFAULT ''        | Mô tả ngắn                           |
+| `tone`                | `VARCHAR(50)`  | DEFAULT 'default' | Giọng điệu phản hồi                  |
+| `use_emojis`          | `BOOLEAN`      | DEFAULT true      | Có sử dụng emoji hay không           |
+| `use_headers_lists`   | `BOOLEAN`      | DEFAULT true      | Có ưu tiên tiêu đề & danh sách không |
+| `user_context`        | `TEXT`         | DEFAULT ''        | Ngữ cảnh cá nhân của người dùng      |
+| `custom_instructions` | `TEXT`         | DEFAULT ''        | Chỉ dẫn bổ sung                      |
+| `icon`                | `VARCHAR(100)` | DEFAULT ''        | Emoji hoặc icon                      |
+| `color`               | `VARCHAR(50)`  | DEFAULT ''        | Mã màu hiển thị                      |
+| `is_premade`          | `BOOLEAN`      | DEFAULT false     | Persona mẫu của hệ thống             |
+| `created_at`          | `TIMESTAMPTZ`  | DEFAULT now()     | Thời gian tạo                        |
+| `updated_at`          | `TIMESTAMPTZ`  | DEFAULT now()     | Thời gian cập nhật                   |
+
+**Index**: `idx_personas_user_id`, `idx_personas_is_premade`
+
+---
+
+### 2.14 `admin_audit_logs` - Nhật ký kiểm toán quản trị
+
+| Cột            | Kiểu          | Ràng buộc     | Mô tả                                       |
+| -------------- | ------------- | ------------- | ------------------------------------------- |
+| `id`           | `UUID`        | PRIMARY KEY   | ID bản ghi audit                            |
+| `action`       | `TEXT`        | NOT NULL      | Hành động quản trị (vd: `UPDATE_USER_RANK`) |
+| `admin_id`     | `TEXT`        | NOT NULL      | ID/Email của Admin thực hiện                |
+| `admin_email`  | `TEXT`        |               | Email của Admin                             |
+| `target_id`    | `TEXT`        |               | ID đối tượng bị tác động                    |
+| `target_email` | `TEXT`        |               | Email đối tượng bị tác động                 |
+| `details`      | `JSONB`       | DEFAULT '{}'  | Chi tiết thay đổi                           |
+| `created_at`   | `TIMESTAMPTZ` | DEFAULT now() | Thời gian thực hiện                         |
+
+**Index**: `idx_audit_logs_created_at`, `idx_audit_logs_action`
+
+---
+
+### 2.15 Database Functions & RPC
 
 #### `match_project_knowledge`
 
-Tìm kiếm vector tương đồng (RAG) trong phạm vi một dự án:
+Tìm kiếm vector tương đồng (RAG) trong phạm vi một dự án (`supabase/migrations/20260928180000_unify_gemini_embedding_2.sql`):
 
 ```sql
 CREATE OR REPLACE FUNCTION match_project_knowledge (
@@ -400,24 +448,25 @@ CREATE OR REPLACE FUNCTION match_project_knowledge (
 )
 RETURNS TABLE (
   id UUID,
-  content TEXT,
-  similarity FLOAT,
+  document_id UUID,
   filename TEXT,
-  chunk_index INT,
-  metadata JSONB
+  content TEXT,
+  metadata JSONB,
+  similarity FLOAT
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, extensions, pg_temp
 AS $$
 BEGIN
   RETURN QUERY
   SELECT
     kc.id,
-    kc.content,
-    1 - (kc.embedding <=> query_embedding) AS similarity,
+    kc.document_id,
     kd.filename,
-    kc.chunk_index,
-    kc.metadata
+    kc.content,
+    kc.metadata,
+    1 - (kc.embedding <=> query_embedding) AS similarity
   FROM knowledge_chunks kc
   JOIN knowledge_documents kd ON kd.id = kc.document_id
   WHERE kc.project_id = p_project_id
@@ -442,7 +491,7 @@ $$;
 | `gems`                  | ✅          | ❌       | Chỉ `service_role` truy cập                                                         |
 | `gem_versions`          | ✅          | ❌       | Chỉ `service_role` truy cập                                                         |
 | `gem_runs`              | ✅          | ❌       | Chỉ `service_role` truy cập                                                         |
-| `files`                 | ✅          | ❌       | UNRESTRICTED - chỉ `service_role`                                                   |
+| `files`                 | ✅          | ❌       | Chỉ `service_role` truy cập                                                         |
 | `projects`              | ✅          | ✅       | Users manage own projects (`user_id = auth.jwt()->>'email'`)                        |
 | `knowledge_documents`   | ✅          | ✅       | Users manage own knowledge docs (`user_id = auth.jwt()->>'email'`)                  |
 | `knowledge_chunks`      | ✅          | ✅       | Users manage own knowledge chunks                                                   |
@@ -451,11 +500,12 @@ $$;
 | `daily_research_counts` | ✅          | ❌       | **Legacy (không còn code ứng dụng dùng; chờ D1)** — Deny-all cho anon/authenticated |
 | `research_tasks`        | ✅          | ❌       | **Legacy (không còn code ứng dụng dùng; chờ D1)** — Deny-all cho anon/authenticated |
 | `personas`              | ✅          | ❌       | Đã xóa 5 permissive policies, chỉ `service_role` truy cập                           |
+| `admin_audit_logs`      | ✅          | ❌       | Chỉ `service_role` truy cập                                                         |
 | `temp_user_ranks`       | ✅          | ❌       | Bảng nội bộ mapping rank, chỉ `service_role`                                        |
 
 ### 3.1 Khóa Hàm RPC SECURITY DEFINER (Hardened in Cycle 2)
 
-Cả 4 hàm RPC sau đều được thu hồi quyền thực thi từ `PUBLIC`, `anon`, `authenticated` và chỉ cấp riêng cho `service_role`, kèm `SET search_path = public, extensions, pg_temp` để chống Search Path Hijacking:
+Cả 4 hàm RPC sau đều được thu hồi quyền thực thi từ `PUBLIC`, `anon`, `authenticated` và chỉ cấp riêng cho `service_role`, kèm khóa cứng `search_path` (`public, pg_temp` cho các hàm đếm/dung lượng và `public, extensions, pg_temp` cho `match_project_knowledge`) để chống Search Path Hijacking:
 
 1. `increment_daily_message_count(TEXT, DATE)`: Cập nhật biến đếm tin nhắn hàng ngày.
 2. `increment_daily_research_count(TEXT, DATE)`: **Legacy (không còn code ứng dụng dùng; chờ D1)** — Cập nhật biến đếm tác vụ nghiên cứu hàng ngày (cột `rank_configs.daily_research_limit` cũng giữ nguyên dạng legacy).

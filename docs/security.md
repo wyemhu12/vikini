@@ -4,7 +4,7 @@
 
 ### Current Setup
 
-- **All server-side queries use `service_role` key** via `getSupabaseAdmin()` in `/lib/core/supabase.ts`
+- **All server-side queries use `service_role` key** via `getSupabaseAdmin()` in `src/lib/core/supabase.server.ts`
 - `service_role` key **bypasses RLS** completely
 - App handles authorization in application code (checking `userId` before operations)
 
@@ -21,7 +21,7 @@ In Audit Cycle 2 (2026-10-12), 4 `SECURITY DEFINER` RPC functions and 4 sensitiv
    - `get_project_storage_bytes(UUID)`
 2. Direct client permissions revoked on `daily_message_counts`, `daily_research_counts` _(legacy)_, `research_tasks` _(legacy)_, and `personas`.
 
-Config tables (`allowed_mime_types`, `rank_configs`) have read-only policies for authenticated users.
+Config table `rank_configs` has a read-only policy for authenticated users (legacy table `allowed_mime_types` was dropped in migration 021).
 
 > [!WARNING]
 > **If you add client-side Supabase calls with `anon` key in the future, you MUST add RLS policies for the affected tables.** Without policies, `anon`/`authenticated` users will get zero access (blocked by RLS, error code 42501).
@@ -33,6 +33,7 @@ Config tables (`allowed_mime_types`, `rank_configs`) have read-only policies for
 | `profiles`              | ❌           | Access via service_role only                                                                 |
 | `conversations`         | ❌           | Access via service_role only                                                                 |
 | `messages`              | ❌           | Access via service_role only                                                                 |
+| `files`                 | ❌           | Access via service_role only                                                                 |
 | `gems`                  | ❌           | Access via service_role only                                                                 |
 | `gem_versions`          | ❌           | Access via service_role only                                                                 |
 | `gem_runs`              | ❌           | Access via service_role only                                                                 |
@@ -40,11 +41,11 @@ Config tables (`allowed_mime_types`, `rank_configs`) have read-only policies for
 | `daily_research_counts` | ❌ (REVOKED) | Legacy (không còn code ứng dụng dùng; chờ D1) — Deny-by-default, service_role only (Cycle 2) |
 | `research_tasks`        | ❌ (REVOKED) | Legacy (không còn code ứng dụng dùng; chờ D1) — Deny-by-default, service_role only (Cycle 2) |
 | `personas`              | ❌ (REVOKED) | Deny-by-default, service_role only (Cycle 2)                                                 |
+| `admin_audit_logs`      | ❌           | Access via service_role only                                                                 |
 | `temp_user_ranks`       | ❌           | Access via service_role only                                                                 |
 | `projects`              | ✅           | Users manage own projects                                                                    |
 | `knowledge_documents`   | ✅           | Users manage own knowledge docs                                                              |
 | `knowledge_chunks`      | ✅           | Users manage own knowledge chunks                                                            |
-| `allowed_mime_types`    | ✅           | Read-only for authenticated                                                                  |
 | `rank_configs`          | ✅           | Read-only for authenticated                                                                  |
 
 ### Adding Client-Side Supabase Access
@@ -120,9 +121,9 @@ IP-based rate limiting via Upstash Redis. See `/lib/core/rateLimit.ts`.
 > [!CAUTION]
 > Các file chứa secrets (service_role key, admin credentials) PHẢI đặt tên với suffix `.server.ts` để ngăn bundling vào client.
 
-| File                          | Mô tả                                    |
-| ----------------------------- | ---------------------------------------- |
-| `lib/core/supabase.server.ts` | Supabase admin client (service_role key) |
+| File                              | Mô tả                                    |
+| --------------------------------- | ---------------------------------------- |
+| `src/lib/core/supabase.server.ts` | Supabase admin client (service_role key) |
 
 ### Tại sao quan trọng?
 

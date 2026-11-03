@@ -9,6 +9,8 @@ import { assertConversationOwner } from "@/lib/features/chat/conversations";
 import { logger } from "@/lib/utils/logger";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
 import { getUserProfile } from "@/lib/core/limits";
+import { DEFAULT_MODEL, isSelectableModelId, normalizeModelForApi } from "@/lib/core/modelRegistry";
+import { buildMinimalThinkingConfig, extractGeminiResponseText } from "@/lib/core/geminiSdkHelpers";
 import { tryClaimBatchGenSlot, BATCH_GEN_LIMITS } from "@/lib/core/batchGenQuota";
 import { UnauthorizedError, ValidationError, RateLimitError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
@@ -153,13 +155,16 @@ export async function POST(req: NextRequest) {
           const { getGenAIClient } = await import("@/lib/core/genaiClient");
           const genAI = getGenAIClient();
 
-          // Use latest Gemini Flash model for speed & low cost, or user's selected Gemini model
-          let enhancerModelId = "gemini-2.5-flash";
-          if (
-            options?.enhancerModel &&
-            String(options.enhancerModel).toLowerCase().includes("gemini")
-          ) {
-            enhancerModelId = options.enhancerModel;
+          // Only user-selectable Gemini text models may rewrite prompts (excludes gemini-3-pro-image, non-Gemini).
+          let enhancerModelId: string = DEFAULT_MODEL;
+          if (options?.enhancerModel) {
+            const normalizedEnhancer = normalizeModelForApi(options.enhancerModel);
+            if (
+              isSelectableModelId(normalizedEnhancer) &&
+              normalizedEnhancer.startsWith("gemini-")
+            ) {
+              enhancerModelId = normalizedEnhancer;
+            }
           }
 
           const enhancementPrompt = `You are a professional AI image prompt engineer. Enhance this prompt for maximum image quality.
@@ -178,18 +183,12 @@ Original: "${prompt}"`;
           const result = await genAI.models.generateContent({
             model: enhancerModelId,
             contents: [{ role: "user", parts: [{ text: enhancementPrompt }] }],
+            config: {
+              thinkingConfig: buildMinimalThinkingConfig(enhancerModelId),
+            },
           });
 
-          let enhancedText = "";
-          // Try to get text from the result - handle both SDK versions
-          const textValue = result.text;
-          if (typeof textValue === "function") {
-            enhancedText = (textValue as () => string)();
-          } else if (typeof textValue === "string") {
-            enhancedText = textValue;
-          } else {
-            enhancedText = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
-          }
+          const enhancedText = extractGeminiResponseText(result);
 
           if (enhancedText) {
             routeLogger.info(`[Enhancer] Enhanced prompt:`, enhancedText.trim());

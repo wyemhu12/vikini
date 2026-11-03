@@ -278,5 +278,40 @@ describe("fail-closed limits", () => {
         limits.assertModelAllowedForUser("u@x.com", "vikini-novelcrafter")
       ).rejects.toBeInstanceOf(ForbiddenError);
     });
+
+    it("TC-LIM-01: allows basic user with legacy ['gemini-2.5-flash'] allowlist to use gemini-3.5-flash-lite", async () => {
+      setRankConfigs([{ ...BASIC_ROW, allowed_models: ["gemini-2.5-flash"] }]);
+      setProfile(profile("basic"));
+      await expect(
+        limits.assertModelAllowedForUser("u@x.com", "gemini-3.5-flash-lite")
+      ).resolves.toBeUndefined();
+      await expect(limits.isModelAllowedForUser("u@x.com", "gemini-3.5-flash-lite")).resolves.toBe(
+        true
+      );
+    });
+
+    it("TC-LIM-02: prevents privilege escalation for basic user with ['gemini-2.5-flash'] requesting gemini-3.8-flash or gemini-2.5-pro", async () => {
+      setRankConfigs([{ ...BASIC_ROW, allowed_models: ["gemini-2.5-flash"] }]);
+      setProfile(profile("basic"));
+      await expect(
+        limits.assertModelAllowedForUser("u@x.com", "gemini-3.8-flash")
+      ).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(limits.isModelAllowedForUser("u@x.com", "gemini-3.8-flash")).resolves.toBe(
+        false
+      );
+      await expect(
+        limits.assertModelAllowedForUser("u@x.com", "gemini-2.5-pro")
+      ).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(limits.isModelAllowedForUser("u@x.com", "gemini-2.5-pro")).resolves.toBe(false);
+    });
+
+    it("TC-LIM-03: allows pro user with legacy ['gemini-2.5-pro'] allowlist to use gemini-3.8-flash", async () => {
+      setRankConfigs([{ ...PRO_ROW, allowed_models: ["gemini-2.5-pro"] }]);
+      setProfile(profile("pro"));
+      await expect(
+        limits.assertModelAllowedForUser("u@x.com", "gemini-3.8-flash")
+      ).resolves.toBeUndefined();
+      await expect(limits.isModelAllowedForUser("u@x.com", "gemini-3.8-flash")).resolves.toBe(true);
+    });
   });
 });

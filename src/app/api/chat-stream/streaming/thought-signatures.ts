@@ -136,3 +136,75 @@ export function extractAllThoughtSignatures(respOrChunk: unknown): string[] {
 
   return signatures;
 }
+
+export interface GeminiFunctionCall {
+  name: string;
+  args?: Record<string, unknown>;
+  id?: string;
+}
+
+export interface GeminiFunctionResponse {
+  name: string;
+  id?: string;
+  response: Record<string, unknown>;
+}
+
+/**
+ * Builds a Gemini FunctionResponse object ensuring `name` is always included
+ * and `id` is preserved when present on the model's FunctionCall.
+ */
+export function buildFunctionResponse(
+  call: GeminiFunctionCall,
+  outcome: { result?: string; error?: string }
+): GeminiFunctionResponse {
+  return {
+    name: call.name,
+    ...(call.id ? { id: call.id } : {}),
+    response: outcome.error ? { error: outcome.error } : { result: outcome.result },
+  };
+}
+
+function isPartWithFunctionCall(
+  part: unknown
+): part is Record<string, unknown> & {
+  functionCall: Record<string, unknown>;
+  thoughtSignature?: unknown;
+} {
+  return (
+    typeof part === "object" &&
+    part !== null &&
+    typeof (part as { functionCall?: unknown }).functionCall === "object" &&
+    (part as { functionCall?: unknown }).functionCall !== null
+  );
+}
+
+/**
+ * Returns a shallow-cloned parts array where, if NO functionCall part has a
+ * non-empty `thoughtSignature`, the first functionCall part receives
+ * `DUMMY_THOUGHT_SIGNATURE` to satisfy Gemini 3.x strict continuation validation.
+ * Never mutates input or overwrites real signatures.
+ */
+export function ensureFunctionCallSignature(parts: readonly unknown[]): unknown[] {
+  const cloned = [...parts];
+  const hasSignedCall = cloned.some(
+    (p) =>
+      isPartWithFunctionCall(p) &&
+      typeof p.thoughtSignature === "string" &&
+      p.thoughtSignature.length > 0
+  );
+  if (hasSignedCall) {
+    return cloned;
+  }
+
+  const firstCallIdx = cloned.findIndex((p) => isPartWithFunctionCall(p));
+  if (firstCallIdx === -1) {
+    return cloned;
+  }
+
+  const target = cloned[firstCallIdx] as Record<string, unknown>;
+  cloned[firstCallIdx] = {
+    ...target,
+    thoughtSignature: DUMMY_THOUGHT_SIGNATURE,
+  };
+  return cloned;
+}

@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  MODEL_ALIASES,
   getSupportedGeminiThinkingLevels,
   clampGeminiThinkingLevel,
   isGLMModel,
@@ -24,21 +25,8 @@ export type ThinkingLevel = "off" | "high" | "low" | "medium" | "minimal";
  * Check if a model is a Gemini 3 or Gemini 4 model (supports thinkingLevel config)
  */
 export function isGemini3Model(model: string): boolean {
-  return model.includes("gemini-3") || model.includes("gemini-3.") || model.includes("gemini-4");
-}
-
-/**
- * Check if a model is a Gemini 2.5 model (supports thinkingBudget config)
- */
-export function isGemini25Model(model: string): boolean {
-  return model.includes("gemini-2.5");
-}
-
-/**
- * Check if a model is a Gemini 3 Flash variant (supports extended levels)
- */
-export function isGemini3FlashModel(model: string): boolean {
-  return model.includes("gemini-3-flash") || model.includes("gemini-3.1-flash");
+  const id = Object.hasOwn(MODEL_ALIASES, model) ? MODEL_ALIASES[model] : model;
+  return id.includes("gemini-3") || id.includes("gemini-4");
 }
 
 /**
@@ -71,7 +59,6 @@ export function isStrataLocalThinkingModel(model: string): boolean {
 
 /**
  * Check if a model supports thinking UI toggle
- * - Gemini 2.5+: thinkingBudget
  * - Gemini 3+/4+: thinkingLevel
  * - Claude Sonnet/Opus: extended thinking (budget_tokens)
  * - DeepSeek V4: reasoning_content (high/max)
@@ -80,7 +67,6 @@ export function isStrataLocalThinkingModel(model: string): boolean {
 export function modelSupportsThinkingUI(model: string): boolean {
   return (
     isStrataLocalThinkingModel(model) ||
-    isGemini25Model(model) ||
     isGemini3Model(model) ||
     isClaudeThinkingModel(model) ||
     isDeepSeekV4Model(model) ||
@@ -111,7 +97,6 @@ export function getAvailableThinkingLevels(currentModel: string): ThinkingLevel[
   if (isGLMModel(currentModel)) return ["off", "high"];
   if (isClaudeThinkingModel(currentModel)) return ["off", "high"];
   if (isDeepSeekV4Model(currentModel)) return ["off", "low", "high"];
-  if (isGemini25Model(currentModel)) return ["off", "low", "high"];
   if (isGemini4Model(currentModel)) {
     // Gemini 4 Argon cannot disable thinking; expose only ["low", "medium", "high"]
     return [...getSupportedGeminiThinkingLevels(currentModel)];
@@ -169,16 +154,8 @@ export function getEffectiveThinkingLevel(
     return "low";
   }
 
-  if (isGemini25Model(currentModel)) {
-    // Gemini 2.5 dynamic thinking via thinkingBudget: -1
-    if (requestedLevel === "high") {
-      return "high";
-    }
-    return "low";
-  }
-
   if (isGemini3Model(currentModel)) {
-    // Gemini 3: clamp directly based on model capabilities
+    // Gemini 3+: clamp directly based on model capabilities
     return clampGeminiThinkingLevel(currentModel, requestedLevel);
   }
 
@@ -188,13 +165,13 @@ export function getEffectiveThinkingLevel(
 /**
  * Client-side preference store for Thinking Level.
  * - Persists to localStorage key: vikini.thinkingLevel
- * - Active for Gemini 2.5+ and Gemini 3+ models
+ * - Active for Gemini 3+/4+, Claude Sonnet/Opus, DeepSeek V4, GLM, and Strata Local
  * - Default: "off" (no thinking mode)
  */
 export function useThinkingLevel(currentModel: string): UseThinkingLevelResult {
   const [thinkingLevel, setThinkingLevelState] = useState<ThinkingLevel>("off");
 
-  // Thinking toggle visible for Gemini 2.5, Gemini 3, Claude Sonnet/Opus, and DeepSeek V4
+  // Thinking toggle visible for Gemini 3+, Claude Sonnet/Opus, DeepSeek V4, GLM, and Strata Local
   const isThinkingEnabled = modelSupportsThinkingUI(currentModel);
   // Extended levels check via supported levels
   const hasExtendedLevels = getSupportedGeminiThinkingLevels(currentModel).includes("minimal");

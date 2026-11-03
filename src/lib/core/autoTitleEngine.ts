@@ -1,8 +1,8 @@
 // /lib/core/autoTitleEngine.ts
 // Auto-title generation (uses @google/genai via cached client)
 
-import { ThinkingLevel } from "@google/genai";
 import { getGenAIClient } from "@/lib/core/genaiClient";
+import { buildMinimalThinkingConfig } from "@/lib/core/geminiSdkHelpers";
 import { CONVERSATION_DEFAULTS } from "@/lib/utils/constants";
 import { logger } from "@/lib/utils/logger";
 
@@ -14,7 +14,7 @@ const titleLogger = logger.withContext("autoTitleEngine");
 const PRIMARY_MODEL = "gemini-3-flash-preview";
 
 // Model dự phòng ổn định (Stable) nếu bản Preview bị lỗi rate limit hoặc 503
-const FALLBACK_MODEL = "gemini-2.5-flash";
+const FALLBACK_MODEL = "gemini-3.5-flash-lite";
 
 interface GenerateTitleOptions {
   maxOutputTokens: number;
@@ -108,16 +108,16 @@ async function generateTitleWithModel(
 
   // Helper thực thi gọi model
   const attemptGenerate = async (modelId: string): Promise<string> => {
-    // Gemini 3 Flash mặc định bật suy luận mức "high". Khi giới hạn maxOutputTokens: 15/20,
+    // Gemini 3+ mặc định bật suy luận mức "high". Khi giới hạn maxOutputTokens: 15/20,
     // token suy luận có thể chiếm trọn ngân sách khiến tiêu đề bị rỗng.
-    // Giải pháp: Ép thinkingLevel: ThinkingLevel.MINIMAL cho Gemini 3 để dành trọn tokens cho tiêu đề.
-    const isGemini3 = modelId.startsWith("gemini-3");
+    // Giải pháp: Ép mức suy luận tối thiểu hợp lệ của model (MINIMAL hoặc LOW) để dành trọn tokens cho tiêu đề.
+    const thinkingConfig = buildMinimalThinkingConfig(modelId);
     const res = await ai.models.generateContent({
       model: modelId,
       contents: [{ role: "user", parts: [{ text: promptText }] }],
       config: {
         maxOutputTokens,
-        ...(isGemini3 ? { thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL } } : {}),
+        ...(thinkingConfig ? { thinkingConfig } : {}),
       },
     });
     return extractText(res);
@@ -130,7 +130,7 @@ async function generateTitleWithModel(
     titleLogger.warn(`Primary model ${PRIMARY_MODEL} failed, trying fallback. Error: ${e1}`);
 
     try {
-      // Thử model dự phòng (Gemini 2.5 Flash Stable)
+      // Thử model dự phòng (Gemini 3.5 Flash-Lite)
       return await attemptGenerate(FALLBACK_MODEL);
     } catch (e2) {
       titleLogger.error(`All models failed. Fallback: ${e2}`);

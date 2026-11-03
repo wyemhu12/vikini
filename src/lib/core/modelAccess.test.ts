@@ -80,7 +80,7 @@ describe("isModelAllowedById (TC-04)", () => {
         "gemini-3-flash-preview"
       )
     ).toEqual({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.5-flash-lite",
       didFallback: true,
     });
 
@@ -91,5 +91,11 @@ describe("isModelAllowedById (TC-04)", () => {
       model: "gemini-4-argon",
       didFallback: false,
     });
+  });
+
+  it("TC-MA-01: prevents privilege escalation across legacy Gemini 2.5 aliases", () => {
+    expect(isModelAllowedById("gemini-3.8-flash", ["gemini-2.5-flash"])).toBe(false);
+    expect(isModelAllowedById("gemini-3.8-flash", ["gemini-2.5-pro"])).toBe(true);
+    expect(isModelAllowedById("gemini-3.5-flash-lite", ["gemini-2.5-flash"])).toBe(true);
   });
 });

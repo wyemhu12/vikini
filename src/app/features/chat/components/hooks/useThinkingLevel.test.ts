@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import * as useThinkingLevelModule from "./useThinkingLevel";
 import {
   getLowerThinkingLevel,
   getAvailableThinkingLevels,
@@ -68,8 +69,27 @@ describe("getAvailableThinkingLevels", () => {
     ]);
   });
 
-  it("returns off, low, high for Gemini 2.5 Flash", () => {
-    expect(getAvailableThinkingLevels("gemini-2.5-flash")).toEqual(["off", "low", "high"]);
+  it("TC-UTL-01 & TC-UTL-02: returns correct available thinking levels for Gemini 3.8 Flash and Gemini 3.5 Flash-Lite", () => {
+    expect(getAvailableThinkingLevels("gemini-3.8-flash")).toEqual([
+      "off",
+      "low",
+      "medium",
+      "high",
+    ]);
+    expect(getAvailableThinkingLevels("gemini-3.5-flash-lite")).toEqual([
+      "off",
+      "minimal",
+      "low",
+      "medium",
+      "high",
+    ]);
+    expect(getAvailableThinkingLevels("gemini-2.5-flash")).toEqual([
+      "off",
+      "minimal",
+      "low",
+      "medium",
+      "high",
+    ]);
   });
 
   it("returns off, high for Claude", () => {
@@ -120,8 +140,10 @@ describe("getEffectiveThinkingLevel", () => {
     expect(getEffectiveThinkingLevel("deepseek-v4-flash", "high")).toBe("high");
   });
 
-  it("Gemini 2.5 maps minimal to low and high to high", () => {
-    expect(getEffectiveThinkingLevel("gemini-2.5-flash", "minimal")).toBe("low");
+  it("TC-UTL-03: clamps minimal to low on gemini-3.8-flash / gemini-2.5-pro and preserves minimal on gemini-2.5-flash", () => {
+    expect(getEffectiveThinkingLevel("gemini-3.8-flash", "minimal")).toBe("low");
+    expect(getEffectiveThinkingLevel("gemini-2.5-pro", "minimal")).toBe("low");
+    expect(getEffectiveThinkingLevel("gemini-2.5-flash", "minimal")).toBe("minimal");
     expect(getEffectiveThinkingLevel("gemini-2.5-flash", "high")).toBe("high");
   });
 
@@ -155,5 +177,12 @@ describe("modelSupportsThinkingUI", () => {
     expect(getEffectiveThinkingLevel("strata-local", "low")).toBe("low");
     expect(getEffectiveThinkingLevel("strata-local", "medium")).toBe("medium");
     expect(getEffectiveThinkingLevel("strata-local", "high")).toBe("high");
+  });
+
+  it("TC-UTL-04: supports legacy Gemini 2.5 aliases via modelSupportsThinkingUI and removes dead helpers isGemini25Model / isGemini3FlashModel", () => {
+    expect(modelSupportsThinkingUI("gemini-2.5-pro")).toBe(true);
+    expect(modelSupportsThinkingUI("gemini-2.5-flash")).toBe(true);
+    expect(Object.hasOwn(useThinkingLevelModule, "isGemini25Model")).toBe(false);
+    expect(Object.hasOwn(useThinkingLevelModule, "isGemini3FlashModel")).toBe(false);
   });
 });

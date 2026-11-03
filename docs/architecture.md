@@ -17,16 +17,16 @@
 
 ### Data & Backend
 
-- **Database**: [Supabase](https://supabase.com/) (PostgreSQL)
-- **Authentication**: Supabase Auth
+- **Database**: [Supabase](https://supabase.com/) (PostgreSQL + `pgvector`)
+- **Authentication**: NextAuth v5 (Google OAuth)
 - **Caching & Rate Limiting**: [Upstash Redis](https://upstash.com/)
-- **ORM/Query**: Standard Postgres client / Supabase JS
+- **ORM/Query**: Standard Postgres client / Supabase JS (`service_role` server-side)
 
 ### AI & Intelligence
 
-- **Primary LLM**: [Google Gemini](https://ai.google.dev/) (`@google/genai`)
-- **Additional Providers**: Anthropic Claude (`claudeClient.ts`), Groq (`groqClient.ts`), OpenRouter (`openRouterClient.ts`)
-- **Orchestration**: Custom streaming implementation
+- **Primary LLM**: [Google Gemini](https://ai.google.dev/) (`@google/genai` — Gemini 2.5, 3, 3.1, 4 Argon & `gemini-embedding-2`)
+- **Additional Providers**: Anthropic Claude (`claudeClient.ts`), DeepSeek Direct API (`deepseekClient.ts`), Groq (`groqClient.ts`), OpenRouter (`openRouterClient.ts`), Local LLM Strata Engine (`strataClient.ts`, `strataQueue.ts`)
+- **Orchestration**: Custom multi-provider SSE streaming implementation
 
 ### State Management
 
@@ -41,18 +41,20 @@ All source code is organized under the `src/` directory.
 
 Follows the Next.js App Router conventions.
 
-- `api/`: Backend API routes (Chat stream, Gems, etc.)
-- `auth/`: Authentication related routes.
-- `features/`: Feature-specific UI Layouts and Components (Chat, Gems, Sidebar).
+- `api/`: Backend API routes (Chat stream, Novelcrafter, Projects, Gems, Personas, Image Studio, Admin, etc.)
+- `auth/`: Authentication related routes (`/auth/signin`, `/auth/error`, `/auth/signout`).
+- `novelcrafter/`: Novelcrafter Studio (`/novelcrafter`) and Prompt Studio (`/novelcrafter/prompts`) routes.
+- `admin/`: Admin Dashboard (`/admin`).
+- `features/`: Feature-specific UI Layouts and Components (`chat`, `novelcrafter`, `projects`, `gems`, `personas`, `image-gen`, `gallery`, `sidebar`, `layout`).
 - `globals.css`: Global styles and Tailwind directives.
 
 ### `src/lib/` (Logic Layer)
 
 Separation of concerns between UI and business logic.
 
-- `core/`: Singleton clients and core infrastructure (Supabase, Gemini, Redis wrappers).
-- `features/`: Business logic, hooks, and types for specific domains (Chat, Files, Gems).
-- `utils/`: Shared utility functions.
+- `core/`: Singleton clients and core infrastructure (`supabase.server.ts`, `genaiClient.ts`, `claudeClient.ts`, `deepseekClient.ts`, `openRouterClient.ts`, `groqClient.ts`, `strataClient.ts`, `strataQueue.ts`, `modelRegistry.ts`, `limits.ts`, `redis.ts`).
+- `features/`: Business logic, hooks, and types for specific domains (`chat`, `novelcrafter`, `projects`, `files`, `gems`, `personas`, `local-llm`, `image-gen`, `voice`, `admin`).
+- `utils/`: Shared utility functions (`translations/`, `constants.ts`, `errors.ts`, `logger.ts`).
 
 ### `src/components/` (Shared UI)
 
@@ -100,31 +102,49 @@ Tests are colocated with source files using the `.test.ts` / `.test.tsx` suffix.
 
 > **File size policy**: See `.agents/rules/01-coding.md § File Size & Modularity Guidelines` for AI-agent-optimized targets.
 
-- **Real-time Streaming**: Custom implementation for streaming AI responses.
+- **Real-time Streaming**: Custom multi-provider SSE implementation (`src/app/api/chat-stream/streaming/`).
 - **Component Architecture**:
-  - `ChatApp.tsx`: Main container and state orchestrator (~1050 lines — **needs refactoring**).
-  - `ChatControls.tsx`: Isolated input and model selection UI.
-  - `ChatBubble.tsx`: Message rendering (~676 lines — **needs refactoring**).
+  - `ChatApp.tsx`: Main container and state orchestrator (~370 lines, delegating to `ChatConversationView.tsx`, `ChatMessagesArea.tsx`, `ChatOverlays.tsx`, `DashboardView.tsx`).
+  - `ChatControls.tsx`: Top toolbar for GEMs, Personas, Web Search, Image Generation, and Local LLM Sampling (`LocalSamplingSettings.tsx`).
+  - `InputForm.tsx` & `InputModelControls.tsx`: Unified 2-row chat composer with inline `ModelSelector` and `ThinkingLevelSelector` controls on the bottom row before Mic and Send.
+  - `ChatBubble.tsx`: Message rendering (~467 lines).
   - `StreamErrorBanner.tsx`: Error display with accessibility.
 - **ChatBubble Sub-components** (extracted for maintainability):
   - `SmartCode.tsx`: Code blocks with syntax highlighting, copy, expand/collapse.
-  - `MessageActions.tsx`: Copy, edit, regenerate, delete buttons.
-  - `SourceLinks.tsx`: Web search source display.
+  - `MessageActions.tsx`: Copy, edit, regenerate, branch, favorite, delete buttons.
+  - `SourceLinks.tsx`: Web search & RAG source display.
   - `ImageGenPreview.tsx`: Generated image preview with actions.
-- **Custom Hooks** (located in `app/features/chat/components/hooks/`):
-  - `useChatStreamController`: Core streaming logic.
+- **Custom Hooks** (located in `src/app/features/chat/components/hooks/`):
+  - `useChatStreamController`: Core SSE streaming orchestration.
+  - `useTypewriterBuffer`: Smooth frame-aligned token rendering buffer.
+  - `useThinkingLevel` & `useThinkingStats`: Per-model thinking level state and live reasoning token/time telemetry.
+  - `useStrataSampling`: Local LLM sampling preset (`default`/`creative`/`custom`) management.
+  - `useConversationBranching`: Conversation forking from any message.
   - `useChatModals`: Modal state management (Upgrade, Delete, Rename).
   - `useChatTranslations`: Memoized translation lookup.
   - `useUrlSync`: URL ↔ state synchronization.
   - `useAllowedModels`: Model permission checking.
   - `useWebSearchPreference`: Web search toggle state.
   - `useImageGenController`: Image generation flow.
-- **Message Handling**: Supports diverse content types (Text, Code, Files, Images).
+- **Message Handling**: Supports diverse content types (Text, Code, Files, Images, Reasoning blocks).
 
-### Gems (AI Assistants)
+### Gems & Personas (AI Assistants & Personalization)
 
-- Specialized AI personas or tools configured for specific tasks.
-- CRUD operations for managing user-defined Gems.
+- **GEMs**: Specialized AI system instructions with version history (`gem_versions`).
+- **Personas**: User/premade response style profiles (`tone`, `useEmojis`, `useHeadersLists`, `userContext`, `customInstructions`) with quick switching (`PersonaQuickSwitch.tsx`).
+
+### Projects & Knowledge Base (RAG)
+
+- Organizes conversations into isolated Projects backed by a 3072-dimension `pgvector` Knowledge Base (`gemini-embedding-2`) and exact cosine similarity RPC `match_project_knowledge`.
+
+### Novelcrafter Studio & Prompt Studio
+
+- **Novelcrafter Studio (`/novelcrafter`)**: Specialized fiction writing workspace with Story Bible (Codex alias auto-matching, rolling chapter summaries `<story_so_far>`), zero-dependency `contentEditable="plaintext-only"` Rich Manuscript Editor (`ChapterManuscriptEditor.tsx`), inline feedback/codex decorations, 4-tier responsive layout (`useDockedPanes`), chapter snapshots with word-level diff, and `.md`/`.txt` export.
+- **Prompt Studio (`/novelcrafter/prompts`)**: Customization engine for all 37 AI writing actions and 11 context nodes (`vikini:novelcrafter:prompt-studio`), paired with Radix Portal `PromptSourceTooltip` across all Studio AI action buttons.
+
+### Local LLM (Strata Engine)
+
+- Loopback-guarded (`127.0.0.1`/`localhost`) integration with Strata local inference (`strata-local`, 32K context window), sequential FIFO queue (`concurrency = 1`, `maxPending = 2`), FNV-1a anchor-window context fitter (`strataContextFit.ts`), and story-optimized sampling presets.
 
 ### File System
 
@@ -191,7 +211,8 @@ All API keys, secrets, and configuration variables are managed through the **Ver
 | `DATA_ENCRYPTION_KEY`                                 | Security           | All Environments     |
 | `WHITELIST_EMAILS`                                    | Access Control     | All Environments     |
 | `RATE_LIMIT_MAX`                                      | Rate Limiting      | All Environments     |
-| `FILES_CRON_SECRET`                                   | Cron Jobs          | All Environments     |
+| `CRON_SECRET` / `ATTACHMENTS_CRON_SECRET`             | Cron Jobs          | All Environments     |
+| `STRATA_ENABLED` / `STRATA_BASE_URL` / `STRATA_*`     | Local LLM (Strata) | Local / Self-Hosted  |
 
 > [!IMPORTANT]
 > **Adding/rotating API keys**: Always use Vercel Dashboard. Never commit secrets to the repository. Local development uses `.env.local` (see `env.local.example`).
@@ -236,25 +257,30 @@ User (PM) ──[Task]──▶ Orchestrator (Dispatcher)
                               │
                               ▼
                [ Primary Reviewer: @reviewer Subagent ]
-           (Gemini 4 Argon Max Thinking / Fallback: Claude CLI)
+           (model: inherit Gemini 4 Argon High / Fallback: Claude CLI)
                               │
-                     [ Thẩm định trực tuyến 2026 ]
+                     [ Thẩm định + verify-plan.mjs ]
                               │
-                    ┌─────────┴─────────┐
-                    │                   │
-           [CHANGES_REQUESTED]    [PLAN_APPROVED]
-                    │                   │
-                    ▼                   ▼
-          (Gửi lại Planner sửa)   [ Pre-Flight Gate ]
-          (Tối đa 10 vòng lặp)          │ (PASS)
-                                        ▼
-                               [ Trình User (PM) Duyệt ]
-                                        │
-                                        ▼
-                               [ Unfreeze & Code ]
-                                        │
-                                        ▼
-                               [ npm run verify ]
+          ┌───────────────────┼───────────────────┐
+          │                   │ (Plan nhạy cảm)   │ (Plan thường)
+          ▼                   ▼                   ▼
+ [CHANGES_REQUESTED]  [AWAITING_CRITIC]    [PLAN_APPROVED]
+          │                   │                   │
+          │          (Cross-Model Critic:         │
+          │           run-claude.ps1 -Role critic)│
+          │                   ├── DISAGREE ───────┼──► (Về Planner)
+          │                   └── AGREE ──────────┤
+          ▼                                       ▼
+(Gửi lại Planner sửa)                  [ Pre-Flight Gate ]
+(Tối đa 10 vòng lặp)                         │ (PASS)
+                                             ▼
+                                    [ Trình User (PM) Duyệt ]
+                                             │
+                                             ▼
+                                    [ Unfreeze & Code ]
+                                             │
+                                             ▼
+                                    [ npm run verify ]
 ```
 
 ### Các Cơ Chế Cưỡng Chế Cốt Lõi:
@@ -263,12 +289,12 @@ User (PM) ──[Task]──▶ Orchestrator (Dispatcher)
    - Chỉ tự động cho phép ghi vào các file không nhạy cảm đã được khai báo rõ với nhãn `[NEW]`/`[MODIFY]`/`[DELETE]` trong `## Technical Plan` của plan đang được phê duyệt (`[PLAN_APPROVED]`); mọi file ngoài danh sách khai báo trả `ask`.
    - Kiểm tra lệnh `run_command` theo token whitelist nghiêm ngặt (`command-policy.js`), chặn PowerShell subexpressions `(...)`, Bash process substitution `<(...)`, smart quotes, và mọi truy cập `.env*` qua `git`/`Read`/`Grep`/`view_file`/`read_file`.
    - Luôn luôn khóa và hỏi User (`ask`) với 6 danh mục file nhạy cảm (so khớp không phân biệt hoa thường): `*.server.ts`, database migrations, cấu hình hạ tầng kiểm thử `TEST_INFRA_FILES`, hạ tầng harness/build `PROTECTED_INFRA_FILES` (`scripts/code-freeze-guard.js`, `.claude/**`, `.husky/**`, `next.config.ts`, `package-lock.json`, `.npmrc`, `AGENTS.md`, `CLAUDE.md`), file test chịu Test Integrity Guard, và cấu hình quản trị `.agents/**`.
-2. **Zero-Self-Execution & Dual-Planner Architecture**: Orchestrator chỉ đóng vai trò điều phối viên; cấm tự lập kế hoạch trên luồng chính. Khâu lập kế hoạch bắt buộc 100% ủy quyền cho **Primary Planner** (Claude Code CLI qua `.agents/scripts/run-claude.ps1 -Role planner` nạp `.agents/scripts/claude-planner-prompt.md`) hoặc **Fallback Planner** (Subagent `@planner` chạy `gemini-4-argon` khi Claude CLI trả mã thoát `42`).
-3. **Dual-Reviewer Architecture & Uninterrupted Execution Chain**: Khâu thẩm định do **Primary Reviewer** (Subagent `@reviewer` chạy `gemini-4-argon` với thinking budget tối đa) thực hiện và ghi trực tiếp vào `## Audit History`, với **Fallback Reviewer** là Claude Code CLI (`.agents/scripts/run-claude.ps1 -Role reviewer`). Luồng `[Task]` ➔ `[Planner]` ➔ `[Reviewer]` chạy tự động, liên tục tối đa 10 vòng lặp; cấm dừng giữa chừng để hỏi ý kiến người dùng khi chưa có thẻ `[PLAN_APPROVED]`.
+2. **Zero-Self-Execution & Dual-Planner Architecture**: Orchestrator chỉ đóng vai trò điều phối viên; cấm tự lập kế hoạch trên luồng chính. Khâu lập kế hoạch bắt buộc 100% ủy quyền cho **Primary Planner** (Claude Code CLI qua `.agents/scripts/run-claude.ps1 -Role planner` nạp `.agents/scripts/claude-planner-prompt.md`) hoặc **Fallback Planner** (Subagent `@planner` với `model: inherit` kế thừa `Gemini 4 Argon (High)` khi Claude CLI trả mã thoát `40/41/42`).
+3. **Dual-Reviewer Architecture, Cross-Model Critic & Uninterrupted Execution Chain**: Khâu thẩm định do **Primary Reviewer** (Subagent `@reviewer` với `model: inherit` kế thừa `Gemini 4 Argon (High)`) thực hiện và ghi trực tiếp vào `## Audit History`, với **Fallback Reviewer** là Claude Code CLI (`.agents/scripts/run-claude.ps1 -Role reviewer`). Với các kế hoạch chạm Bảo mật, Governance hoặc Database (`CRITIC_REQUIRED yes`), sau khi đạt chuẩn sơ bộ (`- **Status**: Awaiting Critic` + `[AWAITING_CRITIC]`), hệ thống chạy thêm bước **Cross-Model Critic** (`.agents/scripts/run-claude.ps1 -Role critic`) để phản biện chéo độc lập trước khi cấp `[PLAN_APPROVED]`. Luồng `[Task]` ➔ `[Planner]` ➔ `[Reviewer]` chạy tự động, liên tục tối đa 10 vòng lặp; cấm dừng giữa chừng để hỏi ý kiến người dùng khi chưa có thẻ `[PLAN_APPROVED]`.
 4. **Pre-Flight Gate**: Chốt chặn 3 cổng bắt buộc trước khi xuất phản hồi xin mở khóa viết code:
    - **Gate 1 - Plan Persistence**: Kế hoạch được ghi vào `docs/plans/`.
-   - **Gate 2 - Reviewer Dispatch**: Kế hoạch đã qua thẩm định trực tuyến độc lập bởi Lead Reviewer (`@reviewer` hoặc Fallback Claude Code CLI).
-   - **Gate 3 - Reviewer Approval Token**: File kế hoạch có `- **Status**: Approved` ở Header và nhận thẻ `[PLAN_APPROVED]` ở dòng cuối cùng từ Lead Reviewer.
+   - **Gate 2 - Reviewer Dispatch**: Kế hoạch đã qua thẩm định trực tuyến độc lập bởi Lead Reviewer (`@reviewer` hoặc Fallback Claude Code CLI, kèm `-Role critic` nếu `CRITIC_REQUIRED yes`).
+   - **Gate 3 - Reviewer Approval Token**: File kế hoạch có `- **Status**: Approved` ở Header, nhận thẻ `[PLAN_APPROVED]` ở dòng cuối cùng từ Lead Reviewer, và vượt qua `node scripts/verify-plan.mjs <plan>` (`exit 0`).
 5. **Circuit Breaker**: Sau 10 vòng lặp revision không đạt phê duyệt, Orchestrator tự động ngắt chuỗi và trình báo cáo tổng hợp lỗi tồn đọng lên User (PM) quyết định.
 
 ### Bộ 3 Tài Liệu Vệ Tinh & Script Kiểm Chứng Của @reviewer:

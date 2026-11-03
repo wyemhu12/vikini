@@ -1,7 +1,7 @@
 // /lib/core/modelRegistry.ts
 // Shared model registry for UI + backend.
 
-export const DEFAULT_MODEL = "gemini-2.5-flash" as const;
+export const DEFAULT_MODEL = "gemini-3.5-flash-lite" as const;
 
 import { MODEL_IDS, STRATA_DEFAULTS } from "@/lib/utils/constants";
 
@@ -37,25 +37,27 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
   // GEMINI MODELS (Google AI)
   // ═══════════════════════════════════════════════════════════
 
-  // Gemini 2.5 Series (GA June 2025)
+  // Gemini 3.5 / 3.8 Series (Replacing Gemini 2.5 Series - Nov 2026)
   {
-    id: "gemini-2.5-flash",
-    descKey: "modelDescFlash25",
-    name: "Gemini 2.5 Flash",
-    tokenLimit: 1000000,
-    contextWindow: 1000000,
-    maxOutputTokens: 65535,
+    id: "gemini-3.5-flash-lite",
+    descKey: "modelDescFlashLite35",
+    name: "Gemini 3.5 Flash-Lite",
+    tokenLimit: 1048576,
+    contextWindow: 1048576,
+    maxOutputTokens: 65536,
     category: "low-latency",
+    supportedThinkingLevels: ["minimal", "low", "medium", "high"],
     providerId: "gemini",
   },
   {
-    id: "gemini-2.5-pro",
-    descKey: "modelDescPro25",
-    name: "Gemini 2.5 Pro",
-    tokenLimit: 2000000,
-    contextWindow: 2000000,
-    maxOutputTokens: 65535,
-    category: "low-latency", // Or reasoning? Usually Pro is balanced. User requested Low Latency includes Flash. Assuming Pro goes here or Reasoning? User put Pro in Reasoning list implicitly? No, User listed Gemini 3 Pro in Reasoning. Let's put 2.5 Pro in Low Latency or Reasoning? Let's put in Reasoning for now as it's smarter than Flash. Wait, user list for Low Latency: "Gemini 2.5 Flash". Reasoning: "Gemini 3 Pro". I will put 2.5 Pro in Reasoning for balance or Low Latency if it's fast. Let's stick to user list strictly. User didn't mention 2.5 Pro. I'll put it in Low Latency for now as 3 Pro is the flagship Reasoning.
+    id: "gemini-3.8-flash",
+    descKey: "modelDescFlash38",
+    name: "Gemini 3.8 Flash",
+    tokenLimit: 1048576,
+    contextWindow: 1048576,
+    maxOutputTokens: 65536,
+    category: "reasoning",
+    supportedThinkingLevels: ["low", "medium", "high"],
     providerId: "gemini",
   },
 
@@ -270,9 +272,9 @@ const SELECTABLE_SET = new Set(SELECTABLE_MODELS.map((m) => m.id));
 
 // Canonical IDs that are safe to send to respective APIs
 const API_ALLOWED = new Set([
-  // Gemini 2.5
-  "gemini-2.5-flash",
-  "gemini-2.5-pro",
+  // Gemini 3.5 / 3.8
+  "gemini-3.5-flash-lite",
+  "gemini-3.8-flash",
 
   // Gemini 3 official IDs (GA)
   "gemini-3-flash-preview",
@@ -315,11 +317,13 @@ const API_ALLOWED = new Set([
 // - DB/UI may store aliases.
 // - Gemini 3 official IDs include `-preview`.
 export const MODEL_ALIASES: Record<string, string> = {
-  // Deprecated models → Default
+  // Deprecated models → Default / Replacement
   "gemini-2.0-flash": DEFAULT_MODEL,
   "gemini-2.0-flash-exp": DEFAULT_MODEL,
   "gemini-1.5-pro": DEFAULT_MODEL,
   "gemini-1.5-flash": DEFAULT_MODEL,
+  "gemini-2.5-flash": "gemini-3.5-flash-lite",
+  "gemini-2.5-pro": "gemini-3.8-flash",
 
   // Gemini 3 aliases → GA IDs
   "gemini-3-flash": "gemini-3-flash-preview",
@@ -368,8 +372,8 @@ export function normalizeModelForApi(modelId: unknown): string {
 
   if (raw === MODEL_IDS.IMAGE_STUDIO || raw === MODEL_IDS.NOVELCRAFTER) return raw;
 
-  // Check aliases first
-  if (MODEL_ALIASES[raw]) {
+  // Check aliases first (own keys only — inherited keys like "constructor" must not match)
+  if (Object.hasOwn(MODEL_ALIASES, raw)) {
     return MODEL_ALIASES[raw];
   }
 
@@ -419,9 +423,8 @@ export function isGemini4Model(modelId: unknown): boolean {
 /**
  * Check if a model supports thinking mode (thinkingConfig with thinkingLevel).
  *
- * IMPORTANT: Only Gemini 3+ and Gemini 4+ models support the `thinkingLevel` parameter.
- * Gemini 2.5 uses `thinkingBudget` (number) which has a different API format.
- * Sending `thinkingLevel` to Gemini 2.5 causes "Thinking level is not supported" error.
+ * IMPORTANT: Gemini 3+ and Gemini 4+ models support the `thinkingLevel` parameter.
+ * Legacy Gemini 2.5 IDs normalize to Gemini 3.5/3.8 via MODEL_ALIASES.
  */
 export function modelSupportsThinking(modelId: unknown): boolean {
   const normalized = normalizeModelForApi(modelId);

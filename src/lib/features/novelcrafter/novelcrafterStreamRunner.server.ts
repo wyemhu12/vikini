@@ -174,9 +174,7 @@ async function streamGeminiProvider(
   const client = getGenAIClient();
   const maxOutputTokens = getModelMaxOutputTokens(model);
 
-  let thinkingConfig:
-    | { thinkingLevel?: ThinkingLevel; thinkingBudget?: number; includeThoughts: boolean }
-    | undefined;
+  let thinkingConfig: { thinkingLevel?: ThinkingLevel; includeThoughts: boolean } | undefined;
   if (isGemini4Model(model)) {
     const clamped = clampGeminiThinkingLevel(model, "medium");
     thinkingConfig = {
@@ -187,11 +185,6 @@ async function streamGeminiProvider(
     const clamped = clampGeminiThinkingLevel(model, "low");
     thinkingConfig = {
       thinkingLevel: GEMINI_SDK_THINKING_LEVEL_MAP[clamped] || ThinkingLevel.LOW,
-      includeThoughts: true,
-    };
-  } else if (model.startsWith("gemini-2.5")) {
-    thinkingConfig = {
-      thinkingBudget: -1,
       includeThoughts: true,
     };
   }

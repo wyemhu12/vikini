@@ -17,7 +17,12 @@ import {
   type StreamResult,
 } from "./types";
 import { sendEvent, safeText, pick, getStreamTimeout, withTimeout, streamLogger } from "./utils";
-import { extractAllThoughtSignatures } from "./thought-signatures";
+import {
+  extractAllThoughtSignatures,
+  buildFunctionResponse,
+  ensureFunctionCallSignature,
+  type GeminiFunctionResponse,
+} from "./thought-signatures";
 import {
   handleSafetyBlocking,
   processGroundingMetadata,
@@ -148,15 +153,14 @@ async function executeStream(
   }
 
   // Resolve Thinking Models
-  const apiModel = model;
   const normalized = normalizeModelForApi(model);
+  const apiModel = normalized;
 
   // Thinking config - different API format for different model families
   // Gemini 4: Always-On thinking ("low", "medium", "high"; default "medium", cannot be disabled)
-  // Gemini 3: uses thinkingLevel (string: "minimal", "low", "medium", "high")
-  // Gemini 2.5: uses thinkingBudget (number: 0 = off, -1 = dynamic, or specific token count)
+  // Gemini 3+: uses thinkingLevel (string: "minimal", "low", "medium", "high")
   let thinkingConfig:
-    | { thinkingLevel?: GeminiThinkingLevel; thinkingBudget?: number; includeThoughts?: boolean }
+    | { thinkingLevel?: GeminiThinkingLevel; includeThoughts?: boolean }
     | undefined;
 
   let effectiveThinkingLevel = thinkingLevel;
@@ -178,10 +182,6 @@ async function executeStream(
       const clampedLevel = clampGeminiThinkingLevel(model, thinkingLevel);
       effectiveThinkingLevel = clampedLevel;
       thinkingConfig = { thinkingLevel: clampedLevel, includeThoughts: true };
-    } else if (normalized.startsWith("gemini-2.5")) {
-      // Gemini 2.5: preserve backward compatibility for DEFAULT_MODEL
-      // INVARIANT: Never send thinkingLevel
-      thinkingConfig = { thinkingBudget: -1, includeThoughts: true };
     }
     // Other models: no thinking config (would cause API error)
   }
@@ -408,11 +408,7 @@ async function executeStream(
           `Function call detected via parts content (finishReason was "${fcFinish || "undefined"}")`
         );
       }
-      const functionResponses: Array<{
-        name: string;
-        id?: string;
-        response: Record<string, unknown>;
-      }> = [];
+      const functionResponses: GeminiFunctionResponse[] = [];
 
       for (const part of fcParts) {
         if (part.functionCall) {
@@ -420,12 +416,7 @@ async function executeStream(
           streamLogger.info(`Function call: ${name}${id ? ` (id: ${id})` : ""}`);
           sendEvent(controller, "meta", { type: "functionCall", name, args });
           const result = await executeFunction(name, args || {});
-          functionResponses.push({
-            name,
-            // Critical: id must match functionCall.id for tool context circulation
-            ...(id ? { id } : {}),
-            response: result.error ? { error: result.error } : { result: result.result },
-          });
+          functionResponses.push(buildFunctionResponse(part.functionCall, result));
         }
       }
 
@@ -435,7 +426,10 @@ async function executeStream(
           // For Gemini 3 tool context circulation, include ALL response parts (toolCall,
           // toolResponse, text, functionCall) in the model turn, not just functionCall parts.
           // This preserves the context of server-side tool invocations (e.g., googleSearch).
-          const modelParts = allResponseParts.length > 0 ? allResponseParts : fcParts;
+          const rawModelParts = allResponseParts.length > 0 ? allResponseParts : fcParts;
+          const modelParts = modelSupportsThinking(apiModel)
+            ? ensureFunctionCallSignature(rawModelParts)
+            : rawModelParts;
           const contContents = [
             ...contents,
             { role: "model", parts: modelParts },
@@ -450,6 +444,9 @@ async function executeStream(
                 ? safetySettings
                 : undefined,
           };
+          if (thinkingConfig?.thinkingLevel) {
+            contConfig.thinkingConfig = { thinkingLevel: thinkingConfig.thinkingLevel };
+          }
           if (params.cachedContent) {
             contConfig.cachedContent = params.cachedContent;
           } else {
@@ -461,7 +458,7 @@ async function executeStream(
             contConfig.toolConfig = params.useTools ? params.toolConfig : undefined;
           }
           const contResult = params.ai.models.generateContentStream({
-            model: params.model,
+            model: apiModel,
             contents: contContents as unknown[],
             config: contConfig,
           });

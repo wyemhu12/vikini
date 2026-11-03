@@ -84,6 +84,8 @@ export const vi = {
   // Model names
   "gemini-2.5-flash": "Gemini 2.5 Flash",
   "gemini-2.5-pro": "Gemini 2.5 Pro",
+  "gemini-3.5-flash-lite": "Gemini 3.5 Flash-Lite",
+  "gemini-3.8-flash": "Gemini 3.8 Flash",
   "gemini-3-flash-preview": "Gemini 3 Flash (Preview)",
   "gemini-3.1-pro-preview": "Gemini 3.1 Pro (Preview)",
   "gemini-4-argon": "Gemini 4 Argon",
@@ -91,8 +93,8 @@ export const vi = {
   "gemini-3-pro": "Gemini 3.1 Pro",
   "gemini-3.1-flash-lite-preview": "Gemini 3.1 Flash-Lite (Preview)",
   // Model descriptions
-  modelDescFlash25: "Nhanh & cân bằng",
-  modelDescPro25: "Suy luận nâng cao",
+  modelDescFlashLite35: "Mặc định · nhanh & tiết kiệm",
+  modelDescFlash38: "Flash thông minh nhất · tác tử & lập trình",
   modelDescFlash3: "Thông minh & nhanh",
   modelDescPro31: "Thông minh nhất",
   modelDescArgon4: "Suy luận & lập trình thế hệ mới (1M ngữ cảnh)",

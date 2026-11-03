@@ -124,7 +124,6 @@ export interface ChatStreamParams {
           maxOutputTokens?: number;
           thinkingConfig?: {
             thinkingLevel?: GeminiThinkingLevel;
-            thinkingBudget?: number;
             includeThoughts?: boolean;
           };
           cachedContent?: string;

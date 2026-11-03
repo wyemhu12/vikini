@@ -1,6 +1,7 @@
 // Tests for /api/describe-image route
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
+import { ThinkingLevel } from "@google/genai";
 
 // ── Mock dependencies BEFORE importing the route ──────────────────────
 vi.mock("@/lib/features/auth/auth", () => ({
@@ -233,11 +234,39 @@ describe("/api/describe-image", () => {
       expect(json.success).toBe(true);
       expect(json.data.description).toBe("A stunning sunset over the ocean with warm golden light");
 
-      // Verify Gemini was called with correct params
+      // Verify Gemini was called with correct params (TC-DI-01 & TC-DI-02)
       expect(mockGenerateContent).toHaveBeenCalledOnce();
       const callArgs = mockGenerateContent.mock.calls[0][0];
-      expect(callArgs.model).toBe("gemini-2.5-flash");
+      expect(callArgs.model).toBe("gemini-3.5-flash-lite");
+      expect(callArgs.config).toEqual({
+        thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+      });
       expect(callArgs.contents[0].parts[0].inlineData.mimeType).toBe("image/png");
+    });
+
+    it("TC-DI-03: filters out thought: true parts at index 0 when falling back to candidates", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+      mockGenerateContent.mockResolvedValue({
+        text: undefined,
+        candidates: [
+          {
+            content: {
+              parts: [{ text: "internal reasoning", thought: true }, { text: "A red fox" }],
+            },
+          },
+        ],
+      });
+
+      const req = createRequest({
+        imageUrl: "data:image/png;base64,iVBORw0KGgo=",
+      });
+      const res = await POST(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.success).toBe(true);
+      expect(json.data.description).toBe("A red fox");
     });
 
     it("should handle function-type text response", async () => {

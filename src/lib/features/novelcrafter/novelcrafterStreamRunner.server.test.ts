@@ -218,6 +218,70 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     expect(rawSse).toContain("event: done\n");
   });
 
+  it("TC-NCR-01: normalizes legacy gemini-2.5-flash to gemini-3.5-flash-lite with ThinkingLevel.LOW and no thinkingBudget", async () => {
+    async function* mockFlashLiteGenerator() {
+      yield {
+        candidates: [
+          {
+            content: {
+              parts: [{ text: "Flash-Lite draft.", thought: false }],
+            },
+          },
+        ],
+      };
+    }
+
+    hoisted.generateContentStreamMock.mockResolvedValue(mockFlashLiteGenerator());
+
+    const stream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: BASE_REQUEST,
+    });
+
+    await readStreamText(stream);
+
+    const callArg = hoisted.generateContentStreamMock.mock.calls[0]?.[0];
+    expect(callArg.model).toBe("gemini-3.5-flash-lite");
+    expect(callArg.config.thinkingConfig).toEqual({
+      thinkingLevel: "LOW",
+      includeThoughts: true,
+    });
+    expect(callArg.config.thinkingConfig).not.toHaveProperty("thinkingBudget");
+  });
+
+  it("TC-NCR-02: configures gemini-3.8-flash with ThinkingLevel.LOW (never MINIMAL)", async () => {
+    async function* mockFlash38Generator() {
+      yield {
+        candidates: [
+          {
+            content: {
+              parts: [{ text: "Flash 3.8 draft.", thought: false }],
+            },
+          },
+        ],
+      };
+    }
+
+    hoisted.generateContentStreamMock.mockResolvedValue(mockFlash38Generator());
+
+    const stream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: {
+        ...BASE_REQUEST,
+        model: "gemini-3.8-flash",
+      },
+    });
+
+    await readStreamText(stream);
+
+    const callArg = hoisted.generateContentStreamMock.mock.calls[0]?.[0];
+    expect(callArg.model).toBe("gemini-3.8-flash");
+    expect(callArg.config.thinkingConfig).toEqual({
+      thinkingLevel: "LOW",
+      includeThoughts: true,
+    });
+  });
+
   it("TC-02: falls back to OpenRouter for Claude models when ANTHROPIC_API_KEY is unset", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "");
 

@@ -1,6 +1,7 @@
 // Tests for /api/generate-image route
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
+import { ThinkingLevel } from "@google/genai";
 
 // ── Mock dependencies BEFORE importing the route ──────────────────────
 vi.mock("@/lib/features/auth/auth", () => ({
@@ -9,6 +10,16 @@ vi.mock("@/lib/features/auth/auth", () => ({
 
 vi.mock("@/lib/core/rateLimit", () => ({
   consumeRateLimit: vi.fn(),
+}));
+
+const mockGenerateContent = vi.fn();
+
+vi.mock("@/lib/core/genaiClient", () => ({
+  getGenAIClient: () => ({
+    models: {
+      generateContent: mockGenerateContent,
+    },
+  }),
 }));
 
 const mockSupabaseFrom = vi.fn();
@@ -777,6 +788,172 @@ describe("/api/generate-image", () => {
       await POST(req);
 
       expect(mockRollback).toHaveBeenCalled();
+    });
+
+    describe("Prompt Enhancer - Gemini 3.5/3.8 Migration & Security Guard (TC-GI-01..05)", () => {
+      function mockValidConversation() {
+        mockSupabaseFrom.mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: TEST_CONV_ID, user_id: TEST_EMAIL },
+                error: null,
+              }),
+            }),
+          }),
+        });
+      }
+
+      it("TC-GI-01: uses DEFAULT_MODEL (gemini-3.5-flash-lite) with ThinkingLevel.MINIMAL when enhancerModel is omitted", async () => {
+        mockAuthenticated();
+        mockRateLimitAllowed();
+        mockValidConversation();
+        mockGenerateContent.mockResolvedValueOnce({
+          text: "Enhanced sunset prompt",
+        });
+
+        const generateSpy = vi.fn().mockResolvedValue({
+          images: [{ url: "https://example.com/image.png" }],
+        });
+        const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+        vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+          generate: generateSpy,
+        } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+
+        const req = createRequest("POST", "/api/generate-image", {
+          ...validBody,
+          options: { enhancer: true },
+        });
+        await POST(req);
+
+        expect(mockGenerateContent).toHaveBeenCalledOnce();
+        const callArg = mockGenerateContent.mock.calls[0][0];
+        expect(callArg.model).toBe("gemini-3.5-flash-lite");
+        expect(callArg.config).toEqual({
+          thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+        });
+      });
+
+      it("TC-GI-02: normalizes legacy gemini-2.5-pro to gemini-3.8-flash and clamps thinkingLevel to ThinkingLevel.LOW", async () => {
+        mockAuthenticated();
+        mockRateLimitAllowed();
+        mockValidConversation();
+        mockGenerateContent.mockResolvedValueOnce({
+          text: "Enhanced by 3.8 Flash",
+        });
+
+        const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+        vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+          generate: vi.fn().mockResolvedValue({
+            images: [{ url: "https://example.com/image.png" }],
+          }),
+        } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+
+        const req = createRequest("POST", "/api/generate-image", {
+          ...validBody,
+          options: { enhancer: true, enhancerModel: "gemini-2.5-pro" },
+        });
+        await POST(req);
+
+        expect(mockGenerateContent).toHaveBeenCalledOnce();
+        const callArg = mockGenerateContent.mock.calls[0][0];
+        expect(callArg.model).toBe("gemini-3.8-flash");
+        expect(callArg.config).toEqual({
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        });
+      });
+
+      it.each([
+        "gemini-evil-unknown",
+        "claude-sonnet-4.5",
+        "gemini-3-pro-image",
+        "gemini-3-pro-image-preview",
+        "vikini-novelcrafter",
+      ])(
+        "TC-GI-03: rejects non-selectable, image-gen, or non-Gemini enhancerModel %s and falls back to gemini-3.5-flash-lite",
+        async (disallowedModel) => {
+          mockAuthenticated();
+          mockRateLimitAllowed();
+          mockValidConversation();
+          mockGenerateContent.mockResolvedValueOnce({
+            text: "Safe enhanced prompt",
+          });
+
+          const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+          vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+            generate: vi.fn().mockResolvedValue({
+              images: [{ url: "https://example.com/image.png" }],
+            }),
+          } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+
+          const req = createRequest("POST", "/api/generate-image", {
+            ...validBody,
+            options: { enhancer: true, enhancerModel: disallowedModel },
+          });
+          await POST(req);
+
+          expect(mockGenerateContent).toHaveBeenCalledOnce();
+          expect(mockGenerateContent.mock.calls[0][0].model).toBe("gemini-3.5-flash-lite");
+        }
+      );
+
+      it("TC-GI-04: honors valid selectable Gemini text model (gemini-3.1-pro-preview)", async () => {
+        mockAuthenticated();
+        mockRateLimitAllowed();
+        mockValidConversation();
+        mockGenerateContent.mockResolvedValueOnce({
+          text: "Enhanced by 3.1 Pro",
+        });
+
+        const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+        vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+          generate: vi.fn().mockResolvedValue({
+            images: [{ url: "https://example.com/image.png" }],
+          }),
+        } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+
+        const req = createRequest("POST", "/api/generate-image", {
+          ...validBody,
+          options: { enhancer: true, enhancerModel: "gemini-3.1-pro-preview" },
+        });
+        await POST(req);
+
+        expect(mockGenerateContent).toHaveBeenCalledOnce();
+        expect(mockGenerateContent.mock.calls[0][0].model).toBe("gemini-3.1-pro-preview");
+      });
+
+      it("TC-GI-05: filters out thought: true parts at index 0 when reading enhancer candidate fallback", async () => {
+        mockAuthenticated();
+        mockRateLimitAllowed();
+        mockValidConversation();
+        mockGenerateContent.mockResolvedValueOnce({
+          text: undefined,
+          candidates: [
+            {
+              content: {
+                parts: [{ text: "plan…", thought: true }, { text: "Enhanced prompt" }],
+              },
+            },
+          ],
+        });
+
+        const generateSpy = vi.fn().mockResolvedValue({
+          images: [{ url: "https://example.com/image.png" }],
+        });
+        const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+        vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+          generate: generateSpy,
+        } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+
+        const req = createRequest("POST", "/api/generate-image", {
+          ...validBody,
+          options: { enhancer: true },
+        });
+        await POST(req);
+
+        expect(generateSpy).toHaveBeenCalledOnce();
+        expect(generateSpy.mock.calls[0][0]).toBe("Enhanced prompt");
+      });
     });
   });
 });

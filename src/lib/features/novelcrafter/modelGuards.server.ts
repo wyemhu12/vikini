@@ -1,7 +1,12 @@
 // /lib/features/novelcrafter/modelGuards.server.ts
 // Shared server-side model validation for Novelcrafter state and stream endpoints (NC-32)
 
-import { DEFAULT_MODEL, isSelectableModelId, normalizeModelForApi } from "@/lib/core/modelRegistry";
+import {
+  DEFAULT_MODEL,
+  MODEL_ALIASES,
+  isSelectableModelId,
+  normalizeModelForApi,
+} from "@/lib/core/modelRegistry";
 import { MODEL_IDS } from "@/lib/utils/constants";
 
 export function isValidGenerationModel(modelId: string): boolean {
@@ -11,6 +16,7 @@ export function isValidGenerationModel(modelId: string): boolean {
     return false;
   }
   if (isSelectableModelId(trimmed)) return true;
+  if (Object.hasOwn(MODEL_ALIASES, trimmed)) return true;
   const normalized = normalizeModelForApi(trimmed);
   if (normalized !== DEFAULT_MODEL) return true;
   return trimmed === DEFAULT_MODEL;
