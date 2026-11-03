@@ -20,7 +20,7 @@
   - Cập nhật `isValidGenerationModel` và `resolveModelDisplayInfo` của Novelcrafter (kèm `Object.hasOwn(DIRECT_API_MODEL_DISPLAY_MAP, raw)`) để tương thích ngược với các truyện cũ lưu model `gemini-2.5-flash` / `gemini-2.5-pro`.
 - **One-Shot Gemini Helpers & Vision/Image Routes (`src/lib/core/{geminiSdkHelpers,autoTitleEngine}.ts`, `src/app/api/{describe-image,generate-image}/route.ts`)**:
   - Tạo module `src/lib/core/geminiSdkHelpers.ts` (`buildMinimalThinkingConfig`, `extractGeminiResponseText`) để kẹp mức suy luận tối thiểu hợp lệ cho từng model (`MINIMAL` trên 3.5 Flash-Lite, `LOW` trên 3.8 Flash) và lọc bỏ mọi part `thought: true` ở nhánh fallback `candidates`.
-  - Chuyển `FALLBACK_MODEL` của `autoTitleEngine.ts`, model của `/api/describe-image` và Prompt Enhancer của `/api/generate-image` sang `DEFAULT_MODEL` (`gemini-3.5-flash-lite`), đồng thời siết guard Enhancer chỉ nhận Gemini text model trong `SELECTABLE_MODELS`.
+  - Chuyển `FALLBACK_MODEL` của `autoTitleEngine.ts`, model của `/api/describe-image` và Prompt Enhancer của `/api/generate-image` sang `DEFAULT_MODEL` (`gemini-3.5-flash-lite`), siết guard Enhancer chỉ nhận Gemini text model trong `SELECTABLE_MODELS`, và cố định `export const maxDuration = 30;` tại dòng 18 của `src/app/api/describe-image/route.ts` dưới định dạng chuẩn Prettier (`TC-G4 & TC-G5`).
 - **Database Migration (`database-migrations/20261103000000_migrate_gemini_25_to_35_38.sql`)**:
   - Thêm bản migration SQL idempotent cập nhật `rank_configs.allowed_models` (`gemini-3.5-flash-lite` cho `basic`/`pro`/`admin`, `gemini-3.8-flash` cho `admin` và các rank đang có `gemini-2.5-pro`, sau đó gỡ bỏ 2 ID `gemini-2.5-*`).
 

@@ -12,6 +12,9 @@ import { buildMinimalThinkingConfig, extractGeminiResponseText } from "@/lib/cor
 import { HTTP_STATUS } from "@/lib/utils/constants";
 
 const routeLogger = logger.withContext("describe-image");
+
+// Serverless execution timeout (seconds) for Gemini vision image description.
+// Paired with AbortSignal.timeout(25_000) on upstream image fetch.
 export const maxDuration = 30;
 
 const schema = z.object({
