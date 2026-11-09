@@ -8,6 +8,7 @@ import PersonaPreview, { type PersonaForUI } from "./PersonaPreview";
 import { usePersonaStore } from "../stores/usePersonaStore";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
+import { PageHeader } from "@/components/ui/page-header";
 import { toast } from "@/lib/store/toastStore";
 import { confirm } from "@/lib/store/confirmStore";
 import type { PersonaTone } from "@/types/persona";
@@ -208,32 +209,38 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
     }
   };
 
+  const headerTitle = t("personasTitle") || "Manage Personas";
+  const headerDescription = conversationId
+    ? `${t("personaApplied") || "Active Persona"}: ${conversationId.slice(0, 8)}...`
+    : "Global Mode";
+  const headerActions = (
+    <button
+      type="button"
+      onClick={onCreate}
+      className="rounded-lg bg-(--accent) px-3 py-1.5 text-sm text-(--on-accent) font-medium hover:brightness-110 transition-colors active:scale-95"
+    >
+      + {t("personaCreate") || "New Persona"}
+    </button>
+  );
+
   return (
     <div className="flex flex-col h-full bg-transparent text-(--text-primary) overflow-hidden">
-      <div
-        className={cn(
-          "flex-none py-4 border-b border-(--border) flex items-center justify-between bg-(--surface)/80 backdrop-blur-md sticky top-0 z-10",
-          inModal ? "pl-6 pr-14" : "px-6"
-        )}
-      >
-        <div>
-          <h1 className="text-xl font-semibold">{t("personasTitle") || "Manage Personas"}</h1>
-          <p className="text-xs text-(--text-secondary) truncate max-w-md">
-            {conversationId
-              ? `${t("personaApplied") || "Active Persona"}: ${conversationId.slice(0, 8)}...`
-              : "Global Mode"}
-          </p>
+      {inModal ? (
+        <div className="flex-none py-4 pl-6 pr-14 border-b border-(--border) flex items-center justify-between bg-(--surface)/80 backdrop-blur-md sticky top-0 z-10">
+          <div>
+            <h2 className="text-xl font-semibold">{headerTitle}</h2>
+            <p className="text-xs text-(--text-secondary) truncate max-w-md">{headerDescription}</p>
+          </div>
+          {headerActions}
         </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={onCreate}
-            className="rounded-lg bg-(--primary) px-3 py-1.5 text-sm text-black font-medium hover:brightness-110 transition-colors active:scale-95"
-          >
-            + {t("personaCreate") || "New Persona"}
-          </button>
-        </div>
-      </div>
+      ) : (
+        <PageHeader
+          className="flex-none px-4 md:px-6 pt-4"
+          title={headerTitle}
+          description={headerDescription}
+          actions={headerActions}
+        />
+      )}
 
       <div
         className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 scrollbar-thin scrollbar-thumb-[var(--border)]"

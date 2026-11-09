@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
-import { Search, PlusCircle, Keyboard, Moon, Globe, MessageSquare } from "lucide-react";
+import { Search, PlusCircle, Keyboard, Moon, Sun, Globe, MessageSquare } from "lucide-react";
 import { useLanguage } from "../hooks/useLanguage";
 import { useTheme } from "../hooks/useTheme";
 import { cn } from "@/lib/utils/cn";
@@ -11,15 +11,18 @@ export interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
   onNewChat: () => void;
-  onOpenShortcuts: () => void;
+  /** Chat only: keyboard shortcut help. */
+  onOpenShortcuts?: () => void;
   onSelectConversation?: (id: string) => void;
   conversations?: Array<{ id: string; title?: string }>;
+  /** Extra commands (e.g. navigation on pages outside Chat), listed after the built-in actions. */
+  extraCommands?: readonly CommandItem[];
 }
 
-interface CommandItem {
+export interface CommandItem {
   id: string;
   title: string;
-  category: "actions" | "conversations" | "preferences";
+  category: "actions" | "navigation" | "conversations" | "preferences";
   icon: React.ReactNode;
   perform: () => void;
 }
@@ -31,9 +34,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onOpenShortcuts,
   onSelectConversation,
   conversations = [],
+  extraCommands,
 }) => {
   const { t, language, setLanguage } = useLanguage();
-  const { theme, toggleTheme } = useTheme();
+  const { mode, toggleMode } = useTheme();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,19 +63,24 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           onNewChat();
         },
       },
-      {
-        id: "shortcuts",
-        title: t("shortcutOpenShortcuts") || "Show keyboard shortcuts",
-        category: "actions",
-        icon: <Keyboard className="w-4 h-4 text-(--accent)" />,
-        perform: () => {
-          onClose();
-          onOpenShortcuts();
-        },
-      },
+      ...(onOpenShortcuts
+        ? [
+            {
+              id: "shortcuts",
+              title: t("shortcutOpenShortcuts") || "Show keyboard shortcuts",
+              category: "actions" as const,
+              icon: <Keyboard className="w-4 h-4 text-(--accent)" />,
+              perform: () => {
+                onClose();
+                onOpenShortcuts();
+              },
+            },
+          ]
+        : []),
+      ...(extraCommands ?? []),
       {
         id: "switch-lang",
-        title: `${t("language") || "Language"}: ${language === "vi" ? "English" : "Tiếng Việt"}`,
+        title: `${t("switchLanguageTo")} ${language === "vi" ? "English" : "Tiếng Việt"}`,
         category: "preferences",
         icon: <Globe className="w-4 h-4 text-(--accent)" />,
         perform: () => {
@@ -81,11 +90,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       },
       {
         id: "switch-theme",
-        title: `${t("switchTheme") || "Chuyển giao diện"}: ${theme || "blueprint"}`,
+        title: `${t("switchTheme")}: ${t(mode === "dark" ? "themeModeLight" : "themeModeDark")}`,
         category: "preferences",
-        icon: <Moon className="w-4 h-4 text-(--accent)" />,
+        icon:
+          mode === "dark" ? (
+            <Sun className="w-4 h-4 text-(--accent)" />
+          ) : (
+            <Moon className="w-4 h-4 text-(--accent)" />
+          ),
         perform: () => {
-          toggleTheme();
+          toggleMode();
           onClose();
         },
       },
@@ -110,13 +124,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     t,
     language,
     setLanguage,
-    theme,
-    toggleTheme,
+    mode,
+    toggleMode,
     onNewChat,
     onOpenShortcuts,
     onSelectConversation,
     conversations,
     onClose,
+    extraCommands,
   ]);
 
   const filtered = useMemo(() => {
@@ -150,7 +165,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         </DialogHeader>
 
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 py-3 border-b border-(--border) gap-3">
+        <div className="flex items-center px-4 py-3 border-b border-(--border) gap-3 focus-within:bg-(--raised)/40">
           <Search className="w-5 h-5 text-(--text-secondary) shrink-0" />
           <input
             ref={inputRef}
@@ -162,11 +177,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             }}
             onKeyDown={handleKeyDown}
             placeholder={t("commandPalettePlaceholder") || "Type a command or search..."}
-            className="flex-1 bg-transparent text-(--text-primary) placeholder:text-(--text-secondary) outline-none text-base"
+            aria-keyshortcuts="Escape"
+            data-focus-ring="container"
+            className="flex-1 bg-transparent text-(--text-primary) placeholder:text-(--text-secondary) outline-none focus-visible:outline-none focus-visible:ring-0 text-base"
           />
-          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[11px] font-mono font-medium rounded bg-(--control-bg) border border-(--border) text-(--text-secondary)">
-            Esc
-          </kbd>
         </div>
 
         {/* Results List */}

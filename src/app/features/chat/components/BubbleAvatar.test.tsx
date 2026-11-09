@@ -30,6 +30,18 @@ describe("BubbleAvatar", () => {
     expect(screen.getByText("gemini-2.5-pro")).toBeDefined();
   });
 
+  it("uses the resolved model label (M2) for the tooltip instead of the raw id", () => {
+    const { container } = render(
+      <BubbleAvatar
+        isBot={true}
+        modelName="gemini-2.5-flash"
+        modelLabel="Gemini 3.5 Flash-Lite (cũ)"
+      />
+    );
+    expect(container.querySelector('[title="Gemini 3.5 Flash-Lite (cũ)"]')).not.toBeNull();
+    expect(container.querySelector('[title="gemini-2.5-flash"]')).toBeNull();
+  });
+
   it("renders shimmer pulse when isBot is true and loading", () => {
     const { container } = render(<BubbleAvatar isBot={true} isLoading={true} />);
     expect(container.querySelector("svg")).toBeDefined();

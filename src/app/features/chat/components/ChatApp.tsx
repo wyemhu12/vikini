@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useCallback, useState, lazy, Suspense } from "react";
+import React, { useCallback, useState, lazy, Suspense } from "react";
 
 // UI Components
 import Sidebar from "../../sidebar/components/Sidebar";
@@ -8,13 +8,11 @@ import HeaderBar from "../../layout/components/HeaderBar";
 import AccessPendingScreen from "@/app/components/AccessPendingScreen";
 import DashboardView from "./DashboardView";
 import ChatControls from "./ChatControls";
-import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import ToastContainer from "@/components/ui/ToastContainer";
 import StreamErrorBanner from "./StreamErrorBanner";
 import ScrollToBottomButton from "./ScrollToBottomButton";
 import ChatOverlays from "./ChatOverlays";
 import ChatLoadingScreen from "./ChatLoadingScreen";
-import ChatThemeBackground from "./ChatThemeBackground";
 import ChatConversationView from "./ChatConversationView";
 import LandingDisclaimer from "./LandingDisclaimer";
 import { buildChatControlsProps } from "./chatControlsProps";
@@ -22,7 +20,6 @@ import { buildChatControlsProps } from "./chatControlsProps";
 const ProjectChatView = lazy(() => import("../../projects/components/ProjectChatView"));
 
 // Hooks
-import { useTheme } from "../hooks/useTheme";
 import { useConversation } from "../hooks/useConversation";
 import { useTTS } from "../hooks/useTTS";
 import { useAuthGate } from "./hooks/useAuthGate";
@@ -42,6 +39,7 @@ import { useGemPersonaSync } from "./hooks/useGemPersonaSync";
 import { useChatLayoutState } from "./hooks/useChatLayoutState";
 import { useProjectNavigation } from "./hooks/useProjectNavigation";
 import { useChatShortcuts } from "./hooks/useChatShortcuts";
+import { getShellPaddingClass } from "../../layout/utils/shellNav";
 import { useSidebarActions } from "./hooks/useSidebarActions";
 import { useRemixPrompt } from "./hooks/useRemixPrompt";
 
@@ -52,12 +50,8 @@ import { useRemixPrompt } from "./hooks/useRemixPrompt";
 export default function ChatApp() {
   const { session, isAuthLoading, isAuthed, isPendingAccess } = useAuthGate();
 
-  const { theme } = useTheme();
   const { t: tRaw } = useLanguage();
   const t = useChatTranslations();
-
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   // Image Mode State (activated from DashboardView)
   const [pendingImageMode, setPendingImageMode] = useState(false);
@@ -239,6 +233,7 @@ export default function ChatApp() {
       >
         {tRaw("skipToMainContent")}
       </a>
+      <h1 className="sr-only">{tRaw("appName")}</h1>
       <ToastContainer />
       <div className="absolute inset-0 z-0 static-depth-bg pointer-events-none" />
 
@@ -257,6 +252,7 @@ export default function ChatApp() {
         session={session}
         collapsed={sidebarCollapsed}
         onToggleCollapse={layout.memoizedOnToggleCollapse}
+        onOpenCommandPalette={shortcuts.openCommandPalette}
         onLogoClick={layout.memoizedOnLogoClick}
         allConversations={conversations}
         onCreateProjectChat={projectNav.memoizedOnCreateProjectChat}
@@ -266,12 +262,11 @@ export default function ChatApp() {
         isCreatingChat={conversation.creatingConversation}
       />
 
-      {!layout.mobileOpen && <FloatingMenuTrigger onClick={layout.toggleMobileSidebar} />}
-
       <div
-        className={`@container/chat h-full flex flex-col relative z-10 transition-[padding] duration-300 ${sidebarCollapsed ? "md:pl-[calc(5rem+var(--sal,0px))]" : "md:pl-[calc(18rem+var(--sal,0px))] lg:pl-[calc(20rem+var(--sal,0px))]"} pr-[var(--sar,0px)]`}
+        className={`@container/chat h-full flex flex-col relative z-10 transition-[padding] duration-300 ${getShellPaddingClass(sidebarCollapsed)} pr-[var(--sar,0px)]`}
       >
         <HeaderBar
+          hideOnDesktop
           onToggleSidebar={layout.toggleMobileSidebar}
           showMobileControls={showMobileControls}
         />
@@ -289,10 +284,6 @@ export default function ChatApp() {
           aria-live="polite"
           aria-relevant="additions"
         >
-          {mounted && theme && (
-            <ChatThemeBackground theme={theme} sidebarCollapsed={sidebarCollapsed} />
-          )}
-
           {showProjectView && selectedProject ? (
             <Suspense fallback={null}>
               <ProjectChatView

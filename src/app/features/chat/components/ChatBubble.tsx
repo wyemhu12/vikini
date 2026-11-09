@@ -19,6 +19,7 @@ import ImageGenPreview from "./ImageGenPreview";
 import TokenBadge from "./TokenBadge";
 import { FileInMessage } from "./FileInMessage";
 import { parseLegacyNotice } from "@/lib/features/chat/legacyNotice";
+import { resolveChatModelDisplay } from "@/lib/core/modelPicker";
 import type { ThinkingStatsSnapshot, LocalStreamProgress } from "@/lib/features/chat/thinkingStats";
 import { EmptyReasoningNotice } from "./EmptyReasoningNotice";
 import type { ThinkingLevel } from "./hooks/useThinkingLevel";
@@ -108,6 +109,16 @@ export const ChatBubble = React.memo(
     }, [message, props.role, props.content, props.sources, props.urlContext]);
 
     const isBot = safeMessage.role === "assistant";
+    const messageModel = safeMessage.meta?.model;
+    const modelLabel = useMemo(() => {
+      if (!isBot) return undefined;
+      const display = resolveChatModelDisplay(messageModel);
+      if (display.status === "legacy") return `${display.name} ${t("modelLegacySuffix")}`;
+      if (display.status === "retired" && display.name !== "AI") {
+        return `${display.name} ${t("modelRetiredSuffix")}`;
+      }
+      return display.name;
+    }, [isBot, messageModel, t]);
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState(safeMessage.content);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -219,6 +230,7 @@ export const ChatBubble = React.memo(
             isStreaming={isStreaming}
             isStreamThinking={isStreamThinking}
             modelName={safeMessage.meta?.model as string | undefined}
+            modelLabel={modelLabel}
           />
 
           <div

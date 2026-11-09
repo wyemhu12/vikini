@@ -1,6 +1,7 @@
 "use client";
 
-import { useSession, signIn } from "next-auth/react";
+import { useSession, signIn, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import ControlPanel from "./ControlPanel";
 import Canvas from "./Canvas";
 import EditPanel from "./EditPanel";
@@ -8,7 +9,6 @@ import ImageLightbox from "./ImageLightbox";
 import TemplateModal from "./TemplateModal";
 import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
-import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 
 import { useTheme } from "../../chat/hooks/useTheme";
 
@@ -23,6 +23,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils/cn";
+import { useLayoutStore } from "@/lib/store/layoutStore";
+import { useCommandPaletteStore } from "@/lib/store/commandPaletteStore";
+import { getShellPaddingClass } from "../../layout/utils/shellNav";
 import { motion, AnimatePresence } from "framer-motion";
 import { Wand2, Images } from "lucide-react";
 
@@ -39,7 +42,10 @@ export function ImageGenStudio() {
 
   // Sidebar state (local to layout)
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const panelCollapsed = useLayoutStore((s) => s.panelCollapsedBySection.images);
+  const togglePanel = useLayoutStore((s) => s.togglePanel);
+  const openPalette = useCommandPaletteStore((s) => s.open);
+  const router = useRouter();
 
   // Fetch batch quota on auth
   useEffect(() => {
@@ -69,6 +75,7 @@ export function ImageGenStudio() {
 
   return (
     <div className="h-screen w-screen text-(--text-primary) overflow-hidden relative font-sans bg-(--surface) flex">
+      <h1 className="sr-only">{t("studioTitle")}</h1>
       {/* API Key Warning Modal */}
       <AlertDialog open={studio.showApiKeyWarning} onOpenChange={studio.setShowApiKeyWarning}>
         <AlertDialogContent>
@@ -145,31 +152,24 @@ export function ImageGenStudio() {
           studio.setSelectedConversationId(id);
           setMobileOpen(false);
         }}
-        onNewChat={async () => {
-          await studio.handleCreateProject();
-          setMobileOpen(false);
-        }}
-        newChatLabel={t("studioNewProject")}
+        onNewChat={() => router.push("/")}
+        sectionActionLabel={t("studioNewProject")}
+        onSectionAction={() => void studio.handleCreateProject()}
         onDeleteConversation={studio.handleDeleteProject}
         onRenameChat={studio.handleRename}
-        onLogout={() => {}}
+        onLogout={() => void signOut({ callbackUrl: "/auth/signin" })}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        collapsed={panelCollapsed}
+        onToggleCollapse={() => togglePanel("images")}
+        onOpenCommandPalette={openPalette}
         session={session}
       />
 
-      <FloatingMenuTrigger onClick={() => setMobileOpen(true)} />
-
       <div
-        className={`flex-1 flex flex-col h-full transition-colors duration-300 relative z-10 pt-14 md:pt-0 ${
-          sidebarCollapsed
-            ? "md:pl-[calc(5rem+var(--sal,0px))]"
-            : "md:pl-[calc(18rem+var(--sal,0px))] lg:pl-[calc(20rem+var(--sal,0px))]"
-        } pr-[var(--sar,0px)]`}
+        className={`flex-1 flex flex-col h-full transition-colors duration-300 relative z-10 pt-[calc(4.75rem+var(--sat,0px))] md:pt-0 ${getShellPaddingClass(panelCollapsed)} pr-[var(--sar,0px)]`}
       >
-        <HeaderBar onToggleSidebar={() => setMobileOpen(true)} />
+        <HeaderBar hideOnDesktop onToggleSidebar={() => setMobileOpen(true)} />
 
         {/* Main content area */}
         <div className="flex flex-col md:flex-row h-full w-full relative overflow-hidden bg-(--surface)">

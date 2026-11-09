@@ -3,8 +3,11 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Settings, Trash2, Loader2, MessageSquare, Plus } from "lucide-react";
+import { Settings, Trash2, Loader2, MessageSquare, Plus } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import AppFrame from "@/app/features/layout/components/AppFrame";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import { KnowledgePanel } from "@/components/features/projects";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { useConversation } from "@/app/features/chat/hooks/useConversation";
@@ -147,70 +150,58 @@ export default function ProjectPage() {
 
   if (!project && !isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <h1 className="text-xl font-bold mb-2">{t("projectNotFound")}</h1>
-          <button onClick={() => router.push("/")} className="text-primary hover:underline">
-            {t("goBackHome")}
-          </button>
-        </div>
-      </div>
+      <AppFrame title={t("projectNotFound")}>
+        <EmptyState
+          className="min-h-full justify-center"
+          title={t("projectNotFound")}
+          action={{ label: t("goBackHome"), href: "/" }}
+        />
+      </AppFrame>
     );
   }
 
   return (
-    <div className="min-h-screen bg-(--surface-muted)">
-      {/* Breadcrumb */}
-      <nav
-        aria-label="Breadcrumb"
-        className="bg-(--surface)/80 backdrop-blur-sm border-b border-(--border)/50"
-      >
-        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center gap-1.5 text-xs text-(--text-secondary)">
-          <Link href="/" className="hover:text-(--text-primary) transition-colors">
-            {t("home") || "Home"}
-          </Link>
-          <span className="opacity-40">/</span>
-          <Link href="/" className="hover:text-(--text-primary) transition-colors">
-            {t("projects") || "Projects"}
-          </Link>
-          <span className="opacity-40">/</span>
-          <span className="text-(--text-primary) font-medium truncate max-w-[200px]">
-            {project?.name || "..."}
-          </span>
-        </div>
-      </nav>
-
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-(--surface)/90 backdrop-blur-xl border-b border-(--border)">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className="p-2 hover:bg-(--control-bg-hover) rounded-lg transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-
-          <div className="flex items-center gap-3 flex-1">
-            <span
-              className="w-10 h-10 flex items-center justify-center rounded-lg text-xl"
-              style={{ backgroundColor: project?.color || "#6366f1" }}
-            >
-              {project?.icon || ""}
+    <AppFrame>
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Breadcrumb */}
+        <nav aria-label="Breadcrumb">
+          <div className="flex items-center gap-1.5 text-xs text-(--text-secondary)">
+            <Link href="/" className="hover:text-(--text-primary) transition-colors">
+              {t("home") || "Home"}
+            </Link>
+            <span className="opacity-40">/</span>
+            <Link href="/" className="hover:text-(--text-primary) transition-colors">
+              {t("projects") || "Projects"}
+            </Link>
+            <span className="opacity-40">/</span>
+            <span className="text-(--text-primary) font-medium truncate max-w-[200px]">
+              {project?.name || "..."}
             </span>
-            <div>
-              <h1 className="text-lg font-bold">{project?.name || "Loading..."}</h1>
-              {project?.description && (
-                <p className="text-sm text-(--text-secondary) line-clamp-1">
-                  {project.description}
-                </p>
-              )}
-            </div>
           </div>
+        </nav>
 
-          <div className="flex items-center gap-2">
+        <PageHeader
+          backHref="/"
+          backLabel={t("goBack")}
+          title={
+            <span className="flex items-center gap-3">
+              <span
+                aria-hidden
+                className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg text-xl"
+                style={{ backgroundColor: project?.color || "#6366f1" }}
+              >
+                {project?.icon || ""}
+              </span>
+              <span className="truncate">{project?.name || "Loading..."}</span>
+            </span>
+          }
+          description={project?.description}
+          actions={
             <button
+              type="button"
               onClick={handleDeleteProject}
               disabled={isDeleting}
+              aria-label={t("deleteProject")}
               className={cn(
                 "p-2 rounded-lg transition-colors",
                 "hover:bg-(--danger)/10 text-(--danger)"
@@ -223,155 +214,157 @@ export default function ProjectPage() {
                 <Trash2 className="h-5 w-5" />
               )}
             </button>
-          </div>
-        </div>
-      </header>
+          }
+        />
 
-      {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        {error && (
-          <div className="mb-6 p-4 rounded-lg bg-(--danger)/10 border border-(--danger)/20 text-(--danger)">
-            {error}
-          </div>
-        )}
+        {/* Content */}
+        <div>
+          {error && (
+            <div className="mb-6 p-4 rounded-lg bg-(--danger)/10 border border-(--danger)/20 text-(--danger)">
+              {error}
+            </div>
+          )}
 
-        <div className="grid gap-8 md:grid-cols-2">
-          {/* Knowledge Base Panel */}
-          <div className="bg-(--surface) rounded-xl border border-(--border) overflow-hidden">
-            <KnowledgePanel
-              projectId={projectId}
-              documents={documents}
-              storageUsedBytes={project?.storage_bytes || 0}
-              storageMaxBytes={5 * 1024 * 1024} // TODO: get from limits
-              isLoading={isLoading}
-              onUpload={handleUpload}
-              onDelete={handleDeleteDocument}
-              onRefresh={fetchDocuments}
-            />
-          </div>
-
-          {/* Project Info */}
-          <div className="space-y-6">
-            {/* Stats */}
-            <div className="bg-(--surface) rounded-xl border border-(--border) p-6">
-              <h2 className="font-semibold mb-4 flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                {t("projectInfo")}
-              </h2>
-              <dl className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-(--text-secondary)">{t("projectDocuments")}</dt>
-                  <dd className="font-medium">{project?.document_count || 0}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-(--text-secondary)">{t("projectConversations")}</dt>
-                  <dd className="font-medium">{project?.conversation_count || 0}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-(--text-secondary)">{t("projectEmbeddingModel")}</dt>
-                  <dd className="font-mono text-xs">{project?.embedding_model || "-"}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-(--text-secondary)">{t("projectCreated")}</dt>
-                  <dd className="font-medium">
-                    {project?.created_at ? new Date(project.created_at).toLocaleDateString() : "-"}
-                  </dd>
-                </div>
-              </dl>
+          <div className="grid gap-8 md:grid-cols-2">
+            {/* Knowledge Base Panel */}
+            <div className="bg-(--surface) rounded-xl border border-(--border) overflow-hidden">
+              <KnowledgePanel
+                projectId={projectId}
+                documents={documents}
+                storageUsedBytes={project?.storage_bytes || 0}
+                storageMaxBytes={5 * 1024 * 1024} // TODO: get from limits
+                isLoading={isLoading}
+                onUpload={handleUpload}
+                onDelete={handleDeleteDocument}
+                onRefresh={fetchDocuments}
+              />
             </div>
 
-            {/* Usage Tips */}
-            <div className="bg-(--surface) rounded-xl border border-(--border) p-6">
-              <h2 className="font-semibold mb-3">{t("projectHowToUse")}</h2>
-              <ul className="text-sm text-(--text-secondary) space-y-2">
-                <li>{t("projectHint1")}</li>
-                <li>{t("projectHint2")}</li>
-                <li>{t("projectHint3")}</li>
-              </ul>
-            </div>
-
-            {/* Conversations in this project */}
-            <div className="bg-(--surface) rounded-xl border border-(--border) p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  {t("projectConversations")} ({projectConversations.length})
+            {/* Project Info */}
+            <div className="space-y-6">
+              {/* Stats */}
+              <div className="bg-(--surface) rounded-xl border border-(--border) p-6">
+                <h2 className="font-semibold mb-4 flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  {t("projectInfo")}
                 </h2>
-                <button
-                  onClick={async () => {
-                    setIsCreatingChat(true);
-                    try {
-                      const conv = await createConversation({
-                        title: "",
-                        projectId: projectId,
-                      });
-                      if (conv) {
-                        router.push(`/?id=${conv.id}`);
-                      }
-                    } finally {
-                      setIsCreatingChat(false);
-                    }
-                  }}
-                  disabled={isCreatingChat}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium",
-                    "bg-primary text-primary-foreground hover:bg-primary/90",
-                    "transition-colors"
-                  )}
-                >
-                  {isCreatingChat ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  {t("newChatBtn")}
-                </button>
+                <dl className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-(--text-secondary)">{t("projectDocuments")}</dt>
+                    <dd className="font-medium">{project?.document_count || 0}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-(--text-secondary)">{t("projectConversations")}</dt>
+                    <dd className="font-medium">{project?.conversation_count || 0}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-(--text-secondary)">{t("projectEmbeddingModel")}</dt>
+                    <dd className="font-mono text-xs">{project?.embedding_model || "-"}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-(--text-secondary)">{t("projectCreated")}</dt>
+                    <dd className="font-medium">
+                      {project?.created_at
+                        ? new Date(project.created_at).toLocaleDateString()
+                        : "-"}
+                    </dd>
+                  </div>
+                </dl>
               </div>
 
-              {projectConversations.length === 0 ? (
-                <p className="text-sm text-(--text-secondary) text-center py-4">
-                  {t("noConversationsYet")}
-                </p>
-              ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {projectConversations.map((conv) => (
-                    <div
-                      key={conv.id}
-                      className={cn(
-                        "flex items-center justify-between p-3 rounded-lg",
-                        "bg-(--control-bg) hover:bg-(--control-bg-hover)",
-                        "cursor-pointer transition-colors group"
-                      )}
-                      onClick={() => router.push(`/?id=${conv.id}`)}
-                    >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <MessageSquare className="h-4 w-4 text-(--text-secondary) shrink-0" />
-                        <span className="text-sm truncate">
-                          {conv.title || t("newConversation")}
-                        </span>
-                      </div>
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const ok = await confirm({
-                            title: t("deleteConversationQuestion"),
-                            variant: "danger",
-                            confirmLabel: t("modalDeleteButton"),
-                          });
-                          if (ok) void deleteConversation(conv.id);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-(--danger) transition-[opacity,color]"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
+              {/* Usage Tips */}
+              <div className="bg-(--surface) rounded-xl border border-(--border) p-6">
+                <h2 className="font-semibold mb-3">{t("projectHowToUse")}</h2>
+                <ul className="text-sm text-(--text-secondary) space-y-2">
+                  <li>{t("projectHint1")}</li>
+                  <li>{t("projectHint2")}</li>
+                  <li>{t("projectHint3")}</li>
+                </ul>
+              </div>
+
+              {/* Conversations in this project */}
+              <div className="bg-(--surface) rounded-xl border border-(--border) p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-semibold flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    {t("projectConversations")} ({projectConversations.length})
+                  </h2>
+                  <button
+                    onClick={async () => {
+                      setIsCreatingChat(true);
+                      try {
+                        const conv = await createConversation({
+                          title: "",
+                          projectId: projectId,
+                        });
+                        if (conv) {
+                          router.push(`/?id=${conv.id}`);
+                        }
+                      } finally {
+                        setIsCreatingChat(false);
+                      }
+                    }}
+                    disabled={isCreatingChat}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium",
+                      "bg-primary text-primary-foreground hover:bg-primary/90",
+                      "transition-colors"
+                    )}
+                  >
+                    {isCreatingChat ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                    {t("newChatBtn")}
+                  </button>
                 </div>
-              )}
+
+                {projectConversations.length === 0 ? (
+                  <p className="text-sm text-(--text-secondary) text-center py-4">
+                    {t("noConversationsYet")}
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {projectConversations.map((conv) => (
+                      <div
+                        key={conv.id}
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-lg",
+                          "bg-(--control-bg) hover:bg-(--control-bg-hover)",
+                          "cursor-pointer transition-colors group"
+                        )}
+                        onClick={() => router.push(`/?id=${conv.id}`)}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <MessageSquare className="h-4 w-4 text-(--text-secondary) shrink-0" />
+                          <span className="text-sm truncate">
+                            {conv.title || t("newConversation")}
+                          </span>
+                        </div>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const ok = await confirm({
+                              title: t("deleteConversationQuestion"),
+                              variant: "danger",
+                              confirmLabel: t("modalDeleteButton"),
+                            });
+                            if (ok) void deleteConversation(conv.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:text-(--danger) transition-[opacity,color]"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppFrame>
   );
 }

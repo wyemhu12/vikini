@@ -3,10 +3,11 @@
 import { Suspense } from "react";
 import PersonaManager from "./components/PersonaManager";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import AppFrame from "@/app/features/layout/components/AppFrame";
 
 function PersonaLoading() {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-neutral-950 text-neutral-400">
+    <div className="flex h-full w-full items-center justify-center text-(--muted)">
       Loading Personas...
     </div>
   );
@@ -14,12 +15,12 @@ function PersonaLoading() {
 
 export default function PersonasPage() {
   return (
-    <div className="h-dvh w-full bg-neutral-950">
+    <AppFrame>
       <ErrorBoundary>
         <Suspense fallback={<PersonaLoading />}>
           <PersonaManager />
         </Suspense>
       </ErrorBoundary>
-    </div>
+    </AppFrame>
   );
 }

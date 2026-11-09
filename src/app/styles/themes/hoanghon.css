@@ -1,0 +1,34 @@
+/* ===========================================
+   HOÀNG HÔN (Dusk) — Vikini 3.0 flagship theme
+   Warm ember accent with a horizon glow (--glow)
+   =========================================== */
+
+.theme-hoanghon-dark {
+  color-scheme: dark;
+  --bg: #0c0a09;
+  --surface: #151110;
+  --raised: #201a16;
+  --line: #30271f;
+  --text: #f6efe9;
+  --muted: #b9aba0;
+  --faint: #8f8278;
+  --accent: #ff8a4c;
+  --on-accent: #1a0b03;
+  --soft: rgba(255, 138, 76, 0.14);
+  --glow: rgba(255, 112, 51, 0.22);
+}
+
+.theme-hoanghon-light {
+  color-scheme: light;
+  --bg: #fbf6f1;
+  --surface: #ffffff;
+  --raised: #f3eae1;
+  --line: #e6d9cc;
+  --text: #1f1712;
+  --muted: #5e5047;
+  --faint: #76675c;
+  --accent: #c2410c;
+  --on-accent: #ffffff;
+  --soft: rgba(194, 65, 12, 0.09);
+  --glow: rgba(255, 138, 76, 0.16);
+}

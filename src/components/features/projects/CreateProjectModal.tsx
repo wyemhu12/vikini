@@ -178,7 +178,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                     className={cn(
                       "p-1.5 rounded flex items-center justify-center transition-colors cursor-pointer",
                       icon === id
-                        ? "bg-[var(--accent)] text-white"
+                        ? "bg-(--accent) text-(--on-accent)"
                         : "text-[var(--text-secondary)] hover:bg-[var(--surface)] hover:text-[var(--text-primary)]"
                     )}
                   >

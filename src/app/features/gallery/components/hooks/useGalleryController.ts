@@ -4,7 +4,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "../../../chat/hooks/useLanguage";
-import { useConversation, type FrontendConversation } from "../../../chat/hooks/useConversation";
 import { logger } from "@/lib/utils/logger";
 import { confirm } from "@/lib/store/confirmStore";
 import { toast } from "@/lib/store/toastStore";
@@ -33,17 +32,6 @@ export type { GalleryImage };
 export function useGalleryController() {
   const { t, language } = useLanguage();
   const router = useRouter();
-  const { conversations } = useConversation();
-
-  // Filter out non-chat conversations for sidebar
-  const mainChats = useMemo(
-    () =>
-      (conversations || []).filter(
-        (c: FrontendConversation) =>
-          c.model !== "vikini-image-studio" && c.model !== "user_templates_store"
-      ),
-    [conversations]
-  );
 
   // Data
   const [images, setImages] = useState<GalleryImage[]>([]);
@@ -57,10 +45,6 @@ export function useGalleryController() {
 
   // Delete
   const [deleting, setDeleting] = useState<string | null>(null);
-
-  // Sidebar
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Compare
   const [compareMode, setCompareMode] = useState(false);
@@ -331,8 +315,6 @@ export function useGalleryController() {
     t,
     language,
     router,
-    conversations,
-    mainChats,
     // Data
     images,
     loading,
@@ -349,11 +331,6 @@ export function useGalleryController() {
     setShowFavoritesOnly,
     // Delete
     deleting,
-    // Sidebar
-    mobileOpen,
-    setMobileOpen,
-    sidebarCollapsed,
-    setSidebarCollapsed,
     // Compare
     compareMode,
     compareImages,

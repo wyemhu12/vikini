@@ -19,6 +19,16 @@ describe("useChatShortcuts", () => {
     expect(result.current.isCommandPaletteOpen).toBe(false);
   });
 
+  it("TC-11: opens and closes the command palette programmatically (rail button)", () => {
+    const { result } = renderHook(() => useChatShortcuts({ onNewChat: vi.fn() }));
+
+    act(() => result.current.openCommandPalette());
+    expect(result.current.isCommandPaletteOpen).toBe(true);
+
+    act(() => result.current.closeCommandPalette());
+    expect(result.current.isCommandPaletteOpen).toBe(false);
+  });
+
   it("starts a new chat with Cmd/Ctrl+Shift+O", () => {
     const onNewChat = vi.fn();
     renderHook(() => useChatShortcuts({ onNewChat }));

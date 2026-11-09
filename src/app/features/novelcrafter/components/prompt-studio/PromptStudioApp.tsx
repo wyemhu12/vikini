@@ -3,27 +3,22 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Globe, Palette, ScrollText } from "lucide-react";
+import { ArrowLeft, Globe, Palette, ScrollText } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import ToastContainer from "@/components/ui/ToastContainer";
-import { THEME_CONFIG } from "@/lib/config/theme-config";
 import { useLanguage } from "../../../chat/hooks/useLanguage";
-import { useTheme } from "../../../chat/hooks/useTheme";
+import ThemeMenuItems from "../../../layout/components/ThemeMenuItems";
 import { usePromptStudioController } from "../../hooks/usePromptStudioController";
 import PromptStudioActionEditor from "./PromptStudioActionEditor";
 import PromptStudioActionList from "./PromptStudioActionList";
 import PromptStudioPresetBar from "./PromptStudioPresetBar";
 
 export default function PromptStudioApp() {
-  const { theme, setTheme } = useTheme();
   const { t, language, setLanguage } = useLanguage();
   const c = usePromptStudioController();
 
@@ -86,24 +81,13 @@ export default function PromptStudioApp() {
               align="end"
               className="w-56 max-h-80 overflow-y-auto custom-scrollbar"
             >
-              <DropdownMenuLabel className="text-xs">{t("themes")}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {THEME_CONFIG.map((tItem) => (
-                <DropdownMenuItem
-                  key={tItem.id}
-                  onClick={() => setTheme(tItem.id)}
-                  className="text-xs flex items-center justify-between gap-2 cursor-pointer"
-                >
-                  <span className="truncate">{t(tItem.labelKey) || tItem.id}</span>
-                  {theme === tItem.id && <Check className="w-3.5 h-3.5 text-(--accent) shrink-0" />}
-                </DropdownMenuItem>
-              ))}
+              <ThemeMenuItems />
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </header>
 
-      <main
+      <div
         id="prompt-studio-main"
         className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-5 space-y-5"
       >
@@ -149,7 +133,7 @@ export default function PromptStudioApp() {
             </div>
           </>
         )}
-      </main>
+      </div>
     </div>
   );
 }

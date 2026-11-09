@@ -1,7 +1,20 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { THEME_CONFIG, THEME_IDS, DEFAULT_THEME, getThemeById } from "./theme-config";
+import {
+  DEFAULT_THEME_KEY,
+  LEGACY_THEME_MAP,
+  THEME_FAMILIES,
+  THEME_KEYS,
+  THEME_MODES,
+  getThemeClassMap,
+  isThemeFamilyId,
+  isThemeKey,
+  isThemeMode,
+  parseThemeKey,
+  resolveThemeKey,
+  toThemeKey,
+} from "./theme-config";
 
 // Linearize sRGB channel for relative luminance calculation (WCAG 2.2)
 function linearize(channel: number): number {
@@ -27,109 +40,213 @@ function getContrastRatio(hex1: string, hex2: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-describe("theme-config", () => {
-  it("defines exactly 16 themes with valid IDs and structure", () => {
-    expect(THEME_CONFIG).toHaveLength(16);
-    expect(THEME_IDS).toHaveLength(16);
-    expect(DEFAULT_THEME).toBe("blueprint");
-    expect(THEME_IDS).toContain("orchid");
-    expect(THEME_IDS).toContain("blueprint");
+const LEGACY_EXPECTATIONS: ReadonlyArray<readonly [string, string]> = [
+  ["sunset", "hoanghon-dark"],
+  ["amber", "hoanghon-dark"],
+  ["gold", "hoanghon-dark"],
+  ["blueprint", "muc-dark"],
+  ["indigo", "muc-dark"],
+  ["nebula", "muc-dark"],
+  ["holo", "muc-dark"],
+  ["allied", "muc-dark"],
+  ["aqua", "reu-dark"],
+  ["rose", "sen-dark"],
+  ["red", "sen-dark"],
+  ["soviet", "sen-dark"],
+  ["yuri", "sen-dark"],
+  ["orchid", "sen-light"],
+  ["charcoal", "than-dark"],
+  ["pitch-black", "than-dark"],
+];
+
+const TOKENS = [
+  "--bg",
+  "--surface",
+  "--raised",
+  "--line",
+  "--text",
+  "--muted",
+  "--faint",
+  "--accent",
+  "--on-accent",
+  "--soft",
+  "--glow",
+] as const;
+
+describe("theme-config — model", () => {
+  it("TC-01: defines 5 families × 2 modes with Hoàng Hôn dark as default", () => {
+    expect(THEME_FAMILIES.map((f) => f.id)).toEqual(["hoanghon", "muc", "reu", "sen", "than"]);
+    expect(THEME_MODES).toEqual(["dark", "light"]);
+    expect(THEME_KEYS).toEqual([
+      "hoanghon-dark",
+      "hoanghon-light",
+      "muc-dark",
+      "muc-light",
+      "reu-dark",
+      "reu-light",
+      "sen-dark",
+      "sen-light",
+      "than-dark",
+      "than-light",
+    ]);
+    expect(DEFAULT_THEME_KEY).toBe("hoanghon-dark");
   });
 
-  it("configures Orchid Silk as tone 'light' in theme metadata", () => {
-    const orchid = getThemeById("orchid");
-    expect(orchid).toBeDefined();
-    expect(orchid?.tone).toBe("light");
-    expect(orchid?.group).toBe("Glassmorphism");
+  it.each(LEGACY_EXPECTATIONS)("TC-02: migrates legacy '%s' → '%s'", (legacyId, expected) => {
+    expect(resolveThemeKey(legacyId), `legacy id '${legacyId}' mapped wrongly`).toBe(expected);
   });
 
-  it("retrieves themes by ID via getThemeById helper", () => {
-    const blueprint = getThemeById("blueprint");
-    expect(blueprint?.id).toBe("blueprint");
-    expect(blueprint?.tone).toBe("dark");
-
-    const nonExistent = getThemeById("unknown-theme");
-    expect(nonExistent).toBeUndefined();
+  it("TC-02: LEGACY_THEME_MAP covers exactly the 16 legacy ids", () => {
+    expect(Object.keys(LEGACY_THEME_MAP).sort()).toEqual(
+      LEGACY_EXPECTATIONS.map(([id]) => id).sort()
+    );
   });
 
-  describe("WCAG 2.2 Contrast & Token Integrity across 16 CSS Themes", () => {
-    const themesDir = path.resolve(__dirname, "../../app/styles/themes");
-    const baseCssPath = path.resolve(themesDir, "_shared/base.css");
-    const baseCssContent = fs.readFileSync(baseCssPath, "utf-8");
+  it("TC-03: resolveThemeKey is idempotent", () => {
+    for (const key of THEME_KEYS) expect(resolveThemeKey(key)).toBe(key);
+    for (const [legacyId] of LEGACY_EXPECTATIONS) {
+      const once = resolveThemeKey(legacyId);
+      expect(resolveThemeKey(once)).toBe(once);
+    }
+  });
 
-    // Extract default --accent-foreground from :root in base.css
-    const defaultAccentFgMatch = baseCssContent.match(/--accent-foreground:\s*([^;]+);/);
-    const defaultAccentFg = defaultAccentFgMatch ? defaultAccentFgMatch[1].trim() : "#0a0a0a";
+  it.each([
+    undefined,
+    null,
+    "",
+    "system",
+    "light",
+    "dark",
+    "HOANGHON-DARK",
+    "hoanghon",
+    "hoanghon-dim",
+    "__proto__",
+    "constructor",
+    "toString",
+  ])("TC-04: falls back to default for invalid value %s", (value) => {
+    expect(resolveThemeKey(value)).toBe(DEFAULT_THEME_KEY);
+  });
 
-    // Gather all theme CSS files recursively (excluding _shared base/token files)
-    function getCssFiles(dir: string): string[] {
-      let results: string[] = [];
-      const list = fs.readdirSync(dir);
-      for (const file of list) {
-        if (file === "_shared") continue;
-        const fullPath = path.join(dir, file);
-        const stat = fs.statSync(fullPath);
-        if (stat && stat.isDirectory()) {
-          results = results.concat(getCssFiles(fullPath));
-        } else if (file.endsWith(".css")) {
-          results.push(fullPath);
-        }
+  it("TC-05: parseThemeKey splits valid keys and rejects the rest", () => {
+    expect(parseThemeKey("reu-light")).toEqual({ family: "reu", mode: "light" });
+    expect(parseThemeKey("reu")).toBeNull();
+    expect(parseThemeKey("reu-light-x")).toBeNull();
+    expect(parseThemeKey("foo-dark")).toBeNull();
+    expect(parseThemeKey("")).toBeNull();
+  });
+
+  it("TC-06: toThemeKey round-trips and guards reject non-strings", () => {
+    for (const family of THEME_FAMILIES) {
+      for (const mode of THEME_MODES) {
+        expect(parseThemeKey(toThemeKey(family.id, mode))).toEqual({ family: family.id, mode });
       }
-      return results;
+    }
+    for (const value of [42, {}, null]) {
+      expect(isThemeKey(value)).toBe(false);
+      expect(isThemeFamilyId(value)).toBe(false);
+      expect(isThemeMode(value)).toBe(false);
+    }
+  });
+
+  it("TC-07: getThemeClassMap maps 26 ids to single class tokens with a null prototype", () => {
+    const map = getThemeClassMap();
+    expect(Object.keys(map)).toHaveLength(26);
+    expect(map["muc-light"]).toBe("theme-muc-light");
+    expect(map["orchid"]).toBe("theme-sen-light");
+    for (const value of Object.values(map)) {
+      expect(value).toMatch(/^theme-(hoanghon|muc|reu|sen|than)-(dark|light)$/);
+    }
+    expect(Object.getPrototypeOf(map)).toBeNull();
+    expect(map["__proto__"]).toBeUndefined();
+    expect(map["constructor"]).toBeUndefined();
+    expect(map["toString"]).toBeUndefined();
+  });
+});
+
+describe("theme-config — CSS themes", () => {
+  const themesDir = path.resolve(__dirname, "../../app/styles/themes");
+  const globalsPath = path.resolve(__dirname, "../../app/globals.css");
+  const baseCss = fs.readFileSync(path.join(themesDir, "_shared/base.css"), "utf-8");
+
+  function getThemeBlock(key: string): string {
+    const family = key.slice(0, key.lastIndexOf("-"));
+    const filePath = path.join(themesDir, `${family}.css`);
+    if (!fs.existsSync(filePath)) return "";
+    const content = fs.readFileSync(filePath, "utf-8");
+    const match = content.match(new RegExp(`\\.theme-${key}\\s*\\{([^}]+)\\}`));
+    return match ? match[1] : "";
+  }
+
+  function getToken(block: string, token: string): string {
+    const match = block.match(new RegExp(`${token}:\\s*([^;]+);`));
+    return match ? match[1].trim() : "";
+  }
+
+  describe.each(THEME_KEYS.map((key) => [key]))("theme '%s'", (key) => {
+    const block = getThemeBlock(key);
+
+    it("TC-08: defines all 11 tokens and the matching color-scheme", () => {
+      expect(block, `.theme-${key} block missing`).not.toBe("");
+      for (const token of TOKENS) {
+        expect(getToken(block, token), `Theme '${key}' missing ${token}`).not.toBe("");
+      }
+      expect(getToken(block, "color-scheme")).toBe(key.endsWith("-light") ? "light" : "dark");
+    });
+
+    it("TC-09: satisfies WCAG 2.2 contrast thresholds", () => {
+      const pairs: ReadonlyArray<readonly [string, string, number]> = [
+        ["--text", "--bg", 7],
+        ["--muted", "--bg", 4.5],
+        ["--faint", "--bg", 4.5],
+        ["--on-accent", "--accent", 4.5],
+        ["--accent", "--bg", 3],
+      ];
+      for (const [tokenA, tokenB, threshold] of pairs) {
+        const a = getToken(block, tokenA);
+        const b = getToken(block, tokenB);
+        const ratio = getContrastRatio(a, b);
+        expect(
+          ratio,
+          `Theme '${key}' ${tokenA} (${a}) vs ${tokenB} (${b}) = ${ratio.toFixed(2)}:1 < ${threshold}`
+        ).toBeGreaterThanOrEqual(threshold);
+      }
+    });
+  });
+
+  it("TC-10: legacy theme folders are gone and new themes are wired after base.css", () => {
+    for (const folder of ["focus", "glassmorphism", "ra2"]) {
+      expect(fs.existsSync(path.join(themesDir, folder)), `${folder}/ still exists`).toBe(false);
     }
 
-    const cssFiles = getCssFiles(themesDir);
+    const globals = fs.readFileSync(globalsPath, "utf-8");
+    const themeImports = [...globals.matchAll(/@import "\.\/styles\/themes\/([a-z]+)\.css";/g)].map(
+      (m) => m[1]
+    );
+    expect(themeImports).toEqual(THEME_FAMILIES.map((f) => f.id));
+    const baseIndex = globals.indexOf('@import "./styles/themes/_shared/base.css";');
+    expect(baseIndex).toBeGreaterThanOrEqual(0);
+    expect(
+      globals.indexOf(`@import "./styles/themes/${THEME_FAMILIES[0].id}.css";`)
+    ).toBeGreaterThan(baseIndex);
 
-    THEME_CONFIG.forEach((theme) => {
-      it(`theme '${theme.id}' defines --surface-elevated and satisfies WCAG AA contrast (>= 4.5:1)`, () => {
-        // Find selector in CSS files
-        let selectorBlock = "";
-        for (const file of cssFiles) {
-          const content = fs.readFileSync(file, "utf-8");
-          const regex = new RegExp(`(?:^|\\n)\\.theme-${theme.id}\\s*\\{([^}]+)\\}`, "s");
-          const match = content.match(regex);
-          if (match) {
-            selectorBlock = match[1];
-            break;
-          }
-        }
-
-        expect(
-          selectorBlock,
-          `Selector .theme-${theme.id} should be defined in a CSS theme file`
-        ).toBeTruthy();
-
-        // 1. Verify --surface-elevated is defined in this selector
-        const hasSurfaceElevated = /--surface-elevated:\s*[^;]+;/.test(selectorBlock);
-        expect(hasSurfaceElevated, `Theme .theme-${theme.id} must define --surface-elevated`).toBe(
-          true
-        );
-
-        // 2. Extract --accent
-        const accentMatch = selectorBlock.match(/--accent:\s*([^;]+);/);
-        expect(accentMatch, `Theme .theme-${theme.id} must define --accent hex color`).toBeTruthy();
-        const accentHex = accentMatch![1].trim();
-
-        // 3. Extract --accent-foreground or fallback to base.css default
-        const accentFgMatch = selectorBlock.match(/--accent-foreground:\s*([^;]+);/);
-        const accentFgHex = accentFgMatch ? accentFgMatch[1].trim() : defaultAccentFg;
-
-        // 4. Calculate contrast ratio against #0a0a0a (or configured fg)
-        if (accentHex.startsWith("#") && accentFgHex.startsWith("#")) {
-          const ratio = getContrastRatio(accentHex, accentFgHex);
-          expect(
-            ratio,
-            `Theme '${theme.id}' accent (${accentHex}) against fg (${accentFgHex}) must achieve WCAG AA contrast >= 4.5:1`
-          ).toBeGreaterThanOrEqual(4.5);
-        }
-      });
-    });
-
-    it("verifies :root.theme-orchid has color-scheme: light in base.css", () => {
-      expect(baseCssContent).toMatch(
-        /:root\.theme-orchid\s*\{[\s\S]*?color-scheme:\s*light;[\s\S]*?\}/
+    const aliases = [
+      "--surface-strong",
+      "--surface-muted",
+      "--surface-elevated",
+      "--border",
+      "--control-bg",
+      "--control-bg-hover",
+      "--control-border",
+      "--text-primary",
+      "--text-secondary",
+      "--accent-foreground",
+      "--bg-glow",
+    ];
+    for (const alias of aliases) {
+      expect(baseCss, `base.css alias ${alias}`).toMatch(
+        new RegExp(`${alias}:\\s*(var\\(--|color-mix\\()`)
       );
-      expect(baseCssContent).not.toMatch(/:root\.theme-orchid,\s*:root\.theme-sunset/);
-    });
+    }
+    expect(baseCss).not.toContain("data-theme-tone");
   });
 });

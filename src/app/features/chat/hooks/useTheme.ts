@@ -1,41 +1,34 @@
 "use client";
 import { useTheme as useNextTheme } from "next-themes";
-import { THEME_CONFIG, ThemeTone } from "@/lib/config/theme-config";
-
-export type { ThemeTone };
-export type ThemeId = string;
-
-export const THEME_IDS = THEME_CONFIG.map((t) => t.id);
-
-export const THEME_TONES: Record<string, ThemeTone> = THEME_CONFIG.reduce(
-  (acc, { id, tone }) => {
-    acc[id] = tone;
-    return acc;
-  },
-  {} as Record<string, ThemeTone>
-);
+import {
+  type ThemeFamilyId,
+  type ThemeMode,
+  parseThemeKey,
+  resolveThemeKey,
+  toThemeKey,
+} from "@/lib/config/theme-config";
 
 export function useTheme() {
   const { theme, setTheme, forcedTheme, resolvedTheme, systemTheme } = useNextTheme();
 
-  const toggleTheme = (next?: string) => {
-    if (next) {
-      setTheme(next);
-      return;
-    }
-    // Cycle through themes
-    const idx = THEME_IDS.indexOf(theme || "blueprint");
-    const nextIdx = idx === -1 ? 0 : (idx + 1) % THEME_IDS.length;
-    setTheme(THEME_IDS[nextIdx]);
-  };
+  const parsed = parseThemeKey(resolveThemeKey(theme));
+  const family: ThemeFamilyId = parsed?.family ?? "hoanghon";
+  const mode: ThemeMode = parsed?.mode ?? "dark";
+
+  const setFamily = (next: ThemeFamilyId) => setTheme(toThemeKey(next, mode));
+  const setMode = (next: ThemeMode) => setTheme(toThemeKey(family, next));
+  const toggleMode = () => setMode(mode === "dark" ? "light" : "dark");
 
   return {
     theme,
     setTheme,
-    toggleTheme,
-    themeIds: THEME_IDS,
     forcedTheme,
     resolvedTheme,
     systemTheme,
+    family,
+    mode,
+    setFamily,
+    setMode,
+    toggleMode,
   };
 }

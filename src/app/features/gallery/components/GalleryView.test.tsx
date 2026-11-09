@@ -4,32 +4,25 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { GalleryView } from "./GalleryView";
 
 const mockSetSelectedImage = vi.fn();
+const SAMPLE_IMAGE = {
+  id: "img-1",
+  url: "https://example.com/test.png",
+  prompt: "A beautiful mountain",
+  createdAt: "2026-06-01T00:00:00Z",
+  model: "gemini-3.1-flash-image",
+};
+let mockImages: (typeof SAMPLE_IMAGE)[] = [SAMPLE_IMAGE];
+let mockSelectedImage: typeof SAMPLE_IMAGE | null = SAMPLE_IMAGE;
 
 vi.mock("./hooks/useGalleryController", () => ({
   useGalleryController: () => ({
     t: (key: string) => key,
     language: "en",
     router: { push: vi.fn() },
-    conversations: [],
-    mainChats: [],
-    images: [],
-    filteredImages: [
-      {
-        id: "img-1",
-        url: "https://example.com/test.png",
-        prompt: "A beautiful mountain",
-        createdAt: "2026-06-01T00:00:00Z",
-        model: "gemini-3.1-flash-image",
-      },
-    ],
+    images: mockImages,
+    filteredImages: mockImages,
     availableModels: [],
-    selectedImage: {
-      id: "img-1",
-      url: "https://example.com/test.png",
-      prompt: "A beautiful mountain",
-      createdAt: "2026-06-01T00:00:00Z",
-      model: "gemini-3.1-flash-image",
-    },
+    selectedImage: mockSelectedImage,
     setSelectedImage: mockSetSelectedImage,
     loading: false,
     loadingMore: false,
@@ -43,10 +36,6 @@ vi.mock("./hooks/useGalleryController", () => ({
     showFavoritesOnly: false,
     setShowFavoritesOnly: vi.fn(),
     deleting: null,
-    mobileOpen: false,
-    setMobileOpen: vi.fn(),
-    sidebarCollapsed: false,
-    setSidebarCollapsed: vi.fn(),
     compareMode: false,
     compareImages: [],
     showCompareModal: false,
@@ -68,21 +57,21 @@ vi.mock("./hooks/useGalleryController", () => ({
 
 vi.mock("../../chat/hooks/useTheme", () => ({
   useTheme: () => ({
-    theme: "blueprint",
-    toggleTheme: vi.fn(),
+    theme: "muc-dark",
+    toggleMode: vi.fn(),
   }),
 }));
 
-vi.mock("../../sidebar/components/Sidebar", () => ({
-  default: () => <div data-testid="sidebar-mock" />,
+vi.mock("../../layout/components/AppFrame", () => ({
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="app-frame-mock">{children}</div>
+  ),
 }));
 
-vi.mock("../../layout/components/HeaderBar", () => ({
-  default: () => <div data-testid="header-mock" />,
-}));
-
-vi.mock("../../layout/components/FloatingMenuTrigger", () => ({
-  default: () => <div data-testid="floating-menu-mock" />,
+vi.mock("next/link", () => ({
+  default: ({ children, ...props }: { children: React.ReactNode; href: string }) => (
+    <a {...props}>{children}</a>
+  ),
 }));
 
 vi.mock("./ImageCompareModal", () => ({
@@ -92,6 +81,26 @@ vi.mock("./ImageCompareModal", () => ({
 describe("GalleryView - Modal Close Button & Tokens (UI-02, M5, M8)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockImages = [SAMPLE_IMAGE];
+    mockSelectedImage = SAMPLE_IMAGE;
+  });
+
+  it("renders inside the shared AppFrame with a single page h1", () => {
+    mockSelectedImage = null;
+    render(<GalleryView />);
+    expect(screen.getByTestId("app-frame-mock")).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+
+  it("TC-10: shows an empty state linking to Image Studio when there are no images", () => {
+    mockImages = [];
+    mockSelectedImage = null;
+    render(<GalleryView />);
+    expect(screen.getByRole("status")).toHaveTextContent("galleryNoImages");
+    expect(screen.getByRole("link", { name: "galleryEmptyAction" })).toHaveAttribute(
+      "href",
+      "/images"
+    );
   });
 
   it("renders image details modal with accessible close buttons", () => {

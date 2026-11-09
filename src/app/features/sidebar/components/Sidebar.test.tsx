@@ -34,19 +34,26 @@ vi.mock("next/navigation", () => ({
 
 // Mock next/link
 vi.mock("next/link", () => ({
-  default: ({ children, ...props }: { children: React.ReactNode; href: string }) => (
-    <a {...props}>{children}</a>
-  ),
+  default: React.forwardRef(function MockLink(
+    { children, ...props }: { children: React.ReactNode; href: string },
+    ref: React.Ref<HTMLAnchorElement>
+  ) {
+    return (
+      <a ref={ref} {...props}>
+        {children}
+      </a>
+    );
+  }),
 }));
 
-// Captured props from motion.aside for drag behavior verification
+// Captured props from motion.nav for drag behavior verification
 export let latestAsideProps: Record<string, unknown> = {};
 
 // Mock framer-motion
 vi.mock("framer-motion", () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   motion: {
-    aside: React.forwardRef(function MockAside(
+    nav: React.forwardRef(function MockNav(
       props: Record<string, unknown>,
       ref: React.Ref<HTMLElement>
     ) {
@@ -60,7 +67,7 @@ vi.mock("framer-motion", () => ({
         onDragEnd: _onDragEnd,
         ...htmlProps
       } = props;
-      return <aside ref={ref} {...htmlProps} />;
+      return <nav ref={ref} {...htmlProps} />;
     }),
     div: React.forwardRef(function MockDiv(
       props: React.HTMLAttributes<HTMLDivElement>,
@@ -110,7 +117,7 @@ describe("Sidebar component", () => {
     useLanguageStore.setState({ language: "en" });
   });
 
-  it("renders desktop sidebar with unified custom-scrollbar container", () => {
+  it("renders desktop context panel with unified custom-scrollbar container", () => {
     const { container } = render(<Sidebar chats={[]} collapsed={false} allConversations={[]} />);
 
     // Desktop aside is present
@@ -125,20 +132,57 @@ describe("Sidebar component", () => {
     expect(scrollContainer?.className).toContain("overflow-y-auto");
   });
 
-  it("does not render flex-1 placeholder when collapsed on desktop", () => {
+  it("TC-09: exposes the desktop sidebar as a nav landmark, not an aside with role=navigation", () => {
+    const { container } = render(<Sidebar chats={[]} collapsed={false} allConversations={[]} />);
+
+    const landmarks = screen.getAllByRole("navigation");
+    expect(landmarks.some((el) => el.tagName === "NAV" && el.className.includes("md:flex"))).toBe(
+      true
+    );
+    expect(container.querySelector('aside[role="navigation"]')).toBeNull();
+  });
+
+  it("TC-08 (2B): a collapsed panel hides the context panel but keeps the icon rail", () => {
     const { container } = render(<Sidebar chats={[]} collapsed={true} allConversations={[]} />);
 
-    const desktopAside = container.querySelector("aside.hidden.md\\:flex");
-    expect(desktopAside).not.toBeNull();
+    expect(container.querySelector("aside.hidden.md\\:flex")).toBeNull();
+    const rail = container.querySelector("nav.hidden.md\\:flex");
+    expect(rail).not.toBeNull();
+    expect(rail?.className).toContain("w-[calc(4rem+var(--sal,0px))]");
+  });
 
-    // Old placeholder was: "flex-1 flex flex-col items-center pt-4 border-t"
-    const oldPlaceholder = desktopAside?.querySelector(".flex-1.flex-col.items-center.pt-4");
-    expect(oldPlaceholder).toBeNull();
+  it("TC-09 (2B): the section action labels the panel button while the rail keeps New chat", () => {
+    const onNewChat = vi.fn();
+    const onSectionAction = vi.fn();
+    render(
+      <Sidebar
+        chats={[]}
+        allConversations={[]}
+        onNewChat={onNewChat}
+        sectionActionLabel="New story"
+        onSectionAction={onSectionAction}
+      />
+    );
 
-    // Footer container still has border-t
-    const footer = desktopAside?.querySelector(".shrink-0.pt-3");
-    expect(footer).not.toBeNull();
-    expect(footer?.className).toContain("border-t");
+    screen.getByRole("button", { name: /New story/ }).click();
+    expect(onSectionAction).toHaveBeenCalledTimes(1);
+    screen.getByRole("button", { name: "New Chat" }).click();
+    expect(onNewChat).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["admin", 1],
+    ["pro", 0],
+  ])("TC-10 (2B): drawer shows the admin entry only for rank %s", (rank, count) => {
+    render(
+      <Sidebar
+        chats={[]}
+        mobileOpen={true}
+        allConversations={[]}
+        session={{ user: { rank, email: "u@example.com" } }}
+      />
+    );
+    expect(screen.queryAllByText("Admin Management")).toHaveLength(count);
   });
 
   it("renders mobile drawer with X icon on close button and unified scroll container", () => {
@@ -151,7 +195,7 @@ describe("Sidebar component", () => {
     expect(svgIcon).not.toBeNull();
 
     // Mobile aside is portaled to document.body, has z-(--z-drawer) and pb-[calc(4rem+var(--sab,0px))]
-    const mobileAside = document.body.querySelector("aside.md\\:hidden");
+    const mobileAside = document.body.querySelector("nav.md\\:hidden");
     expect(mobileAside).not.toBeNull();
     expect(mobileAside?.className).toContain("z-(--z-drawer)");
     expect(mobileAside?.className).toContain("pb-[calc(4rem+var(--sab,0px))]");
@@ -164,7 +208,7 @@ describe("Sidebar component", () => {
     expect(mobileScrollContainer?.className).toContain("overflow-y-auto");
   });
 
-  it("attaches drag gesture props to mobile drawer motion.aside with snap-to-origin", () => {
+  it("attaches drag gesture props to mobile drawer motion.nav with snap-to-origin", () => {
     render(<Sidebar chats={[]} mobileOpen={true} allConversations={[]} />);
 
     expect(latestAsideProps.drag).toBe("x");

@@ -33,7 +33,7 @@ export default function ErrorPage({
         </button>
         <button
           onClick={() => window.location.reload()}
-          className="flex items-center gap-2 px-4 py-2 bg-(--accent) text-white rounded-lg text-sm font-medium hover:brightness-110 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-(--accent) text-(--on-accent) rounded-lg text-sm font-medium hover:brightness-110 transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
           Reload Page

@@ -3,27 +3,28 @@
    =========================================== */
 
 @theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-prose), Georgia, ui-serif, serif;
+  --font-mono: var(--font-code), ui-monospace, monospace;
 
   /* Shadcn/UI color aliases */
-  --color-background: var(--surface);
-  --color-foreground: var(--text-primary);
-  --color-card: var(--surface-elevated);
-  --color-card-foreground: var(--text-primary);
-  --color-popover: var(--surface-elevated);
-  --color-popover-foreground: var(--text-primary);
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--text);
   --color-primary: var(--accent);
-  --color-primary-foreground: var(--accent-foreground);
+  --color-primary-foreground: var(--on-accent);
   --color-secondary: var(--control-bg);
-  --color-secondary-foreground: var(--text-primary);
-  --color-muted: var(--surface-muted);
-  --color-muted-foreground: var(--text-secondary);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--raised);
+  --color-muted-foreground: var(--muted);
   --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-foreground: var(--on-accent);
   --color-destructive: var(--danger);
   --color-destructive-foreground: var(--danger-foreground);
-  --color-border: var(--border);
+  --color-border: var(--line);
   --color-input: var(--control-border);
   --color-ring: var(--accent);
 
@@ -64,33 +65,30 @@
   --sal: env(safe-area-inset-left, 0px);
   --sar: env(safe-area-inset-right, 0px);
 
-  /* Semantic surface + content tokens */
-  --surface-dark: #050505;
-  --surface-dark-strong: #050505;
-  --text-primary-dark: #e5e7eb;
-  --text-secondary-dark: #a1a1aa;
+  /* Vikini 3.0 semantic tokens — defaults = Hoàng Hôn dark (overridden by .theme-<family>-<mode>) */
+  --bg: #0c0a09;
+  --surface: #151110;
+  --raised: #201a16;
+  --line: #30271f;
+  --text: #f6efe9;
+  --muted: #b9aba0;
+  --faint: #8f8278;
+  --accent: #ff8a4c;
+  --on-accent: #1a0b03;
+  --soft: rgba(255, 138, 76, 0.14);
+  --glow: rgba(255, 112, 51, 0.22);
 
-  --surface-light: #f8fafc;
-  --surface-light-strong: #e2e8f0;
-  --text-primary-light: #0f172a;
-  --text-secondary-light: #334155;
-
-  --surface: var(--surface-dark);
-  --surface-strong: var(--surface-dark-strong);
-  --surface-muted: #0f1115;
-  --surface-elevated: #0f1115;
-  --border: rgba(255, 255, 255, 0.08);
-  --control-bg: rgba(255, 255, 255, 0.04);
-  --control-bg-hover: rgba(255, 255, 255, 0.08);
-  --control-border: rgba(255, 255, 255, 0.12);
-  --text-primary: var(--text-primary-dark);
-  --text-secondary: var(--text-secondary-dark);
-  --accent: #60a5fa;
-  --glow: rgba(96, 165, 250, 0.2);
-
-  /* Foreground placed on top of an --accent fill.
-     Near-black gives good contrast on every theme accent (all are mid/bright). */
-  --accent-foreground: #0a0a0a;
+  /* Legacy token aliases (Vikini 2.x names) — removed after the Phase 6 codemod */
+  --surface-strong: var(--bg);
+  --surface-muted: var(--raised);
+  --surface-elevated: var(--surface);
+  --border: var(--line);
+  --control-bg: var(--raised);
+  --control-bg-hover: color-mix(in oklab, var(--raised) 88%, var(--text) 12%);
+  --control-border: color-mix(in oklab, var(--line) 80%, var(--text) 20%);
+  --text-primary: var(--text);
+  --text-secondary: var(--muted);
+  --accent-foreground: var(--on-accent);
 
   /* Semantic state colors (theme-independent) */
   --danger: #ef4444;
@@ -118,56 +116,6 @@
   --z-banner: 90;
 }
 
-:root.theme-blueprint,
-:root.theme-amber,
-:root.theme-indigo,
-:root.theme-charcoal,
-:root.theme-pitch-black,
-:root.theme-gold,
-:root.theme-red,
-:root.theme-rose,
-:root.theme-yuri,
-:root.theme-allied,
-:root.theme-soviet,
-:root.theme-nebula,
-:root.theme-aqua,
-:root.theme-holo,
-:root.theme-sunset {
-  color-scheme: dark;
-}
-
-:root.theme-orchid {
-  color-scheme: light;
-}
-
-:root[data-theme-tone="light"] {
-  --surface: var(--surface-light);
-  --surface-strong: var(--surface-light-strong);
-  --surface-muted: #e2e8f0;
-  --surface-elevated: #e2e8f0;
-  --border: rgba(0, 0, 0, 0.08);
-  --control-bg: rgba(255, 255, 255, 0.9);
-  --control-bg-hover: rgba(0, 0, 0, 0.04);
-  --control-border: rgba(0, 0, 0, 0.12);
-  --text-primary: var(--text-primary-light);
-  --text-secondary: var(--text-secondary-light);
-  color-scheme: light;
-}
-
-:root[data-theme-tone="dark"] {
-  --surface: var(--surface-dark);
-  --surface-strong: var(--surface-dark-strong);
-  --surface-muted: #0f1115;
-  --surface-elevated: #0f1115;
-  --border: rgba(255, 255, 255, 0.08);
-  --control-bg: rgba(255, 255, 255, 0.04);
-  --control-bg-hover: rgba(255, 255, 255, 0.08);
-  --control-border: rgba(255, 255, 255, 0.12);
-  --text-primary: var(--text-primary-dark);
-  --text-secondary: var(--text-secondary-dark);
-  color-scheme: dark;
-}
-
 html,
 body {
   height: 100%;
@@ -175,8 +123,8 @@ body {
 }
 
 body {
-  background: var(--surface-gradient, var(--surface));
-  color: var(--text-primary);
+  background: var(--bg);
+  color: var(--text);
   @apply antialiased font-sans;
 }
 

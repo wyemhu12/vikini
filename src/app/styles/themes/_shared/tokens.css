@@ -6,7 +6,7 @@
 /* Backgrounds */
 .bg-surface,
 .theme-surface-canvas {
-  background: var(--surface-gradient, var(--surface));
+  background: var(--bg);
 }
 
 .bg-surface-muted {

@@ -11,12 +11,12 @@ vi.mock("../hooks/useLanguage", () => ({
   }),
 }));
 
-const mockToggleTheme = vi.fn();
+const mockToggleMode = vi.fn();
 
 vi.mock("../hooks/useTheme", () => ({
   useTheme: () => ({
-    theme: "blueprint",
-    toggleTheme: mockToggleTheme,
+    mode: "dark",
+    toggleMode: mockToggleMode,
   }),
 }));
 
@@ -86,7 +86,7 @@ describe("CommandPalette", () => {
     expect(onNewChat).toHaveBeenCalled();
   });
 
-  it("calls toggleTheme when switch-theme item is clicked (UI-01)", () => {
+  it("calls toggleMode when switch-theme item is clicked (UI-01, TC-18)", () => {
     const onClose = vi.fn();
     render(
       <CommandPalette
@@ -100,7 +100,37 @@ describe("CommandPalette", () => {
     const themeItem = screen.getByText(/switchTheme/i);
     fireEvent.click(themeItem);
 
-    expect(mockToggleTheme).toHaveBeenCalled();
+    expect(mockToggleMode).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("TC-12: has no duplicate Esc label and names the target language", () => {
+    render(
+      <CommandPalette
+        isOpen={true}
+        onClose={vi.fn()}
+        onNewChat={vi.fn()}
+        onOpenShortcuts={vi.fn()}
+      />
+    );
+    expect(screen.queryByText("Esc")).toBeNull();
+    expect(screen.getByText("switchLanguageTo Tiếng Việt")).toBeInTheDocument();
+  });
+
+  it("renders extra navigation commands and omits shortcuts without a handler", () => {
+    const go = vi.fn();
+    render(
+      <CommandPalette
+        isOpen={true}
+        onClose={vi.fn()}
+        onNewChat={vi.fn()}
+        extraCommands={[
+          { id: "go-gallery", title: "Gallery", category: "navigation", icon: null, perform: go },
+        ]}
+      />
+    );
+    expect(screen.queryByText("shortcutOpenShortcuts")).toBeNull();
+    fireEvent.click(screen.getByText("Gallery"));
+    expect(go).toHaveBeenCalledTimes(1);
   });
 });

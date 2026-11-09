@@ -3,9 +3,9 @@
 
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
-import FloatingMenuTrigger from "../../layout/components/FloatingMenuTrigger";
 import ToastContainer from "@/components/ui/ToastContainer";
 import {
   Sheet,
@@ -15,6 +15,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { toast } from "@/lib/store/toastStore";
+import { useLayoutStore } from "@/lib/store/layoutStore";
+import { useCommandPaletteStore } from "@/lib/store/commandPaletteStore";
+import { getShellPaddingClass } from "../../layout/utils/shellNav";
 import { logger } from "@/lib/utils/logger";
 import { useTheme } from "../../chat/hooks/useTheme";
 import { useLanguage } from "../../chat/hooks/useLanguage";
@@ -72,7 +75,10 @@ export default function NovelcrafterStudioApp() {
   });
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const sidebarCollapsed = useLayoutStore((s) => s.panelCollapsedBySection.novelcrafter);
+  const togglePanel = useLayoutStore((s) => s.togglePanel);
+  const openPalette = useCommandPaletteStore((s) => s.open);
+  const router = useRouter();
   const [focusMode, setFocusMode] = useState(false);
   const [isRoutingModalOpen, setIsRoutingModalOpen] = useState(false);
   const [activeBibleSection, setActiveBibleSection] =
@@ -285,6 +291,7 @@ export default function NovelcrafterStudioApp() {
       >
         {t("skipToMainContent")}
       </a>
+      <h1 className="sr-only">{t("novelcrafterStudio")}</h1>
       <ToastContainer />
       <Sidebar
         conversations={story.stories}
@@ -293,11 +300,9 @@ export default function NovelcrafterStudioApp() {
           story.setSelectedConversationId(id);
           setMobileSidebarOpen(false);
         }}
-        onNewChat={() => {
-          void story.handleCreateStory();
-          setMobileSidebarOpen(false);
-        }}
-        newChatLabel={t("novelcrafterNewStory")}
+        onNewChat={() => router.push("/")}
+        sectionActionLabel={t("novelcrafterNewStory")}
+        onSectionAction={() => void story.handleCreateStory()}
         conversationsLabel={t("yourStories")}
         onDeleteConversation={(id) => void story.handleDeleteStory(id)}
         onRenameChat={(id) => {
@@ -309,19 +314,14 @@ export default function NovelcrafterStudioApp() {
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
         collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+        onToggleCollapse={() => togglePanel("novelcrafter")}
+        onOpenCommandPalette={openPalette}
         session={session}
         isCreatingChat={story.creatingConversation}
       />
 
-      {!mobileSidebarOpen && <FloatingMenuTrigger onClick={() => setMobileSidebarOpen(true)} />}
-
       <div
-        className={`flex-1 h-full flex flex-col min-w-0 relative z-10 transition-[padding] duration-300 ${
-          sidebarCollapsed
-            ? "md:pl-[calc(5rem+var(--sal,0px))]"
-            : "md:pl-[calc(18rem+var(--sal,0px))] lg:pl-[calc(20rem+var(--sal,0px))]"
-        } pr-[var(--sar,0px)]`}
+        className={`flex-1 h-full flex flex-col min-w-0 relative z-10 transition-[padding] duration-300 ${getShellPaddingClass(sidebarCollapsed)} pr-[var(--sar,0px)]`}
       >
         <HeaderBar
           hideOnDesktop
@@ -329,7 +329,7 @@ export default function NovelcrafterStudioApp() {
           showMobileControls={true}
         />
 
-        <div className="flex-1 min-h-0 flex flex-col pt-[calc(3.5rem+var(--sat,0px))] md:pt-0">
+        <div className="flex-1 min-h-0 flex flex-col pt-[calc(4.75rem+var(--sat,0px))] md:pt-0">
           <NovelcrafterTopBar
             storyTitle={currentTitle}
             onRenameTitle={(newTitle) =>

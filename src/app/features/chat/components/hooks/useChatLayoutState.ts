@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useLayoutStore } from "@/lib/store/layoutStore";
 
 interface UseChatLayoutStateOptions {
   /** Navigates back to the landing view (clears conversation & project selection). */
@@ -25,7 +26,8 @@ export function useChatLayoutState({
   onNavigateHome,
 }: UseChatLayoutStateOptions): UseChatLayoutStateReturn {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const sidebarCollapsed = useLayoutStore((s) => s.panelCollapsedBySection.chat);
+  const togglePanel = useLayoutStore((s) => s.togglePanel);
   const [showMobileControls, setShowMobileControls] = useState(true);
 
   const closeMobileSidebar = useCallback(() => setMobileOpen(false), []);
@@ -38,7 +40,7 @@ export function useChatLayoutState({
       setShowMobileControls((prev) => !prev);
     }, 10);
   }, []);
-  const memoizedOnToggleCollapse = useCallback(() => setSidebarCollapsed((prev) => !prev), []);
+  const memoizedOnToggleCollapse = useCallback(() => togglePanel("chat"), [togglePanel]);
 
   const memoizedOnLogoClick = useCallback(() => {
     onNavigateHome();

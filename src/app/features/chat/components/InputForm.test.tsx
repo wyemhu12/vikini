@@ -170,6 +170,17 @@ describe("InputForm", () => {
         screen.getByPlaceholderText("Describe the image you want to generate...")
       ).toBeInTheDocument();
     });
+
+    it("uses the on-accent token for the image-mode add button (TC-17, C4 contrast)", () => {
+      render(
+        <InputForm input="" onChangeInput={vi.fn()} onSubmit={vi.fn()} initialImageMode={true} />
+      );
+
+      const addButton = screen.getByRole("button", { name: /addAttachment/i });
+      expect(addButton.className).toContain("bg-(--accent)");
+      expect(addButton.className).toContain("text-(--on-accent)");
+      expect(addButton.className).not.toContain("text-white");
+    });
   });
 
   describe("Submit Double-Lock & Voice Language (TC-09)", () => {

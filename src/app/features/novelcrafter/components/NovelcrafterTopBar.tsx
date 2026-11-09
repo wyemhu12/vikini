@@ -21,7 +21,6 @@ import {
   Settings2,
   UserCheck,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import {
   Dialog,
   DialogContent,
@@ -41,9 +40,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ModelSelector from "@/app/features/chat/components/ModelSelector";
-import { THEME_CONFIG } from "@/lib/config/theme-config";
 import { isModelAllowedById } from "@/lib/core/modelAccess";
 import { useLanguage } from "../../chat/hooks/useLanguage";
+import ThemeMenuItems from "../../layout/components/ThemeMenuItems";
 import { cn } from "@/lib/utils/cn";
 import type {
   ClientGemItem,
@@ -105,7 +104,6 @@ export default function NovelcrafterTopBar({
   onConfirmRenameStory,
 }: NovelcrafterTopBarProps) {
   const { t, language, setLanguage } = useLanguage();
-  const { theme, setTheme } = useTheme();
   const [titleDraft, setTitleDraft] = useState(storyTitle);
   const [exportIncludeBible, setExportIncludeBible] = useState(true);
   const [exportIncludeSummaries, setExportIncludeSummaries] = useState(true);
@@ -347,18 +345,7 @@ export default function NovelcrafterTopBar({
               align="end"
               className="w-56 max-h-80 overflow-y-auto custom-scrollbar"
             >
-              <DropdownMenuLabel className="text-xs">{t("themes")}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {THEME_CONFIG.map((tItem) => (
-                <DropdownMenuItem
-                  key={tItem.id}
-                  onClick={() => setTheme(tItem.id)}
-                  className="text-xs flex items-center justify-between gap-2 cursor-pointer"
-                >
-                  <span className="truncate">{t(tItem.labelKey) || tItem.id}</span>
-                  {theme === tItem.id && <Check className="w-3.5 h-3.5 text-(--accent) shrink-0" />}
-                </DropdownMenuItem>
-              ))}
+              <ThemeMenuItems />
             </DropdownMenuContent>
           </DropdownMenu>
 

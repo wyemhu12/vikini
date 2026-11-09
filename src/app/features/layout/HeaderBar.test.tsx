@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import HeaderBar from "@/app/features/layout/components/HeaderBar";
 import { vi, describe, it, expect } from "vitest";
@@ -35,21 +35,14 @@ vi.mock("framer-motion", () => ({
   },
 }));
 
-// Mock next-themes
+// Mock next-themes (Vikini's useTheme wraps it; real theme-config is used)
+let mockTheme = "muc-light";
 vi.mock("next-themes", () => ({
   ThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useTheme: () => ({
-    theme: "blueprint",
+    theme: mockTheme,
     setTheme: vi.fn(),
   }),
-}));
-
-// Mock theme config
-vi.mock("@/lib/config/theme-config", () => ({
-  THEME_CONFIG: [
-    { id: "focus-dark", labelKey: "focusDark", swatch: "#000000", group: "Focus" },
-    { id: "custom-theme", labelKey: "customTheme", swatch: "#ffffff", group: "Custom" },
-  ],
 }));
 
 // Mock lucide-react
@@ -58,6 +51,8 @@ vi.mock("lucide-react", () => ({
   Check: (props: Record<string, unknown>) => <svg data-testid="check" {...props} />,
   Settings: (props: Record<string, unknown>) => <svg data-testid="settings" {...props} />,
   Menu: (props: Record<string, unknown>) => <svg data-testid="menu" {...props} />,
+  Moon: (props: Record<string, unknown>) => <svg data-testid="moon" {...props} />,
+  Sun: (props: Record<string, unknown>) => <svg data-testid="sun" {...props} />,
 }));
 
 // Mock Radix DropdownMenu
@@ -79,6 +74,23 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
   }) => <div className={className}>{children}</div>,
   DropdownMenuSeparator: () => <hr />,
   DropdownMenuGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuRadioGroup: ({
+    children,
+    value,
+  }: {
+    children: React.ReactNode;
+    value?: string;
+    onValueChange?: (value: string) => void;
+  }) => (
+    <div role="group" data-value={value}>
+      {children}
+    </div>
+  ),
+  DropdownMenuRadioItem: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <div role="menuitemradio" data-radio-value={value}>
+      {children}
+    </div>
+  ),
 }));
 
 // Mock useLanguage hook with absolute module id (@ alias - MAJOR-9)
@@ -92,12 +104,17 @@ vi.mock("@/app/features/chat/hooks/useLanguage", () => ({
         en: "English",
         language: "Ngôn ngữ",
         theme: "Giao diện",
-        themeFocus: "Tập trung",
-        themeGlassmorphism: "Thủy tinh mờ",
-        themeRa2: "Báo động đỏ (RA2)",
-        focusDark: "Tập trung tối",
-        customTheme: "Tùy biến",
+        themes: "Giao diện",
+        themeHoangHon: "Hoàng Hôn",
+        themeMuc: "Mực",
+        themeReu: "Rêu",
+        themeSen: "Sen",
+        themeThan: "Than",
+        themeMode: "Chế độ",
+        themeModeDark: "Tối",
+        themeModeLight: "Sáng",
         openSidebar: "Mở thanh bên",
+        openMenu: "Mở menu điều hướng",
         selectLanguage: "Chọn ngôn ngữ",
         selectTheme: "Chọn giao diện",
         appName: "Vikini Chat",
@@ -131,16 +148,53 @@ describe("HeaderBar", () => {
     expect(screen.getByLabelText("Chọn giao diện")).toBeInTheDocument();
   });
 
-  it("renders translated theme group label 'Tập trung' at both desktop and mobile menus (MAJOR-10)", () => {
+  it("TC-15: lists the 5 themes and both modes in desktop and mobile menus, without legacy groups", () => {
     renderHeader();
-    // Both desktop (:165) and mobile (:239) dropdown menus render the mapped label
-    expect(screen.getAllByText("Tập trung")).toHaveLength(2);
+    for (const label of ["Hoàng Hôn", "Rêu", "Sen", "Than", "Tối", "Sáng"]) {
+      expect(screen.getAllByText(label)).toHaveLength(2);
+    }
+    // "Mực" also appears once in the desktop trigger label
+    expect(screen.getAllByText("Mực")).toHaveLength(3);
+    expect(screen.queryByText("Tập trung")).toBeNull();
+    expect(screen.queryByText("Báo động đỏ (RA2)")).toBeNull();
   });
 
-  it("renders verbatim fallback for unmapped theme group 'Custom' at both desktop and mobile menus (MAJOR-10 counter-test)", () => {
+  it("TC-16: radio groups reflect the stored theme key family and mode", () => {
+    mockTheme = "muc-light";
     renderHeader();
-    // Groups not in THEME_GROUP_LABELS fall back to rendering the verbatim group name
-    expect(screen.getAllByText("Custom")).toHaveLength(2);
+    const groups = screen.getAllByRole("group");
+    const values = groups.map((g) => g.getAttribute("data-value"));
+    expect(values.filter((v) => v === "muc")).toHaveLength(2);
+    expect(values.filter((v) => v === "light")).toHaveLength(2);
+  });
+
+  it("TC-16: a legacy stored id resolves to its migrated family and mode", () => {
+    mockTheme = "orchid";
+    renderHeader();
+    const values = screen.getAllByRole("group").map((g) => g.getAttribute("data-value"));
+    expect(values.filter((v) => v === "sen")).toHaveLength(2);
+    expect(values.filter((v) => v === "light")).toHaveLength(2);
+    mockTheme = "muc-light";
+  });
+
+  it("TC-05: shows a 44px mobile menu button that opens the sidebar", () => {
+    const onToggleSidebar = vi.fn();
+    render(<HeaderBar onToggleSidebar={onToggleSidebar} />);
+    const button = screen.getByRole("button", { name: "Mở menu điều hướng" });
+    expect(button.className).toContain("md:hidden");
+    expect(button.className).toContain("h-11");
+    expect(button.className).toContain("w-11");
+    expect(button.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+    fireEvent.click(button);
+    expect(onToggleSidebar).toHaveBeenCalledTimes(1);
+  });
+
+  it("TC-06: renders no menu button without a handler and uses a solid header background", () => {
+    const { container } = render(<HeaderBar />);
+    expect(screen.queryByRole("button", { name: "Mở menu điều hướng" })).toBeNull();
+    const header = container.querySelector("header");
+    expect(header?.className).toContain("bg-(--bg)/85");
+    expect(header?.className).not.toContain("bg-transparent");
   });
 
   it("renders the V logo brand element", () => {

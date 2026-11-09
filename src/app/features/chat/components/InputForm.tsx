@@ -286,7 +286,7 @@ export default function InputForm({
                 disabled={disabled || isUploading}
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] disabled:opacity-50 ${
                   isImageMode
-                    ? "bg-(--accent) text-white hover:brightness-110"
+                    ? "bg-(--accent) text-(--on-accent) hover:brightness-110"
                     : "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)"
                 }`}
                 title={t("addAttachment") || "Add..."}

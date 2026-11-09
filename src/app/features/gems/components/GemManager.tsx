@@ -8,6 +8,8 @@ import GemPreview, { Gem } from "./GemPreview";
 import { useGemStore } from "../stores/useGemStore";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
+import { PageHeader } from "@/components/ui/page-header";
+import Link from "next/link";
 import { toast } from "@/lib/store/toastStore";
 import { confirm } from "@/lib/store/confirmStore";
 
@@ -178,32 +180,51 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
     }
   };
 
+  const headerTitle = t("gemsTitle") || "Gems Manager";
+  const headerDescription = conversationId
+    ? `${t("appliedGem") || "Applied Gem"}: ${conversationId.slice(0, 8)}...`
+    : "Global Mode";
+  const createButton = (
+    <button
+      type="button"
+      onClick={onCreate}
+      className="rounded-lg bg-(--accent) px-3 py-1.5 text-sm text-(--on-accent) font-medium hover:brightness-110 transition-colors active:scale-95"
+    >
+      + {t("createGem") || "New Gem"}
+    </button>
+  );
+  const headerActions = inModal ? (
+    createButton
+  ) : (
+    <>
+      <Link
+        href="/features/personas"
+        className="rounded-lg border border-(--line) px-3 py-1.5 text-sm text-(--text) font-medium hover:bg-(--raised) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+      >
+        {t("managePersonas")}
+      </Link>
+      {createButton}
+    </>
+  );
+
   return (
     <div className="flex flex-col h-full bg-transparent text-(--text-primary) overflow-hidden">
-      <div
-        className={cn(
-          "flex-none py-4 border-b border-(--border) flex items-center justify-between bg-(--surface)/80 backdrop-blur-md sticky top-0 z-10",
-          inModal ? "pl-6 pr-14" : "px-6"
-        )}
-      >
-        <div>
-          <h1 className="text-xl font-semibold">{t("gemsTitle") || "Gems Manager"}</h1>
-          <p className="text-xs text-(--text-secondary) truncate max-w-md">
-            {conversationId
-              ? `${t("appliedGem") || "Applied Gem"}: ${conversationId.slice(0, 8)}...`
-              : "Global Mode"}
-          </p>
+      {inModal ? (
+        <div className="flex-none py-4 pl-6 pr-14 border-b border-(--border) flex items-center justify-between bg-(--surface)/80 backdrop-blur-md sticky top-0 z-10">
+          <div>
+            <h2 className="text-xl font-semibold">{headerTitle}</h2>
+            <p className="text-xs text-(--text-secondary) truncate max-w-md">{headerDescription}</p>
+          </div>
+          {headerActions}
         </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={onCreate}
-            className="rounded-lg bg-(--primary) px-3 py-1.5 text-sm text-black font-medium hover:brightness-110 transition-colors active:scale-95"
-          >
-            + {t("createGem") || "New Gem"}
-          </button>
-        </div>
-      </div>
+      ) : (
+        <PageHeader
+          className="flex-none px-4 md:px-6 pt-4"
+          title={headerTitle}
+          description={headerDescription}
+          actions={headerActions}
+        />
+      )}
 
       <div
         className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 scrollbar-thin scrollbar-thumb-[var(--border)]"

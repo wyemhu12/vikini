@@ -1,64 +1,16 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Check, ChevronDown, Cpu, Zap, Sparkles, Server } from "lucide-react";
-import Image from "next/image";
-import {
-  SELECTABLE_MODELS,
-  PROVIDER_LABELS,
-  SelectableModel,
-  isStrataLocalModel,
-} from "@/lib/core/modelRegistry";
-import { Card } from "@/components/ui/card";
+import { ChevronDown } from "lucide-react";
+import { SELECTABLE_MODELS, isStrataLocalModel } from "@/lib/core/modelRegistry";
+import { useRecentModelsStore } from "@/lib/store/recentModelsStore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { useIsDesktop } from "../../layout/hooks/useIsDesktop";
 import { useLanguage } from "../hooks/useLanguage";
-import { useLocalLlmHealth, type LocalLlmStatus } from "../hooks/useLocalLlmHealth";
+import { useLocalLlmHealth } from "../hooks/useLocalLlmHealth";
 import LocalLlmStatusDot from "./LocalLlmStatusDot";
-
-const PROVIDER_IDS = [
-  "gemini",
-  "grok",
-  "deepseek",
-  "openai",
-  "anthropic",
-  "groq",
-  "openrouter-free",
-  "openrouter-pay",
-  "local",
-] as const;
-
-const PROVIDER_LOGOS: Record<string, string> = {
-  gemini: "/assets/providers/gemini.png",
-  grok: "/assets/providers/grok.webp",
-  deepseek: "/assets/providers/deepseek.png",
-  openai: "/assets/providers/gpt.png",
-  anthropic: "/assets/providers/anthropic.png",
-  groq: "/assets/providers/groq.png",
-  "openrouter-free": "/assets/providers/openrouter.png",
-  "openrouter-pay": "/assets/providers/openrouter.png",
-};
-
-const PROVIDER_COLORS: Record<string, string> = {
-  gemini: "from-blue-500/20 to-purple-500/20 border-blue-500/50",
-  grok: "from-gray-600/20 to-gray-400/20 border-gray-400/50",
-  deepseek: "from-blue-600/20 to-cyan-400/20 border-blue-400/50",
-  openai: "from-emerald-500/20 to-green-500/20 border-emerald-500/50",
-  anthropic: "from-orange-400/20 to-amber-200/20 border-amber-400/50",
-  groq: "from-orange-600/20 to-red-500/20 border-orange-500/50",
-  "openrouter-free": "from-indigo-500/20 to-purple-500/20 border-indigo-500/50",
-  "openrouter-pay": "from-indigo-500/20 to-purple-500/20 border-indigo-500/50",
-  local: "from-teal-500/20 to-emerald-500/20 border-teal-500/50",
-};
-
-// Logos that are black and need to be inverted on dark backgrounds
-const NEEDS_INVERSION = new Set([
-  "grok",
-  "openai",
-  "anthropic",
-  "groq",
-  "openrouter-free",
-  "openrouter-pay",
-]);
+import ModelPickerList from "./ModelPickerList";
 
 interface ModelSelectorProps {
   currentModelId: string;
@@ -80,10 +32,9 @@ export default function ModelSelector({
   variant = "toolbar",
 }: ModelSelectorProps) {
   const { t } = useLanguage();
-  // ... (keep state)
+  const isDesktop = useIsDesktop();
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"service" | "providers">("providers");
-  const [activeProviderFilter, setActiveProviderFilter] = useState<string>("gemini");
+  const pushRecentModel = useRecentModelsStore((s) => s.pushRecentModel);
 
   const currentModel = useMemo(
     () => SELECTABLE_MODELS.find((m) => m.id === currentModelId),
@@ -96,40 +47,6 @@ export default function ModelSelector({
   });
   const isLocalVisible =
     localStatus === "online" || localStatus === "busy" || localStatus === "offline";
-
-  const visibleProviderIds = useMemo(
-    () => PROVIDER_IDS.filter((pid) => (pid === "local" ? isLocalVisible : true)),
-    [isLocalVisible]
-  );
-
-  // --- SERVICE VIEW LOGIC ---
-  const modelsByCategory = useMemo(() => {
-    const groups: Record<"reasoning" | "low-latency" | "local", SelectableModel[]> = {
-      reasoning: [],
-      "low-latency": [],
-      local: [],
-    };
-
-    SELECTABLE_MODELS.forEach((model) => {
-      if (model.providerId === "local" && !isLocalVisible) {
-        return;
-      }
-      if (groups[model.category]) {
-        groups[model.category].push(model);
-      }
-    });
-
-    return groups;
-  }, [isLocalVisible]);
-
-  // --- PROVIDERS VIEW LOGIC ---
-  const filteredModelsByProvider = useMemo(() => {
-    if (activeTab !== "providers") return [];
-    return SELECTABLE_MODELS.filter((m) => {
-      if (m.providerId === "local" && !isLocalVisible) return false;
-      return m.providerId === activeProviderFilter;
-    });
-  }, [activeTab, activeProviderFilter, isLocalVisible]);
 
   const modelDisplayName = currentModel?.name || currentModelId;
   const isInline = variant === "inline";
@@ -152,273 +69,78 @@ export default function ModelSelector({
     );
   }
 
+  const triggerButton = isInline ? (
+    <button
+      type="button"
+      aria-label={`${t("selectModel")}: ${modelDisplayName}`}
+      className="h-10 inline-flex items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.97]"
+    >
+      {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
+      <span className="truncate max-w-[7rem] @sm/chat:max-w-[12rem]">{modelDisplayName}</span>
+      <ChevronDown
+        className={`w-3.5 h-3.5 shrink-0 text-(--text-secondary) transition-transform ${isOpen ? "rotate-180" : ""}`}
+      />
+    </button>
+  ) : (
+    <button
+      type="button"
+      aria-label={`${t("selectModel")}: ${modelDisplayName}`}
+      className="flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 md:hover:bg-(--control-bg) p-1 px-4 py-1.5 transition-colors md:shadow-none shadow-lg group text-(--text-primary)"
+    >
+      {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
+      <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">
+        {modelDisplayName}
+      </span>
+      <ChevronDown
+        className={`w-3 h-3 text-(--text-secondary) transition-transform ${isOpen ? "rotate-180" : ""}`}
+      />
+    </button>
+  );
+
+  const list = (
+    <ModelPickerList
+      currentModelId={currentModelId}
+      isModelAllowed={isModelAllowed}
+      isLocalVisible={isLocalVisible}
+      localStatus={localStatus}
+      onClose={() => setIsOpen(false)}
+      onSelect={(id) => {
+        onSelectModel(id);
+        pushRecentModel(id);
+        setIsOpen(false);
+      }}
+    />
+  );
+
+  if (!isDesktop) {
+    return (
+      <>
+        <span onClick={() => setIsOpen(true)} className="contents">
+          {triggerButton}
+        </span>
+        <Sheet open={isOpen} onOpenChange={setIsOpen}>
+          <SheetContent side="bottom" className="h-[82dvh] p-0">
+            <SheetTitle className="sr-only">{t("modelPickerTitle")}</SheetTitle>
+            {list}
+          </SheetContent>
+        </Sheet>
+      </>
+    );
+  }
+
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      {/* TRIGGER BUTTON */}
-      <PopoverTrigger asChild>
-        {isInline ? (
-          <button
-            type="button"
-            aria-label={`${t("selectModel")}: ${modelDisplayName}`}
-            className="h-10 inline-flex items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.97]"
-          >
-            {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
-            <span className="truncate max-w-[7rem] @sm/chat:max-w-[12rem]">{modelDisplayName}</span>
-            <ChevronDown
-              className={`w-3.5 h-3.5 shrink-0 text-(--text-secondary) transition-transform ${isOpen ? "rotate-180" : ""}`}
-            />
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 md:hover:bg-(--control-bg) p-1 px-4 py-1.5 transition-colors md:shadow-none shadow-lg group text-(--text-primary)"
-          >
-            {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
-            <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">
-              {modelDisplayName}
-            </span>
-            <ChevronDown
-              className={`w-3 h-3 text-(--text-secondary) transition-transform ${isOpen ? "rotate-180" : ""}`}
-            />
-          </button>
-        )}
-      </PopoverTrigger>
-
-      {/* DROPDOWN CONTENT */}
+      <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
       <PopoverContent
         side={expandDown ? "bottom" : "top"}
         align={isInline ? "end" : "start"}
-        collisionPadding={isInline ? 8 : undefined}
+        collisionPadding={12}
         sideOffset={8}
-        className="w-[min(350px,calc(100vw-2rem))] p-0 border-0 bg-transparent shadow-none"
+        aria-label={t("modelPickerTitle")}
+        className="flex max-h-[min(480px,var(--radix-popover-content-available-height,480px))] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-(--line) bg-(--surface) p-0 shadow-2xl"
       >
-        <Card className="w-full max-h-[min(450px,50vh)] bg-(--surface-muted) border border-(--border) rounded-xl shadow-2xl overflow-hidden flex flex-col">
-          {/* TABS HEADER */}
-          <div className="flex items-center p-1 bg-(--control-bg) border-b border-(--border) shrink-0">
-            <button
-              onClick={() => setActiveTab("providers")}
-              className={`flex-1 text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg transition-colors ${
-                activeTab === "providers"
-                  ? "bg-(--control-bg-hover) text-(--text-primary) shadow-sm"
-                  : "text-(--text-secondary) hover:text-(--text-primary)"
-              }`}
-            >
-              {t("modelSelectorProviders") || "Providers"}
-            </button>
-            <button
-              onClick={() => setActiveTab("service")}
-              className={`flex-1 text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg transition-colors ${
-                activeTab === "service"
-                  ? "bg-(--control-bg-hover) text-(--text-primary) shadow-sm"
-                  : "text-(--text-secondary) hover:text-(--text-primary)"
-              }`}
-            >
-              {t("modelSelectorService") || "Service"}
-            </button>
-          </div>
-
-          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-(--surface-muted)">
-            {/* --- PROVIDERS VIEW --- */}
-            {activeTab === "providers" && (
-              <div className="flex flex-col">
-                {/* Horizontal Provider Filter Scroll -> REPLACED WITH GRID */}
-                <div className="grid grid-cols-3 gap-2 p-2 border-b border-(--border)">
-                  {visibleProviderIds.map((pid) => {
-                    const logoSrc = PROVIDER_LOGOS[pid];
-                    const isActive = activeProviderFilter === pid;
-                    const needsInvert = NEEDS_INVERSION.has(pid);
-                    const activeClass =
-                      PROVIDER_COLORS[pid] || "bg-(--control-bg-hover) border-(--border)";
-
-                    return (
-                      <button
-                        key={pid}
-                        onClick={() => setActiveProviderFilter(pid)}
-                        className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl transition-colors border bg-linear-to-br ${
-                          isActive
-                            ? `${activeClass} text-(--text-primary) shadow-lg scale-[1.02]`
-                            : "from-transparent to-transparent border-transparent text-(--text-secondary) hover:bg-(--control-bg) hover:text-(--text-primary)"
-                        }`}
-                      >
-                        {logoSrc ? (
-                          <div
-                            className={`relative w-8 h-8 shrink-0 transition-opacity ${isActive ? "opacity-100" : "opacity-50 group-hover:opacity-80"}`}
-                          >
-                            <Image
-                              src={logoSrc}
-                              alt={PROVIDER_LABELS[pid] || pid}
-                              fill
-                              className={`object-contain drop-shadow-sm transition-colors ${needsInvert ? "invert brightness-200" : ""}`}
-                            />
-                          </div>
-                        ) : pid === "local" ? (
-                          <Server className="w-8 h-8 shrink-0" />
-                        ) : (
-                          <Sparkles className="w-8 h-8 shrink-0" />
-                        )}
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-center leading-tight">
-                          {PROVIDER_LABELS[pid] || pid}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Models List for Provider */}
-                <div className="p-2 space-y-1">
-                  <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-(--text-secondary)">
-                    {PROVIDER_LABELS[activeProviderFilter]}{" "}
-                    {t("modelSelectorModelsSuffix") || "MODELS"}
-                  </div>
-
-                  {filteredModelsByProvider.length === 0 ? (
-                    <div className="px-4 py-8 text-center text-xs text-(--text-secondary) opacity-60 italic">
-                      {t("modelSelectorAvailableLater") || "Available later"}
-                    </div>
-                  ) : (
-                    filteredModelsByProvider.map((model) => (
-                      <ModelItem
-                        key={model.id}
-                        model={model}
-                        isActive={model.id === currentModelId}
-                        isAllowed={isModelAllowed(model.id)}
-                        localStatus={localStatus}
-                        onSelect={() => {
-                          onSelectModel(model.id);
-                          setIsOpen(false);
-                        }}
-                      />
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* --- SERVICE VIEW --- */}
-            {activeTab === "service" && (
-              <div className="p-2 space-y-4">
-                {/* Reasoning Group */}
-                <div>
-                  <div className="flex items-center gap-2 px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-(--accent) sticky top-0 bg-(--surface-muted) z-10">
-                    <Cpu className="w-3 h-3" />
-                    {t("modelCategoryReasoning") || "Reasoning"}
-                  </div>
-                  <div className="space-y-1">
-                    {modelsByCategory.reasoning.map((model) => (
-                      <ModelItem
-                        key={model.id}
-                        model={model}
-                        isActive={model.id === currentModelId}
-                        isAllowed={isModelAllowed(model.id)}
-                        localStatus={localStatus}
-                        onSelect={() => {
-                          onSelectModel(model.id);
-                          setIsOpen(false);
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Low Latency Group */}
-                <div>
-                  <div className="flex items-center gap-2 px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-(--text-secondary) sticky top-0 bg-(--surface-muted) z-10">
-                    <Zap className="w-3 h-3" />
-                    {t("modelCategoryLowLatency") || "Low Latency"}
-                  </div>
-                  <div className="space-y-1">
-                    {modelsByCategory["low-latency"].map((model) => (
-                      <ModelItem
-                        key={model.id}
-                        model={model}
-                        isActive={model.id === currentModelId}
-                        isAllowed={isModelAllowed(model.id)}
-                        localStatus={localStatus}
-                        onSelect={() => {
-                          onSelectModel(model.id);
-                          setIsOpen(false);
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Local Models Group */}
-                {modelsByCategory.local.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-(--accent) sticky top-0 bg-(--surface-muted) z-10">
-                      <Server className="w-3 h-3" />
-                      {t("modelCategoryLocal") || "Local Models"}
-                    </div>
-                    <div className="space-y-1">
-                      {modelsByCategory.local.map((model) => (
-                        <ModelItem
-                          key={model.id}
-                          model={model}
-                          isActive={model.id === currentModelId}
-                          isAllowed={isModelAllowed(model.id)}
-                          localStatus={localStatus}
-                          onSelect={() => {
-                            onSelectModel(model.id);
-                            setIsOpen(false);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </Card>
+        {list}
       </PopoverContent>
     </Popover>
-  );
-}
-
-interface ModelItemProps {
-  model: SelectableModel;
-  isActive: boolean;
-  isAllowed: boolean;
-  localStatus: LocalLlmStatus;
-  onSelect: () => void;
-}
-
-function ModelItem({ model, isActive, isAllowed, localStatus, onSelect }: ModelItemProps) {
-  const { t } = useLanguage();
-  const isLocal = isStrataLocalModel(model.id);
-  const isOfflineLocal = isLocal && localStatus === "offline";
-  const isDisabled = !isAllowed || isOfflineLocal;
-
-  return (
-    <button
-      disabled={isDisabled}
-      onClick={() => {
-        if (!isDisabled) onSelect();
-      }}
-      className={`w-full text-left flex items-start gap-3 p-2 rounded-lg transition-colors group ${
-        isActive ? "bg-(--control-bg-hover)" : "hover:bg-(--control-bg)"
-      } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
-    >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          {isLocal && <LocalLlmStatusDot status={localStatus} />}
-          <span
-            className={`text-sm font-medium ${isActive ? "text-(--text-primary)" : "text-(--text-secondary) group-hover:text-(--text-primary)"}`}
-          >
-            {model.name}
-          </span>
-          {!isAllowed && <span className="text-[10px] text-(--text-secondary) opacity-70"></span>}
-        </div>
-        {model.descKey && t(model.descKey) && (
-          <div className="text-xs text-(--text-secondary) line-clamp-1">{t(model.descKey)}</div>
-        )}
-      </div>
-      {isActive && (
-        <div className="bg-(--accent) rounded-full p-0.5 mt-1">
-          <Check className="w-3 h-3 text-(--surface)" />
-        </div>
-      )}
-    </button>
   );
 }

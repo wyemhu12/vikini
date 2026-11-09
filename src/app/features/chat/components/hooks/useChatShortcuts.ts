@@ -9,6 +9,7 @@ interface UseChatShortcutsOptions {
 
 export interface UseChatShortcutsReturn {
   isCommandPaletteOpen: boolean;
+  openCommandPalette: () => void;
   closeCommandPalette: () => void;
   isShortcutsModalOpen: boolean;
   openShortcutsModal: () => void;
@@ -31,6 +32,7 @@ export function useChatShortcuts({ onNewChat }: UseChatShortcutsOptions): UseCha
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
 
+  const openCommandPalette = useCallback(() => setIsCommandPaletteOpen(true), []);
   const closeCommandPalette = useCallback(() => setIsCommandPaletteOpen(false), []);
   const openShortcutsModal = useCallback(() => setIsShortcutsModalOpen(true), []);
   const closeShortcutsModal = useCallback(() => setIsShortcutsModalOpen(false), []);
@@ -64,6 +66,7 @@ export function useChatShortcuts({ onNewChat }: UseChatShortcutsOptions): UseCha
 
   return {
     isCommandPaletteOpen,
+    openCommandPalette,
     closeCommandPalette,
     isShortcutsModalOpen,
     openShortcutsModal,

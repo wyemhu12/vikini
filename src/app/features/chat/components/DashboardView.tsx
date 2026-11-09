@@ -157,12 +157,12 @@ export default function DashboardView({
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="text-center mb-8 flex flex-col items-center"
       >
-        <h1
+        <h2
           className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight"
           style={{ letterSpacing: "-0.03em", textWrap: "balance" }}
         >
           {t(greetingKey)}, {userName}
-        </h1>
+        </h2>
         <p className="mt-2 text-sm md:text-base text-(--text-secondary)">{t("landingSubtitle")}</p>
       </motion.div>
 

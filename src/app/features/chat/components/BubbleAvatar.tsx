@@ -16,6 +16,8 @@ export interface BubbleAvatarProps {
   isStreaming?: boolean;
   isStreamThinking?: boolean;
   modelName?: string;
+  /** Human-readable model name (legacy/retired ids resolved) for the tooltip. */
+  modelLabel?: string;
 }
 
 export const BubbleAvatar = React.memo(function BubbleAvatar({
@@ -24,7 +26,9 @@ export const BubbleAvatar = React.memo(function BubbleAvatar({
   isStreaming = false,
   isStreamThinking = false,
   modelName,
+  modelLabel,
 }: BubbleAvatarProps) {
+  const title = modelLabel || modelName || "AI";
   const { t } = useLanguage();
 
   const isActivelyThinking = Boolean(isStreaming && isStreamThinking);
@@ -89,7 +93,7 @@ export const BubbleAvatar = React.memo(function BubbleAvatar({
               repeat: Infinity,
               ease: "easeInOut",
             }}
-            title={modelName || "AI"}
+            title={title}
           >
             <motion.div
               className="absolute inset-0 rounded-lg bg-(--accent)/15"
@@ -108,10 +112,7 @@ export const BubbleAvatar = React.memo(function BubbleAvatar({
             </div>
           </motion.div>
         ) : state === "streaming" ? (
-          <div
-            className="relative flex items-center justify-center w-full h-full"
-            title={modelName || "AI"}
-          >
+          <div className="relative flex items-center justify-center w-full h-full" title={title}>
             <motion.div
               className="absolute inset-0 rounded-lg border border-(--accent)/40"
               animate={{
@@ -132,7 +133,7 @@ export const BubbleAvatar = React.memo(function BubbleAvatar({
             className="scale-100 flex items-center justify-center w-full h-full"
             whileHover={{ scale: 1.08 }}
             transition={EASE.SPRING}
-            title={modelName || "AI"}
+            title={title}
           >
             <ModelAvatar modelName={modelName} />
           </motion.div>

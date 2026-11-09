@@ -1,0 +1,34 @@
+/* ===========================================
+   RÊU (Moss) — Vikini 3.0
+   Neutral base with a moss-green accent
+   =========================================== */
+
+.theme-reu-dark {
+  color-scheme: dark;
+  --bg: #0e0f13;
+  --surface: #15171d;
+  --raised: #1d2029;
+  --line: #2a2e38;
+  --text: #ecedf0;
+  --muted: #a3a9b5;
+  --faint: #7d8491;
+  --accent: #5cd6a2;
+  --on-accent: #0b0c10;
+  --soft: rgba(92, 214, 162, 0.14);
+  --glow: transparent;
+}
+
+.theme-reu-light {
+  color-scheme: light;
+  --bg: #f6f5f1;
+  --surface: #ffffff;
+  --raised: #eeede8;
+  --line: #dedcd4;
+  --text: #16181d;
+  --muted: #50565f;
+  --faint: #6a707a;
+  --accent: #0b7550;
+  --on-accent: #ffffff;
+  --soft: rgba(11, 117, 80, 0.09);
+  --glow: transparent;
+}

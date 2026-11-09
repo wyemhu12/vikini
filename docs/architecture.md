@@ -65,18 +65,32 @@ Separation of concerns between UI and business logic.
 
 > Single source of truth for the visual language. See `.agents/rules/03-ui.md` for the enforced standards.
 
-- **Token vocabulary** (defined in `app/styles/themes/_shared/base.css`, overridden per theme in
-  `app/styles/themes/`): surfaces (`--surface`, `--surface-muted`, `--surface-elevated`), text
-  (`--text-primary`, `--text-secondary`), controls (`--control-bg`, `--control-bg-hover`,
-  `--control-border`), `--border`, brand `--accent` (+ `--accent-foreground`), state colors
-  (`--danger`, `--success`, `--warning`), and shared `--ring` / `--radius` / `--overlay`.
+- **Token vocabulary (Vikini 3.0)** (defaults = Hoàng Hôn dark in `app/styles/themes/_shared/base.css`,
+  overridden by `.theme-<family>-<mode>` in `app/styles/themes/<family>.css`): `--bg`, `--surface`,
+  `--raised`, `--line`, `--text`, `--muted`, `--faint`, `--accent`, `--on-accent`, `--soft`, `--glow`,
+  state colors (`--danger`, `--success`, `--warning`), and shared `--ring` / `--radius` / `--overlay`.
+  Legacy names (`--surface-muted`, `--control-*`, `--border`, `--text-primary`, …) are aliases.
+- **Themes**: 5 families (`hoanghon` default, `muc`, `reu`, `sen`, `than`) × dark/light, modelled in
+  `lib/config/theme-config.ts`; `next-themes` stores the key (e.g. `hoanghon-dark`) and
+  `useThemeKeyMigration` rewrites the 16 legacy ids from Vikini 2.x.
 - **Tailwind v4 note**: there is **no `@config`**, so `tailwind.config.ts` color names
   (`bg-primary`, `bg-destructive`, `bg-background`, …) are **inert and must not be used**.
   Reference tokens with the arbitrary syntax instead: `bg-(--surface-elevated)`,
   `text-(--text-primary)`, `border-(--border)`, `ring-(--ring)`.
 - **Canonical primitives** (`components/ui/`): `Button`, `Dialog`/`AlertDialog` (Radix —
   focus-trap + ESC built in), `Input`, `Textarea`, `Card`, `Select`, `Switch`, `Popover`,
-  `DropdownMenu`, `Skeleton` (loading), and the global `ConfirmDialogHost`.
+  `DropdownMenu`, `Skeleton` (loading), `PageHeader` (page title/h1 + actions), `EmptyState`
+  (empty data + next action), and the global `ConfirmDialogHost`.
+- **Page frame**: `app/features/layout/components/AppFrame.tsx` wraps standard pages (Gallery, Describe,
+  Gems, Personas, Project) with the sidebar, the header (☰ opens the drawer on mobile) and a scroll area;
+  state comes from `useAppFrameState`. `Sidebar` composes the desktop `AppRail` (64px icon rail: new chat,
+  Chat, Gems & Persona, Images, Novelcrafter, ⌘K, settings, account) with a per-section context panel and
+  the mobile `MobileNavDrawer`; panel collapse is per section in `lib/store/layoutStore.ts` (persisted,
+  rehydrated after mount). `ModelSelector` = one searchable list (`ModelPickerList`, logic in
+  `lib/core/modelPicker.ts`, recent models in `lib/store/recentModelsStore.ts`), popover on desktop and
+  bottom sheet on mobile; `GlobalCommandPalette` (in `MainLayout`) serves ⌘K on signed-in pages outside
+  Chat. Fonts: Be Vietnam Pro (UI), Newsreader (`font-serif`, prose),
+  JetBrains Mono (`font-mono`) via `next/font/google` in `app/layout.tsx`.
 - **Feedback**: `toast` (`lib/store/toastStore.ts`) for non-blocking messages; `confirm()`
   (`lib/store/confirmStore.ts`) for confirmations. Native `alert()`/`confirm()` and hand-rolled
   modal `div`s are banned.

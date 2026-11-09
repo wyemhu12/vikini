@@ -4,10 +4,10 @@ import { motion } from "framer-motion";
 
 import React, { useMemo } from "react";
 import Link from "next/link";
-import { useTheme } from "next-themes";
 import { useLanguage } from "../../chat/hooks/useLanguage";
-import { THEME_CONFIG, type ThemeGroup } from "@/lib/config/theme-config";
-import type { TranslationKey } from "@/lib/utils/translations";
+import { useTheme } from "../../chat/hooks/useTheme";
+import { THEME_FAMILIES } from "@/lib/config/theme-config";
+import ThemeMenuItems from "./ThemeMenuItems";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -15,7 +15,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 
 import { ChevronDown, Check, Settings, Menu } from "lucide-react";
@@ -26,35 +25,17 @@ interface HeaderBarProps {
   hideOnDesktop?: boolean;
 }
 
-const THEME_GROUP_LABELS: Record<ThemeGroup, TranslationKey> = {
-  Focus: "themeFocus",
-  Glassmorphism: "themeGlassmorphism",
-  "Red Alert 2": "themeRa2",
-};
-
 const HeaderBar: React.FC<HeaderBarProps> = ({
   onToggleSidebar,
   showMobileControls = true,
   hideOnDesktop = false,
 }) => {
-  const { theme, setTheme } = useTheme();
+  const { family, mode } = useTheme();
   const { t, language, setLanguage } = useLanguage();
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []); // Hydration fix
 
-  // Group themes by category
-  const groupedThemes = useMemo(() => {
-    return THEME_CONFIG.reduce(
-      (acc, theme) => {
-        if (!acc[theme.group]) acc[theme.group] = [];
-        acc[theme.group].push(theme);
-        return acc;
-      },
-      {} as Record<string, typeof THEME_CONFIG>
-    );
-  }, []);
-
-  const currentTheme = useMemo(() => THEME_CONFIG.find((x) => x.id === theme), [theme]);
+  const currentFamily = useMemo(() => THEME_FAMILIES.find((x) => x.id === family), [family]);
 
   const languageOptions = useMemo(
     () => [
@@ -80,25 +61,23 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
       fixed top-0 left-0 right-0 z-20 
       md:sticky md:top-0 md:translate-y-0
       ${hideOnDesktop ? "flex md:hidden" : "flex"} items-center justify-between 
-      bg-transparent text-(--text-primary)
+      bg-(--bg)/85 backdrop-blur-md border-b border-(--line) text-(--text)
       pt-[calc(1rem+var(--sat,0px))] pb-4 pl-[calc(1rem+var(--sal,0px))] pr-[calc(1rem+var(--sar,0px))] sm:pl-[calc(1.5rem+var(--sal,0px))] sm:pr-[calc(1.5rem+var(--sar,0px))] md:px-6
       transition-colors duration-300
     `}
     >
-      <div className="flex items-center gap-4 min-w-0">
-        {/* Mobile sidebar toggle - HIDDEN in favor of Floating Bubble */}
-        <button
-          type="button"
-          onClick={onToggleSidebar}
-          className="
-            hidden rounded-lg p-2 -ml-2
-            text-(--text-secondary) hover:bg-(--control-bg-hover)
-            transition-colors active:scale-95
-          "
-          aria-label={t("openSidebar")}
-        >
-          <Menu className="w-6 h-6" />
-        </button>
+      <div className="flex items-center gap-2 min-w-0">
+        {/* Mobile navigation toggle: fixed 44px target that opens the sidebar drawer */}
+        {onToggleSidebar && (
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className="md:hidden -ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-(--text) hover:bg-(--raised) transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+            aria-label={t("openMenu")}
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+        )}
 
         {/* App Title with Logo */}
         <div className="min-w-0 flex flex-col">
@@ -157,14 +136,12 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                 <div
                   className="h-4 w-4 rounded-full shadow-[0_0_8px_currentColor]"
                   style={{
-                    backgroundColor: currentTheme?.swatch ?? "var(--accent)",
-                    color: currentTheme?.swatch ?? "var(--accent)",
+                    backgroundColor: currentFamily?.swatch[mode] ?? "var(--accent)",
+                    color: currentFamily?.swatch[mode] ?? "var(--accent)",
                   }}
                 />
                 <span className={triggerLabelStyles}>
-                  {currentTheme?.labelKey
-                    ? t(currentTheme.labelKey)
-                    : currentTheme?.id || t("theme")}
+                  {currentFamily ? t(currentFamily.labelKey) : t("theme")}
                 </span>
                 <ChevronDown className="w-3 h-3 text-(--text-secondary) transition-transform group-data-[state=open]:rotate-180" />
               </button>
@@ -173,32 +150,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               align="end"
               className="w-56 max-h-[400px] overflow-y-auto custom-scrollbar"
             >
-              {Object.entries(groupedThemes).map(([group, themes]) => (
-                <DropdownMenuGroup key={group}>
-                  <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-(--text-secondary) px-2 py-1.5">
-                    {THEME_GROUP_LABELS[group as ThemeGroup]
-                      ? t(THEME_GROUP_LABELS[group as ThemeGroup])
-                      : group}
-                  </DropdownMenuLabel>
-                  {themes.map((tItem) => (
-                    <DropdownMenuItem
-                      key={tItem.id}
-                      onClick={() => setTheme(tItem.id)}
-                      className="flex items-center gap-3 cursor-pointer"
-                    >
-                      <div
-                        className="h-3 w-3 rounded-full shrink-0"
-                        style={{ backgroundColor: tItem.swatch }}
-                      />
-                      <span className="flex-1 text-xs font-medium truncate">
-                        {t(tItem.labelKey) || tItem.id}
-                      </span>
-                      {theme === tItem.id && <Check className="w-3 h-3 text-(--accent)" />}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                </DropdownMenuGroup>
-              ))}
+              <ThemeMenuItems />
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
@@ -246,35 +198,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               <DropdownMenuSeparator />
 
               {/* Theme Section */}
-              <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-(--text-secondary) px-2 py-1.5">
-                {t("theme")}
-              </DropdownMenuLabel>
-              {Object.entries(groupedThemes).map(([group, themes]) => (
-                <DropdownMenuGroup key={`mobile-${group}`}>
-                  <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-(--text-secondary)/70 px-2 py-1">
-                    {THEME_GROUP_LABELS[group as ThemeGroup]
-                      ? t(THEME_GROUP_LABELS[group as ThemeGroup])
-                      : group}
-                  </DropdownMenuLabel>
-                  {themes.map((tItem) => (
-                    <DropdownMenuItem
-                      key={`mobile-${tItem.id}`}
-                      onClick={() => setTheme(tItem.id)}
-                      className="flex items-center gap-3 cursor-pointer"
-                    >
-                      <div
-                        className="h-3 w-3 rounded-full shrink-0"
-                        style={{ backgroundColor: tItem.swatch }}
-                      />
-                      <span className="flex-1 text-xs font-medium truncate">
-                        {t(tItem.labelKey) || tItem.id}
-                      </span>
-                      {theme === tItem.id && <Check className="w-3 h-3 text-(--accent)" />}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator className="last:hidden" />
-                </DropdownMenuGroup>
-              ))}
+              <ThemeMenuItems />
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (

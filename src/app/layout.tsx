@@ -5,8 +5,26 @@ import MainLayout from "@/app/features/layout/components/MainLayout"; // Thêm d
 import LanguageUpdater from "@/app/features/layout/components/LanguageUpdater";
 import React from "react";
 import type { Metadata, Viewport } from "next";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
+import { Be_Vietnam_Pro, JetBrains_Mono, Newsreader } from "next/font/google";
+
+// UI / prose / code faces (Vikini 3.0); vietnamese subset keeps diacritics in the same face.
+const uiFont = Be_Vietnam_Pro({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-ui",
+});
+const proseFont = Newsreader({
+  subsets: ["latin", "vietnamese"],
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-prose",
+});
+const codeFont = JetBrains_Mono({
+  subsets: ["latin", "vietnamese"],
+  display: "swap",
+  variable: "--font-code",
+});
 
 export const metadata: Metadata = {
   title: "Vikini - Gemini Chat",
@@ -24,7 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`h-full ${GeistSans.variable} ${GeistMono.variable}`}
+      className={`h-full ${uiFont.variable} ${proseFont.variable} ${codeFont.variable}`}
       suppressHydrationWarning
     >
       <head />

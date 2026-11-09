@@ -13,29 +13,10 @@
 @import "./styles/themes/_shared/utilities.css";
 
 /* ===========================================
-   FOCUS THEMES (Solid color themes)
+   THEMES (Vikini 3.0) — 5 families × dark/light
    =========================================== */
-@import "./styles/themes/focus/blueprint.css";
-@import "./styles/themes/focus/amber.css";
-@import "./styles/themes/focus/indigo.css";
-@import "./styles/themes/focus/charcoal.css";
-@import "./styles/themes/focus/pitch-black.css";
-@import "./styles/themes/focus/gold.css";
-@import "./styles/themes/focus/red.css";
-@import "./styles/themes/focus/rose.css";
-
-/* ===========================================
-   GLASSMORPHISM THEMES (Frosted glass effects)
-   =========================================== */
-@import "./styles/themes/glassmorphism/nebula.css";
-@import "./styles/themes/glassmorphism/aqua.css";
-@import "./styles/themes/glassmorphism/holo.css";
-@import "./styles/themes/glassmorphism/orchid.css";
-@import "./styles/themes/glassmorphism/sunset.css";
-
-/* ===========================================
-   RED ALERT 2 THEMES (Gaming-inspired)
-   =========================================== */
-@import "./styles/themes/ra2/yuri.css";
-@import "./styles/themes/ra2/allied.css";
-@import "./styles/themes/ra2/soviet.css";
+@import "./styles/themes/hoanghon.css";
+@import "./styles/themes/muc.css";
+@import "./styles/themes/reu.css";
+@import "./styles/themes/sen.css";
+@import "./styles/themes/than.css";

@@ -5,27 +5,28 @@ import React from "react";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import { MotionConfig } from "framer-motion";
-import { THEME_CONFIG } from "@/lib/config/theme-config";
+import { DEFAULT_THEME_KEY, getThemeClassMap } from "@/lib/config/theme-config";
+import { useThemeKeyMigration } from "./hooks/useThemeKeyMigration";
+
+// Current keys and legacy ids → CSS class, so a stored legacy id paints correctly before migration.
+const THEME_CLASS_MAP = getThemeClassMap();
+
+function ThemeKeyMigrator() {
+  useThemeKeyMigration();
+  return null;
+}
 
 export default function Providers({ children }: { children: React.ReactNode }) {
-  // Map clean IDs (e.g., "blueprint") to CSS classes (e.g., "theme-blueprint")
-  const themeMap = THEME_CONFIG.reduce(
-    (acc, theme) => {
-      acc[theme.id] = `theme-${theme.id}`;
-      return acc;
-    },
-    {} as Record<string, string>
-  );
-
   return (
     <SessionProvider>
       <ThemeProvider
         attribute="class"
-        defaultTheme="blueprint"
+        defaultTheme={DEFAULT_THEME_KEY}
         enableSystem={false}
         disableTransitionOnChange
-        value={themeMap}
+        value={THEME_CLASS_MAP}
       >
+        <ThemeKeyMigrator />
         <MotionConfig reducedMotion="user">{children}</MotionConfig>
       </ThemeProvider>
     </SessionProvider>

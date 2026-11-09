@@ -8,6 +8,46 @@
 
 ---
 
+## 2026-11-09: Vikini 3.0 Phase 3A -- Model Picker, Global Command Palette, Legacy Model Names
+
+- **C1 (`ModelSelector.tsx`, `ModelPickerList.tsx`, `lib/core/modelPicker.ts`, `lib/store/recentModelsStore.ts`, `layout/hooks/useIsDesktop.ts`)**: bộ chọn model một danh sách có ô tìm (không phân biệt hoa thường & dấu), bộ lọc `aria-pressed` (Tất cả/Nhanh/Suy luận/Miễn phí/Máy cục bộ), nhóm "Gần đây" (3 model), nhóm theo nhà cung cấp, điều hướng ↑↓ Enter Esc, model bị khóa ghi "Cần nâng hạng"; popover né mép trên desktop, bottom sheet trên mobile; bỏ 2 tab Providers/Service.
+- **Command Palette toàn cục (`GlobalCommandPalette.tsx`, `lib/store/commandPaletteStore.ts`)**: ⌘K và nút ⌘K trên thanh icon ở mọi trang đã đăng nhập ngoài Chat (lệnh đi tới khu vực, đổi sáng/tối, ngôn ngữ, đoạn chat gần đây); bỏ qua ⌘K trong ô nhập/editor (Quick Edit Novelcrafter).
+- **M1 (`CommandPalette.tsx`)**: bỏ nhãn "Esc" trùng nút ✕, bỏ viền focus lồng, mục ngôn ngữ ghi đích ("Đổi ngôn ngữ → English"); hỗ trợ `extraCommands`.
+- **M2 (`ChatBubble.tsx`, `BubbleAvatar.tsx`)**: tooltip model của tin nhắn cũ hiển thị tên model mới + "(cũ)" hoặc id + "(đã ngừng)" thay cho id thô.
+
+---
+
+## 2026-11-09: Vikini 3.0 Phase 2B -- Icon Rail, Context Panel, Sidebar Split
+
+- **App shell (`AppRail.tsx`, `RailMenus.tsx`, `ContextPanelContent.tsx`, `MobileNavDrawer.tsx`, `Sidebar.tsx`)**: thanh icon 64px trên desktop (Đoạn chat mới luôn đứng đầu, Chat, Gems & Persona, Ảnh, Novelcrafter, ⌘K ở Chat, Cài đặt = ngôn ngữ + theme, Tài khoản = Admin/Đăng xuất) + panel ngữ cảnh 272px theo khu vực với nút riêng ("Dự án mới", "Truyện mới"); `Sidebar.tsx` 645 → 222 dòng; bỏ chế độ sidebar icon thu gọn.
+- **Layout state (`lib/store/layoutStore.ts`, `lib/utils/safeStorage.ts`, `layout/utils/shellNav.ts`)**: trạng thái ẩn panel theo khu vực, nhớ qua trang (`persist` + `skipHydration`, rehydrate sau mount); Novelcrafter mặc định focus mode; chuỗi padding lặp ở 5 nơi gộp vào `getShellPaddingClass()`.
+- **Header desktop** ẩn trên các trang có thanh icon (logo/ngôn ngữ/theme đã lên rail); `useChatShortcuts.openCommandPalette` cho nút ⌘K; trang Gems có link sang Persona.
+
+---
+
+## 2026-11-09: Vikini 3.0 Phase 2A -- Shared Page Frame, Mobile Navigation, Fonts
+
+- **C2 / C6 (`HeaderBar.tsx`, `ChatApp.tsx`, `ImageGenStudio.tsx`, `NovelcrafterStudioApp.tsx`)**: gỡ nút menu nổi kéo-thả (`FloatingMenuTrigger.tsx` đã xóa); header có nút ☰ 44px cố định bên trái trên mobile và nền `--bg` 85% + blur + viền `--line`.
+- **C5 (`AppFrame.tsx`, `useAppFrameState.ts`)**: khung trang dùng chung (sidebar + header + vùng cuộn) cho Gallery, Describe, Gems, Personas, Project — hết trang ngõ cụt.
+- **M4**: không còn `<main>` lồng nhau; sidebar dùng `<nav aria-label>`; mỗi trang có một `h1` (ẩn ở Chat, Image Studio, Novelcrafter).
+- **M8 (`components/ui/page-header.tsx`, `components/ui/empty-state.tsx`)**: tiêu đề trang và trạng thái trống dùng chung; Gallery trống có nút "Tạo ảnh đầu tiên"; tiêu đề Describe bỏ gradient màu thô.
+- **Font**: Be Vietnam Pro / Newsreader / JetBrains Mono (subset `vietnamese`) thay Geist; tùy chọn font "serif" của bản thảo Novelcrafter giờ là Newsreader.
+
+---
+
+## 2026-11-08: Vikini 3.0 Phase 1 -- Semantic Tokens & 5 Themes (Dark/Light)
+
+- **Tokens & Themes (`src/app/styles/themes/{hoanghon,muc,reu,sen,than}.css`, `_shared/{base,tokens,utilities}.css`, `src/app/globals.css`)**:
+  - Thay 16 theme cũ (`focus/`, `glassmorphism/`, `ra2/`) bằng 5 theme × sáng/tối với 11 token ngữ nghĩa (`--bg`, `--surface`, `--raised`, `--line`, `--text`, `--muted`, `--faint`, `--accent`, `--on-accent`, `--soft`, `--glow`); Hoàng Hôn tối là mặc định.
+  - Giữ tên biến cũ dưới dạng alias trong `base.css`; nền trang chuyển sang `--bg` (`--surface` giờ là panel).
+- **Theme model & migration (`src/lib/config/theme-config.ts`, `src/app/features/layout/{providers.tsx,hooks/useThemeKeyMigration.ts}`, `src/app/features/chat/hooks/useTheme.ts`)**:
+  - Mô hình family × mode; `resolveThemeKey` map 16 id cũ (`Object.hasOwn`); `getThemeClassMap()` (object prototype null) cho phép id cũ được tô đúng ngay lần vẽ đầu, sau đó hook migration ghi đè localStorage.
+- **UI (`ThemeMenuItems.tsx`, `HeaderBar.tsx`, `NovelcrafterTopBar.tsx`, `PromptStudioApp.tsx`, `CommandPalette.tsx`, `ChatApp.tsx`)**: menu chọn theme + chế độ dùng chung; Command Palette chuyển sáng/tối; gỡ `ChatThemeBackground` và ảnh RA2.
+- **C4 contrast**: `text-white` trên `--accent` → `text-(--on-accent)` tại `error.tsx`, `not-found.tsx`, `InputForm.tsx`, `FileLightbox.tsx` (2 chỗ), `CreateProjectModal.tsx`.
+- **i18n**: thêm `themeHoangHon/Muc/Reu/Sen/Than`, `themeMode/Dark/Light`; xóa 16 key theme cũ và 3 key nhóm.
+
+---
+
 ## 2026-11-03: Migration -- Gemini 2.5 Deprecation (`gemini-3.5-flash-lite` & `gemini-3.8-flash`)
 
 - **Model Registry & Prototype-Safe Alias Resolution (`src/lib/core/{modelRegistry,modelRegistry.test}.ts`, `src/lib/utils/translations/{vi,en}.ts`, `src/app/features/chat/components/hooks/useChatTranslations.ts`)**:
