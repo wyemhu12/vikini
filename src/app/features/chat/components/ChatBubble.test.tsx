@@ -54,11 +54,11 @@ describe("ChatBubble", () => {
       content: "Hello from the user!",
     };
 
-    it("renders user message content and avatar", () => {
+    it("TC-02: renders user message content without a user avatar", () => {
       render(<ChatBubble message={userMsg} />);
 
       expect(screen.getByText("Hello from the user!")).toBeInTheDocument();
-      expect(screen.getByText("ME")).toBeInTheDocument();
+      expect(screen.queryByText("ME")).toBeNull();
     });
 
     it("renders edit button for user message", () => {
@@ -69,18 +69,13 @@ describe("ChatBubble", () => {
       expect(editBtn).toBeInTheDocument();
     });
 
-    it("applies accent design tokens to user bubble and no dead classes", () => {
+    it("TC-02: user bubble uses the raised surface token and no dead classes", () => {
       const { container } = render(<ChatBubble message={userMsg} />);
 
       const bubbleDiv = container.querySelector(".rounded-2xl");
       expect(bubbleDiv).toBeInTheDocument();
-      expect(bubbleDiv).toHaveClass(
-        "bg-(--accent)",
-        "px-4",
-        "py-2.5",
-        "text-(--accent-foreground)",
-        "shadow-lg"
-      );
+      expect(bubbleDiv).toHaveClass("bg-(--raised)", "px-4", "py-2.5", "text-(--text)");
+      expect(bubbleDiv).not.toHaveClass("bg-(--accent)");
 
       // Verify no dead token classes
       expect(bubbleDiv?.className).not.toContain("bg-(--primary)");
@@ -97,6 +92,23 @@ describe("ChatBubble", () => {
         model: "gemini-2.5-pro",
       },
     };
+
+    it("TC-01: shows the resolved model name above an unbubbled assistant message", () => {
+      const { container } = render(
+        <ChatBubble message={{ ...assistantMsg, meta: { model: "gemini-2.5-flash" } }} />
+      );
+      expect(screen.getByText("Gemini 3.5 Flash-Lite modelLegacySuffix")).toBeInTheDocument();
+      const content = container.querySelector(".rounded-2xl");
+      expect(content).not.toHaveClass("bg-(--accent)");
+      expect(content).not.toHaveClass("bg-(--raised)");
+    });
+
+    it("TC-03: uses the 28px message rhythm", () => {
+      const { container } = render(<ChatBubble message={assistantMsg} />);
+      const root = container.firstChild as HTMLElement;
+      expect(root).toHaveClass("py-3.5");
+      expect(root).not.toHaveClass("py-6");
+    });
 
     it("renders assistant markdown display", () => {
       render(<ChatBubble message={assistantMsg} />);
@@ -193,7 +205,10 @@ describe("ChatBubble", () => {
 
       expect(screen.getByRole("button", { name: /copy/i })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /regenerate/i })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
+      // Delete lives in the "More actions" menu (Phase 3B, H6)
+      expect(
+        screen.getByRole("button", { name: /messageMoreActions|more actions/i })
+      ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /read aloud/i })).toBeInTheDocument();
 
       // Edit button must NOT be present on assistant message

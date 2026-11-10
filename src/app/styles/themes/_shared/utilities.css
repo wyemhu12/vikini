@@ -39,6 +39,15 @@
   @apply mb-6 last:mb-0;
 }
 
+/* Message rhythm comes from the message wrapper (28px); markdown adds no outer margins. */
+.chat-markdown > :first-child {
+  margin-top: 0;
+}
+
+.chat-markdown > :last-child {
+  margin-bottom: 0;
+}
+
 .chat-markdown ul,
 .chat-markdown ol {
   @apply my-5 pl-6 space-y-2.5;

@@ -14,6 +14,7 @@ import ScrollToBottomButton from "./ScrollToBottomButton";
 import ChatOverlays from "./ChatOverlays";
 import ChatLoadingScreen from "./ChatLoadingScreen";
 import ChatConversationView from "./ChatConversationView";
+import ChatHeader from "./ChatHeader";
 import LandingDisclaimer from "./LandingDisclaimer";
 import { buildChatControlsProps } from "./chatControlsProps";
 
@@ -40,6 +41,7 @@ import { useChatLayoutState } from "./hooks/useChatLayoutState";
 import { useProjectNavigation } from "./hooks/useProjectNavigation";
 import { useChatShortcuts } from "./hooks/useChatShortcuts";
 import { getShellPaddingClass } from "../../layout/utils/shellNav";
+import { useProjectStore } from "@/lib/store/projectStore";
 import { useSidebarActions } from "./hooks/useSidebarActions";
 import { useRemixPrompt } from "./hooks/useRemixPrompt";
 
@@ -197,6 +199,9 @@ export default function ChatApp() {
   const shortcuts = useChatShortcuts({ onNewChat: handleNewChat });
 
   // Auth gates
+  // Must run before the early returns below (rules of hooks).
+  const projects = useProjectStore((state) => state.projects);
+
   if (isAuthLoading || !isAuthed) return <ChatLoadingScreen label={t.loading} />;
 
   if (isPendingAccess) return <AccessPendingScreen />;
@@ -270,6 +275,17 @@ export default function ChatApp() {
           onToggleSidebar={layout.toggleMobileSidebar}
           showMobileControls={showMobileControls}
         />
+
+        {!showProjectView && !showLanding && selectedConversationId && (
+          <ChatHeader
+            title={currentConversation?.title}
+            projectName={
+              projects.find((p) => p.id === currentConversation?.projectId)?.name ?? null
+            }
+            onRename={() => sidebarActions.onRenameChat(selectedConversationId)}
+            onDelete={() => modals.openDeleteModal(selectedConversationId)}
+          />
+        )}
 
         <div
           id="main-content"

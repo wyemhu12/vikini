@@ -216,31 +216,35 @@ export const ChatBubble = React.memo(
 
     return (
       <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
-        className={`group flex w-full flex-col gap-3 py-6 ${isBot ? "" : "items-end"}`}
+        className={`group flex w-full flex-col py-3.5 ${isBot ? "" : "items-end"}`}
       >
         <div
-          className={`flex max-w-[95%] gap-4 ${isBot ? "items-start" : "flex-row-reverse items-start"}`}
+          className={`relative flex flex-col ${isBot ? "w-full min-w-0" : "items-end max-w-[85%]"}`}
         >
-          <BubbleAvatar
-            isBot={isBot}
-            isLoading={isLoading}
-            isStreaming={isStreaming}
-            isStreamThinking={isStreamThinking}
-            modelName={safeMessage.meta?.model as string | undefined}
-            modelLabel={modelLabel}
-          />
+          {isBot && (
+            <div className="mb-2 flex items-center gap-2">
+              <BubbleAvatar
+                isBot
+                size="sm"
+                isLoading={isLoading}
+                isStreaming={isStreaming}
+                isStreamThinking={isStreamThinking}
+                modelName={safeMessage.meta?.model as string | undefined}
+                modelLabel={modelLabel}
+              />
+              <span className="truncate text-sm font-medium text-(--text)">{modelLabel}</span>
+            </div>
+          )}
 
           <div
             className={`flex flex-col gap-2 ${isBot ? "items-start w-full min-w-0" : "items-end max-w-full"}`}
           >
             <div
               className={`relative rounded-2xl px-1 text-base leading-relaxed transition-colors ${
-                isBot
-                  ? "text-(--text-primary) w-full"
-                  : "bg-(--accent) px-4 py-2.5 text-(--accent-foreground) shadow-lg"
+                isBot ? "text-(--text-primary) w-full" : "bg-(--raised) px-4 py-2.5 text-(--text)"
               }`}
             >
               {isEditing ? (
@@ -443,6 +447,7 @@ export const ChatBubble = React.memo(
                 onDelete={props.onDelete}
                 onSpeak={isBot ? props.onSpeak : undefined}
                 onBranch={props.onBranch}
+                alwaysVisible={isBot && Boolean(props.isLastAssistant)}
               />
             )}
           </div>

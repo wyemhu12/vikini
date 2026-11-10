@@ -84,6 +84,10 @@ export const vi = {
   modelPickerEmpty: "Không tìm thấy model phù hợp",
   commandGoTo: "Đi tới",
   switchLanguageTo: "Đổi ngôn ngữ →",
+  // Chat messages & header (Vikini 3.0)
+  messageMoreActions: "Thêm thao tác",
+  chatHeaderMore: "Tùy chọn đoạn chat",
+  chatInProject: "Dự án",
   // Chat actions
   renameChat: "Đổi tên cuộc hội thoại",
   deleteConfirm: "Xóa cuộc hội thoại này?",

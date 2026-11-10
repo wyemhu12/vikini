@@ -16,7 +16,7 @@ export default function LandingDisclaimer({
     <div
       className={`fixed bottom-[calc(0.5rem+var(--sab,0px))] inset-x-0 text-center z-30 pointer-events-none transition-[padding] duration-300 ${getShellPaddingClass(sidebarCollapsed)} pr-[var(--sar,0px)]`}
     >
-      <p className="text-xs font-bold text-(--text-secondary) tracking-widest uppercase">{text}</p>
+      <p className="truncate px-4 text-xs text-(--faint)">{text}</p>
     </div>
   );
 }

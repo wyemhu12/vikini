@@ -328,9 +328,7 @@ export default function ChatControls({
 
       {!isLanding && (
         <div className="mt-3 text-center">
-          <p className="text-xs font-semibold text-(--text-secondary) tracking-widest uppercase hover:text-(--text-primary) transition-colors cursor-default">
-            {t("aiDisclaimer")}
-          </p>
+          <p className="truncate text-xs text-(--faint) cursor-default">{t("aiDisclaimer")}</p>
         </div>
       )}
     </motion.div>

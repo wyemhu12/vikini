@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-11-10: Vikini 3.0 Phase 3B -- Unbubbled Messages, Compact Actions, Chat Header
+
+- **Messages (`ChatBubble.tsx`, `BubbleAvatar.tsx`, `ChatMessagesArea.tsx`)**: tin AI không nền, dòng đầu = avatar 24px + tên model đã dịch ("(cũ)" cho id cũ); tin người dùng là bong bóng `--raised`, bỏ avatar "ME"; nhịp dọc 28px (`py-3.5`) thay cho ~120–150px.
+- **H6 (`MessageActions.tsx`)**: thanh thao tác chỉ icon (32px, `aria-label` + title), bỏ chữ UPPERCASE; Xóa chuyển vào menu "⋯"; desktop hiện khi hover/focus, luôn hiện với tin AI cuối.
+- **Header chat desktop (`ChatHeader.tsx`)**: tiêu đề đoạn chat, dòng "Dự án · tên", menu Đổi tên / Xóa.
+- **Disclaimer**: một dòng chữ thường màu `--faint` (bỏ in hoa, giãn chữ).
+
+---
+
 ## 2026-11-09: Vikini 3.0 Phase 3A -- Model Picker, Global Command Palette, Legacy Model Names
 
 - **C1 (`ModelSelector.tsx`, `ModelPickerList.tsx`, `lib/core/modelPicker.ts`, `lib/store/recentModelsStore.ts`, `layout/hooks/useIsDesktop.ts`)**: bộ chọn model một danh sách có ô tìm (không phân biệt hoa thường & dấu), bộ lọc `aria-pressed` (Tất cả/Nhanh/Suy luận/Miễn phí/Máy cục bộ), nhóm "Gần đây" (3 model), nhóm theo nhà cung cấp, điều hướng ↑↓ Enter Esc, model bị khóa ghi "Cần nâng hạng"; popover né mép trên desktop, bottom sheet trên mobile; bỏ 2 tab Providers/Service.

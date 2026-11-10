@@ -86,6 +86,10 @@ export const en = {
   modelPickerEmpty: "No matching models",
   commandGoTo: "Go to",
   switchLanguageTo: "Switch language →",
+  // Chat messages & header (Vikini 3.0)
+  messageMoreActions: "More actions",
+  chatHeaderMore: "Chat options",
+  chatInProject: "Project",
   renameChat: "Rename chat",
   deleteConfirm: "Delete this conversation?",
   refresh: "Refresh",

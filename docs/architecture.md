@@ -89,7 +89,8 @@ Separation of concerns between UI and business logic.
   rehydrated after mount). `ModelSelector` = one searchable list (`ModelPickerList`, logic in
   `lib/core/modelPicker.ts`, recent models in `lib/store/recentModelsStore.ts`), popover on desktop and
   bottom sheet on mobile; `GlobalCommandPalette` (in `MainLayout`) serves ⌘K on signed-in pages outside
-  Chat. Fonts: Be Vietnam Pro (UI), Newsreader (`font-serif`, prose),
+  Chat. Chat view: unbubbled assistant messages with the model name, `MessageActions` icon-only with
+  Delete in a "⋯" menu, and a desktop `ChatHeader` (title, project, rename/delete). Fonts: Be Vietnam Pro (UI), Newsreader (`font-serif`, prose),
   JetBrains Mono (`font-mono`) via `next/font/google` in `app/layout.tsx`.
 - **Feedback**: `toast` (`lib/store/toastStore.ts`) for non-blocking messages; `confirm()`
   (`lib/store/confirmStore.ts`) for confirmations. Native `alert()`/`confirm()` and hand-rolled

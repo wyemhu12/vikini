@@ -20,6 +20,8 @@ vi.mock("../hooks/useLanguage", () => ({
         readAloud: "Read aloud",
         branchInNewChat: "Branch in new chat",
         branching: "Branching...",
+        messageMoreActions: "More actions",
+        continue: "Continue",
       };
       return dict[key] || key;
     },
@@ -176,7 +178,7 @@ describe("MessageActions", () => {
   });
 
   describe("Delete button", () => {
-    it("renders delete button and triggers onDelete with messageId", () => {
+    it("TC-05: puts Delete in the More actions menu and calls onDelete with messageId", () => {
       const onDelete = vi.fn();
       render(
         <MessageActions
@@ -188,16 +190,18 @@ describe("MessageActions", () => {
         />
       );
 
-      const deleteBtn = screen.getByRole("button", { name: /delete/i });
-      expect(deleteBtn).toBeInTheDocument();
-      expect(deleteBtn).toHaveAttribute("title", "Delete");
-      fireEvent.click(deleteBtn);
+      expect(screen.queryByRole("button", { name: /^delete$/i })).not.toBeInTheDocument();
+      const more = screen.getByRole("button", { name: "More actions" });
+      expect(more).toHaveAttribute("title", "More actions");
+      fireEvent.pointerDown(more, { button: 0, ctrlKey: false });
+      fireEvent.click(screen.getByRole("menuitem", { name: /delete/i }));
+      expect(onDelete).toHaveBeenCalledTimes(1);
       expect(onDelete).toHaveBeenCalledWith("msg-123");
     });
 
-    it("does not render delete button when messageId or onDelete is missing", () => {
-      render(<MessageActions isBot={true} copied={false} onCopy={vi.fn()} />);
-      expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
+    it("TC-06: renders no More actions menu when messageId or onDelete is missing", () => {
+      render(<MessageActions isBot={true} copied={false} onCopy={vi.fn()} onDelete={vi.fn()} />);
+      expect(screen.queryByRole("button", { name: "More actions" })).not.toBeInTheDocument();
     });
   });
 
@@ -262,32 +266,48 @@ describe("MessageActions", () => {
   });
 
   describe("Floating Glass Dock styling, tokens, and touch targets", () => {
-    it("renders container with floating glass dock classes", () => {
-      const { container } = render(<MessageActions isBot={true} copied={false} onCopy={vi.fn()} />);
-
-      const dock = container.firstChild as HTMLElement;
-      expect(dock).toHaveClass(
-        "backdrop-blur-md",
-        "bg-(--surface-elevated)/80",
-        "border",
-        "border-(--border)",
-        "shadow-sm",
-        "rounded-full",
-        "px-2.5",
-        "py-1",
-        "flex",
-        "items-center",
-        "gap-2"
+    it("TC-07: hides on desktop until hover/focus unless alwaysVisible", () => {
+      const { container, rerender } = render(
+        <MessageActions isBot={true} copied={false} onCopy={vi.fn()} />
       );
+      const bar = container.firstChild as HTMLElement;
+      expect(bar).toHaveClass(
+        "md:opacity-0",
+        "md:group-hover:opacity-100",
+        "md:group-focus-within:opacity-100"
+      );
+
+      rerender(<MessageActions isBot={true} copied={false} onCopy={vi.fn()} alwaysVisible />);
+      expect(container.firstChild as HTMLElement).not.toHaveClass("md:opacity-0");
     });
 
-    it("renders reverse flex order for user messages", () => {
+    it("aligns the bar to the message side (user messages to the right)", () => {
       const { container } = render(
         <MessageActions isBot={false} copied={false} onCopy={vi.fn()} />
       );
+      expect(container.firstChild as HTMLElement).toHaveClass("justify-end");
+    });
 
-      const dock = container.firstChild as HTMLElement;
-      expect(dock).toHaveClass("flex-row-reverse");
+    it("TC-04: is icon-only with accessible names and no uppercase labels", () => {
+      const { container } = render(
+        <MessageActions
+          isBot={true}
+          messageId="m1"
+          copied={false}
+          canRegenerate={true}
+          onCopy={vi.fn()}
+          onRegenerate={vi.fn()}
+          onSpeak={vi.fn()}
+          onBranch={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+      for (const btn of screen.getAllByRole("button")) {
+        expect(btn.getAttribute("aria-label")).toBeTruthy();
+      }
+      expect(container.innerHTML).not.toMatch(/\buppercase\b/);
+      expect(screen.queryByText("Copy")).toBeNull();
+      expect(screen.queryByText("Regenerate")).toBeNull();
     });
 
     it("ensures all buttons have type='button', >= 28px touch targets, and active micro-interactions", () => {

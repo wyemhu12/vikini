@@ -18,6 +18,8 @@ export interface BubbleAvatarProps {
   modelName?: string;
   /** Human-readable model name (legacy/retired ids resolved) for the tooltip. */
   modelLabel?: string;
+  /** "sm" (24px) sits inline with the model name above an assistant message. */
+  size?: "sm" | "md";
 }
 
 export const BubbleAvatar = React.memo(function BubbleAvatar({
@@ -27,6 +29,7 @@ export const BubbleAvatar = React.memo(function BubbleAvatar({
   isStreamThinking = false,
   modelName,
   modelLabel,
+  size = "md",
 }: BubbleAvatarProps) {
   const title = modelLabel || modelName || "AI";
   const { t } = useLanguage();
@@ -45,7 +48,7 @@ export const BubbleAvatar = React.memo(function BubbleAvatar({
   return (
     <div
       data-state={isBot ? state : undefined}
-      className={`relative flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-lg border text-xs font-black tracking-tighter shadow-sm overflow-hidden transition-[border-color,background-color,box-shadow] duration-300 ${
+      className={`relative flex ${size === "sm" ? "h-6 w-6 rounded-md" : "h-8 w-8 rounded-lg"} shrink-0 select-none items-center justify-center border text-xs font-black tracking-tighter shadow-sm overflow-hidden transition-[border-color,background-color,box-shadow] duration-300 ${
         isBot
           ? isLoading
             ? "border-(--accent)/30 bg-(--accent)/10 shadow-[0_0_15px_rgba(var(--accent-rgb,59,130,246),0.1)]"
