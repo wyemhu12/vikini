@@ -120,8 +120,9 @@ Tests are colocated with source files using the `.test.ts` / `.test.tsx` suffix.
 - **Real-time Streaming**: Custom multi-provider SSE implementation (`src/app/api/chat-stream/streaming/`).
 - **Component Architecture**:
   - `ChatApp.tsx`: Main container and state orchestrator (~370 lines, delegating to `ChatConversationView.tsx`, `ChatMessagesArea.tsx`, `ChatOverlays.tsx`, `DashboardView.tsx`).
-  - `ChatControls.tsx`: Top toolbar for GEMs, Personas, Web Search, Image Generation, and Local LLM Sampling (`LocalSamplingSettings.tsx`).
-  - `InputForm.tsx` & `InputModelControls.tsx`: Unified 2-row chat composer with inline `ModelSelector` and `ThinkingLevelSelector` controls on the bottom row before Mic and Send.
+  - `ChatControls.tsx`: Composer dock wrapper (mobile fixed bar, disclaimer). Passes `ComposerLeadingControls` into `InputForm` via `renderLeadingControls` (no separate toolbar above the input since Vikini 3.0 Phase 3C).
+  - `InputForm.tsx` & `InputModelControls.tsx`: Unified 2-row chat composer. Bottom row: "+" → leading controls → `ModelSelector` + `ThinkingLevelSelector` ("Suy luận: …" chip) → Mic → Send. Accent hairline (`composer-stream-line`) on the top edge while streaming.
+  - `ComposerLeadingControls.tsx`: When the chat column is ≥ `@3xl/chat`: `aria-pressed` toggles (Tìm web, Luôn tìm kiếm — Gemini only), Local sampling, Gem/Persona chips, conflict badge. Narrower: a single "Tùy chọn" button with an active-count badge opening `ComposerOptionsSheet.tsx` (bottom sheet: switches with descriptions, thinking radiogroup, Gem, Persona, Model, Local sampling, Attach). Shared primitive: `ComposerChip.tsx`; level labels come from `thinkingOptions.ts` on top of `getAvailableThinkingLevels`.
   - `ChatBubble.tsx`: Message rendering (~467 lines).
   - `StreamErrorBanner.tsx`: Error display with accessibility.
 - **ChatBubble Sub-components** (extracted for maintainability):

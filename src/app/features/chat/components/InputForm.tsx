@@ -40,6 +40,14 @@ interface InputFormProps {
   isSelfInitiatedUploadRef?: React.MutableRefObject<boolean>;
   /** Composer-level controls (model / thinking) rendered right-aligned before Mic/Send. */
   trailingControls?: React.ReactNode;
+  /** Toggles / chips rendered right after the "+" button (hidden in image mode). */
+  renderLeadingControls?: (api: ComposerApi) => React.ReactNode;
+}
+
+/** Composer actions exposed to leading controls (e.g. the mobile options sheet). */
+export interface ComposerApi {
+  openFilePicker: () => void;
+  attachDisabled: boolean;
 }
 
 export default function InputForm({
@@ -58,6 +66,7 @@ export default function InputForm({
   ensureConversationId,
   isSelfInitiatedUploadRef,
   trailingControls,
+  renderLeadingControls,
 }: InputFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -237,6 +246,14 @@ export default function InputForm({
               : "bg-(--control-bg) border-(--control-border) focus-within:border-(--accent) focus-within:ring-1 focus-within:ring-(--accent)/30"
         }`}
       >
+        {isStreaming && (
+          <div
+            aria-hidden="true"
+            data-testid="composer-stream-line"
+            className="pointer-events-none absolute -top-px left-[24%] h-0.5 w-[52%] rounded-full bg-(--accent) animate-pulse motion-reduce:animate-none"
+          />
+        )}
+
         {/* Inline File Preview Area (replaces AttachmentsPanel + FileChips) */}
         <FilePreviewArea
           files={files}
@@ -319,6 +336,12 @@ export default function InputForm({
             accept={fileAccept}
             aria-label={t("uploadFile") || "Upload file"}
           />
+
+          {!isImageMode &&
+            renderLeadingControls?.({
+              openFilePicker,
+              attachDisabled: Boolean(disabled) || isUploading,
+            })}
 
           <div className="flex items-center gap-1 @sm/chat:gap-2 ml-auto min-w-0">
             {!isImageMode && trailingControls}

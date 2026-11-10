@@ -9,15 +9,19 @@ import { Settings, Sparkles, UserX } from "lucide-react";
 import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
 import { DynamicIcon } from "@/components/ui/DynamicIcon";
+import { ComposerChip } from "../../chat/components/ComposerChip";
 
 interface PersonaQuickSwitchProps {
   currentPersona: { name: string; icon?: string | null; color?: string | null } | null;
   conversationId: string | null;
+  /** Prefix the name with "Persona:" (composer chip). The options sheet row already has a title. */
+  showPrefix?: boolean;
 }
 
 export default function PersonaQuickSwitch({
   currentPersona,
   conversationId,
+  showPrefix = true,
 }: PersonaQuickSwitchProps) {
   const { openPersonaModal, triggerPersonaApplied } = usePersonaStore();
   const { t } = useLanguage();
@@ -69,24 +73,24 @@ export default function PersonaQuickSwitch({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
+        <ComposerChip
+          active={Boolean(currentPersona)}
           aria-haspopup="dialog"
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-(--accent)/15 text-(--accent) border border-(--accent)/25 hover:bg-(--accent)/25 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
-          title={currentPersona ? currentPersona.name : t("selectPersona") || "Select Persona"}
+          title={currentPersona ? currentPersona.name : t("selectPersona")}
         >
           {currentPersona ? (
-            <>
-              <DynamicIcon name={currentPersona.icon} className="w-3.5 h-3.5" />
-              <span className="max-w-[120px] truncate">{currentPersona.name}</span>
-            </>
+            <DynamicIcon name={currentPersona.icon} className="w-3.5 h-3.5 shrink-0" />
           ) : (
-            <>
-              <Sparkles className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t("selectPersona") || "Persona"}</span>
-            </>
+            <Sparkles aria-hidden="true" className="w-3.5 h-3.5 shrink-0" />
           )}
-        </button>
+          <span className="max-w-[140px] truncate">
+            {currentPersona
+              ? showPrefix
+                ? `${t("personaChip")}: ${currentPersona.name}`
+                : currentPersona.name
+              : t("personaChip")}
+          </span>
+        </ComposerChip>
       </PopoverTrigger>
       <PopoverContent
         align="center"

@@ -8,6 +8,16 @@
 
 ---
 
+## 2026-11-10: Vikini 3.0 Phase 3C -- Composer Toggles, Chips, Mobile Options Sheet, Streaming Hairline
+
+- **H2 (`ChatControls.tsx`, `InputForm.tsx`, `ComposerLeadingControls.tsx`, `ComposerChip.tsx`)**: bỏ thanh viên thuốc phía trên ô nhập; toggle "Tìm web" / "Luôn tìm kiếm" thành nút `aria-pressed` có icon và nhãn chữ thường (bỏ "WEB OFF", "ALWAYS SEARCH OFF"), nằm ở hàng dưới ô nhập ngay sau "+". Quy tắc khóa giữ như cũ (vẫn bật/tắt được khi đang stream).
+- **Chip (`ThinkingLevelSelector.tsx`, `GemQuickSwitch.tsx`, `PersonaQuickSwitch.tsx`, `thinkingOptions.ts`)**: "Suy luận: Vừa", "Gem: …", "Persona: …"; menu mức suy luận bỏ chữ in hoa, mức tắt ghi "Tắt" (key `thinkingOff`); danh sách mức lấy từ `getAvailableThinkingLevels`.
+- **Cột chat hẹp / mobile (`ComposerOptionsSheet.tsx`)**: nút "Tùy chọn" kèm số tùy chọn đang bật, mở bottom sheet: Tìm web, Luôn tìm kiếm (switch + mô tả), Mức suy luận (radiogroup, ←/→), Gem, Persona, Model, Tham số cục bộ, Đính kèm ảnh hoặc tệp. Điểm chuyển theo bề rộng cột chat (`@3xl/chat`), không theo viewport, để ô nhập không chật khi panel ngữ cảnh mở.
+- **Vệt stream**: vạch `--accent` 2px trên mép ô nhập khi đang trả lời; tắt nhấp nháy khi `prefers-reduced-motion`.
+- **i18n**: thêm `webSearchToggle`, `webSearchDesc`, `alwaysSearchDesc`, `composerOptions`, `composerOptionsActive`, `attachFileOrImage`, `gemChip`, `personaChip`, `thinkingOff`, `conflictWarning` (trước đây cảnh báo Gem + Persona chỉ có chuỗi dự phòng tiếng Anh).
+
+---
+
 ## 2026-11-10: Vikini 3.0 Phase 3B -- Unbubbled Messages, Compact Actions, Chat Header
 
 - **Messages (`ChatBubble.tsx`, `BubbleAvatar.tsx`, `ChatMessagesArea.tsx`)**: tin AI không nền, dòng đầu = avatar 24px + tên model đã dịch ("(cũ)" cho id cũ); tin người dùng là bong bóng `--raised`, bỏ avatar "ME"; nhịp dọc 28px (`py-3.5`) thay cho ~120–150px.

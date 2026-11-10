@@ -9,19 +9,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  type ThinkingLevel,
-  isGemini3Model,
-  isDeepSeekV4Model,
-  isClaudeThinkingModel,
-  isStrataLocalThinkingModel,
-  getEffectiveThinkingLevel,
-} from "./hooks/useThinkingLevel";
-import {
-  getSupportedGeminiThinkingLevels,
-  isGLMModel,
-  isGemini4Model,
-} from "@/lib/core/modelRegistry";
+import { type ThinkingLevel, getEffectiveThinkingLevel } from "./hooks/useThinkingLevel";
+import { getThinkingOptions } from "./thinkingOptions";
+import { ComposerChip } from "./ComposerChip";
 
 interface ThinkingLevelSelectorProps {
   thinkingLevel: ThinkingLevel;
@@ -30,12 +20,10 @@ interface ThinkingLevelSelectorProps {
   expandDown?: boolean;
 }
 
-interface ThinkingOption {
-  value: ThinkingLevel;
-  label: string;
-  hint?: string;
-}
-
+/**
+ * Desktop "Suy luận: Vừa" chip. On mobile the level is picked inside the composer
+ * options sheet, so the chip is hidden below `md`.
+ */
 export default function ThinkingLevelSelector({
   thinkingLevel,
   setThinkingLevel,
@@ -43,88 +31,26 @@ export default function ThinkingLevelSelector({
   expandDown = false,
 }: ThinkingLevelSelectorProps) {
   const { t } = useLanguage();
-  const isLocal = isStrataLocalThinkingModel(currentModel);
-  const isDeepSeek = isDeepSeekV4Model(currentModel);
-  const isClaudeModel = isClaudeThinkingModel(currentModel);
-  const isGLM = isGLMModel(currentModel);
-  const isGemini4 = isGemini4Model(currentModel);
-  const isGemini3 = isGemini3Model(currentModel);
-  const geminiSupported = isGemini3 ? getSupportedGeminiThinkingLevels(currentModel) : [];
-
-  // Build options based on model
-  // DeepSeek V4: off / low(=reasoning_effort:high) / high(=reasoning_effort:max)
-  const options: ThinkingOption[] = isLocal
-    ? [
-        { value: "off", label: t("webSearchOff") },
-        {
-          value: "low",
-          label: t("thinkingLevelLow") || "LOW",
-          hint: (t("thinkingBudgetHint") || "≤ {n} tokens").replace("{n}", "4K"),
-        },
-        {
-          value: "medium",
-          label: t("thinkingLevelMedium") || "MEDIUM",
-          hint: (t("thinkingBudgetHint") || "≤ {n} tokens").replace("{n}", "8K"),
-        },
-        {
-          value: "high",
-          label: t("thinkingLevelHigh") || "HIGH",
-          hint: (t("thinkingBudgetHint") || "≤ {n} tokens").replace("{n}", "12K"),
-        },
-      ]
-    : isDeepSeek
-      ? [
-          { value: "off", label: t("webSearchOff") },
-          { value: "low", label: t("thinkingLevelLow") || "STANDARD" },
-          { value: "high", label: t("thinkingLevelHigh") || "DEEP" },
-        ]
-      : isClaudeModel || isGLM
-        ? [
-            { value: "off", label: t("webSearchOff") },
-            { value: "high", label: t("thinkingLevelHigh") || "HIGH" },
-          ]
-        : isGemini3 && geminiSupported.length > 0
-          ? [
-              ...(isGemini4 ? [] : [{ value: "off" as ThinkingLevel, label: t("webSearchOff") }]),
-              ...geminiSupported.map((lvl) => ({
-                value: lvl as ThinkingLevel,
-                label:
-                  lvl === "minimal"
-                    ? t("thinkingLevelMinimal") || "MINIMAL"
-                    : lvl === "low"
-                      ? t("thinkingLevelLow") || "LOW"
-                      : lvl === "medium"
-                        ? t("thinkingLevelMedium") || "MEDIUM"
-                        : t("thinkingLevelHigh") || "HIGH",
-              })),
-            ]
-          : [
-              { value: "off", label: t("webSearchOff") },
-              { value: "low", label: t("thinkingLevelLow") || "LOW" },
-              { value: "high", label: t("thinkingLevelHigh") || "HIGH" },
-            ];
+  const options = getThinkingOptions(currentModel, t);
+  if (options.length === 0) return null;
 
   const effectiveLevel = getEffectiveThinkingLevel(currentModel, thinkingLevel);
   const currentOption = options.find((o) => o.value === effectiveLevel) || options[0];
-  const isThinkingActive = effectiveLevel !== "off";
+  const label = `${t("thinkingLevel")}: ${currentOption.label}`;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label={`${t("thinkingLevel")}: ${currentOption.label}`}
+        <ComposerChip
+          icon={Brain}
+          active={effectiveLevel !== "off"}
+          aria-label={label}
           title={t("thinkingLevelTooltip")}
-          className={`h-10 inline-flex items-center gap-1.5 rounded-full px-2.5 @sm/chat:px-3 text-xs font-semibold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.97] ${
-            isThinkingActive
-              ? "bg-(--accent)/15 text-(--accent) border border-(--accent)/30 hover:bg-(--accent)/25"
-              : "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)"
-          }`}
+          className="hidden min-w-0 shrink @3xl/chat:inline-flex"
         >
-          <Brain className="w-4 h-4 shrink-0" />
-          <span className="hidden @sm/chat:inline">{currentOption.label}</span>
-          <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-70" />
-        </button>
+          <span className="max-w-[10rem] truncate">{label}</span>
+          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 opacity-70" />
+        </ComposerChip>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         side={expandDown ? "bottom" : "top"}
@@ -138,19 +64,17 @@ export default function ThinkingLevelSelector({
             key={option.value}
             onSelect={() => setThinkingLevel(option.value)}
             className={`flex items-center justify-between gap-3 ${
-              effectiveLevel === option.value ? "bg-(--control-bg-hover) text-(--text-primary)" : ""
+              effectiveLevel === option.value ? "bg-(--raised) text-(--text)" : ""
             }`}
           >
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider">{option.label}</span>
+            <span className="flex items-center gap-2">
+              <span className="text-sm font-medium">{option.label}</span>
               {option.hint && (
-                <span className="text-xs text-(--text-secondary) font-normal">({option.hint})</span>
+                <span className="text-xs font-normal text-(--muted)">({option.hint})</span>
               )}
-            </div>
+            </span>
             {effectiveLevel === option.value && (
-              <div className="bg-(--accent) rounded-full p-0.5">
-                <Check className="w-2.5 h-2.5 text-(--surface)" />
-              </div>
+              <Check aria-hidden="true" className="h-4 w-4 text-(--accent)" />
             )}
           </DropdownMenuItem>
         ))}

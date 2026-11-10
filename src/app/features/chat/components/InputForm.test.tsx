@@ -333,4 +333,57 @@ describe("InputForm", () => {
       expect(wrapper?.className).not.toContain("md:basis-auto");
     });
   });
+
+  describe("Composer leading controls slot (TC-13)", () => {
+    it("renders leading controls after the Add button with a composer API", () => {
+      const renderLeading = vi.fn(() => <span data-testid="lead" />);
+      render(
+        <InputForm
+          input=""
+          onChangeInput={vi.fn()}
+          onSubmit={vi.fn()}
+          renderLeadingControls={renderLeading}
+        />
+      );
+
+      const addButton = screen.getByRole("button", { name: /addAttachment/i });
+      const lead = screen.getByTestId("lead");
+      expect(
+        addButton.compareDocumentPosition(lead) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(renderLeading).toHaveBeenCalledWith(
+        expect.objectContaining({ openFilePicker: expect.any(Function), attachDisabled: false })
+      );
+    });
+
+    it("does not render leading controls in image generation mode", () => {
+      render(
+        <InputForm
+          input=""
+          onChangeInput={vi.fn()}
+          onSubmit={vi.fn()}
+          initialImageMode={true}
+          renderLeadingControls={() => <span data-testid="lead" />}
+        />
+      );
+      expect(screen.queryByTestId("lead")).toBeNull();
+    });
+  });
+
+  describe("Streaming hairline (TC-14)", () => {
+    it("shows an aria-hidden accent hairline only while streaming", () => {
+      const { rerender } = render(
+        <InputForm input="" onChangeInput={vi.fn()} onSubmit={vi.fn()} isStreaming={true} />
+      );
+      const line = screen.getByTestId("composer-stream-line");
+      expect(line).toHaveAttribute("aria-hidden", "true");
+      expect(line.className).toContain("bg-(--accent)");
+      expect(line.className).toContain("motion-reduce:animate-none");
+
+      rerender(
+        <InputForm input="" onChangeInput={vi.fn()} onSubmit={vi.fn()} isStreaming={false} />
+      );
+      expect(screen.queryByTestId("composer-stream-line")).toBeNull();
+    });
+  });
 });
