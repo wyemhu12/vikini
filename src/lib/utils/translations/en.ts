@@ -374,10 +374,10 @@ export const en = {
   sugCreatePresentation: "Create presentation content",
   // Image Studio
   studioTitle: "Studio",
-  studioPromptLabel: "Prompt",
+  studioPromptLabel: "Describe the image you want",
   studioPromptPlaceholder: "Describe your imagination...",
   studioEnhancement: "Enhancement",
-  studioAiEnhance: "AI Enhance",
+  studioAiEnhance: "Let AI enrich the prompt",
   studioAiEnhanceDesc: "Auto-improve prompts",
   studioModel: "Model",
   studioSelectModel: "Select Model",
@@ -385,7 +385,10 @@ export const en = {
   studioModelProDesc: "Best quality · Complex scenes & text",
   studioModelFluxDesc: "Artistic style · Requires API key",
   studioModelGptImageDesc: "High detail & text · Requires API key",
-  studioDimensions: "Dimensions",
+  studioDimensions: "Aspect ratio",
+  studioAspectRatioGroup: "Aspect ratio",
+  studioGenerateCount: "Generate {n} images",
+  studioViewLibrary: "View library",
   studioStyle: "Style",
   studioGenerate: "Generate",
   studioGenerating: "Generating...",
@@ -403,7 +406,7 @@ export const en = {
   studioGenerateFailed: "Failed to generate image",
   studioGenerateSuccess: "Image generated successfully",
   studioErrorGenerating: "Error generating image",
-  studioShortcutHint: "Press Ctrl+Enter to generate quickly",
+  studioShortcutHint: "Or press Ctrl Enter",
   // Token limits
   tokenLimitTitle: "Token Limit Exceeded",
   tokenLimitError:

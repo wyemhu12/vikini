@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Download,
   ExternalLink,
@@ -156,10 +157,18 @@ export default function Canvas({
       className={`flex-1 bg-(--surface) h-full pt-4 px-4 md:px-6 lg:px-8 pb-8 flex flex-col gap-4 md:gap-6 overflow-y-auto ${className || ""}`}
     >
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">{t("studioResults")}</h3>
-        <span className="text-sm text-muted-foreground">
-          {images.length} {t("studioImagesGenerated")}
-        </span>
+        <h2 className="text-lg font-semibold">{t("studioResults")}</h2>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="text-(--muted)">
+            {images.length} {t("studioImagesGenerated")}
+          </span>
+          <Link
+            href="/gallery"
+            className="font-medium text-(--accent) hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+          >
+            {t("studioViewLibrary")}
+          </Link>
+        </div>
       </div>
 
       {/* Image grid - only render columns layout when there are images */}

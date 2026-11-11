@@ -1,6 +1,6 @@
 // src/app/features/image-gen/components/ControlPanel.test.tsx
 import React from "react";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import ControlPanel from "./ControlPanel";
 
@@ -13,6 +13,7 @@ const DICT: Record<string, string> = {
   studioPromptRequired: "Nhập prompt để bắt đầu",
   studioShortcutHint: "Nhấn Ctrl+Enter để tạo nhanh",
   studioTitle: "Studio",
+  studioGenerateCount: "Tạo {n} ảnh",
 };
 
 vi.mock("../../chat/hooks/useLanguage", () => ({
@@ -138,5 +139,39 @@ describe("ControlPanel tokens, labels and M5 (phase 4)", () => {
     const content = within(trigger).getByText("Gemini Image Flash").parentElement;
     expect(content?.className).toContain("items-start");
     expect(content?.className).toContain("text-left");
+  });
+});
+
+describe("ControlPanel studio form (phase 4B)", () => {
+  it("uses a compact labelled switch and an aspect-ratio radiogroup (TC-04)", () => {
+    const props = makeControlPanelProps();
+    render(<ControlPanel {...props} />);
+
+    const enhance = screen.getByRole("switch", { name: "AI Enhance" });
+    expect(enhance).not.toHaveAttribute("aria-label");
+    expect(screen.getByText("AI Enhance").tagName).toBe("LABEL");
+    fireEvent.click(enhance);
+    expect(props.setIsEnhancerOn).toHaveBeenCalledTimes(1);
+    expect(props.setIsEnhancerOn).toHaveBeenCalledWith(true);
+
+    expect(screen.queryByText("studioEnhancement")).toBeNull();
+    expect(screen.getByRole("radiogroup", { name: "studioAspectRatioGroup" })).toBeInTheDocument();
+  });
+
+  it("puts the image count in the Generate label (TC-05)", () => {
+    const { rerender } = render(<ControlPanel {...makeControlPanelProps({ prompt: "mèo" })} />);
+    expect(screen.getByRole("button", { name: "Tạo" })).toBeInTheDocument();
+
+    rerender(<ControlPanel {...makeControlPanelProps({ prompt: "mèo", numberOfImages: 4 })} />);
+    expect(screen.getByRole("button", { name: "Tạo 4 ảnh" })).toBeInTheDocument();
+    expect(screen.queryByText(/\(4/)).toBeNull();
+  });
+
+  it("shows the keyboard hint below the Generate button (TC-06)", () => {
+    render(<ControlPanel {...makeControlPanelProps({ prompt: "mèo" })} />);
+    const generate = screen.getByRole("button", { name: "Tạo" });
+    const hint = screen.getByText("Nhấn Ctrl+Enter để tạo nhanh");
+    expect(generate.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(hint.className).toContain("pointer-coarse:hidden");
   });
 });

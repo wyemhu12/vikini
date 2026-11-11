@@ -46,6 +46,8 @@ export interface ControlPanelPromptSectionProps {
   onClearHistory: () => void;
   /** Rendered at the end of the "Prompt" label row (e.g. the Studio settings button). */
   headerAction?: React.ReactNode;
+  /** Rendered right under the prompt input (e.g. the "enrich prompt" switch). */
+  children?: React.ReactNode;
 }
 
 /** Prompt block of the Image Studio: Free/Guided modes, autocomplete, quick tags, exclude, history. */
@@ -61,6 +63,7 @@ export default function ControlPanelPromptSection({
   promptHistory,
   onClearHistory,
   headerAction,
+  children,
 }: ControlPanelPromptSectionProps) {
   const { t } = useLanguage();
   const [promptMode, setPromptMode] = useState<"free" | "guided">("free");
@@ -116,12 +119,15 @@ export default function ControlPanelPromptSection({
       </div>
 
       {promptMode === "guided" ? (
-        <PromptBuilder
-          onBuildPrompt={(built) => {
-            setPrompt(built);
-            setPromptMode("free");
-          }}
-        />
+        <>
+          <PromptBuilder
+            onBuildPrompt={(built) => {
+              setPrompt(built);
+              setPromptMode("free");
+            }}
+          />
+          {children}
+        </>
       ) : (
         <>
           <div className="relative">
@@ -163,7 +169,7 @@ export default function ControlPanelPromptSection({
               </div>
             )}
           </div>
-          <p className="text-xs text-(--faint) pointer-coarse:hidden">{t("studioShortcutHint")}</p>
+          {children}
 
           {/* Suggestion Tags - click to append keyword */}
           <div className="space-y-1.5 pt-2">

@@ -383,10 +383,10 @@ export const vi = {
   sugCreatePresentation: "Tạo nội dung thuyết trình",
   // Image Studio
   studioTitle: "Studio",
-  studioPromptLabel: "Prompt",
+  studioPromptLabel: "Mô tả ảnh bạn muốn",
   studioPromptPlaceholder: "Mô tả hình ảnh bạn muốn tạo...",
   studioEnhancement: "Nâng cấp",
-  studioAiEnhance: "AI Enhance",
+  studioAiEnhance: "Để AI làm giàu prompt",
   studioAiEnhanceDesc: "Tự động cải thiện prompt",
   studioModel: "Model",
   studioSelectModel: "Chọn Model",
@@ -394,7 +394,10 @@ export const vi = {
   studioModelProDesc: "Chất lượng cao nhất · Ảnh phức tạp & chữ",
   studioModelFluxDesc: "Phong cách nghệ thuật · Cần API key",
   studioModelGptImageDesc: "Chi tiết cao & chữ đẹp · Cần API key",
-  studioDimensions: "Kích thước",
+  studioDimensions: "Tỷ lệ",
+  studioAspectRatioGroup: "Tỷ lệ khung hình",
+  studioGenerateCount: "Tạo {n} ảnh",
+  studioViewLibrary: "Xem thư viện",
   studioStyle: "Phong cách",
   studioGenerate: "Tạo ảnh",
   studioGenerating: "Đang tạo...",
@@ -412,7 +415,7 @@ export const vi = {
   studioGenerateFailed: "Không thể tạo ảnh",
   studioGenerateSuccess: "Đã tạo ảnh thành công",
   studioErrorGenerating: "Lỗi khi tạo ảnh",
-  studioShortcutHint: "Nhấn Ctrl+Enter để tạo nhanh",
+  studioShortcutHint: "Hoặc nhấn Ctrl Enter",
   // Token limits
   tokenLimitTitle: "Giới hạn Token",
   tokenLimitError:

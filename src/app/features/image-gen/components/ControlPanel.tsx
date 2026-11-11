@@ -11,13 +11,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import StyleSelector from "./StyleSelector";
-import { Sparkles, Settings, Image as ImageIcon, Info } from "lucide-react";
+import { Settings, Image as ImageIcon, Info } from "lucide-react";
 import React, { useState, useId } from "react";
 import SettingsModal from "./SettingsModal";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import ControlPanelPromptSection, { STUDIO_LABEL_CLASS } from "./ControlPanelPromptSection";
 import ControlPanelReferenceImages from "./ControlPanelReferenceImages";
+import { AspectRatioPicker } from "./AspectRatioPicker";
 
 export interface BatchQuotaInfo {
   rank: string;
@@ -118,7 +119,7 @@ export default function ControlPanel({
 }: ControlPanelProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tooltipBatch, setTooltipBatch] = useState<number | null>(null);
-  const [showExtendedRatios, setShowExtendedRatios] = useState(false);
+  const enhanceId = useId();
   const enhanceDescId = useId();
   const promptHintId = useId();
   const { t } = useLanguage();
@@ -158,49 +159,23 @@ export default function ControlPanel({
               <Settings aria-hidden="true" className="w-4 h-4 text-(--muted)" />
             </Button>
           }
-        />
-
-        {/* Magic Enhance Toggle */}
-        <div className="space-y-2 px-4 md:px-6 mt-4">
-          <Label className={STUDIO_LABEL_CLASS}>{t("studioEnhancement")}</Label>
-          <div
-            onClick={() => setIsEnhancerOn(!isEnhancerOn)}
-            className={`
-                        relative flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors
-                        ${
-                          isEnhancerOn
-                            ? "bg-(--soft) border border-(--accent)"
-                            : "bg-(--input-bg) border border-(--input-border) hover:border-(--accent)"
-                        }
-                    `}
-          >
-            <div
-              className={`
-                        flex items-center justify-center w-10 h-10 rounded-lg transition-colors
-                        ${
-                          isEnhancerOn
-                            ? "bg-(--accent) text-(--on-accent)"
-                            : "bg-(--raised) text-(--muted)"
-                        }
-                    `}
-            >
-              <Sparkles aria-hidden="true" className="w-5 h-5" />
-            </div>
-            <div className="flex-1">
-              <div className="font-medium text-sm text-(--text)">{t("studioAiEnhance")}</div>
-              <div id={enhanceDescId} className="text-xs text-(--muted)">
-                {t("studioAiEnhanceDesc")}
-              </div>
-            </div>
+        >
+          <div className="flex items-center gap-2.5 pt-1">
             <Switch
-              aria-label={t("studioAiEnhance")}
+              id={enhanceId}
               aria-describedby={enhanceDescId}
               checked={isEnhancerOn}
               onCheckedChange={setIsEnhancerOn}
-              className="pointer-events-none"
             />
+            <label htmlFor={enhanceId} className="cursor-pointer text-sm text-(--text)">
+              {t("studioAiEnhance")}
+            </label>
+            <span id={enhanceDescId} className="sr-only">
+              {t("studioAiEnhanceDesc")}
+            </span>
           </div>
-        </div>
+        </ControlPanelPromptSection>
+
         {/* Model */}
         <div className="space-y-2 px-6 mt-4">
           <Label className={STUDIO_LABEL_CLASS}>{t("studioModel")}</Label>
@@ -243,45 +218,14 @@ export default function ControlPanel({
         {/* Aspect Ratio - Common + Extended */}
         <div className="space-y-2 px-6 mt-4">
           <Label className={STUDIO_LABEL_CLASS}>{t("studioDimensions")}</Label>
-          <div className="grid grid-cols-3 gap-2">
-            {COMMON_RATIOS.map((ratio) => (
-              <button
-                key={ratio}
-                onClick={() => setAspectRatio(ratio)}
-                className={cn(
-                  "px-2 py-2 rounded-md text-xs font-medium border transition-colors",
-                  aspectRatio === ratio ? selectedChoice : idleChoice
-                )}
-              >
-                {ratio}
-              </button>
-            ))}
-          </div>
-          {/* Extended ratios toggle */}
-          <button
-            onClick={() => setShowExtendedRatios(!showExtendedRatios)}
-            type="button"
-            aria-expanded={showExtendedRatios}
-            className="text-xs font-medium text-(--accent) hover:opacity-80 transition-opacity"
-          >
-            {showExtendedRatios ? "▾" : "▸"} {t("studioExtraRatios")} ({EXTENDED_RATIOS.length})
-          </button>
-          {showExtendedRatios && (
-            <div className="grid grid-cols-3 gap-2 animate-in fade-in slide-in-from-top-1">
-              {EXTENDED_RATIOS.map((ratio) => (
-                <button
-                  key={ratio}
-                  onClick={() => setAspectRatio(ratio)}
-                  className={cn(
-                    "px-2 py-2 rounded-md text-xs font-medium border transition-colors",
-                    aspectRatio === ratio ? selectedChoice : idleChoice
-                  )}
-                >
-                  {ratio}
-                </button>
-              ))}
-            </div>
-          )}
+          <AspectRatioPicker
+            value={aspectRatio}
+            onChange={setAspectRatio}
+            ratios={COMMON_RATIOS}
+            extendedRatios={EXTENDED_RATIOS}
+            label={t("studioAspectRatioGroup")}
+            extendedLabel={t("studioExtraRatios")}
+          />
         </div>
 
         {/* QW-A: Resolution Selector */}
@@ -399,7 +343,7 @@ export default function ControlPanel({
           {generating ? (
             <span className="animate-pulse">{generatingLabel || t("studioGenerating")}</span>
           ) : numberOfImages > 1 ? (
-            `${t("studioGenerate")} (${numberOfImages} ${t("studioBatchImages")})`
+            t("studioGenerateCount").replace("{n}", String(numberOfImages))
           ) : (
             t("studioGenerate")
           )}
@@ -409,6 +353,9 @@ export default function ControlPanel({
             {t("studioPromptRequired")}
           </p>
         )}
+        <p className="mt-2 text-center text-xs text-(--faint) pointer-coarse:hidden">
+          {t("studioShortcutHint")}
+        </p>
       </div>
     </aside>
   );

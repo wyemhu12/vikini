@@ -219,4 +219,21 @@ describe("Canvas Component - Keyboard Focus & A11y (A11Y-01, TC-GAL-03)", () => 
     );
     expect(classes.filter((c) => RAW.test(c))).toEqual([]);
   });
+
+  it("phase 4B TC-08: results heading is an h2 and links to the library", () => {
+    render(
+      <Canvas
+        images={[]}
+        generating={false}
+        onRemix={mockOnRemix}
+        onDelete={mockOnDelete}
+        onSelectTemplate={mockOnSelectTemplate}
+      />
+    );
+    expect(screen.getByRole("heading", { level: 2, name: "studioResults" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "studioViewLibrary" })).toHaveAttribute(
+      "href",
+      "/gallery"
+    );
+  });
 });

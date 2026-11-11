@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-11-11: Vikini 3.0 Phase 4B -- Studio Form per Canvas
+
+- **Tỷ lệ (`AspectRatioPicker.tsx`)**: thẻ có hình minh họa tỷ lệ, `role="radiogroup"` + phím mũi tên; tỷ lệ mở rộng vẫn nằm sau nút "Mở rộng".
+- **`ControlPanel.tsx`**: "Để AI làm giàu prompt" thành hàng switch gọn dưới ô prompt (bấm được trực tiếp, có nhãn); nhãn "Mô tả ảnh bạn muốn", "Tỷ lệ"; nút "Tạo N ảnh"; dòng "Hoặc nhấn Ctrl Enter" nằm dưới nút.
+- **`StyleSelector.tsx`**: `aria-pressed`, viền chọn `--accent`, chữ 12px, bỏ trường màu không dùng. **`Canvas.tsx`**: tiêu đề "Kết quả" là `h2`, thêm liên kết "Xem thư viện".
+- Giữ nguyên (khác canvas, có chủ đích): chế độ Guided, Quick add, Exclude, độ phân giải, lưới phong cách có ảnh mẫu, mặc định 1 ảnh.
+
+---
+
 ## 2026-11-11: Vikini 3.0 Phase 4 -- Images Section Header & Tabs, Studio Tokens, M3, M5
 
 - **Header khu Ảnh (`ImageSectionHeader.tsx`)**: `h1` "Ảnh" + tab liên kết Tạo ảnh / Thư viện / Mô tả ảnh (`aria-current`) dùng chung cho `/images`, `/gallery`, `/describe`; mobile gọn 48px, `h1` chỉ cho trình đọc màn hình. Panel ngữ cảnh đổi nhãn khớp tab.
