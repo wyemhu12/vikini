@@ -87,7 +87,7 @@ export default function StoryBibleWorkspace({
   const { t } = useLanguage();
   const povSelectId = useId();
   const tenseSelectId = useId();
-  const sectionHeadingLevel: 2 | 3 = embedded ? 3 : 2;
+  const sectionHeadingLevel: 2 | 3 = 3;
   const [openSections, setOpenSections] = useState<Record<NovelcrafterBibleSectionId, boolean>>({
     braindump: true,
     genre: true,
@@ -139,9 +139,9 @@ export default function StoryBibleWorkspace({
               <BookOpen className="w-5 h-5" />
             </div>
             <div className="space-y-0.5 min-w-0">
-              <h1 className="text-base md:text-lg font-bold text-(--text-primary)">
+              <h2 className="text-base md:text-lg font-bold text-(--text-primary)">
                 {t("novelcrafterStoryBibleTitle")}
-              </h1>
+              </h2>
               <p className="text-xs md:text-sm text-(--text-secondary)">
                 {t("novelcrafterStoryBibleSubtitle")}
               </p>

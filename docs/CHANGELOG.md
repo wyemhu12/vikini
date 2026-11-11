@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-11: Vikini 3.0 Phase 5B -- Novelcrafter Views: Write / Outline / Story Bible
+
+- **Tab chế độ xem (`NovelcrafterViewTabs.tsx`, `NovelcrafterTopBar.tsx`, `NovelcrafterStudioApp.tsx`)**: `role="tablist"` "Chế độ xem" cạnh tên truyện gồm **Viết / Dàn ý / Hồ sơ** (roving `tabIndex`, phím ←/→/Home/End); ở Dàn ý/Hồ sơ ẩn panel trái/phải và thanh công cụ AI để nội dung chiếm toàn chiều rộng, bấm nút panel đưa về tab Viết.
+- **Bảng dàn ý chương (`NovelcrafterOutlineBoard.tsx`, `chapterOutline.ts`)**: tổng chương & từ + nút "+ Chương"; lưới thẻ chương (`auto-fill minmax(260px,1fr)`) hiển thị số thứ tự, tiêu đề, trạng thái suy ra từ nội dung ("Ý tưởng" / "Có dàn ý" / "Bản nháp"), tóm tắt, số cảnh · số từ; thẻ đang mở có `aria-current="true"` và viền `--accent`; bấm thẻ mở chương và về tab Viết.
+- **Hồ sơ toàn trang (`NovelcrafterViewPanel.tsx`, `StoryBibleWorkspace.tsx`)**: dùng lại `StoryBibleWorkspace` (`embedded={false}`) không lồng vùng cuộn; đổi tiêu đề `h1` → `h2`, các mục `h3` để giữ đúng một `h1` trên trang; "Đẩy sang Phân cảnh Chương" nối vào `scenes` chương đang mở rồi về tab Viết.
+
+---
+
 ## 2026-11-11: Vikini 3.0 Phase 6C -- Keyboard-Operable Library Cards
 
 - **`GalleryView.tsx`**: thẻ ảnh là `<button>` (tên = prompt), Enter/Space mở chi tiết hoặc chọn ảnh khi So sánh (`aria-pressed`); có viền focus; lớp phủ prompt hiện cả khi focus bằng bàn phím.

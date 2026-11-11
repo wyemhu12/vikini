@@ -26,6 +26,7 @@ import type {
 interface NovelcrafterTopBarProps {
   storyTitle: string;
   onRenameTitle: (newTitle: string) => void;
+  viewTabs?: React.ReactNode;
   selectedModel: string;
   onSelectModel: (modelId: string) => void;
   allowedModelIds: Set<string>;
@@ -55,6 +56,7 @@ interface NovelcrafterTopBarProps {
 export default function NovelcrafterTopBar({
   storyTitle,
   onRenameTitle,
+  viewTabs,
   selectedModel,
   onSelectModel,
   allowedModelIds,
@@ -100,7 +102,7 @@ export default function NovelcrafterTopBar({
     <>
       <header className="shrink-0 border-b border-(--line) bg-(--bg) px-3 md:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2 z-20">
         {/* Left: Pane Toggle + Story Title */}
-        <div className="flex items-center gap-2 basis-full sm:basis-0 sm:flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2 basis-full sm:basis-0 sm:flex-1 min-w-0">
           <button
             type="button"
             onClick={onToggleLeftPane}
@@ -129,9 +131,10 @@ export default function NovelcrafterTopBar({
               }}
               placeholder={t("novelcrafterStoryTitlePlaceholder")}
               aria-label={t("novelcrafterStoryTitlePlaceholder")}
-              className="w-full min-w-32 bg-transparent font-serif italic text-xl text-(--text) placeholder:text-(--text-secondary) rounded-md px-2 py-1 border border-transparent hover:border-(--border) focus:border-(--control-border) focus:bg-(--control-bg) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none transition-colors truncate"
+              className="w-full min-w-16 sm:min-w-32 bg-transparent font-serif italic text-xl text-(--text) placeholder:text-(--text-secondary) rounded-md px-2 py-1 border border-transparent hover:border-(--border) focus:border-(--control-border) focus:bg-(--control-bg) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none transition-colors truncate"
             />
           </div>
+          {viewTabs}
         </div>
 
         {/* Right: Silent Status + Model Selector + Master GEM/Persona + Routing + Export + History Pane */}
