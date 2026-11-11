@@ -277,7 +277,7 @@ export default function ChapterEditorWorkspace({
                 >
                   <span className="inline-flex items-center gap-2 min-w-0 truncate">
                     <MessageSquareQuote className="w-3.5 h-3.5 text-(--warning) shrink-0" />
-                    <span className="font-semibold uppercase text-(--warning)">
+                    <span className="font-semibold text-(--warning)">
                       [{controller.activeFeedbackItem.category}]
                     </span>
                     <span className="truncate italic">

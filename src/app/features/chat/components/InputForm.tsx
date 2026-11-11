@@ -220,7 +220,7 @@ export default function InputForm({
 
   const sendButtonClasses = `flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
     isStreaming
-      ? "bg-(--danger) text-(--danger-foreground) ring-2 ring-(--danger)/30 hover:brightness-110 active:scale-[0.92]"
+      ? "bg-(--accent) text-(--on-accent) ring-2 ring-(--accent)/30 hover:brightness-110 active:scale-[0.92]"
       : isReady
         ? "bg-(--accent) text-(--on-accent) hover:brightness-110 active:scale-[0.92] shadow-[0_0_15px_var(--accent)] scale-100"
         : "bg-(--raised) text-(--muted) opacity-40 cursor-not-allowed scale-95"

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { usePersonaStore } from "../stores/usePersonaStore";
 import { useLanguage } from "../../chat/hooks/useLanguage";
@@ -28,27 +28,51 @@ export default function PersonaQuickSwitch({
   const [personas, setPersonas] = useState<PersonaForUI[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const requestedRef = useRef(false);
+  const tRef = useRef(t);
 
   useEffect(() => {
-    if (open && personas.length === 0) {
-      setLoading(true);
-      fetch("/api/personas")
-        .then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.json();
-        })
-        .then((json) => {
-          const data = json.data || json;
-          setPersonas(Array.isArray(data?.personas) ? data.personas : []);
-        })
-        .catch((error: unknown) => {
-          logger.error("[PersonaQuickSwitch] Failed to load personas:", error);
-          toast.error(t("personaLoadFailed"));
-          setPersonas([]);
-        })
-        .finally(() => setLoading(false));
+    tRef.current = t;
+  }, [t]);
+
+  useEffect(() => {
+    if (!open) {
+      requestedRef.current = false;
+      return;
     }
-  }, [open, personas.length, t]);
+    if (requestedRef.current || personas.length > 0) return;
+
+    let cancelled = false;
+    requestedRef.current = true;
+    setLoading(true);
+
+    fetch("/api/personas")
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((json: unknown) => {
+        if (cancelled) return;
+        const payload =
+          typeof json === "object" && json !== null && "data" in json
+            ? (json as { data?: { personas?: unknown } }).data
+            : (json as { personas?: unknown } | null);
+        setPersonas(Array.isArray(payload?.personas) ? (payload.personas as PersonaForUI[]) : []);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        logger.error("[PersonaQuickSwitch] Failed to load personas:", error);
+        toast.error(tRef.current("personaLoadFailed"));
+        setPersonas([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, personas.length]);
 
   const applyPersona = async (
     personaId: string | null,

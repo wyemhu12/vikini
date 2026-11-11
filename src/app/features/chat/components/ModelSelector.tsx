@@ -62,9 +62,7 @@ export default function ModelSelector({
     }
     return (
       <div className="flex items-center rounded-full bg-(--raised) border border-(--line) md:bg-transparent md:border-0 p-1 px-4 py-1.5 opacity-50 cursor-not-allowed">
-        <span className="text-xs font-bold uppercase tracking-wider text-(--muted)">
-          {modelDisplayName}
-        </span>
+        <span className="text-xs font-bold text-(--muted)">{modelDisplayName}</span>
       </div>
     );
   }
@@ -88,7 +86,7 @@ export default function ModelSelector({
       className="flex items-center gap-2 rounded-full bg-(--raised) border border-(--line) md:bg-transparent md:border-0 md:hover:bg-(--raised) p-1 px-4 py-1.5 transition-colors md:shadow-none shadow-lg group text-(--text)"
     >
       {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
-      <span className="text-xs font-bold uppercase tracking-wider text-(--muted) group-hover:text-(--text) transition-colors">
+      <span className="text-xs font-bold text-(--muted) group-hover:text-(--text) transition-colors">
         {modelDisplayName}
       </span>
       <ChevronDown

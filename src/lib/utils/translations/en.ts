@@ -1353,6 +1353,7 @@ export const en = {
   thinkingLiveStats: "Thinking · ≈{tokens} tokens · {seconds}s",
   thinkingDoneStats: "Thought · ≈{tokens} tokens · {seconds}s",
   localSamplingTitle: "Sampling Parameters",
+  localSamplingChip: "Sampling",
   localSamplingModeDefault: "Default (Qwen Standard)",
   localSamplingModeCreative: "Story Writing (Creative)",
   localSamplingModeCustom: "Custom",

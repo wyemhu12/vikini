@@ -49,7 +49,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const triggerButtonStyles =
     "flex items-center gap-2 rounded-full bg-(--raised) border border-(--line) hover:border-(--line) p-1 px-4 py-1.5 transition-[border-color,box-shadow] duration-200 shadow-lg group backdrop-blur-md text-(--text) cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)";
   const triggerLabelStyles =
-    "text-xs font-bold uppercase tracking-wider text-(--muted) group-hover:text-(--text) transition-colors max-w-[100px] truncate";
+    "text-xs font-bold text-(--muted) group-hover:text-(--text) transition-colors max-w-[100px] truncate";
 
   return (
     <motion.header
@@ -113,9 +113,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                   onClick={() => setLanguage(lang.id as "vi" | "en")}
                   className="flex items-center justify-between cursor-pointer"
                 >
-                  <span className="text-xs font-bold uppercase tracking-wider">
-                    {lang.id === "vi" ? "VN" : "EN"}
-                  </span>
+                  <span className="text-xs font-bold">{lang.id === "vi" ? "VN" : "EN"}</span>
                   {language === lang.id && <Check className="w-3 h-3 text-(--accent)" />}
                 </DropdownMenuItem>
               ))}
@@ -179,7 +177,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 overflow-y-auto max-h-[80vh]">
               {/* Language Section */}
-              <DropdownMenuLabel className="text-xs font-bold uppercase tracking-widest text-(--muted) px-2 py-1.5">
+              <DropdownMenuLabel className="text-xs font-bold text-(--muted) px-2 py-1.5">
                 {t("language")}
               </DropdownMenuLabel>
               {languageOptions.map((lang) => (

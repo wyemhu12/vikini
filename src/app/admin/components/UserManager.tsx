@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Users,
   Loader2,
@@ -63,25 +63,30 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
   const [detailLoading, setDetailLoading] = useState(false);
 
   const { t, language } = useLanguage();
+  const tRef = useRef(t);
 
   useEffect(() => {
-    void fetchUsers();
-  }, []);
+    tRef.current = t;
+  }, [t]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/admin/users");
-      if (!res.ok) throw new Error(t("failedFetchUsers"));
+      if (!res.ok) throw new Error(tRef.current("failedFetchUsers"));
       const json = await res.json();
       const data = json.data || json;
       setUsers(data.users || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("failedLoadUsers"));
+      setError(err instanceof Error ? err.message : tRef.current("failedLoadUsers"));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchUsers();
+  }, [fetchUsers]);
 
   // Filtered users
   const filteredUsers = useMemo(() => {

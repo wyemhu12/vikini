@@ -9,6 +9,7 @@ import AppFrame from "@/app/features/layout/components/AppFrame";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { KnowledgePanel } from "@/components/features/projects";
+import { ProjectIcon } from "@/components/features/projects/ProjectIcon";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { useConversation } from "@/app/features/chat/hooks/useConversation";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
@@ -56,13 +57,13 @@ export default function ProjectPage() {
         throw new Error(data.error?.message || t("fetchDocsFailed"));
       }
 
-      setDocuments(data.data.documents);
+      setDocuments(Array.isArray(data.data?.documents) ? data.data.documents : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("fetchDocsFailed"));
     } finally {
       setIsLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, t]);
 
   useEffect(() => {
     if (projectId) {
@@ -185,13 +186,12 @@ export default function ProjectPage() {
           backLabel={t("goBack")}
           title={
             <span className="flex items-center gap-3">
-              <span
-                aria-hidden
-                className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg text-xl"
-                style={{ backgroundColor: project?.color || "#6366f1" }}
-              >
-                {project?.icon || ""}
-              </span>
+              <ProjectIcon
+                icon={project?.icon}
+                color={project?.color}
+                size="lg"
+                className="w-10 h-10 rounded-lg"
+              />
               <span className="truncate">{project?.name || "Loading..."}</span>
             </span>
           }
@@ -290,6 +290,7 @@ export default function ProjectPage() {
                     {t("projectConversations")} ({projectConversations.length})
                   </h2>
                   <button
+                    type="button"
                     onClick={async () => {
                       setIsCreatingChat(true);
                       try {
@@ -307,7 +308,7 @@ export default function ProjectPage() {
                     disabled={isCreatingChat}
                     className={cn(
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium",
-                      "bg-primary text-primary-foreground hover:bg-primary/90",
+                      "bg-(--accent) text-(--on-accent) hover:brightness-110",
                       "transition-colors"
                     )}
                   >
@@ -343,6 +344,9 @@ export default function ProjectPage() {
                           </span>
                         </div>
                         <button
+                          type="button"
+                          aria-label={t("delete")}
+                          title={t("delete")}
                           onClick={async (e) => {
                             e.stopPropagation();
                             const ok = await confirm({
@@ -352,9 +356,9 @@ export default function ProjectPage() {
                             });
                             if (ok) void deleteConversation(conv.id);
                           }}
-                          className="opacity-0 group-hover:opacity-100 p-1 hover:text-(--danger) transition-[opacity,color]"
+                          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 hover:text-(--danger) transition-[opacity,color]"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 aria-hidden className="h-4 w-4" />
                         </button>
                       </div>
                     ))}

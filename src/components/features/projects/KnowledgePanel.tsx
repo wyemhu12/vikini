@@ -45,6 +45,7 @@ export function KnowledgePanel({
   onRefresh,
   className,
 }: KnowledgePanelProps) {
+  const safeDocuments = Array.isArray(documents) ? documents : [];
   const [isUploading, setIsUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -205,14 +206,14 @@ export function KnowledgePanel({
 
       {/* Document List */}
       <div className="flex-1 overflow-auto px-4 py-3 space-y-2">
-        {documents.length === 0 ? (
+        {safeDocuments.length === 0 ? (
           <div className="text-center py-8 text-sm text-(--muted)">
             <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>{t("kbNoDocuments")}</p>
             <p className="text-xs">{t("kbUploadHint")}</p>
           </div>
         ) : (
-          documents.map((doc) => (
+          safeDocuments.map((doc) => (
             <DocumentItem
               key={doc.id}
               document={doc}
@@ -243,7 +244,7 @@ function DocumentItem({
   chunksLabel,
   deleteLabel,
 }: DocumentItemProps) {
-  const sizeKB = (document.size_bytes / 1024).toFixed(1);
+  const sizeKB = ((document.size_bytes ?? 0) / 1024).toFixed(1);
 
   const getStatusIcon = () => {
     switch (document.status) {

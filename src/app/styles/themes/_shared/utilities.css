@@ -8,6 +8,12 @@
     radial-gradient(ellipse 120% 40% at 50% 110%, var(--glow), transparent 70%), var(--bg);
 }
 
+/* Composer Horizon Glow — warm amber halo behind the chat composer in Hoàng Hôn (`--glow: transparent` elsewhere) */
+.composer-horizon-glow {
+  background: radial-gradient(ellipse 85% 70% at 50% 85%, var(--glow), transparent 75%);
+  filter: blur(20px);
+}
+
 /* Markdown & Chat Styling */
 .chat-markdown {
   @apply text-base leading-[1.75];

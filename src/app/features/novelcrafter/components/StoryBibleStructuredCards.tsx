@@ -272,7 +272,7 @@ export function StoryBibleOutlineItemsList({
               className="rounded-xl border border-(--line) bg-(--raised)/60 p-3 space-y-2"
             >
               <div className="flex items-center gap-1.5">
-                <span className="px-2 py-0.5 rounded bg-(--surface) border border-(--line) text-xs font-bold uppercase text-(--accent) shrink-0">
+                <span className="px-2 py-0.5 rounded bg-(--surface) border border-(--line) text-xs font-bold text-(--accent) shrink-0">
                   {item.type === "act"
                     ? t("novelcrafterOutlineActPrefix")
                     : t("novelcrafterChapterPrefix")}

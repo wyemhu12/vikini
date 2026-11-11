@@ -110,4 +110,38 @@ describe("KnowledgePanel (TC-08)", () => {
       expect(toast.error).toHaveBeenCalled();
     });
   });
+
+  it("renders empty state safely when documents is undefined or empty (TC-6E-02)", () => {
+    const onUploadMock = vi.fn().mockResolvedValue(undefined);
+    const onDeleteMock = vi.fn().mockResolvedValue(undefined);
+    const onRefreshMock = vi.fn();
+
+    const { rerender } = render(
+      <KnowledgePanel
+        projectId="proj-1"
+        documents={undefined as unknown as typeof mockDocuments}
+        storageUsedBytes={0}
+        storageMaxBytes={10485760}
+        onUpload={onUploadMock}
+        onDelete={onDeleteMock}
+        onRefresh={onRefreshMock}
+      />
+    );
+
+    expect(screen.getByText(/no documents/i)).toBeInTheDocument();
+
+    rerender(
+      <KnowledgePanel
+        projectId="proj-1"
+        documents={[]}
+        storageUsedBytes={0}
+        storageMaxBytes={10485760}
+        onUpload={onUploadMock}
+        onDelete={onDeleteMock}
+        onRefresh={onRefreshMock}
+      />
+    );
+
+    expect(screen.getByText(/no documents/i)).toBeInTheDocument();
+  });
 });

@@ -151,9 +151,7 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
           <div className="space-y-3">
             {/* Lucide Icons */}
             <div>
-              <div className="text-xs font-semibold text-(--muted) uppercase tracking-wider mb-1.5">
-                {t("icon")}
-              </div>
+              <div className="text-xs font-semibold text-(--muted) mb-1.5">{t("icon")}</div>
               <div className="grid grid-cols-6 gap-1">
                 {LUCIDE_ICONS.map((iconName) => {
                   const active = isSelected(iconName);
@@ -179,9 +177,7 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
 
             {/* Emojis */}
             <div>
-              <div className="text-xs font-semibold text-(--muted) uppercase tracking-wider mb-1.5">
-                Emojis
-              </div>
+              <div className="text-xs font-semibold text-(--muted) mb-1.5">Emojis</div>
               <div className="grid grid-cols-6 gap-1">
                 {EMOJI_ICONS.map((emoji) => {
                   const active = isSelected(emoji);

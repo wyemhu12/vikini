@@ -89,7 +89,11 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
   onRegenerateLowerThinking,
 }) => {
   // Size cache for virtualized list
-  const sizeCache = useMemo(() => createSizeCache(100), [selectedConversationId]);
+  const sizeCache = useMemo(() => createSizeCache(100), []);
+
+  useEffect(() => {
+    sizeCache.clear();
+  }, [selectedConversationId, sizeCache]);
 
   // Virtualization scroll state tracking
   const [scrollState, setScrollState] = useState({ scrollTop: 0, viewportHeight: 800 });

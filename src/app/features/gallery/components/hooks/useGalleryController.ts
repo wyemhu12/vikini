@@ -58,7 +58,11 @@ export function useGalleryController() {
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
 
   // Infinite scroll
-  const [offset, setOffset] = useState(0);
+  const offsetRef = useRef(0);
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -79,11 +83,11 @@ export function useGalleryController() {
         isFetchingMoreRef.current = false;
         setLoadingMore(false);
         setLoading(true);
-        setOffset(0);
+        offsetRef.current = 0;
       }
 
       const currentRequestId = requestIdRef.current;
-      const currentOffset = isLoadMore ? offset : 0;
+      const currentOffset = isLoadMore ? offsetRef.current : 0;
 
       try {
         const favParam = showFavoritesOnly ? `&favorites=true` : "";
@@ -95,7 +99,7 @@ export function useGalleryController() {
 
         if (!res.ok) {
           setHasMore(false);
-          toast.error(t("galleryLoadFailed"));
+          toast.error(tRef.current("galleryLoadFailed"));
           return;
         }
 
@@ -113,12 +117,12 @@ export function useGalleryController() {
 
         const nextHasMore = Boolean(data.hasMore) && newImages.length > 0;
         setHasMore(nextHasMore);
-        setOffset(currentOffset + newImages.length);
+        offsetRef.current = currentOffset + newImages.length;
       } catch (error) {
         logger.error("Failed to load gallery:", error);
         if (currentRequestId === requestIdRef.current) {
           setHasMore(false);
-          toast.error(t("galleryLoadFailed"));
+          toast.error(tRef.current("galleryLoadFailed"));
         }
       } finally {
         if (isLoadMore) {
@@ -130,13 +134,13 @@ export function useGalleryController() {
         }
       }
     },
-    [offset, showFavoritesOnly, t]
+    [showFavoritesOnly]
   );
 
   // Initial load
   useEffect(() => {
     void fetchImages(false);
-  }, [showFavoritesOnly]); // Refetch when favorites toggle changes
+  }, [fetchImages]); // Refetch when favorites toggle changes
 
   // Infinite scroll observer
   useEffect(() => {

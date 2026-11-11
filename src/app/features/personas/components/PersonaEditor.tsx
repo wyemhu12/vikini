@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { usePersonaStore } from "../stores/usePersonaStore";
 import type { PersonaForUI } from "./PersonaPreview";
@@ -47,8 +47,12 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
   const [userContext, setUserContext] = useState("");
   const [customInstructions, setCustomInstructions] = useState("");
   const [icon, setIcon] = useState("");
+  const syncedPersonaKeyRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
+    const personaKey = persona ? persona.id || "__new__" : "__empty__";
+    if (syncedPersonaKeyRef.current === personaKey) return;
+    syncedPersonaKeyRef.current = personaKey;
     setId(persona?.id || null);
     setName(persona?.name || "");
     setDescription(persona?.description || "");
@@ -59,7 +63,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
     setCustomInstructions(persona?.customInstructions || "");
     setIcon(persona?.icon || "");
     setDirty(false);
-  }, [persona?.id]);
+  }, [persona]);
 
   const canSave = useMemo(() => {
     if (!name.trim()) return false;
@@ -148,7 +152,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
 
         {/* Base Style & Tone */}
         <div>
-          <label className="mb-2 block text-xs text-(--muted) font-semibold uppercase tracking-wider">
+          <label className="mb-2 block text-xs text-(--muted) font-semibold">
             {t("personaTone") || "Base Style & Tone"}
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -175,7 +179,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
 
         {/* Characteristics toggles */}
         <div>
-          <label className="mb-2 block text-xs text-(--muted) font-semibold uppercase tracking-wider">
+          <label className="mb-2 block text-xs text-(--muted) font-semibold">
             {t("personaCharacteristics") || "Characteristics"}
           </label>
           <div className="flex flex-wrap gap-3">

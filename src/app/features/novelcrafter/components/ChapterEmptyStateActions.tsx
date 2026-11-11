@@ -68,7 +68,7 @@ export default function ChapterEmptyStateActions({
       className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "pb-2.5 shrink-0")}
     >
       <div className={cn(MANUSCRIPT_SHEET_CLASS, "flex flex-wrap items-center gap-2")}>
-        <span className="text-xs font-semibold uppercase tracking-wider text-(--muted) mr-1">
+        <span className="text-xs font-semibold text-(--muted) mr-1">
           {t("novelcrafterEmptyChapterTitle")}:
         </span>
 

@@ -1359,6 +1359,7 @@ export const vi = {
   thinkingLiveStats: "Đang suy nghĩ · ≈{tokens} token · {seconds}s",
   thinkingDoneStats: "Đã suy nghĩ · ≈{tokens} token · {seconds}s",
   localSamplingTitle: "Thông số sáng tạo (Sampling)",
+  localSamplingChip: "Tham số",
   localSamplingModeDefault: "Mặc định (Chuẩn Qwen)",
   localSamplingModeCreative: "Viết truyện (Sáng tạo)",
   localSamplingModeCustom: "Tùy chỉnh",

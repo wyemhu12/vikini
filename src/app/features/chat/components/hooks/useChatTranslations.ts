@@ -124,7 +124,7 @@ const CHAT_TRANSLATION_KEYS = [
  * Reduces the need to pass 87+ translation keys through props.
  */
 export function useChatTranslations(): Record<string, string> {
-  const { t: tRaw, language } = useLanguage();
+  const { t: tRaw } = useLanguage();
 
   const translations = useMemo(() => {
     const result: Record<string, string> = {};
@@ -132,7 +132,7 @@ export function useChatTranslations(): Record<string, string> {
       result[key] = tRaw(key);
     }
     return result;
-  }, [tRaw, language]);
+  }, [tRaw]);
 
   return translations;
 }

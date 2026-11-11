@@ -30,7 +30,7 @@ export default [
       // REACT HOOKS
       // =====================================================
       "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
+      "react-hooks/exhaustive-deps": "error",
 
       // =====================================================
       // CONSOLE RULES
@@ -129,6 +129,20 @@ export default [
     },
   },
   {
+    files: ["src/**/*.tsx"],
+    ignores: [
+      "**/*.test.tsx",
+      "**/*.spec.tsx",
+      "src/app/features/sidebar/components/SidebarSection.tsx",
+    ],
+    plugins: {
+      "vikini-design": vikiniDesignPlugin,
+    },
+    rules: {
+      "vikini-design/no-uppercase": "error",
+    },
+  },
+  {
     files: ["tests/e2e/**/*.{ts,tsx}"],
     rules: {
       // Playwright's fixture callback parameter `use` is not `React.use()`
@@ -144,6 +158,7 @@ export default [
       "build/**",
       "coverage/**",
       ".agents/**",
+      ".claude/**",
       "*.config.{js,mjs,ts}",
       "inspect_ai.ts",
       "src/types/database.types.ts",

@@ -65,7 +65,9 @@ export default function ManuscriptTypographyMenu({
             <Type className="w-3.5 h-3.5 text-(--accent)" />
             <span>{activeFontLabel}</span>
             <span className="text-(--muted)">·</span>
-            <span className="uppercase font-semibold text-(--accent)">{typography.fontSize}</span>
+            <span className="font-semibold text-(--accent)">
+              {typography.fontSize.toUpperCase()}
+            </span>
             <span className="hidden sm:inline text-(--muted)">· {activeLineLabel}</span>
           </button>
         </PopoverTrigger>
@@ -111,9 +113,9 @@ export default function ManuscriptTypographyMenu({
                   type="button"
                   aria-pressed={typography.fontSize === size}
                   onClick={() => onChangeTypography({ fontSize: size })}
-                  className={cn(optionBtnClass(typography.fontSize === size), "uppercase")}
+                  className={optionBtnClass(typography.fontSize === size)}
                 >
-                  {size}
+                  {size.toUpperCase()}
                 </button>
               ))}
             </div>
@@ -169,13 +171,13 @@ export default function ManuscriptTypographyMenu({
             onClick={() => onChangeTypography({ fontSize: size })}
             title={`${t("novelcrafterTypographySizeLabel")}: ${size.toUpperCase()}`}
             className={cn(
-              "px-1.5 py-0.5 rounded-md uppercase font-medium transition-colors",
+              "px-1.5 py-0.5 rounded-md font-medium transition-colors",
               typography.fontSize === size
                 ? "bg-(--accent)/20 text-(--accent)"
                 : "text-(--muted) hover:text-(--text)"
             )}
           >
-            {size}
+            {size.toUpperCase()}
           </button>
         ))}
       </div>

@@ -12,7 +12,7 @@ import { THEME_FAMILIES, isThemeFamilyId, isThemeMode } from "@/lib/config/theme
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { useTheme } from "../../chat/hooks/useTheme";
 
-const LABEL_CLASS = "text-xs font-bold uppercase tracking-widest text-(--muted) px-2 py-1.5";
+const LABEL_CLASS = "text-xs font-bold text-(--muted) px-2 py-1.5";
 
 /** Shared theme picker body: 5 theme families + dark/light mode, as dropdown radio groups. */
 export default function ThemeMenuItems() {

@@ -132,4 +132,28 @@ describe("GemQuickSwitch translations and error feedback (3D TC-05, TC-06)", () 
     fireEvent.click(await screen.findByRole("button", { name: "Coder" }));
     await waitFor(() => expect(mockToastError).toHaveBeenCalledWith("Không thể áp dụng Gem"));
   });
+
+  it("sets type='button' on every button inside PopoverContent and does not refetch on rerender (TC-6E-01)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ gems: [{ id: "g1", name: "Coder", icon: null }] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { rerender } = render(
+      <GemQuickSwitch currentGem={{ name: "Coder" }} conversationId="c1" />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Gem: Coder" }));
+    await screen.findByRole("button", { name: "Coder" });
+
+    const dialog = screen.getByRole("dialog");
+    const buttons = dialog.querySelectorAll("button");
+    expect(buttons.length).toBeGreaterThanOrEqual(3);
+    buttons.forEach((btn) => {
+      expect(btn).toHaveAttribute("type", "button");
+    });
+
+    rerender(<GemQuickSwitch currentGem={{ name: "Coder" }} conversationId="c1" />);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

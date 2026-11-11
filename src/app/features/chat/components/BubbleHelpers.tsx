@@ -99,7 +99,7 @@ export const ThinkingBlock = React.memo(function ThinkingBlock({
         type="button"
         onClick={() => setIsCollapsed(!isCollapsed)}
         aria-expanded={!isCollapsed}
-        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.98]"
+        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.98]"
       >
         <Brain className="w-3 h-3" />
         <span>{headerLabel}</span>

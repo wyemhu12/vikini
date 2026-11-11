@@ -137,7 +137,7 @@ const mdComponents = {
     </div>
   ),
   thead: ({ children }: MarkdownChildrenProps) => (
-    <thead className="bg-(--raised) uppercase font-bold text-xs text-(--muted)">{children}</thead>
+    <thead className="bg-(--raised) font-bold text-xs text-(--muted)">{children}</thead>
   ),
   th: ({ children }: MarkdownChildrenProps) => (
     <th className="px-4 py-3 border-b border-(--line) text-(--text)">{children}</th>

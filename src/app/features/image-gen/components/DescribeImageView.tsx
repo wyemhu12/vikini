@@ -159,7 +159,7 @@ export function DescribeImageView() {
     } finally {
       setAnalyzing(false);
     }
-  }, [imagePreview]);
+  }, [imageFile, imagePreview, addToHistory]);
 
   const handleCopy = useCallback(async () => {
     if (!result) return;

@@ -1,7 +1,7 @@
 import { render, act } from "@testing-library/react";
 import React from "react";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import LanguageUpdater from "./LanguageUpdater";
+import LanguageUpdater, { resolveInitialLanguage } from "./LanguageUpdater";
 import { useLanguageStore } from "@/lib/store/languageStore";
 
 describe("LanguageUpdater (TC-07)", () => {
@@ -74,5 +74,16 @@ describe("LanguageUpdater (TC-07)", () => {
     expect(useLanguageStore.getState().language).toBe("en");
     expect(document.documentElement.lang).toBe("en");
     expect(setItemSpy).toHaveBeenCalledWith("vikini-language", "en");
+  });
+
+  it("resolves raw strings, Zustand persist JSON, malformed JSON, and navigator fallback (TC-6E-03)", () => {
+    expect(resolveInitialLanguage("vi", "en-US")).toBe("vi");
+    expect(resolveInitialLanguage("en", "vi-VN")).toBe("en");
+    expect(resolveInitialLanguage('{"state":{"language":"vi"},"version":0}', "en-US")).toBe("vi");
+    expect(resolveInitialLanguage('{"state":{"language":"en"}}', "vi-VN")).toBe("en");
+    expect(resolveInitialLanguage("{broken-json", "vi-VN")).toBe("vi");
+    expect(resolveInitialLanguage(null, "vi-VN")).toBe("vi");
+    expect(resolveInitialLanguage(null, "en-US")).toBe("en");
+    expect(resolveInitialLanguage(null, undefined)).toBe("en");
   });
 });

@@ -231,7 +231,7 @@ export default function ChatApp() {
   });
 
   return (
-    <div className="h-dvh w-full text-primary overflow-hidden relative font-sans bg-surface">
+    <div className="h-dvh w-full text-(--text) overflow-hidden relative font-sans bg-(--bg)">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-1.5 focus:rounded-lg focus:bg-(--accent) focus:text-(--on-accent) focus:text-xs focus:font-semibold"

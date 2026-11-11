@@ -187,7 +187,7 @@ export default function PromptBuilder({ onBuildPrompt }: PromptBuilderProps) {
     <div className="space-y-3">
       {/* Subject textarea */}
       <div className="space-y-1.5">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+        <Label className="text-xs font-semibold text-(--muted) flex items-center gap-1.5">
           <Crosshair className="w-3 h-3" />
           {t("pbSubject")}
         </Label>
@@ -195,7 +195,7 @@ export default function PromptBuilder({ onBuildPrompt }: PromptBuilderProps) {
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           placeholder={t("pbSubjectPlaceholder")}
-          className="h-20 resize-none bg-(--input-bg) border-(--input-border) text-xs focus-visible:ring-1"
+          className="h-20 resize-none bg-(--surface) border-(--line) text-xs focus-visible:ring-1"
         />
       </div>
 
@@ -209,19 +209,19 @@ export default function PromptBuilder({ onBuildPrompt }: PromptBuilderProps) {
               onClick={() => toggleSection(section.id)}
               className="w-full flex items-center justify-between px-3 py-2 bg-(--surface) hover:bg-(--raised) transition-colors"
             >
-              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="flex items-center gap-2 text-xs font-semibold text-(--muted)">
                 <Icon className="w-3 h-3" />
                 {t(section.labelKey)}
                 {section.value && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-(--soft) text-(--accent) text-xs font-medium normal-case">
+                  <span className="px-1.5 py-0.5 rounded-full bg-(--soft) text-(--accent) text-xs font-medium">
                     {t(section.options.find((o) => o.id === section.value)?.labelKey || "")}
                   </span>
                 )}
               </span>
               {isExpanded ? (
-                <ChevronUp className="w-3 h-3 text-muted-foreground" />
+                <ChevronUp className="w-3 h-3 text-(--muted)" />
               ) : (
-                <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                <ChevronDown className="w-3 h-3 text-(--muted)" />
               )}
             </button>
             {isExpanded && (
@@ -241,9 +241,7 @@ export default function PromptBuilder({ onBuildPrompt }: PromptBuilderProps) {
       {/* Preview */}
       {builtPrompt && (
         <div className="space-y-1.5">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("pbPreview")}
-          </Label>
+          <Label className="text-xs font-semibold text-(--muted)">{t("pbPreview")}</Label>
           <div className="p-2.5 rounded-lg bg-(--surface) border border-(--line) text-xs text-(--muted) leading-relaxed font-mono">
             &quot;{builtPrompt}&quot;
           </div>

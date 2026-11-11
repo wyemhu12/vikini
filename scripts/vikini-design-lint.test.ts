@@ -4,6 +4,7 @@ import {
   findLegacyTokens,
   findRawTailwindColors,
   findSub12PxClasses,
+  findUppercaseClasses,
   vikiniDesignPlugin,
 } from "./vikini-design-lint.mjs";
 
@@ -33,6 +34,7 @@ function lintTsx(code: string) {
           "vikini-design/no-raw-tailwind-colors": "error",
           "vikini-design/no-legacy-tokens": "error",
           "vikini-design/no-sub-12px-text": "error",
+          "vikini-design/no-uppercase": "error",
         },
       },
     ],
@@ -94,5 +96,22 @@ describe("vikini-design-lint (Phase 6D TC-01..TC-03)", () => {
       `export function Box() { return <div className="bg-(--control-bg) text-(--accent-foreground)" />; }`
     );
     expect(msgs.filter((m) => m.ruleId === "vikini-design/no-legacy-tokens")).toHaveLength(2);
+  });
+
+  it("TC-6E-04: flags uppercase utility classes while allowing normal classes and non-token identifiers", () => {
+    expect(findUppercaseClasses("text-xs uppercase tracking-wider")).toEqual(["uppercase"]);
+    expect(findUppercaseClasses("md:uppercase !uppercase hover:uppercase")).toEqual([
+      "md:uppercase",
+      "!uppercase",
+      "hover:uppercase",
+    ]);
+    expect(
+      findUppercaseClasses("text-xs font-medium normal-case is_uppercase uppercaseText")
+    ).toEqual([]);
+
+    const msgs = lintTsx(
+      `export function Heading() { return <span className="text-xs uppercase tracking-wider">Label</span>; }`
+    );
+    expect(msgs.map((m) => m.ruleId)).toEqual(["vikini-design/no-uppercase"]);
   });
 });

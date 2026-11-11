@@ -114,7 +114,7 @@ export default function FileManagerPanel({
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--line)]">
-            <span className="text-xs font-bold text-[var(--text)] tracking-wide uppercase">
+            <span className="text-xs font-bold text-[var(--text)]">
               {t?.files ?? "Files"}{" "}
               <span className="text-[var(--muted)] font-normal">({files.length})</span>
             </span>

@@ -21,6 +21,8 @@ const LEGACY_TOKEN_RE =
 const SUB_12PX_CLASS_RE =
   /(?<![a-zA-Z0-9_-])(?:[a-z0-9-]+:)*(?:!)?text-\[(?:(?:[0-9]|1[01])(?:\.[0-9]+)?px|0\.[0-6][0-9]*rem)\]/g;
 
+const UPPERCASE_CLASS_RE = /(?<![a-zA-Z0-9_-])(?:[a-z0-9-]+:)*(?:!)?uppercase(?![a-zA-Z0-9_-])/g;
+
 /**
  * @param {string} value
  * @returns {string[]}
@@ -50,6 +52,15 @@ export function findLegacyTokens(value) {
 export function findSub12PxClasses(value) {
   if (typeof value !== "string" || !value) return [];
   return [...value.matchAll(SUB_12PX_CLASS_RE)].map((m) => m[0]);
+}
+
+/**
+ * @param {string} value
+ * @returns {string[]}
+ */
+export function findUppercaseClasses(value) {
+  if (typeof value !== "string" || !value) return [];
+  return Array.from(new Set([...value.matchAll(UPPERCASE_CLASS_RE)].map((m) => m[0])));
 }
 
 /**
@@ -123,6 +134,11 @@ export const vikiniDesignPlugin = {
       findSub12PxClasses,
       (token) =>
         `Sub-12px font size utility "${token}" is banned in Vikini 3.0 (minimum 12px / text-xs).`
+    ),
+    "no-uppercase": createStringTokenRule(
+      findUppercaseClasses,
+      (token) =>
+        `Uppercase utility "${token}" is banned in Vikini 3.0 outside sidebar group headings (SidebarSection.tsx).`
     ),
   },
 };

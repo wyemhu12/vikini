@@ -39,7 +39,7 @@ export function ImageGenStudio() {
   const { theme: _theme } = useTheme();
 
   const studio = useImageGenStudio();
-  const { t } = studio;
+  const { t, fetchBatchQuota } = studio;
 
   // Sidebar state (local to layout)
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -50,21 +50,13 @@ export function ImageGenStudio() {
 
   // Fetch batch quota on auth
   useEffect(() => {
-    if (isAuthed) void studio.fetchBatchQuota();
-  }, [isAuthed, studio.fetchBatchQuota]);
-
-  // Auto-select first project
-  useEffect(() => {
-    if (!studio.selectedConversationId && studio.studioProjects.length > 0) {
-      // Uncomment to auto-select
-      // studio.setSelectedConversationId(studio.studioProjects[0].id);
-    }
-  }, [studio.selectedConversationId, studio.studioProjects]);
+    if (isAuthed) void fetchBatchQuota();
+  }, [isAuthed, fetchBatchQuota]);
 
   // Auth gates
   if (status === "loading") {
     return (
-      <div className="h-screen flex items-center justify-center bg-surface text-primary">
+      <div className="h-screen flex items-center justify-center bg-(--bg) text-(--text)">
         {t("loading")}
       </div>
     );

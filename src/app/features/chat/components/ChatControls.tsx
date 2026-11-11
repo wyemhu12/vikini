@@ -120,8 +120,13 @@ export default function ChatControls({
     >
       {/* Input Box Wrapper */}
       <div className="relative group">
-        <div className="absolute -inset-0.5 bg-(--accent) rounded-4xl opacity-0 group-focus-within:opacity-20 transition-opacity duration-500 blur-lg" />
-        <div className="relative">
+        <div
+          aria-hidden="true"
+          data-testid="composer-horizon-glow"
+          className="pointer-events-none absolute -inset-x-6 -inset-y-3 rounded-4xl composer-horizon-glow"
+        />
+        <div className="pointer-events-none absolute -inset-0.5 bg-(--accent) rounded-4xl opacity-0 group-focus-within:opacity-20 transition-opacity duration-500 blur-lg" />
+        <div className="relative z-10">
           <InputForm
             input={isShowingPreview ? displayValue : input}
             onChangeInput={setInput}

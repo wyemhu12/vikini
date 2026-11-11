@@ -30,32 +30,50 @@ export default function GemQuickSwitch({
   const [open, setOpen] = useState(false);
   // One request per popover opening: an empty or failed result must not refetch on every render.
   const requestedRef = useRef(false);
+  const tRef = useRef(t);
+
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   useEffect(() => {
     if (!open) {
       requestedRef.current = false;
       return;
     }
-    if (!requestedRef.current && gems.length === 0) {
-      requestedRef.current = true;
-      setLoading(true);
-      fetch("/api/gems")
-        .then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.json();
-        })
-        .then((json) => {
-          const data = json.data || json;
-          setGems(Array.isArray(data?.gems) ? data.gems : []);
-        })
-        .catch((error: unknown) => {
-          logger.error("[GemQuickSwitch] Failed to load gems:", error);
-          toast.error(t("gemLoadFailed"));
-          setGems([]);
-        })
-        .finally(() => setLoading(false));
-    }
-  }, [open, gems.length, t]);
+    if (requestedRef.current || gems.length > 0) return;
+
+    let cancelled = false;
+    requestedRef.current = true;
+    setLoading(true);
+
+    fetch("/api/gems")
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((json: unknown) => {
+        if (cancelled) return;
+        const payload =
+          typeof json === "object" && json !== null && "data" in json
+            ? (json as { data?: { gems?: unknown } }).data
+            : (json as { gems?: unknown } | null);
+        setGems(Array.isArray(payload?.gems) ? (payload.gems as Gem[]) : []);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        logger.error("[GemQuickSwitch] Failed to load gems:", error);
+        toast.error(tRef.current("gemLoadFailed"));
+        setGems([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, gems.length]);
 
   const applyGem = async (
     gemId: string | null,
@@ -123,6 +141,7 @@ export default function GemQuickSwitch({
               {gems.map((g) => (
                 <button
                   key={g.id}
+                  type="button"
                   onClick={() =>
                     applyGem(g.id, { name: g.name, icon: g.icon || null, color: g.color || null })
                   }
@@ -139,6 +158,7 @@ export default function GemQuickSwitch({
         </div>
         <div className="pt-2 border-t border-(--line)">
           <button
+            type="button"
             onClick={() => {
               setOpen(false);
               openGemModal();

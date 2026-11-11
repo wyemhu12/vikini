@@ -56,9 +56,7 @@ export default function EditImagePromptModal({
           {/* Content */}
           <div className="p-8 space-y-6">
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-(--muted) ml-1">
-                Prompt
-              </label>
+              <label className="text-xs font-bold text-(--muted) ml-1">Prompt</label>
               <Textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}

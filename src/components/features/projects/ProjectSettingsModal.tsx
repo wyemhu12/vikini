@@ -71,7 +71,7 @@ export function ProjectSettingsModal({
         throw new Error(data.error?.message || "Failed to fetch documents");
       }
 
-      setDocuments(data.data.documents);
+      setDocuments(Array.isArray(data?.data?.documents) ? data.data.documents : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch documents");
     } finally {

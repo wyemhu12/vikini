@@ -73,13 +73,16 @@ export function useChapterEditorController({
   const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(null);
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const [quickEditPrompt, setQuickEditPrompt] = useState("");
+  const syncedChapterIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    setBeatsOpen((chapter?.content.trim().length ?? 0) === 0);
+    if (syncedChapterIdRef.current === chapterId) return;
+    syncedChapterIdRef.current = chapterId;
+    setBeatsOpen(chapterContent.trim().length === 0);
     setActiveFeedbackId(null);
     setQuickEditOpen(false);
     setQuickEditPrompt("");
-  }, [chapterId]);
+  }, [chapterId, chapterContent]);
 
   const feedbackItems = useMemo(() => chapter?.feedbackItems ?? [], [chapter?.feedbackItems]);
   const openFeedbackCount = useMemo(

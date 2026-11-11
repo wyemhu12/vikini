@@ -63,6 +63,45 @@ function generateClientMessageId(): string {
   return "cm-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
 }
 
+interface ParsedSSEEvent {
+  event: string;
+  data: {
+    type?: string;
+    conversation?: { id?: string; [key: string]: unknown };
+    conversationId?: string;
+    title?: string;
+    sources?: unknown[];
+    urls?: unknown[];
+    enabled?: boolean;
+    available?: boolean;
+    t?: string;
+    error?: string;
+    message?: string;
+    code?: string;
+    status?: number;
+    isTokenLimit?: boolean;
+    tokenInfo?: { limit?: number; requested?: number } | null;
+    [key: string]: unknown;
+  };
+}
+
+function parseSSEEvent(part: string): ParsedSSEEvent | null {
+  const lines = part.split("\n").filter(Boolean);
+  const eventLine = lines.find((l) => l.startsWith("event:"));
+  const dataLine = lines.find((l) => l.startsWith("data:"));
+  const event = eventLine?.replace("event:", "").trim();
+  const dataStr = dataLine?.replace("data:", "").trim();
+
+  if (!event || !dataStr) return null;
+
+  try {
+    const data = JSON.parse(dataStr);
+    return { event, data };
+  } catch {
+    return null;
+  }
+}
+
 export function useChatStreamController({
   isAuthed,
   selectedConversationId,
@@ -75,7 +114,16 @@ export function useChatStreamController({
   onStreamError,
 }: UseChatStreamControllerParams) {
   const { t } = useLanguage();
-  const thinkingStats = useThinkingStats();
+  const {
+    stats: streamingThinkingStats,
+    markThinking,
+    markAnswer,
+    reset: resetThinkingStats,
+  } = useThinkingStats();
+  const thinkingStatsSnapshotRef = useRef(streamingThinkingStats);
+  useEffect(() => {
+    thinkingStatsSnapshotRef.current = streamingThinkingStats;
+  }, [streamingThinkingStats]);
   const [messages, setMessages] = useState<FrontendMessage[]>([]);
   const messagesRef = useRef<FrontendMessage[]>([]);
   const [input, setInput] = useState("");
@@ -115,10 +163,10 @@ export function useChatStreamController({
   }, []);
 
   const {
-    bufferRef: typewriterBufferRef,
     startTypewriter,
     stopTypewriter,
     appendToTypewriterBuffer: rawAppendToTypewriter,
+    resetBuffer: resetTypewriterBuffer,
   } = useTypewriterBuffer(onTypewriterChunk);
 
   const appendToTypewriterBuffer = useCallback(
@@ -252,7 +300,7 @@ export function useChatStreamController({
   const finalizeAssistantMessage = useCallback(
     (status: "aborted" | "error" | "complete", convId: string | null) => {
       stopTypewriter(true);
-      thinkingStats.markAnswer();
+      markAnswer();
       setStreamingLocalProgress(null);
 
       const rawContent = accumulatedAssistantRef.current || streamingAssistantRef.current || "";
@@ -279,7 +327,9 @@ export function useChatStreamController({
           ? { emptyAnswerReason: emptyAnswerReasonRef.current }
           : {}),
         ...(reasoning ? { reasoning } : {}),
-        ...(thinkingStats.stats ? { thinkingStats: { ...thinkingStats.stats, live: false } } : {}),
+        ...(thinkingStatsSnapshotRef.current
+          ? { thinkingStats: { ...thinkingStatsSnapshotRef.current, live: false } }
+          : {}),
         ...(localRagSourcesRef.current.length > 0
           ? { ragSources: localRagSourcesRef.current }
           : {}),
@@ -306,7 +356,7 @@ export function useChatStreamController({
         void syncPartialMessage(convId, clientMsgId, balanced, meta);
       }
     },
-    [stopTypewriter, normalizeMessages, syncPartialMessage]
+    [stopTypewriter, markAnswer, normalizeMessages, syncPartialMessage]
   );
 
   const reloadMessagesAfterStream = useCallback(
@@ -344,8 +394,8 @@ export function useChatStreamController({
         finalizeAssistantMessage("aborted", selectedConversationId);
       } else {
         stopTypewriter(false);
-        typewriterBufferRef.current = "";
-        thinkingStats.reset();
+        resetTypewriterBuffer();
+        resetThinkingStats();
         setStreamingLocalProgress(null);
         setIsStreaming(false);
         setRegenerating(false);
@@ -361,7 +411,14 @@ export function useChatStreamController({
         void reloadMessagesAfterStream(selectedConversationId);
       }
     },
-    [finalizeAssistantMessage, selectedConversationId, stopTypewriter, reloadMessagesAfterStream]
+    [
+      finalizeAssistantMessage,
+      selectedConversationId,
+      stopTypewriter,
+      resetTypewriterBuffer,
+      resetThinkingStats,
+      reloadMessagesAfterStream,
+    ]
   );
 
   const resetChatUI = useCallback(() => {
@@ -488,7 +545,7 @@ export function useChatStreamController({
       setIsStreaming(true);
       setStreamingAssistant("");
       setStreamingThinking("");
-      thinkingStats.reset();
+      resetThinkingStats();
       setStreamingLocalProgress(null);
       setStreamingSources([]);
       setStreamingRagSources([]);
@@ -521,47 +578,8 @@ export function useChatStreamController({
         skipSaveUserMessage,
       };
     },
-    [normalizeMessages]
+    [normalizeMessages, resetThinkingStats]
   );
-
-  interface ParsedSSEEvent {
-    event: string;
-    data: {
-      type?: string;
-      conversation?: { id?: string; [key: string]: unknown };
-      conversationId?: string;
-      title?: string;
-      sources?: unknown[];
-      urls?: unknown[];
-      enabled?: boolean;
-      available?: boolean;
-      t?: string;
-      error?: string;
-      message?: string;
-      code?: string;
-      status?: number;
-      isTokenLimit?: boolean;
-      tokenInfo?: { limit?: number; requested?: number } | null;
-      [key: string]: unknown;
-    };
-  }
-
-  const parseSSEEvent = (part: string): ParsedSSEEvent | null => {
-    const lines = part.split("\n").filter(Boolean);
-    const eventLine = lines.find((l) => l.startsWith("event:"));
-    const dataLine = lines.find((l) => l.startsWith("data:"));
-    const event = eventLine?.replace("event:", "").trim();
-    const dataStr = dataLine?.replace("data:", "").trim();
-
-    if (!event || !dataStr) return null;
-
-    try {
-      const data = JSON.parse(dataStr);
-      return { event, data };
-    } catch {
-      return null;
-    }
-  };
 
   const handleStreamMetaEvent = useCallback(
     async (
@@ -669,7 +687,7 @@ export function useChatStreamController({
               // Start typewriter on first token
               if (isFirstToken) {
                 isFirstToken = false;
-                thinkingStats.markAnswer();
+                markAnswer();
                 setStreamingLocalProgress(null);
                 startTypewriter();
               }
@@ -683,7 +701,7 @@ export function useChatStreamController({
             if (thinkingChunk) {
               accumulatedThinkingRef.current += thinkingChunk;
               setStreamingThinking((prev) => (prev || "") + thinkingChunk);
-              thinkingStats.markThinking(thinkingChunk);
+              markThinking(thinkingChunk);
               setStreamingLocalProgress(null);
             }
           }
@@ -713,7 +731,15 @@ export function useChatStreamController({
         }
       }
     },
-    [handleStreamMetaEvent, onStreamError, startTypewriter, appendToTypewriterBuffer]
+    [
+      handleStreamMetaEvent,
+      onStreamError,
+      startTypewriter,
+      appendToTypewriterBuffer,
+      markAnswer,
+      markThinking,
+      t,
+    ]
   );
 
   const coreSend = useCallback(
@@ -833,6 +859,8 @@ export function useChatStreamController({
       finalizeAssistantMessage,
       reloadMessagesAfterStream,
       stopTypewriter,
+      onStreamError,
+      t,
     ]
   );
 
@@ -1088,7 +1116,7 @@ export function useChatStreamController({
     isStreaming,
     streamingAssistant,
     streamingThinking,
-    streamingThinkingStats: thinkingStats.stats,
+    streamingThinkingStats,
     streamingLocalProgress,
     streamingSources,
     streamingRagSources,

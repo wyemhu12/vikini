@@ -425,7 +425,7 @@ export function useConversation(): UseConversationReturn {
         setCreatingConversation(false);
       }
     },
-    [creatingConversation, mutate, upsertConversation, currentProjectId]
+    [creatingConversation, mutate, upsertConversation, currentProjectId, t]
   );
 
   const renameConversation = useCallback(
@@ -452,7 +452,7 @@ export function useConversation(): UseConversationReturn {
         await mutate();
       }
     },
-    [mutate, patchConversationTitle]
+    [mutate, patchConversationTitle, t]
   );
 
   //  NEW: Set model for a conversation (server call)
@@ -508,7 +508,7 @@ export function useConversation(): UseConversationReturn {
         toast.error(t("deleteChatFailed2"));
       }
     },
-    [activeId, mutate]
+    [activeId, mutate, t]
   );
 
   // ===== ChatApp.jsx compatibility layer (aliases) =====

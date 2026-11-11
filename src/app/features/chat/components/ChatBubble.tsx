@@ -267,14 +267,14 @@ export const ChatBubble = React.memo(
                     <button
                       type="button"
                       onClick={() => setIsEditing(false)}
-                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-(--raised) hover:bg-(--raised) rounded-md transition-colors text-(--muted)"
+                      className="px-3 py-1.5 text-xs font-bold bg-(--raised) hover:bg-(--raised) rounded-md transition-colors text-(--muted)"
                     >
                       {t("cancel")}
                     </button>
                     <button
                       type="button"
                       onClick={handleSaveEdit}
-                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-(--accent) text-(--on-accent) hover:brightness-110 rounded-md transition-colors shadow-sm"
+                      className="px-3 py-1.5 text-xs font-bold bg-(--accent) text-(--on-accent) hover:brightness-110 rounded-md transition-colors shadow-sm"
                     >
                       {t("save")}
                     </button>

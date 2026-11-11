@@ -113,9 +113,7 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
     <div className="group/code my-5 overflow-hidden rounded-xl border border-(--line) bg-(--surface) shadow-2xl transition-colors">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-(--line) bg-(--raised) px-4 py-2.5 select-none">
-        <span className="font-mono text-xs font-semibold uppercase tracking-wider text-(--muted)">
-          {lang}
-        </span>
+        <span className="font-mono text-xs font-semibold text-(--muted)">{lang}</span>
 
         <button
           type="button"

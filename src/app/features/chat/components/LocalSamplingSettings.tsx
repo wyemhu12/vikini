@@ -110,12 +110,12 @@ export default function LocalSamplingSettings({
           }`}
         >
           <SlidersHorizontal className="w-3.5 h-3.5" />
-          <span className="text-xs font-bold uppercase tracking-wider hidden sm:inline">
+          <span className="text-xs font-bold hidden sm:inline">
             {sampling.mode === "creative"
               ? t("localSamplingModeCreative")
               : sampling.mode === "custom"
                 ? t("localSamplingModeCustom")
-                : "SAMPLING"}
+                : t("localSamplingChip")}
           </span>
           {sampling.mode === "creative" && <Sparkles className="w-3 h-3 text-(--accent)" />}
         </button>
@@ -127,9 +127,7 @@ export default function LocalSamplingSettings({
         className="w-[min(360px,calc(100vw-2rem))] p-4 bg-(--raised) border border-(--line) rounded-xl shadow-2xl space-y-4"
       >
         <div className="flex items-center justify-between gap-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-(--text)">
-            {t("localSamplingTitle")}
-          </h4>
+          <h4 className="text-xs font-bold text-(--text)">{t("localSamplingTitle")}</h4>
           <button
             type="button"
             onClick={() => resetToDefault(thinkingOn)}

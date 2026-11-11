@@ -106,28 +106,36 @@ export function ProjectChatView({
           </div>
 
           {/* New Chat Input - Like ChatGPT input style */}
-          <button
-            onClick={onNewChat}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-4 rounded-2xl mb-8",
-              "bg-(--surface)/60 backdrop-blur-sm border border-(--line)",
-              "hover:border-(--accent)/50 hover:bg-(--surface)/80",
-              "transition-colors duration-200 shadow-sm",
-              "text-left group"
-            )}
-          >
+          <div className="relative mb-8">
             <div
+              aria-hidden="true"
+              data-testid="composer-horizon-glow"
+              className="pointer-events-none absolute -inset-x-6 -inset-y-3 rounded-4xl composer-horizon-glow"
+            />
+            <button
+              type="button"
+              onClick={onNewChat}
               className={cn(
-                "p-2 rounded-full bg-(--raised) group-hover:bg-(--accent)/20",
-                "transition-colors duration-200"
+                "relative z-10 w-full flex items-center gap-3 px-4 py-4 rounded-2xl",
+                "bg-(--surface)/60 backdrop-blur-sm border border-(--line)",
+                "hover:border-(--accent)/50 hover:bg-(--surface)/80",
+                "transition-colors duration-200 shadow-sm",
+                "text-left group"
               )}
             >
-              <Plus className="h-4 w-4 text-(--muted) group-hover:text-(--accent)" />
-            </div>
-            <span className="text-(--muted) group-hover:text-(--text) transition-colors">
-              {t("projectNewChatIn")} {project.name}
-            </span>
-          </button>
+              <div
+                className={cn(
+                  "p-2 rounded-full bg-(--raised) group-hover:bg-(--accent)/20",
+                  "transition-colors duration-200"
+                )}
+              >
+                <Plus className="h-4 w-4 text-(--muted) group-hover:text-(--accent)" />
+              </div>
+              <span className="text-(--muted) group-hover:text-(--text) transition-colors">
+                {t("projectNewChatIn")} {project.name}
+              </span>
+            </button>
+          </div>
 
           {/* Recent conversations list */}
           {sortedConversations.length > 0 && (
@@ -158,14 +166,17 @@ export function ProjectChatView({
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger asChild>
                       <button
+                        type="button"
+                        aria-label={t("chatHeaderMore")}
+                        title={t("chatHeaderMore")}
                         onClick={(e) => e.stopPropagation()}
                         className={cn(
                           "p-1.5 rounded-lg transition-colors",
                           "text-(--muted) hover:text-(--text) hover:bg-(--raised)",
-                          "opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
+                          "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
                         )}
                       >
-                        <MoreHorizontal className="h-4 w-4" />
+                        <MoreHorizontal aria-hidden className="h-4 w-4" />
                       </button>
                     </DropdownMenu.Trigger>
 

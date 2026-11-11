@@ -125,8 +125,11 @@ describe("InputForm", () => {
 
       const stopBtn = screen.getByRole("button", { name: /stop generation/i });
       expect(stopBtn).not.toBeDisabled();
-      expect(stopBtn.className).toContain("bg-(--danger)");
-      expect(stopBtn.className).toContain("text-(--danger-foreground)");
+      expect(stopBtn.className).toContain("bg-(--accent)");
+      expect(stopBtn.className).toContain("text-(--on-accent)");
+      expect(stopBtn.className).toContain("ring-(--accent)/30");
+      expect(stopBtn.className).not.toContain("bg-(--danger)");
+      expect(stopBtn.className).not.toContain("text-(--danger-foreground)");
       expect(stopBtn).toHaveAttribute("title", "Stop");
 
       fireEvent.click(stopBtn);
