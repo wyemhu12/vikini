@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-11: Vikini 3.0 Phase 5C -- Two-Column Story Bible, Character Detail Panel & Granular AI Visibility
+
+- **Bố cục Hồ sơ nhiều cột (`StoryBibleWorkspace.tsx`, `StoryBibleTocSidebar.tsx`, `NovelcrafterViewPanel.tsx`)**: ở tab Hồ sơ toàn trang (`embedded={false}`), hiển thị cột mục lục `232px` bên trái trên `md+` (dải chip ngang trên mobile) kèm số lượng thẻ và biểu tượng `EyeOff` cho mục đang ẩn khỏi AI; vùng biên tập giữa rộng tối đa `760px`.
+- **"Ẩn khỏi AI" từng mục & từng trường (`types.ts`, `storyBibleLimits.ts`, `storyBibleDependencies.ts`, `pruneStoryBibleForStream.ts`, `storyBibleSerializer.ts`)**: mở rộng cờ `*VisibleToAI` cho đủ 7 mục (Braindump, Thể loại, Văn phong, Tóm tắt cốt truyện, Nhân vật, Bối cảnh, Dàn ý); chặn rò rỉ `braindump` làm fallback khi Tóm tắt cốt truyện hoặc Braindump bị ẩn; thêm 4 trường chi tiết nhân vật (**Ngoại hình**, **Tính cách & Động lực**, **Quan hệ**, **Bí mật**) với công tắc `role="switch"` riêng từng trường (`secret` mặc định ẩn khỏi AI trừ khi bật tường minh).
+- **Lưới nhân vật 2 cột & Panel chi tiết (`StoryBibleCharactersSection.tsx`, `StoryBibleCharacterPanel.tsx`, `characterMentions.ts`)**: lưới thẻ nhân vật 2 cột theo canvas `NovelBible` (`aria-pressed`, chữ cái đầu serif `44×44`, vai trò/tính cách, tổng hợp số chương xuất hiện); bấm thẻ mở `<aside>` chi tiết bên phải trên `lg+` (hoặc `Sheet` trên màn hình nhỏ / chế độ nhúng) để sửa tên, tên gọi khác, ghim luôn gửi AI, 4 trường chi tiết và bấm chip chương (`N×` trong bản thảo hoặc dàn ý) để nhảy thẳng về chương đó ở tab Viết.
+
+---
+
 ## 2026-11-11: Vikini 3.0 Phase 5B -- Novelcrafter Views: Write / Outline / Story Bible
 
 - **Tab chế độ xem (`NovelcrafterViewTabs.tsx`, `NovelcrafterTopBar.tsx`, `NovelcrafterStudioApp.tsx`)**: `role="tablist"` "Chế độ xem" cạnh tên truyện gồm **Viết / Dàn ý / Hồ sơ** (roving `tabIndex`, phím ←/→/Home/End); ở Dàn ý/Hồ sơ ẩn panel trái/phải và thanh công cụ AI để nội dung chiếm toàn chiều rộng, bấm nút panel đưa về tab Viết.

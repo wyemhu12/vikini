@@ -160,4 +160,58 @@ describe("pruneStoryBibleForStream", () => {
     expect(rewriteCharactersPruned.characters).toBe("Freeform character notes");
     expect(rewriteCharactersPruned.characterCards).toHaveLength(1);
   });
+
+  it("5C TC-03: strips hidden sections and hidden character fields from stream payload while keeping direct bible rewrite target", () => {
+    const hiddenBible: StoryBible = {
+      ...sampleBible,
+      braindumpVisibleToAI: false,
+      genre: "Hiện thực",
+      genreVisibleToAI: false,
+      style: "Câu ngắn",
+      styleVisibleToAI: false,
+      synopsisVisibleToAI: false,
+      outline: "Hồi 1",
+      outlineItems: [{ id: "o1", type: "act", title: "Hồi 1", summary: "Mở đầu" }],
+      outlineVisibleToAI: false,
+      characterCards: [
+        {
+          id: "c1",
+          name: "Ông Tư",
+          role: "Lái đò",
+          appearance: "Gầy, da sạm",
+          traits: "Ít nói",
+          traitsVisibleToAI: false,
+          relationships: "Cứu Lam",
+          secret: "Người gửi thư",
+          visibleToAI: true,
+          alwaysInclude: true,
+        },
+      ],
+    };
+
+    const writePruned = pruneStoryBibleForStream(
+      hiddenBible,
+      "write",
+      undefined,
+      "",
+      "first_draft_rough"
+    );
+    expect(writePruned.braindump).toBe("");
+    expect(writePruned.genre).toBe("");
+    expect(writePruned.style).toBe("");
+    expect(writePruned.synopsis).toBe("");
+    expect(writePruned.outline).toBe("");
+    expect(writePruned.outlineItems).toEqual([]);
+    expect(writePruned.characterCards).toHaveLength(1);
+    expect(writePruned.characterCards[0]?.appearance).toBe("Gầy, da sạm");
+    expect(writePruned.characterCards[0]?.traits).toBe("");
+    expect(writePruned.characterCards[0]?.secret).toBeUndefined();
+
+    // Direct rewrite on hidden synopsis keeps synopsis as <current_section> without leaking hidden outline/genre
+    const directSynopsisRewrite = pruneStoryBibleForStream(hiddenBible, "bible", "synopsis");
+    expect(directSynopsisRewrite.synopsis).toBe("Main synopsis");
+    expect(directSynopsisRewrite.braindump).toBe("");
+    expect(directSynopsisRewrite.genre).toBe("");
+    expect(directSynopsisRewrite.outline).toBe("");
+  });
 });

@@ -3,29 +3,20 @@
 
 import { DEFAULT_MODEL } from "@/lib/core/modelRegistry";
 import { MAX_PROMPT_DIRECTIVE_OVERRIDE_CHARS } from "./contextNodes";
+import { normalizeBibleCodexAliases, normalizeStoryBible } from "./storyBibleLimits";
 import {
   MAX_CHAPTERS,
   MAX_CHAPTER_SNAPSHOTS,
   MAX_CHAPTER_SUMMARY_CHARS,
-  MAX_CHARACTER_CARDS,
-  MAX_CODEX_ALIASES,
   MAX_CODEX_ALIAS_CHARS,
   MAX_FEEDBACK_ITEMS_PER_CHAPTER,
   MAX_HISTORY_CARDS,
-  MAX_OUTLINE_ITEMS,
   MAX_SNAPSHOT_LABEL_CHARS,
-  MAX_WORLD_ELEMENTS,
   NOVELCRAFTER_BIBLE_TARGETS,
   NOVELCRAFTER_FEATURE_SLOTS,
   NOVELCRAFTER_HISTORY_CARD_FEATURE_SLOTS,
-  NOVELCRAFTER_POV_OPTIONS,
-  NOVELCRAFTER_STYLE_MODES,
-  NOVELCRAFTER_TENSE_OPTIONS,
   type NovelcrafterChapterSnapshot,
   type NovelcrafterFeedbackItem,
-  type StoryBibleCharacterCard,
-  type StoryBibleOutlineItem,
-  type StoryBibleWorldElement,
 } from "./types";
 
 export const FIELD_MAX_LENGTHS = {
@@ -111,18 +102,7 @@ export function normalizeFeedbackItems(raw: unknown): NovelcrafterFeedbackItem[]
 }
 
 export function normalizeCodexAliases(raw: unknown): string[] | undefined {
-  if (!Array.isArray(raw)) return undefined;
-  const result: string[] = [];
-  const seen = new Set<string>();
-  for (let i = 0; i < raw.length && result.length < MAX_CODEX_ALIASES; i += 1) {
-    const trimmed = truncateText(raw[i], FIELD_MAX_LENGTHS.codexAlias).trim();
-    if (!trimmed) continue;
-    const key = trimmed.normalize("NFC").toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(trimmed);
-  }
-  return result.length > 0 ? result : undefined;
+  return normalizeBibleCodexAliases(raw);
 }
 
 export function normalizeChapterSnapshots(
@@ -157,79 +137,6 @@ export function normalizeChapterSnapshots(
   return snapshots.length > 0 ? snapshots : undefined;
 }
 
-function normalizeCharacterCards(raw: unknown): StoryBibleCharacterCard[] {
-  if (!Array.isArray(raw)) return [];
-  const cards: StoryBibleCharacterCard[] = [];
-  for (let i = 0; i < raw.length && cards.length < MAX_CHARACTER_CARDS; i += 1) {
-    const entry = raw[i];
-    if (!entry || typeof entry !== "object") continue;
-    const obj = entry as Record<string, unknown>;
-    const name = truncateText(obj.name, 150).trim();
-    if (!name) continue;
-    const aliases = normalizeCodexAliases(obj.aliases);
-    cards.push({
-      id: truncateText(obj.id, 100, `char-${i + 1}`).trim() || `char-${i + 1}`,
-      name,
-      role: truncateText(obj.role, 150),
-      traits: truncateText(obj.traits, 4_000),
-      visibleToAI: obj.visibleToAI !== false,
-      ...(aliases ? { aliases } : {}),
-      ...(typeof obj.alwaysInclude === "boolean" ? { alwaysInclude: obj.alwaysInclude } : {}),
-    });
-  }
-  return cards;
-}
-
-function normalizeWorldElements(raw: unknown): StoryBibleWorldElement[] {
-  if (!Array.isArray(raw)) return [];
-  const elements: StoryBibleWorldElement[] = [];
-  for (let i = 0; i < raw.length && elements.length < MAX_WORLD_ELEMENTS; i += 1) {
-    const entry = raw[i];
-    if (!entry || typeof entry !== "object") continue;
-    const obj = entry as Record<string, unknown>;
-    const name = truncateText(obj.name, 150).trim();
-    if (!name) continue;
-    const aliases = normalizeCodexAliases(obj.aliases);
-    elements.push({
-      id: truncateText(obj.id, 100, `world-${i + 1}`).trim() || `world-${i + 1}`,
-      name,
-      category: truncateText(obj.category, 100),
-      description: truncateText(obj.description, 4_000),
-      visibleToAI: obj.visibleToAI !== false,
-      ...(aliases ? { aliases } : {}),
-      ...(typeof obj.alwaysInclude === "boolean" ? { alwaysInclude: obj.alwaysInclude } : {}),
-    });
-  }
-  return elements;
-}
-
-function normalizeOutlineItems(raw: unknown): StoryBibleOutlineItem[] {
-  if (!Array.isArray(raw)) return [];
-  const items: StoryBibleOutlineItem[] = [];
-  for (let i = 0; i < raw.length && items.length < MAX_OUTLINE_ITEMS; i += 1) {
-    const entry = raw[i];
-    if (!entry || typeof entry !== "object") continue;
-    const obj = entry as Record<string, unknown>;
-    const title = truncateText(obj.title, 200).trim();
-    if (!title) continue;
-    const linked = truncateText(obj.linkedChapterId, 100).trim();
-    items.push({
-      id: truncateText(obj.id, 100, `out-${i + 1}`).trim() || `out-${i + 1}`,
-      type: obj.type === "act" ? "act" : "chapter",
-      title,
-      summary: truncateText(obj.summary, 4_000),
-      ...(linked ? { linkedChapterId: linked } : {}),
-    });
-  }
-  return items;
-}
-
-function pickEnum<T extends string>(val: unknown, allowed: readonly T[], fallback: T): T {
-  return typeof val === "string" && (allowed as readonly string[]).includes(val)
-    ? (val as T)
-    : fallback;
-}
-
 export function coerceStoryStateToLimits(
   raw: unknown,
   defaultChapterTitle = "Chapter 1"
@@ -237,29 +144,7 @@ export function coerceStoryStateToLimits(
   if (!raw || typeof raw !== "object") return null;
   const root = raw as Record<string, unknown>;
   const now = Date.now();
-
-  const rawBible =
-    root.storyBible && typeof root.storyBible === "object"
-      ? (root.storyBible as Record<string, unknown>)
-      : {};
-
-  const storyBible = {
-    braindump: truncateText(rawBible.braindump, FIELD_MAX_LENGTHS.braindump),
-    genre: truncateText(rawBible.genre, FIELD_MAX_LENGTHS.genre),
-    style: truncateText(rawBible.style, FIELD_MAX_LENGTHS.style),
-    styleMode: pickEnum(rawBible.styleMode, NOVELCRAFTER_STYLE_MODES, "custom"),
-    pov: pickEnum(rawBible.pov, NOVELCRAFTER_POV_OPTIONS, "third_person_limited"),
-    tense: pickEnum(rawBible.tense, NOVELCRAFTER_TENSE_OPTIONS, "past"),
-    synopsis: truncateText(rawBible.synopsis, FIELD_MAX_LENGTHS.synopsis),
-    characters: truncateText(rawBible.characters, FIELD_MAX_LENGTHS.characters),
-    charactersVisibleToAI: rawBible.charactersVisibleToAI !== false,
-    characterCards: normalizeCharacterCards(rawBible.characterCards),
-    worldbuilding: truncateText(rawBible.worldbuilding, FIELD_MAX_LENGTHS.worldbuilding),
-    worldbuildingVisibleToAI: rawBible.worldbuildingVisibleToAI !== false,
-    worldElements: normalizeWorldElements(rawBible.worldElements),
-    outline: truncateText(rawBible.outline, FIELD_MAX_LENGTHS.outline),
-    outlineItems: normalizeOutlineItems(rawBible.outlineItems),
-  };
+  const storyBible = normalizeStoryBible(root.storyBible);
 
   const rawChapters = Array.isArray(root.chapters) ? root.chapters : [];
   const chapters: Array<Record<string, unknown>> = [];

@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useEffect, useId, useState } from "react";
-import { BookOpen, X } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
 import {
@@ -10,25 +9,31 @@ import {
   NOVELCRAFTER_STYLE_MODES,
   NOVELCRAFTER_TENSE_OPTIONS,
   type NovelcrafterActionMode,
+  type NovelcrafterChapter,
   type NovelcrafterPovOption,
   type NovelcrafterStyleMode,
   type NovelcrafterTenseOption,
   type StoryBible,
+  type StoryBibleCharacterCard,
 } from "@/lib/features/novelcrafter/types";
 import { countChapterWords } from "@/lib/features/novelcrafter/draftStorage";
 import type { TranslationKey } from "@/lib/utils/translations";
 import type { TriggerNovelcrafterStreamParams } from "../hooks/useNovelcrafterStream";
 import type { NovelcrafterBibleSectionId } from "./NovelcrafterLeftNavigator";
+import StoryBibleCharacterPanel, { StoryBibleCharacterSheet } from "./StoryBibleCharacterPanel";
 import StoryBibleSectionCard, { type BibleAiSection } from "./StoryBibleSectionCard";
 import {
   StoryBibleCharacterCardsList,
   StoryBibleOutlineItemsList,
   StoryBibleWorldElementsList,
 } from "./StoryBibleStructuredCards";
+import StoryBibleTocSidebar, { isBibleSectionVisibleToAi } from "./StoryBibleTocSidebar";
 
 export interface StoryBibleWorkspaceProps {
   storyBible: StoryBible;
   onUpdateStoryBible: (patch: Partial<StoryBible>) => void;
+  chapters?: readonly NovelcrafterChapter[];
+  onOpenChapter?: (chapterId: string) => void;
   activeSection?: NovelcrafterBibleSectionId;
   jumpRequest?: { section: NovelcrafterBibleSectionId; nonce: number } | null;
   embedded?: boolean;
@@ -71,12 +76,37 @@ const ALL_SECTIONS: ReadonlyArray<NovelcrafterBibleSectionId> = [
   "outline",
 ];
 
+const VISIBILITY_PROP_BY_SECTION: Record<NovelcrafterBibleSectionId, keyof StoryBible> = {
+  braindump: "braindumpVisibleToAI",
+  genre: "genreVisibleToAI",
+  style: "styleVisibleToAI",
+  synopsis: "synopsisVisibleToAI",
+  characters: "charactersVisibleToAI",
+  worldbuilding: "worldbuildingVisibleToAI",
+  outline: "outlineVisibleToAI",
+};
+
 const TEXTAREA_CLS =
-  "w-full rounded-xl border border-(--border) bg-(--surface) px-4 py-3 text-[14px] leading-[1.65] text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none resize-y";
+  "w-full rounded-xl border border-(--line) bg-(--surface) px-4 py-3 text-[14px] leading-[1.65] text-(--text) placeholder:text-(--faint) focus-visible:ring-2 focus-visible:ring-(--accent) focus-visible:outline-none resize-y";
+
+function readIsDesktopXl(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return true;
+  return window.matchMedia("(min-width: 1024px)").matches;
+}
+
+function createAllOpenState(open: boolean): Record<NovelcrafterBibleSectionId, boolean> {
+  return Object.fromEntries(ALL_SECTIONS.map((s) => [s, open])) as Record<
+    NovelcrafterBibleSectionId,
+    boolean
+  >;
+}
 
 export default function StoryBibleWorkspace({
   storyBible,
   onUpdateStoryBible,
+  chapters = [],
+  onOpenChapter,
+  activeSection,
   jumpRequest,
   embedded = false,
   onClose,
@@ -88,31 +118,58 @@ export default function StoryBibleWorkspace({
   const povSelectId = useId();
   const tenseSelectId = useId();
   const sectionHeadingLevel: 2 | 3 = 3;
-  const [openSections, setOpenSections] = useState<Record<NovelcrafterBibleSectionId, boolean>>({
-    braindump: true,
-    genre: true,
-    style: true,
-    synopsis: true,
-    characters: true,
-    worldbuilding: true,
-    outline: true,
-  });
+  const [currentSection, setCurrentSection] = useState<NovelcrafterBibleSectionId>(
+    activeSection ?? "braindump"
+  );
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
+  const [isDesktopXl, setIsDesktopXl] = useState<boolean>(readIsDesktopXl);
+  const [openSections, setOpenSections] = useState<Record<NovelcrafterBibleSectionId, boolean>>(
+    () => createAllOpenState(true)
+  );
 
   useEffect(() => {
-    if (!jumpRequest?.section) return;
-    const target = jumpRequest.section;
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const onChange = (e: MediaQueryListEvent) => setIsDesktopXl(e.matches);
+    setIsDesktopXl(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const scrollToSection = (target: NovelcrafterBibleSectionId) => {
+    setCurrentSection(target);
     setOpenSections((prev) => ({ ...prev, [target]: true }));
-    const timer = setTimeout(() => {
+    setTimeout(() => {
       const el = document.getElementById(`bible-section-${target}`);
       if (el && typeof el.scrollIntoView === "function") {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
       }
-    }, 180);
-    return () => clearTimeout(timer);
+    }, 60);
+  };
+
+  useEffect(() => {
+    if (!jumpRequest?.section) return;
+    scrollToSection(jumpRequest.section);
   }, [jumpRequest]);
 
   const toggleSection = (id: NovelcrafterBibleSectionId) =>
     setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  const toggleExpandAll = () =>
+    setOpenSections(createAllOpenState(!ALL_SECTIONS.every((s) => openSections[s])));
+
+  const sectionCardCommon = (id: NovelcrafterBibleSectionId) => {
+    const vis = isBibleSectionVisibleToAi(storyBible, id);
+    const prop = VISIBILITY_PROP_BY_SECTION[id];
+    return {
+      id,
+      isOpen: openSections[id],
+      onToggle: () => toggleSection(id),
+      visibleToAi: vis,
+      onToggleVisibleToAi: () => onUpdateStoryBible({ [prop]: !vis } as Partial<StoryBible>),
+      headingLevel: sectionHeadingLevel,
+    };
+  };
 
   const handleRunAi = (
     target: BibleAiSection,
@@ -130,66 +187,39 @@ export default function StoryBibleWorkspace({
     });
   };
 
-  const content = (
-    <div className={cn("space-y-4", embedded ? "w-full" : "max-w-[880px] mx-auto")}>
-      {!embedded && (
-        <div className="rounded-2xl border border-(--border) bg-(--surface-elevated)/60 p-4 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="p-2.5 rounded-xl bg-(--control-bg) border border-(--control-border) text-(--accent) shrink-0">
-              <BookOpen className="w-5 h-5" />
-            </div>
-            <div className="space-y-0.5 min-w-0">
-              <h2 className="text-base md:text-lg font-bold text-(--text-primary)">
-                {t("novelcrafterStoryBibleTitle")}
-              </h2>
-              <p className="text-xs md:text-sm text-(--text-secondary)">
-                {t("novelcrafterStoryBibleSubtitle")}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const next = !ALL_SECTIONS.every((s) => openSections[s]);
-                setOpenSections({
-                  braindump: next,
-                  genre: next,
-                  style: next,
-                  synopsis: next,
-                  characters: next,
-                  worldbuilding: next,
-                  outline: next,
-                });
-              }}
-              className="px-3 py-1.5 rounded-full border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary)"
-            >
-              {ALL_SECTIONS.every((s) => openSections[s])
-                ? t("novelcrafterCollapseBible")
-                : t("novelcrafterExpandBible")}
-            </button>
-            {onClose && (
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label={t("close")}
-                className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover)"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+  const cards = storyBible.characterCards ?? [];
+  const selectedCharacter = selectedCharacterId
+    ? (cards.find((c) => c.id === selectedCharacterId) ?? null)
+    : null;
 
+  const updateChar = (id: string, patch: Partial<Omit<StoryBibleCharacterCard, "id">>) =>
+    onUpdateStoryBible({
+      characterCards: cards.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    });
+
+  const deleteChar = (id: string) => {
+    onUpdateStoryBible({ characterCards: cards.filter((c) => c.id !== id) });
+    setSelectedCharacterId(null);
+  };
+
+  const povOptions = NOVELCRAFTER_POV_OPTIONS.map((pov) => (
+    <option key={pov} value={pov} className="bg-(--raised)">
+      {t(POV_LABELS[pov])}
+    </option>
+  ));
+  const tenseOptions = NOVELCRAFTER_TENSE_OPTIONS.map((tense) => (
+    <option key={tense} value={tense} className="bg-(--raised)">
+      {t(TENSE_LABELS[tense])}
+    </option>
+  ));
+
+  const sectionsContent = (
+    <div className={cn("space-y-4", embedded ? "w-full" : "max-w-[880px] mx-auto")}>
       <StoryBibleSectionCard
-        id="braindump"
+        {...sectionCardCommon("braindump")}
         titleKey="novelcrafterBraindumpLabel"
         subtitleKey="novelcrafterBraindumpDesc"
-        isOpen={openSections.braindump}
-        onToggle={() => toggleSection("braindump")}
         wordCount={countChapterWords(storyBible.braindump)}
-        headingLevel={sectionHeadingLevel}
       >
         <textarea
           rows={5}
@@ -202,12 +232,9 @@ export default function StoryBibleWorkspace({
       </StoryBibleSectionCard>
 
       <StoryBibleSectionCard
-        id="genre"
+        {...sectionCardCommon("genre")}
         titleKey="novelcrafterGenreLabel"
         subtitleKey="novelcrafterGenreDesc"
-        isOpen={openSections.genre}
-        onToggle={() => toggleSection("genre")}
-        headingLevel={sectionHeadingLevel}
       >
         <input
           type="text"
@@ -215,17 +242,14 @@ export default function StoryBibleWorkspace({
           onChange={(e) => onUpdateStoryBible({ genre: e.target.value })}
           placeholder={t("novelcrafterGenrePlaceholder")}
           aria-label={t("novelcrafterGenreLabel")}
-          className="w-full h-10 rounded-xl border border-(--border) bg-(--surface) px-4 text-xs md:text-sm text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+          className="w-full h-10 rounded-xl border border-(--line) bg-(--surface) px-4 text-xs md:text-sm text-(--text) placeholder:text-(--faint) focus-visible:ring-2 focus-visible:ring-(--accent) focus-visible:outline-none"
         />
       </StoryBibleSectionCard>
 
       <StoryBibleSectionCard
-        id="style"
+        {...sectionCardCommon("style")}
         titleKey="novelcrafterStyleLabel"
         subtitleKey="novelcrafterStyleDesc"
-        isOpen={openSections.style}
-        onToggle={() => toggleSection("style")}
-        headingLevel={sectionHeadingLevel}
       >
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -241,21 +265,19 @@ export default function StoryBibleWorkspace({
                   className={cn(
                     "text-left p-3 rounded-xl border transition-all flex flex-col justify-between gap-1",
                     active
-                      ? "bg-(--accent)/10 border-(--accent) text-(--accent)"
-                      : "bg-(--surface) border-(--border) text-(--text-primary) hover:border-(--control-border)"
+                      ? "bg-(--soft) border-(--accent) text-(--accent)"
+                      : "bg-(--surface) border-(--line) text-(--text) hover:border-(--muted)"
                   )}
                 >
                   <span className="text-xs font-semibold">{t(meta.title)}</span>
-                  <span className="text-xs text-(--text-secondary) leading-tight">
-                    {t(meta.desc)}
-                  </span>
+                  <span className="text-xs text-(--muted) leading-tight">{t(meta.desc)}</span>
                 </button>
               );
             })}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label htmlFor={povSelectId} className="text-xs font-medium text-(--text-secondary)">
+              <label htmlFor={povSelectId} className="text-xs font-medium text-(--muted)">
                 {t("novelcrafterPovLabel")}
               </label>
               <select
@@ -264,20 +286,13 @@ export default function StoryBibleWorkspace({
                 onChange={(e) =>
                   onUpdateStoryBible({ pov: e.target.value as NovelcrafterPovOption })
                 }
-                className="w-full h-9 rounded-xl border border-(--border) bg-(--surface) px-3 text-xs text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
+                className="w-full h-9 rounded-xl border border-(--line) bg-(--surface) px-3 text-xs text-(--text) focus-visible:ring-2 focus-visible:ring-(--accent)"
               >
-                {NOVELCRAFTER_POV_OPTIONS.map((pov) => (
-                  <option key={pov} value={pov} className="bg-(--surface-elevated)">
-                    {t(POV_LABELS[pov])}
-                  </option>
-                ))}
+                {povOptions}
               </select>
             </div>
             <div className="space-y-1">
-              <label
-                htmlFor={tenseSelectId}
-                className="text-xs font-medium text-(--text-secondary)"
-              >
+              <label htmlFor={tenseSelectId} className="text-xs font-medium text-(--muted)">
                 {t("novelcrafterTenseLabel")}
               </label>
               <select
@@ -286,13 +301,9 @@ export default function StoryBibleWorkspace({
                 onChange={(e) =>
                   onUpdateStoryBible({ tense: e.target.value as NovelcrafterTenseOption })
                 }
-                className="w-full h-9 rounded-xl border border-(--border) bg-(--surface) px-3 text-xs text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
+                className="w-full h-9 rounded-xl border border-(--line) bg-(--surface) px-3 text-xs text-(--text) focus-visible:ring-2 focus-visible:ring-(--accent)"
               >
-                {NOVELCRAFTER_TENSE_OPTIONS.map((tense) => (
-                  <option key={tense} value={tense} className="bg-(--surface-elevated)">
-                    {t(TENSE_LABELS[tense])}
-                  </option>
-                ))}
+                {tenseOptions}
               </select>
             </div>
           </div>
@@ -308,15 +319,12 @@ export default function StoryBibleWorkspace({
       </StoryBibleSectionCard>
 
       <StoryBibleSectionCard
-        id="synopsis"
+        {...sectionCardCommon("synopsis")}
         titleKey="novelcrafterSynopsisLabel"
         subtitleKey="novelcrafterSynopsisDesc"
-        isOpen={openSections.synopsis}
-        onToggle={() => toggleSection("synopsis")}
         wordCount={countChapterWords(storyBible.synopsis)}
         aiTarget="synopsis"
         isStreaming={isStreaming}
-        headingLevel={sectionHeadingLevel}
         onRunAiAction={handleRunAi}
       >
         <textarea
@@ -330,24 +338,17 @@ export default function StoryBibleWorkspace({
       </StoryBibleSectionCard>
 
       <StoryBibleSectionCard
-        id="characters"
+        {...sectionCardCommon("characters")}
         titleKey="novelcrafterCharactersLabel"
         subtitleKey="novelcrafterCharactersDesc"
-        isOpen={openSections.characters}
-        onToggle={() => toggleSection("characters")}
         wordCount={countChapterWords(storyBible.characters)}
-        visibleToAi={storyBible.charactersVisibleToAI}
-        onToggleVisibleToAi={() =>
-          onUpdateStoryBible({ charactersVisibleToAI: !storyBible.charactersVisibleToAI })
-        }
         aiTarget="characters"
         isStreaming={isStreaming}
-        headingLevel={sectionHeadingLevel}
         onRunAiAction={handleRunAi}
       >
         <div className="space-y-3">
           <textarea
-            rows={5}
+            rows={4}
             value={storyBible.characters}
             onChange={(e) => onUpdateStoryBible({ characters: e.target.value })}
             placeholder={t("novelcrafterCharactersPlaceholder")}
@@ -357,24 +358,21 @@ export default function StoryBibleWorkspace({
           <StoryBibleCharacterCardsList
             storyBible={storyBible}
             onUpdateStoryBible={onUpdateStoryBible}
+            chapters={chapters}
+            selectedCharacterId={selectedCharacterId}
+            onSelectCharacter={setSelectedCharacterId}
+            onOpenChapter={onOpenChapter}
           />
         </div>
       </StoryBibleSectionCard>
 
       <StoryBibleSectionCard
-        id="worldbuilding"
+        {...sectionCardCommon("worldbuilding")}
         titleKey="novelcrafterWorldbuildingLabel"
         subtitleKey="novelcrafterWorldbuildingDesc"
-        isOpen={openSections.worldbuilding}
-        onToggle={() => toggleSection("worldbuilding")}
         wordCount={countChapterWords(storyBible.worldbuilding)}
-        visibleToAi={storyBible.worldbuildingVisibleToAI}
-        onToggleVisibleToAi={() =>
-          onUpdateStoryBible({ worldbuildingVisibleToAI: !storyBible.worldbuildingVisibleToAI })
-        }
         aiTarget="worldbuilding"
         isStreaming={isStreaming}
-        headingLevel={sectionHeadingLevel}
         onRunAiAction={handleRunAi}
       >
         <div className="space-y-3">
@@ -394,15 +392,12 @@ export default function StoryBibleWorkspace({
       </StoryBibleSectionCard>
 
       <StoryBibleSectionCard
-        id="outline"
+        {...sectionCardCommon("outline")}
         titleKey="novelcrafterOutlineLabel"
         subtitleKey="novelcrafterOutlineDesc"
-        isOpen={openSections.outline}
-        onToggle={() => toggleSection("outline")}
         wordCount={countChapterWords(storyBible.outline)}
         aiTarget="outline"
         isStreaming={isStreaming}
-        headingLevel={sectionHeadingLevel}
         onRunAiAction={handleRunAi}
       >
         <div className="space-y-3">
@@ -411,13 +406,9 @@ export default function StoryBibleWorkspace({
               value={storyBible.pov}
               onChange={(e) => onUpdateStoryBible({ pov: e.target.value as NovelcrafterPovOption })}
               aria-label={t("novelcrafterOutlinePovLabel")}
-              className="h-7 rounded-full border border-(--border) bg-(--control-bg) px-2.5 text-xs font-medium text-(--text-primary)"
+              className="h-7 rounded-full border border-(--line) bg-(--raised) px-2.5 text-xs font-medium text-(--text)"
             >
-              {NOVELCRAFTER_POV_OPTIONS.map((pov) => (
-                <option key={pov} value={pov} className="bg-(--surface-elevated)">
-                  {t(POV_LABELS[pov])}
-                </option>
-              ))}
+              {povOptions}
             </select>
             <select
               value={storyBible.tense}
@@ -425,13 +416,9 @@ export default function StoryBibleWorkspace({
                 onUpdateStoryBible({ tense: e.target.value as NovelcrafterTenseOption })
               }
               aria-label={t("novelcrafterOutlineTenseLabel")}
-              className="h-7 rounded-full border border-(--border) bg-(--control-bg) px-2.5 text-xs font-medium text-(--text-primary)"
+              className="h-7 rounded-full border border-(--line) bg-(--raised) px-2.5 text-xs font-medium text-(--text)"
             >
-              {NOVELCRAFTER_TENSE_OPTIONS.map((tense) => (
-                <option key={tense} value={tense} className="bg-(--surface-elevated)">
-                  {t(TENSE_LABELS[tense])}
-                </option>
-              ))}
+              {tenseOptions}
             </select>
           </div>
           <textarea
@@ -452,10 +439,56 @@ export default function StoryBibleWorkspace({
     </div>
   );
 
-  if (embedded) return <div className="w-full">{content}</div>;
+  const characterSheet =
+    (embedded || !isDesktopXl) && selectedCharacter ? (
+      <StoryBibleCharacterSheet
+        card={selectedCharacter}
+        chapters={chapters}
+        onUpdateCard={(patch) => updateChar(selectedCharacter.id, patch)}
+        onDeleteCard={() => deleteChar(selectedCharacter.id)}
+        onClose={() => setSelectedCharacterId(null)}
+        onOpenChapter={onOpenChapter}
+      />
+    ) : null;
+
+  if (embedded) {
+    return (
+      <div className="w-full">
+        {sectionsContent}
+        {characterSheet}
+      </div>
+    );
+  }
+
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar bg-(--surface)">
-      {content}
+    <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden bg-(--bg)">
+      <StoryBibleTocSidebar
+        storyBible={storyBible}
+        activeSection={currentSection}
+        allExpanded={ALL_SECTIONS.every((s) => openSections[s])}
+        onSelectSection={scrollToSection}
+        onToggleExpandAll={toggleExpandAll}
+        onClose={onClose}
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
+        {sectionsContent}
+      </div>
+      {isDesktopXl && selectedCharacter && (
+        <aside
+          aria-label={`${t("novelcrafterCharacterDetailLabel")} ${selectedCharacter.name}`}
+          className="hidden lg:flex flex-col w-[320px] xl:w-[360px] shrink-0 border-l border-(--line) bg-(--surface) overflow-y-auto custom-scrollbar"
+        >
+          <StoryBibleCharacterPanel
+            card={selectedCharacter}
+            chapters={chapters}
+            onUpdateCard={(patch) => updateChar(selectedCharacter.id, patch)}
+            onDeleteCard={() => deleteChar(selectedCharacter.id)}
+            onClose={() => setSelectedCharacterId(null)}
+            onOpenChapter={onOpenChapter}
+          />
+        </aside>
+      )}
+      {characterSheet}
     </div>
   );
 }

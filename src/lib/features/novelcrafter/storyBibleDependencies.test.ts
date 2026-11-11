@@ -64,4 +64,36 @@ describe("storyBibleDependencies (PB-02..PB-05)", () => {
     expect(deps.worldbuilding).toBeUndefined();
     expect(deps.style).toBe("Gritty third-person");
   });
+
+  it("5C TC-03: omits braindump, genre, style, synopsis, and outline when section *VisibleToAI flags are false", () => {
+    const hiddenAll: StoryBible = {
+      ...SAMPLE_BIBLE,
+      braindumpVisibleToAI: false,
+      genreVisibleToAI: false,
+      styleVisibleToAI: false,
+      synopsisVisibleToAI: false,
+      outlineVisibleToAI: false,
+    };
+
+    const draftDeps = selectStoryBibleDependencies("bible", hiddenAll, "draft");
+    expect(draftDeps.genre).toBeUndefined();
+    expect(draftDeps.style).toBeUndefined();
+    expect(draftDeps.synopsis).toBeUndefined();
+    expect(draftDeps.outline).toBeUndefined();
+
+    const synopsisDeps = selectStoryBibleDependencies("bible", hiddenAll, "synopsis");
+    expect(synopsisDeps.braindump).toBeUndefined();
+    expect(synopsisDeps.genre).toBeUndefined();
+
+    const withNodes = selectStoryBibleDependencies("write", hiddenAll, undefined, "", "auto", [
+      "genre",
+      "style",
+      "synopsis",
+      "outline",
+    ]);
+    expect(withNodes.genre).toBeUndefined();
+    expect(withNodes.style).toBeUndefined();
+    expect(withNodes.synopsis).toBeUndefined();
+    expect(withNodes.outline).toBeUndefined();
+  });
 });

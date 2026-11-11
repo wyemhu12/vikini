@@ -28,7 +28,7 @@ export interface SelectedBibleDependencies {
 /**
  * Select the exact Story Bible nodes required for a given feature/target
  * according to Sudowrite's 8-Node Dependency Graph, Braindump fallback rule,
- * Visibility Settings (charactersVisibleToAI, worldbuildingVisibleToAI),
+ * per-section Visibility Settings (*VisibleToAI),
  * or custom Prompt Studio contextNodes when provided.
  */
 export function selectStoryBibleDependencies(
@@ -39,14 +39,15 @@ export function selectStoryBibleDependencies(
   writeMode?: NovelcrafterWriteMode,
   contextNodes?: readonly NovelcrafterContextNode[]
 ): SelectedBibleDependencies {
-  const braindump = storyBible.braindump.trim();
-  const genre = storyBible.genre.trim();
-  const style = storyBible.style.trim();
+  const braindump = storyBible.braindumpVisibleToAI !== false ? storyBible.braindump.trim() : "";
+  const genre = storyBible.genreVisibleToAI !== false ? storyBible.genre.trim() : "";
+  const style = storyBible.styleVisibleToAI !== false ? storyBible.style.trim() : "";
   const pov = storyBible.pov || "third_person_limited";
   const tense = storyBible.tense || "past";
-  const rawSynopsis = storyBible.synopsis.trim();
-  const effectiveSynopsis = rawSynopsis || braindump;
-  const synopsisIsBraindumpFallback = !rawSynopsis && Boolean(braindump);
+  const synopsisAllowed = storyBible.synopsisVisibleToAI !== false;
+  const rawSynopsis = synopsisAllowed ? storyBible.synopsis.trim() : "";
+  const effectiveSynopsis = synopsisAllowed ? rawSynopsis || braindump : "";
+  const synopsisIsBraindumpFallback = synopsisAllowed && !rawSynopsis && Boolean(braindump);
 
   const isGlobalBibleTarget =
     feature === "bible" &&
@@ -62,7 +63,7 @@ export function selectStoryBibleDependencies(
     storyBible.charactersVisibleToAI !== false ? serialized.charactersText : "";
   const visibleWorldbuilding =
     storyBible.worldbuildingVisibleToAI !== false ? serialized.worldbuildingText : "";
-  const outline = serialized.outlineText;
+  const outline = storyBible.outlineVisibleToAI !== false ? serialized.outlineText : "";
 
   if (contextNodes !== undefined) {
     const nodeSet = new Set<NovelcrafterContextNode>(contextNodes);

@@ -1524,4 +1524,24 @@ export const en = {
   novelcrafterOutlineStats: "{chapters} chapters · {words} words",
   novelcrafterOutlineChapterMeta: "{scenes} scenes · {words} words",
   novelcrafterOutlineNoSummary: "No summary yet.",
+  novelcrafterBibleTocAria: "Story bible sections",
+  novelcrafterBibleTocHiddenNote:
+    "Sections hidden from AI are never sent as context. Use them for private notes or unrevealed secrets.",
+  novelcrafterCharacterDetailLabel: "Character profile",
+  novelcrafterCharacterFieldAppearance: "Appearance",
+  novelcrafterCharacterFieldAppearancePlaceholder:
+    "Build, facial features, clothing, or distinguishing marks...",
+  novelcrafterCharacterFieldTraits: "Personality & traits",
+  novelcrafterCharacterFieldRelationships: "Relationships",
+  novelcrafterCharacterFieldRelationshipsPlaceholder:
+    "Connections with the protagonist and other characters...",
+  novelcrafterCharacterFieldSecret: "Secret",
+  novelcrafterCharacterFieldSecretPlaceholder: "Unrevealed secret (hidden from AI by default)...",
+  novelcrafterCharacterMentionsLabel: "Manuscript mentions",
+  novelcrafterCharacterMentionsEmpty: "No chapter mentions yet.",
+  novelcrafterCharacterChapterChip: "Ch. {chapter} · {count}×",
+  novelcrafterCharacterOutlineChip: "Outline Ch. {chapter}",
+  novelcrafterCharacterCardMentionsMeta: "{chapters} ch. · {count}×",
+  novelcrafterCharacterCardOutlineOnlyMeta: "Outlined in {chapters} ch.",
+  novelcrafterCharacterCardNoSummary: "Select to view and edit character details.",
 } as const;

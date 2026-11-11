@@ -36,7 +36,7 @@ interface NovelcrafterViewPanelProps {
   children: React.ReactNode;
 }
 
-/** Active tabpanel for Write, Outline, or full-page Story Bible views (Vikini 3.0 phase 5B). */
+/** Active tabpanel for Write, Outline, or full-page Story Bible views (Vikini 3.0 phase 5B/5C). */
 export default function NovelcrafterViewPanel({
   view,
   ids,
@@ -61,6 +61,11 @@ export default function NovelcrafterViewPanel({
   }
 
   const { activeChapter } = story;
+  const handleOpenChapter = (chapterId: string) => {
+    onReturnToWrite({ clearSelection: true });
+    story.selectChapter(chapterId);
+  };
+
   return (
     <div
       role="tabpanel"
@@ -75,16 +80,15 @@ export default function NovelcrafterViewPanel({
         <NovelcrafterOutlineBoard
           chapters={story.storyState.chapters}
           activeChapterId={activeChapter.id}
-          onOpenChapter={(chapterId) => {
-            onReturnToWrite({ clearSelection: true });
-            story.selectChapter(chapterId);
-          }}
+          onOpenChapter={handleOpenChapter}
           onAddChapter={story.addChapter}
         />
       ) : (
         <StoryBibleWorkspace
           storyBible={story.storyState.storyBible}
           onUpdateStoryBible={story.updateStoryBible}
+          chapters={story.storyState.chapters}
+          onOpenChapter={handleOpenChapter}
           activeSection={bibleNav.section}
           jumpRequest={bibleNav.jump}
           embedded={false}

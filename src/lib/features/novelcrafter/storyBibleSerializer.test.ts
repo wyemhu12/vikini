@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createDefaultStoryState } from "./types";
 import {
   escapeXmlPromptText,
+  isCharacterFieldVisibleToAi,
   serializeStoryBibleWithStructuredCards,
   unescapeXmlPromptText,
 } from "./storyBibleSerializer";
@@ -206,5 +207,41 @@ describe("storyBibleSerializer and domain helpers", () => {
       expect(unescapeXmlPromptText(escapeXmlPromptText(s))).toBe(s);
     }
     expect(unescapeXmlPromptText("&amp;lt;")).toBe("&lt;");
+  });
+
+  it("5C TC-02: respects per-field visibility on character cards and hides secret by default", () => {
+    const bible = createDefaultStoryState("gemini-2.5-flash").storyBible;
+    bible.characterCards = [
+      {
+        id: "c-tu",
+        name: "Ông Tư",
+        role: "Lái đò",
+        appearance: "Gầy, da sạm, đội nón lá rách",
+        traits: "Chậm rãi, ít nói",
+        traitsVisibleToAI: false,
+        relationships: "Từng cứu Lam trong trận lũ",
+        secret: "Chính ông là người gửi lá thư",
+        visibleToAI: true,
+      },
+    ];
+
+    expect(isCharacterFieldVisibleToAi(bible.characterCards[0]!, "appearance")).toBe(true);
+    expect(isCharacterFieldVisibleToAi(bible.characterCards[0]!, "traits")).toBe(false);
+    expect(isCharacterFieldVisibleToAi(bible.characterCards[0]!, "relationships")).toBe(true);
+    expect(isCharacterFieldVisibleToAi(bible.characterCards[0]!, "secret")).toBe(false);
+
+    const hiddenDefault = serializeStoryBibleWithStructuredCards(bible);
+    expect(hiddenDefault.charactersText).toContain("### Ông Tư (Lái đò)");
+    expect(hiddenDefault.charactersText).toContain("Appearance: Gầy, da sạm, đội nón lá rách");
+    expect(hiddenDefault.charactersText).toContain("Relationships: Từng cứu Lam trong trận lũ");
+    expect(hiddenDefault.charactersText).not.toContain("Chậm rãi, ít nói");
+    expect(hiddenDefault.charactersText).not.toContain("Chính ông là người gửi lá thư");
+
+    bible.characterCards[0] = {
+      ...bible.characterCards[0]!,
+      secretVisibleToAI: true,
+    };
+    const withSecretVisible = serializeStoryBibleWithStructuredCards(bible);
+    expect(withSecretVisible.charactersText).toContain("Secret: Chính ông là người gửi lá thư");
   });
 });

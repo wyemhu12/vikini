@@ -1,13 +1,15 @@
 // /lib/features/novelcrafter/pruneStoryBibleForStream.ts
-// Strips unused Story Bible fields before POST /api/novelcrafter/stream to save bandwidth (NC-38)
+// Strips unused or hidden Story Bible fields before POST /api/novelcrafter/stream (NC-38 / 5C)
 
 import { isCodexCardMatchedInContext } from "./codexMatcher";
 import type { NovelcrafterContextNode } from "./contextNodes";
+import { isCharacterFieldVisibleToAi } from "./storyBibleSerializer";
 import type {
   NovelcrafterBibleTarget,
   NovelcrafterFeatureSlot,
   NovelcrafterWriteMode,
   StoryBible,
+  StoryBibleCharacterCard,
 } from "./types";
 
 export function needsBraindumpForStream(
@@ -30,6 +32,23 @@ export function needsBraindumpForStream(
     return contextNodes.includes("synopsis") && synopsisEmpty;
   }
   return feature === "write" && writeMode === "first_draft_rough" && synopsisEmpty;
+}
+
+function pruneCharacterCardFields(card: StoryBibleCharacterCard): StoryBibleCharacterCard {
+  const next: StoryBibleCharacterCard = {
+    ...card,
+    traits: isCharacterFieldVisibleToAi(card, "traits") ? card.traits : "",
+  };
+  if (!isCharacterFieldVisibleToAi(card, "appearance")) {
+    delete next.appearance;
+  }
+  if (!isCharacterFieldVisibleToAi(card, "relationships")) {
+    delete next.relationships;
+  }
+  if (!isCharacterFieldVisibleToAi(card, "secret")) {
+    delete next.secret;
+  }
+  return next;
 }
 
 export function pruneStoryBibleForStream(
@@ -60,20 +79,28 @@ export function pruneStoryBibleForStream(
   const isTarget = (target: NovelcrafterBibleTarget) =>
     feature === "bible" && bibleTarget === target;
 
-  const keepSynopsis = !nodeSet || nodeSet.has("synopsis") || isTarget("synopsis");
-  const keepOutline = !nodeSet || nodeSet.has("outline") || isTarget("outline");
-  const keepStyle = !nodeSet || nodeSet.has("style");
-  const keepGenre = !nodeSet || nodeSet.has("genre");
+  const allowSynopsis = storyBible.synopsisVisibleToAI !== false;
+  const keepBraindump =
+    storyBible.braindumpVisibleToAI !== false &&
+    needsBraindump &&
+    (isTarget("synopsis") || isTarget("outline") || allowSynopsis);
+  const keepSynopsis =
+    isTarget("synopsis") || (allowSynopsis && (!nodeSet || nodeSet.has("synopsis")));
+  const keepOutline =
+    isTarget("outline") ||
+    (storyBible.outlineVisibleToAI !== false && (!nodeSet || nodeSet.has("outline")));
+  const keepStyle = storyBible.styleVisibleToAI !== false && (!nodeSet || nodeSet.has("style"));
+  const keepGenre = storyBible.genreVisibleToAI !== false && (!nodeSet || nodeSet.has("genre"));
   const keepCharacters =
-    storyBible.charactersVisibleToAI &&
+    storyBible.charactersVisibleToAI !== false &&
     (!nodeSet || nodeSet.has("characters") || isTarget("characters"));
   const keepWorldbuilding =
-    storyBible.worldbuildingVisibleToAI &&
+    storyBible.worldbuildingVisibleToAI !== false &&
     (!nodeSet || nodeSet.has("worldbuilding") || isTarget("worldbuilding"));
 
   return {
     ...storyBible,
-    braindump: needsBraindump ? storyBible.braindump : "",
+    braindump: keepBraindump ? storyBible.braindump : "",
     synopsis: keepSynopsis ? storyBible.synopsis : "",
     outline: keepOutline ? storyBible.outline : "",
     outlineItems: keepOutline ? storyBible.outlineItems : [],
@@ -81,11 +108,13 @@ export function pruneStoryBibleForStream(
     genre: keepGenre ? storyBible.genre : "",
     characters: keepCharacters ? storyBible.characters : "",
     characterCards: keepCharacters
-      ? (storyBible.characterCards || []).filter((c) =>
-          effectiveContext !== undefined
-            ? isCodexCardMatchedInContext(c, effectiveContext)
-            : c.visibleToAI !== false
-        )
+      ? (storyBible.characterCards || [])
+          .filter((c) =>
+            effectiveContext !== undefined
+              ? isCodexCardMatchedInContext(c, effectiveContext)
+              : c.visibleToAI !== false
+          )
+          .map(pruneCharacterCardFields)
       : [],
     worldbuilding: keepWorldbuilding ? storyBible.worldbuilding : "",
     worldElements: keepWorldbuilding

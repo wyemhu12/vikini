@@ -1530,4 +1530,24 @@ export const vi = {
   novelcrafterOutlineStats: "{chapters} chương · {words} từ",
   novelcrafterOutlineChapterMeta: "{scenes} cảnh · {words} từ",
   novelcrafterOutlineNoSummary: "Chưa có tóm tắt.",
+  novelcrafterBibleTocAria: "Mục trong hồ sơ",
+  novelcrafterBibleTocHiddenNote:
+    "Mục đang ẩn khỏi AI sẽ không được gửi vào ngữ cảnh. Dùng cho ghi chú riêng hoặc bí mật chưa muốn lộ.",
+  novelcrafterCharacterDetailLabel: "Hồ sơ nhân vật",
+  novelcrafterCharacterFieldAppearance: "Ngoại hình",
+  novelcrafterCharacterFieldAppearancePlaceholder:
+    "Vóc dáng, nét mặt, trang phục hoặc dấu hiệu nhận diện...",
+  novelcrafterCharacterFieldTraits: "Tính cách",
+  novelcrafterCharacterFieldRelationships: "Quan hệ",
+  novelcrafterCharacterFieldRelationshipsPlaceholder:
+    "Mối quan hệ với nhân vật chính và các tuyến nhân vật khác...",
+  novelcrafterCharacterFieldSecret: "Bí mật",
+  novelcrafterCharacterFieldSecretPlaceholder: "Bí mật chưa tiết lộ (mặc định ẩn khỏi AI)...",
+  novelcrafterCharacterMentionsLabel: "Xuất hiện trong bản thảo",
+  novelcrafterCharacterMentionsEmpty: "Chưa xuất hiện trong chương nào.",
+  novelcrafterCharacterChapterChip: "Ch. {chapter} · {count} lần",
+  novelcrafterCharacterOutlineChip: "Dàn ý Ch. {chapter}",
+  novelcrafterCharacterCardMentionsMeta: "{chapters} chương · {count} lần",
+  novelcrafterCharacterCardOutlineOnlyMeta: "Dàn ý {chapters} chương",
+  novelcrafterCharacterCardNoSummary: "Nhấn để xem và chỉnh sửa hồ sơ chi tiết.",
 } as const;

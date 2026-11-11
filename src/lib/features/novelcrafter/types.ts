@@ -151,6 +151,13 @@ export const StoryBibleCharacterCardSchema = z.object({
   name: z.string().min(1).max(150),
   role: z.string().max(150).default(""),
   traits: z.string().max(4_000).default(""),
+  traitsVisibleToAI: z.boolean().optional(),
+  appearance: z.string().max(2_000).optional(),
+  appearanceVisibleToAI: z.boolean().optional(),
+  relationships: z.string().max(2_000).optional(),
+  relationshipsVisibleToAI: z.boolean().optional(),
+  secret: z.string().max(2_000).optional(),
+  secretVisibleToAI: z.boolean().optional(),
   visibleToAI: z.boolean().default(true),
   aliases: z.array(z.string().min(1).max(MAX_CODEX_ALIAS_CHARS)).max(MAX_CODEX_ALIASES).optional(),
   alwaysInclude: z.boolean().optional(),
@@ -179,12 +186,16 @@ export type StoryBibleOutlineItem = z.infer<typeof StoryBibleOutlineItemSchema>;
 
 export const StoryBibleSchema = z.object({
   braindump: z.string().max(50_000).default(""),
+  braindumpVisibleToAI: z.boolean().optional(),
   genre: z.string().max(2_000).default(""),
+  genreVisibleToAI: z.boolean().optional(),
   style: z.string().max(10_000).default(""),
+  styleVisibleToAI: z.boolean().optional(),
   styleMode: z.enum(NOVELCRAFTER_STYLE_MODES).default("custom"),
   pov: z.enum(NOVELCRAFTER_POV_OPTIONS).default("third_person_limited"),
   tense: z.enum(NOVELCRAFTER_TENSE_OPTIONS).default("past"),
   synopsis: z.string().max(30_000).default(""),
+  synopsisVisibleToAI: z.boolean().optional(),
   characters: z.string().max(50_000).default(""),
   charactersVisibleToAI: z.boolean().default(true),
   characterCards: z.array(StoryBibleCharacterCardSchema).max(MAX_CHARACTER_CARDS).default([]),
@@ -192,6 +203,7 @@ export const StoryBibleSchema = z.object({
   worldbuildingVisibleToAI: z.boolean().default(true),
   worldElements: z.array(StoryBibleWorldElementSchema).max(MAX_WORLD_ELEMENTS).default([]),
   outline: z.string().max(50_000).default(""),
+  outlineVisibleToAI: z.boolean().optional(),
   outlineItems: z.array(StoryBibleOutlineItemSchema).max(MAX_OUTLINE_ITEMS).default([]),
 });
 export type StoryBible = z.infer<typeof StoryBibleSchema>;
