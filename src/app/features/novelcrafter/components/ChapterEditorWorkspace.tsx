@@ -134,7 +134,7 @@ export default function ChapterEditorWorkspace({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-(--surface)">
-      <div className="flex-1 min-h-0 mx-2 md:mx-4 my-2 md:my-3 rounded-2xl border border-(--border) bg-(--surface-elevated)/35 flex flex-col lg:flex-row overflow-hidden shadow-xs">
+      <div className="flex-1 min-h-0 mx-2 md:mx-4 my-2 md:my-3 rounded-2xl border border-(--line) bg-(--surface)/35 flex flex-col lg:flex-row overflow-hidden shadow-xs">
         <div
           ref={scrollContainerRef}
           className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col pb-[var(--nc-kb-offset,0px)]"
@@ -182,7 +182,7 @@ export default function ChapterEditorWorkspace({
                 onBlur={handleTitleBlur}
                 onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
                 aria-label={t("novelcrafterRenameChapter")}
-                className="w-full bg-transparent text-[22px] md:text-[24px] font-semibold leading-[1.3] tracking-[-0.015em] text-(--text-primary) placeholder:text-(--text-secondary) border-b border-transparent hover:border-(--border) focus:border-(--accent) focus:outline-none pb-1 transition-colors"
+                className="w-full bg-transparent text-[22px] md:text-[24px] font-semibold leading-[1.3] tracking-[-0.015em] text-(--text) placeholder:text-(--muted) border-b border-transparent hover:border-(--line) focus:border-(--accent) focus:outline-none pb-1 transition-colors"
               />
             </div>
           </div>
@@ -272,7 +272,7 @@ export default function ChapterEditorWorkspace({
                   }
                   className={cn(
                     MANUSCRIPT_SHEET_CLASS,
-                    "text-left rounded-xl bg-(--warning)/15 border-l-2 border-(--warning) px-3.5 py-2 flex items-center justify-between gap-2 text-xs text-(--text-primary) hover:bg-(--warning)/20 transition-colors"
+                    "text-left rounded-xl bg-(--warning)/15 border-l-2 border-(--warning) px-3.5 py-2 flex items-center justify-between gap-2 text-xs text-(--text) hover:bg-(--warning)/20 transition-colors"
                   )}
                 >
                   <span className="inline-flex items-center gap-2 min-w-0 truncate">

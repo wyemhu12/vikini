@@ -42,7 +42,7 @@ export const TypingDots = React.memo(function TypingDots({ statusText }: { statu
         />
       ))}
       {statusText && (
-        <span className="text-xs text-(--text-secondary) font-medium ml-1.5">{statusText}</span>
+        <span className="text-xs text-(--muted) font-medium ml-1.5">{statusText}</span>
       )}
     </motion.div>
   );
@@ -58,7 +58,7 @@ export const TypingCursor = React.memo(function TypingCursor() {
       initial={{ opacity: 1 }}
       animate={{ opacity: [1, 0.3, 1] }}
       transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut" }}
-      className="inline-block whitespace-nowrap ml-1 align-middle w-0.5 h-4 bg-(--primary) rounded-sm"
+      className="inline-block whitespace-nowrap ml-1 align-middle w-0.5 h-4 bg-(--accent) rounded-sm"
       aria-hidden="true"
     />
   );
@@ -94,12 +94,12 @@ export const ThinkingBlock = React.memo(function ThinkingBlock({
     : t("thinkingProcess") || "Thinking Process";
 
   return (
-    <div className="mb-4 rounded-lg border border-(--border) overflow-hidden bg-(--control-bg)">
+    <div className="mb-4 rounded-lg border border-(--line) overflow-hidden bg-(--raised)">
       <button
         type="button"
         onClick={() => setIsCollapsed(!isCollapsed)}
         aria-expanded={!isCollapsed}
-        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.98]"
+        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.98]"
       >
         <Brain className="w-3 h-3" />
         <span>{headerLabel}</span>
@@ -123,7 +123,7 @@ export const ThinkingBlock = React.memo(function ThinkingBlock({
           >
             <div
               ref={contentRef}
-              className="px-3 py-3 border-t border-(--border) text-sm text-(--text-secondary) font-mono leading-relaxed bg-(--surface-muted)/50 whitespace-pre-wrap max-h-96 overflow-y-auto"
+              className="px-3 py-3 border-t border-(--line) text-sm text-(--muted) font-mono leading-relaxed bg-(--raised)/50 whitespace-pre-wrap max-h-96 overflow-y-auto"
             >
               {content}
             </div>

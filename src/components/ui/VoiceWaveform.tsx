@@ -27,7 +27,7 @@ export function VoiceWaveform({
 }: VoiceWaveformProps) {
   const barColors = {
     accent: "bg-(--accent)",
-    muted: "bg-(--text-secondary)",
+    muted: "bg-(--muted)",
   };
 
   return (

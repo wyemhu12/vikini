@@ -86,7 +86,7 @@ export function FilePreviewArea({
           className="px-3 pt-3 pb-1"
         >
           {/* Horizontal scroll container */}
-          <div className="flex gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-[var(--control-border)] pb-1 snap-x snap-mandatory">
+          <div className="flex gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-[var(--line)] pb-1 snap-x snap-mandatory">
             <AnimatePresence mode="popLayout">
               {/* Uploaded files */}
               {files.map((file) => (
@@ -116,7 +116,7 @@ export function FilePreviewArea({
                 className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors ${
                   showClearConfirm
                     ? "bg-(--danger)/10 text-(--danger) hover:bg-(--danger)/20"
-                    : "text-(--text-secondary) hover:text-(--danger) hover:bg-(--danger)/5"
+                    : "text-(--muted) hover:text-(--danger) hover:bg-(--danger)/5"
                 } disabled:opacity-50`}
               >
                 <Trash2 className="w-3 h-3" />

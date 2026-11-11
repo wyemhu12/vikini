@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-11: Vikini 3.0 Phase 6D -- Raw Color & Legacy Token Codemod, 12–32 Typography Scale & ESLint Design/Hooks Guards
+
+- **Codemod dọn màu thô & Gỡ dứt điểm 14 biến CSS alias cũ (`base.css`, `tokens.css`, `utilities.css`, `shimmer.css`, `fileDisplayUtils.ts`, 122 component `.tsx`)**: chuyển đổi toàn bộ `656` class bảng màu Tailwind/hex cứng (`bg-blue-*`, `text-white`, `bg-black/*`, `bg-[#0a0a0a]`, v.v.) và `1.369` chỗ dùng biến Vikini 2.x cũ (`--surface-muted`, `--surface-elevated`, `--control-bg`, `--border`, `--text-primary`, `--accent-foreground`, v.v.) sang hệ 14 token ngữ nghĩa Vikini 3.0; bổ sung `--on-overlay: #ffffff` cho lớp phủ ảnh/lightbox (`--overlay`), giữ hiệu ứng lấp lánh `color-mix` ở `shimmer.css`, và khắc phục lỗi chữ đen trên nền đen (`than-light`) tại `GemPreview`, `PersonaPreview`, `ProjectSettingsModal`.
+- **Thang chữ 7 bậc `12–32px` & Xóa chữ dưới `12px` (`base.css`)**: khai báo `--type-12` (`0.75rem`), `--type-13` (`0.8125rem`), `--type-14` (`0.875rem`), `--type-16` (`1rem`), `--type-20` (`1.25rem`), `--type-24` (`1.5rem`), `--type-32` (`2rem`) gắn vào khối `@theme` (`text-xs`, `text-13`, `text-sm`, `text-base`, `text-xl`, `text-2xl`, `text-3xl`); nâng toàn bộ `37` chỗ chữ `8–11px` lên tối thiểu `text-xs` (`12px`).
+- **Chốt chặn ESLint thiết kế & `eslint-plugin-react-hooks` (`scripts/vikini-design-lint.mjs`, `eslint.config.mjs`, `BubbleMarkdown.tsx`)**: bật `vikini-design/no-raw-tailwind-colors`, `vikini-design/no-legacy-tokens`, `vikini-design/no-sub-12px-text` ở mức `"error"` cho `src/**/*.{ts,tsx}` (trừ file test) và bật `react-hooks/rules-of-hooks: "error"` + `react-hooks/exhaustive-deps: "warn"` trên toàn repo; sửa lỗi gọi `React.useMemo` sau `return` sớm tại `BubbleMarkdown.tsx`.
+
+---
+
 ## 2026-11-11: Vikini 3.0 Phase 5E -- Novelcrafter AI Action Composer, Outline Chapter Detail, Mobile AI Dock & Act Grouping
 
 - **Khung soạn lệnh AI neo đáy cột phải & Lọc thẻ theo chương (`NovelcrafterAiComposer.tsx`, `NovelcrafterHistoryPane.tsx`, `NovelcrafterWriteStage.tsx`)**: bổ sung lọc thẻ `Chương này / Tất cả` và `form` soạn lệnh AI cố định ở chân cột phải (chọn nhóm hành động `Viết tiếp / Sửa văn bản / Miêu tả & Mở rộng / Nhận xét / Gợi ý tình tiết`, `radiogroup` chế độ thực thi, ô nhập hướng đi, chip độ dài `Câu / Đoạn / Cảnh` có `aria-pressed`, dòng tóm tắt nguồn prompt kế thừa từ `resolveFeatureInheritanceRows`, nút chọn nhanh model mở Cài đặt AI, và nút chính tự chuyển sang **Dừng** khi đang stream).

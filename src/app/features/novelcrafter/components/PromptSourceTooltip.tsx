@@ -109,15 +109,15 @@ export function PromptSourceTooltip({
               align={align}
               sideOffset={6}
               collisionPadding={12}
-              className="z-(--z-popover) w-[min(320px,calc(100vw-1.5rem))] rounded-xl border border-(--border) bg-(--surface-elevated) p-3 text-(--text-primary) shadow-xl pointer-events-none select-none space-y-2.5 animate-in fade-in-0 zoom-in-95"
+              className="z-(--z-popover) w-[min(320px,calc(100vw-1.5rem))] rounded-xl border border-(--line) bg-(--surface) p-3 text-(--text) shadow-xl pointer-events-none select-none space-y-2.5 animate-in fade-in-0 zoom-in-95"
             >
-              <div className="flex items-start justify-between gap-2 border-b border-(--border) pb-2">
+              <div className="flex items-start justify-between gap-2 border-b border-(--line) pb-2">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-(--text-primary)">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-(--text)">
                     <Sparkles className="w-3.5 h-3.5 text-(--accent) shrink-0" />
                     <span className="truncate">{t(actionLabelKey)}</span>
                   </div>
-                  <p className="text-xs text-(--text-secondary) mt-0.5">
+                  <p className="text-xs text-(--muted) mt-0.5">
                     {t("novelcrafterTooltipSourcesTitle")}
                   </p>
                 </div>
@@ -127,7 +127,7 @@ export function PromptSourceTooltip({
                       "px-2 py-0.5 rounded-full text-xs font-semibold border",
                       summary.isCustomized
                         ? "bg-(--accent)/15 border-(--accent)/40 text-(--accent)"
-                        : "bg-(--surface-muted) border-(--border) text-(--text-secondary)"
+                        : "bg-(--raised) border-(--line) text-(--muted)"
                     )}
                   >
                     {summary.isCustomized
@@ -144,7 +144,7 @@ export function PromptSourceTooltip({
 
               {summary.fixedInputs.length > 0 && (
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1 text-xs font-semibold text-(--text-secondary)">
+                  <div className="flex items-center gap-1 text-xs font-semibold text-(--muted)">
                     <GitBranch className="w-3 h-3 text-(--accent) shrink-0" />
                     <span>{t("novelcrafterTooltipFixedInputs")}</span>
                   </div>
@@ -163,7 +163,7 @@ export function PromptSourceTooltip({
 
               {summary.storyBibleNodes.length > 0 && (
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1 text-xs font-semibold text-(--text-secondary)">
+                  <div className="flex items-center gap-1 text-xs font-semibold text-(--muted)">
                     <BookOpen className="w-3 h-3 text-(--accent) shrink-0" />
                     <span>{t("novelcrafterTooltipStoryBible")}</span>
                   </div>
@@ -171,7 +171,7 @@ export function PromptSourceTooltip({
                     {summary.storyBibleNodes.map((node) => (
                       <span
                         key={node}
-                        className="px-2 py-0.5 rounded-md border border-(--border) bg-(--surface-muted) text-xs font-medium text-(--text-primary)"
+                        className="px-2 py-0.5 rounded-md border border-(--line) bg-(--raised) text-xs font-medium text-(--text)"
                       >
                         {t(CONTEXT_NODE_LABELS[node])}
                       </span>
@@ -182,7 +182,7 @@ export function PromptSourceTooltip({
 
               {summary.chapterContextNodes.length > 0 && (
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1 text-xs font-semibold text-(--text-secondary)">
+                  <div className="flex items-center gap-1 text-xs font-semibold text-(--muted)">
                     <FileText className="w-3 h-3 text-(--accent) shrink-0" />
                     <span>{t("novelcrafterTooltipChapterContext")}</span>
                   </div>
@@ -190,7 +190,7 @@ export function PromptSourceTooltip({
                     {summary.chapterContextNodes.map((node) => (
                       <span
                         key={node}
-                        className="px-2 py-0.5 rounded-md border border-(--border) bg-(--surface-muted) text-xs font-medium text-(--text-primary)"
+                        className="px-2 py-0.5 rounded-md border border-(--line) bg-(--raised) text-xs font-medium text-(--text)"
                       >
                         {t(CONTEXT_NODE_LABELS[node])}
                       </span>
@@ -199,7 +199,7 @@ export function PromptSourceTooltip({
                 </div>
               )}
 
-              <div className="pt-1 border-t border-(--border) flex items-center justify-between text-xs text-(--text-secondary)">
+              <div className="pt-1 border-t border-(--line) flex items-center justify-between text-xs text-(--muted)">
                 <span>{t("novelcrafterTooltipPromptStudioHint")}</span>
               </div>
             </TooltipPrimitive.Content>

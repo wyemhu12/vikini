@@ -203,7 +203,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm outline-none"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-(--overlay) backdrop-blur-sm outline-none"
           onClick={(e) => {
             if (e.target === e.currentTarget) onClose();
           }}
@@ -213,22 +213,22 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
           <motion.div
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-black/60 to-transparent"
+            className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-(--overlay) to-transparent"
           >
-            <div className="flex items-center gap-3 text-white/90 min-w-0">
+            <div className="flex items-center gap-3 text-(--on-overlay)/90 min-w-0">
               <KindIcon kind={file.kind} />
               <div className="flex flex-col min-w-0">
                 <span className="text-sm font-medium truncate max-w-xs" title={file.filename}>
                   {file.filename}
                 </span>
-                <span className="text-xs text-white/50">
+                <span className="text-xs text-(--on-overlay)/50">
                   {formatFileSize(file.size_bytes)} • {file.mime_type}
                 </span>
               </div>
 
               {/* File counter badge */}
               {files && files.length > 1 && currentIndex >= 0 && (
-                <span className="ml-2 px-2 py-0.5 rounded-full bg-white/15 text-white/70 text-xs font-medium tabular-nums">
+                <span className="ml-2 px-2 py-0.5 rounded-full bg-(--on-overlay)/15 text-(--on-overlay)/70 text-xs font-medium tabular-nums">
                   {currentIndex + 1} / {files.length}
                 </span>
               )}
@@ -240,7 +240,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
                   <a
                     href={signedUrl}
                     download={file.filename}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 text-sm transition-colors"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay)/80 text-sm transition-colors"
                   >
                     <Download className="w-4 h-4" />
                     {t?.fileDownload ?? "Download"}
@@ -249,7 +249,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
                     href={signedUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 text-sm transition-colors"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay)/80 text-sm transition-colors"
                   >
                     <ExternalLink className="w-4 h-4" />
                     {t?.fileOpen ?? "Open"}
@@ -259,7 +259,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
               <button
                 ref={closeButtonRef}
                 onClick={onClose}
-                className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                className="flex items-center justify-center w-10 h-10 rounded-full bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay) transition-colors"
                 aria-label={t?.fileClosePreview ?? "Close preview"}
               >
                 <X className="w-5 h-5" />
@@ -271,7 +271,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
           {hasPrev && (
             <button
               onClick={navigatePrev}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
               aria-label={t?.filePrev ?? "Previous file"}
             >
               <ChevronLeft className="w-6 h-6" />
@@ -282,7 +282,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
           {hasNext && (
             <button
               onClick={navigateNext}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
               aria-label={t?.fileNext ?? "Next file"}
             >
               <ChevronRight className="w-6 h-6" />
@@ -315,9 +315,9 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
 
             {file.kind === "audio" && signedUrl && (
               <div className="flex flex-col items-center gap-6 p-12 bg-(--surface) rounded-2xl shadow-2xl">
-                <Music className="w-16 h-16 text-amber-500" />
+                <Music className="w-16 h-16 text-(--warning)" />
                 <span
-                  className="text-lg font-medium text-(--text-primary) truncate max-w-sm"
+                  className="text-lg font-medium text-(--text) truncate max-w-sm"
                   title={file.filename}
                 >
                   {file.filename}
@@ -327,7 +327,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
             )}
 
             {file.kind === "text" && textContent !== null && (
-              <pre className="p-6 bg-(--surface) rounded-lg shadow-2xl text-sm text-(--text-primary) font-mono whitespace-pre-wrap break-words max-w-3xl overflow-auto">
+              <pre className="p-6 bg-(--surface) rounded-lg shadow-2xl text-sm text-(--text) font-mono whitespace-pre-wrap break-words max-w-3xl overflow-auto">
                 {textContent}
               </pre>
             )}
@@ -336,12 +336,12 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
               <div className="flex flex-col items-center gap-4 p-12 bg-(--surface) rounded-2xl shadow-2xl">
                 <KindIcon kind={file.kind} large />
                 <span
-                  className="text-lg font-medium text-(--text-primary) truncate max-w-sm"
+                  className="text-lg font-medium text-(--text) truncate max-w-sm"
                   title={file.filename}
                 >
                   {file.filename}
                 </span>
-                <span className="text-sm text-(--text-secondary)">
+                <span className="text-sm text-(--muted)">
                   {formatFileSize(file.size_bytes)} • {file.mime_type}
                 </span>
                 {signedUrl && (
@@ -362,7 +362,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
             {fetchError && !signedUrl && (
               <div className="flex flex-col items-center gap-4 p-12 bg-(--surface) rounded-2xl shadow-2xl">
                 <AlertCircle className="w-12 h-12 text-(--danger)" />
-                <span className="text-sm text-(--text-secondary)">
+                <span className="text-sm text-(--muted)">
                   {t?.fileLoadFailed ?? "Failed to load file"}
                 </span>
                 <button
@@ -379,7 +379,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
             {!signedUrl && !fetchError && (
               <div className="flex flex-col items-center gap-4 p-12 bg-(--surface) rounded-2xl shadow-2xl">
                 <div className="w-12 h-12 rounded-full border-2 border-(--accent) border-t-transparent animate-spin" />
-                <span className="text-sm text-(--text-secondary)">
+                <span className="text-sm text-(--muted)">
                   {t?.fileLoadingPreview ?? "Loading preview..."}
                 </span>
               </div>
@@ -395,17 +395,17 @@ function KindIcon({ kind, large = false }: { kind: string; large?: boolean }) {
   const size = large ? "w-16 h-16" : "w-5 h-5";
   switch (kind) {
     case "image":
-      return <ImageIcon className={`${size} text-pink-500`} />;
+      return <ImageIcon className={`${size} text-(--accent)`} />;
     case "video":
-      return <Film className={`${size} text-purple-500`} />;
+      return <Film className={`${size} text-(--accent)`} />;
     case "audio":
-      return <Music className={`${size} text-amber-500`} />;
+      return <Music className={`${size} text-(--warning)`} />;
     case "document":
-      return <FileText className={`${size} text-red-500`} />;
+      return <FileText className={`${size} text-(--danger)`} />;
     case "text":
-      return <FileText className={`${size} text-blue-500`} />;
+      return <FileText className={`${size} text-(--accent)`} />;
     default:
-      return <File className={`${size} text-(--text-secondary)`} />;
+      return <File className={`${size} text-(--muted)`} />;
   }
 }
 

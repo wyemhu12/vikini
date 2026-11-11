@@ -50,11 +50,11 @@ export function GalleryView() {
                 <div className="flex flex-col md:flex-row gap-4">
                   {/* Search */}
                   <div className="relative flex-1 max-w-xl">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-(--text-secondary)" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-(--muted)" />
                     <input
                       type="text"
                       placeholder={g.t("gallerySearch")}
-                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none transition-colors"
+                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-(--raised) border border-(--line) focus:ring-2 focus:ring-(--accent) focus:outline-none transition-colors"
                       value={g.searchQuery}
                       onChange={(e) => g.setSearchQuery(e.target.value)}
                     />
@@ -64,12 +64,12 @@ export function GalleryView() {
                   <div className="flex gap-2 flex-wrap">
                     {/* Date Filter */}
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--text-secondary) pointer-events-none" />
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--muted) pointer-events-none" />
                       <select
                         aria-label={g.t("galleryDateFilter")}
                         value={g.dateFilter}
                         onChange={(e) => g.setDateFilter(e.target.value as DateFilter)}
-                        className="h-10 pl-9 pr-8 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none appearance-none cursor-pointer text-sm"
+                        className="h-10 pl-9 pr-8 rounded-xl bg-(--raised) border border-(--line) focus:ring-2 focus:ring-(--accent) focus:outline-none appearance-none cursor-pointer text-sm"
                       >
                         {DATE_FILTER_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>
@@ -82,12 +82,12 @@ export function GalleryView() {
                     {/* Model Filter */}
                     {g.availableModels.length > 0 && (
                       <div className="relative">
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--text-secondary) pointer-events-none" />
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--muted) pointer-events-none" />
                         <select
                           aria-label={g.t("galleryModelFilter")}
                           value={g.modelFilter}
                           onChange={(e) => g.setModelFilter(e.target.value)}
-                          className="h-10 pl-9 pr-8 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none appearance-none cursor-pointer text-sm"
+                          className="h-10 pl-9 pr-8 rounded-xl bg-(--raised) border border-(--line) focus:ring-2 focus:ring-(--accent) focus:outline-none appearance-none cursor-pointer text-sm"
                         >
                           <option value="all">{g.t("galleryAllModels")}</option>
                           {g.availableModels.map((model) => (
@@ -107,7 +107,7 @@ export function GalleryView() {
                       className={`flex h-10 items-center gap-1.5 px-3 rounded-xl border text-sm font-medium transition-colors ${
                         g.showFavoritesOnly
                           ? "bg-(--soft) border-(--accent) text-(--accent)"
-                          : "bg-(--surface-muted) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
+                          : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
                       }`}
                     >
                       <Heart className={`w-4 h-4 ${g.showFavoritesOnly ? "fill-current" : ""}`} />
@@ -119,7 +119,7 @@ export function GalleryView() {
 
               {/* Results Count + Compare Button */}
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-(--text-secondary)">
+                <h2 className="text-lg font-semibold text-(--muted)">
                   {g.t("galleryYourCreations")}
                   {!g.loading && (
                     <span className="ml-2 text-sm font-normal">
@@ -131,14 +131,14 @@ export function GalleryView() {
                 <div className="flex items-center gap-2">
                   {g.compareMode && (
                     <>
-                      <span className="text-sm text-(--text-secondary)">
+                      <span className="text-sm text-(--muted)">
                         {[g.compareImages[0], g.compareImages[1]].filter(Boolean).length}/2{" "}
                         {g.t("compareSelected") || "selected"}
                       </span>
                       {g.compareImages[0] && g.compareImages[1] && (
                         <button
                           onClick={g.handleOpenCompare}
-                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--accent) text-(--accent-foreground) font-bold shadow-lg shadow-(--accent)/20 hover:opacity-90 transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--accent) text-(--on-accent) font-bold shadow-lg shadow-(--accent)/20 hover:opacity-90 transition-colors"
                         >
                           <GitCompare className="w-4 h-4" />
                           {g.t("compareNow") || "Compare"}
@@ -151,7 +151,7 @@ export function GalleryView() {
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                       g.compareMode
                         ? "bg-(--danger)/20 text-(--danger) border border-(--danger)/30 hover:bg-(--danger)/30"
-                        : "bg-(--surface-muted) border border-(--control-border) hover:bg-(--control-bg-hover)"
+                        : "bg-(--raised) border border-(--line) hover:bg-(--raised)"
                     }`}
                   >
                     {g.compareMode ? (
@@ -205,10 +205,10 @@ export function GalleryView() {
                         g.setSelectedImage(img);
                       }
                     }}
-                    className={`group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-(--surface-muted) border-2 p-0 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) ${
+                    className={`group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-(--raised) border-2 p-0 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) ${
                       isSelectedForCompare
                         ? "border-(--accent) ring-2 ring-(--accent)/30"
-                        : "border-(--border) hover:border-(--accent)"
+                        : "border-(--line) hover:border-(--accent)"
                     }`}
                   >
                     <Image
@@ -225,8 +225,8 @@ export function GalleryView() {
                         aria-hidden="true"
                         className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
                           isSelectedForCompare
-                            ? "bg-(--accent) text-(--accent-foreground)"
-                            : "bg-black/50 text-white/70 border border-white/30"
+                            ? "bg-(--accent) text-(--on-accent)"
+                            : "bg-(--overlay) text-(--on-overlay)/70 border border-(--on-overlay)/30"
                         }`}
                       >
                         {isSelectedForCompare ? (
@@ -244,8 +244,10 @@ export function GalleryView() {
                     )}
 
                     {/* Hover Overlay */}
-                    <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity p-3 flex flex-col justify-end">
-                      <p className="text-white text-xs line-clamp-2 font-medium">{img.prompt}</p>
+                    <div className="absolute inset-0 bg-linear-to-t from-(--overlay) via-transparent to-transparent opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity p-3 flex flex-col justify-end">
+                      <p className="text-(--on-overlay) text-xs line-clamp-2 font-medium">
+                        {img.prompt}
+                      </p>
                     </div>
                   </button>
                 );
@@ -259,7 +261,7 @@ export function GalleryView() {
               {g.loadingMore ? (
                 <Loader2 className="w-6 h-6 animate-spin text-(--accent)" />
               ) : (
-                <p className="text-sm text-(--text-secondary)">{g.t("galleryScrollForMore")}</p>
+                <p className="text-sm text-(--muted)">{g.t("galleryScrollForMore")}</p>
               )}
             </div>
           )}
@@ -268,13 +270,13 @@ export function GalleryView() {
 
       {/* Modal Detail View */}
       <Dialog open={!!g.selectedImage} onOpenChange={(open) => !open && g.setSelectedImage(null)}>
-        <DialogContent className="max-w-7xl w-full max-h-[95vh] p-0 gap-0 overflow-hidden border-(--border) [&>button]:hidden">
+        <DialogContent className="max-w-7xl w-full max-h-[95vh] p-0 gap-0 overflow-hidden border-(--line) [&>button]:hidden">
           <DialogTitle className="sr-only">{g.t("galleryImageDetails")}</DialogTitle>
 
           {g.selectedImage && (
             <>
               {/* Image Counter */}
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full text-white/80 text-sm font-medium border border-white/10">
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-4 py-2 bg-(--overlay) backdrop-blur-sm rounded-full text-(--on-overlay)/80 text-sm font-medium border border-(--on-overlay)/10">
                 {g.currentImageIndex + 1} / {g.filteredImages.length}
               </div>
 
@@ -283,7 +285,7 @@ export function GalleryView() {
                 <button
                   onClick={() => g.setSelectedImage(null)}
                   aria-label={g.t("closeImageDetails") || "Close image details"}
-                  className="p-2 rounded-full bg-black/60 backdrop-blur-md text-white/90 hover:text-white border border-white/20 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) transition-colors"
+                  className="p-2 rounded-full bg-(--overlay) backdrop-blur-md text-(--on-overlay)/90 hover:text-(--on-overlay) border border-(--on-overlay)/20 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -291,7 +293,7 @@ export function GalleryView() {
 
               <div className="flex flex-col lg:flex-row w-full max-h-[95vh] overflow-hidden">
                 {/* Image Area */}
-                <div className="flex-1 relative bg-black flex items-center justify-center min-h-[400px] lg:min-h-[600px] group">
+                <div className="flex-1 relative bg-(--overlay) flex items-center justify-center min-h-[400px] lg:min-h-[600px] group">
                   <div className="relative w-full h-full p-6">
                     <Image
                       src={g.selectedImage.url}
@@ -310,7 +312,7 @@ export function GalleryView() {
                         e.stopPropagation();
                         g.handlePrevImage();
                       }}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-(--overlay) hover:bg-(--overlay) text-(--on-overlay)/80 hover:text-(--on-overlay) backdrop-blur-sm border border-(--on-overlay)/20 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
                       title={g.t("galleryPrev") || "Previous"}
                     >
                       <ChevronLeft className="w-6 h-6" />
@@ -324,7 +326,7 @@ export function GalleryView() {
                         e.stopPropagation();
                         g.handleNextImage();
                       }}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-(--overlay) hover:bg-(--overlay) text-(--on-overlay)/80 hover:text-(--on-overlay) backdrop-blur-sm border border-(--on-overlay)/20 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
                       title={g.t("galleryNext") || "Next"}
                     >
                       <ChevronRight className="w-6 h-6" />
@@ -333,13 +335,13 @@ export function GalleryView() {
                 </div>
 
                 {/* Details Sidebar */}
-                <div className="w-full lg:w-80 p-6 flex flex-col border-l border-(--border) bg-(--surface) max-h-[95vh] overflow-y-auto">
+                <div className="w-full lg:w-80 p-6 flex flex-col border-l border-(--line) bg-(--surface) max-h-[95vh] overflow-y-auto">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-lg">{g.t("galleryImageDetails")}</h3>
                     <button
                       onClick={() => g.setSelectedImage(null)}
                       aria-label={g.t("closeImageDetails") || "Close image details"}
-                      className="p-2 hover:bg-(--surface-muted) rounded-full text-(--text-secondary) hover:text-(--text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) transition-colors"
+                      className="p-2 hover:bg-(--raised) rounded-full text-(--muted) hover:text-(--text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) transition-colors"
                     >
                       <X className="w-5 h-5" />
                     </button>
@@ -350,7 +352,7 @@ export function GalleryView() {
                       <label className="text-xs font-semibold text-(--muted)">
                         {g.t("galleryPrompt")}
                       </label>
-                      <p className="text-sm leading-relaxed p-3 rounded-lg bg-(--surface-muted) border border-(--border)">
+                      <p className="text-sm leading-relaxed p-3 rounded-lg bg-(--raised) border border-(--line)">
                         {g.selectedImage.prompt}
                       </p>
                     </div>
@@ -383,17 +385,17 @@ export function GalleryView() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="pt-6 border-t border-(--border) space-y-3">
+                  <div className="pt-6 border-t border-(--line) space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         onClick={() => window.open(g.selectedImage!.url, "_blank")}
-                        className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) font-medium transition-colors"
+                        className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) font-medium transition-colors"
                       >
                         <Download className="w-4 h-4" /> {g.t("studioDownload")}
                       </button>
                       <button
                         onClick={() => g.handleRemix(g.selectedImage!.prompt)}
-                        className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--accent) text-(--accent-foreground) hover:opacity-90 font-bold shadow-lg shadow-(--accent)/20 transition-colors"
+                        className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--accent) text-(--on-accent) hover:opacity-90 font-bold shadow-lg shadow-(--accent)/20 transition-colors"
                       >
                         <Sparkles className="w-4 h-4" /> {g.t("galleryRemix")}
                       </button>

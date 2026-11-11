@@ -101,7 +101,7 @@ export default function ControlPanelReferenceImages({
                 <button
                   type="button"
                   onClick={() => removeRefImage(idx)}
-                  className="absolute top-1 right-1 p-1 rounded-full bg-black/60 hover:bg-(--danger) text-white transition-colors opacity-0 group-hover/ref:opacity-100 focus-visible:opacity-100"
+                  className="absolute top-1 right-1 p-1 rounded-full bg-(--overlay) hover:bg-(--danger) text-(--danger-foreground) transition-colors opacity-0 group-hover/ref:opacity-100 focus-visible:opacity-100"
                   title={t("studioRemoveRef")}
                   aria-label={t("studioRemoveRef")}
                 >

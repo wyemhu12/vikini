@@ -43,7 +43,7 @@ export default function ManuscriptTypographyMenu({
       "flex-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
       active
         ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
-        : "bg-(--control-bg) border-(--border) text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover)"
+        : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text) hover:bg-(--raised)"
     );
 
   const activeFontLabel =
@@ -60,27 +60,25 @@ export default function ManuscriptTypographyMenu({
             title={t("novelcrafterTypographyBtn")}
             aria-label={t("novelcrafterTypographyBtn")}
             data-testid="manuscript-typography-trigger"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-(--border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs text-(--text-primary) font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs text-(--text) font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <Type className="w-3.5 h-3.5 text-(--accent)" />
             <span>{activeFontLabel}</span>
-            <span className="text-(--text-secondary)">·</span>
+            <span className="text-(--muted)">·</span>
             <span className="uppercase font-semibold text-(--accent)">{typography.fontSize}</span>
-            <span className="hidden sm:inline text-(--text-secondary)">· {activeLineLabel}</span>
+            <span className="hidden sm:inline text-(--muted)">· {activeLineLabel}</span>
           </button>
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="w-[min(300px,calc(100vw-2rem))] p-3.5 space-y-3 bg-(--surface-elevated) border-(--border)"
+          className="w-[min(300px,calc(100vw-2rem))] p-3.5 space-y-3 bg-(--surface) border-(--line)"
         >
-          <div className="text-xs font-semibold text-(--text-primary)">
+          <div className="text-xs font-semibold text-(--text)">
             {t("novelcrafterTypographyTitle")}
           </div>
 
           <div className="space-y-1.5">
-            <div className="text-xs text-(--text-secondary)">
-              {t("novelcrafterTypographyFontLabel")}
-            </div>
+            <div className="text-xs text-(--muted)">{t("novelcrafterTypographyFontLabel")}</div>
             <div
               role="radiogroup"
               aria-label={t("novelcrafterTypographyFontLabel")}
@@ -101,9 +99,7 @@ export default function ManuscriptTypographyMenu({
           </div>
 
           <div className="space-y-1.5">
-            <div className="text-xs text-(--text-secondary)">
-              {t("novelcrafterTypographySizeLabel")}
-            </div>
+            <div className="text-xs text-(--muted)">{t("novelcrafterTypographySizeLabel")}</div>
             <div
               role="radiogroup"
               aria-label={t("novelcrafterTypographySizeLabel")}
@@ -124,7 +120,7 @@ export default function ManuscriptTypographyMenu({
           </div>
 
           <div className="space-y-1.5">
-            <div className="text-xs text-(--text-secondary)">
+            <div className="text-xs text-(--muted)">
               {t("novelcrafterTypographyLineHeightLabel")}
             </div>
             <div
@@ -154,7 +150,7 @@ export default function ManuscriptTypographyMenu({
               "w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
               typography.paragraphIndent
                 ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
-                : "bg-(--control-bg) border-(--border) text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover)"
+                : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text) hover:bg-(--raised)"
             )}
           >
             <span className="inline-flex items-center gap-1.5">
@@ -165,7 +161,7 @@ export default function ManuscriptTypographyMenu({
         </PopoverContent>
       </Popover>
 
-      <div className="hidden xl:inline-flex items-center rounded-lg border border-(--border) bg-(--control-bg) p-0.5 text-xs">
+      <div className="hidden xl:inline-flex items-center rounded-lg border border-(--line) bg-(--raised) p-0.5 text-xs">
         {fontSizes.map((size) => (
           <button
             key={size}
@@ -176,7 +172,7 @@ export default function ManuscriptTypographyMenu({
               "px-1.5 py-0.5 rounded-md uppercase font-medium transition-colors",
               typography.fontSize === size
                 ? "bg-(--accent)/20 text-(--accent)"
-                : "text-(--text-secondary) hover:text-(--text-primary)"
+                : "text-(--muted) hover:text-(--text)"
             )}
           >
             {size}
@@ -194,7 +190,7 @@ export default function ManuscriptTypographyMenu({
           "hidden lg:inline-flex items-center justify-center p-1.5 rounded-lg border text-xs transition-colors",
           typography.paragraphIndent
             ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
-            : "bg-(--control-bg) border-(--border) text-(--text-secondary) hover:text-(--text-primary)"
+            : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
         )}
       >
         <Pilcrow className="w-3.5 h-3.5" />

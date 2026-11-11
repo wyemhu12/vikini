@@ -111,8 +111,8 @@ export default function NovelcrafterTopBar({
             className={cn(
               "p-2 rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0",
               showLeftPane
-                ? "bg-(--control-bg-hover) border-(--control-border) text-(--accent)"
-                : "bg-(--control-bg) border-(--border) text-(--text-secondary) hover:text-(--text-primary)"
+                ? "bg-(--raised) border-(--line) text-(--accent)"
+                : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
             )}
           >
             <PanelLeft className="w-4 h-4" />
@@ -131,7 +131,7 @@ export default function NovelcrafterTopBar({
               }}
               placeholder={t("novelcrafterStoryTitlePlaceholder")}
               aria-label={t("novelcrafterStoryTitlePlaceholder")}
-              className="w-full min-w-16 sm:min-w-32 bg-transparent font-serif italic text-xl text-(--text) placeholder:text-(--text-secondary) rounded-md px-2 py-1 border border-transparent hover:border-(--border) focus:border-(--control-border) focus:bg-(--control-bg) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none transition-colors truncate"
+              className="w-full min-w-16 sm:min-w-32 bg-transparent font-serif italic text-xl text-(--text) placeholder:text-(--muted) rounded-md px-2 py-1 border border-transparent hover:border-(--line) focus:border-(--line) focus:bg-(--raised) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none transition-colors truncate"
             />
           </div>
           {viewTabs}
@@ -151,7 +151,7 @@ export default function NovelcrafterTopBar({
           ) : (
             <div
               aria-live="polite"
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs text-(--text-secondary) select-none px-1.5"
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs text-(--muted) select-none px-1.5"
             >
               {saveStatus === "saving" ? (
                 <>
@@ -165,7 +165,7 @@ export default function NovelcrafterTopBar({
                 </>
               ) : (
                 <>
-                  <Check className="w-3.5 h-3.5 text-(--text-secondary)/80 shrink-0" />
+                  <Check className="w-3.5 h-3.5 text-(--muted)/80 shrink-0" />
                   <span>{t("novelcrafterSaved")}</span>
                 </>
               )}
@@ -212,8 +212,8 @@ export default function NovelcrafterTopBar({
             className={cn(
               "relative inline-flex items-center gap-1 p-2 rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
               showRightPane
-                ? "bg-(--control-bg-hover) border-(--control-border) text-(--accent)"
-                : "bg-(--control-bg) border-(--border) text-(--text-secondary) hover:text-(--text-primary)"
+                ? "bg-(--raised) border-(--line) text-(--accent)"
+                : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
             )}
           >
             <PanelRight className="w-4 h-4" />

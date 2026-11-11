@@ -27,12 +27,12 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-(--control-bg) border border-(--border) backdrop-blur-3xl">
+            <div className="p-3 rounded-xl bg-(--raised) border border-(--line) backdrop-blur-3xl">
               <Shield className="w-8 h-8 text-(--accent)" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-(--text-primary)">{t("adminDashboard")}</h1>
-              <p className="text-(--text-secondary) text-sm">{t("adminDescription")}</p>
+              <h1 className="text-3xl font-bold text-(--text)">{t("adminDashboard")}</h1>
+              <p className="text-(--muted) text-sm">{t("adminDescription")}</p>
             </div>
           </div>
 
@@ -41,7 +41,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             {/* Back to Home */}
             <Link
               href="/"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--control-bg) border border-(--border) text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) hover:border-(--border) transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--raised) border border-(--line) text-(--muted) hover:text-(--text) hover:bg-(--raised) hover:border-(--line) transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               <span className="text-sm font-medium">{t("adminBackToHome")}</span>
@@ -53,7 +53,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 href="https://vercel.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors text-xs"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors text-xs"
                 title="Vercel Dashboard"
               >
                 <ExternalLink className="w-3 h-3" />
@@ -63,7 +63,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 href="https://supabase.com/dashboard"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors text-xs"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors text-xs"
                 title="Supabase Dashboard"
               >
                 <ExternalLink className="w-3 h-3" />
@@ -72,13 +72,13 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             </div>
 
             {/* Language Selector */}
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-(--control-bg) border border-(--border)">
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-(--raised) border border-(--line)">
               <button
                 onClick={() => setLanguage("vi")}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   language === "vi"
                     ? "bg-(--warning)/20 text-(--warning) border border-(--warning)/30"
-                    : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
+                    : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
                 }`}
               >
                 VN
@@ -88,7 +88,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   language === "en"
                     ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                    : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
+                    : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
                 }`}
               >
                 EN
@@ -98,13 +98,13 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
         </div>
 
         {/* Tab Navigation */}
-        <div className="mb-6 flex gap-2 p-1 rounded-xl bg-(--control-bg) border border-(--border) backdrop-blur-3xl w-fit">
+        <div className="mb-6 flex gap-2 p-1 rounded-xl bg-(--raised) border border-(--line) backdrop-blur-3xl w-fit">
           <button
             onClick={() => setActiveTab("users")}
             className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === "users"
                 ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
+                : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
             }`}
           >
             {t("adminUsers")}
@@ -114,7 +114,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === "limits"
                 ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
+                : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
             }`}
           >
             {t("adminLimits")}
@@ -124,7 +124,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === "gems"
                 ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
+                : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
             }`}
           >
             {t("adminGlobalGems")}
@@ -134,7 +134,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === "personas"
                 ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
+                : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
             }`}
           >
             {t("adminGlobalPersonas") || "Personas"}
@@ -144,7 +144,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === "stats"
                 ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
+                : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
             }`}
           >
             {t("adminStats")}
@@ -154,7 +154,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
             className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === "audit"
                 ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
+                : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
             }`}
           >
             {t("adminAuditLog")}
@@ -162,7 +162,7 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
         </div>
 
         {/* Tab Content */}
-        <div className="rounded-xl bg-(--control-bg) border border-(--border) backdrop-blur-3xl p-6">
+        <div className="rounded-xl bg-(--raised) border border-(--line) backdrop-blur-3xl p-6">
           {activeTab === "users" && <UserManager currentUserId={currentUserId} />}
           {activeTab === "limits" && <RankConfigManager />}
           {activeTab === "gems" && <GemsManager />}

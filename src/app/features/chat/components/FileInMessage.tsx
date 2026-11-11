@@ -39,9 +39,7 @@ export function FileInMessage({ conversationId, fileIds, onClick }: FileInMessag
           >
             <Icon className="w-3.5 h-3.5 shrink-0 opacity-70" />
             <span className="truncate">{file.filename}</span>
-            <span className="shrink-0 opacity-50 text-[9px]">
-              {formatFileSize(file.size_bytes)}
-            </span>
+            <span className="shrink-0 opacity-50 text-xs">{formatFileSize(file.size_bytes)}</span>
           </button>
         );
       })}

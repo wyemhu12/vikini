@@ -43,7 +43,7 @@ export default function TemplateModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-(--surface-elevated) border-none">
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-(--surface) border-none">
         {/* Preview image */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -58,10 +58,10 @@ export default function TemplateModal({
             loading="eager"
           />
           {/* Gradient overlay at bottom */}
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-(--overlay) to-transparent" />
           {/* Template name on image */}
           <div className="absolute bottom-3 left-4">
-            <span className="text-white font-bold text-lg drop-shadow-lg">
+            <span className="text-(--on-overlay) font-bold text-lg drop-shadow-lg">
               {template.name[language]}
             </span>
           </div>
@@ -70,7 +70,7 @@ export default function TemplateModal({
         <div className="p-5 space-y-4">
           <DialogHeader className="space-y-1.5">
             <DialogTitle className="sr-only">{template.name[language]}</DialogTitle>
-            <DialogDescription className="text-sm text-(--text-secondary) leading-relaxed">
+            <DialogDescription className="text-sm text-(--muted) leading-relaxed">
               {template.description[language]}
             </DialogDescription>
           </DialogHeader>
@@ -88,7 +88,7 @@ export default function TemplateModal({
           <div className="flex flex-col gap-2.5">
             <Button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+              className="w-full bg-(--accent) text-(--on-accent) hover:opacity-95"
               size="lg"
             >
               <Camera className="w-4 h-4 mr-2" />

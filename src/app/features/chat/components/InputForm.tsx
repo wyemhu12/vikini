@@ -220,10 +220,10 @@ export default function InputForm({
 
   const sendButtonClasses = `flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
     isStreaming
-      ? "bg-(--danger) text-white ring-2 ring-(--danger)/30 hover:brightness-110 active:scale-[0.92]"
+      ? "bg-(--danger) text-(--danger-foreground) ring-2 ring-(--danger)/30 hover:brightness-110 active:scale-[0.92]"
       : isReady
-        ? "bg-(--accent) text-(--accent-foreground) hover:brightness-110 active:scale-[0.92] shadow-[0_0_15px_var(--accent)] scale-100"
-        : "bg-(--control-bg) text-(--text-secondary) opacity-40 cursor-not-allowed scale-95"
+        ? "bg-(--accent) text-(--on-accent) hover:brightness-110 active:scale-[0.92] shadow-[0_0_15px_var(--accent)] scale-100"
+        : "bg-(--raised) text-(--muted) opacity-40 cursor-not-allowed scale-95"
   }`;
 
   return (
@@ -242,8 +242,8 @@ export default function InputForm({
           isImageMode
             ? "bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface))] border-(--accent) ring-1 ring-(--accent)/50"
             : isDragging
-              ? "bg-(--control-bg) border-(--accent) ring-2 ring-(--accent)/50 scale-[1.02]"
-              : "bg-(--control-bg) border-(--control-border) focus-within:border-(--accent) focus-within:ring-1 focus-within:ring-(--accent)/30"
+              ? "bg-(--raised) border-(--accent) ring-2 ring-(--accent)/50 scale-[1.02]"
+              : "bg-(--raised) border-(--line) focus-within:border-(--accent) focus-within:ring-1 focus-within:ring-(--accent)/30"
         }`}
       >
         {isStreaming && (
@@ -273,7 +273,7 @@ export default function InputForm({
           {/* Text Area */}
           <div className="order-first basis-full min-w-0 relative">
             {isImageMode && (
-              <div className="absolute -top-6 left-0 text-xs font-semibold text-(--accent) animate-in fade-in slide-in-from-bottom-1 bg-(--surface-elevated) px-2 py-0.5 rounded-full border border-(--accent)/30 shadow-sm">
+              <div className="absolute -top-6 left-0 text-xs font-semibold text-(--accent) animate-in fade-in slide-in-from-bottom-1 bg-(--surface) px-2 py-0.5 rounded-full border border-(--accent)/30 shadow-sm">
                 {t("imageModeLabel") || "Image generation mode"}
               </div>
             )}
@@ -291,7 +291,7 @@ export default function InputForm({
                   : t("placeholder") || "Message..."
               }
               disabled={disabled}
-              className={`max-h-[200px] min-h-[40px] h-10 w-full resize-none bg-transparent px-2 py-2.5 text-[15px] placeholder:text-(--text-secondary) outline-none scrollbar-thin scrollbar-thumb-[var(--control-border)] border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--text-secondary) italic" : "text-(--text-primary)"}`}
+              className={`max-h-[200px] min-h-[40px] h-10 w-full resize-none bg-transparent px-2 py-2.5 text-[15px] placeholder:text-(--muted) outline-none scrollbar-thin scrollbar-thumb-[var(--line)] border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--muted) italic" : "text-(--text)"}`}
             />
           </div>
 
@@ -304,7 +304,7 @@ export default function InputForm({
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] disabled:opacity-50 ${
                   isImageMode
                     ? "bg-(--accent) text-(--on-accent) hover:brightness-110"
-                    : "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary)"
+                    : "text-(--muted) hover:bg-(--raised) hover:text-(--text)"
                 }`}
                 title={t("addAttachment") || "Add..."}
                 aria-label={t("addAttachment") || "Add attachment or switch mode"}
@@ -350,7 +350,7 @@ export default function InputForm({
               <button
                 type="button"
                 onClick={() => setIsImageMode(false)}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--danger) transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95]"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--muted) hover:bg-(--raised) hover:text-(--danger) transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95]"
                 title={t("cancelImageMode") || "Cancel Image Mode"}
                 aria-label={t("cancelImageMode") || "Cancel image mode"}
               >
@@ -392,7 +392,7 @@ export default function InputForm({
 
         {/* Keyboard shortcut hints */}
         {isFocused && (
-          <div className="hidden md:flex items-center justify-end gap-3 px-4 pb-2 -mt-1 text-xs text-(--text-secondary)/60 select-none animate-in fade-in duration-200">
+          <div className="hidden md:flex items-center justify-end gap-3 px-4 pb-2 -mt-1 text-xs text-(--muted)/60 select-none animate-in fade-in duration-200">
             <span>↵ {t("send") || "Send"}</span>
             <span>Shift+↵ {t("newLine") || "New line"}</span>
           </div>

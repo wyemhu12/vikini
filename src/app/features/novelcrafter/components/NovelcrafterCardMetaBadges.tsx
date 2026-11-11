@@ -20,8 +20,8 @@ const PROVIDER_BADGE_STYLES: Record<string, string> = {
   google: "bg-(--accent)/12 text-(--accent) border-(--accent)/30",
   anthropic: "bg-(--warning)/12 text-(--warning) border-(--warning)/30",
   groq: "bg-(--success)/12 text-(--success) border-(--success)/30",
-  openrouter: "bg-(--control-bg) text-(--text-primary) border-(--control-border)",
-  unknown: "bg-(--control-bg) text-(--text-secondary) border-(--border)",
+  openrouter: "bg-(--raised) text-(--text) border-(--line)",
+  unknown: "bg-(--raised) text-(--muted) border-(--line)",
 };
 
 export default function NovelcrafterCardMetaBadges({
@@ -50,7 +50,7 @@ export default function NovelcrafterCardMetaBadges({
           : null;
 
   return (
-    <div className="flex items-center gap-1.5 flex-wrap text-xs text-(--text-secondary)">
+    <div className="flex items-center gap-1.5 flex-wrap text-xs text-(--muted)">
       <span
         data-testid="card-model-badge"
         title={tooltipText}
@@ -64,14 +64,14 @@ export default function NovelcrafterCardMetaBadges({
       </span>
 
       {gemName && (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-(--control-bg) border border-(--border)">
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-(--raised) border border-(--line)">
           <Crown className="w-3 h-3 text-(--accent) shrink-0" />
           <span className="truncate max-w-[110px]">{gemName}</span>
         </span>
       )}
 
       {personaName && (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-(--control-bg) border border-(--border)">
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-(--raised) border border-(--line)">
           <UserCheck className="w-3 h-3 text-(--accent) shrink-0" />
           <span className="truncate max-w-[110px]">{personaName}</span>
         </span>

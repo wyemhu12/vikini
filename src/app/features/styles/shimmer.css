@@ -2,9 +2,9 @@
 .shimmer-block {
   background: linear-gradient(
     90deg,
-    var(--surface-muted) 0%,
-    var(--control-bg-hover, #3a3a3a) 40%,
-    var(--surface-muted) 80%
+    var(--raised) 0%,
+    color-mix(in oklab, var(--raised) 88%, var(--text) 12%) 40%,
+    var(--raised) 80%
   );
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite linear;

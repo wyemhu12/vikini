@@ -65,7 +65,7 @@ export default function SheetSubToolbar({
       data-testid="sheet-sub-toolbar"
       className={cn(
         MANUSCRIPT_SHEET_PADDING_CLASS,
-        "py-2 border-b border-(--border)/60 bg-(--surface)/40 shrink-0"
+        "py-2 border-b border-(--line)/60 bg-(--surface)/40 shrink-0"
       )}
     >
       <div
@@ -79,13 +79,13 @@ export default function SheetSubToolbar({
               onClick={() => onApplyMarkdownFormat(key)}
               title={label}
               aria-label={label}
-              className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="p-1.5 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
               <Icon className="w-3.5 h-3.5" />
             </button>
           ))}
 
-          <span className="h-4 w-px bg-(--border) mx-1 shrink-0" />
+          <span className="h-4 w-px bg-(--line) mx-1 shrink-0" />
 
           <ManuscriptTypographyMenu
             typography={typography}
@@ -93,7 +93,7 @@ export default function SheetSubToolbar({
           />
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-(--text-secondary)">
+        <div className="flex items-center gap-2 text-xs text-(--muted)">
           <span className="hidden sm:inline font-medium">
             {t("novelcrafterChapterWordsCount").replace("{count}", wordCount.toLocaleString())}
           </span>
@@ -104,7 +104,7 @@ export default function SheetSubToolbar({
               onClick={onOpenSnapshotsModal}
               title={t("novelcrafterSnapshotsBtn")}
               aria-label={t("novelcrafterSnapshotsBtn")}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-(--border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-(--text-primary) font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-(--text) font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
               <History className="w-3.5 h-3.5 text-(--accent)" />
               <span className="hidden md:inline">{t("novelcrafterSnapshotsBtn")}</span>
@@ -123,7 +123,7 @@ export default function SheetSubToolbar({
               "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
               focusMode
                 ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
-                : "bg-(--control-bg) border-(--border) text-(--text-secondary) hover:text-(--text-primary)"
+                : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
             )}
           >
             {focusMode ? (

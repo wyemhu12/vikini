@@ -239,7 +239,7 @@ export default function ImageLightbox({
       >
         {/* Backdrop */}
         <div
-          className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+          className="absolute inset-0 bg-(--overlay) backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) onClose();
           }}
@@ -248,25 +248,25 @@ export default function ImageLightbox({
         {/* Top bar */}
         <div className="relative z-10 flex items-center justify-between px-4 py-3">
           {/* Counter */}
-          <span className="text-white/80 text-sm font-medium">{counterText}</span>
+          <span className="text-(--on-overlay)/80 text-sm font-medium">{counterText}</span>
 
           {/* Zoom controls */}
           <div className="flex items-center gap-1">
             <button
               onClick={zoomOut}
               disabled={scale <= MIN_ZOOM}
-              className="p-2 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="p-2 rounded-full text-(--on-overlay)/70 hover:text-(--on-overlay) hover:bg-(--on-overlay)/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               title={t("imageZoomOut")}
             >
               <ZoomOut className="w-4 h-4" />
             </button>
-            <span className="text-white/60 text-xs font-mono min-w-[3rem] text-center">
+            <span className="text-(--on-overlay)/60 text-xs font-mono min-w-[3rem] text-center">
               {Math.round(scale * 100)}%
             </span>
             <button
               onClick={zoomIn}
               disabled={scale >= MAX_ZOOM}
-              className="p-2 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="p-2 rounded-full text-(--on-overlay)/70 hover:text-(--on-overlay) hover:bg-(--on-overlay)/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               title={t("imageZoomIn")}
             >
               <ZoomIn className="w-4 h-4" />
@@ -274,7 +274,7 @@ export default function ImageLightbox({
             {scale > 1 && (
               <button
                 onClick={resetZoom}
-                className="p-2 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-2 rounded-full text-(--on-overlay)/70 hover:text-(--on-overlay) hover:bg-(--on-overlay)/10 transition-colors"
                 title={t("studioZoomReset")}
               >
                 <RotateCcw className="w-4 h-4" />
@@ -285,7 +285,7 @@ export default function ImageLightbox({
           {/* Close button */}
           <button
             onClick={onClose}
-            className="p-2 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-2 rounded-full text-(--on-overlay)/70 hover:text-(--on-overlay) hover:bg-(--on-overlay)/10 transition-colors"
             title={t("imageClose")}
           >
             <X className="w-5 h-5" />
@@ -301,7 +301,7 @@ export default function ImageLightbox({
           {hasPrev && (
             <button
               onClick={navigatePrev}
-              className="absolute left-2 md:left-4 z-20 p-2 md:p-3 rounded-full bg-black/40 hover:bg-black/60 text-white/70 hover:text-white transition-colors backdrop-blur-sm border border-white/10"
+              className="absolute left-2 md:left-4 z-20 p-2 md:p-3 rounded-full bg-(--overlay) hover:bg-(--overlay) text-(--on-overlay)/70 hover:text-(--on-overlay) transition-colors backdrop-blur-sm border border-(--on-overlay)/10"
             >
               <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
             </button>
@@ -345,7 +345,7 @@ export default function ImageLightbox({
           {hasNext && (
             <button
               onClick={navigateNext}
-              className="absolute right-2 md:right-4 z-20 p-2 md:p-3 rounded-full bg-black/40 hover:bg-black/60 text-white/70 hover:text-white transition-colors backdrop-blur-sm border border-white/10"
+              className="absolute right-2 md:right-4 z-20 p-2 md:p-3 rounded-full bg-(--overlay) hover:bg-(--overlay) text-(--on-overlay)/70 hover:text-(--on-overlay) transition-colors backdrop-blur-sm border border-(--on-overlay)/10"
             >
               <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
             </button>
@@ -353,26 +353,26 @@ export default function ImageLightbox({
         </div>
 
         {/* Bottom info bar */}
-        <div className="relative z-10 bg-black/60 backdrop-blur-md border-t border-white/10 px-4 py-3">
+        <div className="relative z-10 bg-(--overlay) backdrop-blur-md border-t border-(--on-overlay)/10 px-4 py-3">
           <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-center gap-3">
             {/* Prompt & badges */}
             <div className="flex-1 min-w-0">
-              <p className="text-white/80 text-sm truncate mb-1.5">
+              <p className="text-(--on-overlay)/80 text-sm truncate mb-1.5">
                 &quot;{currentImage.prompt}&quot;
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {currentImage.model && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/80 text-white border border-white/10">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-(--accent) text-(--on-overlay) border border-(--on-overlay)/10">
                     {currentImage.model}
                   </span>
                 )}
                 {currentImage.aspectRatio && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-black/60 text-white border border-white/10">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-(--overlay) text-(--on-overlay) border border-(--on-overlay)/10">
                     {currentImage.aspectRatio}
                   </span>
                 )}
                 {currentImage.style && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/60 text-white border border-white/10">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-(--accent) text-(--on-overlay) border border-(--on-overlay)/10">
                     {currentImage.style}
                   </span>
                 )}
@@ -385,7 +385,7 @@ export default function ImageLightbox({
                 onClick={() => onRemix(currentImage)}
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
-                  "bg-purple-500/80 hover:bg-purple-600 text-white border border-purple-400/30"
+                  "bg-(--accent) hover:bg-(--accent) text-(--on-overlay) border border-(--accent)/30"
                 )}
                 title={t("studioReuse")}
               >
@@ -394,14 +394,14 @@ export default function ImageLightbox({
               </button>
               <button
                 onClick={() => onEdit(currentImage)}
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/5"
+                className="p-2 rounded-full bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay) transition-colors border border-(--on-overlay)/5"
                 title={t("studioEdit")}
               >
                 <Pencil className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={handleDownload}
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/5"
+                className="p-2 rounded-full bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay) transition-colors border border-(--on-overlay)/5"
                 title={t("studioDownload")}
               >
                 <Download className="w-3.5 h-3.5" />
@@ -409,7 +409,7 @@ export default function ImageLightbox({
               {currentImage.id && (
                 <button
                   onClick={() => onDelete(currentImage.id!)}
-                  className="p-2 rounded-full bg-red-500/20 hover:bg-red-500/80 text-red-200 hover:text-white transition-colors border border-red-500/20"
+                  className="p-2 rounded-full bg-(--danger)/20 hover:bg-(--danger) text-(--danger) hover:text-(--on-overlay) transition-colors border border-(--danger)/20"
                   title={t("galleryDeleteImage")}
                 >
                   <Trash2 className="w-3.5 h-3.5" />

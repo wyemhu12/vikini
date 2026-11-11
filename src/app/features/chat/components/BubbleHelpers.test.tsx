@@ -36,7 +36,7 @@ describe("BubbleHelpers", () => {
         "align-middle",
         "w-0.5",
         "h-4",
-        "bg-(--primary)",
+        "bg-(--accent)",
         "rounded-sm"
       );
     });
@@ -64,7 +64,7 @@ describe("BubbleHelpers", () => {
       );
 
       // Verify token fixes (no dead text-secondary)
-      expect(button).toHaveClass("text-(--text-secondary)", "hover:text-(--text-primary)");
+      expect(button).toHaveClass("text-(--muted)", "hover:text-(--text)");
       expect(button).not.toHaveClass("text-secondary");
 
       // Content should not be visible when collapsed
@@ -84,7 +84,7 @@ describe("BubbleHelpers", () => {
 
       const content = screen.getByText(/analyze user query/i);
       expect(content).toBeInTheDocument();
-      expect(content).toHaveClass("text-(--text-secondary)");
+      expect(content).toHaveClass("text-(--muted)");
       expect(content).not.toHaveClass("text-secondary");
 
       // Click to collapse
@@ -96,7 +96,7 @@ describe("BubbleHelpers", () => {
       const { container } = render(<ThinkingBlock content="Test content" t={mockT} />);
 
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass("bg-(--control-bg)", "border-(--border)", "border", "rounded-lg");
+      expect(wrapper).toHaveClass("bg-(--raised)", "border-(--line)", "border", "rounded-lg");
     });
 
     it("uses fallback text if translation returns empty", () => {

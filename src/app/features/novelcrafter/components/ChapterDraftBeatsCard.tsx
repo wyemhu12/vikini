@@ -62,18 +62,18 @@ export default function ChapterDraftBeatsCard({
           <div
             className={cn(
               MANUSCRIPT_SHEET_CLASS,
-              "rounded-2xl border border-(--border) bg-(--surface)/85 p-4 space-y-3 shadow-xs"
+              "rounded-2xl border border-(--line) bg-(--surface)/85 p-4 space-y-3 shadow-xs"
             )}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] font-semibold text-(--text-secondary)">
+              <span className="text-[13px] font-semibold text-(--muted)">
                 {t("novelcrafterChapterBeatsLabel")}
               </span>
               <button
                 type="button"
                 onClick={onClose}
                 aria-label={t("close")}
-                className="p-1 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover)"
+                className="p-1 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised)"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -85,7 +85,7 @@ export default function ChapterDraftBeatsCard({
               onChange={(e) => onChangeScenes(e.target.value)}
               placeholder={t("novelcrafterChapterBeatsPlaceholder")}
               aria-label={t("novelcrafterChapterBeatsLabel")}
-              className="w-full rounded-xl border border-(--border) bg-(--surface-elevated)/60 px-4 py-3 text-[14px] leading-[1.65] tracking-[-0.005em] text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none resize-y"
+              className="w-full rounded-xl border border-(--line) bg-(--surface)/60 px-4 py-3 text-[14px] leading-[1.65] tracking-[-0.005em] text-(--text) placeholder:text-(--muted) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none resize-y"
             />
 
             <input
@@ -94,16 +94,16 @@ export default function ChapterDraftBeatsCard({
               onChange={(e) => onChangeExtraInstructions(e.target.value)}
               placeholder={t("novelcrafterExtraInstructionsPlaceholder")}
               aria-label={t("novelcrafterExtraInstructionsLabel")}
-              className="w-full h-9 rounded-xl border border-(--border) bg-(--surface-elevated)/40 px-3.5 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="w-full h-9 rounded-xl border border-(--line) bg-(--surface)/40 px-3.5 text-xs text-(--text) placeholder:text-(--muted) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             />
 
-            <div className="pt-2 border-t border-(--border)/60 space-y-2">
+            <div className="pt-2 border-t border-(--line)/60 space-y-2">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-(--text-secondary)">
+                  <span className="text-xs font-semibold text-(--muted)">
                     {t("novelcrafterChapterSummaryLabel")}
                   </span>
-                  <span className="text-xs text-(--text-secondary)/80">
+                  <span className="text-xs text-(--muted)/80">
                     {summary.length}/{MAX_CHAPTER_SUMMARY_CHARS}
                   </span>
                 </div>
@@ -117,7 +117,7 @@ export default function ChapterDraftBeatsCard({
                       type="button"
                       disabled={isStreaming || !canSummarizeChapter}
                       onClick={onSummarizeChapter}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--accent) disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) text-xs font-medium text-(--accent) disabled:opacity-50"
                     >
                       <BookMarked className="w-3.5 h-3.5" />
                       <span>{t("novelcrafterSummarizeChapterBtn")}</span>
@@ -132,7 +132,7 @@ export default function ChapterDraftBeatsCard({
                 onChange={(e) => onChangeSummary?.(e.target.value)}
                 placeholder={t("novelcrafterChapterSummaryPlaceholder")}
                 aria-label={t("novelcrafterChapterSummaryLabel")}
-                className="w-full rounded-xl border border-(--border) bg-(--surface-elevated)/50 px-3.5 py-2 text-xs leading-[1.6] text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none resize-y"
+                className="w-full rounded-xl border border-(--line) bg-(--surface)/50 px-3.5 py-2 text-xs leading-[1.6] text-(--text) placeholder:text-(--muted) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none resize-y"
               />
             </div>
 
@@ -147,7 +147,7 @@ export default function ChapterDraftBeatsCard({
                     type="button"
                     disabled={isStreaming}
                     onClick={onGenerateBeats}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--text-primary) disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) text-xs font-medium text-(--text) disabled:opacity-50"
                   >
                     <Wand2 className="w-3.5 h-3.5 text-(--accent)" />
                     <span>{t("novelcrafterGenerateBeatsBtn")}</span>
@@ -162,9 +162,9 @@ export default function ChapterDraftBeatsCard({
                     type="button"
                     disabled={isStreaming}
                     onClick={onRewriteBeats}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--text-primary) disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) text-xs font-medium text-(--text) disabled:opacity-50"
                   >
-                    <RefreshCw className="w-3.5 h-3.5 text-(--text-secondary)" />
+                    <RefreshCw className="w-3.5 h-3.5 text-(--muted)" />
                     <span>{t("novelcrafterRewriteBeatsBtn")}</span>
                   </button>
                 </PromptSourceTooltip>
@@ -178,7 +178,7 @@ export default function ChapterDraftBeatsCard({
                   type="button"
                   disabled={isStreaming}
                   onClick={onRunFirstDraft}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold shadow-xs disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-(--accent) text-(--on-accent) hover:brightness-110 text-xs font-semibold shadow-xs disabled:opacity-50"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>{t("novelcrafterGenerateDraftBtn")}</span>

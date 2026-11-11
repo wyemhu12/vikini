@@ -54,15 +54,15 @@ export default function ModelSelector({
   if (disabled) {
     if (isInline) {
       return (
-        <div className="h-10 inline-flex items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-(--text-secondary) opacity-50 cursor-not-allowed">
+        <div className="h-10 inline-flex items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-(--muted) opacity-50 cursor-not-allowed">
           {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
           <span className="truncate max-w-[7rem] @sm/chat:max-w-[12rem]">{modelDisplayName}</span>
         </div>
       );
     }
     return (
-      <div className="flex items-center rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 p-1 px-4 py-1.5 opacity-50 cursor-not-allowed">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary)">
+      <div className="flex items-center rounded-full bg-(--raised) border border-(--line) md:bg-transparent md:border-0 p-1 px-4 py-1.5 opacity-50 cursor-not-allowed">
+        <span className="text-xs font-bold uppercase tracking-wider text-(--muted)">
           {modelDisplayName}
         </span>
       </div>
@@ -73,26 +73,26 @@ export default function ModelSelector({
     <button
       type="button"
       aria-label={`${t("selectModel")}: ${modelDisplayName}`}
-      className="h-10 inline-flex items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.97]"
+      className="h-10 inline-flex items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-(--muted) hover:bg-(--raised) hover:text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.97]"
     >
       {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
       <span className="truncate max-w-[7rem] @sm/chat:max-w-[12rem]">{modelDisplayName}</span>
       <ChevronDown
-        className={`w-3.5 h-3.5 shrink-0 text-(--text-secondary) transition-transform ${isOpen ? "rotate-180" : ""}`}
+        className={`w-3.5 h-3.5 shrink-0 text-(--muted) transition-transform ${isOpen ? "rotate-180" : ""}`}
       />
     </button>
   ) : (
     <button
       type="button"
       aria-label={`${t("selectModel")}: ${modelDisplayName}`}
-      className="flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 md:hover:bg-(--control-bg) p-1 px-4 py-1.5 transition-colors md:shadow-none shadow-lg group text-(--text-primary)"
+      className="flex items-center gap-2 rounded-full bg-(--raised) border border-(--line) md:bg-transparent md:border-0 md:hover:bg-(--raised) p-1 px-4 py-1.5 transition-colors md:shadow-none shadow-lg group text-(--text)"
     >
       {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
-      <span className="text-[10px] font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">
+      <span className="text-xs font-bold uppercase tracking-wider text-(--muted) group-hover:text-(--text) transition-colors">
         {modelDisplayName}
       </span>
       <ChevronDown
-        className={`w-3 h-3 text-(--text-secondary) transition-transform ${isOpen ? "rotate-180" : ""}`}
+        className={`w-3 h-3 text-(--muted) transition-transform ${isOpen ? "rotate-180" : ""}`}
       />
     </button>
   );

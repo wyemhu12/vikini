@@ -10,19 +10,17 @@ const buttonVariants = cva(
       variant: {
         // Primary call-to-action: solid accent that follows the active theme.
         default:
-          "bg-(--accent) text-(--accent-foreground) hover:brightness-110 active:brightness-95 shadow-sm",
+          "bg-(--accent) text-(--on-accent) hover:brightness-110 active:brightness-95 shadow-sm",
         destructive: "bg-(--danger) text-(--danger-foreground) hover:bg-(--danger-hover) shadow-sm",
-        outline:
-          "border border-(--control-border) bg-(--control-bg) text-(--text-primary) hover:bg-(--control-bg-hover)",
-        secondary:
-          "bg-(--surface-muted) text-(--text-primary) border border-(--border) hover:bg-(--control-bg-hover)",
-        ghost: "text-(--text-primary) hover:bg-(--control-bg-hover)",
+        outline: "border border-(--line) bg-(--raised) text-(--text) hover:bg-(--raised)",
+        secondary: "bg-(--raised) text-(--text) border border-(--line) hover:bg-(--raised)",
+        ghost: "text-(--text) hover:bg-(--raised)",
         link: "text-(--accent) underline-offset-4 hover:underline",
         // Vikini specific variants
         glass:
-          "bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-(--text-primary) shadow-sm backdrop-blur-md",
+          "bg-(--raised) hover:bg-(--raised) border border-(--line) text-(--text) shadow-sm backdrop-blur-md",
         island:
-          "bg-(--control-bg) hover:bg-(--control-bg-hover) text-(--text-primary) backdrop-blur-xl border border-(--control-border) shadow-xl",
+          "bg-(--raised) hover:bg-(--raised) text-(--text) backdrop-blur-xl border border-(--line) shadow-xl",
       },
       size: {
         default: "h-10 px-4 py-2",

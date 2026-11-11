@@ -69,7 +69,7 @@ export function ProjectIcon({ icon, color, size = "sm", className }: ProjectIcon
         )}
         style={{ backgroundColor: color || "#6366f1" }}
       >
-        <IconComponent className={cn(sizes.icon, "text-white")} />
+        <IconComponent className={cn(sizes.icon, "text-(--on-overlay)")} />
       </span>
     );
   }

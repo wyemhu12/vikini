@@ -101,12 +101,12 @@ export default function LocalSamplingSettings({
           disabled={disabled}
           aria-label={t("localSamplingTitle")}
           title={t("localSamplingTitle")}
-          className={`flex items-center gap-1.5 rounded-full bg-(--control-bg) border border-(--control-border) md:bg-transparent md:border-0 px-3 py-1.5 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
+          className={`flex items-center gap-1.5 rounded-full bg-(--raised) border border-(--line) md:bg-transparent md:border-0 px-3 py-1.5 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] ${
             disabled
-              ? "opacity-50 cursor-not-allowed text-(--text-secondary)"
+              ? "opacity-50 cursor-not-allowed text-(--muted)"
               : isNonDefault
-                ? "text-(--accent) hover:bg-(--control-bg)"
-                : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)"
+                ? "text-(--accent) hover:bg-(--raised)"
+                : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
           }`}
         >
           <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -124,17 +124,17 @@ export default function LocalSamplingSettings({
         side="top"
         align="center"
         sideOffset={8}
-        className="w-[min(360px,calc(100vw-2rem))] p-4 bg-(--surface-muted) border border-(--border) rounded-xl shadow-2xl space-y-4"
+        className="w-[min(360px,calc(100vw-2rem))] p-4 bg-(--raised) border border-(--line) rounded-xl shadow-2xl space-y-4"
       >
         <div className="flex items-center justify-between gap-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-(--text-primary)">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-(--text)">
             {t("localSamplingTitle")}
           </h4>
           <button
             type="button"
             onClick={() => resetToDefault(thinkingOn)}
             aria-label={t("localSamplingReset")}
-            className="flex items-center gap-1 text-xs font-medium text-(--text-secondary) hover:text-(--text-primary) px-2 py-1 rounded-md hover:bg-(--control-bg) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="flex items-center gap-1 text-xs font-medium text-(--muted) hover:text-(--text) px-2 py-1 rounded-md hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <RotateCcw className="w-3 h-3" />
             <span>{t("localSamplingReset")}</span>
@@ -142,7 +142,7 @@ export default function LocalSamplingSettings({
         </div>
 
         {/* Preset mode selector */}
-        <div className="grid grid-cols-3 gap-1.5 p-1 rounded-lg bg-(--control-bg) border border-(--border)">
+        <div className="grid grid-cols-3 gap-1.5 p-1 rounded-lg bg-(--raised) border border-(--line)">
           {modes.map((m) => {
             const active = sampling.mode === m.value;
             return (
@@ -153,8 +153,8 @@ export default function LocalSamplingSettings({
                 onClick={() => selectMode(m.value, thinkingOn)}
                 className={`text-xs font-semibold py-1.5 px-2 rounded-md transition-colors truncate focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
                   active
-                    ? "bg-(--accent) text-(--accent-foreground) shadow-sm"
-                    : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover)"
+                    ? "bg-(--accent) text-(--on-accent) shadow-sm"
+                    : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
                 }`}
                 title={m.label}
               >
@@ -171,7 +171,7 @@ export default function LocalSamplingSettings({
             return (
               <div key={cfg.key} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-(--text-primary)">{cfg.label}</span>
+                  <span className="font-semibold text-(--text)">{cfg.label}</span>
                   <span className="font-mono text-(--accent) font-semibold">{cfg.format(val)}</span>
                 </div>
                 <input
@@ -184,9 +184,9 @@ export default function LocalSamplingSettings({
                   onChange={(e) =>
                     updateCustomParam(cfg.key, parseFloat(e.target.value), thinkingOn)
                   }
-                  className="w-full accent-(--accent) cursor-pointer h-1.5 rounded-lg bg-(--control-bg)"
+                  className="w-full accent-(--accent) cursor-pointer h-1.5 rounded-lg bg-(--raised)"
                 />
-                <p className="text-xs text-(--text-secondary) leading-snug">{t(cfg.descKey)}</p>
+                <p className="text-xs text-(--muted) leading-snug">{t(cfg.descKey)}</p>
               </div>
             );
           })}

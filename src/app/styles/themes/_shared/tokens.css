@@ -10,19 +10,19 @@
 }
 
 .bg-surface-muted {
-  background: var(--surface-muted);
+  background: var(--raised);
 }
 
 .bg-surface-elevated {
-  background: var(--surface-elevated);
+  background: var(--surface);
 }
 
 .bg-control {
-  background-color: var(--control-bg);
+  background-color: var(--raised);
 }
 
 .bg-control-hover {
-  background-color: var(--control-bg-hover);
+  background-color: color-mix(in oklab, var(--raised) 88%, var(--text) 12%);
 }
 
 .bg-accent {
@@ -31,20 +31,20 @@
 
 /* Borders */
 .border-token {
-  border-color: var(--border);
+  border-color: var(--line);
 }
 
 .border-control {
-  border-color: var(--control-border);
+  border-color: var(--line);
 }
 
 /* Text */
 .text-primary {
-  color: var(--text-primary);
+  color: var(--text);
 }
 
 .text-secondary {
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 
 .text-accent {
@@ -53,6 +53,6 @@
 
 /* Generic surface cards */
 .card-surface {
-  background: var(--surface-elevated);
-  border-color: var(--border);
+  background: var(--surface);
+  border-color: var(--line);
 }

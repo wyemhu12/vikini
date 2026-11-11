@@ -108,15 +108,15 @@ export default function RankConfigManager() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-gray-400">{t("loadingConfigs")}</span>
+        <Loader2 className="w-6 h-6 animate-spin text-(--accent)" />
+        <span className="ml-2 text-(--muted)">{t("loadingConfigs")}</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center gap-2 text-red-400 py-4">
+      <div className="flex items-center gap-2 text-(--danger) py-4">
         <AlertCircle className="w-5 h-5" />
         <span>{error}</span>
       </div>
@@ -131,14 +131,14 @@ export default function RankConfigManager() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Settings className="w-5 h-5 text-blue-400" />
-          <h2 className="text-xl font-semibold text-white">{t("globalLimitConfig")}</h2>
+          <Settings className="w-5 h-5 text-(--accent)" />
+          <h2 className="text-xl font-semibold text-(--text)">{t("globalLimitConfig")}</h2>
         </div>
         {hasChanges && (
           <button
             onClick={saveConfigs}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-(--soft) text-(--accent) rounded-lg hover:bg-(--soft) border border-(--accent)/30 transition-colors disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {t("saveChanges")}
@@ -148,12 +148,12 @@ export default function RankConfigManager() {
 
       <div className="space-y-6">
         {editedConfigs.map((config) => (
-          <div key={config.rank} className="p-5 rounded-lg bg-white/2 border border-white/10">
-            <h3 className="text-lg font-semibold text-white capitalize mb-4">{config.rank}</h3>
+          <div key={config.rank} className="p-5 rounded-lg bg-(--raised) border border-(--line)">
+            <h3 className="text-lg font-semibold text-(--text) capitalize mb-4">{config.rank}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Daily Message Limit */}
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
+                <label className="block text-sm font-medium text-(--muted) mb-2">
                   {t("dailyMessageLimit")}
                 </label>
                 <Input
@@ -166,13 +166,13 @@ export default function RankConfigManager() {
                       Math.min(Math.max(0, parseInt(e.target.value, 10) || 0), 2147483647)
                     )
                   }
-                  className="w-full bg-white/5 border-white/10 text-white focus-visible:ring-blue-500/50"
+                  className="w-full bg-(--raised) border-(--line) text-(--text) focus-visible:ring-(--accent)/50"
                 />
               </div>
 
               {/* Max File Size */}
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
+                <label className="block text-sm font-medium text-(--muted) mb-2">
                   {t("maxFileSize")}
                 </label>
                 <Input
@@ -185,13 +185,13 @@ export default function RankConfigManager() {
                       Math.min(Math.max(0, parseInt(e.target.value, 10) || 0), 2147483647)
                     )
                   }
-                  className="w-full bg-white/5 border-white/10 text-white focus-visible:ring-blue-500/50"
+                  className="w-full bg-(--raised) border-(--line) text-(--text) focus-visible:ring-(--accent)/50"
                 />
               </div>
 
               {/* Features */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-400 mb-2">
+                <label className="block text-sm font-medium text-(--muted) mb-2">
                   {t("features")}
                 </label>
                 <div className="flex gap-4">
@@ -202,9 +202,9 @@ export default function RankConfigManager() {
                       onChange={(e) =>
                         updateConfig(config.rank, "features.web_search", e.target.checked)
                       }
-                      className="w-4 h-4 rounded bg-white/5 border-white/10 text-blue-500 focus:ring-blue-500/50"
+                      className="w-4 h-4 rounded bg-(--raised) border-(--line) text-(--accent) focus:ring-(--accent)/50"
                     />
-                    <span className="text-sm text-gray-300">{t("webSearch")}</span>
+                    <span className="text-sm text-(--text)">{t("webSearch")}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -213,21 +213,21 @@ export default function RankConfigManager() {
                       onChange={(e) =>
                         updateConfig(config.rank, "features.unlimited_gems", e.target.checked)
                       }
-                      className="w-4 h-4 rounded bg-white/5 border-white/10 text-blue-500 focus:ring-blue-500/50"
+                      className="w-4 h-4 rounded bg-(--raised) border-(--line) text-(--accent) focus:ring-(--accent)/50"
                     />
-                    <span className="text-sm text-gray-300">{t("unlimitedGems")}</span>
+                    <span className="text-sm text-(--text)">{t("unlimitedGems")}</span>
                   </label>
                 </div>
               </div>
 
               {/* Allowed Models Button */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-400 mb-2">
+                <label className="block text-sm font-medium text-(--muted) mb-2">
                   {t("allowedModels")}
                 </label>
                 <button
                   onClick={() => setModelModalRank(config.rank)}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 border border-purple-500/30 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-(--soft) text-(--accent) rounded-lg hover:bg-(--soft) border border-(--accent)/30 transition-colors"
                 >
                   <Cpu className="w-4 h-4" />
                   {t("configureModels")} ({config.allowed_models?.length || 0})
@@ -241,12 +241,12 @@ export default function RankConfigManager() {
       {/* Model Selection Modal */}
       {modelModalRank && currentModalConfig && (
         <Dialog open={!!modelModalRank} onOpenChange={(open) => !open && setModelModalRank(null)}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-[#0a0a0a] border-white/10 p-6 sm:rounded-xl">
-            <DialogTitle className="text-xl font-semibold text-white capitalize mb-4">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-(--surface) border-(--line) p-6 sm:rounded-xl">
+            <DialogTitle className="text-xl font-semibold text-(--text) capitalize mb-4">
               {modelModalRank} {t("models")}
             </DialogTitle>
 
-            <p className="text-sm text-gray-400 mb-4">{t("selectModelsForRank")}</p>
+            <p className="text-sm text-(--muted) mb-4">{t("selectModelsForRank")}</p>
 
             <div className="space-y-2">
               {SELECTABLE_MODELS.map((model) => {
@@ -256,19 +256,19 @@ export default function RankConfigManager() {
                     key={model.id}
                     className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
                       isSelected
-                        ? "bg-blue-500/20 border border-blue-500/30"
-                        : "bg-white/2 border border-white/10 hover:bg-white/5"
+                        ? "bg-(--soft) border border-(--accent)/30"
+                        : "bg-(--raised) border border-(--line) hover:bg-(--raised)"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleModel(modelModalRank, model.id)}
-                      className="mt-1 w-4 h-4 rounded bg-white/5 border-white/10 text-blue-500 focus:ring-blue-500/50"
+                      className="mt-1 w-4 h-4 rounded bg-(--raised) border-(--line) text-(--accent) focus:ring-(--accent)/50"
                     />
                     <div className="flex-1">
-                      <div className="font-medium text-white">{model.name || model.id}</div>
-                      <div className="text-xs text-gray-400">
+                      <div className="font-medium text-(--text)">{model.name || model.id}</div>
+                      <div className="text-xs text-(--muted)">
                         {t("contextTokens")}: {(model.contextWindow / 1000).toFixed(0)}K{" "}
                         {t("tokens")}
                       </div>
@@ -281,7 +281,7 @@ export default function RankConfigManager() {
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setModelModalRank(null)}
-                className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-colors"
+                className="px-4 py-2 bg-(--soft) text-(--accent) rounded-lg hover:bg-(--soft) border border-(--accent)/30 transition-colors"
               >
                 {t("done")}
               </button>

@@ -80,7 +80,7 @@ describe("SmartCode component", () => {
       const codeElement = container.querySelector("code");
       expect(codeElement).toBeInTheDocument();
       expect(codeElement?.textContent).toBe("const a = 1;");
-      expect(codeElement?.className).toContain("bg-(--control-bg)");
+      expect(codeElement?.className).toContain("bg-(--raised)");
       expect(codeElement?.className).toContain("text-(--accent)");
       expect(codeElement?.className).toContain("font-mono");
       expect(codeElement?.className).toContain("text-xs");
@@ -103,7 +103,7 @@ describe("SmartCode component", () => {
       expect(langBadge).toBeInTheDocument();
       expect(langBadge.className).toContain("font-mono");
       expect(langBadge.className).toContain("text-xs");
-      expect(langBadge.className).toContain("text-(--text-secondary)");
+      expect(langBadge.className).toContain("text-(--muted)");
 
       // Copy button exists with Copy text
       const copyButton = screen.getByRole("button", { name: /copy/i });
@@ -135,8 +135,8 @@ describe("SmartCode component", () => {
       );
 
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper.className).toContain("bg-(--surface-elevated)");
-      expect(wrapper.className).toContain("border-(--border)");
+      expect(wrapper.className).toContain("bg-(--surface)");
+      expect(wrapper.className).toContain("border-(--line)");
       expect(wrapper.className).not.toContain("card-surface");
       expect(wrapper.className).not.toContain("border-token");
     });
@@ -203,15 +203,15 @@ describe("SmartCode component", () => {
       // Gradient fade mask
       const gradientMask = container.querySelector(".bg-gradient-to-t");
       expect(gradientMask).toBeInTheDocument();
-      expect(gradientMask?.className).toContain("from-(--surface-elevated)");
+      expect(gradientMask?.className).toContain("from-(--surface)");
       expect(gradientMask?.className).toContain("to-transparent");
 
       // Expand code button
       const expandButton = screen.getByRole("button", { name: /expand code/i });
       expect(expandButton).toBeInTheDocument();
       expect(expandButton.className).toContain("text-xs");
-      expect(expandButton.className).toContain("text-(--text-secondary)");
-      expect(expandButton.className).toContain("hover:text-(--text-primary)");
+      expect(expandButton.className).toContain("text-(--muted)");
+      expect(expandButton.className).toContain("hover:text-(--text)");
       expect(expandButton.className).toContain("active:scale-[0.95]");
       expect(expandButton.className).toContain("focus-visible:ring-2");
     });
@@ -235,8 +235,8 @@ describe("SmartCode component", () => {
       const collapseButton = screen.getByRole("button", { name: /collapse code/i });
       expect(collapseButton).toBeInTheDocument();
       expect(collapseButton.className).toContain("text-xs");
-      expect(collapseButton.className).toContain("text-(--text-secondary)");
-      expect(collapseButton.className).toContain("hover:text-(--text-primary)");
+      expect(collapseButton.className).toContain("text-(--muted)");
+      expect(collapseButton.className).toContain("hover:text-(--text)");
 
       // Click Collapse button to collapse again
       fireEvent.click(collapseButton);

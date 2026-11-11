@@ -39,8 +39,8 @@ interface ChartData {
 
 const ChartTool = dynamic(() => import("./ChartTool"), {
   loading: () => (
-    <div className="w-full h-64 flex items-center justify-center bg-(--surface-muted) rounded-xl animate-pulse">
-      <span className="text-sm text-(--text-secondary)">Loading Chart...</span>
+    <div className="w-full h-64 flex items-center justify-center bg-(--raised) rounded-xl animate-pulse">
+      <span className="text-sm text-(--muted)">Loading Chart...</span>
     </div>
   ),
   ssr: false,
@@ -97,20 +97,20 @@ const mdComponents = {
     <p className="mb-5 last:mb-0 leading-relaxed break-words">{children}</p>
   ),
   h1: ({ children }: MarkdownChildrenProps) => (
-    <h1 className="mt-8 mb-4 text-xl md:text-2xl font-bold tracking-tight text-(--text-primary) border-b border-(--border) pb-2">
+    <h1 className="mt-8 mb-4 text-xl md:text-2xl font-bold tracking-tight text-(--text) border-b border-(--line) pb-2">
       {children}
     </h1>
   ),
   h2: ({ children }: MarkdownChildrenProps) => (
-    <h2 className="mt-7 mb-3 text-lg md:text-xl font-semibold tracking-tight text-(--text-primary)">
+    <h2 className="mt-7 mb-3 text-lg md:text-xl font-semibold tracking-tight text-(--text)">
       {children}
     </h2>
   ),
   h3: ({ children }: MarkdownChildrenProps) => (
-    <h3 className="mt-6 mb-2 text-base font-semibold text-(--text-primary)">{children}</h3>
+    <h3 className="mt-6 mb-2 text-base font-semibold text-(--text)">{children}</h3>
   ),
   blockquote: ({ children }: MarkdownChildrenProps) => (
-    <blockquote className="border-l-2 border-(--accent)/60 pl-4 py-1 my-4 text-(--text-secondary) italic">
+    <blockquote className="border-l-2 border-(--accent)/60 pl-4 py-1 my-4 text-(--muted) italic">
       {children}
     </blockquote>
   ),
@@ -132,20 +132,18 @@ const mdComponents = {
     </a>
   ),
   table: ({ children }: MarkdownChildrenProps) => (
-    <div className="overflow-x-auto my-4 rounded-lg border border-(--border) bg-(--surface-elevated)">
+    <div className="overflow-x-auto my-4 rounded-lg border border-(--line) bg-(--surface)">
       <table className="w-full text-left text-sm">{children}</table>
     </div>
   ),
   thead: ({ children }: MarkdownChildrenProps) => (
-    <thead className="bg-(--surface-muted) uppercase font-bold text-xs text-(--text-secondary)">
-      {children}
-    </thead>
+    <thead className="bg-(--raised) uppercase font-bold text-xs text-(--muted)">{children}</thead>
   ),
   th: ({ children }: MarkdownChildrenProps) => (
-    <th className="px-4 py-3 border-b border-(--border) text-(--text-primary)">{children}</th>
+    <th className="px-4 py-3 border-b border-(--line) text-(--text)">{children}</th>
   ),
   td: ({ children }: MarkdownChildrenProps) => (
-    <td className="px-4 py-3 border-b border-(--border) text-(--text-secondary)">{children}</td>
+    <td className="px-4 py-3 border-b border-(--line) text-(--muted)">{children}</td>
   ),
 };
 
@@ -169,10 +167,6 @@ export const BubbleMarkdown = React.memo(function BubbleMarkdown({
   isLastAssistant = false,
   className = "",
 }: BubbleMarkdownProps) {
-  if (isBot === false) {
-    return <span className={`whitespace-pre-wrap break-words ${className}`}>{content}</span>;
-  }
-
   const rehypePlugins = React.useMemo<
     React.ComponentProps<typeof ReactMarkdown>["rehypePlugins"]
   >(() => {
@@ -180,6 +174,10 @@ export const BubbleMarkdown = React.memo(function BubbleMarkdown({
       ? [rehypeRaw, [rehypeSanitize, SANITIZE_SCHEMA]]
       : [rehypeRaw, [rehypeSanitize, SANITIZE_SCHEMA], rehypeHighlight];
   }, [isStreaming]);
+
+  if (isBot === false) {
+    return <span className={`whitespace-pre-wrap break-words ${className}`}>{content}</span>;
+  }
 
   return (
     <div

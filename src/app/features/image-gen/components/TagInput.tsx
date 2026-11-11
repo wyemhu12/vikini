@@ -84,7 +84,7 @@ export default function TagInput({
         {tags.map((tag) => (
           <span
             key={tag}
-            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
+            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-(--success)/15 text-(--success) border border-(--success)/20"
           >
             <Tag className="w-2.5 h-2.5" />
             {tag}
@@ -97,7 +97,7 @@ export default function TagInput({
               setIsEditing(true);
               setTimeout(() => inputRef.current?.focus(), 50);
             }}
-            className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 border border-emerald-500/25 hover:border-emerald-500/40 transition-colors shadow-sm"
+            className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-bold bg-(--success)/15 text-(--success) hover:bg-(--success)/25 hover:text-(--success) border border-(--success)/25 hover:border-(--success)/40 transition-colors shadow-sm"
             title={t("studioAddTagTooltip")}
           >
             <Plus className="w-2.5 h-2.5" />
@@ -112,7 +112,7 @@ export default function TagInput({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-1 p-1.5 rounded-lg bg-black/40 backdrop-blur-md border border-white/10",
+        "flex flex-wrap items-center gap-1 p-1.5 rounded-lg bg-(--bg) backdrop-blur-md border border-(--line)",
         className
       )}
       onClick={(e) => e.stopPropagation()}
@@ -120,12 +120,12 @@ export default function TagInput({
       {tags.map((tag) => (
         <span
           key={tag}
-          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
+          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-(--success)/15 text-(--success) border border-(--success)/20"
         >
           {tag}
           <button
             onClick={() => removeTag(tag)}
-            className="hover:text-red-300 transition-colors"
+            className="hover:text-(--danger) transition-colors"
             disabled={saving}
           >
             <X className="w-2.5 h-2.5" />
@@ -145,11 +145,11 @@ export default function TagInput({
           }}
           placeholder={t("studioAddTag")}
           maxLength={30}
-          className="flex-1 min-w-[60px] bg-transparent text-[10px] text-white/80 placeholder:text-white/30 outline-none"
+          className="flex-1 min-w-[60px] bg-transparent text-xs text-(--muted) placeholder:text-(--muted) outline-none"
         />
       )}
       {tags.length >= MAX_TAGS && (
-        <span className="text-[9px] text-amber-400/60">{t("studioTagsMax")}</span>
+        <span className="text-xs text-(--warning)">{t("studioTagsMax")}</span>
       )}
     </div>
   );

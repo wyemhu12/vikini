@@ -165,16 +165,16 @@ export default function ProjectPage() {
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Breadcrumb */}
         <nav aria-label="Breadcrumb">
-          <div className="flex items-center gap-1.5 text-xs text-(--text-secondary)">
-            <Link href="/" className="hover:text-(--text-primary) transition-colors">
+          <div className="flex items-center gap-1.5 text-xs text-(--muted)">
+            <Link href="/" className="hover:text-(--text) transition-colors">
               {t("home") || "Home"}
             </Link>
             <span className="opacity-40">/</span>
-            <Link href="/" className="hover:text-(--text-primary) transition-colors">
+            <Link href="/" className="hover:text-(--text) transition-colors">
               {t("projects") || "Projects"}
             </Link>
             <span className="opacity-40">/</span>
-            <span className="text-(--text-primary) font-medium truncate max-w-[200px]">
+            <span className="text-(--text) font-medium truncate max-w-[200px]">
               {project?.name || "..."}
             </span>
           </div>
@@ -227,7 +227,7 @@ export default function ProjectPage() {
 
           <div className="grid gap-8 md:grid-cols-2">
             {/* Knowledge Base Panel */}
-            <div className="bg-(--surface) rounded-xl border border-(--border) overflow-hidden">
+            <div className="bg-(--surface) rounded-xl border border-(--line) overflow-hidden">
               <KnowledgePanel
                 projectId={projectId}
                 documents={documents}
@@ -243,26 +243,26 @@ export default function ProjectPage() {
             {/* Project Info */}
             <div className="space-y-6">
               {/* Stats */}
-              <div className="bg-(--surface) rounded-xl border border-(--border) p-6">
+              <div className="bg-(--surface) rounded-xl border border-(--line) p-6">
                 <h2 className="font-semibold mb-4 flex items-center gap-2">
                   <Settings className="h-4 w-4" />
                   {t("projectInfo")}
                 </h2>
                 <dl className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <dt className="text-(--text-secondary)">{t("projectDocuments")}</dt>
+                    <dt className="text-(--muted)">{t("projectDocuments")}</dt>
                     <dd className="font-medium">{project?.document_count || 0}</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-(--text-secondary)">{t("projectConversations")}</dt>
+                    <dt className="text-(--muted)">{t("projectConversations")}</dt>
                     <dd className="font-medium">{project?.conversation_count || 0}</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-(--text-secondary)">{t("projectEmbeddingModel")}</dt>
+                    <dt className="text-(--muted)">{t("projectEmbeddingModel")}</dt>
                     <dd className="font-mono text-xs">{project?.embedding_model || "-"}</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-(--text-secondary)">{t("projectCreated")}</dt>
+                    <dt className="text-(--muted)">{t("projectCreated")}</dt>
                     <dd className="font-medium">
                       {project?.created_at
                         ? new Date(project.created_at).toLocaleDateString()
@@ -273,9 +273,9 @@ export default function ProjectPage() {
               </div>
 
               {/* Usage Tips */}
-              <div className="bg-(--surface) rounded-xl border border-(--border) p-6">
+              <div className="bg-(--surface) rounded-xl border border-(--line) p-6">
                 <h2 className="font-semibold mb-3">{t("projectHowToUse")}</h2>
-                <ul className="text-sm text-(--text-secondary) space-y-2">
+                <ul className="text-sm text-(--muted) space-y-2">
                   <li>{t("projectHint1")}</li>
                   <li>{t("projectHint2")}</li>
                   <li>{t("projectHint3")}</li>
@@ -283,7 +283,7 @@ export default function ProjectPage() {
               </div>
 
               {/* Conversations in this project */}
-              <div className="bg-(--surface) rounded-xl border border-(--border) p-6">
+              <div className="bg-(--surface) rounded-xl border border-(--line) p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-semibold flex items-center gap-2">
                     <MessageSquare className="h-4 w-4" />
@@ -321,7 +321,7 @@ export default function ProjectPage() {
                 </div>
 
                 {projectConversations.length === 0 ? (
-                  <p className="text-sm text-(--text-secondary) text-center py-4">
+                  <p className="text-sm text-(--muted) text-center py-4">
                     {t("noConversationsYet")}
                   </p>
                 ) : (
@@ -331,13 +331,13 @@ export default function ProjectPage() {
                         key={conv.id}
                         className={cn(
                           "flex items-center justify-between p-3 rounded-lg",
-                          "bg-(--control-bg) hover:bg-(--control-bg-hover)",
+                          "bg-(--raised) hover:bg-(--raised)",
                           "cursor-pointer transition-colors group"
                         )}
                         onClick={() => router.push(`/?id=${conv.id}`)}
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <MessageSquare className="h-4 w-4 text-(--text-secondary) shrink-0" />
+                          <MessageSquare className="h-4 w-4 text-(--muted) shrink-0" />
                           <span className="text-sm truncate">
                             {conv.title || t("newConversation")}
                           </span>

@@ -75,7 +75,7 @@ export function ImageGenStudio() {
   }
 
   return (
-    <div className="h-screen w-screen text-(--text-primary) overflow-hidden relative font-sans bg-(--surface) flex">
+    <div className="h-screen w-screen text-(--text) overflow-hidden relative font-sans bg-(--surface) flex">
       {/* API Key Warning Modal */}
       <AlertDialog open={studio.showApiKeyWarning} onOpenChange={studio.setShowApiKeyWarning}>
         <AlertDialogContent>
@@ -136,7 +136,7 @@ export function ImageGenStudio() {
                 studio.setShowError(null);
                 void studio.handleGenerate();
               }}
-              className="bg-(--accent) text-(--accent-foreground) hover:brightness-110"
+              className="bg-(--accent) text-(--on-accent) hover:brightness-110"
             >
               {t("studioRetry")}
             </AlertDialogAction>
@@ -175,13 +175,13 @@ export function ImageGenStudio() {
         {/* Main content area */}
         <div className="flex flex-col md:flex-row h-full w-full relative overflow-hidden bg-(--surface)">
           {/* Mobile Tab Bar */}
-          <div className="md:hidden flex border-b border-(--border) bg-(--surface) shrink-0 z-10">
+          <div className="md:hidden flex border-b border-(--line) bg-(--surface) shrink-0 z-10">
             <button
               onClick={() => studio.setMobileTab("studio")}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors relative ${
                 studio.mobileTab === "studio"
-                  ? "text-(--text-primary)"
-                  : "text-(--text-secondary) hover:text-(--text-primary)"
+                  ? "text-(--text)"
+                  : "text-(--muted) hover:text-(--text)"
               }`}
             >
               <Wand2 className="w-4 h-4" />
@@ -189,7 +189,7 @@ export function ImageGenStudio() {
               {studio.mobileTab === "studio" && (
                 <motion.div
                   layoutId="mobileTabIndicator"
-                  className="absolute bottom-0 left-2 right-2 h-0.5 bg-(--primary) rounded-full"
+                  className="absolute bottom-0 left-2 right-2 h-0.5 bg-(--accent) rounded-full"
                 />
               )}
             </button>
@@ -197,21 +197,21 @@ export function ImageGenStudio() {
               onClick={() => studio.setMobileTab("results")}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors relative ${
                 studio.mobileTab === "results"
-                  ? "text-(--text-primary)"
-                  : "text-(--text-secondary) hover:text-(--text-primary)"
+                  ? "text-(--text)"
+                  : "text-(--muted) hover:text-(--text)"
               }`}
             >
               <Images className="w-4 h-4" />
               {t("studioTabResults")}
               {studio.generatedImages.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-xs font-bold rounded-full bg-(--primary)/20 text-(--primary)">
+                <span className="ml-1 px-1.5 py-0.5 text-xs font-bold rounded-full bg-(--accent)/20 text-(--accent)">
                   {studio.generatedImages.length}
                 </span>
               )}
               {studio.mobileTab === "results" && (
                 <motion.div
                   layoutId="mobileTabIndicator"
-                  className="absolute bottom-0 left-2 right-2 h-0.5 bg-(--primary) rounded-full"
+                  className="absolute bottom-0 left-2 right-2 h-0.5 bg-(--accent) rounded-full"
                 />
               )}
             </button>
@@ -332,7 +332,7 @@ export function ImageGenStudio() {
                 onChange={(e) => studio.setRenameValue(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && studio.confirmRename()}
                 autoFocus
-                className="w-full mt-2 px-4 py-3 rounded-lg bg-(--control-bg) border border-(--control-border) text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:ring-2 focus:ring-(--accent)/50"
+                className="w-full mt-2 px-4 py-3 rounded-lg bg-(--raised) border border-(--line) text-(--text) placeholder:text-(--muted) focus:outline-none focus:ring-2 focus:ring-(--accent)/50"
                 placeholder={t("renameChat") || "Enter new name"}
               />
             </AlertDialogDescription>

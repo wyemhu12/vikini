@@ -12,8 +12,7 @@ import { THEME_FAMILIES, isThemeFamilyId, isThemeMode } from "@/lib/config/theme
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { useTheme } from "../../chat/hooks/useTheme";
 
-const LABEL_CLASS =
-  "text-xs font-bold uppercase tracking-widest text-(--text-secondary) px-2 py-1.5";
+const LABEL_CLASS = "text-xs font-bold uppercase tracking-widest text-(--muted) px-2 py-1.5";
 
 /** Shared theme picker body: 5 theme families + dark/light mode, as dropdown radio groups. */
 export default function ThemeMenuItems() {
@@ -35,7 +34,7 @@ export default function ThemeMenuItems() {
           >
             <span
               aria-hidden
-              className="h-3 w-3 rounded-full shrink-0 border border-(--border)"
+              className="h-3 w-3 rounded-full shrink-0 border border-(--line)"
               style={{ backgroundColor: item.swatch[mode] }}
             />
             <span className="flex-1 truncate">{t(item.labelKey)}</span>

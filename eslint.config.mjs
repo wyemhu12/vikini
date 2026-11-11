@@ -1,7 +1,9 @@
 import js from "@eslint/js";
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsparser from "@typescript-eslint/parser";
+import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
+import { vikiniDesignPlugin } from "./scripts/vikini-design-lint.mjs";
 
 export default [
   js.configs.recommended,
@@ -21,22 +23,32 @@ export default [
     },
     plugins: {
       "@typescript-eslint": tseslint,
+      "react-hooks": reactHooks,
     },
     rules: {
+      // =====================================================
+      // REACT HOOKS
+      // =====================================================
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+
       // =====================================================
       // CONSOLE RULES
       // =====================================================
       // Warn for console.log, allow warn/error for production logging
-      "no-console": ["error", {
-        allow: ["warn", "error"]
-      }],
+      "no-console": [
+        "error",
+        {
+          allow: ["warn", "error"],
+        },
+      ],
 
       // =====================================================
       // CODE QUALITY
       // =====================================================
       "prefer-const": "warn",
       "no-var": "error",
-      "eqeqeq": ["error", "always", { null: "ignore" }],
+      eqeqeq: ["error", "always", { null: "ignore" }],
       "no-duplicate-imports": "error",
 
       // =====================================================
@@ -44,11 +56,14 @@ export default [
       // =====================================================
       // Turn off base rule in favor of TypeScript-aware version
       "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": ["error", {
-        argsIgnorePattern: "^_",
-        varsIgnorePattern: "^_",
-        caughtErrorsIgnorePattern: "^_",
-      }],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
 
       // IMPORTANT: Prevent `any` type usage for type safety
       // Use `unknown` instead and narrow with type guards
@@ -73,7 +88,7 @@ export default [
       // BEST PRACTICES
       // =====================================================
       // Enforce curly braces for all control statements
-      "curly": ["warn", "multi-line"],
+      curly: ["warn", "multi-line"],
 
       // No assignment in conditional expressions
       "no-cond-assign": ["error", "except-parens"],
@@ -85,18 +100,40 @@ export default [
       "no-unreachable": "warn",
 
       // Disallow unused expressions
-      "no-unused-expressions": ["warn", {
-        allowShortCircuit: true,
-        allowTernary: true,
-        allowTaggedTemplates: true,
-      }],
+      "no-unused-expressions": [
+        "warn",
+        {
+          allowShortCircuit: true,
+          allowTernary: true,
+          allowTaggedTemplates: true,
+        },
+      ],
 
       // Disable no-undef for TypeScript — tsc handles this far better.
       // ESLint's no-undef doesn't understand TS globals, JSX automatic runtime,
       // or type-only imports, causing false positives (e.g. 'React' is not defined).
       // See: https://typescript-eslint.io/troubleshooting/faqs/eslint
       "no-undef": "off",
-    }
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+    plugins: {
+      "vikini-design": vikiniDesignPlugin,
+    },
+    rules: {
+      "vikini-design/no-raw-tailwind-colors": "error",
+      "vikini-design/no-legacy-tokens": "error",
+      "vikini-design/no-sub-12px-text": "error",
+    },
+  },
+  {
+    files: ["tests/e2e/**/*.{ts,tsx}"],
+    rules: {
+      // Playwright's fixture callback parameter `use` is not `React.use()`
+      "react-hooks/rules-of-hooks": "off",
+    },
   },
   {
     ignores: [
@@ -110,6 +147,6 @@ export default [
       "*.config.{js,mjs,ts}",
       "inspect_ai.ts",
       "src/types/database.types.ts",
-    ]
-  }
+    ],
+  },
 ];

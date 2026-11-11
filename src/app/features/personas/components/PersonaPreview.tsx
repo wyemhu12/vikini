@@ -43,36 +43,34 @@ export default function PersonaPreview({ persona }: PersonaPreviewProps) {
   return (
     <div className="h-full flex flex-col p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div className="flex items-center gap-3 mb-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-(--primary) text-2xl text-black shadow-lg">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-(--accent) text-2xl text-(--on-accent) shadow-lg">
           <DynamicIcon name={persona.icon} className="w-6 h-6" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-(--text-primary)">{persona.name}</h2>
-          <span className="rounded bg-(--control-bg) px-1.5 py-0.5 text-xs text-(--text-secondary)">
+          <h2 className="text-lg font-bold text-(--text)">{persona.name}</h2>
+          <span className="rounded bg-(--raised) px-1.5 py-0.5 text-xs text-(--muted)">
             {TONE_LABELS[persona.tone] || persona.tone}
           </span>
         </div>
       </div>
 
-      <div className="space-y-4 flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[var(--control-border)]">
+      <div className="space-y-4 flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[var(--line)]">
         <div>
-          <label className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider block mb-1">
+          <label className="text-xs font-semibold text-(--muted) uppercase tracking-wider block mb-1">
             {t("personaDescription") || "Description"}
           </label>
-          <div className="text-sm text-(--text-primary) bg-(--surface-muted) p-3 rounded-lg border border-(--border)">
-            {persona.description || (
-              <span className="italic text-(--text-secondary)">No description</span>
-            )}
+          <div className="text-sm text-(--text) bg-(--raised) p-3 rounded-lg border border-(--line)">
+            {persona.description || <span className="italic text-(--muted)">No description</span>}
           </div>
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider block mb-1">
+          <label className="text-xs font-semibold text-(--muted) uppercase tracking-wider block mb-1">
             {t("personaTone") || "Tone & Style"}
           </label>
-          <div className="text-sm text-(--text-primary) bg-(--surface-muted) p-3 rounded-lg border border-(--border) flex items-center gap-2">
+          <div className="text-sm text-(--text) bg-(--raised) p-3 rounded-lg border border-(--line) flex items-center gap-2">
             <span className="font-medium">{TONE_LABELS[persona.tone] || persona.tone}</span>
-            <span className="text-(--text-secondary) text-xs">
+            <span className="text-(--muted) text-xs">
               {persona.useEmojis ? " Emojis" : " No Emojis"}
               {" · "}
               {persona.useHeadersLists ? " Headers & Lists" : " No Headers"}
@@ -82,22 +80,22 @@ export default function PersonaPreview({ persona }: PersonaPreviewProps) {
 
         {persona.userContext && (
           <div>
-            <label className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider block mb-1">
+            <label className="text-xs font-semibold text-(--muted) uppercase tracking-wider block mb-1">
               {t("personaUserContext") || "User Context"}
             </label>
-            <div className="text-sm text-(--text-primary) bg-(--surface-muted) p-3 rounded-lg border border-(--border) whitespace-pre-wrap font-mono text-xs leading-relaxed max-h-[200px] overflow-y-auto">
+            <div className="text-sm text-(--text) bg-(--raised) p-3 rounded-lg border border-(--line) whitespace-pre-wrap font-mono text-xs leading-relaxed max-h-[200px] overflow-y-auto">
               {persona.userContext}
             </div>
           </div>
         )}
 
         <div>
-          <label className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider block mb-1">
+          <label className="text-xs font-semibold text-(--muted) uppercase tracking-wider block mb-1">
             {t("personaCustomInstructions") || "Custom Instructions"}
           </label>
-          <div className="text-sm text-(--text-primary) bg-(--surface-muted) p-3 rounded-lg border border-(--border) whitespace-pre-wrap font-mono text-xs leading-relaxed max-h-[400px] overflow-y-auto">
+          <div className="text-sm text-(--text) bg-(--raised) p-3 rounded-lg border border-(--line) whitespace-pre-wrap font-mono text-xs leading-relaxed max-h-[400px] overflow-y-auto">
             {persona.customInstructions || (
-              <span className="italic text-(--text-secondary)">No custom instructions</span>
+              <span className="italic text-(--muted)">No custom instructions</span>
             )}
           </div>
         </div>

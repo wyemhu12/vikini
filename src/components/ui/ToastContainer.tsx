@@ -35,10 +35,10 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
   };
 
   const colors = {
-    success: "bg-(--success)/10 border-(--success)/30 text-(--text-primary)",
-    error: "bg-(--danger)/10 border-(--danger)/30 text-(--text-primary)",
-    info: "bg-(--accent)/10 border-(--accent)/30 text-(--text-primary)",
-    warning: "bg-(--warning)/10 border-(--warning)/30 text-(--text-primary)",
+    success: "bg-(--success)/10 border-(--success)/30 text-(--text)",
+    error: "bg-(--danger)/10 border-(--danger)/30 text-(--text)",
+    info: "bg-(--accent)/10 border-(--accent)/30 text-(--text)",
+    warning: "bg-(--warning)/10 border-(--warning)/30 text-(--text)",
   };
 
   return (
@@ -58,7 +58,7 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
       <button
         onClick={() => onRemove(toast.id)}
         aria-label={t("dismissNotification")}
-        className="mt-0.5 text-(--text-secondary) hover:text-(--text-primary) transition-colors rounded-md focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+        className="mt-0.5 text-(--muted) hover:text-(--text) transition-colors rounded-md focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
       >
         <X className="w-4 h-4" />
       </button>

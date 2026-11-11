@@ -79,7 +79,7 @@ export default function NovelcrafterHistoryCardItem({
   return (
     <article
       data-testid={`history-card-${card.id}`}
-      className="rounded-2xl border border-(--border) bg-(--surface-elevated)/90 p-3.5 space-y-2.5 shadow-sm transition-all"
+      className="rounded-2xl border border-(--line) bg-(--surface)/90 p-3.5 space-y-2.5 shadow-sm transition-all"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-1.5 min-w-0 flex-1">
@@ -99,7 +99,7 @@ export default function NovelcrafterHistoryCardItem({
           type="button"
           onClick={() => onDeleteCard(card.id)}
           aria-label={t("novelcrafterDeleteCard")}
-          className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--danger) hover:bg-(--danger)/10 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
+          className="p-1.5 rounded-lg text-(--muted) hover:text-(--danger) hover:bg-(--danger)/10 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -111,7 +111,7 @@ export default function NovelcrafterHistoryCardItem({
           id={contentBodyId}
           ref={contentRef}
           className={cn(
-            "text-xs md:text-sm text-(--text-primary) whitespace-pre-wrap leading-relaxed transition-[max-height] duration-200",
+            "text-xs md:text-sm text-(--text) whitespace-pre-wrap leading-relaxed transition-[max-height] duration-200",
             isExpanded ? "max-h-none overflow-visible" : "max-h-[180px] overflow-hidden"
           )}
         >
@@ -121,7 +121,7 @@ export default function NovelcrafterHistoryCardItem({
         {!isExpanded && isOverflowing && (
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-linear-to-t from-(--surface-elevated) to-transparent"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-linear-to-t from-(--surface) to-transparent"
           />
         )}
       </div>
@@ -132,7 +132,7 @@ export default function NovelcrafterHistoryCardItem({
           aria-expanded={isExpanded}
           aria-controls={contentBodyId}
           onClick={() => setIsExpanded((prev) => !prev)}
-          className="w-full py-1 px-2.5 rounded-lg border border-(--border) bg-(--control-bg)/70 hover:bg-(--control-bg-hover) text-xs font-semibold text-(--accent) inline-flex items-center justify-center gap-1 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+          className="w-full py-1 px-2.5 rounded-lg border border-(--line) bg-(--raised)/70 hover:bg-(--raised) text-xs font-semibold text-(--accent) inline-flex items-center justify-center gap-1 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
         >
           {isExpanded ? (
             <>
@@ -150,7 +150,7 @@ export default function NovelcrafterHistoryCardItem({
 
       {/* Parsed 3 Openings Quick-Insert Buttons (UX-03) */}
       {threeOpenings && (
-        <div className="pt-1.5 border-t border-(--border)/60 flex items-center gap-1.5 flex-wrap">
+        <div className="pt-1.5 border-t border-(--line)/60 flex items-center gap-1.5 flex-wrap">
           {threeOpenings.map((openingOpt, idx) => (
             <button
               key={idx}
@@ -171,7 +171,7 @@ export default function NovelcrafterHistoryCardItem({
       )}
 
       {/* Card Actions */}
-      <div className="pt-2 border-t border-(--border) flex items-center gap-1.5 flex-wrap">
+      <div className="pt-2 border-t border-(--line) flex items-center gap-1.5 flex-wrap">
         {!isFeedbackCard &&
           (card.feature === "bible" && card.bibleTarget && card.bibleTarget !== "draft" ? (
             <button
@@ -180,7 +180,7 @@ export default function NovelcrafterHistoryCardItem({
                 onApplyToBible(card.bibleTarget!, cleanContent);
                 toast.success(t("novelcrafterCardAppliedToast"));
               }}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring)"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-(--accent) text-(--on-accent) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring)"
             >
               <BookCheck className="w-3.5 h-3.5" />
               <span>
@@ -194,7 +194,7 @@ export default function NovelcrafterHistoryCardItem({
                 onAppendToChapter(cleanContent);
                 toast.success(t("novelcrafterCardAppliedToast"));
               }}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring)"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-(--accent) text-(--on-accent) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring)"
             >
               <ArrowLeftToLine className="w-3.5 h-3.5" />
               <span>{t("novelcrafterAppendChapter")}</span>
@@ -208,7 +208,7 @@ export default function NovelcrafterHistoryCardItem({
               onReplaceSelection(cleanContent);
               toast.success(t("novelcrafterCardAppliedToast"));
             }}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring)"
           >
             <Replace className="w-3.5 h-3.5" />
             <span>{t("novelcrafterReplaceSelection")}</span>
@@ -219,7 +219,7 @@ export default function NovelcrafterHistoryCardItem({
           type="button"
           onClick={() => void onCopy(cleanContent)}
           aria-label={t("copy")}
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-secondary) hover:text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--muted) hover:text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring)"
         >
           <Copy className="w-3.5 h-3.5" />
           <span>{t("copy")}</span>

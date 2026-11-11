@@ -53,11 +53,11 @@ export const BubbleAvatar = React.memo(function BubbleAvatar({
           ? isLoading
             ? "border-(--accent)/30 bg-(--accent)/10 shadow-[0_0_15px_rgba(var(--accent-rgb,59,130,246),0.1)]"
             : isActivelyThinking
-              ? "border-(--accent)/40 bg-(--surface-elevated) text-(--text-primary) shadow-[0_0_15px_rgba(var(--accent-rgb,59,130,246),0.2)]"
+              ? "border-(--accent)/40 bg-(--surface) text-(--text) shadow-[0_0_15px_rgba(var(--accent-rgb,59,130,246),0.2)]"
               : isStreaming
-                ? "border-(--accent)/30 bg-(--surface-elevated) text-(--text-primary)"
-                : "border-(--border) bg-(--surface-elevated) text-(--text-primary)"
-          : "border-(--accent)/20 bg-(--accent) text-(--accent-foreground)"
+                ? "border-(--accent)/30 bg-(--surface) text-(--text)"
+                : "border-(--line) bg-(--surface) text-(--text)"
+          : "border-(--accent)/20 bg-(--accent) text-(--on-accent)"
       }`}
     >
       {isBot ? (

@@ -111,7 +111,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         id: `conv-${conv.id}`,
         title: conv.title || "New Chat",
         category: "conversations",
-        icon: <MessageSquare className="w-4 h-4 text-(--text-secondary)" />,
+        icon: <MessageSquare className="w-4 h-4 text-(--muted)" />,
         perform: () => {
           onClose();
           onSelectConversation?.(conv.id);
@@ -159,14 +159,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-xl p-0 gap-0 overflow-hidden bg-(--surface-elevated) border-(--border)">
+      <DialogContent className="max-w-xl p-0 gap-0 overflow-hidden bg-(--surface) border-(--line)">
         <DialogHeader className="sr-only">
           <DialogTitle>{t("commandPalette") || "Command Palette"}</DialogTitle>
         </DialogHeader>
 
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 py-3 border-b border-(--border) gap-3 focus-within:bg-(--raised)/40">
-          <Search className="w-5 h-5 text-(--text-secondary) shrink-0" />
+        <div className="flex items-center px-4 py-3 border-b border-(--line) gap-3 focus-within:bg-(--raised)/40">
+          <Search className="w-5 h-5 text-(--muted) shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -179,14 +179,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             placeholder={t("commandPalettePlaceholder") || "Type a command or search..."}
             aria-keyshortcuts="Escape"
             data-focus-ring="container"
-            className="flex-1 bg-transparent text-(--text-primary) placeholder:text-(--text-secondary) outline-none focus-visible:outline-none focus-visible:ring-0 text-base"
+            className="flex-1 bg-transparent text-(--text) placeholder:text-(--muted) outline-none focus-visible:outline-none focus-visible:ring-0 text-base"
           />
         </div>
 
         {/* Results List */}
         <div className="max-h-80 overflow-y-auto p-2 space-y-1">
           {filtered.length === 0 ? (
-            <div className="p-6 text-center text-sm text-(--text-secondary)">
+            <div className="p-6 text-center text-sm text-(--muted)">
               {t("commandPaletteNoResults") || "No matching commands or chats found"}
             </div>
           ) : (
@@ -201,15 +201,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   className={cn(
                     "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left text-sm transition-colors cursor-pointer",
                     isSelected
-                      ? "bg-(--control-bg-hover) text-(--text-primary)"
-                      : "text-(--text-secondary) hover:text-(--text-primary)"
+                      ? "bg-(--raised) text-(--text)"
+                      : "text-(--muted) hover:text-(--text)"
                   )}
                 >
                   <div className="flex items-center gap-3 truncate">
                     {cmd.icon}
                     <span className="truncate">{cmd.title}</span>
                   </div>
-                  {isSelected && <span className="text-[11px] text-(--accent) font-medium">↵</span>}
+                  {isSelected && <span className="text-xs text-(--accent) font-medium">↵</span>}
                 </button>
               );
             })

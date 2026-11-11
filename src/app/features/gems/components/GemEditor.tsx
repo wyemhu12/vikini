@@ -94,7 +94,7 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
             onClick={save}
             disabled={!canSave}
             aria-label={t("saveGem") || "Save"}
-            className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg bg-(--accent) px-3 py-2 text-sm font-medium text-(--on-accent) transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t("saveGem")}
           </button>
@@ -104,19 +104,17 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
       <div className="space-y-3">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <div className="md:col-span-2">
-            <label className="mb-1 block text-xs text-(--text-secondary)">{t("gemName")}</label>
+            <label className="mb-1 block text-xs text-(--muted)">{t("gemName")}</label>
             <Input
               value={name}
               onChange={handleChange(setName)}
               disabled={isReadOnly}
               placeholder={t("gemPlaceholderName")}
-              className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm disabled:opacity-60"
+              className="w-full bg-(--raised) border-(--line) focus-visible:ring-1 focus-visible:ring-(--accent) text-(--text) px-3 py-2 text-sm disabled:opacity-60"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-(--text-secondary)">
-              {t("selectIcon") || "Icon"}
-            </label>
+            <label className="mb-1 block text-xs text-(--muted)">{t("selectIcon") || "Icon"}</label>
             <IconPicker
               value={icon}
               onSelect={(selectedIcon) => {
@@ -129,29 +127,25 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-(--text-secondary)">
-            {t("gemDescription")}
-          </label>
+          <label className="mb-1 block text-xs text-(--muted)">{t("gemDescription")}</label>
           <Input
             value={description}
             onChange={handleChange(setDescription)}
             disabled={isReadOnly}
             placeholder={t("gemPlaceholderDesc")}
-            className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm disabled:opacity-60"
+            className="w-full bg-(--raised) border-(--line) focus-visible:ring-1 focus-visible:ring-(--accent) text-(--text) px-3 py-2 text-sm disabled:opacity-60"
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-(--text-secondary)">
-            {t("gemInstructions")}
-          </label>
+          <label className="mb-1 block text-xs text-(--muted)">{t("gemInstructions")}</label>
           <Textarea
             value={instructions}
             onChange={handleChange(setInstructions)}
             disabled={isReadOnly}
             rows={14}
             placeholder={t("gemPlaceholderInst")}
-            className="w-full resize-y bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm leading-6 disabled:opacity-60"
+            className="w-full resize-y bg-(--raised) border-(--line) focus-visible:ring-1 focus-visible:ring-(--accent) text-(--text) px-3 py-2 text-sm leading-6 disabled:opacity-60"
           />
         </div>
       </div>

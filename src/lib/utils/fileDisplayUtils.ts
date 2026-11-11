@@ -36,13 +36,13 @@ export const KIND_ICONS: Record<FileKind, React.ElementType> = {
 
 /** Tailwind color class mapped by FileKind (for dark-on-light and light-on-dark). */
 export const KIND_COLORS: Record<FileKind, string> = {
-  image: "text-pink-500",
-  video: "text-purple-500",
-  audio: "text-amber-500",
-  document: "text-red-500",
-  text: "text-blue-500",
-  archive: "text-green-500",
-  other: "text-(--text-secondary)",
+  image: "text-(--accent)",
+  video: "text-(--accent)",
+  audio: "text-(--warning)",
+  document: "text-(--danger)",
+  text: "text-(--accent)",
+  archive: "text-(--success)",
+  other: "text-(--muted)",
 };
 
 // ─── Filename Truncation ─────────────────────────────────────────────

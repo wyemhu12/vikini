@@ -84,10 +84,10 @@ function ChipSelector({
           key={opt.id}
           onClick={() => onSelect(selected === opt.id ? null : opt.id)}
           className={cn(
-            "px-2 py-1 rounded-full text-[10px] font-medium border transition-colors",
+            "px-2 py-1 rounded-full text-xs font-medium border transition-colors",
             selected === opt.id
-              ? "bg-purple-500/20 border-purple-500/40 text-purple-300 ring-1 ring-purple-500/30"
-              : "bg-(--surface-elevated) border-(--border) text-(--text-secondary) hover:bg-purple-500/10 hover:border-purple-500/20"
+              ? "bg-(--soft) border-(--accent)/40 text-(--accent) ring-1 ring-(--accent)/30"
+              : "bg-(--surface) border-(--line) text-(--muted) hover:bg-(--soft) hover:border-(--accent)/20"
           )}
         >
           {opt.icon && <span className="mr-0.5">{opt.icon}</span>}
@@ -187,7 +187,7 @@ export default function PromptBuilder({ onBuildPrompt }: PromptBuilderProps) {
     <div className="space-y-3">
       {/* Subject textarea */}
       <div className="space-y-1.5">
-        <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
           <Crosshair className="w-3 h-3" />
           {t("pbSubject")}
         </Label>
@@ -204,16 +204,16 @@ export default function PromptBuilder({ onBuildPrompt }: PromptBuilderProps) {
         const Icon = section.icon;
         const isExpanded = expandedSection === section.id;
         return (
-          <div key={section.id} className="border border-(--border) rounded-lg overflow-hidden">
+          <div key={section.id} className="border border-(--line) rounded-lg overflow-hidden">
             <button
               onClick={() => toggleSection(section.id)}
-              className="w-full flex items-center justify-between px-3 py-2 bg-(--surface-elevated) hover:bg-(--control-bg-hover) transition-colors"
+              className="w-full flex items-center justify-between px-3 py-2 bg-(--surface) hover:bg-(--raised) transition-colors"
             >
-              <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <Icon className="w-3 h-3" />
                 {t(section.labelKey)}
                 {section.value && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 text-[9px] font-medium normal-case">
+                  <span className="px-1.5 py-0.5 rounded-full bg-(--soft) text-(--accent) text-xs font-medium normal-case">
                     {t(section.options.find((o) => o.id === section.value)?.labelKey || "")}
                   </span>
                 )}
@@ -241,10 +241,10 @@ export default function PromptBuilder({ onBuildPrompt }: PromptBuilderProps) {
       {/* Preview */}
       {builtPrompt && (
         <div className="space-y-1.5">
-          <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("pbPreview")}
           </Label>
-          <div className="p-2.5 rounded-lg bg-(--surface-elevated) border border-(--border) text-xs text-(--text-secondary) leading-relaxed font-mono">
+          <div className="p-2.5 rounded-lg bg-(--surface) border border-(--line) text-xs text-(--muted) leading-relaxed font-mono">
             &quot;{builtPrompt}&quot;
           </div>
         </div>
@@ -257,8 +257,8 @@ export default function PromptBuilder({ onBuildPrompt }: PromptBuilderProps) {
         className={cn(
           "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-colors",
           builtPrompt.trim()
-            ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-900/30 hover:shadow-xl hover:scale-[1.01]"
-            : "bg-(--surface-muted) text-(--text-secondary) cursor-not-allowed"
+            ? "bg-(--accent) text-(--on-accent) hover:opacity-95 shadow-lg hover:shadow-xl hover:scale-[1.01]"
+            : "bg-(--raised) text-(--muted) cursor-not-allowed"
         )}
       >
         <Wand2 className="w-4 h-4" />

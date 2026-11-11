@@ -106,8 +106,8 @@ const StreamErrorBanner: React.FC<StreamErrorBannerProps> = ({ error, onDismiss 
           <span className="text-(--danger) text-lg" aria-hidden="true"></span>
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-semibold text-(--text-primary) mb-1">{title}</h4>
-          <p className="text-xs text-(--text-secondary) wrap-break-word">{message}</p>
+          <h4 className="text-sm font-semibold text-(--text) mb-1">{title}</h4>
+          <p className="text-xs text-(--muted) wrap-break-word">{message}</p>
         </div>
         <button
           onClick={onDismiss}

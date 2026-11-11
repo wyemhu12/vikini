@@ -128,10 +128,10 @@ function ImageGenPreview({ message, onRegenerate, onEdit }: ImageGenPreviewProps
           />
 
           {/* Hover Overlay */}
-          <div className="absolute inset-0 bg-black/60 opacity-0 active:opacity-100 md:active:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 ease-out flex items-center justify-center pointer-events-none">
-            <div className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
-              <Expand className="w-5 h-5 text-white" />
-              <span className="text-white text-sm font-medium">
+          <div className="absolute inset-0 bg-(--overlay) opacity-0 active:opacity-100 md:active:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 ease-out flex items-center justify-center pointer-events-none">
+            <div className="flex items-center gap-2 px-4 py-2 bg-(--on-overlay)/10 backdrop-blur-sm rounded-full border border-(--on-overlay)/20">
+              <Expand className="w-5 h-5 text-(--on-overlay)" />
+              <span className="text-(--on-overlay) text-sm font-medium">
                 {t("imageFullscreen") || "View"}
               </span>
             </div>
@@ -142,22 +142,22 @@ function ImageGenPreview({ message, onRegenerate, onEdit }: ImageGenPreviewProps
         {hasOptions && (
           <div className="flex flex-wrap gap-1.5 px-3 py-2 border-b border-token bg-surface-muted/50">
             {options.model && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-(--accent)/20 text-(--accent) border border-(--accent)/30">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-(--accent)/20 text-(--accent) border border-(--accent)/30">
                 {formatModelName(options.model)}
               </span>
             )}
             {options.aspectRatio && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary/20 text-secondary border border-token">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-secondary/20 text-secondary border border-token">
                 {options.aspectRatio}
               </span>
             )}
             {options.style && options.style !== "none" && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 capitalize">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-(--success)/20 text-(--success) border border-(--success)/30 capitalize">
                 {options.style.replace("-", " ")}
               </span>
             )}
             {options.enhancer && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center gap-1">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-(--soft) text-(--accent) border border-(--accent)/30 flex items-center gap-1">
                 <Sparkles className="w-3 h-3" />
                 Magic
               </span>

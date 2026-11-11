@@ -212,15 +212,15 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-gray-400">{t("userLoadingUsers")}</span>
+        <Loader2 className="w-6 h-6 animate-spin text-(--accent)" />
+        <span className="ml-2 text-(--muted)">{t("userLoadingUsers")}</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center gap-2 text-red-400 py-4">
+      <div className="flex items-center gap-2 text-(--danger) py-4">
         <AlertCircle className="w-5 h-5" />
         <span>{error}</span>
       </div>
@@ -231,9 +231,9 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
     <div>
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
-        <Users className="w-5 h-5 text-blue-400" />
-        <h2 className="text-xl font-semibold text-white">{t("userManagement")}</h2>
-        <span className="text-sm text-gray-500">
+        <Users className="w-5 h-5 text-(--accent)" />
+        <h2 className="text-xl font-semibold text-(--text)">{t("userManagement")}</h2>
+        <span className="text-sm text-(--faint)">
           ({filteredUsers.length}/{users.length} {t("userUsers")})
         </span>
       </div>
@@ -242,13 +242,13 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
       <div className="flex flex-wrap items-center gap-3 mb-4">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--faint)" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t("adminSearchPlaceholder")}
-            className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:border-blue-500/50 focus:outline-none transition-colors"
+            className="w-full pl-9 pr-3 py-2 bg-(--raised) border border-(--line) rounded-lg text-sm text-(--text) placeholder:text-(--faint) focus:border-(--accent)/50 focus:outline-none transition-colors"
           />
         </div>
 
@@ -281,8 +281,8 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
 
       {/* Bulk Actions Bar */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-          <span className="text-sm text-blue-400">
+        <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-(--soft) border border-(--accent)/20">
+          <span className="text-sm text-(--accent)">
             {selectedIds.size} {t("adminBulkSelected")}
           </span>
           <div className="flex gap-2 ml-auto">
@@ -300,7 +300,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
               type="button"
               onClick={() => bulkUpdate({ is_blocked: true })}
               disabled={updating === "bulk"}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-(--danger)/20 text-(--danger) hover:bg-(--danger)/30 border border-(--danger)/30 transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer"
             >
               {t("adminBulkBlock")}
             </button>
@@ -308,7 +308,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
               type="button"
               onClick={() => bulkUpdate({ is_blocked: false })}
               disabled={updating === "bulk"}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30 transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-(--success)/20 text-(--success) hover:bg-(--success)/30 border border-(--success)/30 transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer"
             >
               {t("adminBulkUnblock")}
             </button>
@@ -320,34 +320,34 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-white/10">
+            <tr className="border-b border-(--line)">
               {/* Bulk select header */}
               <th className="py-3 px-2 w-8">
                 <button
                   type="button"
                   onClick={toggleSelectAll}
-                  className="text-gray-400 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded"
+                  className="text-(--muted) hover:text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded"
                 >
                   {allSelectableSelected ? (
-                    <CheckSquare className="w-4 h-4 text-blue-400" />
+                    <CheckSquare className="w-4 h-4 text-(--accent)" />
                   ) : (
                     <Square className="w-4 h-4" />
                   )}
                 </button>
               </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
+              <th className="text-left py-3 px-4 text-sm font-medium text-(--muted)">
                 {t("userEmail")}
               </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
+              <th className="text-left py-3 px-4 text-sm font-medium text-(--muted)">
                 {t("userRank")}
               </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
+              <th className="text-left py-3 px-4 text-sm font-medium text-(--muted)">
                 {t("userStatus")}
               </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
+              <th className="text-left py-3 px-4 text-sm font-medium text-(--muted)">
                 {t("userCreated")}
               </th>
-              <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">
+              <th className="text-right py-3 px-4 text-sm font-medium text-(--muted)">
                 {t("userActions")}
               </th>
             </tr>
@@ -358,7 +358,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
               return (
                 <tr
                   key={user.id}
-                  className={`border-b border-white/5 hover:bg-white/2 ${self ? "opacity-70" : ""}`}
+                  className={`border-b border-(--line) hover:bg-(--raised) ${self ? "opacity-70" : ""}`}
                 >
                   {/* Bulk select checkbox */}
                   <td className="py-3 px-2">
@@ -366,25 +366,25 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                       <button
                         type="button"
                         onClick={() => toggleSelect(user.id)}
-                        className="text-gray-400 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded"
+                        className="text-(--muted) hover:text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded"
                       >
                         {selectedIds.has(user.id) ? (
-                          <CheckSquare className="w-4 h-4 text-blue-400" />
+                          <CheckSquare className="w-4 h-4 text-(--accent)" />
                         ) : (
                           <Square className="w-4 h-4" />
                         )}
                       </button>
                     )}
                   </td>
-                  <td className="py-3 px-4 text-sm text-white">
+                  <td className="py-3 px-4 text-sm text-(--text)">
                     <button
                       type="button"
                       onClick={() => openUserDetail(user)}
-                      className="flex items-center gap-2 hover:text-blue-400 transition-colors text-left focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded"
+                      className="flex items-center gap-2 hover:text-(--accent) transition-colors text-left focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded"
                     >
                       {user.email}
                       {self && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-(--warning)/20 text-(--warning) border border-(--warning)/30">
                           <ShieldAlert className="w-3 h-3" />
                           {t("adminSelfLabel")}
                         </span>
@@ -412,14 +412,14 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                     <span
                       className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                         user.is_blocked
-                          ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                          : "bg-green-500/20 text-green-400 border border-green-500/30"
+                          ? "bg-(--danger)/20 text-(--danger) border border-(--danger)/30"
+                          : "bg-(--success)/20 text-(--success) border border-(--success)/30"
                       }`}
                     >
                       {user.is_blocked ? t("userBlocked") : t("userActive")}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-sm text-gray-400">
+                  <td className="py-3 px-4 text-sm text-(--muted)">
                     {formatDate(user.created_at, language === "vi" ? "vi-VN" : "en-GB")}
                   </td>
                   <td className="py-3 px-4 text-right">
@@ -429,8 +429,8 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                       disabled={self || updating === user.id}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer ${
                         user.is_blocked
-                          ? "bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30"
-                          : "bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30"
+                          ? "bg-(--success)/20 text-(--success) hover:bg-(--success)/30 border border-(--success)/30"
+                          : "bg-(--danger)/20 text-(--danger) hover:bg-(--danger)/30 border border-(--danger)/30"
                       }`}
                     >
                       {updating === user.id ? (
@@ -465,7 +465,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-(--surface-elevated) text-(--text-primary) border border-(--border) rounded-xl w-full max-w-md p-6 shadow-2xl pointer-events-auto"
+              className="bg-(--surface) text-(--text) border border-(--line) rounded-xl w-full max-w-md p-6 shadow-2xl pointer-events-auto"
             >
               <div className="flex items-center justify-between mb-4">
                 <Dialog.Title className="text-lg font-semibold">
@@ -475,35 +475,35 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                   <button
                     type="button"
                     aria-label={t("close")}
-                    className="p-1 rounded-full hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                    className="p-1 rounded-full hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
                   >
-                    <X className="w-5 h-5 text-neutral-400" />
+                    <X className="w-5 h-5 text-(--muted)" />
                   </button>
                 </Dialog.Close>
               </div>
 
               <div className="space-y-4">
-                <div className="p-3 rounded-lg bg-white/3 border border-white/10">
-                  <div className="text-xs text-gray-500 mb-1">{t("userEmail")}</div>
+                <div className="p-3 rounded-lg bg-(--raised) border border-(--line)">
+                  <div className="text-xs text-(--faint) mb-1">{t("userEmail")}</div>
                   <div className="text-sm font-medium">{detailUser?.email}</div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-lg bg-white/3 border border-white/10">
-                    <div className="text-xs text-gray-500 mb-1">{t("userRank")}</div>
+                  <div className="p-3 rounded-lg bg-(--raised) border border-(--line)">
+                    <div className="text-xs text-(--faint) mb-1">{t("userRank")}</div>
                     <div className="text-sm font-medium capitalize">
                       {detailUser?.rank === "not_whitelisted"
                         ? t("userNotWhitelisted")
                         : detailUser?.rank}
                     </div>
                   </div>
-                  <div className="p-3 rounded-lg bg-white/3 border border-white/10">
-                    <div className="text-xs text-gray-500 mb-1">{t("userStatus")}</div>
+                  <div className="p-3 rounded-lg bg-(--raised) border border-(--line)">
+                    <div className="text-xs text-(--faint) mb-1">{t("userStatus")}</div>
                     <span
                       className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         detailUser?.is_blocked
-                          ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                          : "bg-green-500/20 text-green-400 border border-green-500/30"
+                          ? "bg-(--danger)/20 text-(--danger) border border-(--danger)/30"
+                          : "bg-(--success)/20 text-(--success) border border-(--success)/30"
                       }`}
                     >
                       {detailUser?.is_blocked ? t("userBlocked") : t("userActive")}
@@ -512,8 +512,8 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-lg bg-white/3 border border-white/10">
-                    <div className="text-xs text-gray-500 mb-1">{t("adminUserConvs")}</div>
+                  <div className="p-3 rounded-lg bg-(--raised) border border-(--line)">
+                    <div className="text-xs text-(--faint) mb-1">{t("adminUserConvs")}</div>
                     <div className="text-sm font-medium">
                       {detailLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -522,8 +522,8 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                       )}
                     </div>
                   </div>
-                  <div className="p-3 rounded-lg bg-white/3 border border-white/10">
-                    <div className="text-xs text-gray-500 mb-1">{t("adminUserMsgs")}</div>
+                  <div className="p-3 rounded-lg bg-(--raised) border border-(--line)">
+                    <div className="text-xs text-(--faint) mb-1">{t("adminUserMsgs")}</div>
                     <div className="text-sm font-medium">
                       {detailLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -534,8 +534,8 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                   </div>
                 </div>
 
-                <div className="p-3 rounded-lg bg-white/3 border border-white/10">
-                  <div className="text-xs text-gray-500 mb-1">{t("adminUserJoined")}</div>
+                <div className="p-3 rounded-lg bg-(--raised) border border-(--line)">
+                  <div className="text-xs text-(--faint) mb-1">{t("adminUserJoined")}</div>
                   <div className="text-sm font-medium">
                     {formatDate(
                       detailUser?.created_at ?? "",

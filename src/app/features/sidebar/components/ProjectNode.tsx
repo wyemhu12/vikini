@@ -92,20 +92,20 @@ export function ProjectNode({
       <div
         className={cn(
           "flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer group",
-          "hover:bg-(--control-bg-hover) transition-colors",
-          isExpanded && "bg-(--control-bg)/50"
+          "hover:bg-(--raised) transition-colors",
+          isExpanded && "bg-(--raised)/50"
         )}
       >
         {/* Expand chevron */}
         <button
           onClick={toggleExpand}
-          className="p-0.5 hover:bg-(--control-bg) rounded shrink-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+          className="p-0.5 hover:bg-(--raised) rounded shrink-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           aria-expanded={isExpanded}
           aria-label={isExpanded ? t("collapse") : t("expand")}
         >
           <ChevronRight
             className={cn(
-              "h-3.5 w-3.5 text-(--text-secondary) transition-transform duration-150",
+              "h-3.5 w-3.5 text-(--muted) transition-transform duration-150",
               isExpanded && "rotate-90"
             )}
           />
@@ -127,7 +127,7 @@ export function ProjectNode({
               e.stopPropagation();
               onNewChat(project.id);
             }}
-            className="p-1 hover:bg-(--control-bg) rounded text-(--text-secondary) hover:text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="p-1 hover:bg-(--raised) rounded text-(--muted) hover:text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             title={t("newChat")}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -137,19 +137,17 @@ export function ProjectNode({
 
       {/* Nested conversations */}
       {isExpanded && (
-        <div className="ml-4 mt-0.5 space-y-0.5 border-l border-(--border)/40 pl-2">
+        <div className="ml-4 mt-0.5 space-y-0.5 border-l border-(--line)/40 pl-2">
           {conversations.length === 0 ? (
-            <div className="px-2 py-2 text-xs text-(--text-secondary)">
-              {t("projectNoChatsYet")}
-            </div>
+            <div className="px-2 py-2 text-xs text-(--muted)">{t("projectNoChatsYet")}</div>
           ) : (
             conversations.map((conv) => (
               <div
                 key={conv.id}
                 className={cn(
                   "flex items-center group/chat rounded-md",
-                  "hover:bg-(--control-bg-hover) transition-colors",
-                  conv.id === activeConversationId && "bg-(--control-bg) text-(--text-primary)"
+                  "hover:bg-(--raised) transition-colors",
+                  conv.id === activeConversationId && "bg-(--raised) text-(--text)"
                 )}
               >
                 {/* Chat title - clickable */}
@@ -171,7 +169,7 @@ export function ProjectNode({
                       aria-label={t("conversationOptions")}
                       className={cn(
                         "p-1 mr-1 rounded transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-                        "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)",
+                        "text-(--muted) hover:text-(--text) hover:bg-(--raised)",
                         "opacity-0 group-hover/chat:opacity-100 data-[state=open]:opacity-100"
                       )}
                     >
@@ -181,14 +179,14 @@ export function ProjectNode({
 
                   <DropdownMenu.Portal>
                     <DropdownMenu.Content
-                      className="z-(--z-popover) min-w-48 rounded-xl bg-(--surface-muted)/95 backdrop-blur-xl border border-(--border) shadow-2xl overflow-hidden ring-1 ring-(--border) py-1.5 animate-in fade-in zoom-in-95 duration-200"
+                      className="z-(--z-popover) min-w-48 rounded-xl bg-(--raised)/95 backdrop-blur-xl border border-(--line) shadow-2xl overflow-hidden ring-1 ring-(--line) py-1.5 animate-in fade-in zoom-in-95 duration-200"
                       align="end"
                       sideOffset={5}
                     >
                       {onRenameConversation && (
                         <DropdownMenu.Item
                           onClick={() => onRenameConversation(conv.id)}
-                          className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary)"
+                          className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors cursor-pointer outline-none data-highlighted:bg-(--raised) data-highlighted:text-(--text)"
                         >
                           <Pencil className="w-4 h-4 mr-2" />
                           {t("projectRename")}
@@ -198,7 +196,7 @@ export function ProjectNode({
                       <DropdownMenu.Item
                         disabled={isExporting}
                         onClick={() => handleExport(conv)}
-                        className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary) disabled:opacity-50"
+                        className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors cursor-pointer outline-none data-highlighted:bg-(--raised) data-highlighted:text-(--text) disabled:opacity-50"
                       >
                         <Download className="w-4 h-4 mr-2" />
                         {t("projectExport")}
@@ -206,7 +204,7 @@ export function ProjectNode({
 
                       {onDeleteConversation && (
                         <>
-                          <DropdownMenu.Separator className="h-px bg-(--border) my-1 mx-2" />
+                          <DropdownMenu.Separator className="h-px bg-(--line) my-1 mx-2" />
 
                           <DropdownMenu.Item
                             onClick={() => onDeleteConversation(conv.id)}

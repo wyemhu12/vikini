@@ -18,7 +18,7 @@
 .chat-markdown h2,
 .chat-markdown h3,
 .chat-markdown h4 {
-  @apply mt-8 mb-4 font-bold text-(--text-primary);
+  @apply mt-8 mb-4 font-bold text-(--text);
   letter-spacing: -0.02em;
   text-wrap: balance;
 }
@@ -62,26 +62,26 @@
 }
 
 .chat-markdown table {
-  @apply my-6 w-full border-collapse text-sm overflow-hidden rounded-xl border border-(--border);
+  @apply my-6 w-full border-collapse text-sm overflow-hidden rounded-xl border border-(--line);
   table-layout: auto;
 }
 
 .chat-markdown thead th {
-  @apply bg-(--control-bg) text-(--text-primary) font-bold px-4 py-3 border-b border-(--border);
+  @apply bg-(--raised) text-(--text) font-bold px-4 py-3 border-b border-(--line);
   white-space: nowrap;
 }
 
 .chat-markdown td {
-  @apply border-b border-(--border)/50 px-4 py-3 text-(--text-secondary);
+  @apply border-b border-(--line)/50 px-4 py-3 text-(--muted);
   min-width: 80px;
 }
 
 .chat-markdown blockquote {
-  @apply my-6 border-l-4 border-(--primary) bg-(--control-bg) py-3 pl-5 pr-4 rounded-r-lg italic text-(--text-secondary);
+  @apply my-6 border-l-4 border-(--accent) bg-(--raised) py-3 pl-5 pr-4 rounded-r-lg italic text-(--muted);
 }
 
 .chat-markdown code:not(pre code) {
-  @apply rounded-md bg-(--control-bg-hover) px-1.5 py-0.5 font-mono text-[0.85em] text-(--primary-light);
+  @apply rounded-md bg-(--raised) px-1.5 py-0.5 font-mono text-[0.85em] text-(--accent);
 }
 
 .chat-markdown pre {
@@ -302,17 +302,17 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--control-border);
+  background: var(--line);
   border-radius: 9999px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--border);
+  background: var(--line);
 }
 
 @supports not selector(::-webkit-scrollbar) {
   .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: var(--control-border) transparent;
+    scrollbar-color: var(--line) transparent;
   }
 }

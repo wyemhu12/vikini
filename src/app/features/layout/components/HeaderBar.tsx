@@ -47,9 +47,9 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   // Common styles for triggers
   const triggerButtonStyles =
-    "flex items-center gap-2 rounded-full bg-(--control-bg) border border-(--control-border) hover:border-(--border) p-1 px-4 py-1.5 transition-[border-color,box-shadow] duration-200 shadow-lg group backdrop-blur-md text-(--text-primary) cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)";
+    "flex items-center gap-2 rounded-full bg-(--raised) border border-(--line) hover:border-(--line) p-1 px-4 py-1.5 transition-[border-color,box-shadow] duration-200 shadow-lg group backdrop-blur-md text-(--text) cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)";
   const triggerLabelStyles =
-    "text-xs font-bold uppercase tracking-wider text-(--text-secondary) group-hover:text-(--text-primary) transition-colors max-w-[100px] truncate";
+    "text-xs font-bold uppercase tracking-wider text-(--muted) group-hover:text-(--text) transition-colors max-w-[100px] truncate";
 
   return (
     <motion.header
@@ -83,12 +83,12 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         <div className="min-w-0 flex flex-col">
           <Link
             href="/"
-            className="font-sans text-xl font-bold tracking-wide flex items-center gap-2 select-none text-(--text-primary) hover:opacity-80 transition-opacity"
+            className="font-sans text-xl font-bold tracking-wide flex items-center gap-2 select-none text-(--text) hover:opacity-80 transition-opacity"
           >
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-br from-(--accent) to-[color-mix(in_srgb,var(--accent)_80%,black)] shadow-[0_0_15px_var(--glow)] text-(--surface) font-black text-lg">
               V
             </div>
-            <span className="bg-clip-text text-transparent bg-linear-to-r from-(--text-primary) via-(--text-primary) to-[color-mix(in_srgb,var(--text-primary)_70%,transparent)]">
+            <span className="bg-clip-text text-transparent bg-linear-to-r from-(--text) via-(--text) to-[color-mix(in_srgb,var(--text)_70%,transparent)]">
               {t("appName")}
             </span>
           </Link>
@@ -103,7 +103,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             <DropdownMenuTrigger asChild>
               <button className={triggerButtonStyles} aria-label={t("selectLanguage")}>
                 <span className={triggerLabelStyles}>{language === "vi" ? "VN" : "EN"}</span>
-                <ChevronDown className="w-3 h-3 text-(--text-secondary) transition-transform group-data-[state=open]:rotate-180" />
+                <ChevronDown className="w-3 h-3 text-(--muted) transition-transform group-data-[state=open]:rotate-180" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-32">
@@ -124,7 +124,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         ) : (
           <button className={triggerButtonStyles} aria-label={t("selectLanguage")}>
             <span className={triggerLabelStyles}>{language === "vi" ? "VN" : "EN"}</span>
-            <ChevronDown className="w-3 h-3 text-(--text-secondary)" />
+            <ChevronDown className="w-3 h-3 text-(--muted)" />
           </button>
         )}
 
@@ -143,7 +143,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                 <span className={triggerLabelStyles}>
                   {currentFamily ? t(currentFamily.labelKey) : t("theme")}
                 </span>
-                <ChevronDown className="w-3 h-3 text-(--text-secondary) transition-transform group-data-[state=open]:rotate-180" />
+                <ChevronDown className="w-3 h-3 text-(--muted) transition-transform group-data-[state=open]:rotate-180" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -163,7 +163,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               }}
             />
             <span className={triggerLabelStyles}>{t("theme")}</span>
-            <ChevronDown className="w-3 h-3 text-(--text-secondary)" />
+            <ChevronDown className="w-3 h-3 text-(--muted)" />
           </button>
         )}
       </div>
@@ -179,7 +179,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 overflow-y-auto max-h-[80vh]">
               {/* Language Section */}
-              <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-(--text-secondary) px-2 py-1.5">
+              <DropdownMenuLabel className="text-xs font-bold uppercase tracking-widest text-(--muted) px-2 py-1.5">
                 {t("language")}
               </DropdownMenuLabel>
               {languageOptions.map((lang) => (

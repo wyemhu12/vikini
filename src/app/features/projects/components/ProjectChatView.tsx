@@ -95,8 +95,8 @@ export function ProjectChatView({
               onClick={onOpenSettings}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium",
-                "border border-(--border) bg-(--surface)/80 backdrop-blur-sm",
-                "hover:bg-(--control-bg-hover) hover:border-(--control-border)",
+                "border border-(--line) bg-(--surface)/80 backdrop-blur-sm",
+                "hover:bg-(--raised) hover:border-(--line)",
                 "transition-colors duration-200 shadow-sm"
               )}
             >
@@ -110,21 +110,21 @@ export function ProjectChatView({
             onClick={onNewChat}
             className={cn(
               "w-full flex items-center gap-3 px-4 py-4 rounded-2xl mb-8",
-              "bg-(--surface)/60 backdrop-blur-sm border border-(--border)",
-              "hover:border-(--primary)/50 hover:bg-(--surface)/80",
+              "bg-(--surface)/60 backdrop-blur-sm border border-(--line)",
+              "hover:border-(--accent)/50 hover:bg-(--surface)/80",
               "transition-colors duration-200 shadow-sm",
               "text-left group"
             )}
           >
             <div
               className={cn(
-                "p-2 rounded-full bg-(--control-bg) group-hover:bg-(--primary)/20",
+                "p-2 rounded-full bg-(--raised) group-hover:bg-(--accent)/20",
                 "transition-colors duration-200"
               )}
             >
-              <Plus className="h-4 w-4 text-(--text-secondary) group-hover:text-(--primary)" />
+              <Plus className="h-4 w-4 text-(--muted) group-hover:text-(--accent)" />
             </div>
-            <span className="text-(--text-secondary) group-hover:text-(--text-primary) transition-colors">
+            <span className="text-(--muted) group-hover:text-(--text) transition-colors">
               {t("projectNewChatIn")} {project.name}
             </span>
           </button>
@@ -137,20 +137,20 @@ export function ProjectChatView({
                   key={conv.id}
                   className={cn(
                     "flex items-center justify-between px-4 py-3 rounded-xl",
-                    "hover:bg-(--control-bg-hover)/60 transition-colors duration-200",
+                    "hover:bg-(--raised)/60 transition-colors duration-200",
                     "group cursor-pointer"
                   )}
                   onClick={() => onSelectConversation(conv.id)}
                 >
                   {/* Chat title */}
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate text-(--text-primary) group-hover:text-(--primary) transition-colors">
+                    <div className="font-medium truncate text-(--text) group-hover:text-(--accent) transition-colors">
                       {conv.title || t("newChat")}
                     </div>
                   </div>
 
                   {/* Date */}
-                  <span className="text-xs text-(--text-secondary) mx-4 shrink-0">
+                  <span className="text-xs text-(--muted) mx-4 shrink-0">
                     {formatDate(conv.updatedAt || conv.createdAt)}
                   </span>
 
@@ -161,7 +161,7 @@ export function ProjectChatView({
                         onClick={(e) => e.stopPropagation()}
                         className={cn(
                           "p-1.5 rounded-lg transition-colors",
-                          "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)",
+                          "text-(--muted) hover:text-(--text) hover:bg-(--raised)",
                           "opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
                         )}
                       >
@@ -171,14 +171,14 @@ export function ProjectChatView({
 
                     <DropdownMenu.Portal>
                       <DropdownMenu.Content
-                        className="z-9999 min-w-48 rounded-xl bg-(--surface-muted)/95 backdrop-blur-xl border border-(--border) shadow-2xl overflow-hidden ring-1 ring-(--border) py-1.5 animate-in fade-in zoom-in-95 duration-200"
+                        className="z-9999 min-w-48 rounded-xl bg-(--raised)/95 backdrop-blur-xl border border-(--line) shadow-2xl overflow-hidden ring-1 ring-(--line) py-1.5 animate-in fade-in zoom-in-95 duration-200"
                         align="end"
                         sideOffset={5}
                       >
                         {onRenameConversation && (
                           <DropdownMenu.Item
                             onClick={() => onRenameConversation(conv.id)}
-                            className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary)"
+                            className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors cursor-pointer outline-none data-highlighted:bg-(--raised) data-highlighted:text-(--text)"
                           >
                             <Pencil className="w-4 h-4 mr-2" />
                             {t("projectRename")}
@@ -187,7 +187,7 @@ export function ProjectChatView({
 
                         <DropdownMenu.Item
                           onClick={() => handleExport(conv)}
-                          className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary)"
+                          className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors cursor-pointer outline-none data-highlighted:bg-(--raised) data-highlighted:text-(--text)"
                         >
                           <Download className="w-4 h-4 mr-2" />
                           {t("projectExport")}
@@ -195,7 +195,7 @@ export function ProjectChatView({
 
                         {onDeleteConversation && (
                           <>
-                            <DropdownMenu.Separator className="h-px bg-(--border) my-1 mx-2" />
+                            <DropdownMenu.Separator className="h-px bg-(--line) my-1 mx-2" />
 
                             <DropdownMenu.Item
                               onClick={() => onDeleteConversation(conv.id)}
@@ -220,13 +220,13 @@ export function ProjectChatView({
               <div
                 className={cn(
                   "inline-flex items-center justify-center w-16 h-16 rounded-full mb-4",
-                  "bg-(--control-bg)/60"
+                  "bg-(--raised)/60"
                 )}
               >
                 <ProjectIcon icon={project.icon} color={project.color} size="lg" />
               </div>
-              <p className="text-(--text-secondary) mb-1">{t("projectNoChats")}</p>
-              <p className="text-sm text-(--text-secondary)">{t("projectStartChat")}</p>
+              <p className="text-(--muted) mb-1">{t("projectNoChats")}</p>
+              <p className="text-sm text-(--muted)">{t("projectStartChat")}</p>
             </div>
           )}
         </div>

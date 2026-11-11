@@ -103,7 +103,7 @@ function ImageLightbox({ isOpen, onClose, imageUrl, imageAlt, prompt }: ImageLig
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-(--overlay) backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -111,48 +111,48 @@ function ImageLightbox({ isOpen, onClose, imageUrl, imageAlt, prompt }: ImageLig
     >
       {/* Toolbar */}
       <div
-        className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 shadow-xl z-10"
+        className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-(--overlay) backdrop-blur-md rounded-full border border-(--on-overlay)/10 shadow-xl z-10"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Zoom controls */}
         <button
           onClick={handleZoomOut}
           disabled={zoom <= MIN_ZOOM}
-          className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           title={t("imageZoomOut") || "Zoom out"}
         >
           <ZoomOut className="w-5 h-5" />
         </button>
 
-        <span className="text-white/80 text-sm font-mono min-w-12 text-center">
+        <span className="text-(--on-overlay)/80 text-sm font-mono min-w-12 text-center">
           {Math.round(zoom * 100)}%
         </span>
 
         <button
           onClick={handleZoomIn}
           disabled={zoom >= MAX_ZOOM}
-          className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           title={t("imageZoomIn") || "Zoom in"}
         >
           <ZoomIn className="w-5 h-5" />
         </button>
 
-        <div className="w-px h-6 bg-white/20 mx-1" />
+        <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
 
         <button
           onClick={handleResetZoom}
-          className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
+          className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
           title="Reset zoom"
         >
           <RotateCcw className="w-5 h-5" />
         </button>
 
-        <div className="w-px h-6 bg-white/20 mx-1" />
+        <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
 
         {/* Action buttons */}
         <button
           onClick={handleCopyUrl}
-          className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
+          className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
           title={t("imageCopyUrl") || "Copy URL"}
         >
           <Copy className="w-5 h-5" />
@@ -160,17 +160,17 @@ function ImageLightbox({ isOpen, onClose, imageUrl, imageAlt, prompt }: ImageLig
 
         <button
           onClick={handleDownload}
-          className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
+          className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
           title={t("studioDownload") || "Download"}
         >
           <Download className="w-5 h-5" />
         </button>
 
-        <div className="w-px h-6 bg-white/20 mx-1" />
+        <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
 
         <button
           onClick={onClose}
-          className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
+          className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
           title={t("imageClose") || "Close"}
         >
           <X className="w-5 h-5" />
@@ -194,10 +194,10 @@ function ImageLightbox({ isOpen, onClose, imageUrl, imageAlt, prompt }: ImageLig
       {/* Prompt display at bottom */}
       {prompt && (
         <div
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-2xl px-6 py-3 bg-black/60 backdrop-blur-md rounded-xl border border-white/10 shadow-xl"
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-2xl px-6 py-3 bg-(--overlay) backdrop-blur-md rounded-xl border border-(--on-overlay)/10 shadow-xl"
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="text-white/80 text-sm font-mono leading-relaxed line-clamp-3">
+          <p className="text-(--on-overlay)/80 text-sm font-mono leading-relaxed line-clamp-3">
             &quot;{prompt}&quot;
           </p>
         </div>

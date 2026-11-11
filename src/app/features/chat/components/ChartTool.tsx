@@ -38,8 +38,8 @@ interface CustomTooltipProps {
 const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-(--surface) border border-(--border) p-3 rounded-lg shadow-xl backdrop-blur-md">
-        <p className="font-bold text-(--text-primary) mb-1">{label}</p>
+      <div className="bg-(--surface) border border-(--line) p-3 rounded-lg shadow-xl backdrop-blur-md">
+        <p className="font-bold text-(--text) mb-1">{label}</p>
         {payload.map((entry: TooltipPayloadEntry, index: number) => (
           <p key={index} style={{ color: entry.color }} className="text-sm font-medium">
             {entry.name}: {entry.value}
@@ -86,7 +86,7 @@ export default function ChartTool({
   };
 
   const AxisProps = {
-    stroke: "var(--text-secondary)",
+    stroke: "var(--muted)",
     fontSize: 12,
     tickLine: false,
     axisLine: false,
@@ -97,13 +97,10 @@ export default function ChartTool({
       case "bar":
         return (
           <BarChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" opacity={0.3} />
             <XAxis dataKey={xKey} {...AxisProps} />
             <YAxis {...AxisProps} />
-            <Tooltip
-              content={<CustomTooltip />}
-              cursor={{ fill: "var(--surface-muted)", opacity: 0.2 }}
-            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--raised)", opacity: 0.2 }} />
             <Legend wrapperStyle={{ paddingTop: "10px" }} />
             {yKeys.map((key, index) => (
               <Bar
@@ -120,7 +117,7 @@ export default function ChartTool({
       case "line":
         return (
           <LineChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" opacity={0.3} />
             <XAxis dataKey={xKey} {...AxisProps} />
             <YAxis {...AxisProps} />
             <Tooltip content={<CustomTooltip />} />
@@ -158,7 +155,7 @@ export default function ChartTool({
                 </linearGradient>
               ))}
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" opacity={0.3} />
             <XAxis dataKey={xKey} {...AxisProps} />
             <YAxis {...AxisProps} />
             <Tooltip content={<CustomTooltip />} />
@@ -214,17 +211,15 @@ export default function ChartTool({
 
   if (!chartContent) {
     return (
-      <div className="w-full max-w-2xl mx-auto my-4 bg-(--surface-muted)/30 border border-(--danger)/20 rounded-xl p-4 text-center text-(--danger)">
+      <div className="w-full max-w-2xl mx-auto my-4 bg-(--raised)/30 border border-(--danger)/20 rounded-xl p-4 text-center text-(--danger)">
         Unsupported chart type: {vizType || type}
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto my-4 bg-(--surface-muted)/30 border border-(--border) rounded-xl p-4 shadow-sm backdrop-blur-sm overflow-hidden">
-      {title && (
-        <h3 className="text-lg font-bold text-(--text-primary) mb-4 text-center">{title}</h3>
-      )}
+    <div className="w-full max-w-2xl mx-auto my-4 bg-(--raised)/30 border border-(--line) rounded-xl p-4 shadow-sm backdrop-blur-sm overflow-hidden">
+      {title && <h3 className="text-lg font-bold text-(--text) mb-4 text-center">{title}</h3>}
       <div className="w-full h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           {chartContent}

@@ -101,7 +101,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
           onClick={save}
           disabled={!canSave}
           aria-label={t("personaSave") || "Save Persona"}
-          className="rounded-lg bg-(--accent) text-(--accent-foreground) px-3 py-2 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer"
+          className="rounded-lg bg-(--accent) text-(--on-accent) px-3 py-2 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer"
         >
           {t("personaSave") || "Save Persona"}
         </button>
@@ -111,20 +111,18 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
         {/* Name & Icon */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <div className="md:col-span-2">
-            <label className="mb-1 block text-xs text-(--text-secondary)">
+            <label className="mb-1 block text-xs text-(--muted)">
               {t("personaName") || "Persona Name"}
             </label>
             <Input
               value={name}
               onChange={handleChange(setName)}
               placeholder={t("personaPlaceholderName") || "e.g. Code Assistant, Legal Advisor"}
-              className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-2 focus-visible:ring-(--ring) text-(--text-primary) px-3 py-2 text-sm"
+              className="w-full bg-(--raised) border-(--line) focus-visible:ring-2 focus-visible:ring-(--ring) text-(--text) px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-(--text-secondary)">
-              {t("selectIcon") || "Icon"}
-            </label>
+            <label className="mb-1 block text-xs text-(--muted)">{t("selectIcon") || "Icon"}</label>
             <IconPicker
               value={icon}
               onSelect={(selectedIcon) => {
@@ -137,20 +135,20 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
 
         {/* Description */}
         <div>
-          <label className="mb-1 block text-xs text-(--text-secondary)">
+          <label className="mb-1 block text-xs text-(--muted)">
             {t("personaDescription") || "Description"}
           </label>
           <Input
             value={description}
             onChange={handleChange(setDescription)}
             placeholder={t("personaPlaceholderDesc") || "Brief description of the persona"}
-            className="w-full bg-(--control-bg) border-(--border) focus-visible:ring-2 focus-visible:ring-(--ring) text-(--text-primary) px-3 py-2 text-sm"
+            className="w-full bg-(--raised) border-(--line) focus-visible:ring-2 focus-visible:ring-(--ring) text-(--text) px-3 py-2 text-sm"
           />
         </div>
 
         {/* Base Style & Tone */}
         <div>
-          <label className="mb-2 block text-xs text-(--text-secondary) font-semibold uppercase tracking-wider">
+          <label className="mb-2 block text-xs text-(--muted) font-semibold uppercase tracking-wider">
             {t("personaTone") || "Base Style & Tone"}
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -164,12 +162,12 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
                 }}
                 className={`rounded-lg border px-3 py-2 text-left transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer ${
                   tone === opt.value
-                    ? "border-(--accent) bg-(--accent)/10 text-(--text-primary)"
-                    : "border-(--border) bg-(--surface) hover:bg-(--surface-muted) text-(--text-secondary)"
+                    ? "border-(--accent) bg-(--accent)/10 text-(--text)"
+                    : "border-(--line) bg-(--surface) hover:bg-(--raised) text-(--muted)"
                 }`}
               >
                 <div className="text-xs font-medium">{opt.label}</div>
-                <div className="text-xs text-(--text-secondary) mt-0.5">{opt.description}</div>
+                <div className="text-xs text-(--muted) mt-0.5">{opt.description}</div>
               </button>
             ))}
           </div>
@@ -177,7 +175,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
 
         {/* Characteristics toggles */}
         <div>
-          <label className="mb-2 block text-xs text-(--text-secondary) font-semibold uppercase tracking-wider">
+          <label className="mb-2 block text-xs text-(--muted) font-semibold uppercase tracking-wider">
             {t("personaCharacteristics") || "Characteristics"}
           </label>
           <div className="flex flex-wrap gap-3">
@@ -189,11 +187,9 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
                   setUseEmojis(e.target.checked);
                   setDirty(true);
                 }}
-                className="rounded border-(--border) bg-(--control-bg) text-(--primary) focus:ring-(--primary)"
+                className="rounded border-(--line) bg-(--raised) text-(--accent) focus:ring-(--accent)"
               />
-              <span className="text-sm text-(--text-primary)">
-                {t("personaUseEmojis") || "Use Emojis"}
-              </span>
+              <span className="text-sm text-(--text)">{t("personaUseEmojis") || "Use Emojis"}</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -203,9 +199,9 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
                   setUseHeadersLists(e.target.checked);
                   setDirty(true);
                 }}
-                className="rounded border-(--border) bg-(--control-bg) text-(--primary) focus:ring-(--primary)"
+                className="rounded border-(--line) bg-(--raised) text-(--accent) focus:ring-(--accent)"
               />
-              <span className="text-sm text-(--text-primary)">
+              <span className="text-sm text-(--text)">
                 {t("personaUseHeadersLists") || "Headers & Lists"}
               </span>
             </label>
@@ -214,9 +210,9 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
 
         {/* User Context */}
         <div>
-          <label className="mb-1 flex justify-between text-xs text-(--text-secondary)">
+          <label className="mb-1 flex justify-between text-xs text-(--muted)">
             <span>{t("personaUserContext") || "What should AI know about you?"}</span>
-            <span className={userContext.length > 5000 ? "text-red-400" : "opacity-60"}>
+            <span className={userContext.length > 5000 ? "text-(--danger)" : "opacity-60"}>
               {userContext.length} / 5000
             </span>
           </label>
@@ -228,15 +224,15 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
               t("personaPlaceholderContext") ||
               "e.g. I'm a software engineer working on web apps..."
             }
-            className="w-full resize-y bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm leading-6"
+            className="w-full resize-y bg-(--raised) border-(--line) focus-visible:ring-1 focus-visible:ring-(--accent) text-(--text) px-3 py-2 text-sm leading-6"
           />
         </div>
 
         {/* Custom Instructions */}
         <div>
-          <label className="mb-1 flex justify-between text-xs text-(--text-secondary)">
+          <label className="mb-1 flex justify-between text-xs text-(--muted)">
             <span>{t("personaCustomInstructions") || "Custom Instructions (Rules)"}</span>
-            <span className={customInstructions.length > 10000 ? "text-red-400" : "opacity-60"}>
+            <span className={customInstructions.length > 10000 ? "text-(--danger)" : "opacity-60"}>
               {customInstructions.length} / 10000
             </span>
           </label>
@@ -248,7 +244,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
               t("personaPlaceholderInstructions") ||
               "e.g. Always start with a TL;DR summary, use bullet points for long paragraphs..."
             }
-            className="w-full resize-y bg-(--control-bg) border-(--border) focus-visible:ring-1 focus-visible:ring-(--primary) text-(--text-primary) px-3 py-2 text-sm leading-6"
+            className="w-full resize-y bg-(--raised) border-(--line) focus-visible:ring-1 focus-visible:ring-(--accent) text-(--text) px-3 py-2 text-sm leading-6"
           />
         </div>
       </div>

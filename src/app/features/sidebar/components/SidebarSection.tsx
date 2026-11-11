@@ -66,14 +66,14 @@ export function SidebarSection({
         aria-expanded={isExpanded}
         className={cn(
           "w-full flex items-center justify-between px-3 py-2",
-          "text-xs font-medium text-(--text-secondary) uppercase tracking-wider",
-          "hover:text-(--text-primary) transition-colors"
+          "text-xs font-medium text-(--muted) uppercase tracking-wider",
+          "hover:text-(--text) transition-colors"
         )}
       >
         <span className="flex items-center gap-2">
           {label}
           {count !== undefined && count > 0 && (
-            <span className="text-(--text-secondary) font-normal normal-case">({count})</span>
+            <span className="text-(--muted) font-normal normal-case">({count})</span>
           )}
         </span>
         <ChevronDown
@@ -100,8 +100,8 @@ export function SidebarSection({
                 onClick={action.onClick}
                 className={cn(
                   "w-full flex items-center gap-2 px-3 py-2 text-sm",
-                  "text-(--text-secondary) hover:text-(--text-primary)",
-                  "hover:bg-(--control-bg-hover) rounded-lg transition-colors"
+                  "text-(--muted) hover:text-(--text)",
+                  "hover:bg-(--raised) rounded-lg transition-colors"
                 )}
               >
                 {action.icon}

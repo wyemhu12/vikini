@@ -68,15 +68,19 @@ Separation of concerns between UI and business logic.
 - **Token vocabulary (Vikini 3.0)** (defaults = Hoàng Hôn dark in `app/styles/themes/_shared/base.css`,
   overridden by `.theme-<family>-<mode>` in `app/styles/themes/<family>.css`): `--bg`, `--surface`,
   `--raised`, `--line`, `--text`, `--muted`, `--faint`, `--accent`, `--on-accent`, `--soft`, `--glow`,
-  state colors (`--danger`, `--success`, `--warning`), and shared `--ring` / `--radius` / `--overlay`.
-  Legacy names (`--surface-muted`, `--control-*`, `--border`, `--text-primary`, …) are aliases.
+  state colors (`--danger`, `--success`, `--warning`), and shared `--ring` / `--radius` / `--overlay` / `--on-overlay`.
+  Vikini 2.x legacy aliases (`--surface-muted`, `--control-*`, `--border`, `--text-primary`, …) have been removed.
+- **Typography scale & ESLint guards**: 7-step `12–32px` scale (`--type-12` .. `--type-32`, mapped in `@theme` to
+  `text-xs`, `text-13`, `text-sm`, `text-base`, `text-xl`, `text-2xl`, `text-3xl`). `scripts/vikini-design-lint.mjs`
+  (`vikini-design/no-raw-tailwind-colors`, `no-legacy-tokens`, `no-sub-12px-text`) and `eslint-plugin-react-hooks`
+  enforce token purity, minimum `12px` text, and Rules of Hooks in `eslint.config.mjs`.
 - **Themes**: 5 families (`hoanghon` default, `muc`, `reu`, `sen`, `than`) × dark/light, modelled in
   `lib/config/theme-config.ts`; `next-themes` stores the key (e.g. `hoanghon-dark`) and
   `useThemeKeyMigration` rewrites the 16 legacy ids from Vikini 2.x.
 - **Tailwind v4 note**: there is **no `@config`**, so `tailwind.config.ts` color names
   (`bg-primary`, `bg-destructive`, `bg-background`, …) are **inert and must not be used**.
-  Reference tokens with the arbitrary syntax instead: `bg-(--surface-elevated)`,
-  `text-(--text-primary)`, `border-(--border)`, `ring-(--ring)`.
+  Reference tokens with the arbitrary syntax instead: `bg-(--surface)`, `bg-(--raised)`,
+  `text-(--text)`, `border-(--line)`, `ring-(--ring)`.
 - **Canonical primitives** (`components/ui/`): `Button`, `Dialog`/`AlertDialog` (Radix —
   focus-trap + ESC built in), `Input`, `Textarea`, `Card`, `Select`, `Switch`, `Popover`,
   `DropdownMenu`, `Skeleton` (loading), `PageHeader` (page title/h1 + actions), `EmptyState`

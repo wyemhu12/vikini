@@ -52,7 +52,7 @@ export default function DestructiveSaveConfirmModal({
             <AlertTriangle className="w-5 h-5 shrink-0" />
             <DialogTitle>{titleText}</DialogTitle>
           </div>
-          <DialogDescription className="pt-2 text-xs md:text-sm text-(--text-secondary) leading-relaxed">
+          <DialogDescription className="pt-2 text-xs md:text-sm text-(--muted) leading-relaxed">
             {descriptionText}
           </DialogDescription>
         </DialogHeader>

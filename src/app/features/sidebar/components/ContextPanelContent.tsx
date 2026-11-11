@@ -54,12 +54,10 @@ export const SidebarButton = React.memo(function SidebarButton({
   const classes = cn(
     "flex w-full items-center justify-start gap-3 rounded-lg px-3 py-2.5 transition-[background-color,color,transform] duration-200 group active:scale-[0.97] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
     variant === "primary" &&
-      "bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-(--accent) font-bold shadow-sm",
-    variant === "default" &&
-      "text-(--text-secondary) hover:text-(--text-primary) sidebar-accent-bar",
+      "bg-(--raised) hover:bg-(--raised) border border-(--line) text-(--accent) font-bold shadow-sm",
+    variant === "default" && "text-(--muted) hover:text-(--text) sidebar-accent-bar",
     variant === "default" && current && "bg-(--soft) text-(--accent)",
-    variant === "destructive" &&
-      "text-(--text-secondary) hover:bg-(--danger)/10 hover:text-(--danger)",
+    variant === "destructive" && "text-(--muted) hover:bg-(--danger)/10 hover:text-(--danger)",
     isLoading && "opacity-70 cursor-not-allowed",
     className
   );
@@ -139,7 +137,7 @@ export default function ContextPanelContent(props: ContextPanelContentProps) {
   const { list, sectionAction, sectionLinks, onNavigate } = props;
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 text-(--text-primary)">
+    <div className="flex flex-col flex-1 min-h-0 text-(--text)">
       {sectionAction && (
         <div className="shrink-0 mb-2">
           <SidebarButton
@@ -167,7 +165,7 @@ export default function ContextPanelContent(props: ContextPanelContentProps) {
                 current={link.current}
               />
             ))}
-            <div className="h-px bg-(--border)/60 my-2 mx-2" />
+            <div className="h-px bg-(--line)/60 my-2 mx-2" />
           </div>
         )}
 
@@ -186,9 +184,9 @@ export default function ContextPanelContent(props: ContextPanelContentProps) {
             >
               {props.projects.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-4 text-center">
-                  <FolderPlus className="w-6 h-6 text-(--text-secondary) opacity-50" />
-                  <span className="text-xs text-(--text-secondary)">{t("noProjects")}</span>
-                  <span className="text-xs text-(--text-secondary)">{t("createProjectHint")}</span>
+                  <FolderPlus className="w-6 h-6 text-(--muted) opacity-50" />
+                  <span className="text-xs text-(--muted)">{t("noProjects")}</span>
+                  <span className="text-xs text-(--muted)">{t("createProjectHint")}</span>
                 </div>
               ) : (
                 props.projects.map((project) => (
@@ -208,7 +206,7 @@ export default function ContextPanelContent(props: ContextPanelContentProps) {
                 ))
               )}
             </SidebarSection>
-            <div className="h-px bg-(--border)/40 my-2 mx-2" />
+            <div className="h-px bg-(--line)/40 my-2 mx-2" />
           </>
         )}
 
@@ -220,9 +218,9 @@ export default function ContextPanelContent(props: ContextPanelContentProps) {
         >
           {list.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-4 text-center">
-              <MessageSquarePlus className="w-6 h-6 text-(--text-secondary) opacity-50" />
-              <span className="text-xs text-(--text-secondary)">{t("noConversations")}</span>
-              <span className="text-xs text-(--text-secondary)">{t("startChatHint")}</span>
+              <MessageSquarePlus className="w-6 h-6 text-(--muted) opacity-50" />
+              <span className="text-xs text-(--muted)">{t("noConversations")}</span>
+              <span className="text-xs text-(--muted)">{t("startChatHint")}</span>
             </div>
           ) : (
             <AnimatePresence initial={false}>
@@ -243,7 +241,7 @@ export default function ContextPanelContent(props: ContextPanelContentProps) {
       </div>
 
       {(props.onDeleteAll || props.footer) && (
-        <div className="shrink-0 pt-3 space-y-2 border-t border-(--border)">
+        <div className="shrink-0 pt-3 space-y-2 border-t border-(--line)">
           {props.onDeleteAll && (
             <SidebarButton
               onClick={props.onDeleteAll}

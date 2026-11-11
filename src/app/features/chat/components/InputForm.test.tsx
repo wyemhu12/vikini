@@ -106,7 +106,7 @@ describe("InputForm", () => {
       const sendBtn = screen.getByRole("button", { name: /^send$/i });
       expect(sendBtn).not.toBeDisabled();
       expect(sendBtn.className).toContain("bg-(--accent)");
-      expect(sendBtn.className).toContain("text-(--accent-foreground)");
+      expect(sendBtn.className).toContain("text-(--on-accent)");
       expect(sendBtn.className).toContain("scale-100");
       expect(sendBtn.className).toContain("hover:brightness-110");
     });
@@ -126,7 +126,7 @@ describe("InputForm", () => {
       const stopBtn = screen.getByRole("button", { name: /stop generation/i });
       expect(stopBtn).not.toBeDisabled();
       expect(stopBtn.className).toContain("bg-(--danger)");
-      expect(stopBtn.className).toContain("text-white");
+      expect(stopBtn.className).toContain("text-(--danger-foreground)");
       expect(stopBtn).toHaveAttribute("title", "Stop");
 
       fireEvent.click(stopBtn);

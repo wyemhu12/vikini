@@ -21,7 +21,7 @@ interface ChapterAiBrainstormMenuProps {
 }
 
 const INPUT_CLS =
-  "h-8 rounded-lg border border-(--control-border) bg-(--control-bg) px-3 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none";
+  "h-8 rounded-lg border border-(--line) bg-(--raised) px-3 text-xs text-(--text) placeholder:text-(--muted) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none";
 
 export default function ChapterAiBrainstormMenu({
   isStreaming,
@@ -32,7 +32,7 @@ export default function ChapterAiBrainstormMenu({
 
   return (
     <div className="space-y-2">
-      <p className="flex items-center gap-1.5 text-xs text-(--text-secondary)">
+      <p className="flex items-center gap-1.5 text-xs text-(--muted)">
         <Info className="w-3.5 h-3.5 text-(--accent) shrink-0" />
         <span>{t("novelcrafterBrainstormTooltip")}</span>
       </p>
@@ -56,7 +56,7 @@ export default function ChapterAiBrainstormMenu({
               type="button"
               disabled={isStreaming}
               onClick={() => onRunBrainstorm(catKey, t(BRAINSTORM_LABELS[catKey]), brainstormTopic)}
-              className="px-2.5 py-1.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
+              className="px-2.5 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring)"
             >
               {t(BRAINSTORM_LABELS[catKey])}
             </button>

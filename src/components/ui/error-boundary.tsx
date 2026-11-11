@@ -55,25 +55,25 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="flex flex-col items-center justify-center min-h-[400px] p-8 bg-(--surface) text-(--text-primary)">
+        <div className="flex flex-col items-center justify-center min-h-[400px] p-8 bg-(--surface) text-(--text)">
           <div className="flex items-center justify-center w-16 h-16 mb-6 rounded-full bg-(--danger)/10 border border-(--danger)/30">
             <AlertCircle className="w-8 h-8 text-(--danger)" />
           </div>
           <h2 className="text-xl font-bold mb-2">{this.translate("errorBoundaryTitle")}</h2>
-          <p className="text-(--text-secondary) mb-6 text-center max-w-md">
+          <p className="text-(--muted) mb-6 text-center max-w-md">
             {this.state.error?.message || this.translate("errorBoundaryDescription")}
           </p>
           <div className="flex gap-3">
             <button
               onClick={this.handleReset}
-              className="flex items-center gap-2 px-4 py-2 bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) rounded-lg text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="flex items-center gap-2 px-4 py-2 bg-(--raised) hover:bg-(--raised) border border-(--line) rounded-lg text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
               <RefreshCw className="w-4 h-4" />
               {this.translate("tryAgain")}
             </button>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-(--accent) text-(--accent-foreground) rounded-lg text-sm font-medium hover:brightness-110 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="px-4 py-2 bg-(--accent) text-(--on-accent) rounded-lg text-sm font-medium hover:brightness-110 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
               {this.translate("reloadPage")}
             </button>

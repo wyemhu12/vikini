@@ -250,20 +250,20 @@ export default function EditPanel({
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 40, opacity: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="flex flex-col h-full w-full md:w-[400px] lg:w-[440px] border-l border-(--border) bg-(--surface-elevated) shrink-0"
+      className="flex flex-col h-full w-full md:w-[400px] lg:w-[440px] border-l border-(--line) bg-(--surface) shrink-0"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-(--border) shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-(--line) shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           {/* Source image thumbnail */}
-          <div className="w-10 h-10 rounded-lg overflow-hidden border border-(--border) shrink-0">
+          <div className="w-10 h-10 rounded-lg overflow-hidden border border-(--line) shrink-0">
             <img src={sourceImage.url} alt="Source" className="w-full h-full object-cover" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-(--text-primary) truncate">
+            <h3 className="text-sm font-semibold text-(--text) truncate">
               {t("studioEditPanelTitle")}
             </h3>
-            <div className="flex items-center gap-1.5 text-[10px] text-(--text-secondary)">
+            <div className="flex items-center gap-1.5 text-xs text-(--muted)">
               <History className="w-3 h-3" />
               <span>
                 {t("studioEditTurnCount")
@@ -275,7 +275,7 @@ export default function EditPanel({
         </div>
         <button
           onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-(--control-bg-hover) text-(--text-secondary) hover:text-(--text-primary) transition-colors"
+          className="p-1.5 rounded-lg hover:bg-(--raised) text-(--muted) hover:text-(--text) transition-colors"
           aria-label="Close edit panel"
         >
           <X className="w-4 h-4" />
@@ -283,12 +283,12 @@ export default function EditPanel({
       </div>
 
       {/* Model selector (compact) */}
-      <div className="px-4 py-2 border-b border-(--border) shrink-0">
+      <div className="px-4 py-2 border-b border-(--line) shrink-0">
         <Select value={model} onValueChange={setModel}>
-          <SelectTrigger className="w-full h-8 text-xs bg-(--surface-elevated) border-(--border)">
+          <SelectTrigger className="w-full h-8 text-xs bg-(--surface) border-(--line)">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-(--surface-elevated) border border-(--border) shadow-xl z-100">
+          <SelectContent className="bg-(--surface) border border-(--line) shadow-xl z-100">
             {EDIT_MODELS.map((m) => (
               <SelectItem key={m.value} value={m.value} className="text-xs">
                 {m.label}
@@ -302,14 +302,14 @@ export default function EditPanel({
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {/* Source image (always visible at top) */}
         <div className="flex justify-center">
-          <div className="relative rounded-xl overflow-hidden border border-(--border) max-w-[300px] shadow-lg">
+          <div className="relative rounded-xl overflow-hidden border border-(--line) max-w-[300px] shadow-lg">
             <img
               src={sourceImage.url}
               alt={sourceImage.prompt}
               className="w-full object-contain max-h-[250px]"
             />
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-              <p className="text-[10px] text-white/80 line-clamp-2">{sourceImage.prompt}</p>
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-(--overlay) to-transparent p-2">
+              <p className="text-xs text-(--on-overlay)/80 line-clamp-2">{sourceImage.prompt}</p>
             </div>
           </div>
         </div>
@@ -327,14 +327,14 @@ export default function EditPanel({
             >
               {turn.role === "user" ? (
                 /* User message bubble */
-                <div className="max-w-[85%] bg-gradient-to-br from-purple-600/20 to-blue-600/20 border border-purple-500/20 rounded-2xl rounded-br-sm px-3 py-2">
-                  <p className="text-sm text-(--text-primary)">{turn.text}</p>
+                <div className="max-w-[85%] bg-(--soft) border border-(--accent)/20 rounded-2xl rounded-br-sm px-3 py-2">
+                  <p className="text-sm text-(--text)">{turn.text}</p>
                 </div>
               ) : (
                 /* Model image response */
                 <div className="max-w-[85%]">
                   {turn.imageUrl ? (
-                    <div className="rounded-xl overflow-hidden border border-(--border) shadow-md">
+                    <div className="rounded-xl overflow-hidden border border-(--line) shadow-md">
                       <img
                         src={turn.imageUrl}
                         alt="Edited result"
@@ -342,9 +342,9 @@ export default function EditPanel({
                       />
                     </div>
                   ) : (
-                    <div className="rounded-xl bg-(--surface-muted) p-4 flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-(--text-secondary)" />
-                      <span className="text-sm text-(--text-secondary)">{t("studioEditing")}</span>
+                    <div className="rounded-xl bg-(--raised) p-4 flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-(--muted)" />
+                      <span className="text-sm text-(--muted)">{t("studioEditing")}</span>
                     </div>
                   )}
                 </div>
@@ -362,9 +362,9 @@ export default function EditPanel({
               exit={{ opacity: 0 }}
               className="flex justify-start"
             >
-              <div className="rounded-xl bg-(--surface-muted) px-4 py-3 flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
-                <span className="text-sm text-(--text-secondary)">{t("studioEditing")}</span>
+              <div className="rounded-xl bg-(--raised) px-4 py-3 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-(--accent)" />
+                <span className="text-sm text-(--muted)">{t("studioEditing")}</span>
               </div>
             </motion.div>
           )}
@@ -380,7 +380,7 @@ export default function EditPanel({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="px-4 py-2 border-t border-(--border)"
+            className="px-4 py-2 border-t border-(--line)"
           >
             <p className="text-xs text-(--danger) bg-(--danger)/10 border border-(--danger)/20 rounded-lg px-3 py-2">
               {error}
@@ -391,7 +391,7 @@ export default function EditPanel({
 
       {/* Suggestion chips */}
       {visibleTurns.length < 3 && (
-        <div className="px-4 py-2 border-t border-(--border) shrink-0">
+        <div className="px-4 py-2 border-t border-(--line) shrink-0">
           <div className="flex flex-wrap gap-1.5">
             {suggestion_chips.map((chip) => (
               <button
@@ -399,9 +399,9 @@ export default function EditPanel({
                 onClick={() => void handleSendEdit(chip.label)}
                 disabled={loading}
                 className={cn(
-                  "px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors",
-                  "bg-(--surface-muted) border-(--border) hover:bg-purple-500/10 hover:border-purple-500/30",
-                  "text-(--text-secondary) hover:text-(--text-primary)",
+                  "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                  "bg-(--raised) border-(--line) hover:bg-(--soft) hover:border-(--accent)/30",
+                  "text-(--muted) hover:text-(--text)",
                   "disabled:opacity-50 disabled:cursor-not-allowed"
                 )}
               >
@@ -414,7 +414,7 @@ export default function EditPanel({
       )}
 
       {/* Input bar */}
-      <div className="px-4 py-3 border-t border-(--border) shrink-0 bg-(--surface)/50">
+      <div className="px-4 py-3 border-t border-(--line) shrink-0 bg-(--surface)/50">
         <div className="flex items-end gap-2">
           <div className="flex-1 relative">
             <textarea
@@ -427,9 +427,9 @@ export default function EditPanel({
               rows={1}
               className={cn(
                 "w-full resize-none rounded-xl px-3 py-2.5 text-sm",
-                "bg-(--control-bg) border border-(--control-border)",
-                "text-(--text-primary) placeholder:text-(--text-secondary)",
-                "focus:outline-none focus:ring-1 focus:ring-purple-500/50",
+                "bg-(--raised) border border-(--line)",
+                "text-(--text) placeholder:text-(--muted)",
+                "focus:outline-none focus:ring-1 focus:ring-(--accent)/50",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
                 "max-h-[100px] overflow-y-auto"
               )}
@@ -445,8 +445,8 @@ export default function EditPanel({
             className={cn(
               "p-2.5 rounded-xl transition-colors",
               inputText.trim() && !loading
-                ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-900/20 hover:shadow-xl"
-                : "bg-(--surface-muted) text-(--text-secondary) cursor-not-allowed"
+                ? "bg-(--accent) text-(--on-accent) hover:opacity-95 shadow-lg hover:shadow-xl"
+                : "bg-(--raised) text-(--muted) cursor-not-allowed"
             )}
             aria-label="Send edit"
           >
@@ -456,7 +456,7 @@ export default function EditPanel({
 
         {/* Max turns warning */}
         {turnCount >= MAX_TURNS && (
-          <p className="text-[10px] text-amber-400/80 mt-1.5 flex items-center gap-1">
+          <p className="text-xs text-(--warning) mt-1.5 flex items-center gap-1">
             <ChevronDown className="w-3 h-3" />
             {t("studioEditMaxTurnsReached")}
           </p>

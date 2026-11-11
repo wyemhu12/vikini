@@ -224,12 +224,12 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
   );
 
   return (
-    <div className="flex flex-col h-full bg-transparent text-(--text-primary) overflow-hidden">
+    <div className="flex flex-col h-full bg-transparent text-(--text) overflow-hidden">
       {inModal ? (
-        <div className="flex-none py-4 pl-6 pr-14 border-b border-(--border) flex items-center justify-between bg-(--surface)/80 backdrop-blur-md sticky top-0 z-10">
+        <div className="flex-none py-4 pl-6 pr-14 border-b border-(--line) flex items-center justify-between bg-(--surface)/80 backdrop-blur-md sticky top-0 z-10">
           <div>
             <h2 className="text-xl font-semibold">{headerTitle}</h2>
-            <p className="text-xs text-(--text-secondary) truncate max-w-md">{headerDescription}</p>
+            <p className="text-xs text-(--muted) truncate max-w-md">{headerDescription}</p>
           </div>
           {headerActions}
         </div>
@@ -243,7 +243,7 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
       )}
 
       <div
-        className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 scrollbar-thin scrollbar-thumb-[var(--border)]"
+        className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 scrollbar-thin scrollbar-thumb-[var(--line)]"
         style={{
           WebkitOverflowScrolling: "touch",
           touchAction: "pan-y",
@@ -251,7 +251,7 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
         }}
       >
         {status && (
-          <div className="mb-4 rounded-lg border border-(--border) bg-(--surface-muted) px-3 py-2 text-xs text-(--text-secondary)">
+          <div className="mb-4 rounded-lg border border-(--line) bg-(--raised) px-3 py-2 text-xs text-(--muted)">
             {status}
           </div>
         )}
@@ -320,12 +320,12 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
           {(editingPersona || previewPersona) && (
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-1">
               {editingPersona ? (
-                <div className="rounded-xl border border-(--border) bg-(--surface) p-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="rounded-xl border border-(--line) bg-(--surface) p-4 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-medium">{t("personaEdit")}</h3>
                     <button
                       onClick={() => setEditingPersona(null)}
-                      className="text-xs text-(--text-secondary) hover:text-(--text-primary)"
+                      className="text-xs text-(--muted) hover:text-(--text)"
                     >
                       {t("cancel") || "Cancel"}
                     </button>
@@ -333,7 +333,7 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
                   <PersonaEditor persona={editingPersona} onSave={onSave} />
                 </div>
               ) : previewPersona ? (
-                <div className="rounded-xl border border-(--border) bg-(--surface-muted)/50 h-full">
+                <div className="rounded-xl border border-(--line) bg-(--raised)/50 h-full">
                   <PersonaPreview persona={previewPersona} />
                 </div>
               ) : null}

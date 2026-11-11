@@ -244,7 +244,7 @@ export const ChatBubble = React.memo(
           >
             <div
               className={`relative rounded-2xl px-1 text-base leading-relaxed transition-colors ${
-                isBot ? "text-(--text-primary) w-full" : "bg-(--raised) px-4 py-2.5 text-(--text)"
+                isBot ? "text-(--text) w-full" : "bg-(--raised) px-4 py-2.5 text-(--text)"
               }`}
             >
               {isEditing ? (
@@ -260,21 +260,21 @@ export const ChatBubble = React.memo(
                       e.target.style.height = `${e.target.scrollHeight}px`;
                       if (sp) sp.scrollTop = st;
                     }}
-                    className="w-full bg-(--surface-elevated) text-(--text-primary) p-3 rounded-md outline-none resize-none overflow-hidden font-mono text-sm leading-6 border border-(--border) min-h-[40px] focus-visible:ring-1 focus-visible:ring-(--ring)"
+                    className="w-full bg-(--surface) text-(--text) p-3 rounded-md outline-none resize-none overflow-hidden font-mono text-sm leading-6 border border-(--line) min-h-[40px] focus-visible:ring-1 focus-visible:ring-(--ring)"
                     rows={1}
                   />
                   <div className="flex justify-end gap-2 mt-2">
                     <button
                       type="button"
                       onClick={() => setIsEditing(false)}
-                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-(--control-bg) hover:bg-(--control-bg-hover) rounded-md transition-colors text-(--text-secondary)"
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-(--raised) hover:bg-(--raised) rounded-md transition-colors text-(--muted)"
                     >
                       {t("cancel")}
                     </button>
                     <button
                       type="button"
                       onClick={handleSaveEdit}
-                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-(--accent) text-(--accent-foreground) hover:brightness-110 rounded-md transition-colors shadow-sm"
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-(--accent) text-(--on-accent) hover:brightness-110 rounded-md transition-colors shadow-sm"
                     >
                       {t("save")}
                     </button>
@@ -361,12 +361,12 @@ export const ChatBubble = React.memo(
                     onEdit={props.onImageEdit}
                   />
                 ) : (
-                  <div className="mt-4 rounded-xl overflow-hidden border border-(--border) max-w-sm animate-pulse">
-                    <div className="aspect-square bg-(--surface-muted) flex items-center justify-center">
-                      <ImageIcon className="w-12 h-12 text-(--text-secondary)/40" />
+                  <div className="mt-4 rounded-xl overflow-hidden border border-(--line) max-w-sm animate-pulse">
+                    <div className="aspect-square bg-(--raised) flex items-center justify-center">
+                      <ImageIcon className="w-12 h-12 text-(--muted)/40" />
                     </div>
-                    <div className="px-3 py-2 bg-(--surface-elevated) border-t border-(--border)">
-                      <div className="h-3 bg-(--surface-muted) rounded w-3/4" />
+                    <div className="px-3 py-2 bg-(--surface) border-t border-(--line)">
+                      <div className="h-3 bg-(--raised) rounded w-3/4" />
                     </div>
                   </div>
                 ))}
@@ -405,13 +405,13 @@ export const ChatBubble = React.memo(
                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${
                       safeMessage.meta?.status === "error"
                         ? "bg-(--danger)/10 text-(--danger) border border-(--danger)/20"
-                        : "bg-(--surface-muted) text-(--text-secondary) border border-(--border)"
+                        : "bg-(--raised) text-(--muted) border border-(--line)"
                     }`}
                   >
                     {safeMessage.meta?.status === "error" ? t("interrupted") : t("stopped")}
                   </span>
                   {safeMessage.meta?.isSaving && (
-                    <span className="text-(--text-secondary) flex items-center gap-1">
+                    <span className="text-(--muted) flex items-center gap-1">
                       <Loader2 className="w-3 h-3 animate-spin text-(--accent)" />
                       {t("saving")}
                     </span>

@@ -100,8 +100,8 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
             aria-label={value ? `${t("icon")}: ${value}` : t("selectIcon")}
             className={cn(
               "w-full h-[38px] px-3 flex items-center justify-between gap-2 rounded-md",
-              "bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--border)",
-              "text-(--text-primary) text-sm transition-colors",
+              "bg-(--raised) hover:bg-(--raised) border border-(--line)",
+              "text-(--text) text-sm transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
               "disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer",
               className,
@@ -110,17 +110,17 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
           >
             <div className="flex items-center gap-2 min-w-0">
               {value ? (
-                <DynamicIcon name={value} className="w-5 h-5 text-(--text-primary)" />
+                <DynamicIcon name={value} className="w-5 h-5 text-(--text)" />
               ) : (
-                <Sparkles className="w-4 h-4 text-(--text-secondary)" />
+                <Sparkles className="w-4 h-4 text-(--muted)" />
               )}
-              <span className="truncate text-xs text-(--text-secondary)">
+              <span className="truncate text-xs text-(--muted)">
                 {value ? value : t("selectIcon")}
               </span>
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
-              <ChevronDown className="w-3.5 h-3.5 text-(--text-secondary)" />
+              <ChevronDown className="w-3.5 h-3.5 text-(--muted)" />
             </div>
           </button>
         </PopoverTrigger>
@@ -135,7 +135,7 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
               onSelect("");
               setOpen(false);
             }}
-            className="absolute right-8 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-(--control-bg-hover) text-(--text-secondary) hover:text-(--danger) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+            className="absolute right-8 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-(--raised) text-(--muted) hover:text-(--danger) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
             title={t("clearIcon")}
             aria-label={t("clearIcon")}
           >
@@ -144,14 +144,14 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
         )}
 
         <PopoverContent
-          className="w-72 max-w-[min(var(--radix-popover-content-available-width,100vw),calc(100vw-2rem))] p-3 bg-(--surface-elevated) border-(--border) shadow-xl rounded-xl z-(--z-popover) max-h-80 overflow-y-auto custom-scrollbar"
+          className="w-72 max-w-[min(var(--radix-popover-content-available-width,100vw),calc(100vw-2rem))] p-3 bg-(--surface) border-(--line) shadow-xl rounded-xl z-(--z-popover) max-h-80 overflow-y-auto custom-scrollbar"
           align="start"
           sideOffset={6}
         >
           <div className="space-y-3">
             {/* Lucide Icons */}
             <div>
-              <div className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider mb-1.5">
+              <div className="text-xs font-semibold text-(--muted) uppercase tracking-wider mb-1.5">
                 {t("icon")}
               </div>
               <div className="grid grid-cols-6 gap-1">
@@ -166,7 +166,7 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
                         "w-9 h-9 flex items-center justify-center rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
                         active
                           ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/40"
-                          : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover)"
+                          : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
                       )}
                       title={iconName}
                     >
@@ -179,7 +179,7 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
 
             {/* Emojis */}
             <div>
-              <div className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider mb-1.5">
+              <div className="text-xs font-semibold text-(--muted) uppercase tracking-wider mb-1.5">
                 Emojis
               </div>
               <div className="grid grid-cols-6 gap-1">
@@ -194,7 +194,7 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
                         "w-9 h-9 flex items-center justify-center text-base rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
                         active
                           ? "bg-(--accent)/20 border border-(--accent)/40"
-                          : "hover:bg-(--control-bg-hover)"
+                          : "hover:bg-(--raised)"
                       )}
                       title={emoji}
                     >

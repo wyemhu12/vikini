@@ -412,24 +412,24 @@ const ChapterManuscriptEditor = forwardRef<ManuscriptEditorHandle, ChapterManusc
             }
           }}
           className={cn(
-            "min-h-[420px] whitespace-pre-wrap break-words tracking-[-0.005em] antialiased text-(--text-primary) focus:outline-none",
+            "min-h-[420px] whitespace-pre-wrap break-words tracking-[-0.005em] antialiased text-(--text) focus:outline-none",
             FONT_FAMILY_CLASS[typography.fontFamily],
             FONT_SIZE_CLASS[typography.fontSize],
             LINE_HEIGHT_CLASS[typography.lineHeight],
             typography.paragraphIndent && "[&_.nc-paragraph]:indent-[1.5em]",
             content.length === 0 &&
-              "before:content-[attr(data-placeholder)] before:text-(--text-secondary)/70 before:pointer-events-none before:float-left before:h-0",
+              "before:content-[attr(data-placeholder)] before:text-(--muted)/70 before:pointer-events-none before:float-left before:h-0",
             "[&_.nc-line]:min-h-[1.6em]",
             "[&_.nc-line:not(:last-child)_br]:hidden",
             "[&_.nc-blank]:min-h-[0.85em] [&_.nc-blank]:leading-[0.85]",
             "[&_.nc-h1]:text-[1.55em] [&_.nc-h1]:font-semibold [&_.nc-h1]:leading-[1.3] [&_.nc-h1]:mt-4 [&_.nc-h1]:mb-2",
             "[&_.nc-h2]:text-[1.3em] [&_.nc-h2]:font-semibold [&_.nc-h2]:leading-[1.35] [&_.nc-h2]:mt-3 [&_.nc-h2]:mb-1.5",
-            "[&_.nc-sceneBreak]:text-center [&_.nc-sceneBreak]:tracking-[0.5em] [&_.nc-sceneBreak]:text-(--text-secondary) [&_.nc-sceneBreak]:my-4",
+            "[&_.nc-sceneBreak]:text-center [&_.nc-sceneBreak]:tracking-[0.5em] [&_.nc-sceneBreak]:text-(--muted) [&_.nc-sceneBreak]:my-4",
             "[&_.nc-marker]:opacity-40 [&_.nc-marker]:text-[0.88em] [&_.nc-marker]:font-normal",
             "[&_.nc-bold]:font-bold",
             "[&_.nc-italic]:italic",
             "[&_.nc-strike]:line-through [&_.nc-strike]:opacity-75",
-            "[&_.nc-feedback]:bg-(--warning)/15 [&_.nc-feedback]:text-(--text-primary) [&_.nc-feedback]:underline [&_.nc-feedback]:decoration-(--warning) [&_.nc-feedback]:decoration-2 [&_.nc-feedback]:underline-offset-4 [&_.nc-feedback]:rounded-xs [&_.nc-feedback]:cursor-pointer",
+            "[&_.nc-feedback]:bg-(--warning)/15 [&_.nc-feedback]:text-(--text) [&_.nc-feedback]:underline [&_.nc-feedback]:decoration-(--warning) [&_.nc-feedback]:decoration-2 [&_.nc-feedback]:underline-offset-4 [&_.nc-feedback]:rounded-xs [&_.nc-feedback]:cursor-pointer",
             "[&_.nc-feedback-active]:bg-(--warning)/30",
             "[&_.nc-codex]:underline [&_.nc-codex]:decoration-dotted [&_.nc-codex]:decoration-(--accent) [&_.nc-codex]:underline-offset-4 [&_.nc-codex]:cursor-help",
             "[&_.nc-selection]:bg-(--accent)/25 [&_.nc-selection]:rounded-xs"

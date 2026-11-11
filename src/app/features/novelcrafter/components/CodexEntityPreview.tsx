@@ -58,7 +58,7 @@ export default function CodexEntityPreview({
           className={
             visibleToAI
               ? "inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-(--success)/15 text-(--success) font-medium"
-              : "inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-(--surface-muted) text-(--text-secondary) font-medium"
+              : "inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-(--raised) text-(--muted) font-medium"
           }
         >
           {visibleToAI ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
@@ -67,30 +67,28 @@ export default function CodexEntityPreview({
       </div>
 
       <div>
-        <div className="text-sm font-semibold text-(--text-primary)">{entity.name}</div>
-        {subtitle && <div className="text-xs text-(--text-secondary) mt-0.5">{subtitle}</div>}
+        <div className="text-sm font-semibold text-(--text)">{entity.name}</div>
+        {subtitle && <div className="text-xs text-(--muted) mt-0.5">{subtitle}</div>}
       </div>
 
       {aliases.length > 0 && (
-        <div className="text-xs text-(--text-secondary)">
-          <span className="font-medium text-(--text-primary)">
-            {t("novelcrafterCodexAliasesLabel")}:{" "}
-          </span>
+        <div className="text-xs text-(--muted)">
+          <span className="font-medium text-(--text)">{t("novelcrafterCodexAliasesLabel")}: </span>
           <span>{aliases.join(", ")}</span>
         </div>
       )}
 
       {body && (
-        <p className="text-xs text-(--text-secondary) leading-relaxed line-clamp-4 whitespace-pre-wrap">
+        <p className="text-xs text-(--muted) leading-relaxed line-clamp-4 whitespace-pre-wrap">
           {body}
         </p>
       )}
 
-      <div className="pt-1 border-t border-(--border)/60 flex justify-end">
+      <div className="pt-1 border-t border-(--line)/60 flex justify-end">
         <button
           type="button"
           onClick={() => onOpenInBible(entityKind)}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--border) text-xs font-medium text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
         >
           <span>{t("novelcrafterCodexJumpToBible")}</span>
           <ArrowUpRight className="w-3.5 h-3.5 text-(--accent)" />

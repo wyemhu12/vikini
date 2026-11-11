@@ -65,8 +65,8 @@ function SidebarItem({
       <button
         className={`relative flex w-full items-center justify-between gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
           isActive
-            ? "text-(--text-primary) font-medium sidebar-accent-active border border-transparent"
-            : "text-(--text-secondary) hover:text-(--text-primary) sidebar-accent-bar border border-transparent"
+            ? "text-(--text) font-medium sidebar-accent-active border border-transparent"
+            : "text-(--muted) hover:text-(--text) sidebar-accent-bar border border-transparent"
         }`}
         onClick={() => onSelect?.(c.id)}
         type="button"
@@ -80,10 +80,10 @@ function SidebarItem({
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
           <button
-            className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-(--control-bg-hover) cursor-pointer transition-opacity duration-200 z-10 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
+            className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-(--raised) cursor-pointer transition-opacity duration-200 z-10 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
               isActive
-                ? "opacity-100 text-(--text-primary)"
-                : "opacity-0 group-hover:opacity-100 text-(--text-secondary) hover:text-(--text-primary)"
+                ? "opacity-100 text-(--text)"
+                : "opacity-0 group-hover:opacity-100 text-(--muted) hover:text-(--text)"
             }`}
             aria-label={c.title ? `${t("optionsFor")} ${c.title}` : t("conversationOptions")}
             onClick={(e) => e.stopPropagation()}
@@ -94,7 +94,7 @@ function SidebarItem({
 
         <DropdownMenu.Portal>
           <DropdownMenu.Content
-            className="z-(--z-popover) min-w-48 rounded-xl bg-(--surface-muted)/95 backdrop-blur-xl border border-(--border) shadow-2xl overflow-hidden ring-1 ring-(--border) py-1.5 animate-in fade-in zoom-in-95 duration-200"
+            className="z-(--z-popover) min-w-48 rounded-xl bg-(--raised)/95 backdrop-blur-xl border border-(--line) shadow-2xl overflow-hidden ring-1 ring-(--line) py-1.5 animate-in fade-in zoom-in-95 duration-200"
             align="end"
             sideOffset={5}
           >
@@ -102,7 +102,7 @@ function SidebarItem({
               onClick={(_e) => {
                 if (typeof onRename === "function") onRename(c.id);
               }}
-              className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary)"
+              className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors cursor-pointer outline-none data-highlighted:bg-(--raised) data-highlighted:text-(--text)"
             >
               <Pencil className="w-4 h-4 mr-2" />
               {t("rename")}
@@ -111,7 +111,7 @@ function SidebarItem({
             <DropdownMenu.Item
               onClick={handleDownloadClick}
               disabled={isDownloading}
-              className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg) transition-colors cursor-pointer outline-none data-highlighted:bg-(--control-bg) data-highlighted:text-(--text-primary) disabled:opacity-50"
+              className="flex w-full items-center px-4 py-2.5 text-xs font-bold text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors cursor-pointer outline-none data-highlighted:bg-(--raised) data-highlighted:text-(--text) disabled:opacity-50"
             >
               {isDownloading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -121,7 +121,7 @@ function SidebarItem({
               {isDownloading ? t("downloading") : t("exportTxt")}
             </DropdownMenu.Item>
 
-            <DropdownMenu.Separator className="h-px bg-(--border) my-1 mx-2" />
+            <DropdownMenu.Separator className="h-px bg-(--line) my-1 mx-2" />
 
             <DropdownMenu.Item
               onClick={(_e) => {

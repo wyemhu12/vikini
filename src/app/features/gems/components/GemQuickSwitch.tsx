@@ -102,15 +102,13 @@ export default function GemQuickSwitch({
       <PopoverContent
         align="center"
         sideOffset={8}
-        className="w-56 p-2 rounded-xl bg-(--surface-elevated)/95 backdrop-blur-md border border-(--border) shadow-xl"
+        className="w-56 p-2 rounded-xl bg-(--surface)/95 backdrop-blur-md border border-(--line) shadow-xl"
       >
-        <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--border)] mb-2">
+        <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--line)] mb-2">
           {loading ? (
-            <div className="p-2 text-xs text-(--text-secondary) text-center">{t("loading")}</div>
+            <div className="p-2 text-xs text-(--muted) text-center">{t("loading")}</div>
           ) : gems.length === 0 ? (
-            <div className="p-2 text-xs text-(--text-secondary) text-center">
-              {t("gemNoneFound")}
-            </div>
+            <div className="p-2 text-xs text-(--muted) text-center">{t("gemNoneFound")}</div>
           ) : (
             <div className="space-y-1">
               {currentGem && (
@@ -128,7 +126,7 @@ export default function GemQuickSwitch({
                   onClick={() =>
                     applyGem(g.id, { name: g.name, icon: g.icon || null, color: g.color || null })
                   }
-                  className="w-full text-left px-2 py-1.5 rounded-md text-xs text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors flex items-center gap-2"
+                  className="w-full text-left px-2 py-1.5 rounded-md text-xs text-(--text) hover:bg-(--raised) transition-colors flex items-center gap-2"
                 >
                   <span className="text-sm w-4 shrink-0 flex items-center justify-center">
                     <DynamicIcon name={g.icon} className="w-3.5 h-3.5" />
@@ -139,13 +137,13 @@ export default function GemQuickSwitch({
             </div>
           )}
         </div>
-        <div className="pt-2 border-t border-(--border)">
+        <div className="pt-2 border-t border-(--line)">
           <button
             onClick={() => {
               setOpen(false);
               openGemModal();
             }}
-            className="w-full text-center px-2 py-1.5 rounded-md text-xs font-medium bg-(--control-bg) hover:bg-(--control-bg-hover) text-(--text-primary) transition-colors flex justify-center items-center gap-1.5"
+            className="w-full text-center px-2 py-1.5 rounded-md text-xs font-medium bg-(--raised) hover:bg-(--raised) text-(--text) transition-colors flex justify-center items-center gap-1.5"
           >
             <Settings className="w-3.5 h-3.5" /> {t("manageGems") || "Manage GEMs"}
           </button>

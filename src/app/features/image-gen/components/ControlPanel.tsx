@@ -312,7 +312,7 @@ export default function ControlPanel({
                     {tooltipBatch === num && quota && (
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg bg-(--surface) border border-(--line) shadow-xl text-xs font-medium whitespace-nowrap z-50 animate-in fade-in slide-in-from-bottom-1">
                         <div className="flex items-center gap-1.5">
-                          <Info className="w-3 h-3 text-(--text-secondary)" />
+                          <Info className="w-3 h-3 text-(--muted)" />
                           {isExhausted
                             ? t("studioBatchQuotaExhausted")
                             : t("studioBatchQuotaRemaining").replace(

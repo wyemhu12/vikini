@@ -198,7 +198,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
     <div className="max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto w-full py-6">
       {/* Origin Breadcrumb if conversation is a branch */}
       {currentConversation?.parentConversationId && (
-        <div className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-(--surface-elevated)/60 border border-(--border) text-xs text-(--text-secondary) w-fit backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-(--surface)/60 border border-(--line) text-xs text-(--muted) w-fit backdrop-blur-sm animate-in fade-in duration-200">
           <GitFork className="w-3.5 h-3.5 rotate-180 text-(--accent)" />
           <span>{tRaw("branchedFrom") || "Được tách từ"}:</span>
           <button
@@ -218,7 +218,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
 
       {/* Notice for preserved context readable by AI but hidden from user */}
       {contextMessagesCount > 0 && (
-        <div className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-(--surface-elevated)/40 border border-(--border)/60 text-xs text-(--text-secondary) w-fit backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-(--surface)/40 border border-(--line)/60 text-xs text-(--muted) w-fit backdrop-blur-sm animate-in fade-in duration-200">
           <Sparkles className="w-3.5 h-3.5 text-(--accent)" />
           <span>
             {tRaw("priorContextForAi") ||

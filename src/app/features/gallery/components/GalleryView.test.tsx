@@ -133,12 +133,12 @@ describe("GalleryView - Modal Close Button & Tokens (UI-02, M5, M8)", () => {
     expect(mockSetSelectedImage).toHaveBeenCalledWith(null);
   });
 
-  it("uses text-(--accent-foreground) on Remix button rather than raw text-white", () => {
+  it("uses text-(--on-accent) on Remix button rather than raw text-white", () => {
     render(<GalleryView />);
 
     const remixBtn = screen.getByRole("button", { name: /galleryRemix/i });
     expect(remixBtn).toBeInTheDocument();
-    expect(remixBtn.className).toContain("text-(--accent-foreground)");
+    expect(remixBtn.className).toContain("text-(--on-accent)");
     expect(remixBtn.className).not.toContain("text-white");
   });
 

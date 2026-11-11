@@ -9,7 +9,7 @@ export function GoBackButton() {
   return (
     <button
       onClick={() => router.back()}
-      className="flex items-center gap-2 px-4 py-2 bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) rounded-lg text-sm font-medium transition-colors"
+      className="flex items-center gap-2 px-4 py-2 bg-(--raised) hover:bg-(--raised) border border-(--line) rounded-lg text-sm font-medium transition-colors"
     >
       <ArrowLeft className="w-4 h-4" />
       Go Back

@@ -54,25 +54,25 @@ export default function InlineStoryBibleSection({
   return (
     <div className={cn(MANUSCRIPT_SHEET_CLASS, "pt-6 pb-12 space-y-4")}>
       {/* Divider & Header */}
-      <div className="flex items-center justify-between gap-3 border-t border-(--border) pt-6 flex-wrap">
+      <div className="flex items-center justify-between gap-3 border-t border-(--line) pt-6 flex-wrap">
         <button
           type="button"
           aria-expanded={isOpen}
           onClick={onToggle}
-          className="inline-flex items-center gap-2.5 text-left rounded-xl px-2 py-1 hover:bg-(--control-bg-hover) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+          className="inline-flex items-center gap-2.5 text-left rounded-xl px-2 py-1 hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
         >
-          <div className="p-1.5 rounded-lg bg-(--control-bg) text-(--accent) shrink-0">
+          <div className="p-1.5 rounded-lg bg-(--raised) text-(--accent) shrink-0">
             <BookOpen className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-sm md:text-base font-bold text-(--text-primary) flex items-center gap-1.5">
+            <h2 className="text-sm md:text-base font-bold text-(--text) flex items-center gap-1.5">
               <span>{t("novelcrafterStoryBibleTitle")}</span>
             </h2>
-            <p className="text-xs text-(--text-secondary) leading-tight">
+            <p className="text-xs text-(--muted) leading-tight">
               {t("novelcrafterStoryBibleSubtitle")}
             </p>
           </div>
-          <span className="ml-1 text-(--text-secondary)">
+          <span className="ml-1 text-(--muted)">
             {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </span>
         </button>
@@ -80,7 +80,7 @@ export default function InlineStoryBibleSection({
         <button
           type="button"
           onClick={onToggle}
-          className="px-3 py-1 rounded-full border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary)"
+          className="px-3 py-1 rounded-full border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--text)"
         >
           {isOpen ? t("novelcrafterCollapseBible") : t("novelcrafterExpandBible")}
         </button>

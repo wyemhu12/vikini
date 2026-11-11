@@ -68,7 +68,7 @@ export default function ChapterEmptyStateActions({
       className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "pb-2.5 shrink-0")}
     >
       <div className={cn(MANUSCRIPT_SHEET_CLASS, "flex flex-wrap items-center gap-2")}>
-        <span className="text-xs font-semibold uppercase tracking-wider text-(--text-secondary) mr-1">
+        <span className="text-xs font-semibold uppercase tracking-wider text-(--muted) mr-1">
           {t("novelcrafterEmptyChapterTitle")}:
         </span>
 
@@ -82,13 +82,11 @@ export default function ChapterEmptyStateActions({
                 title={desc}
                 aria-describedby={descId}
                 onClick={onClick}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-(--border) bg-(--surface-elevated)/80 hover:bg-(--control-bg-hover) hover:border-(--accent)/50 text-xs font-medium text-(--text-primary) transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-(--line) bg-(--surface)/80 hover:bg-(--raised) hover:border-(--accent)/50 text-xs font-medium text-(--text) transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
               >
                 <Icon className="w-3.5 h-3.5 text-(--accent) shrink-0" />
                 <span className="font-semibold">{title}</span>
-                <span className="hidden 2xl:inline text-(--text-secondary) truncate max-w-48">
-                  · {desc}
-                </span>
+                <span className="hidden 2xl:inline text-(--muted) truncate max-w-48">· {desc}</span>
                 <span id={descId} className="sr-only">
                   {desc}
                 </span>

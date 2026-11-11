@@ -16,7 +16,7 @@
   --color-popover-foreground: var(--text);
   --color-primary: var(--accent);
   --color-primary-foreground: var(--on-accent);
-  --color-secondary: var(--control-bg);
+  --color-secondary: var(--raised);
   --color-secondary-foreground: var(--text);
   --color-muted: var(--raised);
   --color-muted-foreground: var(--muted);
@@ -25,8 +25,19 @@
   --color-destructive: var(--danger);
   --color-destructive-foreground: var(--danger-foreground);
   --color-border: var(--line);
-  --color-input: var(--control-border);
+  --color-input: var(--line);
   --color-ring: var(--accent);
+
+  /* Vikini 3.0 typography scale (12 / 13 / 14 / 16 / 20 / 24 / 32 px; min 12px) */
+  --text-xs: var(--type-12);
+  --text-13: var(--type-13);
+  --text-13--line-height: 1.4;
+  --text-sm: var(--type-14);
+  --text-base: var(--type-16);
+  --text-xl: var(--type-20);
+  --text-2xl: var(--type-24);
+  --text-3xl: var(--type-32);
+  --text-3xl--line-height: 1.2;
 
   /* Border radius */
   --radius-lg: var(--radius);
@@ -78,17 +89,14 @@
   --soft: rgba(255, 138, 76, 0.14);
   --glow: rgba(255, 112, 51, 0.22);
 
-  /* Legacy token aliases (Vikini 2.x names) — removed after the Phase 6 codemod */
-  --surface-strong: var(--bg);
-  --surface-muted: var(--raised);
-  --surface-elevated: var(--surface);
-  --border: var(--line);
-  --control-bg: var(--raised);
-  --control-bg-hover: color-mix(in oklab, var(--raised) 88%, var(--text) 12%);
-  --control-border: color-mix(in oklab, var(--line) 80%, var(--text) 20%);
-  --text-primary: var(--text);
-  --text-secondary: var(--muted);
-  --accent-foreground: var(--on-accent);
+  /* Vikini 3.0 typography scale tokens (12 / 13 / 14 / 16 / 20 / 24 / 32 px; minimum 12px) */
+  --type-12: 0.75rem;
+  --type-13: 0.8125rem;
+  --type-14: 0.875rem;
+  --type-16: 1rem;
+  --type-20: 1.25rem;
+  --type-24: 1.5rem;
+  --type-32: 2rem;
 
   /* Semantic state colors (theme-independent) */
   --danger: #ef4444;
@@ -101,12 +109,7 @@
   --ring: var(--accent);
   --radius: 0.75rem;
   --overlay: rgba(0, 0, 0, 0.7);
-
-  /* Legacy aliases */
-  --primary: var(--accent);
-  --primary-light: color-mix(in srgb, var(--accent) 75%, white 25%);
-  --primary-dark: color-mix(in srgb, var(--accent) 80%, black 20%);
-  --bg-glow: var(--glow);
+  --on-overlay: #ffffff;
 
   /* Semantic z-scale hierarchy */
   --z-drawer: 60;
@@ -135,7 +138,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-[var(--control-border)] rounded-full;
+  @apply bg-(--line) rounded-full;
 }
 
 ::-webkit-scrollbar-corner {

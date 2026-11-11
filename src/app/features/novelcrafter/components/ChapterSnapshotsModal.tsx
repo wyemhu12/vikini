@@ -60,7 +60,7 @@ export default function ChapterSnapshotsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[85dvh] flex flex-col overflow-hidden bg-(--surface) border-(--border) text-(--text-primary)">
+      <DialogContent className="max-w-4xl max-h-[85dvh] flex flex-col overflow-hidden bg-(--surface) border-(--line) text-(--text)">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2 text-base font-semibold">
             <History className="w-4 h-4 text-(--accent) shrink-0" />
@@ -71,7 +71,7 @@ export default function ChapterSnapshotsModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center gap-2 pt-1 pb-3 border-b border-(--border) shrink-0 flex-wrap">
+        <div className="flex items-center gap-2 pt-1 pb-3 border-b border-(--line) shrink-0 flex-wrap">
           <input
             type="text"
             maxLength={MAX_SNAPSHOT_LABEL_CHARS}
@@ -88,13 +88,13 @@ export default function ChapterSnapshotsModal({
             }}
             placeholder={t("novelcrafterSnapshotLabelPlaceholder")}
             aria-label={t("novelcrafterSnapshotLabelPlaceholder")}
-            className="flex-1 min-w-[200px] h-9 rounded-xl border border-(--border) bg-(--surface-elevated) px-3 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="flex-1 min-w-[200px] h-9 rounded-xl border border-(--line) bg-(--surface) px-3 text-xs text-(--text) placeholder:text-(--muted) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           />
           <button
             type="button"
             disabled={!currentContent.trim()}
             onClick={handleCreate}
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold shadow-xs disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-(--accent) text-(--on-accent) hover:brightness-110 text-xs font-semibold shadow-xs disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{t("novelcrafterCreateSnapshotBtn")}</span>
@@ -102,7 +102,7 @@ export default function ChapterSnapshotsModal({
         </div>
 
         {snapshots.length === 0 ? (
-          <div className="py-12 px-4 text-center text-xs text-(--text-secondary)">
+          <div className="py-12 px-4 text-center text-xs text-(--muted)">
             {t("novelcrafterSnapshotEmptyState")}
           </div>
         ) : (
@@ -118,7 +118,7 @@ export default function ChapterSnapshotsModal({
                       "rounded-xl border p-2.5 space-y-2 transition-colors",
                       isSelected
                         ? "border-(--accent) bg-(--accent)/10"
-                        : "border-(--border) bg-(--surface-elevated)/60 hover:bg-(--surface-elevated)"
+                        : "border-(--line) bg-(--surface)/60 hover:bg-(--surface)"
                     )}
                   >
                     <button
@@ -127,27 +127,27 @@ export default function ChapterSnapshotsModal({
                       className="w-full text-left space-y-1 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded-lg"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-(--text-primary) truncate">
+                        <span className="text-xs font-semibold text-(--text) truncate">
                           {snap.label || formattedTime}
                         </span>
-                        <span className="text-xs text-(--text-secondary) shrink-0">
+                        <span className="text-xs text-(--muted) shrink-0">
                           {snap.wordCount.toLocaleString()} {t("novelcrafterWordsUnit")}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-(--text-secondary)">
+                      <div className="flex items-center gap-1 text-xs text-(--muted)">
                         <Clock className="w-3 h-3 shrink-0" />
                         <span className="truncate">{formattedTime}</span>
                       </div>
                     </button>
 
-                    <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-(--border)/60">
+                    <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-(--line)/60">
                       <button
                         type="button"
                         onClick={() => {
                           onRestoreSnapshot(snap.id);
                           onClose();
                         }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--accent)"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) text-xs font-medium text-(--accent)"
                       >
                         <RotateCcw className="w-3 h-3" />
                         <span>{t("novelcrafterRestoreSnapshotBtn")}</span>
@@ -157,7 +157,7 @@ export default function ChapterSnapshotsModal({
                         onClick={() => onDeleteSnapshot(snap.id)}
                         aria-label={t("novelcrafterDeleteSnapshotBtn")}
                         title={t("novelcrafterDeleteSnapshotBtn")}
-                        className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--danger) hover:bg-(--danger)/10"
+                        className="p-1.5 rounded-lg text-(--muted) hover:text-(--danger) hover:bg-(--danger)/10"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -167,11 +167,11 @@ export default function ChapterSnapshotsModal({
               })}
             </div>
 
-            <div className="md:col-span-7 flex flex-col min-h-0 rounded-xl border border-(--border) bg-(--surface-elevated)/40 overflow-hidden">
-              <div className="px-3 py-2 border-b border-(--border) bg-(--surface-muted)/60 text-xs font-semibold text-(--text-secondary)">
+            <div className="md:col-span-7 flex flex-col min-h-0 rounded-xl border border-(--line) bg-(--surface)/40 overflow-hidden">
+              <div className="px-3 py-2 border-b border-(--line) bg-(--raised)/60 text-xs font-semibold text-(--muted)">
                 {t("novelcrafterSnapshotWordDiffLabel")}
               </div>
-              <div className="flex-1 min-h-0 p-3.5 overflow-y-auto custom-scrollbar text-xs leading-[1.7] whitespace-pre-wrap text-(--text-primary)">
+              <div className="flex-1 min-h-0 p-3.5 overflow-y-auto custom-scrollbar text-xs leading-[1.7] whitespace-pre-wrap text-(--text)">
                 {wordDiffSegments.map((seg, idx) => {
                   if (seg.type === "delete") {
                     return (

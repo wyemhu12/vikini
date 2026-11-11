@@ -117,12 +117,12 @@ export default function ChapterFeedbackGutter({
   return (
     <aside
       aria-label={t("novelcrafterSlotFeedback")}
-      className="w-full lg:w-80 xl:w-88 shrink-0 border-t lg:border-t-0 lg:border-l border-(--border) bg-(--surface)/60 flex flex-col min-h-0"
+      className="w-full lg:w-80 xl:w-88 shrink-0 border-t lg:border-t-0 lg:border-l border-(--line) bg-(--surface)/60 flex flex-col min-h-0"
     >
       {/* Top Gutter Filter & Navigation Header */}
       <div
         className={cn(
-          "px-3.5 py-2.5 border-b border-(--border) flex items-center justify-between gap-2 shrink-0",
+          "px-3.5 py-2.5 border-b border-(--line) flex items-center justify-between gap-2 shrink-0",
           isInSheet && "pr-10"
         )}
       >
@@ -135,7 +135,7 @@ export default function ChapterFeedbackGutter({
               "px-2.5 py-1 rounded-lg text-xs font-bold transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
               statusFilter === "open"
                 ? "bg-(--accent)/15 text-(--accent)"
-                : "text-(--text-secondary) hover:text-(--text-primary)"
+                : "text-(--muted) hover:text-(--text)"
             )}
           >
             {t("novelcrafterFeedbackOpen")} {openItems.length}
@@ -148,7 +148,7 @@ export default function ChapterFeedbackGutter({
               "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
               statusFilter === "resolved"
                 ? "bg-(--accent)/15 text-(--accent) font-bold"
-                : "text-(--text-secondary) hover:text-(--text-primary)"
+                : "text-(--muted) hover:text-(--text)"
             )}
           >
             {t("novelcrafterFeedbackResolved")} {resolvedItems.length}
@@ -161,7 +161,7 @@ export default function ChapterFeedbackGutter({
             onClick={() => handleStep(-1)}
             disabled={visibleItems.length === 0}
             aria-label={t("novelcrafterFeedbackPrevItem")}
-            className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="p-1.5 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <ChevronUp className="w-3.5 h-3.5" />
           </button>
@@ -170,7 +170,7 @@ export default function ChapterFeedbackGutter({
             onClick={() => handleStep(1)}
             disabled={visibleItems.length === 0}
             aria-label={t("novelcrafterFeedbackNextItem")}
-            className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="p-1.5 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <ChevronDown className="w-3.5 h-3.5" />
           </button>
@@ -180,7 +180,7 @@ export default function ChapterFeedbackGutter({
             aria-expanded={menuOpen}
             aria-haspopup="menu"
             aria-label={t("novelcrafterFeedbackMoreActions")}
-            className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="p-1.5 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <MoreHorizontal className="w-3.5 h-3.5" />
           </button>
@@ -190,21 +190,21 @@ export default function ChapterFeedbackGutter({
               onClick={onClose}
               aria-label={t("close")}
               title={t("close")}
-              className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="p-1.5 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
 
           {menuOpen && (
-            <div className="absolute right-0 top-8 z-30 w-44 rounded-xl border border-(--border) bg-(--surface-elevated) shadow-lg p-1.5 space-y-1">
+            <div className="absolute right-0 top-8 z-30 w-44 rounded-xl border border-(--line) bg-(--surface) shadow-lg p-1.5 space-y-1">
               <button
                 type="button"
                 onClick={() => {
                   onResolveAll();
                   setMenuOpen(false);
                 }}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-(--text-primary) hover:bg-(--control-bg-hover)"
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-(--text) hover:bg-(--raised)"
               >
                 {t("novelcrafterFeedbackResolveAll")}
               </button>
@@ -227,8 +227,8 @@ export default function ChapterFeedbackGutter({
       <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 custom-scrollbar">
         {visibleItems.length === 0 ? (
           <div className="py-10 px-4 text-center space-y-2">
-            <MessageSquareQuote className="w-7 h-7 text-(--text-secondary) opacity-40 mx-auto" />
-            <p className="text-xs text-(--text-secondary) leading-relaxed">
+            <MessageSquareQuote className="w-7 h-7 text-(--muted) opacity-40 mx-auto" />
+            <p className="text-xs text-(--muted) leading-relaxed">
               {t("novelcrafterFeedbackTooltip")}
             </p>
           </div>
@@ -249,8 +249,8 @@ export default function ChapterFeedbackGutter({
                 className={cn(
                   "rounded-2xl border p-3.5 space-y-2.5 transition-all cursor-pointer",
                   isSelected
-                    ? "bg-(--surface-elevated) border-(--accent) shadow-md"
-                    : "bg-(--surface-elevated)/80 border-(--border) hover:border-(--control-border)"
+                    ? "bg-(--surface) border-(--accent) shadow-md"
+                    : "bg-(--surface)/80 border-(--line) hover:border-(--line)"
                 )}
               >
                 {/* 1. Category Badge + Accept (✓) / Dismiss (×) */}
@@ -276,7 +276,7 @@ export default function ChapterFeedbackGutter({
                         onClick={() => onAcceptSuggestion(item)}
                         aria-label={t("novelcrafterFeedbackAcceptBtn")}
                         title={t("novelcrafterFeedbackAcceptBtn")}
-                        className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--success) hover:bg-(--success)/10 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
+                        className="p-1.5 rounded-lg text-(--muted) hover:text-(--success) hover:bg-(--success)/10 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
                       >
                         <Check className="w-3.5 h-3.5" />
                       </button>
@@ -286,7 +286,7 @@ export default function ChapterFeedbackGutter({
                       onClick={() => onDismissFeedback(item.id)}
                       aria-label={t("novelcrafterFeedbackDismissBtn")}
                       title={t("novelcrafterFeedbackDismissBtn")}
-                      className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--danger) hover:bg-(--danger)/10 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
+                      className="p-1.5 rounded-lg text-(--muted) hover:text-(--danger) hover:bg-(--danger)/10 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -294,7 +294,7 @@ export default function ChapterFeedbackGutter({
                 </div>
 
                 {/* 2. Editorial Critique Comment (Bullet Points) */}
-                <ul className="space-y-1.5 text-xs md:text-[13px] leading-relaxed text-(--text-primary)">
+                <ul className="space-y-1.5 text-xs md:text-[13px] leading-relaxed text-(--text)">
                   {item.comment
                     .split(/\r?\n+/)
                     .flatMap((line) =>
@@ -314,7 +314,7 @@ export default function ChapterFeedbackGutter({
                         <span>
                           {point.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((part, i) =>
                             part.startsWith("**") && part.endsWith("**") ? (
-                              <strong key={i} className="font-semibold text-(--text-primary)">
+                              <strong key={i} className="font-semibold text-(--text)">
                                 {part.slice(2, -2)}
                               </strong>
                             ) : part.startsWith("*") && part.endsWith("*") ? (
@@ -332,14 +332,11 @@ export default function ChapterFeedbackGutter({
 
                 {/* 3. Word-Level Diff Box (Strikethrough + Highlight) */}
                 {diffSegments.length > 0 && (
-                  <div className="rounded-xl border border-(--border) bg-(--surface)/90 p-3 text-xs md:text-[13px] leading-relaxed">
+                  <div className="rounded-xl border border-(--line) bg-(--surface)/90 p-3 text-xs md:text-[13px] leading-relaxed">
                     {diffSegments.map((seg, idx) => {
                       if (seg.type === "delete") {
                         return (
-                          <span
-                            key={idx}
-                            className="line-through text-(--text-secondary) opacity-75"
-                          >
+                          <span key={idx} className="line-through text-(--muted) opacity-75">
                             {seg.text}
                           </span>
                         );
@@ -355,7 +352,7 @@ export default function ChapterFeedbackGutter({
                         );
                       }
                       return (
-                        <span key={idx} className="text-(--text-primary)">
+                        <span key={idx} className="text-(--text)">
                           {seg.text}
                         </span>
                       );
@@ -375,7 +372,7 @@ export default function ChapterFeedbackGutter({
                         onClick={() => onAcceptSuggestion(item)}
                         aria-label={t("novelcrafterFeedbackAcceptBtn")}
                         title={t("novelcrafterFeedbackAcceptBtn")}
-                        className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--accent) hover:bg-(--control-bg-hover) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
+                        className="p-1.5 rounded-lg text-(--muted) hover:text-(--accent) hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
                       >
                         <CircleArrowLeft className="w-4 h-4" />
                       </button>
@@ -386,7 +383,7 @@ export default function ChapterFeedbackGutter({
                         onClick={() => void handleCopySuggestion(item.suggestion)}
                         aria-label={t("copy")}
                         title={t("copy")}
-                        className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
+                        className="p-1.5 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
                       >
                         <Copy className="w-3.5 h-3.5" />
                       </button>
@@ -405,7 +402,7 @@ export default function ChapterFeedbackGutter({
                         "p-1.5 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)",
                         item.rating === "up"
                           ? "text-(--accent) bg-(--accent)/15"
-                          : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover)"
+                          : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
                       )}
                     >
                       <ThumbsUp className="w-3.5 h-3.5" />
@@ -421,7 +418,7 @@ export default function ChapterFeedbackGutter({
                         "p-1.5 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)",
                         item.rating === "down"
                           ? "text-(--danger) bg-(--danger)/10"
-                          : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover)"
+                          : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
                       )}
                     >
                       <ThumbsDown className="w-3.5 h-3.5" />
@@ -432,7 +429,7 @@ export default function ChapterFeedbackGutter({
                 {/* 5. Reply / Follow-up Box (Reply [Ctrl ↵]) */}
                 {isSelected && (
                   <div
-                    className="pt-2 border-t border-(--border) space-y-2"
+                    className="pt-2 border-t border-(--line) space-y-2"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <textarea
@@ -450,7 +447,7 @@ export default function ChapterFeedbackGutter({
                       }}
                       placeholder={t("novelcrafterFeedbackReplyPlaceholder")}
                       aria-label={t("novelcrafterFeedbackReplyPlaceholder")}
-                      className="w-full rounded-xl border border-(--control-border) bg-(--surface) px-2.5 py-2 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none resize-none"
+                      className="w-full rounded-xl border border-(--line) bg-(--surface) px-2.5 py-2 text-xs text-(--text) placeholder:text-(--muted) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none resize-none"
                     />
                     <div className="flex items-center justify-end gap-1.5">
                       <button
@@ -462,7 +459,7 @@ export default function ChapterFeedbackGutter({
                             return next;
                           })
                         }
-                        className="px-2.5 py-1 rounded-lg text-xs font-medium text-(--text-secondary) hover:text-(--text-primary)"
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium text-(--muted) hover:text-(--text)"
                       >
                         {t("cancel")}
                       </button>
@@ -470,7 +467,7 @@ export default function ChapterFeedbackGutter({
                         type="button"
                         onClick={() => submitReply(item)}
                         disabled={!currentReplyText.trim()}
-                        className="px-2.5 py-1 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 disabled:opacity-50 text-xs font-semibold"
+                        className="px-2.5 py-1 rounded-lg bg-(--accent) text-(--on-accent) hover:brightness-110 disabled:opacity-50 text-xs font-semibold"
                       >
                         {t("novelcrafterFeedbackReplySubmit")} [Ctrl ↵]
                       </button>

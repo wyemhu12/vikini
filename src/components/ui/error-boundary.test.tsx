@@ -49,7 +49,7 @@ describe("ErrorBoundary UI Component", () => {
     expect(reloadBtn.className).toContain("focus-visible:ring-2");
 
     // Verify WCAG AA accent foreground token rather than raw text-white
-    expect(reloadBtn.className).toContain("text-(--accent-foreground)");
+    expect(reloadBtn.className).toContain("text-(--on-accent)");
     expect(reloadBtn.className).not.toContain("text-white");
   });
 

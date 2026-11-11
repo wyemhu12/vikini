@@ -79,7 +79,7 @@ export default function ChapterSelectionToolbar({
   ];
 
   const btnCls =
-    "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-(--border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none disabled:opacity-50 shrink-0";
+    "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none disabled:opacity-50 shrink-0";
 
   return (
     <div
@@ -94,7 +94,7 @@ export default function ChapterSelectionToolbar({
         }
       }}
       className={cn(
-        "z-(--z-popover) w-max max-w-[calc(100vw-2rem)] rounded-xl border border-(--accent)/40 bg-(--surface-elevated)/95 backdrop-blur-md p-1.5 shadow-lg",
+        "z-(--z-popover) w-max max-w-[calc(100vw-2rem)] rounded-xl border border-(--accent)/40 bg-(--surface)/95 backdrop-blur-md p-1.5 shadow-lg",
         placement === "docked-bottom"
           ? "sticky bottom-[calc(var(--nc-kb-offset,0px)+0.75rem)] mx-auto mt-2"
           : "absolute top-(--nc-bubble-top) left-(--nc-bubble-left)"
@@ -106,7 +106,7 @@ export default function ChapterSelectionToolbar({
             <button type="button" disabled={disabled} className={btnCls}>
               <RefreshCw className="w-3.5 h-3.5 text-(--accent)" />
               <span>{t("novelcrafterSlotRewrite")}</span>
-              <ChevronDown className="w-3 h-3 text-(--text-secondary)" />
+              <ChevronDown className="w-3 h-3 text-(--muted)" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-44">
@@ -176,7 +176,7 @@ export default function ChapterSelectionToolbar({
       </div>
 
       {quickEdit.open && (
-        <div className="mt-1.5 pt-1.5 border-t border-(--border) flex items-center gap-1.5">
+        <div className="mt-1.5 pt-1.5 border-t border-(--line) flex items-center gap-1.5">
           <input
             type="text"
             value={quickEdit.prompt}
@@ -194,14 +194,14 @@ export default function ChapterSelectionToolbar({
             autoFocus
             placeholder={t("novelcrafterRewriteInstructionPlaceholder")}
             aria-label={t("novelcrafterRewriteInstructionPlaceholder")}
-            className="flex-1 min-w-48 h-7 rounded-md bg-(--surface) border border-(--border) px-2 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:border-(--accent)"
+            className="flex-1 min-w-48 h-7 rounded-md bg-(--surface) border border-(--line) px-2 text-xs text-(--text) placeholder:text-(--muted) focus:outline-none focus:border-(--accent)"
           />
           <PromptSourceTooltip actionKey="rewrite:custom" disabled={disabled} side="top">
             <button
               type="button"
               disabled={disabled || !quickEdit.prompt.trim()}
               onClick={quickEdit.onSubmit}
-              className="px-2.5 py-1 rounded-md bg-(--accent) text-(--accent-foreground) text-xs font-semibold transition-opacity disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="px-2.5 py-1 rounded-md bg-(--accent) text-(--on-accent) text-xs font-semibold transition-opacity disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
               {t("novelcrafterQuickEditSubmitBtn")}
             </button>

@@ -110,17 +110,17 @@ export default function FileManagerPanel({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -8, scale: 0.95 }}
           transition={{ duration: 0.15, ease: "easeOut" }}
-          className="absolute bottom-full right-0 mb-2 w-72 sm:w-80 max-h-80 z-50 rounded-2xl bg-[var(--surface)] border border-[var(--control-border)] shadow-2xl shadow-black/30 backdrop-blur-xl overflow-hidden flex flex-col"
+          className="absolute bottom-full right-0 mb-2 w-72 sm:w-80 max-h-80 z-50 rounded-2xl bg-[var(--surface)] border border-[var(--line)] shadow-2xl backdrop-blur-xl overflow-hidden flex flex-col"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--control-border)]">
-            <span className="text-xs font-bold text-[var(--text-primary)] tracking-wide uppercase">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--line)]">
+            <span className="text-xs font-bold text-[var(--text)] tracking-wide uppercase">
               {t?.files ?? "Files"}{" "}
-              <span className="text-[var(--text-secondary)] font-normal">({files.length})</span>
+              <span className="text-[var(--muted)] font-normal">({files.length})</span>
             </span>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg hover:bg-[var(--control-bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              className="p-1 rounded-lg hover:bg-[var(--raised)] text-[var(--muted)] hover:text-[var(--text)] transition-colors"
               aria-label="Close"
             >
               <X className="w-3.5 h-3.5" />
@@ -134,7 +134,7 @@ export default function FileManagerPanel({
                 <Loader2 className="w-4 h-4 animate-spin text-[var(--accent)]" />
               </div>
             ) : files.length === 0 ? (
-              <div className="flex items-center justify-center py-6 text-[var(--text-secondary)]">
+              <div className="flex items-center justify-center py-6 text-[var(--muted)]">
                 <p className="text-xs">{t?.noFilesUploaded ?? "No files in this chat"}</p>
               </div>
             ) : (
@@ -166,7 +166,7 @@ interface FileListItemProps {
 
 function FileListItem({ file, isDeleting, onDelete }: FileListItemProps) {
   const Icon = KIND_ICONS[file.kind] ?? File;
-  const iconColor = KIND_COLORS[file.kind] ?? "text-[var(--text-secondary)]";
+  const iconColor = KIND_COLORS[file.kind] ?? "text-[var(--muted)]";
 
   return (
     <motion.div
@@ -174,7 +174,7 @@ function FileListItem({ file, isDeleting, onDelete }: FileListItemProps) {
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: 20, transition: { duration: 0.15 } }}
-      className="group flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-[var(--control-bg)] transition-colors"
+      className="group flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-[var(--raised)] transition-colors"
     >
       {/* Kind icon */}
       <div className="shrink-0">
@@ -183,13 +183,10 @@ function FileListItem({ file, isDeleting, onDelete }: FileListItemProps) {
 
       {/* File info */}
       <div className="flex-1 min-w-0">
-        <p
-          className="text-xs font-medium text-[var(--text-primary)] truncate"
-          title={file.filename}
-        >
+        <p className="text-xs font-medium text-[var(--text)] truncate" title={file.filename}>
           {file.filename}
         </p>
-        <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
+        <p className="text-xs text-[var(--muted)] mt-0.5">
           {formatFileSize(file.size_bytes)} · {formatRelativeDate(file.created_at)}
         </p>
       </div>
@@ -202,7 +199,7 @@ function FileListItem({ file, isDeleting, onDelete }: FileListItemProps) {
           onDelete(file.id);
         }}
         disabled={isDeleting}
-        className="shrink-0 p-1 rounded-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-[opacity,color,background-color] hover:bg-(--danger)/15 text-[var(--text-secondary)] hover:text-(--danger) disabled:opacity-50"
+        className="shrink-0 p-1 rounded-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-[opacity,color,background-color] hover:bg-(--danger)/15 text-[var(--muted)] hover:text-(--danger) disabled:opacity-50"
         aria-label={`Delete ${file.filename}`}
       >
         {isDeleting ? (

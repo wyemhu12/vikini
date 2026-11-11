@@ -243,12 +243,12 @@ describe("ChatBubble", () => {
       expect(screen.getByText(/1\.5K/)).toBeInTheDocument();
     });
 
-    it("applies text-(--text-primary) to assistant text container and no dead text-primary", () => {
+    it("applies text-(--text) to assistant text container and no dead text-primary", () => {
       const { container } = render(<ChatBubble message={assistantMsg} />);
 
       const botBubble = container.querySelector(".rounded-2xl");
       expect(botBubble).toBeInTheDocument();
-      expect(botBubble).toHaveClass("text-(--text-primary)");
+      expect(botBubble).toHaveClass("text-(--text)");
       expect(botBubble?.className.split(" ")).not.toContain("text-primary");
     });
   });

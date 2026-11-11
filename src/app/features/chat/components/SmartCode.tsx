@@ -83,7 +83,7 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
   // Inline code
   if (inline) {
     return (
-      <code className="rounded bg-(--control-bg) px-1.5 py-0.5 font-mono text-xs text-(--accent)">
+      <code className="rounded bg-(--raised) px-1.5 py-0.5 font-mono text-xs text-(--accent)">
         {children}
       </code>
     );
@@ -110,10 +110,10 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
         : "Collapse code";
 
   return (
-    <div className="group/code my-5 overflow-hidden rounded-xl border border-(--border) bg-(--surface-elevated) shadow-2xl transition-colors">
+    <div className="group/code my-5 overflow-hidden rounded-xl border border-(--line) bg-(--surface) shadow-2xl transition-colors">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-(--border) bg-(--control-bg) px-4 py-2.5 select-none">
-        <span className="font-mono text-xs font-semibold uppercase tracking-wider text-(--text-secondary)">
+      <div className="flex items-center justify-between border-b border-(--line) bg-(--raised) px-4 py-2.5 select-none">
+        <span className="font-mono text-xs font-semibold uppercase tracking-wider text-(--muted)">
           {lang}
         </span>
 
@@ -123,7 +123,7 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
           className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all duration-200 active:scale-[0.95] focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
             copied
               ? "bg-(--success)/10 text-(--success)"
-              : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--surface-elevated)"
+              : "text-(--muted) hover:text-(--text) hover:bg-(--surface)"
           }`}
           aria-label={copied ? t("copied") || "Copied" : t("copy") || "Copy"}
         >
@@ -151,18 +151,18 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
           }`}
         >
           <code
-            className={`${className || ""} bg-transparent! text-[13px] leading-6 font-mono text-(--text-primary) p-0! block min-w-full`}
+            className={`${className || ""} bg-transparent! text-[13px] leading-6 font-mono text-(--text) p-0! block min-w-full`}
           >
             {children}
           </code>
         </pre>
 
         {isCollapsed && (
-          <div className="absolute inset-x-0 bottom-0 flex h-28 items-end justify-center bg-gradient-to-t from-(--surface-elevated) to-transparent pb-4 pointer-events-none">
+          <div className="absolute inset-x-0 bottom-0 flex h-28 items-end justify-center bg-gradient-to-t from-(--surface) to-transparent pb-4 pointer-events-none">
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="pointer-events-auto flex items-center gap-1.5 rounded-md border border-(--border) bg-(--surface-elevated) px-3 py-1.5 text-xs font-medium text-(--text-secondary) hover:text-(--text-primary) shadow-sm transition-all active:scale-[0.95] focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="pointer-events-auto flex items-center gap-1.5 rounded-md border border-(--line) bg-(--surface) px-3 py-1.5 text-xs font-medium text-(--muted) hover:text-(--text) shadow-sm transition-all active:scale-[0.95] focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
               <ChevronDown className="h-3.5 w-3.5" />
               <span>{expandLabel}</span>
@@ -172,11 +172,11 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
       </div>
 
       {isCollapsible && expanded && (
-        <div className="flex items-center justify-center border-t border-(--border) bg-(--control-bg)/40 p-2">
+        <div className="flex items-center justify-center border-t border-(--line) bg-(--raised)/40 p-2">
           <button
             type="button"
             onClick={() => setExpanded(false)}
-            className="flex items-center gap-1.5 rounded-md border border-(--border) bg-(--surface-elevated) px-3 py-1.5 text-xs font-medium text-(--text-secondary) hover:text-(--text-primary) shadow-sm transition-all active:scale-[0.95] focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="flex items-center gap-1.5 rounded-md border border-(--line) bg-(--surface) px-3 py-1.5 text-xs font-medium text-(--muted) hover:text-(--text) shadow-sm transition-all active:scale-[0.95] focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <ChevronUp className="h-3.5 w-3.5" />
             <span>{collapseLabel}</span>

@@ -33,22 +33,22 @@ export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
           }
           className={cn(
             "relative flex items-center justify-center p-2.5 rounded-full",
-            "bg-(--surface-elevated)/90 hover:bg-(--surface-elevated)",
-            "text-(--text-primary) border border-(--border)",
+            "bg-(--surface)/90 hover:bg-(--surface)",
+            "text-(--text) border border-(--line)",
             "shadow-lg hover:shadow-xl backdrop-blur-md",
             "transition-colors duration-200 cursor-pointer outline-none",
             "focus-visible:ring-2 focus-visible:ring-(--accent)",
             className
           )}
         >
-          <ChevronDown className="w-4 h-4 text-(--text-secondary) hover:text-(--text-primary)" />
+          <ChevronDown className="w-4 h-4 text-(--muted) hover:text-(--text)" />
           {unreadCount > 0 && (
             <span
               className={cn(
                 "absolute -top-1 -right-1 flex items-center justify-center",
                 "min-w-4.5 h-4.5 px-1 rounded-full",
-                "bg-(--accent) text-(--accent-foreground)",
-                "text-[10px] font-bold leading-none shadow-sm"
+                "bg-(--accent) text-(--on-accent)",
+                "text-xs font-bold leading-none shadow-sm"
               )}
             >
               {unreadCount > 99 ? "99+" : unreadCount}

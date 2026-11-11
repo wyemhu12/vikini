@@ -118,31 +118,29 @@ export function KnowledgePanel({
   return (
     <div className={cn("flex flex-col h-full", className)}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-(--border)">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-(--line)">
         <h3 className="font-semibold">{t("knowledgeBase")}</h3>
         <button
           type="button"
           onClick={onRefresh}
           disabled={isLoading}
-          className="p-1.5 hover:bg-(--control-bg) rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer"
+          className="p-1.5 hover:bg-(--raised) rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer"
           title={t("refresh")}
           aria-label={t("refresh")}
         >
-          <RefreshCw
-            className={cn("h-4 w-4 text-(--text-secondary)", isLoading && "animate-spin")}
-          />
+          <RefreshCw className={cn("h-4 w-4 text-(--muted)", isLoading && "animate-spin")} />
         </button>
       </div>
 
       {/* Storage Bar */}
-      <div className="px-4 py-3 border-b border-(--border)">
-        <div className="flex items-center justify-between text-xs text-(--text-secondary) mb-1.5">
+      <div className="px-4 py-3 border-b border-(--line)">
+        <div className="flex items-center justify-between text-xs text-(--muted) mb-1.5">
           <span>{t("kbStorage")}</span>
           <span>
             {storageUsedMB} / {storageMaxMB} MB
           </span>
         </div>
-        <div className="h-1.5 bg-(--control-bg) rounded-full overflow-hidden">
+        <div className="h-1.5 bg-(--raised) rounded-full overflow-hidden">
           <div
             className={cn(
               "h-full rounded-full transition-colors",
@@ -154,7 +152,7 @@ export function KnowledgePanel({
       </div>
 
       {/* Upload Button */}
-      <div className="px-4 py-3 border-b border-(--border)">
+      <div className="px-4 py-3 border-b border-(--line)">
         <label
           tabIndex={0}
           onKeyDown={(e) => {
@@ -165,7 +163,7 @@ export function KnowledgePanel({
           }}
           className={cn(
             "flex items-center justify-center gap-2 px-4 py-2",
-            "border-2 border-dashed border-(--border) rounded-lg",
+            "border-2 border-dashed border-(--line) rounded-lg",
             "hover:border-(--accent) hover:bg-(--accent)/5 transition-colors",
             "cursor-pointer focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
             isUploading && "opacity-50 cursor-not-allowed"
@@ -208,7 +206,7 @@ export function KnowledgePanel({
       {/* Document List */}
       <div className="flex-1 overflow-auto px-4 py-3 space-y-2">
         {documents.length === 0 ? (
-          <div className="text-center py-8 text-sm text-(--text-secondary)">
+          <div className="text-center py-8 text-sm text-(--muted)">
             <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>{t("kbNoDocuments")}</p>
             <p className="text-xs">{t("kbUploadHint")}</p>
@@ -264,16 +262,16 @@ function DocumentItem({
     <div
       className={cn(
         "flex items-center gap-3 p-2.5 rounded-lg",
-        "bg-(--control-bg)/30 hover:bg-(--control-bg)/50 transition-colors group"
+        "bg-(--raised)/30 hover:bg-(--raised)/50 transition-colors group"
       )}
     >
-      <FileText className="h-4 w-4 text-(--text-secondary) shrink-0" />
+      <FileText className="h-4 w-4 text-(--muted) shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium truncate">{document.filename}</span>
           {getStatusIcon()}
         </div>
-        <div className="text-xs text-(--text-secondary)">
+        <div className="text-xs text-(--muted)">
           {sizeKB} KB • {document.total_chunks} {chunksLabel}
           {document.status === "error" && document.error_message && (
             <span className="text-(--danger)"> • {document.error_message}</span>

@@ -115,7 +115,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
                   {showKey.gemini ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="text-[10px] text-muted-foreground">{t("studioGeminiKeyDesc")}</p>
+              <p className="text-xs text-muted-foreground">{t("studioGeminiKeyDesc")}</p>
             </div>
 
             {/* OpenAI Key */}

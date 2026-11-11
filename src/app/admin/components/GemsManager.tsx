@@ -117,15 +117,15 @@ export default function GemsManager() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-gray-400">{t("loadingGems")}</span>
+        <Loader2 className="w-6 h-6 animate-spin text-(--accent)" />
+        <span className="ml-2 text-(--muted)">{t("loadingGems")}</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center gap-2 text-red-400 py-4">
+      <div className="flex items-center gap-2 text-(--danger) py-4">
         <AlertCircle className="w-5 h-5" />
         <span>{error}</span>
       </div>
@@ -136,15 +136,15 @@ export default function GemsManager() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Gem className="w-5 h-5 text-blue-400" />
-          <h2 className="text-xl font-semibold text-white">{t("globalGemsManagement")}</h2>
-          <span className="text-sm text-gray-500">
+          <Gem className="w-5 h-5 text-(--accent)" />
+          <h2 className="text-xl font-semibold text-(--text)">{t("globalGemsManagement")}</h2>
+          <span className="text-sm text-(--faint)">
             ({gems.length} {t("gems")})
           </span>
         </div>
         <button
           onClick={openAddModal}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-(--soft) text-(--accent) rounded-lg hover:bg-(--soft) border border-(--accent)/30 transition-colors"
         >
           <Plus className="w-4 h-4" />
           {t("addGem")}
@@ -152,7 +152,7 @@ export default function GemsManager() {
       </div>
 
       {gems.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12 text-(--muted)">
           <Gem className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p>{t("noGlobalGems")}</p>
         </div>
@@ -161,36 +161,36 @@ export default function GemsManager() {
           {gems.map((gem) => (
             <div
               key={gem.id}
-              className="p-4 rounded-lg bg-white/2 border border-white/10 hover:border-white/20 transition-colors"
+              className="p-4 rounded-lg bg-(--raised) border border-(--line) hover:border-(--line) transition-colors"
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
                   {gem.icon && (
-                    <span className="text-2xl shrink-0 flex items-center justify-center w-7 h-7 text-white">
+                    <span className="text-2xl shrink-0 flex items-center justify-center w-7 h-7 text-(--text)">
                       <DynamicIcon name={gem.icon} className="w-5 h-5" />
                     </span>
                   )}
-                  <h3 className="font-semibold text-white">{gem.name}</h3>
+                  <h3 className="font-semibold text-(--text)">{gem.name}</h3>
                 </div>
                 <div className="flex gap-1">
                   <button
                     onClick={() => openEditModal(gem)}
-                    className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                    className="p-1.5 rounded hover:bg-(--raised) transition-colors"
                     title={t("edit")}
                   >
-                    <Edit2 className="w-4 h-4 text-gray-400 hover:text-white" />
+                    <Edit2 className="w-4 h-4 text-(--muted) hover:text-(--text)" />
                   </button>
                   <button
                     onClick={() => deleteGem(gem.id)}
-                    className="p-1.5 rounded hover:bg-red-500/20 transition-colors"
+                    className="p-1.5 rounded hover:bg-(--danger)/20 transition-colors"
                     title={t("deleteGem")}
                   >
-                    <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-400" />
+                    <Trash2 className="w-4 h-4 text-(--muted) hover:text-(--danger)" />
                   </button>
                 </div>
               </div>
               {gem.description && (
-                <p className="text-sm text-gray-400 line-clamp-2">{gem.description}</p>
+                <p className="text-sm text-(--muted) line-clamp-2">{gem.description}</p>
               )}
             </div>
           ))}
@@ -208,15 +208,15 @@ export default function GemsManager() {
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 0 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="bg-(--surface-elevated) text-(--text-primary) border border-(--border) rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl relative my-auto pointer-events-auto"
+              className="bg-(--surface) text-(--text) border border-(--line) rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl relative my-auto pointer-events-auto"
             >
-              <div className="flex-none flex items-center justify-between p-4 border-b border-(--border) bg-(--surface-elevated) rounded-t-xl z-20">
+              <div className="flex-none flex items-center justify-between p-4 border-b border-(--line) bg-(--surface) rounded-t-xl z-20">
                 <Dialog.Title className="text-lg font-semibold">
                   {editingGem ? t("editGlobalGem") : t("createGlobalGem")}
                 </Dialog.Title>
                 <Dialog.Close asChild>
-                  <button className="p-1 rounded-full hover:bg-white/10 transition-colors">
-                    <X className="w-5 h-5 text-neutral-400" />
+                  <button className="p-1 rounded-full hover:bg-(--raised) transition-colors">
+                    <X className="w-5 h-5 text-(--muted)" />
                   </button>
                 </Dialog.Close>
               </div>

@@ -110,7 +110,7 @@ export function VoiceButton({
             <button
               type="button"
               disabled
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--text-secondary) opacity-50 cursor-not-allowed"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--muted) opacity-50 cursor-not-allowed"
               aria-label="Voice input not supported"
             >
               <MicOff className="w-5 h-5" />
@@ -139,8 +139,8 @@ export function VoiceButton({
               disabled={disabled}
               className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors duration-200 ${
                 isListening
-                  ? "bg-(--danger) text-white animate-pulse shadow-lg shadow-(--danger)/50"
-                  : "text-(--text-secondary) hover:bg-(--control-bg-hover) hover:text-(--accent)"
+                  ? "bg-(--danger) text-(--danger-foreground) animate-pulse shadow-lg shadow-(--danger)/50"
+                  : "text-(--muted) hover:bg-(--raised) hover:text-(--accent)"
               } disabled:opacity-50 disabled:cursor-not-allowed`}
               aria-label={
                 isListening

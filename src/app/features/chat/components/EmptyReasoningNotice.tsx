@@ -32,18 +32,18 @@ export const EmptyReasoningNotice: React.FC<EmptyReasoningNoticeProps> = ({
   return (
     <div
       role="alert"
-      className="mt-2 mb-1 p-3.5 rounded-xl border border-(--warning)/30 bg-(--warning)/5 backdrop-blur-xs text-(--text-primary) shadow-sm"
+      className="mt-2 mb-1 p-3.5 rounded-xl border border-(--warning)/30 bg-(--warning)/5 backdrop-blur-xs text-(--text) shadow-sm"
     >
       <div className="flex items-start gap-2.5">
         <AlertCircle className="w-4 h-4 text-(--warning) shrink-0 mt-0.5" aria-hidden="true" />
         <div className="flex-1 min-w-0">
-          <p className="text-xs leading-relaxed text-(--text-secondary)">{message}</p>
+          <p className="text-xs leading-relaxed text-(--muted)">{message}</p>
 
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={onRegenerate}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-(--control-bg) hover:bg-(--control-bg-hover) text-(--text-primary) border border-(--control-border) transition-all active:scale-[0.98] cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-(--raised) hover:bg-(--raised) text-(--text) border border-(--line) transition-all active:scale-[0.98] cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5 text-(--accent)" />
               <span>{t("regenerate")}</span>

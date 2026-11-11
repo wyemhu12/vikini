@@ -115,10 +115,10 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
       <DialogContent className="max-w-md p-0 gap-0 [&>button]:hidden">
         <DialogTitle className="sr-only">{t("createNewProject")}</DialogTitle>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--line)]">
           <div className="flex items-center gap-2">
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-white"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-(--on-overlay)"
               style={{ backgroundColor: color }}
             >
               {(() => {
@@ -132,7 +132,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
             type="button"
             onClick={onClose}
             aria-label={t("close")}
-            className="p-1 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg)] cursor-pointer focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="p-1 rounded-md text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--raised)] cursor-pointer focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <X className="w-5 h-5" />
           </button>
@@ -169,7 +169,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
             {/* Icon */}
             <div>
               <label className="block text-sm font-medium mb-1.5">{t("iconLabel")}</label>
-              <div className="grid grid-cols-4 gap-1.5 p-2 bg-[var(--control-bg)] rounded-lg border border-[var(--border)] max-h-32 overflow-y-auto">
+              <div className="grid grid-cols-4 gap-1.5 p-2 bg-[var(--raised)] rounded-lg border border-[var(--line)] max-h-32 overflow-y-auto">
                 {ICON_OPTIONS.map(({ id, icon: IconComp }) => (
                   <button
                     key={id}
@@ -179,7 +179,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                       "p-1.5 rounded flex items-center justify-center transition-colors cursor-pointer",
                       icon === id
                         ? "bg-(--accent) text-(--on-accent)"
-                        : "text-[var(--text-secondary)] hover:bg-[var(--surface)] hover:text-[var(--text-primary)]"
+                        : "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
                     )}
                   >
                     <IconComp className="w-4 h-4" />
@@ -191,7 +191,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
             {/* Color */}
             <div>
               <label className="block text-sm font-medium mb-1.5">{t("colorLabel")}</label>
-              <div className="grid grid-cols-4 gap-1.5 p-2 bg-[var(--control-bg)] rounded-lg border border-[var(--border)] max-h-32 overflow-y-auto">
+              <div className="grid grid-cols-4 gap-1.5 p-2 bg-[var(--raised)] rounded-lg border border-[var(--line)] max-h-32 overflow-y-auto">
                 {COLORS.map((c) => (
                   <button
                     key={c}
@@ -214,11 +214,11 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
 
           {/* Error */}
           {error && (
-            <div className="text-sm text-red-500 bg-red-500/10 p-2.5 rounded-lg">{error}</div>
+            <div className="text-sm text-(--danger) bg-(--danger)/10 p-2.5 rounded-lg">{error}</div>
           )}
 
           {/* Footer */}
-          <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border)]">
+          <div className="flex justify-end gap-2 pt-2 border-t border-[var(--line)]">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               {t("cancel")}
             </Button>

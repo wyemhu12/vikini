@@ -80,9 +80,9 @@ export function ProjectSwitcher({
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "flex items-center gap-2 w-full px-3 py-2 rounded-lg",
-          "bg-(--control-bg) hover:bg-(--control-bg-hover) transition-colors",
-          "border border-(--control-border)",
-          "text-sm font-medium text-(--text-primary)"
+          "bg-(--raised) hover:bg-(--raised) transition-colors",
+          "border border-(--line)",
+          "text-sm font-medium text-(--text)"
         )}
       >
         <span
@@ -91,7 +91,7 @@ export function ProjectSwitcher({
         >
           {(() => {
             const IconComp = getIconComponent(currentProject?.icon);
-            return <IconComp className="h-3.5 w-3.5 text-white" />;
+            return <IconComp className="h-3.5 w-3.5 text-(--on-overlay)" />;
           })()}
         </span>
         <span className="flex-1 text-left truncate">{currentProject?.name || t("noProject")}</span>
@@ -114,16 +114,16 @@ export function ProjectSwitcher({
             className={cn(
               "absolute top-full left-0 right-0 mt-1 z-50",
               "bg-[color-mix(in_srgb,var(--surface)_97%,transparent)] backdrop-blur-xl",
-              "border-2 border-(--border) rounded-lg shadow-2xl",
+              "border-2 border-(--line) rounded-lg shadow-2xl",
               "max-h-[300px] overflow-auto"
             )}
           >
             <button
               onClick={() => handleSelect(null)}
               className={cn(
-                "flex items-center gap-2 w-full px-3 py-2 text-sm text-(--text-primary)",
-                "hover:bg-(--control-bg-hover) transition-colors",
-                !currentProject && "bg-(--control-bg)"
+                "flex items-center gap-2 w-full px-3 py-2 text-sm text-(--text)",
+                "hover:bg-(--raised) transition-colors",
+                !currentProject && "bg-(--raised)"
               )}
             >
               <FolderOpen className="h-4 w-4 text-muted-foreground" />
@@ -132,7 +132,7 @@ export function ProjectSwitcher({
             </button>
 
             {/* Divider */}
-            {projects.length > 0 && <div className="border-t border-(--border) my-1" />}
+            {projects.length > 0 && <div className="border-t border-(--line) my-1" />}
 
             {/* Project List */}
             {projects.map((project) => (
@@ -140,13 +140,13 @@ export function ProjectSwitcher({
                 key={project.id}
                 className={cn(
                   "flex items-center gap-2 px-3 py-2 group",
-                  "hover:bg-(--control-bg-hover) transition-colors text-(--text-primary)",
-                  currentProject?.id === project.id && "bg-(--control-bg)"
+                  "hover:bg-(--raised) transition-colors text-(--text)",
+                  currentProject?.id === project.id && "bg-(--raised)"
                 )}
               >
                 <button
                   onClick={() => handleSelect(project)}
-                  className="flex items-center gap-2 flex-1 text-sm text-(--text-primary)"
+                  className="flex items-center gap-2 flex-1 text-sm text-(--text)"
                 >
                   {(() => {
                     const IconComp = getIconComponent(project.icon);
@@ -155,7 +155,7 @@ export function ProjectSwitcher({
                         className="w-5 h-5 flex items-center justify-center rounded"
                         style={{ backgroundColor: project.color }}
                       >
-                        <IconComp className="h-3 w-3 text-white" />
+                        <IconComp className="h-3 w-3 text-(--on-overlay)" />
                       </span>
                     );
                   })()}
@@ -171,7 +171,7 @@ export function ProjectSwitcher({
                       onManageProject(project.id);
                       setIsOpen(false);
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-(--control-bg-hover) rounded"
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-(--raised) rounded"
                     title={t("projectSettings")}
                   >
                     <Settings className="h-3 w-3 text-muted-foreground" />
@@ -188,7 +188,7 @@ export function ProjectSwitcher({
             {/* Create New Project */}
             {onCreateProject && (
               <>
-                <div className="border-t border-(--border) my-1" />
+                <div className="border-t border-(--line) my-1" />
                 <button
                   onClick={() => {
                     onCreateProject();
@@ -197,7 +197,7 @@ export function ProjectSwitcher({
                   disabled={!canCreateMore}
                   className={cn(
                     "flex items-center gap-2 w-full px-3 py-2 text-sm",
-                    "hover:bg-(--control-bg-hover) transition-colors text-(--accent)",
+                    "hover:bg-(--raised) transition-colors text-(--accent)",
                     !canCreateMore && "opacity-50 cursor-not-allowed"
                   )}
                 >

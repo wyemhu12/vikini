@@ -21,8 +21,7 @@ import { cn } from "@/lib/utils/cn";
 export const RAIL_BUTTON_CLASS =
   "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-(--muted) hover:bg-(--raised) hover:text-(--text) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)";
 
-const LABEL_CLASS =
-  "text-xs font-bold uppercase tracking-widest text-(--text-secondary) px-2 py-1.5";
+const LABEL_CLASS = "text-xs font-bold uppercase tracking-widest text-(--muted) px-2 py-1.5";
 
 export interface RailSessionUser {
   name?: string | null;

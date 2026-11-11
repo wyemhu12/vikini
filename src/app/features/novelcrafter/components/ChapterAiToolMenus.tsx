@@ -71,7 +71,7 @@ interface ChapterAiToolMenusProps {
 }
 
 const INPUT_CLS =
-  "h-8 rounded-lg border border-(--control-border) bg-(--control-bg) px-3 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none";
+  "h-8 rounded-lg border border-(--line) bg-(--raised) px-3 text-xs text-(--text) placeholder:text-(--muted) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none";
 
 export default function ChapterAiToolMenus({
   activeMenu,
@@ -117,16 +117,16 @@ export default function ChapterAiToolMenus({
     });
 
   return (
-    <div className="pt-2.5 mt-1 border-t border-(--border) space-y-2.5 max-h-[55dvh] overflow-y-auto custom-scrollbar pr-1">
+    <div className="pt-2.5 mt-1 border-t border-(--line) space-y-2.5 max-h-[55dvh] overflow-y-auto custom-scrollbar pr-1">
       {activeMenu === "write" && (
         <div className="space-y-2.5">
-          <p className="flex items-center gap-1.5 text-xs text-(--text-secondary)">
+          <p className="flex items-center gap-1.5 text-xs text-(--muted)">
             <Info className="w-3.5 h-3.5 text-(--accent) shrink-0" />
             <span>{t("novelcrafterWriteTooltip")}</span>
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-medium text-(--text-secondary) shrink-0">
+              <span className="text-xs font-medium text-(--muted) shrink-0">
                 {t("novelcrafterWriteLengthLabel")}:
               </span>
               <div className="flex items-center gap-1 flex-wrap">
@@ -143,7 +143,7 @@ export default function ChapterAiToolMenus({
                       "px-2 py-1 rounded-md border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
                       writeLengthWords === len
                         ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
-                        : "bg-(--control-bg) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
+                        : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
                     )}
                   >
                     ~{len}
@@ -177,9 +177,9 @@ export default function ChapterAiToolMenus({
                       }
                     }}
                     aria-label={t("novelcrafterWriteLengthCustomLabel")}
-                    className="w-20 h-7 rounded-md border border-(--control-border) bg-(--control-bg) px-2 text-xs font-medium text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                    className="w-20 h-7 rounded-md border border-(--line) bg-(--raised) px-2 text-xs font-medium text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
                   />
-                  <span className="text-xs text-(--text-secondary)">
+                  <span className="text-xs text-(--muted)">
                     {t("novelcrafterWriteLengthCustomHint")}
                   </span>
                 </div>
@@ -208,7 +208,7 @@ export default function ChapterAiToolMenus({
                     subLabel: t("novelcrafterWriteAuto"),
                   })
                 }
-                className="px-3.5 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
+                className="px-3.5 py-1.5 rounded-lg bg-(--accent) text-(--on-accent) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
               >
                 {t("novelcrafterWriteAuto")}
               </button>
@@ -228,7 +228,7 @@ export default function ChapterAiToolMenus({
                   type="button"
                   disabled={isStreaming}
                   onClick={triggerGuidedWrite}
-                  className="px-3 py-1.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-semibold text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
+                  className="px-3 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-semibold text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
                 >
                   {t("novelcrafterWriteGuided")}
                 </button>
@@ -237,7 +237,7 @@ export default function ChapterAiToolMenus({
           </div>
 
           <div className="flex items-center gap-1.5 flex-wrap pt-1">
-            <span className="text-xs font-semibold text-(--text-secondary) mr-1">
+            <span className="text-xs font-semibold text-(--muted) mr-1">
               {t("novelcrafterWriteToneShift")}:
             </span>
             {NOVELCRAFTER_TONE_SHIFTS.map((tone) => (
@@ -259,7 +259,7 @@ export default function ChapterAiToolMenus({
                       subLabel: `${t("novelcrafterWriteToneShift")}: ${t(TONE_LABELS[tone])}`,
                     })
                   }
-                  className="px-2.5 py-1 rounded-full border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
+                  className="px-2.5 py-1 rounded-full border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
                 >
                   {t(TONE_LABELS[tone])}
                 </button>
@@ -271,7 +271,7 @@ export default function ChapterAiToolMenus({
 
       {activeMenu === "rewrite" && (
         <div className="space-y-2">
-          <p className="flex items-center gap-1.5 text-xs text-(--text-secondary)">
+          <p className="flex items-center gap-1.5 text-xs text-(--muted)">
             <Info className="w-3.5 h-3.5 text-(--accent) shrink-0" />
             <span>{t("novelcrafterRewriteTooltip")}</span>
           </p>
@@ -296,7 +296,7 @@ export default function ChapterAiToolMenus({
                   type="button"
                   disabled={isStreaming}
                   onClick={() => onRunRewrite(modeKey, modeLabel)}
-                  className="px-2.5 py-1.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
+                  className="px-2.5 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring)"
                 >
                   {modeLabel}
                 </button>
@@ -323,7 +323,7 @@ export default function ChapterAiToolMenus({
                 onClick={() =>
                   onRunRewrite("custom", t("novelcrafterRewriteCustom"), customRewritePrompt)
                 }
-                className="px-3 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
+                className="px-3 py-1.5 rounded-lg bg-(--accent) text-(--on-accent) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
               >
                 {t("novelcrafterRewriteCustom")}
               </button>
@@ -334,7 +334,7 @@ export default function ChapterAiToolMenus({
 
       {activeMenu === "feedback" && (
         <div className="space-y-2.5">
-          <p className="flex items-center gap-1.5 text-xs text-(--text-secondary)">
+          <p className="flex items-center gap-1.5 text-xs text-(--muted)">
             <Info className="w-3.5 h-3.5 text-(--accent) shrink-0" />
             <span>{t("novelcrafterFeedbackTooltip")}</span>
           </p>
@@ -349,8 +349,8 @@ export default function ChapterAiToolMenus({
                     className={cn(
                       "p-2 rounded-xl border text-left transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
                       feedbackMode === mode
-                        ? "bg-(--accent)/15 border-(--accent) text-(--text-primary)"
-                        : "bg-(--control-bg) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
+                        ? "bg-(--accent)/15 border-(--accent) text-(--text)"
+                        : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
                     )}
                   >
                     <p className="text-xs font-bold">{t(info.title)}</p>
@@ -374,7 +374,7 @@ export default function ChapterAiToolMenus({
                       "px-2.5 py-1 rounded-full border text-xs font-medium transition-colors",
                       active
                         ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
-                        : "bg-(--control-bg) border-(--control-border) text-(--text-secondary)"
+                        : "bg-(--raised) border-(--line) text-(--muted)"
                     )}
                   >
                     {t(DEV_CRITERIA_LABELS[crit])}
@@ -411,7 +411,7 @@ export default function ChapterAiToolMenus({
                     subLabel: `${t("novelcrafterSlotFeedback")} · ${t(FEEDBACK_MODE_LABELS[feedbackMode].title)}`,
                   })
                 }
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring)"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-(--accent) text-(--on-accent) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring)"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>
@@ -427,7 +427,7 @@ export default function ChapterAiToolMenus({
 
       {activeMenu === "expand" && (
         <div className="space-y-2">
-          <p className="flex items-center gap-1.5 text-xs text-(--text-secondary)">
+          <p className="flex items-center gap-1.5 text-xs text-(--muted)">
             <Info className="w-3.5 h-3.5 text-(--accent) shrink-0" />
             <span>{t("novelcrafterExpandTooltip")}</span>
           </p>
@@ -444,7 +444,7 @@ export default function ChapterAiToolMenus({
                     "px-2.5 py-1 rounded-full border text-xs font-medium transition-colors",
                     active
                       ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
-                      : "bg-(--control-bg) border-(--control-border) text-(--text-secondary)"
+                      : "bg-(--raised) border-(--line) text-(--muted)"
                   )}
                 >
                   {t(SENSE_LABELS[sense])}
@@ -458,7 +458,7 @@ export default function ChapterAiToolMenus({
                 type="button"
                 disabled={isStreaming}
                 onClick={() => onRunExpand("expand", t("novelcrafterExpandPassage"))}
-                className="px-3 py-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring)"
+                className="px-3 py-1.5 rounded-lg bg-(--accent) text-(--on-accent) hover:brightness-110 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-(--ring)"
               >
                 {t("novelcrafterExpandPassage")}
               </button>
@@ -470,7 +470,7 @@ export default function ChapterAiToolMenus({
                 onClick={() =>
                   onRunExpand("describe", t("novelcrafterDescribeAll"), selectedSenses)
                 }
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-semibold text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-semibold text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring)"
               >
                 <Wand2 className="w-3.5 h-3.5 text-(--accent)" />
                 <span>{t("novelcrafterDescribeAll")}</span>

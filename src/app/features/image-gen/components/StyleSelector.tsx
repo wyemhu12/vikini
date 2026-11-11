@@ -115,13 +115,13 @@ export default function StyleSelector({ selectedStyle, onSelect }: StyleSelector
               )}
 
               {/* Gradient overlay for text readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-(--overlay) via-(--overlay) to-transparent" />
 
               {/* Label */}
               <span
                 className={cn(
                   "relative z-10 text-xs font-semibold w-full text-center px-1 pb-1.5 transition-colors leading-tight drop-shadow-md",
-                  isSelected ? "text-white" : "text-white/90"
+                  isSelected ? "text-(--on-overlay)" : "text-(--on-overlay)/90"
                 )}
               >
                 {t(s.labelKey)}
@@ -131,7 +131,7 @@ export default function StyleSelector({ selectedStyle, onSelect }: StyleSelector
               {isSelected && (
                 <div
                   aria-hidden="true"
-                  className="absolute top-1 right-1 w-3 h-3 rounded-full bg-(--accent) border-2 border-white shadow-md z-10"
+                  className="absolute top-1 right-1 w-3 h-3 rounded-full bg-(--accent) border-2 border-(--on-overlay) shadow-md z-10"
                 />
               )}
             </button>

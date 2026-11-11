@@ -224,9 +224,7 @@ export function DescribeImageView() {
                     </div>
                     <div>
                       <p className="text-lg font-semibold">{t("describeUpload")}</p>
-                      <p className="text-sm text-(--text-secondary) mt-1">
-                        {t("describeUploadHint")}
-                      </p>
+                      <p className="text-sm text-(--muted) mt-1">{t("describeUploadHint")}</p>
                     </div>
                   </div>
 
@@ -252,7 +250,7 @@ export function DescribeImageView() {
                 className="space-y-6"
               >
                 {/* Image Preview */}
-                <div className="relative rounded-2xl overflow-hidden border border-(--border) bg-(--surface-muted) shadow-xl">
+                <div className="relative rounded-2xl overflow-hidden border border-(--line) bg-(--raised) shadow-xl">
                   <div className="relative aspect-video w-full">
                     <Image
                       src={imagePreview}
@@ -263,7 +261,7 @@ export function DescribeImageView() {
                     />
                   </div>
                   {/* Subtle gradient overlay at bottom */}
-                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-(--overlay) to-transparent pointer-events-none" />
                 </div>
 
                 {/* Analyze Button */}
@@ -308,20 +306,20 @@ export function DescribeImageView() {
                       </div>
 
                       {/* Result Text */}
-                      <div className="relative rounded-xl border border-(--border) bg-(--surface-muted)/80 backdrop-blur-sm p-5">
+                      <div className="relative rounded-xl border border-(--line) bg-(--raised)/80 backdrop-blur-sm p-5">
                         <p className="text-sm leading-relaxed whitespace-pre-wrap pr-10">
                           {result}
                         </p>
                         {/* Copy Button */}
                         <button
                           onClick={handleCopy}
-                          className="absolute top-3 right-3 p-2 rounded-lg hover:bg-(--control-bg-hover) transition-colors"
+                          className="absolute top-3 right-3 p-2 rounded-lg hover:bg-(--raised) transition-colors"
                           title={t("describeCopy")}
                         >
                           {copied ? (
-                            <Check className="w-4 h-4 text-green-400" />
+                            <Check className="w-4 h-4 text-(--success)" />
                           ) : (
-                            <Copy className="w-4 h-4 text-(--text-secondary)" />
+                            <Copy className="w-4 h-4 text-(--muted)" />
                           )}
                         </button>
                       </div>
@@ -337,7 +335,7 @@ export function DescribeImageView() {
                         </button>
                         <button
                           onClick={handleReset}
-                          className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-(--surface-muted) border border-(--control-border) hover:bg-(--control-bg-hover) transition-colors"
+                          className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-(--raised) border border-(--line) hover:bg-(--raised) transition-colors"
                         >
                           <RefreshCw className="w-4 h-4" />
                           {t("describeNewImage")}
@@ -361,7 +359,7 @@ export function DescribeImageView() {
                 </div>
                 <button
                   onClick={clearHistory}
-                  className="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1"
+                  className="text-xs text-(--danger) hover:text-(--danger) transition-colors flex items-center gap-1"
                 >
                   <Trash2 className="w-3 h-3" />
                   {t("studioClearHistory") || "Clear"}
@@ -372,15 +370,15 @@ export function DescribeImageView() {
                   <button
                     key={idx}
                     onClick={() => setResult(item.prompt)}
-                    className="flex items-start gap-3 p-3 rounded-xl border border-(--border) bg-(--surface-muted)/50 hover:bg-(--control-bg-hover) transition-colors text-left group"
+                    className="flex items-start gap-3 p-3 rounded-xl border border-(--line) bg-(--raised)/50 hover:bg-(--raised) transition-colors text-left group"
                   >
                     <img
                       src={item.thumbnail}
                       alt=""
-                      className="w-12 h-12 rounded-lg object-cover shrink-0 border border-(--border)"
+                      className="w-12 h-12 rounded-lg object-cover shrink-0 border border-(--line)"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-(--text-primary) line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-(--text) line-clamp-2 leading-relaxed">
                         {item.prompt}
                       </p>
                       <p className="text-xs text-(--muted) mt-1">

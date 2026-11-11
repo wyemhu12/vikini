@@ -229,7 +229,7 @@ describe("theme-config — CSS themes", () => {
       globals.indexOf(`@import "./styles/themes/${THEME_FAMILIES[0].id}.css";`)
     ).toBeGreaterThan(baseIndex);
 
-    const aliases = [
+    const removedAliases = [
       "--surface-strong",
       "--surface-muted",
       "--surface-elevated",
@@ -240,13 +240,33 @@ describe("theme-config — CSS themes", () => {
       "--text-primary",
       "--text-secondary",
       "--accent-foreground",
+      "--primary",
+      "--primary-light",
+      "--primary-dark",
       "--bg-glow",
     ];
-    for (const alias of aliases) {
-      expect(baseCss, `base.css alias ${alias}`).toMatch(
-        new RegExp(`${alias}:\\s*(var\\(--|color-mix\\()`)
+    for (const alias of removedAliases) {
+      expect(baseCss, `base.css still defines legacy alias ${alias}`).not.toMatch(
+        new RegExp(`(?<![a-zA-Z0-9_-])${alias}\\s*:`)
+      );
+      expect(baseCss, `base.css still references legacy alias ${alias}`).not.toMatch(
+        new RegExp(`var\\(${alias}\\)`)
       );
     }
+
+    const typeScale: ReadonlyArray<readonly [string, string]> = [
+      ["--type-12", "0.75rem"],
+      ["--type-13", "0.8125rem"],
+      ["--type-14", "0.875rem"],
+      ["--type-16", "1rem"],
+      ["--type-20", "1.25rem"],
+      ["--type-24", "1.5rem"],
+      ["--type-32", "2rem"],
+    ];
+    for (const [token, expectedRem] of typeScale) {
+      expect(baseCss, `base.css missing ${token}`).toContain(`${token}: ${expectedRem};`);
+    }
+    expect(baseCss).toContain("--on-overlay: #ffffff;");
     expect(baseCss).not.toContain("data-theme-tone");
   });
 });

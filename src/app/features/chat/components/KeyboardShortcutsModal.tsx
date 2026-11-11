@@ -51,15 +51,15 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md bg-(--surface-elevated) border-(--border)">
+      <DialogContent className="max-w-md bg-(--surface) border-(--line)">
         <DialogHeader>
-          <div className="flex items-center gap-2 text-(--text-primary)">
+          <div className="flex items-center gap-2 text-(--text)">
             <Keyboard className="w-5 h-5 text-(--accent)" />
             <DialogTitle className="text-lg font-bold">
               {t("keyboardShortcuts") || "Keyboard Shortcuts"}
             </DialogTitle>
           </div>
-          <DialogDescription className="text-xs text-(--text-secondary)">
+          <DialogDescription className="text-xs text-(--muted)">
             {t("keyboardShortcutsDesc") || "Quick navigation and productivity shortcuts"}
           </DialogDescription>
         </DialogHeader>
@@ -68,14 +68,14 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
           {shortcuts.map((sc, idx) => (
             <div
               key={idx}
-              className="flex items-center justify-between p-2 rounded-lg bg-(--control-bg)/50 hover:bg-(--control-bg-hover)/60 transition-colors"
+              className="flex items-center justify-between p-2 rounded-lg bg-(--raised)/50 hover:bg-(--raised)/60 transition-colors"
             >
-              <span className="text-sm text-(--text-primary)">{sc.description}</span>
+              <span className="text-sm text-(--text)">{sc.description}</span>
               <div className="flex items-center gap-1">
                 {sc.keys.map((k, kIdx) => (
                   <kbd
                     key={kIdx}
-                    className="px-2 py-1 text-xs font-mono font-semibold rounded bg-(--control-bg) border border-(--border) text-(--text-secondary) shadow-xs"
+                    className="px-2 py-1 text-xs font-mono font-semibold rounded bg-(--raised) border border-(--line) text-(--muted) shadow-xs"
                   >
                     {k}
                   </kbd>

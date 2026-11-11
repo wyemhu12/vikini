@@ -68,7 +68,7 @@ export function FilePreviewCard({
       className={`group relative ${cardSize} shrink-0 rounded-xl border transition-[border-color,box-shadow] duration-200 overflow-hidden ${
         isError
           ? "border-(--danger)/50 bg-(--danger)/5"
-          : "border-(--control-border) bg-(--surface) hover:border-(--accent)/50 hover:shadow-md"
+          : "border-(--line) bg-(--surface) hover:border-(--accent)/50 hover:shadow-md"
       } ${!isUploading && file ? "cursor-pointer" : ""}`}
       onClick={() => !isUploading && file && onClick?.(file)}
       onKeyDown={(e) => {
@@ -94,14 +94,14 @@ export function FilePreviewCard({
 
         {/* Filename */}
         <span
-          className="text-[10px] text-(--text-secondary) truncate w-full text-center leading-tight"
+          className="text-xs text-(--muted) truncate w-full text-center leading-tight"
           title={filename}
         >
           {truncateFilename(filename)}
         </span>
 
         {/* Size + status */}
-        <div className="flex items-center gap-1 text-[9px] text-(--text-secondary)">
+        <div className="flex items-center gap-1 text-xs text-(--muted)">
           {isUploading ? (
             <>
               {isError ? (
@@ -128,7 +128,7 @@ export function FilePreviewCard({
 
       {/* Progress bar */}
       {isUploading && !isError && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-(--control-border)">
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-(--line)">
           <motion.div
             className="h-full w-full bg-(--accent) origin-left"
             initial={{ transform: "scaleX(0)" }}
@@ -148,7 +148,7 @@ export function FilePreviewCard({
             setDeleting(true);
             void onRemove(file.id);
           }}
-          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 min-w-[24px] min-h-[24px] flex items-center justify-center transition-opacity p-1 rounded-full bg-(--surface)/90 hover:bg-(--danger)/20 text-(--text-secondary) hover:text-(--danger)"
+          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 min-w-[24px] min-h-[24px] flex items-center justify-center transition-opacity p-1 rounded-full bg-(--surface)/90 hover:bg-(--danger)/20 text-(--muted) hover:text-(--danger)"
           aria-label={`Remove ${filename}`}
           disabled={deleting}
         >
@@ -199,7 +199,7 @@ function ImageThumbnail({
   if (error || !src) {
     return (
       <ImageIcon
-        className={`${compact ? "w-6 h-6" : "w-8 h-8"} text-pink-500 ${!src && !error ? "animate-pulse" : ""}`}
+        className={`${compact ? "w-6 h-6" : "w-8 h-8"} text-(--accent) ${!src && !error ? "animate-pulse" : ""}`}
       />
     );
   }

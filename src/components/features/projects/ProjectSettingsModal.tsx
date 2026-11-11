@@ -189,21 +189,19 @@ export function ProjectSettingsModal({
         <div
           className={cn(
             "w-full h-full max-w-5xl max-h-[90vh]",
-            "bg-(--surface) rounded-xl border border-(--border)",
+            "bg-(--surface) rounded-xl border border-(--line)",
             "shadow-2xl flex flex-col overflow-hidden"
           )}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-(--border)">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-(--line)">
             <div className="flex items-center gap-3">
               {project && <ProjectIcon icon={project.icon} color={project.color} size="lg" />}
               <div>
                 <h2 className="text-lg font-bold">{project?.name || "Loading..."}</h2>
                 {project?.description && (
-                  <p className="text-sm text-(--text-secondary) line-clamp-1">
-                    {project.description}
-                  </p>
+                  <p className="text-sm text-(--muted) line-clamp-1">{project.description}</p>
                 )}
               </div>
             </div>
@@ -225,7 +223,7 @@ export function ProjectSettingsModal({
               </button>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-(--control-bg-hover) rounded-lg transition-colors"
+                className="p-2 hover:bg-(--raised) rounded-lg transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -242,7 +240,7 @@ export function ProjectSettingsModal({
 
             <div className="grid gap-6 md:grid-cols-2">
               {/* Knowledge Base Panel */}
-              <div className="bg-(--surface-muted) rounded-xl border border-(--border) overflow-hidden">
+              <div className="bg-(--raised) rounded-xl border border-(--line) overflow-hidden">
                 <KnowledgePanel
                   projectId={projectId}
                   documents={documents}
@@ -258,26 +256,26 @@ export function ProjectSettingsModal({
               {/* Right column */}
               <div className="space-y-6">
                 {/* Project Info */}
-                <div className="bg-(--surface-muted) rounded-xl border border-(--border) p-5">
+                <div className="bg-(--raised) rounded-xl border border-(--line) p-5">
                   <h3 className="font-semibold mb-4 flex items-center gap-2">
                     <FileText className="h-4 w-4" />
                     {t("projectInfoTitle")}
                   </h3>
                   <dl className="space-y-3 text-sm">
                     <div className="flex justify-between">
-                      <dt className="text-(--text-secondary)">{t("projectDocuments")}</dt>
+                      <dt className="text-(--muted)">{t("projectDocuments")}</dt>
                       <dd className="font-medium">{project?.document_count || 0}</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-(--text-secondary)">{t("projectConversationsShort")}</dt>
+                      <dt className="text-(--muted)">{t("projectConversationsShort")}</dt>
                       <dd className="font-medium">{project?.conversation_count || 0}</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-(--text-secondary)">Model</dt>
+                      <dt className="text-(--muted)">Model</dt>
                       <dd className="font-mono text-xs">{project?.embedding_model || "-"}</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-(--text-secondary)">{t("projectCreated")}</dt>
+                      <dt className="text-(--muted)">{t("projectCreated")}</dt>
                       <dd className="font-medium">
                         {project?.created_at
                           ? new Date(project.created_at).toLocaleDateString(
@@ -290,7 +288,7 @@ export function ProjectSettingsModal({
                 </div>
 
                 {/* Conversations */}
-                <div className="bg-(--surface-muted) rounded-xl border border-(--border) p-5">
+                <div className="bg-(--raised) rounded-xl border border-(--line) p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold flex items-center gap-2">
                       <MessageSquare className="h-4 w-4" />
@@ -304,7 +302,7 @@ export function ProjectSettingsModal({
                         }}
                         className={cn(
                           "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium",
-                          "bg-(--accent) text-black hover:brightness-110",
+                          "bg-(--accent) text-(--on-accent) hover:brightness-110",
                           "transition-colors"
                         )}
                       >
@@ -315,7 +313,7 @@ export function ProjectSettingsModal({
                   </div>
 
                   {projectConversations.length === 0 ? (
-                    <p className="text-sm text-(--text-secondary) text-center py-4">
+                    <p className="text-sm text-(--muted) text-center py-4">
                       {t("projectNoChatsYet")}
                     </p>
                   ) : (
@@ -325,7 +323,7 @@ export function ProjectSettingsModal({
                           key={conv.id}
                           className={cn(
                             "flex items-center justify-between p-3 rounded-lg",
-                            "bg-(--control-bg) hover:bg-(--control-bg-hover)",
+                            "bg-(--raised) hover:bg-(--raised)",
                             "cursor-pointer transition-colors group"
                           )}
                           onClick={() => {
@@ -334,7 +332,7 @@ export function ProjectSettingsModal({
                           }}
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <MessageSquare className="h-4 w-4 text-(--text-secondary) shrink-0" />
+                            <MessageSquare className="h-4 w-4 text-(--muted) shrink-0" />
                             <span className="text-sm truncate">{conv.title || t("newChat")}</span>
                           </div>
                           <button

@@ -51,7 +51,7 @@ describe("BubbleAvatar", () => {
     const { container: userContainer } = render(<BubbleAvatar isBot={false} />);
     const userDiv = userContainer.firstChild as HTMLElement;
     expect(userDiv.className).toContain("bg-(--accent)");
-    expect(userDiv.className).toContain("text-(--accent-foreground)");
+    expect(userDiv.className).toContain("text-(--on-accent)");
     expect(userDiv.className).not.toContain("border-token");
     expect(userDiv.className).not.toContain("bg-surface-elevated");
     expect(userDiv.className).not.toContain("text-[10px]");
@@ -59,9 +59,9 @@ describe("BubbleAvatar", () => {
 
     const { container: botContainer } = render(<BubbleAvatar isBot={true} isLoading={false} />);
     const botDiv = botContainer.firstChild as HTMLElement;
-    expect(botDiv.className).toContain("bg-(--surface-elevated)");
-    expect(botDiv.className).toContain("border-(--border)");
-    expect(botDiv.className).toContain("text-(--text-primary)");
+    expect(botDiv.className).toContain("bg-(--surface)");
+    expect(botDiv.className).toContain("border-(--line)");
+    expect(botDiv.className).toContain("text-(--text)");
     expect(botDiv.className).not.toContain("border-token");
     expect(botDiv.className.split(" ")).not.toContain("text-primary");
   });
@@ -167,7 +167,7 @@ describe("BubbleMarkdown", () => {
     const quote = screen.getByText("Quote block");
     expect(quote).toBeDefined();
     expect(quote.closest("blockquote")?.className).toContain("border-(--accent)/60");
-    expect(quote.closest("blockquote")?.className).toContain("text-(--text-secondary)");
+    expect(quote.closest("blockquote")?.className).toContain("text-(--muted)");
     expect(quote.closest("blockquote")?.className).not.toContain("border-token");
     expect(quote.closest("blockquote")?.className.split(" ")).not.toContain("text-secondary");
 
@@ -188,8 +188,8 @@ describe("BubbleMarkdown", () => {
     const tableMd = `| Header 1 | Header 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |`;
     const { container } = render(<BubbleMarkdown content={tableMd} isBot={true} />);
     const wrapper = container.querySelector(".overflow-x-auto");
-    expect(wrapper?.className).toContain("border-(--border)");
-    expect(wrapper?.className).toContain("bg-(--surface-elevated)");
+    expect(wrapper?.className).toContain("border-(--line)");
+    expect(wrapper?.className).toContain("bg-(--surface)");
     expect(wrapper?.className).not.toContain("border-token");
     expect(wrapper?.className.split(" ")).not.toContain("bg-surface-elevated");
   });

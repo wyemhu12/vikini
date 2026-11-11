@@ -98,7 +98,7 @@ export function ImageCompareModal({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-(--overlay) backdrop-blur-sm" />
         <Dialog.Content
           className="fixed inset-0 z-50 flex items-center justify-center"
           aria-label="Image comparison"
@@ -106,47 +106,47 @@ export function ImageCompareModal({
           <Dialog.Title className="sr-only">Image Comparison</Dialog.Title>
 
           {/* Toolbar */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 shadow-xl z-20">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-(--overlay) backdrop-blur-md rounded-full border border-(--on-overlay)/10 shadow-xl z-20">
             <button
               onClick={handleZoomOut}
               disabled={zoom <= MIN_ZOOM}
-              className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               title={t("imageZoomOut") || "Zoom out"}
             >
               <ZoomOut className="w-5 h-5" />
             </button>
 
-            <span className="text-white/80 text-sm font-mono min-w-12 text-center">
+            <span className="text-(--on-overlay)/80 text-sm font-mono min-w-12 text-center">
               {Math.round(zoom * 100)}%
             </span>
 
             <button
               onClick={handleZoomIn}
               disabled={zoom >= MAX_ZOOM}
-              className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               title={t("imageZoomIn") || "Zoom in"}
             >
               <ZoomIn className="w-5 h-5" />
             </button>
 
-            <div className="w-px h-6 bg-white/20 mx-1" />
+            <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
 
             <button
               onClick={handleResetZoom}
-              className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
+              className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
               title="Reset"
             >
               <RotateCcw className="w-5 h-5" />
             </button>
 
-            <div className="w-px h-6 bg-white/20 mx-1" />
+            <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
 
             <button
               onClick={() => setOverlayMode(!overlayMode)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 overlayMode
-                  ? "bg-(--accent)/80 text-(--accent-foreground)"
-                  : "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
+                  ? "bg-(--accent)/80 text-(--on-accent)"
+                  : "bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:bg-(--on-overlay)/20 hover:text-(--on-overlay)"
               }`}
             >
               {overlayMode
@@ -156,17 +156,17 @@ export function ImageCompareModal({
 
             <button
               onClick={onSwap}
-              className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
+              className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
               title={t("compareSwap") || "Swap images"}
             >
               <ArrowLeftRight className="w-5 h-5" />
             </button>
 
-            <div className="w-px h-6 bg-white/20 mx-1" />
+            <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
 
             <Dialog.Close asChild>
               <button
-                className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
+                className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
                 title={t("imageClose") || "Close"}
               >
                 <X className="w-5 h-5" />
@@ -214,19 +214,19 @@ export function ImageCompareModal({
 
                 {/* Slider Line */}
                 <div
-                  className="absolute top-0 bottom-0 w-1 bg-white shadow-lg cursor-ew-resize"
+                  className="absolute top-0 bottom-0 w-1 bg-(--on-overlay) shadow-lg cursor-ew-resize"
                   style={{ left: `${sliderPosition}%`, transform: "translateX(-50%)" }}
                 >
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center">
-                    <ArrowLeftRight className="w-4 h-4 text-gray-700" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-(--on-overlay) shadow-lg flex items-center justify-center">
+                    <ArrowLeftRight className="w-4 h-4 text-(--bg)" />
                   </div>
                 </div>
 
                 {/* Labels */}
-                <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-lg text-white text-sm font-medium">
+                <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-(--overlay) backdrop-blur-sm rounded-lg text-(--on-overlay) text-sm font-medium">
                   {leftImage.model || "Image A"}
                 </div>
-                <div className="absolute bottom-4 right-4 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-lg text-white text-sm font-medium">
+                <div className="absolute bottom-4 right-4 px-3 py-1.5 bg-(--overlay) backdrop-blur-sm rounded-lg text-(--on-overlay) text-sm font-medium">
                   {rightImage.model || "Image B"}
                 </div>
               </div>
@@ -236,7 +236,7 @@ export function ImageCompareModal({
                 {/* Left Image */}
                 <div className="flex-1 flex flex-col items-center gap-4">
                   <div
-                    className="relative w-full aspect-square max-h-[70vh] rounded-xl overflow-hidden bg-black/40 border border-white/10"
+                    className="relative w-full aspect-square max-h-[70vh] rounded-xl overflow-hidden bg-(--overlay) border border-(--on-overlay)/10"
                     style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}
                   >
                     <Image
@@ -251,21 +251,23 @@ export function ImageCompareModal({
                     <div className="px-3 py-1.5 bg-(--accent)/20 text-(--accent) rounded-full text-xs font-bold inline-block mb-2">
                       {leftImage.model || "Image A"}
                     </div>
-                    <p className="text-white/70 text-sm line-clamp-2">{leftImage.prompt}</p>
+                    <p className="text-(--on-overlay)/70 text-sm line-clamp-2">
+                      {leftImage.prompt}
+                    </p>
                   </div>
                 </div>
 
                 {/* Divider */}
                 <div className="flex flex-col items-center gap-2">
-                  <div className="h-32 w-px bg-white/20" />
-                  <span className="text-white/50 text-xs font-bold">VS</span>
-                  <div className="h-32 w-px bg-white/20" />
+                  <div className="h-32 w-px bg-(--on-overlay)/20" />
+                  <span className="text-(--on-overlay)/50 text-xs font-bold">VS</span>
+                  <div className="h-32 w-px bg-(--on-overlay)/20" />
                 </div>
 
                 {/* Right Image */}
                 <div className="flex-1 flex flex-col items-center gap-4">
                   <div
-                    className="relative w-full aspect-square max-h-[70vh] rounded-xl overflow-hidden bg-black/40 border border-white/10"
+                    className="relative w-full aspect-square max-h-[70vh] rounded-xl overflow-hidden bg-(--overlay) border border-(--on-overlay)/10"
                     style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}
                   >
                     <Image
@@ -280,7 +282,9 @@ export function ImageCompareModal({
                     <div className="px-3 py-1.5 bg-(--accent)/20 text-(--accent) rounded-full text-xs font-bold inline-block mb-2">
                       {rightImage.model || "Image B"}
                     </div>
-                    <p className="text-white/70 text-sm line-clamp-2">{rightImage.prompt}</p>
+                    <p className="text-(--on-overlay)/70 text-sm line-clamp-2">
+                      {rightImage.prompt}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -288,7 +292,7 @@ export function ImageCompareModal({
           </div>
 
           {/* Instructions */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full text-white/60 text-xs">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-(--overlay) backdrop-blur-sm rounded-full text-(--on-overlay)/60 text-xs">
             {overlayMode
               ? t("compareOverlayHint") || "Drag slider to compare • Click to toggle mode"
               : t("compareSideBySideHint") || "Side by side view • Use zoom controls above"}

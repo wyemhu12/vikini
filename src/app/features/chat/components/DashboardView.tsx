@@ -158,12 +158,12 @@ export default function DashboardView({
         className="text-center mb-8 flex flex-col items-center"
       >
         <h2
-          className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text-primary) via-(--accent) to-(--text-secondary) bg-clip-text text-transparent leading-tight"
+          className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text) via-(--accent) to-(--muted) bg-clip-text text-transparent leading-tight"
           style={{ letterSpacing: "-0.03em", textWrap: "balance" }}
         >
           {t(greetingKey)}, {userName}
         </h2>
-        <p className="mt-2 text-sm md:text-base text-(--text-secondary)">{t("landingSubtitle")}</p>
+        <p className="mt-2 text-sm md:text-base text-(--muted)">{t("landingSubtitle")}</p>
       </motion.div>
 
       {/* ── Slot: ChatControls goes here ── */}
@@ -189,7 +189,7 @@ export default function DashboardView({
                   ${
                     isActive
                       ? "bg-(--accent)/15 text-(--accent) border-(--accent)/40 shadow-[0_0_12px_var(--glow)]"
-                      : "bg-(--surface-muted)/50 text-(--text-secondary) border-(--border) hover:bg-(--control-bg-hover) hover:text-(--text-primary) hover:border-(--accent)/20"
+                      : "bg-(--raised)/50 text-(--muted) border-(--line) hover:bg-(--raised) hover:text-(--text) hover:border-(--accent)/20"
                   }
                 `}
               >
@@ -211,9 +211,9 @@ export default function DashboardView({
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="absolute top-full left-1/2 -translate-x-1/2 w-full max-w-md mt-2 z-50"
             >
-              <div className="rounded-2xl border border-(--border) bg-(--surface-muted)/60 backdrop-blur-2xl shadow-2xl overflow-hidden">
+              <div className="rounded-2xl border border-(--line) bg-(--raised)/60 backdrop-blur-2xl shadow-2xl overflow-hidden">
                 {/* Category Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-(--border)">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-(--line)">
                   <div className="flex items-center gap-2 text-(--accent) text-sm font-semibold">
                     {activeCat.icon}
                     <span>{t(activeCat.labelKey)}</span>
@@ -223,7 +223,7 @@ export default function DashboardView({
                       setActiveCategory(null);
                       onPromptPreview?.(null);
                     }}
-                    className="p-1 rounded-full text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) transition-colors"
+                    className="p-1 rounded-full text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -248,8 +248,8 @@ export default function DashboardView({
                         transition-[background-color,color] duration-150 group cursor-pointer
                         ${
                           hoveredSuggestion === idx
-                            ? "bg-(--accent)/10 text-(--text-primary)"
-                            : "text-(--text-secondary) hover:text-(--text-primary)"
+                            ? "bg-(--accent)/10 text-(--text)"
+                            : "text-(--muted) hover:text-(--text)"
                         }
                       `}
                     >
