@@ -30,6 +30,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Wand2, Images } from "lucide-react";
 
 import { useImageGenStudio } from "./hooks/useImageGenStudio";
+import { ImageSectionHeader } from "./ImageSectionHeader";
 import { useEffect, useState } from "react";
 
 export function ImageGenStudio() {
@@ -75,7 +76,6 @@ export function ImageGenStudio() {
 
   return (
     <div className="h-screen w-screen text-(--text-primary) overflow-hidden relative font-sans bg-(--surface) flex">
-      <h1 className="sr-only">{t("studioTitle")}</h1>
       {/* API Key Warning Modal */}
       <AlertDialog open={studio.showApiKeyWarning} onOpenChange={studio.setShowApiKeyWarning}>
         <AlertDialogContent>
@@ -170,6 +170,7 @@ export function ImageGenStudio() {
         className={`flex-1 flex flex-col h-full transition-colors duration-300 relative z-10 pt-[calc(4.75rem+var(--sat,0px))] md:pt-0 ${getShellPaddingClass(panelCollapsed)} pr-[var(--sar,0px)]`}
       >
         <HeaderBar hideOnDesktop onToggleSidebar={() => setMobileOpen(true)} />
+        <ImageSectionHeader />
 
         {/* Main content area */}
         <div className="flex flex-col md:flex-row h-full w-full relative overflow-hidden bg-(--surface)">

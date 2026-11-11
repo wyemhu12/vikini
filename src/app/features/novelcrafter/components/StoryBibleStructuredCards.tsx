@@ -497,6 +497,7 @@ export function StoryBibleOutlineItemsList({
                   type="button"
                   disabled={!item.summary.trim()}
                   onClick={() => onSendToChapterScenes?.(item.summary)}
+                  aria-label={t("novelcrafterSendToChapterScenesBtn")}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-(--accent)/15 text-(--accent) hover:bg-(--accent)/25 text-xs font-semibold shrink-0 disabled:opacity-40"
                 >
                   <ArrowUpRight className="w-3.5 h-3.5" />

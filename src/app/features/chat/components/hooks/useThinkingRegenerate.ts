@@ -11,7 +11,7 @@ const LEVEL_KEY_MAP: Record<string, string> = {
   medium: "thinkingLevelMedium",
   low: "thinkingLevelLow",
   minimal: "thinkingLevelMinimal",
-  off: "webSearchOff",
+  off: "thinkingOff",
 };
 
 interface UseThinkingRegenerateOptions {

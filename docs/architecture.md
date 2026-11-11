@@ -111,6 +111,8 @@ Separation of concerns between UI and business logic.
 
 Tests are colocated with source files using the `.test.ts` / `.test.tsx` suffix.
 
+- **E2E accessibility gate** (`tests/e2e/a11y.spec.ts`, Vikini 3.0 Phase 3D): injects `axe-core` (devDependency, pinned 4.11.1) into 7 routes × desktop/mobile plus the mobile composer options sheet, using the mocks in `tests/e2e/helpers`. It fails on the accessible-name rule family (`button-name`, `link-name`, `select-name`, `label`, `svg-img-alt`, …) and only logs other axe findings.
+
 ## 3. Key Features
 
 ### Chat System
@@ -175,7 +177,9 @@ Tests are colocated with source files using the `.test.ts` / `.test.tsx` suffix.
 - Multi-model support: Gemini Image Flash, Gemini Image Pro, DALL-E 3, Flux Pro
 - BYOK (Bring Your Own Key) for third-party providers
 - Style presets and aspect ratio controls
-- Route: `/image-studio`
+- Route: `/images`
+- **Images section (Vikini 3.0 Phase 4)**: `/images`, `/gallery` and `/describe` share `ImageSectionHeader.tsx` (the page h1 "Ảnh" + route tabs Tạo ảnh / Thư viện / Mô tả ảnh with `aria-current`; compact `h-12` on mobile with an `sr-only` h1). The context panel uses the same labels.
+- `ControlPanel.tsx` (Studio form) delegates to `ControlPanelPromptSection.tsx` (Free/Guided, autocomplete, quick tags, exclude, history) and `ControlPanelReferenceImages.tsx`; theme tokens only, sentence-case labels, Generate explains why it is disabled (`aria-describedby`), keyboard hint hidden on coarse pointers.
 
 ### Gallery
 

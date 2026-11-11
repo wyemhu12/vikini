@@ -273,8 +273,8 @@ export default function InputForm({
           {/* Text Area */}
           <div className="order-first basis-full min-w-0 relative">
             {isImageMode && (
-              <div className="absolute -top-6 left-0 text-xs font-semibold uppercase tracking-wider text-(--accent) animate-in fade-in slide-in-from-bottom-1 bg-(--surface-elevated) px-2 py-0.5 rounded-full border border-(--accent)/30 shadow-sm">
-                {t("imageModeLabel") || "IMAGE GENERATION MODE"}
+              <div className="absolute -top-6 left-0 text-xs font-semibold text-(--accent) animate-in fade-in slide-in-from-bottom-1 bg-(--surface-elevated) px-2 py-0.5 rounded-full border border-(--accent)/30 shadow-sm">
+                {t("imageModeLabel") || "Image generation mode"}
               </div>
             )}
             <Textarea

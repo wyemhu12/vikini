@@ -237,6 +237,7 @@ export default function NovelcrafterTopBar({
           <button
             type="button"
             onClick={onOpenRoutingModal}
+            aria-label={t("novelcrafterRoutingButton")}
             className="inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <Settings2 className="w-3.5 h-3.5 shrink-0" />

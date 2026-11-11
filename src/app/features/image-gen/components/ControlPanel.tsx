@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -12,45 +11,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import StyleSelector from "./StyleSelector";
-import PromptBuilder from "./PromptBuilder";
-import {
-  Sparkles,
-  Wand2,
-  Settings,
-  Upload,
-  X,
-  Image as ImageIcon,
-  Info,
-  Ban,
-  Clock,
-  Trash2,
-  Lightbulb,
-} from "lucide-react";
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import { Sparkles, Settings, Image as ImageIcon, Info } from "lucide-react";
+import React, { useState, useId } from "react";
 import SettingsModal from "./SettingsModal";
 import { cn } from "@/lib/utils/cn";
-import { motion } from "framer-motion";
 import { useLanguage } from "../../chat/hooks/useLanguage";
-import { usePromptAutocomplete } from "./hooks/usePromptAutocomplete";
-
-// Suggestion tags for quick keyword insertion - 3 categories
-const SUGGESTION_TAGS = [
-  // Style
-  { key: "studioTagCinematicLighting", icon: "" },
-  { key: "studioTagBokeh", icon: "" },
-  { key: "studioTagGoldenHour", icon: "" },
-  { key: "studioTagDramaticShadows", icon: "" },
-  // Color
-  { key: "studioTagVibrantColors", icon: "" },
-  { key: "studioTagPastelTones", icon: "" },
-  { key: "studioTagMonochrome", icon: "" },
-  { key: "studioTagNeonGlow", icon: "" },
-  // Composition
-  { key: "studioTagCloseUp", icon: "" },
-  { key: "studioTagWideAngle", icon: "" },
-  { key: "studioTagBirdsEye", icon: "" },
-  { key: "studioTagMinimalist", icon: "" },
-] as const;
+import ControlPanelPromptSection, { STUDIO_LABEL_CLASS } from "./ControlPanelPromptSection";
+import ControlPanelReferenceImages from "./ControlPanelReferenceImages";
 
 export interface BatchQuotaInfo {
   rank: string;
@@ -122,7 +89,6 @@ function getPixelDimensions(resolution: string, aspectRatio: string): string {
   const width = Math.round(height * ratio);
   return `${width}×${height}`;
 }
-
 export default function ControlPanel({
   prompt,
   setPrompt,
@@ -152,294 +118,59 @@ export default function ControlPanel({
 }: ControlPanelProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tooltipBatch, setTooltipBatch] = useState<number | null>(null);
-  const [showNegativePrompt, setShowNegativePrompt] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [promptMode, setPromptMode] = useState<"free" | "guided">("free");
   const [showExtendedRatios, setShowExtendedRatios] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const enhanceDescId = useId();
+  const promptHintId = useId();
   const { t } = useLanguage();
 
-  // P2-7: Prompt Autocomplete (extracted hook)
-  const autocomplete = usePromptAutocomplete({ prompt, setPrompt, generating, onGenerate });
-
-  const MAX_REF_IMAGES = 4;
-  const [referencePreviews, setReferencePreviews] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (referenceImages.length === 0) {
-      setReferencePreviews([]);
-      return;
-    }
-    const previews: string[] = [];
-    let loaded = 0;
-    referenceImages.forEach((file, idx) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        previews[idx] = reader.result as string;
-        loaded++;
-        if (loaded === referenceImages.length) {
-          setReferencePreviews([...previews]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  }, [referenceImages]);
-
-  const handleRefUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith("image/"));
-      if (files.length > 0) {
-        setReferenceImages([...referenceImages, ...files].slice(0, MAX_REF_IMAGES));
-      }
-      e.target.value = "";
-    },
-    [referenceImages, setReferenceImages]
-  );
-
-  const removeRefImage = useCallback(
-    (index: number) => {
-      setReferenceImages(referenceImages.filter((_, i) => i !== index));
-    },
-    [referenceImages, setReferenceImages]
-  );
-
   const isGeminiNative = model.includes("gemini-3") || model.includes("gemini-3.1");
-  const showRefWarning = referenceImages.length > 0 && !isGeminiNative;
+  const promptMissing = !generating && !prompt.trim();
+  const selectedChoice = "bg-(--accent) text-(--on-accent) border-(--accent)";
+  const idleChoice = "bg-(--raised) border-(--line) text-(--text) hover:border-(--accent)";
 
   return (
     <aside
-      className={`w-full md:w-80 border-r border-(--border) h-full flex-col bg-(--surface) relative z-20 shadow-xl overflow-hidden ${className || "flex"}`}
+      className={`w-full md:w-80 border-r border-(--line) h-full flex-col bg-(--surface) relative z-20 overflow-hidden ${className || "flex"}`}
     >
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto pt-4">
         <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
-        {/* Header */}
-        <div className="px-6 mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
-              <Wand2 className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-lg tracking-tight">{t("studioTitle")}</span>
-          </div>
-          <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
-            <Settings className="w-4 h-4 text-muted-foreground" />
-          </Button>
-        </div>
 
-        {/* Prompt */}
-        <div className="space-y-2 px-4 md:px-6">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("studioPromptLabel")}
-          </Label>
-
-          {/* MT4: Mode tabs - Free / Guided (segment control with sliding indicator) */}
-          <div className="relative flex items-center rounded-lg bg-(--surface-muted) border border-(--border) p-0.5 -mt-0.5">
-            {/* Sliding background indicator */}
-            <motion.div
-              className={cn(
-                "absolute top-0.5 bottom-0.5 rounded-md shadow-sm",
-                promptMode === "free"
-                  ? "bg-(--surface-elevated) border border-(--border)"
-                  : "bg-purple-500/15 border border-purple-500/30"
-              )}
-              layoutId="prompt-mode-indicator"
-              style={{
-                width: "calc(50% - 2px)",
-                left: promptMode === "free" ? "2px" : "calc(50%)",
-              }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            />
-            <button
-              onClick={() => setPromptMode("free")}
-              className={cn(
-                "relative z-10 flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200",
-                promptMode === "free"
-                  ? "text-(--text-primary)"
-                  : "text-(--text-secondary) hover:text-(--text-primary)"
-              )}
+        <ControlPanelPromptSection
+          prompt={prompt}
+          setPrompt={setPrompt}
+          model={model}
+          setModel={setModel}
+          generating={generating}
+          onGenerate={onGenerate}
+          negativePrompt={negativePrompt}
+          setNegativePrompt={setNegativePrompt}
+          promptHistory={promptHistory}
+          onClearHistory={onClearHistory}
+          headerAction={
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t("settings")}
+              title={t("settings")}
+              onClick={() => setSettingsOpen(true)}
             >
-              {t("pbModeFree")}
-            </button>
-            <button
-              onClick={() => setPromptMode("guided")}
-              className={cn(
-                "relative z-10 flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200",
-                promptMode === "guided"
-                  ? "text-purple-300"
-                  : "text-(--text-secondary) hover:text-(--text-primary)"
-              )}
-            >
-              {t("pbModeGuided")}
-            </button>
-          </div>
-
-          {promptMode === "guided" ? (
-            <PromptBuilder
-              onBuildPrompt={(built) => {
-                setPrompt(built);
-                setPromptMode("free");
-              }}
-            />
-          ) : (
-            <>
-              <div className="relative">
-                <Textarea
-                  placeholder={t("studioPromptPlaceholder")}
-                  className="h-32 resize-none bg-(--input-bg) border-(--input-border) focus-visible:ring-1"
-                  value={prompt}
-                  onChange={(e) => autocomplete.handlePromptChange(e.target.value)}
-                  onKeyDown={autocomplete.handlePromptKeyDown}
-                  onBlur={autocomplete.dismissSuggestions}
-                />
-                {/* AI Autocomplete Suggestions */}
-                {autocomplete.showSuggestions && autocomplete.suggestions.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-(--surface-elevated) border border-(--border) rounded-lg shadow-xl overflow-hidden">
-                    {autocomplete.loadingSuggestions && (
-                      <div className="px-3 py-2 text-xs text-(--text-secondary) animate-pulse">
-                        {t("studioSuggestLoading")}
-                      </div>
-                    )}
-                    {autocomplete.suggestions.map((s, idx) => (
-                      <button
-                        key={idx}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          autocomplete.selectSuggestion(s);
-                        }}
-                        className={cn(
-                          "w-full text-left px-3 py-2.5 text-xs transition-colors border-b border-(--border) last:border-b-0",
-                          idx === autocomplete.selectedSuggestionIdx
-                            ? "bg-purple-500/10 text-purple-300"
-                            : "hover:bg-(--control-bg-hover) text-(--text-primary)"
-                        )}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <p className="text-[10px] text-muted-foreground">{t("studioShortcutHint")}</p>
-
-              {/* Suggestion Tags - click to append keyword */}
-              <div className="space-y-1.5 pt-2">
-                <span
-                  className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-purple-400 cursor-help"
-                  title={t("studioQuickAddTooltip")}
-                >
-                  <Sparkles className="w-3 h-3" />
-                  {t("studioQuickAddLabel")}
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {SUGGESTION_TAGS.map((tag) => (
-                    <button
-                      key={tag.key}
-                      onClick={() => {
-                        const tagText = t(tag.key);
-                        const separator = prompt.trim() ? ", " : "";
-                        setPrompt(prompt.trim() + separator + tagText);
-                      }}
-                      className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-(--border) bg-(--surface-elevated) hover:bg-purple-500/10 hover:border-purple-500/30 text-(--text-secondary) hover:text-(--text-primary) transition-colors"
-                    >
-                      <span className="mr-1">{tag.icon}</span>
-                      {t(tag.key)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* QW1: Negative Prompt (collapsible) */}
-              <div className="pt-2">
-                <button
-                  onClick={() => setShowNegativePrompt(!showNegativePrompt)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-red-500/8 border border-red-500/20 text-red-400 hover:bg-red-500/15 hover:text-red-300 transition-colors"
-                  title={t("studioExcludeTooltip")}
-                >
-                  <Ban className="w-3 h-3" />
-                  {t("studioExcludeLabel")}
-                  {negativePrompt && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                  )}
-                </button>
-                {showNegativePrompt && (
-                  <Textarea
-                    placeholder={t("studioNegativePromptPlaceholder")}
-                    className="mt-1.5 h-16 resize-none bg-(--input-bg) border-(--input-border) focus-visible:ring-1 text-xs"
-                    value={negativePrompt}
-                    onChange={(e) => setNegativePrompt(e.target.value)}
-                  />
-                )}
-              </div>
-
-              {/* QW7: Text Rendering Tip */}
-              {prompt.match(/["'].+?["']/) && model.includes("flash-image") && (
-                <button
-                  onClick={() => setModel("gemini-3-pro-image")}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-600 dark:text-amber-400 font-medium hover:bg-amber-500/20 transition-colors w-full text-left"
-                >
-                  <Lightbulb className="w-3.5 h-3.5 shrink-0" />
-                  <span className="flex-1">{t("studioTextRenderingTip")}</span>
-                </button>
-              )}
-
-              {/* QW5: Prompt History */}
-              {promptHistory.length > 0 && (
-                <div className="pt-2">
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={() => setShowHistory(!showHistory)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-blue-500/8 border border-blue-500/20 text-blue-400 hover:bg-blue-500/15 hover:text-blue-300 transition-colors"
-                      title={t("studioHistoryTooltip")}
-                    >
-                      <Clock className="w-3 h-3" />
-                      {t("studioPromptHistory")}
-                      <span className="text-[9px] font-normal bg-blue-500/20 px-1.5 py-0.5 rounded-full">
-                        ({promptHistory.length})
-                      </span>
-                    </button>
-                    {showHistory && (
-                      <button
-                        onClick={onClearHistory}
-                        className="text-[10px] text-red-400 hover:text-red-300 transition-colors flex items-center gap-1"
-                      >
-                        <Trash2 className="w-2.5 h-2.5" />
-                        {t("studioClearHistory")}
-                      </button>
-                    )}
-                  </div>
-                  {showHistory && (
-                    <div className="mt-1.5 flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar">
-                      {promptHistory.slice(0, 10).map((hp, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setPrompt(hp)}
-                          className="text-left text-[11px] text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) px-2 py-1.5 rounded-md transition-colors truncate"
-                          title={hp}
-                        >
-                          {hp}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+              <Settings aria-hidden="true" className="w-4 h-4 text-(--muted)" />
+            </Button>
+          }
+        />
 
         {/* Magic Enhance Toggle */}
         <div className="space-y-2 px-4 md:px-6 mt-4">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("studioEnhancement")}
-          </Label>
+          <Label className={STUDIO_LABEL_CLASS}>{t("studioEnhancement")}</Label>
           <div
             onClick={() => setIsEnhancerOn(!isEnhancerOn)}
             className={`
                         relative flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors
                         ${
                           isEnhancerOn
-                            ? "bg-purple-500/10 border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.15)]"
-                            : "bg-(--input-bg) border border-(--input-border) hover:border-purple-500/20"
+                            ? "bg-(--soft) border border-(--accent)"
+                            : "bg-(--input-bg) border border-(--input-border) hover:border-(--accent)"
                         }
                     `}
           >
@@ -448,20 +179,22 @@ export default function ControlPanel({
                         flex items-center justify-center w-10 h-10 rounded-lg transition-colors
                         ${
                           isEnhancerOn
-                            ? "bg-purple-500 text-white shadow-lg"
-                            : "bg-(--surface-muted) text-(--text-secondary)"
+                            ? "bg-(--accent) text-(--on-accent)"
+                            : "bg-(--raised) text-(--muted)"
                         }
                     `}
             >
-              <Sparkles className="w-5 h-5" />
+              <Sparkles aria-hidden="true" className="w-5 h-5" />
             </div>
             <div className="flex-1">
-              <div className="font-medium text-sm text-(--text-primary)">
-                {t("studioAiEnhance")}
+              <div className="font-medium text-sm text-(--text)">{t("studioAiEnhance")}</div>
+              <div id={enhanceDescId} className="text-xs text-(--muted)">
+                {t("studioAiEnhanceDesc")}
               </div>
-              <div className="text-[10px] text-(--text-secondary)">{t("studioAiEnhanceDesc")}</div>
             </div>
             <Switch
+              aria-label={t("studioAiEnhance")}
+              aria-describedby={enhanceDescId}
               checked={isEnhancerOn}
               onCheckedChange={setIsEnhancerOn}
               className="pointer-events-none"
@@ -470,42 +203,37 @@ export default function ControlPanel({
         </div>
         {/* Model */}
         <div className="space-y-2 px-6 mt-4">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("studioModel")}
-          </Label>
+          <Label className={STUDIO_LABEL_CLASS}>{t("studioModel")}</Label>
           <Select value={model} onValueChange={setModel}>
-            <SelectTrigger className="w-full bg-(--surface-elevated) border-(--border)">
+            <SelectTrigger
+              aria-label={t("studioModel")}
+              className="w-full bg-(--raised) border-(--line) text-left"
+            >
               <SelectValue placeholder={t("studioSelectModel")} />
             </SelectTrigger>
-            <SelectContent className="bg-(--surface-elevated) border border-(--border) shadow-xl z-100">
+            <SelectContent className="bg-(--surface) border border-(--line) shadow-xl z-100">
               <SelectItem value="gemini-3.1-flash-image">
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col items-start gap-0.5 text-left">
                   <span className="font-medium">Gemini Image Flash</span>
-                  <span className="text-xs text-(--text-secondary)">
-                    {t("studioModelFlashDesc")}
-                  </span>
+                  <span className="text-xs text-(--muted)">{t("studioModelFlashDesc")}</span>
                 </div>
               </SelectItem>
               <SelectItem value="gemini-3-pro-image">
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col items-start gap-0.5 text-left">
                   <span className="font-medium">Gemini Image Pro</span>
-                  <span className="text-xs text-(--text-secondary)">{t("studioModelProDesc")}</span>
+                  <span className="text-xs text-(--muted)">{t("studioModelProDesc")}</span>
                 </div>
               </SelectItem>
               <SelectItem value="black-forest-labs/flux-schnell">
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col items-start gap-0.5 text-left">
                   <span className="font-medium">Flux Schnell (Replicate)</span>
-                  <span className="text-xs text-(--text-secondary)">
-                    {t("studioModelFluxDesc")}
-                  </span>
+                  <span className="text-xs text-(--muted)">{t("studioModelFluxDesc")}</span>
                 </div>
               </SelectItem>
               <SelectItem value="gpt-image-2">
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col items-start gap-0.5 text-left">
                   <span className="font-medium">GPT Image 2 (OpenAI)</span>
-                  <span className="text-xs text-(--text-secondary)">
-                    {t("studioModelGptImageDesc")}
-                  </span>
+                  <span className="text-xs text-(--muted)">{t("studioModelGptImageDesc")}</span>
                 </div>
               </SelectItem>
             </SelectContent>
@@ -514,9 +242,7 @@ export default function ControlPanel({
 
         {/* Aspect Ratio - Common + Extended */}
         <div className="space-y-2 px-6 mt-4">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("studioDimensions")}
-          </Label>
+          <Label className={STUDIO_LABEL_CLASS}>{t("studioDimensions")}</Label>
           <div className="grid grid-cols-3 gap-2">
             {COMMON_RATIOS.map((ratio) => (
               <button
@@ -524,9 +250,7 @@ export default function ControlPanel({
                 onClick={() => setAspectRatio(ratio)}
                 className={cn(
                   "px-2 py-2 rounded-md text-xs font-medium border transition-colors",
-                  aspectRatio === ratio
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-(--surface-elevated) border-(--border) hover:bg-(--control-bg-hover)"
+                  aspectRatio === ratio ? selectedChoice : idleChoice
                 )}
               >
                 {ratio}
@@ -536,7 +260,9 @@ export default function ControlPanel({
           {/* Extended ratios toggle */}
           <button
             onClick={() => setShowExtendedRatios(!showExtendedRatios)}
-            className="text-[10px] font-medium text-purple-400 hover:text-purple-300 transition-colors"
+            type="button"
+            aria-expanded={showExtendedRatios}
+            className="text-xs font-medium text-(--accent) hover:opacity-80 transition-opacity"
           >
             {showExtendedRatios ? "▾" : "▸"} {t("studioExtraRatios")} ({EXTENDED_RATIOS.length})
           </button>
@@ -548,9 +274,7 @@ export default function ControlPanel({
                   onClick={() => setAspectRatio(ratio)}
                   className={cn(
                     "px-2 py-2 rounded-md text-xs font-medium border transition-colors",
-                    aspectRatio === ratio
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-(--surface-elevated) border-(--border) hover:bg-(--control-bg-hover)"
+                    aspectRatio === ratio ? selectedChoice : idleChoice
                   )}
                 >
                   {ratio}
@@ -563,9 +287,7 @@ export default function ControlPanel({
         {/* QW-A: Resolution Selector */}
         {isGeminiNative && (
           <div className="space-y-2 px-6 mt-4">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {t("studioResolution")}
-            </Label>
+            <Label className={STUDIO_LABEL_CLASS}>{t("studioResolution")}</Label>
             <div className="grid grid-cols-4 gap-1.5">
               {RESOLUTION_OPTIONS.map((opt) => (
                 <button
@@ -573,18 +295,14 @@ export default function ControlPanel({
                   onClick={() => setResolution(opt.value)}
                   className={cn(
                     "flex flex-col items-center gap-0.5 px-1.5 py-2 rounded-lg text-xs font-medium border transition-colors",
-                    resolution === opt.value
-                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                      : "bg-(--surface-elevated) border-(--border) hover:bg-(--control-bg-hover)"
+                    resolution === opt.value ? selectedChoice : idleChoice
                   )}
                 >
                   <span className="font-bold">{t(`studioRes${opt.value.replace(".", "")}`)}</span>
                   <span
                     className={cn(
-                      "text-[9px]",
-                      resolution === opt.value
-                        ? "text-primary-foreground/70"
-                        : "text-muted-foreground"
+                      "text-xs",
+                      resolution === opt.value ? "text-(--on-accent)/80" : "text-(--muted)"
                     )}
                   >
                     ~${opt.cost}
@@ -594,10 +312,8 @@ export default function ControlPanel({
             </div>
             {/* Actual pixel dimensions */}
             <div className="flex items-center gap-1.5 mt-1.5 px-1">
-              <span className="text-[10px] text-muted-foreground">
-                {t("studioActualResolution")}:
-              </span>
-              <span className="text-[10px] font-bold text-(--text-primary) bg-(--surface-elevated) px-2 py-0.5 rounded border border-(--border)">
+              <span className="text-xs text-(--muted)">{t("studioActualResolution")}:</span>
+              <span className="text-xs font-semibold text-(--text) bg-(--raised) px-2 py-0.5 rounded border border-(--line)">
                 {getPixelDimensions(resolution, aspectRatio)} px
               </span>
             </div>
@@ -606,99 +322,20 @@ export default function ControlPanel({
 
         {/* Style */}
         <div className="space-y-2 px-6 mt-4">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("studioStyle")}
-          </Label>
+          <Label className={STUDIO_LABEL_CLASS}>{t("studioStyle")}</Label>
           <StyleSelector selectedStyle={style} onSelect={setStyle} />
         </div>
 
-        {/* Reference Images (QW-D: Multi-reference, max 4) */}
-        <div className="space-y-2 px-4 md:px-6 mt-4">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {t("studioReferenceImages")}
-            </Label>
-            {referenceImages.length > 0 && (
-              <span className="text-[10px] text-muted-foreground">
-                {t("studioRefCount").replace("{{count}}", String(referenceImages.length))}
-              </span>
-            )}
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleRefUpload}
-          />
-          {referenceImages.length > 0 ? (
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                {referencePreviews.map((preview, idx) => (
-                  <div
-                    key={idx}
-                    className="relative group/ref rounded-lg overflow-hidden border border-(--border) bg-(--surface-elevated)"
-                  >
-                    <img
-                      src={preview}
-                      alt={`Reference ${idx + 1}`}
-                      className="w-full h-20 object-cover"
-                    />
-                    <button
-                      onClick={() => removeRefImage(idx)}
-                      className="absolute top-1 right-1 p-1 rounded-full bg-black/60 hover:bg-red-500/80 text-white transition-colors opacity-0 group-hover/ref:opacity-100"
-                      title={t("studioRemoveRef")}
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-                {/* Add more button */}
-                {referenceImages.length < MAX_REF_IMAGES && (
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center h-20 rounded-lg border border-dashed border-(--border) hover:border-purple-500/30 hover:bg-purple-500/5 transition-colors"
-                  >
-                    <Upload className="w-4 h-4 text-(--text-secondary) mb-1" />
-                    <span className="text-[10px] text-(--text-secondary)">
-                      {t("studioAddMoreRef")}
-                    </span>
-                  </button>
-                )}
-              </div>
-              {showRefWarning && (
-                <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[10px] font-medium px-2.5 py-1.5 rounded-lg text-center">
-                  {t("studioRefOnlyGemini")}
-                </div>
-              )}
-            </div>
-          ) : (
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full flex items-center gap-3 p-3 rounded-lg border border-dashed border-(--border) hover:border-purple-500/30 hover:bg-purple-500/5 transition-colors text-left"
-            >
-              <div className="p-2 rounded-lg bg-(--surface-muted) text-(--text-secondary)">
-                <Upload className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-(--text-primary)">
-                  {t("studioUploadRef")}
-                </div>
-                <div className="text-[10px] text-(--text-secondary)">
-                  {t("studioRefImagesDesc")}
-                </div>
-              </div>
-            </button>
-          )}
-        </div>
+        <ControlPanelReferenceImages
+          model={model}
+          referenceImages={referenceImages}
+          setReferenceImages={setReferenceImages}
+        />
 
         {/* Number of Images (Phase 4 - Batch Gen) */}
         {batchQuota && batchQuota.maxBatchSize > 1 && (
           <div className="space-y-2 px-6 mt-4">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {t("studioNumberOfImages")}
-            </Label>
+            <Label className={STUDIO_LABEL_CLASS}>{t("studioNumberOfImages")}</Label>
             <div className="grid grid-cols-4 gap-2">
               {[1, 2, 3, 4].map((num) => {
                 const isAvailable = num <= batchQuota.maxBatchSize;
@@ -718,10 +355,10 @@ export default function ControlPanel({
                       className={cn(
                         "w-full px-2 py-2 rounded-md text-xs font-medium border transition-colors flex items-center justify-center gap-1",
                         numberOfImages === num
-                          ? "bg-primary text-primary-foreground border-primary"
+                          ? selectedChoice
                           : isDisabled
-                            ? "bg-(--surface-muted) border-(--border) text-(--text-secondary)/40 cursor-not-allowed opacity-50"
-                            : "bg-(--surface-elevated) border-(--border) hover:bg-(--control-bg-hover)"
+                            ? "bg-(--raised) border-(--line) text-(--muted) cursor-not-allowed opacity-50"
+                            : idleChoice
                       )}
                     >
                       <ImageIcon className="w-3 h-3" />
@@ -729,7 +366,7 @@ export default function ControlPanel({
                     </button>
                     {/* Quota tooltip */}
                     {tooltipBatch === num && quota && (
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg bg-(--surface-elevated) border border-(--border) shadow-xl text-[10px] font-medium whitespace-nowrap z-50 animate-in fade-in slide-in-from-bottom-1">
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg bg-(--surface) border border-(--line) shadow-xl text-xs font-medium whitespace-nowrap z-50 animate-in fade-in slide-in-from-bottom-1">
                         <div className="flex items-center gap-1.5">
                           <Info className="w-3 h-3 text-(--text-secondary)" />
                           {isExhausted
@@ -739,7 +376,7 @@ export default function ControlPanel({
                                 String(quota.remaining)
                               )}
                         </div>
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-(--surface-elevated) border-r border-b border-(--border) rotate-45 -mt-1" />
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-(--surface) border-r border-b border-(--line) rotate-45 -mt-1" />
                       </div>
                     )}
                   </div>
@@ -751,11 +388,12 @@ export default function ControlPanel({
       </div>
 
       {/* Sticky generate button at bottom */}
-      <div className="shrink-0 px-4 md:px-6 py-4 border-t border-(--border)">
+      <div className="shrink-0 px-4 md:px-6 py-4 border-t border-(--line)">
         <Button
           onClick={onGenerate}
           disabled={generating || !prompt.trim()}
-          className="w-full bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-900/20"
+          aria-describedby={promptMissing ? promptHintId : undefined}
+          className="w-full bg-(--accent) text-(--on-accent) hover:bg-(--accent) hover:brightness-110 disabled:opacity-50"
           size="lg"
         >
           {generating ? (
@@ -766,6 +404,11 @@ export default function ControlPanel({
             t("studioGenerate")
           )}
         </Button>
+        {promptMissing && (
+          <p id={promptHintId} className="mt-2 text-center text-xs text-(--muted)">
+            {t("studioPromptRequired")}
+          </p>
+        )}
       </div>
     </aside>
   );

@@ -435,7 +435,7 @@ export default function EditPanel({
               )}
               style={{ minHeight: "40px" }}
             />
-            <span className="absolute bottom-1 right-2 text-[9px] text-(--text-secondary) opacity-60">
+            <span className="absolute bottom-1 right-2 text-xs text-(--faint) pointer-coarse:hidden">
               Ctrl+Enter
             </span>
           </div>

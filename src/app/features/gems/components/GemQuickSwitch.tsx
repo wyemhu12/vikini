@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useGemStore } from "../stores/useGemStore";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import type { Gem } from "./GemPreview";
 import { Settings, Sparkles } from "lucide-react";
 import { toast } from "@/lib/store/toastStore";
+import { logger } from "@/lib/utils/logger";
 import { DynamicIcon } from "@/components/ui/DynamicIcon";
 import { ComposerChip } from "../../chat/components/ComposerChip";
 
@@ -27,20 +28,34 @@ export default function GemQuickSwitch({
   const [gems, setGems] = useState<Gem[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  // One request per popover opening: an empty or failed result must not refetch on every render.
+  const requestedRef = useRef(false);
 
   useEffect(() => {
-    if (open && gems.length === 0) {
+    if (!open) {
+      requestedRef.current = false;
+      return;
+    }
+    if (!requestedRef.current && gems.length === 0) {
+      requestedRef.current = true;
       setLoading(true);
       fetch("/api/gems")
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
         .then((json) => {
           const data = json.data || json;
           setGems(Array.isArray(data?.gems) ? data.gems : []);
         })
-        .catch(() => {})
+        .catch((error: unknown) => {
+          logger.error("[GemQuickSwitch] Failed to load gems:", error);
+          toast.error(t("gemLoadFailed"));
+          setGems([]);
+        })
         .finally(() => setLoading(false));
     }
-  }, [open, gems.length]);
+  }, [open, gems.length, t]);
 
   const applyGem = async (
     gemId: string | null,
@@ -56,8 +71,9 @@ export default function GemQuickSwitch({
       if (!res.ok) throw new Error("Failed to apply gem");
       triggerGemApplied(conversationId, gemInfo);
       setOpen(false);
-    } catch (_e) {
-      toast.error("Failed to apply gem");
+    } catch (error: unknown) {
+      logger.error("[GemQuickSwitch] Failed to apply gem:", error);
+      toast.error(t("gemApplyFailed"));
     }
   };
 
@@ -92,15 +108,18 @@ export default function GemQuickSwitch({
           {loading ? (
             <div className="p-2 text-xs text-(--text-secondary) text-center">{t("loading")}</div>
           ) : gems.length === 0 ? (
-            <div className="p-2 text-xs text-(--text-secondary) text-center">No GEMs found</div>
+            <div className="p-2 text-xs text-(--text-secondary) text-center">
+              {t("gemNoneFound")}
+            </div>
           ) : (
             <div className="space-y-1">
               {currentGem && (
                 <button
+                  type="button"
                   onClick={() => applyGem(null, null)}
                   className="w-full text-left px-2 py-1.5 rounded-md text-xs text-(--danger) hover:bg-(--danger)/10 transition-colors flex items-center gap-2"
                 >
-                  <span className="w-4 text-center"></span> Remove GEM
+                  <span className="w-4 text-center"></span> {t("gemRemove")}
                 </button>
               )}
               {gems.map((g) => (

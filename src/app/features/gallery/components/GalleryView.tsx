@@ -19,7 +19,7 @@ import {
 import Image from "next/image";
 import AppFrame from "../../layout/components/AppFrame";
 import { useTheme } from "../../chat/hooks/useTheme";
-import { PageHeader } from "@/components/ui/page-header";
+import { ImageSectionHeader } from "../../image-gen/components/ImageSectionHeader";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -35,131 +35,141 @@ import {
 export function GalleryView() {
   const { theme: _theme } = useTheme();
   const g = useGalleryController();
+  // M3: a library with no images at all only shows the empty state (filters are noise).
+  const isEmptyLibrary = !g.loading && g.images.length === 0;
 
   return (
     <AppFrame>
+      <ImageSectionHeader />
       <div className="p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
-          {/* Hero / Header */}
-          <div className="space-y-4">
-            <PageHeader title={g.t("galleryTitle")} className="border-b-0 pb-0" />
-            <div className="flex flex-col md:flex-row gap-4">
-              {/* Search */}
-              <div className="relative flex-1 max-w-xl">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-(--text-secondary)" />
-                <input
-                  type="text"
-                  placeholder={g.t("gallerySearch")}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none transition-colors"
-                  value={g.searchQuery}
-                  onChange={(e) => g.setSearchQuery(e.target.value)}
-                />
-              </div>
-
-              {/* Filters */}
-              <div className="flex gap-2 flex-wrap">
-                {/* Date Filter */}
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--text-secondary) pointer-events-none" />
-                  <select
-                    value={g.dateFilter}
-                    onChange={(e) => g.setDateFilter(e.target.value as DateFilter)}
-                    className="pl-9 pr-8 py-2.5 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none appearance-none cursor-pointer text-sm"
-                  >
-                    {DATE_FILTER_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {g.t(opt.labelKey)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Model Filter */}
-                {g.availableModels.length > 0 && (
-                  <div className="relative">
-                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--text-secondary) pointer-events-none" />
-                    <select
-                      value={g.modelFilter}
-                      onChange={(e) => g.setModelFilter(e.target.value)}
-                      className="pl-9 pr-8 py-2.5 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none appearance-none cursor-pointer text-sm"
-                    >
-                      <option value="all">{g.t("galleryAllModels")}</option>
-                      {g.availableModels.map((model) => (
-                        <option key={model} value={model}>
-                          {model}
-                        </option>
-                      ))}
-                    </select>
+          {!isEmptyLibrary && (
+            <>
+              {/* Search + filters */}
+              <div className="space-y-4">
+                <div className="flex flex-col md:flex-row gap-4">
+                  {/* Search */}
+                  <div className="relative flex-1 max-w-xl">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-(--text-secondary)" />
+                    <input
+                      type="text"
+                      placeholder={g.t("gallerySearch")}
+                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none transition-colors"
+                      value={g.searchQuery}
+                      onChange={(e) => g.setSearchQuery(e.target.value)}
+                    />
                   </div>
-                )}
 
-                {/* Favorites Toggle */}
-                <button
-                  onClick={() => g.setShowFavoritesOnly(!g.showFavoritesOnly)}
-                  className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
-                    g.showFavoritesOnly
-                      ? "bg-pink-500/20 border-pink-500/30 text-pink-400"
-                      : "bg-(--surface-muted) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
-                  }`}
-                >
-                  <Heart className={`w-4 h-4 ${g.showFavoritesOnly ? "fill-current" : ""}`} />
-                  {g.t("galleryFavorites") || "Favorites"}
-                </button>
-              </div>
-            </div>
-          </div>
+                  {/* Filters */}
+                  <div className="flex gap-2 flex-wrap">
+                    {/* Date Filter */}
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--text-secondary) pointer-events-none" />
+                      <select
+                        aria-label={g.t("galleryDateFilter")}
+                        value={g.dateFilter}
+                        onChange={(e) => g.setDateFilter(e.target.value as DateFilter)}
+                        className="h-10 pl-9 pr-8 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none appearance-none cursor-pointer text-sm"
+                      >
+                        {DATE_FILTER_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {g.t(opt.labelKey)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-          {/* Results Count + Compare Button */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-(--text-secondary)">
-              {g.t("galleryYourCreations")}
-              {!g.loading && (
-                <span className="ml-2 text-sm font-normal">
-                  ({g.filteredImages.length} {g.t("galleryImagesCount")})
-                </span>
-              )}
-            </h2>
+                    {/* Model Filter */}
+                    {g.availableModels.length > 0 && (
+                      <div className="relative">
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--text-secondary) pointer-events-none" />
+                        <select
+                          aria-label={g.t("galleryModelFilter")}
+                          value={g.modelFilter}
+                          onChange={(e) => g.setModelFilter(e.target.value)}
+                          className="h-10 pl-9 pr-8 rounded-xl bg-(--surface-muted) border border-(--control-border) focus:ring-2 focus:ring-(--accent) focus:outline-none appearance-none cursor-pointer text-sm"
+                        >
+                          <option value="all">{g.t("galleryAllModels")}</option>
+                          {g.availableModels.map((model) => (
+                            <option key={model} value={model}>
+                              {model}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
 
-            <div className="flex items-center gap-2">
-              {g.compareMode && (
-                <>
-                  <span className="text-sm text-(--text-secondary)">
-                    {[g.compareImages[0], g.compareImages[1]].filter(Boolean).length}/2{" "}
-                    {g.t("compareSelected") || "selected"}
-                  </span>
-                  {g.compareImages[0] && g.compareImages[1] && (
+                    {/* Favorites Toggle */}
                     <button
-                      onClick={g.handleOpenCompare}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--accent) text-(--accent-foreground) font-bold shadow-lg shadow-(--accent)/20 hover:opacity-90 transition-colors"
+                      type="button"
+                      aria-pressed={g.showFavoritesOnly}
+                      onClick={() => g.setShowFavoritesOnly(!g.showFavoritesOnly)}
+                      className={`flex h-10 items-center gap-1.5 px-3 rounded-xl border text-sm font-medium transition-colors ${
+                        g.showFavoritesOnly
+                          ? "bg-(--soft) border-(--accent) text-(--accent)"
+                          : "bg-(--surface-muted) border-(--control-border) text-(--text-secondary) hover:text-(--text-primary)"
+                      }`}
                     >
-                      <GitCompare className="w-4 h-4" />
-                      {g.t("compareNow") || "Compare"}
+                      <Heart className={`w-4 h-4 ${g.showFavoritesOnly ? "fill-current" : ""}`} />
+                      {g.t("galleryFavorites") || "Favorites"}
                     </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Results Count + Compare Button */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-(--text-secondary)">
+                  {g.t("galleryYourCreations")}
+                  {!g.loading && (
+                    <span className="ml-2 text-sm font-normal">
+                      ({g.filteredImages.length} {g.t("galleryImagesCount")})
+                    </span>
                   )}
-                </>
-              )}
-              <button
-                onClick={g.handleToggleCompareMode}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  g.compareMode
-                    ? "bg-(--danger)/20 text-(--danger) border border-(--danger)/30 hover:bg-(--danger)/30"
-                    : "bg-(--surface-muted) border border-(--control-border) hover:bg-(--control-bg-hover)"
-                }`}
-              >
-                {g.compareMode ? (
-                  <>
-                    <X className="w-4 h-4" />
-                    {g.t("cancel") || "Cancel"}
-                  </>
-                ) : (
-                  <>
-                    <GitCompare className="w-4 h-4" />
-                    {g.t("compareImages") || "Compare"}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+                </h2>
+
+                <div className="flex items-center gap-2">
+                  {g.compareMode && (
+                    <>
+                      <span className="text-sm text-(--text-secondary)">
+                        {[g.compareImages[0], g.compareImages[1]].filter(Boolean).length}/2{" "}
+                        {g.t("compareSelected") || "selected"}
+                      </span>
+                      {g.compareImages[0] && g.compareImages[1] && (
+                        <button
+                          onClick={g.handleOpenCompare}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--accent) text-(--accent-foreground) font-bold shadow-lg shadow-(--accent)/20 hover:opacity-90 transition-colors"
+                        >
+                          <GitCompare className="w-4 h-4" />
+                          {g.t("compareNow") || "Compare"}
+                        </button>
+                      )}
+                    </>
+                  )}
+                  <button
+                    onClick={g.handleToggleCompareMode}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      g.compareMode
+                        ? "bg-(--danger)/20 text-(--danger) border border-(--danger)/30 hover:bg-(--danger)/30"
+                        : "bg-(--surface-muted) border border-(--control-border) hover:bg-(--control-bg-hover)"
+                    }`}
+                  >
+                    {g.compareMode ? (
+                      <>
+                        <X className="w-4 h-4" />
+                        {g.t("cancel") || "Cancel"}
+                      </>
+                    ) : (
+                      <>
+                        <GitCompare className="w-4 h-4" />
+                        {g.t("compareImages") || "Compare"}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Grid */}
           {g.loading ? (
@@ -333,7 +343,7 @@ export function GalleryView() {
 
                   <div className="flex-1 space-y-6 overflow-y-auto">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-(--text-secondary) uppercase">
+                      <label className="text-xs font-semibold text-(--muted)">
                         {g.t("galleryPrompt")}
                       </label>
                       <p className="text-sm leading-relaxed p-3 rounded-lg bg-(--surface-muted) border border-(--border)">
@@ -343,13 +353,13 @@ export function GalleryView() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs font-bold text-(--text-secondary) uppercase">
+                        <label className="text-xs font-semibold text-(--muted)">
                           {g.t("galleryModel")}
                         </label>
                         <p className="text-sm">{g.selectedImage.model || "Unknown"}</p>
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-(--text-secondary) uppercase">
+                        <label className="text-xs font-semibold text-(--muted)">
                           {g.t("galleryDate")}
                         </label>
                         <p className="text-sm">
@@ -360,7 +370,7 @@ export function GalleryView() {
                         </p>
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-(--text-secondary) uppercase">
+                        <label className="text-xs font-semibold text-(--muted)">
                           {g.t("galleryRatio")}
                         </label>
                         <p className="text-sm">{g.selectedImage.aspectRatio || "1:1"}</p>

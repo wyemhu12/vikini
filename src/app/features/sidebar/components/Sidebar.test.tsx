@@ -25,11 +25,12 @@ vi.mock("./SidebarItem", () => ({
 }));
 
 // Mock next/navigation
+let mockPathname = "/";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
   }),
-  usePathname: () => "/",
+  usePathname: () => mockPathname,
 }));
 
 // Mock next/link
@@ -110,6 +111,7 @@ describe("Sidebar component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     latestSidebarItemProps = null;
+    mockPathname = "/";
     useLanguageStore.setState({ language: "en" });
   });
 
@@ -344,5 +346,23 @@ describe("Sidebar component", () => {
     expect(
       screen.getAllByText("Bắt đầu cuộc trò chuyện mới để trải nghiệm").length
     ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("phase 4 TC-12: images panel links match the section tabs", () => {
+    mockPathname = "/gallery";
+    useLanguageStore.setState({ language: "vi" });
+    render(<Sidebar chats={[]} collapsed={false} allConversations={[]} />);
+
+    expect(screen.getAllByRole("link", { name: "Tạo ảnh" })[0]).toHaveAttribute("href", "/images");
+    expect(screen.getAllByRole("link", { name: "Thư viện" })[0]).toHaveAttribute(
+      "href",
+      "/gallery"
+    );
+    expect(screen.getAllByRole("link", { name: "Mô tả ảnh" })[0]).toHaveAttribute(
+      "href",
+      "/describe"
+    );
+    expect(document.querySelector('[aria-label="Ảnh"]')).not.toBeNull();
+    expect(screen.queryByText("Image Studio")).toBeNull();
   });
 });

@@ -181,7 +181,7 @@ export default function Canvas({
                     animate={{ rotate: 360 }}
                     transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                   >
-                    <Sparkles className="w-10 h-10 text-purple-400 mb-3" />
+                    <Sparkles className="w-10 h-10 text-(--accent) mb-3" />
                   </motion.div>
                   <AnimatePresence mode="wait">
                     <motion.span
@@ -229,19 +229,19 @@ export default function Canvas({
                 {/* Top Metadata Badges */}
                 <div className="flex flex-wrap gap-1.5 transform -translate-y-2 group-hover:translate-y-0 group-focus-within:translate-y-0 transition-transform duration-300 content-start relative w-full shrink-0">
                   {item.model && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/80 text-white border border-white/10 backdrop-blur-md">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-black/60 text-white border border-white/10 backdrop-blur-md">
                       {item.model}
                     </span>
                   )}
                   {item.aspectRatio && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-black/60 text-white border border-white/10 backdrop-blur-md">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-black/60 text-white border border-white/10 backdrop-blur-md">
                       {item.aspectRatio}
                     </span>
                   )}
                   {/* QW2: Enhanced badge with tooltip */}
                   {item.enhancer && (
                     <span
-                      className="text-[10px] font-bold px-2 py-0.5 rounded bg-linear-to-r from-pink-500 to-purple-500 text-white border border-white/10 backdrop-blur-md flex items-center gap-1 cursor-help"
+                      className="text-xs font-bold px-2 py-0.5 rounded bg-(--accent) text-(--on-accent) border border-white/10 backdrop-blur-md flex items-center gap-1 cursor-help"
                       title={
                         item.enhancedPrompt
                           ? `${t("studioEnhancedPrompt")}: ${item.enhancedPrompt}`
@@ -254,7 +254,7 @@ export default function Canvas({
                   {/* MT2: Version chain badge */}
                   {item.editDepth && item.editDepth > 0 && (
                     <span
-                      className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/70 text-white border border-white/10 backdrop-blur-md flex items-center gap-1 cursor-help"
+                      className="text-xs font-bold px-2 py-0.5 rounded bg-(--warning) text-white border border-white/10 backdrop-blur-md flex items-center gap-1 cursor-help"
                       title={t("studioVersionTooltip")}
                     >
                       <Link2 className="w-3 h-3" />{" "}
@@ -273,8 +273,8 @@ export default function Canvas({
                         }}
                         className={`p-1.5 rounded-full backdrop-blur-md transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) ${
                           item.isFavorite
-                            ? "bg-pink-500/80 text-white border-pink-400/30 shadow-lg shadow-pink-500/30"
-                            : "bg-white/10 hover:bg-pink-500/40 text-white/70 hover:text-white border-white/10"
+                            ? "bg-(--accent) text-(--on-accent) border-(--accent) shadow-lg"
+                            : "bg-white/10 hover:bg-black/60 text-white/70 hover:text-white border-white/10"
                         }`}
                         title={item.isFavorite ? t("studioUnfavorite") : t("studioFavorite")}
                       >
@@ -284,7 +284,7 @@ export default function Canvas({
                     {item.id && (
                       <button
                         onClick={() => onDelete(item.id!)}
-                        className="p-1.5 rounded-full bg-red-500/20 hover:bg-red-500/80 text-red-200 hover:text-white backdrop-blur-md transition-colors border border-red-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                        className="p-1.5 rounded-full bg-black/50 hover:bg-(--danger) text-white backdrop-blur-md transition-colors border border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("galleryDeleteImage")}
                       >
                         <Trash2 className="w-3 h-3" />
@@ -315,7 +315,7 @@ export default function Canvas({
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       onClick={() => onRemix(item)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-purple-500/80 hover:bg-purple-600 text-white backdrop-blur-md transition-colors border border-purple-400/30 text-[11px] font-bold shadow-lg shadow-purple-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-(--accent) hover:brightness-110 text-(--on-accent) backdrop-blur-md transition-colors border border-(--accent) text-xs font-bold shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                       title={t("studioReuseTooltip")}
                     >
                       <RefreshCcw className="w-3 h-3" />{" "}
@@ -325,7 +325,7 @@ export default function Canvas({
                     {onEdit && (
                       <button
                         onClick={() => onEdit(item)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-blue-500/80 hover:bg-blue-600 text-white backdrop-blur-md transition-colors border border-blue-400/30 text-[11px] font-bold shadow-lg shadow-blue-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/75 text-white backdrop-blur-md transition-colors border border-white/20 text-xs font-bold shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("studioEditTooltip")}
                       >
                         <Pencil className="w-3 h-3" />{" "}
@@ -337,7 +337,7 @@ export default function Canvas({
                     {onVariation && (
                       <button
                         onClick={() => onVariation(item)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-emerald-500/80 hover:bg-emerald-600 text-white backdrop-blur-md transition-colors border border-emerald-400/30 text-[11px] font-bold shadow-lg shadow-emerald-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/75 text-white backdrop-blur-md transition-colors border border-white/20 text-xs font-bold shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("studioVariationTooltip")}
                       >
                         <Shuffle className="w-3 h-3" />{" "}
@@ -382,9 +382,9 @@ export default function Canvas({
             <motion.div
               animate={{ y: [0, -6, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              className="mx-auto mb-3 w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/20 flex items-center justify-center"
+              className="mx-auto mb-3 w-14 h-14 rounded-2xl bg-(--soft) border border-(--accent)/30 flex items-center justify-center"
             >
-              <ImageIcon className="w-7 h-7 text-purple-400" />
+              <ImageIcon className="w-7 h-7 text-(--accent)" />
             </motion.div>
             <h3 className="text-lg font-bold text-(--text-primary) mb-1">
               {t("studioEmptyTitle")}
@@ -402,7 +402,7 @@ export default function Canvas({
                   animate={{ opacity: 1, transform: "scale(1)" }}
                   transition={{ delay: idx * 0.04, duration: 0.3, ease: "easeOut" }}
                   onClick={() => onSelectTemplate?.(tmpl)}
-                  className="group relative aspect-[3/4] rounded-2xl overflow-hidden border border-(--border) hover:border-purple-500/40 transition-colors hover:shadow-lg hover:shadow-purple-500/10 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                  className="group relative aspect-[3/4] rounded-2xl overflow-hidden border border-(--border) hover:border-(--accent) transition-colors hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-(--ring)"
                 >
                   {/* Preview image */}
                   <img
@@ -419,14 +419,14 @@ export default function Canvas({
                       {tmpl.name[language]}
                     </span>
                     {tmpl.requiresPhoto && (
-                      <div className="mt-1 flex items-center gap-1 text-white/60 text-[9px]">
-                        <ImageIcon className="w-2.5 h-2.5" />
+                      <div className="mt-1 flex items-center gap-1 whitespace-nowrap text-white/80 text-xs">
+                        <ImageIcon aria-hidden="true" className="w-3 h-3 shrink-0" />
                         {t("studioNeedsPhoto")}
                       </div>
                     )}
                   </div>
                   {/* Hover border glow */}
-                  <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 group-hover:ring-purple-400/30 transition-colors" />
+                  <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 group-hover:ring-(--accent)/40 transition-colors" />
                 </motion.button>
               )
             )}
@@ -438,7 +438,7 @@ export default function Canvas({
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
             onClick={() => setTemplatesExpanded(!templatesExpanded)}
-            className="mx-auto mt-4 flex items-center gap-1.5 px-4 py-2 rounded-full bg-(--surface-elevated) border border-(--border) hover:border-purple-500/30 hover:bg-purple-500/5 transition-colors text-xs font-medium text-(--text-secondary) hover:text-(--text-primary)"
+            className="mx-auto mt-4 flex items-center gap-1.5 px-4 py-2 rounded-full bg-(--surface-elevated) border border-(--border) hover:border-(--accent) hover:bg-(--soft) transition-colors text-xs font-medium text-(--text-secondary) hover:text-(--text-primary)"
           >
             {templatesExpanded ? (
               <>

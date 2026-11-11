@@ -139,15 +139,15 @@ function Sidebar(props: SidebarProps) {
   const sectionLinks: PanelLink[] | undefined =
     section === "images"
       ? [
-          { href: "/images", label: t("imageStudio"), icon: ImageIcon },
-          { href: "/gallery", label: t("gallery"), icon: LayoutGrid },
-          { href: "/describe", label: t("describeTitle"), icon: Search },
+          { href: "/images", label: t("imageTabCreate"), icon: ImageIcon },
+          { href: "/gallery", label: t("imageTabLibrary"), icon: LayoutGrid },
+          { href: "/describe", label: t("imageTabDescribe"), icon: Search },
         ].map((link) => ({ ...link, current: pathname === link.href }))
       : undefined;
 
   const panelLabel =
     section === "images"
-      ? t("imageStudio")
+      ? t("imagesTitle")
       : section === "novelcrafter"
         ? t("novelcrafterStudio")
         : props.conversationsLabel || t("yourChats");

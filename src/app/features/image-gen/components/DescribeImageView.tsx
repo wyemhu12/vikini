@@ -15,7 +15,7 @@ import {
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import AppFrame from "../../layout/components/AppFrame";
-import { PageHeader } from "@/components/ui/page-header";
+import { ImageSectionHeader } from "./ImageSectionHeader";
 import { useTheme } from "../../chat/hooks/useTheme";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { useRouter } from "next/navigation";
@@ -190,10 +190,10 @@ export function DescribeImageView() {
 
   return (
     <AppFrame>
+      <ImageSectionHeader />
       <div className="p-4 md:p-8">
         <div className="max-w-2xl mx-auto space-y-8">
-          {/* Header */}
-          <PageHeader title={t("describeTitle")} description={t("describeSubtitle")} />
+          <p className="text-sm text-(--muted)">{t("describeSubtitle")}</p>
 
           {/* Upload / Preview Area */}
           <AnimatePresence mode="wait">
@@ -212,16 +212,15 @@ export function DescribeImageView() {
                   onDragLeave={handleDragLeave}
                   className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-12 md:p-16 text-center transition-colors duration-300 backdrop-blur-sm ${
                     isDragOver
-                      ? "border-purple-400 bg-purple-500/10 shadow-lg shadow-purple-500/10 scale-[1.02]"
-                      : "border-(--control-border) bg-(--surface-muted)/50 hover:border-purple-400/50 hover:bg-purple-500/5"
+                      ? "border-(--accent) bg-(--soft) shadow-lg scale-[1.02]"
+                      : "border-(--line) bg-(--raised)/50 hover:border-(--accent) hover:bg-(--soft)"
                   }`}
                 >
                   {/* Gradient glow effect */}
-                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/5 via-transparent to-blue-500/5 pointer-events-none" />
 
                   <div className="relative space-y-4">
-                    <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center border border-purple-500/20">
-                      <Upload className="w-8 h-8 text-purple-400" />
+                    <div className="mx-auto w-16 h-16 rounded-2xl bg-(--soft) flex items-center justify-center border border-(--accent)/30">
+                      <Upload aria-hidden="true" className="w-8 h-8 text-(--accent)" />
                     </div>
                     <div>
                       <p className="text-lg font-semibold">{t("describeUpload")}</p>
@@ -274,7 +273,7 @@ export function DescribeImageView() {
                     animate={{ opacity: 1, y: 0 }}
                     onClick={handleAnalyze}
                     disabled={analyzing}
-                    className="w-full py-4 rounded-xl font-bold text-lg text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 shadow-lg shadow-purple-500/25 transition-colors duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                    className="w-full py-4 rounded-xl font-bold text-lg text-(--on-accent) bg-(--accent) hover:brightness-110 shadow-lg transition-colors duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                   >
                     {analyzing ? (
                       <>
@@ -303,7 +302,7 @@ export function DescribeImageView() {
                       {/* Result Label */}
                       <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-(--accent)" />
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-(--text-secondary)">
+                        <h2 className="text-sm font-semibold text-(--muted)">
                           {t("describeResult")}
                         </h2>
                       </div>
@@ -331,7 +330,7 @@ export function DescribeImageView() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <button
                           onClick={handleUseInStudio}
-                          className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 shadow-lg shadow-purple-500/20 transition-colors duration-300"
+                          className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-(--on-accent) bg-(--accent) hover:brightness-110 shadow-lg transition-colors duration-300"
                         >
                           <ImageIcon className="w-4 h-4" />
                           {t("describeUseInStudio")}
@@ -355,7 +354,7 @@ export function DescribeImageView() {
           {history.length > 0 && !imagePreview && (
             <div className="mt-8 w-full max-w-2xl">
               <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-(--text-secondary)">
+                <div className="flex items-center gap-2 text-sm font-semibold text-(--muted)">
                   <Clock className="w-4 h-4" />
                   {t("describeHistory") || "History"}
                   <span className="text-xs font-normal">({history.length})</span>
@@ -384,7 +383,7 @@ export function DescribeImageView() {
                       <p className="text-xs text-(--text-primary) line-clamp-2 leading-relaxed">
                         {item.prompt}
                       </p>
-                      <p className="text-[10px] text-(--text-secondary) mt-1">
+                      <p className="text-xs text-(--muted) mt-1">
                         {new Date(item.timestamp).toLocaleDateString()}
                       </p>
                     </div>

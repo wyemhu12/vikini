@@ -183,4 +183,40 @@ describe("Canvas Component - Keyboard Focus & A11y (A11Y-01, TC-GAL-03)", () => 
     const shimmerBlock = container.querySelector(".shimmer-block");
     expect(shimmerBlock).not.toBeNull();
   });
+
+  it("phase 4 TC-07: uses theme tokens instead of raw purple/pink/blue accents", () => {
+    const RAW = /(purple|pink|fuchsia|indigo|blue-[0-9])/;
+    const { container, unmount } = render(
+      <Canvas
+        images={[]}
+        generating={false}
+        onRemix={mockOnRemix}
+        onDelete={mockOnDelete}
+        onSelectTemplate={mockOnSelectTemplate}
+      />
+    );
+    const emptyClasses = Array.from(container.querySelectorAll("*")).map(
+      (el) => el.getAttribute("class") ?? ""
+    );
+    expect(emptyClasses.filter((c) => RAW.test(c))).toEqual([]);
+    unmount();
+
+    const { container: c2 } = render(
+      <Canvas
+        images={[{ ...mockImage, isFavorite: true }]}
+        generating={false}
+        onRemix={mockOnRemix}
+        onDelete={mockOnDelete}
+        onEdit={mockOnEdit}
+        onVariation={mockOnVariation}
+        onToggleFavorite={mockOnToggleFavorite}
+      />
+    );
+    const favorite = screen.getByTitle("studioUnfavorite");
+    expect(favorite.className).toContain("bg-(--accent)");
+    const classes = Array.from(c2.querySelectorAll("*")).map(
+      (el) => el.getAttribute("class") ?? ""
+    );
+    expect(classes.filter((c) => RAW.test(c))).toEqual([]);
+  });
 });

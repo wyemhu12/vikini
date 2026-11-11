@@ -74,4 +74,25 @@ describe("ModelAvatar", () => {
     const logo = container.querySelector('[data-testid="glm-logo"]');
     expect(logo).toBeDefined();
   });
+
+  it("3D TC-03: provider logos are decorative (aria-hidden, no role=img)", () => {
+    for (const modelName of [
+      "gemini-3.8-flash",
+      "claude-sonnet-4.5",
+      "deepseek-v4-flash",
+      "gpt-5",
+      "groq/llama",
+      "z-ai/glm-5.2",
+      "unknown-model",
+    ]) {
+      const { container, unmount } = render(<ModelAvatar modelName={modelName} />);
+      const svg = container.querySelector("svg");
+      expect(svg, modelName).not.toBeNull();
+      expect(svg).toHaveAttribute("aria-hidden", "true");
+      expect(svg).toHaveAttribute("focusable", "false");
+      expect(svg).not.toHaveAttribute("role");
+      expect(screen.queryAllByRole("img")).toHaveLength(0);
+      unmount();
+    }
+  });
 });

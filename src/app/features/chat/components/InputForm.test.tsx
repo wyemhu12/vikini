@@ -386,4 +386,15 @@ describe("InputForm", () => {
       expect(screen.queryByTestId("composer-stream-line")).toBeNull();
     });
   });
+
+  describe("Image mode label (3D TC-08)", () => {
+    it("renders the image-mode label in sentence case without uppercase styling", () => {
+      render(
+        <InputForm input="" onChangeInput={vi.fn()} onSubmit={vi.fn()} initialImageMode={true} />
+      );
+      const label = screen.getByText("IMAGE GENERATION MODE");
+      expect(label.className).not.toContain("uppercase");
+      expect(label.className).not.toContain("tracking-wider");
+    });
+  });
 });

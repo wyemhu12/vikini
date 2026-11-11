@@ -12,7 +12,8 @@ const GeminiLogo = ({ className }: { className?: string }) => {
   const gradId = `gemini-grad-${id}`;
   return (
     <svg
-      role="img"
+      aria-hidden="true"
+      focusable="false"
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -39,7 +40,8 @@ const AnthropicLogo = ({ className }: { className?: string }) => {
   const gradId = `claude-grad-${id}`;
   return (
     <svg
-      role="img"
+      aria-hidden="true"
+      focusable="false"
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -64,7 +66,8 @@ const DeepSeekLogo = ({ className }: { className?: string }) => {
   const gradId = `deepseek-grad-${id}`;
   return (
     <svg
-      role="img"
+      aria-hidden="true"
+      focusable="false"
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -89,7 +92,8 @@ const OpenAILogo = ({ className }: { className?: string }) => {
   const gradId = `openai-grad-${id}`;
   return (
     <svg
-      role="img"
+      aria-hidden="true"
+      focusable="false"
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -114,7 +118,8 @@ const FastInferenceLogo = ({ className }: { className?: string }) => {
   const gradId = `fast-grad-${id}`;
   return (
     <svg
-      role="img"
+      aria-hidden="true"
+      focusable="false"
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -136,7 +141,8 @@ const GenericAiLogo = ({ className }: { className?: string }) => {
   const gradId = `brain-grad-${id}`;
   return (
     <svg
-      role="img"
+      aria-hidden="true"
+      focusable="false"
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -158,7 +164,8 @@ const GlmLogo = ({ className }: { className?: string }) => {
   const gradId = `glm-grad-${id}`;
   return (
     <svg
-      role="img"
+      aria-hidden="true"
+      focusable="false"
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

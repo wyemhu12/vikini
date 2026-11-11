@@ -82,6 +82,9 @@ export default function NovelcrafterHistoryPane({
             <button
               type="button"
               onClick={() => setAllExpanded((prev) => (prev === true ? false : true))}
+              aria-label={
+                allExpanded ? t("novelcrafterCollapseAllCards") : t("novelcrafterExpandAllCards")
+              }
               className="inline-flex items-center gap-1 text-xs font-medium text-(--text-secondary) hover:text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded px-1.5 py-0.5"
             >
               {allExpanded ? (

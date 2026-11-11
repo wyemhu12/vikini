@@ -8,6 +8,23 @@
 
 ---
 
+## 2026-11-11: Vikini 3.0 Phase 4 -- Images Section Header & Tabs, Studio Tokens, M3, M5
+
+- **Header khu Ảnh (`ImageSectionHeader.tsx`)**: `h1` "Ảnh" + tab liên kết Tạo ảnh / Thư viện / Mô tả ảnh (`aria-current`) dùng chung cho `/images`, `/gallery`, `/describe`; mobile gọn 48px, `h1` chỉ cho trình đọc màn hình. Panel ngữ cảnh đổi nhãn khớp tab.
+- **Studio theo token (`ControlPanel.tsx`, `Canvas.tsx`, `DescribeImageView.tsx`)**: bỏ gradient tím/xanh/hồng, nút Tạo/Phân tích dùng `--accent`; nhãn nhóm chữ thường; chữ tối thiểu 12px; overlay trên ảnh giữ nền đen mờ chữ trắng. `ControlPanel` tách thành `ControlPanelPromptSection.tsx` + `ControlPanelReferenceImages.tsx` (772 → 415 dòng).
+- **M5**: nút Tạo bị khóa có dòng "Nhập prompt để bắt đầu" (`aria-describedby`); gợi ý Ctrl+Enter ẩn trên thiết bị cảm ứng (`pointer-coarse:hidden`, cả `EditPanel`); tên model trong ô chọn căn trái.
+- **M3 (`GalleryView.tsx`)**: thư viện chưa có ảnh chỉ hiện EmptyState + "Tạo ảnh đầu tiên" (ẩn tìm kiếm, bộ lọc, So sánh); bộ lọc cao bằng nhau `h-10`; "Yêu thích" là nút bật/tắt `aria-pressed` màu `--accent`; nhãn chi tiết ảnh chữ thường.
+
+---
+
+## 2026-11-11: Vikini 3.0 Phase 3D -- Accessible Names (C3) & axe E2E Gate
+
+- **C3**: thêm tên truy cập cho nút ⚙ / switch AI Enhance / ô chọn model của Studio, 2 bộ lọc Gallery, nút "Cài đặt GEM & Persona", "Mở rộng/Thu gọn tất cả", "Đẩy sang Phân cảnh Chương" (Novelcrafter, chỉ còn icon trên mobile); logo provider trong avatar AI thành trang trí (`aria-hidden`).
+- **Test chặn tái diễn (`tests/e2e/a11y.spec.ts`)**: axe-core 4.11.1 (devDependency mới) quét 7 route × desktop/mobile + sheet composer; fail với nhóm lỗi tên truy cập.
+- **Dọn từ 3C**: `GemQuickSwitch` dịch đủ chuỗi, lỗi tải/áp dụng Gem có `logger.error` + toast (bỏ catch câm) và chỉ tải một lần mỗi lần mở popover; nhãn mức suy luận "off" khi tạo lại dùng "Tắt"; nhãn chế độ tạo ảnh chữ thường.
+
+---
+
 ## 2026-11-10: Vikini 3.0 Phase 3C -- Composer Toggles, Chips, Mobile Options Sheet, Streaming Hairline
 
 - **H2 (`ChatControls.tsx`, `InputForm.tsx`, `ComposerLeadingControls.tsx`, `ComposerChip.tsx`)**: bỏ thanh viên thuốc phía trên ô nhập; toggle "Tìm web" / "Luôn tìm kiếm" thành nút `aria-pressed` có icon và nhãn chữ thường (bỏ "WEB OFF", "ALWAYS SEARCH OFF"), nằm ở hàng dưới ô nhập ngay sau "+". Quy tắc khóa giữ như cũ (vẫn bật/tắt được khi đang stream).
