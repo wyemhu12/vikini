@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-11-11: Vikini 3.0 Phase 6A -- Gems & Personas Card Grid (H3)
+
+- **`components/ui/library-card.tsx`** (mới, dùng chung): tên tối đa 2 dòng (không cắt "Writ…"), mô tả 3 dòng, **một nút chính** + menu "⋯" (Xem trước, Sửa; Xóa tách riêng ở cuối, màu `--danger`).
+- **`GemList.tsx`, `PersonaList.tsx`**: lưới `auto-fill minmax(280px,1fr)`; nút "Dùng Gem" / "Dùng Persona" ("Đang dùng" + `aria-pressed`); nhãn "Có sẵn" thay "Premade"; bỏ màu tím, chữ 10px, tiêu đề in hoa.
+- **Trang không gắn đoạn chat**: nút chính là "Xem trước" kèm dòng "Mở từ một đoạn chat để dùng cho đoạn chat đó." — trước đây bấm "Chọn" báo "Error: No conversation ID".
+- **`GemManager.tsx`, `PersonaManager.tsx`**: bỏ vùng cuộn lồng nhau (`max-h-[60vh]`); "Global Mode" và hộp "GEM vs Persona" tiếng Anh thay bằng mô tả trang đã dịch; "Reset Default" → "Gỡ Gem/Persona" (chỉ hiện khi đang dùng trong một đoạn chat); lỗi tải dùng token + "Thử lại".
+
+---
+
 ## 2026-11-11: Vikini 3.0 Phase 5A -- Novelcrafter Top Bar (H1)
 
 - **`NovelcrafterTopBar.tsx`**: thanh trên từ 11 còn 6 control — panel mục lục, tiêu đề (serif nghiêng), trạng thái lưu, Model, **"Cài đặt AI"** (thay 2 huy hiệu GEM/Persona + nút accent; tóm tắt GEM/Persona tổng trong `title` và mô tả cho trình đọc màn hình), menu **"⋯ Thêm"**, panel thẻ AI. Không còn cuộn ngang trên mobile.

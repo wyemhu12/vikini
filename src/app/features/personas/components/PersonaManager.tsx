@@ -64,7 +64,7 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
 
   const applyPersonaToConversation = async (personaId: string | null) => {
     if (!conversationId) {
-      setStatus(`${t("error") || "Error"}: No conversation ID`);
+      setStatus(t("libraryOpenFromChat"));
       return;
     }
     if (isApplying) return;
@@ -212,7 +212,7 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
   const headerTitle = t("personasTitle") || "Manage Personas";
   const headerDescription = conversationId
     ? `${t("personaApplied") || "Active Persona"}: ${conversationId.slice(0, 8)}...`
-    : "Global Mode";
+    : t("personasPageDescription");
   const headerActions = (
     <button
       type="button"
@@ -264,42 +264,44 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
               : "grid-cols-1"
           )}
         >
-          <div
-            className="rounded-xl border border-(--border) bg-(--surface-muted)/50 p-3 max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--control-border)] hover:scrollbar-thumb-[var(--border)]"
-            style={{ WebkitOverflowScrolling: "touch" }}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-medium">{t("personaMyPersonas") || "My Personas"}</div>
-              <button
-                onClick={clearPersona}
-                className="rounded-md border border-(--control-border) px-2 py-1 text-xs text-(--text-secondary) hover:bg-(--control-bg-hover) transition-colors"
-              >
-                Reset Default
-              </button>
-            </div>
-
-            {fetchError && (
-              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs mb-3">
-                <span className="flex-1">Failed to load: {fetchError}</span>
+          <div className="min-w-0">
+            {conversationId && selectedPersonaId && (
+              <div className="mb-3 flex justify-end">
                 <button
-                  onClick={refresh}
-                  className="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 transition-colors font-medium"
+                  type="button"
+                  onClick={clearPersona}
+                  className="rounded-lg border border-(--line) px-3 py-1.5 text-sm text-(--muted) transition-colors hover:bg-(--raised) hover:text-(--text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                 >
-                  Retry
+                  {t("personaRemove")}
                 </button>
               </div>
             )}
 
-            <div className="mb-4 rounded-lg bg-blue-500/10 border border-blue-500/20 p-3 text-xs leading-relaxed text-blue-400/90">
-              <span className="font-semibold text-blue-400">GEM vs Persona:</span>
-              <br />• <strong>GEM</strong> defines <strong>WHAT</strong> the AI does (its
-              Task/Role).
-              <br />• <strong>Persona</strong> defines <strong>HOW</strong> the AI communicates (its
-              Tone/Format).
-            </div>
+            {fetchError && (
+              <div
+                role="alert"
+                className="mb-3 flex items-center gap-2 rounded-lg border border-(--danger)/30 bg-(--danger)/10 px-4 py-2 text-sm text-(--danger)"
+              >
+                <span className="flex-1">
+                  {t("libraryLoadFailed")}: {fetchError}
+                </span>
+                <button
+                  type="button"
+                  onClick={refresh}
+                  className="rounded-md border border-(--danger)/30 px-2 py-1 font-medium transition-colors hover:bg-(--danger)/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                >
+                  {t("tryAgain")}
+                </button>
+              </div>
+            )}
+
+            {!conversationId && (
+              <p className="mb-4 text-sm text-(--muted)">{t("libraryOpenFromChat")}</p>
+            )}
 
             <PersonaList
               loading={loading}
+              canApply={Boolean(conversationId)}
               personas={personaList}
               selectedPersonaId={selectedPersonaId}
               onSelect={(persona) => applyPersonaToConversation(persona.id)}
@@ -320,7 +322,7 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
               {editingPersona ? (
                 <div className="rounded-xl border border-(--border) bg-(--surface) p-4 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-medium">Editor</h3>
+                    <h3 className="font-medium">{t("personaEdit")}</h3>
                     <button
                       onClick={() => setEditingPersona(null)}
                       className="text-xs text-(--text-secondary) hover:text-(--text-primary)"
