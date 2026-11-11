@@ -240,12 +240,12 @@ export default function NovelcrafterAiComposer({
       onSubmit={handleSubmit}
       className="shrink-0 border-t border-(--line) bg-(--surface) p-3.5 flex flex-col gap-2.5"
     >
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <select
           aria-label={t("novelcrafterComposerActionAria")}
           value={action}
           onChange={(e) => setAction(e.target.value as ComposerActionGroup)}
-          className="h-8.5 rounded-lg border border-(--line) bg-(--bg) px-2 text-xs font-semibold text-(--text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+          className="w-full h-8.5 rounded-lg border border-(--line) bg-(--bg) px-2.5 text-xs font-semibold text-(--text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
         >
           {actionOptions.map((opt) => (
             <option key={opt.id} value={opt.id}>

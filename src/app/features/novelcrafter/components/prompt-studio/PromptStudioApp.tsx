@@ -47,7 +47,7 @@ export default function PromptStudioApp() {
   const openPalette = useCommandPaletteStore((s) => s.open);
 
   const currentStoryObj = story.stories.find((s) => s.id === story.validStoryId);
-  const currentTitle = currentStoryObj?.title || t("novelcrafterUntitledStory");
+  const currentTitle = currentStoryObj?.title || t("novelcrafterDefaultStoryTitle");
 
   return (
     <div className="h-dvh w-full bg-(--bg) text-(--text) overflow-hidden relative font-sans flex">

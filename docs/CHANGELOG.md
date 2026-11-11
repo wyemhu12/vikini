@@ -8,6 +8,13 @@
 
 ---
 
+## 2026-11-11: Mandatory Playwright Screenshot Visual QA Rule & Novelcrafter Visual Polish
+
+- **Quy tắc bắt buộc kiểm thử giao diện trực quan bằng ảnh chụp (`.agents/rules/03-ui.md`, `.agents/rules/02-quality.md`, `.agents/scripts/code-freeze-guard.test.ts`)**: bắt buộc mọi thay đổi giao diện (`*.tsx`, `*.css`) phải bật `next dev`, dùng Playwright giả lập phiên/dữ liệu qua `page.route`, chụp ảnh `.png` ở cả Desktop (`1440×900`) & Mobile (`375×812`) trên hai chế độ Tối/Sáng, sau đó gọi `read_file` đọc trực tiếp từng ảnh `.png` để tự rà soát bố cục, khoảng cách, tràn chữ và độ tương phản trước khi nghiệm thu; đồng thời cô đọng `02-quality.md` để tổng ký tự `always_on <= 17.000` trên cả CRLF.
+- **Vá 5 lỗi hiển thị phát hiện ngay từ lượt chụp & soi ảnh thực tế đầu tiên (`NovelcrafterOutlineDetailPanel.tsx`, `NovelcrafterMobileAiDock.tsx`, `PromptStudioApp.tsx`, `StoryBibleTocSidebar.tsx`, `NovelcrafterAiComposer.tsx`)**: sửa 3 khóa dịch gọi nhầm tên (`novelcrafterScenesLabel` → `novelcrafterChapterBeatsLabel`, `novelcrafterWriteMenuBtn` → `novelcrafterSlotWrite`, `novelcrafterUntitledStory` → `novelcrafterDefaultStoryTitle`); xếp dọc tiêu đề/phụ đề trong cột mục lục `232px` của Hồ sơ Truyện để không ép chữ thành cột dọc 1 ký tự; tách dòng `<select>` hành động phía trên dải 3 chip chế độ trong khung soạn lệnh AI cột phải để hiển thị rõ nhãn.
+
+---
+
 ## 2026-11-11: Vikini 3.0 Phase 6D -- Raw Color & Legacy Token Codemod, 12–32 Typography Scale & ESLint Design/Hooks Guards
 
 - **Codemod dọn màu thô & Gỡ dứt điểm 14 biến CSS alias cũ (`base.css`, `tokens.css`, `utilities.css`, `shimmer.css`, `fileDisplayUtils.ts`, 122 component `.tsx`)**: chuyển đổi toàn bộ `656` class bảng màu Tailwind/hex cứng (`bg-blue-*`, `text-white`, `bg-black/*`, `bg-[#0a0a0a]`, v.v.) và `1.369` chỗ dùng biến Vikini 2.x cũ (`--surface-muted`, `--surface-elevated`, `--control-bg`, `--border`, `--text-primary`, `--accent-foreground`, v.v.) sang hệ 14 token ngữ nghĩa Vikini 3.0; bổ sung `--on-overlay: #ffffff` cho lớp phủ ảnh/lightbox (`--overlay`), giữ hiệu ứng lấp lánh `color-mix` ở `shimmer.css`, và khắc phục lỗi chữ đen trên nền đen (`than-light`) tại `GemPreview`, `PersonaPreview`, `ProjectSettingsModal`.

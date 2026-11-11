@@ -6,7 +6,7 @@ import { NovelcrafterMobileAiDock, NovelcrafterMobileBeatBar } from "./Novelcraf
 
 const DICT: Record<string, string> = {
   novelcrafterMobileAiDockAria: "Công cụ AI",
-  novelcrafterWriteMenuBtn: "Viết tiếp",
+  novelcrafterSlotWrite: "Viết tiếp",
   stopBtn: "Dừng",
   novelcrafterMobileRewriteSelectionAria: "Viết lại đoạn chọn",
   novelcrafterMobileBrainstormAria: "Gợi ý tình tiết",
@@ -64,6 +64,7 @@ describe("NovelcrafterMobileAiDock & BeatBar (5E TC-06)", () => {
 
     const nav = screen.getByRole("navigation", { name: "Công cụ AI" });
     expect(nav).toBeInTheDocument();
+    expect(screen.queryByText("novelcrafterWriteMenuBtn")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Viết tiếp" }));
     expect(onRunAutoWrite).toHaveBeenCalledTimes(1);

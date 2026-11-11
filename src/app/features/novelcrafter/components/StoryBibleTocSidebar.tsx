@@ -75,34 +75,32 @@ export default function StoryBibleTocSidebar({
       aria-label={t("novelcrafterBibleTocAria")}
       className="w-full md:w-[232px] shrink-0 border-b md:border-b-0 md:border-r border-(--line) bg-(--surface) px-4 py-3 md:px-3 md:py-5 flex flex-col gap-2"
     >
-      <div className="flex items-start justify-between gap-2 px-1 md:px-2 pb-1 md:pb-2">
-        <div className="min-w-0">
-          <h2 className="font-serif italic text-lg md:text-[22px] text-(--text) leading-tight truncate">
+      <div className="flex flex-col gap-1.5 px-1 md:px-2 pb-1 md:pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-serif italic text-lg md:text-[22px] text-(--text) leading-tight truncate min-w-0">
             {t("novelcrafterStoryBibleTitle")}
           </h2>
-          <p className="hidden md:block text-xs text-(--faint) mt-0.5 line-clamp-2">
-            {t("novelcrafterStoryBibleSubtitle")}
-          </p>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={onToggleExpandAll}
-            className="px-2.5 py-1 rounded-lg border border-(--line) bg-(--raised) hover:border-(--muted) text-xs font-medium text-(--muted) hover:text-(--text) transition-colors"
-          >
-            {allExpanded ? t("novelcrafterCollapseBible") : t("novelcrafterExpandBible")}
-          </button>
           {onClose && (
             <button
               type="button"
               onClick={onClose}
               aria-label={t("close")}
-              className="p-1.5 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors"
+              className="p-1.5 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
           )}
         </div>
+        <p className="hidden md:block text-xs text-(--faint) leading-relaxed">
+          {t("novelcrafterStoryBibleSubtitle")}
+        </p>
+        <button
+          type="button"
+          onClick={onToggleExpandAll}
+          className="self-start px-2.5 py-1 rounded-lg border border-(--line) bg-(--raised) hover:border-(--muted) text-xs font-medium text-(--muted) hover:text-(--text) transition-colors"
+        >
+          {allExpanded ? t("novelcrafterCollapseBible") : t("novelcrafterExpandBible")}
+        </button>
       </div>
 
       <nav

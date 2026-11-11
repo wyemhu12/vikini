@@ -12,7 +12,7 @@ const DICT: Record<string, string> = {
   novelcrafterOutlineDetailAria: "Chi tiết chương {number}",
   novelcrafterOutlineCloseDetail: "Đóng chi tiết",
   novelcrafterChapterSummaryLabel: "Tóm tắt chương",
-  novelcrafterScenesLabel: "Phân cảnh",
+  novelcrafterChapterBeatsLabel: "Phân cảnh Chương",
   novelcrafterOutlineEditWithAi: "Sửa bằng AI",
   novelcrafterOutlineAddBeat: "+ Thêm phân cảnh",
   novelcrafterOutlineBeatInputAria: "Phân cảnh {number}",
@@ -75,6 +75,8 @@ describe("NovelcrafterOutlineDetailPanel (5E TC-04)", () => {
 
     const aside = screen.getByRole("complementary", { name: "Chi tiết chương 4" });
     expect(aside).toBeInTheDocument();
+    expect(screen.getByText("Phân cảnh Chương")).toBeInTheDocument();
+    expect(screen.queryByText("novelcrafterScenesLabel")).not.toBeInTheDocument();
 
     // Context chips
     expect(screen.getByText("Lam")).toBeInTheDocument();

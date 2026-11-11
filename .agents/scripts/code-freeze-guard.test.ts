@@ -1568,13 +1568,18 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
         'globs: "*.ts, *.tsx, *.js, *.mjs, **/*.ts, **/*.tsx, **/*.js, **/*.mjs"'
       );
       expect(r03).toContain('globs: "*.tsx, *.css, **/*.tsx, **/*.css"');
+      expect(r03).toContain("Visual QA via Playwright Screenshot Inspection");
+      expect(r03).toContain("page.screenshot");
+      expect(r03).toContain("read_file");
       expect(r04).toContain("src/lib/utils/translations/");
 
-      // 8 mandatory items in 02-quality.md
+      // 8 mandatory items in 02-quality.md + mandatory Playwright Visual QA gate
       expect(r02).toContain(".agents/skills/vikini-debug/SKILL.md");
       expect(r02).toContain(".agents/skills/vikini-audit/SKILL.md");
       expect(r02).not.toContain(".agents/workflows/");
       expect(r02).toContain("Skill Precedence Hierarchy");
+      expect(r02).toContain("page.screenshot");
+      expect(r02).toContain("read_file");
       expect(r02).toContain("npm run type-check; npm run lint; npm run test:run");
       expect(r02).toContain("Loại A");
       expect(r02).toContain("Loại B");

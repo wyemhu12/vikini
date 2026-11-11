@@ -118,7 +118,7 @@ export function NovelcrafterMobileAiDock({
           className="flex-1 h-12 rounded-xl bg-(--accent) text-(--on-accent) text-sm font-semibold inline-flex items-center justify-center gap-2 transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
         >
           <PenTool aria-hidden="true" className="h-4 w-4" />
-          <span>{t("novelcrafterWriteMenuBtn")}</span>
+          <span>{t("novelcrafterSlotWrite")}</span>
         </button>
       )}
 
