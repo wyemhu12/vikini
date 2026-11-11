@@ -105,4 +105,25 @@ describe("stateLimits", () => {
     expect(FIELD_MAX_LENGTHS.promptDirectiveOverride).toBe(4_000);
     expect(FIELD_MAX_LENGTHS.promptPresetName).toBe(80);
   });
+
+  it("5E TC-01: preserves valid actTitle, truncates >120 chars, and drops whitespace/non-string actTitle", () => {
+    const base = createDefaultStoryState("gemini-2.5-flash");
+    const raw = {
+      ...base,
+      chapters: [
+        { ...base.chapters[0], id: "c1", title: "Ch 1", actTitle: "  Hồi 1 · Rời bến  " },
+        { ...base.chapters[0], id: "c2", title: "Ch 2", actTitle: "H".repeat(150) },
+        { ...base.chapters[0], id: "c3", title: "Ch 3", actTitle: "   \n\t  " },
+        { ...base.chapters[0], id: "c4", title: "Ch 4", actTitle: 42 },
+      ],
+    };
+
+    const coercedRaw = coerceStoryStateToLimits(raw, "Chapter");
+    const parsed = NovelcrafterStoryStateSchema.parse(coercedRaw);
+
+    expect(parsed.chapters[0].actTitle).toBe("Hồi 1 · Rời bến");
+    expect(parsed.chapters[1].actTitle).toBe("H".repeat(120));
+    expect(parsed.chapters[2].actTitle).toBeUndefined();
+    expect(parsed.chapters[3].actTitle).toBeUndefined();
+  });
 });

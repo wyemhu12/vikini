@@ -79,7 +79,7 @@ describe("NovelcrafterViewPanel (5B)", () => {
     expect(screen.getByTestId("write-body")).toBeInTheDocument();
   });
 
-  it("hides write children in outline view and selects chapter + returns to write on card click", () => {
+  it("hides write children in outline view, selects chapter into detail panel on card click, and returns to write on Open in Write (5E Loại C)", () => {
     const story = makeStory();
     const onReturnToWrite = vi.fn();
     render(
@@ -101,8 +101,11 @@ describe("NovelcrafterViewPanel (5B)", () => {
     expect(screen.queryByTestId("write-body")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /Chương 2/ }));
-    expect(onReturnToWrite).toHaveBeenCalledWith({ clearSelection: true });
     expect(story.selectChapter).toHaveBeenCalledWith("c2");
+    expect(onReturnToWrite).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "novelcrafterOutlineOpenInWriteBtn" }));
+    expect(onReturnToWrite).toHaveBeenCalledWith({ clearSelection: true });
   });
 
   it("sends outline beats to active chapter scenes in bible view without double scroll wrappers", () => {

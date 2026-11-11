@@ -16,6 +16,8 @@ vi.mock("../../chat/hooks/useLanguage", () => ({
         novelcrafterOutlineStatusPlanned: "Có dàn ý",
         novelcrafterOutlineStatusDraft: "Bản nháp",
         novelcrafterOutlineStats: "{chapters} chương · {words} từ",
+        novelcrafterOutlineStatsWithActs: "{acts} hồi · {chapters} chương · {words} từ",
+        novelcrafterOutlineUnassignedAct: "Chưa gán hồi",
         novelcrafterOutlineChapterMeta: "{scenes} cảnh · {words} từ",
         novelcrafterOutlineNoSummary: "Chưa có tóm tắt.",
       })[key] ?? key,
@@ -97,5 +99,38 @@ describe("NovelcrafterOutlineBoard (5B)", () => {
     expect(screen.getByText("0 chương · 0 từ")).toBeInTheDocument();
     expect(screen.getAllByRole("button")).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Thêm chương" })).toBeInTheDocument();
+  });
+
+  it("groups chapters into act sections and supports onSelectChapter + double-click open (5E TC-05)", () => {
+    const onSelectChapter = vi.fn();
+    const onOpenChapter = vi.fn();
+    const actChapters = [
+      chapter("c1", "Bến cũ", { actTitle: "Hồi 1 · Rời bến", content: "một hai" }),
+      chapter("c2", "Lá thư", { actTitle: "Hồi 1 · Rời bến", content: "ba" }),
+      chapter("c3", "Nước lên", { actTitle: "Hồi 2 · Mùa lũ", content: "bốn năm sáu" }),
+    ];
+
+    render(
+      <NovelcrafterOutlineBoard
+        chapters={actChapters}
+        activeChapterId="c1"
+        selectedChapterId="c2"
+        onSelectChapter={onSelectChapter}
+        onOpenChapter={onOpenChapter}
+        onAddChapter={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("2 hồi · 3 chương · 6 từ")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Hồi 1 · Rời bến" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Hồi 2 · Mùa lũ" })).toBeInTheDocument();
+
+    const c3Btn = screen.getByRole("button", { name: /Nước lên/ });
+    fireEvent.click(c3Btn);
+    expect(onSelectChapter).toHaveBeenCalledWith("c3");
+    expect(onOpenChapter).not.toHaveBeenCalled();
+
+    fireEvent.doubleClick(c3Btn);
+    expect(onOpenChapter).toHaveBeenCalledWith("c3");
   });
 });

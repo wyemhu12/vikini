@@ -5,6 +5,7 @@ import { DEFAULT_MODEL } from "@/lib/core/modelRegistry";
 import { MAX_PROMPT_DIRECTIVE_OVERRIDE_CHARS } from "./contextNodes";
 import { normalizeBibleCodexAliases, normalizeStoryBible } from "./storyBibleLimits";
 import {
+  MAX_CHAPTER_ACT_CHARS,
   MAX_CHAPTERS,
   MAX_CHAPTER_SNAPSHOTS,
   MAX_CHAPTER_SUMMARY_CHARS,
@@ -28,6 +29,7 @@ export const FIELD_MAX_LENGTHS = {
   worldbuilding: 50_000,
   outline: 50_000,
   chapterTitle: 200,
+  chapterActTitle: MAX_CHAPTER_ACT_CHARS,
   chapterScenes: 30_000,
   chapterExtraInstructions: 4_000,
   chapterSummary: MAX_CHAPTER_SUMMARY_CHARS,
@@ -156,11 +158,14 @@ export function coerceStoryStateToLimits(
     const id = truncateText(c.id, 100, `ch-${i + 1}`).trim() || `ch-${i + 1}`;
     const title =
       truncateText(c.title, FIELD_MAX_LENGTHS.chapterTitle, fallbackTitle).trim() || fallbackTitle;
+    const rawAct = typeof c.actTitle === "string" ? c.actTitle.trim() : "";
+    const actTitle = rawAct ? truncateText(rawAct, FIELD_MAX_LENGTHS.chapterActTitle).trim() : "";
     const summary = truncateText(c.summary, FIELD_MAX_LENGTHS.chapterSummary);
     const snapshots = normalizeChapterSnapshots(c.snapshots, now);
     chapters.push({
       id,
       title,
+      ...(actTitle ? { actTitle } : {}),
       scenes: truncateText(c.scenes, FIELD_MAX_LENGTHS.chapterScenes),
       extraInstructions: truncateText(
         c.extraInstructions,

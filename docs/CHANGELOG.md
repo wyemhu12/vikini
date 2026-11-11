@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-11: Vikini 3.0 Phase 5E -- Novelcrafter AI Action Composer, Outline Chapter Detail, Mobile AI Dock & Act Grouping
+
+- **Khung soạn lệnh AI neo đáy cột phải & Lọc thẻ theo chương (`NovelcrafterAiComposer.tsx`, `NovelcrafterHistoryPane.tsx`, `NovelcrafterWriteStage.tsx`)**: bổ sung lọc thẻ `Chương này / Tất cả` và `form` soạn lệnh AI cố định ở chân cột phải (chọn nhóm hành động `Viết tiếp / Sửa văn bản / Miêu tả & Mở rộng / Nhận xét / Gợi ý tình tiết`, `radiogroup` chế độ thực thi, ô nhập hướng đi, chip độ dài `Câu / Đoạn / Cảnh` có `aria-pressed`, dòng tóm tắt nguồn prompt kế thừa từ `resolveFeatureInheritanceRows`, nút chọn nhanh model mở Cài đặt AI, và nút chính tự chuyển sang **Dừng** khi đang stream).
+- **Nhóm chương theo Hồi & Panel chi tiết chương ở tab Dàn ý (`types.ts`, `stateLimits.ts`, `chapterOutline.ts`, `useNovelcrafterStateMutators.ts`, `NovelcrafterOutlineBoard.tsx`, `NovelcrafterOutlineDetailPanel.tsx`, `NovelcrafterViewPanel.tsx`, `NovelcrafterLeftNavigator.tsx`)**: thêm trường tùy chọn `actTitle` (`<= 120` ký tự, tự kế thừa hồi của chương liền trước khi thêm chương mới); khi có ít nhất một chương gắn hồi, bảng Dàn ý hiển thị các cột theo hồi (`section` có `aria-label`) và mục lục chương bên trái hiển thị nhãn nhóm hồi; bấm thẻ chương ở Dàn ý mở `<aside>` chi tiết chương bên phải trên desktop (`Sheet` trên màn hình nhỏ) để sửa tên/hồi/tóm tắt, thêm/sửa/xóa từng phân cảnh (`scenes`), xem danh sách ngữ cảnh AI sẽ đọc, chạy `Sửa bằng AI` / `Viết bản thảo chương`, hoặc bấm `Mở trong bàn viết` (nhấp đúp thẻ nhảy thẳng về bàn viết).
+- **Thanh bước phân cảnh & Thanh công cụ AI cố định đáy trên mobile (`NovelcrafterMobileAiDock.tsx`, `NovelcrafterStudioApp.tsx`)**: hiển thị thanh điều hướng phân cảnh `i/N` ở đầu khung soạn trên mobile khi chương có phân cảnh và thanh `nav` cố định dưới đáy (`Viết tiếp` / `Dừng`, `Viết lại đoạn chọn`, `Gợi ý tình tiết`, `Thẻ AI` kèm huy hiệu đếm mở ngăn kéo chứa cả lịch sử lẫn khung soạn lệnh AI).
+
+---
+
 ## 2026-11-11: Vikini 3.0 Phase 5D -- Unified Story AI Settings (Inheritance Table + Prompt Studio)
 
 - **Bảng kế thừa GEM / Persona / Model theo 6 tính năng (`NovelcrafterInheritanceTable.tsx`, `aiInheritanceTable.ts`, `types.ts`, `stateLimits.ts`, `streamRequestBody.ts`, `useNovelcrafterStream.ts`, `useNovelcrafterStateMutators.ts`)**: hợp nhất 2 thẻ chọn nhanh **GEM tổng** và **Persona tổng** ở đầu trang với bảng 6 tính năng × 4 cột (`Tính năng | Persona | Model | AI sẽ nhận`); hỗ trợ ghi đè Model riêng từng tính năng (tự lùi về model mặc định của truyện nếu model không hợp lệ hoặc không được cấp quyền), tô nổi dòng ghi đè bằng `bg-(--soft)` và viền/chữ `--accent`.

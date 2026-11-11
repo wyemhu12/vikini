@@ -141,6 +141,7 @@ export const MAX_CHAPTER_PROSE_CHARS = 150_000 as const;
 export const MAX_CODEX_ALIASES = 10 as const;
 export const MAX_CODEX_ALIAS_CHARS = 80 as const;
 export const MAX_CHAPTER_SUMMARY_CHARS = 4_000 as const;
+export const MAX_CHAPTER_ACT_CHARS = 120 as const;
 export const MAX_STORY_SO_FAR_CHARS = 6_000 as const;
 export const MAX_CHAPTER_SNAPSHOTS = 5 as const;
 export const MAX_SNAPSHOT_LABEL_CHARS = 120 as const;
@@ -233,6 +234,7 @@ export type NovelcrafterChapterSnapshot = z.infer<typeof NovelcrafterChapterSnap
 export const NovelcrafterChapterSchema = z.object({
   id: z.string().min(1).max(100),
   title: z.string().min(1).max(200),
+  actTitle: z.string().max(MAX_CHAPTER_ACT_CHARS).optional(),
   scenes: z.string().max(30_000).default(""),
   extraInstructions: z.string().max(4_000).default(""),
   summary: z.string().max(MAX_CHAPTER_SUMMARY_CHARS).optional(),

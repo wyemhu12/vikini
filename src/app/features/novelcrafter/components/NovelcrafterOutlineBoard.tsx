@@ -8,6 +8,8 @@ import type { TranslationKey } from "@/lib/utils/translations";
 import type { NovelcrafterChapter } from "@/lib/features/novelcrafter/types";
 import {
   type ChapterOutlineStatus,
+  countStoryActs,
+  groupChaptersByAct,
   summarizeChapterForOutline,
   summarizeStoryOutline,
 } from "@/lib/features/novelcrafter/chapterOutline";
@@ -28,29 +30,88 @@ const STATUS_CLASS: Record<ChapterOutlineStatus, string> = {
 interface NovelcrafterOutlineBoardProps {
   chapters: readonly NovelcrafterChapter[];
   activeChapterId: string;
+  selectedChapterId?: string;
+  onSelectChapter?: (chapterId: string) => void;
   onOpenChapter: (chapterId: string) => void;
   onAddChapter: () => void;
 }
 
-/** Outline view: every chapter as a card with status, summary and progress (phase 5B). */
+/** Outline view: chapter cards grouped by act (when defined) with status & progress (phase 5B/5E). */
 export default function NovelcrafterOutlineBoard({
   chapters,
   activeChapterId,
+  selectedChapterId,
+  onSelectChapter,
   onOpenChapter,
   onAddChapter,
 }: NovelcrafterOutlineBoardProps) {
   const { t, language } = useLanguage();
   const locale = language === "vi" ? "vi-VN" : "en-US";
   const totals = summarizeStoryOutline(chapters);
+  const actCount = countStoryActs(chapters);
+  const currentId = selectedChapterId ?? activeChapterId;
+
+  const statsLabel =
+    actCount > 0
+      ? t("novelcrafterOutlineStatsWithActs")
+          .replace("{acts}", actCount.toLocaleString(locale))
+          .replace("{chapters}", totals.chapterCount.toLocaleString(locale))
+          .replace("{words}", totals.wordCount.toLocaleString(locale))
+      : t("novelcrafterOutlineStats")
+          .replace("{chapters}", totals.chapterCount.toLocaleString(locale))
+          .replace("{words}", totals.wordCount.toLocaleString(locale));
+
+  const renderCard = (chapter: NovelcrafterChapter, index: number) => {
+    const info = summarizeChapterForOutline(chapter);
+    const active = chapter.id === currentId;
+    const summary = chapter.summary?.trim();
+
+    return (
+      <li key={chapter.id} className="flex">
+        <button
+          type="button"
+          onClick={() =>
+            onSelectChapter ? onSelectChapter(chapter.id) : onOpenChapter(chapter.id)
+          }
+          onDoubleClick={() => onOpenChapter(chapter.id)}
+          aria-current={active ? "true" : undefined}
+          className={cn(
+            "flex w-full flex-col gap-2 rounded-xl border bg-(--surface) p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
+            active ? "border-(--accent)" : "border-(--line) hover:border-(--accent)"
+          )}
+        >
+          <span className="flex w-full items-center gap-2">
+            <span className="font-mono text-xs text-(--faint)">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-(--text)">
+              {chapter.title}
+            </span>
+            <span
+              className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs", STATUS_CLASS[info.status])}
+            >
+              {t(STATUS_KEY[info.status])}
+            </span>
+          </span>
+          <span className="line-clamp-3 text-sm leading-relaxed text-(--muted)">
+            {summary || t("novelcrafterOutlineNoSummary")}
+          </span>
+          <span className="mt-auto text-xs text-(--faint)">
+            {t("novelcrafterOutlineChapterMeta")
+              .replace("{scenes}", info.sceneCount.toLocaleString(locale))
+              .replace("{words}", info.wordCount.toLocaleString(locale))}
+          </span>
+        </button>
+      </li>
+    );
+  };
+
+  const actGroups = actCount > 0 ? groupChaptersByAct(chapters) : null;
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-(--faint)">
-          {t("novelcrafterOutlineStats")
-            .replace("{chapters}", totals.chapterCount.toLocaleString(locale))
-            .replace("{words}", totals.wordCount.toLocaleString(locale))}
-        </p>
+        <p className="text-sm text-(--faint)">{statsLabel}</p>
         <button
           type="button"
           onClick={onAddChapter}
@@ -61,51 +122,35 @@ export default function NovelcrafterOutlineBoard({
         </button>
       </div>
 
-      <ol className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-        {chapters.map((chapter, index) => {
-          const info = summarizeChapterForOutline(chapter);
-          const active = chapter.id === activeChapterId;
-          const summary = chapter.summary?.trim();
-          return (
-            <li key={chapter.id} className="flex">
-              <button
-                type="button"
-                onClick={() => onOpenChapter(chapter.id)}
-                aria-current={active ? "true" : undefined}
-                className={cn(
-                  "flex w-full flex-col gap-2 rounded-xl border bg-(--surface) p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
-                  active ? "border-(--accent)" : "border-(--line) hover:border-(--accent)"
-                )}
+      {actGroups ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
+          {actGroups.map((group) => {
+            const groupLabel = group.actTitle || t("novelcrafterOutlineUnassignedAct");
+            const groupStats = t("novelcrafterOutlineStats")
+              .replace("{chapters}", group.chapterCount.toLocaleString(locale))
+              .replace("{words}", group.wordCount.toLocaleString(locale));
+            return (
+              <section
+                key={group.key}
+                aria-label={groupLabel}
+                className="flex flex-col gap-2.5 min-w-0"
               >
-                <span className="flex w-full items-center gap-2">
-                  <span className="font-mono text-xs text-(--faint)">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-(--text)">
-                    {chapter.title}
-                  </span>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full px-2 py-0.5 text-xs",
-                      STATUS_CLASS[info.status]
-                    )}
-                  >
-                    {t(STATUS_KEY[info.status])}
-                  </span>
-                </span>
-                <span className="line-clamp-3 text-sm leading-relaxed text-(--muted)">
-                  {summary || t("novelcrafterOutlineNoSummary")}
-                </span>
-                <span className="mt-auto text-xs text-(--faint)">
-                  {t("novelcrafterOutlineChapterMeta")
-                    .replace("{scenes}", info.sceneCount.toLocaleString(locale))
-                    .replace("{words}", info.wordCount.toLocaleString(locale))}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+                <div className="flex items-baseline justify-between gap-2 px-1">
+                  <h2 className="text-sm font-semibold text-(--text) truncate">{groupLabel}</h2>
+                  <span className="text-xs text-(--faint) shrink-0">{groupStats}</span>
+                </div>
+                <ol className="flex flex-col gap-2.5">
+                  {group.chapters.map(({ chapter, index }) => renderCard(chapter, index))}
+                </ol>
+              </section>
+            );
+          })}
+        </div>
+      ) : (
+        <ol className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+          {chapters.map((chapter, index) => renderCard(chapter, index))}
+        </ol>
+      )}
     </div>
   );
 }

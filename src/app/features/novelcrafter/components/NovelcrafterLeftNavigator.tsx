@@ -94,141 +94,148 @@ export default function NovelcrafterLeftNavigator({
   return (
     <aside
       aria-label={t("novelcrafterChaptersTab")}
-      className="w-full md:w-64 lg:w-72 shrink-0 border-r border-(--border) bg-(--surface-muted)/60 flex flex-col min-h-0 h-full"
+      className="w-full md:w-64 lg:w-[252px] shrink-0 border-r border-(--line) bg-(--surface) flex flex-col min-h-0 h-full"
     >
       <h2 className="sr-only">{t("novelcrafterChaptersTab")}</h2>
 
-      {/* Top: Chapters Header & List */}
       <div
         className={cn(
           "px-3.5 pt-3.5 pb-2 flex items-center justify-between shrink-0",
           isInSheet && "pr-10"
         )}
       >
-        <span className="text-xs font-bold uppercase tracking-wider text-(--text-secondary)">
+        <span className="text-xs font-semibold text-(--muted)">
           {t("novelcrafterChaptersTab")} ({chapters.length})
         </span>
         <button
           type="button"
           onClick={onAddChapter}
           aria-label={t("novelcrafterAddChapter")}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-(--control-bg) hover:bg-(--control-bg-hover) border border-(--control-border) text-xs font-medium text-(--accent) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-(--bg) hover:bg-(--raised) border border-(--line) text-xs font-medium text-(--accent) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>{t("novelcrafterAddChapter")}</span>
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2.5 pb-3 space-y-1.5 custom-scrollbar min-h-0">
+      <div className="flex-1 overflow-y-auto px-2.5 pb-3 space-y-1 custom-scrollbar min-h-0">
         {chapters.map((chapter, index) => {
           const isSelected = chapter.id === activeChapterId;
           const isEditing = editingChapterId === chapter.id;
           const words = countChapterWords(chapter.content);
+          const currentAct = chapter.actTitle?.trim() || "";
+          const prevAct = index > 0 ? chapters[index - 1].actTitle?.trim() || "" : "";
+          const showActHeader = Boolean(currentAct && currentAct !== prevAct);
 
           return (
-            <div
-              key={chapter.id}
-              className={cn(
-                "group rounded-xl border transition-all p-2",
-                isSelected
-                  ? "bg-(--surface-elevated) border-(--control-border) shadow-sm"
-                  : "bg-transparent border-transparent hover:bg-(--control-bg)/60 hover:border-(--border)"
-              )}
-            >
-              {isEditing ? (
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="text"
-                    value={editingTitle}
-                    onChange={(e) => setEditingTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitEdit(chapter.id);
-                      if (e.key === "Escape") setEditingChapterId(null);
-                    }}
-                    autoFocus
-                    aria-label={t("novelcrafterRenameChapter")}
-                    className="flex-1 min-w-0 bg-(--control-bg) border border-(--control-border) rounded-lg px-2 py-1 text-xs text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => commitEdit(chapter.id)}
-                    aria-label={t("save")}
-                    className="p-1.5 rounded-lg bg-(--accent) text-(--accent-foreground) focus-visible:ring-2 focus-visible:ring-(--ring)"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditingChapterId(null)}
-                    aria-label={t("cancel")}
-                    className="p-1.5 rounded-lg bg-(--control-bg) text-(--text-secondary) hover:text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring)"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+            <React.Fragment key={chapter.id}>
+              {showActHeader && (
+                <div className="px-2 pt-2.5 pb-1 text-xs font-medium text-(--faint) truncate">
+                  {currentAct}
                 </div>
-              ) : (
-                <div className="flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onSelectChapter(chapter.id)}
-                    aria-pressed={isSelected}
-                    className="flex-1 min-w-0 text-left flex items-start gap-2.5 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded-lg"
-                  >
-                    <FileText
-                      className={cn(
-                        "w-4 h-4 mt-0.5 shrink-0",
-                        isSelected ? "text-(--accent)" : "text-(--text-secondary)"
-                      )}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={cn(
-                          "text-xs font-semibold truncate",
-                          isSelected ? "text-(--text-primary)" : "text-(--text-secondary)"
-                        )}
-                      >
-                        {index + 1}. {chapter.title}
-                      </p>
-                      <p className="text-xs text-(--text-secondary) opacity-80">
-                        {words.toLocaleString()} {t("novelcrafterWordsUnit")}
-                      </p>
-                    </div>
-                  </button>
+              )}
 
-                  {/* Touch-friendly visibility on mobile/foldable (NC-R02) */}
-                  <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
+              <div
+                className={cn(
+                  "group rounded-xl border transition-colors p-2",
+                  isSelected
+                    ? "bg-(--raised) border-(--line)"
+                    : "bg-transparent border-transparent hover:bg-(--raised)/60"
+                )}
+              >
+                {isEditing ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitEdit(chapter.id);
+                        if (e.key === "Escape") setEditingChapterId(null);
+                      }}
+                      autoFocus
+                      aria-label={t("novelcrafterRenameChapter")}
+                      className="flex-1 min-w-0 bg-(--bg) border border-(--line) rounded-lg px-2 py-1 text-xs text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                    />
                     <button
                       type="button"
-                      onClick={() => startEdit(chapter)}
-                      aria-label={t("novelcrafterRenameChapter")}
-                      className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                      onClick={() => commitEdit(chapter.id)}
+                      aria-label={t("save")}
+                      className="p-1.5 rounded-lg bg-(--accent) text-(--on-accent) focus-visible:ring-2 focus-visible:ring-(--ring)"
                     >
-                      <Pencil className="w-3.5 h-3.5" />
+                      <Check className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
-                      onClick={() => onDeleteChapter(chapter.id)}
-                      aria-label={t("novelcrafterDeleteChapter")}
-                      className="p-1.5 rounded-lg text-(--text-secondary) hover:text-(--danger) hover:bg-(--danger)/10 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                      onClick={() => setEditingChapterId(null)}
+                      aria-label={t("cancel")}
+                      className="p-1.5 rounded-lg bg-(--bg) text-(--muted) hover:text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring)"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onSelectChapter(chapter.id)}
+                      aria-pressed={isSelected}
+                      className="flex-1 min-w-0 text-left flex items-start gap-2.5 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded-lg"
+                    >
+                      <FileText
+                        className={cn(
+                          "w-4 h-4 mt-0.5 shrink-0",
+                          isSelected ? "text-(--accent)" : "text-(--muted)"
+                        )}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={cn(
+                            "text-xs font-semibold truncate",
+                            isSelected ? "text-(--text)" : "text-(--muted)"
+                          )}
+                        >
+                          {index + 1}. {chapter.title}
+                        </p>
+                        <p className="font-mono text-xs text-(--faint)">
+                          {words.toLocaleString()} {t("novelcrafterWordsUnit")}
+                        </p>
+                      </div>
+                    </button>
+
+                    <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(chapter)}
+                        aria-label={t("novelcrafterRenameChapter")}
+                        className="p-1.5 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--bg) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteChapter(chapter.id)}
+                        aria-label={t("novelcrafterDeleteChapter")}
+                        className="p-1.5 rounded-lg text-(--muted) hover:text-(--danger) hover:bg-(--danger)/10 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </React.Fragment>
           );
         })}
       </div>
 
-      {/* Bottom: Story Bible Toggle & Quick-Jump TOC */}
-      <div className="shrink-0 border-t border-(--border) bg-(--surface)/50 p-3 space-y-2">
+      <div className="shrink-0 border-t border-(--line) bg-(--surface) p-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => onToggleStoryBible(!isStoryBibleOpen)}
             aria-pressed={isStoryBibleOpen}
-            className="flex items-center gap-2 text-xs font-bold text-(--text-primary) hover:text-(--accent) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded-md py-0.5"
+            className="flex items-center gap-2 text-xs font-semibold text-(--text) hover:text-(--accent) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded-md py-0.5"
           >
             <BookMarked className="w-4 h-4 text-(--accent) shrink-0" />
             <span>{t("novelcrafterStoryBibleTab")}</span>
@@ -242,19 +249,18 @@ export default function NovelcrafterLeftNavigator({
             onClick={() => onToggleStoryBible(!isStoryBibleOpen)}
             className={cn(
               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border border-transparent transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-              isStoryBibleOpen ? "bg-(--accent)" : "bg-(--control-bg-hover)"
+              isStoryBibleOpen ? "bg-(--accent)" : "bg-(--raised)"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-(--surface-elevated) shadow-xs transition-transform",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-(--surface) shadow-xs transition-transform",
                 isStoryBibleOpen ? "translate-x-4" : "translate-x-0"
               )}
             />
           </button>
         </div>
 
-        {/* 7 Quick-Jump Bible Sections */}
         <nav aria-label={t("novelcrafterStoryBibleTab")} className="grid grid-cols-1 gap-0.5">
           {BIBLE_TOC_ITEMS.map(({ id, labelKey, Icon }) => {
             const isActive = isStoryBibleOpen && activeBibleSection === id;
@@ -266,8 +272,8 @@ export default function NovelcrafterLeftNavigator({
                 className={cn(
                   "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors text-left focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
                   isActive
-                    ? "bg-(--accent)/15 text-(--accent) font-semibold"
-                    : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg)/60"
+                    ? "bg-(--soft) text-(--accent) font-semibold"
+                    : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
                 )}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />

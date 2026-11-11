@@ -7,13 +7,6 @@ import { useRouter } from "next/navigation";
 import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "../../layout/components/HeaderBar";
 import ToastContainer from "@/components/ui/ToastContainer";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { toast } from "@/lib/store/toastStore";
 import { useLayoutStore } from "@/lib/store/layoutStore";
 import { useCommandPaletteStore } from "@/lib/store/commandPaletteStore";
@@ -35,7 +28,6 @@ import { useNovelcrafterStory } from "../hooks/useNovelcrafterStory";
 import { useNovelcrafterStream } from "../hooks/useNovelcrafterStream";
 import { useDirectStreamBridge } from "../hooks/useDirectStreamBridge";
 import { useStudioLayout } from "../hooks/useStudioLayout";
-import ChapterAiToolbar from "./ChapterAiToolbar";
 import NovelcrafterTopBar from "./NovelcrafterTopBar";
 import NovelcrafterViewPanel from "./NovelcrafterViewPanel";
 import {
@@ -43,11 +35,9 @@ import {
   useNovelcrafterViewIds,
   type NovelcrafterView,
 } from "./NovelcrafterViewTabs";
-import NovelcrafterLeftNavigator, {
-  type NovelcrafterBibleSectionId,
-} from "./NovelcrafterLeftNavigator";
-import ChapterEditorWorkspace, { type EditorSelectionRange } from "./ChapterEditorWorkspace";
-import NovelcrafterHistoryPane from "./NovelcrafterHistoryPane";
+import type { NovelcrafterBibleSectionId } from "./NovelcrafterLeftNavigator";
+import type { EditorSelectionRange } from "./ChapterEditorWorkspace";
+import NovelcrafterWriteStage from "./NovelcrafterWriteStage";
 import NovelcrafterAiSettingsWorkspace from "./NovelcrafterAiSettingsWorkspace";
 import DestructiveSaveConfirmModal from "./DestructiveSaveConfirmModal";
 
@@ -236,7 +226,7 @@ export default function NovelcrafterStudioApp() {
 
   if (status === "loading") {
     return (
-      <div className="h-dvh flex items-center justify-center bg-(--surface) text-(--text-primary)">
+      <div className="h-dvh flex items-center justify-center bg-(--bg) text-(--text)">
         {t("loading")}
       </div>
     );
@@ -263,73 +253,14 @@ export default function NovelcrafterStudioApp() {
     setView("write");
   };
 
-  const renderNavigator = (isInSheet: boolean) => (
-    <NovelcrafterLeftNavigator
-      isStoryBibleOpen={story.storyState.isStoryBibleOpen}
-      onToggleStoryBible={story.setStoryBibleOpen}
-      activeBibleSection={activeBibleSection}
-      onJumpToBibleSection={jumpToBibleSection}
-      chapters={story.storyState.chapters}
-      activeChapterId={story.activeChapter.id}
-      onSelectChapter={(chId) => {
-        setSelection(null);
-        story.selectChapter(chId);
-        if (isInSheet) panes.close("navigator");
-      }}
-      onAddChapter={story.addChapter}
-      onRenameChapter={(chapterId, title) => story.updateChapter(chapterId, { title })}
-      onDeleteChapter={(chapterId) => void story.deleteChapter(chapterId)}
-      isInSheet={isInSheet}
-    />
-  );
-
-  const renderHistory = (isInSheet: boolean) => (
-    <NovelcrafterHistoryPane
-      historyCards={story.storyState.historyCards}
-      isStreaming={stream.isStreaming}
-      streamingContent={stream.streamingContent}
-      streamingThinking={stream.streamingThinking}
-      streamingMeta={stream.streamingMeta}
-      hasActiveSelection={Boolean(selection && selection.text.length > 0)}
-      onAppendToChapter={handleAppendToChapter}
-      onReplaceSelection={handleReplaceSelection}
-      onApplyToBible={handleApplyToBible}
-      onDeleteCard={story.deleteHistoryCard}
-      onClearAllCards={() => void story.clearHistoryCards()}
-      isInSheet={isInSheet}
-    />
-  );
-
-  const renderDrawer = (pane: "navigator" | "history") => {
-    const isNav = pane === "navigator";
-    return (
-      <Sheet
-        open={isNav ? showLeftPane : showRightPane}
-        onOpenChange={(o) => (o ? panes.open(pane) : panes.close(pane))}
-      >
-        <SheetContent side={isNav ? "left" : "right"} className="p-0 flex flex-col">
-          <SheetHeader className="sr-only">
-            <SheetTitle>
-              {t(isNav ? "novelcrafterChaptersTab" : "novelcrafterHistoryTitle")}
-            </SheetTitle>
-            <SheetDescription>
-              {t(isNav ? "novelcrafterNavigatorSheetDesc" : "novelcrafterHistorySheetDesc")}
-            </SheetDescription>
-          </SheetHeader>
-          {isNav ? renderNavigator(true) : renderHistory(true)}
-        </SheetContent>
-      </Sheet>
-    );
-  };
-
   return (
     <div
       ref={appRootRef}
-      className="h-dvh w-full text-(--text-primary) overflow-hidden relative font-sans bg-(--surface) flex"
+      className="h-dvh w-full text-(--text) overflow-hidden relative font-sans bg-(--bg) flex"
     >
       <a
         href="#nc-manuscript"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-1.5 focus:rounded-lg focus:bg-(--accent) focus:text-(--accent-foreground) focus:text-xs focus:font-semibold"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-1.5 focus:rounded-lg focus:bg-(--accent) focus:text-(--on-accent) focus:text-xs focus:font-semibold"
       >
         {t("skipToMainContent")}
       </a>
@@ -442,44 +373,63 @@ export default function NovelcrafterStudioApp() {
                 bibleNav={{ section: activeBibleSection, jump: bibleJumpRequest }}
                 isStreaming={stream.isStreaming || isLoadLocked}
                 onTriggerStream={stream.triggerStream}
+                onStopStream={stream.stopStream}
                 onReturnToWrite={returnToWrite}
               >
-                <ChapterAiToolbar {...editor.toolbarProps} onStopStream={stream.stopStream} />
-
-                <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
-                  {isLeftInline
-                    ? showLeftPane && renderNavigator(false)
-                    : renderDrawer("navigator")}
-
-                  <ChapterEditorWorkspace
-                    chapter={story.activeChapter}
-                    controller={editor}
-                    feedbackPane={feedbackPane}
-                    onUpdateChapter={story.updateChapter}
-                    onCreateSnapshot={story.createSnapshotForChapter}
-                    onRestoreSnapshot={story.restoreChapterSnapshot}
-                    onDeleteSnapshot={story.deleteChapterSnapshot}
-                    selection={selection}
-                    onSelectionChange={setSelection}
-                    isStreaming={stream.isStreaming}
-                    isDirectStreamingToChapter={isDirectStreamingToChapter}
-                    isLoadLocked={isLoadLocked}
-                    onTriggerStream={stream.triggerStream}
-                    onStopStream={stream.stopStream}
-                    storyBible={story.storyState.storyBible}
-                    onUpdateStoryBible={story.updateStoryBible}
-                    isStoryBibleOpen={story.storyState.isStoryBibleOpen}
-                    onToggleStoryBible={story.setStoryBibleOpen}
-                    onJumpToBibleSection={jumpToBibleSection}
-                    activeBibleSection={activeBibleSection}
-                    bibleJumpRequest={bibleJumpRequest}
-                    feedbackMode={layout.feedbackMode}
-                    focusMode={focusMode}
-                    onToggleFocusMode={() => setFocusMode((p) => !p)}
-                  />
-
-                  {isRightInline ? showRightPane && renderHistory(false) : renderDrawer("history")}
-                </div>
+                <NovelcrafterWriteStage
+                  chapters={story.storyState.chapters}
+                  activeChapter={story.activeChapter}
+                  storyBible={story.storyState.storyBible}
+                  isStoryBibleOpen={story.storyState.isStoryBibleOpen}
+                  onToggleStoryBible={story.setStoryBibleOpen}
+                  activeBibleSection={activeBibleSection}
+                  bibleJumpRequest={bibleJumpRequest}
+                  onJumpToBibleSection={jumpToBibleSection}
+                  onSelectChapter={story.selectChapter}
+                  onAddChapter={story.addChapter}
+                  onUpdateChapter={story.updateChapter}
+                  onDeleteChapter={(chapterId) => void story.deleteChapter(chapterId)}
+                  onUpdateStoryBible={story.updateStoryBible}
+                  onCreateSnapshot={story.createSnapshotForChapter}
+                  onRestoreSnapshot={story.restoreChapterSnapshot}
+                  onDeleteSnapshot={story.deleteChapterSnapshot}
+                  editor={editor}
+                  feedbackPane={feedbackPane}
+                  feedbackMode={layout.feedbackMode}
+                  focusMode={focusMode}
+                  onToggleFocusMode={() => setFocusMode((p) => !p)}
+                  selection={selection}
+                  onSelectionChange={setSelection}
+                  isLeftInline={isLeftInline}
+                  isRightInline={isRightInline}
+                  showLeftPane={showLeftPane}
+                  showRightPane={showRightPane}
+                  onOpenPane={(pane) => {
+                    setFocusMode(false);
+                    panes.open(pane);
+                  }}
+                  onClosePane={(pane) => panes.close(pane)}
+                  historyCards={story.storyState.historyCards}
+                  isStreaming={stream.isStreaming}
+                  isDirectStreamingToChapter={isDirectStreamingToChapter}
+                  isLoadLocked={isLoadLocked}
+                  streamingContent={stream.streamingContent}
+                  streamingThinking={stream.streamingThinking}
+                  streamingMeta={stream.streamingMeta}
+                  onTriggerStream={stream.triggerStream}
+                  onStopStream={stream.stopStream}
+                  onAppendToChapter={handleAppendToChapter}
+                  onReplaceSelection={handleReplaceSelection}
+                  onApplyToBible={handleApplyToBible}
+                  onDeleteCard={story.deleteHistoryCard}
+                  onClearAllCards={() => void story.clearHistoryCards()}
+                  selectedModel={story.storyState.selectedModel}
+                  allowedModelIds={allowedModelIds}
+                  routing={story.storyState.routing}
+                  gems={story.gems}
+                  personas={story.personas}
+                  onOpenAiSettings={() => setIsRoutingModalOpen(true)}
+                />
               </NovelcrafterViewPanel>
             </>
           )}

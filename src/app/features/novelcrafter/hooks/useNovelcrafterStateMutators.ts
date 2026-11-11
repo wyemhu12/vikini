@@ -181,9 +181,11 @@ export function useNovelcrafterStateMutators({
       (prev) => {
         if (prev.chapters.length >= MAX_CHAPTERS) return prev;
         const nextIndex = prev.chapters.length + 1;
+        const prevAct = prev.chapters[prev.chapters.length - 1]?.actTitle?.trim();
         const newChapter: NovelcrafterChapter = {
           id: `ch-${Date.now()}-${nextIndex}`,
           title: `${t("novelcrafterChapterPrefix")} ${nextIndex}`,
+          ...(prevAct ? { actTitle: prevAct } : {}),
           scenes: "",
           extraInstructions: "",
           content: "",
