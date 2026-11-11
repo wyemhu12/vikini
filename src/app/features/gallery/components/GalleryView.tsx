@@ -193,8 +193,11 @@ export function GalleryView() {
               {g.filteredImages.map((img) => {
                 const isSelectedForCompare = g.isImageSelectedForCompare(img.id);
                 return (
-                  <div
+                  <button
                     key={img.id}
+                    type="button"
+                    aria-label={img.prompt}
+                    aria-pressed={g.compareMode ? isSelectedForCompare : undefined}
                     onClick={() => {
                       if (g.compareMode) {
                         g.handleToggleCompareImage(img);
@@ -202,7 +205,7 @@ export function GalleryView() {
                         g.setSelectedImage(img);
                       }
                     }}
-                    className={`group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-(--surface-muted) border-2 transition-colors ${
+                    className={`group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-(--surface-muted) border-2 p-0 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) ${
                       isSelectedForCompare
                         ? "border-(--accent) ring-2 ring-(--accent)/30"
                         : "border-(--border) hover:border-(--accent)"
@@ -210,7 +213,7 @@ export function GalleryView() {
                   >
                     <Image
                       src={img.url}
-                      alt={img.prompt}
+                      alt=""
                       fill
                       className="object-cover transition-transform duration-300 ease-out group-hover:scale-110"
                       unoptimized
@@ -219,6 +222,7 @@ export function GalleryView() {
                     {/* Compare Mode Selection Indicator */}
                     {g.compareMode && (
                       <div
+                        aria-hidden="true"
                         className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
                           isSelectedForCompare
                             ? "bg-(--accent) text-(--accent-foreground)"
@@ -240,10 +244,10 @@ export function GalleryView() {
                     )}
 
                     {/* Hover Overlay */}
-                    <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end">
+                    <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity p-3 flex flex-col justify-end">
                       <p className="text-white text-xs line-clamp-2 font-medium">{img.prompt}</p>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>

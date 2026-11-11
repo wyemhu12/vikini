@@ -16,6 +16,8 @@ let mockSelectedImage: typeof SAMPLE_IMAGE | null = SAMPLE_IMAGE;
 let mockAvailableModels: string[] = [];
 let mockLoading = false;
 const mockSetShowFavoritesOnly = vi.fn();
+let mockCompareMode = false;
+const mockToggleCompareImage = vi.fn();
 
 vi.mock("./hooks/useGalleryController", () => ({
   useGalleryController: () => ({
@@ -39,12 +41,12 @@ vi.mock("./hooks/useGalleryController", () => ({
     showFavoritesOnly: false,
     setShowFavoritesOnly: mockSetShowFavoritesOnly,
     deleting: null,
-    compareMode: false,
+    compareMode: mockCompareMode,
     compareImages: [],
     showCompareModal: false,
     setShowCompareModal: vi.fn(),
     handleToggleCompareMode: vi.fn(),
-    handleToggleCompareImage: vi.fn(),
+    handleToggleCompareImage: mockToggleCompareImage,
     handleOpenCompare: vi.fn(),
     handleSwapCompareImages: vi.fn(),
     isImageSelectedForCompare: vi.fn().mockReturnValue(false),
@@ -89,6 +91,9 @@ describe("GalleryView - Modal Close Button & Tokens (UI-02, M5, M8)", () => {
     mockAvailableModels = [];
     mockLoading = false;
     mockSetShowFavoritesOnly.mockClear();
+    mockCompareMode = false;
+    mockToggleCompareImage.mockClear();
+    mockSetSelectedImage.mockClear();
   });
 
   it("renders inside the shared AppFrame with a single page h1", () => {
@@ -198,5 +203,27 @@ describe("GalleryView - Modal Close Button & Tokens (UI-02, M5, M8)", () => {
       (el) => el.getAttribute("class") ?? ""
     );
     expect(classes.filter((c) => c.split(/\s+/).includes("uppercase"))).toEqual([]);
+  });
+
+  it("6C TC-01: image cards are keyboard-reachable buttons that open the details", () => {
+    mockSelectedImage = null;
+    render(<GalleryView />);
+    const card = screen.getByRole("button", { name: SAMPLE_IMAGE.prompt });
+    expect(card).not.toHaveAttribute("aria-pressed");
+    expect(card.className).toContain("focus-visible:ring-2");
+    expect(card.innerHTML).toContain("group-focus-visible:opacity-100");
+    fireEvent.click(card);
+    expect(mockSetSelectedImage).toHaveBeenCalledWith(SAMPLE_IMAGE);
+  });
+
+  it("6C TC-02: in compare mode a card toggles its selection instead of opening", () => {
+    mockSelectedImage = null;
+    mockCompareMode = true;
+    render(<GalleryView />);
+    const card = screen.getByRole("button", { name: SAMPLE_IMAGE.prompt });
+    expect(card).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(card);
+    expect(mockToggleCompareImage).toHaveBeenCalledWith(SAMPLE_IMAGE);
+    expect(mockSetSelectedImage).not.toHaveBeenCalled();
   });
 });

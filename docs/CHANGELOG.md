@@ -8,6 +8,13 @@
 
 ---
 
+## 2026-11-11: Vikini 3.0 Phase 6C -- Keyboard-Operable Library Cards
+
+- **`GalleryView.tsx`**: thẻ ảnh là `<button>` (tên = prompt), Enter/Space mở chi tiết hoặc chọn ảnh khi So sánh (`aria-pressed`); có viền focus; lớp phủ prompt hiện cả khi focus bằng bàn phím.
+- Chưa làm (cần codemod trước): lint chặn màu thô / chữ nhỏ (còn 298 class màu thô, 37 chỗ chữ < 12px), gỡ alias token cũ (1.421 chỗ dùng), type scale, `eslint-plugin-react-hooks`.
+
+---
+
 ## 2026-11-11: Vikini 3.0 Phase 6B -- Sign-in & Auth Error on Theme (H7, C4)
 
 - **H7**: huy hiệu "MÃ HÓA ĐẦU-CUỐI" (sai với kiến trúc) → **"Mã hóa dữ liệu khi lưu trữ"**; xóa key `encryptedE2E`.
