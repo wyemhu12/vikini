@@ -48,7 +48,7 @@ import NovelcrafterLeftNavigator, {
 } from "./NovelcrafterLeftNavigator";
 import ChapterEditorWorkspace, { type EditorSelectionRange } from "./ChapterEditorWorkspace";
 import NovelcrafterHistoryPane from "./NovelcrafterHistoryPane";
-import GemPersonaRoutingModal from "./GemPersonaRoutingModal";
+import NovelcrafterAiSettingsWorkspace from "./NovelcrafterAiSettingsWorkspace";
 import DestructiveSaveConfirmModal from "./DestructiveSaveConfirmModal";
 
 export default function NovelcrafterStudioApp() {
@@ -117,6 +117,7 @@ export default function NovelcrafterStudioApp() {
     selectedConversationId: story.validStoryId,
     ensureStoryConversation: () => story.ensureActiveStory(),
     selectedModel: story.storyState.selectedModel,
+    allowedModelIds,
     routing: story.storyState.routing,
     storyBible: story.storyState.storyBible,
     activeChapterId: story.activeChapter.id,
@@ -299,6 +300,28 @@ export default function NovelcrafterStudioApp() {
     />
   );
 
+  const renderDrawer = (pane: "navigator" | "history") => {
+    const isNav = pane === "navigator";
+    return (
+      <Sheet
+        open={isNav ? showLeftPane : showRightPane}
+        onOpenChange={(o) => (o ? panes.open(pane) : panes.close(pane))}
+      >
+        <SheetContent side={isNav ? "left" : "right"} className="p-0 flex flex-col">
+          <SheetHeader className="sr-only">
+            <SheetTitle>
+              {t(isNav ? "novelcrafterChaptersTab" : "novelcrafterHistoryTitle")}
+            </SheetTitle>
+            <SheetDescription>
+              {t(isNav ? "novelcrafterNavigatorSheetDesc" : "novelcrafterHistorySheetDesc")}
+            </SheetDescription>
+          </SheetHeader>
+          {isNav ? renderNavigator(true) : renderHistory(true)}
+        </SheetContent>
+      </Sheet>
+    );
+  };
+
   return (
     <div
       ref={appRootRef}
@@ -310,7 +333,7 @@ export default function NovelcrafterStudioApp() {
       >
         {t("skipToMainContent")}
       </a>
-      <h1 className="sr-only">{t("novelcrafterStudio")}</h1>
+      {!isRoutingModalOpen && <h1 className="sr-only">{t("novelcrafterStudio")}</h1>}
       <ToastContainer />
       <Sidebar
         conversations={story.stories}
@@ -349,140 +372,119 @@ export default function NovelcrafterStudioApp() {
         />
 
         <div className="flex-1 min-h-0 flex flex-col pt-[calc(4.75rem+var(--sat,0px))] md:pt-0">
-          <NovelcrafterTopBar
-            storyTitle={currentTitle}
-            viewTabs={<NovelcrafterViewTabs value={view} onChange={setView} ids={viewIds} />}
-            onRenameTitle={(newTitle) =>
-              story.validStoryId && void story.handleRenameStory(story.validStoryId, newTitle)
-            }
-            selectedModel={story.storyState.selectedModel}
-            onSelectModel={handleSelectModel}
-            allowedModelIds={allowedModelIds}
-            masterGem={masterGem}
-            masterPersona={masterPersona}
-            saveStatus={story.saveStatus}
-            chapterWordCount={chapterWordCount}
-            historyCount={story.storyState.historyCards.length}
-            onRetrySave={() => void story.saveNow({ isManual: true })}
-            onOpenRoutingModal={() => setIsRoutingModalOpen(true)}
-            onExportManuscript={(opts) => {
-              try {
-                const payload = formatManuscriptExport({
-                  storyTitle: currentTitle,
-                  storyState: story.storyState,
-                  format: opts.format === "md" ? "markdown" : "txt",
-                  includeStoryBible: opts.includeStoryBible,
-                  includeChapterSummaries: opts.includeChapterSummaries,
-                });
-                triggerManuscriptDownload(payload);
-                toast.success(t("novelcrafterExportSuccessToast"));
-              } catch (error: unknown) {
-                const message = error instanceof Error ? error.message : "Unknown error";
-                logger.error(`[NovelcrafterStudioApp] export manuscript failed: ${message}`);
-                toast.error(t("exportFailed") || message);
-              }
-            }}
-            showLeftPane={view === "write" && showLeftPane}
-            onToggleLeftPane={() => toggleTopPane("navigator")}
-            showRightPane={view === "write" && showRightPane}
-            onToggleRightPane={() => toggleTopPane("history")}
-            renamingStoryId={renamingStoryId}
-            renameStoryTitle={renameStoryTitle}
-            onChangeRenameStoryTitle={setRenameStoryTitle}
-            onCloseRenameStoryModal={() => setRenamingStoryId(null)}
-            onConfirmRenameStory={() => {
-              if (!renamingStoryId || !renameStoryTitle.trim()) return;
-              void story.handleRenameStory(renamingStoryId, renameStoryTitle.trim());
-              setRenamingStoryId(null);
-            }}
-          />
-
-          <NovelcrafterViewPanel
-            view={view}
-            ids={viewIds}
-            story={story}
-            bibleNav={{ section: activeBibleSection, jump: bibleJumpRequest }}
-            isStreaming={stream.isStreaming || isLoadLocked}
-            onTriggerStream={stream.triggerStream}
-            onReturnToWrite={returnToWrite}
-          >
-            <ChapterAiToolbar {...editor.toolbarProps} onStopStream={stream.stopStream} />
-
-            <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
-              {isLeftInline && showLeftPane && renderNavigator(false)}
-              {!isLeftInline && (
-                <Sheet
-                  open={showLeftPane}
-                  onOpenChange={(open) =>
-                    open ? panes.open("navigator") : panes.close("navigator")
+          {isRoutingModalOpen ? (
+            <NovelcrafterAiSettingsWorkspace
+              storyTitle={currentTitle}
+              selectedModel={story.storyState.selectedModel}
+              allowedModelIds={allowedModelIds}
+              routing={story.storyState.routing}
+              gems={story.gems}
+              personas={story.personas}
+              onUpdateRouting={story.updateRouting}
+              onUpdateFeaturePersonaSlot={story.updateFeaturePersonaSlot}
+              onUpdateFeatureModelSlot={story.updateFeatureModelSlot}
+              onClose={() => setIsRoutingModalOpen(false)}
+            />
+          ) : (
+            <>
+              <NovelcrafterTopBar
+                storyTitle={currentTitle}
+                viewTabs={<NovelcrafterViewTabs value={view} onChange={setView} ids={viewIds} />}
+                onRenameTitle={(newTitle) =>
+                  story.validStoryId && void story.handleRenameStory(story.validStoryId, newTitle)
+                }
+                selectedModel={story.storyState.selectedModel}
+                onSelectModel={handleSelectModel}
+                allowedModelIds={allowedModelIds}
+                masterGem={masterGem}
+                masterPersona={masterPersona}
+                saveStatus={story.saveStatus}
+                chapterWordCount={chapterWordCount}
+                historyCount={story.storyState.historyCards.length}
+                onRetrySave={() => void story.saveNow({ isManual: true })}
+                onOpenRoutingModal={() => setIsRoutingModalOpen(true)}
+                onExportManuscript={(opts) => {
+                  try {
+                    const payload = formatManuscriptExport({
+                      storyTitle: currentTitle,
+                      storyState: story.storyState,
+                      format: opts.format === "md" ? "markdown" : "txt",
+                      includeStoryBible: opts.includeStoryBible,
+                      includeChapterSummaries: opts.includeChapterSummaries,
+                    });
+                    triggerManuscriptDownload(payload);
+                    toast.success(t("novelcrafterExportSuccessToast"));
+                  } catch (error: unknown) {
+                    const message = error instanceof Error ? error.message : "Unknown error";
+                    logger.error(`[NovelcrafterStudioApp] export manuscript failed: ${message}`);
+                    toast.error(t("exportFailed") || message);
                   }
-                >
-                  <SheetContent side="left" className="p-0 flex flex-col">
-                    <SheetHeader className="sr-only">
-                      <SheetTitle>{t("novelcrafterChaptersTab")}</SheetTitle>
-                      <SheetDescription>{t("novelcrafterNavigatorSheetDesc")}</SheetDescription>
-                    </SheetHeader>
-                    {renderNavigator(true)}
-                  </SheetContent>
-                </Sheet>
-              )}
-
-              <ChapterEditorWorkspace
-                chapter={story.activeChapter}
-                controller={editor}
-                feedbackPane={feedbackPane}
-                onUpdateChapter={story.updateChapter}
-                onCreateSnapshot={story.createSnapshotForChapter}
-                onRestoreSnapshot={story.restoreChapterSnapshot}
-                onDeleteSnapshot={story.deleteChapterSnapshot}
-                selection={selection}
-                onSelectionChange={setSelection}
-                isStreaming={stream.isStreaming}
-                isDirectStreamingToChapter={isDirectStreamingToChapter}
-                isLoadLocked={isLoadLocked}
-                onTriggerStream={stream.triggerStream}
-                onStopStream={stream.stopStream}
-                storyBible={story.storyState.storyBible}
-                onUpdateStoryBible={story.updateStoryBible}
-                isStoryBibleOpen={story.storyState.isStoryBibleOpen}
-                onToggleStoryBible={story.setStoryBibleOpen}
-                onJumpToBibleSection={jumpToBibleSection}
-                activeBibleSection={activeBibleSection}
-                bibleJumpRequest={bibleJumpRequest}
-                feedbackMode={layout.feedbackMode}
-                focusMode={focusMode}
-                onToggleFocusMode={() => setFocusMode((p) => !p)}
+                }}
+                showLeftPane={view === "write" && showLeftPane}
+                onToggleLeftPane={() => toggleTopPane("navigator")}
+                showRightPane={view === "write" && showRightPane}
+                onToggleRightPane={() => toggleTopPane("history")}
+                renamingStoryId={renamingStoryId}
+                renameStoryTitle={renameStoryTitle}
+                onChangeRenameStoryTitle={setRenameStoryTitle}
+                onCloseRenameStoryModal={() => setRenamingStoryId(null)}
+                onConfirmRenameStory={() => {
+                  if (!renamingStoryId || !renameStoryTitle.trim()) return;
+                  void story.handleRenameStory(renamingStoryId, renameStoryTitle.trim());
+                  setRenamingStoryId(null);
+                }}
               />
 
-              {isRightInline && showRightPane && renderHistory(false)}
-              {!isRightInline && (
-                <Sheet
-                  open={showRightPane}
-                  onOpenChange={(open) => (open ? panes.open("history") : panes.close("history"))}
-                >
-                  <SheetContent side="right" className="p-0 flex flex-col">
-                    <SheetHeader className="sr-only">
-                      <SheetTitle>{t("novelcrafterHistoryTitle")}</SheetTitle>
-                      <SheetDescription>{t("novelcrafterHistorySheetDesc")}</SheetDescription>
-                    </SheetHeader>
-                    {renderHistory(true)}
-                  </SheetContent>
-                </Sheet>
-              )}
-            </div>
-          </NovelcrafterViewPanel>
+              <NovelcrafterViewPanel
+                view={view}
+                ids={viewIds}
+                story={story}
+                bibleNav={{ section: activeBibleSection, jump: bibleJumpRequest }}
+                isStreaming={stream.isStreaming || isLoadLocked}
+                onTriggerStream={stream.triggerStream}
+                onReturnToWrite={returnToWrite}
+              >
+                <ChapterAiToolbar {...editor.toolbarProps} onStopStream={stream.stopStream} />
+
+                <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
+                  {isLeftInline
+                    ? showLeftPane && renderNavigator(false)
+                    : renderDrawer("navigator")}
+
+                  <ChapterEditorWorkspace
+                    chapter={story.activeChapter}
+                    controller={editor}
+                    feedbackPane={feedbackPane}
+                    onUpdateChapter={story.updateChapter}
+                    onCreateSnapshot={story.createSnapshotForChapter}
+                    onRestoreSnapshot={story.restoreChapterSnapshot}
+                    onDeleteSnapshot={story.deleteChapterSnapshot}
+                    selection={selection}
+                    onSelectionChange={setSelection}
+                    isStreaming={stream.isStreaming}
+                    isDirectStreamingToChapter={isDirectStreamingToChapter}
+                    isLoadLocked={isLoadLocked}
+                    onTriggerStream={stream.triggerStream}
+                    onStopStream={stream.stopStream}
+                    storyBible={story.storyState.storyBible}
+                    onUpdateStoryBible={story.updateStoryBible}
+                    isStoryBibleOpen={story.storyState.isStoryBibleOpen}
+                    onToggleStoryBible={story.setStoryBibleOpen}
+                    onJumpToBibleSection={jumpToBibleSection}
+                    activeBibleSection={activeBibleSection}
+                    bibleJumpRequest={bibleJumpRequest}
+                    feedbackMode={layout.feedbackMode}
+                    focusMode={focusMode}
+                    onToggleFocusMode={() => setFocusMode((p) => !p)}
+                  />
+
+                  {isRightInline ? showRightPane && renderHistory(false) : renderDrawer("history")}
+                </div>
+              </NovelcrafterViewPanel>
+            </>
+          )}
         </div>
       </div>
-
-      <GemPersonaRoutingModal
-        isOpen={isRoutingModalOpen}
-        onClose={() => setIsRoutingModalOpen(false)}
-        routing={story.storyState.routing}
-        gems={story.gems}
-        personas={story.personas}
-        onUpdateRouting={story.updateRouting}
-        onUpdateFeatureSlot={story.updateFeaturePersonaSlot}
-      />
 
       <DestructiveSaveConfirmModal
         prompt={story.destructivePrompt}

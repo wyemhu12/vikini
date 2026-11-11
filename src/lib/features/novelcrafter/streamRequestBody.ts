@@ -1,6 +1,7 @@
 // /lib/features/novelcrafter/streamRequestBody.ts
 // Pure builder for POST /api/novelcrafter/stream request body with Prompt Studio overrides
 
+import { resolveEffectiveSlotModel } from "./aiInheritanceTable";
 import type { NovelcrafterContextNode } from "./contextNodes";
 import { resolveEffectiveContextNodes, resolvePromptActionKey } from "./promptActions";
 import { buildActiveCodexContextText } from "./promptBuilder";
@@ -45,6 +46,7 @@ export interface StreamBodyTriggerParams {
 
 export interface StreamBodyContextOptions {
   selectedModel: string;
+  allowedModelIds?: ReadonlySet<string>;
   routing: NovelcrafterRoutingConfig;
   storyBible: StoryBible;
   chapterTitle: string;
@@ -137,7 +139,12 @@ export function buildNovelcrafterStreamRequestBody({
 
   return {
     conversationId,
-    model: opts.selectedModel,
+    model: resolveEffectiveSlotModel(
+      params.feature,
+      opts.selectedModel,
+      opts.routing,
+      opts.allowedModelIds
+    ).modelId,
     feature: params.feature,
     routing: opts.routing,
     storyBible: prunedBible,

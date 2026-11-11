@@ -1,33 +1,14 @@
 // /app/features/novelcrafter/components/prompt-studio/PromptStudioActionList.tsx
 "use client";
 
-import React from "react";
+import React, { useMemo, useRef } from "react";
 import {
-  BookOpen,
-  Expand,
-  Lightbulb,
-  MessageSquareQuote,
-  PenLine,
-  WandSparkles,
-} from "lucide-react";
-import { useLanguage } from "../../../chat/hooks/useLanguage";
-import {
-  getDefaultContextNodes,
   PROMPT_ACTION_GROUPS,
   type NovelcrafterPromptActionKey,
 } from "@/lib/features/novelcrafter/promptActions";
-import type { NovelcrafterFeatureSlot } from "@/lib/features/novelcrafter/types";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "../../../chat/hooks/useLanguage";
 import { PROMPT_ACTION_LABELS, PROMPT_GROUP_LABELS } from "./promptStudioLabels";
-
-const GROUP_ICONS: Record<NovelcrafterFeatureSlot, React.ComponentType<{ className?: string }>> = {
-  bible: BookOpen,
-  write: PenLine,
-  rewrite: WandSparkles,
-  feedback: MessageSquareQuote,
-  expand: Expand,
-  brainstorm: Lightbulb,
-};
 
 interface PromptStudioActionListProps {
   selectedKey: NovelcrafterPromptActionKey;
@@ -41,79 +22,89 @@ export default function PromptStudioActionList({
   isActionCustomized,
 }: PromptStudioActionListProps) {
   const { t } = useLanguage();
+  const optionRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  const allKeys = useMemo(() => PROMPT_ACTION_GROUPS.flatMap((g) => g.keys), []);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = allKeys.indexOf(selectedKey);
+    if (currentIndex === -1) return;
+
+    let nextIndex = -1;
+    if (e.key === "ArrowDown") {
+      nextIndex = Math.min(allKeys.length - 1, currentIndex + 1);
+    } else if (e.key === "ArrowUp") {
+      nextIndex = Math.max(0, currentIndex - 1);
+    } else if (e.key === "Home") {
+      nextIndex = 0;
+    } else if (e.key === "End") {
+      nextIndex = allKeys.length - 1;
+    }
+
+    if (nextIndex !== -1 && nextIndex !== currentIndex) {
+      e.preventDefault();
+      const nextKey = allKeys[nextIndex];
+      if (nextKey) {
+        onSelectKey(nextKey);
+        optionRefs.current[nextKey]?.focus();
+      }
+    }
+  };
 
   return (
-    <aside className="rounded-2xl border border-(--border) bg-(--surface-elevated)/60 p-3.5 space-y-4 overflow-y-auto max-h-[calc(100dvh-13rem)] custom-scrollbar">
+    <div
+      role="listbox"
+      aria-label={t("novelcrafterPromptStudioActionsAria")}
+      onKeyDown={handleKeyDown}
+      className="w-full sm:w-42 shrink-0 p-2 border-b sm:border-b-0 sm:border-r border-(--line) flex flex-col gap-3 max-h-48 sm:max-h-none overflow-y-auto custom-scrollbar"
+    >
       {PROMPT_ACTION_GROUPS.map((group) => {
-        const GroupIcon = GROUP_ICONS[group.feature];
-        const isPipeline = group.feature === "bible";
+        const groupLabel = t(PROMPT_GROUP_LABELS[group.feature]);
         return (
           <div
             key={group.feature}
-            className="rounded-xl border border-(--border) bg-(--surface-muted)/50 p-2.5 space-y-2"
+            role="group"
+            aria-label={groupLabel}
+            className="flex flex-col gap-0.5"
           >
-            <div className="px-2.5 py-1.5 rounded-lg bg-(--accent)/15 border border-(--accent)/30 flex items-center justify-between gap-2">
-              <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-(--accent) truncate">
-                <GroupIcon className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">{t(PROMPT_GROUP_LABELS[group.feature])}</span>
-              </h2>
-              <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-(--surface)/80 text-xs font-semibold text-(--accent)">
-                {group.keys.length}
-              </span>
+            <div className="px-2.5 py-1 text-xs font-semibold text-(--faint) truncate">
+              {groupLabel}
             </div>
-            {isPipeline && (
-              <p className="px-2 text-xs text-(--text-secondary)">
-                {t("novelcrafterPromptStudioPipelineHint")}
-              </p>
-            )}
-            <div className="ml-2.5 pl-2.5 border-l-2 border-(--accent)/35 space-y-1">
-              {group.keys.map((actionKey, idx) => {
-                const isSelected = selectedKey === actionKey;
-                const isCustom = isActionCustomized(actionKey);
-                const nodeCount = getDefaultContextNodes(actionKey).length;
-                return (
-                  <button
-                    key={actionKey}
-                    type="button"
-                    aria-pressed={isSelected}
-                    onClick={() => onSelectKey(actionKey)}
-                    className={cn(
-                      "w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-                      isSelected
-                        ? "bg-(--accent) text-(--accent-foreground) font-semibold shadow-xs"
-                        : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--control-bg-hover)"
-                    )}
-                  >
-                    <span className="flex items-center gap-2 min-w-0">
-                      <span
-                        className={cn(
-                          "shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold border",
-                          isSelected
-                            ? "bg-(--surface)/20 border-(--accent-foreground)/40 text-(--accent-foreground)"
-                            : "bg-(--surface-elevated) border-(--border) text-(--accent)"
-                        )}
-                      >
-                        {isPipeline ? idx + 1 : "•"}
-                      </span>
-                      <span className="truncate">{t(PROMPT_ACTION_LABELS[actionKey])}</span>
-                    </span>
-                    <span className="flex items-center gap-1 shrink-0">
-                      {isCustom && (
-                        <span className="px-1.5 py-0.5 rounded-full text-xs font-semibold bg-(--warning)/20 text-(--warning)">
-                          {t("novelcrafterPromptStudioModified")}
-                        </span>
-                      )}
-                      <span className="px-1.5 py-0.5 rounded-md text-xs font-mono bg-(--surface-elevated)/80 text-(--text-secondary)">
-                        {nodeCount}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            {group.keys.map((actionKey) => {
+              const isSelected = selectedKey === actionKey;
+              const isCustom = isActionCustomized(actionKey);
+              return (
+                <button
+                  key={actionKey}
+                  ref={(el) => {
+                    optionRefs.current[actionKey] = el;
+                  }}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  tabIndex={isSelected ? 0 : -1}
+                  onClick={() => onSelectKey(actionKey)}
+                  className={cn(
+                    "w-full h-8.5 px-2.5 rounded-lg text-left text-xs flex items-center justify-between gap-1.5 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+                    isSelected
+                      ? "bg-(--soft) text-(--accent) font-medium"
+                      : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
+                  )}
+                >
+                  <span className="truncate">{t(PROMPT_ACTION_LABELS[actionKey])}</span>
+                  {isCustom && (
+                    <span
+                      aria-label={t("novelcrafterPromptStudioModified")}
+                      title={t("novelcrafterPromptStudioModified")}
+                      className="w-1.5 h-1.5 rounded-full bg-(--accent) shrink-0"
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
         );
       })}
-    </aside>
+    </div>
   );
 }

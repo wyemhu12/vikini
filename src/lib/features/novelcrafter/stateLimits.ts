@@ -261,6 +261,10 @@ export function coerceStoryStateToLimits(
       ? (rawRouting.featurePersonas as Record<string, unknown>)
       : {};
   const normSlot = (val: unknown) => truncateText(val, 100, "inherit").trim() || "inherit";
+  const rawFm =
+    rawRouting.featureModels && typeof rawRouting.featureModels === "object"
+      ? (rawRouting.featureModels as Record<string, unknown>)
+      : null;
 
   const firstChapterId = String(chapters[0].id);
   const requestedActiveId = truncateText(root.activeChapterId, 100, firstChapterId).trim();
@@ -295,6 +299,18 @@ export function coerceStoryStateToLimits(
         expand: normSlot(rawFp.expand),
         brainstorm: normSlot(rawFp.brainstorm),
       },
+      ...(rawFm
+        ? {
+            featureModels: {
+              bible: normSlot(rawFm.bible),
+              write: normSlot(rawFm.write),
+              rewrite: normSlot(rawFm.rewrite),
+              feedback: normSlot(rawFm.feedback),
+              expand: normSlot(rawFm.expand),
+              brainstorm: normSlot(rawFm.brainstorm),
+            },
+          }
+        : {}),
     },
     historyCards,
     updatedAt:

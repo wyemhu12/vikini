@@ -4,7 +4,7 @@ import { createDefaultPromptStudioSettings, setActionOverride } from "./promptSt
 import { buildNovelcrafterStreamRequestBody } from "./streamRequestBody";
 import { createDefaultStoryState } from "./types";
 
-describe("streamRequestBody (RB-01..RB-04)", () => {
+describe("streamRequestBody (RB-01..RB-05)", () => {
   const baseStory = createDefaultStoryState();
   baseStory.storyBible.synopsis = "Main synopsis";
   baseStory.storyBible.outline = "Main outline";
@@ -62,5 +62,35 @@ describe("streamRequestBody (RB-01..RB-04)", () => {
     });
 
     expect(body.writeLengthWords).toBe(1850);
+  });
+
+  it("TC-03: sends per-feature overridden model when featureModels specifies one, while inherit keeps selectedModel", () => {
+    const routingWithModels = {
+      ...baseOptions.routing,
+      featureModels: {
+        bible: "inherit",
+        write: "inherit",
+        rewrite: "inherit",
+        feedback: "gemini-3.8-flash",
+        expand: "inherit",
+        brainstorm: "inherit",
+      },
+    };
+
+    const feedbackBody = buildNovelcrafterStreamRequestBody({
+      conversationId: "123e4567-e89b-12d3-a456-426614174000",
+      options: { ...baseOptions, routing: routingWithModels },
+      params: { feature: "feedback", feedbackMode: "developmental" },
+      promptSettings: createDefaultPromptStudioSettings(),
+    });
+    expect(feedbackBody.model).toBe("gemini-3.8-flash");
+
+    const writeBody = buildNovelcrafterStreamRequestBody({
+      conversationId: "123e4567-e89b-12d3-a456-426614174000",
+      options: { ...baseOptions, routing: routingWithModels },
+      params: { feature: "write", writeMode: "auto" },
+      promptSettings: createDefaultPromptStudioSettings(),
+    });
+    expect(writeBody.model).toBe(baseStory.selectedModel);
   });
 });

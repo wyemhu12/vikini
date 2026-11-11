@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-11: Vikini 3.0 Phase 5D -- Unified Story AI Settings (Inheritance Table + Prompt Studio)
+
+- **Bảng kế thừa GEM / Persona / Model theo 6 tính năng (`NovelcrafterInheritanceTable.tsx`, `aiInheritanceTable.ts`, `types.ts`, `stateLimits.ts`, `streamRequestBody.ts`, `useNovelcrafterStream.ts`, `useNovelcrafterStateMutators.ts`)**: hợp nhất 2 thẻ chọn nhanh **GEM tổng** và **Persona tổng** ở đầu trang với bảng 6 tính năng × 4 cột (`Tính năng | Persona | Model | AI sẽ nhận`); hỗ trợ ghi đè Model riêng từng tính năng (tự lùi về model mặc định của truyện nếu model không hợp lệ hoặc không được cấp quyền), tô nổi dòng ghi đè bằng `bg-(--soft)` và viền/chữ `--accent`.
+- **Prompt Studio neo phải theo token Vikini 3.0 (`NovelcrafterAiSettingsWorkspace.tsx`, `components/prompt-studio/*`)**: menu gọn `Bộ mẫu` trên header (chọn/lưu/xóa preset tùy chỉnh, khôi phục tất cả), danh sách `role="listbox"` **Hành động AI** điều hướng bằng phím `↑/↓/Home/End`, danh sách kiểm **Ngữ cảnh gửi kèm** dạng checkbox, và khung **Xem trước prompt** kèm ước lượng `≈ X token`.
+- **Đồng nhất cả hai lối vào (`NovelcrafterStudioApp.tsx`, `PromptStudioApp.tsx`)**: bấm **"Cài đặt AI"** trên thanh trên của `/novelcrafter` mở ngay trang Cài đặt AI toàn khung trong shell (đóng bằng nút quay lại hoặc `Escape` không mất chữ đang gõ); truy cập trực tiếp `/novelcrafter/prompts` hiển thị cùng giao diện kèm `Sidebar`. Gỡ bỏ hộp thoại cũ `GemPersonaRoutingModal.tsx`.
+
+---
+
 ## 2026-11-11: Vikini 3.0 Phase 5C -- Two-Column Story Bible, Character Detail Panel & Granular AI Visibility
 
 - **Bố cục Hồ sơ nhiều cột (`StoryBibleWorkspace.tsx`, `StoryBibleTocSidebar.tsx`, `NovelcrafterViewPanel.tsx`)**: ở tab Hồ sơ toàn trang (`embedded={false}`), hiển thị cột mục lục `232px` bên trái trên `md+` (dải chip ngang trên mobile) kèm số lượng thẻ và biểu tượng `EyeOff` cho mục đang ẩn khỏi AI; vùng biên tập giữa rộng tối đa `760px`.

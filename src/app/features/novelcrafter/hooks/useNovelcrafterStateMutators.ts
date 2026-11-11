@@ -11,6 +11,7 @@ import {
   MAX_CHAPTERS,
   MAX_HISTORY_CARDS,
   type NovelcrafterChapter,
+  type NovelcrafterFeatureModels,
   type NovelcrafterFeatureSlot,
   type NovelcrafterFeedbackItem,
   type NovelcrafterHistoryCard,
@@ -19,6 +20,15 @@ import {
 } from "@/lib/features/novelcrafter/types";
 import type { TranslationKey } from "@/lib/utils/translations";
 import { useStoryBibleMutators } from "./useStoryBibleMutators";
+
+const INHERIT_SLOTS: NovelcrafterFeatureModels = {
+  bible: "inherit",
+  write: "inherit",
+  rewrite: "inherit",
+  feedback: "inherit",
+  expand: "inherit",
+  brainstorm: "inherit",
+};
 
 interface UseNovelcrafterStateMutatorsParams {
   latestStateRef: MutableRefObject<StoryScopedState>;
@@ -54,10 +64,7 @@ export function useNovelcrafterStateMutators({
         updatedAt: Math.max(now, prev.updatedAt + 1),
       };
 
-      latestStateRef.current = {
-        ownerStoryId: ownerId,
-        state: nextState,
-      };
+      latestStateRef.current = { ownerStoryId: ownerId, state: nextState };
       setStoryState(nextState);
 
       if (!options?.skipSave) {
@@ -95,6 +102,15 @@ export function useNovelcrafterStateMutators({
               ...prev.routing.featurePersonas,
               ...(patch.featurePersonas || {}),
             },
+            ...(prev.routing.featureModels || patch.featureModels
+              ? {
+                  featureModels: {
+                    ...INHERIT_SLOTS,
+                    ...(prev.routing.featureModels || {}),
+                    ...(patch.featureModels || {}),
+                  },
+                }
+              : {}),
           },
         }),
         { immediate: true }
@@ -111,6 +127,26 @@ export function useNovelcrafterStateMutators({
           routing: {
             ...prev.routing,
             featurePersonas: { ...prev.routing.featurePersonas, [slot]: value },
+          },
+        }),
+        { immediate: true }
+      );
+    },
+    [commitStateChange]
+  );
+
+  const updateFeatureModelSlot = useCallback(
+    (slot: NovelcrafterFeatureSlot, value: string) => {
+      commitStateChange(
+        (prev) => ({
+          ...prev,
+          routing: {
+            ...prev.routing,
+            featureModels: {
+              ...INHERIT_SLOTS,
+              ...(prev.routing.featureModels || {}),
+              [slot]: value,
+            },
           },
         }),
         { immediate: true }
@@ -197,11 +233,7 @@ export function useNovelcrafterStateMutators({
           ...prev,
           chapters: prev.chapters.map((ch) =>
             ch.id === chapterId
-              ? {
-                  ...ch,
-                  snapshots: createChapterSnapshot(ch, label),
-                  updatedAt: Date.now(),
-                }
+              ? { ...ch, snapshots: createChapterSnapshot(ch, label), updatedAt: Date.now() }
               : ch
           ),
         }),
@@ -351,6 +383,7 @@ export function useNovelcrafterStateMutators({
     ...bibleMutators,
     updateRouting,
     updateFeaturePersonaSlot,
+    updateFeatureModelSlot,
     setSelectedModel,
     setStoryBibleOpen,
     selectChapter,

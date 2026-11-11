@@ -256,9 +256,20 @@ export const NovelcrafterFeaturePersonasSchema = z.object({
 });
 export type NovelcrafterFeaturePersonas = z.infer<typeof NovelcrafterFeaturePersonasSchema>;
 
+export const NovelcrafterFeatureModelsSchema = z.object({
+  bible: z.string().min(1).max(100).default("inherit"),
+  write: z.string().min(1).max(100).default("inherit"),
+  rewrite: z.string().min(1).max(100).default("inherit"),
+  feedback: z.string().min(1).max(100).default("inherit"),
+  expand: z.string().min(1).max(100).default("inherit"),
+  brainstorm: z.string().min(1).max(100).default("inherit"),
+});
+export type NovelcrafterFeatureModels = z.infer<typeof NovelcrafterFeatureModelsSchema>;
+
 export const NovelcrafterRoutingConfigSchema = z.object({
   masterGemId: z.string().max(100).nullable().default(null),
   masterPersonaId: z.string().max(100).nullable().default(null),
+  featureModels: NovelcrafterFeatureModelsSchema.optional(),
   featurePersonas: NovelcrafterFeaturePersonasSchema.default({
     bible: "inherit",
     write: "inherit",

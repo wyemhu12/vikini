@@ -12,6 +12,7 @@ import {
   ensurePromptStudioHydrated,
   usePromptStudioStore,
 } from "@/lib/features/novelcrafter/promptStudioStore";
+import { resolveEffectiveSlotModel } from "@/lib/features/novelcrafter/aiInheritanceTable";
 import { buildNovelcrafterStreamRequestBody } from "@/lib/features/novelcrafter/streamRequestBody";
 import {
   NovelcrafterStreamRunRegistry,
@@ -95,6 +96,7 @@ interface UseNovelcrafterStreamOptions {
   selectedConversationId: string | null;
   ensureStoryConversation: () => Promise<string | null>;
   selectedModel: string;
+  allowedModelIds?: ReadonlySet<string>;
   routing: NovelcrafterRoutingConfig;
   storyBible: StoryBible;
   activeChapterId: string;
@@ -217,8 +219,14 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
+      const effectiveSlotModel = resolveEffectiveSlotModel(
+        params.feature,
+        opts.selectedModel,
+        opts.routing,
+        opts.allowedModelIds
+      ).modelId;
       const initialMeta: StreamingCardMeta = {
-        model: opts.selectedModel,
+        model: effectiveSlotModel,
         gemName: null,
         personaName: null,
         feature: params.feature,
@@ -275,7 +283,7 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
       let fullThinking = "";
       let resolvedGemName: string | null = null;
       let resolvedPersonaName: string | null = null;
-      let resolvedModel = opts.selectedModel;
+      let resolvedModel = effectiveSlotModel;
       let routedModel: string | undefined;
       let finishReason: NovelcrafterFinishReason | undefined;
       let sawDoneEvent = false;
@@ -289,7 +297,7 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
         const { eventType, parsedData } = parsed;
         if (eventType === "meta") {
           resolvedModel =
-            typeof parsedData.model === "string" ? parsedData.model : opts.selectedModel;
+            typeof parsedData.model === "string" ? parsedData.model : effectiveSlotModel;
           routedModel =
             typeof parsedData.routedModel === "string" && parsedData.routedModel.trim()
               ? parsedData.routedModel.trim()

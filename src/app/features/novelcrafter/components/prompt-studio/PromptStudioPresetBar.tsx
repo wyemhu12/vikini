@@ -2,14 +2,24 @@
 "use client";
 
 import React, { useState } from "react";
-import { RotateCcw, Save, SlidersHorizontal, Trash2 } from "lucide-react";
-import { useLanguage } from "../../../chat/hooks/useLanguage";
+import { ChevronDown, RotateCcw, Save, Trash2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   isBuiltInPresetId,
   NOVELCRAFTER_BUILT_IN_PRESET_IDS,
 } from "@/lib/features/novelcrafter/promptStudioPresets";
 import type { PromptStudioCustomPreset } from "@/lib/features/novelcrafter/promptStudioSettings";
 import { FIELD_MAX_LENGTHS } from "@/lib/features/novelcrafter/stateLimits";
+import { useLanguage } from "../../../chat/hooks/useLanguage";
 import { BUILT_IN_PRESET_LABELS } from "./promptStudioLabels";
 
 interface PromptStudioPresetBarProps {
@@ -34,11 +44,14 @@ export default function PromptStudioPresetBar({
   const [newPresetName, setNewPresetName] = useState("");
 
   const effectiveSelected = activePresetId || selectedPresetId;
+  const activeCustom = customPresets.find((p) => p.id === effectiveSelected);
   const isCustomSelected = Boolean(
-    effectiveSelected &&
-    !isBuiltInPresetId(effectiveSelected) &&
-    customPresets.some((p) => p.id === effectiveSelected)
+    effectiveSelected && !isBuiltInPresetId(effectiveSelected) && activeCustom
   );
+
+  const activePresetLabel = isBuiltInPresetId(effectiveSelected)
+    ? t(BUILT_IN_PRESET_LABELS[effectiveSelected])
+    : activeCustom?.name || t(BUILT_IN_PRESET_LABELS.default);
 
   const handleCreate = () => {
     if (onSaveAsPreset(newPresetName)) {
@@ -47,98 +60,94 @@ export default function PromptStudioPresetBar({
   };
 
   return (
-    <section className="rounded-2xl border border-(--border) bg-(--surface-elevated)/70 p-4 space-y-3 shadow-xs">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-          <label
-            htmlFor="prompt-studio-preset-select"
-            className="inline-flex items-center gap-1.5 text-xs md:text-sm font-bold text-(--text-primary) shrink-0"
-          >
-            <SlidersHorizontal className="w-4 h-4 text-(--accent)" />
-            <span>{t("novelcrafterPromptStudioPresetLabel")}:</span>
-          </label>
-          <select
-            id="prompt-studio-preset-select"
-            value={effectiveSelected}
-            onChange={(e) => {
-              const id = e.target.value;
-              setSelectedPresetId(id);
-              onApplyPreset(id);
-            }}
-            className="h-9 min-w-56 rounded-lg border border-(--control-border) bg-(--control-bg) px-3 text-xs md:text-sm font-medium text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
-          >
-            {NOVELCRAFTER_BUILT_IN_PRESET_IDS.map((id) => (
-              <option key={id} value={id} className="bg-(--surface-elevated) text-(--text-primary)">
-                {t(BUILT_IN_PRESET_LABELS[id])}
-              </option>
-            ))}
-            {customPresets.length > 0 && (
-              <optgroup
-                label={t("novelcrafterPromptStudioPresetCustomGroup")}
-                className="bg-(--surface-elevated) text-(--text-primary)"
-              >
-                {customPresets.map((preset) => (
-                  <option
-                    key={preset.id}
-                    value={preset.id}
-                    className="bg-(--surface-elevated) text-(--text-primary)"
-                  >
-                    {preset.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 h-8 max-w-52 px-2.5 rounded-lg border border-(--line) bg-transparent hover:bg-(--raised) text-xs font-medium text-(--muted) hover:text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
+        >
+          <span className="truncate">
+            {t("novelcrafterPromptStudioPresetMenuBtn").replace("{preset}", activePresetLabel)}
+          </span>
+          <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="w-[min(19rem,calc(100vw-2rem))] max-h-96 overflow-y-auto custom-scrollbar p-1.5"
+      >
+        <DropdownMenuLabel className="text-xs font-medium text-(--faint)">
+          {t("novelcrafterPromptStudioPresetLabel")}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={effectiveSelected}
+          onValueChange={(id) => {
+            setSelectedPresetId(id);
+            onApplyPreset(id);
+          }}
+        >
+          {NOVELCRAFTER_BUILT_IN_PRESET_IDS.map((id) => (
+            <DropdownMenuRadioItem key={id} value={id} className="text-xs">
+              {t(BUILT_IN_PRESET_LABELS[id])}
+            </DropdownMenuRadioItem>
+          ))}
+          {customPresets.map((preset) => (
+            <DropdownMenuRadioItem key={preset.id} value={preset.id} className="text-xs">
+              {preset.name}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
 
-          <button
-            type="button"
-            onClick={() => onApplyPreset(effectiveSelected)}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-semibold text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
-          >
-            <span>{t("novelcrafterPromptStudioPresetApply")}</span>
-          </button>
-
-          {isCustomSelected && (
-            <button
-              type="button"
-              onClick={() => onDeletePreset(effectiveSelected)}
-              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-(--danger)/40 bg-(--danger)/10 hover:bg-(--danger)/20 text-xs font-semibold text-(--danger) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+        {isCustomSelected && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => onDeletePreset(effectiveSelected)}
+              className="text-xs text-(--danger) focus:text-(--danger)"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3.5 h-3.5 mr-2 shrink-0" />
               <span>{t("novelcrafterPromptStudioPresetDelete")}</span>
-            </button>
-          )}
-        </div>
+            </DropdownMenuItem>
+          </>
+        )}
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <DropdownMenuSeparator />
+        <div
+          className="px-1.5 py-1.5 flex items-center gap-1.5"
+          onKeyDown={(e) => e.stopPropagation()}
+        >
           <input
             type="text"
             maxLength={FIELD_MAX_LENGTHS.promptPresetName}
             value={newPresetName}
             onChange={(e) => setNewPresetName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleCreate();
+              }
+            }}
             placeholder={t("novelcrafterPromptStudioPresetNamePlaceholder")}
             aria-label={t("novelcrafterPromptStudioPresetNamePlaceholder")}
-            className="h-9 w-52 sm:w-60 rounded-lg border border-(--control-border) bg-(--control-bg) px-3 text-xs text-(--text-primary) placeholder:text-(--text-secondary) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="flex-1 min-w-0 h-8 rounded-md border border-(--line) bg-(--bg) px-2.5 text-xs text-(--text) placeholder:text-(--faint) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           />
           <button
             type="button"
             onClick={handleCreate}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            aria-label={t("novelcrafterPromptStudioPresetSaveAs")}
+            title={t("novelcrafterPromptStudioPresetSaveAs")}
+            className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-(--accent) text-(--on-accent) hover:brightness-110 transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
           >
             <Save className="w-3.5 h-3.5" />
-            <span>{t("novelcrafterPromptStudioPresetSaveAs")}</span>
-          </button>
-          <button
-            type="button"
-            onClick={onResetAll}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-secondary) hover:text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>{t("novelcrafterPromptStudioResetAll")}</span>
           </button>
         </div>
-      </div>
-    </section>
+
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onResetAll} className="text-xs text-(--muted)">
+          <RotateCcw className="w-3.5 h-3.5 mr-2 shrink-0" />
+          <span>{t("novelcrafterPromptStudioResetAll")}</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
