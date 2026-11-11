@@ -992,8 +992,11 @@ export const en = {
   novelcrafterNoMasterGem: "No Master GEM",
   novelcrafterMasterPersonaBadge: "Master Persona",
   novelcrafterNoMasterPersona: "No Master Persona",
-  novelcrafterRoutingButton: "GEM & Persona Routing",
-  novelcrafterRoutingTitle: "Layered GEM & Persona Routing",
+  novelcrafterRoutingButton: "AI settings",
+  novelcrafterMoreMenu: "More",
+  novelcrafterAiSettingsSummary: "Master GEM: {gem} · Master Persona: {persona}",
+  novelcrafterLanguageSwitch: "Language: {lang}",
+  novelcrafterRoutingTitle: "Story AI settings",
   novelcrafterRoutingSubtitle:
     "Master GEM acts as the #1 priority system instruction. Feature Personas provide supplementary tone and style.",
   novelcrafterMasterGemLabel: "1. Select Master GEM (Priority #1 - System Instruction)",

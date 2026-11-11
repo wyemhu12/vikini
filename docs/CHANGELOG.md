@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-11-11: Vikini 3.0 Phase 5A -- Novelcrafter Top Bar (H1)
+
+- **`NovelcrafterTopBar.tsx`**: thanh trên từ 11 còn 6 control — panel mục lục, tiêu đề (serif nghiêng), trạng thái lưu, Model, **"Cài đặt AI"** (thay 2 huy hiệu GEM/Persona + nút accent; tóm tắt GEM/Persona tổng trong `title` và mô tả cho trình đọc màn hình), menu **"⋯ Thêm"**, panel thẻ AI. Không còn cuộn ngang trên mobile.
+- **`NovelcrafterTopBarMenu.tsx`** (mới): Quản lý Prompt, Xuất bản thảo (2 tùy chọn + Markdown / văn bản thuần), Ngôn ngữ, Giao diện — Ngôn ngữ/Giao diện giờ dùng được cả trên mobile.
+- Hộp thoại ghép tầng đổi tên "Cài đặt AI của truyện".
+- Chưa làm (canvas, cần plan riêng 5B–5E): tab Viết/Dàn ý/Hồ sơ + bảng dàn ý theo hồi, trang Hồ sơ truyện, trang Cài đặt AI dạng bảng kế thừa, khung soạn lệnh AI + dock mobile.
+
+---
+
 ## 2026-11-11: Vikini 3.0 Phase 4B -- Studio Form per Canvas
 
 - **Tỷ lệ (`AspectRatioPicker.tsx`)**: thẻ có hình minh họa tỷ lệ, `role="radiogroup"` + phím mũi tên; tỷ lệ mở rộng vẫn nằm sau nút "Mở rộng".

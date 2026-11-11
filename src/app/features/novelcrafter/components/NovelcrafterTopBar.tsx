@@ -1,26 +1,8 @@
 // /app/features/novelcrafter/components/NovelcrafterTopBar.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
-import Link from "next/link";
-import {
-  AlertCircle,
-  BookOpen,
-  Check,
-  Clock,
-  Crown,
-  Download,
-  FileCode2,
-  FileText,
-  Globe,
-  Loader2,
-  Palette,
-  PanelLeft,
-  PanelRight,
-  ScrollText,
-  Settings2,
-  UserCheck,
-} from "lucide-react";
+import React, { useState, useEffect, useId } from "react";
+import { AlertCircle, Check, Clock, Loader2, PanelLeft, PanelRight, Settings2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,21 +10,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ModelSelector from "@/app/features/chat/components/ModelSelector";
 import { isModelAllowedById } from "@/lib/core/modelAccess";
 import { useLanguage } from "../../chat/hooks/useLanguage";
-import ThemeMenuItems from "../../layout/components/ThemeMenuItems";
+import NovelcrafterTopBarMenu from "./NovelcrafterTopBarMenu";
 import { cn } from "@/lib/utils/cn";
 import type {
   ClientGemItem,
@@ -103,10 +76,12 @@ export default function NovelcrafterTopBar({
   onCloseRenameStoryModal,
   onConfirmRenameStory,
 }: NovelcrafterTopBarProps) {
-  const { t, language, setLanguage } = useLanguage();
+  const { t } = useLanguage();
   const [titleDraft, setTitleDraft] = useState(storyTitle);
-  const [exportIncludeBible, setExportIncludeBible] = useState(true);
-  const [exportIncludeSummaries, setExportIncludeSummaries] = useState(true);
+  const aiSummaryId = useId();
+  const aiSummary = t("novelcrafterAiSettingsSummary")
+    .replace("{gem}", masterGem ? masterGem.name : t("novelcrafterNoMasterGem"))
+    .replace("{persona}", masterPersona ? masterPersona.name : t("novelcrafterNoMasterPersona"));
 
   useEffect(() => {
     setTitleDraft(storyTitle);
@@ -123,7 +98,7 @@ export default function NovelcrafterTopBar({
 
   return (
     <>
-      <header className="shrink-0 border-b border-(--border) bg-(--surface-muted)/90 backdrop-blur-xl px-3 md:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2 z-20">
+      <header className="shrink-0 border-b border-(--line) bg-(--bg) px-3 md:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2 z-20">
         {/* Left: Pane Toggle + Story Title */}
         <div className="flex items-center gap-2 basis-full sm:basis-0 sm:flex-1 min-w-0">
           <button
@@ -142,7 +117,6 @@ export default function NovelcrafterTopBar({
           </button>
 
           <div className="flex items-center gap-2 min-w-0 flex-1 max-w-md">
-            <BookOpen className="w-4 h-4 text-(--accent) shrink-0 hidden sm:inline" />
             <input
               type="text"
               value={titleDraft}
@@ -155,13 +129,13 @@ export default function NovelcrafterTopBar({
               }}
               placeholder={t("novelcrafterStoryTitlePlaceholder")}
               aria-label={t("novelcrafterStoryTitlePlaceholder")}
-              className="w-full min-w-32 bg-transparent text-base sm:text-base md:text-base font-bold text-(--text-primary) placeholder:text-(--text-secondary) rounded-md px-2 py-1 border border-transparent hover:border-(--border) focus:border-(--control-border) focus:bg-(--control-bg) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none transition-colors truncate"
+              className="w-full min-w-32 bg-transparent font-serif italic text-xl text-(--text) placeholder:text-(--text-secondary) rounded-md px-2 py-1 border border-transparent hover:border-(--border) focus:border-(--control-border) focus:bg-(--control-bg) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none transition-colors truncate"
             />
           </div>
         </div>
 
         {/* Right: Silent Status + Model Selector + Master GEM/Persona + Routing + Export + History Pane */}
-        <div className="w-full sm:w-auto flex items-center gap-2 flex-nowrap overflow-x-auto sm:overflow-visible [scrollbar-width:none]">
+        <div className="w-full sm:w-auto flex items-center justify-end gap-2 flex-wrap">
           {saveStatus === "error" ? (
             <button
               type="button"
@@ -213,142 +187,19 @@ export default function NovelcrafterTopBar({
           <button
             type="button"
             onClick={onOpenRoutingModal}
-            className="hidden lg:inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
-          >
-            <Crown className="w-3.5 h-3.5 text-(--accent) shrink-0" />
-            <span className="text-(--text-secondary)">{t("novelcrafterMasterGemBadge")}:</span>
-            <span className="font-semibold truncate max-w-[120px]">
-              {masterGem ? masterGem.name : t("novelcrafterNoMasterGem")}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenRoutingModal}
-            className="hidden xl:inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
-          >
-            <UserCheck className="w-3.5 h-3.5 text-(--accent) shrink-0" />
-            <span className="text-(--text-secondary)">{t("novelcrafterMasterPersonaBadge")}:</span>
-            <span className="font-semibold truncate max-w-[120px]">
-              {masterPersona ? masterPersona.name : t("novelcrafterNoMasterPersona")}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenRoutingModal}
             aria-label={t("novelcrafterRoutingButton")}
-            className="inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg bg-(--accent) text-(--accent-foreground) hover:brightness-110 text-xs font-semibold shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            aria-describedby={aiSummaryId}
+            title={aiSummary}
+            className="inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg border border-(--line) text-xs font-medium text-(--text) hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
           >
-            <Settings2 className="w-3.5 h-3.5 shrink-0" />
+            <Settings2 aria-hidden="true" className="w-3.5 h-3.5 text-(--accent) shrink-0" />
             <span className="hidden sm:inline">{t("novelcrafterRoutingButton")}</span>
           </button>
+          <span id={aiSummaryId} className="sr-only">
+            {aiSummary}
+          </span>
 
-          <Link
-            href="/novelcrafter/prompts"
-            aria-label={t("novelcrafterPromptStudioOpen")}
-            title={t("novelcrafterPromptStudioOpen")}
-            className="inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-semibold text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
-          >
-            <ScrollText className="w-3.5 h-3.5 text-(--accent) shrink-0" />
-            <span className="hidden sm:inline">{t("novelcrafterPromptStudioOpen")}</span>
-          </Link>
-
-          {onExportManuscript && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  title={t("novelcrafterExportMenuBtn")}
-                  aria-label={t("novelcrafterExportMenuBtn")}
-                  className="inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg border border-(--border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
-                >
-                  <Download className="w-3.5 h-3.5 text-(--accent) shrink-0" />
-                  <span className="hidden sm:inline">{t("novelcrafterExportMenuBtn")}</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuLabel className="text-xs">
-                  {t("novelcrafterExportMenuBtn")}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
-                  checked={exportIncludeBible}
-                  onCheckedChange={(val) => setExportIncludeBible(Boolean(val))}
-                  onSelect={(e) => e.preventDefault()}
-                  className="text-xs"
-                >
-                  {t("novelcrafterExportIncludeBible")}
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={exportIncludeSummaries}
-                  onCheckedChange={(val) => setExportIncludeSummaries(Boolean(val))}
-                  onSelect={(e) => e.preventDefault()}
-                  className="text-xs"
-                >
-                  {t("novelcrafterExportIncludeSummaries")}
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() =>
-                    onExportManuscript({
-                      format: "md",
-                      includeStoryBible: exportIncludeBible,
-                      includeChapterSummaries: exportIncludeSummaries,
-                    })
-                  }
-                  className="text-xs gap-2"
-                >
-                  <FileCode2 className="w-3.5 h-3.5 text-(--accent)" />
-                  <span>{t("novelcrafterExportMarkdownBtn")}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    onExportManuscript({
-                      format: "txt",
-                      includeStoryBible: exportIncludeBible,
-                      includeChapterSummaries: exportIncludeSummaries,
-                    })
-                  }
-                  className="text-xs gap-2"
-                >
-                  <FileText className="w-3.5 h-3.5 text-(--text-secondary)" />
-                  <span>{t("novelcrafterExportPlainTextBtn")}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setLanguage(language === "vi" ? "en" : "vi")}
-            aria-label={t("selectLanguage")}
-            title={t("selectLanguage")}
-            className="hidden md:inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-bold uppercase text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
-          >
-            <Globe className="w-3.5 h-3.5 text-(--accent) shrink-0" />
-            <span>{language === "vi" ? "VN" : "EN"}</span>
-          </button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label={t("selectTheme")}
-                title={t("selectTheme")}
-                className="hidden md:inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-(--control-border) bg-(--control-bg) hover:bg-(--control-bg-hover) text-xs font-medium text-(--text-primary) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
-              >
-                <Palette className="w-3.5 h-3.5 text-(--accent) shrink-0" />
-                <span className="hidden xl:inline">{t("themes")}</span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-56 max-h-80 overflow-y-auto custom-scrollbar"
-            >
-              <ThemeMenuItems />
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <NovelcrafterTopBarMenu onExportManuscript={onExportManuscript} />
 
           <button
             type="button"

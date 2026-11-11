@@ -1002,8 +1002,11 @@ export const vi = {
   novelcrafterNoMasterGem: "Chưa chọn GEM Tổng",
   novelcrafterMasterPersonaBadge: "Persona Tổng",
   novelcrafterNoMasterPersona: "Không dùng Persona Tổng",
-  novelcrafterRoutingButton: "Cài đặt GEM & Persona",
-  novelcrafterRoutingTitle: "Cài đặt Ghép tầng GEM & Persona",
+  novelcrafterRoutingButton: "Cài đặt AI",
+  novelcrafterMoreMenu: "Thêm",
+  novelcrafterAiSettingsSummary: "GEM tổng: {gem} · Persona tổng: {persona}",
+  novelcrafterLanguageSwitch: "Ngôn ngữ: {lang}",
+  novelcrafterRoutingTitle: "Cài đặt AI của truyện",
   novelcrafterRoutingSubtitle:
     "GEM Tổng giữ vai trò chỉ dẫn hệ thống ưu tiên số 1. Persona của từng tính năng bổ sung giọng điệu và phong cách viết.",
   novelcrafterMasterGemLabel: "1. Chọn GEM Tổng (Ưu tiên số 1)",
