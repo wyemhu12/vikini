@@ -8,6 +8,16 @@
 
 ---
 
+## 2026-11-11: Vikini 3.0 Phase 6B -- Sign-in & Auth Error on Theme (H7, C4)
+
+- **H7**: huy hiệu "MÃ HÓA ĐẦU-CUỐI" (sai với kiến trúc) → **"Mã hóa dữ liệu khi lưu trữ"**; xóa key `encryptedE2E`.
+- **`AuthShell.tsx`** (mới) dùng chung cho `/auth/signin` và `/auth/error`: nền và quầng sáng theo theme người dùng (bỏ đen cứng, vàng gold, gradient đỏ, `styled-jsx`), nút ngôn ngữ có `aria-pressed`.
+- **C4**: bỏ chữ 10px in hoa giãn chữ mờ 20–30%; mọi chữ ≥ 12px theo token; "Đăng nhập với Google", "Chỉ dành cho tài khoản được cấp phép" chữ thường.
+- Trang lỗi: thông báo trong `role="alert"`, icon Lucide, "whitelist" → "danh sách được cấp phép".
+- Chưa đổi (để PM quyết): khẩu hiệu "Ít kiểm duyệt hơn. AI được mã hóa."
+
+---
+
 ## 2026-11-11: Vikini 3.0 Phase 6A -- Gems & Personas Card Grid (H3)
 
 - **`components/ui/library-card.tsx`** (mới, dùng chung): tên tối đa 2 dòng (không cắt "Writ…"), mô tả 3 dòng, **một nút chính** + menu "⋯" (Xem trước, Sửa; Xóa tách riêng ở cuối, màu `--danger`).
