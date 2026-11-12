@@ -4,22 +4,13 @@
 import React from "react";
 import {
   ChevronDown,
-  Expand,
   Lightbulb,
-  ListOrdered,
   MessageSquareQuote,
-  MoreHorizontal,
   PenTool,
-  RefreshCw,
   Sparkles,
   Square,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
 import {
@@ -34,7 +25,6 @@ import {
   type NovelcrafterWriteMode,
 } from "@/lib/features/novelcrafter/types";
 import type { TranslationKey } from "@/lib/utils/translations";
-import type { NovelcrafterPromptActionKey } from "@/lib/features/novelcrafter/promptActions";
 import ChapterAiToolMenus, { type ActiveChapterToolMenu } from "./ChapterAiToolMenus";
 import PromptSourceTooltip from "./PromptSourceTooltip";
 
@@ -117,8 +107,6 @@ export interface ChapterAiToolbarProps {
   isStreaming: boolean;
   onStopStream: () => void;
   selectedCharCount: number;
-  beatsOpen: boolean;
-  onToggleBeats: () => void;
   openFeedbackCount: number;
   showFeedbackGutter: boolean;
   onToggleFeedbackGutter: () => void;
@@ -150,14 +138,17 @@ export interface ChapterAiToolbarProps {
   ) => void;
 }
 
+type ToolbarMenuKey = "write" | "feedback" | "brainstorm";
+
+const FOCUS_RING = "focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none";
+
+/** Chapter-level AI actions only; selection actions live in the selection bubble (UX cleanup G3). */
 export default function ChapterAiToolbar({
   activeMenu,
   onSelectMenu,
   isStreaming,
   onStopStream,
   selectedCharCount,
-  beatsOpen,
-  onToggleBeats,
   openFeedbackCount,
   showFeedbackGutter,
   onToggleFeedbackGutter,
@@ -169,82 +160,43 @@ export default function ChapterAiToolbar({
   onRunBrainstorm,
 }: ChapterAiToolbarProps) {
   const { t } = useLanguage();
-  const toggleMenu = (menu: Exclude<ActiveChapterToolMenu, null>) =>
-    onSelectMenu(activeMenu === menu ? null : menu);
 
-  const secondaryTools: ReadonlyArray<{
-    key: Exclude<ActiveChapterToolMenu, "write" | null>;
-    actionKey: NovelcrafterPromptActionKey;
-    label: string;
-    tip: string;
-    Icon: typeof RefreshCw;
-  }> = [
-    {
-      key: "rewrite",
-      actionKey: "rewrite:rephrase",
-      label: t("novelcrafterSlotRewrite"),
-      tip: t("novelcrafterRewriteTooltip"),
-      Icon: RefreshCw,
-    },
-    {
-      key: "feedback",
-      actionKey: "feedback:developmental",
-      label: t("novelcrafterSlotFeedback"),
-      tip: t("novelcrafterFeedbackTooltip"),
-      Icon: MessageSquareQuote,
-    },
-    {
-      key: "expand",
-      actionKey: "expand:expand",
-      label: t("novelcrafterSlotExpand"),
-      tip: t("novelcrafterExpandTooltip"),
-      Icon: Expand,
-    },
-    {
-      key: "brainstorm",
-      actionKey: "brainstorm:plot_twists",
-      label: t("novelcrafterSlotBrainstorm"),
-      tip: t("novelcrafterBrainstormTooltip"),
-      Icon: Lightbulb,
-    },
-  ];
+  const menuButtonCls = (key: ToolbarMenuKey, extra?: string) =>
+    cn(
+      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs md:text-[13px] font-semibold transition-colors disabled:opacity-50 shrink-0 whitespace-nowrap",
+      FOCUS_RING,
+      activeMenu === key
+        ? "bg-(--surface) border-(--accent) text-(--accent)"
+        : "bg-(--surface) hover:bg-(--raised) border-(--line) text-(--text)",
+      extra
+    );
 
-  const renderToolBtn = ({
-    key,
-    actionKey,
-    label,
-    tip,
-    Icon,
-    extraClass,
-  }: (typeof secondaryTools)[number] & { extraClass?: string }) => (
-    <PromptSourceTooltip key={key} actionKey={actionKey} disabled={isStreaming} side="bottom">
-      <button
-        type="button"
-        disabled={isStreaming}
-        aria-pressed={activeMenu === key}
-        onClick={() => toggleMenu(key)}
-        title={tip}
-        className={cn(
-          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs md:text-[13px] font-semibold shadow-xs transition-all disabled:opacity-50 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-          activeMenu === key
-            ? "bg-(--accent) text-(--on-accent) border-(--accent)"
-            : "bg-(--surface) hover:bg-(--raised) border-(--line) text-(--text)",
-          extraClass
-        )}
+  // One Popover per menu button: Radix toggles on re-click and returns focus to the trigger.
+  const withMenu = (key: ToolbarMenuKey, trigger: React.ReactElement) => (
+    <Popover open={activeMenu === key} onOpenChange={(open) => onSelectMenu(open ? key : null)}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={8}
+        // Keep focus on the trigger: inner items have focus tooltips that would capture Escape.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="w-[min(720px,calc(100vw-2rem))] max-w-none p-3"
       >
-        <Icon
-          className={cn(
-            "w-3.5 h-3.5 shrink-0",
-            activeMenu === key ? "text-(--on-accent)" : "text-(--accent)"
-          )}
+        <ChapterAiToolMenus
+          activeMenu={key}
+          isStreaming={isStreaming}
+          onRunWrite={onRunWrite}
+          onRunRewrite={onRunRewrite}
+          onRunFeedback={onRunFeedback}
+          onRunExpand={onRunExpand}
+          onRunBrainstorm={onRunBrainstorm}
         />
-        <span>{label}</span>
-      </button>
-    </PromptSourceTooltip>
+      </PopoverContent>
+    </Popover>
   );
 
   return (
-    <div className="shrink-0 border-b border-(--line) bg-(--raised)/60 backdrop-blur-md px-3 md:px-6 py-2 space-y-1.5">
+    <div className="shrink-0 border-b border-(--line) bg-(--raised)/60 backdrop-blur-md px-3 md:px-6 py-2">
       <div className="flex items-center justify-between gap-2 flex-nowrap overflow-hidden">
         <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto [scrollbar-width:none] min-w-0">
           <PromptSourceTooltip
@@ -258,100 +210,95 @@ export default function ChapterAiToolbar({
               disabled={isStreaming}
               onClick={onRunFirstDraft}
               title={t("novelcrafterFirstDraftTooltip")}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-(--accent) text-(--on-accent) hover:brightness-110 shadow-sm text-xs md:text-[13px] font-semibold transition-all disabled:opacity-50 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-(--accent) text-(--on-accent) hover:brightness-110 shadow-sm text-xs md:text-[13px] font-semibold transition-all disabled:opacity-50 shrink-0 whitespace-nowrap",
+                FOCUS_RING
+              )}
             >
               <Sparkles className="w-3.5 h-3.5 shrink-0" />
-              <span>{t("novelcrafterFirstDraftCtaBtn")}</span>
+              <span>{t("novelcrafterDraftChapterBtn")}</span>
             </button>
           </PromptSourceTooltip>
 
-          <button
-            type="button"
-            aria-pressed={beatsOpen}
-            onClick={onToggleBeats}
-            className={cn(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs md:text-[13px] font-medium transition-all shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-              beatsOpen
-                ? "bg-(--surface) border-(--line) text-(--accent) shadow-xs"
-                : "bg-(--raised) hover:bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
-            )}
-          >
-            <ListOrdered className="w-3.5 h-3.5 shrink-0" />
-            <span>{t("novelcrafterChapterBeatsLabel")}</span>
-          </button>
-
           <span className="h-4 w-px bg-(--line) mx-0.5 hidden sm:inline-block shrink-0" />
 
-          <div className="inline-flex items-center rounded-full border border-(--line) bg-(--surface) shadow-xs overflow-hidden shrink-0">
+          <div className="inline-flex items-center rounded-full border border-(--line) bg-(--surface) overflow-hidden shrink-0">
             <PromptSourceTooltip actionKey="write:auto" disabled={isStreaming} side="bottom">
               <button
                 type="button"
                 disabled={isStreaming}
                 onClick={() => onRunWrite({ mode: "auto", subLabel: t("novelcrafterWriteAuto") })}
                 title={t("novelcrafterWriteTooltip")}
-                className="inline-flex items-center gap-1.5 pl-3.5 pr-2.5 py-1.5 text-xs md:text-[13px] font-semibold text-(--text) hover:bg-(--raised) transition-colors disabled:opacity-50 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                className={cn(
+                  "inline-flex items-center gap-1.5 pl-3.5 pr-2.5 py-1.5 text-xs md:text-[13px] font-semibold text-(--text) hover:bg-(--raised) transition-colors disabled:opacity-50 whitespace-nowrap",
+                  FOCUS_RING
+                )}
               >
                 <PenTool className="w-3.5 h-3.5 text-(--accent) shrink-0" />
                 <span>{t("novelcrafterSlotWrite")}</span>
               </button>
             </PromptSourceTooltip>
-            <button
-              type="button"
-              disabled={isStreaming}
-              aria-pressed={activeMenu === "write"}
-              aria-label={t("novelcrafterSlotWrite")}
-              onClick={() => toggleMenu("write")}
-              className={cn(
-                "px-2 py-1.5 border-l border-(--line) transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-                activeMenu === "write"
-                  ? "bg-(--accent) text-(--on-accent)"
-                  : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
-              )}
-            >
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <span className="h-4 w-px bg-(--line) mx-0.5 hidden lg:inline-block shrink-0" />
-
-          {/* Rewrite & Feedback visible on lg+ */}
-          {renderToolBtn({ ...secondaryTools[0], extraClass: "hidden lg:inline-flex" })}
-          {renderToolBtn({ ...secondaryTools[1], extraClass: "hidden lg:inline-flex" })}
-
-          {/* Expand & Brainstorm visible on xl+ */}
-          {renderToolBtn({ ...secondaryTools[2], extraClass: "hidden xl:inline-flex" })}
-          {renderToolBtn({ ...secondaryTools[3], extraClass: "hidden xl:inline-flex" })}
-
-          {/* Overflow DropdownMenu for <xl (shows all 4 on <lg, or Expand+Brainstorm on lg..xl) */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            {withMenu(
+              "write",
               <button
                 type="button"
                 disabled={isStreaming}
-                className="xl:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--text) shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                aria-label={t("novelcrafterWriteMenuAria")}
+                className={cn(
+                  "px-2 py-1.5 border-l transition-colors disabled:opacity-50",
+                  FOCUS_RING,
+                  activeMenu === "write"
+                    ? "border-(--accent) text-(--accent)"
+                    : "border-(--line) text-(--muted) hover:text-(--text) hover:bg-(--raised)"
+                )}
               >
-                <MoreHorizontal className="w-3.5 h-3.5 text-(--accent)" />
-                <span>{t("novelcrafterMoreToolsBtn")}</span>
+                <ChevronDown className="w-3.5 h-3.5" />
               </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-44">
-              {secondaryTools.map(({ key, label, Icon }, idx) => (
-                <DropdownMenuItem
-                  key={key}
-                  onSelect={() => toggleMenu(key)}
-                  className={cn("gap-2", idx < 2 && "lg:hidden")}
-                >
-                  <Icon className="w-3.5 h-3.5 text-(--accent)" />
-                  <span>{label}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            )}
+          </div>
+
+          <PromptSourceTooltip
+            actionKey="feedback:developmental"
+            disabled={isStreaming || activeMenu === "feedback"}
+            side="bottom"
+          >
+            {withMenu(
+              "feedback",
+              <button
+                type="button"
+                disabled={isStreaming}
+                title={t("novelcrafterFeedbackTooltip")}
+                className={menuButtonCls("feedback")}
+              >
+                <MessageSquareQuote className="w-3.5 h-3.5 shrink-0 text-(--accent)" />
+                <span>{t("novelcrafterSlotFeedback")}</span>
+              </button>
+            )}
+          </PromptSourceTooltip>
+
+          <PromptSourceTooltip
+            actionKey="brainstorm:plot_twists"
+            disabled={isStreaming || activeMenu === "brainstorm"}
+            side="bottom"
+          >
+            {withMenu(
+              "brainstorm",
+              <button
+                type="button"
+                disabled={isStreaming}
+                title={t("novelcrafterBrainstormTooltip")}
+                className={menuButtonCls("brainstorm")}
+              >
+                <Lightbulb className="w-3.5 h-3.5 shrink-0 text-(--accent)" />
+                <span>{t("novelcrafterSlotBrainstorm")}</span>
+              </button>
+            )}
+          </PromptSourceTooltip>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           {selectedCharCount > 0 && (
-            <span className="hidden sm:inline-block text-xs px-2.5 py-1 rounded-full bg-(--accent)/15 text-(--accent) border border-(--accent)/30 font-medium whitespace-nowrap">
+            <span className="hidden sm:inline-block text-xs px-2.5 py-1 rounded-full border border-(--accent)/30 text-(--accent) font-medium whitespace-nowrap">
               {t("novelcrafterSelectedChars").replace("{count}", String(selectedCharCount))}
             </span>
           )}
@@ -361,15 +308,16 @@ export default function ChapterAiToolbar({
             aria-pressed={showFeedbackGutter}
             onClick={onToggleFeedbackGutter}
             className={cn(
-              "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs font-semibold transition-colors whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+              "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs font-semibold transition-colors whitespace-nowrap",
+              FOCUS_RING,
               showFeedbackGutter || openFeedbackCount > 0
-                ? "bg-(--accent)/15 border-(--accent)/40 text-(--accent)"
+                ? "bg-(--surface) border-(--accent)/60 text-(--accent)"
                 : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
             )}
           >
             <MessageSquareQuote className="w-3.5 h-3.5" />
             <span>
-              {t("novelcrafterFeedbackOpen")} {openFeedbackCount}
+              {t("novelcrafterFeedbackPanelBtn").replace("{count}", String(openFeedbackCount))}
             </span>
           </button>
 
@@ -377,7 +325,10 @@ export default function ChapterAiToolbar({
             <button
               type="button"
               onClick={onStopStream}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-(--danger) text-(--danger-foreground) hover:bg-(--danger-hover) text-xs font-semibold transition-colors whitespace-nowrap focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-(--danger) text-(--danger-foreground) hover:bg-(--danger-hover) text-xs font-semibold transition-colors whitespace-nowrap",
+                FOCUS_RING
+              )}
             >
               <Square className="w-3.5 h-3.5" />
               <span>{t("stopBtn")}</span>
@@ -385,16 +336,6 @@ export default function ChapterAiToolbar({
           )}
         </div>
       </div>
-
-      <ChapterAiToolMenus
-        activeMenu={activeMenu}
-        isStreaming={isStreaming}
-        onRunWrite={onRunWrite}
-        onRunRewrite={onRunRewrite}
-        onRunFeedback={onRunFeedback}
-        onRunExpand={onRunExpand}
-        onRunBrainstorm={onRunBrainstorm}
-      />
     </div>
   );
 }

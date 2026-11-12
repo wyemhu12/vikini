@@ -2,7 +2,16 @@
 "use client";
 
 import React, { useState, useEffect, useId } from "react";
-import { AlertCircle, Check, Clock, Loader2, PanelLeft, PanelRight, Settings2 } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  Clock,
+  Loader2,
+  Menu,
+  PanelLeft,
+  PanelRight,
+  Settings2,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -51,6 +60,9 @@ interface NovelcrafterTopBarProps {
   onChangeRenameStoryTitle?: (val: string) => void;
   onCloseRenameStoryModal?: () => void;
   onConfirmRenameStory?: () => void;
+  /** Compact two-row layout below 768px (no app header on the Studio page). */
+  isMobileLayout?: boolean;
+  onOpenSidebar?: () => void;
 }
 
 export default function NovelcrafterTopBar({
@@ -77,6 +89,8 @@ export default function NovelcrafterTopBar({
   onChangeRenameStoryTitle,
   onCloseRenameStoryModal,
   onConfirmRenameStory,
+  isMobileLayout = false,
+  onOpenSidebar,
 }: NovelcrafterTopBarProps) {
   const { t } = useLanguage();
   const [titleDraft, setTitleDraft] = useState(storyTitle);
@@ -103,20 +117,32 @@ export default function NovelcrafterTopBar({
       <header className="shrink-0 border-b border-(--line) bg-(--bg) px-3 md:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2 z-20">
         {/* Left: Pane Toggle + Story Title */}
         <div className="flex flex-wrap items-center gap-2 basis-full sm:basis-0 sm:flex-1 min-w-0">
-          <button
-            type="button"
-            onClick={onToggleLeftPane}
-            aria-pressed={showLeftPane}
-            aria-label={t("novelcrafterToggleNavigatorPane")}
-            className={cn(
-              "p-2 rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0",
-              showLeftPane
-                ? "bg-(--raised) border-(--line) text-(--accent)"
-                : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
-            )}
-          >
-            <PanelLeft className="w-4 h-4" />
-          </button>
+          {isMobileLayout && (
+            <button
+              type="button"
+              onClick={onOpenSidebar}
+              aria-label={t("novelcrafterOpenStoriesMenu")}
+              className="p-2 rounded-lg border border-(--line) bg-(--raised) text-(--text) shrink-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+          )}
+          {!isMobileLayout && (
+            <button
+              type="button"
+              onClick={onToggleLeftPane}
+              aria-pressed={showLeftPane}
+              aria-label={t("novelcrafterToggleNavigatorPane")}
+              className={cn(
+                "p-2 rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0",
+                showLeftPane
+                  ? "bg-(--raised) border-(--line) text-(--accent)"
+                  : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
+              )}
+            >
+              <PanelLeft className="w-4 h-4" />
+            </button>
+          )}
 
           <div className="flex items-center gap-2 min-w-0 flex-1 max-w-md">
             <input
@@ -131,14 +157,22 @@ export default function NovelcrafterTopBar({
               }}
               placeholder={t("novelcrafterStoryTitlePlaceholder")}
               aria-label={t("novelcrafterStoryTitlePlaceholder")}
-              className="w-full min-w-16 sm:min-w-32 bg-transparent font-serif italic text-xl text-(--text) placeholder:text-(--muted) rounded-md px-2 py-1 border border-transparent hover:border-(--line) focus:border-(--line) focus:bg-(--raised) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none transition-colors truncate"
+              className="w-full min-w-16 sm:min-w-32 bg-transparent font-serif italic text-lg md:text-xl text-(--text) placeholder:text-(--muted) rounded-md px-2 py-1 border border-transparent hover:border-(--line) focus:border-(--line) focus:bg-(--raised) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none transition-colors truncate"
             />
           </div>
-          {viewTabs}
+          {isMobileLayout && (
+            <NovelcrafterTopBarMenu
+              onExportManuscript={onExportManuscript}
+              showAppSettings
+              mobileActions={{ onOpenAiSettings: onOpenRoutingModal, onToggleLeftPane }}
+            />
+          )}
+          {!isMobileLayout && viewTabs}
         </div>
 
         {/* Right: Silent Status + Model Selector + Master GEM/Persona + Routing + Export + History Pane */}
         <div className="w-full sm:w-auto flex items-center justify-end gap-2 flex-wrap">
+          {isMobileLayout && <div className="mr-auto min-w-0">{viewTabs}</div>}
           {saveStatus === "error" ? (
             <button
               type="button"
@@ -187,42 +221,47 @@ export default function NovelcrafterTopBar({
             expandDown={true}
           />
 
-          <button
-            type="button"
-            onClick={onOpenRoutingModal}
-            aria-label={t("novelcrafterRoutingButton")}
-            aria-describedby={aiSummaryId}
-            title={aiSummary}
-            className="inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg border border-(--line) text-xs font-medium text-(--text) hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
-          >
-            <Settings2 aria-hidden="true" className="w-3.5 h-3.5 text-(--accent) shrink-0" />
-            <span className="hidden sm:inline">{t("novelcrafterRoutingButton")}</span>
-          </button>
+          {!isMobileLayout && (
+            <button
+              type="button"
+              onClick={onOpenRoutingModal}
+              aria-label={t("novelcrafterRoutingButton")}
+              aria-describedby={aiSummaryId}
+              title={aiSummary}
+              className="inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg border border-(--line) text-xs font-medium text-(--text) hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
+            >
+              <Settings2 aria-hidden="true" className="w-3.5 h-3.5 text-(--accent) shrink-0" />
+              <span className="hidden sm:inline">{t("novelcrafterRoutingButton")}</span>
+            </button>
+          )}
           <span id={aiSummaryId} className="sr-only">
             {aiSummary}
           </span>
 
-          <NovelcrafterTopBarMenu onExportManuscript={onExportManuscript} />
+          {!isMobileLayout && <NovelcrafterTopBarMenu onExportManuscript={onExportManuscript} />}
 
-          <button
-            type="button"
-            onClick={onToggleRightPane}
-            aria-pressed={showRightPane}
-            aria-label={t("novelcrafterToggleHistoryPane")}
-            className={cn(
-              "relative inline-flex items-center gap-1 p-2 rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-              showRightPane
-                ? "bg-(--raised) border-(--line) text-(--accent)"
-                : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
-            )}
-          >
-            <PanelRight className="w-4 h-4" />
-            {historyCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-(--accent)/20 text-(--accent) text-xs font-bold">
-                {historyCount}
-              </span>
-            )}
-          </button>
+          {/* Mobile: AI cards are opened from the bottom AI dock instead. */}
+          {!isMobileLayout && (
+            <button
+              type="button"
+              onClick={onToggleRightPane}
+              aria-pressed={showRightPane}
+              aria-label={t("novelcrafterToggleHistoryPane")}
+              className={cn(
+                "relative inline-flex items-center gap-1 p-2 rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+                showRightPane
+                  ? "bg-(--raised) border-(--line) text-(--accent)"
+                  : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
+              )}
+            >
+              <PanelRight className="w-4 h-4" />
+              {historyCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-(--accent)/20 text-(--accent) text-xs font-bold">
+                  {historyCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </header>
 

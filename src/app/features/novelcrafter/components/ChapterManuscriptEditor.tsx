@@ -15,17 +15,16 @@ import { isSafeDecorationId } from "@/lib/features/novelcrafter/manuscriptDecora
 import type { ManuscriptFormat } from "@/lib/features/novelcrafter/manuscriptMarkup";
 import type { ManuscriptTypography } from "@/lib/features/novelcrafter/manuscriptTypography";
 import { computeQuoteScrollTop } from "@/lib/features/novelcrafter/quoteScrollPositioning";
-import {
-  computeSelectionBubblePosition,
-  type SelectionBubblePlacement,
-} from "@/lib/features/novelcrafter/selectionBubblePlacement";
+import { findScrollParent } from "../utils/scrollParent";
 import type {
   NovelcrafterFeedbackItem,
   NovelcrafterRewriteMode,
   StoryBible,
 } from "@/lib/features/novelcrafter/types";
 import { cn } from "@/lib/utils/cn";
+import { createPortal } from "react-dom";
 import { useManuscriptEditor, type EditorSelectionWithText } from "../hooks/useManuscriptEditor";
+import { useSelectionBubblePosition } from "../hooks/useSelectionBubblePosition";
 import { setSelectionOffsets } from "../utils/manuscriptDomOffsets";
 import { MANUSCRIPT_SHEET_CLASS } from "../utils/manuscriptSheetClasses";
 import ChapterSelectionToolbar, {
@@ -131,9 +130,6 @@ const ChapterManuscriptEditor = forwardRef<ManuscriptEditorHandle, ChapterManusc
     const [activeCodexPreview, setActiveCodexPreview] = useState<ActiveCodexPreviewState | null>(
       null
     );
-    const [bubblePlacement, setBubblePlacement] = useState<
-      SelectionBubblePlacement | "docked-bottom"
-    >("docked-bottom");
 
     const {
       rootRef,
@@ -175,58 +171,30 @@ const ChapterManuscriptEditor = forwardRef<ManuscriptEditorHandle, ChapterManusc
       anchor.style.setProperty("--nc-codex-left", `${activeCodexPreview.left}px`);
     }, [activeCodexPreview]);
 
-    useLayoutEffect(() => {
-      if (!selection || selection.text.trim().length === 0 || readOnly) return;
-      const isCoarse =
-        feedbackMode === "bottom-sheet" ||
-        (typeof window !== "undefined" &&
-          typeof window.matchMedia === "function" &&
-          window.matchMedia("(pointer: coarse)").matches);
-      if (isCoarse) {
-        setBubblePlacement("docked-bottom");
-        return;
-      }
+    const showBubble = Boolean(selection && selection.text.trim().length > 0 && !readOnly);
+    const isDockedBubble =
+      feedbackMode === "bottom-sheet" ||
+      (typeof window !== "undefined" &&
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(pointer: coarse)").matches);
 
-      const wrapper = wrapperRef.current;
-      const root = rootRef.current;
-      if (!wrapper || !root) return;
-
-      const wrapperRect = wrapper.getBoundingClientRect();
-      let selRect: DOMRect | null = null;
-      const docSel = document.getSelection();
-      if (docSel && docSel.rangeCount > 0 && root.contains(docSel.anchorNode)) {
-        const rect = docSel.getRangeAt(0).getBoundingClientRect();
-        if (rect.width > 0 || rect.height > 0) selRect = rect;
-      }
-      if (!selRect) {
-        const persistedEl = root.querySelector<HTMLElement>(".nc-selection");
-        if (persistedEl) selRect = persistedEl.getBoundingClientRect();
-      }
-      if (!selRect || (selRect.width === 0 && selRect.height === 0)) {
-        setBubblePlacement({ top: 8, left: 16, placement: "above" });
-        return;
-      }
-
-      setBubblePlacement(
-        computeSelectionBubblePosition({
-          selectionRect: {
-            top: selRect.top,
-            left: selRect.left,
-            width: selRect.width,
-            height: selRect.height,
-          },
-          containerRect: {
-            top: wrapperRect.top,
-            left: wrapperRect.left,
-            width: wrapperRect.width,
-            height: wrapperRect.height,
-          },
-          containerScrollTop: 0,
-          bubbleWidth: 440,
-          bubbleHeight: bubble.quickEdit.open ? 88 : 44,
-        })
-      );
-    }, [selection, readOnly, feedbackMode, bubble.quickEdit.open, rootRef]);
+    const floatingBubble = useSelectionBubblePosition({
+      enabled: showBubble && !isDockedBubble,
+      getSelectionRect: () => {
+        const root = rootRef.current;
+        if (!root) return null;
+        const docSel = document.getSelection();
+        if (docSel && docSel.rangeCount > 0 && root.contains(docSel.anchorNode)) {
+          const rect = docSel.getRangeAt(0).getBoundingClientRect();
+          if (rect.width > 0 || rect.height > 0) return rect;
+        }
+        return root.querySelector<HTMLElement>(".nc-selection")?.getBoundingClientRect() ?? null;
+      },
+      getBoundaryRect: () => findScrollParent(rootRef.current)?.getBoundingClientRect() ?? null,
+      bubbleWidth: 440,
+      bubbleHeight: bubble.quickEdit.open ? 88 : 44,
+      updateKey: `${selection?.start ?? -1}:${selection?.end ?? -1}:${bubble.quickEdit.open}`,
+    });
 
     useImperativeHandle(
       ref,
@@ -266,8 +234,9 @@ const ChapterManuscriptEditor = forwardRef<ManuscriptEditorHandle, ChapterManusc
             });
           }
 
-          const container = scrollContainerRef?.current;
           const targetEl = markEl ?? root.querySelector<HTMLElement>(".nc-selection");
+          const outer = scrollContainerRef?.current ?? null;
+          const container = findScrollParent(targetEl) ?? outer;
           if (container && targetEl) {
             const targetTop = computeQuoteScrollTop({
               targetRectTop: targetEl.getBoundingClientRect().top,
@@ -276,6 +245,10 @@ const ChapterManuscriptEditor = forwardRef<ManuscriptEditorHandle, ChapterManusc
               containerClientHeight: container.clientHeight,
             });
             container.scrollTo({ top: targetTop, behavior: "smooth" });
+            // Inner manuscript box: also bring the box itself into the outer viewport.
+            if (container !== outer && typeof container.scrollIntoView === "function") {
+              container.scrollIntoView({ block: "nearest" });
+            }
           }
           return true;
         },
@@ -309,21 +282,27 @@ const ChapterManuscriptEditor = forwardRef<ManuscriptEditorHandle, ChapterManusc
       });
     };
 
-    const showBubble = Boolean(selection && selection.text.trim().length > 0 && !readOnly);
+    const bubbleProps = {
+      disabled: bubble.disabled,
+      onRewrite: bubble.onRewrite,
+      onDescribe: bubble.onDescribe,
+      onExpand: bubble.onExpand,
+      onFeedback: bubble.onFeedback,
+      quickEdit: bubble.quickEdit,
+    };
 
     return (
       <div ref={wrapperRef} className={cn("relative", MANUSCRIPT_SHEET_CLASS)}>
-        {showBubble && (
-          <ChapterSelectionToolbar
-            placement={bubblePlacement}
-            disabled={bubble.disabled}
-            onRewrite={bubble.onRewrite}
-            onDescribe={bubble.onDescribe}
-            onExpand={bubble.onExpand}
-            onFeedback={bubble.onFeedback}
-            quickEdit={bubble.quickEdit}
-          />
+        {showBubble && isDockedBubble && (
+          <ChapterSelectionToolbar placement="docked-bottom" {...bubbleProps} />
         )}
+        {showBubble &&
+          !isDockedBubble &&
+          floatingBubble &&
+          createPortal(
+            <ChapterSelectionToolbar placement={floatingBubble} {...bubbleProps} />,
+            document.body
+          )}
 
         <Popover
           open={Boolean(activeCodexPreview)}
@@ -425,7 +404,7 @@ const ChapterManuscriptEditor = forwardRef<ManuscriptEditorHandle, ChapterManusc
             "[&_.nc-h1]:text-[1.55em] [&_.nc-h1]:font-semibold [&_.nc-h1]:leading-[1.3] [&_.nc-h1]:mt-4 [&_.nc-h1]:mb-2",
             "[&_.nc-h2]:text-[1.3em] [&_.nc-h2]:font-semibold [&_.nc-h2]:leading-[1.35] [&_.nc-h2]:mt-3 [&_.nc-h2]:mb-1.5",
             "[&_.nc-sceneBreak]:text-center [&_.nc-sceneBreak]:tracking-[0.5em] [&_.nc-sceneBreak]:text-(--muted) [&_.nc-sceneBreak]:my-4",
-            "[&_.nc-marker]:opacity-40 [&_.nc-marker]:text-[0.88em] [&_.nc-marker]:font-normal",
+            "[&_.nc-marker]:opacity-15 [&:focus-within_.nc-marker]:opacity-40 [&_.nc-marker]:text-[0.88em] [&_.nc-marker]:font-normal",
             "[&_.nc-bold]:font-bold",
             "[&_.nc-italic]:italic",
             "[&_.nc-strike]:line-through [&_.nc-strike]:opacity-75",

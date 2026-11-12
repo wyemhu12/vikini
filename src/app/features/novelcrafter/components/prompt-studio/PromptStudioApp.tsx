@@ -1,7 +1,7 @@
 // /app/features/novelcrafter/components/prompt-studio/PromptStudioApp.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import ToastContainer from "@/components/ui/ToastContainer";
@@ -45,6 +45,27 @@ export default function PromptStudioApp() {
   const sidebarCollapsed = useLayoutStore((s) => s.panelCollapsedBySection.novelcrafter);
   const togglePanel = useLayoutStore((s) => s.togglePanel);
   const openPalette = useCommandPaletteStore((s) => s.open);
+
+  const previewSource = useMemo(
+    () => ({
+      storyBible: story.storyState.storyBible,
+      chapter: {
+        title: story.activeChapter.title,
+        content: story.activeChapter.content,
+        scenes: story.activeChapter.scenes,
+        summary: story.activeChapter.summary ?? "",
+        extraInstructions: story.activeChapter.extraInstructions ?? "",
+      },
+      previousChapterProseTail: story.previousChapterProseTail,
+      previousChapterSummaries: story.previousChapterSummaries,
+    }),
+    [
+      story.storyState.storyBible,
+      story.activeChapter,
+      story.previousChapterProseTail,
+      story.previousChapterSummaries,
+    ]
+  );
 
   const currentStoryObj = story.stories.find((s) => s.id === story.validStoryId);
   const currentTitle = currentStoryObj?.title || t("novelcrafterUntitledStory");
@@ -105,6 +126,7 @@ export default function PromptStudioApp() {
             onUpdateFeaturePersonaSlot={story.updateFeaturePersonaSlot}
             onUpdateFeatureModelSlot={story.updateFeatureModelSlot}
             backHref="/novelcrafter"
+            previewSource={previewSource}
           />
         </div>
       </div>

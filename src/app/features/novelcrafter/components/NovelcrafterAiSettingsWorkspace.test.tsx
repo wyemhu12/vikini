@@ -24,7 +24,7 @@ vi.mock("../../personas/stores/usePersonaStore", () => ({
 }));
 
 describe("NovelcrafterAiSettingsWorkspace (Phase 5D TC-05)", () => {
-  it("renders inheritance table + Prompt Studio aside, navigates AI actions with keyboard, toggles context nodes, and closes on Escape", async () => {
+  it("TC-U16: shows defaults and Prompt Studio as tabs, navigates AI actions with keyboard, toggles context nodes, flags sample data, and closes on Escape", async () => {
     const onClose = vi.fn();
     const state = createDefaultStoryState();
 
@@ -40,10 +40,20 @@ describe("NovelcrafterAiSettingsWorkspace (Phase 5D TC-05)", () => {
         onUpdateFeaturePersonaSlot={vi.fn()}
         onUpdateFeatureModelSlot={vi.fn()}
         onClose={onClose}
+        previewSource={{ storyBible: { ...state.storyBible, synopsis: "Truyện thật" } }}
       />
     );
 
-    const promptStudioAside = await screen.findByRole("complementary", {
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs).toHaveLength(2);
+    expect(tabs[0]).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(screen.getByRole("tab", { name: /Prompt Studio/i }));
+    expect(screen.getByRole("tab", { name: /Prompt Studio/i })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+
+    const promptStudioAside = await screen.findByRole("tabpanel", {
       name: /Prompt Studio/i,
     });
     expect(promptStudioAside).toBeInTheDocument();
@@ -71,6 +81,8 @@ describe("NovelcrafterAiSettingsWorkspace (Phase 5D TC-05)", () => {
 
     // Token badge is rendered in XML preview
     expect(screen.getByText(/≈.*token/i)).toBeInTheDocument();
+    // Sections the story has not filled in yet are flagged as sample data
+    expect(screen.getByText(viTranslations.novelcrafterPreviewSampleNotice)).toBeInTheDocument();
 
     // Toggle an optional context checkbox
     const checkboxes = promptStudioAside.querySelectorAll('input[type="checkbox"]:not(:disabled)');

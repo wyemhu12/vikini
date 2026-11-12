@@ -3,7 +3,16 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { FileCode2, FileText, Globe, MoreHorizontal, Palette, ScrollText } from "lucide-react";
+import {
+  FileCode2,
+  FileText,
+  Globe,
+  MoreHorizontal,
+  Palette,
+  PanelLeft,
+  ScrollText,
+  Settings2,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -27,11 +36,17 @@ export interface ManuscriptExportOptions {
 
 interface NovelcrafterTopBarMenuProps {
   onExportManuscript?: (options: ManuscriptExportOptions) => void;
+  /** Language + theme entries; only on mobile, where the app header (their other home) is not shown. */
+  showAppSettings?: boolean;
+  /** Mobile-only entries for controls that do not fit the compact top bar. */
+  mobileActions?: { onOpenAiSettings: () => void; onToggleLeftPane: () => void };
 }
 
 /** "⋯ Thêm" menu of the Novelcrafter top bar: Prompt Studio, export, language, themes (5A, H1). */
 export default function NovelcrafterTopBarMenu({
   onExportManuscript,
+  showAppSettings = false,
+  mobileActions,
 }: NovelcrafterTopBarMenuProps) {
   const { t, language, setLanguage } = useLanguage();
   const [includeStoryBible, setIncludeStoryBible] = useState(true);
@@ -53,6 +68,19 @@ export default function NovelcrafterTopBarMenu({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
+        {mobileActions && (
+          <>
+            <DropdownMenuItem onClick={mobileActions.onOpenAiSettings} className="gap-2 text-sm">
+              <Settings2 aria-hidden="true" className="h-4 w-4 text-(--muted)" />
+              <span>{t("novelcrafterRoutingButton")}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={mobileActions.onToggleLeftPane} className="gap-2 text-sm">
+              <PanelLeft aria-hidden="true" className="h-4 w-4 text-(--muted)" />
+              <span>{t("novelcrafterToggleNavigatorPane")}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuItem asChild className="gap-2 text-sm">
           <Link href="/novelcrafter/prompts">
             <ScrollText aria-hidden="true" className="h-4 w-4 text-(--muted)" />
@@ -93,28 +121,32 @@ export default function NovelcrafterTopBarMenu({
           </>
         )}
 
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => setLanguage(language === "vi" ? "en" : "vi")}
-          className="gap-2 text-sm"
-        >
-          <Globe aria-hidden="true" className="h-4 w-4 text-(--muted)" />
-          <span>
-            {t("novelcrafterLanguageSwitch").replace(
-              "{lang}",
-              language === "vi" ? "Tiếng Việt" : "English"
-            )}
-          </span>
-        </DropdownMenuItem>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="gap-2 text-sm">
-            <Palette aria-hidden="true" className="h-4 w-4 text-(--muted)" />
-            <span>{t("themes")}</span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-56 max-h-80 overflow-y-auto custom-scrollbar">
-            <ThemeMenuItems />
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+        {showAppSettings && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => setLanguage(language === "vi" ? "en" : "vi")}
+              className="gap-2 text-sm"
+            >
+              <Globe aria-hidden="true" className="h-4 w-4 text-(--muted)" />
+              <span>
+                {t("novelcrafterLanguageSwitch").replace(
+                  "{lang}",
+                  language === "vi" ? "Tiếng Việt" : "English"
+                )}
+              </span>
+            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="gap-2 text-sm">
+                <Palette aria-hidden="true" className="h-4 w-4 text-(--muted)" />
+                <span>{t("themes")}</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-56 max-h-80 overflow-y-auto custom-scrollbar">
+                <ThemeMenuItems />
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

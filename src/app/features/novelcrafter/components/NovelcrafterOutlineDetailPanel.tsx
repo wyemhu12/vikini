@@ -276,12 +276,12 @@ export default function NovelcrafterOutlineDetailPanel({
                 feature: "bible",
                 bibleTarget: "draft",
                 actionMode: chapter.content.trim() ? "rewrite" : "generate",
-                subLabel: t("novelcrafterOutlineWriteDraftCta"),
+                subLabel: t("novelcrafterDraftChapterBtn"),
               })
             }
             className="h-11 rounded-xl bg-(--accent) text-(--on-accent) text-sm font-semibold transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
           >
-            {t("novelcrafterOutlineWriteDraftCta")}
+            {t("novelcrafterDraftChapterBtn")}
           </button>
         )}
 

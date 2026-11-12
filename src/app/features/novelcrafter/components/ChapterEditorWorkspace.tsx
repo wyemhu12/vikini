@@ -1,7 +1,7 @@
 // /app/features/novelcrafter/components/ChapterEditorWorkspace.tsx
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Loader2, MessageSquareQuote } from "lucide-react";
 import {
   Sheet,
@@ -11,7 +11,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useLanguage } from "../../chat/hooks/useLanguage";
-import { countChapterWords } from "@/lib/features/novelcrafter/draftStorage";
 import type {
   NovelcrafterChapter,
   NovelcrafterFeedbackItem,
@@ -22,8 +21,10 @@ import type {
   ChapterEditorController,
   FeedbackPaneControl,
 } from "../hooks/useChapterEditorController";
+import { useManuscriptBoxHeight } from "../hooks/useManuscriptBoxHeight";
 import { useManuscriptTypography } from "../hooks/useManuscriptTypography";
 import type { TriggerNovelcrafterStreamParams } from "../hooks/useNovelcrafterStream";
+import { useStudioLayout } from "../hooks/useStudioLayout";
 import {
   MANUSCRIPT_SHEET_CLASS,
   MANUSCRIPT_SHEET_PADDING_CLASS,
@@ -98,14 +99,22 @@ export default function ChapterEditorWorkspace({
 }: ChapterEditorWorkspaceProps) {
   const { t } = useLanguage();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const outerContentRef = useRef<HTMLDivElement | null>(null);
+  const manuscriptBoxRef = useRef<HTMLDivElement | null>(null);
   const { typography, updateTypography } = useManuscriptTypography();
+  const layout = useStudioLayout();
+  const manuscriptBoxHeight = useManuscriptBoxHeight({
+    outerRef: scrollContainerRef,
+    outerContentRef,
+    boxRef: manuscriptBoxRef,
+    enabled: layout.viewportWidth >= 768,
+    keyboardOffsetPx: layout.keyboardOffsetPx,
+  });
 
   const [titleDraft, setTitleDraft] = useState(chapter.title);
   const [snapshotsModalOpen, setSnapshotsModalOpen] = useState(false);
 
   useEffect(() => setTitleDraft(chapter.title), [chapter.id, chapter.title]);
-
-  const wordCount = useMemo(() => countChapterWords(chapter.content), [chapter.content]);
 
   const handleTitleBlur = () => {
     const trimmed = titleDraft.trim();
@@ -139,214 +148,218 @@ export default function ChapterEditorWorkspace({
           ref={scrollContainerRef}
           className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col pb-[var(--nc-kb-offset,0px)]"
         >
-          <SheetSubToolbar
-            wordCount={wordCount}
-            typography={typography}
-            onChangeTypography={updateTypography}
-            focusMode={focusMode}
-            onToggleFocusMode={() => onToggleFocusMode?.()}
-            onApplyMarkdownFormat={(fmt) => controller.editorHandleRef.current?.applyFormat(fmt)}
-            snapshotsCount={(chapter.snapshots ?? []).length}
-            onOpenSnapshotsModal={() => setSnapshotsModalOpen(true)}
-          />
-
-          {isDirectStreamingToChapter && (
-            <div className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "mt-4 shrink-0")}>
-              <div
-                className={cn(
-                  MANUSCRIPT_SHEET_CLASS,
-                  "px-3.5 py-2 rounded-xl border border-(--accent)/40 bg-(--accent)/10 flex items-center justify-between gap-2 text-xs font-medium text-(--accent)"
-                )}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-                  <span>{t("novelcrafterDirectStreamingBanner")}</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={onStopStream}
-                  className="px-2.5 py-0.5 rounded-md bg-(--danger) text-(--danger-foreground) font-semibold"
-                >
-                  {t("stopBtn")}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "pt-5 pb-2.5 shrink-0")}>
-            <div className={MANUSCRIPT_SHEET_CLASS}>
-              <input
-                type="text"
-                value={titleDraft}
-                onChange={(e) => setTitleDraft(e.target.value)}
-                onBlur={handleTitleBlur}
-                onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-                aria-label={t("novelcrafterRenameChapter")}
-                className="w-full bg-transparent text-[22px] md:text-[24px] font-semibold leading-[1.3] tracking-[-0.015em] text-(--text) placeholder:text-(--muted) border-b border-transparent hover:border-(--line) focus:border-(--accent) focus:outline-none pb-1 transition-colors"
-              />
-            </div>
-          </div>
-
-          <ChapterDraftBeatsCard
-            isOpen={controller.beatsOpen}
-            onClose={() => controller.setBeatsOpen(false)}
-            scenes={chapter.scenes}
-            onChangeScenes={(val) => {
-              controller.noteChapterEdit();
-              onUpdateChapter(chapter.id, { scenes: val });
-            }}
-            extraInstructions={chapter.extraInstructions ?? ""}
-            onChangeExtraInstructions={(val) => {
-              controller.noteChapterEdit();
-              onUpdateChapter(chapter.id, { extraInstructions: val });
-            }}
-            summary={chapter.summary ?? ""}
-            onChangeSummary={(val) => {
-              controller.noteChapterEdit();
-              onUpdateChapter(chapter.id, { summary: val });
-            }}
-            canSummarizeChapter={Boolean(chapter.content.trim() || chapter.scenes.trim())}
-            onSummarizeChapter={() => {
-              if (isStreaming || isLoadLocked) return;
-              void onTriggerStream({
-                feature: "bible",
-                bibleTarget: "chapter_summary",
-                actionMode: (chapter.summary ?? "").trim() ? "rewrite" : "generate",
-                subLabel: t("novelcrafterSummarizeChapterBtn"),
-              });
-            }}
-            isStreaming={isStreaming || Boolean(isLoadLocked)}
-            onGenerateBeats={() => {
-              if (isStreaming || isLoadLocked) return;
-              void onTriggerStream({
-                feature: "bible",
-                bibleTarget: "scenes",
-                actionMode: "generate",
-                subLabel: t("novelcrafterGenerateBeatsBtn"),
-              });
-            }}
-            onRewriteBeats={() => {
-              if (isStreaming || isLoadLocked) return;
-              void onTriggerStream({
-                feature: "bible",
-                bibleTarget: "scenes",
-                actionMode: "rewrite",
-                subLabel: t("novelcrafterRewriteBeatsBtn"),
-              });
-            }}
-            onRunFirstDraft={controller.handleRunFirstDraft}
-          />
-
-          {chapter.content.trim().length === 0 && !isStreaming && !isLoadLocked && (
-            <ChapterEmptyStateActions
-              disabled={isStreaming || Boolean(isLoadLocked)}
-              onAutoWriteOpening={() => {
-                if (isStreaming || isLoadLocked) return;
-                void onTriggerStream({
-                  feature: "write",
-                  writeMode: "auto",
-                  subLabel: t("novelcrafterEmptyActionAutoWrite"),
-                });
-              }}
-              onSuggestThreeOpenings={() => {
-                if (isStreaming || isLoadLocked) return;
-                void onTriggerStream({
-                  feature: "write",
-                  writeMode: "openings_3",
-                  subLabel: t("novelcrafterEmptyActionOpenings3"),
-                });
-              }}
-              onRoughDraftFromBeats={() => {
-                if (isStreaming || isLoadLocked) return;
-                void onTriggerStream({
-                  feature: "write",
-                  writeMode: "first_draft_rough",
-                  subLabel: t("novelcrafterEmptyActionRoughDraft"),
-                });
-              }}
+          <div ref={outerContentRef} className="flex flex-col">
+            <SheetSubToolbar
+              beatsOpen={controller.beatsOpen}
+              onToggleBeats={() => controller.setBeatsOpen((p) => !p)}
+              typography={typography}
+              onChangeTypography={updateTypography}
+              focusMode={focusMode}
+              onToggleFocusMode={() => onToggleFocusMode?.()}
+              onApplyMarkdownFormat={(fmt) => controller.editorHandleRef.current?.applyFormat(fmt)}
+              snapshotsCount={(chapter.snapshots ?? []).length}
+              onOpenSnapshotsModal={() => setSnapshotsModalOpen(true)}
             />
-          )}
 
-          {feedbackPane.isOpen &&
-            controller.activeFeedbackItem?.status === "open" &&
-            controller.activeFeedbackItem.quote && (
-              <div className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "pb-2 shrink-0")}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    controller.activeFeedbackItem &&
-                    controller.jumpToFeedbackQuote(controller.activeFeedbackItem)
-                  }
+            {isDirectStreamingToChapter && (
+              <div className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "mt-4 shrink-0")}>
+                <div
                   className={cn(
                     MANUSCRIPT_SHEET_CLASS,
-                    "text-left rounded-xl bg-(--warning)/15 border-l-2 border-(--warning) px-3.5 py-2 flex items-center justify-between gap-2 text-xs text-(--text) hover:bg-(--warning)/20 transition-colors"
+                    "px-3.5 py-2 rounded-xl border border-(--accent)/40 bg-(--accent)/10 flex items-center justify-between gap-2 text-xs font-medium text-(--accent)"
                   )}
                 >
-                  <span className="inline-flex items-center gap-2 min-w-0 truncate">
-                    <MessageSquareQuote className="w-3.5 h-3.5 text-(--warning) shrink-0" />
-                    <span className="font-semibold uppercase text-(--warning)">
-                      [{controller.activeFeedbackItem.category}]
-                    </span>
-                    <span className="truncate italic">
-                      &ldquo;{controller.activeFeedbackItem.quote}&rdquo;
-                    </span>
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                    <span>{t("novelcrafterDirectStreamingBanner")}</span>
                   </span>
-                  <span className="text-xs font-semibold text-(--accent) shrink-0">
-                    {t("novelcrafterExcerptLocatorJump")}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={onStopStream}
+                    className="px-2.5 py-0.5 rounded-md bg-(--danger) text-(--danger-foreground) font-semibold"
+                  >
+                    {t("stopBtn")}
+                  </button>
+                </div>
               </div>
             )}
 
-          <div className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "pb-6 flex flex-col")}>
-            <ChapterManuscriptEditor
-              ref={controller.editorHandleRef}
-              chapterId={chapter.id}
-              content={chapter.content}
-              readOnly={isDirectStreamingToChapter || Boolean(isLoadLocked)}
-              typography={typography}
-              feedbackItems={controller.feedbackItems}
-              activeFeedbackId={controller.activeFeedbackId}
-              storyBible={storyBible}
-              selection={selection}
-              onChangeContent={(next) => {
+            <div className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "pt-5 pb-2.5 shrink-0")}>
+              <div className={MANUSCRIPT_SHEET_CLASS}>
+                <input
+                  type="text"
+                  value={titleDraft}
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                  onBlur={handleTitleBlur}
+                  onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                  aria-label={t("novelcrafterRenameChapter")}
+                  className="w-full bg-transparent text-[22px] md:text-[24px] font-semibold leading-[1.3] tracking-[-0.015em] text-(--text) placeholder:text-(--muted) border-b border-transparent hover:border-(--line) focus:border-(--accent) focus:outline-none pb-1 transition-colors"
+                />
+              </div>
+            </div>
+
+            <ChapterDraftBeatsCard
+              isOpen={controller.beatsOpen}
+              onClose={() => controller.setBeatsOpen(false)}
+              scenes={chapter.scenes}
+              onChangeScenes={(val) => {
                 controller.noteChapterEdit();
-                onUpdateChapter(chapter.id, { content: next });
+                onUpdateChapter(chapter.id, { scenes: val });
               }}
-              onSelectionChange={onSelectionChange}
-              onFeedbackMarkClick={controller.selectFeedbackById}
-              onOpenCodexEntity={(kind) =>
-                onJumpToBibleSection?.(kind === "character" ? "characters" : "worldbuilding")
-              }
-              bubble={{
-                disabled: isStreaming || Boolean(isLoadLocked),
-                onRewrite: (mode, label) => controller.handleRunRewrite(mode, label),
-                onDescribe: (label) => controller.handleRunExpand("describe", label),
-                onExpand: (label) => controller.handleRunExpand("expand", label),
-                onFeedback: controller.handleRunLineFeedback,
-                quickEdit: controller.quickEdit,
+              extraInstructions={chapter.extraInstructions ?? ""}
+              onChangeExtraInstructions={(val) => {
+                controller.noteChapterEdit();
+                onUpdateChapter(chapter.id, { extraInstructions: val });
               }}
-              placeholder={t("novelcrafterChapterEditorPlaceholder")}
-              ariaLabel={chapter.title}
-              scrollContainerRef={scrollContainerRef}
-              feedbackMode={feedbackMode}
+              summary={chapter.summary ?? ""}
+              onChangeSummary={(val) => {
+                controller.noteChapterEdit();
+                onUpdateChapter(chapter.id, { summary: val });
+              }}
+              canSummarizeChapter={Boolean(chapter.content.trim() || chapter.scenes.trim())}
+              onSummarizeChapter={() => {
+                if (isStreaming || isLoadLocked) return;
+                void onTriggerStream({
+                  feature: "bible",
+                  bibleTarget: "chapter_summary",
+                  actionMode: (chapter.summary ?? "").trim() ? "rewrite" : "generate",
+                  subLabel: t("novelcrafterSummarizeChapterBtn"),
+                });
+              }}
+              isStreaming={isStreaming || Boolean(isLoadLocked)}
+              onGenerateBeats={() => {
+                if (isStreaming || isLoadLocked) return;
+                void onTriggerStream({
+                  feature: "bible",
+                  bibleTarget: "scenes",
+                  actionMode: "generate",
+                  subLabel: t("novelcrafterGenerateBeatsBtn"),
+                });
+              }}
+              onRewriteBeats={() => {
+                if (isStreaming || isLoadLocked) return;
+                void onTriggerStream({
+                  feature: "bible",
+                  bibleTarget: "scenes",
+                  actionMode: "rewrite",
+                  subLabel: t("novelcrafterRewriteBeatsBtn"),
+                });
+              }}
             />
 
-            <InlineStoryBibleSection
-              isOpen={isStoryBibleOpen}
-              onToggle={() => onToggleStoryBible(!isStoryBibleOpen)}
-              storyBible={storyBible}
-              onUpdateStoryBible={onUpdateStoryBible}
-              activeSection={activeBibleSection}
-              jumpRequest={bibleJumpRequest}
-              isStreaming={isStreaming || Boolean(isLoadLocked)}
-              onTriggerStream={onTriggerStream}
-              onSendOutlineToChapterScenes={(beats) => {
-                const sep = chapter.scenes.trim() ? "\n\n" : "";
-                onUpdateChapter(chapter.id, { scenes: `${chapter.scenes}${sep}${beats.trim()}` });
-                controller.setBeatsOpen(true);
-              }}
-            />
+            {chapter.content.trim().length === 0 && !isStreaming && !isLoadLocked && (
+              <ChapterEmptyStateActions
+                disabled={isStreaming || Boolean(isLoadLocked)}
+                onAutoWriteOpening={() => {
+                  if (isStreaming || isLoadLocked) return;
+                  void onTriggerStream({
+                    feature: "write",
+                    writeMode: "auto",
+                    subLabel: t("novelcrafterEmptyActionAutoWrite"),
+                  });
+                }}
+                onSuggestThreeOpenings={() => {
+                  if (isStreaming || isLoadLocked) return;
+                  void onTriggerStream({
+                    feature: "write",
+                    writeMode: "openings_3",
+                    subLabel: t("novelcrafterEmptyActionOpenings3"),
+                  });
+                }}
+              />
+            )}
+
+            {feedbackPane.isOpen &&
+              controller.activeFeedbackItem?.status === "open" &&
+              controller.activeFeedbackItem.quote && (
+                <div className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "pb-2 shrink-0")}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      controller.activeFeedbackItem &&
+                      controller.jumpToFeedbackQuote(controller.activeFeedbackItem)
+                    }
+                    className={cn(
+                      MANUSCRIPT_SHEET_CLASS,
+                      "text-left rounded-xl bg-(--warning)/15 border-l-2 border-(--warning) px-3.5 py-2 flex items-center justify-between gap-2 text-xs text-(--text) hover:bg-(--warning)/20 transition-colors"
+                    )}
+                  >
+                    <span className="inline-flex items-center gap-2 min-w-0 truncate">
+                      <MessageSquareQuote className="w-3.5 h-3.5 text-(--warning) shrink-0" />
+                      <span className="font-semibold uppercase text-(--warning)">
+                        [{controller.activeFeedbackItem.category}]
+                      </span>
+                      <span className="truncate italic">
+                        &ldquo;{controller.activeFeedbackItem.quote}&rdquo;
+                      </span>
+                    </span>
+                    <span className="text-xs font-semibold text-(--accent) shrink-0">
+                      {t("novelcrafterExcerptLocatorJump")}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+            <div className={cn(MANUSCRIPT_SHEET_PADDING_CLASS, "pb-6 flex flex-col")}>
+              <div
+                ref={manuscriptBoxRef}
+                data-testid="nc-manuscript-scroll"
+                style={manuscriptBoxHeight ? { height: manuscriptBoxHeight } : undefined}
+                className={cn(
+                  manuscriptBoxHeight &&
+                    "overflow-y-auto custom-scrollbar rounded-xl border border-(--line) px-2 py-3"
+                )}
+              >
+                <ChapterManuscriptEditor
+                  ref={controller.editorHandleRef}
+                  chapterId={chapter.id}
+                  content={chapter.content}
+                  readOnly={isDirectStreamingToChapter || Boolean(isLoadLocked)}
+                  typography={typography}
+                  feedbackItems={controller.feedbackItems}
+                  activeFeedbackId={controller.activeFeedbackId}
+                  storyBible={storyBible}
+                  selection={selection}
+                  onChangeContent={(next) => {
+                    controller.noteChapterEdit();
+                    onUpdateChapter(chapter.id, { content: next });
+                  }}
+                  onSelectionChange={onSelectionChange}
+                  onFeedbackMarkClick={controller.selectFeedbackById}
+                  onOpenCodexEntity={(kind) =>
+                    onJumpToBibleSection?.(kind === "character" ? "characters" : "worldbuilding")
+                  }
+                  bubble={{
+                    disabled: isStreaming || Boolean(isLoadLocked),
+                    onRewrite: (mode, label) => controller.handleRunRewrite(mode, label),
+                    onDescribe: (label) => controller.handleRunExpand("describe", label),
+                    onExpand: (label) => controller.handleRunExpand("expand", label),
+                    onFeedback: controller.handleRunLineFeedback,
+                    quickEdit: controller.quickEdit,
+                  }}
+                  placeholder={t("novelcrafterChapterEditorPlaceholder")}
+                  ariaLabel={chapter.title}
+                  scrollContainerRef={scrollContainerRef}
+                  feedbackMode={feedbackMode}
+                />
+              </div>
+
+              <InlineStoryBibleSection
+                isOpen={isStoryBibleOpen}
+                onToggle={() => onToggleStoryBible(!isStoryBibleOpen)}
+                storyBible={storyBible}
+                onUpdateStoryBible={onUpdateStoryBible}
+                activeSection={activeBibleSection}
+                jumpRequest={bibleJumpRequest}
+                isStreaming={isStreaming || Boolean(isLoadLocked)}
+                onTriggerStream={onTriggerStream}
+                onSendOutlineToChapterScenes={(beats) => {
+                  const sep = chapter.scenes.trim() ? "\n\n" : "";
+                  onUpdateChapter(chapter.id, { scenes: `${chapter.scenes}${sep}${beats.trim()}` });
+                  controller.setBeatsOpen(true);
+                }}
+              />
+            </div>
           </div>
         </div>
 

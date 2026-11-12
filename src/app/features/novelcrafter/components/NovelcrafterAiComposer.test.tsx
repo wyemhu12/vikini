@@ -49,10 +49,11 @@ describe("NovelcrafterAiComposer (5E TC-03)", () => {
     masterPersonaId: "per-1",
   });
 
-  it("switches write mode & length preset, displays prompt source, and submits stream params", () => {
+  function renderComposer(
+    overrides: Partial<React.ComponentProps<typeof NovelcrafterAiComposer>> = {}
+  ) {
     const onTriggerStream = vi.fn();
     const onOpenAiSettings = vi.fn();
-
     render(
       <NovelcrafterAiComposer
         isStreaming={false}
@@ -64,21 +65,26 @@ describe("NovelcrafterAiComposer (5E TC-03)", () => {
         onTriggerStream={onTriggerStream}
         onStopStream={vi.fn()}
         onOpenAiSettings={onOpenAiSettings}
+        {...overrides}
       />
     );
+    return { onTriggerStream, onOpenAiSettings };
+  }
 
-    const guidedRadio = screen.getByRole("radio", { name: "Chỉ dẫn" });
-    fireEvent.click(guidedRadio);
-    expect(guidedRadio).toHaveAttribute("aria-checked", "true");
+  it("TC-U08: free-form command without a selection runs guided write with the chosen length", () => {
+    const { onTriggerStream, onOpenAiSettings } = renderComposer();
+
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(screen.queryByRole("radiogroup")).toBeNull();
 
     const sentenceBtn = screen.getByRole("button", { name: "Câu" });
-    const paragraphBtn = screen.getByRole("button", { name: "Đoạn" });
-    expect(paragraphBtn).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Đoạn" })).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(sentenceBtn);
     expect(sentenceBtn).toHaveAttribute("aria-pressed", "true");
 
-    const promptInput = screen.getByRole("textbox", { name: "Hướng đi hoặc yêu cầu thêm" });
-    fireEvent.change(promptInput, { target: { value: "Ông lái đò nhận ra Lam nhưng giấu đi" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Hướng đi hoặc yêu cầu thêm" }), {
+      target: { value: "đi tiếp" },
+    });
 
     const sourceBtn = screen.getByRole("button", { name: "Nguồn prompt đang dùng" });
     expect(sourceBtn.textContent).toContain("Văn xuôi trữ tình");
@@ -91,7 +97,27 @@ describe("NovelcrafterAiComposer (5E TC-03)", () => {
         feature: "write",
         writeMode: "guided",
         writeLengthWords: 100,
-        keyDetails: "Ông lái đò nhận ra Lam nhưng giấu đi",
+        customInstruction: "đi tiếp",
+        keyDetails: "đi tiếp",
+      })
+    );
+  });
+
+  it("TC-U09: with a selection, the command rewrites the selected passage", () => {
+    const { onTriggerStream } = renderComposer({
+      hasActiveSelection: true,
+      selectedText: "Mưa rơi trên mái hiên.",
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Hướng đi hoặc yêu cầu thêm" }), {
+      target: { value: "ngắn hơn" },
+    });
+    fireEvent.submit(screen.getByRole("form", { name: "Soạn lệnh AI" }));
+    expect(onTriggerStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        feature: "rewrite",
+        rewriteMode: "custom",
+        selectedText: "Mưa rơi trên mái hiên.",
+        customInstruction: "ngắn hơn",
       })
     );
   });

@@ -27,7 +27,8 @@ import {
 import ManuscriptTypographyMenu from "./ManuscriptTypographyMenu";
 
 interface SheetSubToolbarProps {
-  wordCount: number;
+  beatsOpen: boolean;
+  onToggleBeats: () => void;
   typography: ManuscriptTypography;
   onChangeTypography: (patch: Partial<ManuscriptTypography>) => void;
   focusMode: boolean;
@@ -38,7 +39,8 @@ interface SheetSubToolbarProps {
 }
 
 export default function SheetSubToolbar({
-  wordCount,
+  beatsOpen,
+  onToggleBeats,
   typography,
   onChangeTypography,
   focusMode,
@@ -94,9 +96,21 @@ export default function SheetSubToolbar({
         </div>
 
         <div className="flex items-center gap-2 text-xs text-(--muted)">
-          <span className="hidden sm:inline font-medium">
-            {t("novelcrafterChapterWordsCount").replace("{count}", wordCount.toLocaleString())}
-          </span>
+          <button
+            type="button"
+            aria-pressed={beatsOpen}
+            onClick={onToggleBeats}
+            title={t("novelcrafterSceneBeatsBtn")}
+            className={cn(
+              "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+              beatsOpen
+                ? "bg-transparent border-(--accent) text-(--accent)"
+                : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
+            )}
+          >
+            <ListOrdered className="w-3.5 h-3.5" />
+            <span>{t("novelcrafterSceneBeatsBtn")}</span>
+          </button>
 
           {onOpenSnapshotsModal && (
             <button
@@ -122,7 +136,7 @@ export default function SheetSubToolbar({
             className={cn(
               "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
               focusMode
-                ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
+                ? "bg-transparent border-(--accent) text-(--accent)"
                 : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
             )}
           >

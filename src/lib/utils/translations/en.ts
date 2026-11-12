@@ -1573,6 +1573,22 @@ export const en = {
   novelcrafterPromptStudioDefaultStatus: "Using default",
   novelcrafterPromptStudioCustomizedBadge: "Customized",
   novelcrafterPromptStudioDefaultBadge: "Default",
+  novelcrafterDraftChapterBtn: "Draft chapter",
+  novelcrafterFeedbackPanelBtn: "Feedback ({count})",
+  novelcrafterWriteMenuAria: "Write options",
+  novelcrafterSceneBeatsBtn: "Scene beats",
+  novelcrafterAiSettingsTabDefaults: "Defaults & inheritance",
+  novelcrafterAiSettingsTabPromptStudio: "Prompt Studio",
+  novelcrafterPreviewSampleNotice:
+    "Some sections use sample data because your story has no content there yet:",
+  novelcrafterPreviewAllSampleNotice:
+    "Could not build the preview from your story, showing sample data instead.",
+  novelcrafterComposerFreeformPlaceholder:
+    "Tell the AI what to do… (select a passage to rewrite it)",
+  novelcrafterComposerSendBtn: "Send",
+  novelcrafterComposerRewriteLabel: "Rewrite selection",
+  novelcrafterComposerWriteLabel: "Free-form command",
+  novelcrafterOpenStoriesMenu: "Open story list",
   novelcrafterUntitledStory: "Untitled Story",
   novelcrafterWriteMenuBtn: "Write",
   novelcrafterScenesLabel: "Scenes",

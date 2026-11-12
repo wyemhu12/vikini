@@ -58,3 +58,8 @@ export function computeSelectionBubblePosition({
     placement,
   };
 }
+
+/** True when `rect` overlaps `box` vertically (the selection is at least partly visible inside the box). */
+export function isRectVisibleWithin(rect: RectLike, box: RectLike): boolean {
+  return rect.top + rect.height > box.top && rect.top < box.top + box.height;
+}

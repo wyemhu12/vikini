@@ -21,7 +21,7 @@ const DICT: Record<string, string> = {
   novelcrafterOutlineContextPrevChapters: "{count} chương trước",
   novelcrafterSynopsisLabel: "Tóm tắt cốt truyện",
   novelcrafterStyleLabel: "Văn phong",
-  novelcrafterOutlineWriteDraftCta: "Viết bản thảo chương",
+  novelcrafterDraftChapterBtn: "Viết bản nháp chương",
   novelcrafterOutlineOpenInWriteBtn: "Mở trong bàn viết",
   novelcrafterRenameChapter: "Đổi tên chương",
 };
@@ -105,7 +105,7 @@ describe("NovelcrafterOutlineDetailPanel (5E TC-04)", () => {
     );
 
     // Write chapter draft CTA
-    fireEvent.click(screen.getByRole("button", { name: "Viết bản thảo chương" }));
+    fireEvent.click(screen.getByRole("button", { name: "Viết bản nháp chương" }));
     expect(onTriggerStream).toHaveBeenCalledWith(
       expect.objectContaining({
         feature: "bible",
