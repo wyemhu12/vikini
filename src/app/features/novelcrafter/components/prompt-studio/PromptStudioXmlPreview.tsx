@@ -10,9 +10,21 @@ import {
 import type { PromptStudioPreviewResult } from "@/lib/features/novelcrafter/promptStudioPreview";
 import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
+import type { TranslationKey } from "@/lib/utils/translations";
 import { useLanguage } from "../../../chat/hooks/useLanguage";
 
 const previewLogger = logger.withContext("PromptStudioXmlPreview");
+
+const SAMPLE_SECTION_LABELS: Record<string, TranslationKey> = {
+  braindump: "novelcrafterBraindumpLabel",
+  genre: "novelcrafterGenreLabel",
+  style: "novelcrafterStyleLabel",
+  synopsis: "novelcrafterSynopsisLabel",
+  characters: "novelcrafterCharactersLabel",
+  worldbuilding: "novelcrafterWorldbuildingLabel",
+  outline: "novelcrafterOutlineLabel",
+  chapter: "novelcrafterChaptersTab",
+};
 
 interface PromptStudioXmlPreviewProps {
   previewResult: PromptStudioPreviewResult;
@@ -39,8 +51,29 @@ export default function PromptStudioXmlPreview({ previewResult }: PromptStudioXm
       )
     : null;
 
+  const sampleNotice = !previewResult.ok
+    ? null
+    : previewResult.usedSample
+      ? t("novelcrafterPreviewAllSampleNotice")
+      : previewResult.sampleSections && previewResult.sampleSections.length > 0
+        ? previewResult.sampleSections
+            .map((id) => (SAMPLE_SECTION_LABELS[id] ? t(SAMPLE_SECTION_LABELS[id]) : id))
+            .join(", ")
+        : null;
+
   return (
     <div className="flex flex-col gap-1.5">
+      {sampleNotice && (
+        <p className="text-xs text-(--muted)">
+          {!previewResult.ok || previewResult.usedSample ? (
+            sampleNotice
+          ) : (
+            <>
+              <span>{t("novelcrafterPreviewSampleNotice")}</span> <span>{sampleNotice}</span>
+            </>
+          )}
+        </p>
+      )}
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs sm:text-sm font-semibold text-(--text)">
           {t("novelcrafterPromptStudioPreviewShort")}

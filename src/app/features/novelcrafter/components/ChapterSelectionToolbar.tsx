@@ -97,7 +97,7 @@ export default function ChapterSelectionToolbar({
         "z-(--z-popover) w-max max-w-[calc(100vw-2rem)] rounded-xl border border-(--accent)/40 bg-(--surface)/95 backdrop-blur-md p-1.5 shadow-lg",
         placement === "docked-bottom"
           ? "sticky bottom-[calc(var(--nc-kb-offset,0px)+0.75rem)] mx-auto mt-2"
-          : "absolute top-(--nc-bubble-top) left-(--nc-bubble-left)"
+          : "fixed top-(--nc-bubble-top) left-(--nc-bubble-left)"
       )}
     >
       <div className="flex items-center gap-1 flex-wrap">

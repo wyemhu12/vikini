@@ -158,6 +158,8 @@ interface UseConversationReturn {
   messages: FrontendMessage[];
   setMessages: (messages: FrontendMessage[]) => void;
   loadingMessages: boolean;
+  /** True until the first conversation list response has been merged (or the request failed). */
+  isLoadingConversations: boolean;
   loadConversation: (id: string) => Promise<void>;
   createConversation: (
     options?:
@@ -215,33 +217,42 @@ export function useConversation(): UseConversationReturn {
   //  for ChatApp.jsx compatibility
   const [creatingConversation, setCreatingConversation] = useState(false);
 
-  const { data, mutate } = useSWR<ConversationResponse>("/api/conversations", fetcher, {
+  const { data, error, mutate } = useSWR<ConversationResponse>("/api/conversations", fetcher, {
     dedupingInterval: 3000,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
   });
+  // True once the first SWR response has been merged into `conversations` (same commit), or SWR failed.
+  const [conversationsSynced, setConversationsSynced] = useState(false);
 
   //  FIX: SWR về thì MERGE, không overwrite
   useEffect(() => {
-    if (!data?.conversations) return;
+    if (data === undefined) return;
 
-    const remote = Array.isArray(data.conversations) ? data.conversations : [];
-    const remoteFiltered = remote
-      .filter((c) => c?.id && !deletedIdsRef.current.has(c.id))
-      .map((c) => convertConversationToFrontend(c as Conversation));
+    if (data.conversations) {
+      const remote = Array.isArray(data.conversations) ? data.conversations : [];
+      const remoteFiltered = remote
+        .filter((c) => c?.id && !deletedIdsRef.current.has(c.id))
+        .map((c) => convertConversationToFrontend(c as Conversation));
 
-    setConversations((prev) => {
-      const prevFiltered = (Array.isArray(prev) ? prev : []).filter(
-        (c) => c?.id && !deletedIdsRef.current.has(c.id)
-      );
-      return mergeConversations(prevFiltered, remoteFiltered).filter(
-        (c) => c?.id && !deletedIdsRef.current.has(c.id)
-      );
-    });
+      setConversations((prev) => {
+        const prevFiltered = (Array.isArray(prev) ? prev : []).filter(
+          (c) => c?.id && !deletedIdsRef.current.has(c.id)
+        );
+        return mergeConversations(prevFiltered, remoteFiltered).filter(
+          (c) => c?.id && !deletedIdsRef.current.has(c.id)
+        );
+      });
+    }
+    setConversationsSynced(true);
 
     //  REMOVED: Tự động chọn activeId.
     // Chúng ta muốn ở lại Landing Page (activeId = null) khi load lại trang.
   }, [data]);
+
+  useEffect(() => {
+    if (error) setConversationsSynced(true);
+  }, [error]);
 
   // Upsert conversation vào list local (META conversationCreated)
   const upsertConversation = useCallback((conv: FrontendConversation) => {
@@ -573,6 +584,7 @@ export function useConversation(): UseConversationReturn {
     messages,
     setMessages,
     loadingMessages,
+    isLoadingConversations: !conversationsSynced,
     loadConversation,
     createConversation,
     renameConversation,

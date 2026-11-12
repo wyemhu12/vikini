@@ -35,7 +35,8 @@ export type NovelcrafterBibleSectionId =
 
 interface NovelcrafterLeftNavigatorProps {
   isStoryBibleOpen: boolean;
-  onToggleStoryBible: (open: boolean) => void;
+  /** Kept for callers; the left nav now only links into the inline Story Bible (UX cleanup G4). */
+  onToggleStoryBible?: (open: boolean) => void;
   activeBibleSection?: NovelcrafterBibleSectionId;
   onJumpToBibleSection: (sectionId: NovelcrafterBibleSectionId) => void;
   chapters: NovelcrafterChapter[];
@@ -63,7 +64,6 @@ const BIBLE_TOC_ITEMS: ReadonlyArray<{
 
 export default function NovelcrafterLeftNavigator({
   isStoryBibleOpen,
-  onToggleStoryBible,
   activeBibleSection,
   onJumpToBibleSection,
   chapters,
@@ -230,36 +230,14 @@ export default function NovelcrafterLeftNavigator({
       </div>
 
       <div className="shrink-0 border-t border-(--line) bg-(--surface) p-3 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => onToggleStoryBible(!isStoryBibleOpen)}
-            aria-pressed={isStoryBibleOpen}
-            className="flex items-center gap-2 text-xs font-semibold text-(--text) hover:text-(--accent) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded-md py-0.5"
-          >
-            <BookMarked className="w-4 h-4 text-(--accent) shrink-0" />
-            <span>{t("novelcrafterStoryBibleTab")}</span>
-          </button>
-
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isStoryBibleOpen}
-            aria-label={t("novelcrafterStoryBibleTab")}
-            onClick={() => onToggleStoryBible(!isStoryBibleOpen)}
-            className={cn(
-              "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border border-transparent transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-              isStoryBibleOpen ? "bg-(--accent)" : "bg-(--raised)"
-            )}
-          >
-            <span
-              className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-(--surface) shadow-xs transition-transform",
-                isStoryBibleOpen ? "translate-x-4" : "translate-x-0"
-              )}
-            />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => onJumpToBibleSection("braindump")}
+          className="flex items-center gap-2 text-xs font-semibold text-(--text) hover:text-(--accent) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded-md py-0.5"
+        >
+          <BookMarked className="w-4 h-4 text-(--accent) shrink-0" />
+          <span>{t("novelcrafterStoryBibleTab")}</span>
+        </button>
 
         <nav aria-label={t("novelcrafterStoryBibleTab")} className="grid grid-cols-1 gap-0.5">
           {BIBLE_TOC_ITEMS.map(({ id, labelKey, Icon }) => {

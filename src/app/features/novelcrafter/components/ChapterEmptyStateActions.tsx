@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useId } from "react";
-import { Compass, Feather, Sparkles } from "lucide-react";
+import { Compass, Feather } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import type { NovelcrafterPromptActionKey } from "@/lib/features/novelcrafter/promptActions";
 import { cn } from "@/lib/utils/cn";
@@ -16,14 +16,12 @@ interface ChapterEmptyStateActionsProps {
   disabled?: boolean;
   onAutoWriteOpening: () => void;
   onSuggestThreeOpenings: () => void;
-  onRoughDraftFromBeats: () => void;
 }
 
 export default function ChapterEmptyStateActions({
   disabled = false,
   onAutoWriteOpening,
   onSuggestThreeOpenings,
-  onRoughDraftFromBeats,
 }: ChapterEmptyStateActionsProps) {
   const { t } = useLanguage();
   const baseId = useId();
@@ -51,14 +49,6 @@ export default function ChapterEmptyStateActions({
       desc: t("novelcrafterEmptyActionOpenings3Desc"),
       Icon: Compass,
       onClick: onSuggestThreeOpenings,
-    },
-    {
-      id: "rough_draft",
-      actionKey: "write:first_draft_rough",
-      title: t("novelcrafterEmptyActionRoughDraft"),
-      desc: t("novelcrafterEmptyActionRoughDraftDesc"),
-      Icon: Sparkles,
-      onClick: onRoughDraftFromBeats,
     },
   ];
 

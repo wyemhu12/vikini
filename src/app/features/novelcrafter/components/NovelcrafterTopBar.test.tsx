@@ -20,6 +20,8 @@ const DICT: Record<string, string> = {
   novelcrafterExportPlainTextBtn: "Xuất văn bản thuần",
   novelcrafterLanguageSwitch: "Ngôn ngữ: {lang}",
   themes: "Giao diện",
+  novelcrafterOpenStoriesMenu: "Mở danh sách truyện",
+  novelcrafterToggleNavigatorPane: "Cột trái",
 };
 
 vi.mock("../../chat/hooks/useLanguage", () => ({
@@ -123,11 +125,12 @@ describe("NovelcrafterTopBar (5A)", () => {
     expect(screen.getAllByRole("menuitemcheckbox")).toHaveLength(2);
     expect(screen.getByRole("menuitem", { name: "Xuất Markdown" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Xuất văn bản thuần" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Ngôn ngữ: Tiếng Việt" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Giao diện" })).toBeInTheDocument();
+    // TC-U10: on desktop, language & theme live only in the bottom-left settings menu.
+    expect(screen.queryByRole("menuitem", { name: "Ngôn ngữ: Tiếng Việt" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Giao diện" })).toBeNull();
   });
 
-  it("exports with the chosen options and switches language (TC-04)", () => {
+  it("exports with the chosen options (TC-04)", () => {
     const props = makeProps();
     render(<NovelcrafterTopBar {...props} />);
     openMenu();
@@ -138,6 +141,22 @@ describe("NovelcrafterTopBar (5A)", () => {
       includeStoryBible: false,
       includeChapterSummaries: true,
     });
+  });
+
+  it("TC-U11: mobile layout adds the story-list button and app settings in the More menu", () => {
+    const onOpenSidebar = vi.fn();
+    const props = makeProps({ isMobileLayout: true, onOpenSidebar });
+    render(<NovelcrafterTopBar {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Mở danh sách truyện" }));
+    expect(onOpenSidebar).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Cài đặt AI" })).toBeNull();
+
+    openMenu();
+    expect(screen.getByRole("menuitem", { name: "Ngôn ngữ: Tiếng Việt" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Giao diện" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Cài đặt AI" }));
+    expect(props.onOpenRoutingModal).toHaveBeenCalledTimes(1);
 
     openMenu();
     fireEvent.click(screen.getByRole("menuitem", { name: "Ngôn ngữ: Tiếng Việt" }));

@@ -14,6 +14,7 @@ import { DEFAULT_PROMPT_DIRECTIVES } from "@/lib/features/novelcrafter/promptDir
 import {
   buildPromptStudioPreview,
   type PromptStudioPreviewResult,
+  type PromptStudioPreviewSource,
 } from "@/lib/features/novelcrafter/promptStudioPreview";
 import { areContextNodesEqual } from "@/lib/features/novelcrafter/promptStudioSettings";
 import {
@@ -26,7 +27,7 @@ import { logger } from "@/lib/utils/logger";
 
 const controllerLogger = logger.withContext("usePromptStudioController");
 
-export function usePromptStudioController() {
+export function usePromptStudioController(previewSource?: PromptStudioPreviewSource) {
   const { t } = useLanguage();
   const settings = usePromptStudioStore((s) => s.settings);
   const persistErrorAt = usePromptStudioStore((s) => s.persistErrorAt);
@@ -95,11 +96,15 @@ export function usePromptStudioController() {
 
   const previewResult: PromptStudioPreviewResult = useMemo(
     () =>
-      buildPromptStudioPreview(selectedKey, {
-        directive: draftDirective,
-        contextNodes: effectiveDraftNodes,
-      }),
-    [selectedKey, draftDirective, effectiveDraftNodes]
+      buildPromptStudioPreview(
+        selectedKey,
+        {
+          directive: draftDirective,
+          contextNodes: effectiveDraftNodes,
+        },
+        previewSource
+      ),
+    [selectedKey, draftDirective, effectiveDraftNodes, previewSource]
   );
 
   const toggleNode = useCallback(

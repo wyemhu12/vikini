@@ -65,4 +65,12 @@ describe("promptDirectiveDefaults (DIR-02, DIR-06..DIR-08, DIR-10..DIR-11)", () 
     const overLimit = "A".repeat(4500);
     expect(sanitizeDirectiveOverride(overLimit)).toHaveLength(4000);
   });
+
+  it("TC-P11: beta read has no brand name and describe rewrites the passage", () => {
+    expect(DEFAULT_PROMPT_DIRECTIVES["feedback:beta_read"]).not.toContain("Sudowrite");
+    const describeDefault = DEFAULT_PROMPT_DIRECTIVES["expand:describe"];
+    expect(describeDefault).toContain("Rewrite");
+    expect(describeDefault).toContain("{{senses}}");
+    expect(describeDefault).toMatch(/events, dialogue/);
+  });
 });

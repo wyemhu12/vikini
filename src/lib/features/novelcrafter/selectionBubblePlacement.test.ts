@@ -1,6 +1,6 @@
 // /lib/features/novelcrafter/selectionBubblePlacement.test.ts
 import { describe, expect, it } from "vitest";
-import { computeSelectionBubblePosition } from "./selectionBubblePlacement";
+import { computeSelectionBubblePosition, isRectVisibleWithin } from "./selectionBubblePlacement";
 
 describe("selectionBubblePlacement (TC-BUBBLE)", () => {
   const containerRect = { top: 100, left: 200, width: 800, height: 600 };
@@ -69,5 +69,13 @@ describe("selectionBubblePlacement (TC-BUBBLE)", () => {
     });
     expect(narrow.left).toBe(12);
     expect(narrow.left).toBeGreaterThanOrEqual(0);
+  });
+
+  it("TC-U17: isRectVisibleWithin detects vertical overlap with the boundary", () => {
+    const box = { top: 100, left: 0, width: 800, height: 400 };
+    expect(isRectVisibleWithin({ top: 300, left: 10, width: 50, height: 20 }, box)).toBe(true);
+    expect(isRectVisibleWithin({ top: 490, left: 10, width: 50, height: 20 }, box)).toBe(true);
+    expect(isRectVisibleWithin({ top: 520, left: 10, width: 50, height: 20 }, box)).toBe(false);
+    expect(isRectVisibleWithin({ top: 60, left: 10, width: 50, height: 20 }, box)).toBe(false);
   });
 });

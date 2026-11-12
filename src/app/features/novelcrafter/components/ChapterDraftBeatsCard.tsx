@@ -3,7 +3,7 @@
 
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BookMarked, RefreshCw, Sparkles, Wand2, X } from "lucide-react";
+import { BookMarked, RefreshCw, Wand2, X } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { MAX_CHAPTER_SUMMARY_CHARS } from "@/lib/features/novelcrafter/types";
 import { cn } from "@/lib/utils/cn";
@@ -28,7 +28,6 @@ interface ChapterDraftBeatsCardProps {
   isStreaming: boolean;
   onGenerateBeats: () => void;
   onRewriteBeats: () => void;
-  onRunFirstDraft: () => void;
 }
 
 export default function ChapterDraftBeatsCard({
@@ -45,7 +44,6 @@ export default function ChapterDraftBeatsCard({
   isStreaming,
   onGenerateBeats,
   onRewriteBeats,
-  onRunFirstDraft,
 }: ChapterDraftBeatsCardProps) {
   const { t } = useLanguage();
 
@@ -117,9 +115,9 @@ export default function ChapterDraftBeatsCard({
                       type="button"
                       disabled={isStreaming || !canSummarizeChapter}
                       onClick={onSummarizeChapter}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) text-xs font-medium text-(--accent) disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) text-xs font-medium text-(--text) disabled:opacity-50"
                     >
-                      <BookMarked className="w-3.5 h-3.5" />
+                      <BookMarked className="w-3.5 h-3.5 text-(--accent)" />
                       <span>{t("novelcrafterSummarizeChapterBtn")}</span>
                     </button>
                   </PromptSourceTooltip>
@@ -169,21 +167,6 @@ export default function ChapterDraftBeatsCard({
                   </button>
                 </PromptSourceTooltip>
               </div>
-              <PromptSourceTooltip
-                actionKey="bible:draft"
-                actionMode="generate"
-                disabled={isStreaming}
-              >
-                <button
-                  type="button"
-                  disabled={isStreaming}
-                  onClick={onRunFirstDraft}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-(--accent) text-(--on-accent) hover:brightness-110 text-xs font-semibold shadow-xs disabled:opacity-50"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>{t("novelcrafterGenerateDraftBtn")}</span>
-                </button>
-              </PromptSourceTooltip>
             </div>
           </div>
         </motion.section>

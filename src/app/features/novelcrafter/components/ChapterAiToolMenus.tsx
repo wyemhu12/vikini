@@ -117,7 +117,7 @@ export default function ChapterAiToolMenus({
     });
 
   return (
-    <div className="pt-2.5 mt-1 border-t border-(--line) space-y-2.5 max-h-[55dvh] overflow-y-auto custom-scrollbar pr-1">
+    <div className="space-y-2.5 max-h-[60dvh] overflow-y-auto custom-scrollbar pr-1">
       {activeMenu === "write" && (
         <div className="space-y-2.5">
           <p className="flex items-center gap-1.5 text-xs text-(--muted)">
@@ -142,7 +142,7 @@ export default function ChapterAiToolMenus({
                     className={cn(
                       "px-2 py-1 rounded-md border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
                       writeLengthWords === len
-                        ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
+                        ? "bg-transparent border-(--accent) text-(--accent)"
                         : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
                     )}
                   >
@@ -349,7 +349,7 @@ export default function ChapterAiToolMenus({
                     className={cn(
                       "p-2 rounded-xl border text-left transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
                       feedbackMode === mode
-                        ? "bg-(--accent)/15 border-(--accent) text-(--text)"
+                        ? "bg-transparent border-(--accent) text-(--text)"
                         : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
                     )}
                   >
@@ -373,7 +373,7 @@ export default function ChapterAiToolMenus({
                     className={cn(
                       "px-2.5 py-1 rounded-full border text-xs font-medium transition-colors",
                       active
-                        ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
+                        ? "bg-transparent border-(--accent) text-(--accent)"
                         : "bg-(--raised) border-(--line) text-(--muted)"
                     )}
                   >
@@ -443,7 +443,7 @@ export default function ChapterAiToolMenus({
                   className={cn(
                     "px-2.5 py-1 rounded-full border text-xs font-medium transition-colors",
                     active
-                      ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
+                      ? "bg-transparent border-(--accent) text-(--accent)"
                       : "bg-(--raised) border-(--line) text-(--muted)"
                   )}
                 >

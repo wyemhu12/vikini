@@ -65,7 +65,7 @@ export const DEFAULT_PROMPT_DIRECTIVES: Record<NovelcrafterPromptActionKey, stri
   "feedback:copy_editing":
     "Provide Copy Editing feedback (category: COPY) to fix grammar, punctuation, tense consistency, and awkward mechanics.",
   "feedback:beta_read": [
-    "Act as Sudowrite's 3 AI Beta Readers reviewing the prose:",
+    "Act as three distinct AI beta readers reviewing the prose:",
     "- MAYA (Focus: Emotional resonance, character empathy, chemistry, and heartfelt moments)",
     "- ANTON (Focus: Story structure, pacing, scene momentum, and character motivation)",
     "- JOAN (Focus: Plausibility, worldbuilding logic, continuity, and factual details)",
@@ -74,7 +74,7 @@ export const DEFAULT_PROMPT_DIRECTIVES: Record<NovelcrafterPromptActionKey, stri
   "expand:expand":
     "Expand the <selected_text> to slow down the pacing, adding scene depth, dialogue beats, micro-actions, and atmosphere without rushing the plot.",
   "expand:describe":
-    "Provide vivid sensory descriptions and metaphors for <selected_text>, focusing on: {{senses}}.",
+    "Rewrite the <selected_text> enriched with vivid sensory description and metaphor, focusing on: {{senses}}. Keep its events, dialogue, point of view, and meaning intact.",
   "brainstorm:plot_twists": BRAINSTORM_TEMPLATE,
   "brainstorm:character_names": BRAINSTORM_TEMPLATE,
   "brainstorm:world_objects": BRAINSTORM_TEMPLATE,

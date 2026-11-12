@@ -108,6 +108,7 @@ export function buildNovelcrafterSystemInstruction({
   const styleBlock = [
     "<style_preferences>",
     "[IMPORTANT: The following persona/style guidelines apply to how you execute the current feature, but they MUST strictly obey and NEVER override or contradict <task_instructions> above.]",
+    "[Output format and language rules given in <feature_instruction> always take precedence over any formatting preference below.]",
     personaPrompt,
     "</style_preferences>",
   ].join("\n");

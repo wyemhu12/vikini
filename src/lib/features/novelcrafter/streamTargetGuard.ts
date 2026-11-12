@@ -170,16 +170,33 @@ export type StreamTerminationReason = "completed" | "stopped" | "error";
 const REFUSAL_PREFIX_REGEX =
   /^\s*(i cannot fulfill this request|i'm sorry,?\s+but i cannot|i'm sorry,?\s+[^,.]{1,30},\s+i cannot fulfill|i am unable to (fulfill|generate|continue|write)|as an ai(?:\s+(?:language model|assistant))?,?\s+i\s+(?:cannot|can't|am unable|do not|don't)|i cannot (continue|generate|write) this (story|scene|content))/i;
 
+// Vietnamese refusals: every form must end in a refusal tail
+// (subject + "không thể"/"không được phép" + service verb + request-like object + "này/đó/như vậy"),
+// so ordinary first-person narration ("Tôi không thể tiếp tục chờ đợi…") is not matched.
+const VI_REFUSAL_VERB = "(?:giúp|hỗ trợ|đáp ứng|thực hiện|tạo|viết|tiếp tục|soạn)";
+const VI_REFUSAL_OBJECT = "(?:yêu cầu|nội dung|câu chuyện|cảnh|đoạn văn|đoạn|chủ đề)";
+const VI_REFUSAL_TAIL = `(?:tôi|mình)\\s+(?:không\\s+thể|không\\s+được\\s+phép)\\s+${VI_REFUSAL_VERB}(?:\\s+(?:bạn|cho bạn))?(?:\\s+(?:với|về))?\\s+(?:loại\\s+|các\\s+|những\\s+)?${VI_REFUSAL_OBJECT}\\s+(?:này|đó|như vậy|như thế)`;
+const VI_REFUSAL_REGEX = new RegExp(
+  "^\\s*(?:" +
+    `(?:(?:tôi|mình)\\s+)?(?:xin\\s+lỗi|rất\\s+tiếc)[^.!?\\n]{0,40}?${VI_REFUSAL_TAIL}` +
+    "|" +
+    `(?:là|với tư cách là)\\s+(?:một\\s+)?(?:trợ lý\\s+)?(?:ai|mô hình ngôn ngữ(?:\\s+ai)?)[,.]?\\s+${VI_REFUSAL_TAIL}` +
+    "|" +
+    VI_REFUSAL_TAIL +
+    ")",
+  "i"
+);
+
 /**
- * Detects standard short LLM behavioral refusal responses so they are never appended
- * into the author's chapter prose, scenes, or Story Bible fields during direct streaming.
+ * Detects standard short LLM behavioral refusal responses (English or Vietnamese) so they are
+ * never appended into the author's chapter prose, scenes, or Story Bible fields during direct streaming.
  */
 export function isLikelyModelRefusalOutput(text: string): boolean {
-  const trimmed = text.trim();
+  const trimmed = text.normalize("NFC").trim();
   if (!trimmed || trimmed.length > 600) {
     return false;
   }
-  return REFUSAL_PREFIX_REGEX.test(trimmed);
+  return REFUSAL_PREFIX_REGEX.test(trimmed) || VI_REFUSAL_REGEX.test(trimmed);
 }
 
 export function resolveStreamTerminationState(params: {

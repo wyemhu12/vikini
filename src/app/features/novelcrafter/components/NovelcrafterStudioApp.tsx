@@ -5,7 +5,6 @@ import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../sidebar/components/Sidebar";
-import HeaderBar from "../../layout/components/HeaderBar";
 import ToastContainer from "@/components/ui/ToastContainer";
 import { toast } from "@/lib/store/toastStore";
 import { useLayoutStore } from "@/lib/store/layoutStore";
@@ -47,6 +46,7 @@ export default function NovelcrafterStudioApp() {
   useTheme();
   const { t } = useLanguage();
   const layout = useStudioLayout();
+  const isMobileLayout = layout.viewportWidth < 768;
   const panes = useDockedPanes(layout.config);
   const appRootRef = useRef<HTMLDivElement | null>(null);
 
@@ -152,7 +152,33 @@ export default function NovelcrafterStudioApp() {
     onUpdateFeedbackItems: story.updateChapterFeedbackItems,
     feedbackPane,
     feedbackMode: layout.feedbackMode,
+    beatsContext: {
+      storyId: story.validStoryId,
+      isStateSettled: story.isStateSettled,
+      promotedDraftStoryId: story.promotedDraftStoryId,
+    },
   });
+
+  const previewSource = useMemo(
+    () => ({
+      storyBible: story.storyState.storyBible,
+      chapter: {
+        title: story.activeChapter.title,
+        content: story.activeChapter.content,
+        scenes: story.activeChapter.scenes,
+        summary: story.activeChapter.summary ?? "",
+        extraInstructions: story.activeChapter.extraInstructions ?? "",
+      },
+      previousChapterProseTail: story.previousChapterProseTail,
+      previousChapterSummaries: story.previousChapterSummaries,
+    }),
+    [
+      story.storyState.storyBible,
+      story.activeChapter,
+      story.previousChapterProseTail,
+      story.previousChapterSummaries,
+    ]
+  );
 
   const masterGem = useMemo(
     () => story.gems.find((g) => g.id === story.storyState.routing.masterGemId) || null,
@@ -296,13 +322,7 @@ export default function NovelcrafterStudioApp() {
       <div
         className={`flex-1 h-full flex flex-col min-w-0 relative z-10 transition-[padding] duration-300 ${getShellPaddingClass(sidebarCollapsed)} pr-[var(--sar,0px)]`}
       >
-        <HeaderBar
-          hideOnDesktop
-          onToggleSidebar={() => setMobileSidebarOpen(true)}
-          showMobileControls={true}
-        />
-
-        <div className="flex-1 min-h-0 flex flex-col pt-[calc(4.75rem+var(--sat,0px))] md:pt-0">
+        <div className="flex-1 min-h-0 flex flex-col pt-[var(--sat,0px)] pl-[var(--sal,0px)] md:p-0">
           {isRoutingModalOpen ? (
             <NovelcrafterAiSettingsWorkspace
               storyTitle={currentTitle}
@@ -315,6 +335,7 @@ export default function NovelcrafterStudioApp() {
               onUpdateFeaturePersonaSlot={story.updateFeaturePersonaSlot}
               onUpdateFeatureModelSlot={story.updateFeatureModelSlot}
               onClose={() => setIsRoutingModalOpen(false)}
+              previewSource={previewSource}
             />
           ) : (
             <>
@@ -351,6 +372,8 @@ export default function NovelcrafterStudioApp() {
                     toast.error(t("exportFailed") || message);
                   }
                 }}
+                isMobileLayout={isMobileLayout}
+                onOpenSidebar={() => setMobileSidebarOpen(true)}
                 showLeftPane={view === "write" && showLeftPane}
                 onToggleLeftPane={() => toggleTopPane("navigator")}
                 showRightPane={view === "write" && showRightPane}

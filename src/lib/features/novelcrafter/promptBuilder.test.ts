@@ -104,6 +104,34 @@ describe("Novelcrafter promptBuilder (TC-02, TC-03, TC-04, TC-05)", () => {
       expect(result).toContain("Sci-fi novelist");
     });
 
+    it("TC-P13: the persona block states that feature output rules take precedence", () => {
+      const precedence =
+        "[Output format and language rules given in <feature_instruction> always take precedence over any formatting preference below.]";
+      const result = buildNovelcrafterSystemInstruction({
+        masterGemInstructions: "Master rules",
+        persona: {
+          tone: "default",
+          useEmojis: false,
+          useHeadersLists: false,
+          userContext: "",
+          customInstructions: "",
+        },
+      });
+      const open = result.indexOf("<style_preferences>");
+      const close = result.indexOf("</style_preferences>");
+      const at = result.indexOf(precedence);
+      const personaRule = result.indexOf("Avoid using headers and bullet-point lists");
+      expect(open).toBeGreaterThanOrEqual(0);
+      expect(at).toBeGreaterThan(open);
+      expect(at).toBeLessThan(personaRule);
+      expect(personaRule).toBeLessThan(close);
+
+      const noPersona = buildNovelcrafterSystemInstruction({
+        masterGemInstructions: "Master rules",
+      });
+      expect(noPersona).not.toContain(precedence);
+    });
+
     it("TC-B4-01: omits <style_preferences> and <studio_context> when persona is null and uses default instructions when masterGemInstructions is empty", () => {
       const result = buildNovelcrafterSystemInstruction({
         masterGemInstructions: "",
