@@ -35,6 +35,7 @@ import {
   type ClientGemItem,
   type ClientPersonaItem,
 } from "./useNovelcrafterCatalog";
+import { resolveStoryStateSettled } from "./useBeatsAutoOpen";
 import { useNovelcrafterStateMutators } from "./useNovelcrafterStateMutators";
 import { useStoryPersistenceLifecycle } from "./useStoryPersistenceLifecycle";
 
@@ -52,6 +53,7 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     deleteConversation,
     renameConversation,
     creatingConversation,
+    isLoadingConversations,
   } = useConversation();
 
   const coordinatorRef = useRef<NovelcrafterSyncCoordinator | null>(null);
@@ -81,6 +83,9 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     createDefaultStoryState(t("novelcrafterDefaultChapterTitle"))
   );
   const [isLoadingState, setIsLoadingState] = useState(false);
+  // Story id whose state is on screen (undefined until first hydration) + id a draft was promoted into.
+  const [hydratedStoryId, setHydratedStoryId] = useState<string | null | undefined>(undefined);
+  const [promotedDraftStoryId, setPromotedDraftStoryId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<StorySaveStatus>("saved");
   const [loadErrorStoryId, setLoadErrorStoryId] = useState<string | null>(null);
   const loadErrorStoryIdRef = useRef<string | null>(null);
@@ -114,6 +119,7 @@ export function useNovelcrafterStory(isAuthed: boolean) {
         latestStateRef,
         setStoryState,
         createConversation,
+        onPromoted: setPromotedDraftStoryId,
       });
       if (newId) {
         void executeSaveRef.current(newId, latestStateRef.current.state, {
@@ -206,6 +212,7 @@ export function useNovelcrafterStory(isAuthed: boolean) {
           setStoryState(unsavedEnv.state);
         }
       }
+      setHydratedStoryId(null);
       return;
     }
 
@@ -224,6 +231,8 @@ export function useNovelcrafterStory(isAuthed: boolean) {
       );
       latestStateRef.current = { ownerStoryId: validStoryId, state: promoted };
       setStoryState(promoted);
+      setPromotedDraftStoryId(validStoryId);
+      setHydratedStoryId(validStoryId);
       void executeCoordinatorSave(validStoryId, promoted, {
         epoch: coordinator.getEpoch(validStoryId),
       });
@@ -231,6 +240,7 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     }
     if (!decision.shouldFetch) {
       latestStateRef.current = { ownerStoryId: validStoryId, state: latestStateRef.current.state };
+      setHydratedStoryId(validStoryId);
       return;
     }
 
@@ -247,6 +257,7 @@ export function useNovelcrafterStory(isAuthed: boolean) {
         updateLoadErrorStoryId(null);
         latestStateRef.current = { ownerStoryId: validStoryId, state: reconciled.state };
         setStoryState(reconciled.state);
+        setHydratedStoryId(validStoryId);
         if (reconciled.conflictDetected) toast.info(t("novelcrafterConflictBackupNotice"));
         if (reconciled.shouldSyncDraftToServer) {
           dirtyStoryIdsRef.current.add(validStoryId);
@@ -268,6 +279,7 @@ export function useNovelcrafterStory(isAuthed: boolean) {
           });
           latestStateRef.current = fallbackScoped;
           setStoryState(fallbackScoped.state);
+          setHydratedStoryId(validStoryId);
           updateLoadErrorStoryId(validStoryId);
           setSaveStatus("error");
           storyLogger.error("Failed to load story state:", err);
@@ -407,6 +419,16 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     previousChapterProseTail,
     previousChapterSummaries,
     isLoadingState,
+    isStateSettled: resolveStoryStateSettled({
+      isAuthed,
+      isLoadingConversations,
+      isLoadingState,
+      validStoryId,
+      hydratedStoryId,
+      storyCount: stories.length,
+      hasUnsavedDraft: hasUnsavedDraftContent(storyState),
+    }),
+    promotedDraftStoryId,
     saveStatus,
     destructivePrompt,
     confirmDestructiveSave,

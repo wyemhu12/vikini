@@ -1,7 +1,16 @@
 // /lib/features/novelcrafter/featureDirectives.test.ts
 import { describe, expect, it } from "vitest";
 import { buildFeatureDirective } from "./featureDirectives";
-import { createDefaultStoryState } from "./types";
+import {
+  BRAINSTORM_FORMAT_CONTRACT,
+  OPENINGS_ONLY_CONTRACT,
+  OUTPUT_LANGUAGE_RULE,
+  PASSAGE_ONLY_CONTRACT,
+  buildBibleSectionContract,
+  buildDevelopmentalCategoryRule,
+  buildProseOnlyContract,
+} from "./outputContracts";
+import { createDefaultStoryState, type BuildUserPromptInput } from "./types";
 
 describe("featureDirectives (TC-05 Cases 5A & 5B)", () => {
   const defaultBible = createDefaultStoryState().storyBible;
@@ -288,5 +297,211 @@ describe("featureDirectives (TC-05 Cases 5A & 5B)", () => {
     });
     expect(bibleRewriteIgnoreOverride).not.toContain("Should be ignored in rewrite mode");
     expect(bibleRewriteIgnoreOverride).toContain("<current_synopsis>");
+  });
+});
+
+describe("featureDirectives output contracts (prompt output contracts plan)", () => {
+  const fullBible = {
+    ...createDefaultStoryState().storyBible,
+    synopsis: "A courier discovers a forged map.",
+    characters: "## Elara (Courier)\n**Traits:** stubborn",
+    worldbuilding: "Floating markets on canal cities.",
+    outline: "Act 1: the map. Act 2: the chase.",
+  };
+  const base: BuildUserPromptInput = {
+    feature: "write",
+    storyBible: fullBible,
+    chapterTitle: "Chapter 1",
+    chapterProse: "Elara stepped through the portal.",
+    chapterScenes: "- Arrival\n- Chase",
+    chapterSummary: "- Elara arrives",
+    selectedText: "Elara stepped through the portal.",
+  };
+  const bibleTargets = [
+    "synopsis",
+    "characters",
+    "worldbuilding",
+    "outline",
+    "scenes",
+    "chapter_summary",
+  ] as const;
+
+  function allBranchInputs(): BuildUserPromptInput[] {
+    const writeModes = ["auto", "guided", "tone_shift", "first_draft_rough", "openings_3"] as const;
+    const feedbackModes = [
+      "developmental",
+      "line_editing",
+      "dialogue",
+      "copy_editing",
+      "beta_read",
+      "custom",
+    ] as const;
+    return [
+      ...writeModes.map((writeMode) => ({ ...base, writeMode, customInstruction: "Go on" })),
+      { ...base, feature: "rewrite" },
+      ...feedbackModes.map((feedbackMode) => ({
+        ...base,
+        feature: "feedback" as const,
+        feedbackMode,
+        customInstruction: "Focus on tension",
+      })),
+      { ...base, feature: "expand", expandMode: "expand" },
+      { ...base, feature: "expand", expandMode: "describe" },
+      { ...base, feature: "brainstorm", brainstormCategory: "plot_twists" },
+      { ...base, feature: "bible", bibleTarget: "draft" },
+      ...bibleTargets.map((bibleTarget) => ({
+        ...base,
+        feature: "bible" as const,
+        bibleTarget,
+        actionMode: "generate" as const,
+      })),
+      ...bibleTargets.map((bibleTarget) => ({
+        ...base,
+        feature: "bible" as const,
+        bibleTarget,
+        actionMode: "rewrite" as const,
+      })),
+    ];
+  }
+
+  it("TC-P01: every directive ends with the output language rule", () => {
+    for (const input of allBranchInputs()) {
+      expect(buildFeatureDirective(input).endsWith(OUTPUT_LANGUAGE_RULE)).toBe(true);
+    }
+  });
+
+  it("TC-P02: a Prompt Studio override cannot remove the language rule or the branch contract", () => {
+    const override = { promptDirectiveOverride: "Custom override text" };
+    const write = buildFeatureDirective({ ...base, writeMode: "auto", ...override });
+    expect(write).toContain("Custom override text");
+    expect(write).toContain(buildProseOnlyContract("continue"));
+    expect(write).toContain(OUTPUT_LANGUAGE_RULE);
+
+    const feedback = buildFeatureDirective({
+      ...base,
+      feature: "feedback",
+      feedbackMode: "developmental",
+      selectedText: "",
+      ...override,
+    });
+    expect(feedback).toContain("Output only <feedback_item> blocks");
+    expect(feedback).toContain(OUTPUT_LANGUAGE_RULE);
+
+    const characters = buildFeatureDirective({
+      ...base,
+      feature: "bible",
+      bibleTarget: "characters",
+      actionMode: "generate",
+      ...override,
+    });
+    expect(characters).toContain(buildBibleSectionContract("characters"));
+    expect(characters).toContain(OUTPUT_LANGUAGE_RULE);
+  });
+
+  it("TC-P03: prose-inserting branches carry the prose-only contract", () => {
+    for (const writeMode of ["auto", "guided", "tone_shift"] as const) {
+      const dir = buildFeatureDirective({ ...base, writeMode, customInstruction: "Go on" });
+      expect(dir).toContain(buildProseOnlyContract("continue"));
+    }
+    expect(buildFeatureDirective({ ...base, writeMode: "first_draft_rough" })).toContain(
+      buildProseOnlyContract("chapter_draft")
+    );
+    expect(buildFeatureDirective({ ...base, feature: "bible", bibleTarget: "draft" })).toContain(
+      buildProseOnlyContract("chapter_draft")
+    );
+  });
+
+  it("TC-P04: openings_3 keeps its delimiters and does not get the prose-only contract", () => {
+    const dir = buildFeatureDirective({ ...base, writeMode: "openings_3" });
+    expect(dir).toContain(OPENINGS_ONLY_CONTRACT);
+    expect(dir).not.toContain("Output only the story prose");
+  });
+
+  it("TC-P07: characters and scenes contracts apply in both generate and rewrite modes", () => {
+    for (const actionMode of ["generate", "rewrite"] as const) {
+      for (const bibleTarget of ["characters", "scenes"] as const) {
+        const dir = buildFeatureDirective({ ...base, feature: "bible", bibleTarget, actionMode });
+        expect(dir).toContain(buildBibleSectionContract(bibleTarget));
+      }
+    }
+  });
+
+  it("TC-P08: expand and describe return a replacement passage only", () => {
+    const expand = buildFeatureDirective({ ...base, feature: "expand", expandMode: "expand" });
+    expect(expand).toContain(PASSAGE_ONLY_CONTRACT);
+    const describeDir = buildFeatureDirective({
+      ...base,
+      feature: "expand",
+      expandMode: "describe",
+      describeSenses: ["sight", "smell"],
+    });
+    expect(describeDir).toContain(PASSAGE_ONLY_CONTRACT);
+    expect(describeDir).toContain("sight, smell");
+  });
+
+  it("TC-P09: feedback is limited to the selection only when there is one", () => {
+    const withSelection = buildFeatureDirective({
+      ...base,
+      feature: "feedback",
+      feedbackMode: "line_editing",
+    });
+    expect(withSelection).toContain("Only comment on <selected_text>");
+    expect(withSelection).toContain("Return 1 to 6");
+
+    const whole = buildFeatureDirective({
+      ...base,
+      feature: "feedback",
+      feedbackMode: "line_editing",
+      selectedText: "",
+    });
+    expect(whole).not.toContain("Only comment on <selected_text>");
+    expect(whole).toContain("Return 3 to 6");
+  });
+
+  it("TC-P10: developmental feedback names only the selected criteria as categories", () => {
+    const dir = buildFeatureDirective({
+      ...base,
+      feature: "feedback",
+      feedbackMode: "developmental",
+      feedbackCriteria: ["pacing", "clarity"],
+      selectedText: "",
+    });
+    const rule = buildDevelopmentalCategoryRule(["pacing", "clarity"]);
+    expect(rule).toContain("PACING, CLARITY");
+    expect(dir).toContain(rule);
+    const categoryLine = dir.split("\n").find((line) => line.includes("<category> of each item"));
+    expect(categoryLine).toBeDefined();
+    expect(categoryLine).not.toContain("ORIGINALITY");
+  });
+
+  it("TC-P12: copy editing allows up to 10 items, other modes up to 6", () => {
+    const copy = buildFeatureDirective({
+      ...base,
+      feature: "feedback",
+      feedbackMode: "copy_editing",
+      selectedText: "",
+    });
+    expect(copy).toContain("Return 3 to 10");
+    expect(copy).toContain("Output only <feedback_item> blocks");
+    const dialogue = buildFeatureDirective({
+      ...base,
+      feature: "feedback",
+      feedbackMode: "dialogue",
+      selectedText: "",
+    });
+    expect(dialogue).toContain("Return 3 to 6");
+    expect(dialogue).toContain("Output only <feedback_item> blocks");
+  });
+
+  it("TC-P14: brainstorm uses the list format and keeps the topic", () => {
+    const dir = buildFeatureDirective({
+      ...base,
+      feature: "brainstorm",
+      brainstormCategory: "plot_twists",
+      customInstruction: "What if the map is real?",
+    });
+    expect(dir).toContain(BRAINSTORM_FORMAT_CONTRACT);
+    expect(dir).toContain("What if the map is real?");
+    expect(dir.endsWith(OUTPUT_LANGUAGE_RULE)).toBe(true);
   });
 });

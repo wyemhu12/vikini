@@ -24,6 +24,7 @@ import type { ActiveChapterToolMenu } from "../components/ChapterAiToolMenus";
 import type { ManuscriptEditorHandle } from "../components/ChapterManuscriptEditor";
 import type { ChapterSelectionQuickEditProps } from "../components/ChapterSelectionToolbar";
 import type { EditorSelectionWithText } from "./useManuscriptEditor";
+import { useBeatsAutoOpen, type BeatsStoryContext } from "./useBeatsAutoOpen";
 import type { TriggerNovelcrafterStreamParams } from "./useNovelcrafterStream";
 
 export interface FeedbackPaneControl {
@@ -48,6 +49,7 @@ export interface UseChapterEditorControllerOptions {
   ) => void;
   feedbackPane: FeedbackPaneControl;
   feedbackMode?: "inline" | "bottom-sheet";
+  beatsContext?: BeatsStoryContext;
 }
 
 export function useChapterEditorController({
@@ -60,22 +62,28 @@ export function useChapterEditorController({
   onUpdateFeedbackItems,
   feedbackPane,
   feedbackMode = "inline",
+  beatsContext,
 }: UseChapterEditorControllerOptions) {
   const { t } = useLanguage();
   const editorHandleRef = useRef<ManuscriptEditorHandle | null>(null);
   const chapterId = chapter?.id ?? "";
   const chapterContent = chapter?.content ?? "";
 
-  const [beatsOpen, setBeatsOpen] = useState<boolean>(
-    () => (chapter?.content.trim().length ?? 0) === 0
-  );
+  const beats = useBeatsAutoOpen({
+    storyId: null,
+    isStateSettled: true,
+    promotedDraftStoryId: null,
+    ...beatsContext,
+    chapterId,
+    chapterContent,
+    isStreaming,
+  });
   const [activeMenu, setActiveMenu] = useState<ActiveChapterToolMenu>(null);
   const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(null);
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const [quickEditPrompt, setQuickEditPrompt] = useState("");
 
   useEffect(() => {
-    setBeatsOpen((chapter?.content.trim().length ?? 0) === 0);
     setActiveFeedbackId(null);
     setQuickEditOpen(false);
     setQuickEditPrompt("");
@@ -259,8 +267,9 @@ export function useChapterEditorController({
 
   return {
     editorHandleRef,
-    beatsOpen,
-    setBeatsOpen,
+    beatsOpen: beats.beatsOpen,
+    setBeatsOpen: beats.setBeatsOpen,
+    noteChapterEdit: beats.lockCurrent,
     activeFeedbackId,
     setActiveFeedbackId,
     activeFeedbackItem,
@@ -322,8 +331,8 @@ export function useChapterEditorController({
       onSelectMenu: setActiveMenu,
       isStreaming: isStreaming || Boolean(isLoadLocked),
       selectedCharCount: selection?.text.length ?? 0,
-      beatsOpen,
-      onToggleBeats: () => setBeatsOpen((p) => !p),
+      beatsOpen: beats.beatsOpen,
+      onToggleBeats: () => beats.setBeatsOpen((p) => !p),
       openFeedbackCount,
       showFeedbackGutter: feedbackPane.isOpen,
       onToggleFeedbackGutter: feedbackPane.toggle,

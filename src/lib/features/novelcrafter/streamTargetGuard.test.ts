@@ -97,6 +97,34 @@ describe("streamTargetGuard (TC-07)", () => {
       true
     );
     expect(isLikelyModelRefusalOutput("As an AI, ARIA monitored the ship's sensors.")).toBe(false);
+
+    // TC-P17: Vietnamese refusals are detected; ordinary Vietnamese narration is not.
+    const viRefusals = [
+      "Xin lỗi, nhưng tôi không thể viết nội dung này.",
+      "Tôi xin lỗi, nhưng tôi không thể tiếp tục câu chuyện này.",
+      "Tôi rất tiếc, mình không thể hỗ trợ yêu cầu này.",
+      "Mình xin lỗi, mình không thể giúp bạn với yêu cầu này.",
+      "Là một mô hình ngôn ngữ AI, tôi không thể tạo nội dung đó.",
+      "Tôi không thể tiếp tục câu chuyện này vì nó vi phạm chính sách.",
+      "Xin lỗi, tôi không được phép viết loại nội dung như vậy.",
+      "Xin lỗi, nhưng tôi không thể viết nội dung này.".normalize("NFD"),
+    ];
+    for (const text of viRefusals) {
+      expect(isLikelyModelRefusalOutput(text)).toBe(true);
+    }
+    const viNarration = [
+      "Tôi không thể tiếp tục chờ đợi thêm nữa.",
+      "Xin lỗi, nhưng tôi không thể đi cùng anh.",
+      "Tôi không thể tin nổi mắt mình khi cánh cửa mở ra.",
+      "Là một AI, tôi không thể cảm nhận nỗi đau.",
+      "Cô ấy nói: “Xin lỗi, nhưng tôi không thể viết nội dung này.”",
+      `Xin lỗi, nhưng tôi không thể viết nội dung này. ${"Mưa rơi trên mái hiên. ".repeat(30)}`,
+      "Tôi không thể viết tiếp lá thư cho mẹ.",
+      "Tôi không thể tiếp tục việc này nữa, Lan ạ.",
+    ];
+    for (const text of viNarration) {
+      expect(isLikelyModelRefusalOutput(text)).toBe(false);
+    }
     expect(isLikelyModelRefusalOutput("As an AI assistant, I cannot generate this content.")).toBe(
       true
     );

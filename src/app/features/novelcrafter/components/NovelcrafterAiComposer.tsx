@@ -240,7 +240,7 @@ export default function NovelcrafterAiComposer({
       onSubmit={handleSubmit}
       className="shrink-0 border-t border-(--line) bg-(--surface) p-3.5 flex flex-col gap-2.5"
     >
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <select
           aria-label={t("novelcrafterComposerActionAria")}
           value={action}
@@ -258,7 +258,7 @@ export default function NovelcrafterAiComposer({
           role="radiogroup"
           aria-label={t("novelcrafterComposerModeGroupAria")}
           className={cn(
-            "flex-1 min-w-0 grid gap-0.5 rounded-lg bg-(--raised) p-0.5",
+            "w-full min-w-0 grid gap-0.5 rounded-lg bg-(--raised) p-0.5",
             currentModes.length === 2 ? "grid-cols-2" : "grid-cols-3"
           )}
         >
@@ -269,6 +269,7 @@ export default function NovelcrafterAiComposer({
               role="radio"
               aria-checked={mode.checked}
               onClick={mode.select}
+              title={mode.label}
               className={cn(
                 "h-7 rounded-md px-1.5 text-xs truncate transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
                 mode.checked

@@ -191,13 +191,20 @@ export default function ChapterEditorWorkspace({
             isOpen={controller.beatsOpen}
             onClose={() => controller.setBeatsOpen(false)}
             scenes={chapter.scenes}
-            onChangeScenes={(val) => onUpdateChapter(chapter.id, { scenes: val })}
+            onChangeScenes={(val) => {
+              controller.noteChapterEdit();
+              onUpdateChapter(chapter.id, { scenes: val });
+            }}
             extraInstructions={chapter.extraInstructions ?? ""}
-            onChangeExtraInstructions={(val) =>
-              onUpdateChapter(chapter.id, { extraInstructions: val })
-            }
+            onChangeExtraInstructions={(val) => {
+              controller.noteChapterEdit();
+              onUpdateChapter(chapter.id, { extraInstructions: val });
+            }}
             summary={chapter.summary ?? ""}
-            onChangeSummary={(val) => onUpdateChapter(chapter.id, { summary: val })}
+            onChangeSummary={(val) => {
+              controller.noteChapterEdit();
+              onUpdateChapter(chapter.id, { summary: val });
+            }}
             canSummarizeChapter={Boolean(chapter.content.trim() || chapter.scenes.trim())}
             onSummarizeChapter={() => {
               if (isStreaming || isLoadLocked) return;
@@ -302,7 +309,10 @@ export default function ChapterEditorWorkspace({
               activeFeedbackId={controller.activeFeedbackId}
               storyBible={storyBible}
               selection={selection}
-              onChangeContent={(next) => onUpdateChapter(chapter.id, { content: next })}
+              onChangeContent={(next) => {
+                controller.noteChapterEdit();
+                onUpdateChapter(chapter.id, { content: next });
+              }}
               onSelectionChange={onSelectionChange}
               onFeedbackMarkClick={controller.selectFeedbackById}
               onOpenCodexEntity={(kind) =>

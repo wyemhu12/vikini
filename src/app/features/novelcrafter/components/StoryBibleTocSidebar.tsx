@@ -75,8 +75,8 @@ export default function StoryBibleTocSidebar({
       aria-label={t("novelcrafterBibleTocAria")}
       className="w-full md:w-[232px] shrink-0 border-b md:border-b-0 md:border-r border-(--line) bg-(--surface) px-4 py-3 md:px-3 md:py-5 flex flex-col gap-2"
     >
-      <div className="flex items-start justify-between gap-2 px-1 md:px-2 pb-1 md:pb-2">
-        <div className="min-w-0">
+      <div className="flex flex-wrap items-start justify-between gap-2 px-1 md:px-2 pb-1 md:pb-2">
+        <div className="min-w-0 flex-1 basis-40">
           <h2 className="font-serif italic text-lg md:text-[22px] text-(--text) leading-tight truncate">
             {t("novelcrafterStoryBibleTitle")}
           </h2>

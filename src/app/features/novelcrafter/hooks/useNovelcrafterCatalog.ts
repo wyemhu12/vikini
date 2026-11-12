@@ -120,6 +120,8 @@ export async function spawnAndBindStoryConversation(params: {
     projectId: null;
     onBeforeActivate: (newId: string) => void;
   }) => Promise<{ id?: string } | null>;
+  /** Called when an unsaved draft is promoted into the newly created story (before it is activated). */
+  onPromoted?: (newStoryId: string) => void;
 }): Promise<string | null> {
   const {
     knownStoryIds,
@@ -139,6 +141,7 @@ export async function spawnAndBindStoryConversation(params: {
         });
         latestStateRef.current = { ownerStoryId: newStoryId, state: promoted };
         setStoryState(promoted);
+        params.onPromoted?.(newStoryId);
       } else {
         coordinator.seedServerMeta(newStoryId, { version: 1, updatedAt: 0 });
         coordinator.markSkipInitialGet(newStoryId);

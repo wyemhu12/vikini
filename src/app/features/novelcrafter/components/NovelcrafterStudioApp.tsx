@@ -152,6 +152,11 @@ export default function NovelcrafterStudioApp() {
     onUpdateFeedbackItems: story.updateChapterFeedbackItems,
     feedbackPane,
     feedbackMode: layout.feedbackMode,
+    beatsContext: {
+      storyId: story.validStoryId,
+      isStateSettled: story.isStateSettled,
+      promotedDraftStoryId: story.promotedDraftStoryId,
+    },
   });
 
   const masterGem = useMemo(

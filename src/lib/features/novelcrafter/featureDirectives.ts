@@ -8,6 +8,16 @@ import {
   sanitizeDirectiveOverride,
   type DirectiveTemplateVars,
 } from "./promptDirectiveDefaults";
+import {
+  BRAINSTORM_FORMAT_CONTRACT,
+  OPENINGS_ONLY_CONTRACT,
+  OUTPUT_LANGUAGE_RULE,
+  PASSAGE_ONLY_CONTRACT,
+  buildBibleSectionContract,
+  buildDevelopmentalCategoryRule,
+  buildFeedbackFormatContract,
+  buildProseOnlyContract,
+} from "./outputContracts";
 import type { NovelcrafterPromptActionKey } from "./promptActions";
 import {
   escapeXmlPromptText,
@@ -57,16 +67,10 @@ const CRITERION_DESCRIPTIONS: Record<NovelcrafterDevelopmentalCriterion, string>
   originality: "ORIGINALITY (fresh imagery, avoiding clichés, and distinctive narrative voice)",
 };
 
-export const FEEDBACK_FORMAT_CONTRACT = [
-  "Return 3 to 6 actionable margin feedback items using ONLY the following XML block format for each item:",
-  "<feedback_item>",
-  "<category>CATEGORY_NAME</category>",
-  "<quote>Exact verbatim sentence or passage copied directly from the chapter prose</quote>",
-  "<comment>Concise, specific editorial explanation of the issue and why it matters</comment>",
-  "<suggestion>Concrete rewritten replacement for the quoted passage that fixes the issue</suggestion>",
-  "</feedback_item>",
-  "IMPORTANT: <quote> MUST match an exact substring from the provided prose so the editor can highlight and replace it with 1 click.",
-].join("\n");
+export const FEEDBACK_FORMAT_CONTRACT = buildFeedbackFormatContract({
+  maxItems: 6,
+  selectionOnly: false,
+});
 
 function resolveBaseDirective(
   key: NovelcrafterPromptActionKey,
@@ -92,6 +96,7 @@ function buildBibleDirective(input: BuildUserPromptInput, custom: string): strin
       resolveBaseDirective("bible:draft", input),
       extra ? `Chapter Extra Instructions: ${extra}` : "",
       custom ? `Additional Author Direction: ${custom}` : "",
+      buildProseOnlyContract("chapter_draft"),
     ]
       .filter(Boolean)
       .join("\n");
@@ -135,6 +140,7 @@ function buildBibleDirective(input: BuildUserPromptInput, custom: string): strin
       custom
         ? `Rewrite Instructions: ${custom}`
         : "Enhance clarity, dramatic tension, and coherence.",
+      buildBibleSectionContract(target),
     ]
       .filter(Boolean)
       .join("\n");
@@ -143,6 +149,7 @@ function buildBibleDirective(input: BuildUserPromptInput, custom: string): strin
   return [
     resolveBaseDirective(`bible:${target}`, input),
     custom ? `Additional Author Direction: ${custom}` : "",
+    buildBibleSectionContract(target),
   ]
     .filter(Boolean)
     .join("\n");
@@ -158,13 +165,17 @@ function buildFeedbackDirective(input: BuildUserPromptInput, custom: string): st
   }
 
   const mode: NovelcrafterFeedbackMode = input.feedbackMode || "developmental";
+  const formatContract = buildFeedbackFormatContract({
+    maxItems: mode === "copy_editing" ? 10 : 6,
+    selectionOnly: Boolean(selected),
+  });
 
   if (mode === "beta_read") {
     return [
       resolveBaseDirective("feedback:beta_read", input),
       "Use MAYA, ANTON, or JOAN as the <category> tag for each feedback item.",
       custom ? `Author Focus Note: ${custom}` : "",
-      FEEDBACK_FORMAT_CONTRACT,
+      formatContract,
     ]
       .filter(Boolean)
       .join("\n");
@@ -179,7 +190,8 @@ function buildFeedbackDirective(input: BuildUserPromptInput, custom: string): st
     return [
       resolveBaseDirective("feedback:developmental", input, { criteria: criteriaList }),
       custom ? `Additional Editorial Focus: ${custom}` : "",
-      FEEDBACK_FORMAT_CONTRACT,
+      buildDevelopmentalCategoryRule(selectedCriteria),
+      formatContract,
     ]
       .filter(Boolean)
       .join("\n");
@@ -189,7 +201,7 @@ function buildFeedbackDirective(input: BuildUserPromptInput, custom: string): st
   if (mode === "custom" && custom && !hasOverride) {
     return [
       `Provide targeted editorial feedback according to this instruction: ${custom}`,
-      FEEDBACK_FORMAT_CONTRACT,
+      formatContract,
     ]
       .filter(Boolean)
       .join("\n");
@@ -198,13 +210,18 @@ function buildFeedbackDirective(input: BuildUserPromptInput, custom: string): st
   return [
     resolveBaseDirective(`feedback:${mode}`, input),
     (mode !== "custom" || hasOverride) && custom ? `Additional Editorial Focus: ${custom}` : "",
-    FEEDBACK_FORMAT_CONTRACT,
+    formatContract,
   ]
     .filter(Boolean)
     .join("\n");
 }
 
+/** Feature directive + output contracts, always closed by the output language rule. */
 export function buildFeatureDirective(input: BuildUserPromptInput): string {
+  return `${buildFeatureDirectiveBody(input)}\n${OUTPUT_LANGUAGE_RULE}`;
+}
+
+function buildFeatureDirectiveBody(input: BuildUserPromptInput): string {
   const custom = escapeXmlPromptText(input.customInstruction?.trim() || "");
   const extraRaw = input.chapterExtraInstructions?.trim() || "";
   const chapterExtra = extraRaw
@@ -226,6 +243,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
         lengthTarget || "Target output length: approximately 800 to 1,200 words.",
         chapterExtra,
         custom ? `Additional Direction: ${custom}` : "",
+        buildProseOnlyContract("chapter_draft"),
       ]
         .filter(Boolean)
         .join("\n");
@@ -242,6 +260,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
         "[prose]",
         chapterExtra,
         custom ? `Additional Direction: ${custom}` : "",
+        OPENINGS_ONLY_CONTRACT,
       ]
         .filter(Boolean)
         .join("\n");
@@ -255,6 +274,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
         lengthTarget,
         chapterExtra,
         custom ? `Additional Direction: ${custom}` : "",
+        buildProseOnlyContract("continue"),
       ]
         .filter(Boolean)
         .join("\n");
@@ -266,6 +286,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
           `${resolveBaseDirective("write:guided", input)} Guided Direction: ${custom}`,
           lengthTarget,
           chapterExtra,
+          buildProseOnlyContract("continue"),
         ]
           .filter(Boolean)
           .join("\n");
@@ -276,6 +297,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
           lengthTarget,
           chapterExtra,
           custom ? `Additional Direction: ${custom}` : "",
+          buildProseOnlyContract("continue"),
         ]
           .filter(Boolean)
           .join("\n");
@@ -286,6 +308,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
       lengthTarget,
       chapterExtra,
       custom ? `Additional Direction: ${custom}` : "",
+      buildProseOnlyContract("continue"),
     ]
       .filter(Boolean)
       .join("\n");
@@ -331,6 +354,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
         resolveBaseDirective("expand:describe", input, { senses }),
         chapterExtra,
         custom ? `Additional focus: ${custom}` : "",
+        PASSAGE_ONLY_CONTRACT,
       ]
         .filter(Boolean)
         .join("\n");
@@ -339,6 +363,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
       resolveBaseDirective("expand:expand", input),
       chapterExtra,
       custom ? `Additional focus: ${custom}` : "",
+      PASSAGE_ONLY_CONTRACT,
     ]
       .filter(Boolean)
       .join("\n");
@@ -351,6 +376,7 @@ export function buildFeatureDirective(input: BuildUserPromptInput): string {
       category: BRAINSTORM_CATEGORY_LABELS[category],
     }),
     custom ? `Specific Brainstorm Topic / Question: ${custom}` : "",
+    BRAINSTORM_FORMAT_CONTRACT,
   ]
     .filter(Boolean)
     .join("\n");
