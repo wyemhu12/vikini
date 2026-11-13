@@ -8,6 +8,23 @@
 
 ---
 
+## 2026-11-13: Gemini 3.1 Deprecation & `gemini-embedding-2` GA Migration
+
+- **Gỡ bỏ hoàn toàn `gemini-3.1-flash-lite-preview` (đã shutdown 25/05/2026) và `gemini-3.1-pro-preview` (`modelRegistry.ts`, `en.ts`, `vi.ts`, `useChatTranslations.ts`, `streaming/utils.ts`)**: loại bỏ khỏi `SELECTABLE_MODELS`, `API_ALLOWED` và các key dịch thuật tương ứng; cập nhật `MODEL_ALIASES` để ánh xạ trực tiếp cả 2 ID cũ và 4 alias trung gian (`gemini-3.1-pro`, `gemini-3-pro`, `gemini-3-pro-preview` → `gemini-3.8-flash`; `gemini-3.1-flash-lite` → `gemini-3.5-flash-lite`) giúp hội thoại/story cũ trong DB không bị lỗi 404 hay rơi về default.
+- **Sửa model gọi API gợi ý prompt (`src/app/api/prompt-suggest/route.ts`)**: chuyển từ `gemini-3.1-flash-lite-preview` (đã tắt) sang `gemini-3.5-flash-lite` và bổ sung bộ test `src/app/api/prompt-suggest/route.test.ts` (4 test cases).
+- **Đồng bộ `GEMINI_EMBEDDING_API_MODEL` sang bản GA `gemini-embedding-2` (`src/lib/features/projects/embedding.server.ts`)**: bản `gemini-embedding-2-preview` đã được Google deprecate từ 06/11/2026 và tự động route sang `gemini-embedding-2` phía API nên việc đổi constant giúp mã nguồn khớp chuẩn GA mà không đổi hành vi runtime (nếu chất lượng RAG giảm trên tài liệu cũ, hướng xử lý là re-embed thay vì rollback constant).
+- **Kiểm thử & Tài liệu (`modelRegistry.test.ts`, `embedding.server.test.ts`, `generate-image/route.test.ts`, `novelcrafterStreamRunner.server.test.ts`, `gemini-stream.test.ts`, `useThinkingLevel.test.ts`, `thinkingOptions.test.ts`, `docs/models.md`, `docs/database-schema.md`)**: bổ sung invariant `TC-G31-01..07` (bao gồm kiểm tra toàn bộ `MODEL_ALIASES` trỏ tới ID sống) và cập nhật tài liệu kiến trúc/model.
+
+---
+
+## 2026-11-12: Novelcrafter -- Prompt Studio IDE Overhaul (Semantic XML Tag Highlighting, 2-Column Split, Collapsible Sidebar & Shared Back Navigation)
+
+- **Thanh điều hướng dùng chung & Bố cục 2 dải gọn nhẹ không tràn `375px` (`NovelcrafterAiSettingsWorkspace.tsx`, `NovelcrafterInheritanceTable.tsx`, `PromptStudioApp.tsx`, `PromptStudioPresetBar.tsx`)**: đưa nút **Quay lại Studio** (`onClose` / `backHref="/novelcrafter"`) và `PromptStudioPresetBar` lên thanh trên cùng dùng chung của `NovelcrafterAiSettingsWorkspace` để luôn hiển thị xuyên suốt trên cả hai tab (`Mặc định & thừa kế` và `Prompt Studio`), gỡ nút quay lại bị lặp trong `NovelcrafterInheritanceTable`, và truyền `initialTab="studio"` khi truy cập trực tiếp `/novelcrafter/prompts`.
+- **Sidebar Hành động AI rộng rãi, nhóm Accordion thu/mở & Từ điển nhãn ngắn gọn (`PromptStudioActionList.tsx`, `promptStudioLabels.ts`, `vi.ts`, `en.ts`)**: mở rộng chiều ngang cột hành động trên desktop lên `md:w-64 lg:w-72` (`256px`–`288px`), gom 37 hành động vào 6 nhóm accordion thu/mở chuẩn ARIA kèm huy hiệu đếm tùy chỉnh, bảo vệ roving `tabIndex` không bị kẹt khi đóng nhóm đang chọn, và bổ sung bộ nhãn ngắn gọn tự nhiên để không còn cắt chữ `...` khi chuyển sang tiếng Việt.
+- **Giao diện IDE 2 cột, Tô màu thẻ XML kiểu VS Code & Đồng bộ hai chiều (`xmlPreviewHighlighter.ts` mới, `base.css`, `PromptStudioActionEditor.tsx`, `PromptStudioContextToggles.tsx`, `PromptStudioXmlPreview.tsx`)**: chia đôi màn hình `lg+` thành khung chỉnh sửa bên trái (lưới 2 cột chip ngữ cảnh gắn huy hiệu `<tag>` chuẩn HTML5 `<label>` + sibling `<button>` `Crosshair`) và khung **Live XML Inspector** cao toàn phần bên phải; hiện thực bộ phân tích `parseXmlPreviewNodes` (**2-Pass Innermost LIFO Stack Pairing** lossless 100%) + `normalizeBlockDisplayChildren`, định nghĩa 4 nhóm màu ngữ nghĩa theo theme (`--xml-bible`, `--xml-style`, `--xml-chapter`, `--xml-directive` đạt tương phản WCAG 2.1 AA `>= 4.5` trên toàn bộ `360` phép đo pha alpha ở 10 theme Dark/Light), vẽ đường gióng thụt lề dọc `border-l` và đồng bộ sáng vùng/cuộn hai chiều giữa chip ngữ cảnh và khối `<tag>` tương ứng.
+
+---
+
 ## 2026-11-12: Novelcrafter -- Write View UX Cleanup (Own-Scroll Manuscript Box, Fewer AI Entry Points, Visual Hierarchy, AI Settings Tabs, Mobile Header)
 
 - **Khung bản thảo cuộn riêng (`ChapterEditorWorkspace.tsx`, `useManuscriptBoxHeight.ts`, `manuscriptViewport.ts`, `scrollParent.ts`, `ChapterManuscriptEditor.tsx`)**: trên desktop (≥ 768px) khung văn bản có thanh cuộn riêng, cao tới đáy vùng nhìn (trừ bàn phím ảo, tối thiểu 320px), tự tính lại khi đổi cỡ cửa sổ hoặc khi thẻ Beats/banner phía trên đổi cao; thanh cuộn ngoài dùng để xuống khối Story Bible. Nhảy tới trích dẫn Feedback cuộn đúng khung trong. Mobile giữ một thanh cuộn.

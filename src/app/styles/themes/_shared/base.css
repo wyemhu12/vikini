@@ -117,6 +117,31 @@
   --z-popover: 75;
   --z-toast: 80;
   --z-banner: 90;
+
+  /* Semantic XML preview syntax tokens (Dark mode defaults; WCAG AA >= 4.5 across 0x..2x soft) */
+  --xml-bible: #93c5fd;
+  --xml-bible-soft: rgba(147, 197, 253, 0.1);
+  --xml-style: #d8b4fe;
+  --xml-style-soft: rgba(216, 180, 254, 0.1);
+  --xml-chapter: #6ee7b7;
+  --xml-chapter-soft: rgba(110, 231, 183, 0.1);
+  --xml-directive: #fdba74;
+  --xml-directive-soft: rgba(253, 186, 116, 0.1);
+}
+
+.theme-hoanghon-light,
+.theme-muc-light,
+.theme-reu-light,
+.theme-sen-light,
+.theme-than-light {
+  --xml-bible: #1e40af;
+  --xml-bible-soft: rgba(30, 64, 175, 0.07);
+  --xml-style: #6b21a8;
+  --xml-style-soft: rgba(107, 33, 168, 0.07);
+  --xml-chapter: #065f46;
+  --xml-chapter-soft: rgba(6, 95, 70, 0.07);
+  --xml-directive: #9a3412;
+  --xml-directive-soft: rgba(154, 52, 18, 0.07);
 }
 
 html,

@@ -1,13 +1,13 @@
 /**
  * Embedding Service - Unified Gemini Embedding 2 (3072d)
- * Model API: gemini-embedding-2-preview
+ * Model API: gemini-embedding-2
  */
 import { GoogleGenAI, ApiError } from "@google/genai";
 import { logger } from "@/lib/utils/logger";
 
 const embeddingLogger = logger.withContext("embedding");
 
-export const GEMINI_EMBEDDING_API_MODEL = "gemini-embedding-2-preview";
+export const GEMINI_EMBEDDING_API_MODEL = "gemini-embedding-2";
 export const EMBEDDING_DIMENSION = 3072;
 export const NATIVE_BATCH_SIZE = 50; // Tối đa 50 texts trong 1 request
 export const UPLOAD_MAX_RETRIES = 3; // Upload tài liệu retry tối đa 3 lần

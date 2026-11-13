@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     const genAI = getGenAIClient();
 
     const result = await genAI.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
+      model: "gemini-3.5-flash-lite",
       contents: [
         {
           role: "user",

@@ -64,7 +64,7 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
       ]);
     });
 
-    it("returns low, medium, high for Gemini 3.1 Pro and Gemini 3.8 Flash", () => {
+    it("returns low, medium, high for legacy Gemini 3.1 Pro alias and Gemini 3.8 Flash", () => {
       expect(getSupportedGeminiThinkingLevels("gemini-3.1-pro-preview")).toEqual([
         "low",
         "medium",
@@ -126,7 +126,7 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
 
   describe("normalizeModelForApi", () => {
     it("maps model aliases to canonical IDs", () => {
-      expect(normalizeModelForApi("gemini-3-pro-preview")).toBe("gemini-3.1-pro-preview");
+      expect(normalizeModelForApi("gemini-3-pro-preview")).toBe("gemini-3.8-flash");
       expect(normalizeModelForApi("gemini-2.5-flash-preview")).toBe(DEFAULT_MODEL);
       expect(normalizeModelForApi("gemini-4-argon")).toBe(MODEL_IDS.GEMINI_4_ARGON);
       expect(normalizeModelForApi("gemini-4-argon-preview")).toBe(MODEL_IDS.GEMINI_4_ARGON);
@@ -350,6 +350,70 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
       expect(normalizeModelForApi("llama-3.3-70b-versatile")).toBe("llama-3.3-70b-versatile");
       const groqModel = SELECTABLE_MODELS.find((m) => m.id === "llama-3.3-70b-versatile");
       expect(groqModel?.providerId).toBe("groq");
+    });
+  });
+
+  describe("Gemini 3.1 Deprecation Migration (TC-G31-01..07)", () => {
+    it("TC-G31-01: removes all gemini-3.1* models from SELECTABLE_MODELS", () => {
+      const remaining31 = SELECTABLE_MODELS.filter((m) => m.id.startsWith("gemini-3.1"));
+      expect(remaining31).toHaveLength(0);
+    });
+
+    it.each([
+      ["gemini-3.1-pro-preview", "gemini-3.8-flash"],
+      ["gemini-3.1-flash-lite-preview", "gemini-3.5-flash-lite"],
+    ] as const)(
+      "TC-G31-02: maps %s → %s across MODEL_ALIASES, normalizeModelForApi, coerceStoredModel, and marks non-selectable",
+      (legacyId, target) => {
+        expect(MODEL_ALIASES[legacyId]).toBe(target);
+        expect(normalizeModelForApi(legacyId)).toBe(target);
+        expect(coerceStoredModel(legacyId)).toBe(target);
+        expect(isSelectableModelId(legacyId)).toBe(false);
+      }
+    );
+
+    it.each(["gemini-3.1-pro", "gemini-3-pro", "gemini-3-pro-preview"])(
+      "TC-G31-03: maps %s directly to gemini-3.8-flash",
+      (aliasId) => {
+        expect(normalizeModelForApi(aliasId)).toBe("gemini-3.8-flash");
+      }
+    );
+
+    it("TC-G31-04: maps gemini-3.1-flash-lite directly to gemini-3.5-flash-lite", () => {
+      expect(normalizeModelForApi("gemini-3.1-flash-lite")).toBe("gemini-3.5-flash-lite");
+    });
+
+    it.each(Object.entries(MODEL_ALIASES))(
+      "TC-G31-05: alias %s → %s resolves to a live canonical ID",
+      (_alias, target) => {
+        expect(normalizeModelForApi(target)).toBe(target);
+        expect(target.startsWith("gemini-3.1")).toBe(false);
+      }
+    );
+
+    it.each([
+      "modelDescPro31",
+      "modelDescFlashLite31",
+      "gemini-3.1-pro-preview",
+      "gemini-3.1-flash-lite-preview",
+    ])("TC-G31-06: removes deprecated translation key %s from both en and vi", (key) => {
+      expect(Object.hasOwn(en, key)).toBe(false);
+      expect(Object.hasOwn(vi, key)).toBe(false);
+    });
+
+    it("TC-G31-07: preserves thinking level behavior for legacy Gemini 3.1 IDs via aliases", () => {
+      expect(getSupportedGeminiThinkingLevels("gemini-3.1-pro-preview")).toEqual([
+        "low",
+        "medium",
+        "high",
+      ]);
+      expect(clampGeminiThinkingLevel("gemini-3.1-pro-preview", "minimal")).toBe("low");
+      expect(getSupportedGeminiThinkingLevels("gemini-3.1-flash-lite-preview")).toEqual([
+        "minimal",
+        "low",
+        "medium",
+        "high",
+      ]);
     });
   });
 });

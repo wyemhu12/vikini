@@ -897,12 +897,37 @@ describe("/api/generate-image", () => {
         }
       );
 
-      it("TC-GI-04: honors valid selectable Gemini text model (gemini-3.1-pro-preview)", async () => {
+      it("TC-GI-04: honors valid selectable Gemini text model (gemini-3.8-flash)", async () => {
         mockAuthenticated();
         mockRateLimitAllowed();
         mockValidConversation();
         mockGenerateContent.mockResolvedValueOnce({
-          text: "Enhanced by 3.1 Pro",
+          text: "Enhanced by 3.8 Flash",
+        });
+
+        const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+        vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+          generate: vi.fn().mockResolvedValue({
+            images: [{ url: "https://example.com/image.png" }],
+          }),
+        } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+
+        const req = createRequest("POST", "/api/generate-image", {
+          ...validBody,
+          options: { enhancer: true, enhancerModel: "gemini-3.8-flash" },
+        });
+        await POST(req);
+
+        expect(mockGenerateContent).toHaveBeenCalledOnce();
+        expect(mockGenerateContent.mock.calls[0][0].model).toBe("gemini-3.8-flash");
+      });
+
+      it("TC-GI-04b: normalizes legacy gemini-3.1-pro-preview enhancerModel to gemini-3.8-flash", async () => {
+        mockAuthenticated();
+        mockRateLimitAllowed();
+        mockValidConversation();
+        mockGenerateContent.mockResolvedValueOnce({
+          text: "Enhanced by 3.8 Flash via alias",
         });
 
         const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
@@ -919,7 +944,7 @@ describe("/api/generate-image", () => {
         await POST(req);
 
         expect(mockGenerateContent).toHaveBeenCalledOnce();
-        expect(mockGenerateContent.mock.calls[0][0].model).toBe("gemini-3.1-pro-preview");
+        expect(mockGenerateContent.mock.calls[0][0].model).toBe("gemini-3.8-flash");
       });
 
       it("TC-GI-05: filters out thought: true parts at index 0 when reading enhancer candidate fallback", async () => {

@@ -417,7 +417,7 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
     expect(contCall.config).not.toHaveProperty("thinkingConfig");
   });
 
-  it("clamps minimal to low for Gemini 3.1 Pro", async () => {
+  it("clamps minimal to low for legacy Gemini 3.1 Pro alias (→ 3.8 Flash)", async () => {
     const generateMock = vi.fn().mockImplementation(async function* () {
       yield { candidates: [{ content: { parts: [{ text: "Response" }] } }] };
     });
@@ -435,6 +435,7 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
     }
 
     expect(generateMock).toHaveBeenCalledTimes(1);
+    expect(generateMock.mock.calls[0][0].model).toBe("gemini-3.8-flash");
     const callConfig = generateMock.mock.calls[0][0].config;
 
     expect(callConfig.thinkingConfig).toEqual({

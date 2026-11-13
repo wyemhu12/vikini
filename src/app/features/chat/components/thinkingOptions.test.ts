@@ -32,7 +32,7 @@ describe("getThinkingOptions (TC-03)", () => {
   it("stays in sync with getAvailableThinkingLevels", () => {
     for (const model of [
       "gemini-3-flash-preview",
-      "gemini-3.1-pro-preview",
+      "gemini-3.8-flash",
       "claude-sonnet-4.5",
       "deepseek-v4-flash",
       "gemini-4-argon",

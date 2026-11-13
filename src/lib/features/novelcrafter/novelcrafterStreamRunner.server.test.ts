@@ -413,7 +413,7 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     const gemini3Sse = await readStreamText(gemini3Stream);
     expect(hoisted.generateContentStreamMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3.8-flash",
         config: expect.objectContaining({
           thinkingConfig: {
             thinkingLevel: "LOW",

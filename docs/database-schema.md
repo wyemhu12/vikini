@@ -389,7 +389,7 @@ erDiagram
 **Index**: `knowledge_chunks_project_id_idx`, `knowledge_chunks_document_id_idx`
 
 > [!NOTE]
-> Cột `embedding` được cố định số chiều `VECTOR(3072)` tối ưu cho model chuẩn duy nhất `gemini-embedding-2` (API endpoint: `gemini-embedding-2-preview`). Dùng exact cosine similarity search qua RPC `match_project_knowledge`.
+> Cột `embedding` được cố định số chiều `VECTOR(3072)` tối ưu cho model chuẩn duy nhất `gemini-embedding-2` (API endpoint: `gemini-embedding-2`). Dùng exact cosine similarity search qua RPC `match_project_knowledge`.
 
 ---
 

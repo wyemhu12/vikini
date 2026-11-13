@@ -2,6 +2,8 @@
 "use client";
 
 import React, { useEffect, useId, useState } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PromptStudioPreviewSource } from "@/lib/features/novelcrafter/promptStudioPreview";
 import { cn } from "@/lib/utils/cn";
@@ -16,21 +18,26 @@ import PromptStudioActionList from "./prompt-studio/PromptStudioActionList";
 import PromptStudioPresetBar from "./prompt-studio/PromptStudioPresetBar";
 
 export type NovelcrafterAiSettingsWorkspaceProps = NovelcrafterInheritanceTableProps & {
+  onClose?: () => void;
+  backHref?: string;
+  initialTab?: "defaults" | "studio";
   /** Current story data for the Prompt Studio preview (sample data when omitted). */
   previewSource?: PromptStudioPreviewSource;
 };
 
 type SettingsTab = "defaults" | "studio";
 
-/** AI Settings: defaults/inheritance and Prompt Studio as two full-width tabs (UX cleanup G7). */
+/** AI Settings: shared back navigation, preset bar, and 2 full-width tabs (Defaults + Prompt Studio IDE). */
 export default function NovelcrafterAiSettingsWorkspace({
   previewSource,
-  ...props
+  onClose,
+  backHref,
+  initialTab = "defaults",
+  ...inheritanceProps
 }: NovelcrafterAiSettingsWorkspaceProps) {
-  const { onClose } = props;
   const { t } = useLanguage();
   const c = usePromptStudioController(previewSource);
-  const [tab, setTab] = useState<SettingsTab>("defaults");
+  const [tab, setTab] = useState<SettingsTab>(initialTab);
   const baseId = useId();
 
   useEffect(() => {
@@ -50,12 +57,56 @@ export default function NovelcrafterAiSettingsWorkspace({
     { id: "studio", label: t("novelcrafterAiSettingsTabPromptStudio") },
   ];
 
+  const showUtilityRow = Boolean(onClose || backHref || tab === "studio");
+
   return (
     <div className="flex-1 min-h-0 w-full flex flex-col bg-(--bg) text-(--text)">
+      {showUtilityRow && (
+        <div className="shrink-0 px-4 md:px-6 pt-2.5 pb-1 flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {onClose ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-(--line) bg-(--surface) hover:bg-(--raised) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-(--accent)" />
+                <span>{t("novelcrafterPromptStudioBack")}</span>
+              </button>
+            ) : backHref ? (
+              <Link
+                href={backHref}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-(--line) bg-(--surface) hover:bg-(--raised) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-(--accent)" />
+                <span>{t("novelcrafterPromptStudioBack")}</span>
+              </Link>
+            ) : null}
+
+            {tab === "studio" && (
+              <span className="hidden sm:inline text-xs sm:text-sm text-(--faint) truncate">
+                {inheritanceProps.storyTitle}
+              </span>
+            )}
+          </div>
+
+          {tab === "studio" && c.isHydrated && (
+            <PromptStudioPresetBar
+              activePresetId={c.settings.activePresetId}
+              customPresets={c.settings.customPresets}
+              onApplyPreset={c.handleApplyPreset}
+              onSaveAsPreset={c.handleSaveAsPreset}
+              onDeletePreset={(id) => void c.handleDeletePreset(id)}
+              onResetAll={() => void c.handleResetAll()}
+            />
+          )}
+        </div>
+      )}
+
       <div
         role="tablist"
         aria-label={t("novelcrafterRoutingButton")}
-        className="shrink-0 flex items-center gap-1 px-4 md:px-6 pt-3 border-b border-(--line)"
+        className="shrink-0 flex items-center gap-1 px-4 md:px-6 pt-1 border-b border-(--line)"
       >
         {tabs.map((item) => (
           <button
@@ -85,7 +136,7 @@ export default function NovelcrafterAiSettingsWorkspace({
           aria-labelledby={`${baseId}-tab-defaults`}
           className="flex-1 min-h-0 flex overflow-y-auto custom-scrollbar"
         >
-          <NovelcrafterInheritanceTable {...props} />
+          <NovelcrafterInheritanceTable {...inheritanceProps} />
         </div>
       ) : (
         <section
@@ -94,25 +145,9 @@ export default function NovelcrafterAiSettingsWorkspace({
           aria-labelledby={`${baseId}-tab-studio`}
           className="flex-1 min-h-0 flex flex-col bg-(--surface) overflow-y-auto md:overflow-hidden"
         >
-          <div className="px-5 pt-4 pb-3.5 flex flex-col gap-1 border-b border-(--line) shrink-0">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <p className="text-xs sm:text-sm text-(--faint)">
-                {t("novelcrafterPromptStudioOptionalHint")}
-              </p>
-              {c.isHydrated && (
-                <PromptStudioPresetBar
-                  activePresetId={c.settings.activePresetId}
-                  customPresets={c.settings.customPresets}
-                  onApplyPreset={c.handleApplyPreset}
-                  onSaveAsPreset={c.handleSaveAsPreset}
-                  onDeletePreset={(id) => void c.handleDeletePreset(id)}
-                  onResetAll={() => void c.handleResetAll()}
-                />
-              )}
-            </div>
-          </div>
+          <h1 className="sr-only">{t("novelcrafterPromptStudioPaneTitle")}</h1>
 
-          <div className="flex-1 min-h-0 flex flex-col md:flex-row md:overflow-hidden">
+          <div className="flex flex-col shrink-0 md:shrink md:flex-1 md:min-h-0 md:flex-row md:overflow-hidden">
             {!c.isHydrated ? (
               <div className="p-4 w-full space-y-3">
                 <Skeleton className="h-10 w-full rounded-xl" />

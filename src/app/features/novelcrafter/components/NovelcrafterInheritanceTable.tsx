@@ -2,8 +2,7 @@
 "use client";
 
 import React, { useId, useMemo } from "react";
-import Link from "next/link";
-import { ArrowLeft, Gem, Plus, UserRound } from "lucide-react";
+import { Gem, Plus, UserRound } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,8 +51,6 @@ export interface NovelcrafterInheritanceTableProps {
   onUpdateRouting: (patch: Partial<NovelcrafterRoutingConfig>) => void;
   onUpdateFeaturePersonaSlot: (slot: NovelcrafterFeatureSlot, value: string) => void;
   onUpdateFeatureModelSlot: (slot: NovelcrafterFeatureSlot, value: string) => void;
-  onClose?: () => void;
-  backHref?: string;
 }
 
 export default function NovelcrafterInheritanceTable({
@@ -66,8 +63,6 @@ export default function NovelcrafterInheritanceTable({
   onUpdateRouting,
   onUpdateFeaturePersonaSlot,
   onUpdateFeatureModelSlot,
-  onClose,
-  backHref,
 }: NovelcrafterInheritanceTableProps) {
   const { t } = useLanguage();
   const headingId = useId();
@@ -143,27 +138,7 @@ export default function NovelcrafterInheritanceTable({
       className="flex-1 min-w-0 px-4 py-5 sm:px-8 sm:py-7 flex flex-col gap-5 sm:gap-6 xl:overflow-y-auto custom-scrollbar"
     >
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <span className="text-xs sm:text-sm text-(--faint) truncate">{storyTitle}</span>
-          {onClose ? (
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-(--line) bg-(--surface) hover:bg-(--raised) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 text-(--accent)" />
-              <span>{t("novelcrafterPromptStudioBack")}</span>
-            </button>
-          ) : backHref ? (
-            <Link
-              href={backHref}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-(--line) bg-(--surface) hover:bg-(--raised) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 text-(--accent)" />
-              <span>{t("novelcrafterPromptStudioBack")}</span>
-            </Link>
-          ) : null}
-        </div>
+        <span className="text-xs sm:text-sm text-(--faint) truncate">{storyTitle}</span>
         <h1 id={headingId} className="text-xl sm:text-2xl font-semibold text-(--text)">
           {t("novelcrafterRoutingTitle")}
         </h1>

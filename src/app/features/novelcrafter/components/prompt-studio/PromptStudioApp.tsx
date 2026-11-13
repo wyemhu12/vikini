@@ -126,6 +126,7 @@ export default function PromptStudioApp() {
             onUpdateFeaturePersonaSlot={story.updateFeaturePersonaSlot}
             onUpdateFeatureModelSlot={story.updateFeatureModelSlot}
             backHref="/novelcrafter"
+            initialTab="studio"
             previewSource={previewSource}
           />
         </div>

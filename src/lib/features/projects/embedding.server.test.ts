@@ -49,7 +49,8 @@ describe("embedding.server", () => {
 
   describe("Constants & Configuration", () => {
     it("should export correct constants matching Gemini Embedding 2 specs", () => {
-      expect(GEMINI_EMBEDDING_API_MODEL).toBe("gemini-embedding-2-preview");
+      expect(GEMINI_EMBEDDING_API_MODEL).toBe("gemini-embedding-2");
+      expect(GEMINI_EMBEDDING_API_MODEL).not.toContain("preview");
       expect(EMBEDDING_DIMENSION).toBe(3072);
       expect(NATIVE_BATCH_SIZE).toBe(50);
       expect(UPLOAD_MAX_RETRIES).toBe(3);
@@ -113,7 +114,7 @@ describe("embedding.server", () => {
       expect(vector.length).toBe(3072);
       expect(vector).toEqual(mockVector);
       expect(mockEmbedContent).toHaveBeenCalledWith({
-        model: "gemini-embedding-2-preview",
+        model: "gemini-embedding-2",
         contents: "Test query text",
         config: { outputDimensionality: 3072 },
       });
@@ -181,7 +182,7 @@ describe("embedding.server", () => {
 
       // Verify the critical format: contents MUST be Array of { role: "user", parts: [{ text }] }
       expect(mockEmbedContent).toHaveBeenCalledWith({
-        model: "gemini-embedding-2-preview",
+        model: "gemini-embedding-2",
         contents: [
           { role: "user", parts: [{ text: "Chunk 1" }] },
           { role: "user", parts: [{ text: "Chunk 2" }] },

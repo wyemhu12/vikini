@@ -74,30 +74,6 @@ export const SELECTABLE_MODELS: readonly SelectableModel[] = [
     providerId: "gemini",
   },
 
-  // Gemini 3.1 Series (March 2026 - replaces Gemini 3 Pro)
-  {
-    id: "gemini-3.1-pro-preview",
-    descKey: "modelDescPro31",
-    name: "Gemini 3.1 Pro",
-    tokenLimit: 2000000,
-    contextWindow: 2000000,
-    maxOutputTokens: 65536,
-    category: "reasoning",
-    supportedThinkingLevels: ["low", "medium", "high"],
-    providerId: "gemini",
-  },
-  {
-    id: "gemini-3.1-flash-lite-preview",
-    descKey: "modelDescFlashLite31",
-    name: "Gemini 3.1 Flash-Lite",
-    tokenLimit: 1000000,
-    contextWindow: 1000000,
-    maxOutputTokens: 65536,
-    category: "low-latency",
-    supportedThinkingLevels: ["minimal", "low", "medium", "high"],
-    providerId: "gemini",
-  },
-
   // Gemini 4 Series (Released Oct 2026)
   {
     id: MODEL_IDS.GEMINI_4_ARGON,
@@ -280,10 +256,6 @@ const API_ALLOWED = new Set([
   "gemini-3-flash-preview",
   "gemini-3-pro-image",
 
-  // Gemini 3.1 (March 2026)
-  "gemini-3.1-pro-preview",
-  "gemini-3.1-flash-lite-preview",
-
   // Gemini 4 (10/2026)
   MODEL_IDS.GEMINI_4_ARGON,
 
@@ -329,11 +301,13 @@ export const MODEL_ALIASES: Record<string, string> = {
   "gemini-3-flash": "gemini-3-flash-preview",
   "gemini-3-pro-image-preview": "gemini-3-pro-image",
 
-  // Gemini 3.1 aliases (+ deprecated Gemini 3 Pro → 3.1)
-  "gemini-3.1-pro": "gemini-3.1-pro-preview",
-  "gemini-3-pro": "gemini-3.1-pro-preview",
-  "gemini-3.1-flash-lite": "gemini-3.1-flash-lite-preview",
-  "gemini-3-pro-preview": "gemini-3.1-pro-preview",
+  // Gemini 3.1 deprecations (Nov 2026) → Gemini 3.5 Flash-Lite / 3.8 Flash
+  "gemini-3.1-pro-preview": "gemini-3.8-flash",
+  "gemini-3.1-pro": "gemini-3.8-flash",
+  "gemini-3-pro": "gemini-3.8-flash",
+  "gemini-3-pro-preview": "gemini-3.8-flash",
+  "gemini-3.1-flash-lite-preview": "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite": "gemini-3.5-flash-lite",
 
   // Gemini 4 aliases
   "gemini-4-argon-preview": MODEL_IDS.GEMINI_4_ARGON,

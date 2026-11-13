@@ -64,7 +64,7 @@ export default function PromptStudioPresetBar({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 h-8 max-w-52 px-2.5 rounded-lg border border-(--line) bg-transparent hover:bg-(--raised) text-xs font-medium text-(--muted) hover:text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
+          className="inline-flex items-center gap-1.5 h-8 max-w-44 sm:max-w-56 min-w-0 shrink px-2.5 rounded-lg border border-(--line) bg-transparent hover:bg-(--raised) text-xs font-medium text-(--muted) hover:text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
         >
           <span className="truncate">
             {t("novelcrafterPromptStudioPresetMenuBtn").replace("{preset}", activePresetLabel)}

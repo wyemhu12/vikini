@@ -46,69 +46,6 @@
 
 ---
 
-## Gemini 3.1 Series
-
-> [!IMPORTANT]
-> **Migration Notice (March 2026)**: `gemini-3-pro-preview` sẽ bị discontinue ngày 9/3/2026.
-> Vikini đã migrate sang `gemini-3.1-pro-preview`. Alias cũ (`gemini-3-pro`, `gemini-3-pro-preview`) tự động redirect.
-
-> [!IMPORTANT]
-> **Gemini Thinking Level & Sampling Migration (November 2026)**:
->
-> - **Gemini 3+ / 4+**: Chuyển đổi toàn diện sang `thinkingLevel` (`minimal`, `low`, `medium`, `high`) theo chuẩn Google GenAI SDK mới.
-> - **Gemini 2.5 Deprecation (Shutdown 01/12/2026)**: `gemini-2.5-flash` và `gemini-2.5-pro` đã được thay thế bởi `gemini-3.5-flash-lite` (`DEFAULT_MODEL` mới) và `gemini-3.8-flash`; toàn bộ nhánh `thinkingBudget` cũ đã được gỡ bỏ và các ID cũ được ánh xạ tự động qua `MODEL_ALIASES`.
-> - **Mutual Exclusion Invariant**: Tuyệt đối không gửi đồng thời `thinkingLevel` và `thinkingBudget` trong cùng một request config.
-> - **Sampling Parameters Sanitization**: Toàn bộ tham số sampling tùy biến (`temperature`, `top_p`, `top_k`) đã được loại bỏ khỏi các request gọi Gemini API (`gemini-stream.ts`, `autoTitleEngine.ts`, `fileProcessors.ts`) để tuân thủ khuyến nghị của Google và tránh lỗi 400 trong các thế hệ model mới.
-> - **Claude Thinking Toggle**: Giao diện hiển thị `off/high` nhất quán 100% với `anthropic-stream.ts`.
-
-### gemini-3.1-pro-preview
-
-| Thuộc tính             | Giá trị                        |
-| ---------------------- | ------------------------------ |
-| **Tên hiển thị**       | Gemini 3.1 Pro                 |
-| **Input token limit**  | 2,000,000 (2M)                 |
-| **Output token limit** | 65,536 (65K)                   |
-| **Inputs**             | Text, Image, Video, Audio, PDF |
-| **Outputs**            | Text                           |
-
-**Supported Features:**
-| Feature | Status |
-|---------|--------|
-| Thinking Mode | ✅ Supported (off, low, medium, high) |
-| Search Grounding | ✅ Supported |
-| URL Context | ✅ Supported |
-| Function Calling | ✅ Supported |
-| Code Execution | ✅ Supported |
-| Structured Outputs | ✅ Supported |
-| Caching | ✅ Supported |
-| Image Generation | ❌ Not supported |
-| Live API | ❌ Not supported |
-
----
-
-### gemini-3.1-flash-lite-preview
-
-| Thuộc tính             | Giá trị                        |
-| ---------------------- | ------------------------------ |
-| **Tên hiển thị**       | Gemini 3.1 Flash-Lite          |
-| **Alias tương thích**  | `gemini-3.1-flash-lite`        |
-| **Input token limit**  | 1,000,000 (1M)                 |
-| **Output token limit** | 65,536 (65K)                   |
-| **Category**           | Low-latency                    |
-| **Inputs**             | Text, Image, Video, Audio, PDF |
-| **Outputs**            | Text                           |
-
-**Supported Features:**
-| Feature | Status |
-|---------|--------|
-| Thinking Mode | ✅ Supported (`off`, `minimal`, `low`, `medium`, `high`) |
-| Search Grounding | ✅ Supported |
-| URL Context | ✅ Supported |
-| Function Calling | ✅ Supported |
-| Structured Outputs | ✅ Supported |
-
----
-
 ### gemini-3-pro-image
 
 | Thuộc tính             | Giá trị                      |
@@ -160,11 +97,20 @@
 | Live API | ❌ Not supported |
 
 > [!NOTE]
-> Các model Flash-Lite và Gemini 3 Flash (`gemini-3.5-flash-lite`, `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview`) hỗ trợ thêm mức `minimal` bên cạnh `low`, `medium`, `high`. Các model `gemini-3.8-flash`, `gemini-3.1-pro-preview` và `gemini-4-argon` chỉ hỗ trợ `low`, `medium`, `high` (`minimal` không được hỗ trợ trên `gemini-3.8-flash` và sẽ gây lỗi HTTP 400 nếu gửi lên).
+> Các model Flash-Lite và Gemini 3 Flash (`gemini-3.5-flash-lite`, `gemini-3-flash-preview`) hỗ trợ thêm mức `minimal` bên cạnh `low`, `medium`, `high`. Các model `gemini-3.8-flash` và `gemini-4-argon` chỉ hỗ trợ `low`, `medium`, `high` (`minimal` không được hỗ trợ trên `gemini-3.8-flash` và sẽ gây lỗi HTTP 400 nếu gửi lên).
 
 ---
 
 ## Gemini 3.5 & 3.8 Series (Replacing Gemini 2.5 Series)
+
+> [!IMPORTANT]
+> **Gemini Thinking Level & Sampling Migration (November 2026)**:
+>
+> - **Gemini 3+ / 4+**: Chuyển đổi toàn diện sang `thinkingLevel` (`minimal`, `low`, `medium`, `high`) theo chuẩn Google GenAI SDK mới.
+> - **Gemini 2.5 & 3.1 Deprecation (November 2026)**: `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-3.1-flash-lite-preview` (shutdown 25/05/2026) và `gemini-3.1-pro-preview` đã được thay thế bởi `gemini-3.5-flash-lite` (`DEFAULT_MODEL` mới) và `gemini-3.8-flash`; toàn bộ nhánh `thinkingBudget` cũ đã được gỡ bỏ và các ID cũ được ánh xạ tự động qua `MODEL_ALIASES`.
+> - **Mutual Exclusion Invariant**: Tuyệt đối không gửi đồng thời `thinkingLevel` và `thinkingBudget` trong cùng một request config.
+> - **Sampling Parameters Sanitization**: Toàn bộ tham số sampling tùy biến (`temperature`, `top_p`, `top_k`) đã được loại bỏ khỏi các request gọi Gemini API (`gemini-stream.ts`, `autoTitleEngine.ts`, `fileProcessors.ts`) để tuân thủ khuyến nghị của Google và tránh lỗi 400 trong các thế hệ model mới.
+> - **Claude Thinking Toggle**: Giao diện hiển thị `off/high` nhất quán 100% với `anthropic-stream.ts`.
 
 ### gemini-3.5-flash-lite
 
@@ -355,13 +301,13 @@ Thinking mode cho phép AI "suy nghĩ sâu" trước khi trả lời, cải thi�
 
 ### Gemini 3 & Gemini 4 Thinking
 
-| Level     | Mô tả                                      | Models hỗ trợ                                                                                                            |
-| --------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `off`     | Không bật thinking (default trên Gemini 3) | `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview`, `gemini-3.1-pro-preview` (không hỗ trợ trên `gemini-4-argon`) |
-| `minimal` | Gần như không suy nghĩ                     | `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview`                                                                |
-| `low`     | Nhanh, ít reasoning                        | `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview`, `gemini-3.1-pro-preview`, `gemini-4-argon`                    |
-| `medium`  | Cân bằng (default trên `gemini-4-argon`)   | `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview`, `gemini-3.1-pro-preview`, `gemini-4-argon`                    |
-| `high`    | Maximum reasoning depth                    | `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview`, `gemini-3.1-pro-preview`, `gemini-4-argon`                    |
+| Level     | Mô tả                                      | Models hỗ trợ                                                                                              |
+| --------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `off`     | Không bật thinking (default trên Gemini 3) | `gemini-3-flash-preview`, `gemini-3.5-flash-lite`, `gemini-3.8-flash` (không hỗ trợ trên `gemini-4-argon`) |
+| `minimal` | Gần như không suy nghĩ                     | `gemini-3-flash-preview`, `gemini-3.5-flash-lite`                                                          |
+| `low`     | Nhanh, ít reasoning                        | `gemini-3-flash-preview`, `gemini-3.5-flash-lite`, `gemini-3.8-flash`, `gemini-4-argon`                    |
+| `medium`  | Cân bằng (default trên `gemini-4-argon`)   | `gemini-3-flash-preview`, `gemini-3.5-flash-lite`, `gemini-3.8-flash`, `gemini-4-argon`                    |
+| `high`    | Maximum reasoning depth                    | `gemini-3-flash-preview`, `gemini-3.5-flash-lite`, `gemini-3.8-flash`, `gemini-4-argon`                    |
 
 **Thought Signatures**: Khi `includeThoughts: true`, API trả về `thoughtSignature` / `thoughtSignatures` trong response. Các chữ ký này PHẢI được bảo toàn qua `extractThoughtSignatures(meta)` và gửi lại trong các turn tiếp theo để duy trì reasoning chain.
 
@@ -413,31 +359,33 @@ Thinking mode cho phép AI "suy nghĩ sâu" trước khi trả lời, cải thi�
 
 Vikini tự động redirect các model ID cũ sang model canonical hiện hành (`src/lib/core/modelRegistry.ts`):
 
-| Alias cũ                     | → Redirect sang                 |
-| ---------------------------- | ------------------------------- |
-| `gemini-2.0-flash`           | `gemini-3.5-flash-lite`         |
-| `gemini-2.0-flash-exp`       | `gemini-3.5-flash-lite`         |
-| `gemini-1.5-pro`             | `gemini-3.5-flash-lite`         |
-| `gemini-1.5-flash`           | `gemini-3.5-flash-lite`         |
-| `gemini-2.5-flash`           | `gemini-3.5-flash-lite`         |
-| `gemini-2.5-pro`             | `gemini-3.8-flash`              |
-| `gemini-3-flash`             | `gemini-3-flash-preview`        |
-| `gemini-3-pro-image-preview` | `gemini-3-pro-image`            |
-| `gemini-3-pro`               | `gemini-3.1-pro-preview`        |
-| `gemini-3-pro-preview`       | `gemini-3.1-pro-preview`        |
-| `gemini-3.1-pro`             | `gemini-3.1-pro-preview`        |
-| `gemini-3.1-flash-lite`      | `gemini-3.1-flash-lite-preview` |
-| `gemini-4-argon-preview`     | `gemini-4-argon`                |
-| `llama3-70b-8192`            | `llama-3.3-70b-versatile`       |
-| `llama3-8b-8192`             | `llama-3.1-8b-instant`          |
-| `llama-3.1-70b-versatile`    | `llama-3.3-70b-versatile`       |
-| `llama-3.1-70b-specdec`      | `llama-3.3-70b-versatile`       |
-| `deepseek-chat`              | `deepseek-v4-flash`             |
-| `deepseek-reasoner`          | `deepseek-v4-flash`             |
-| `deepseek-v4-pro`            | `deepseek/deepseek-v4-pro`      |
-| `deepseek-v4.1-flash`        | `deepseek/deepseek-v4.1-flash`  |
-| `z-ai/glm-5.2-20260616`      | `z-ai/glm-5.2`                  |
-| `glm-5.2`                    | `z-ai/glm-5.2`                  |
+| Alias cũ                        | → Redirect sang                |
+| ------------------------------- | ------------------------------ |
+| `gemini-2.0-flash`              | `gemini-3.5-flash-lite`        |
+| `gemini-2.0-flash-exp`          | `gemini-3.5-flash-lite`        |
+| `gemini-1.5-pro`                | `gemini-3.5-flash-lite`        |
+| `gemini-1.5-flash`              | `gemini-3.5-flash-lite`        |
+| `gemini-2.5-flash`              | `gemini-3.5-flash-lite`        |
+| `gemini-2.5-pro`                | `gemini-3.8-flash`             |
+| `gemini-3-flash`                | `gemini-3-flash-preview`       |
+| `gemini-3-pro-image-preview`    | `gemini-3-pro-image`           |
+| `gemini-3-pro`                  | `gemini-3.8-flash`             |
+| `gemini-3-pro-preview`          | `gemini-3.8-flash`             |
+| `gemini-3.1-pro`                | `gemini-3.8-flash`             |
+| `gemini-3.1-pro-preview`        | `gemini-3.8-flash`             |
+| `gemini-3.1-flash-lite`         | `gemini-3.5-flash-lite`        |
+| `gemini-3.1-flash-lite-preview` | `gemini-3.5-flash-lite`        |
+| `gemini-4-argon-preview`        | `gemini-4-argon`               |
+| `llama3-70b-8192`               | `llama-3.3-70b-versatile`      |
+| `llama3-8b-8192`                | `llama-3.1-8b-instant`         |
+| `llama-3.1-70b-versatile`       | `llama-3.3-70b-versatile`      |
+| `llama-3.1-70b-specdec`         | `llama-3.3-70b-versatile`      |
+| `deepseek-chat`                 | `deepseek-v4-flash`            |
+| `deepseek-reasoner`             | `deepseek-v4-flash`            |
+| `deepseek-v4-pro`               | `deepseek/deepseek-v4-pro`     |
+| `deepseek-v4.1-flash`           | `deepseek/deepseek-v4.1-flash` |
+| `z-ai/glm-5.2-20260616`         | `z-ai/glm-5.2`                 |
+| `glm-5.2`                       | `z-ai/glm-5.2`                 |
 
 > [!NOTE]
 > Các model OpenRouter Free cũ đã ngừng miễn phí (`meta-llama/llama-4-maverick:free`, `meta-llama/llama-3.3-70b-instruct:free`, `google/gemma-3-27b-it:free`, `mistral/mistral-small-3.1-24b-instruct:free`) đã được gỡ khỏi `SELECTABLE_MODELS` và tự động fallback an toàn về `DEFAULT_MODEL` (`gemini-3.5-flash-lite`) qua `coerceStoredModel()`.

@@ -60,7 +60,7 @@ describe("getAvailableThinkingLevels", () => {
     ]);
   });
 
-  it("returns low, medium, high for Gemini 3.1 Pro", () => {
+  it("returns low, medium, high for legacy gemini-3.1-pro-preview alias", () => {
     expect(getAvailableThinkingLevels("gemini-3.1-pro-preview")).toEqual([
       "off",
       "low",
@@ -116,7 +116,7 @@ describe("getEffectiveThinkingLevel", () => {
     expect(getEffectiveThinkingLevel("claude-sonnet-4.5", "off")).toBe("off");
   });
 
-  it("Gemini 3.1 Pro clamps minimal to low", () => {
+  it("legacy gemini-3.1-pro-preview alias clamps minimal to low", () => {
     expect(getEffectiveThinkingLevel("gemini-3.1-pro-preview", "minimal")).toBe("low");
     expect(getEffectiveThinkingLevel("gemini-3.1-pro-preview", "medium")).toBe("medium");
   });
