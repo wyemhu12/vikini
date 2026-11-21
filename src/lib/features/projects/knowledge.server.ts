@@ -12,7 +12,12 @@ import {
   MAX_FILE_SIZE_BYTES,
   MAX_CHUNKS_PER_UPLOAD,
 } from "@/types/projects";
-import { getUserTier, getTierLimits, canAddStorageToProject, getProject } from "./projects.server";
+import {
+  getUserTier,
+  getTierLimits,
+  canAddStorageToProject,
+  verifyProjectOwnership,
+} from "./projects.server";
 import {
   generateEmbedding,
   generateEmbeddingsBatch,
@@ -73,17 +78,30 @@ export async function getDocument(
   return data;
 }
 
+const KNOWLEDGE_CHUNK_INSERT_BATCH_SIZE = 50;
+
 /**
- * Delete a document (cascade deletes chunks)
+ * Delete a document (cascade deletes chunks).
+ * When projectId is provided, atomically scopes the delete to that project.
  */
-export async function deleteDocument(documentId: string, userId: string): Promise<void> {
+export async function deleteDocument(
+  documentId: string,
+  userId: string,
+  projectId?: string
+): Promise<void> {
   const supabase = getSupabaseAdmin();
 
-  const { error } = await supabase
+  let query = supabase
     .from("knowledge_documents")
     .delete()
     .eq("id", documentId)
     .eq("user_id", userId);
+
+  if (projectId) {
+    query = query.eq("project_id", projectId);
+  }
+
+  const { error } = await query;
 
   if (error) {
     kbLogger.error("Failed to delete document", error);
@@ -176,7 +194,7 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Knowle
     const chunkTexts = chunks.map((c) => formatDocumentForRAG(c.content, input.filename));
     const embeddings = await generateEmbeddingsBatch(chunkTexts);
 
-    // 8. Insert chunks
+    // 8. Insert chunks in bounded batches to avoid oversized single-request payloads
     const chunkInserts = chunks.map((chunk, i) => ({
       document_id: doc.id,
       project_id: input.projectId,
@@ -187,9 +205,21 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Knowle
       embedding: `[${embeddings[i].join(",")}]`,
     }));
 
-    const { error: chunkError } = await supabase.from("knowledge_chunks").insert(chunkInserts);
-    if (chunkError) {
-      throw new Error("Failed to insert document chunks");
+    let insertedBatches = 0;
+    for (let i = 0; i < chunkInserts.length; i += KNOWLEDGE_CHUNK_INSERT_BATCH_SIZE) {
+      const batch = chunkInserts.slice(i, i + KNOWLEDGE_CHUNK_INSERT_BATCH_SIZE);
+      const { error: chunkError } = await supabase.from("knowledge_chunks").insert(batch);
+      if (chunkError) {
+        if (insertedBatches > 0) {
+          try {
+            await supabase.from("knowledge_chunks").delete().eq("document_id", doc.id);
+          } catch (cleanupErr: unknown) {
+            kbLogger.warn("Failed to rollback partial knowledge chunks", cleanupErr);
+          }
+        }
+        throw new Error("Failed to insert document chunks");
+      }
+      insertedBatches += 1;
     }
 
     // 9. Update document status to ready
@@ -272,8 +302,8 @@ export async function searchKnowledge(
     limit?: number;
   }
 ): Promise<KnowledgeSearchResult[]> {
-  const project = await getProject(projectId, userId);
-  if (!project) {
+  const owned = await verifyProjectOwnership(projectId, userId);
+  if (!owned) {
     kbLogger.warn(`User ${userId} does not own project ${projectId}`);
     return [];
   }

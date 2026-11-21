@@ -252,4 +252,76 @@ describe("POST /api/messages", () => {
     const json = await res.json();
     expect(json.success).toBe(false);
   });
+
+  it("strips unallowed meta fields like imageUrl/type/attachment while preserving legitimate partial-sync fields (TC-W1-06)", async () => {
+    mockAuthenticated();
+    vi.mocked(upsertMessage).mockResolvedValue({
+      message: {
+        id: "msg-clean",
+        conversationId: "550e8400-e29b-41d4-a716-446655440000",
+        role: "assistant",
+        content: "Safe text",
+        createdAt: "2026-09-28T00:00:00Z",
+        meta: { clientMessageId: "c-clean" },
+      },
+      alreadyComplete: false,
+    });
+
+    const req = new NextRequest("http://localhost/api/messages", {
+      method: "POST",
+      body: JSON.stringify({
+        conversationId: "550e8400-e29b-41d4-a716-446655440000",
+        role: "assistant",
+        content: "Safe text",
+        clientMessageId: "c-clean",
+        meta: {
+          isPartial: true,
+          aborted: true,
+          status: "aborted",
+          isSaving: true,
+          emptyAnswerReason: "length",
+          thinkingStats: { tokens: 120, elapsedMs: 900 },
+          sources: [{ uri: "https://example.com/doc", title: "Doc" }],
+          urlContext: [{ retrievedUrl: "https://example.com/ctx", status: "SUCCESS" }],
+          ragSources: [
+            { filename: "guide.md", documentId: "doc-1", chunkId: "chk-1", similarity: 0.91 },
+          ],
+          imageUrl: "javascript:alert(1)",
+          type: "image_gen",
+          attachment: { storagePath: "victim/path.png" },
+        },
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+
+    const passedMeta = vi.mocked(upsertMessage).mock.calls[0][4] as Record<string, unknown>;
+    expect(passedMeta.imageUrl).toBeUndefined();
+    expect(passedMeta.type).toBeUndefined();
+    expect(passedMeta.attachment).toBeUndefined();
+    expect(passedMeta.thinkingStats).toEqual({ tokens: 120, elapsedMs: 900 });
+    expect(passedMeta.sources).toEqual([{ uri: "https://example.com/doc", title: "Doc" }]);
+  });
+
+  it("rejects javascript: URI in meta.sources or meta.urlContext with 400 (TC-W1-06)", async () => {
+    mockAuthenticated();
+
+    const req = new NextRequest("http://localhost/api/messages", {
+      method: "POST",
+      body: JSON.stringify({
+        conversationId: "550e8400-e29b-41d4-a716-446655440000",
+        role: "assistant",
+        content: "Text",
+        clientMessageId: "c-xss",
+        meta: {
+          sources: [{ uri: "javascript:alert(1)", title: "XSS" }],
+        },
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    expect(upsertMessage).not.toHaveBeenCalled();
+  });
 });

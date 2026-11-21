@@ -15,6 +15,7 @@ import {
   toProject,
   getUserTier,
   getTierLimits,
+  verifyProjectOwnership,
   getUserProjects,
   getProject,
   createProject,
@@ -83,23 +84,62 @@ describe("projects.server", () => {
   });
 
   describe("getUserTier & getTierLimits", () => {
-    it("should detect admin, pro, and basic tiers correctly", async () => {
+    it("should detect admin, pro, and basic tiers correctly and fail closed for blocked/unapproved/missing profiles (TC-W1-04)", async () => {
       const maybeSingleMock = vi.fn();
       const eqMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock });
       const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
       mockSupabaseFrom.mockReturnValue({ select: selectMock });
 
-      maybeSingleMock.mockResolvedValueOnce({ data: { rank: "admin" }, error: null });
+      maybeSingleMock.mockResolvedValueOnce({
+        data: { rank: "admin", is_blocked: false },
+        error: null,
+      });
       expect(await getUserTier("admin@test.com")).toBe("admin");
 
-      maybeSingleMock.mockResolvedValueOnce({ data: { rank: "PRO" }, error: null });
+      maybeSingleMock.mockResolvedValueOnce({
+        data: { rank: "PRO", is_blocked: false },
+        error: null,
+      });
       expect(await getUserTier("pro@test.com")).toBe("pro");
 
-      maybeSingleMock.mockResolvedValueOnce({ data: { rank: "free" }, error: null });
-      expect(await getUserTier("free@test.com")).toBe("basic");
+      maybeSingleMock.mockResolvedValueOnce({
+        data: { rank: "basic", is_blocked: false },
+        error: null,
+      });
+      expect(await getUserTier("basic@test.com")).toBe("basic");
+
+      maybeSingleMock.mockResolvedValueOnce({
+        data: { rank: "pro", is_blocked: true },
+        error: null,
+      });
+      await expect(getUserTier("blocked@test.com")).rejects.toMatchObject({
+        statusCode: 403,
+        code: "USER_BLOCKED",
+      });
+
+      maybeSingleMock.mockResolvedValueOnce({
+        data: { rank: "not_whitelisted", is_blocked: false },
+        error: null,
+      });
+      await expect(getUserTier("pending@test.com")).rejects.toMatchObject({
+        statusCode: 403,
+        code: "ACCESS_PENDING",
+      });
+
+      maybeSingleMock.mockResolvedValueOnce({
+        data: { rank: "free", is_blocked: false },
+        error: null,
+      });
+      await expect(getUserTier("unknown-rank@test.com")).rejects.toMatchObject({
+        statusCode: 403,
+        code: "ACCESS_PENDING",
+      });
 
       maybeSingleMock.mockResolvedValueOnce({ data: null, error: null });
-      expect(await getUserTier("none@test.com")).toBe("basic");
+      await expect(getUserTier("none@test.com")).rejects.toMatchObject({
+        statusCode: 403,
+        code: "ACCESS_PENDING",
+      });
     });
 
     it("should fail closed (503) when the profile query errors", async () => {
@@ -117,8 +157,28 @@ describe("projects.server", () => {
     });
   });
 
+  describe("verifyProjectOwnership (TC-W2A-15)", () => {
+    it("returns true for owner, false for non-owner or DB error via a single maybeSingle query", async () => {
+      const maybeSingleMock = vi.fn();
+      const eqUserMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock });
+      const eqIdMock = vi.fn().mockReturnValue({ eq: eqUserMock });
+      const selectMock = vi.fn().mockReturnValue({ eq: eqIdMock });
+      mockSupabaseFrom.mockReturnValue({ select: selectMock });
+
+      maybeSingleMock.mockResolvedValueOnce({ data: { id: "p1" }, error: null });
+      expect(await verifyProjectOwnership("p1", "u1")).toBe(true);
+      expect(selectMock).toHaveBeenCalledWith("id");
+
+      maybeSingleMock.mockResolvedValueOnce({ data: null, error: null });
+      expect(await verifyProjectOwnership("p1", "other")).toBe(false);
+
+      maybeSingleMock.mockResolvedValueOnce({ data: null, error: { message: "db error" } });
+      expect(await verifyProjectOwnership("p1", "u1")).toBe(false);
+    });
+  });
+
   describe("getUserProjects & getProject", () => {
-    it("should fetch user projects with stats and map through toProject", async () => {
+    it("should fetch user projects with stats via bulk queries (no N+1) and map through toProject (TC-W2A-15)", async () => {
       const mockProjects: Tables<"projects">[] = [
         {
           id: "p1",
@@ -131,7 +191,21 @@ describe("projects.server", () => {
           created_at: "2026-01-01",
           updated_at: "2026-01-02",
         },
+        {
+          id: "p2",
+          user_id: "u1",
+          name: "Project 2",
+          description: "Second",
+          icon: "🚀",
+          color: "#111111",
+          embedding_model: "gemini-embedding-2",
+          created_at: "2026-01-01",
+          updated_at: "2026-01-03",
+        },
       ];
+
+      let convTableCalls = 0;
+      let docTableCalls = 0;
 
       mockSupabaseFrom.mockImplementation((table: string) => {
         if (table === "projects") {
@@ -140,27 +214,46 @@ describe("projects.server", () => {
           return { select: vi.fn().mockReturnValue({ eq: eqMock }) };
         }
         if (table === "conversations") {
-          const eqMock = vi.fn().mockResolvedValue({ count: 3, error: null });
-          return { select: vi.fn().mockReturnValue({ eq: eqMock }) };
-        }
-        if (table === "knowledge_documents") {
-          const eqMock = vi.fn().mockResolvedValue({
-            data: [{ size_bytes: 100 }, { size_bytes: 200 }],
+          convTableCalls += 1;
+          const rangeMock = vi.fn().mockResolvedValue({
+            data: [{ project_id: "p1" }, { project_id: "p1" }, { project_id: "p1" }],
             error: null,
           });
-          return { select: vi.fn().mockReturnValue({ eq: eqMock }) };
+          const inMock = vi.fn().mockReturnValue({ range: rangeMock });
+          return { select: vi.fn().mockReturnValue({ in: inMock }) };
+        }
+        if (table === "knowledge_documents") {
+          docTableCalls += 1;
+          const rangeMock = vi.fn().mockResolvedValue({
+            data: [
+              { project_id: "p1", size_bytes: 100 },
+              { project_id: "p1", size_bytes: 200 },
+              { project_id: "p2", size_bytes: 500 },
+            ],
+            error: null,
+          });
+          const inMock = vi.fn().mockReturnValue({ range: rangeMock });
+          return { select: vi.fn().mockReturnValue({ in: inMock }) };
         }
         return {};
       });
 
       const result = await getUserProjects("u1");
 
-      expect(result).toHaveLength(1);
+      expect(convTableCalls).toBe(1);
+      expect(docTableCalls).toBe(1);
+      expect(result).toHaveLength(2);
       expect(result[0]).toEqual({
         ...toProject(mockProjects[0]),
         conversation_count: 3,
         document_count: 2,
         storage_bytes: 300,
+      });
+      expect(result[1]).toEqual({
+        ...toProject(mockProjects[1]),
+        conversation_count: 0,
+        document_count: 1,
+        storage_bytes: 500,
       });
     });
 
@@ -424,14 +517,8 @@ describe("projects.server", () => {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 eq: vi.fn().mockReturnValue({
-                  single: vi.fn().mockResolvedValue({
-                    data: {
-                      id: "prj-del",
-                      user_id: "user-del",
-                      name: "Prj To Delete",
-                      created_at: new Date().toISOString(),
-                      updated_at: new Date().toISOString(),
-                    },
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { id: "prj-del" },
                     error: null,
                   }),
                 }),
@@ -463,9 +550,7 @@ describe("projects.server", () => {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 eq: vi.fn().mockReturnValue({
-                  single: vi
-                    .fn()
-                    .mockResolvedValue({ data: null, error: { message: "Not found" } }),
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
                 }),
               }),
             }),

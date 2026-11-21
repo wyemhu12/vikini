@@ -28,6 +28,7 @@ import { useCommandPaletteStore } from "@/lib/store/commandPaletteStore";
 import { getShellPaddingClass } from "../../layout/utils/shellNav";
 import { motion, AnimatePresence } from "framer-motion";
 import { Wand2, Images } from "lucide-react";
+import { TRANSITION } from "@/lib/utils/motion";
 
 import { useImageGenStudio } from "./hooks/useImageGenStudio";
 import { ImageSectionHeader } from "./ImageSectionHeader";
@@ -189,6 +190,7 @@ export function ImageGenStudio() {
               {studio.mobileTab === "studio" && (
                 <motion.div
                   layoutId="mobileTabIndicator"
+                  transition={TRANSITION.SPRING}
                   className="absolute bottom-0 left-2 right-2 h-0.5 bg-(--accent) rounded-full"
                 />
               )}
@@ -212,6 +214,7 @@ export function ImageGenStudio() {
               {studio.mobileTab === "results" && (
                 <motion.div
                   layoutId="mobileTabIndicator"
+                  transition={TRANSITION.SPRING}
                   className="absolute bottom-0 left-2 right-2 h-0.5 bg-(--accent) rounded-full"
                 />
               )}

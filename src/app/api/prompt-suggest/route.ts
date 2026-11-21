@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireApprovedUser } from "@/lib/features/auth/requireApprovedUser";
 import { logger } from "@/lib/utils/logger";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
+import { DEFAULT_MODEL } from "@/lib/core/modelRegistry";
 import { ValidationError, RateLimitError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
@@ -20,10 +21,15 @@ export async function POST(req: NextRequest) {
 
     const rl = await consumeRateLimit(`prompt-suggest:${userId}`);
     if (!rl.allowed) {
-      throw new RateLimitError("Too many requests. Please wait.");
+      throw new RateLimitError("Too many requests. Please wait.", rl.retryAfterSeconds);
     }
 
-    const body = await req.json();
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      throw new ValidationError("Invalid JSON body");
+    }
     let parsed;
     try {
       parsed = schema.parse(body);
@@ -40,7 +46,7 @@ export async function POST(req: NextRequest) {
     const genAI = getGenAIClient();
 
     const result = await genAI.models.generateContent({
-      model: "gemini-3.5-flash-lite",
+      model: DEFAULT_MODEL,
       contents: [
         {
           role: "user",

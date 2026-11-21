@@ -16,6 +16,146 @@ const parserLogger = logger.withContext("documentParsers");
 /** Maximum chars extracted from a document by default */
 export const DEFAULT_MAX_CHARS = 120_000;
 
+const ZIP_EOCD_SIGNATURE = 0x06054b50;
+const ZIP_CD_SIGNATURE = 0x02014b50;
+const ZIP_EOCD_MIN_SIZE = 22;
+const ZIP_MAX_COMMENT_SIZE = 65535;
+const ZIP_CD_HEADER_SIZE = 46;
+const DEFAULT_MAX_ZIP_ENTRIES = 1_000;
+const DEFAULT_MAX_ZIP_UNCOMPRESSED_BYTES = 50 * 1024 * 1024; // 50MB
+const DEFAULT_MAX_ZIP_COMPRESSION_RATIO = 100;
+const ZIP_RATIO_CHECK_THRESHOLD_BYTES = 1 * 1024 * 1024; // 1MB
+
+export interface ZipSafetyOptions {
+  maxEntries?: number;
+  maxUncompressedBytes?: number;
+  maxCompressionRatio?: number;
+}
+
+export type ZipSafetyResult =
+  | { safe: true; entryCount: number; totalUncompressedBytes: number }
+  | { safe: false; reason: string };
+
+/**
+ * Inspects a ZIP archive's End-of-Central-Directory (EOCD) and Central Directory entries
+ * before decompression to prevent Zip-Bomb DoS attacks on OOXML (.docx / .xlsx).
+ */
+export function validateZipArchiveSafety(
+  bytes: Uint8Array,
+  options?: ZipSafetyOptions
+): ZipSafetyResult {
+  const maxEntries = options?.maxEntries ?? DEFAULT_MAX_ZIP_ENTRIES;
+  const maxUncompressedBytes = options?.maxUncompressedBytes ?? DEFAULT_MAX_ZIP_UNCOMPRESSED_BYTES;
+  const maxCompressionRatio = options?.maxCompressionRatio ?? DEFAULT_MAX_ZIP_COMPRESSION_RATIO;
+
+  if (bytes.length < ZIP_EOCD_MIN_SIZE) {
+    return { safe: false, reason: "Archive too small to be a valid ZIP" };
+  }
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const minOffset = Math.max(0, bytes.length - ZIP_EOCD_MIN_SIZE - ZIP_MAX_COMMENT_SIZE);
+  let eocdOffset = -1;
+
+  for (let offset = bytes.length - ZIP_EOCD_MIN_SIZE; offset >= minOffset; offset--) {
+    if (view.getUint32(offset, true) === ZIP_EOCD_SIGNATURE) {
+      eocdOffset = offset;
+      break;
+    }
+  }
+
+  if (eocdOffset === -1) {
+    return { safe: false, reason: "Invalid ZIP archive: missing EOCD signature" };
+  }
+
+  const declaredEntries = view.getUint16(eocdOffset + 10, true);
+  const cdSize = view.getUint32(eocdOffset + 12, true);
+  const cdOffset = view.getUint32(eocdOffset + 16, true);
+
+  if (declaredEntries === 0xffff || cdSize === 0xffffffff || cdOffset === 0xffffffff) {
+    return { safe: false, reason: "ZIP64 sentinel values are not permitted" };
+  }
+
+  if (declaredEntries > maxEntries) {
+    return {
+      safe: false,
+      reason: `ZIP entry count (${declaredEntries}) exceeds limit (${maxEntries})`,
+    };
+  }
+
+  if (cdOffset + cdSize > eocdOffset) {
+    return { safe: false, reason: "Invalid ZIP central directory bounds" };
+  }
+
+  let offset = cdOffset;
+  const cdEnd = cdOffset + cdSize;
+  let entryCount = 0;
+  let totalCompressedBytes = 0;
+  let totalUncompressedBytes = 0;
+
+  while (offset < cdEnd) {
+    if (offset + ZIP_CD_HEADER_SIZE > cdEnd) {
+      return { safe: false, reason: "Truncated ZIP central directory entry" };
+    }
+
+    if (view.getUint32(offset, true) !== ZIP_CD_SIGNATURE) {
+      return { safe: false, reason: "Invalid ZIP central directory entry signature" };
+    }
+
+    const compressedSize = view.getUint32(offset + 20, true);
+    const uncompressedSize = view.getUint32(offset + 24, true);
+    const nameLen = view.getUint16(offset + 28, true);
+    const extraLen = view.getUint16(offset + 30, true);
+    const commentLen = view.getUint16(offset + 32, true);
+
+    if (compressedSize === 0xffffffff || uncompressedSize === 0xffffffff) {
+      return { safe: false, reason: "ZIP64 entry size sentinel is not permitted" };
+    }
+
+    if (compressedSize === 0 && uncompressedSize > 0) {
+      return {
+        safe: false,
+        reason: "Suspicious ZIP entry with zero compressed size and non-zero uncompressed size",
+      };
+    }
+
+    entryCount += 1;
+    if (entryCount > maxEntries) {
+      return {
+        safe: false,
+        reason: `ZIP entry count exceeds limit (${maxEntries})`,
+      };
+    }
+
+    totalCompressedBytes += compressedSize;
+    totalUncompressedBytes += uncompressedSize;
+
+    if (totalUncompressedBytes > maxUncompressedBytes) {
+      return {
+        safe: false,
+        reason: `ZIP uncompressed size (${totalUncompressedBytes}B) exceeds limit (${maxUncompressedBytes}B)`,
+      };
+    }
+
+    offset += ZIP_CD_HEADER_SIZE + nameLen + extraLen + commentLen;
+    if (offset > cdEnd) {
+      return { safe: false, reason: "ZIP central directory entry overruns directory size" };
+    }
+  }
+
+  if (
+    totalUncompressedBytes > ZIP_RATIO_CHECK_THRESHOLD_BYTES &&
+    totalCompressedBytes > 0 &&
+    totalUncompressedBytes / totalCompressedBytes > maxCompressionRatio
+  ) {
+    return {
+      safe: false,
+      reason: `ZIP compression ratio exceeds limit (${maxCompressionRatio}:1)`,
+    };
+  }
+
+  return { safe: true, entryCount, totalUncompressedBytes };
+}
+
 /**
  * Strips PostgreSQL incompatible NUL characters (\u0000) and trims.
  */
@@ -85,6 +225,13 @@ export async function parseDocxWithMammoth(
   maxChars: number = DEFAULT_MAX_CHARS
 ): Promise<string | null> {
   try {
+    const uint8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    const safety = validateZipArchiveSafety(uint8);
+    if (!safety.safe) {
+      parserLogger.warn(`Rejected unsafe DOCX archive: ${safety.reason}`);
+      return null;
+    }
+
     const mammoth = await import("mammoth");
     const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
     const result = await mammoth.extractRawText({ buffer });
@@ -107,17 +254,30 @@ export async function parseXlsxWithExcelJs(
   maxChars: number = DEFAULT_MAX_CHARS
 ): Promise<string | null> {
   try {
+    const uint8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    const safety = validateZipArchiveSafety(uint8);
+    if (!safety.safe) {
+      parserLogger.warn(`Rejected unsafe XLSX archive: ${safety.reason}`);
+      return null;
+    }
+
     const ExcelJS = await import("exceljs");
     const workbook = new ExcelJS.Workbook();
-    const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (workbook.xlsx as any).load(buffer);
+    const arrayBuffer = new Uint8Array(uint8).buffer;
+    await workbook.xlsx.load(arrayBuffer);
 
     const sheetTables: string[] = [];
+    let accumulatedChars = 0;
 
     workbook.eachSheet((worksheet) => {
+      if (accumulatedChars >= maxChars) return;
+
       const rows: string[][] = [];
+      let sheetCharEstimate = 0;
+      const sheetBudget = maxChars - accumulatedChars;
+
       worksheet.eachRow({ includeEmpty: false }, (row) => {
+        if (sheetCharEstimate >= sheetBudget) return;
         const values: string[] = [];
         row.eachCell({ includeEmpty: true }, (cell) => {
           let cellText = "";
@@ -130,7 +290,9 @@ export async function parseXlsxWithExcelJs(
               cellText = String(cell.value).replace(/\|/g, "\\|");
             }
           }
-          values.push(stripNulCharacters(cellText));
+          const cleaned = stripNulCharacters(cellText);
+          values.push(cleaned);
+          sheetCharEstimate += cleaned.length + 3;
         });
         if (values.length > 0) rows.push(values);
       });
@@ -148,7 +310,9 @@ export async function parseXlsxWithExcelJs(
           const padded = headers.map((_, idx) => rowData[idx] || "");
           tableLines.push(`| ${padded.join(" | ")} |`);
         }
-        sheetTables.push(tableLines.join("\n"));
+        const tableText = tableLines.join("\n");
+        sheetTables.push(tableText);
+        accumulatedChars += tableText.length + 2;
       }
     });
 

@@ -3,19 +3,16 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/features/auth/auth";
+import { requireAdminUser } from "@/lib/features/auth/requireApprovedUser";
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
-import { ForbiddenError, ValidationError, AppError } from "@/lib/utils/errors";
+import { ValidationError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { logger } from "@/lib/utils/logger";
 
 // GET: List all premade personas
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.rank !== "admin") {
-      throw new ForbiddenError("Admin access required");
-    }
+    await requireAdminUser();
 
     const supabase = getSupabaseAdmin();
     const { data, error: dbError } = await supabase
@@ -36,11 +33,8 @@ export async function GET() {
 // POST: Create a new premade persona
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email || session.user.rank !== "admin") {
-      throw new ForbiddenError("Admin access required");
-    }
-    const adminEmail = session.user.email.toLowerCase();
+    const admin = await requireAdminUser();
+    const adminEmail = admin.userId;
 
     const json = await req.json();
     const { name, description, tone, icon, color } = json;
@@ -91,11 +85,8 @@ export async function POST(req: NextRequest) {
 // PUT: Update an existing premade persona
 export async function PUT(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email || session.user.rank !== "admin") {
-      throw new ForbiddenError("Admin access required");
-    }
-    const adminEmail = session.user.email.toLowerCase();
+    const admin = await requireAdminUser();
+    const adminEmail = admin.userId;
 
     const json = await req.json();
     const { id, name, description, tone, icon, color } = json;
@@ -148,11 +139,8 @@ export async function PUT(req: NextRequest) {
 // DELETE: Delete a premade persona
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email || session.user.rank !== "admin") {
-      throw new ForbiddenError("Admin access required");
-    }
-    const adminEmail = session.user.email.toLowerCase();
+    const admin = await requireAdminUser();
+    const adminEmail = admin.userId;
 
     const { searchParams } = new URL(req.url);
     const personaId = searchParams.get("id");

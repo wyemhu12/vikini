@@ -11,6 +11,19 @@ import { logger } from "@/lib/utils/logger";
 
 const ssrfLogger = logger.withContext("ssrf-guard");
 
+/**
+ * Explicit allowlist of safe raster image MIME types (excludes active formats like image/svg+xml).
+ */
+export const ALLOWED_IMAGE_MIME_TYPES: ReadonlySet<string> = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "image/bmp",
+]);
+
 // Initialize IP BlockList with restricted network CIDRs
 const blockList = new net.BlockList();
 
@@ -218,9 +231,10 @@ export async function fetchSafeImage(
         throw new ValidationError(`Failed to fetch image: HTTP ${response.status}`);
       }
 
-      // Verify Content-Type is an image
+      // Verify Content-Type is an allowed raster image (blocks active formats like image/svg+xml)
       const contentType = response.headers.get("content-type") || "";
-      if (!contentType.toLowerCase().startsWith("image/")) {
+      const normalizedMime = contentType.split(";")[0].trim().toLowerCase();
+      if (!ALLOWED_IMAGE_MIME_TYPES.has(normalizedMime)) {
         if (response.body) {
           response.body.cancel().catch(() => {});
         }

@@ -5,9 +5,10 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { logger } from "@/lib/utils/logger";
-import { getAuthVersion, refreshTokenFromDB } from "@/lib/features/auth/authRevocation";
+import { getAuthVersion, refreshTokenFromDBDetailed } from "@/lib/features/auth/authRevocation";
 
 const authLogger = logger.withContext("auth");
+const MAX_STALE_ERROR_MS = 5 * 60 * 1000; // 5 minutes max grace on DB refresh error for non-admins
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -102,6 +103,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       });
 
       if (insertError) {
+        // Concurrent first sign-in race: re-fetch existing profile on PostgreSQL unique violation (23505)
+        if (insertError.code === "23505") {
+          const { data: existingProfile, error: retryError } = await supabase
+            .from("profiles")
+            .select("is_blocked")
+            .eq("email", email)
+            .maybeSingle();
+
+          if (retryError || !existingProfile) {
+            authLogger.warn("Error re-fetching profile after 23505 race:", retryError);
+            return false;
+          }
+          if (existingProfile.is_blocked) {
+            authLogger.warn(`Blocked user attempted login during concurrent sign-in: ${email}`);
+            return false;
+          }
+          return true;
+        }
         authLogger.warn("Error creating profile:", insertError);
         return false;
       }
@@ -170,8 +189,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         if (needsRefresh) {
-          const fresh = await refreshTokenFromDB(email);
-          if (fresh) {
+          const fresh = await refreshTokenFromDBDetailed(email);
+          if (fresh.status === "ok") {
             if (fresh.isBlocked) {
               authLogger.warn(`Blocked user detected during JWT refresh: ${email}`);
               return { blocked: true } as typeof token;
@@ -180,6 +199,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.userId = fresh.userId;
             token.rankVersion = Date.now();
             token.rankRefreshedAt = Date.now();
+          } else if (fresh.status === "not_found") {
+            authLogger.warn(`Profile not found during JWT refresh (deleted): ${email}`);
+            return { blocked: true } as typeof token;
+          } else {
+            // Transient DB error: do NOT bump rankRefreshedAt; fail-closed for admin or stale token
+            const lastRefresh = (token.rankRefreshedAt as number) || 0;
+            const isStale = Date.now() - lastRefresh > MAX_STALE_ERROR_MS;
+            if (token.rank === "admin" || isStale) {
+              authLogger.warn(
+                `DB error during JWT refresh for ${email} (rank=${String(token.rank)}, stale=${isStale}) - failing closed`
+              );
+              token.rank = "not_whitelisted";
+            }
           }
         }
       }
@@ -188,10 +220,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
 
     async session({ session, token }) {
-      // If token is marked as blocked, signal session to redirect
+      // If token is marked as blocked, strip credentials/PII and signal client to sign out
       if (token.blocked) {
-        session.user.rank = "__blocked__";
-        return session;
+        return {
+          ...session,
+          user: {
+            id: "",
+            rank: "__blocked__",
+            email: undefined,
+            name: undefined,
+            image: undefined,
+          },
+        };
       }
 
       if (session.user) {

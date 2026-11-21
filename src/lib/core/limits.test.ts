@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { Redis } from "@upstash/redis";
 import * as limits from "./limits";
+import { resetSharedRedisForTests } from "./redis.server";
 import { ForbiddenError, ServiceUnavailableError, UserBlockedError } from "@/lib/utils/errors";
 
 const rpcMock = vi.fn();
@@ -25,9 +27,17 @@ vi.mock("./supabase.server", () => ({
   }),
 }));
 
-// Mock Redis (not needed for this test but imported by limits.ts)
+const mockRedisClient = {
+  get: vi.fn().mockResolvedValue(null),
+  setex: vi.fn().mockResolvedValue("OK"),
+  del: vi.fn().mockResolvedValue(1),
+};
+
+// Mock Redis (shared singleton imported via redis.server.ts)
 vi.mock("@upstash/redis", () => ({
-  Redis: vi.fn(),
+  Redis: vi.fn().mockImplementation(function () {
+    return mockRedisClient;
+  }),
 }));
 
 // Mock logger
@@ -107,6 +117,9 @@ const profile = (rank: string, is_blocked = false) => ({
 
 describe("fail-closed limits", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    resetSharedRedisForTests();
+    mockRedisClient.get.mockResolvedValue(null);
     for (const k of Object.keys(tableResults)) delete tableResults[k];
     // Mirrors production today: no "not_whitelisted" row in rank_configs
     setRankConfigs([BASIC_ROW, PRO_ROW]);
@@ -312,6 +325,23 @@ describe("fail-closed limits", () => {
         limits.assertModelAllowedForUser("u@x.com", "gemini-3.8-flash")
       ).resolves.toBeUndefined();
       await expect(limits.isModelAllowedForUser("u@x.com", "gemini-3.8-flash")).resolves.toBe(true);
+    });
+
+    it("TC-W2A-13 & preloadedLimits: skips DB lookup when preloadedLimits is provided and reuses shared Redis singleton", async () => {
+      // Simulate DB outage: passing preloadedLimits avoids getUserLimits DB call
+      setProfile(null, { message: "should not be queried" });
+      await expect(
+        limits.assertModelAllowedForUser("u@x.com", "gemini-4-argon", {
+          ...PRO_WITH_ARGON,
+          rank: "pro",
+          userId: "u@x.com",
+          email: "u@x.com",
+        })
+      ).resolves.toBeUndefined();
+
+      await limits.invalidateRankConfigsCache();
+      await limits.invalidateRankConfigsCache();
+      expect(Redis).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -1,9 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { tryClaimBatchGenSlot, resetInMemoryQuotaStore } from "./batchGenQuota";
+import { Redis } from "@upstash/redis";
+import { tryClaimBatchGenSlot, resetInMemoryQuotaStore, getRedis } from "./batchGenQuota";
+import { resetSharedRedisForTests } from "./redis.server";
+
+const mockRedisInstance = {
+  incr: vi.fn(),
+  decr: vi.fn(),
+  expire: vi.fn(),
+};
 
 vi.mock("@upstash/redis", () => {
   return {
-    Redis: vi.fn(),
+    Redis: vi.fn().mockImplementation(function () {
+      return mockRedisInstance;
+    }),
   };
 });
 
@@ -13,12 +23,14 @@ describe("batchGenQuota - tryClaimBatchGenSlot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetInMemoryQuotaStore();
+    resetSharedRedisForTests();
     process.env = { ...originalEnv };
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
     process.env = originalEnv;
+    resetSharedRedisForTests();
   });
 
   it("should immediately allow batchSize <= 1 without checking Redis or quota", async () => {
@@ -98,5 +110,15 @@ describe("batchGenQuota - tryClaimBatchGenSlot", () => {
     // Should be able to claim 1 more
     const retry = await tryClaimBatchGenSlot("user-rb", "basic", 2);
     expect(retry.claimed).toBe(true);
+  });
+
+  it("delegates getRedis() to shared Redis singleton (TC-W2A-13)", () => {
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://shared-redis.upstash.io");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "shared-token");
+
+    const r1 = getRedis();
+    const r2 = getRedis();
+    expect(r1).toBe(r2);
+    expect(Redis).toHaveBeenCalledTimes(1);
   });
 });

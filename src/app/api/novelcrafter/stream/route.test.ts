@@ -25,6 +25,10 @@ vi.mock("@/lib/core/limits", () => ({
   assertModelAllowedForUser: hoisted.assertModelAllowedForUserMock,
 }));
 
+vi.mock("@/lib/core/redis.server", () => ({
+  getSharedRedis: vi.fn().mockReturnValue(null),
+}));
+
 vi.mock("@/lib/features/novelcrafter/storyPersistence.server", () => ({
   verifyNovelcrafterConversationOwnership: hoisted.verifyOwnershipMock,
 }));
@@ -33,6 +37,7 @@ vi.mock("@/lib/features/novelcrafter/novelcrafterStreamRunner.server", () => ({
   runNovelcrafterStream: hoisted.runNovelcrafterStreamMock,
 }));
 
+import { resetLocalInFlightQuotaForTests } from "@/lib/features/novelcrafter/streamQuotaGuard.server";
 import { ForbiddenError } from "@/lib/utils/errors";
 import { createDefaultStoryState } from "@/lib/features/novelcrafter/types";
 import { POST } from "./route";
@@ -56,6 +61,7 @@ function buildValidPayload(overrides: Record<string, unknown> = {}) {
 
 describe("POST /api/novelcrafter/stream integration tests (TC-07)", () => {
   beforeEach(() => {
+    resetLocalInFlightQuotaForTests();
     hoisted.authMock.mockReset();
     hoisted.consumeRateLimitMock.mockReset();
     hoisted.checkDailyMessageLimitMock.mockReset();

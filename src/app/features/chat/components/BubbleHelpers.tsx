@@ -4,12 +4,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ChevronDown, Brain } from "lucide-react";
 import {
   formatThinkingDuration,
   type ThinkingStatsSnapshot,
 } from "@/lib/features/chat/thinkingStats";
+import { DURATION, EASE, TRANSITION, reducedMotionTransition } from "@/lib/utils/motion";
 
 // ============================================
 // Typing Dots (loading animation)
@@ -33,11 +34,16 @@ export const TypingDots = React.memo(function TypingDots({ statusText }: { statu
 // ============================================
 
 export const TypingCursor = React.memo(function TypingCursor() {
+  const shouldReduce = useReducedMotion();
   return (
     <motion.span
       initial={{ opacity: 1 }}
-      animate={{ opacity: [1, 0.3, 1] }}
-      transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut" }}
+      animate={shouldReduce ? { opacity: 1 } : { opacity: [1, 0.3, 1] }}
+      transition={reducedMotionTransition(shouldReduce, {
+        repeat: Infinity,
+        duration: DURATION.AMBIENT_CURSOR,
+        ease: EASE.MOVE,
+      })}
       className="inline-block whitespace-nowrap ml-1 align-middle w-0.5 h-4 bg-(--accent) rounded-sm"
       aria-hidden="true"
     />
@@ -86,7 +92,7 @@ export const ThinkingBlock = React.memo(function ThinkingBlock({
         <motion.div
           className="ml-auto"
           animate={{ rotate: isCollapsed ? -90 : 0 }}
-          transition={{ duration: 0.2, ease: "easeInOut" }}
+          transition={TRANSITION.COLLAPSE}
         >
           <ChevronDown className="w-3 h-3 opacity-50" />
         </motion.div>
@@ -98,7 +104,7 @@ export const ThinkingBlock = React.memo(function ThinkingBlock({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
+            transition={TRANSITION.COLLAPSE}
             className="overflow-hidden"
           >
             <div

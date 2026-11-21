@@ -120,7 +120,7 @@ export default function PromptStudioActionEditor({
             <button
               type="button"
               onClick={onSave}
-              className="inline-flex items-center gap-1 h-8 px-3 rounded-lg bg-(--accent) text-(--on-accent) hover:brightness-110 text-xs font-semibold transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="inline-flex items-center gap-1 h-8 px-3 rounded-lg bg-(--accent) text-(--on-accent) hover:brightness-110 text-xs font-semibold transition-[filter] focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{t("novelcrafterPromptStudioSaveShort")}</span>

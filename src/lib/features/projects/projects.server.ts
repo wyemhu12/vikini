@@ -14,7 +14,12 @@ import {
   UserTier,
 } from "@/types/projects";
 import { logger } from "@/lib/utils/logger";
-import { NotFoundError, ServiceUnavailableError } from "@/lib/utils/errors";
+import {
+  AccessPendingError,
+  NotFoundError,
+  ServiceUnavailableError,
+  UserBlockedError,
+} from "@/lib/utils/errors";
 
 const projectLogger = logger.withContext("projects");
 
@@ -44,19 +49,25 @@ export async function getUserTier(userId: string): Promise<UserTier> {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("rank")
+    .select("rank, is_blocked")
     .eq("email", userId)
     .maybeSingle();
 
   if (error) {
     throw new ServiceUnavailableError("Unable to verify user tier");
   }
-  if (!data?.rank) return "basic";
+  if (!data || !data.rank) {
+    throw new AccessPendingError();
+  }
+  if (data.is_blocked === true) {
+    throw new UserBlockedError();
+  }
 
   const rank = String(data.rank).toLowerCase();
   if (rank === "admin") return "admin";
   if (rank === "pro") return "pro";
-  return "basic";
+  if (rank === "basic") return "basic";
+  throw new AccessPendingError();
 }
 
 export function getTierLimits(tier: UserTier) {
@@ -67,8 +78,102 @@ export function getTierLimits(tier: UserTier) {
 // PROJECT CRUD
 // ============================================
 
+const BULK_STATS_PAGE_SIZE = 1000;
+const BULK_STATS_MAX_PAGES = 10;
+
+async function fetchBulkConversationCounts(projectIds: string[]): Promise<Map<string, number>> {
+  const supabase = getTypedSupabaseAdmin();
+  const counts = new Map<string, number>();
+
+  for (let page = 0; page < BULK_STATS_MAX_PAGES; page++) {
+    const offset = page * BULK_STATS_PAGE_SIZE;
+    const { data, error } = await supabase
+      .from("conversations")
+      .select("project_id")
+      .in("project_id", projectIds)
+      .range(offset, offset + BULK_STATS_PAGE_SIZE - 1);
+
+    if (error || !data) {
+      if (error) {
+        projectLogger.warn("Failed to fetch bulk conversation counts", error);
+      }
+      break;
+    }
+
+    for (const row of data) {
+      if (row.project_id) {
+        counts.set(row.project_id, (counts.get(row.project_id) || 0) + 1);
+      }
+    }
+
+    if (data.length < BULK_STATS_PAGE_SIZE) {
+      break;
+    }
+  }
+
+  return counts;
+}
+
+async function fetchBulkDocumentStats(
+  projectIds: string[]
+): Promise<Map<string, { count: number; totalBytes: number }>> {
+  const supabase = getTypedSupabaseAdmin();
+  const stats = new Map<string, { count: number; totalBytes: number }>();
+
+  for (let page = 0; page < BULK_STATS_MAX_PAGES; page++) {
+    const offset = page * BULK_STATS_PAGE_SIZE;
+    const { data, error } = await supabase
+      .from("knowledge_documents")
+      .select("project_id, size_bytes")
+      .in("project_id", projectIds)
+      .range(offset, offset + BULK_STATS_PAGE_SIZE - 1);
+
+    if (error || !data) {
+      if (error) {
+        projectLogger.warn("Failed to fetch bulk document stats", error);
+      }
+      break;
+    }
+
+    for (const row of data) {
+      if (!row.project_id) continue;
+      const existing = stats.get(row.project_id) || { count: 0, totalBytes: 0 };
+      existing.count += 1;
+      existing.totalBytes += row.size_bytes || 0;
+      stats.set(row.project_id, existing);
+    }
+
+    if (data.length < BULK_STATS_PAGE_SIZE) {
+      break;
+    }
+  }
+
+  return stats;
+}
+
 /**
- * Get all projects for a user with stats
+ * Lightweight 1-query project ownership verification (avoids fetching stats).
+ */
+export async function verifyProjectOwnership(projectId: string, userId: string): Promise<boolean> {
+  const supabase = getTypedSupabaseAdmin();
+
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    projectLogger.error("Failed to verify project ownership", error);
+    return false;
+  }
+
+  return Boolean(data?.id);
+}
+
+/**
+ * Get all projects for a user with stats (bulk aggregated to eliminate N+1)
  */
 export async function getUserProjects(userId: string): Promise<ProjectWithStats[]> {
   const supabase = getTypedSupabaseAdmin();
@@ -88,24 +193,21 @@ export async function getUserProjects(userId: string): Promise<ProjectWithStats[
     return [];
   }
 
-  // Get stats for each project
-  const projectsWithStats: ProjectWithStats[] = await Promise.all(
-    projects.map(async (project) => {
-      const [convCount, docStats] = await Promise.all([
-        getProjectConversationCount(project.id),
-        getProjectDocumentStats(project.id),
-      ]);
+  const projectIds = projects.map((project) => project.id);
+  const [convCounts, docStatsMap] = await Promise.all([
+    fetchBulkConversationCounts(projectIds),
+    fetchBulkDocumentStats(projectIds),
+  ]);
 
-      return {
-        ...toProject(project),
-        conversation_count: convCount,
-        document_count: docStats.count,
-        storage_bytes: docStats.totalBytes,
-      };
-    })
-  );
-
-  return projectsWithStats;
+  return projects.map((project) => {
+    const docStats = docStatsMap.get(project.id) || { count: 0, totalBytes: 0 };
+    return {
+      ...toProject(project),
+      conversation_count: convCounts.get(project.id) || 0,
+      document_count: docStats.count,
+      storage_bytes: docStats.totalBytes,
+    };
+  });
 }
 
 /**
@@ -224,8 +326,8 @@ export async function updateProject(
  * Delete a project (cascade deletes documents and chunks)
  */
 export async function deleteProject(projectId: string, userId: string): Promise<void> {
-  const project = await getProject(projectId, userId);
-  if (!project) throw new NotFoundError("Project");
+  const owned = await verifyProjectOwnership(projectId, userId);
+  if (!owned) throw new NotFoundError("Project");
 
   const supabase = getTypedSupabaseAdmin();
 

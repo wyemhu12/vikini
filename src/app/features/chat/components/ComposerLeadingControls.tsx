@@ -1,7 +1,7 @@
 // /app/features/chat/components/ComposerLeadingControls.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { AlertTriangle, FolderOpen, Globe, Search, SlidersHorizontal } from "lucide-react";
 import {
   modelSupportsWebSearch,
@@ -57,10 +57,6 @@ function FilesChip({
 }) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
-  const tRecord = useMemo(
-    () => new Proxy({} as Record<string, string>, { get: (_, prop: string) => t(prop) }),
-    [t]
-  );
   return (
     <div className="relative shrink-0">
       <ComposerChip icon={FolderOpen} active={open} onClick={() => setOpen((v) => !v)}>
@@ -71,7 +67,6 @@ function FilesChip({
           conversationId={conversationId}
           isOpen={open}
           onClose={() => setOpen(false)}
-          t={tRecord}
         />
       )}
     </div>

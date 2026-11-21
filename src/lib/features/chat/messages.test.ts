@@ -1,18 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  saveMessage,
   upsertMessage,
+  getMessages,
+  DEFAULT_GET_MESSAGES_LIMIT,
+  MAX_GET_MESSAGES_LIMIT,
   recordTombstone,
   isTombstoned,
   deleteMessage,
+  deleteLastAssistantMessage,
   deleteMessageByClientMessageId,
   deleteMessagesIncludingAndAfter,
   encryptMetaReasoning,
   decryptMetaReasoning,
 } from "./messages";
-import { ForbiddenError, NotFoundError } from "@/lib/utils/errors";
+import { AppError, DatabaseError, ForbiddenError, NotFoundError } from "@/lib/utils/errors";
 
 // Mock Supabase admin client
 const mockFrom = vi.fn();
+const mockEncryptText = vi.fn((text: string) => `enc:${text}`);
 vi.mock("@/lib/core/supabase.server", () => ({
   getSupabaseAdmin: () => ({
     from: mockFrom,
@@ -25,7 +31,7 @@ vi.mock("@/lib/core/supabase.server", () => ({
 }));
 
 vi.mock("@/lib/core/encryption", () => ({
-  encryptText: (text: string) => `enc:${text}`,
+  encryptText: (text: string) => mockEncryptText(text),
   decryptText: (text: string) => {
     if (text.startsWith("enc:")) return text.replace(/^enc:/, "");
     throw new Error("Invalid ciphertext or decryption failure");
@@ -35,6 +41,7 @@ vi.mock("@/lib/core/encryption", () => ({
 describe("messages - upsert and tombstone logic", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockEncryptText.mockImplementation((text: string) => `enc:${text}`);
   });
 
   it("records tombstone and recognizes tombstoned clientMessageId", () => {
@@ -332,6 +339,195 @@ describe("messages - upsert and tombstone logic", () => {
       const result = decryptMetaReasoning(meta);
       expect(result.reasoning).toBe(legacyPlaintext);
       expect(result.flag).toBe("kept");
+    });
+  });
+
+  describe("Fail-closed encryption & ownership/error guards (TC-W1-02)", () => {
+    it("encryptMetaReasoning throws AppError(ENCRYPTION_ERROR) when encryptText fails", () => {
+      mockEncryptText.mockImplementationOnce(() => {
+        throw new Error("Key error");
+      });
+
+      expect(() => encryptMetaReasoning({ reasoning: "Private thoughts" })).toThrow(AppError);
+    });
+
+    it("saveMessage throws AppError(500 ENCRYPTION_ERROR) and never inserts plaintext when encryptText throws", async () => {
+      const insertMock = vi.fn();
+      mockFrom.mockReturnValue({ insert: insertMock });
+      mockEncryptText.mockImplementationOnce(() => {
+        throw new Error("Crypto error");
+      });
+
+      await expect(saveMessage("user-1", "conv-1", "user", "Secret message")).rejects.toMatchObject(
+        {
+          statusCode: 500,
+          code: "ENCRYPTION_ERROR",
+        }
+      );
+      expect(insertMock).not.toHaveBeenCalled();
+    });
+
+    it("upsertMessage throws AppError(500 ENCRYPTION_ERROR) and never updates DB when encryptText throws", async () => {
+      const existingPartialRow = {
+        id: "msg-partial-err",
+        conversation_id: "conv-1",
+        role: "assistant",
+        content: "enc:Old partial",
+        meta: { clientMessageId: "client-enc-fail", isPartial: true },
+      };
+      const updateMock = vi.fn();
+      const selectMock = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue({ data: [existingPartialRow] }),
+          }),
+        }),
+      });
+      mockFrom.mockReturnValue({ select: selectMock, update: updateMock });
+      mockEncryptText.mockImplementationOnce(() => {
+        throw new Error("Crypto error");
+      });
+
+      await expect(
+        upsertMessage("user-1", "conv-1", "assistant", "Updated secret", {}, "client-enc-fail")
+      ).rejects.toMatchObject({
+        statusCode: 500,
+        code: "ENCRYPTION_ERROR",
+      });
+      expect(updateMock).not.toHaveBeenCalled();
+    });
+
+    it("deleteLastAssistantMessage throws ForbiddenError for unowned conversation and does not delete", async () => {
+      const deleteMock = vi.fn();
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "conversations") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { id: "conv-victim", user_id: "victim@example.com" },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return { delete: deleteMock };
+      });
+
+      await expect(
+        deleteLastAssistantMessage("attacker@example.com", "conv-victim")
+      ).rejects.toThrow(ForbiddenError);
+      expect(deleteMock).not.toHaveBeenCalled();
+    });
+
+    it("deleteLastAssistantMessage returns idempotently when conversation does not exist", async () => {
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "conversations") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+              }),
+            }),
+          };
+        }
+        throw new Error("Should not query messages");
+      });
+
+      await expect(
+        deleteLastAssistantMessage("user@example.com", "conv-missing")
+      ).resolves.toBeUndefined();
+    });
+
+    it("deleteLastAssistantMessage throws DatabaseError when .delete() returns an error", async () => {
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "conversations") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { id: "conv-own", user_id: "user@example.com" },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockReturnValue({
+                    maybeSingle: vi.fn().mockResolvedValue({
+                      data: { id: "msg-last", meta: { clientMessageId: "c-last" } },
+                      error: null,
+                    }),
+                  }),
+                }),
+              }),
+            }),
+          }),
+          delete: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: { message: "delete failed" } }),
+          }),
+        };
+      });
+
+      await expect(deleteLastAssistantMessage("user@example.com", "conv-own")).rejects.toThrow(
+        DatabaseError
+      );
+    });
+
+    it("deleteMessage throws DatabaseError when .delete() returns an error", async () => {
+      mockFrom.mockImplementation(() => ({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: {
+                id: "msg-my",
+                meta: {},
+                conversation_id: "conv-my",
+                conversations: { user_id: "my@example.com" },
+              },
+              error: null,
+            }),
+          }),
+        }),
+        delete: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: { message: "FK violation" } }),
+        }),
+      }));
+
+      await expect(deleteMessage("my@example.com", "msg-my")).rejects.toThrow(DatabaseError);
+    });
+  });
+
+  describe("getMessages bounded query (TC-W2A-17)", () => {
+    it("applies default limit 500 descending, clamps limit to [1, 1000], and reverses to chronological order", async () => {
+      const limitMock = vi.fn().mockResolvedValue({
+        data: [
+          { id: "m2", conversation_id: "c1", role: "assistant", content: "enc:Second" },
+          { id: "m1", conversation_id: "c1", role: "user", content: "enc:First" },
+        ],
+        error: null,
+      });
+      const orderMock = vi.fn().mockReturnValue({ limit: limitMock });
+      const eqMock = vi.fn().mockReturnValue({ order: orderMock });
+      mockFrom.mockReturnValue({ select: vi.fn().mockReturnValue({ eq: eqMock }) });
+
+      const msgs = await getMessages("c1");
+      expect(orderMock).toHaveBeenCalledWith("created_at", { ascending: false });
+      expect(limitMock).toHaveBeenCalledWith(DEFAULT_GET_MESSAGES_LIMIT);
+      expect(msgs.map((m) => m.id)).toEqual(["m1", "m2"]);
+      expect(msgs.map((m) => m.content)).toEqual(["First", "Second"]);
+
+      await getMessages("c1", 5000);
+      expect(limitMock).toHaveBeenLastCalledWith(MAX_GET_MESSAGES_LIMIT);
+
+      await getMessages("c1", -5);
+      expect(limitMock).toHaveBeenLastCalledWith(1);
     });
   });
 });

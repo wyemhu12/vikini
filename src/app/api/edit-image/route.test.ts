@@ -13,6 +13,7 @@ vi.mock("@/lib/core/rateLimit", () => ({
 
 const mockSupabaseFrom = vi.fn();
 const mockStorageUpload = vi.fn();
+const mockStorageRemove = vi.fn();
 const mockStorageCreateSignedUrl = vi.fn();
 const mockStorageGetPublicUrl = vi.fn();
 
@@ -22,6 +23,7 @@ vi.mock("@/lib/core/supabase.server", () => ({
     storage: {
       from: () => ({
         upload: mockStorageUpload,
+        remove: mockStorageRemove,
         createSignedUrl: mockStorageCreateSignedUrl,
         getPublicUrl: mockStorageGetPublicUrl,
       }),
@@ -29,12 +31,13 @@ vi.mock("@/lib/core/supabase.server", () => ({
   })),
 }));
 
+const mockEditGenerateContent = vi.fn();
 vi.mock("@google/genai", () => ({
-  GoogleGenAI: vi.fn(() => ({
-    models: {
-      generateContent: vi.fn(),
-    },
-  })),
+  GoogleGenAI: class {
+    models = {
+      generateContent: mockEditGenerateContent,
+    };
+  },
 }));
 
 vi.mock("@/lib/features/chat/messages", () => ({
@@ -60,6 +63,7 @@ import { POST } from "./route";
 import { auth } from "@/lib/features/auth/auth";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
 import { getUserProfile } from "@/lib/core/limits";
+import { saveMessage } from "@/lib/features/chat/messages";
 
 // ── Helpers ───────────────────────────────────────────────────────────
 const TEST_EMAIL = "test@example.com";
@@ -393,6 +397,101 @@ describe("/api/edit-image", () => {
       expect(json.error.message).toContain(
         "Access to private or restricted network addresses is forbidden"
       );
+    });
+
+    it("TC-W1-05: rejects disallowed options.model with 400 VALIDATION_ERROR", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+
+      const req = createRequest("POST", "/api/edit-image", {
+        ...validBody,
+        options: { model: "gemini-4-argon" },
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error.code).toBe("VALIDATION_ERROR");
+    });
+
+    it("TC-W1-05: cleans up uploaded orphan image if saveMessage throws", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: TEST_CONV_ID, user_id: TEST_EMAIL },
+              error: null,
+            }),
+          }),
+        }),
+      });
+      mockEditGenerateContent.mockResolvedValueOnce({
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  inlineData: {
+                    data: Buffer.from("edited-img").toString("base64"),
+                    mimeType: "image/png",
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+      mockStorageUpload.mockResolvedValueOnce({ error: null });
+      mockStorageRemove.mockResolvedValueOnce({ error: null });
+      mockStorageCreateSignedUrl.mockResolvedValueOnce({
+        data: { signedUrl: "https://storage.supabase.com/signed/edit.png" },
+        error: null,
+      });
+      vi.mocked(saveMessage).mockRejectedValueOnce(new Error("DB error"));
+
+      const req = createRequest("POST", "/api/edit-image", {
+        sourceImageUrl: "data:image/png;base64,aGVsbG8=",
+        editPrompt: "Make sky blue",
+        conversationId: TEST_CONV_ID,
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(500);
+      expect(mockStorageRemove).toHaveBeenCalledTimes(1);
+    });
+
+    it("TC-W2A-12 & NP-02: rejects SVG/HTML/malformed/oversized data URIs with 400 VALIDATION_ERROR", async () => {
+      mockAuthenticated();
+      mockRateLimitAllowed();
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: TEST_CONV_ID, user_id: TEST_EMAIL },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      const badDataUrls = [
+        "DATA:IMAGE/SVG+XML;base64,PHN2Zy8+",
+        "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
+        "data:image/png,not-base64",
+        `data:image/png;base64,${"A".repeat(14_000_001)}`,
+      ];
+
+      for (const badUrl of badDataUrls) {
+        const res = await POST(
+          createRequest("POST", "/api/edit-image", {
+            sourceImageUrl: badUrl,
+            editPrompt: "Edit this",
+            conversationId: TEST_CONV_ID,
+          })
+        );
+        expect(res.status).toBe(400);
+      }
+      expect(mockEditGenerateContent).not.toHaveBeenCalled();
     });
   });
 });

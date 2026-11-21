@@ -154,6 +154,10 @@ export function createDeepSeekStream(params: {
       let fullReasoning = "";
       let streamFailed = false;
       let emptyAnswerReason: "length" | "no_content" | undefined;
+      let promptTokens: number | undefined;
+      let completionTokens: number | undefined;
+      let totalTokens: number | undefined;
+      let reasoningTokens: number | undefined;
 
       try {
         const { effectiveSysPromptPrefix } = mapDeepSeekEffort(model, thinkingLevel);
@@ -215,10 +219,6 @@ export function createDeepSeekStream(params: {
         const guardedStream = withIdleTimeout(stream, idleTimeoutMs);
 
         // Track usage from final chunk
-        let promptTokens: number | undefined;
-        let completionTokens: number | undefined;
-        let totalTokens: number | undefined;
-        let reasoningTokens: number | undefined;
         let lastFinishReason: string | undefined;
 
         for await (const chunk of guardedStream) {
@@ -345,11 +345,13 @@ export function createDeepSeekStream(params: {
               error?: { message?: string };
             };
 
-            // Map DeepSeek-specific error codes
+            // Map DeepSeek-specific error codes (distinguish 429 rate limit vs 413/context token limit)
+            const errorMessage = err.error?.message || err.message || "DeepSeek stream error";
             const isRateLimit = err.status === 429;
             const isInsufficientBalance = err.status === 402;
-            const isTokenLimit = err.status === 413 || err.code === "rate_limit_exceeded";
-            const errorMessage = err.error?.message || err.message || "DeepSeek stream error";
+            const isTokenLimit =
+              err.status === 413 ||
+              /context_length_exceeded|maximum context length/i.test(errorMessage);
 
             let tokenInfo: { limit?: number; requested?: number } | null = null;
             if (isTokenLimit && errorMessage) {
@@ -364,9 +366,13 @@ export function createDeepSeekStream(params: {
             }
 
             let code = err.code || "stream_error";
-            if (isRateLimit) code = "rate_limit_exceeded";
-            if (isInsufficientBalance) code = "insufficient_balance";
-            if (isTokenLimit) code = "token_limit_exceeded";
+            if (isInsufficientBalance) {
+              code = "insufficient_balance";
+            } else if (isRateLimit) {
+              code = "rate_limit_exceeded";
+            } else if (isTokenLimit) {
+              code = "token_limit_exceeded";
+            }
 
             sendEvent(controller, "error", {
               message: errorMessage,
@@ -391,12 +397,23 @@ export function createDeepSeekStream(params: {
         return;
       }
 
-      // 3. Post Stream Processing — skip if stream failed with no content and no reasoning
-      if (!streamFailed || full.trim() || fullReasoning.trim()) {
+      // 3. Post Stream Processing — skip on failure (partial content already saved in catch)
+      if (!streamFailed) {
+        const usageMetadata =
+          totalTokens !== undefined
+            ? {
+                promptTokenCount: promptTokens,
+                candidatesTokenCount: completionTokens,
+                thoughtsTokenCount: reasoningTokens,
+                totalTokenCount: totalTokens,
+              }
+            : undefined;
+
         await processPostStream(controller, {
           full,
           reasoning: fullReasoning || undefined,
           ragSources,
+          usageMetadata,
           isActuallyBlocked: false,
           shouldGenerateTitle,
           conversationId,

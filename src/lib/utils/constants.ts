@@ -54,6 +54,24 @@ export const CLAUDE_API_MODELS = {
 } as const;
 
 /**
+ * Server-side allowlists for image generation & editing models
+ */
+export const ALLOWED_GENERATE_IMAGE_MODELS = [
+  "gemini-3.1-flash-image",
+  "gemini-3-pro-image",
+  "gemini-3-pro-image-preview",
+  "black-forest-labs/flux-schnell",
+  "gpt-image-2",
+  "dall-e-3",
+] as const;
+
+export const ALLOWED_EDIT_IMAGE_MODELS = [
+  "gemini-3.1-flash-image",
+  "gemini-3-pro-image",
+  "gemini-3-pro-image-preview",
+] as const;
+
+/**
  * Default limits and configurations
  */
 export const DEFAULT_LIMITS = {

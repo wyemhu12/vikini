@@ -13,6 +13,7 @@ import { Camera, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import type { ImageTemplate } from "@/lib/features/image-gen/templates";
+import { TRANSITION } from "@/lib/utils/motion";
 
 interface TemplateModalProps {
   template: ImageTemplate | null;
@@ -48,7 +49,7 @@ export default function TemplateModal({
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
+          transition={TRANSITION.EXIT_NORMAL}
           className="relative"
         >
           <img

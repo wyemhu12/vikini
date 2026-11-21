@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { MoreVertical, Pencil, Trash2, Download, Loader2 } from "lucide-react";
 import TitleItem from "@/app/features/chat/components/TitleItem";
+import { TRANSITION } from "@/lib/utils/motion";
 import { downloadConversationById } from "@/lib/utils/download";
 import { toast } from "@/lib/store/toastStore";
 import { cn } from "@/lib/utils/cn";
@@ -55,7 +56,7 @@ function SidebarItem({
         opacity: 0,
         x: -60,
         scale: 0.9,
-        transition: { duration: 0.2, ease: [0.23, 1, 0.32, 1] },
+        transition: TRANSITION.EXIT_FAST,
       }}
       className={cn(
         "relative group w-full px-2 transition-[opacity,transform] duration-200",

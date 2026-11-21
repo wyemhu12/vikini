@@ -113,7 +113,7 @@ export function StoryBibleCharacterCardsList({
         <button
           type="button"
           onClick={handleAdd}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-(--accent) text-(--on-accent) hover:brightness-105 text-xs font-semibold transition-all"
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-(--accent) text-(--on-accent) hover:brightness-105 text-xs font-semibold transition-[filter]"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>{t("novelcrafterAddCharacterCardBtn")}</span>

@@ -88,7 +88,7 @@ export default function CodexEntityPreview({
         <button
           type="button"
           onClick={() => onOpenInBible(entityKind)}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-(--raised) hover:bg-(--raised-hover) border border-(--line) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
         >
           <span>{t("novelcrafterCodexJumpToBible")}</span>
           <ArrowUpRight className="w-3.5 h-3.5 text-(--accent)" />

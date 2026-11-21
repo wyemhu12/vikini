@@ -50,7 +50,7 @@ export default function AccessPendingScreen() {
           <div className="mt-6 pt-6 border-t border-(--line)">
             <a
               href="/api/auth/signout"
-              className="block w-full py-3 px-4 bg-(--raised) hover:bg-(--raised) border border-(--line) rounded-lg text-center text-sm text-(--text) hover:text-(--text) transition-colors"
+              className="block w-full py-3 px-4 bg-(--raised) hover:bg-(--raised-hover) border border-(--line) rounded-lg text-center text-sm text-(--text) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
             >
               {t("accessSignOut")}
             </a>

@@ -203,6 +203,18 @@ async function processPostStream(
         content: "",
         meta: {
           reasoning: trimmedReasoning,
+          ...(usageMetadata?.promptTokenCount !== undefined
+            ? { promptTokenCount: usageMetadata.promptTokenCount }
+            : {}),
+          ...(usageMetadata?.candidatesTokenCount !== undefined
+            ? { candidatesTokenCount: usageMetadata.candidatesTokenCount }
+            : {}),
+          ...(usageMetadata?.thoughtsTokenCount !== undefined
+            ? { thoughtsTokenCount: usageMetadata.thoughtsTokenCount }
+            : {}),
+          ...(usageMetadata?.totalTokenCount !== undefined
+            ? { totalTokenCount: usageMetadata.totalTokenCount }
+            : {}),
           ...(model ? { model } : {}),
           ...(emptyAnswerReason ? { emptyAnswerReason } : {}),
           ...(sources && sources.length > 0 ? { sources } : {}),

@@ -16,10 +16,18 @@ import {
   Link2,
 } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { IMAGE_TEMPLATES, type ImageTemplate } from "@/lib/features/image-gen/templates";
 import { useState, useEffect, useCallback } from "react";
 import { logger } from "@/lib/utils/logger";
+import {
+  DURATION,
+  EASE,
+  TRANSITION,
+  staggerDelay,
+  reducedMotionTransition,
+} from "@/lib/utils/motion";
+import { openSafeExternalUrl } from "@/lib/utils/xssProtection";
 import TagInput from "./TagInput";
 
 // Dynamic loading message keys - cycle every 2.5s
@@ -120,6 +128,7 @@ export default function Canvas({
   className,
 }: CanvasProps) {
   const { t, language } = useLanguage();
+  const shouldReduce = useReducedMotion();
   const [templatesExpanded, setTemplatesExpanded] = useState(false);
 
   // Dynamic loading message cycling
@@ -139,16 +148,19 @@ export default function Canvas({
   const downloadImage = useCallback(async (image: GeneratedImage) => {
     try {
       const response = await fetch(image.url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image (HTTP ${response.status})`);
+      }
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
       a.download = `vikini-${Date.now()}.png`;
       a.click();
-      URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      logger.warn("Blob download failed, falling back to window.open:", err);
-      window.open(image.url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (err: unknown) {
+      logger.warn("Blob download failed, falling back to safe external open:", err);
+      openSafeExternalUrl(image.url);
     }
   }, []);
 
@@ -181,14 +193,19 @@ export default function Canvas({
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
+                transition={TRANSITION.EXIT_FAST}
                 className={`break-inside-avoid mb-4 md:mb-6 ${getAspectClass(selectedAspectRatio)} rounded-xl border border-(--line) flex flex-col items-center justify-center overflow-hidden relative`}
               >
                 {/* Shimmer background */}
                 <div className="absolute inset-0 shimmer-block" />
                 <div className="relative z-10 flex flex-col items-center">
                   <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    animate={shouldReduce ? { rotate: 0 } : { rotate: 360 }}
+                    transition={reducedMotionTransition(shouldReduce, {
+                      duration: DURATION.AMBIENT_SLOW,
+                      repeat: Infinity,
+                      ease: EASE.LINEAR,
+                    })}
                   >
                     <Sparkles className="w-10 h-10 text-(--accent) mb-3" />
                   </motion.div>
@@ -198,7 +215,7 @@ export default function Canvas({
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
-                      transition={{ duration: 0.3 }}
+                      transition={TRANSITION.NORMAL}
                       className="text-(--muted) text-sm font-medium"
                     >
                       {t(LOADING_MESSAGE_KEYS[loadingMsgIndex])}
@@ -215,7 +232,7 @@ export default function Canvas({
               key={item.id || idx}
               initial={{ opacity: 0, transform: "translateY(20px)" }}
               animate={{ opacity: 1, transform: "translateY(0)" }}
-              transition={{ duration: 0.3, ease: "easeOut", delay: Math.min(idx * 0.08, 0.4) }}
+              transition={{ ...TRANSITION.NORMAL, delay: staggerDelay(idx, 0.08, 0.4) }}
               className="break-inside-avoid mb-4 md:mb-6 group relative rounded-xl overflow-hidden border border-(--line) bg-(--surface) shadow-sm hover:shadow-xl transition-shadow duration-300"
             >
               <img
@@ -376,7 +393,7 @@ export default function Canvas({
                       </button>
                       <button
                         type="button"
-                        onClick={() => window.open(item.url, "_blank")}
+                        onClick={() => openSafeExternalUrl(item.url)}
                         className="inline-flex h-9 w-9 md:h-7 md:w-7 items-center justify-center rounded-full bg-(--raised) hover:bg-(--raised-hover) text-(--text) border border-(--line) md:bg-(--on-overlay)/10 md:hover:bg-(--on-overlay)/20 md:text-(--on-overlay) md:border-(--on-overlay)/10 md:backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("studioFullscreen")}
                         aria-label={t("studioFullscreen")}
@@ -397,14 +414,18 @@ export default function Canvas({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+          transition={TRANSITION.EXIT_NORMAL}
           className="flex-1 flex flex-col py-4"
         >
           {/* Header */}
           <div className="text-center mb-6">
             <motion.div
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              animate={shouldReduce ? { y: 0 } : { y: [0, -6, 0] }}
+              transition={reducedMotionTransition(shouldReduce, {
+                duration: DURATION.AMBIENT_FLOAT,
+                repeat: Infinity,
+                ease: EASE.MOVE,
+              })}
               className="mx-auto mb-3 w-14 h-14 rounded-2xl bg-(--soft) border border-(--accent)/30 flex items-center justify-center"
             >
               <ImageIcon className="w-7 h-7 text-(--accent)" />
@@ -422,7 +443,7 @@ export default function Canvas({
                   type="button"
                   initial={{ opacity: 0, transform: "scale(0.9)" }}
                   animate={{ opacity: 1, transform: "scale(1)" }}
-                  transition={{ delay: idx * 0.04, duration: 0.3, ease: "easeOut" }}
+                  transition={{ ...TRANSITION.NORMAL, delay: staggerDelay(idx) }}
                   onClick={() => onSelectTemplate?.(tmpl)}
                   className="group relative aspect-[3/4] rounded-2xl overflow-hidden border border-(--line) hover:border-(--accent) transition-colors hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-(--ring)"
                 >

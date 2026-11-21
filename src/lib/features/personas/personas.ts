@@ -72,15 +72,30 @@ function isValidTone(tone: string): tone is PersonaTone {
 export async function getPersonasForUser(userId: string): Promise<PersonaRow[]> {
   const supabase = getSupabaseAdmin();
 
-  const { data, error } = await supabase
-    .from("personas")
-    .select("*")
-    .or(`user_id.eq.${userId},is_premade.eq.true`)
-    .order("is_premade", { ascending: false })
-    .order("name", { ascending: true });
+  const [premadeRes, ownRes] = await Promise.all([
+    supabase.from("personas").select("*").eq("is_premade", true),
+    supabase.from("personas").select("*").eq("user_id", userId),
+  ]);
 
-  if (error) throw new DatabaseError(`getPersonasForUser failed: ${error.message}`);
-  return (data || []) as PersonaRow[];
+  if (premadeRes.error) {
+    throw new DatabaseError(`getPersonasForUser failed: ${premadeRes.error.message}`);
+  }
+  if (ownRes.error) {
+    throw new DatabaseError(`getPersonasForUser failed: ${ownRes.error.message}`);
+  }
+
+  const byId = new Map<string, PersonaRow>();
+  for (const row of (premadeRes.data || []) as PersonaRow[]) {
+    byId.set(row.id, row);
+  }
+  for (const row of (ownRes.data || []) as PersonaRow[]) {
+    if (!byId.has(row.id)) byId.set(row.id, row);
+  }
+
+  return Array.from(byId.values()).sort((a, b) => {
+    if (a.is_premade !== b.is_premade) return a.is_premade ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
 }
 
 export async function createPersona(
@@ -130,6 +145,7 @@ export async function updatePersona(
   if (!existing) throw new NotFoundError("Persona");
 
   const existingRow = existing as PersonaRow;
+  if (existingRow.is_premade) throw new ForbiddenError("Cannot modify premade persona");
   if (existingRow.user_id !== userId) throw new ForbiddenError();
 
   // Build patch object with only provided fields
@@ -167,14 +183,15 @@ export async function deletePersona(userId: string, id: string): Promise<void> {
   // Enforce ownership
   const { data: existing, error: existingErr } = await supabase
     .from("personas")
-    .select("id, user_id")
+    .select("id, user_id, is_premade")
     .eq("id", id)
     .maybeSingle();
 
   if (existingErr) throw new DatabaseError(`deletePersona read failed: ${existingErr.message}`);
   if (!existing) return; // Already deleted, idempotent
 
-  const existingRow = existing as { id: string; user_id: string };
+  const existingRow = existing as { id: string; user_id: string; is_premade?: boolean };
+  if (existingRow.is_premade) throw new ForbiddenError("Cannot delete premade persona");
   if (existingRow.user_id !== userId) throw new ForbiddenError();
 
   const { error } = await supabase.from("personas").delete().eq("id", id).eq("user_id", userId);
@@ -184,34 +201,39 @@ export async function deletePersona(userId: string, id: string): Promise<void> {
 
 export async function getPersonaInstructionsForConversation(
   userId: string,
-  conversationId: string
+  conversationId: string,
+  preloadedPersonaId?: string | null
 ): Promise<string> {
   const supabase = getSupabaseAdmin();
 
   if (!conversationId) return "";
 
-  // Look up persona_id on the conversation
-  const { data: convo, error: convoErr } = await supabase
-    .from("conversations")
-    .select("persona_id,user_id")
-    .eq("id", conversationId)
-    .maybeSingle();
+  let personaId: string | null | undefined = preloadedPersonaId;
+  if (personaId === undefined) {
+    // Look up persona_id on the conversation
+    const { data: convo, error: convoErr } = await supabase
+      .from("conversations")
+      .select("persona_id,user_id")
+      .eq("id", conversationId)
+      .maybeSingle();
 
-  if (convoErr) {
-    throw new DatabaseError(
-      `getPersonaInstructionsForConversation convo failed: ${convoErr.message}`
-    );
+    if (convoErr) {
+      throw new DatabaseError(
+        `getPersonaInstructionsForConversation convo failed: ${convoErr.message}`
+      );
+    }
+    if (!convo) return "";
+
+    const convoRow = convo as { user_id?: string; persona_id?: string };
+
+    // Enforce ownership (defense-in-depth; chat route already authenticates)
+    if (typeof convoRow.user_id === "string" && convoRow.user_id !== userId) {
+      throw new ForbiddenError();
+    }
+
+    personaId = convoRow.persona_id;
   }
-  if (!convo) return "";
 
-  const convoRow = convo as { user_id?: string; persona_id?: string };
-
-  // Enforce ownership (defense-in-depth; chat route already authenticates)
-  if (typeof convoRow.user_id === "string" && convoRow.user_id !== userId) {
-    throw new ForbiddenError();
-  }
-
-  const personaId = convoRow.persona_id;
   if (!personaId) return "";
 
   // Fetch the persona
@@ -229,6 +251,9 @@ export async function getPersonaInstructionsForConversation(
   if (!persona) return "";
 
   const personaRow = persona as PersonaRow;
+  if (!personaRow.is_premade && personaRow.user_id !== userId) {
+    throw new ForbiddenError("You do not have permission to access this persona");
+  }
 
   // Build system prompt from persona settings
   const tone = isValidTone(personaRow.tone) ? personaRow.tone : "default";

@@ -1,5 +1,5 @@
-import { auth } from "@/lib/features/auth/auth";
-import { UnauthorizedError, AppError } from "@/lib/utils/errors";
+import { requireApprovedUser } from "@/lib/features/auth/requireApprovedUser";
+import { AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { getStrataConfig } from "@/lib/core/strataConfig";
 import { checkStrataHealth } from "@/lib/core/strataClient";
@@ -10,10 +10,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      throw new UnauthorizedError();
-    }
+    await requireApprovedUser();
 
     let enabled = false;
     try {

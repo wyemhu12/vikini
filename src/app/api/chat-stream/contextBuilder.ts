@@ -51,7 +51,8 @@ export async function buildMessageContext(
   let contentsMeta: Array<{ messageId?: string; fileIds?: string[] }> = [
     { messageId: undefined, fileIds: undefined },
   ];
-  let currentTokenCount = estimateTokens(content) + estimateTokens(sysPrompt);
+  const sysPromptTokens = estimateTokens(sysPrompt);
+  let currentTokenCount = estimateTokens(content) + sysPromptTokens;
 
   try {
     const fetchLimit = 200; // Increased for long-context models
@@ -63,6 +64,9 @@ export async function buildMessageContext(
         typeof m?.content === "string" &&
         m.content.trim().length > 0
     );
+
+    // Start from sysPrompt tokens only when DB history is present (DB rows already include the current user message)
+    let accumulatedTokens = validRows.length > 0 ? sysPromptTokens : currentTokenCount;
 
     const messagesToKeep: ContextMessage[] = [];
     const contentsMetaToKeep: Array<{ messageId?: string; fileIds?: string[] }> = [];
@@ -78,7 +82,7 @@ export async function buildMessageContext(
       const msg = validRows[i];
       const msgTokens = estimateTokens(msg.content);
 
-      if (currentTokenCount + msgTokens < effectiveLimit - safetyBuffer) {
+      if (accumulatedTokens + msgTokens < effectiveLimit - safetyBuffer) {
         messagesToKeep.unshift({
           role: msg.role,
           content: msg.content,
@@ -88,10 +92,10 @@ export async function buildMessageContext(
           messageId: msg.id,
           fileIds: Array.isArray(msg.meta?.fileIds) ? (msg.meta.fileIds as string[]) : undefined,
         });
-        currentTokenCount += msgTokens;
+        accumulatedTokens += msgTokens;
       } else {
         coreLogger.info(
-          `Context limit reached: ${currentTokenCount} tokens used. Skipping older messages.`
+          `Context limit reached: ${accumulatedTokens} tokens used. Skipping older messages.`
         );
         break;
       }
@@ -102,6 +106,7 @@ export async function buildMessageContext(
     const mapped = mapMessages(contextMessages);
     if (Array.isArray(mapped) && mapped.length > 0) {
       contents = mapped as Array<{ role: string; parts: unknown[] }>;
+      currentTokenCount = accumulatedTokens;
     } else {
       contentsMeta = [{ messageId: undefined, fileIds: undefined }];
     }
@@ -118,11 +123,17 @@ export async function buildMessageContext(
   };
 }
 
-export function getWebSearchConfig(cookies: Record<string, string>): {
+export function getWebSearchConfig(
+  cookies: Record<string, string>,
+  webSearchAllowed: boolean = true
+): {
   enableWebSearch: boolean;
   WEB_SEARCH_AVAILABLE: boolean;
 } {
   const WEB_SEARCH_AVAILABLE = envFlag(process.env.WEB_SEARCH_ENABLED, false);
+  if (!webSearchAllowed) {
+    return { enableWebSearch: false, WEB_SEARCH_AVAILABLE };
+  }
   const cookieWeb = cookies?.webSearchEnabled ?? cookies?.webSearch ?? "";
   const cookieAlways = cookies?.alwaysSearch ?? "";
 

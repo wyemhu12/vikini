@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import dns from "node:dns";
-import { isIpRestricted, validateSafeUrl, fetchSafeImage } from "./ssrfGuard.server";
+import {
+  isIpRestricted,
+  validateSafeUrl,
+  fetchSafeImage,
+  ALLOWED_IMAGE_MIME_TYPES,
+} from "./ssrfGuard.server";
 
 function mockDnsLookup(addresses: { address: string; family: number }[]) {
   return vi
@@ -180,6 +185,27 @@ describe("ssrfGuard.server", () => {
       await expect(fetchSafeImage("https://example.com/page.html")).rejects.toThrow(
         "Invalid content type: expected image"
       );
+    });
+
+    it("TC-W2A-10 & NP-02: rejects image/svg+xml (with or without charset) and cancels body stream", async () => {
+      mockDnsLookup([{ address: "93.184.216.34", family: 4 }]);
+      expect(ALLOWED_IMAGE_MIME_TYPES.has("image/svg+xml")).toBe(false);
+      expect(ALLOWED_IMAGE_MIME_TYPES.has("image/png")).toBe(true);
+
+      const cancelMock = vi.fn().mockResolvedValue(undefined);
+      const mockResp = {
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/svg+xml; charset=utf-8" }),
+        body: { cancel: cancelMock },
+      } as unknown as Response;
+
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(mockResp);
+
+      await expect(fetchSafeImage("https://example.com/evil.svg")).rejects.toThrow(
+        "Invalid content type: expected image, got image/svg+xml"
+      );
+      expect(cancelMock).toHaveBeenCalledTimes(1);
     });
 
     it("rejects when Content-Length header exceeds maxBytes", async () => {

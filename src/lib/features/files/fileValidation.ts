@@ -6,6 +6,7 @@
  */
 
 import type { FileKind, FileValidationResult, FileSupportLevel, FileCategory } from "@/types/files";
+import { ValidationError } from "@/lib/utils/errors";
 
 // ============================================
 // INTERNAL HELPERS
@@ -213,8 +214,8 @@ export function isGeminiNativeMime(mimeType: string | null | undefined): boolean
  * {@link validateImageContent}.
  */
 export function normalizeMimeType(ext: string, browserMime: string): string {
-  // 1. Extension-based lookup (highest priority)
-  if (EXT_MIME_MAP[ext]) return EXT_MIME_MAP[ext];
+  // 1. Extension-based lookup (highest priority, prototype-safe)
+  if (Object.hasOwn(EXT_MIME_MAP, ext)) return EXT_MIME_MAP[ext];
 
   // 2. Avoid octet-stream - prefer browser hint otherwise
   if (browserMime && browserMime !== "application/octet-stream") return browserMime;
@@ -411,21 +412,21 @@ export async function validateFile(
   filename: string | undefined,
   userId: string
 ): Promise<FileValidationResult> {
-  if (!file) throw new Error("Missing file");
+  if (!file) throw new ValidationError("Missing file");
 
   const safeName = sanitizeFilename(filename || file.name || "file");
   const ext = getExtension(safeName);
 
   // Block dangerous extensions
   if (BLOCKED_EXTENSIONS.has(ext)) {
-    throw new Error(`File type ".${ext}" is not allowed for security reasons`);
+    throw new ValidationError(`File type ".${ext}" is not allowed for security reasons`);
   }
 
   const browserMime = safeLower(file.type || "");
 
   // Block dangerous MIME types
   if (BLOCKED_MIME_TYPES.has(browserMime)) {
-    throw new Error("File type is not allowed for security reasons");
+    throw new ValidationError("File type is not allowed for security reasons");
   }
 
   const size = Number(file.size || 0);
@@ -434,7 +435,7 @@ export async function validateFile(
   const { checkFileSize } = await import("@/lib/core/limits");
   const sizeCheck = await checkFileSize(userId, size);
   if (!sizeCheck.allowed) {
-    throw new Error(
+    throw new ValidationError(
       `File too large (${sizeCheck.fileSizeMB}MB). Your limit is ${sizeCheck.maxSizeMB}MB`
     );
   }
@@ -442,11 +443,12 @@ export async function validateFile(
   const mime = normalizeMimeType(ext, browserMime);
   const kind = classifyFile(ext, mime);
 
-  // Image content validation via magic bytes
+  // Image content validation via magic bytes (read only the first 16 bytes)
   if (kind === "image" && typeof file.arrayBuffer === "function") {
-    const buf = new Uint8Array(await file.arrayBuffer());
+    const headerBlob = typeof file.slice === "function" ? file.slice(0, 16) : file;
+    const buf = new Uint8Array(await headerBlob.arrayBuffer());
     if (!validateImageContent(buf, mime)) {
-      throw new Error("Invalid image file - file content does not match image format");
+      throw new ValidationError("Invalid image file - file content does not match image format");
     }
   }
 

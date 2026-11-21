@@ -27,6 +27,7 @@ vi.mock("@/lib/features/projects/knowledge.server", () => ({
 
 vi.mock("@/lib/features/projects/projects.server", () => ({
   getProject: vi.fn(),
+  verifyProjectOwnership: vi.fn(),
 }));
 
 vi.mock("@/types/projects", () => ({
@@ -69,7 +70,7 @@ import {
   deleteDocument,
   cleanupStuckProcessingDocuments,
 } from "@/lib/features/projects/knowledge.server";
-import { getProject } from "@/lib/features/projects/projects.server";
+import { getProject, verifyProjectOwnership } from "@/lib/features/projects/projects.server";
 import { isSupportedFileType } from "@/types/projects";
 import { extractDocumentText, isBinaryCorruptText } from "@/lib/features/files/documentParsers";
 
@@ -95,6 +96,7 @@ function mockAuthenticated() {
     user: { email: TEST_USER_EMAIL },
   } as unknown as Awaited<ReturnType<typeof auth>>);
   vi.mocked(requireApprovedUser).mockResolvedValue({ userId: TEST_USER_EMAIL, rank: "basic" });
+  vi.mocked(verifyProjectOwnership).mockResolvedValue(true);
   vi.mocked(consumeRateLimit).mockResolvedValue({
     allowed: true,
     limit: 10,
@@ -313,7 +315,7 @@ describe("/api/projects/[id]/knowledge", () => {
 
     it("should return 404 when project is not found", async () => {
       mockAuthenticated();
-      vi.mocked(getProject).mockResolvedValue(null as never);
+      vi.mocked(verifyProjectOwnership).mockResolvedValue(false);
 
       const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge`, {
         filename: "notes.txt",
@@ -324,6 +326,20 @@ describe("/api/projects/[id]/knowledge", () => {
       expect(res.status).toBe(404);
       const json = await res.json();
       expect(json.success).toBe(false);
+    });
+
+    it("TC-W2A-07: should return 400 on malformed JSON body", async () => {
+      mockAuthenticated();
+      const req = new NextRequest(
+        new URL(`/api/projects/${TEST_PROJECT_ID}/knowledge`, "http://localhost:3000"),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{broken-json",
+        }
+      );
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+      expect(res.status).toBe(400);
     });
 
     it("should return 400 when filename is missing", async () => {
@@ -644,9 +660,9 @@ describe("/api/projects/[id]/knowledge", () => {
       expect(json.success).toBe(false);
     });
 
-    it("should delete a document successfully", async () => {
+    it("should delete a document scoped to projectId (TC-W2A-07, NP-03)", async () => {
       mockAuthenticated();
-      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
+      vi.mocked(verifyProjectOwnership).mockResolvedValue(true);
       vi.mocked(deleteDocument).mockResolvedValue(undefined as never);
 
       const req = createRequest(
@@ -659,12 +675,12 @@ describe("/api/projects/[id]/knowledge", () => {
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(json.data.deleted).toBe(true);
-      expect(deleteDocument).toHaveBeenCalledWith(TEST_DOC_ID, TEST_USER_EMAIL);
+      expect(deleteDocument).toHaveBeenCalledWith(TEST_DOC_ID, TEST_USER_EMAIL, TEST_PROJECT_ID);
     });
 
     it("should return 404 when project is not found", async () => {
       mockAuthenticated();
-      vi.mocked(getProject).mockResolvedValue(null as never);
+      vi.mocked(verifyProjectOwnership).mockResolvedValue(false);
 
       const req = createRequest(
         "DELETE",

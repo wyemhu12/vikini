@@ -5,6 +5,7 @@ import { X, Send, Loader2, Sparkles, History, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils/cn";
 import { logger } from "@/lib/utils/logger";
+import { TRANSITION } from "@/lib/utils/motion";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import {
   Select,
@@ -249,7 +250,7 @@ export default function EditPanel({
       initial={{ x: 40, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 40, opacity: 0 }}
-      transition={{ duration: 0.25, ease: "easeOut" }}
+      transition={TRANSITION.NORMAL}
       className="flex flex-col h-full w-full md:w-[400px] lg:w-[440px] border-l border-(--line) bg-(--surface) shrink-0"
     >
       {/* Header */}
@@ -323,7 +324,7 @@ export default function EditPanel({
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
+              transition={TRANSITION.EXIT_FAST}
               className={cn("flex", turn.role === "user" ? "justify-end" : "justify-start")}
             >
               {turn.role === "user" ? (
@@ -361,6 +362,7 @@ export default function EditPanel({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
+              transition={TRANSITION.EXIT_FAST}
               className="flex justify-start"
             >
               <div className="rounded-xl bg-(--raised) px-4 py-3 flex items-center gap-2">
@@ -381,6 +383,7 @@ export default function EditPanel({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
+            transition={TRANSITION.COLLAPSE}
             className="px-4 py-2 border-t border-(--line)"
           >
             <p className="text-xs text-(--danger) bg-(--danger)/10 border border-(--danger)/20 rounded-lg px-3 py-2">

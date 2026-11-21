@@ -87,40 +87,75 @@ describe("Personas Business Logic", () => {
   // getPersonasForUser
   // ────────────────────────────────────────────────────────────────────
   describe("getPersonasForUser", () => {
-    it("should return an array of personas", async () => {
-      // First .order() returns chain, second .order() resolves with data
-      mockOrder
-        .mockReturnValueOnce(mockChain)
-        .mockResolvedValueOnce({ data: [mockPersonaRow], error: null });
+    it("should query premade and user-owned personas in parallel via .eq() without .or(), dedup, and sort", async () => {
+      const premadeZ = {
+        ...mockPersonaRow,
+        id: "premade-z",
+        name: "Zeta Premade",
+        is_premade: true,
+        user_id: "admin@example.com",
+      };
+      const premadeA = {
+        ...mockPersonaRow,
+        id: "premade-a",
+        name: "Alpha Premade",
+        is_premade: true,
+        user_id: TEST_USER_ID,
+      };
+      const customB = {
+        ...mockPersonaRow,
+        id: "custom-b",
+        name: "Beta Custom",
+        is_premade: false,
+      };
+
+      mockEq
+        .mockResolvedValueOnce({ data: [premadeZ, premadeA], error: null })
+        .mockResolvedValueOnce({ data: [premadeA, customB], error: null });
 
       const result = await getPersonasForUser(TEST_USER_ID);
 
-      expect(result).toEqual([mockPersonaRow]);
+      expect(mockOr).not.toHaveBeenCalled();
+      expect(mockEq).toHaveBeenCalledWith("is_premade", true);
+      expect(mockEq).toHaveBeenCalledWith("user_id", TEST_USER_ID);
+      expect(result).toEqual([premadeA, premadeZ, customB]);
       expect(mockFrom).toHaveBeenCalledWith("personas");
       expect(mockSelect).toHaveBeenCalledWith("*");
     });
 
     it("should return empty array when user has no personas", async () => {
-      mockOrder.mockReturnValueOnce(mockChain).mockResolvedValueOnce({ data: [], error: null });
+      mockEq
+        .mockResolvedValueOnce({ data: [], error: null })
+        .mockResolvedValueOnce({ data: [], error: null });
 
       const result = await getPersonasForUser(TEST_USER_ID);
 
       expect(result).toEqual([]);
+      expect(mockOr).not.toHaveBeenCalled();
     });
 
     it("should return empty array when data is null", async () => {
-      mockOrder.mockReturnValueOnce(mockChain).mockResolvedValueOnce({ data: null, error: null });
+      mockEq
+        .mockResolvedValueOnce({ data: null, error: null })
+        .mockResolvedValueOnce({ data: null, error: null });
 
       const result = await getPersonasForUser(TEST_USER_ID);
 
       expect(result).toEqual([]);
     });
 
-    it("should throw DatabaseError on Supabase error", async () => {
-      mockOrder.mockReturnValueOnce(mockChain).mockResolvedValueOnce({
-        data: null,
-        error: { message: "Connection refused" },
-      });
+    it("should throw DatabaseError when premade query fails", async () => {
+      mockEq
+        .mockResolvedValueOnce({ data: null, error: { message: "Connection refused" } })
+        .mockResolvedValueOnce({ data: [], error: null });
+
+      await expect(getPersonasForUser(TEST_USER_ID)).rejects.toThrow(DatabaseError);
+    });
+
+    it("should throw DatabaseError when user-owned query fails", async () => {
+      mockEq
+        .mockResolvedValueOnce({ data: [], error: null })
+        .mockResolvedValueOnce({ data: null, error: { message: "Query timeout" } });
 
       await expect(getPersonasForUser(TEST_USER_ID)).rejects.toThrow(DatabaseError);
     });
@@ -234,6 +269,19 @@ describe("Personas Business Logic", () => {
       await expect(updatePersona(TEST_USER_ID, TEST_PERSONA_ID, { name: "Steal" })).rejects.toThrow(
         ForbiddenError
       );
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should throw ForbiddenError when attempting to update a premade persona", async () => {
+      mockMaybeSingle.mockResolvedValue({
+        data: { ...mockPersonaRow, is_premade: true, user_id: TEST_USER_ID },
+        error: null,
+      });
+
+      await expect(
+        updatePersona(TEST_USER_ID, TEST_PERSONA_ID, { name: "Tamper" })
+      ).rejects.toThrow(ForbiddenError);
+      expect(mockUpdate).not.toHaveBeenCalled();
     });
 
     it("should default invalid tone to 'default' during update", async () => {
@@ -310,11 +358,22 @@ describe("Personas Business Logic", () => {
 
     it("should throw ForbiddenError when user does not own the persona", async () => {
       mockMaybeSingle.mockResolvedValue({
-        data: { id: TEST_PERSONA_ID, user_id: "other-user@example.com" },
+        data: { id: TEST_PERSONA_ID, user_id: "other-user@example.com", is_premade: false },
         error: null,
       });
 
       await expect(deletePersona(TEST_USER_ID, TEST_PERSONA_ID)).rejects.toThrow(ForbiddenError);
+      expect(mockDeleteFn).not.toHaveBeenCalled();
+    });
+
+    it("should throw ForbiddenError when attempting to delete a premade persona", async () => {
+      mockMaybeSingle.mockResolvedValue({
+        data: { id: TEST_PERSONA_ID, user_id: TEST_USER_ID, is_premade: true },
+        error: null,
+      });
+
+      await expect(deletePersona(TEST_USER_ID, TEST_PERSONA_ID)).rejects.toThrow(ForbiddenError);
+      expect(mockDeleteFn).not.toHaveBeenCalled();
     });
 
     it("should throw DatabaseError on read failure", async () => {
@@ -452,6 +511,40 @@ describe("Personas Business Logic", () => {
       ).rejects.toThrow(ForbiddenError);
     });
 
+    it("should throw ForbiddenError when linked persona belongs to another user and is not premade", async () => {
+      mockMaybeSingle.mockResolvedValueOnce({
+        data: { user_id: TEST_USER_ID, persona_id: TEST_PERSONA_ID },
+        error: null,
+      });
+      mockMaybeSingle.mockResolvedValueOnce({
+        data: { ...mockPersonaRow, user_id: "victim@example.com", is_premade: false },
+        error: null,
+      });
+
+      await expect(
+        getPersonaInstructionsForConversation(TEST_USER_ID, TEST_CONVO_ID)
+      ).rejects.toThrow(ForbiddenError);
+    });
+
+    it("should allow reading a premade persona owned by admin", async () => {
+      mockMaybeSingle.mockResolvedValueOnce({
+        data: { user_id: TEST_USER_ID, persona_id: TEST_PERSONA_ID },
+        error: null,
+      });
+      mockMaybeSingle.mockResolvedValueOnce({
+        data: {
+          ...mockPersonaRow,
+          user_id: "admin@example.com",
+          is_premade: true,
+          tone: "professional",
+        },
+        error: null,
+      });
+
+      const result = await getPersonaInstructionsForConversation(TEST_USER_ID, TEST_CONVO_ID);
+      expect(result).toContain("[Tone]:");
+    });
+
     it("should throw DatabaseError on conversation lookup failure", async () => {
       mockMaybeSingle.mockResolvedValue({
         data: null,
@@ -476,6 +569,12 @@ describe("Personas Business Logic", () => {
       await expect(
         getPersonaInstructionsForConversation(TEST_USER_ID, TEST_CONVO_ID)
       ).rejects.toThrow(DatabaseError);
+    });
+
+    it("TC-W2A-16: skips conversations query when preloadedPersonaId is null", async () => {
+      const result = await getPersonaInstructionsForConversation(TEST_USER_ID, TEST_CONVO_ID, null);
+      expect(result).toBe("");
+      expect(mockFrom).not.toHaveBeenCalled();
     });
   });
 });

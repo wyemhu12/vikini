@@ -100,7 +100,7 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
             aria-label={value ? `${t("icon")}: ${value}` : t("selectIcon")}
             className={cn(
               "w-full h-[38px] px-3 flex items-center justify-between gap-2 rounded-md",
-              "bg-(--raised) hover:bg-(--raised) border border-(--line)",
+              "bg-(--raised) hover:bg-(--raised-hover) border border-(--line)",
               "text-(--text) text-sm transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
               "disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer",
@@ -135,7 +135,7 @@ export default function IconPicker({ value = "", onSelect, disabled, className }
               onSelect("");
               setOpen(false);
             }}
-            className="absolute right-8 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-(--raised) text-(--muted) hover:text-(--danger) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+            className="absolute right-8 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-(--raised-hover) text-(--muted) hover:text-(--danger) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
             title={t("clearIcon")}
             aria-label={t("clearIcon")}
           >

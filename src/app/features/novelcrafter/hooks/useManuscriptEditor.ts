@@ -6,12 +6,7 @@ import {
   findCodexMentionRanges,
   type CodexMentionRange,
 } from "@/lib/features/novelcrafter/codexMatcher";
-import {
-  buildFeedbackDecorations,
-  buildRenderLines,
-  type ManuscriptDecoration,
-  type RenderLine,
-} from "@/lib/features/novelcrafter/manuscriptDecorations";
+import { buildRenderLines } from "@/lib/features/novelcrafter/manuscriptDecorations";
 import {
   createInitialHistory,
   pushHistory,
@@ -26,13 +21,17 @@ import {
 } from "@/lib/features/novelcrafter/manuscriptMarkup";
 import type { NovelcrafterFeedbackItem, StoryBible } from "@/lib/features/novelcrafter/types";
 import {
-  buildLineElement,
-  deriveDomLineSignature,
   readSelectionOffsets,
   serializeManuscriptRoot,
-  setSelectionOffsets,
   type ManuscriptSelectionRange,
 } from "../utils/manuscriptDomOffsets";
+import {
+  buildManuscriptDecorations,
+  normalizeInsertedText,
+  reconcileDomLines,
+  resolveBeforeInputAction,
+  resolveEditorShortcutAction,
+} from "../utils/manuscriptReconcile";
 
 export interface EditorSelectionWithText {
   start: number;
@@ -51,44 +50,6 @@ export interface UseManuscriptEditorOptions {
   onChangeContent: (nextContent: string) => void;
   onSelectionChange: (selection: EditorSelectionWithText | null) => void;
   onToggleQuickEdit?: () => void;
-}
-
-function reconcileDomLines(
-  root: HTMLElement,
-  renderLines: readonly RenderLine[],
-  caret: ManuscriptSelectionRange | null
-): void {
-  const doc = root.ownerDocument ?? document;
-  for (let i = 0; i < renderLines.length; i += 1) {
-    const line = renderLines[i];
-    const existing = root.children[i] as HTMLElement | undefined;
-    if (
-      existing &&
-      (existing.dataset.sig === line.signature ||
-        deriveDomLineSignature(existing) === line.signature)
-    ) {
-      existing.dataset.sig = line.signature;
-      existing.dataset.line = String(i);
-      existing.dataset.block = line.block;
-      continue;
-    }
-    const nextEl = buildLineElement(doc, line);
-    if (existing) {
-      root.replaceChild(nextEl, existing);
-    } else {
-      root.appendChild(nextEl);
-    }
-  }
-
-  while (root.children.length > renderLines.length) {
-    const last = root.lastElementChild;
-    if (!last) break;
-    root.removeChild(last);
-  }
-
-  if (caret && doc.activeElement === root) {
-    setSelectionOffsets(root, caret.start, caret.end);
-  }
 }
 
 export function useManuscriptEditor({
@@ -138,22 +99,18 @@ export function useManuscriptEditor({
     };
   }, [storyBible, content]);
 
-  const decorations = useMemo<ManuscriptDecoration[]>(() => {
-    const list = buildFeedbackDecorations(content, feedbackItems, activeFeedbackId);
-    for (const c of codexRanges) {
-      list.push({
-        kind: "codex",
-        entityId: c.entityId,
-        entityKind: c.entityKind,
-        start: c.start,
-        end: c.end,
-      });
-    }
-    if (!isFocused && selection && selection.end > selection.start) {
-      list.push({ kind: "selection", start: selection.start, end: selection.end });
-    }
-    return list;
-  }, [content, feedbackItems, activeFeedbackId, codexRanges, isFocused, selection]);
+  const decorations = useMemo(
+    () =>
+      buildManuscriptDecorations({
+        content,
+        feedbackItems,
+        activeFeedbackId,
+        codexRanges,
+        isFocused,
+        selection,
+      }),
+    [content, feedbackItems, activeFeedbackId, codexRanges, isFocused, selection]
+  );
 
   const renderLines = useMemo(() => {
     const lines = tokenizeManuscriptLines(content);
@@ -220,7 +177,7 @@ export function useManuscriptEditor({
     (insertedText: string) => {
       const root = rootRef.current;
       if (!root || readOnly) return;
-      const normalized = insertedText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+      const normalized = normalizeInsertedText(insertedText);
       const current = contentRef.current;
       const sel = readSelectionOffsets(root) ?? lastCaretRef.current;
       const nextContent = `${current.slice(0, sel.start)}${normalized}${current.slice(sel.end)}`;
@@ -230,35 +187,27 @@ export function useManuscriptEditor({
     [commitModelChange, readOnly]
   );
 
-  const performUndo = useCallback(() => {
-    if (readOnly) return;
-    const res = undoHistory(historyRef.current, {
-      content: contentRef.current,
-      selectionStart: lastCaretRef.current.start,
-      selectionEnd: lastCaretRef.current.end,
-      at: Date.now(),
-    });
-    if (!res.entry) return;
-    historyRef.current = res.state;
-    lastEmittedRef.current = res.entry.content;
-    lastCaretRef.current = { start: res.entry.selectionStart, end: res.entry.selectionEnd };
-    onChangeContent(res.entry.content);
-  }, [onChangeContent, readOnly]);
-
-  const performRedo = useCallback(() => {
-    if (readOnly) return;
-    const res = redoHistory(historyRef.current, {
-      content: contentRef.current,
-      selectionStart: lastCaretRef.current.start,
-      selectionEnd: lastCaretRef.current.end,
-      at: Date.now(),
-    });
-    if (!res.entry) return;
-    historyRef.current = res.state;
-    lastEmittedRef.current = res.entry.content;
-    lastCaretRef.current = { start: res.entry.selectionStart, end: res.entry.selectionEnd };
-    onChangeContent(res.entry.content);
-  }, [onChangeContent, readOnly]);
+  const applyHistoryDirection = useCallback(
+    (direction: "undo" | "redo") => {
+      if (readOnly) return;
+      const snapshot = {
+        content: contentRef.current,
+        selectionStart: lastCaretRef.current.start,
+        selectionEnd: lastCaretRef.current.end,
+        at: Date.now(),
+      };
+      const res =
+        direction === "undo"
+          ? undoHistory(historyRef.current, snapshot)
+          : redoHistory(historyRef.current, snapshot);
+      if (!res.entry) return;
+      historyRef.current = res.state;
+      lastEmittedRef.current = res.entry.content;
+      lastCaretRef.current = { start: res.entry.selectionStart, end: res.entry.selectionEnd };
+      onChangeContent(res.entry.content);
+    },
+    [onChangeContent, readOnly]
+  );
 
   const applyFormat = useCallback(
     (fmt: ManuscriptFormat) => {
@@ -290,57 +239,39 @@ export function useManuscriptEditor({
         return;
       }
       const native = e.nativeEvent as InputEvent;
-      const type = native.inputType;
-      if (type === "insertParagraph" || type === "insertLineBreak") {
-        e.preventDefault();
-        applyTextReplacement("\n");
-      } else if (type === "insertFromPaste" || type === "insertFromDrop") {
-        e.preventDefault();
-        const text = native.dataTransfer?.getData("text/plain") ?? "";
-        if (text) applyTextReplacement(text);
-      } else if (type === "historyUndo") {
-        e.preventDefault();
-        performUndo();
-      } else if (type === "historyRedo") {
-        e.preventDefault();
-        performRedo();
-      } else if (type === "formatBold") {
-        e.preventDefault();
-        applyFormat("bold");
-      } else if (type === "formatItalic") {
-        e.preventDefault();
-        applyFormat("italic");
-      } else if (type === "formatStrikeThrough") {
-        e.preventDefault();
-        applyFormat("strike");
+      const pasteText = native.dataTransfer?.getData("text/plain") ?? "";
+      const action = resolveBeforeInputAction(native.inputType, pasteText);
+      if (action.kind === "noop") {
+        if (native.inputType === "insertFromPaste" || native.inputType === "insertFromDrop") {
+          e.preventDefault();
+        }
+        return;
       }
+      e.preventDefault();
+      if (action.kind === "insertText") applyTextReplacement(action.text);
+      else if (action.kind === "undo") applyHistoryDirection("undo");
+      else if (action.kind === "redo") applyHistoryDirection("redo");
+      else if (action.kind === "format") applyFormat(action.format);
     },
-    [applyFormat, applyTextReplacement, performRedo, performUndo, readOnly]
+    [applyFormat, applyHistoryDirection, applyTextReplacement, readOnly]
   );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
-      const mod = e.ctrlKey || e.metaKey;
-      if (!mod) return;
-      const key = e.key.toLowerCase();
-      if (key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        performUndo();
-      } else if ((key === "z" && e.shiftKey) || key === "y") {
-        e.preventDefault();
-        performRedo();
-      } else if (key === "b") {
-        e.preventDefault();
-        applyFormat("bold");
-      } else if (key === "i") {
-        e.preventDefault();
-        applyFormat("italic");
-      } else if (key === "k") {
-        e.preventDefault();
-        onToggleQuickEdit?.();
-      }
+      const action = resolveEditorShortcutAction({
+        key: e.key,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        shiftKey: e.shiftKey,
+      });
+      if (!action) return;
+      e.preventDefault();
+      if (action === "undo") applyHistoryDirection("undo");
+      else if (action === "redo") applyHistoryDirection("redo");
+      else if (action === "bold" || action === "italic") applyFormat(action);
+      else if (action === "quickEdit") onToggleQuickEdit?.();
     },
-    [applyFormat, onToggleQuickEdit, performRedo, performUndo]
+    [applyFormat, applyHistoryDirection, onToggleQuickEdit]
   );
 
   useEffect(() => {

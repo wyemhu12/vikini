@@ -6,8 +6,8 @@ import { NextRequest } from "next/server";
 // Mocks - declared BEFORE importing the route handlers
 // ---------------------------------------------------------------------------
 
-vi.mock("@/lib/features/auth/auth", () => ({
-  auth: vi.fn(),
+vi.mock("@/lib/features/auth/requireApprovedUser", () => ({
+  requireAdminUser: vi.fn(),
 }));
 
 const mockSelect = vi.fn();
@@ -42,7 +42,8 @@ vi.mock("@/lib/utils/logger", () => ({
 // ---------------------------------------------------------------------------
 
 import { GET } from "./route";
-import { auth } from "@/lib/features/auth/auth";
+import { requireAdminUser } from "@/lib/features/auth/requireApprovedUser";
+import { ForbiddenError, ServiceUnavailableError, UnauthorizedError } from "@/lib/utils/errors";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -57,19 +58,18 @@ function createRequest(method: string, url: string): NextRequest {
 }
 
 function mockAdmin() {
-  vi.mocked(auth).mockResolvedValue({
-    user: { email: "admin@test.com", id: "admin-id", rank: "admin" },
-  } as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireAdminUser).mockResolvedValue({
+    userId: "admin@test.com",
+    rank: "admin",
+  });
 }
 
 function mockNonAdmin() {
-  vi.mocked(auth).mockResolvedValue({
-    user: { email: "user@test.com", id: "user-id", rank: "basic" },
-  } as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireAdminUser).mockRejectedValue(new ForbiddenError("Admin access required"));
 }
 
 function mockUnauthenticated() {
-  vi.mocked(auth).mockResolvedValue(null as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireAdminUser).mockRejectedValue(new UnauthorizedError());
 }
 
 function setupSupabaseChain(result: { data: unknown; error: unknown }) {
@@ -95,7 +95,7 @@ describe("/api/admin/audit-log", () => {
       createRequest("GET", "/api/admin/audit-log");
       const res = await GET();
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(401);
       const json = await res.json();
       expect(json.success).toBe(false);
     });
@@ -109,6 +109,12 @@ describe("/api/admin/audit-log", () => {
       expect(res.status).toBe(403);
       const json = await res.json();
       expect(json.success).toBe(false);
+    });
+
+    it("should return 503 when DB verification fails", async () => {
+      vi.mocked(requireAdminUser).mockRejectedValueOnce(new ServiceUnavailableError());
+      const res = await GET();
+      expect(res.status).toBe(503);
     });
 
     it("should return audit logs on success", async () => {

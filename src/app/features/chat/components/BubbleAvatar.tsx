@@ -2,13 +2,13 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { useLanguage } from "../hooks/useLanguage";
 import { ModelAvatar } from "./ModelAvatar";
-import { EASE, DURATION } from "@/lib/utils/motion";
+import { EASE, DURATION, TRANSITION, reducedMotionTransition } from "@/lib/utils/motion";
 
-export const BREATHING_CYCLE_DURATION = 2.0;
+export const BREATHING_CYCLE_DURATION = DURATION.AMBIENT_SLOW;
 
 export interface BubbleAvatarProps {
   isBot: boolean;
@@ -33,6 +33,7 @@ export const BubbleAvatar = React.memo(function BubbleAvatar({
 }: BubbleAvatarProps) {
   const title = modelLabel || modelName || "AI";
   const { t } = useLanguage();
+  const shouldReduce = useReducedMotion();
 
   const isActivelyThinking = Boolean(isStreaming && isStreamThinking);
 
@@ -66,20 +67,33 @@ export const BubbleAvatar = React.memo(function BubbleAvatar({
             className="relative flex items-center justify-center w-full h-full"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            transition={TRANSITION.FAST}
           >
             <motion.div
               className="absolute inset-0 bg-(--accent)/10"
-              animate={{
-                scale: [1, 1.2, 1],
-                opacity: [0.5, 0.8, 0.5],
-              }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              animate={
+                shouldReduce
+                  ? { opacity: 0.65 }
+                  : {
+                      scale: [1, 1.2, 1],
+                      opacity: [0.5, 0.8, 0.5],
+                    }
+              }
+              transition={reducedMotionTransition(shouldReduce, {
+                duration: DURATION.AMBIENT_SLOW,
+                repeat: Infinity,
+                ease: EASE.MOVE,
+              })}
             />
             <Sparkles className="w-4 h-4 text-(--accent) z-10" />
             <motion.div
               className="absolute inset-0"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+              animate={shouldReduce ? { rotate: 0 } : { rotate: 360 }}
+              transition={reducedMotionTransition(shouldReduce, {
+                duration: DURATION.AMBIENT_SPIN,
+                repeat: Infinity,
+                ease: EASE.LINEAR,
+              })}
             >
               <div className="w-full h-full rounded-lg border-2 border-transparent border-t-(--accent)/30 border-r-(--accent)/30" />
             </motion.div>
@@ -87,28 +101,36 @@ export const BubbleAvatar = React.memo(function BubbleAvatar({
         ) : state === "thinking" ? (
           <motion.div
             className="relative flex items-center justify-center w-full h-full"
-            animate={{
-              scale: [1, 1.05, 1],
-              opacity: [0.85, 1, 0.85],
-            }}
-            transition={{
+            animate={
+              shouldReduce
+                ? { opacity: 0.95 }
+                : {
+                    scale: [1, 1.05, 1],
+                    opacity: [0.85, 1, 0.85],
+                  }
+            }
+            transition={reducedMotionTransition(shouldReduce, {
               duration: BREATHING_CYCLE_DURATION,
               repeat: Infinity,
-              ease: "easeInOut",
-            }}
+              ease: EASE.MOVE,
+            })}
             title={title}
           >
             <motion.div
               className="absolute inset-0 rounded-lg bg-(--accent)/15"
-              animate={{
-                opacity: [0.3, 0.7, 0.3],
-                scale: [0.95, 1.05, 0.95],
-              }}
-              transition={{
+              animate={
+                shouldReduce
+                  ? { opacity: 0.5 }
+                  : {
+                      opacity: [0.3, 0.7, 0.3],
+                      scale: [0.95, 1.05, 0.95],
+                    }
+              }
+              transition={reducedMotionTransition(shouldReduce, {
                 duration: BREATHING_CYCLE_DURATION,
                 repeat: Infinity,
-                ease: "easeInOut",
-              }}
+                ease: EASE.MOVE,
+              })}
             />
             <div className="relative z-10 flex items-center justify-center scale-95">
               <ModelAvatar modelName={modelName} />
@@ -118,14 +140,18 @@ export const BubbleAvatar = React.memo(function BubbleAvatar({
           <div className="relative flex items-center justify-center w-full h-full" title={title}>
             <motion.div
               className="absolute inset-0 rounded-lg border border-(--accent)/40"
-              animate={{
-                opacity: [0.3, 0.8, 0.3],
-              }}
-              transition={{
-                duration: DURATION.NORMAL * 5,
+              animate={
+                shouldReduce
+                  ? { opacity: 0.6 }
+                  : {
+                      opacity: [0.3, 0.8, 0.3],
+                    }
+              }
+              transition={reducedMotionTransition(shouldReduce, {
+                duration: DURATION.AMBIENT_PULSE,
                 repeat: Infinity,
-                ease: "easeInOut",
-              }}
+                ease: EASE.MOVE,
+              })}
             />
             <div className="relative z-10 flex items-center justify-center scale-95">
               <ModelAvatar modelName={modelName} />
@@ -134,8 +160,8 @@ export const BubbleAvatar = React.memo(function BubbleAvatar({
         ) : (
           <motion.div
             className="scale-100 flex items-center justify-center w-full h-full"
-            whileHover={{ scale: 1.08 }}
-            transition={EASE.SPRING}
+            whileHover={shouldReduce ? undefined : { scale: 1.08 }}
+            transition={TRANSITION.SPRING}
             title={title}
           >
             <ModelAvatar modelName={modelName} />

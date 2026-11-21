@@ -3,6 +3,7 @@
 
 import React from "react";
 import ChatMessagesArea from "./ChatMessagesArea";
+import { useLanguage } from "../hooks/useLanguage";
 import type { FrontendConversation } from "../hooks/useConversation";
 import type { useTTS } from "../hooks/useTTS";
 import type { useChatStreamController } from "./hooks/useChatStreamController";
@@ -23,8 +24,6 @@ interface ChatConversationViewProps {
   openDeleteMessageModal: (messageId: string) => void;
   setSelectedConversationIdAndUrl: (id: string) => void;
   tts: ReturnType<typeof useTTS>;
-  tRaw: (key: string) => string;
-  t: Record<string, string>;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -34,14 +33,15 @@ export default function ChatConversationView({
   imageGen,
   thinking,
   branching,
-  t,
   ...rest
 }: ChatConversationViewProps) {
+  const { t } = useLanguage();
+
   if (chat.loadingMessages) {
     return (
       <div className="max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto w-full py-8 flex flex-col items-center justify-center gap-4 min-h-[200px]">
         <div className="w-8 h-8 border-2 border-(--accent) border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm text-(--muted)">{t.loading || "Loading..."}</span>
+        <span className="text-sm text-(--muted)">{t("loading")}</span>
       </div>
     );
   }
@@ -49,6 +49,7 @@ export default function ChatConversationView({
   return (
     <ChatMessagesArea
       {...rest}
+      tRaw={t}
       renderedMessages={chat.renderedMessages}
       lowerThinkingLevel={thinking.lowerThinkingLevel}
       onRegenerateLowerThinking={thinking.handleRegenerateWithLowerThinking}
@@ -70,7 +71,7 @@ export default function ChatConversationView({
       handleImageRegenerate={imageGen.handleImageRegenerate}
       handleImageEdit={imageGen.handleImageEdit}
       lastGeneratedImage={imageGen.lastGeneratedImage}
-      studioGeneratingStatus={t.studioGeneratingStatus}
+      studioGeneratingStatus={t("studioGeneratingStatus")}
     />
   );
 }

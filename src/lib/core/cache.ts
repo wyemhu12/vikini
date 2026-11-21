@@ -1,30 +1,14 @@
 // /lib/core/cache.ts
 // Redis caching utilities for conversations and gems lists
-import { Redis } from "@upstash/redis";
+import { getSharedRedis } from "./redis.server";
 import { logger } from "@/lib/utils/logger";
 
-let redis: Redis | null = null;
+const MAX_SCAN_ITERATIONS = 50;
+const SCAN_COUNT = 100;
+const DEL_BATCH_SIZE = 100;
 
-function getRedis(): Redis | null {
-  if (!redis) {
-    const url = process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-    if (!url || !token) {
-      logger.warn(
-        "Redis cache not available: missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN"
-      );
-      return null;
-    }
-
-    try {
-      redis = new Redis({ url, token });
-    } catch (error) {
-      logger.error("Failed to initialize Redis cache:", error);
-      return null;
-    }
-  }
-  return redis;
+function getRedis() {
+  return getSharedRedis();
 }
 
 // Cache key prefixes
@@ -144,5 +128,47 @@ export async function invalidateGemsCache(userId: string): Promise<void> {
     await r.del(key);
   } catch (error) {
     logger.warn("Failed to invalidate gems cache:", error);
+  }
+}
+
+/**
+ * Invalidate cached gems lists for all users (e.g., when admin modifies premade gems).
+ * Uses non-blocking cursor SCAN with a hard iteration cap and batched DEL.
+ */
+export async function invalidateAllGemsCache(): Promise<void> {
+  const r = getRedis();
+  if (!r) return;
+
+  try {
+    let cursor: string | number = 0;
+    let iterations = 0;
+
+    while (iterations < MAX_SCAN_ITERATIONS) {
+      iterations += 1;
+      const [nextCursor, keys]: [string | number, string[]] = await r.scan(cursor, {
+        match: "cache:gems:*",
+        count: SCAN_COUNT,
+      });
+
+      if (Array.isArray(keys) && keys.length > 0) {
+        for (let i = 0; i < keys.length; i += DEL_BATCH_SIZE) {
+          const batch = keys.slice(i, i + DEL_BATCH_SIZE);
+          if (batch.length > 0) {
+            await r.del(...batch);
+          }
+        }
+      }
+
+      cursor = nextCursor;
+      if (String(nextCursor) === "0") {
+        return;
+      }
+    }
+
+    logger.warn(
+      `invalidateAllGemsCache reached max scan iterations (${MAX_SCAN_ITERATIONS}); remaining keys will expire via TTL`
+    );
+  } catch (error) {
+    logger.warn("Failed to invalidate all gems cache:", error);
   }
 }

@@ -7,7 +7,7 @@ import { z } from "zod";
 import { requireApprovedUser } from "@/lib/features/auth/requireApprovedUser";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
 import { searchKnowledge } from "@/lib/features/projects/knowledge.server";
-import { getProject } from "@/lib/features/projects/projects.server";
+import { verifyProjectOwnership } from "@/lib/features/projects/projects.server";
 import { ValidationError, NotFoundError, AppError, RateLimitError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 import { HTTP_STATUS } from "@/lib/utils/constants";
@@ -37,13 +37,18 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
     const { id: projectId } = await params;
 
-    // Verify project exists and user owns it
-    const project = await getProject(projectId, userId);
-    if (!project) {
+    // Verify project exists and user owns it (lightweight 1-query check)
+    const owned = await verifyProjectOwnership(projectId, userId);
+    if (!owned) {
       throw new NotFoundError("Project");
     }
 
-    const body = await req.json();
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      throw new ValidationError("Invalid JSON body");
+    }
     let parsed;
     try {
       parsed = searchSchema.parse(body);

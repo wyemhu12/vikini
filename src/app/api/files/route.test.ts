@@ -291,6 +291,24 @@ describe("/api/files", () => {
       });
     });
 
+    it("should read conversationId from JSON body when not in query params and reject invalid UUID (TC-W2A-08)", async () => {
+      mockAuthorized();
+      vi.mocked(deleteFilesByConversation).mockResolvedValue({ ok: true, deleted: 4 });
+
+      const req = createRequest("DELETE", "/api/files", { conversationId: VALID_UUID });
+      const res = await DELETE(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.data.deleted).toBe(4);
+      expect(deleteFilesByConversation).toHaveBeenCalledWith("test@test.com", VALID_UUID);
+      expect(deleteFile).not.toHaveBeenCalled();
+
+      const badReq = createRequest("DELETE", "/api/files", { conversationId: "bad-id" });
+      const badRes = await DELETE(badReq);
+      expect(badRes.status).toBe(400);
+    });
+
     // --- No id and no conversationId ---
     it("should return 400 when neither id nor conversationId is provided", async () => {
       mockAuthorized();

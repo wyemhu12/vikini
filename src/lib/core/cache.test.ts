@@ -7,18 +7,23 @@ import {
   getCachedGems,
   setCachedGems,
   invalidateGemsCache,
+  invalidateAllGemsCache,
 } from "./cache";
+import { resetSharedRedisForTests } from "./redis.server";
 
 // Mock Redis
 const mockRedisInstance = {
   get: vi.fn(),
   setex: vi.fn(),
   del: vi.fn(),
+  scan: vi.fn(),
 };
 
 vi.mock("@upstash/redis", () => {
   return {
-    Redis: vi.fn().mockImplementation(() => mockRedisInstance),
+    Redis: vi.fn().mockImplementation(function () {
+      return mockRedisInstance;
+    }),
   };
 });
 
@@ -27,6 +32,7 @@ describe("Cache", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetSharedRedisForTests();
     process.env = {
       ...originalEnv,
       UPSTASH_REDIS_REST_URL: "https://test-redis.upstash.io",
@@ -36,6 +42,7 @@ describe("Cache", () => {
 
   afterEach(() => {
     process.env = originalEnv;
+    resetSharedRedisForTests();
   });
 
   describe("getCachedConversations", () => {
@@ -184,6 +191,42 @@ describe("Cache", () => {
 
         const { invalidateGemsCache: invalidate } = await import("./cache");
         await expect(invalidate("user@example.com")).resolves.not.toThrow();
+      });
+    });
+
+    describe("invalidateAllGemsCache (TC-W2A-03)", () => {
+      it("paginates through SCAN cursor pages and deletes all matching cache:gems:* keys", async () => {
+        mockRedisInstance.scan
+          .mockResolvedValueOnce(["42", ["cache:gems:a@x.com", "cache:gems:b@x.com"]])
+          .mockResolvedValueOnce(["0", ["cache:gems:c@x.com"]]);
+        mockRedisInstance.del.mockResolvedValue(1);
+
+        await invalidateAllGemsCache();
+
+        expect(mockRedisInstance.scan).toHaveBeenCalledTimes(2);
+        expect(mockRedisInstance.scan).toHaveBeenNthCalledWith(1, 0, {
+          match: "cache:gems:*",
+          count: 100,
+        });
+        expect(mockRedisInstance.scan).toHaveBeenNthCalledWith(2, "42", {
+          match: "cache:gems:*",
+          count: 100,
+        });
+        expect(mockRedisInstance.del).toHaveBeenNthCalledWith(
+          1,
+          "cache:gems:a@x.com",
+          "cache:gems:b@x.com"
+        );
+        expect(mockRedisInstance.del).toHaveBeenNthCalledWith(2, "cache:gems:c@x.com");
+      });
+
+      it("caps SCAN iterations at 50 and handles Redis errors gracefully", async () => {
+        mockRedisInstance.scan.mockResolvedValue(["99", []]);
+        await expect(invalidateAllGemsCache()).resolves.not.toThrow();
+        expect(mockRedisInstance.scan).toHaveBeenCalledTimes(50);
+
+        mockRedisInstance.scan.mockRejectedValueOnce(new Error("SCAN failed"));
+        await expect(invalidateAllGemsCache()).resolves.not.toThrow();
       });
     });
   });

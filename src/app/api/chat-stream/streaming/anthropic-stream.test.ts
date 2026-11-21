@@ -143,4 +143,88 @@ describe("createAnthropicStream (M-1, M-2, m-15)", () => {
     expect(output).not.toContain("<think>");
     expect(output).not.toContain("</think>");
   });
+
+  it("TC-W1-08: emits standardized initial meta events + optimisticTitle and skips processPostStream on mid-stream failure", async () => {
+    const { processPostStream } = await import("./post-processing");
+    const upsertMock = vi.fn().mockResolvedValue({});
+    const generateOptimisticTitle = vi.fn().mockResolvedValue("Quick Title");
+
+    mockAi.beta.messages.create.mockResolvedValue({
+      [Symbol.asyncIterator]() {
+        let count = 0;
+        return {
+          async next() {
+            if (count++ === 0) {
+              return {
+                value: {
+                  type: "content_block_delta",
+                  delta: { type: "text_delta", text: "Partial Claude text" },
+                },
+                done: false,
+              };
+            }
+            throw new Error("Anthropic socket reset");
+          },
+        };
+      },
+    });
+
+    const stream = createAnthropicStream({
+      ...baseParams,
+      ai: mockAi as unknown as Anthropic,
+      shouldGenerateTitle: true,
+      generateOptimisticTitle,
+      upsertAssistantMessage: upsertMock,
+    });
+
+    const output = await readStream(stream);
+    expect(output).toContain('"type":"webSearch"');
+    expect(output).toContain('"type":"optimisticTitle"');
+    expect(output).toContain('"title":"Quick Title"');
+    expect(output).toContain('"ok":false');
+    expect(upsertMock).toHaveBeenCalledTimes(1);
+    expect(processPostStream).not.toHaveBeenCalled();
+  });
+
+  it("TC-W2A-16: captures message_start input/cache tokens + message_delta output tokens and passes usageMetadata to processPostStream", async () => {
+    const { processPostStream } = await import("./post-processing");
+
+    mockAi.beta.messages.create.mockResolvedValue(
+      createAsyncIterable([
+        {
+          type: "message_start",
+          message: { usage: { input_tokens: 100, cache_read_input_tokens: 50 } },
+        },
+        {
+          type: "content_block_delta",
+          delta: { type: "text_delta", text: "Hello with usage" },
+        },
+        {
+          type: "message_delta",
+          usage: { output_tokens: 40 },
+        },
+      ])
+    );
+
+    const stream = createAnthropicStream({
+      ...baseParams,
+      ai: mockAi as unknown as Anthropic,
+    });
+
+    const output = await readStream(stream);
+    expect(output).toContain('"promptTokenCount":150');
+    expect(output).toContain('"candidatesTokenCount":40');
+    expect(output).toContain('"totalTokenCount":190');
+    expect(output).toContain('"outputTokens":40');
+    expect(processPostStream).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        usageMetadata: {
+          promptTokenCount: 150,
+          candidatesTokenCount: 40,
+          totalTokenCount: 190,
+        },
+      })
+    );
+  });
 });

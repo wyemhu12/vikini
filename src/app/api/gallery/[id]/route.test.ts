@@ -235,6 +235,55 @@ describe("/api/gallery/[id]", () => {
       expect(res.status).toBe(200);
       expect(json.success).toBe(true);
     });
+    it("should delete DB row BEFORE storage file and still succeed if storage cleanup throws (TC-W2A-06)", async () => {
+      mockAuth(AUTH_SESSION);
+      const callOrder: string[] = [];
+      mockSingle.mockResolvedValue({
+        data: {
+          id: VALID_MSG_ID,
+          meta: { attachment: { storagePath: "test@example.com/uploads/img.png" } },
+          conversation_id: "conv-1",
+          conversations: { user_id: "test@example.com" },
+        },
+        error: null,
+      });
+      mockDeleteEq.mockImplementationOnce(async () => {
+        callOrder.push("db-delete");
+        return { error: null };
+      });
+      mockStorageRemove.mockImplementationOnce(async () => {
+        callOrder.push("storage-remove");
+        throw new Error("Storage unavailable");
+      });
+
+      const req = createRequest("DELETE", `/api/gallery/${VALID_MSG_ID}`);
+      const res = await DELETE(req, { params: Promise.resolve({ id: VALID_MSG_ID }) });
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.success).toBe(true);
+      expect(callOrder).toEqual(["db-delete", "storage-remove"]);
+    });
+
+    it("should NOT touch storage when DB delete fails (TC-W2A-06)", async () => {
+      mockAuth(AUTH_SESSION);
+      mockSingle.mockResolvedValue({
+        data: {
+          id: VALID_MSG_ID,
+          meta: { attachment: { storagePath: "test@example.com/uploads/img.png" } },
+          conversation_id: "conv-1",
+          conversations: { user_id: "test@example.com" },
+        },
+        error: null,
+      });
+      mockDeleteEq.mockResolvedValueOnce({ error: { message: "DB error" } });
+
+      const req = createRequest("DELETE", `/api/gallery/${VALID_MSG_ID}`);
+      const res = await DELETE(req, { params: Promise.resolve({ id: VALID_MSG_ID }) });
+
+      expect(res.status).toBe(500);
+      expect(mockStorageRemove).not.toHaveBeenCalled();
+    });
   });
 
   // --------------------------------------------------------------------------

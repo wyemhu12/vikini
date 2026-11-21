@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   BarChart3,
   Users,
   MessageSquare,
   MessagesSquare,
-  Loader2,
   AlertCircle,
+  RotateCcw,
 } from "lucide-react";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
+import { Skeleton } from "@/components/ui/skeleton";
+import { logger } from "@/lib/utils/logger";
 
 interface Stats {
   users: {
@@ -35,39 +37,65 @@ export default function StatisticsOverview() {
   const [error, setError] = useState("");
 
   const { t } = useLanguage();
+  const tRef = useRef(t);
 
   useEffect(() => {
-    void fetchStats();
-  }, []);
+    tRef.current = t;
+  }, [t]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
+      setError("");
       const res = await fetch("/api/admin/stats");
-      if (!res.ok) throw new Error("Failed to fetch stats");
+      if (!res.ok) throw new Error(tRef.current("adminStatsLoadFailed"));
       const json = await res.json();
       setStats(json.data || json);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load stats");
+    } catch (err: unknown) {
+      logger.error("[StatisticsOverview] Failed to load statistics:", err);
+      setError(err instanceof Error ? err.message : tRef.current("adminStatsLoadFailed"));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchStats();
+  }, [fetchStats]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-(--accent)" />
-        <span className="ml-2 text-(--muted)">{t("loading")}</span>
+      <div role="status" className="space-y-6 py-2">
+        <span className="sr-only">{t("loading")}</span>
+        <Skeleton className="h-6 w-48" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <Skeleton key={idx} className="h-24 w-full rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-44 w-full rounded-xl" />
       </div>
     );
   }
 
   if (error || !stats) {
     return (
-      <div className="flex items-center gap-2 text-(--danger) py-4">
-        <AlertCircle className="w-5 h-5" />
-        <span>{error || "No data"}</span>
+      <div
+        role="alert"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg bg-(--danger)/10 border border-(--danger)/30 text-(--danger)"
+      >
+        <div className="flex items-center gap-2">
+          <AlertCircle aria-hidden="true" className="w-5 h-5 shrink-0" />
+          <span className="text-sm font-medium">{error || t("adminStatsLoadFailed")}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => void fetchStats()}
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-(--raised) hover:bg-(--raised-hover) text-(--text) border border-(--line) transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+        >
+          <RotateCcw aria-hidden="true" className="w-4 h-4" />
+          {t("tryAgain")}
+        </button>
       </div>
     );
   }
@@ -130,7 +158,7 @@ export default function StatisticsOverview() {
               <span className="text-xs text-(--muted)">{card.label}</span>
             </div>
             <div className={`text-2xl font-bold ${card.color}`}>{card.value}</div>
-            {card.sub && <div className="text-xs text-(--faint) mt-1">{card.sub}</div>}
+            {card.sub && <div className="text-xs text-(--muted) mt-1">{card.sub}</div>}
           </div>
         ))}
       </div>
@@ -144,7 +172,7 @@ export default function StatisticsOverview() {
               { rank: "admin", label: t("userAdmin"), color: "bg-(--warning)" },
               { rank: "pro", label: t("userPro"), color: "bg-(--accent)" },
               { rank: "basic", label: t("userBasic"), color: "bg-(--accent)" },
-              { rank: "not_whitelisted", label: t("userNotWhitelisted"), color: "bg-(--raised)" },
+              { rank: "not_whitelisted", label: t("userNotWhitelisted"), color: "bg-(--muted)" },
             ] as const
           ).map(({ rank, label, color }) => {
             const count = stats.users.byRank[rank];
@@ -152,7 +180,7 @@ export default function StatisticsOverview() {
             return (
               <div key={rank} className="flex items-center gap-3">
                 <span className="text-sm text-(--text) w-28 shrink-0">{label}</span>
-                <div className="flex-1 h-2 rounded-full bg-(--raised) overflow-hidden">
+                <div className="flex-1 h-2 rounded-full bg-(--surface) border border-(--line) overflow-hidden">
                   <div
                     className={`h-full rounded-full ${color} transition-colors duration-500`}
                     style={{ width: `${pct}%` }}

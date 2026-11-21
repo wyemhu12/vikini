@@ -63,14 +63,29 @@ If you need to add browser-side Supabase queries:
 
 ## Encryption
 
-All message `content` is encrypted before storing in DB. See `encryptText`/`decryptText` in `/lib/core/encryption.ts`.
+All message `content` and `meta.reasoning` are encrypted before storing in DB via AES-256-GCM with mandatory 16-byte authentication tag validation (`authTagLength: 16`, strict hex/byte-length checks, legacy AES-256-CBC decryption support). Encryption in `messages.ts` (`saveMessage`, `upsertMessage`, `encryptMetaReasoning`) is strictly **fail-closed** (`500 ENCRYPTION_ERROR`, never falling back to plaintext), and `validateEnv()` enforces a 64-character hex `DATA_ENCRYPTION_KEY`. See `src/lib/core/encryption.ts`.
 
 ## Rate Limiting
 
-IP-based rate limiting via Upstash Redis. See `/lib/core/rateLimit.ts`.
+Atomic 1-RTT Lua sliding-window rate limiting via shared Upstash Redis singleton (`src/lib/core/redis.server.ts`, `src/lib/core/rateLimit.ts`):
 
+- Rejected requests never call `ZADD` (preventing lockout extension), and Redis network errors fail over to an OOM-capped in-memory store (`MAX_MEM_STORE_ENTRIES = 10000`).
+- Authenticated API routes (`/api/gems`, `/api/personas`, image routes) authenticate **before** rate limiting and key by canonical `userId` rather than spoofable `x-forwarded-for`.
 - `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_SECONDS` are configured as **Vercel Environment Variables**.
 - Additional per-rank daily message limits are configured via the Admin Dashboard (`/admin` → Limits tab) and stored in the `rank_configs` DB table.
+
+## Hardening Controls (Updated 2026-11-21 — Code Audit Wave 1)
+
+- **DB-Backed Admin & Approval Gates**: All 6 `/api/admin/*` routes call `requireAdminUser()` (`src/lib/features/auth/requireApprovedUser.ts`), verifying `rank === "admin"` and `!is_blocked` directly against `profiles` (fail-closed `503` on DB failure); `PATCH /api/admin/users` forbids self-modification. `/api/local-llm/health` enforces `requireApprovedUser()`, and `getUserTier()` fails closed (`UserBlockedError` / `AccessPendingError`).
+- **Blocked Session Teardown**: `auth.ts` strips `id`/`email`/`name`/`image` when `token.blocked` is set, returning `rank: "__blocked__"`, handles `23505` concurrent first sign-in races, and distinguishes deleted (`not_found`) vs transient DB errors (`error`) in `refreshTokenFromDBDetailed()`.
+- **Cross-Tenant IDOR & Cache Isolation**: `conversations.ts` verifies ownership/premade status before attaching gems, personas, or projects; `gems.ts` and `personas.ts` enforce defense-in-depth owner/premade checks and parameterized dual-`.eq()` queries; `contextCache.ts` uses SHA-256 keys scoped by `userId`, skips composite caching when RAG chunks are present, and bounds `activeCacheNames` to 500 entries.
+- **XSS, Stored File & Cron Safety**: `isValidImageUrl` restricts `data:` URIs to raster base64 only; `openSafeExternalUrl` enforces `http(s)` + `noopener,noreferrer`; `/api/messages` uses a strict allowlist schema without `.passthrough()`; `fileService.server.ts` stores active web MIMEs (`image/svg+xml`, `text/html`, XML) as `text/plain; charset=utf-8` and signs downloads with `{ download: filename }`; `/api/cron/cleanup` compares SHA-256 secret digests with `crypto.timingSafeEqual` and sanitizes 500 errors.
+
+## Hardening Controls (Updated 2026-11-21 — Code Audit Wave 2A)
+
+- **OOXML Zip-Bomb DoS Guard (`src/lib/features/files/documentParsers.ts`)**: Before passing untrusted `.docx` or `.xlsx` archives into `mammoth` or `exceljs`, `validateZipArchiveSafety()` inspects the ZIP End of Central Directory (EOCD) and Central Directory headers (`0x02014b50`), rejecting ZIP64 sentinels (`0xffffffff`), out-of-bounds directory ranges (`cdOffset + cdSize > eocdOffset`), `> 1,000` entries, `> 50 MB` total uncompressed size, zero-compressed non-empty entries, and compression ratios `> 100:1` (for archives `> 1 MB`).
+- **Raster-Only Image Allowlist (`src/lib/core/ssrfGuard.server.ts`, `edit-image`, `edit-image-multi`)**: Exported `ALLOWED_IMAGE_MIME_TYPES` (`image/jpeg`, `image/png`, `image/webp`, `image/gif`, `image/avif`, `image/bmp`, `image/tiff`) explicitly excluding `image/svg+xml` across SSRF fetches and base64/`data:` image editing endpoints (validating both case-insensitive `data:` prefixes and explicit `imageMimeType` headers alongside `10 MB` decoded / `14 MB` base64 payload caps).
+- **Cross-Project Document Isolation & Atomic Mutation Guards (`knowledge.server.ts`, `admin/rank-configs`, `admin/gems`, `storyPersistence.server.ts`)**: `deleteDocument(userId, documentId, projectId?)` scopes deletion with `.eq("project_id", projectId)` when called from `/api/projects/[id]/knowledge`, preventing cross-project document deletion; `PATCH /api/admin/rank-configs` validates every entry upfront before writing any row and invalidates cache in `finally`; `getStoryState()` is strictly read-only and duplicate `story_state` rows are pruned only after a successful CAS `.update()`.
 
 ## Environment Variables & Secrets (Vercel)
 

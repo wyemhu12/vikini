@@ -20,6 +20,8 @@ describe("RootSkipLink (TC-6E-03)", () => {
     render(<RootSkipLink />);
     const link = screen.getByRole("link", { name: "Skip to main content" });
     expect(link).toHaveAttribute("href", "#main");
+    expect(link.className).toContain("focus:z-(--z-banner)");
+    expect(link.className).not.toContain("focus:z-50");
 
     act(() => {
       useLanguageStore.getState().setLanguage("vi");

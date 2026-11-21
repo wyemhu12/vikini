@@ -1,5 +1,25 @@
-// Test file for gems.ts - Helper functions
-import { describe, it, expect } from "vitest";
+// Test file for gems.ts - Helper functions & security guards
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+const mockFrom = vi.fn();
+const mockGetCachedGems = vi.fn();
+const mockSetCachedGems = vi.fn();
+const mockInvalidateGemsCache = vi.fn();
+
+vi.mock("@/lib/core/supabase.server", () => ({
+  getSupabaseAdmin: () => ({
+    from: mockFrom,
+  }),
+}));
+
+vi.mock("@/lib/core/cache", () => ({
+  getCachedGems: (...args: unknown[]) => mockGetCachedGems(...args),
+  setCachedGems: (...args: unknown[]) => mockSetCachedGems(...args),
+  invalidateGemsCache: (...args: unknown[]) => mockInvalidateGemsCache(...args),
+}));
+
+import { getGemInstructionsForConversation, getGemsForUser } from "./gems";
+import { DatabaseError, ForbiddenError } from "@/lib/utils/errors";
 
 // ===========================================
 // Since normalizeGemPayload and sanitizeOrFilterValue are internal functions,
@@ -149,6 +169,144 @@ describe("Gems Helper Functions", () => {
 
     it("should handle complex strings", () => {
       expect(sanitizeOrFilterValue("  test,with,commas  ")).toBe("testwithcommas");
+    });
+  });
+});
+
+describe("Gems Security & Fail-Closed Guards (TC-W1-01)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetCachedGems.mockResolvedValue(null);
+    mockSetCachedGems.mockResolvedValue(undefined);
+  });
+
+  describe("getGemInstructionsForConversation", () => {
+    it("throws ForbiddenError when conversation links a foreign private gem and never reads gem_versions", async () => {
+      const queriedTables: string[] = [];
+
+      mockFrom.mockImplementation((table: string) => {
+        queriedTables.push(table);
+        if (table === "conversations") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { gem_id: "gem-victim", user_id: "attacker@example.com" },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === "gems") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: {
+                    id: "gem-victim",
+                    user_id: "victim@example.com",
+                    is_premade: false,
+                    instruction: "Secret victim prompt",
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        throw new Error(`Unexpected table query: ${table}`);
+      });
+
+      await expect(
+        getGemInstructionsForConversation("attacker@example.com", "conv-1")
+      ).rejects.toThrow(ForbiddenError);
+      expect(queriedTables).toEqual(["conversations", "gems"]);
+      expect(queriedTables).not.toContain("gem_versions");
+    });
+
+    it("returns instructions for a premade gem", async () => {
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "conversations") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { gem_id: "gem-premade", user_id: "user@example.com" },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === "gems") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: {
+                    id: "gem-premade",
+                    user_id: "admin@example.com",
+                    is_premade: true,
+                    instructions: "Premade instructions",
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === "gem_versions") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockReturnValue({
+                    maybeSingle: vi.fn().mockResolvedValue({
+                      data: { version: 2, instructions: "Versioned premade instructions" },
+                      error: null,
+                    }),
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      const result = await getGemInstructionsForConversation("user@example.com", "conv-1");
+      expect(result).toBe("Versioned premade instructions");
+    });
+
+    it("TC-W2A-16: skips conversations table query when preloadedGemId is provided (null or string)", async () => {
+      const emptyRes = await getGemInstructionsForConversation("user@example.com", "conv-1", null);
+      expect(emptyRes).toBe("");
+      expect(mockFrom).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getGemsForUser fail-closed", () => {
+    it("throws DatabaseError when q and q1 fail without running an unfiltered SELECT * or caching", async () => {
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "column mismatch" },
+      });
+      const mockOr = vi.fn().mockReturnValue({ order: mockOrder });
+      const mockEq = vi.fn().mockReturnValue({ order: mockOrder });
+      const mockSelect = vi.fn().mockReturnValue({
+        or: mockOr,
+        eq: mockEq,
+        order: vi.fn().mockImplementation(() => {
+          throw new Error("Unfiltered SELECT * must never be called");
+        }),
+      });
+      mockFrom.mockReturnValue({ select: mockSelect });
+
+      await expect(getGemsForUser("user@example.com")).rejects.toThrow(DatabaseError);
+      expect(mockOr).toHaveBeenCalledTimes(2);
+      expect(mockEq).toHaveBeenCalledTimes(1);
+      expect(mockSetCachedGems).not.toHaveBeenCalled();
     });
   });
 });

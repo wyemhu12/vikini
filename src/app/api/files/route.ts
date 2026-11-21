@@ -67,14 +67,15 @@ export async function DELETE(req: NextRequest) {
     const { userId } = auth;
     const url = new URL(req.url);
 
-    const conversationId = url.searchParams.get("conversationId");
+    let conversationId = url.searchParams.get("conversationId");
     let id = url.searchParams.get("id");
 
     // Try body if not in query params
     if (!id && !conversationId) {
       try {
-        const body = (await req.json()) as { id?: string; conversationId?: string };
-        id = body?.id || "";
+        const body = (await req.json()) as { id?: unknown; conversationId?: unknown };
+        id = typeof body?.id === "string" ? body.id : "";
+        conversationId = typeof body?.conversationId === "string" ? body.conversationId : "";
       } catch {
         // Ignore
       }

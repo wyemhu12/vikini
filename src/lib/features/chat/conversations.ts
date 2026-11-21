@@ -63,6 +63,7 @@ export interface Conversation {
   updatedAt: string | null;
   lastMessagePreview: string | null;
   gemId: string | null;
+  personaId?: string | null;
   model: string;
   projectId: string | null;
   parentConversationId?: string | null;
@@ -140,6 +141,7 @@ export function mapConversationRow(row: ConversationRow | null): Conversation | 
     updatedAt: row.updated_at ?? row.updatedAt ?? null,
     lastMessagePreview: row.last_message_preview ?? row.lastMessagePreview ?? null,
     gemId: row.gem_id ?? row.gemId ?? null,
+    personaId: row.persona_id ?? row.personaId ?? null,
     // NEW: model field for per-chat model selection
     model: coerceStoredModel(row.model ?? DEFAULT_MODEL),
     // NEW: project_id for RAG knowledge base
@@ -355,6 +357,63 @@ export async function saveConversation(
   return doSaveConversation(userId, payload);
 }
 
+async function assertGemAccessible(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  userId: string,
+  gemId: string
+): Promise<void> {
+  const { data, error } = await supabase
+    .from("gems")
+    .select("id, user_id, is_premade")
+    .eq("id", gemId)
+    .maybeSingle();
+
+  if (error) throw new DatabaseError(`assertGemAccessible failed: ${error.message}`);
+  if (!data) throw new NotFoundError("Gem");
+  const row = data as { id: string; user_id?: string | null; is_premade?: boolean | null };
+  if (!row.is_premade && row.user_id !== userId) {
+    throw new ForbiddenError("You do not have permission to use this gem");
+  }
+}
+
+async function assertPersonaAccessible(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  userId: string,
+  personaId: string
+): Promise<void> {
+  const { data, error } = await supabase
+    .from("personas")
+    .select("id, user_id, is_premade")
+    .eq("id", personaId)
+    .maybeSingle();
+
+  if (error) throw new DatabaseError(`assertPersonaAccessible failed: ${error.message}`);
+  if (!data) throw new NotFoundError("Persona");
+  const row = data as { id: string; user_id?: string | null; is_premade?: boolean | null };
+  if (!row.is_premade && row.user_id !== userId) {
+    throw new ForbiddenError("You do not have permission to use this persona");
+  }
+}
+
+async function assertProjectOwned(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  userId: string,
+  projectId: string
+): Promise<void> {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id, user_id")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  if (error) throw new DatabaseError(`assertProjectOwned failed: ${error.message}`);
+  if (!data) throw new NotFoundError("Project");
+  const row = data as { id: string; user_id?: string | null };
+  if (row.user_id !== userId) {
+    throw new ForbiddenError("You do not have permission to use this project");
+  }
+}
+
 /**
  * Internal function that performs the actual conversation creation.
  * Separated from saveConversation to enable deduplication logic.
@@ -368,6 +427,12 @@ async function doSaveConversation(
   const model = coerceStoredModel(payload?.model);
   if (payload?.model !== undefined) {
     await assertModelAllowedForUser(userId, model);
+  }
+  if (payload?.gemId) {
+    await assertGemAccessible(supabase, userId, payload.gemId);
+  }
+  if (payload?.projectId) {
+    await assertProjectOwned(supabase, userId, payload.projectId);
   }
   const now = new Date().toISOString();
 
@@ -418,6 +483,92 @@ async function doSaveConversation(
   return result;
 }
 
+export interface ConversationUpdatePatch {
+  title?: string;
+  gemId?: string | null;
+  model?: string;
+  projectId?: string | null;
+  personaId?: string | null;
+}
+
+/**
+ * Atomically validate and update multiple conversation fields in a single DB UPDATE
+ * and a single Redis cache invalidation (replaces up to 5 sequential PATCH updates).
+ */
+export async function updateConversation(
+  userId: string,
+  conversationId: string,
+  patch: ConversationUpdatePatch
+): Promise<Conversation | null> {
+  const supabase = getSupabaseAdmin();
+
+  const current = await getConversationSafe(conversationId);
+  if (!current) throw new NotFoundError("Conversation");
+  if (current.userId !== userId) throw new ForbiddenError();
+
+  const updatePayload: Record<string, unknown> = {};
+  const validations: Array<Promise<void>> = [];
+
+  if (typeof patch.title === "string") {
+    updatePayload.title = patch.title;
+  }
+
+  if (patch.gemId !== undefined) {
+    const normalizedGemId = patch.gemId || null;
+    updatePayload.gem_id = normalizedGemId;
+    if (normalizedGemId) {
+      validations.push(assertGemAccessible(supabase, userId, normalizedGemId));
+    }
+  }
+
+  if (patch.personaId !== undefined) {
+    const normalizedPersonaId = patch.personaId || null;
+    updatePayload.persona_id = normalizedPersonaId;
+    if (normalizedPersonaId) {
+      validations.push(assertPersonaAccessible(supabase, userId, normalizedPersonaId));
+    }
+  }
+
+  if (patch.projectId !== undefined) {
+    const normalizedProjectId = patch.projectId || null;
+    updatePayload.project_id = normalizedProjectId;
+    if (normalizedProjectId) {
+      validations.push(assertProjectOwned(supabase, userId, normalizedProjectId));
+    }
+  }
+
+  if (typeof patch.model === "string" && patch.model) {
+    const finalModel = isSelectableModelId(patch.model) ? patch.model : DEFAULT_MODEL;
+    updatePayload.model = finalModel;
+    validations.push(assertModelAllowedForUser(userId, finalModel));
+  }
+
+  // No-op patch: return verified current conversation with 0 DB writes & 0 cache invalidations
+  if (Object.keys(updatePayload).length === 0) {
+    return current;
+  }
+
+  // Run all authorization/ownership checks BEFORE writing to DB
+  if (validations.length > 0) {
+    await Promise.all(validations);
+  }
+
+  updatePayload.updated_at = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("conversations")
+    .update(updatePayload)
+    .eq("id", conversationId)
+    .select("*,gems(name,icon,color),personas(name,icon,color)")
+    .single();
+
+  if (error) throw new DatabaseError(`updateConversation failed: ${error.message}`);
+
+  await invalidateConversationsCache(userId);
+
+  return mapConversationRow(data);
+}
+
 export async function setConversationGem(
   userId: string,
   conversationId: string,
@@ -428,6 +579,10 @@ export async function setConversationGem(
   const current = await getConversationSafe(conversationId);
   if (!current) throw new NotFoundError("Conversation");
   if (current.userId !== userId) throw new ForbiddenError();
+
+  if (gemId) {
+    await assertGemAccessible(supabase, userId, gemId);
+  }
 
   // PERFORMANCE: Use RETURNING clause to avoid extra query
   const { data, error } = await supabase
@@ -455,6 +610,10 @@ export async function setConversationPersona(
   const current = await getConversationSafe(conversationId);
   if (!current) throw new NotFoundError("Conversation");
   if (current.userId !== userId) throw new ForbiddenError();
+
+  if (personaId) {
+    await assertPersonaAccessible(supabase, userId, personaId);
+  }
 
   // PERFORMANCE: Use RETURNING clause to avoid extra query
   const { data, error } = await supabase
@@ -515,6 +674,10 @@ export async function setConversationProject(
   const current = await getConversationSafe(conversationId);
   if (!current) throw new NotFoundError("Conversation");
   if (current.userId !== userId) throw new ForbiddenError();
+
+  if (projectId) {
+    await assertProjectOwned(supabase, userId, projectId);
+  }
 
   // PERFORMANCE: Use RETURNING clause to avoid extra query
   const { data, error } = await supabase
@@ -714,17 +877,23 @@ export async function branchConversation(
     }
   }
 
-  // 4. Fetch all messages in the source conversation up to the cutoff timestamp
-  const { data: sourceMessages, error: msgsErr } = await supabase
+  // 4. Fetch bounded recent messages in the source conversation up to the cutoff timestamp
+  const MAX_BRANCH_MESSAGES = 500;
+  const BRANCH_INSERT_BATCH_SIZE = 100;
+
+  const { data: rawSourceMessages, error: msgsErr } = await supabase
     .from("messages")
     .select("role, content, meta, created_at")
     .eq("conversation_id", sourceConversationId)
     .lte("created_at", cutoffTimestamp)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(MAX_BRANCH_MESSAGES);
 
   if (msgsErr) {
     throw new DatabaseError(`Failed to fetch source messages: ${msgsErr.message}`);
   }
+
+  const sourceMessages = [...(rawSourceMessages || [])].reverse();
 
   // 5. Generate contextual title and lastMessagePreview
   let newTitle = `${titlePrefix} ${sourceConvo.title}`.trim();
@@ -814,12 +983,15 @@ export async function branchConversation(
       };
     });
 
-    const { error: insertMsgsErr } = await supabase.from("messages").insert(messagesToInsert);
+    for (let i = 0; i < messagesToInsert.length; i += BRANCH_INSERT_BATCH_SIZE) {
+      const batch = messagesToInsert.slice(i, i + BRANCH_INSERT_BATCH_SIZE);
+      const { error: insertMsgsErr } = await supabase.from("messages").insert(batch);
 
-    if (insertMsgsErr) {
-      throw new DatabaseError(
-        `Failed to copy messages to branched conversation: ${insertMsgsErr.message}`
-      );
+      if (insertMsgsErr) {
+        throw new DatabaseError(
+          `Failed to copy messages to branched conversation: ${insertMsgsErr.message}`
+        );
+      }
     }
   }
 

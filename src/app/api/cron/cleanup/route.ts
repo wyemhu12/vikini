@@ -8,18 +8,26 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { cleanupExpiredFiles } from "@/lib/features/files/fileService.server";
 import { cleanupStuckProcessingDocuments } from "@/lib/features/projects/knowledge.server";
+import { error } from "@/lib/utils/apiResponse";
 import { logger } from "@/lib/utils/logger";
 
 const routeLogger = logger.withContext("/api/cron/cleanup");
 
+function constantTimeEqual(a: string, b: string): boolean {
+  const hashA = crypto.createHash("sha256").update(a).digest();
+  const hashB = crypto.createHash("sha256").update(b).digest();
+  return crypto.timingSafeEqual(hashA, hashB);
+}
+
 function verifyCronSecret(req: NextRequest): boolean {
   const secret = req.headers.get("x-cron-secret") || req.headers.get("authorization");
   const expected = process.env.CRON_SECRET || process.env.ATTACHMENTS_CRON_SECRET;
-  if (!expected) return false;
-  return secret === expected || secret === `Bearer ${expected}`;
+  if (!expected || !secret) return false;
+  return constantTimeEqual(secret, expected) || constantTimeEqual(secret, `Bearer ${expected}`);
 }
 
 export async function GET(req: NextRequest) {
@@ -51,7 +59,7 @@ export async function GET(req: NextRequest) {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     routeLogger.error(`Cleanup failed: ${msg}`);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return error("Cleanup failed", 500);
   }
 }
 

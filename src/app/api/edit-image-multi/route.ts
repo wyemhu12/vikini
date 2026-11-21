@@ -17,10 +17,14 @@ import {
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 import { getUserProfile } from "@/lib/core/limits";
+import { ALLOWED_IMAGE_MIME_TYPES } from "@/lib/core/ssrfGuard.server";
 import { validateAndAuthorizeStoragePath } from "@/lib/features/chat/storageValidation";
-import { HTTP_STATUS } from "@/lib/utils/constants";
+import { HTTP_STATUS, ALLOWED_EDIT_IMAGE_MODELS } from "@/lib/utils/constants";
 
 const routeLogger = logger.withContext("edit-image-multi");
+const MAX_BASE64_IMAGE_CHARS = 14_000_000; // ~10MB decoded binary
+const MAX_DECODED_IMAGE_BYTES = 10 * 1024 * 1024;
+const DATA_IMAGE_URI_REGEX = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i;
 
 /** Schema for a single edit turn */
 const editTurnSchema = z.object({
@@ -28,8 +32,22 @@ const editTurnSchema = z.object({
   text: z.string().optional(),
   storagePath: z.string().max(500).optional(),
   imageUrl: z.string().optional(),
-  imageBase64: z.string().optional(),
-  imageMimeType: z.string().optional(),
+  imageBase64: z
+    .string()
+    .max(MAX_BASE64_IMAGE_CHARS, "Image payload exceeds 10MB limit")
+    .refine((val) => {
+      if (!/^data:/i.test(val)) return true;
+      const match = DATA_IMAGE_URI_REGEX.exec(val);
+      return Boolean(match && ALLOWED_IMAGE_MIME_TYPES.has(match[1].toLowerCase()));
+    }, "Unsupported or malformed data URI image format")
+    .optional(),
+  imageMimeType: z
+    .string()
+    .refine(
+      (val) => ALLOWED_IMAGE_MIME_TYPES.has(val.trim().toLowerCase()),
+      "Unsupported image MIME type"
+    )
+    .optional(),
   // Gemini multi-turn requires thought_signature for image parts from model responses
   thoughtSignature: z.string().optional(),
 });
@@ -42,7 +60,7 @@ const editImageMultiSchema = z.object({
   parentMessageId: z.string().uuid().optional(),
   options: z
     .object({
-      model: z.string().max(100).optional(),
+      model: z.enum(ALLOWED_EDIT_IMAGE_MODELS).optional(),
       aspectRatio: z.enum(["1:1", "16:9", "9:16", "4:3", "3:4"]).optional(),
     })
     .optional(),
@@ -64,7 +82,10 @@ async function buildGeminiContents(
 ): Promise<Array<{ role: string; parts: Array<Record<string, unknown>> }>> {
   const MAX_IMAGE_TURNS = 3; // Keep at most 3 image-bearing turns
 
-  async function resolveImageRaw(turn: z.infer<typeof editTurnSchema>): Promise<string> {
+  async function resolveImageRaw(
+    turn: z.infer<typeof editTurnSchema>
+  ): Promise<{ data: string; mimeType: string }> {
+    const normalizedExplicitMime = turn.imageMimeType?.trim().toLowerCase();
     if (turn.storagePath) {
       await validateAndAuthorizeStoragePath(supabase, userId, conversationId, turn.storagePath);
       const { data, error } = await supabase.storage.from("attachments").download(turn.storagePath);
@@ -72,10 +93,29 @@ async function buildGeminiContents(
         throw new AppError("Failed to retrieve image from storage", 422, "IMAGE_NOT_FOUND");
       }
       const buffer = Buffer.from(await data.arrayBuffer());
-      return buffer.toString("base64");
+      return {
+        data: buffer.toString("base64"),
+        mimeType: normalizedExplicitMime || "image/png",
+      };
     }
     if (turn.imageBase64) {
-      return turn.imageBase64.replace(/^data:[^;]+;base64,/, "");
+      let rawBase64 = turn.imageBase64;
+      let dataUriMime: string | undefined;
+      if (/^data:/i.test(turn.imageBase64)) {
+        const match = DATA_IMAGE_URI_REGEX.exec(turn.imageBase64);
+        if (!match || !ALLOWED_IMAGE_MIME_TYPES.has(match[1].toLowerCase())) {
+          throw new ValidationError("Unsupported or malformed data URI image format");
+        }
+        dataUriMime = match[1].toLowerCase();
+        rawBase64 = match[2];
+      }
+      if (Buffer.from(rawBase64, "base64").byteLength > MAX_DECODED_IMAGE_BYTES) {
+        throw new ValidationError("Image payload exceeds 10MB limit");
+      }
+      return {
+        data: rawBase64,
+        mimeType: normalizedExplicitMime || dataUriMime || "image/png",
+      };
     }
     throw new AppError("Missing image data for turn", 422, "MISSING_IMAGE_DATA");
   }
@@ -92,11 +132,11 @@ async function buildGeminiContents(
     const parts: Array<Record<string, unknown>> = [];
 
     // Add source image
-    const raw = await resolveImageRaw(sourceTurn);
+    const resolved = await resolveImageRaw(sourceTurn);
     parts.push({
       inlineData: {
-        data: raw,
-        mimeType: sourceTurn.imageMimeType || "image/png",
+        data: resolved.data,
+        mimeType: resolved.mimeType,
       },
     });
 
@@ -115,42 +155,47 @@ async function buildGeminiContents(
 
   let filteredHistory = editHistory;
   if (modelImageTurns.length > MAX_IMAGE_TURNS) {
-    // Keep first user turn (source image) + last N turn pairs
+    // Keep first user turn (source image) + last N turn pairs without adjacent same-role turns
     const firstUserTurn = editHistory[0];
-    const recentTurns = editHistory.slice(-(MAX_IMAGE_TURNS * 2));
+    let recentTurns = editHistory.slice(-(MAX_IMAGE_TURNS * 2));
+    while (recentTurns.length > 0 && recentTurns[0].role === firstUserTurn.role) {
+      recentTurns = recentTurns.slice(1);
+    }
     filteredHistory = [firstUserTurn, ...recentTurns];
   }
 
-  const results: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [];
-  for (const turn of filteredHistory) {
-    const parts: Array<Record<string, unknown>> = [];
+  // Resolve images in parallel across filtered turns to avoid sequential Storage latency
+  const results = await Promise.all(
+    filteredHistory.map(async (turn) => {
+      const parts: Array<Record<string, unknown>> = [];
 
-    if (turn.storagePath || turn.imageBase64) {
-      const raw = await resolveImageRaw(turn);
-      const imagePart: Record<string, unknown> = {
-        inlineData: {
-          data: raw,
-          mimeType: turn.imageMimeType || "image/png",
-        },
-      };
-      // Include thought_signature for model image parts (required by Gemini multi-turn)
-      if (turn.thoughtSignature) {
-        imagePart.thought_signature = turn.thoughtSignature;
+      if (turn.storagePath || turn.imageBase64) {
+        const resolved = await resolveImageRaw(turn);
+        const imagePart: Record<string, unknown> = {
+          inlineData: {
+            data: resolved.data,
+            mimeType: resolved.mimeType,
+          },
+        };
+        // Include thoughtSignature for model image parts (required by Gemini multi-turn)
+        if (turn.thoughtSignature) {
+          imagePart.thoughtSignature = turn.thoughtSignature;
+        }
+        parts.push(imagePart);
       }
-      parts.push(imagePart);
-    }
 
-    if (turn.text) {
-      parts.push({ text: turn.text });
-    }
+      if (turn.text) {
+        parts.push({ text: turn.text });
+      }
 
-    // Ensure at least one part
-    if (parts.length === 0) {
-      parts.push({ text: " " });
-    }
+      // Ensure at least one part
+      if (parts.length === 0) {
+        parts.push({ text: " " });
+      }
 
-    results.push({ role: turn.role, parts });
-  }
+      return { role: turn.role, parts };
+    })
+  );
 
   return results;
 }
@@ -172,7 +217,12 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Parse & validate
-    const rawBody = await req.json();
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      throw new ValidationError("Invalid JSON body");
+    }
     let parsed;
     try {
       parsed = editImageMultiSchema.parse(rawBody);
@@ -250,9 +300,10 @@ export async function POST(req: NextRequest) {
     // 7. Parse response
     const candidates = (response as { candidates?: unknown[] })?.candidates;
     if (!Array.isArray(candidates) || candidates.length === 0) {
-      // Check for safety block
-      const candidate = (candidates as Array<{ finishReason?: string }>)?.[0];
-      if (candidate?.finishReason === "IMAGE_SAFETY" || candidate?.finishReason === "SAFETY") {
+      // Check promptFeedback.blockReason when candidates are omitted due to safety filtering
+      const blockReason = (response as { promptFeedback?: { blockReason?: string } })
+        ?.promptFeedback?.blockReason;
+      if (blockReason) {
         throw new ValidationError(
           "Image was blocked by safety filters. Try rephrasing your edit instruction."
         );
@@ -284,15 +335,17 @@ export async function POST(req: NextRequest) {
     for (const part of parts) {
       const p = part as {
         inlineData?: { data: string; mimeType: string };
+        thoughtSignature?: string;
         thought_signature?: string;
       };
       if (p.inlineData?.data) {
         resultBase64 = p.inlineData.data;
         resultMimeType = p.inlineData.mimeType || "image/png";
       }
-      // Capture thought_signature from any part (usually alongside image)
-      if (p.thought_signature) {
-        resultThoughtSignature = p.thought_signature;
+      // Capture thoughtSignature (camelCase SDK field with snake_case fallback)
+      const sig = p.thoughtSignature ?? p.thought_signature;
+      if (sig) {
+        resultThoughtSignature = sig;
       }
     }
 
@@ -363,16 +416,20 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    const message = await saveMessage(
-      userId,
-      conversationId,
-      "assistant",
-      messageContent,
-      messageMeta
-    );
-
-    if (!message) {
-      throw new Error("Failed to save message");
+    let message;
+    try {
+      message = await saveMessage(userId, conversationId, "assistant", messageContent, messageMeta);
+      if (!message) {
+        throw new Error("Failed to save message");
+      }
+    } catch (saveErr: unknown) {
+      await supabase.storage
+        .from(bucket)
+        .remove([storagePath])
+        .catch((cleanupErr: unknown) => {
+          routeLogger.warn("Failed to cleanup orphan multi-edit image:", cleanupErr);
+        });
+      throw saveErr;
     }
 
     // 12. Return with storagePath so EditPanel can use it for next turn (M-4, m-7, m-12)

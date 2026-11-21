@@ -14,18 +14,23 @@ export default function UpgradeModal({ isOpen, onClose, modelName }: UpgradeModa
   const { t } = useLanguage();
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md border-0 bg-transparent shadow-none p-0 overflow-visible sm:max-w-md">
-        <DialogTitle className="sr-only">{t("modalUpgradeTitle")}</DialogTitle>
-
+      <DialogContent
+        hideCloseButton
+        aria-describedby={undefined}
+        className="max-w-md border-0 bg-transparent shadow-none p-0 overflow-visible sm:max-w-md"
+      >
         {/* Glow effect */}
         <div className="absolute inset-0 bg-(--soft) blur-3xl -z-10" />
 
         {/* Card */}
         <div className="relative bg-(--surface) backdrop-blur-xl border border-(--line) rounded-2xl shadow-2xl overflow-hidden">
           {/* Close button */}
-          <DialogClose className="absolute top-4 right-4 p-2 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) transition-colors focus:outline-none focus:ring-2 focus:ring-(--accent)/40">
-            <X className="w-4 h-4 text-(--muted)" />
-            <span className="sr-only">Close</span>
+          <DialogClose
+            type="button"
+            aria-label={t("close")}
+            className="absolute top-4 right-4 p-2 rounded-lg bg-(--raised) hover:bg-(--raised-hover) border border-(--line) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+          >
+            <X aria-hidden="true" className="w-4 h-4 text-(--muted)" />
           </DialogClose>
 
           {/* Icon */}
@@ -33,16 +38,16 @@ export default function UpgradeModal({ isOpen, onClose, modelName }: UpgradeModa
             <div className="relative">
               <div className="absolute inset-0 bg-(--soft) blur-2xl rounded-full" />
               <div className="relative bg-(--soft) backdrop-blur-xl border border-(--accent)/30 rounded-full p-4">
-                <Shield className="w-10 h-10 text-(--accent)" />
+                <Shield aria-hidden="true" className="w-10 h-10 text-(--accent)" />
               </div>
             </div>
           </div>
 
           {/* Content */}
           <div className="px-8 pb-8">
-            <h2 className="text-2xl font-bold text-(--text) text-center mb-6">
+            <DialogTitle className="text-2xl font-bold text-(--text) text-center mb-6">
               {t("modalUpgradeTitle")}
-            </h2>
+            </DialogTitle>
 
             <div className="space-y-4 mb-6">
               {/* Model info */}
@@ -68,8 +73,9 @@ export default function UpgradeModal({ isOpen, onClose, modelName }: UpgradeModa
 
             {/* Button */}
             <button
+              type="button"
               onClick={onClose}
-              className="w-full py-3 px-4 bg-(--accent) hover:from-(--accent) hover:to-(--accent) rounded-lg text-(--text) font-medium transition-colors shadow-lg"
+              className="w-full py-3 px-4 bg-(--accent) hover:brightness-110 rounded-lg text-(--on-accent) font-medium transition-[filter] shadow-lg cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
             >
               {t("modalUpgradeGotIt")}
             </button>

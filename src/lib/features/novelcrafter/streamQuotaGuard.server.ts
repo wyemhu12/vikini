@@ -1,8 +1,8 @@
 // /lib/features/novelcrafter/streamQuotaGuard.server.ts
 // Serverless-safe daily message quota reservation using Upstash Redis (NC-06, Q2, R1)
 
-import { getRedis } from "@/lib/core/batchGenQuota";
 import { checkDailyMessageLimit, incrementDailyMessageCount } from "@/lib/core/limits";
+import { getSharedRedis } from "@/lib/core/redis.server";
 import { AccessPendingError, AppError } from "@/lib/utils/errors";
 import { logger } from "@/lib/utils/logger";
 
@@ -24,20 +24,6 @@ function buildInFlightKey(userId: string): string {
   return `${INFLIGHT_KEY_PREFIX}:${userId}:${utcDate}`;
 }
 
-function resolveUsableRedis(): ReturnType<typeof getRedis> {
-  const r = getRedis();
-  if (!r) return null;
-  if (
-    process.env.NODE_ENV === "test" &&
-    process.env.UPSTASH_REDIS_REST_URL?.includes("test-redis.upstash.io") &&
-    typeof r.incr === "function" &&
-    !("mock" in r.incr)
-  ) {
-    return null;
-  }
-  return r;
-}
-
 export type StreamQuotaReservationResult =
   | {
       allowed: false;
@@ -55,13 +41,19 @@ export type StreamQuotaReservationResult =
 export async function reserveNovelcrafterStreamQuota(
   userId: string
 ): Promise<StreamQuotaReservationResult> {
-  const redis = resolveUsableRedis();
+  const redis = getSharedRedis();
   const key = buildInFlightKey(userId);
 
   if (!redis) {
     if (process.env.NODE_ENV === "production") {
       throw new AppError("Quota service temporarily unavailable", 503, "QUOTA_SERVICE_UNAVAILABLE");
     }
+
+    const decrLocalInFlight = () => {
+      const nextVal = Math.max(0, (localInFlightCounts.get(key) ?? 1) - 1);
+      if (nextVal === 0) localInFlightCounts.delete(key);
+      else localInFlightCounts.set(key, nextVal);
+    };
 
     const currentInFlight = (localInFlightCounts.get(key) ?? 0) + 1;
     localInFlightCounts.set(key, currentInFlight);
@@ -74,9 +66,7 @@ export async function reserveNovelcrafterStreamQuota(
 
       const effectiveCount = dailyCheck.count + currentInFlight;
       if (!dailyCheck.canSend || effectiveCount > dailyCheck.limit) {
-        const nextVal = Math.max(0, (localInFlightCounts.get(key) ?? 1) - 1);
-        if (nextVal === 0) localInFlightCounts.delete(key);
-        else localInFlightCounts.set(key, nextVal);
+        decrLocalInFlight();
         return {
           allowed: false,
           count: Math.max(dailyCheck.count, effectiveCount - 1),
@@ -85,8 +75,14 @@ export async function reserveNovelcrafterStreamQuota(
       }
 
       let committed = false;
-      let released = false;
+      let inFlightReleased = false;
       let commitPromise: Promise<void> | null = null;
+
+      const releaseInFlightOnce = () => {
+        if (inFlightReleased) return;
+        inFlightReleased = true;
+        decrLocalInFlight();
+      };
 
       return {
         allowed: true,
@@ -95,27 +91,24 @@ export async function reserveNovelcrafterStreamQuota(
         onFirstModelOutput: () => {
           if (committed) return;
           committed = true;
-          commitPromise = Promise.resolve(incrementDailyMessageCount(userId)).catch(
-            (err: unknown) => {
+          commitPromise = Promise.resolve()
+            .then(() => incrementDailyMessageCount(userId))
+            .catch((err: unknown) => {
               quotaLogger.error("Failed to increment daily message count:", err);
-            }
-          );
+            })
+            .finally(() => {
+              releaseInFlightOnce();
+            });
         },
         releaseReservation: async () => {
-          if (released) return;
-          released = true;
           if (commitPromise) {
             await commitPromise;
           }
-          const nextVal = Math.max(0, (localInFlightCounts.get(key) ?? 1) - 1);
-          if (nextVal === 0) localInFlightCounts.delete(key);
-          else localInFlightCounts.set(key, nextVal);
+          releaseInFlightOnce();
         },
       };
     } catch (err: unknown) {
-      const nextVal = Math.max(0, (localInFlightCounts.get(key) ?? 1) - 1);
-      if (nextVal === 0) localInFlightCounts.delete(key);
-      else localInFlightCounts.set(key, nextVal);
+      decrLocalInFlight();
       throw err;
     }
   }
@@ -147,8 +140,21 @@ export async function reserveNovelcrafterStreamQuota(
     }
 
     let committed = false;
-    let released = false;
+    let releasePromise: Promise<void> | null = null;
     let commitPromise: Promise<void> | null = null;
+
+    const releaseInFlightOnce = (): Promise<void> => {
+      if (!releasePromise) {
+        releasePromise = (async () => {
+          try {
+            await redis.eval(DECR_AND_CLEANUP_LUA, [key], []);
+          } catch (decrErr: unknown) {
+            quotaLogger.error("Failed to decrement Redis in-flight stream counter:", decrErr);
+          }
+        })();
+      }
+      return releasePromise;
+    };
 
     return {
       allowed: true,
@@ -157,21 +163,18 @@ export async function reserveNovelcrafterStreamQuota(
       onFirstModelOutput: () => {
         if (committed) return;
         committed = true;
-        commitPromise = incrementDailyMessageCount(userId).catch((err: unknown) => {
-          quotaLogger.error("Failed to increment daily message count:", err);
-        });
+        commitPromise = Promise.resolve()
+          .then(() => incrementDailyMessageCount(userId))
+          .catch((err: unknown) => {
+            quotaLogger.error("Failed to increment daily message count:", err);
+          })
+          .finally(() => releaseInFlightOnce());
       },
       releaseReservation: async () => {
-        if (released) return;
-        released = true;
         if (commitPromise) {
           await commitPromise;
         }
-        try {
-          await redis.eval(DECR_AND_CLEANUP_LUA, [key], []);
-        } catch (decrErr: unknown) {
-          quotaLogger.error("Failed to decrement Redis in-flight stream counter:", decrErr);
-        }
+        await releaseInFlightOnce();
       },
     };
   } catch (err: unknown) {

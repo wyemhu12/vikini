@@ -163,7 +163,7 @@ export default function GemQuickSwitch({
               setOpen(false);
               openGemModal();
             }}
-            className="w-full text-center px-2 py-1.5 rounded-md text-xs font-medium bg-(--raised) hover:bg-(--raised) text-(--text) transition-colors flex justify-center items-center gap-1.5"
+            className="w-full text-center px-2 py-1.5 rounded-md text-xs font-medium bg-(--raised) hover:bg-(--raised-hover) text-(--text) transition-colors flex justify-center items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <Settings className="w-3.5 h-3.5" /> {t("manageGems") || "Manage GEMs"}
           </button>

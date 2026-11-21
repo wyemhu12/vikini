@@ -56,7 +56,7 @@ export default function ChapterAiBrainstormMenu({
               type="button"
               disabled={isStreaming}
               onClick={() => onRunBrainstorm(catKey, t(BRAINSTORM_LABELS[catKey]), brainstormTopic)}
-              className="px-2.5 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring)"
+              className="px-2.5 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised-hover) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
             >
               {t(BRAINSTORM_LABELS[catKey])}
             </button>

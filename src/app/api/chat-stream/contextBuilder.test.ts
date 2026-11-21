@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
-import { setupToolsAndSafety, buildMessageContext } from "./contextBuilder";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { setupToolsAndSafety, buildMessageContext, getWebSearchConfig } from "./contextBuilder";
 import * as messagesModule from "@/lib/features/chat/messages";
+import { estimateTokens } from "./chatStreamHelpers";
 
 vi.mock("@/lib/features/chat/messages", () => ({
   getRecentMessages: vi.fn(),
@@ -179,5 +180,42 @@ describe("contextBuilder - thoughtSignatures preservation (TC-B8-01..05)", () =>
     expect(
       (res.contents[0]?.parts[0] as { thoughtSignature?: string })?.thoughtSignature
     ).toBeUndefined();
+  });
+});
+
+describe("contextBuilder - token accuracy & web search rank gate (TC-W1-08)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("does not double-count the current user message tokens when already present in DB history", async () => {
+    const currentMsg = "A".repeat(400); // ~100 tokens
+    const sysPrompt = "B".repeat(200); // ~50 tokens
+
+    vi.mocked(messagesModule.getRecentMessages).mockResolvedValue([
+      {
+        id: "msg-curr",
+        conversationId: "conv-tok",
+        role: "user",
+        content: currentMsg,
+        meta: {},
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    const res = await buildMessageContext("conv-tok", currentMsg, sysPrompt, 32000);
+    const expectedExact = estimateTokens(sysPrompt) + estimateTokens(currentMsg);
+    expect(res.currentTokenCount).toBe(expectedExact);
+  });
+
+  it("disables web search when webSearchAllowed is false even if cookies set webSearchEnabled=1 & alwaysSearch=1", () => {
+    vi.stubEnv("WEB_SEARCH_ENABLED", "true");
+    const cookies = { webSearchEnabled: "1", alwaysSearch: "1" };
+
+    const denied = getWebSearchConfig(cookies, false);
+    expect(denied.enableWebSearch).toBe(false);
+
+    const allowed = getWebSearchConfig(cookies, true);
+    expect(allowed.enableWebSearch).toBe(true);
   });
 });

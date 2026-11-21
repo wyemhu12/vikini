@@ -17,7 +17,7 @@ import {
   deleteDocument,
   cleanupStuckProcessingDocuments,
 } from "@/lib/features/projects/knowledge.server";
-import { getProject } from "@/lib/features/projects/projects.server";
+import { getProject, verifyProjectOwnership } from "@/lib/features/projects/projects.server";
 import {
   UnauthorizedError,
   ValidationError,
@@ -94,9 +94,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
     const { id: projectId } = await params;
 
-    // Verify project exists and user owns it
-    const project = await getProject(projectId, userId);
-    if (!project) {
+    // Verify project exists and user owns it (lightweight 1-query check)
+    const owned = await verifyProjectOwnership(projectId, userId);
+    if (!owned) {
       throw new NotFoundError("Project");
     }
 
@@ -152,7 +152,12 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
 
     // JSON branch
-    const rawBody = await req.json();
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      throw new ValidationError("Invalid JSON body");
+    }
 
     // Strict Rejection 400: embedding_model is immutable and cannot be specified
     if (rawBody && typeof rawBody === "object" && "embedding_model" in rawBody) {
@@ -214,9 +219,9 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     const userId = session.user.email.toLowerCase();
     const { id: projectId } = await params;
 
-    // Verify project exists
-    const project = await getProject(projectId, userId);
-    if (!project) {
+    // Verify project exists and user owns it
+    const owned = await verifyProjectOwnership(projectId, userId);
+    if (!owned) {
       throw new NotFoundError("Project");
     }
 
@@ -226,7 +231,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       throw new ValidationError("documentId is required");
     }
 
-    await deleteDocument(documentId, userId);
+    await deleteDocument(documentId, userId, projectId);
 
     routeLogger.info(`Deleted document: ${documentId}`);
     return success({ deleted: true });

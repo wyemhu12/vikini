@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProjectSettingsModal } from "@/components/features/projects/ProjectSettingsModal";
+import { useLanguage } from "../hooks/useLanguage";
 
 const EditImagePromptModal = lazy(() => import("@/app/components/EditImagePromptModal"));
 
@@ -43,9 +44,6 @@ interface ChatModalsSectionProps {
   closeProjectSettingsModal: () => void;
   onCreateProjectChat: (projectId: string) => Promise<void>;
   onSelectChat: (chatId: string) => void;
-
-  // Translations
-  t: Record<string, string>;
 }
 
 export default function ChatModalsSection({
@@ -66,8 +64,9 @@ export default function ChatModalsSection({
   closeProjectSettingsModal,
   onCreateProjectChat,
   onSelectChat,
-  t,
 }: ChatModalsSectionProps) {
+  const { t } = useLanguage();
+
   return (
     <>
       <Suspense fallback={null}>
@@ -81,9 +80,9 @@ export default function ChatModalsSection({
 
       {/* Rename Modal */}
       <Dialog open={showRenameModal} onOpenChange={(open) => !open && closeRenameModal()}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>{t.renameChat || "Rename Conversation"}</DialogTitle>
+            <DialogTitle>{t("renameChat")}</DialogTitle>
           </DialogHeader>
           <Input
             type="text"
@@ -92,14 +91,14 @@ export default function ChatModalsSection({
             onKeyDown={(e) => e.key === "Enter" && confirmRename()}
             autoFocus
             className="h-11"
-            placeholder={t.renameChat || "Enter new title"}
+            placeholder={t("renameChat")}
           />
           <DialogFooter className="gap-2">
             <Button variant="ghost" onClick={closeRenameModal}>
-              {t.cancel || "Cancel"}
+              {t("cancel")}
             </Button>
             <Button onClick={confirmRename} disabled={!renameValue.trim()}>
-              {t.save || "Save"}
+              {t("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -112,18 +111,15 @@ export default function ChatModalsSection({
       >
         <DialogContent className="max-w-md border-(--danger)/30 ring-(--danger)/20 shadow-[0_0_40px_-10px_color-mix(in_srgb,var(--danger)_25%,transparent)]">
           <DialogHeader>
-            <DialogTitle>{t.modalDeleteTitle || "Delete Message?"}</DialogTitle>
-            <DialogDescription className="pt-1">
-              {t.modalDeleteConfirm ||
-                "Are you sure you want to delete this message? This action cannot be undone."}
-            </DialogDescription>
+            <DialogTitle>{t("modalDeleteTitle")}</DialogTitle>
+            <DialogDescription className="pt-1">{t("modalDeleteConfirm")}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="ghost" onClick={closeDeleteMessageModal}>
-              {t.cancel || "Cancel"}
+              {t("cancel")}
             </Button>
             <Button variant="destructive" onClick={confirmDeleteMessage}>
-              {t.modalDeleteButton || "Delete"}
+              {t("modalDeleteButton")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -38,6 +38,7 @@ import {
   updatePersona,
   deletePersona,
 } from "@/lib/features/personas/personas";
+import { consumeRateLimit } from "@/lib/core/rateLimit";
 
 // ── Helpers ───────────────────────────────────────────────────────────
 const TEST_EMAIL = "test@example.com";
@@ -331,9 +332,33 @@ describe("/api/personas", () => {
         body: "not-json{{{",
       });
       const res = await POST(req);
+      const json = await res.json();
 
-      // Empty body {} fails createPersonaSchema (name is required)
       expect(res.status).toBe(400);
+      expect(json.error.code).toBe("VALIDATION_ERROR");
+      expect(createPersona).not.toHaveBeenCalled();
+    });
+
+    it("TC-W1-06: authenticates before rate limiting and keys consumeRateLimit by userId (ignores x-forwarded-for)", async () => {
+      mockUnauthenticated();
+      const unauthRes = await GET(
+        new NextRequest(new URL("/api/personas", "http://localhost:3000"), {
+          method: "GET",
+          headers: { "x-forwarded-for": "1.2.3.4" },
+        })
+      );
+      expect(unauthRes.status).toBe(401);
+      expect(consumeRateLimit).not.toHaveBeenCalled();
+
+      mockAuthenticated();
+      vi.mocked(getPersonasForUser).mockResolvedValue([]);
+      await GET(
+        new NextRequest(new URL("/api/personas", "http://localhost:3000"), {
+          method: "GET",
+          headers: { "x-forwarded-for": "9.9.9.9" },
+        })
+      );
+      expect(consumeRateLimit).toHaveBeenCalledWith(`api-personas:${TEST_EMAIL}`);
     });
   });
 

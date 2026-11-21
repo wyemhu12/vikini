@@ -16,7 +16,15 @@ import {
   type UsageMetadata,
   type StreamResult,
 } from "./types";
-import { sendEvent, safeText, pick, getStreamTimeout, withTimeout, streamLogger } from "./utils";
+import {
+  sendEvent,
+  safeText,
+  pick,
+  getStreamTimeout,
+  withTimeout,
+  withIdleTimeout,
+  streamLogger,
+} from "./utils";
 import {
   extractAllThoughtSignatures,
   buildFunctionResponse,
@@ -202,8 +210,9 @@ async function executeStream(
 
   const maxTokens = getModelMaxOutputTokens(model);
   const timeoutMs = getStreamTimeout(model, effectiveThinkingLevel);
+  const idleTimeoutMs = Math.max(timeoutMs / 2, 30_000);
   streamLogger.info(
-    `Executing stream for model: ${model} with maxTokens: ${maxTokens}, timeout: ${timeoutMs}ms, thinkingLevel: ${effectiveThinkingLevel || "off"}`
+    `Executing stream for model: ${model} with maxTokens: ${maxTokens}, timeout: ${timeoutMs}ms, idleTimeout: ${idleTimeoutMs}ms, thinkingLevel: ${effectiveThinkingLevel || "off"}`
   );
 
   let systemInstruction: SystemInstruction | undefined = undefined;
@@ -269,214 +278,249 @@ async function executeStream(
 
   let fullReasoning = "";
 
-  for await (const chunk of stream) {
-    if (params.abortSignal?.aborted) break;
+  try {
+    for await (const chunk of withIdleTimeout(stream, idleTimeoutMs)) {
+      if (params.abortSignal?.aborted) break;
 
-    const pf = pick(chunk, ["promptFeedback", "prompt_feedback"]);
-    if (pf) promptFeedback = pf;
+      const pf = pick(chunk, ["promptFeedback", "prompt_feedback"]);
+      if (pf) promptFeedback = pf;
 
-    // Extract thought and text parts separately from the chunk
-    const candidates = (chunk as { candidates?: unknown[] })?.candidates;
-    const parts = (candidates?.[0] as { content?: { parts?: unknown[] } } | undefined)?.content
-      ?.parts;
+      // Extract thought and text parts separately from the chunk
+      const candidates = (chunk as { candidates?: unknown[] })?.candidates;
+      const parts = (candidates?.[0] as { content?: { parts?: unknown[] } } | undefined)?.content
+        ?.parts;
 
-    if (Array.isArray(parts)) {
-      for (const rawPart of parts) {
-        const part = rawPart as {
-          text?: string;
-          thought?: boolean | string;
-          functionCall?: unknown;
-          functionResponse?: unknown;
-        };
-
-        // Skip function call/response - handled separately below
-        if (part.functionCall || part.functionResponse) continue;
-
-        // Handle THOUGHT parts
-        if (
-          (part.thought === true && typeof part.text === "string") ||
-          typeof part.thought === "string"
-        ) {
-          const thoughtText =
-            typeof part.thought === "string" ? part.thought : (part.text as string);
-          if (thoughtText) {
-            fullReasoning = accumulateReasoning(fullReasoning, thoughtText);
-            if (params.acc) params.acc.reasoning = fullReasoning;
-            sendThinkingChunk(controller, thoughtText);
-          }
-          continue;
-        }
-
-        // Handle TEXT parts
-        if (typeof part.text === "string") {
-          full += part.text;
-          if (params.acc) params.acc.full = full;
-          sendEvent(controller, "token", { t: part.text });
-        }
-      }
-    } else {
-      // Fallback for non-candidates responses (v2 direct text, etc.)
-      const t = safeText(chunk);
-      if (t) {
-        full += t;
-        if (params.acc) params.acc.full = full;
-        sendEvent(controller, "token", { t });
-      }
-    }
-
-    // Extract ALL thoughtSignatures from chunk (Gemini 3 multi-step support)
-    const chunkSignatures = extractAllThoughtSignatures(chunk);
-    for (const sig of chunkSignatures) {
-      if (!seenSignatures.has(sig)) {
-        thoughtSignatures.push(sig);
-        seenSignatures.add(sig);
-      }
-    }
-
-    const cand = (chunk as { candidates?: unknown[] })?.candidates?.[0] as
-      | {
-          groundingMetadata?: unknown;
-          grounding_metadata?: unknown;
-          urlContextMetadata?: unknown;
-          url_context_metadata?: unknown;
-          finishReason?: string;
-          finish_reason?: string;
-          safetyRatings?: unknown;
-          safety_ratings?: unknown;
-        }
-      | undefined;
-
-    if (cand) {
-      if (cand.groundingMetadata || cand.grounding_metadata) {
-        groundingMetadata = cand.groundingMetadata || cand.grounding_metadata;
-      }
-      if (cand.urlContextMetadata || cand.url_context_metadata) {
-        urlContextMetadata = cand.urlContextMetadata || cand.url_context_metadata;
-      }
-
-      const fr = pick<string>(cand, ["finishReason", "finish_reason"]);
-      if (fr) finishReason = fr;
-
-      const sr = pick(cand, ["safetyRatings", "safety_ratings"]);
-      if (sr) safetyRatings = sr;
-    }
-
-    // Extract usageMetadata (typically in final chunk)
-    const rawUsage = (chunk as { usageMetadata?: unknown })?.usageMetadata as
-      | {
-          promptTokenCount?: number;
-          candidatesTokenCount?: number;
-          thoughtsTokenCount?: number;
-          totalTokenCount?: number;
-        }
-      | undefined;
-    if (rawUsage) {
-      usageMetadata = {
-        promptTokenCount: rawUsage.promptTokenCount,
-        candidatesTokenCount: rawUsage.candidatesTokenCount,
-        thoughtsTokenCount: rawUsage.thoughtsTokenCount,
-        totalTokenCount: rawUsage.totalTokenCount,
-      };
-    }
-
-    // Detect function calls from Gemini
-    const fcCand = (chunk as { candidates?: unknown[] })?.candidates?.[0] as
-      | { content?: { parts?: unknown[] }; finishReason?: string }
-      | undefined;
-
-    // Collect ALL parts from response for Gemini 3 tool context circulation
-    // Parts may include: text, toolCall, toolResponse, functionCall, thought_signature, etc.
-    if (fcCand?.content?.parts) {
-      for (const part of fcCand.content.parts) {
-        allResponseParts.push(part);
-      }
-    }
-
-    const fcFinish = fcCand?.finishReason;
-
-    // Detect function calls: primary via finishReason, fallback via parts content.
-    // Some models (e.g., Flash-Lite) may return functionCall parts with finishReason "STOP"
-    // instead of "FUNCTION_CALL".
-    const fcParts = (fcCand?.content?.parts || []) as Array<{
-      functionCall?: { name: string; args: Record<string, unknown>; id?: string };
-    }>;
-    const hasFunctionCalls = fcParts.some((p) => p.functionCall);
-
-    if (fcFinish === "FUNCTION_CALL" || fcFinish === "function_call" || hasFunctionCalls) {
-      if (hasFunctionCalls && fcFinish !== "FUNCTION_CALL" && fcFinish !== "function_call") {
-        streamLogger.info(
-          `Function call detected via parts content (finishReason was "${fcFinish || "undefined"}")`
-        );
-      }
-      const functionResponses: GeminiFunctionResponse[] = [];
-
-      for (const part of fcParts) {
-        if (part.functionCall) {
-          const { name, args, id } = part.functionCall;
-          streamLogger.info(`Function call: ${name}${id ? ` (id: ${id})` : ""}`);
-          sendEvent(controller, "meta", { type: "functionCall", name, args });
-          const result = await executeFunction(name, args || {});
-          functionResponses.push(buildFunctionResponse(part.functionCall, result));
-        }
-      }
-
-      // Make continuation call with function responses
-      if (functionResponses.length > 0) {
-        try {
-          // For Gemini 3 tool context circulation, include ALL response parts (toolCall,
-          // toolResponse, text, functionCall) in the model turn, not just functionCall parts.
-          // This preserves the context of server-side tool invocations (e.g., googleSearch).
-          const rawModelParts = allResponseParts.length > 0 ? allResponseParts : fcParts;
-          const modelParts = modelSupportsThinking(apiModel)
-            ? ensureFunctionCallSignature(rawModelParts)
-            : rawModelParts;
-          const contContents = [
-            ...contents,
-            { role: "model", parts: modelParts },
-            { role: "user", parts: functionResponses.map((fr) => ({ functionResponse: fr })) },
-          ];
-          const contConfig: Record<string, unknown> = {
-            abortSignal: params.abortSignal,
-            maxOutputTokens:
-              typeof maxTokens === "number" && !isNaN(maxTokens) ? maxTokens : undefined,
-            safetySettings:
-              Array.isArray(safetySettings) && safetySettings.length > 0
-                ? safetySettings
-                : undefined,
+      if (Array.isArray(parts)) {
+        for (const rawPart of parts) {
+          const part = rawPart as {
+            text?: string;
+            thought?: boolean | string;
+            functionCall?: unknown;
+            functionResponse?: unknown;
+            executableCode?: { code?: string; language?: string };
+            codeExecutionResult?: { output?: string; outcome?: string };
           };
-          if (thinkingConfig?.thinkingLevel) {
-            contConfig.thinkingConfig = { thinkingLevel: thinkingConfig.thinkingLevel };
+
+          // Skip function call/response - handled separately below
+          if (part.functionCall || part.functionResponse) continue;
+
+          // Handle Gemini Code Execution parts (render as markdown)
+          if (part.executableCode?.code) {
+            const lang = part.executableCode.language?.toLowerCase() || "python";
+            const codeBlock = `\n\`\`\`${lang}\n${part.executableCode.code}\n\`\`\`\n`;
+            full += codeBlock;
+            if (params.acc) params.acc.full = full;
+            sendEvent(controller, "token", { t: codeBlock });
+            continue;
           }
-          if (params.cachedContent) {
-            contConfig.cachedContent = params.cachedContent;
-          } else {
-            contConfig.systemInstruction = systemInstruction;
-            contConfig.tools =
-              params.useTools && Array.isArray(params.tools) && params.tools.length > 0
-                ? params.tools
-                : undefined;
-            contConfig.toolConfig = params.useTools ? params.toolConfig : undefined;
+          if (part.codeExecutionResult?.output) {
+            const outputBlock = `\n**Output:**\n\`\`\`\n${part.codeExecutionResult.output}\n\`\`\`\n`;
+            full += outputBlock;
+            if (params.acc) params.acc.full = full;
+            sendEvent(controller, "token", { t: outputBlock });
+            continue;
           }
-          const contResult = params.ai.models.generateContentStream({
-            model: apiModel,
-            contents: contContents as unknown[],
-            config: contConfig,
-          });
-          const contStream = contResult instanceof Promise ? await contResult : contResult;
-          for await (const contChunk of contStream) {
-            if (params.abortSignal?.aborted) break;
-            const ct = safeText(contChunk);
-            if (ct) {
-              full += ct;
-              if (params.acc) params.acc.full = full;
-              sendEvent(controller, "token", { t: ct });
+
+          // Handle THOUGHT parts
+          if (
+            (part.thought === true && typeof part.text === "string") ||
+            typeof part.thought === "string"
+          ) {
+            const thoughtText =
+              typeof part.thought === "string" ? part.thought : (part.text as string);
+            if (thoughtText) {
+              fullReasoning = accumulateReasoning(fullReasoning, thoughtText);
+              if (params.acc) params.acc.reasoning = fullReasoning;
+              sendThinkingChunk(controller, thoughtText);
             }
+            continue;
           }
-        } catch (contErr: unknown) {
-          streamLogger.error("Function call continuation error:", contErr);
+
+          // Handle TEXT parts
+          if (typeof part.text === "string") {
+            full += part.text;
+            if (params.acc) params.acc.full = full;
+            sendEvent(controller, "token", { t: part.text });
+          }
+        }
+      } else {
+        // Fallback for non-candidates responses (v2 direct text, etc.)
+        const t = safeText(chunk);
+        if (t) {
+          full += t;
+          if (params.acc) params.acc.full = full;
+          sendEvent(controller, "token", { t });
+        }
+      }
+
+      // Extract ALL thoughtSignatures from chunk (Gemini 3 multi-step support)
+      const chunkSignatures = extractAllThoughtSignatures(chunk);
+      for (const sig of chunkSignatures) {
+        if (!seenSignatures.has(sig)) {
+          thoughtSignatures.push(sig);
+          seenSignatures.add(sig);
+        }
+      }
+
+      const cand = (chunk as { candidates?: unknown[] })?.candidates?.[0] as
+        | {
+            groundingMetadata?: unknown;
+            grounding_metadata?: unknown;
+            urlContextMetadata?: unknown;
+            url_context_metadata?: unknown;
+            finishReason?: string;
+            finish_reason?: string;
+            safetyRatings?: unknown;
+            safety_ratings?: unknown;
+          }
+        | undefined;
+
+      if (cand) {
+        if (cand.groundingMetadata || cand.grounding_metadata) {
+          groundingMetadata = cand.groundingMetadata || cand.grounding_metadata;
+        }
+        if (cand.urlContextMetadata || cand.url_context_metadata) {
+          urlContextMetadata = cand.urlContextMetadata || cand.url_context_metadata;
+        }
+
+        const fr = pick<string>(cand, ["finishReason", "finish_reason"]);
+        if (fr) finishReason = fr;
+
+        const sr = pick(cand, ["safetyRatings", "safety_ratings"]);
+        if (sr) safetyRatings = sr;
+      }
+
+      // Extract usageMetadata (typically in final chunk)
+      const rawUsage = (chunk as { usageMetadata?: unknown })?.usageMetadata as
+        | {
+            promptTokenCount?: number;
+            candidatesTokenCount?: number;
+            thoughtsTokenCount?: number;
+            totalTokenCount?: number;
+          }
+        | undefined;
+      if (rawUsage) {
+        usageMetadata = {
+          promptTokenCount: rawUsage.promptTokenCount,
+          candidatesTokenCount: rawUsage.candidatesTokenCount,
+          thoughtsTokenCount: rawUsage.thoughtsTokenCount,
+          totalTokenCount: rawUsage.totalTokenCount,
+        };
+      }
+
+      // Detect function calls from Gemini
+      const fcCand = (chunk as { candidates?: unknown[] })?.candidates?.[0] as
+        | { content?: { parts?: unknown[] }; finishReason?: string }
+        | undefined;
+
+      // Collect ALL parts from response for Gemini 3 tool context circulation
+      // Parts may include: text, toolCall, toolResponse, functionCall, thought_signature, etc.
+      if (fcCand?.content?.parts) {
+        for (const part of fcCand.content.parts) {
+          allResponseParts.push(part);
+        }
+      }
+
+      const fcFinish = fcCand?.finishReason;
+
+      // Detect function calls: primary via finishReason, fallback via parts content.
+      // Some models (e.g., Flash-Lite) may return functionCall parts with finishReason "STOP"
+      // instead of "FUNCTION_CALL".
+      const fcParts = (fcCand?.content?.parts || []) as Array<{
+        functionCall?: { name: string; args: Record<string, unknown>; id?: string };
+      }>;
+      const hasFunctionCalls = fcParts.some((p) => p.functionCall);
+
+      if (fcFinish === "FUNCTION_CALL" || fcFinish === "function_call" || hasFunctionCalls) {
+        if (hasFunctionCalls && fcFinish !== "FUNCTION_CALL" && fcFinish !== "function_call") {
+          streamLogger.info(
+            `Function call detected via parts content (finishReason was "${fcFinish || "undefined"}")`
+          );
+        }
+        const functionResponses: GeminiFunctionResponse[] = [];
+
+        for (const part of fcParts) {
+          if (part.functionCall) {
+            const { name, args, id } = part.functionCall;
+            streamLogger.info(`Function call: ${name}${id ? ` (id: ${id})` : ""}`);
+            sendEvent(controller, "meta", { type: "functionCall", name, args });
+            const result = await executeFunction(name, args || {});
+            functionResponses.push(buildFunctionResponse(part.functionCall, result));
+          }
+        }
+
+        // Make continuation call with function responses
+        if (functionResponses.length > 0) {
+          try {
+            // For Gemini 3 tool context circulation, include ALL response parts (toolCall,
+            // toolResponse, text, functionCall) in the model turn, not just functionCall parts.
+            // This preserves the context of server-side tool invocations (e.g., googleSearch).
+            const rawModelParts = allResponseParts.length > 0 ? allResponseParts : fcParts;
+            const modelParts = modelSupportsThinking(apiModel)
+              ? ensureFunctionCallSignature(rawModelParts)
+              : rawModelParts;
+            const contContents = [
+              ...contents,
+              { role: "model", parts: modelParts },
+              { role: "user", parts: functionResponses.map((fr) => ({ functionResponse: fr })) },
+            ];
+            const contConfig: Record<string, unknown> = {
+              abortSignal: params.abortSignal,
+              maxOutputTokens:
+                typeof maxTokens === "number" && !isNaN(maxTokens) ? maxTokens : undefined,
+              safetySettings:
+                Array.isArray(safetySettings) && safetySettings.length > 0
+                  ? safetySettings
+                  : undefined,
+            };
+            if (thinkingConfig?.thinkingLevel) {
+              contConfig.thinkingConfig = { thinkingLevel: thinkingConfig.thinkingLevel };
+            }
+            if (params.cachedContent) {
+              contConfig.cachedContent = params.cachedContent;
+            } else {
+              contConfig.systemInstruction = systemInstruction;
+              contConfig.tools =
+                params.useTools && Array.isArray(params.tools) && params.tools.length > 0
+                  ? params.tools
+                  : undefined;
+              contConfig.toolConfig = params.useTools ? params.toolConfig : undefined;
+            }
+            const contResult = params.ai.models.generateContentStream({
+              model: apiModel,
+              contents: contContents as unknown[],
+              config: contConfig,
+            });
+            const contStream =
+              contResult instanceof Promise ? await withTimeout(contResult, timeoutMs) : contResult;
+            for await (const contChunk of withIdleTimeout(contStream, idleTimeoutMs)) {
+              if (params.abortSignal?.aborted) break;
+              const ct = safeText(contChunk);
+              if (ct) {
+                full += ct;
+                if (params.acc) params.acc.full = full;
+                sendEvent(controller, "token", { t: ct });
+              }
+            }
+          } catch (contErr: unknown) {
+            if (contErr instanceof StreamTimeoutError) {
+              throw contErr;
+            }
+            streamLogger.error("Function call continuation error:", contErr);
+          }
         }
       }
     }
+  } catch (streamErr: unknown) {
+    if (streamErr instanceof StreamTimeoutError) {
+      streamLogger.error(`Stream idle timeout after ${idleTimeoutMs}ms for model: ${apiModel}`);
+      sendEvent(controller, "error", {
+        message: `Request timed out after ${Math.round(idleTimeoutMs / 1000)} seconds. Please try again.`,
+        code: "STREAM_TIMEOUT",
+        isTimeout: true,
+      });
+    }
+    throw streamErr;
   }
 
   return {
@@ -652,34 +696,38 @@ async function runStreamWithFallback(
       throw err;
     }
 
+    // If no tools were active, emit error once and rethrow (outside fallback try/catch to avoid duplicate error SSE)
+    if (!Array.isArray(tools) || tools.length === 0) {
+      sendEvent(controller, "error", {
+        message: errorInfo.message,
+        code: errorInfo.code,
+        status: errorInfo.status,
+      });
+      throw err;
+    }
+
     try {
       // If we failed with tools, retry without tools (BUT keep thinking config if present)
-      if (Array.isArray(tools) && tools.length > 0) {
-        sendEvent(controller, "meta", {
-          type: "webSearchFallback",
-          message: "Tools not supported. Retrying without web search.",
-        });
-        return await executeStream(controller, {
-          ai,
-          model,
-          contents,
-          sysPrompt,
-          tools,
-          safetySettings,
-          useTools: false,
-          thinkingLevel,
-          acc,
-          abortSignal,
-        });
-      } else {
-        sendEvent(controller, "error", {
-          message: errorInfo.message,
-          code: errorInfo.code,
-          status: errorInfo.status,
-        });
-        throw err;
-      }
+      sendEvent(controller, "meta", {
+        type: "webSearchFallback",
+        message: "Tools not supported. Retrying without web search.",
+      });
+      return await executeStream(controller, {
+        ai,
+        model,
+        contents,
+        sysPrompt,
+        tools,
+        safetySettings,
+        useTools: false,
+        thinkingLevel,
+        acc,
+        abortSignal,
+      });
     } catch (err2) {
+      if (err2 instanceof StreamTimeoutError || abortSignal?.aborted) {
+        throw err2;
+      }
       streamLogger.error("stream error (fallback):", err2);
       const fallbackErrorInfo = extractGeminiErrorInfo(err2);
       sendEvent(controller, "error", {
@@ -890,9 +938,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
 
         sendEvent(controller, "done", { ok: true });
       } catch (err) {
-        if (isCancelled || ac.signal.aborted) {
-          await savePartialOnce();
-        }
+        await savePartialOnce();
         streamLogger.error("createChatReadableStream error:", err);
         sendEvent(controller, "done", { ok: false });
       } finally {

@@ -10,17 +10,13 @@ import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
 import {
   hasUnsavedDraftContent,
-  promoteUnsavedDraftToStory,
-  readLocalStoryDraft,
   removeLocalStoryDraft,
-  resolveStoryLoadFailureState,
   resolveValidNovelcrafterStoryId,
   shouldBlockAutosaveForStory,
 } from "@/lib/features/novelcrafter/draftStorage";
 import { buildPreviousChapterSummariesText } from "@/lib/features/novelcrafter/promptBuilder";
 import {
   NovelcrafterSyncCoordinator,
-  shouldApplyRemoteStoryLoad,
   type StorySaveStatus,
 } from "@/lib/features/novelcrafter/storySyncCoordinator";
 import type { StoryScopedState } from "@/lib/features/novelcrafter/streamTargetGuard";
@@ -29,7 +25,6 @@ import {
   type NovelcrafterStoryState,
 } from "@/lib/features/novelcrafter/types";
 import {
-  loadAndReconcileStoryState,
   spawnAndBindStoryConversation,
   useNovelcrafterCatalog,
   type ClientGemItem,
@@ -37,6 +32,7 @@ import {
 } from "./useNovelcrafterCatalog";
 import { resolveStoryStateSettled } from "./useBeatsAutoOpen";
 import { useNovelcrafterStateMutators } from "./useNovelcrafterStateMutators";
+import { useStoryHydrationEffect } from "./useStoryHydrationEffect";
 import { useStoryPersistenceLifecycle } from "./useStoryPersistenceLifecycle";
 
 export type { ClientGemItem, ClientPersonaItem, StorySaveStatus };
@@ -83,7 +79,6 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     createDefaultStoryState(t("novelcrafterDefaultChapterTitle"))
   );
   const [isLoadingState, setIsLoadingState] = useState(false);
-  // Story id whose state is on screen (undefined until first hydration) + id a draft was promoted into.
   const [hydratedStoryId, setHydratedStoryId] = useState<string | null | undefined>(undefined);
   const [promotedDraftStoryId, setPromotedDraftStoryId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<StorySaveStatus>("saved");
@@ -163,152 +158,29 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     executeSaveRef.current = executeCoordinatorSave;
   }, [executeCoordinatorSave]);
 
-  useEffect(() => {
-    if (coordinator.isCreatingStory()) return;
-    const hasUnsaved =
-      latestStateRef.current.ownerStoryId === null &&
-      hasUnsavedDraftContent(latestStateRef.current.state);
-    if (!selectedConversationId && stories.length > 0 && !hasUnsaved) {
-      setSelectedConversationId(stories[0].id);
-    } else if (
-      selectedConversationId &&
-      stories.length > 0 &&
-      !stories.some((s) => s.id === selectedConversationId)
-    ) {
-      setSelectedConversationId(stories[0].id);
-    }
-  }, [selectedConversationId, stories, setSelectedConversationId, coordinator]);
-
-  const prevValidStoryIdRef = useRef<string | null>(validStoryId);
-
-  useEffect(() => {
-    const prevStoryId = prevValidStoryIdRef.current;
-    prevValidStoryIdRef.current = validStoryId;
-
-    if (prevStoryId && prevStoryId !== validStoryId) {
-      cancelPendingSaveTimers();
-      const prevExists = storiesRef.current.some((s) => s.id === prevStoryId);
-      if (
-        prevExists &&
-        dirtyStoryIdsRef.current.has(prevStoryId) &&
-        latestStateRef.current.ownerStoryId === prevStoryId &&
-        !shouldBlockAutosaveForStory(prevStoryId, loadErrorStoryIdRef.current)
-      ) {
-        const snapshot = latestStateRef.current.state;
-        flushLocalDraftSync(prevStoryId, snapshot);
-        void executeCoordinatorSave(prevStoryId, snapshot, {
-          epoch: coordinator.getEpoch(prevStoryId),
-        });
-      }
-    }
-
-    if (!isAuthed || !validStoryId) {
-      updateLoadErrorStoryId(null);
-      if (!coordinator.isCreatingStory() && latestStateRef.current.ownerStoryId !== null) {
-        cancelPendingSaveTimers();
-        const fresh = createDefaultStoryState(t("novelcrafterDefaultChapterTitle"));
-        latestStateRef.current = { ownerStoryId: null, state: fresh };
-        setStoryState(fresh);
-        setSaveStatus("saved");
-      } else if (latestStateRef.current.ownerStoryId === null) {
-        const unsavedEnv = readLocalStoryDraft(null, t("novelcrafterDefaultChapterTitle"));
-        if (unsavedEnv?.dirty) {
-          latestStateRef.current = { ownerStoryId: null, state: unsavedEnv.state };
-          setStoryState(unsavedEnv.state);
-        }
-      }
-      setHydratedStoryId(null);
-      return;
-    }
-
-    const decision = shouldApplyRemoteStoryLoad({
-      storyId: validStoryId,
-      coordinator,
-      currentOwnerStoryId: latestStateRef.current.ownerStoryId,
-    });
-    if (decision.shouldPromoteUnsaved) {
-      updateLoadErrorStoryId(null);
-      const promoted = promoteUnsavedDraftToStory(
-        validStoryId,
-        latestStateRef.current.state,
-        coordinator,
-        { markSkipNextGet: false }
-      );
-      latestStateRef.current = { ownerStoryId: validStoryId, state: promoted };
-      setStoryState(promoted);
-      setPromotedDraftStoryId(validStoryId);
-      setHydratedStoryId(validStoryId);
-      void executeCoordinatorSave(validStoryId, promoted, {
-        epoch: coordinator.getEpoch(validStoryId),
-      });
-      return;
-    }
-    if (!decision.shouldFetch) {
-      latestStateRef.current = { ownerStoryId: validStoryId, state: latestStateRef.current.state };
-      setHydratedStoryId(validStoryId);
-      return;
-    }
-
-    let cancelled = false;
-    setIsLoadingState(true);
-    void loadAndReconcileStoryState({
-      convId: validStoryId,
-      defaultChapterTitle: t("novelcrafterDefaultChapterTitle"),
-      loadErrorMsg: t("novelcrafterLoadError"),
-      coordinator,
-    })
-      .then((reconciled) => {
-        if (cancelled) return;
-        updateLoadErrorStoryId(null);
-        latestStateRef.current = { ownerStoryId: validStoryId, state: reconciled.state };
-        setStoryState(reconciled.state);
-        setHydratedStoryId(validStoryId);
-        if (reconciled.conflictDetected) toast.info(t("novelcrafterConflictBackupNotice"));
-        if (reconciled.shouldSyncDraftToServer) {
-          dirtyStoryIdsRef.current.add(validStoryId);
-          void executeCoordinatorSave(validStoryId, reconciled.state, {
-            epoch: coordinator.getEpoch(validStoryId),
-          });
-        } else {
-          dirtyStoryIdsRef.current.delete(validStoryId);
-          setSaveStatus("saved");
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          cancelPendingSaveTimers();
-          dirtyStoryIdsRef.current.delete(validStoryId);
-          const fallbackScoped = resolveStoryLoadFailureState({
-            storyId: validStoryId,
-            defaultChapterTitle: t("novelcrafterDefaultChapterTitle"),
-          });
-          latestStateRef.current = fallbackScoped;
-          setStoryState(fallbackScoped.state);
-          setHydratedStoryId(validStoryId);
-          updateLoadErrorStoryId(validStoryId);
-          setSaveStatus("error");
-          storyLogger.error("Failed to load story state:", err);
-          toast.error(t("novelcrafterLoadError"));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingState(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [
+  useStoryHydrationEffect({
     isAuthed,
+    stories,
+    storiesRef,
+    selectedConversationId,
+    setSelectedConversationId,
     validStoryId,
     coordinator,
-    cancelPendingSaveTimers,
+    latestStateRef,
+    loadErrorStoryIdRef,
     dirtyStoryIdsRef,
+    cancelPendingSaveTimers,
     flushLocalDraftSync,
     executeCoordinatorSave,
     updateLoadErrorStoryId,
+    setStoryState,
+    setIsLoadingState,
+    setHydratedStoryId,
+    setPromotedDraftStoryId,
+    setSaveStatus,
     loadRetryNonce,
     t,
-  ]);
+  });
 
   const handleCreateStory = useCallback(async (): Promise<string | null> => {
     try {
@@ -336,7 +208,9 @@ export function useNovelcrafterStory(isAuthed: boolean) {
         createConversation,
       });
       if (!newId) throw new Error(t("novelcrafterCreateStoryError"));
-      await executeCoordinatorSave(newId, initialState, { epoch: coordinator.getEpoch(newId) });
+      await executeCoordinatorSave(newId, initialState, {
+        epoch: coordinator.getEpoch(newId),
+      });
       return newId;
     } catch (err: unknown) {
       storyLogger.error("handleCreateStory failed:", err);

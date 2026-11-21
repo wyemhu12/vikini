@@ -470,7 +470,7 @@ export function createStrataStream(params: CreateStrataStreamParams): ReadableSt
         return;
       }
 
-      if (!streamFailed || full.trim() || fullReasoning.trim()) {
+      if (!streamFailed) {
         const extraMeta: Record<string, unknown> = {};
         if (fullReasoning.trim()) {
           const elapsedMs =

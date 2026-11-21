@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
+import { GoogleGenAI } from "@google/genai";
 import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { ImageGenFactory } from "@/lib/features/image-gen/core/ImageGenFactory";
@@ -8,13 +9,13 @@ import { saveMessage } from "@/lib/features/chat/messages";
 import { assertConversationOwner } from "@/lib/features/chat/conversations";
 import { logger } from "@/lib/utils/logger";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
-import { getUserProfile } from "@/lib/core/limits";
+import { assertModelAllowedForUser, getUserProfile } from "@/lib/core/limits";
 import { DEFAULT_MODEL, isSelectableModelId, normalizeModelForApi } from "@/lib/core/modelRegistry";
 import { buildMinimalThinkingConfig, extractGeminiResponseText } from "@/lib/core/geminiSdkHelpers";
 import { tryClaimBatchGenSlot, BATCH_GEN_LIMITS } from "@/lib/core/batchGenQuota";
 import { UnauthorizedError, ValidationError, RateLimitError, AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
-import { HTTP_STATUS } from "@/lib/utils/constants";
+import { HTTP_STATUS, ALLOWED_GENERATE_IMAGE_MODELS } from "@/lib/utils/constants";
 
 const routeLogger = logger.withContext("generate-image");
 
@@ -44,7 +45,7 @@ const imageGenOptionsSchema = z
     style: z.string().max(50).optional(), // MT5: Any style ID from expanded style system
     enhancer: z.boolean().optional(),
     enhancerModel: z.string().max(100).optional(),
-    model: z.string().max(100).optional(),
+    model: z.enum(ALLOWED_GENERATE_IMAGE_MODELS).optional(),
     referenceImage: z.string().optional(), // backward compat
     referenceImages: z.array(z.string()).max(4).optional(), // QW-D: multiple reference images
   })
@@ -76,7 +77,12 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Parse & Validate Body
-    const rawBody = await req.json();
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      throw new ValidationError("Invalid JSON body");
+    }
     let parsed;
     try {
       parsed = imageGenRequestSchema.parse(rawBody);
@@ -151,21 +157,23 @@ export async function POST(req: NextRequest) {
       let enhancerFailed = false;
       if (options?.enhancer) {
         routeLogger.info("[Enhancer] Original prompt:", prompt);
-        try {
-          const { getGenAIClient } = await import("@/lib/core/genaiClient");
-          const genAI = getGenAIClient();
 
-          // Only user-selectable Gemini text models may rewrite prompts (excludes gemini-3-pro-image, non-Gemini).
-          let enhancerModelId: string = DEFAULT_MODEL;
-          if (options?.enhancerModel) {
-            const normalizedEnhancer = normalizeModelForApi(options.enhancerModel);
-            if (
-              isSelectableModelId(normalizedEnhancer) &&
-              normalizedEnhancer.startsWith("gemini-")
-            ) {
-              enhancerModelId = normalizedEnhancer;
-            }
+        // Only user-selectable Gemini text models may rewrite prompts (excludes gemini-3-pro-image, non-Gemini).
+        let enhancerModelId: string = DEFAULT_MODEL;
+        if (options?.enhancerModel) {
+          const normalizedEnhancer = normalizeModelForApi(options.enhancerModel);
+          if (isSelectableModelId(normalizedEnhancer) && normalizedEnhancer.startsWith("gemini-")) {
+            enhancerModelId = normalizedEnhancer;
           }
+        }
+
+        // Enforce rank-based model access BEFORE the soft enhancer catch (never swallow 403)
+        await assertModelAllowedForUser(userId, enhancerModelId);
+
+        try {
+          const genAI = isByok
+            ? new GoogleGenAI({ apiKey: apiKey!.trim() })
+            : (await import("@/lib/core/genaiClient")).getGenAIClient();
 
           const enhancementPrompt = `You are a professional AI image prompt engineer. Enhance this prompt for maximum image quality.
 
@@ -194,7 +202,7 @@ Original: "${prompt}"`;
             routeLogger.info(`[Enhancer] Enhanced prompt:`, enhancedText.trim());
             prompt = enhancedText.trim();
           }
-        } catch (e) {
+        } catch (e: unknown) {
           routeLogger.error("Prompt Enhancement Failed, using original:", e);
           enhancerFailed = true;
         }
@@ -233,9 +241,6 @@ Original: "${prompt}"`;
       }
 
       const provider = ImageGenFactory.getProvider(providerName);
-
-      // Extract BYOK key from headers if present
-      const apiKey = req.headers.get("x-api-key") || undefined;
 
       // Type assertion to ensure model mapping doesn't lose data
       const results = await provider.generate(prompt, options as ImageGenOptions, apiKey);
@@ -360,16 +365,33 @@ Original: "${prompt}"`;
         imageUrl: messageMeta.imageUrl,
       });
 
-      // Save Message using existing helper
-      const message = await saveMessage(
-        userId, // Note: saveMessage uses userId for logging but check if it enforces RLS or ownership.
-        // `messages.ts` saveMessage doesn't seem to check ownership of conversation, assumes caller checks.
-        // Logic seems fine.
-        conversationId,
-        "assistant",
-        messageContent,
-        messageMeta
-      );
+      // Save Message using existing helper (clean up uploaded storage object on DB failure)
+      let message;
+      try {
+        message = await saveMessage(
+          userId,
+          conversationId,
+          "assistant",
+          messageContent,
+          messageMeta
+        );
+        if (!message) {
+          throw new Error("Failed to save message");
+        }
+      } catch (saveErr: unknown) {
+        if (storagePath) {
+          await supabase.storage
+            .from(bucket)
+            .remove([storagePath])
+            .catch((cleanupErr: unknown) => {
+              routeLogger.warn(
+                "Failed to cleanup orphan image after saveMessage failure:",
+                cleanupErr
+              );
+            });
+        }
+        throw saveErr;
+      }
 
       // 7. Return Success
       return success({

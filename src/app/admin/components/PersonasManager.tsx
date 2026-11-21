@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Users, Plus, Edit2, Trash2, AlertCircle, X, RotateCcw } from "lucide-react";
 import PersonaEditor from "@/app/features/personas/components/PersonaEditor";
 import { DynamicIcon } from "@/components/ui/DynamicIcon";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PersonaForUI } from "@/app/features/personas/components/PersonaPreview";
 import type { PersonaTone } from "@/types/persona";
@@ -13,6 +14,7 @@ import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { toast } from "@/lib/store/toastStore";
 import { confirm } from "@/lib/store/confirmStore";
 import { logger } from "@/lib/utils/logger";
+import { TRANSITION } from "@/lib/utils/motion";
 
 interface PremadePersona {
   id: string;
@@ -207,7 +209,7 @@ export default function PersonasManager() {
         <button
           type="button"
           onClick={openAddModal}
-          className="inline-flex items-center gap-2 px-4 py-2 min-h-10 bg-(--soft) text-(--accent) rounded-lg hover:bg-(--accent)/20 border border-(--accent)/30 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+          className="inline-flex items-center gap-2 px-4 py-2 min-h-10 bg-(--accent) text-(--on-accent) font-medium rounded-lg hover:brightness-110 transition-[filter] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
         >
           <Plus aria-hidden="true" className="w-4 h-4" />
           {t("addPersona") || "Add Persona"}
@@ -215,16 +217,17 @@ export default function PersonasManager() {
       </div>
 
       {personas.length === 0 ? (
-        <div className="text-center py-12 text-(--muted)">
-          <Users aria-hidden="true" className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>{t("noGlobalPersonas") || "No global personas found"}</p>
-        </div>
+        <EmptyState
+          icon={<Users className="w-6 h-6" />}
+          title={t("noGlobalPersonas") || "No global personas found"}
+          action={{ label: t("addPersona") || "Add Persona", onClick: openAddModal }}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {personas.map((persona) => (
             <div
               key={persona.id}
-              className="p-4 rounded-lg bg-(--raised) border border-(--line) hover:border-(--line-strong) transition-colors"
+              className="p-4 rounded-lg bg-(--raised) border border-(--line) hover:border-(--accent)/40 transition-colors"
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -280,6 +283,7 @@ export default function PersonasManager() {
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 0 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={TRANSITION.EXIT_FAST}
               className="bg-(--surface) text-(--text) border border-(--line) rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl relative my-auto pointer-events-auto"
             >
               <div className="flex-none flex items-center justify-between p-4 border-b border-(--line) bg-(--surface) rounded-t-xl z-20">

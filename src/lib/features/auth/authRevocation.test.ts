@@ -38,14 +38,17 @@ import {
   bumpAuthVersion,
   getAuthVersion,
   refreshTokenFromDB,
+  refreshTokenFromDBDetailed,
   AUTH_VERSION_TTL,
 } from "./authRevocation";
+import { resetSharedRedisForTests } from "@/lib/core/redis.server";
 
 describe("authRevocation", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetSharedRedisForTests();
     process.env = {
       ...originalEnv,
       UPSTASH_REDIS_REST_URL: "https://test-redis.upstash.io",
@@ -55,6 +58,7 @@ describe("authRevocation", () => {
 
   afterEach(() => {
     process.env = originalEnv;
+    resetSharedRedisForTests();
   });
 
   describe("bumpAuthVersion", () => {
@@ -193,6 +197,63 @@ describe("authRevocation", () => {
     it("should return null when email is empty", async () => {
       const result = await refreshTokenFromDB("  ");
       expect(result).toBeNull();
+    });
+  });
+
+  describe("refreshTokenFromDBDetailed (TC-W1-04)", () => {
+    it("returns status ok with normalized userId when found", async () => {
+      mockSupabaseAdmin.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { id: "user-123", rank: "admin", is_blocked: false },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      const result = await refreshTokenFromDBDetailed("Admin@Example.com");
+      expect(result).toEqual({
+        status: "ok",
+        userId: "admin@example.com",
+        rank: "admin",
+        isBlocked: false,
+      });
+    });
+
+    it("returns status not_found when profile row is absent or email is blank", async () => {
+      mockSupabaseAdmin.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          }),
+        }),
+      });
+
+      expect(await refreshTokenFromDBDetailed("deleted@example.com")).toEqual({
+        status: "not_found",
+      });
+      expect(await refreshTokenFromDBDetailed("   ")).toEqual({ status: "not_found" });
+    });
+
+    it("returns status error on DB query error or thrown exception", async () => {
+      mockSupabaseAdmin.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: null,
+              error: { message: "connection timeout" },
+            }),
+          }),
+        }),
+      });
+      expect(await refreshTokenFromDBDetailed("user@example.com")).toEqual({ status: "error" });
+
+      mockSupabaseAdmin.from.mockImplementationOnce(() => {
+        throw new Error("Network failure");
+      });
+      expect(await refreshTokenFromDBDetailed("user@example.com")).toEqual({ status: "error" });
     });
   });
 });

@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/features/auth/auth";
 import { getGemsForUser, createGem, updateGem, deleteGem } from "@/lib/features/gems/gems";
 import { createGemSchema, updateGemSchema, deleteGemSchema } from "./validators";
@@ -14,9 +15,8 @@ import { consumeRateLimit, rateLimitHeaders } from "@/lib/core/rateLimit";
 
 const routeLogger = logger.withContext("/api/gems");
 
-async function checkRL(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") || "127.0.0.1";
-  const rl = await consumeRateLimit(`api-gems-${ip}`);
+async function checkRL(userId: string) {
+  const rl = await consumeRateLimit(`api-gems:${userId}`);
   if (!rl.allowed) {
     const res = error(
       "Rate limit exceeded",
@@ -29,14 +29,23 @@ async function checkRL(req: NextRequest) {
   return null;
 }
 
-// Type guard for Zod-like validation errors
-interface ZodLikeError {
-  errors?: Array<{ path: string[]; message: string }>;
-  message?: string;
+async function parseJsonBody(req: NextRequest): Promise<unknown> {
+  try {
+    return await req.json();
+  } catch {
+    throw new ValidationError("Invalid JSON body");
+  }
 }
 
-function isZodLikeError(e: unknown): e is ZodLikeError {
-  return typeof e === "object" && e !== null && ("errors" in e || "message" in e);
+function throwZodValidationError(e: unknown): never {
+  if (e instanceof z.ZodError) {
+    const firstIssue = e.issues[0];
+    const field = firstIssue?.path.join(".");
+    throw new ValidationError(
+      field ? `${field}: ${firstIssue.message}` : firstIssue?.message || "Invalid request body"
+    );
+  }
+  throw new ValidationError("Invalid request body");
 }
 
 interface GemRow {
@@ -91,15 +100,14 @@ function mapGemForClient(row: GemRow | null): GemForClient | null {
 // ------------------------------
 // GET: list premade + my gems (with latest instructions)
 // ------------------------------
-export async function GET(req: NextRequest) {
+export async function GET(_req?: NextRequest) {
   try {
-    const rlError = await checkRL(req);
-    if (rlError) return rlError;
-
     const session = await auth();
     if (!session?.user?.email) throw new UnauthorizedError();
 
     const userId = session.user.email.toLowerCase();
+    const rlError = await checkRL(userId);
+    if (rlError) return rlError;
 
     const gems = await getGemsForUser(userId);
     const mapped = (Array.isArray(gems) ? gems : [])
@@ -119,25 +127,19 @@ export async function GET(req: NextRequest) {
 // ------------------------------
 export async function POST(req: NextRequest) {
   try {
-    const rlError = await checkRL(req);
-    if (rlError) return rlError;
-
     const session = await auth();
     if (!session?.user?.email) throw new UnauthorizedError();
 
     const userId = session.user.email.toLowerCase();
-    const rawBody = await req.json().catch(() => ({}));
+    const rlError = await checkRL(userId);
+    if (rlError) return rlError;
+
+    const rawBody = await parseJsonBody(req);
     let body;
     try {
       body = createGemSchema.parse(rawBody);
     } catch (e: unknown) {
-      if (isZodLikeError(e) && e.errors) {
-        const firstError = e.errors[0];
-        const field = firstError.path.join(".");
-        throw new ValidationError(`${field}: ${firstError.message}`);
-      }
-      const message = isZodLikeError(e) ? e.message : "Invalid request body";
-      throw new ValidationError(message || "Invalid request body");
+      throwZodValidationError(e);
     }
 
     const gem = await createGem(userId, body);
@@ -154,25 +156,19 @@ export async function POST(req: NextRequest) {
 // ------------------------------
 export async function PATCH(req: NextRequest) {
   try {
-    const rlError = await checkRL(req);
-    if (rlError) return rlError;
-
     const session = await auth();
     if (!session?.user?.email) throw new UnauthorizedError();
 
     const userId = session.user.email.toLowerCase();
-    const rawBody = await req.json().catch(() => ({}));
+    const rlError = await checkRL(userId);
+    if (rlError) return rlError;
+
+    const rawBody = await parseJsonBody(req);
     let body;
     try {
       body = updateGemSchema.parse(rawBody);
     } catch (e: unknown) {
-      if (isZodLikeError(e) && e.errors) {
-        const firstError = e.errors[0];
-        const field = firstError.path.join(".");
-        throw new ValidationError(`${field}: ${firstError.message}`);
-      }
-      const message = isZodLikeError(e) ? e.message : "Invalid request body";
-      throw new ValidationError(message || "Invalid request body");
+      throwZodValidationError(e);
     }
 
     const { id, ...rest } = body;
@@ -191,25 +187,19 @@ export async function PATCH(req: NextRequest) {
 // ------------------------------
 export async function DELETE(req: NextRequest) {
   try {
-    const rlError = await checkRL(req);
-    if (rlError) return rlError;
-
     const session = await auth();
     if (!session?.user?.email) throw new UnauthorizedError();
 
     const userId = session.user.email.toLowerCase();
-    const rawBody = await req.json().catch(() => ({}));
+    const rlError = await checkRL(userId);
+    if (rlError) return rlError;
+
+    const rawBody = await parseJsonBody(req);
     let body;
     try {
       body = deleteGemSchema.parse(rawBody);
     } catch (e: unknown) {
-      if (isZodLikeError(e) && e.errors) {
-        const firstError = e.errors[0];
-        const field = firstError.path.join(".");
-        throw new ValidationError(`${field}: ${firstError.message}`);
-      }
-      const message = isZodLikeError(e) ? e.message : "Invalid request body";
-      throw new ValidationError(message || "Invalid request body");
+      throwZodValidationError(e);
     }
 
     const { id } = body;

@@ -17,6 +17,7 @@ vi.mock("@/lib/core/limits", () => ({
 
 const mockSupabaseFrom = vi.fn();
 const mockStorageUpload = vi.fn();
+const mockStorageRemove = vi.fn();
 const mockStorageDownload = vi.fn();
 const mockStorageCreateSignedUrl = vi.fn();
 const mockStorageGetPublicUrl = vi.fn();
@@ -27,6 +28,7 @@ vi.mock("@/lib/core/supabase.server", () => ({
     storage: {
       from: () => ({
         upload: mockStorageUpload,
+        remove: mockStorageRemove,
         download: mockStorageDownload,
         createSignedUrl: mockStorageCreateSignedUrl,
         getPublicUrl: mockStorageGetPublicUrl,
@@ -141,6 +143,7 @@ describe("/api/edit-image-multi", () => {
       error: null,
     });
     mockStorageUpload.mockResolvedValue({ error: null });
+    mockStorageRemove.mockResolvedValue({ error: null });
     mockStorageCreateSignedUrl.mockResolvedValue({
       data: { signedUrl: "https://storage.supabase.com/signed/edited.png" },
       error: null,
@@ -387,5 +390,184 @@ describe("/api/edit-image-multi", () => {
     const callArgs = mockGenerateContent.mock.calls[0][0];
     // Original turn 0 + recent 6 turns = 7 turns total sent to Gemini
     expect(callArgs.contents.length).toBe(7);
+    // Outgoing model image part must use camelCase thoughtSignature
+    const modelTurn = callArgs.contents.find((c: { role: string }) => c.role === "model");
+    expect(modelTurn.parts[0].thoughtSignature).toBeDefined();
+    expect(modelTurn.parts[0].thought_signature).toBeUndefined();
+  });
+
+  it("TC-W1-05: rejects disallowed options.model with 400 VALIDATION_ERROR", async () => {
+    const req = createRequest({
+      conversationId: TEST_CONV_ID,
+      editHistory: [{ role: "user", storagePath: VALID_STORAGE_PATH, text: "Edit" }],
+      options: { model: "evil-model" },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("TC-W1-05: returns 400 VALIDATION_ERROR when candidates is empty and promptFeedback.blockReason is SAFETY", async () => {
+    mockGenerateContent.mockResolvedValueOnce({
+      candidates: [],
+      promptFeedback: { blockReason: "SAFETY" },
+    });
+
+    const req = createRequest({
+      conversationId: TEST_CONV_ID,
+      editHistory: [
+        { role: "user", storagePath: VALID_STORAGE_PATH, text: "Original" },
+        { role: "user", text: "Blocked edit" },
+      ],
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("TC-W1-05: reads camelCase thoughtSignature from Gemini response and cleans up storage on saveMessage failure", async () => {
+    mockGenerateContent.mockResolvedValueOnce({
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                inlineData: {
+                  data: Buffer.from("edited-bytes").toString("base64"),
+                  mimeType: "image/png",
+                },
+                thoughtSignature: "camel-sig-999",
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    const res = await POST(
+      createRequest({
+        conversationId: TEST_CONV_ID,
+        editHistory: [
+          { role: "user", storagePath: VALID_STORAGE_PATH, text: "Original" },
+          { role: "user", text: "Make it night" },
+        ],
+      })
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.data.thoughtSignature).toBe("camel-sig-999");
+
+    // Orphan cleanup on saveMessage failure
+    vi.mocked(saveMessage).mockRejectedValueOnce(new Error("DB write failed"));
+    const failRes = await POST(
+      createRequest({
+        conversationId: TEST_CONV_ID,
+        editHistory: [
+          { role: "user", storagePath: VALID_STORAGE_PATH, text: "Original" },
+          { role: "user", text: "Make it night" },
+        ],
+      })
+    );
+    expect(failRes.status).toBe(500);
+    expect(mockStorageRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it("TC-W2A-12: even-length sliding window never emits adjacent user turns and downloads storage images in parallel", async () => {
+    let activeDownloads = 0;
+    let maxConcurrentDownloads = 0;
+    mockStorageDownload.mockImplementation(async () => {
+      activeDownloads += 1;
+      maxConcurrentDownloads = Math.max(maxConcurrentDownloads, activeDownloads);
+      await new Promise((r) => setTimeout(r, 15));
+      activeDownloads -= 1;
+      return { data: new Blob([Buffer.from("img-bytes")]), error: null };
+    });
+
+    // 8 turns (even): u0, m1, u2, m3, u4, m5, u6, m7 (4 model turns > 3)
+    const evenHistory = [
+      { role: "user", storagePath: VALID_STORAGE_PATH, text: "u0" },
+      {
+        role: "model",
+        storagePath: `${TEST_EMAIL}/${TEST_CONV_ID}/m1.png`,
+        thoughtSignature: "s1",
+      },
+      { role: "user", text: "u2" },
+      {
+        role: "model",
+        storagePath: `${TEST_EMAIL}/${TEST_CONV_ID}/m3.png`,
+        thoughtSignature: "s2",
+      },
+      { role: "user", text: "u4" },
+      {
+        role: "model",
+        storagePath: `${TEST_EMAIL}/${TEST_CONV_ID}/m5.png`,
+        thoughtSignature: "s3",
+      },
+      { role: "user", text: "u6" },
+      {
+        role: "model",
+        storagePath: `${TEST_EMAIL}/${TEST_CONV_ID}/m7.png`,
+        thoughtSignature: "s4",
+      },
+    ];
+
+    const res = await POST(
+      createRequest({ conversationId: TEST_CONV_ID, editHistory: evenHistory })
+    );
+    expect(res.status).toBe(200);
+
+    const contents = mockGenerateContent.mock.calls[0][0].contents as Array<{ role: string }>;
+    // Expected: [u0, m3, u4, m5, u6, m7] (6 alternating turns)
+    expect(contents.map((c) => c.role)).toEqual([
+      "user",
+      "model",
+      "user",
+      "model",
+      "user",
+      "model",
+    ]);
+    expect(maxConcurrentDownloads).toBeGreaterThanOrEqual(2);
+  });
+
+  it("TC-W2A-12 & NP-02: rejects SVG/non-raster MIME via data URI (case-insensitive) or imageMimeType, and oversized base64", async () => {
+    const svgDataRes = await POST(
+      createRequest({
+        conversationId: TEST_CONV_ID,
+        editHistory: [
+          {
+            role: "user",
+            imageBase64: "DATA:IMAGE/SVG+XML;base64,PHN2Zy8+",
+            text: "edit",
+          },
+        ],
+      })
+    );
+    expect(svgDataRes.status).toBe(400);
+
+    const svgMimeRes = await POST(
+      createRequest({
+        conversationId: TEST_CONV_ID,
+        editHistory: [
+          {
+            role: "user",
+            imageBase64: "aGVsbG8=",
+            imageMimeType: " Image/SVG+XML ",
+            text: "edit",
+          },
+        ],
+      })
+    );
+    expect(svgMimeRes.status).toBe(400);
+
+    const hugeBase64 = "A".repeat(14_000_001);
+    const hugeRes = await POST(
+      createRequest({
+        conversationId: TEST_CONV_ID,
+        editHistory: [{ role: "user", imageBase64: hugeBase64, text: "edit" }],
+      })
+    );
+    expect(hugeRes.status).toBe(400);
   });
 });

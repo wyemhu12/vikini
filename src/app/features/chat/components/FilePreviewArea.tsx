@@ -11,6 +11,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Trash2, Upload } from "lucide-react";
 import { FilePreviewCard } from "./FilePreviewCard";
 import type { FileItem, FileUploadProgress } from "@/types/files";
+import { useLanguage } from "../hooks/useLanguage";
+import { TRANSITION } from "@/lib/utils/motion";
 
 interface FilePreviewAreaProps {
   /** Uploaded files from SWR */
@@ -27,8 +29,6 @@ interface FilePreviewAreaProps {
   disabled?: boolean;
   /** Whether files are being dragged over the window */
   isDragging?: boolean;
-  /** Translations */
-  t?: Record<string, string>;
 }
 
 export function FilePreviewArea({
@@ -39,8 +39,8 @@ export function FilePreviewArea({
   onClickFile,
   disabled = false,
   isDragging = false,
-  t,
 }: FilePreviewAreaProps) {
+  const { t } = useLanguage();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const hasContent = files.length > 0 || uploadQueue.length > 0;
 
@@ -66,11 +66,12 @@ export function FilePreviewArea({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={TRANSITION.FAST}
             className="absolute inset-0 z-20 flex items-center justify-center rounded-t-3xl bg-(--surface)/80 backdrop-blur-sm border-2 border-dashed border-(--accent)"
           >
             <div className="flex flex-col items-center gap-2 text-(--accent) font-semibold">
               <Upload className="w-8 h-8 animate-bounce" />
-              <span>{t?.dropFilesHere || "Drop files here"}</span>
+              <span>{t("dropFilesHere")}</span>
             </div>
           </motion.div>
         )}
@@ -82,7 +83,7 @@ export function FilePreviewArea({
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          transition={TRANSITION.SPRING_SOFT}
           className="px-3 pt-3 pb-1"
         >
           {/* Horizontal scroll container */}
@@ -120,9 +121,7 @@ export function FilePreviewArea({
                 } disabled:opacity-50`}
               >
                 <Trash2 className="w-3 h-3" />
-                {showClearConfirm
-                  ? t?.confirmClearAll || "Click again to confirm"
-                  : t?.clearAllFiles || "Clear all"}
+                {showClearConfirm ? t("confirmClearAll") : t("clearAllFiles")}
               </button>
             </div>
           )}

@@ -48,7 +48,10 @@ vi.mock("@/lib/features/personas/personas", () => ({
   getPersonasForUser: hoisted.getPersonasForUserMock,
 }));
 
-import { runNovelcrafterStream } from "./novelcrafterStreamRunner.server";
+import {
+  resolveNovelcrafterRouting,
+  runNovelcrafterStream,
+} from "./novelcrafterStreamRunner.server";
 import { createDefaultStoryState, type NovelcrafterStreamRequest } from "./types";
 
 async function readStreamText(stream: ReadableStream<Uint8Array>): Promise<string> {
@@ -615,5 +618,104 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     expect(promptText).toContain("Write with noir cadence.");
     expect(promptText).toContain("<outline>\nAct I: Custom Outline Included\n  </outline>");
     expect(promptText).not.toContain("Character that should be excluded");
+  });
+
+  it("TC-W2A-20 / NP-07: aborts provider via internal streamAc on reader.cancel(), ignores late enqueues safely, and runs onStreamComplete once", async () => {
+    let capturedSignal: AbortSignal | undefined;
+    let releaseSecondChunk!: () => void;
+    const secondChunkGate = new Promise<void>((resolve) => {
+      releaseSecondChunk = resolve;
+    });
+
+    hoisted.streamStrataProviderMock.mockReset();
+    hoisted.streamStrataProviderMock.mockImplementationOnce(
+      async ({
+        emitModelOutput,
+        signal,
+      }: {
+        emitModelOutput: (event: "thinking" | "token", text: string) => void;
+        signal?: AbortSignal;
+      }) => {
+        capturedSignal = signal;
+        emitModelOutput("token", "First chunk before cancel.");
+        await secondChunkGate;
+        // Simulate a late provider write after reader.cancel()
+        emitModelOutput("token", "Late chunk after cancel.");
+        return "stop";
+      }
+    );
+
+    const onStreamComplete = vi.fn();
+    const stream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: {
+        ...BASE_REQUEST,
+        model: "strata-local",
+      },
+      onStreamComplete,
+    });
+
+    const reader = stream.getReader();
+    // Read meta frame + first token frame
+    const frame1 = await reader.read();
+    expect(frame1.done).toBe(false);
+    const frame2 = await reader.read();
+    expect(frame2.done).toBe(false);
+
+    // Client cancels mid-stream
+    await reader.cancel();
+    expect(capturedSignal?.aborted).toBe(true);
+
+    // Unblock provider so late emitModelOutput runs and finally settles
+    releaseSecondChunk();
+    await vi.waitFor(() => {
+      expect(onStreamComplete).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("TC-W2A-20: resolveNovelcrafterRouting fetches GEM and Persona lists concurrently via Promise.all", async () => {
+    let resolveGems!: (val: unknown) => void;
+    const gemsPromise = new Promise((resolve) => {
+      resolveGems = resolve;
+    });
+    let personasStartedBeforeGemsResolved = false;
+
+    hoisted.getGemsForUserMock.mockReturnValueOnce(gemsPromise);
+    hoisted.getPersonasForUserMock.mockImplementationOnce(async () => {
+      personasStartedBeforeGemsResolved = true;
+      return [
+        {
+          id: "persona-1",
+          user_id: "u@vikini.net",
+          name: "Parallel Poet",
+          description: "",
+          tone: "friendly",
+          use_emojis: false,
+          use_headers_lists: true,
+          user_context: "",
+          custom_instructions: "Keep prose vivid.",
+          icon: "",
+          color: "",
+          is_premade: false,
+          created_at: "",
+          updated_at: "",
+        },
+      ];
+    });
+
+    const routingPromise = resolveNovelcrafterRouting(
+      "u@vikini.net",
+      "write",
+      BASE_REQUEST.routing
+    );
+
+    expect(hoisted.getGemsForUserMock).toHaveBeenCalledTimes(1);
+    expect(hoisted.getPersonasForUserMock).toHaveBeenCalledTimes(1);
+    expect(personasStartedBeforeGemsResolved).toBe(true);
+
+    resolveGems([{ id: "gem-1", name: "Parallel Gem", instructions: "Fantasy tone." }]);
+    const resolved = await routingPromise;
+    expect(resolved.gemName).toBe("Parallel Gem");
+    expect(resolved.personaName).toBe("Parallel Poet");
   });
 });

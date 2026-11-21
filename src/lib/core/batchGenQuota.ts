@@ -1,7 +1,8 @@
 // /lib/core/batchGenQuota.ts
 // Batch generation quota management with Upstash Redis
 
-import { Redis } from "@upstash/redis";
+import type { Redis } from "@upstash/redis";
+import { getSharedRedis } from "./redis.server";
 import { logger } from "@/lib/utils/logger";
 
 const batchLogger = logger.withContext("batch-gen-quota");
@@ -38,15 +39,8 @@ export const BATCH_GEN_LIMITS: Record<string, BatchGenLimitConfig> = {
 // Redis Client
 // =====================================================================================
 
-let redis: Redis | null = null;
-
 export function getRedis(): Redis | null {
-  if (redis) return redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  redis = new Redis({ url, token });
-  return redis;
+  return getSharedRedis();
 }
 
 // =====================================================================================

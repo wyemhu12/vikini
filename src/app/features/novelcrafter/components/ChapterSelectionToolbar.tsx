@@ -79,7 +79,7 @@ export default function ChapterSelectionToolbar({
   ];
 
   const btnCls =
-    "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none disabled:opacity-50 shrink-0";
+    "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised-hover) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none disabled:opacity-50 shrink-0";
 
   return (
     <div

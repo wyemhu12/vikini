@@ -14,6 +14,7 @@ vi.mock("@/lib/features/chat/conversations", () => ({
   getUserConversations: vi.fn(),
   getConversation: vi.fn(),
   saveConversation: vi.fn(),
+  updateConversation: vi.fn(),
   updateConversationTitle: vi.fn(),
   deleteConversation: vi.fn(),
   setConversationGem: vi.fn(),
@@ -54,7 +55,7 @@ import {
   getUserConversations,
   getConversation,
   saveConversation,
-  updateConversationTitle,
+  updateConversation,
   deleteConversation,
 } from "@/lib/features/chat/conversations";
 import { getMessages } from "@/lib/features/chat/messages";
@@ -255,18 +256,22 @@ describe("/api/conversations", () => {
       expect(json.success).toBe(false);
     });
 
-    it("should update conversation title successfully", async () => {
+    it("should update conversation title and multi-field patches in a single updateConversation call (TC-W2A-17)", async () => {
       mockAuthenticated();
       const mockConvo = {
         id: TEST_UUID,
         title: "Updated Title",
         userId: TEST_USER_EMAIL,
       };
-      vi.mocked(updateConversationTitle).mockResolvedValue(mockConvo as never);
+      vi.mocked(updateConversation).mockResolvedValue(mockConvo as never);
 
       const req = createRequest("PATCH", "/api/conversations", {
         id: TEST_UUID,
         title: "Updated Title",
+        gemId: null,
+        model: "gemini-3.5-flash-lite",
+        projectId: null,
+        personaId: null,
       });
       const res = await PATCH(req);
 
@@ -274,11 +279,14 @@ describe("/api/conversations", () => {
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(json.data.conversation).toEqual(mockConvo);
-      expect(updateConversationTitle).toHaveBeenCalledWith(
-        TEST_USER_EMAIL,
-        TEST_UUID,
-        "Updated Title"
-      );
+      expect(updateConversation).toHaveBeenCalledTimes(1);
+      expect(updateConversation).toHaveBeenCalledWith(TEST_USER_EMAIL, TEST_UUID, {
+        title: "Updated Title",
+        gemId: null,
+        model: "gemini-3.5-flash-lite",
+        projectId: null,
+        personaId: null,
+      });
     });
 
     it("should return 400 when id is missing", async () => {
@@ -444,6 +452,57 @@ describe("/api/conversations", () => {
       expect(res.status).toBe(404);
       const json = await res.json();
       expect(json.success).toBe(false);
+    });
+  });
+
+  describe("Zod v4 .issues[0] & malformed JSON handling (TC-W1-09)", () => {
+    it("returns 400 VALIDATION_ERROR on invalid JSON for POST, PATCH, DELETE, and PUT", async () => {
+      mockAuthenticated();
+
+      const makeBadJson = (method: string) =>
+        new NextRequest(new URL("/api/conversations", "http://localhost:3000"), {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: "{bad",
+        });
+
+      for (const [handler, method] of [
+        [POST, "POST"],
+        [PATCH, "PATCH"],
+        [DELETE, "DELETE"],
+        [PUT, "PUT"],
+      ] as const) {
+        const res = await handler(makeBadJson(method));
+        expect(res.status).toBe(400);
+        const json = await res.json();
+        expect(json.error.code).toBe("VALIDATION_ERROR");
+      }
+    });
+
+    it("returns 400 VALIDATION_ERROR with field path from Zod v4 .issues[0] on schema failure in POST, PATCH, DELETE", async () => {
+      mockAuthenticated();
+
+      const postRes = await POST(
+        createRequest("POST", "/api/conversations", { title: "x".repeat(201) })
+      );
+      expect(postRes.status).toBe(400);
+      const postJson = await postRes.json();
+      expect(postJson.error.code).toBe("VALIDATION_ERROR");
+      expect(postJson.error.message).toContain("title");
+
+      const patchRes = await PATCH(
+        createRequest("PATCH", "/api/conversations", { id: "not-a-uuid" })
+      );
+      expect(patchRes.status).toBe(400);
+      const patchJson = await patchRes.json();
+      expect(patchJson.error.code).toBe("VALIDATION_ERROR");
+      expect(patchJson.error.message).toContain("id");
+
+      const delRes = await DELETE(createRequest("DELETE", "/api/conversations", { id: "bad" }));
+      expect(delRes.status).toBe(400);
+      const delJson = await delRes.json();
+      expect(delJson.error.code).toBe("VALIDATION_ERROR");
+      expect(delJson.error.message).toContain("id");
     });
   });
 });

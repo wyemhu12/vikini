@@ -64,17 +64,21 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       throw new ForbiddenError("You don't have permission to delete this message");
     }
 
-    // 3. Delete from storage if storagePath exists and belongs to user
-    const meta = msg.meta as MessageMeta | null;
-    if (meta?.attachment?.storagePath) {
-      await removeOwnedStoragePaths(supabase, userId, [meta.attachment.storagePath]);
-    }
-
-    // 4. Delete the message
+    // 3. Delete the message from DB first so storage is never removed for a failed DB delete
     const { error: deleteError } = await supabase.from("messages").delete().eq("id", messageId);
 
     if (deleteError) {
       throw deleteError;
+    }
+
+    // 4. Best-effort delete from storage if storagePath exists and belongs to user
+    const meta = msg.meta as MessageMeta | null;
+    if (meta?.attachment?.storagePath) {
+      try {
+        await removeOwnedStoragePaths(supabase, userId, [meta.attachment.storagePath]);
+      } catch (storageErr: unknown) {
+        routeLogger.warn("Best-effort storage cleanup failed after DB delete:", storageErr);
+      }
     }
 
     return success({ deleted: true });

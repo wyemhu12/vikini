@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ImageCompareModal from "./ImageCompareModal";
+import { useLanguageStore } from "@/lib/store/languageStore";
 
 // Mock next/image
 vi.mock("next/image", () => ({
@@ -42,6 +43,7 @@ describe("ImageCompareModal Component - Touch & Slider Events (UI-03, TC-GAL-02)
   };
 
   beforeEach(() => {
+    useLanguageStore.setState({ language: "en" });
     // Stub getBoundingClientRect on HTMLDivElement prototype so happy-dom returns 400px width
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
       left: 0,
@@ -54,6 +56,11 @@ describe("ImageCompareModal Component - Touch & Slider Events (UI-03, TC-GAL-02)
       y: 0,
       toJSON: () => {},
     });
+  });
+
+  afterEach(() => {
+    useLanguageStore.setState({ language: "en" });
+    vi.restoreAllMocks();
   });
 
   it("renders comparison modal and switches to overlay slider mode", () => {
@@ -147,5 +154,47 @@ describe("ImageCompareModal Component - Touch & Slider Events (UI-03, TC-GAL-02)
 
     const clippedDiv = sliderContainer.querySelector("div[style*='clip-path']");
     expect(clippedDiv?.getAttribute("style")).toContain("75%");
+  });
+
+  it("TC-P5-03: uses semantic z-(--z-modal), bilingual aria-labels for icon-only buttons, aria-pressed on mode toggle, and localized Image A/B fallback", () => {
+    useLanguageStore.setState({ language: "vi" });
+    render(
+      <ImageCompareModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSwap={vi.fn()}
+        leftImage={mockLeftImage}
+        rightImage={mockRightImage}
+      />
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "So sánh hình ảnh" });
+    expect(dialog.className).toContain("z-(--z-modal)");
+    expect(dialog.className).not.toContain("z-50");
+    expect(dialog.getAttribute("aria-describedby")).toBeNull();
+
+    const overlay = document.body.querySelector("[data-state='open'].fixed.inset-0");
+    expect(overlay?.className).toContain("z-(--z-modal)");
+    expect(overlay?.className).not.toContain("z-50");
+
+    // 5 icon-only buttons have localized aria-labels and type="button"
+    for (const label of ["Thu nhỏ", "Phóng to", "Đặt lại zoom", "Hoán đổi", "Đóng"]) {
+      const btn = screen.getByRole("button", { name: label });
+      expect(btn).toHaveAttribute("type", "button");
+    }
+
+    // Mode toggle preserves visible text and exposes aria-pressed
+    const modeToggle = screen.getByRole("button", { name: "Song song" });
+    expect(modeToggle).toHaveAttribute("type", "button");
+    expect(modeToggle).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(modeToggle);
+    expect(screen.getByRole("button", { name: "Chồng lớp" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+
+    // Localized fallback labels
+    expect(screen.getByText("Ảnh A")).toBeInTheDocument();
+    expect(screen.getByText("Ảnh B")).toBeInTheDocument();
   });
 });

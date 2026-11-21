@@ -1,20 +1,10 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import {
-  Users,
-  Loader2,
-  AlertCircle,
-  Search,
-  ShieldAlert,
-  CheckSquare,
-  Square,
-  RotateCcw,
-} from "lucide-react";
+import { Users, AlertCircle, Search, CheckSquare, Square, RotateCcw } from "lucide-react";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { toast } from "@/lib/store/toastStore";
 import { confirm } from "@/lib/store/confirmStore";
-import { formatDate } from "@/lib/utils/dateFormat";
 import { logger } from "@/lib/utils/logger";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -25,11 +15,12 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import UserDetailModal, { type Profile } from "./UserDetailModal";
+import UserTableRow, { type UserRankOption } from "./UserTableRow";
 
 type RankFilter = "all" | Profile["rank"];
 type StatusFilter = "all" | "active" | "blocked";
 
-const RANK_OPTIONS: readonly { value: Profile["rank"]; labelKey: string }[] = [
+const RANK_OPTIONS: readonly UserRankOption[] = [
   { value: "not_whitelisted", labelKey: "userNotWhitelisted" },
   { value: "basic", labelKey: "userBasic" },
   { value: "pro", labelKey: "userPro" },
@@ -62,7 +53,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
   } | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const tRef = useRef(t);
   useEffect(() => {
     tRef.current = t;
@@ -389,104 +380,21 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.map((user) => {
-              const self = isSelf(user.id);
-              const isSelected = selectedIds.has(user.id);
-              return (
-                <tr
-                  key={user.id}
-                  className={`border-b border-(--line) hover:bg-(--raised-hover) ${self ? "bg-(--soft)/30" : ""}`}
-                >
-                  <td className="py-3 px-2">
-                    {!self && (
-                      <button
-                        type="button"
-                        onClick={() => toggleSelect(user.id)}
-                        aria-label={`${t("adminSelectUser")}: ${user.email}`}
-                        aria-pressed={isSelected}
-                        className={CHECKBOX_BTN_CLASS}
-                      >
-                        {isSelected ? (
-                          <CheckSquare aria-hidden="true" className="w-4 h-4 text-(--accent)" />
-                        ) : (
-                          <Square aria-hidden="true" className="w-4 h-4" />
-                        )}
-                      </button>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 text-sm text-(--text)">
-                    <button
-                      type="button"
-                      onClick={() => openUserDetail(user)}
-                      className="flex items-center gap-2 hover:text-(--accent) transition-colors text-left focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded cursor-pointer"
-                    >
-                      {user.email}
-                      {self && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-(--soft) text-(--accent) border border-(--accent)/30">
-                          <ShieldAlert aria-hidden="true" className="w-3 h-3" />
-                          {t("adminSelfLabel")}
-                        </span>
-                      )}
-                    </button>
-                  </td>
-                  <td className="py-3 px-4">
-                    <Select
-                      value={user.rank}
-                      onValueChange={(v) => handleRankChange(user.id, v)}
-                      disabled={self || updating === user.id}
-                    >
-                      <SelectTrigger
-                        className="w-[140px] h-auto py-1.5"
-                        aria-label={`${t("userRank")}: ${user.email}`}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {RANK_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {t(opt.labelKey)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        user.is_blocked
-                          ? "bg-(--danger)/10 text-(--danger) border border-(--danger)/30"
-                          : "bg-(--success)/10 text-(--success) border border-(--success)/30"
-                      }`}
-                    >
-                      {user.is_blocked ? t("userBlocked") : t("userActive")}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-sm text-(--muted)">
-                    {formatDate(user.created_at, language === "vi" ? "vi-VN" : "en-GB")}
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => updateUser(user.id, { is_blocked: !user.is_blocked })}
-                      disabled={self || updating === user.id}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer ${
-                        user.is_blocked
-                          ? "bg-(--success)/20 text-(--success) hover:bg-(--success)/30 border border-(--success)/30"
-                          : "bg-(--danger)/20 text-(--danger) hover:bg-(--danger)/30 border border-(--danger)/30"
-                      }`}
-                    >
-                      {updating === user.id ? (
-                        <Loader2 aria-hidden="true" className="w-4 h-4 animate-spin inline" />
-                      ) : user.is_blocked ? (
-                        t("userUnblock")
-                      ) : (
-                        t("userBlock")
-                      )}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
+            {filteredUsers.map((user) => (
+              <UserTableRow
+                key={user.id}
+                user={user}
+                isSelf={isSelf(user.id)}
+                isSelected={selectedIds.has(user.id)}
+                isUpdating={updating === user.id}
+                checkboxButtonClass={CHECKBOX_BTN_CLASS}
+                rankOptions={RANK_OPTIONS}
+                onToggleSelect={toggleSelect}
+                onOpenDetail={openUserDetail}
+                onRankChange={handleRankChange}
+                onToggleBlock={(id, isBlocked) => void updateUser(id, { is_blocked: isBlocked })}
+              />
+            ))}
           </tbody>
         </table>
       </div>

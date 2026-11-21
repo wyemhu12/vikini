@@ -1,224 +1,54 @@
 // Gallery controller hook — state + handlers for GalleryView
 // Extracted from GalleryView.tsx for modularity
 
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "../../../chat/hooks/useLanguage";
 import { logger } from "@/lib/utils/logger";
 import { confirm } from "@/lib/store/confirmStore";
 import { toast } from "@/lib/store/toastStore";
+import {
+  DATE_FILTER_OPTIONS,
+  extractAvailableModels,
+  filterGalleryImages,
+  toggleCompareImageSlot,
+  type DateFilter,
+  type GalleryImage,
+} from "@/lib/features/gallery/galleryFilters";
+import { useGalleryPagination } from "./useGalleryPagination";
 
-interface GalleryImage {
-  id: string;
-  url: string;
-  prompt: string;
-  createdAt: string;
-  aspectRatio?: string;
-  style?: string;
-  model?: string;
-}
-
-export type DateFilter = "all" | "today" | "week" | "month";
-
-export const DATE_FILTER_OPTIONS: { value: DateFilter; labelKey: string }[] = [
-  { value: "all", labelKey: "galleryAllTime" },
-  { value: "today", labelKey: "galleryToday" },
-  { value: "week", labelKey: "galleryThisWeek" },
-  { value: "month", labelKey: "galleryThisMonth" },
-];
-
-export type { GalleryImage };
+export { DATE_FILTER_OPTIONS };
+export type { DateFilter, GalleryImage };
 
 export function useGalleryController() {
   const { t, language } = useLanguage();
   const router = useRouter();
 
-  // Data
-  const [images, setImages] = useState<GalleryImage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-
   // Filters
+  const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [modelFilter, setModelFilter] = useState<string>("all");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
-  // Delete
-  const [deleting, setDeleting] = useState<string | null>(null);
+  // Pagination & fetch lifecycle
+  const { images, setImages, loading, error, retryLoad, hasMore, loadingMore, loadMoreRef } =
+    useGalleryPagination(showFavoritesOnly, t);
 
-  // Compare
+  // Delete & Compare & Image detail
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareImages, setCompareImages] = useState<[GalleryImage | null, GalleryImage | null]>([
     null,
     null,
   ]);
   const [showCompareModal, setShowCompareModal] = useState(false);
-
-  // Image detail
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
 
-  // Infinite scroll
-  const offsetRef = useRef(0);
-  const tRef = useRef(t);
-  useEffect(() => {
-    tRef.current = t;
-  }, [t]);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-  const isFetchingMoreRef = useRef(false);
-  const requestIdRef = useRef(0);
-
-  const PAGE_SIZE = 20;
-
-  // Fetch images
-  const fetchImages = useCallback(
-    async (isLoadMore = false) => {
-      if (isLoadMore) {
-        if (isFetchingMoreRef.current) return;
-        isFetchingMoreRef.current = true;
-        setLoadingMore(true);
-      } else {
-        requestIdRef.current += 1;
-        isFetchingMoreRef.current = false;
-        setLoadingMore(false);
-        setLoading(true);
-        setError(null);
-        offsetRef.current = 0;
-      }
-
-      const currentRequestId = requestIdRef.current;
-      const currentOffset = isLoadMore ? offsetRef.current : 0;
-
-      try {
-        const favParam = showFavoritesOnly ? `&favorites=true` : "";
-        const res = await fetch(
-          `/api/gallery?limit=${PAGE_SIZE}&offset=${currentOffset}${favParam}`
-        );
-
-        if (currentRequestId !== requestIdRef.current) return;
-
-        if (!res.ok) {
-          if (!isLoadMore) {
-            setError(tRef.current("galleryLoadFailed"));
-          }
-          setHasMore(false);
-          toast.error(tRef.current("galleryLoadFailed"));
-          return;
-        }
-
-        const json = await res.json();
-        if (currentRequestId !== requestIdRef.current) return;
-
-        const data = json.data || json;
-        const newImages = data.images || [];
-
-        if (isLoadMore) {
-          setImages((prev) => [...prev, ...newImages]);
-        } else {
-          setImages(newImages);
-        }
-
-        const nextHasMore = Boolean(data.hasMore) && newImages.length > 0;
-        setHasMore(nextHasMore);
-        offsetRef.current = currentOffset + newImages.length;
-      } catch (err: unknown) {
-        logger.error("Failed to load gallery:", err);
-        if (currentRequestId === requestIdRef.current) {
-          if (!isLoadMore) {
-            setError(tRef.current("galleryLoadFailed"));
-          }
-          setHasMore(false);
-          toast.error(tRef.current("galleryLoadFailed"));
-        }
-      } finally {
-        if (isLoadMore) {
-          isFetchingMoreRef.current = false;
-          setLoadingMore(false);
-        }
-        if (currentRequestId === requestIdRef.current && !isLoadMore) {
-          setLoading(false);
-        }
-      }
-    },
-    [showFavoritesOnly]
+  const availableModels = useMemo(() => extractAvailableModels(images), [images]);
+  const filteredImages = useMemo(
+    () => filterGalleryImages(images, { searchQuery, dateFilter, modelFilter }),
+    [images, searchQuery, dateFilter, modelFilter]
   );
-
-  // Initial load
-  useEffect(() => {
-    void fetchImages(false);
-  }, [fetchImages]); // Refetch when favorites toggle changes
-
-  const retryLoad = useCallback(() => {
-    void fetchImages(false);
-  }, [fetchImages]);
-
-  // Infinite scroll observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          void fetchImages(true);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [hasMore, loadingMore, loading, fetchImages]);
-
-  // Unique models for filter
-  const availableModels = useMemo(() => {
-    const models = new Set<string>();
-    images.forEach((img) => {
-      if (img.model) models.add(img.model);
-    });
-    return Array.from(models);
-  }, [images]);
-
-  // Apply filters
-  const filteredImages = useMemo(() => {
-    let result = images;
-
-    if (searchQuery) {
-      result = result.filter((img) => img.prompt.toLowerCase().includes(searchQuery.toLowerCase()));
-    }
-
-    if (dateFilter !== "all") {
-      const now = new Date();
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-      result = result.filter((img) => {
-        const imgDate = new Date(img.createdAt);
-        const weekAgo = new Date(startOfDay);
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const monthAgo = new Date(startOfDay);
-        monthAgo.setMonth(monthAgo.getMonth() - 1);
-
-        switch (dateFilter) {
-          case "today":
-            return imgDate >= startOfDay;
-          case "week":
-            return imgDate >= weekAgo;
-          case "month":
-            return imgDate >= monthAgo;
-          default:
-            return true;
-        }
-      });
-    }
-
-    if (modelFilter !== "all") {
-      result = result.filter((img) => img.model === modelFilter);
-    }
-
-    return result;
-  }, [images, searchQuery, dateFilter, modelFilter]);
 
   // Compare handlers
   const handleToggleCompareMode = useCallback(() => {
@@ -227,13 +57,7 @@ export function useGalleryController() {
   }, []);
 
   const handleToggleCompareImage = useCallback((img: GalleryImage) => {
-    setCompareImages((prev) => {
-      if (prev[0]?.id === img.id) return [null, prev[1]];
-      if (prev[1]?.id === img.id) return [prev[0], null];
-      if (!prev[0]) return [img, prev[1]];
-      if (!prev[1]) return [prev[0], img];
-      return [prev[0], img];
-    });
+    setCompareImages((prev) => toggleCompareImageSlot(prev, img));
   }, []);
 
   const handleOpenCompare = useCallback(() => {
@@ -251,7 +75,7 @@ export function useGalleryController() {
     [compareImages]
   );
 
-  // Navigation
+  // Lightbox navigation
   const currentImageIndex = useMemo(() => {
     if (!selectedImage) return -1;
     return filteredImages.findIndex((img) => img.id === selectedImage.id);
@@ -267,7 +91,6 @@ export function useGalleryController() {
     }
   }, [currentImageIndex, filteredImages]);
 
-  // Keyboard navigation
   useEffect(() => {
     if (!selectedImage) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -285,7 +108,6 @@ export function useGalleryController() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [selectedImage, handlePrevImage, handleNextImage]);
 
-  // Remix
   const handleRemix = useCallback(
     (prompt: string) => {
       sessionStorage.setItem("remixPrompt", prompt);
@@ -295,7 +117,6 @@ export function useGalleryController() {
     [router]
   );
 
-  // Delete
   const handleDelete = useCallback(
     async (imageId: string) => {
       const ok = await confirm({
@@ -317,21 +138,20 @@ export function useGalleryController() {
           logger.error("Delete failed:", json.error?.message || json.error);
           toast.error(t("galleryDeleteFailed"));
         }
-      } catch (error) {
-        logger.error("Delete error:", error);
+      } catch (err: unknown) {
+        logger.error("Delete error:", err);
         toast.error(t("galleryDeleteFailed"));
       } finally {
         setDeleting(null);
       }
     },
-    [t]
+    [setImages, t]
   );
 
   return {
     t,
     language,
     router,
-    // Data
     images,
     loading,
     error,
@@ -340,16 +160,13 @@ export function useGalleryController() {
     setSearchQuery,
     filteredImages,
     availableModels,
-    // Filters
     dateFilter,
     setDateFilter,
     modelFilter,
     setModelFilter,
     showFavoritesOnly,
     setShowFavoritesOnly,
-    // Delete
     deleting,
-    // Compare
     compareMode,
     compareImages,
     showCompareModal,
@@ -359,17 +176,14 @@ export function useGalleryController() {
     handleOpenCompare,
     handleSwapCompareImages,
     isImageSelectedForCompare,
-    // Image detail
     selectedImage,
     setSelectedImage,
     currentImageIndex,
     handlePrevImage,
     handleNextImage,
-    // Infinite scroll
     hasMore,
     loadingMore,
     loadMoreRef,
-    // Actions
     handleRemix,
     handleDelete,
   };

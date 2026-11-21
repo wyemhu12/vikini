@@ -1,12 +1,18 @@
 // src/lib/features/files/fileValidation.test.ts
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   getSafeExtension,
   normalizeMimeType,
   isGeminiNativeMime,
   sanitizeFilename,
   classifyFile,
+  validateFile,
 } from "./fileValidation";
+import { ValidationError } from "@/lib/utils/errors";
+
+vi.mock("@/lib/core/limits", () => ({
+  checkFileSize: vi.fn().mockResolvedValue({ allowed: true }),
+}));
 
 describe("fileValidation", () => {
   describe("getSafeExtension", () => {
@@ -105,6 +111,31 @@ describe("fileValidation", () => {
       ).toBe("document");
       expect(classifyFile("zip", "application/zip")).toBe("archive");
       expect(classifyFile("ts", "text/typescript")).toBe("text");
+    });
+  });
+
+  describe("Prototype-safe MIME lookup & ValidationError guards (TC-W1-06)", () => {
+    it("does not return Object.prototype properties from normalizeMimeType", () => {
+      expect(normalizeMimeType("toString", "")).toBe("text/plain");
+      expect(normalizeMimeType("constructor", "")).toBe("text/plain");
+      expect(normalizeMimeType("__proto__", "")).toBe("text/plain");
+    });
+
+    it("throws ValidationError (400) for blocked extensions like .exe", async () => {
+      const exeFile = new File(["MZ"], "malware.exe", { type: "application/octet-stream" });
+      await expect(validateFile(exeFile, "malware.exe", "user@example.com")).rejects.toBeInstanceOf(
+        ValidationError
+      );
+    });
+
+    it("validates image magic bytes via slice(0, 16) and throws ValidationError on mismatch", async () => {
+      const fakePng = new File(["not-a-real-png-header"], "spoof.png", { type: "image/png" });
+      const sliceSpy = vi.spyOn(fakePng, "slice");
+
+      await expect(validateFile(fakePng, "spoof.png", "user@example.com")).rejects.toBeInstanceOf(
+        ValidationError
+      );
+      expect(sliceSpy).toHaveBeenCalledWith(0, 16);
     });
   });
 });

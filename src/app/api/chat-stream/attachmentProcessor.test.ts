@@ -177,4 +177,70 @@ describe("attachmentProcessor", () => {
     expect(result.contents[0].parts.length).toBe(1);
     expect((result.contents[0].parts[0] as { text: string }).text).toBe("Attacking file");
   });
+
+  it("prioritizes priorityFileIds BEFORE historical files when token budget is tight (TC-W1-08)", async () => {
+    const oldHugeFile = {
+      id: "file-old-huge",
+      user_id: "user-1",
+      conversation_id: "conv-1",
+      filename: "old-book.txt",
+      mime_type: "text/plain",
+      size_bytes: 50_000,
+      kind: "text",
+      storage_path: "user-1/conv-1/old-book.txt",
+      extracted_text: "O".repeat(20_000), // ~5000 tokens
+      created_at: new Date(Date.now() - 7200_000).toISOString(),
+    } as unknown as FileRow;
+
+    const newPriorityFile = {
+      id: "file-new-priority",
+      user_id: "user-1",
+      conversation_id: "conv-1",
+      filename: "fresh-note.txt",
+      mime_type: "text/plain",
+      size_bytes: 200,
+      kind: "text",
+      storage_path: "user-1/conv-1/fresh-note.txt",
+      extracted_text: "CRITICAL NEW TURN ATTACHMENT DATA",
+      created_at: new Date().toISOString(),
+    } as unknown as FileRow;
+
+    mockListFiles.mockResolvedValue([oldHugeFile, newPriorityFile]);
+
+    const contents = [
+      { role: "user", parts: [{ text: "Old turn" }] },
+      { role: "assistant", parts: [{ text: "Old answer" }] },
+      { role: "user", parts: [{ text: "Read my new note" }] },
+    ];
+    const contentsMeta = [
+      { messageId: "m-1", fileIds: ["file-old-huge"] },
+      { messageId: "m-2", fileIds: undefined },
+      { messageId: "m-3", fileIds: ["file-new-priority"] },
+    ];
+
+    // Remaining budget: modelLimit(2600) - currentTokens(500) - safetyBuffer(2000) = 100 tokens
+    const result = await processAttachments(
+      "user-1",
+      "conv-1",
+      contents,
+      "Sys",
+      500,
+      2600,
+      "claude-sonnet-4.5",
+      ["file-new-priority"],
+      contentsMeta
+    );
+
+    const lastTurnParts = result.contents[2].parts as Array<{ text?: string }>;
+    expect(lastTurnParts.some((p) => p.text?.includes("CRITICAL NEW TURN ATTACHMENT DATA"))).toBe(
+      true
+    );
+    expect(lastTurnParts.some((p) => p.text?.includes("FILE SKIPPED"))).toBe(false);
+
+    // Old huge file was truncated after priority file already secured its full content
+    const firstTurnParts = result.contents[0].parts as Array<{ text?: string }>;
+    expect(firstTurnParts.some((p) => p.text?.includes("truncated due to context limit"))).toBe(
+      true
+    );
+  });
 });

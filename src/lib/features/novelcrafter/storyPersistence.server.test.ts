@@ -18,6 +18,7 @@ const hoisted = vi.hoisted(() => {
     }>,
     deletedIds: [] as string[],
     updatedConversations: [] as Array<{ id: string; updated_at: string }>,
+    forceCasConflict: false,
   };
 });
 
@@ -65,13 +66,33 @@ vi.mock("@/lib/core/supabase.server", () => ({
           },
           update: (patch: { role: string; content: string; meta: Record<string, unknown> }) => ({
             eq: (_col: string, id: string) => {
-              const target = hoisted.storedMessages.find((m) => m.id === id);
-              if (target) {
+              const applyUpdate = (expectedVersion?: string) => {
+                const target = hoisted.storedMessages.find((m) => m.id === id);
+                if (!target) {
+                  return Promise.resolve({ data: [], error: null });
+                }
+                if (
+                  hoisted.forceCasConflict ||
+                  (expectedVersion !== undefined &&
+                    String(target.meta?.version) !== expectedVersion)
+                ) {
+                  return Promise.resolve({ data: [], error: null });
+                }
                 target.role = patch.role;
                 target.content = patch.content;
                 target.meta = patch.meta;
-              }
-              return Promise.resolve({ data: null, error: null });
+                return Promise.resolve({ data: [{ id: target.id }], error: null });
+              };
+
+              return {
+                eq: (_vCol: string, expectedVersion: string) => ({
+                  select: () => applyUpdate(expectedVersion),
+                }),
+                then: (
+                  onFulfilled?: (val: { data: Array<{ id: string }>; error: null }) => unknown,
+                  onRejected?: (err: unknown) => unknown
+                ) => applyUpdate().then(onFulfilled, onRejected),
+              };
             },
           }),
           delete: () => ({
@@ -100,8 +121,10 @@ vi.mock("@/lib/core/supabase.server", () => ({
   }),
 }));
 
+import { encryptText } from "@/lib/core/encryption";
 import { MODEL_IDS } from "@/lib/utils/constants";
 import { AppError, NotFoundError, ValidationError } from "@/lib/utils/errors";
+import * as promptBuilder from "./promptBuilder";
 import { createDefaultStoryState } from "./types";
 import {
   getStoryState,
@@ -118,6 +141,7 @@ describe("storyPersistence.server (TC-05)", () => {
     hoisted.storedMessages = [];
     hoisted.deletedIds = [];
     hoisted.updatedConversations = [];
+    hoisted.forceCasConflict = false;
     hoisted.getConversationMock.mockReset();
     hoisted.invalidateConversationsCacheMock.mockReset();
 
@@ -181,20 +205,151 @@ describe("storyPersistence.server (TC-05)", () => {
     );
   });
 
-  it("deduplicates redundant story_state rows automatically", async () => {
-    const state1 = createDefaultStoryState("Chương 1");
-    await saveStoryState(USER_ID, VALID_CONVO_ID, state1);
+  it("TC-W2A-19 / NP-06: keeps getStoryState read-only, selects highest meta.version regardless of created_at, and only deduplicates after successful CAS save", async () => {
+    const stateV5 = createDefaultStoryState("Chương 5");
+    stateV5.version = 5;
+    stateV5.updatedAt = 50_000;
+    stateV5.chapters[0].content = "Nội dung bản v5 chuẩn xác".repeat(120);
 
-    // Simulate a duplicate row inserted by a race condition
-    hoisted.storedMessages.push({
-      ...hoisted.storedMessages[0],
-      id: "msg-duplicate-old",
-    });
+    const stateV3 = createDefaultStoryState("Chương 3");
+    stateV3.version = 3;
+    stateV3.updatedAt = 30_000;
+    stateV3.chapters[0].content = "Nội dung bản v3 cũ hơn";
+
+    // Row B (version 3) has a NEWER created_at than Row A (version 5)
+    hoisted.storedMessages.push(
+      {
+        id: "msg-v3-newer-ts",
+        conversation_id: VALID_CONVO_ID,
+        role: "system",
+        content: encryptText(JSON.stringify(stateV3)),
+        meta: {
+          novelcrafterType: "story_state",
+          version: 3,
+          updatedAt: 30_000,
+          contentChars: stateV3.chapters[0].content.length,
+        },
+        created_at: "2026-11-21T10:05:00.000Z",
+      },
+      {
+        id: "msg-v5-older-ts",
+        conversation_id: VALID_CONVO_ID,
+        role: "system",
+        content: encryptText(JSON.stringify(stateV5)),
+        meta: {
+          novelcrafterType: "story_state",
+          version: 5,
+          updatedAt: 50_000,
+          contentChars: stateV5.chapters[0].content.length,
+        },
+        created_at: "2026-11-21T10:00:00.000Z",
+      }
+    );
+
+    // 1. GET is strictly read-only and selects higher meta.version (v5)
+    const loaded = await getStoryState(USER_ID, VALID_CONVO_ID);
+    expect(loaded.version).toBe(5);
+    expect(loaded.chapters[0].title).toBe("Chương 5");
+    expect(hoisted.deletedIds).toHaveLength(0);
     expect(hoisted.storedMessages).toHaveLength(2);
 
-    await getStoryState(USER_ID, VALID_CONVO_ID);
-    expect(hoisted.deletedIds).toContain("msg-duplicate-old");
+    // 2. Rejected stale save (400) does NOT delete duplicates
+    await expect(
+      saveStoryState(USER_ID, VALID_CONVO_ID, { ...stateV5, version: 4, updatedAt: 40_000 })
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(hoisted.deletedIds).toHaveLength(0);
+
+    // 3. Rejected destructive drop (409) does NOT delete duplicates
+    const wipedState = {
+      ...stateV5,
+      updatedAt: 60_000,
+      chapters: [{ ...stateV5.chapters[0], content: "tiny" }],
+    };
+    await expect(saveStoryState(USER_ID, VALID_CONVO_ID, wipedState)).rejects.toMatchObject({
+      statusCode: 409,
+      code: "DESTRUCTIVE_SAVE_REJECTED",
+    });
+    expect(hoisted.deletedIds).toHaveLength(0);
+
+    // 4. CAS conflict (409 STALE_STORY_STATE) does NOT delete duplicates
+    hoisted.forceCasConflict = true;
+    await expect(
+      saveStoryState(USER_ID, VALID_CONVO_ID, { ...stateV5, updatedAt: 60_000 })
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: "STALE_STORY_STATE",
+    });
+    expect(hoisted.deletedIds).toHaveLength(0);
+    hoisted.forceCasConflict = false;
+
+    // 5. Successful save cleans up duplicate rows ONLY after CAS update succeeds
+    const saved = await saveStoryState(USER_ID, VALID_CONVO_ID, {
+      ...stateV5,
+      updatedAt: 70_000,
+    });
+    expect(saved.version).toBe(6);
+    expect(hoisted.deletedIds).toEqual(["msg-v3-newer-ts"]);
     expect(hoisted.storedMessages).toHaveLength(1);
+    expect(hoisted.storedMessages[0].id).toBe("msg-v5-older-ts");
+  });
+
+  it("TC-W2A-19: preserves TC-03A corrupted_remote on valid ciphertext with corrupt JSON, skips sanitizeStoryState when meta.contentChars is finite, and falls back when contentChars is NaN", async () => {
+    // Valid AES ciphertext encrypting corrupt JSON
+    hoisted.storedMessages.push({
+      id: "msg-bad-json",
+      conversation_id: VALID_CONVO_ID,
+      role: "system",
+      content: encryptText("{corrupt-json-payload"),
+      meta: {
+        novelcrafterType: "story_state",
+        version: 2,
+        updatedAt: 1000,
+        contentChars: 5000,
+      },
+      created_at: new Date().toISOString(),
+    });
+
+    const incoming = createDefaultStoryState("Chương 1");
+    incoming.version = 2;
+    incoming.updatedAt = 2000;
+    incoming.chapters[0].content = "A".repeat(4000);
+
+    await expect(saveStoryState(USER_ID, VALID_CONVO_ID, incoming)).rejects.toMatchObject({
+      statusCode: 409,
+      code: "DESTRUCTIVE_SAVE_REJECTED",
+      reason: "corrupted_remote",
+    });
+
+    // Healthy row with finite meta.contentChars -> skips redundant sanitizeStoryState on existing row
+    hoisted.storedMessages = [];
+    const base = createDefaultStoryState("Chương 1");
+    base.chapters[0].content = "B".repeat(3000);
+    base.updatedAt = 10_000;
+    const savedV1 = await saveStoryState(USER_ID, VALID_CONVO_ID, base);
+
+    const sanitizeSpy = vi.spyOn(promptBuilder, "sanitizeStoryState");
+    const savedV2 = await saveStoryState(USER_ID, VALID_CONVO_ID, {
+      ...savedV1,
+      updatedAt: savedV1.updatedAt + 1000,
+    });
+    // Called only once (for incomingState), NOT for existing row because contentChars is finite
+    expect(sanitizeSpy).toHaveBeenCalledTimes(1);
+    sanitizeSpy.mockClear();
+
+    // When meta.contentChars is NaN, falls back to sanitizing existing row and still blocks >90% wipe
+    hoisted.storedMessages[0].meta.contentChars = Number.NaN;
+    const wiped = {
+      ...savedV2,
+      updatedAt: savedV2.updatedAt + 1000,
+      chapters: [{ ...savedV2.chapters[0], content: "short" }],
+    };
+    await expect(saveStoryState(USER_ID, VALID_CONVO_ID, wiped)).rejects.toMatchObject({
+      statusCode: 409,
+      code: "DESTRUCTIVE_SAVE_REJECTED",
+      reason: "content_drop",
+    });
+    expect(sanitizeSpy).toHaveBeenCalledTimes(2);
+    sanitizeSpy.mockRestore();
   });
 
   it("enforces strict UUID validation and Novelcrafter conversation ownership", async () => {

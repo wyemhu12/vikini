@@ -1,8 +1,26 @@
 // src/app/features/chat/components/ChatBubble.test.tsx
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import ChatBubble, { type ChatMessage } from "./ChatBubble";
+import { toast } from "@/lib/store/toastStore";
+import { logger } from "@/lib/utils/logger";
+
+vi.mock("@/lib/store/toastStore", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
+vi.mock("@/lib/utils/logger", () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+  },
+}));
 
 // Mock next/dynamic
 vi.mock("next/dynamic", () => ({
@@ -39,6 +57,7 @@ vi.mock("../hooks/useLanguage", () => ({
           "Reasoning process reached token length limit before generating answer content.",
         regenerateWithLowerThinking: "Regenerate with lower thinking",
         aiIsTyping: "AI is typing...",
+        describeCopyFailed: "Failed to copy to clipboard",
       };
       return dict[key] || key;
     },
@@ -324,6 +343,67 @@ describe("ChatBubble", () => {
 
       expect(onEdit).not.toHaveBeenCalled();
       expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Clipboard copy error handling (TC-P5-05, NP-4)", () => {
+    const assistantMsg: ChatMessage = {
+      id: "msg-copy-1",
+      role: "assistant",
+      content: "Copyable response text",
+    };
+
+    afterEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("copies content cleanly without calling toast.error on success", async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText },
+        configurable: true,
+      });
+
+      render(<ChatBubble message={assistantMsg} />);
+      fireEvent.click(screen.getByRole("button", { name: /copy/i }));
+
+      await waitFor(() => {
+        expect(writeText).toHaveBeenCalledWith("Copyable response text");
+      });
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it("logs error and displays toast.error when clipboard rejects with Error", async () => {
+      const writeText = vi.fn().mockRejectedValue(new Error("Permission denied"));
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText },
+        configurable: true,
+      });
+
+      render(<ChatBubble message={assistantMsg} />);
+      fireEvent.click(screen.getByRole("button", { name: /copy/i }));
+
+      await waitFor(() => {
+        expect(logger.error).toHaveBeenCalledTimes(1);
+        expect(toast.error).toHaveBeenCalledWith("Failed to copy to clipboard");
+      });
+    });
+
+    it("handles non-Error clipboard rejection safely", async () => {
+      const writeText = vi.fn().mockRejectedValue("denied");
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText },
+        configurable: true,
+      });
+
+      render(<ChatBubble message={assistantMsg} />);
+      fireEvent.click(screen.getByRole("button", { name: /copy/i }));
+
+      await waitFor(() => {
+        expect(logger.error).toHaveBeenCalledTimes(1);
+        expect(toast.error).toHaveBeenCalledWith("Failed to copy to clipboard");
+      });
     });
   });
 });

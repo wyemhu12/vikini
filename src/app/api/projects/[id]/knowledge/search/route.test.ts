@@ -19,7 +19,7 @@ vi.mock("@/lib/features/projects/knowledge.server", () => ({
 }));
 
 vi.mock("@/lib/features/projects/projects.server", () => ({
-  getProject: vi.fn(),
+  verifyProjectOwnership: vi.fn(),
 }));
 
 vi.mock("@/lib/utils/logger", () => ({
@@ -46,7 +46,7 @@ import { requireApprovedUser } from "@/lib/features/auth/requireApprovedUser";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
 import { AccessPendingError, UnauthorizedError } from "@/lib/utils/errors";
 import { searchKnowledge } from "@/lib/features/projects/knowledge.server";
-import { getProject } from "@/lib/features/projects/projects.server";
+import { verifyProjectOwnership } from "@/lib/features/projects/projects.server";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -79,6 +79,7 @@ function mockRateLimit(allowed: boolean) {
 
 function mockAuthenticated() {
   vi.mocked(requireApprovedUser).mockResolvedValue({ userId: TEST_USER_EMAIL, rank: "basic" });
+  vi.mocked(verifyProjectOwnership).mockResolvedValue(true);
   mockRateLimit(true);
 }
 
@@ -89,12 +90,6 @@ function mockUnauthenticated() {
 function createParams(id: string) {
   return { params: Promise.resolve({ id }) };
 }
-
-const MOCK_PROJECT = {
-  id: TEST_PROJECT_ID,
-  name: "Test Project",
-  userId: TEST_USER_EMAIL,
-};
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -149,7 +144,6 @@ describe("/api/projects/[id]/knowledge/search", () => {
 
     it("should return search results on success", async () => {
       mockAuthenticated();
-      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
       const mockResults = [
         { content: "matching text", score: 0.95, documentId: "doc-1" },
         { content: "another match", score: 0.8, documentId: "doc-2" },
@@ -175,7 +169,6 @@ describe("/api/projects/[id]/knowledge/search", () => {
 
     it("should pass threshold and limit options", async () => {
       mockAuthenticated();
-      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
       vi.mocked(searchKnowledge).mockResolvedValue([] as never);
 
       const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge/search`, {
@@ -194,7 +187,7 @@ describe("/api/projects/[id]/knowledge/search", () => {
 
     it("should return 404 when project is not found", async () => {
       mockAuthenticated();
-      vi.mocked(getProject).mockResolvedValue(null as never);
+      vi.mocked(verifyProjectOwnership).mockResolvedValue(false);
 
       const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge/search`, {
         query: "test query",
@@ -206,9 +199,22 @@ describe("/api/projects/[id]/knowledge/search", () => {
       expect(json.success).toBe(false);
     });
 
+    it("TC-W2A-15: should return 400 on malformed JSON body", async () => {
+      mockAuthenticated();
+      const req = new NextRequest(
+        new URL(`/api/projects/${TEST_PROJECT_ID}/knowledge/search`, "http://localhost:3000"),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{bad",
+        }
+      );
+      const res = await POST(req, createParams(TEST_PROJECT_ID));
+      expect(res.status).toBe(400);
+    });
+
     it("should return 400 when query is missing", async () => {
       mockAuthenticated();
-      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
 
       const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge/search`, {});
       const res = await POST(req, createParams(TEST_PROJECT_ID));
@@ -220,7 +226,6 @@ describe("/api/projects/[id]/knowledge/search", () => {
 
     it("should return 400 when query is empty string", async () => {
       mockAuthenticated();
-      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
 
       const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge/search`, {
         query: "",
@@ -234,7 +239,6 @@ describe("/api/projects/[id]/knowledge/search", () => {
 
     it("should return 400 when query exceeds max length", async () => {
       mockAuthenticated();
-      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
 
       const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge/search`, {
         query: "x".repeat(1001),
@@ -248,7 +252,6 @@ describe("/api/projects/[id]/knowledge/search", () => {
 
     it("should return 400 when limit is out of range", async () => {
       mockAuthenticated();
-      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
 
       const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge/search`, {
         query: "test",
@@ -263,7 +266,6 @@ describe("/api/projects/[id]/knowledge/search", () => {
 
     it("should return 400 when threshold is out of range", async () => {
       mockAuthenticated();
-      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
 
       const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge/search`, {
         query: "test",
@@ -278,7 +280,6 @@ describe("/api/projects/[id]/knowledge/search", () => {
 
     it("should return 500 when searchKnowledge throws", async () => {
       mockAuthenticated();
-      vi.mocked(getProject).mockResolvedValue(MOCK_PROJECT as never);
       vi.mocked(searchKnowledge).mockRejectedValue(new Error("Embedding service down"));
 
       const req = createRequest("POST", `/api/projects/${TEST_PROJECT_ID}/knowledge/search`, {

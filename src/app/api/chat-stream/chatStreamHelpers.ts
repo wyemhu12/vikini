@@ -35,7 +35,11 @@ export function parseCookieHeader(cookieHeader: string | null | undefined): Reco
     if (idx === -1) continue;
     const k = p.slice(0, idx);
     const v = p.slice(idx + 1);
-    out[k] = decodeURIComponent(v || "");
+    try {
+      out[k] = decodeURIComponent(v || "");
+    } catch {
+      out[k] = v || "";
+    }
   }
   return out;
 }

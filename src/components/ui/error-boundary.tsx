@@ -1,15 +1,20 @@
 "use client";
 
-import { Component, ReactNode, ErrorInfo } from "react";
+import { Component, type ReactNode, type ErrorInfo } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { logger } from "@/lib/utils/logger";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
-interface Props {
+export interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
   onReset?: () => void;
-  /** Translation function - pass `t` from useLanguage(). Falls back to English. */
+  /** Optional translation override; defaults to useLanguage().t */
   t?: (key: string) => string;
+}
+
+interface ErrorBoundaryInnerProps extends Omit<ErrorBoundaryProps, "t"> {
+  t: (key: string) => string;
 }
 
 interface State {
@@ -17,16 +22,8 @@ interface State {
   error: Error | null;
 }
 
-/** Fallback translations when no `t` prop is provided */
-const FALLBACK: Record<string, string> = {
-  errorBoundaryTitle: "Something went wrong",
-  tryAgain: "Try Again",
-  reloadPage: "Reload Page",
-  errorBoundaryDescription: "An unexpected error occurred. Please try again.",
-};
-
-export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
+class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
+  constructor(props: ErrorBoundaryInnerProps) {
     super(props);
     this.state = { hasError: false, error: null };
   }
@@ -44,38 +41,40 @@ export class ErrorBoundary extends Component<Props, State> {
     this.props.onReset?.();
   };
 
-  private translate(key: string): string {
-    return this.props.t?.(key) ?? FALLBACK[key] ?? key;
-  }
-
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
       }
 
+      const { t } = this.props;
       return (
-        <div className="flex flex-col items-center justify-center min-h-[400px] p-8 bg-(--surface) text-(--text)">
+        <div
+          role="alert"
+          className="flex flex-col items-center justify-center min-h-[400px] p-8 bg-(--surface) text-(--text)"
+        >
           <div className="flex items-center justify-center w-16 h-16 mb-6 rounded-full bg-(--danger)/10 border border-(--danger)/30">
-            <AlertCircle className="w-8 h-8 text-(--danger)" />
+            <AlertCircle aria-hidden="true" className="w-8 h-8 text-(--danger)" />
           </div>
-          <h2 className="text-xl font-bold mb-2">{this.translate("errorBoundaryTitle")}</h2>
+          <h2 className="text-xl font-bold mb-2">{t("errorBoundaryTitle")}</h2>
           <p className="text-(--muted) mb-6 text-center max-w-md">
-            {this.state.error?.message || this.translate("errorBoundaryDescription")}
+            {this.state.error?.message || t("errorBoundaryDescription")}
           </p>
           <div className="flex gap-3">
             <button
+              type="button"
               onClick={this.handleReset}
-              className="flex items-center gap-2 px-4 py-2 bg-(--raised) hover:bg-(--raised) border border-(--line) rounded-lg text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="flex items-center gap-2 px-4 py-2 bg-(--raised) hover:bg-(--raised-hover) border border-(--line) rounded-lg text-sm font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
-              <RefreshCw className="w-4 h-4" />
-              {this.translate("tryAgain")}
+              <RefreshCw aria-hidden="true" className="w-4 h-4" />
+              {t("tryAgain")}
             </button>
             <button
+              type="button"
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-(--accent) text-(--on-accent) rounded-lg text-sm font-medium hover:brightness-110 transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="px-4 py-2 bg-(--accent) text-(--on-accent) rounded-lg text-sm font-medium hover:brightness-110 transition-[filter] cursor-pointer focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
-              {this.translate("reloadPage")}
+              {t("reloadPage")}
             </button>
           </div>
         </div>
@@ -84,4 +83,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return this.props.children;
   }
+}
+
+export function ErrorBoundary({ t: tOverride, ...rest }: ErrorBoundaryProps) {
+  const { t: hookT } = useLanguage();
+  return <ErrorBoundaryInner {...rest} t={tOverride ?? hookT} />;
 }

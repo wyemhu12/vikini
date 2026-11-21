@@ -3,11 +3,16 @@
 
 import { getUserId } from "./getUserId";
 import { getUserProfileStrict, type UserRank } from "@/lib/core/limits";
-import { AccessPendingError, UserBlockedError } from "@/lib/utils/errors";
+import { AccessPendingError, ForbiddenError, UserBlockedError } from "@/lib/utils/errors";
 
 export interface ApprovedUser {
   userId: string;
   rank: Exclude<UserRank, "not_whitelisted">;
+}
+
+export interface AdminUser {
+  userId: string;
+  rank: "admin";
 }
 
 const APPROVED_RANKS: ReadonlySet<string> = new Set(["basic", "pro", "admin"]);
@@ -32,4 +37,23 @@ export async function requireApprovedUser(): Promise<ApprovedUser> {
   if (!isApprovedRank(profile.rank)) throw new AccessPendingError();
 
   return { userId, rank: profile.rank };
+}
+
+/**
+ * Require a signed-in, non-blocked administrator verified directly against the database.
+ * Never trusts stale JWT claims so demotions/blocks take effect immediately.
+ * @throws UnauthorizedError (401) when there is no session
+ * @throws ServiceUnavailableError (503) when the profile cannot be read
+ * @throws UserBlockedError (403) when the account is blocked
+ * @throws ForbiddenError (403) when the account is missing or not an admin
+ */
+export async function requireAdminUser(): Promise<AdminUser> {
+  const userId = await getUserId();
+  const profile = await getUserProfileStrict(userId);
+
+  if (!profile) throw new ForbiddenError("Admin access required");
+  if (profile.is_blocked) throw new UserBlockedError();
+  if (profile.rank !== "admin") throw new ForbiddenError("Admin access required");
+
+  return { userId, rank: "admin" };
 }

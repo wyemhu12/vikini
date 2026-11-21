@@ -1,12 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET } from "./route";
-import * as authModule from "@/lib/features/auth/auth";
+import * as requireApprovedUserModule from "@/lib/features/auth/requireApprovedUser";
 import * as strataConfigModule from "@/lib/core/strataConfig";
 import * as strataClientModule from "@/lib/core/strataClient";
 import * as strataQueueModule from "@/lib/core/strataQueue";
+import {
+  AccessPendingError,
+  ServiceUnavailableError,
+  UnauthorizedError,
+  UserBlockedError,
+} from "@/lib/utils/errors";
 
-vi.mock("@/lib/features/auth/auth", () => ({
-  auth: vi.fn(),
+vi.mock("@/lib/features/auth/requireApprovedUser", () => ({
+  requireApprovedUser: vi.fn(),
 }));
 
 describe("GET /api/local-llm/health", () => {
@@ -15,15 +21,35 @@ describe("GET /api/local-llm/health", () => {
   });
 
   it("returns 401 Unauthorized when session is missing (TC-35)", async () => {
-    vi.mocked(authModule.auth).mockResolvedValue(null as never);
+    vi.mocked(requireApprovedUserModule.requireApprovedUser).mockRejectedValueOnce(
+      new UnauthorizedError()
+    );
     const res = await GET();
     expect(res.status).toBe(401);
   });
 
+  it("returns 403 for blocked or not_whitelisted users and 503 on DB error (TC-W1-04)", async () => {
+    vi.mocked(requireApprovedUserModule.requireApprovedUser).mockRejectedValueOnce(
+      new UserBlockedError()
+    );
+    expect((await GET()).status).toBe(403);
+
+    vi.mocked(requireApprovedUserModule.requireApprovedUser).mockRejectedValueOnce(
+      new AccessPendingError()
+    );
+    expect((await GET()).status).toBe(403);
+
+    vi.mocked(requireApprovedUserModule.requireApprovedUser).mockRejectedValueOnce(
+      new ServiceUnavailableError()
+    );
+    expect((await GET()).status).toBe(503);
+  });
+
   it("returns enabled, online, loaded, model, maxContext, and queue snapshot when authenticated (TC-34)", async () => {
-    vi.mocked(authModule.auth).mockResolvedValue({
-      user: { id: "user-1", email: "test@example.com" },
-    } as never);
+    vi.mocked(requireApprovedUserModule.requireApprovedUser).mockResolvedValueOnce({
+      userId: "test@example.com",
+      rank: "basic",
+    });
 
     vi.spyOn(strataConfigModule, "getStrataConfig").mockReturnValue({
       enabled: true,

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { TRANSITION } from "@/lib/utils/motion";
 
 interface SidebarSectionProps {
   /** Section label */
@@ -93,7 +94,7 @@ export function SidebarSection({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
+            transition={TRANSITION.COLLAPSE}
             className="overflow-hidden"
           >
             {/* Optional action button */}

@@ -5,6 +5,7 @@ import React, { useEffect, useCallback } from "react";
 import { Mic, MicOff, Volume2 } from "lucide-react";
 import { useSpeechRecognition, useSpeechSynthesis } from "@/lib/features/voice";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useLanguage } from "../hooks/useLanguage";
 
 interface VoiceButtonProps {
   /** Callback when voice transcript is available */
@@ -19,8 +20,6 @@ interface VoiceButtonProps {
   disabled?: boolean;
   /** Language setting */
   language?: string;
-  /** Translation strings */
-  t?: Record<string, string>;
 }
 
 /**
@@ -36,8 +35,8 @@ export function VoiceButton({
   ttsEnabled = false,
   disabled = false,
   language = "vi-VN",
-  t,
 }: VoiceButtonProps) {
+  const { t } = useLanguage();
   // Speech Recognition (STT)
   const {
     isListening,
@@ -111,16 +110,14 @@ export function VoiceButton({
               type="button"
               disabled
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--muted) opacity-50 cursor-not-allowed"
-              aria-label="Voice input not supported"
+              aria-label={t("voiceNotSupported")}
             >
               <MicOff className="w-5 h-5" />
             </button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>{t?.voiceNotSupported || "Voice input not supported in this browser"}</p>
-            <p className="text-xs text-(--warning) mt-1">
-              {t?.useChromeOrEdge || "Use Chrome or Edge for voice features"}
-            </p>
+            <p>{t("voiceNotSupported")}</p>
+            <p className="text-xs text-(--warning) mt-1">{t("useChromeOrEdge")}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -142,11 +139,7 @@ export function VoiceButton({
                   ? "bg-(--danger) text-(--danger-foreground) animate-pulse shadow-lg shadow-(--danger)/50"
                   : "text-(--muted) hover:bg-(--raised-hover) hover:text-(--accent)"
               } disabled:opacity-50 disabled:cursor-not-allowed`}
-              aria-label={
-                isListening
-                  ? t?.stopListening || "Stop listening"
-                  : t?.startListening || "Start voice input"
-              }
+              aria-label={isListening ? t("stopListening") : t("startListening")}
             >
               {isListening ? (
                 <>
@@ -160,11 +153,7 @@ export function VoiceButton({
             </button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>
-              {isListening
-                ? t?.clickToStop || "Click to stop"
-                : t?.clickToSpeak || "Click to speak"}
-            </p>
+            <p>{isListening ? t("clickToStop") : t("clickToSpeak")}</p>
             {sttError && <p className="text-(--danger) text-xs">{sttError}</p>}
           </TooltipContent>
         </Tooltip>
@@ -177,13 +166,13 @@ export function VoiceButton({
                 type="button"
                 onClick={handleTTSToggle}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-(--accent)/10 text-(--accent) hover:bg-(--accent)/20 transition-colors"
-                aria-label={t?.stopSpeaking || "Stop speaking"}
+                aria-label={t("stopSpeaking")}
               >
                 <Volume2 className="w-4 h-4 animate-pulse" />
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{t?.clickToStopSpeaking || "Click to stop AI voice"}</p>
+              <p>{t("clickToStopSpeaking")}</p>
             </TooltipContent>
           </Tooltip>
         )}
@@ -191,7 +180,7 @@ export function VoiceButton({
 
       {/* ARIA Live Region for screen readers */}
       <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-        {isListening ? t?.listeningAnnouncement || `Listening: ${transcript}` : ""}
+        {isListening ? t("listeningAnnouncement").replace("{transcript}", transcript) : ""}
       </div>
     </TooltipProvider>
   );

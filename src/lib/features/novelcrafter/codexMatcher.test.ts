@@ -1,5 +1,5 @@
 // /lib/features/novelcrafter/codexMatcher.test.ts
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   doesCodexTermMatchContext,
   findCodexMentionRanges,
@@ -273,6 +273,82 @@ describe("codexMatcher (Phase 3.1)", () => {
           end: 18,
         },
       ]);
+    });
+
+    it("TC-W2A-21: hoists contextText.normalize('NFC') once across 20 cards x 3 aliases with NFD Vietnamese text", () => {
+      const manyCards: StoryBibleCharacterCard[] = Array.from({ length: 20 }, (_, i) => ({
+        id: `char_${i}`,
+        name: `Nhân Vật ${i}`,
+        aliases: [`Biệt Danh ${i}A`, `Biệt Danh ${i}B`, `Biệt Danh ${i}C`],
+        role: "Support",
+        traits: "",
+        visibleToAI: true,
+        alwaysInclude: false,
+      }));
+      manyCards[17].aliases = ["Tiểu Hàn", "Kiếm Đế", "Biệt Danh 17C"];
+
+      const storyBible = {
+        ...createDefaultStoryState().storyBible,
+        characterCards: manyCards,
+      };
+      // NFD decomposed Vietnamese context text
+      const nfdContext = "Tiểu Hàn bước vào rừng sương.".normalize("NFD");
+
+      const originalNormalize = String.prototype.normalize;
+      let contextNormalizeCalls = 0;
+      const normalizeSpy = vi.spyOn(String.prototype, "normalize").mockImplementation(function (
+        this: string,
+        form?: string
+      ) {
+        if (this === nfdContext) {
+          contextNormalizeCalls += 1;
+        }
+        return originalNormalize.call(this, form);
+      });
+
+      try {
+        const result = matchCodexEntitiesInContext(storyBible, nfdContext);
+        expect(result.matchedCharacterIds.has("char_17")).toBe(true);
+        expect(result.matchedCharacterIds.size).toBe(1);
+        expect(contextNormalizeCalls).toBe(1);
+      } finally {
+        normalizeSpy.mockRestore();
+      }
+    });
+
+    it("TC-W2A-21: handles Turkish dotted İ (U+0130) lowercase length expansion and 5,000 overlapping candidates with Uint8Array occupied mask", () => {
+      const storyBible = {
+        ...createDefaultStoryState().storyBible,
+        characterCards: [
+          {
+            id: "char_hero",
+            name: "Minh",
+            aliases: ["Tiểu Minh", "Đại Ca Tiểu Minh"],
+            role: "Lead",
+            traits: "",
+            visibleToAI: true,
+          },
+        ],
+      };
+
+      // İ (U+0130) expands from 1 UTF-16 code unit to 2 code units when lowercased ("i\u0307")
+      const turkishPrefix = "İstanbul ".repeat(5);
+      const repeatedOverlaps = `${turkishPrefix}${"Đại Ca Tiểu Minh ".repeat(2000)}`;
+      const startedAt = performance.now();
+      const ranges = findCodexMentionRanges(storyBible, repeatedOverlaps, 2000);
+      const elapsedMs = performance.now() - startedAt;
+
+      expect(ranges).toHaveLength(2000);
+      // Every selected range must be the longest alias ("Đại Ca Tiểu Minh", length 16) with zero overlaps
+      for (let i = 0; i < ranges.length; i += 1) {
+        expect(ranges[i].end - ranges[i].start).toBe("Đại Ca Tiểu Minh".length);
+        if (i > 0) {
+          expect(ranges[i].start).toBeGreaterThanOrEqual(ranges[i - 1].end);
+        }
+      }
+      expect(elapsedMs).toBeLessThan(1000);
+      expect(findCodexMentionRanges(storyBible, "", 2000)).toEqual([]);
+      expect(findCodexMentionRanges(storyBible, "Minh", 0)).toEqual([]);
     });
   });
 });

@@ -3,12 +3,28 @@
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useShallow } from "zustand/react/shallow";
 import { ProjectWithStats, UserTier } from "@/types/projects";
 
 export interface ProjectLimits {
   maxProjects: number;
   currentProjects: number;
   maxStorageBytesPerProject: number;
+}
+
+async function parseApiResponse<T>(res: Response, fallbackMsg: string): Promise<T> {
+  let json: { success?: boolean; data?: T; error?: { message?: string } };
+  try {
+    json = (await res.json()) as { success?: boolean; data?: T; error?: { message?: string } };
+  } catch {
+    throw new Error(res.ok ? fallbackMsg : `${fallbackMsg} (HTTP ${res.status})`);
+  }
+  if (!res.ok || !json?.success) {
+    throw new Error(
+      json?.error?.message || (res.ok ? fallbackMsg : `${fallbackMsg} (HTTP ${res.status})`)
+    );
+  }
+  return json.data as T;
 }
 
 interface ProjectStore {
@@ -80,19 +96,19 @@ export const useProjectStore = create<ProjectStore>()(
         set({ isLoading: true, error: null });
         try {
           const res = await fetch("/api/projects");
-          const data = await res.json();
-
-          if (!data.success) {
-            throw new Error(data.error?.message || "Failed to fetch projects");
-          }
+          const data = await parseApiResponse<{
+            projects: ProjectWithStats[];
+            tier: UserTier;
+            limits: ProjectLimits;
+          }>(res, "Failed to fetch projects");
 
           set({
-            projects: data.data.projects,
-            tier: data.data.tier,
-            limits: data.data.limits,
+            projects: data.projects,
+            tier: data.tier,
+            limits: data.limits,
             isLoading: false,
           });
-        } catch (err) {
+        } catch (err: unknown) {
           const message = err instanceof Error ? err.message : "Failed to fetch projects";
           set({ error: message, isLoading: false });
         }
@@ -107,14 +123,13 @@ export const useProjectStore = create<ProjectStore>()(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(input),
           });
-          const data = await res.json();
-
-          if (!data.success) {
-            throw new Error(data.error?.message || "Failed to create project");
-          }
+          const data = await parseApiResponse<{ project: ProjectWithStats }>(
+            res,
+            "Failed to create project"
+          );
 
           const newProject: ProjectWithStats = {
-            ...data.data.project,
+            ...data.project,
             conversation_count: 0,
             document_count: 0,
             storage_bytes: 0,
@@ -122,11 +137,14 @@ export const useProjectStore = create<ProjectStore>()(
 
           set((state) => ({
             projects: [newProject, ...state.projects],
+            limits: state.limits
+              ? { ...state.limits, currentProjects: state.limits.currentProjects + 1 }
+              : state.limits,
             isLoading: false,
           }));
 
           return newProject;
-        } catch (err) {
+        } catch (err: unknown) {
           const message = err instanceof Error ? err.message : "Failed to create project";
           set({ error: message, isLoading: false });
           throw err;
@@ -142,13 +160,12 @@ export const useProjectStore = create<ProjectStore>()(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(input),
           });
-          const data = await res.json();
+          const data = await parseApiResponse<{ project: ProjectWithStats }>(
+            res,
+            "Failed to update project"
+          );
 
-          if (!data.success) {
-            throw new Error(data.error?.message || "Failed to update project");
-          }
-
-          const updatedProject = data.data.project;
+          const updatedProject = data.project;
 
           set((state) => ({
             projects: state.projects.map((p) =>
@@ -158,7 +175,7 @@ export const useProjectStore = create<ProjectStore>()(
           }));
 
           return updatedProject;
-        } catch (err) {
+        } catch (err: unknown) {
           const message = err instanceof Error ? err.message : "Failed to update project";
           set({ error: message, isLoading: false });
           throw err;
@@ -172,18 +189,17 @@ export const useProjectStore = create<ProjectStore>()(
           const res = await fetch(`/api/projects/${projectId}`, {
             method: "DELETE",
           });
-          const data = await res.json();
-
-          if (!data.success) {
-            throw new Error(data.error?.message || "Failed to delete project");
-          }
+          await parseApiResponse<unknown>(res, "Failed to delete project");
 
           set((state) => ({
             projects: state.projects.filter((p) => p.id !== projectId),
             currentProjectId: state.currentProjectId === projectId ? null : state.currentProjectId,
+            limits: state.limits
+              ? { ...state.limits, currentProjects: Math.max(0, state.limits.currentProjects - 1) }
+              : state.limits,
             isLoading: false,
           }));
-        } catch (err) {
+        } catch (err: unknown) {
           const message = err instanceof Error ? err.message : "Failed to delete project";
           set({ error: message, isLoading: false });
           throw err;
@@ -200,14 +216,15 @@ export const useProjectStore = create<ProjectStore>()(
 );
 
 // Convenience hooks
-export const useCurrentProject = () => {
-  const store = useProjectStore();
-  return store.getCurrentProject();
-};
+export const useCurrentProject = () =>
+  useProjectStore((s) =>
+    s.currentProjectId ? (s.projects.find((p) => p.id === s.currentProjectId) ?? null) : null
+  );
 
-export const useProjectLimits = () => {
-  return useProjectStore((state) => ({
-    tier: state.tier,
-    limits: state.limits,
-  }));
-};
+export const useProjectLimits = () =>
+  useProjectStore(
+    useShallow((state) => ({
+      tier: state.tier,
+      limits: state.limits,
+    }))
+  );

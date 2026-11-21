@@ -3,8 +3,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { modelSupportsClaudeThinking } from "@/lib/core/modelRegistry";
 import { executeFunction } from "@/lib/features/chat/functionRegistry";
 
-import { StreamTimeoutError, type ChatStreamParams, type CreatedConversation } from "./types";
+import { StreamTimeoutError, type ChatStreamParams } from "./types";
 import { sendEvent, getStreamTimeout, withTimeout, withIdleTimeout, streamLogger } from "./utils";
+import { sendInitialMetaEvents, generateAndSendOptimisticTitle } from "./gemini-stream";
 import { processPostStream } from "./post-processing";
 import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
 import { sendThinkingChunk, accumulateReasoning } from "./reasoningStreamHelper.server";
@@ -29,6 +30,7 @@ export function createAnthropicStream({
   appendToContext,
   upsertAssistantMessage,
   setConversationAutoTitle,
+  generateOptimisticTitle,
   generateFinalTitle,
   thinkingLevel,
   clientMessageId,
@@ -107,31 +109,31 @@ export function createAnthropicStream({
       ac.abort();
     },
     async start(controller) {
-      // 1. Send Initial Metadata
-      const conv = createdConversation as CreatedConversation | null;
-      const meta = {
-        conversationId,
-        title: conv?.title ?? null,
-        isNew: Boolean(createdConversation),
-        model: modelMeta,
-        gem: gemMeta,
-        webSearch: {
-          enabled: enableWebSearch,
-          available: WEB_SEARCH_AVAILABLE,
-          cookie: cookieWeb,
-        },
-      };
-      sendEvent(controller, "meta", meta);
+      // 1. Send Initial Metadata (consistent schema with Gemini/OpenAI/DeepSeek)
+      sendInitialMetaEvents(controller, {
+        createdConversation,
+        enableWebSearch,
+        WEB_SEARCH_AVAILABLE,
+        cookieWeb,
+        gemMeta,
+        modelMeta,
+        model,
+        ragSources,
+      });
 
-      if (ragSources && ragSources.length > 0) {
-        sendEvent(controller, "meta", {
-          type: "ragSources",
-          sources: ragSources,
-        });
-      }
+      // 2. Optimistic Title (instant UX)
+      await generateAndSendOptimisticTitle(
+        controller,
+        shouldGenerateTitle,
+        content,
+        conversationId,
+        generateOptimisticTitle
+      );
 
       let full = "";
       let fullReasoning = "";
+      let inputTokens: number | undefined;
+      let outputTokens: number | undefined;
       // Collect sources from web search results for persistence
       const collectedSources: Array<{ uri: string; title: string }> = [];
       let streamFailed = false;
@@ -258,8 +260,15 @@ export function createAnthropicStream({
 
         const stream = (await withTimeout(streamPromise, timeoutMs)) as unknown as AsyncIterable<{
           type: string;
-          delta: { type: string; text?: string; thinking?: string; partial_json?: string };
-          content_block: Record<string, unknown>;
+          delta?: { type: string; text?: string; thinking?: string; partial_json?: string };
+          content_block?: Record<string, unknown>;
+          message?: {
+            usage?: {
+              input_tokens?: number;
+              cache_creation_input_tokens?: number;
+              cache_read_input_tokens?: number;
+            };
+          };
           usage?: { output_tokens?: number };
         }>;
 
@@ -276,9 +285,18 @@ export function createAnthropicStream({
             break;
           }
 
+          // Handle initial input/cache token usage from message_start event
+          if (chunk.type === "message_start" && chunk.message?.usage) {
+            const u = chunk.message.usage;
+            inputTokens =
+              (u.input_tokens || 0) +
+              (u.cache_creation_input_tokens || 0) +
+              (u.cache_read_input_tokens || 0);
+          }
+
           // Handle text token deltas
-          if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
-            const text = (chunk.delta as { text?: string }).text;
+          if (chunk.type === "content_block_delta" && chunk.delta?.type === "text_delta") {
+            const text = chunk.delta.text;
             if (text) {
               full += text;
               acc.full = full;
@@ -287,8 +305,8 @@ export function createAnthropicStream({
           }
 
           // Handle thinking deltas (Claude Extended Thinking)
-          if (chunk.type === "content_block_delta" && chunk.delta.type === "thinking_delta") {
-            const thinkingText = (chunk.delta as { thinking?: string }).thinking;
+          if (chunk.type === "content_block_delta" && chunk.delta?.type === "thinking_delta") {
+            const thinkingText = chunk.delta.thinking;
             if (thinkingText) {
               fullReasoning = accumulateReasoning(fullReasoning, thinkingText);
               acc.reasoning = fullReasoning;
@@ -297,7 +315,7 @@ export function createAnthropicStream({
           }
 
           // Handle tool_use blocks for function calling (get_current_time)
-          if (chunk.type === "content_block_start") {
+          if (chunk.type === "content_block_start" && chunk.content_block) {
             const block = chunk.content_block as { type?: string; id?: string; name?: string };
             if (block.type === "tool_use") {
               currentToolUseId = block.id || "";
@@ -307,8 +325,8 @@ export function createAnthropicStream({
           }
 
           // Accumulate tool input JSON
-          if (chunk.type === "content_block_delta" && chunk.delta.type === "input_json_delta") {
-            const partial = (chunk.delta as { partial_json?: string }).partial_json;
+          if (chunk.type === "content_block_delta" && chunk.delta?.type === "input_json_delta") {
+            const partial = chunk.delta.partial_json;
             if (partial) currentToolInput += partial;
           }
 
@@ -398,17 +416,22 @@ export function createAnthropicStream({
 
           // Handle token usage from message_delta event
           if (chunk.type === "message_delta") {
-            const usage = (chunk as { usage?: { output_tokens?: number } }).usage;
+            const usage = chunk.usage;
             if (usage) {
+              outputTokens = usage.output_tokens || 0;
+              const totalTokens = (inputTokens || 0) + outputTokens;
               sendEvent(controller, "meta", {
                 type: "usageMetadata",
-                outputTokens: usage.output_tokens || 0,
+                outputTokens,
+                ...(inputTokens !== undefined ? { promptTokenCount: inputTokens } : {}),
+                candidatesTokenCount: outputTokens,
+                totalTokenCount: totalTokens,
               });
             }
           }
 
           // Handle content_block_start - extract web search results + code execution results
-          if (chunk.type === "content_block_start") {
+          if (chunk.type === "content_block_start" && chunk.content_block) {
             const block = chunk.content_block as Record<string, unknown>;
 
             // web_search_tool_result contains the actual search results with URLs
@@ -543,8 +566,8 @@ export function createAnthropicStream({
         return;
       }
 
-      // 3. Post Stream Processing — skip if stream failed with no content and no reasoning
-      if (!streamFailed || full.trim() || fullReasoning.trim()) {
+      // 3. Post Stream Processing — skip on failure (partial content already saved in catch)
+      if (!streamFailed) {
         // Deduplicate sources before persisting
         const seen = new Set<string>();
         const uniqueSources = collectedSources.filter((s) => {
@@ -553,10 +576,20 @@ export function createAnthropicStream({
           return true;
         });
 
+        const usageMetadata =
+          inputTokens !== undefined || outputTokens !== undefined
+            ? {
+                promptTokenCount: inputTokens,
+                candidatesTokenCount: outputTokens,
+                totalTokenCount: (inputTokens || 0) + (outputTokens || 0),
+              }
+            : undefined;
+
         await processPostStream(controller, {
           full,
           reasoning: fullReasoning || undefined,
           ragSources,
+          usageMetadata,
           isActuallyBlocked: false,
           shouldGenerateTitle,
           conversationId,

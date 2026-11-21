@@ -2,7 +2,7 @@
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { encryptText, decryptText } from "@/lib/core/encryption";
 import { logger } from "@/lib/utils/logger";
-import { NotFoundError, ForbiddenError } from "@/lib/utils/errors";
+import { AppError, DatabaseError, NotFoundError, ForbiddenError } from "@/lib/utils/errors";
 import { balanceThinkTags } from "./thinkTags";
 import { removeOwnedStoragePaths } from "./storageCleanup";
 
@@ -58,14 +58,23 @@ interface MessageRow {
   meta?: Record<string, unknown>;
 }
 
+function encryptRequiredText(text: string): string {
+  if (text.length === 0) return "";
+  try {
+    const encrypted = encryptText(text);
+    if (!encrypted) {
+      throw new Error("encryptText returned empty ciphertext");
+    }
+    return encrypted;
+  } catch (e: unknown) {
+    messagesLogger.error("Encryption failed (fail-closed):", e);
+    throw new AppError("Failed to encrypt message", 500, "ENCRYPTION_ERROR");
+  }
+}
+
 export function encryptMetaReasoning(meta: Record<string, unknown> = {}): Record<string, unknown> {
   if (typeof meta.reasoning === "string" && meta.reasoning.trim().length > 0) {
-    try {
-      const enc = encryptText(meta.reasoning);
-      if (enc) return { ...meta, reasoning: enc };
-    } catch (e) {
-      messagesLogger.error("Failed to encrypt meta.reasoning:", e);
-    }
+    return { ...meta, reasoning: encryptRequiredText(meta.reasoning) };
   }
   return meta;
 }
@@ -127,14 +136,9 @@ export async function saveMessage(
 ): Promise<Message | null> {
   const supabase = getSupabaseAdmin();
 
-  // 1. Safe Encrypt
-  let contentToSave = content;
-  try {
-    const encrypted = encryptText(content);
-    if (encrypted) contentToSave = encrypted;
-  } catch (e) {
-    messagesLogger.error("Encrypt failed in saveMessage:", e);
-  }
+  // 1. Fail-closed encrypt (never persist plaintext on encryption failure)
+  const contentToSave = encryptRequiredText(content);
+  const encryptedMeta = encryptMetaReasoning(meta);
 
   // 2. Insert DB with Logging
   const { data, error } = await supabase
@@ -143,7 +147,7 @@ export async function saveMessage(
       conversation_id: conversationId,
       role,
       content: contentToSave,
-      meta: encryptMetaReasoning(meta),
+      meta: encryptedMeta,
     })
     .select("*")
     .single();
@@ -251,20 +255,15 @@ export async function upsertMessage(
         };
       }
 
-      // Safe encrypt new content
-      let contentToSave = balancedContent;
-      try {
-        const encrypted = encryptText(balancedContent);
-        if (encrypted) contentToSave = encrypted;
-      } catch (e) {
-        messagesLogger.error("Encrypt failed in upsertMessage:", e);
-      }
+      // Fail-closed encrypt new content
+      const contentToSave = encryptRequiredText(balancedContent);
+      const encryptedMeta = encryptMetaReasoning(enrichedMeta);
 
       const { data: updated, error: updateError } = await supabase
         .from("messages")
         .update({
           content: contentToSave,
-          meta: encryptMetaReasoning(enrichedMeta),
+          meta: encryptedMeta,
         })
         .eq("id", existingRow.id)
         .select("*")
@@ -326,20 +325,38 @@ export async function deleteMessageByClientMessageId(
     await removeOwnedStoragePaths(supabase, userId, [meta.attachment.storagePath]);
   }
 
-  await supabase.from("messages").delete().eq("id", targetMsg.id);
+  const deleteRes = await supabase.from("messages").delete().eq("id", targetMsg.id);
+  if (deleteRes?.error) {
+    throw new DatabaseError(
+      `deleteMessageByClientMessageId delete failed: ${deleteRes.error.message}`
+    );
+  }
 }
 
-// Giữ nguyên các hàm Get/Delete cũ nhưng đảm bảo dùng mapMessageRow
-export async function getMessages(conversationId: string): Promise<Message[]> {
+export const DEFAULT_GET_MESSAGES_LIMIT = 500;
+export const MAX_GET_MESSAGES_LIMIT = 1000;
+
+export async function getMessages(
+  conversationId: string,
+  limit: number = DEFAULT_GET_MESSAGES_LIMIT
+): Promise<Message[]> {
   const supabase = getSupabaseAdmin();
+  const numericLimit = Number(limit);
+  const safeLimit = Number.isFinite(numericLimit)
+    ? Math.min(Math.max(1, Math.floor(numericLimit)), MAX_GET_MESSAGES_LIMIT)
+    : DEFAULT_GET_MESSAGES_LIMIT;
+
   const { data, error } = await supabase
     .from("messages")
     .select("*")
     .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(safeLimit);
 
   if (error) throw new Error(error.message);
-  return (data || []).map(mapMessageRow).filter((m): m is Message => m !== null);
+  const rows = (data || []).map(mapMessageRow).filter((m): m is Message => m !== null);
+  rows.reverse();
+  return rows;
 }
 
 export async function getRecentMessages(
@@ -368,7 +385,25 @@ export async function deleteLastAssistantMessage(
   conversationId: string
 ): Promise<void> {
   const supabase = getSupabaseAdmin();
-  const { data: lastMsg } = await supabase
+
+  // Verify conversation exists and belongs to the caller (distinguish 403 vs not-found)
+  const { data: conv, error: convError } = await supabase
+    .from("conversations")
+    .select("id, user_id")
+    .eq("id", conversationId)
+    .maybeSingle();
+
+  if (convError) {
+    throw new DatabaseError(
+      `deleteLastAssistantMessage conversation lookup failed: ${convError.message}`
+    );
+  }
+  if (!conv) return;
+  if (conv.user_id !== userId) {
+    throw new ForbiddenError("You do not have permission to delete messages in this conversation");
+  }
+
+  const { data: lastMsg, error: msgError } = await supabase
     .from("messages")
     .select("id, meta")
     .eq("conversation_id", conversationId)
@@ -377,12 +412,21 @@ export async function deleteLastAssistantMessage(
     .limit(1)
     .maybeSingle();
 
+  if (msgError) {
+    throw new DatabaseError(`deleteLastAssistantMessage lookup failed: ${msgError.message}`);
+  }
+
   if (lastMsg) {
     const meta = lastMsg.meta as MessageMeta | undefined;
     if (meta?.clientMessageId) {
       recordTombstone(meta.clientMessageId as string);
     }
-    await supabase.from("messages").delete().eq("id", lastMsg.id);
+    const deleteRes = await supabase.from("messages").delete().eq("id", lastMsg.id);
+    if (deleteRes?.error) {
+      throw new DatabaseError(
+        `deleteLastAssistantMessage delete failed: ${deleteRes.error.message}`
+      );
+    }
   }
 }
 
@@ -417,7 +461,10 @@ export async function deleteMessage(userId: string, messageId: string): Promise<
   }
 
   // 2. Delete message from DB
-  await supabase.from("messages").delete().eq("id", messageId);
+  const deleteRes = await supabase.from("messages").delete().eq("id", messageId);
+  if (deleteRes?.error) {
+    throw new DatabaseError(`deleteMessage failed: ${deleteRes.error.message}`);
+  }
 }
 
 export async function deleteMessagesIncludingAndAfter(
@@ -483,11 +530,14 @@ export async function deleteMessagesIncludingAndAfter(
 
   // 3. Delete target message and everything created after it in this conversation
   // Note: Using gte (>=) to include the message itself.
-  await supabase
+  const deleteRes = await supabase
     .from("messages")
     .delete()
     .eq("conversation_id", conversationId)
     .gte("created_at", targetMsg.created_at);
+  if (deleteRes?.error) {
+    throw new DatabaseError(`deleteMessagesIncludingAndAfter failed: ${deleteRes.error.message}`);
+  }
 }
 // ... existing code ...
 
@@ -537,5 +587,8 @@ export async function deleteSingleMessage(userId: string, messageId: string) {
   }
 
   // 2. Delete Record
-  await supabase.from("messages").delete().eq("id", messageId);
+  const deleteRes = await supabase.from("messages").delete().eq("id", messageId);
+  if (deleteRes?.error) {
+    throw new DatabaseError(`deleteSingleMessage failed: ${deleteRes.error.message}`);
+  }
 }

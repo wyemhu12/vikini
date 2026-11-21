@@ -1,4 +1,4 @@
-import { Redis } from "@upstash/redis";
+import { getSharedRedis } from "@/lib/core/redis.server";
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { logger } from "@/lib/utils/logger";
 
@@ -8,28 +8,8 @@ const log = logger.withContext("auth-revocation");
 // TTL: 31 days (to outlast the 30-day JWT maxAge)
 export const AUTH_VERSION_TTL = 31 * 24 * 60 * 60; // 31 days in seconds
 
-let redis: Redis | null = null;
-
-function getRedis(): Redis | null {
-  if (!redis) {
-    const url = process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-    if (!url || !token) {
-      log.warn(
-        "Redis cache not available: missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN"
-      );
-      return null;
-    }
-
-    try {
-      redis = new Redis({ url, token });
-    } catch (error: unknown) {
-      log.error("Failed to initialize Redis cache:", error);
-      return null;
-    }
-  }
-  return redis;
+function getRedis() {
+  return getSharedRedis();
 }
 
 /**
@@ -84,16 +64,19 @@ export async function getAuthVersion(userId: string): Promise<number | null> {
   }
 }
 
+export type RefreshTokenResult =
+  | { status: "ok"; rank: string; isBlocked: boolean; userId: string }
+  | { status: "not_found" }
+  | { status: "error" };
+
 /**
- * Refresh user profile data from database.
- * Returns fresh rank, is_blocked status, and userId.
+ * Refresh user profile data from database with explicit distinction between
+ * found ("ok"), deleted/missing ("not_found"), and transient DB failure ("error").
  */
-export async function refreshTokenFromDB(
-  email: string
-): Promise<{ rank: string; isBlocked: boolean; userId: string } | null> {
+export async function refreshTokenFromDBDetailed(email: string): Promise<RefreshTokenResult> {
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail) {
-    return null;
+    return { status: "not_found" };
   }
 
   try {
@@ -106,11 +89,11 @@ export async function refreshTokenFromDB(
 
     if (error) {
       log.error(`Failed to query user profile by email ${cleanEmail}:`, error);
-      return null;
+      return { status: "error" };
     }
 
     if (!profile) {
-      return null;
+      return { status: "not_found" };
     }
 
     // CANONICAL: userId = email (lowercased)
@@ -118,18 +101,32 @@ export async function refreshTokenFromDB(
     const rank = typeof profile.rank === "string" ? profile.rank : "";
     const isBlocked = typeof profile.is_blocked === "boolean" ? profile.is_blocked : false;
 
-    if (!userId) {
-      log.warn(`Profile for email ${cleanEmail} has missing or invalid id`);
-      return null;
-    }
-
     return {
+      status: "ok",
       rank,
       isBlocked,
       userId,
     };
   } catch (error: unknown) {
-    log.error(`Unexpected error in refreshTokenFromDB for email ${email}:`, error);
+    log.error(`Unexpected error in refreshTokenFromDBDetailed for email ${email}:`, error);
+    return { status: "error" };
+  }
+}
+
+/**
+ * Refresh user profile data from database.
+ * Returns fresh rank, is_blocked status, and userId (or null when missing/error).
+ */
+export async function refreshTokenFromDB(
+  email: string
+): Promise<{ rank: string; isBlocked: boolean; userId: string } | null> {
+  const result = await refreshTokenFromDBDetailed(email);
+  if (result.status !== "ok") {
     return null;
   }
+  return {
+    rank: result.rank,
+    isBlocked: result.isBlocked,
+    userId: result.userId,
+  };
 }

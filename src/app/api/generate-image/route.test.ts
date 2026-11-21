@@ -13,6 +13,23 @@ vi.mock("@/lib/core/rateLimit", () => ({
 }));
 
 const mockGenerateContent = vi.fn();
+const mockByokGenerateContent = vi.fn();
+const mockGoogleGenAICtor = vi.fn();
+
+vi.mock("@google/genai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@google/genai")>();
+  return {
+    ...actual,
+    GoogleGenAI: class {
+      models = {
+        generateContent: mockByokGenerateContent,
+      };
+      constructor(opts: unknown) {
+        mockGoogleGenAICtor(opts);
+      }
+    },
+  };
+});
 
 vi.mock("@/lib/core/genaiClient", () => ({
   getGenAIClient: () => ({
@@ -24,6 +41,7 @@ vi.mock("@/lib/core/genaiClient", () => ({
 
 const mockSupabaseFrom = vi.fn();
 const mockStorageUpload = vi.fn();
+const mockStorageRemove = vi.fn();
 const mockStorageCreateSignedUrl = vi.fn();
 const mockStorageGetPublicUrl = vi.fn();
 
@@ -33,6 +51,7 @@ vi.mock("@/lib/core/supabase.server", () => ({
     storage: {
       from: () => ({
         upload: mockStorageUpload,
+        remove: mockStorageRemove,
         createSignedUrl: mockStorageCreateSignedUrl,
         getPublicUrl: mockStorageGetPublicUrl,
       }),
@@ -63,6 +82,7 @@ vi.mock("@/lib/core/batchGenQuota", () => ({
 
 vi.mock("@/lib/core/limits", () => ({
   getUserProfile: vi.fn().mockResolvedValue({ rank: "basic", is_blocked: false }),
+  assertModelAllowedForUser: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/utils/logger", () => ({
@@ -79,8 +99,10 @@ vi.mock("@/lib/utils/logger", () => ({
 import { POST } from "./route";
 import { auth } from "@/lib/features/auth/auth";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
-import { getUserProfile } from "@/lib/core/limits";
+import { assertModelAllowedForUser, getUserProfile } from "@/lib/core/limits";
 import { tryClaimBatchGenSlot } from "@/lib/core/batchGenQuota";
+import { saveMessage } from "@/lib/features/chat/messages";
+import { ForbiddenError } from "@/lib/utils/errors";
 
 // ── Helpers ───────────────────────────────────────────────────────────
 const TEST_EMAIL = "test@example.com";
@@ -146,6 +168,13 @@ describe("/api/generate-image", () => {
     vi.mocked(tryClaimBatchGenSlot).mockResolvedValue({
       claimed: true,
       rollback: vi.fn(),
+    });
+    vi.mocked(assertModelAllowedForUser).mockResolvedValue(undefined);
+    mockStorageUpload.mockResolvedValue({ error: null });
+    mockStorageRemove.mockResolvedValue({ error: null });
+    mockStorageCreateSignedUrl.mockResolvedValue({
+      data: { signedUrl: "https://storage.supabase.com/signed/gen.png" },
+      error: null,
     });
   });
 
@@ -978,6 +1007,109 @@ describe("/api/generate-image", () => {
 
         expect(generateSpy).toHaveBeenCalledOnce();
         expect(generateSpy.mock.calls[0][0]).toBe("Enhanced prompt");
+      });
+
+      it("TC-W1-05: rejects disallowed options.model with 400 VALIDATION_ERROR", async () => {
+        mockAuthenticated();
+        mockRateLimitAllowed();
+
+        for (const badModel of ["evil-model", "gemini-4-argon"]) {
+          const req = createRequest("POST", "/api/generate-image", {
+            ...validBody,
+            options: { model: badModel },
+          });
+          const res = await POST(req);
+          expect(res.status).toBe(400);
+          const json = await res.json();
+          expect(json.error.code).toBe("VALIDATION_ERROR");
+        }
+      });
+
+      it("TC-W1-05: returns 403 FORBIDDEN (not swallowed) when enhancerModel is not allowed for rank", async () => {
+        mockAuthenticated();
+        mockRateLimitAllowed();
+        mockValidConversation();
+        vi.mocked(assertModelAllowedForUser).mockRejectedValueOnce(
+          new ForbiddenError('Model "gemini-3.8-flash" is not allowed for rank "basic"')
+        );
+
+        const req = createRequest("POST", "/api/generate-image", {
+          ...validBody,
+          options: { enhancer: true, enhancerModel: "gemini-3.8-flash" },
+        });
+        const res = await POST(req);
+
+        expect(res.status).toBe(403);
+        const json = await res.json();
+        expect(json.error.code).toBe("FORBIDDEN");
+        expect(mockGenerateContent).not.toHaveBeenCalled();
+      });
+
+      it("TC-W1-05: uses BYOK GoogleGenAI client instead of server getGenAIClient for enhancer when x-api-key is set", async () => {
+        mockAuthenticated();
+        mockRateLimitAllowed();
+        mockValidConversation();
+        mockByokGenerateContent.mockResolvedValueOnce({ text: "BYOK enhanced prompt" });
+
+        const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+        vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+          generate: vi.fn().mockResolvedValue([{ url: "data:image/png;base64,aGVsbG8=" }]),
+        } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+        vi.mocked(saveMessage).mockResolvedValueOnce({
+          id: "msg-byok",
+          conversationId: TEST_CONV_ID,
+          role: "assistant",
+          content: "Generated Image: BYOK enhanced prompt",
+          createdAt: "2026-01-01",
+          meta: {},
+        });
+
+        const req = new NextRequest(new URL("/api/generate-image", "http://localhost:3000"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": "user-byok-key-123",
+          },
+          body: JSON.stringify({
+            ...validBody,
+            options: { enhancer: true, model: "gemini-3.1-flash-image" },
+          }),
+        });
+        const res = await POST(req);
+
+        expect(res.status).toBe(200);
+        expect(mockGoogleGenAICtor).toHaveBeenCalledWith({ apiKey: "user-byok-key-123" });
+        expect(mockByokGenerateContent).toHaveBeenCalledOnce();
+        expect(mockGenerateContent).not.toHaveBeenCalled();
+      });
+
+      it("TC-W1-05: removes uploaded orphan image when saveMessage throws, and skips remove when storagePath is empty", async () => {
+        mockAuthenticated();
+        mockRateLimitAllowed();
+        mockValidConversation();
+
+        const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+        vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+          generate: vi.fn().mockResolvedValue([{ url: "data:image/png;base64,aGVsbG8=" }]),
+        } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+        vi.mocked(saveMessage).mockRejectedValueOnce(new Error("DB insert failed"));
+
+        const res = await POST(createRequest("POST", "/api/generate-image", validBody));
+        expect(res.status).toBe(500);
+        expect(mockStorageRemove).toHaveBeenCalledTimes(1);
+        expect(mockStorageRemove.mock.calls[0][0][0]).toContain(`${TEST_EMAIL}/${TEST_CONV_ID}/`);
+
+        // When storagePath is empty (no buffer uploaded), storage.remove must NOT be called
+        mockStorageRemove.mockClear();
+        mockValidConversation();
+        vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+          generate: vi.fn().mockResolvedValue([{ url: "relative/no-upload.png" }]),
+        } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+        vi.mocked(saveMessage).mockRejectedValueOnce(new Error("DB insert failed"));
+
+        const res2 = await POST(createRequest("POST", "/api/generate-image", validBody));
+        expect(res2.status).toBe(500);
+        expect(mockStorageRemove).not.toHaveBeenCalled();
       });
     });
   });

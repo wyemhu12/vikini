@@ -5,6 +5,7 @@ import { useLanguage } from "../../chat/hooks/useLanguage";
 import type { PersonaForUI } from "./PersonaPreview";
 import { DynamicIcon } from "@/components/ui/DynamicIcon";
 import { LibraryCard, type LibraryCardMenuItem } from "@/components/ui/library-card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface PersonaListProps {
   loading: boolean;
@@ -45,7 +46,14 @@ export default function PersonaList({
   const { t } = useLanguage();
 
   if (loading) {
-    return <div className="text-sm text-(--muted)">{t("loading")}</div>;
+    return (
+      <div role="status" className={GRID_CLASS}>
+        <span className="sr-only">{t("loading")}</span>
+        {Array.from({ length: 3 }).map((_, idx) => (
+          <Skeleton key={idx} className="h-36 w-full rounded-xl" />
+        ))}
+      </div>
+    );
   }
 
   if (personas.length === 0) {

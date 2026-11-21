@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { requireApprovedUser } from "./requireApprovedUser";
+import { requireApprovedUser, requireAdminUser } from "./requireApprovedUser";
 import { getUserId } from "./getUserId";
 import { getUserProfileStrict } from "@/lib/core/limits";
 import {
   AccessPendingError,
+  ForbiddenError,
   ServiceUnavailableError,
   UnauthorizedError,
   UserBlockedError,
@@ -64,5 +65,46 @@ describe("requireApprovedUser", () => {
     expect(new AccessPendingError().code).toBe("ACCESS_PENDING");
     expect(new UserBlockedError().code).toBe("USER_BLOCKED");
     expect(new ServiceUnavailableError().statusCode).toBe(503);
+  });
+});
+
+describe("requireAdminUser (TC-W1-04)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getUserId).mockResolvedValue("admin@b.com");
+  });
+
+  it("propagates 401 when unauthenticated without querying DB", async () => {
+    vi.mocked(getUserId).mockRejectedValue(new UnauthorizedError());
+    await expect(requireAdminUser()).rejects.toBeInstanceOf(UnauthorizedError);
+    expect(getUserProfileStrict).not.toHaveBeenCalled();
+  });
+
+  it("propagates 503 when DB profile lookup fails (fail-closed)", async () => {
+    vi.mocked(getUserProfileStrict).mockRejectedValue(new ServiceUnavailableError());
+    await expect(requireAdminUser()).rejects.toBeInstanceOf(ServiceUnavailableError);
+  });
+
+  it("throws ForbiddenError when profile is missing", async () => {
+    vi.mocked(getUserProfileStrict).mockResolvedValue(null);
+    await expect(requireAdminUser()).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("throws UserBlockedError when admin account is blocked in DB", async () => {
+    vi.mocked(getUserProfileStrict).mockResolvedValue(profile("admin", true));
+    await expect(requireAdminUser()).rejects.toBeInstanceOf(UserBlockedError);
+  });
+
+  it.each(["basic", "pro", "not_whitelisted"])(
+    "throws ForbiddenError when DB rank is %s (demoted mid-session)",
+    async (rank) => {
+      vi.mocked(getUserProfileStrict).mockResolvedValue(profile(rank, false));
+      await expect(requireAdminUser()).rejects.toBeInstanceOf(ForbiddenError);
+    }
+  );
+
+  it("resolves with AdminUser when DB rank is admin and not blocked", async () => {
+    vi.mocked(getUserProfileStrict).mockResolvedValue(profile("admin", false));
+    await expect(requireAdminUser()).resolves.toEqual({ userId: "admin@b.com", rank: "admin" });
   });
 });

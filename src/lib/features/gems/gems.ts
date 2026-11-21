@@ -161,51 +161,69 @@ export async function listGems(): Promise<GemRow[]> {
 
 export async function getGemInstructionsForConversation(
   userId: string,
-  conversationId: string
+  conversationId: string,
+  preloadedGemId?: string | null
 ): Promise<string> {
   const supabase = getSupabaseAdmin();
 
   if (!conversationId) return "";
 
-  const { data: convo, error: convoErr } = await supabase
-    .from("conversations")
-    .select("gem_id,user_id")
-    .eq("id", conversationId)
-    .maybeSingle();
+  let gemId: string | null | undefined = preloadedGemId;
+  if (gemId === undefined) {
+    const { data: convo, error: convoErr } = await supabase
+      .from("conversations")
+      .select("gem_id,user_id")
+      .eq("id", conversationId)
+      .maybeSingle();
 
-  if (convoErr) {
-    throw new DatabaseError(`getGemInstructionsForConversation convo failed: ${convoErr.message}`);
+    if (convoErr) {
+      throw new DatabaseError(
+        `getGemInstructionsForConversation convo failed: ${convoErr.message}`
+      );
+    }
+    if (!convo) return "";
+
+    // If user_id exists on the row, enforce ownership (defense-in-depth; chat route already authenticates).
+    const convoRow = convo as { user_id?: string; gem_id?: string };
+    if (typeof convoRow.user_id === "string" && convoRow.user_id !== userId) {
+      throw new ForbiddenError();
+    }
+
+    gemId = convoRow?.gem_id;
   }
-  if (!convo) return "";
 
-  // If user_id exists on the row, enforce ownership (defense-in-depth; chat route already authenticates).
-  const convoRow = convo as { user_id?: string; gem_id?: string };
-  if (typeof convoRow.user_id === "string" && convoRow.user_id !== userId) {
-    throw new ForbiddenError();
-  }
-
-  const gemId = convoRow?.gem_id;
   if (!gemId) return "";
 
-  // Prefer gem_versions latest instructions if available
-  const latest = await tryGetLatestGemVersion(supabase, gemId);
-  if (latest && typeof latest.instructions === "string") return latest.instructions;
-
-  // Fallback to legacy columns on gems
+  // Defense-in-depth: verify gem ownership/premade status before reading instructions
   const { data: gem, error: gemErr } = await supabase
     .from("gems")
-    .select("instruction,instructions")
+    .select("id, user_id, is_premade, instruction, instructions")
     .eq("id", gemId)
     .maybeSingle();
 
   if (gemErr) {
     throw new DatabaseError(`getGemInstructionsForConversation gem failed: ${gemErr.message}`);
   }
+  if (!gem) return "";
 
-  const gemRow = gem as { instruction?: string; instructions?: string } | null;
+  const gemRow = gem as {
+    id?: string;
+    user_id?: string | null;
+    is_premade?: boolean | null;
+    instruction?: string;
+    instructions?: string;
+  };
+  if (!gemRow.is_premade && gemRow.user_id !== userId) {
+    throw new ForbiddenError("You do not have permission to access this gem");
+  }
+
+  // Prefer gem_versions latest instructions if available
+  const latest = await tryGetLatestGemVersion(supabase, gemId);
+  if (latest && typeof latest.instructions === "string") return latest.instructions;
+
   const ins =
-    (typeof gemRow?.instructions === "string" && gemRow.instructions) ||
-    (typeof gemRow?.instruction === "string" && gemRow.instruction) ||
+    (typeof gemRow.instructions === "string" && gemRow.instructions) ||
+    (typeof gemRow.instruction === "string" && gemRow.instruction) ||
     "";
 
   return ins;
@@ -243,18 +261,16 @@ export async function getGemsForUser(userId: string): Promise<GemRow[]> {
   if (!q.error) {
     gems = (q.data || []) as GemRow[];
   } else {
-    // Legacy fallback (read-only): keep previous behavior rather than failing hard.
+    // Fallback to user-owned gems only (fail-closed: never run an unfiltered SELECT *)
     const q1 = await supabase
       .from("gems")
       .select("*")
       .eq("user_id", userId)
       .order("name", { ascending: true });
-    if (!q1.error) gems = (q1.data || []) as GemRow[];
-    else {
-      const q2 = await supabase.from("gems").select("*").order("name", { ascending: true });
-      if (q2.error) throw new DatabaseError(`getGemsForUser failed: ${q2.error.message}`);
-      gems = (q2.data || []) as GemRow[];
+    if (q1.error) {
+      throw new DatabaseError(`getGemsForUser failed: ${q1.error.message}`);
     }
+    gems = (q1.data || []) as GemRow[];
   }
 
   // Enrich with latest gem_versions when available

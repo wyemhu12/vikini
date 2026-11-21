@@ -1759,4 +1759,24 @@ export const en = {
   adminAuditActionUpdateGem: "GEM Updated",
   adminAuditActionDeleteGem: "GEM Deleted",
   adminAuditActionBulkUpdateUsers: "Bulk Update",
+  // Phase 5 UX/UI Audit — Compare Modal & Global Error
+  compareTitle: "Compare images",
+  compareImageA: "Image A",
+  compareImageB: "Image B",
+  globalErrorTitle: "Critical system error",
+  globalErrorDescription:
+    "The application encountered an unexpected error. Please try again or reload the page.",
+  // Phase 6 UX/UI Audit — Scroll, Voice & Admin UI States
+  scrollToBottom: "Scroll to bottom",
+  scrollToBottomUnread: "Scroll to bottom ({count} unread)",
+  voiceNotSupported: "Voice input not supported in this browser",
+  useChromeOrEdge: "Use Chrome or Edge for voice features",
+  clickToStop: "Click to stop",
+  clickToSpeak: "Click to speak",
+  stopSpeaking: "Stop speaking",
+  clickToStopSpeaking: "Click to stop AI voice",
+  listeningAnnouncement: "Listening: {transcript}",
+  adminRankConfigLoadFailed: "Failed to load rank configurations",
+  failedSaveConfigs: "Failed to save configurations",
+  adminStatsLoadFailed: "Failed to load statistics",
 } as const;

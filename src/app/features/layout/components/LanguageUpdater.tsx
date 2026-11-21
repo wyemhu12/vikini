@@ -2,32 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useLanguageStore } from "@/lib/store/languageStore";
-import { type SupportedLanguage } from "@/app/features/chat/hooks/useLanguage";
+import {
+  LANGUAGE_STORAGE_KEY,
+  resolveInitialLanguage,
+} from "@/lib/utils/translations/resolveInitialLanguage";
 
-const STORAGE_KEY = "vikini-language";
-
-export function resolveInitialLanguage(
-  stored: string | null,
-  navigatorLang?: string
-): SupportedLanguage {
-  if (stored === "vi" || stored === "en") return stored;
-  if (stored && stored.startsWith("{")) {
-    try {
-      const parsed: unknown = JSON.parse(stored);
-      const lang =
-        typeof parsed === "object" &&
-        parsed !== null &&
-        "state" in parsed &&
-        typeof (parsed as { state?: { language?: unknown } }).state?.language === "string"
-          ? (parsed as { state: { language: string } }).state.language
-          : null;
-      if (lang === "vi" || lang === "en") return lang;
-    } catch {
-      // Ignore malformed JSON and fall through to navigator language
-    }
-  }
-  return navigatorLang?.toLowerCase().startsWith("vi") ? "vi" : "en";
-}
+export { LANGUAGE_STORAGE_KEY, resolveInitialLanguage };
 
 export default function LanguageUpdater() {
   const { language, setLanguage } = useLanguageStore();
@@ -36,7 +16,7 @@ export default function LanguageUpdater() {
   // 1. Read first on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
       const resolved = resolveInitialLanguage(stored, window.navigator?.language);
       document.documentElement.lang = resolved;
       if (resolved !== useLanguageStore.getState().language) {
@@ -50,7 +30,7 @@ export default function LanguageUpdater() {
   useEffect(() => {
     if (!hasHydrated) return;
     if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY, language);
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
       document.documentElement.lang = language;
     }
   }, [language, hasHydrated]);

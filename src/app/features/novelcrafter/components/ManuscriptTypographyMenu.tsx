@@ -43,7 +43,7 @@ export default function ManuscriptTypographyMenu({
       "flex-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
       active
         ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
-        : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text) hover:bg-(--raised)"
+        : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text) hover:bg-(--raised-hover)"
     );
 
   const activeFontLabel =
@@ -60,7 +60,7 @@ export default function ManuscriptTypographyMenu({
             title={t("novelcrafterTypographyBtn")}
             aria-label={t("novelcrafterTypographyBtn")}
             data-testid="manuscript-typography-trigger"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs text-(--text) font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised-hover) text-xs text-(--text) font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           >
             <Type className="w-3.5 h-3.5 text-(--accent)" />
             <span>{activeFontLabel}</span>
@@ -152,7 +152,7 @@ export default function ManuscriptTypographyMenu({
               "w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
               typography.paragraphIndent
                 ? "bg-(--accent)/15 border-(--accent) text-(--accent)"
-                : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text) hover:bg-(--raised)"
+                : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text) hover:bg-(--raised-hover)"
             )}
           >
             <span className="inline-flex items-center gap-1.5">

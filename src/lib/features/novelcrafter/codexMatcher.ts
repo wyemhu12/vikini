@@ -38,18 +38,59 @@ export function formatAliasesInput(aliases?: readonly string[]): string {
   return aliases.join(", ");
 }
 
-export function doesCodexTermMatchContext(term: string, contextText: string): boolean {
+interface NormalizedContext {
+  nfc: string;
+  lower: string;
+}
+
+function normalizeContextText(contextText?: string): NormalizedContext | null {
+  if (contextText === undefined) return null;
+  const nfc = contextText.normalize("NFC");
+  if (!nfc.trim()) return null;
+  return { nfc, lower: nfc.toLowerCase() };
+}
+
+function doesCodexTermMatchNormalizedContext(term: string, context: NormalizedContext): boolean {
   const normalizedTerm = term.trim().normalize("NFC");
-  const normalizedContext = contextText.normalize("NFC");
-  if (normalizedTerm.length < 2 || !normalizedContext.trim()) return false;
+  if (normalizedTerm.length < 2) return false;
 
   if (CJK_SCRIPT_REGEX.test(normalizedTerm)) {
-    return normalizedContext.toLowerCase().includes(normalizedTerm.toLowerCase());
+    return context.lower.includes(normalizedTerm.toLowerCase());
   }
 
   const escapedTerm = escapeRegExp(normalizedTerm);
   const pattern = new RegExp(`(?:^|[^\\p{L}\\p{N}_])${escapedTerm}(?=$|[^\\p{L}\\p{N}_])`, "iu");
-  return pattern.test(normalizedContext);
+  return pattern.test(context.nfc);
+}
+
+export function doesCodexTermMatchContext(term: string, contextText: string): boolean {
+  const normalizedContext = normalizeContextText(contextText);
+  if (!normalizedContext) return false;
+  return doesCodexTermMatchNormalizedContext(term, normalizedContext);
+}
+
+function isCodexCardMatchedInNormalizedContext(
+  card: {
+    name: string;
+    aliases?: readonly string[];
+    visibleToAI?: boolean;
+    alwaysInclude?: boolean;
+  },
+  normalizedContext: NormalizedContext | null
+): boolean {
+  if (card.visibleToAI === false) return false;
+  if (card.alwaysInclude === true) return true;
+  if (normalizedContext === null) return true;
+
+  if (doesCodexTermMatchNormalizedContext(card.name, normalizedContext)) return true;
+
+  const aliases = card.aliases ?? [];
+  for (let i = 0; i < aliases.length; i += 1) {
+    if (doesCodexTermMatchNormalizedContext(aliases[i], normalizedContext)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function isCodexCardMatchedInContext(
@@ -64,16 +105,8 @@ export function isCodexCardMatchedInContext(
   if (card.visibleToAI === false) return false;
   if (card.alwaysInclude === true) return true;
 
-  if (activeContextText === undefined || !activeContextText.trim()) return true;
-  if (doesCodexTermMatchContext(card.name, activeContextText)) return true;
-
-  const aliases = card.aliases ?? [];
-  for (let i = 0; i < aliases.length; i += 1) {
-    if (doesCodexTermMatchContext(aliases[i], activeContextText)) {
-      return true;
-    }
-  }
-  return false;
+  const normalizedContext = normalizeContextText(activeContextText);
+  return isCodexCardMatchedInNormalizedContext(card, normalizedContext);
 }
 
 export function matchCodexEntitiesInContext(
@@ -85,15 +118,16 @@ export function matchCodexEntitiesInContext(
 } {
   const matchedCharacterIds = new Set<string>();
   const matchedWorldElementIds = new Set<string>();
+  const normalizedContext = normalizeContextText(activeContextText);
 
   for (const card of storyBible.characterCards || []) {
-    if (isCodexCardMatchedInContext(card, activeContextText)) {
+    if (isCodexCardMatchedInNormalizedContext(card, normalizedContext)) {
       matchedCharacterIds.add(card.id);
     }
   }
 
   for (const el of storyBible.worldElements || []) {
-    if (isCodexCardMatchedInContext(el, activeContextText)) {
+    if (isCodexCardMatchedInNormalizedContext(el, normalizedContext)) {
       matchedWorldElementIds.add(el.id);
     }
   }
@@ -117,11 +151,12 @@ function collectCodexSearchTerms(storyBible: StoryBible): CodexSearchTerm[] {
   const addTerm = (raw: string, entityId: string, entityKind: "character" | "world") => {
     const trimmed = raw.trim();
     if (trimmed.length < 2 || !entityId) return;
+    const termLower = trimmed.toLowerCase();
     terms.push({
       entityId,
       entityKind,
-      termLower: trimmed.toLowerCase(),
-      length: trimmed.length,
+      termLower,
+      length: termLower.length,
       isCjk: CJK_SCRIPT_REGEX.test(trimmed),
       order: order++,
     });
@@ -164,8 +199,8 @@ export function findCodexMentionRanges(
       const end = found + item.length;
       const validBoundary =
         item.isCjk ||
-        ((found === 0 || !WORD_CHAR_REGEX.test(text[found - 1])) &&
-          (end === text.length || !WORD_CHAR_REGEX.test(text[end])));
+        ((found === 0 || !WORD_CHAR_REGEX.test(textLower[found - 1] ?? "")) &&
+          (end >= textLower.length || !WORD_CHAR_REGEX.test(textLower[end] ?? "")));
 
       if (validBoundary) {
         candidates.push({
@@ -186,10 +221,18 @@ export function findCodexMentionRanges(
     (a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start || a.order - b.order
   );
 
+  const occupied = new Uint8Array(textLower.length);
   const selected: CodexMentionRange[] = [];
   for (const cand of candidates) {
-    const overlaps = selected.some((s) => cand.start < s.end && s.start < cand.end);
+    let overlaps = false;
+    for (let i = cand.start; i < cand.end; i += 1) {
+      if (occupied[i] === 1) {
+        overlaps = true;
+        break;
+      }
+    }
     if (!overlaps) {
+      occupied.fill(1, cand.start, cand.end);
       selected.push({
         entityId: cand.entityId,
         entityKind: cand.entityKind,

@@ -211,7 +211,7 @@ export default function ChapterAiToolbar({
               onClick={onRunFirstDraft}
               title={t("novelcrafterFirstDraftTooltip")}
               className={cn(
-                "inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-(--accent) text-(--on-accent) hover:brightness-110 shadow-sm text-xs md:text-[13px] font-semibold transition-all disabled:opacity-50 shrink-0 whitespace-nowrap",
+                "inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-(--accent) text-(--on-accent) hover:brightness-110 shadow-sm text-xs md:text-[13px] font-semibold transition-[filter,opacity] disabled:opacity-50 shrink-0 whitespace-nowrap",
                 FOCUS_RING
               )}
             >

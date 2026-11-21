@@ -76,10 +76,6 @@ export default function InputForm({
   const [lightboxFile, setLightboxFile] = useState<FileItem | null>(null);
 
   const { t, language } = useLanguage();
-  const tRecord = useMemo(
-    () => new Proxy({} as Record<string, string>, { get: (_, prop: string) => t(prop) }),
-    [t]
-  );
 
   // === Unified file management ===
   const { files: allFiles, mutate } = useFiles(conversationId ?? null);
@@ -266,7 +262,6 @@ export default function InputForm({
           onClickFile={setLightboxFile}
           isDragging={isDragging}
           disabled={disabled || isUploading}
-          t={tRecord}
         />
 
         {/* Input row: always 2 rows (Row 1: full-width textarea; Row 2: [+] left, model/thinking/mic/send right) */}
@@ -369,7 +364,6 @@ export default function InputForm({
                   onFinalTranscript={(text) => onChangeInput(input + (input ? " " : "") + text)}
                   disabled={disabled || isStreaming}
                   language={language === "vi" ? "vi-VN" : "en-US"}
-                  t={tRecord}
                 />
               )}
 
@@ -407,12 +401,7 @@ export default function InputForm({
       </form>
 
       {/* File Lightbox */}
-      <FileLightbox
-        file={lightboxFile}
-        onClose={() => setLightboxFile(null)}
-        files={files}
-        t={tRecord}
-      />
+      <FileLightbox file={lightboxFile} onClose={() => setLightboxFile(null)} files={files} />
     </>
   );
 }

@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Settings, Loader2, Save, AlertCircle, Cpu } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Settings, Loader2, Save, AlertCircle, Cpu, RotateCcw } from "lucide-react";
 import { SELECTABLE_MODELS } from "@/lib/core/modelRegistry";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/lib/store/toastStore";
+import { logger } from "@/lib/utils/logger";
 
 interface RankConfig {
   rank: "basic" | "pro" | "admin";
@@ -30,26 +32,33 @@ export default function RankConfigManager() {
   const [modelModalRank, setModelModalRank] = useState<string | null>(null);
 
   const { t } = useLanguage();
+  const tRef = useRef(t);
 
   useEffect(() => {
-    void fetchConfigs();
-  }, []);
+    tRef.current = t;
+  }, [t]);
 
-  const fetchConfigs = async () => {
+  const fetchConfigs = useCallback(async () => {
     try {
       setLoading(true);
+      setError("");
       const res = await fetch("/api/admin/rank-configs");
-      if (!res.ok) throw new Error("Failed to fetch configs");
+      if (!res.ok) throw new Error(tRef.current("adminRankConfigLoadFailed"));
       const json = await res.json();
       const data = json.data || json;
       setConfigs(data.configs || []);
       setEditedConfigs(data.configs || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load configs");
+    } catch (err: unknown) {
+      logger.error("[RankConfigManager] Failed to load rank configs:", err);
+      setError(err instanceof Error ? err.message : tRef.current("adminRankConfigLoadFailed"));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchConfigs();
+  }, [fetchConfigs]);
 
   const updateConfig = (rank: string, field: string, value: unknown) => {
     setEditedConfigs((prev) =>
@@ -107,18 +116,36 @@ export default function RankConfigManager() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-(--accent)" />
-        <span className="ml-2 text-(--muted)">{t("loadingConfigs")}</span>
+      <div role="status" className="space-y-4 py-2">
+        <span className="sr-only">{t("loadingConfigs")}</span>
+        <Skeleton className="h-6 w-56" />
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <Skeleton key={idx} className="h-44 w-full rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center gap-2 text-(--danger) py-4">
-        <AlertCircle className="w-5 h-5" />
-        <span>{error}</span>
+      <div
+        role="alert"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg bg-(--danger)/10 border border-(--danger)/30 text-(--danger)"
+      >
+        <div className="flex items-center gap-2">
+          <AlertCircle aria-hidden="true" className="w-5 h-5 shrink-0" />
+          <span className="text-sm font-medium">{error}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => void fetchConfigs()}
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-(--raised) hover:bg-(--raised-hover) text-(--text) border border-(--line) transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+        >
+          <RotateCcw aria-hidden="true" className="w-4 h-4" />
+          {t("tryAgain")}
+        </button>
       </div>
     );
   }
@@ -136,9 +163,10 @@ export default function RankConfigManager() {
         </div>
         {hasChanges && (
           <button
+            type="button"
             onClick={saveConfigs}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-(--soft) text-(--accent) rounded-lg hover:bg-(--soft) border border-(--accent)/30 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-(--accent) text-(--on-accent) rounded-lg hover:brightness-110 transition-[filter] disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {t("saveChanges")}
@@ -153,10 +181,14 @@ export default function RankConfigManager() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Daily Message Limit */}
               <div>
-                <label className="block text-sm font-medium text-(--muted) mb-2">
+                <label
+                  htmlFor={`rank-${config.rank}-daily-limit`}
+                  className="block text-sm font-medium text-(--muted) mb-2"
+                >
                   {t("dailyMessageLimit")}
                 </label>
                 <Input
+                  id={`rank-${config.rank}-daily-limit`}
                   type="number"
                   value={config.daily_message_limit}
                   onChange={(e) =>
@@ -172,10 +204,14 @@ export default function RankConfigManager() {
 
               {/* Max File Size */}
               <div>
-                <label className="block text-sm font-medium text-(--muted) mb-2">
+                <label
+                  htmlFor={`rank-${config.rank}-max-file-size`}
+                  className="block text-sm font-medium text-(--muted) mb-2"
+                >
                   {t("maxFileSize")}
                 </label>
                 <Input
+                  id={`rank-${config.rank}-max-file-size`}
                   type="number"
                   value={config.max_file_size_mb}
                   onChange={(e) =>
@@ -191,9 +227,7 @@ export default function RankConfigManager() {
 
               {/* Features */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-(--muted) mb-2">
-                  {t("features")}
-                </label>
+                <div className="block text-sm font-medium text-(--muted) mb-2">{t("features")}</div>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -222,12 +256,13 @@ export default function RankConfigManager() {
 
               {/* Allowed Models Button */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-(--muted) mb-2">
+                <div className="block text-sm font-medium text-(--muted) mb-2">
                   {t("allowedModels")}
-                </label>
+                </div>
                 <button
+                  type="button"
                   onClick={() => setModelModalRank(config.rank)}
-                  className="flex items-center gap-2 px-4 py-2 bg-(--soft) text-(--accent) rounded-lg hover:bg-(--soft) border border-(--accent)/30 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-(--surface) text-(--accent) rounded-lg hover:bg-(--raised-hover) border border-(--accent)/30 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                 >
                   <Cpu className="w-4 h-4" />
                   {t("configureModels")} ({config.allowed_models?.length || 0})
@@ -257,7 +292,7 @@ export default function RankConfigManager() {
                     className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
                       isSelected
                         ? "bg-(--soft) border border-(--accent)/30"
-                        : "bg-(--raised) border border-(--line) hover:bg-(--raised)"
+                        : "bg-(--raised) border border-(--line) hover:bg-(--raised-hover)"
                     }`}
                   >
                     <input
@@ -280,8 +315,9 @@ export default function RankConfigManager() {
 
             <div className="mt-6 flex justify-end">
               <button
+                type="button"
                 onClick={() => setModelModalRank(null)}
-                className="px-4 py-2 bg-(--soft) text-(--accent) rounded-lg hover:bg-(--soft) border border-(--accent)/30 transition-colors"
+                className="px-4 py-2 bg-(--accent) text-(--on-accent) rounded-lg hover:brightness-110 transition-[filter] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
               >
                 {t("done")}
               </button>

@@ -1,6 +1,7 @@
 // /app/api/chat-stream/chatStreamCore.ts
 // Thin orchestrator — delegates to extracted modules
 
+import { z } from "zod";
 import type OpenAI from "openai";
 import type Anthropic from "@anthropic-ai/sdk";
 import { getGenAIClient } from "@/lib/core/genaiClient";
@@ -21,7 +22,7 @@ import { CLAUDE_API_MODELS, MODEL_IDS, STRATA_DEFAULTS } from "@/lib/utils/const
 import { getStrataAdmission } from "@/lib/core/strataQueue";
 import type { StrataSamplingInput } from "@/lib/features/local-llm/strataThinking";
 import { getOrCreateCompositeCache } from "@/lib/core/contextCache";
-import { assertModelAllowedForUser } from "@/lib/core/limits";
+import { assertModelAllowedForUser, getUserLimits } from "@/lib/core/limits";
 import { error } from "@/lib/utils/apiResponse";
 import { AppError } from "@/lib/utils/errors";
 import { saveMessage as insertUserMessage, upsertMessage } from "@/lib/features/chat/messages";
@@ -63,18 +64,26 @@ export async function handleChatStreamCore({
   userId,
 }: HandleChatStreamCoreParams): Promise<Response> {
   // Parse and validate request body
+  let rawBody: unknown;
+  try {
+    rawBody = await req.json();
+  } catch {
+    return error("Invalid JSON body", 400, "VALIDATION_ERROR");
+  }
+
   let body: ChatStreamRequest;
   try {
-    const rawBody = await req.json();
     body = chatStreamRequestSchema.parse(rawBody);
-  } catch (e) {
-    const errorMsg = e as { errors?: Array<{ path: string[]; message: string }>; message?: string };
-    if (errorMsg.errors) {
-      const firstError = errorMsg.errors[0];
-      const field = firstError.path.join(".");
-      return error(`Validation error: ${field} - ${firstError.message}`, 400, "VALIDATION_ERROR");
+  } catch (e: unknown) {
+    if (e instanceof z.ZodError) {
+      const firstIssue = e.issues[0];
+      const field = firstIssue?.path.join(".");
+      const msg = field
+        ? `Validation error: ${field} - ${firstIssue.message}`
+        : `Validation error: ${firstIssue?.message || "Invalid request body"}`;
+      return error(msg, 400, "VALIDATION_ERROR");
     }
-    return error(errorMsg?.message || "Invalid request body", 400, "VALIDATION_ERROR");
+    return error("Invalid request body", 400, "VALIDATION_ERROR");
   }
 
   const {
@@ -90,15 +99,9 @@ export async function handleChatStreamCore({
     fileIds,
   } = body;
 
-  // Initialize AI client
-  let ai: ReturnType<typeof getGenAIClient>;
-  try {
-    ai = getGenAIClient();
-  } catch (e) {
-    const errorMsg = e as Error;
-    // error helper will automatically sanitize the message in production
-    return error(errorMsg?.message || "AI service unavailable", 500, "AI_SERVICE_ERROR");
-  }
+  // Load user limits BEFORE loadOrCreateConversation so rejected (403/503) requests
+  // never create orphan conversation rows, and reuse limits for model + web search checks.
+  const userLimits = await getUserLimits(userId);
 
   // Load or create conversation
   let convContext: ConversationContext;
@@ -123,9 +126,8 @@ export async function handleChatStreamCore({
     modelLimitTokens,
   } = convContext;
 
-  // Enforce rank-based model access; throws ForbiddenError (403) or ServiceUnavailableError (503)
-  // directly to route.ts:108 so daily message count is NOT incremented on rejection.
-  await assertModelAllowedForUser(userId, model);
+  // Enforce rank-based model access using preloaded limits (avoids duplicate DB lookup)
+  await assertModelAllowedForUser(userId, model, userLimits);
 
   // Pre-DB admission check for Local Strata LLM (M-1):
   // Reject with 503 LOCAL_LLM_DISABLED or 429 LOCAL_LLM_BUSY before mutating DB or messages.
@@ -169,11 +171,16 @@ export async function handleChatStreamCore({
     }
   }
 
-  // Load system prompt - GEM always takes priority
+  // Load system prompt - GEM always takes priority (parallelized with preloaded IDs)
   const { sysPrompt, gemLoadError, ragSources } = await buildSystemPrompt(
     userId,
     conversationId,
-    content
+    content,
+    {
+      gemId: conversation?.gemId,
+      personaId: conversation?.personaId,
+      projectId: conversation?.projectId,
+    }
   );
 
   // Build message context with smart token window
@@ -218,9 +225,12 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
 
   const finalSysPromptWithCharts = (finalSysPrompt || "") + chartProtocol;
 
-  // Setup web search and safety settings
+  // Setup web search (server-enforced against preloaded user rank limits) and safety settings
   const cookies = parseCookieHeader(req?.headers?.get?.("cookie") || undefined);
-  const { enableWebSearch, WEB_SEARCH_AVAILABLE } = getWebSearchConfig(cookies);
+  const { enableWebSearch, WEB_SEARCH_AVAILABLE } = getWebSearchConfig(
+    cookies,
+    userLimits.features.web_search === true
+  );
   const cookieWeb = cookies?.webSearchEnabled ?? cookies?.webSearch ?? "";
   const { tools, safetySettings, toolConfig } = setupToolsAndSafety(
     enableWebSearch,
@@ -301,7 +311,6 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
   // Route to provider-specific stream
   const stream = await createProviderStream({
     model,
-    ai,
     requestedModel,
     finalSysPromptWithCharts,
     contents,
@@ -338,7 +347,12 @@ const MAX_SYSTEM_PROMPT_CHARS = 12000;
 async function buildSystemPrompt(
   userId: string,
   conversationId: string,
-  content: string
+  content: string,
+  preloaded?: {
+    gemId?: string | null;
+    personaId?: string | null;
+    projectId?: string | null;
+  }
 ): Promise<{
   sysPrompt: string;
   gemLoadError: string;
@@ -353,10 +367,28 @@ async function buildSystemPrompt(
     similarity: number;
   }> = [];
 
-  // Step 1: Load GEM instructions FIRST (highest priority)
+  // Run independent read queries (GEM, Persona, RAG) concurrently to reduce TTFT
+  const [gemResult, personaResult, ragResult] = await Promise.all([
+    getGemInstructionsForConversation(userId, conversationId, preloaded?.gemId)
+      .then((prompt) => ({ ok: true as const, prompt }))
+      .catch((e: unknown) => ({ ok: false as const, error: e })),
+    getPersonaInstructionsForConversation(userId, conversationId, preloaded?.personaId)
+      .then((prompt) => ({ ok: true as const, prompt }))
+      .catch((e: unknown) => ({ ok: false as const, error: e })),
+    buildRAGContext(
+      userId,
+      conversationId,
+      content,
+      preloaded?.projectId !== undefined ? { projectId: preloaded.projectId } : undefined
+    )
+      .then((ragContext) => ({ ok: true as const, ragContext }))
+      .catch((e: unknown) => ({ ok: false as const, error: e })),
+  ]);
+
+  // Step 1: GEM instructions (highest priority)
   let gemPrompt = "";
-  try {
-    gemPrompt = await getGemInstructionsForConversation(userId, conversationId);
+  if (gemResult.ok) {
+    gemPrompt = gemResult.prompt;
     if (gemPrompt) {
       coreLogger.info(
         `[GEM ACTIVE] Conversation ${conversationId} has gem instructions (${gemPrompt.length} chars)`
@@ -364,24 +396,23 @@ async function buildSystemPrompt(
     } else {
       coreLogger.info(`[GEM NONE] Conversation ${conversationId} has no gem applied`);
     }
-  } catch (e) {
-    const error = e as Error;
-    gemLoadError = String(error?.message || "");
+  } else {
+    const err = gemResult.error as Error;
+    gemLoadError = String(err?.message || "");
   }
 
-  // Step 2: Load Persona instructions (supplementary - lower priority than GEM)
+  // Step 2: Persona instructions (supplementary - lower priority than GEM)
   let personaPrompt = "";
-  try {
-    personaPrompt = await getPersonaInstructionsForConversation(userId, conversationId);
+  if (personaResult.ok) {
+    personaPrompt = personaResult.prompt;
     if (personaPrompt) {
       coreLogger.info(
         `[PERSONA ACTIVE] Conversation ${conversationId} has persona instructions (${personaPrompt.length} chars)`
       );
     }
-  } catch (e) {
-    const personaError = e as Error;
+  } else {
+    const personaError = personaResult.error as Error;
     coreLogger.error("Persona load failed (non-blocking):", personaError?.message);
-    // Continue without persona - non-blocking
   }
 
   // Step 3: Compose final system prompt using XML tags (Gemini best practice)
@@ -417,9 +448,9 @@ async function buildSystemPrompt(
     }
   }
 
-  // === RAG: Inject project knowledge base context ===
-  try {
-    const ragContext = await buildRAGContext(userId, conversationId, content);
+  // Step 5: Inject RAG project knowledge base context
+  if (ragResult.ok) {
+    const { ragContext } = ragResult;
     if (ragContext.ragEnabled && ragContext.sources.length > 0) {
       ragSources = ragContext.sources;
       coreLogger.info(
@@ -427,9 +458,8 @@ async function buildSystemPrompt(
       );
       sysPrompt = injectRAGIntoSystemPrompt(sysPrompt, ragContext);
     }
-  } catch (ragError) {
-    coreLogger.error("RAG context injection failed:", ragError);
-    // Continue without RAG - non-blocking
+  } else {
+    coreLogger.error("RAG context injection failed:", ragResult.error);
   }
 
   return { sysPrompt, gemLoadError, ragSources };
@@ -437,7 +467,6 @@ async function buildSystemPrompt(
 
 interface CreateProviderStreamParams {
   model: string;
-  ai: ReturnType<typeof getGenAIClient>;
   requestedModel: string;
   finalSysPromptWithCharts: string;
   contents: Array<{ role: string; parts: unknown[] }>;
@@ -469,7 +498,6 @@ async function createProviderStream(
 ): Promise<ReadableStream | Response> {
   const {
     model,
-    ai,
     finalSysPromptWithCharts,
     contents,
     contentsMeta,
@@ -505,65 +533,14 @@ async function createProviderStream(
   const isStandardGroq = model.includes("llama") && !model.includes("/");
   const isOpenRouter = model.includes("/") || model.includes(":free");
   const isClaude = model.startsWith("claude-");
+  const useDirectAnthropic = isClaude && Boolean(process.env.ANTHROPIC_API_KEY);
 
-  // AI clients have incompatible interfaces - we use unknown with explicit casts
-  // at each streaming call site for type safety without losing flexibility
-  let aiClient: unknown = ai;
-
-  if (isDeepSeekDirect) {
-    try {
-      aiClient = getDeepSeekClient();
-    } catch (e) {
-      coreLogger.error("DeepSeek Init Error:", e);
-      return error(
-        "DeepSeek API configuration missing. Add DEEPSEEK_API_KEY to .env",
-        500,
-        "CONFIG_ERROR"
-      );
-    }
-  } else if (isDeepSeekV4Pro || isDeepSeekV41Flash) {
-    try {
-      aiClient = getOpenRouterClient();
-    } catch (e) {
-      coreLogger.error("OpenRouter Init Error (for DeepSeek V4):", e);
-      return error(
-        "OpenRouter configuration missing. Add OPENROUTER_API_KEY to .env",
-        500,
-        "CONFIG_ERROR"
-      );
-    }
-  } else if (isClaude) {
-    try {
-      aiClient = getOpenRouterClient();
-    } catch (e) {
-      coreLogger.error("OpenRouter Init Error (for Claude):", e);
-      return error(
-        "Claude via OpenRouter configuration missing. Add OPENROUTER_API_KEY to .env",
-        500,
-        "CONFIG_ERROR"
-      );
-    }
-  } else if (isOpenRouter) {
-    try {
-      aiClient = getOpenRouterClient();
-    } catch (e) {
-      coreLogger.error("OpenRouter Init Error:", e);
-      return error("OpenRouter configuration missing", 500, "CONFIG_ERROR");
-    }
-  } else if (isStandardGroq) {
-    try {
-      aiClient = getGroqClient();
-    } catch (e) {
-      coreLogger.error("Groq Init Error:", e);
-      return error("Groq configuration missing", 500, "CONFIG_ERROR");
-    }
-  }
-
-  // Map Claude model IDs to OpenRouter format
-  const apiModel = isClaude
-    ? CLAUDE_API_MODELS.OPENROUTER[model as keyof typeof CLAUDE_API_MODELS.OPENROUTER] ||
-      CLAUDE_API_MODELS.OPENROUTER[MODEL_IDS.CLAUDE_HAIKU_45]
-    : model;
+  // Map Claude model IDs to OpenRouter format when falling back to OpenRouter
+  const apiModel =
+    isClaude && !useDirectAnthropic
+      ? CLAUDE_API_MODELS.OPENROUTER[model as keyof typeof CLAUDE_API_MODELS.OPENROUTER] ||
+        CLAUDE_API_MODELS.OPENROUTER[MODEL_IDS.CLAUDE_HAIKU_45]
+      : model;
 
   const streamParams = {
     ...sharedParams,
@@ -573,19 +550,12 @@ async function createProviderStream(
     modelMeta: { ...modelMeta, apiModel },
   };
 
-  if (isDeepSeekDirect || isDeepSeekV4Pro || isDeepSeekV41Flash) {
-    return createDeepSeekStream({
-      ...streamParams,
-      ai: aiClient as unknown as OpenAI,
-      model: apiModel,
-      thinkingLevel,
-    } as unknown as Parameters<typeof createDeepSeekStream>[0]);
-  }
-
-  if (isClaude && process.env.ANTHROPIC_API_KEY) {
+  // Direct Anthropic Claude takes precedence over OpenRouter (does not require OPENROUTER_API_KEY)
+  if (useDirectAnthropic) {
+    let claudeClient: Anthropic;
     try {
-      aiClient = getClaudeClient();
-    } catch (e) {
+      claudeClient = getClaudeClient();
+    } catch (e: unknown) {
       coreLogger.error("Claude Init Error:", e);
       return error("Claude configuration missing", 500, "CONFIG_ERROR");
     }
@@ -596,7 +566,7 @@ async function createProviderStream(
 
     return createAnthropicStream({
       ...streamParams,
-      ai: aiClient as unknown as Anthropic,
+      ai: claudeClient,
       model: claudeModel,
       modelMeta: { ...modelMeta, apiModel: claudeModel },
       tools: [],
@@ -606,16 +576,68 @@ async function createProviderStream(
     } as unknown as Parameters<typeof createAnthropicStream>[0]);
   }
 
+  // DeepSeek (direct or via OpenRouter)
+  if (isDeepSeekDirect || isDeepSeekV4Pro || isDeepSeekV41Flash) {
+    let deepSeekClient: OpenAI;
+    try {
+      deepSeekClient = isDeepSeekDirect ? getDeepSeekClient() : getOpenRouterClient();
+    } catch (e: unknown) {
+      coreLogger.error(
+        isDeepSeekDirect ? "DeepSeek Init Error:" : "OpenRouter Init Error (for DeepSeek V4):",
+        e
+      );
+      return error(
+        isDeepSeekDirect
+          ? "DeepSeek API configuration missing. Add DEEPSEEK_API_KEY to .env"
+          : "OpenRouter configuration missing. Add OPENROUTER_API_KEY to .env",
+        500,
+        "CONFIG_ERROR"
+      );
+    }
+
+    return createDeepSeekStream({
+      ...streamParams,
+      ai: deepSeekClient,
+      model: apiModel,
+      thinkingLevel,
+    } as unknown as Parameters<typeof createDeepSeekStream>[0]);
+  }
+
+  // OpenRouter / Groq / Claude-via-OpenRouter
   if (isOpenRouter || isStandardGroq || isClaude) {
+    let openAiClient: OpenAI;
+    try {
+      openAiClient = isStandardGroq ? getGroqClient() : getOpenRouterClient();
+    } catch (e: unknown) {
+      coreLogger.error(isStandardGroq ? "Groq Init Error:" : "OpenRouter Init Error:", e);
+      return error(
+        isClaude
+          ? "Claude via OpenRouter configuration missing. Add OPENROUTER_API_KEY to .env"
+          : isStandardGroq
+            ? "Groq configuration missing"
+            : "OpenRouter configuration missing",
+        500,
+        "CONFIG_ERROR"
+      );
+    }
+
     return createOpenAICompatibleStream({
       ...streamParams,
-      ai: aiClient as unknown as OpenAI,
+      ai: openAiClient,
       model: apiModel,
       thinkingLevel,
     } as unknown as Parameters<typeof createOpenAICompatibleStream>[0]);
   }
 
-  // Gemini Native — with caching strategies
+  // Gemini Native — initialize GenAI client lazily only when a Gemini model is requested
+  let ai: ReturnType<typeof getGenAIClient>;
+  try {
+    ai = getGenAIClient();
+  } catch (e: unknown) {
+    const errorMsg = e instanceof Error ? e.message : "AI service unavailable";
+    return error(errorMsg || "AI service unavailable", 500, "AI_SERVICE_ERROR");
+  }
+
   return createGeminiStream({
     ai: ai as unknown as ChatStreamParams["ai"],
     model,
@@ -670,22 +692,28 @@ async function createGeminiStream(params: GeminiStreamParams): Promise<ReadableS
   let cachedContent: string | undefined;
 
   // Strategy B: Composite cache (system instruction + tools + toolConfig)
-  try {
-    const cacheResult = await getOrCreateCompositeCache({
-      model,
-      systemInstruction: finalSysPromptWithCharts,
-      tools: tools.length > 0 ? tools : undefined,
-      toolConfig,
-    });
-    if (cacheResult) {
-      cachedContent = cacheResult.cacheName;
-      coreLogger.info(
-        `[COMPOSITE CACHE] ${cacheResult.cacheHit ? "HIT" : "CREATED"}: ${cachedContent}`
-      );
+  // Skip composite caching when per-query RAG chunks are injected into the system prompt
+  const ragSourcesList = Array.isArray(sharedParams.ragSources) ? sharedParams.ragSources : [];
+  const cacheUserId = typeof sharedParams.userId === "string" ? sharedParams.userId : "";
+  if (ragSourcesList.length === 0 && cacheUserId) {
+    try {
+      const cacheResult = await getOrCreateCompositeCache({
+        userId: cacheUserId,
+        model,
+        systemInstruction: finalSysPromptWithCharts,
+        tools: tools.length > 0 ? tools : undefined,
+        toolConfig,
+      });
+      if (cacheResult) {
+        cachedContent = cacheResult.cacheName;
+        coreLogger.info(
+          `[COMPOSITE CACHE] ${cacheResult.cacheHit ? "HIT" : "CREATED"}: ${cachedContent}`
+        );
+      }
+    } catch (cacheErr) {
+      coreLogger.error("Composite cache error (non-fatal):", cacheErr);
+      // Continue without cache - standard request
     }
-  } catch (cacheErr) {
-    coreLogger.error("Composite cache error (non-fatal):", cacheErr);
-    // Continue without cache - standard request
   }
 
   return createChatReadableStream({

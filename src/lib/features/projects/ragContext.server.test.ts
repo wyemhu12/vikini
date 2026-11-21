@@ -203,6 +203,24 @@ describe("ragContext.server", () => {
         projectId: null,
       });
     });
+
+    it("TC-W2A-16: skips getConversationProjectId DB lookup when options.projectId is explicitly provided (null or string)", async () => {
+      const nullCtx = await buildRAGContext("user-1", "conv-1", "Query", { projectId: null });
+      expect(nullCtx.ragEnabled).toBe(false);
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(mockSearchKnowledge).not.toHaveBeenCalled();
+
+      mockSearchKnowledge.mockResolvedValueOnce([]);
+      const preloadedCtx = await buildRAGContext("user-1", "conv-1", "Query", {
+        projectId: "prj-preloaded",
+      });
+      expect(preloadedCtx.projectId).toBe("prj-preloaded");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(mockSearchKnowledge).toHaveBeenCalledWith("prj-preloaded", "user-1", "Query", {
+        threshold: 0.5,
+        limit: 5,
+      });
+    });
   });
 
   describe("injectRAGIntoSystemPrompt", () => {

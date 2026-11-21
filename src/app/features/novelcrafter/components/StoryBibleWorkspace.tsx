@@ -263,7 +263,7 @@ export default function StoryBibleWorkspace({
                   onClick={() => onUpdateStoryBible({ styleMode: mode })}
                   aria-pressed={active}
                   className={cn(
-                    "text-left p-3 rounded-xl border transition-all flex flex-col justify-between gap-1",
+                    "text-left p-3 rounded-xl border transition-[background-color,border-color,color] flex flex-col justify-between gap-1",
                     active
                       ? "bg-(--soft) border-(--accent) text-(--accent)"
                       : "bg-(--surface) border-(--line) text-(--text) hover:border-(--muted)"

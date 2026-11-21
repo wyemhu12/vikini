@@ -6,8 +6,13 @@ import { NextRequest } from "next/server";
 // Mocks - declared BEFORE importing the route handlers
 // ---------------------------------------------------------------------------
 
-vi.mock("@/lib/features/auth/auth", () => ({
-  auth: vi.fn(),
+vi.mock("@/lib/features/auth/requireApprovedUser", () => ({
+  requireAdminUser: vi.fn(),
+}));
+
+const mockInvalidateAllGemsCache = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/lib/core/cache", () => ({
+  invalidateAllGemsCache: () => mockInvalidateAllGemsCache(),
 }));
 
 const mockSupabaseChain: Record<string, Mock> = {};
@@ -76,10 +81,7 @@ vi.mock("@/lib/core/supabase.server", () => ({
           mockSupabaseChain.insert(...iArgs);
           return {
             select: () => ({
-              single: () =>
-                mockSupabaseChain.single.mock.results[
-                  mockSupabaseChain.single.mock.results.length - 1
-                ]?.value ?? mockSupabaseChain.single(),
+              single: () => mockSupabaseChain.single(),
             }),
           };
         },
@@ -93,10 +95,7 @@ vi.mock("@/lib/core/supabase.server", () => ({
                   mockSupabaseChain.eq(...e2Args);
                   return {
                     select: () => ({
-                      single: () =>
-                        mockSupabaseChain.single.mock.results[
-                          mockSupabaseChain.single.mock.results.length - 1
-                        ]?.value ?? mockSupabaseChain.single(),
+                      single: () => mockSupabaseChain.single(),
                     }),
                   };
                 },
@@ -138,7 +137,8 @@ vi.mock("@/lib/utils/logger", () => ({
 // ---------------------------------------------------------------------------
 
 import { GET, POST, PUT, DELETE } from "./route";
-import { auth } from "@/lib/features/auth/auth";
+import { requireAdminUser } from "@/lib/features/auth/requireApprovedUser";
+import { ForbiddenError, ServiceUnavailableError, UnauthorizedError } from "@/lib/utils/errors";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -154,19 +154,18 @@ function createRequest(method: string, url: string, body?: unknown): NextRequest
 }
 
 function mockAdmin() {
-  vi.mocked(auth).mockResolvedValue({
-    user: { email: "admin@test.com", id: "admin-id", rank: "admin" },
-  } as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireAdminUser).mockResolvedValue({
+    userId: "admin@test.com",
+    rank: "admin",
+  });
 }
 
 function mockNonAdmin() {
-  vi.mocked(auth).mockResolvedValue({
-    user: { email: "user@test.com", id: "user-id", rank: "basic" },
-  } as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireAdminUser).mockRejectedValue(new ForbiddenError("Admin access required"));
 }
 
 function mockUnauthenticated() {
-  vi.mocked(auth).mockResolvedValue(null as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireAdminUser).mockRejectedValue(new UnauthorizedError());
 }
 
 // ---------------------------------------------------------------------------
@@ -181,10 +180,10 @@ describe("/api/admin/gems", () => {
 
   // ======================== GET ========================
   describe("GET", () => {
-    it("should return 403 if not authenticated", async () => {
+    it("should return 401 if not authenticated", async () => {
       mockUnauthenticated();
       const res = await GET();
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(401);
       const json = await res.json();
       expect(json.success).toBe(false);
     });
@@ -195,6 +194,12 @@ describe("/api/admin/gems", () => {
       expect(res.status).toBe(403);
       const json = await res.json();
       expect(json.success).toBe(false);
+    });
+
+    it("should return 503 if DB verification fails", async () => {
+      vi.mocked(requireAdminUser).mockRejectedValueOnce(new ServiceUnavailableError());
+      const res = await GET();
+      expect(res.status).toBe(503);
     });
 
     it("should return gems list on success", async () => {
@@ -234,14 +239,14 @@ describe("/api/admin/gems", () => {
 
   // ======================== POST ========================
   describe("POST", () => {
-    it("should return 403 if not authenticated", async () => {
+    it("should return 401 if not authenticated", async () => {
       mockUnauthenticated();
       const req = createRequest("POST", "/api/admin/gems", {
         name: "Test",
         instructions: "Do things",
       });
       const res = await POST(req);
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(401);
     });
 
     it("should return 403 if user is not admin", async () => {
@@ -287,6 +292,38 @@ describe("/api/admin/gems", () => {
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(json.data.gem).toBeDefined();
+      expect(mockInvalidateAllGemsCache).toHaveBeenCalledTimes(1);
+    });
+
+    it("should return 400 on malformed JSON and rollback parent gem when initial gem_versions insert fails (TC-W2A-03)", async () => {
+      mockAdmin();
+      const badReq = new NextRequest(new URL("/api/admin/gems", "http://localhost:3000"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{bad-json",
+      });
+      const badRes = await POST(badReq);
+      expect(badRes.status).toBe(400);
+
+      mockSupabaseChain.single
+        .mockResolvedValueOnce({
+          data: { id: "gem-orphan", name: "Orphan", is_premade: true },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: null,
+          error: { message: "gem_versions insert failed" },
+        });
+      mockSupabaseChain.delete.mockResolvedValueOnce({ error: null });
+
+      const req = createRequest("POST", "/api/admin/gems", {
+        name: "Orphan",
+        instructions: "Instructions",
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(500);
+      expect(mockSupabaseChain.delete).toHaveBeenCalledTimes(1);
+      expect(mockInvalidateAllGemsCache).not.toHaveBeenCalled();
     });
 
     it("should return 500 on database error", async () => {
@@ -307,7 +344,7 @@ describe("/api/admin/gems", () => {
 
   // ======================== PUT ========================
   describe("PUT", () => {
-    it("should return 403 if not authenticated", async () => {
+    it("should return 401 if not authenticated", async () => {
       mockUnauthenticated();
       const req = createRequest("PUT", "/api/admin/gems", {
         id: "gem-1",
@@ -315,7 +352,7 @@ describe("/api/admin/gems", () => {
         instructions: "New instructions",
       });
       const res = await PUT(req);
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(401);
     });
 
     it("should return 400 when required fields are missing", async () => {
@@ -356,16 +393,50 @@ describe("/api/admin/gems", () => {
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(json.data.gem).toBeDefined();
+      expect(mockInvalidateAllGemsCache).toHaveBeenCalledTimes(1);
+    });
+
+    it("should return 400 on malformed JSON and invalidate cache in finally even if gem_versions fails after gems.update (TC-W2A-03)", async () => {
+      mockAdmin();
+      const badReq = new NextRequest(new URL("/api/admin/gems", "http://localhost:3000"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: "{bad-json",
+      });
+      expect((await PUT(badReq)).status).toBe(400);
+
+      mockSupabaseChain.single.mockResolvedValueOnce({
+        data: { id: "gem-1", name: "Updated", is_premade: true },
+        error: null,
+      });
+      mockSupabaseChain.order.mockReturnValueOnce({
+        limit: () => ({
+          maybeSingle: () => Promise.resolve({ data: { version: 2 }, error: null }),
+        }),
+      });
+      mockSupabaseChain.single.mockResolvedValueOnce({
+        data: null,
+        error: { message: "version insert failed" },
+      });
+
+      const req = createRequest("PUT", "/api/admin/gems", {
+        id: "gem-1",
+        name: "Updated",
+        instructions: "New instructions",
+      });
+      const res = await PUT(req);
+      expect(res.status).toBe(500);
+      expect(mockInvalidateAllGemsCache).toHaveBeenCalledTimes(1);
     });
   });
 
   // ======================== DELETE ========================
   describe("DELETE", () => {
-    it("should return 403 if not authenticated", async () => {
+    it("should return 401 if not authenticated", async () => {
       mockUnauthenticated();
       const req = createRequest("DELETE", "/api/admin/gems?id=gem-1");
       const res = await DELETE(req);
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(401);
     });
 
     it("should return 400 when gem ID is missing", async () => {
@@ -387,6 +458,7 @@ describe("/api/admin/gems", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.success).toBe(true);
+      expect(mockInvalidateAllGemsCache).toHaveBeenCalledTimes(1);
     });
 
     it("should return 500 on database error", async () => {

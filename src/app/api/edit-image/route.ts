@@ -15,9 +15,9 @@ import {
   AppError,
 } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
-import { fetchSafeImage } from "@/lib/core/ssrfGuard.server";
+import { fetchSafeImage, ALLOWED_IMAGE_MIME_TYPES } from "@/lib/core/ssrfGuard.server";
 import { getUserProfile } from "@/lib/core/limits";
-import { HTTP_STATUS } from "@/lib/utils/constants";
+import { HTTP_STATUS, ALLOWED_EDIT_IMAGE_MODELS } from "@/lib/utils/constants";
 
 const routeLogger = logger.withContext("edit-image");
 
@@ -27,7 +27,7 @@ const editImageRequestSchema = z.object({
   conversationId: z.string().uuid("Invalid conversation ID"),
   options: z
     .object({
-      model: z.string().max(100).optional(),
+      model: z.enum(ALLOWED_EDIT_IMAGE_MODELS).optional(),
       aspectRatio: z.enum(["1:1", "16:9", "9:16", "4:3", "3:4"]).optional(),
     })
     .optional(),
@@ -52,7 +52,12 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Parse & Validate Body
-    const rawBody = await req.json();
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      throw new ValidationError("Invalid JSON body");
+    }
     let parsed;
     try {
       parsed = editImageRequestSchema.parse(rawBody);
@@ -103,10 +108,20 @@ export async function POST(req: NextRequest) {
     let imageBuffer: Buffer;
     let sourceMimeType: string;
 
-    if (sourceImageUrl.startsWith("data:image")) {
-      const parts = sourceImageUrl.split(",");
-      imageBuffer = Buffer.from(parts[1], "base64");
-      sourceMimeType = parts[0].match(/:(.*?);/)?.[1] || "image/png";
+    if (/^data:/i.test(sourceImageUrl)) {
+      const match = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i.exec(sourceImageUrl);
+      if (!match || !ALLOWED_IMAGE_MIME_TYPES.has(match[1].toLowerCase())) {
+        throw new ValidationError("Unsupported or malformed data URI image format");
+      }
+      const rawBase64 = match[2];
+      if (rawBase64.length > 14_000_000) {
+        throw new ValidationError("Image exceeds 10MB limit");
+      }
+      imageBuffer = Buffer.from(rawBase64, "base64");
+      if (imageBuffer.byteLength > 10 * 1024 * 1024) {
+        throw new ValidationError("Image exceeds 10MB limit");
+      }
+      sourceMimeType = match[1].toLowerCase();
     } else {
       const safeImage = await fetchSafeImage(sourceImageUrl);
       imageBuffer = safeImage.buffer;
@@ -245,16 +260,20 @@ export async function POST(req: NextRequest) {
       imageUrl: messageMeta.imageUrl,
     });
 
-    const message = await saveMessage(
-      userId,
-      conversationId,
-      "assistant",
-      messageContent,
-      messageMeta
-    );
-
-    if (!message) {
-      throw new Error("Failed to save message");
+    let message;
+    try {
+      message = await saveMessage(userId, conversationId, "assistant", messageContent, messageMeta);
+      if (!message) {
+        throw new Error("Failed to save message");
+      }
+    } catch (saveErr: unknown) {
+      await supabase.storage
+        .from(bucket)
+        .remove([storagePath])
+        .catch((cleanupErr: unknown) => {
+          routeLogger.warn("Failed to cleanup orphan edited image:", cleanupErr);
+        });
+      throw saveErr;
     }
 
     // 10. Return Success

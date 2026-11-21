@@ -11,6 +11,7 @@ import { formatFileSize, KIND_ICONS, KIND_COLORS } from "@/lib/utils/fileDisplay
 import { logger } from "@/lib/utils/logger";
 import { toast } from "@/lib/store/toastStore";
 import { useLanguage } from "../hooks/useLanguage";
+import { TRANSITION } from "@/lib/utils/motion";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -18,7 +19,6 @@ interface FileManagerPanelProps {
   conversationId: string;
   isOpen: boolean;
   onClose: () => void;
-  t?: Record<string, string>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -45,9 +45,8 @@ export default function FileManagerPanel({
   conversationId,
   isOpen,
   onClose,
-  t,
 }: FileManagerPanelProps) {
-  const { t: translate } = useLanguage();
+  const { t } = useLanguage();
   const { files, isLoading, mutate } = useFiles(conversationId);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -88,13 +87,12 @@ export default function FileManagerPanel({
         if (res.ok) {
           await mutate();
         } else {
-          const msg = t?.deleteFileFailed || "Failed to delete file";
-          toast.error(msg);
+          toast.error(t("deleteFileFailed"));
         }
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Failed to delete file";
+        const message = err instanceof Error ? err.message : t("deleteFileFailed");
         logger.error("[FileManagerPanel] delete error:", message);
-        toast.error(t?.deleteFileFailed || message);
+        toast.error(t("deleteFileFailed"));
       } finally {
         setDeletingId(null);
       }
@@ -111,20 +109,19 @@ export default function FileManagerPanel({
           initial={{ opacity: 0, y: -8, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -8, scale: 0.95 }}
-          transition={{ duration: 0.15, ease: "easeOut" }}
-          className="absolute bottom-full right-0 mb-2 w-72 sm:w-80 max-h-80 z-50 rounded-2xl bg-[var(--surface)] border border-[var(--line)] shadow-2xl backdrop-blur-xl overflow-hidden flex flex-col"
+          transition={TRANSITION.FAST}
+          className="absolute bottom-full right-0 mb-2 w-72 sm:w-80 max-h-80 z-(--z-popover) rounded-2xl bg-[var(--surface)] border border-[var(--line)] shadow-2xl backdrop-blur-xl overflow-hidden flex flex-col"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--line)]">
             <span className="text-xs font-bold text-[var(--text)]">
-              {t?.files ?? "Files"}{" "}
-              <span className="text-[var(--muted)] font-normal">({files.length})</span>
+              {t("files")} <span className="text-[var(--muted)] font-normal">({files.length})</span>
             </span>
             <button
               type="button"
               onClick={onClose}
               className="p-1.5 rounded-lg hover:bg-[var(--raised)] text-[var(--muted)] hover:text-[var(--text)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
-              aria-label={t?.close ?? translate("close")}
+              aria-label={t("close")}
             >
               <X aria-hidden="true" className="w-3.5 h-3.5" />
             </button>
@@ -138,7 +135,7 @@ export default function FileManagerPanel({
               </div>
             ) : files.length === 0 ? (
               <div className="flex items-center justify-center py-6 text-[var(--muted)]">
-                <p className="text-xs">{t?.noFilesUploaded ?? "No files in this chat"}</p>
+                <p className="text-xs">{t("noFilesUploaded")}</p>
               </div>
             ) : (
               <AnimatePresence mode="popLayout">
@@ -177,7 +174,7 @@ function FileListItem({ file, isDeleting, onDelete }: FileListItemProps) {
       layout
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: 20, transition: { duration: 0.15 } }}
+      exit={{ opacity: 0, x: 20, transition: TRANSITION.EXIT_FAST }}
       className="group flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-[var(--raised)] transition-colors"
     >
       {/* Kind icon */}

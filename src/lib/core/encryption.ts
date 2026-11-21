@@ -30,7 +30,9 @@ if (typeof window === "undefined") {
 }
 
 const GCM_IV_LENGTH = 12;
+const GCM_AUTH_TAG_LENGTH = 16;
 const CBC_IV_LENGTH = 16;
+const HEX_PATTERN = /^[0-9a-fA-F]+$/;
 
 // Cache the key buffer
 let cachedKey: Buffer | null = null;
@@ -59,7 +61,9 @@ export function encryptText(text: string | null | undefined): string {
   const textStr = String(text);
   const key = getKey();
   const iv = crypto.randomBytes(GCM_IV_LENGTH);
-  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv, {
+    authTagLength: GCM_AUTH_TAG_LENGTH,
+  });
 
   let encrypted = cipher.update(textStr, "utf8");
   encrypted = Buffer.concat([encrypted, cipher.final()]);
@@ -87,11 +91,27 @@ export function decryptText(text: string | null | undefined): string {
   try {
     // Format 1: GCM (New) -> iv:authTag:encrypted
     if (parts.length === 3 && parts[0].length === GCM_IV_LENGTH * 2) {
+      if (
+        !HEX_PATTERN.test(parts[0]) ||
+        parts[1].length !== GCM_AUTH_TAG_LENGTH * 2 ||
+        !HEX_PATTERN.test(parts[1]) ||
+        parts[2].length % 2 !== 0 ||
+        (parts[2].length > 0 && !HEX_PATTERN.test(parts[2]))
+      ) {
+        throw new Error("Invalid GCM encryption format");
+      }
+
       const iv = Buffer.from(parts[0], "hex");
       const authTag = Buffer.from(parts[1], "hex");
       const encryptedText = Buffer.from(parts[2], "hex");
 
-      const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+      if (iv.length !== GCM_IV_LENGTH || authTag.length !== GCM_AUTH_TAG_LENGTH) {
+        throw new Error("Invalid GCM IV or authentication tag length");
+      }
+
+      const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv, {
+        authTagLength: GCM_AUTH_TAG_LENGTH,
+      });
       decipher.setAuthTag(authTag);
 
       let decrypted = decipher.update(encryptedText);
@@ -101,6 +121,15 @@ export function decryptText(text: string | null | undefined): string {
 
     // Format 2: CBC (Legacy) -> iv:encrypted
     if (parts.length === 2 && parts[0].length === CBC_IV_LENGTH * 2) {
+      if (
+        !HEX_PATTERN.test(parts[0]) ||
+        parts[1].length === 0 ||
+        parts[1].length % 2 !== 0 ||
+        !HEX_PATTERN.test(parts[1])
+      ) {
+        throw new Error("Invalid CBC encryption format");
+      }
+
       const iv = Buffer.from(parts[0], "hex");
       const encryptedText = Buffer.from(parts[1], "hex");
 

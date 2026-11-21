@@ -26,6 +26,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { formatDateShort } from "@/lib/utils/dateFormat";
+import { openSafeExternalUrl } from "@/lib/utils/xssProtection";
 import ImageCompareModal from "./ImageCompareModal";
 
 import {
@@ -154,7 +155,7 @@ export function GalleryView() {
                     onClick={g.handleToggleCompareMode}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium whitespace-nowrap shrink-0 transition-colors ${
                       g.compareMode
-                        ? "bg-(--danger)/20 text-(--danger) border border-(--danger)/30 hover:bg-(--danger)/30"
+                        ? "bg-(--danger)/10 text-(--danger) border border-(--danger)/30 hover:bg-(--danger)/15"
                         : "bg-(--raised) border border-(--line) hover:bg-(--raised-hover)"
                     }`}
                   >
@@ -419,7 +420,7 @@ export function GalleryView() {
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => window.open(g.selectedImage!.url, "_blank")}
+                        onClick={() => openSafeExternalUrl(g.selectedImage!.url)}
                         className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--raised) hover:bg-(--raised-hover) border border-(--line) font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                       >
                         <Download aria-hidden="true" className="w-4 h-4" /> {g.t("studioDownload")}

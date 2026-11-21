@@ -5,6 +5,7 @@ import { getStrataConfig } from "@/lib/core/strataConfig";
 import { TIMEOUT_CONFIG, StreamTimeoutError, type ThinkingLevel } from "./types";
 
 export const streamLogger = logger.withContext("/api/chat-stream");
+const textEncoder = new TextEncoder();
 
 function getStreamTimeout(model?: string, thinkingLevel?: ThinkingLevel): number {
   if (model && isStrataLocalModel(model)) {
@@ -57,11 +58,24 @@ function createTimeoutPromise<T>(timeoutMs: number): Promise<T> {
 }
 
 /**
- * Wraps an async operation with a timeout.
+ * Wraps an async operation with a timeout and always clears the timer on settle.
  * If the operation doesn't complete within the timeout, throws StreamTimeoutError.
  */
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return Promise.race([promise, createTimeoutPromise<T>(timeoutMs)]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new StreamTimeoutError(timeoutMs));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
+  }
 }
 
 export function sendEvent(
@@ -70,8 +84,7 @@ export function sendEvent(
   data: unknown
 ): void {
   try {
-    const encoder = new TextEncoder();
-    controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+    controller.enqueue(textEncoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
   } catch (e) {
     streamLogger.error(`Failed to send event ${event}:`, e);
   }
@@ -194,32 +207,53 @@ export function pick<T = unknown>(obj: unknown, keys: string[]): T | undefined {
  * Resets the timer on every chunk.
  */
 async function* withIdleTimeout<T>(stream: AsyncIterable<T>, idleMs: number): AsyncGenerator<T> {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let _rejectIdle: ((err: Error) => void) | null = null;
-
-  const resetTimer = () => {
-    if (timer) clearTimeout(timer);
-    return new Promise<never>((_, reject) => {
-      _rejectIdle = reject;
-      timer = setTimeout(() => {
-        reject(new StreamTimeoutError(idleMs));
-      }, idleMs);
-    });
-  };
+  const iterator = stream[Symbol.asyncIterator]();
+  let activeTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingNext: Promise<IteratorResult<T>> | null = null;
 
   try {
-    const iterator = stream[Symbol.asyncIterator]();
-    let idlePromise = resetTimer();
-
     while (true) {
-      const result = (await Promise.race([iterator.next(), idlePromise])) as IteratorResult<T>;
+      const nextPromise = iterator.next();
+      pendingNext = nextPromise;
+
+      const idlePromise = new Promise<never>((_, reject) => {
+        activeTimer = setTimeout(() => {
+          reject(new StreamTimeoutError(idleMs));
+        }, idleMs);
+      });
+
+      let result: IteratorResult<T>;
+      try {
+        result = await Promise.race([nextPromise, idlePromise]);
+        pendingNext = null;
+      } catch (err: unknown) {
+        if (pendingNext) {
+          pendingNext.catch(() => {});
+          pendingNext = null;
+        }
+        throw err;
+      } finally {
+        if (activeTimer !== null) {
+          clearTimeout(activeTimer);
+          activeTimer = null;
+        }
+      }
 
       if (result.done) break;
-      idlePromise = resetTimer();
       yield result.value;
     }
   } finally {
-    if (timer) clearTimeout(timer);
+    if (activeTimer !== null) {
+      clearTimeout(activeTimer);
+      activeTimer = null;
+    }
+    if (pendingNext) {
+      pendingNext.catch(() => {});
+      pendingNext = null;
+    }
+    if (typeof iterator.return === "function") {
+      await Promise.resolve(iterator.return()).catch(() => {});
+    }
   }
 }
 

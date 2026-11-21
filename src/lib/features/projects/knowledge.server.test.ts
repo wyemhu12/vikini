@@ -53,6 +53,7 @@ vi.mock("./projects.server", () => ({
     user_id: "user-456",
     name: "Test Project",
   }),
+  verifyProjectOwnership: vi.fn().mockResolvedValue(true),
 }));
 
 import {
@@ -63,7 +64,7 @@ import {
   cleanupStuckProcessingDocuments,
   searchKnowledge,
 } from "./knowledge.server";
-import { canAddStorageToProject, getProject } from "./projects.server";
+import { canAddStorageToProject, verifyProjectOwnership } from "./projects.server";
 import { ValidationError } from "@/lib/utils/errors";
 
 describe("knowledge.server", () => {
@@ -117,6 +118,20 @@ describe("knowledge.server", () => {
       expect(deleteMock).toHaveBeenCalled();
       expect(eqDocMock).toHaveBeenCalledWith("id", "doc-1");
       expect(eqUserMock).toHaveBeenCalledWith("user_id", "user-1");
+    });
+
+    it("TC-W2A-07 & NP-03: scopes deleteDocument to project_id when projectId is provided", async () => {
+      const eqProjectMock = vi.fn().mockResolvedValue({ error: null });
+      const eqUserMock = vi.fn().mockReturnValue({ eq: eqProjectMock });
+      const eqDocMock = vi.fn().mockReturnValue({ eq: eqUserMock });
+      const deleteMock = vi.fn().mockReturnValue({ eq: eqDocMock });
+      mockSupabaseFrom.mockReturnValue({ delete: deleteMock });
+
+      await deleteDocument("doc-b", "user-1", "proj-a");
+
+      expect(eqDocMock).toHaveBeenCalledWith("id", "doc-b");
+      expect(eqUserMock).toHaveBeenCalledWith("user_id", "user-1");
+      expect(eqProjectMock).toHaveBeenCalledWith("project_id", "proj-a");
     });
   });
 
@@ -380,6 +395,101 @@ describe("knowledge.server", () => {
       );
       expect(errorEqMock).toHaveBeenCalledWith("id", "doc-failed");
     });
+
+    it("TC-W2A-07: inserts 120 chunks in [50, 50, 20] batches and cleans up partial chunks on batch #2 failure", async () => {
+      const orderMock = vi.fn().mockResolvedValue({ data: [], error: null });
+      const eqUserMock = vi.fn().mockReturnValue({ order: orderMock });
+      const eqProjectMock = vi.fn().mockReturnValue({ eq: eqUserMock });
+      const docInsertMock = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { id: "doc-batch", filename: "big.md" },
+            error: null,
+          }),
+        }),
+      });
+      const chunkInsertMock = vi.fn().mockResolvedValue({ error: null });
+      const chunkDeleteEqMock = vi.fn().mockResolvedValue({ error: null });
+      const chunkDeleteMock = vi.fn().mockReturnValue({ eq: chunkDeleteEqMock });
+      const docUpdateMock = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: "doc-batch", status: "ready", total_chunks: 120 },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "knowledge_documents") {
+          return {
+            select: vi.fn().mockReturnValue({ eq: eqProjectMock }),
+            insert: docInsertMock,
+            update: docUpdateMock,
+          };
+        }
+        if (table === "knowledge_chunks") {
+          return { insert: chunkInsertMock, delete: chunkDeleteMock };
+        }
+        return {};
+      });
+
+      const chunks120 = Array.from({ length: 120 }, (_, i) => ({
+        index: i,
+        content: `chunk ${i}`,
+        metadata: {},
+      }));
+      const vectors120 = Array.from({ length: 120 }, () => [0.1, 0.2]);
+      mockChunkContent.mockReturnValueOnce(chunks120);
+      mockGenerateEmbeddingsBatch.mockResolvedValueOnce(vectors120);
+
+      await uploadDocument({
+        projectId: "prj-1",
+        userId: "user-1",
+        filename: "big.md",
+        content: "big content",
+      });
+
+      expect(chunkInsertMock).toHaveBeenCalledTimes(3);
+      expect(chunkInsertMock.mock.calls.map((c) => (c[0] as unknown[]).length)).toEqual([
+        50, 50, 20,
+      ]);
+
+      // Now fail batch #2 -> must rollback partial chunks for doc-batch
+      chunkInsertMock.mockReset();
+      chunkInsertMock
+        .mockResolvedValueOnce({ error: null })
+        .mockResolvedValueOnce({ error: { message: "batch 2 timeout" } });
+      const errEqMock = vi.fn().mockResolvedValue({ error: null });
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "knowledge_documents") {
+          return {
+            select: vi.fn().mockReturnValue({ eq: eqProjectMock }),
+            insert: docInsertMock,
+            update: vi.fn().mockReturnValue({ eq: errEqMock }),
+          };
+        }
+        if (table === "knowledge_chunks") {
+          return { insert: chunkInsertMock, delete: chunkDeleteMock };
+        }
+        return {};
+      });
+
+      mockChunkContent.mockReturnValueOnce(chunks120);
+      mockGenerateEmbeddingsBatch.mockResolvedValueOnce(vectors120);
+
+      await expect(
+        uploadDocument({
+          projectId: "prj-1",
+          userId: "user-1",
+          filename: "big.md",
+          content: "big content",
+        })
+      ).rejects.toThrow("Failed to insert document chunks");
+      expect(chunkDeleteEqMock).toHaveBeenCalledWith("document_id", "doc-batch");
+    });
   });
 
   describe("cleanupStuckProcessingDocuments (TC-EMB-12)", () => {
@@ -512,7 +622,7 @@ describe("knowledge.server", () => {
     });
 
     it("should return empty array and not generate embedding when project is not found or unowned", async () => {
-      vi.mocked(getProject).mockResolvedValueOnce(null);
+      vi.mocked(verifyProjectOwnership).mockResolvedValueOnce(false);
 
       const results = await searchKnowledge("prj-other", "user-other", "query");
 

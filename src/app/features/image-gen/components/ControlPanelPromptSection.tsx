@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Ban, Clock, Lightbulb, Sparkles, Trash2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { TRANSITION } from "@/lib/utils/motion";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "../../chat/hooks/useLanguage";
@@ -92,7 +93,7 @@ export default function ControlPanelPromptSection({
             width: "calc(50% - 2px)",
             left: promptMode === "free" ? "2px" : "calc(50%)",
           }}
-          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          transition={TRANSITION.SPRING}
         />
         <button
           type="button"
@@ -142,7 +143,7 @@ export default function ControlPanelPromptSection({
             />
             {/* AI Autocomplete Suggestions */}
             {autocomplete.showSuggestions && autocomplete.suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-(--surface) border border-(--line) rounded-lg shadow-xl overflow-hidden">
+              <div className="absolute left-0 right-0 top-full mt-1 z-(--z-popover) bg-(--surface) border border-(--line) rounded-lg shadow-xl overflow-hidden">
                 {autocomplete.loadingSuggestions && (
                   <div className="px-3 py-2 text-xs text-(--muted) animate-pulse">
                     {t("studioSuggestLoading")}

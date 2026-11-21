@@ -98,84 +98,95 @@ export function ImageCompareModal({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-(--overlay) backdrop-blur-sm" />
+        <Dialog.Overlay className="fixed inset-0 z-(--z-modal) bg-(--overlay) backdrop-blur-sm" />
         <Dialog.Content
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          aria-label="Image comparison"
+          aria-describedby={undefined}
+          className="fixed inset-0 z-(--z-modal) flex items-center justify-center outline-none"
+          aria-label={t("compareTitle")}
         >
-          <Dialog.Title className="sr-only">Image Comparison</Dialog.Title>
+          <Dialog.Title className="sr-only">{t("compareTitle")}</Dialog.Title>
 
           {/* Toolbar */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-(--overlay) backdrop-blur-md rounded-full border border-(--on-overlay)/10 shadow-xl z-20">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 max-w-[calc(100vw-1rem)] flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-(--overlay) backdrop-blur-md rounded-full border border-(--on-overlay)/10 shadow-xl z-20">
             <button
+              type="button"
               onClick={handleZoomOut}
               disabled={zoom <= MIN_ZOOM}
-              className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              title={t("imageZoomOut") || "Zoom out"}
+              aria-label={t("imageZoomOut")}
+              className="p-1.5 sm:p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+              title={t("imageZoomOut")}
             >
-              <ZoomOut className="w-5 h-5" />
+              <ZoomOut aria-hidden="true" className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
-            <span className="text-(--on-overlay)/80 text-sm font-mono min-w-12 text-center">
+            <span className="text-(--on-overlay)/80 text-xs sm:text-sm font-mono min-w-10 sm:min-w-12 text-center">
               {Math.round(zoom * 100)}%
             </span>
 
             <button
+              type="button"
               onClick={handleZoomIn}
               disabled={zoom >= MAX_ZOOM}
-              className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              title={t("imageZoomIn") || "Zoom in"}
+              aria-label={t("imageZoomIn")}
+              className="p-1.5 sm:p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+              title={t("imageZoomIn")}
             >
-              <ZoomIn className="w-5 h-5" />
+              <ZoomIn aria-hidden="true" className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
-            <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
+            <div className="w-px h-5 sm:h-6 bg-(--on-overlay)/20 mx-0.5 sm:mx-1" />
 
             <button
+              type="button"
               onClick={handleResetZoom}
-              className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
-              title="Reset"
+              aria-label={t("studioZoomReset")}
+              className="p-1.5 sm:p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+              title={t("studioZoomReset")}
             >
-              <RotateCcw className="w-5 h-5" />
+              <RotateCcw aria-hidden="true" className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
-            <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
+            <div className="w-px h-5 sm:h-6 bg-(--on-overlay)/20 mx-0.5 sm:mx-1" />
 
             <button
+              type="button"
+              aria-pressed={overlayMode}
               onClick={() => setOverlayMode(!overlayMode)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) ${
                 overlayMode
-                  ? "bg-(--accent)/80 text-(--on-accent)"
+                  ? "bg-(--accent) text-(--on-accent)"
                   : "bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:bg-(--on-overlay)/20 hover:text-(--on-overlay)"
               }`}
             >
-              {overlayMode
-                ? t("compareOverlay") || "Overlay"
-                : t("compareSideBySide") || "Side by Side"}
+              {overlayMode ? t("compareOverlay") : t("compareSideBySide")}
             </button>
 
             <button
+              type="button"
               onClick={onSwap}
-              className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
-              title={t("compareSwap") || "Swap images"}
+              aria-label={t("compareSwap")}
+              className="p-1.5 sm:p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+              title={t("compareSwap")}
             >
-              <ArrowLeftRight className="w-5 h-5" />
+              <ArrowLeftRight aria-hidden="true" className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
-            <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
+            <div className="w-px h-5 sm:h-6 bg-(--on-overlay)/20 mx-0.5 sm:mx-1" />
 
             <Dialog.Close asChild>
               <button
-                className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
-                title={t("imageClose") || "Close"}
+                type="button"
+                aria-label={t("imageClose")}
+                className="p-1.5 sm:p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                title={t("imageClose")}
               >
-                <X className="w-5 h-5" />
+                <X aria-hidden="true" className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </Dialog.Close>
           </div>
 
           {/* Main Content */}
-          <div className="w-full h-full flex items-center justify-center p-16 pt-20">
+          <div className="w-full h-full flex items-center justify-center p-4 pt-20 sm:p-16 sm:pt-20">
             {overlayMode ? (
               /* Overlay Slider Mode */
               <div
@@ -217,17 +228,17 @@ export function ImageCompareModal({
                   className="absolute top-0 bottom-0 w-1 bg-(--on-overlay) shadow-lg cursor-ew-resize"
                   style={{ left: `${sliderPosition}%`, transform: "translateX(-50%)" }}
                 >
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-(--on-overlay) shadow-lg flex items-center justify-center">
-                    <ArrowLeftRight className="w-4 h-4 text-(--bg)" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-(--surface) border border-(--line) shadow-lg flex items-center justify-center">
+                    <ArrowLeftRight aria-hidden="true" className="w-4 h-4 text-(--text)" />
                   </div>
                 </div>
 
                 {/* Labels */}
-                <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-(--overlay) backdrop-blur-sm rounded-lg text-(--on-overlay) text-sm font-medium">
-                  {leftImage.model || "Image A"}
+                <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 max-w-[44%] truncate px-2.5 sm:px-3 py-1 sm:py-1.5 bg-(--overlay) backdrop-blur-sm rounded-lg text-(--on-overlay) text-xs sm:text-sm font-medium">
+                  {leftImage.model || t("compareImageA")}
                 </div>
-                <div className="absolute bottom-4 right-4 px-3 py-1.5 bg-(--overlay) backdrop-blur-sm rounded-lg text-(--on-overlay) text-sm font-medium">
-                  {rightImage.model || "Image B"}
+                <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 max-w-[44%] truncate px-2.5 sm:px-3 py-1 sm:py-1.5 bg-(--overlay) backdrop-blur-sm rounded-lg text-(--on-overlay) text-xs sm:text-sm font-medium">
+                  {rightImage.model || t("compareImageB")}
                 </div>
               </div>
             ) : (
@@ -249,7 +260,7 @@ export function ImageCompareModal({
                   </div>
                   <div className="text-center max-w-md">
                     <div className="px-3 py-1.5 bg-(--accent)/20 text-(--accent) rounded-full text-xs font-bold inline-block mb-2">
-                      {leftImage.model || "Image A"}
+                      {leftImage.model || t("compareImageA")}
                     </div>
                     <p className="text-(--on-overlay)/70 text-sm line-clamp-2">
                       {leftImage.prompt}
@@ -280,7 +291,7 @@ export function ImageCompareModal({
                   </div>
                   <div className="text-center max-w-md">
                     <div className="px-3 py-1.5 bg-(--accent)/20 text-(--accent) rounded-full text-xs font-bold inline-block mb-2">
-                      {rightImage.model || "Image B"}
+                      {rightImage.model || t("compareImageB")}
                     </div>
                     <p className="text-(--on-overlay)/70 text-sm line-clamp-2">
                       {rightImage.prompt}

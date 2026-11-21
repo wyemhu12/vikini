@@ -2,18 +2,15 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { auth } from "@/lib/features/auth/auth";
+import { requireAdminUser } from "@/lib/features/auth/requireApprovedUser";
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
-import { ForbiddenError, AppError } from "@/lib/utils/errors";
+import { AppError } from "@/lib/utils/errors";
 import { success, errorFromAppError, error } from "@/lib/utils/apiResponse";
 
 // GET: Fetch audit logs (newest first, max 100)
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.rank !== "admin") {
-      throw new ForbiddenError("Admin access required");
-    }
+    await requireAdminUser();
 
     const supabase = getSupabaseAdmin();
     const { data, error: dbError } = await supabase

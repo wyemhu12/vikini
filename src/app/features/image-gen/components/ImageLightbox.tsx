@@ -18,6 +18,8 @@ import { motion, AnimatePresence, type PanInfo } from "framer-motion";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { logger } from "@/lib/utils/logger";
+import { TRANSITION } from "@/lib/utils/motion";
+import { openSafeExternalUrl } from "@/lib/utils/xssProtection";
 import type { GeneratedImage } from "./Canvas";
 
 interface ImageLightboxProps {
@@ -188,16 +190,19 @@ export default function ImageLightbox({
     if (!currentImage) return;
     try {
       const response = await fetch(currentImage.url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image (HTTP ${response.status})`);
+      }
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
       a.download = `vikini-${Date.now()}.png`;
       a.click();
-      URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      logger.warn("Blob download failed, falling back to window.open:", err);
-      window.open(currentImage.url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (err: unknown) {
+      logger.warn("Blob download failed, falling back to safe external open:", err);
+      openSafeExternalUrl(currentImage.url);
     }
   }, [currentImage]);
 
@@ -324,7 +329,7 @@ export default function ImageLightbox({
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
+                      transition={TRANSITION.EXIT_FAST}
                       className="relative"
                       style={{
                         transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,

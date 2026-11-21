@@ -80,7 +80,7 @@ export default function InlineStoryBibleSection({
         <button
           type="button"
           onClick={onToggle}
-          className="px-3 py-1 rounded-full border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--text)"
+          className="px-3 py-1 rounded-full border border-(--line) bg-(--raised) hover:bg-(--raised-hover) text-xs font-medium text-(--text) transition-colors"
         >
           {isOpen ? t("novelcrafterCollapseBible") : t("novelcrafterExpandBible")}
         </button>

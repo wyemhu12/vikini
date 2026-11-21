@@ -6,8 +6,8 @@ import { NextRequest } from "next/server";
 // Mocks - declared BEFORE importing the route handlers
 // ---------------------------------------------------------------------------
 
-vi.mock("@/lib/features/auth/auth", () => ({
-  auth: vi.fn(),
+vi.mock("@/lib/features/auth/requireApprovedUser", () => ({
+  requireAdminUser: vi.fn(),
 }));
 
 // Build a flexible mock for the chained Supabase calls in stats route
@@ -15,7 +15,9 @@ const _mockSupabase = {
   fromResults: new Map<string, unknown>(),
 };
 
-function createChainable(resolvedValue: unknown) {
+const capturedCalls: Array<{ table: string; method: string; args: unknown[] }> = [];
+
+function createChainable(table: string, resolvedValue: unknown) {
   const chainable: Record<string, unknown> = {};
   const handler: ProxyHandler<Record<string, unknown>> = {
     get(_target, prop) {
@@ -25,7 +27,10 @@ function createChainable(resolvedValue: unknown) {
         return promise.then.bind(promise);
       }
       // Every method returns the same proxy for chaining
-      return (..._args: unknown[]) => new Proxy({}, handler);
+      return (...args: unknown[]) => {
+        capturedCalls.push({ table, method: String(prop), args });
+        return new Proxy({}, handler);
+      };
     },
   };
   return new Proxy(chainable, handler);
@@ -36,10 +41,10 @@ const fromResults: unknown[] = [];
 
 vi.mock("@/lib/core/supabase.server", () => ({
   getSupabaseAdmin: vi.fn(() => ({
-    from: (..._args: unknown[]) => {
-      const result = fromResults[fromCallIndex] ?? { data: null, count: 0 };
+    from: (table: string) => {
+      const result = fromResults[fromCallIndex] ?? { data: null, count: 0, error: null };
       fromCallIndex++;
-      return createChainable(result);
+      return createChainable(table, result);
     },
   })),
 }));
@@ -65,7 +70,8 @@ vi.mock("@/lib/utils/logger", () => ({
 // ---------------------------------------------------------------------------
 
 import { GET } from "./route";
-import { auth } from "@/lib/features/auth/auth";
+import { requireAdminUser } from "@/lib/features/auth/requireApprovedUser";
+import { ForbiddenError, ServiceUnavailableError, UnauthorizedError } from "@/lib/utils/errors";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -80,19 +86,18 @@ function createRequest(method: string, url: string): NextRequest {
 }
 
 function mockAdmin() {
-  vi.mocked(auth).mockResolvedValue({
-    user: { email: "admin@test.com", id: "admin-id", rank: "admin" },
-  } as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireAdminUser).mockResolvedValue({
+    userId: "admin@test.com",
+    rank: "admin",
+  });
 }
 
 function mockNonAdmin() {
-  vi.mocked(auth).mockResolvedValue({
-    user: { email: "user@test.com", id: "user-id", rank: "basic" },
-  } as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireAdminUser).mockRejectedValue(new ForbiddenError("Admin access required"));
 }
 
 function mockUnauthenticated() {
-  vi.mocked(auth).mockResolvedValue(null as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireAdminUser).mockRejectedValue(new UnauthorizedError());
 }
 
 // ---------------------------------------------------------------------------
@@ -104,14 +109,15 @@ describe("/api/admin/stats", () => {
     vi.clearAllMocks();
     fromCallIndex = 0;
     fromResults.length = 0;
+    capturedCalls.length = 0;
   });
 
   describe("GET", () => {
-    it("should return 403 if not authenticated", async () => {
+    it("should return 401 if not authenticated", async () => {
       mockUnauthenticated();
       const req = createRequest("GET", "/api/admin/stats");
       const res = await GET(req);
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(401);
       const json = await res.json();
       expect(json.success).toBe(false);
     });
@@ -125,24 +131,29 @@ describe("/api/admin/stats", () => {
       expect(json.success).toBe(false);
     });
 
-    it("should return global stats on success", async () => {
+    it("should return 503 if DB verification fails", async () => {
+      vi.mocked(requireAdminUser).mockRejectedValueOnce(new ServiceUnavailableError());
+      const req = createRequest("GET", "/api/admin/stats");
+      const res = await GET(req);
+      expect(res.status).toBe(503);
+    });
+
+    it("should return global stats (>1,000 users) using head-only exact counts and UTC day boundary (TC-W2A-01)", async () => {
       mockAdmin();
 
-      // profiles query
-      fromResults.push({
-        data: [
-          { rank: "admin", is_blocked: false },
-          { rank: "pro", is_blocked: false },
-          { rank: "basic", is_blocked: true },
-          { rank: "not_whitelisted", is_blocked: false },
-        ],
-      });
-      // conversations count (total)
-      fromResults.push({ count: 42 });
-      // conversations count (today)
-      fromResults.push({ count: 5 });
-      // messages count (today)
-      fromResults.push({ count: 123 });
+      // 9 parallel head-only count queries:
+      // total, blocked, admin, pro, basic, not_whitelisted, totalConvs, todayConvs, todayMsgs
+      fromResults.push(
+        { count: 2500, error: null },
+        { count: 120, error: null },
+        { count: 5, error: null },
+        { count: 400, error: null },
+        { count: 1900, error: null },
+        { count: 195, error: null },
+        { count: 4200, error: null },
+        { count: 55, error: null },
+        { count: 1230, error: null }
+      );
 
       const req = createRequest("GET", "/api/admin/stats");
       const res = await GET(req);
@@ -150,21 +161,41 @@ describe("/api/admin/stats", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.success).toBe(true);
-      expect(json.data.users).toBeDefined();
-      expect(json.data.users.total).toBe(4);
-      expect(json.data.users.active).toBe(3);
-      expect(json.data.users.blocked).toBe(1);
-      expect(json.data.conversations).toBeDefined();
-      expect(json.data.messages).toBeDefined();
+      expect(json.data.users).toEqual({
+        total: 2500,
+        active: 2380,
+        blocked: 120,
+        byRank: {
+          admin: 5,
+          pro: 400,
+          basic: 1900,
+          not_whitelisted: 195,
+        },
+      });
+      expect(json.data.conversations).toEqual({ total: 4200, today: 55 });
+      expect(json.data.messages).toEqual({ today: 1230 });
+
+      const selectCalls = capturedCalls.filter((c) => c.method === "select");
+      expect(selectCalls).toHaveLength(9);
+      for (const call of selectCalls) {
+        expect(call.args[1]).toEqual({ count: "exact", head: true });
+      }
+
+      const gteCalls = capturedCalls.filter((c) => c.method === "gte");
+      expect(gteCalls).toHaveLength(2);
+      for (const call of gteCalls) {
+        expect(call.args[0]).toBe("created_at");
+        expect(String(call.args[1])).toMatch(/T00:00:00\.000Z$/);
+      }
     });
 
     it("should return user-specific stats when userId is provided", async () => {
       mockAdmin();
 
       // conversations count for user
-      fromResults.push({ count: 10 });
+      fromResults.push({ count: 10, error: null });
       // messages count via inner join
-      fromResults.push({ count: 50 });
+      fromResults.push({ count: 50, error: null });
 
       const req = createRequest("GET", "/api/admin/stats?userId=USER@EXAMPLE.COM");
       const res = await GET(req);
@@ -176,31 +207,32 @@ describe("/api/admin/stats", () => {
       expect(json.data.messages).toBe(50);
     });
 
-    it("should return 500 on unexpected error", async () => {
-      mockAdmin();
-      // Force an error by making auth pass but supabase throw
-      vi.mocked(auth).mockRejectedValue(
-        (() => {
-          // Reset to admin first, then set up the actual test
-          return undefined;
-        })()
-      );
-      // Re-mock as admin but make the from() call throw
+    it("should fail closed with 500 DATABASE_ERROR when any stats query returns an error (TC-W2A-01)", async () => {
       mockAdmin();
 
-      // We'll make the proxy throw by providing a result that causes an error
-      // in the route's processing logic. Use a throwing getter.
-      fromResults.push({
-        get data() {
-          throw new Error("Connection failed");
-        },
-      });
+      fromResults.push(
+        { count: 100, error: null },
+        { count: null, error: { message: "Connection failed" } }
+      );
 
       const req = createRequest("GET", "/api/admin/stats");
       const res = await GET(req);
       expect(res.status).toBe(500);
       const json = await res.json();
       expect(json.success).toBe(false);
+      expect(json.error.code).toBe("DATABASE_ERROR");
+    });
+
+    it("should fail closed with 500 DATABASE_ERROR when user-specific stats query fails", async () => {
+      mockAdmin();
+      fromResults.push({ count: 10, error: null });
+      fromResults.push({ count: null, error: { message: "messages join failed" } });
+
+      const req = createRequest("GET", "/api/admin/stats?userId=user@example.com");
+      const res = await GET(req);
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error.code).toBe("DATABASE_ERROR");
     });
   });
 });

@@ -216,7 +216,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
         <div>
           <label className="mb-1 flex justify-between text-xs text-(--muted)">
             <span>{t("personaUserContext") || "What should AI know about you?"}</span>
-            <span className={userContext.length > 5000 ? "text-(--danger)" : "opacity-60"}>
+            <span className={userContext.length > 5000 ? "text-(--danger)" : "text-(--muted)"}>
               {userContext.length} / 5000
             </span>
           </label>
@@ -236,7 +236,9 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
         <div>
           <label className="mb-1 flex justify-between text-xs text-(--muted)">
             <span>{t("personaCustomInstructions") || "Custom Instructions (Rules)"}</span>
-            <span className={customInstructions.length > 10000 ? "text-(--danger)" : "opacity-60"}>
+            <span
+              className={customInstructions.length > 10000 ? "text-(--danger)" : "text-(--muted)"}
+            >
               {customInstructions.length} / 10000
             </span>
           </label>

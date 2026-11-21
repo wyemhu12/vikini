@@ -157,7 +157,7 @@ export default function StoryBibleSectionCard({
                     "inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors disabled:opacity-50",
                     rewriteOpen
                       ? "bg-(--raised) border-(--accent) text-(--accent)"
-                      : "bg-(--raised) hover:bg-(--raised) border-(--line) text-(--text)"
+                      : "bg-(--raised) hover:bg-(--raised-hover) border-(--line) text-(--text)"
                   )}
                 >
                   <RefreshCw className="w-3.5 h-3.5" />

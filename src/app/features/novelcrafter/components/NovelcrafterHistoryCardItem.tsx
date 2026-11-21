@@ -79,7 +79,7 @@ export default function NovelcrafterHistoryCardItem({
   return (
     <article
       data-testid={`history-card-${card.id}`}
-      className="rounded-2xl border border-(--line) bg-(--surface)/90 p-3.5 space-y-2.5 shadow-sm transition-all"
+      className="rounded-2xl border border-(--line) bg-(--surface)/90 p-3.5 space-y-2.5 shadow-sm transition-colors"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-1.5 min-w-0 flex-1">
@@ -208,7 +208,7 @@ export default function NovelcrafterHistoryCardItem({
               onReplaceSelection(cleanContent);
               toast.success(t("novelcrafterCardAppliedToast"));
             }}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring)"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised-hover) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
           >
             <Replace className="w-3.5 h-3.5" />
             <span>{t("novelcrafterReplaceSelection")}</span>
@@ -219,7 +219,7 @@ export default function NovelcrafterHistoryCardItem({
           type="button"
           onClick={() => void onCopy(cleanContent)}
           aria-label={t("copy")}
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--muted) hover:text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring)"
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised-hover) text-xs font-medium text-(--muted) hover:text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
         >
           <Copy className="w-3.5 h-3.5" />
           <span>{t("copy")}</span>

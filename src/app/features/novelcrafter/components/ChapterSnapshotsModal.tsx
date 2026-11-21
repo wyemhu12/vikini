@@ -147,7 +147,7 @@ export default function ChapterSnapshotsModal({
                           onRestoreSnapshot(snap.id);
                           onClose();
                         }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) text-xs font-medium text-(--accent)"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-(--raised) hover:bg-(--raised-hover) border border-(--line) text-xs font-medium text-(--accent) transition-colors"
                       >
                         <RotateCcw className="w-3 h-3" />
                         <span>{t("novelcrafterRestoreSnapshotBtn")}</span>

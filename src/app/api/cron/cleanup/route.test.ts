@@ -270,5 +270,31 @@ describe("/api/cron/cleanup", () => {
       expect(res.status).toBe(200);
       expect(json.deleted).toBe(1);
     });
+
+    it("TC-W1-06: rejects different-length secret safely (timingSafeEqual) and never leaks internal error message on 500", async () => {
+      const shortRes = await GET(
+        createRequest("GET", "/api/cron/cleanup", { "x-cron-secret": "a" })
+      );
+      expect(shortRes.status).toBe(401);
+
+      const longRes = await GET(
+        createRequest("GET", "/api/cron/cleanup", { "x-cron-secret": "x".repeat(256) })
+      );
+      expect(longRes.status).toBe(401);
+
+      // Force catch block by throwing synchronously inside cleanupExpiredFiles
+      vi.mocked(cleanupExpiredFiles).mockImplementationOnce(() => {
+        throw new Error("SECRET_DB_URL=postgres://admin:pass@host/db");
+      });
+
+      const errRes = await GET(
+        createRequest("GET", "/api/cron/cleanup", { "x-cron-secret": CRON_SECRET })
+      );
+      expect(errRes.status).toBe(500);
+      const errJson = await errRes.json();
+      expect(errJson.success).toBe(false);
+      expect(JSON.stringify(errJson)).not.toContain("SECRET_DB_URL");
+      expect(errJson.error.message).toBe("Cleanup failed");
+    });
   });
 });

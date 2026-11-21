@@ -69,19 +69,31 @@ describe("POST /api/prompt-suggest", () => {
     expect(mockGenerateContent).not.toHaveBeenCalled();
   });
 
-  it("TC-PS-03: returns 429 when rate limit is exceeded", async () => {
+  it("TC-PS-03: returns 429 with Retry-After when rate limit is exceeded (TC-W2A-11)", async () => {
     vi.mocked(consumeRateLimit).mockResolvedValueOnce({
       allowed: false,
       limit: 20,
       remaining: 0,
       resetInMs: 60000,
-      retryAfterSeconds: 60,
+      retryAfterSeconds: 45,
       backend: "memory",
     });
 
     const res = await POST(createRequest({ partialPrompt: "a cat on a" }));
 
     expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("45");
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+  });
+
+  it("TC-W2A-11: returns 400 VALIDATION_ERROR on malformed JSON body", async () => {
+    const badReq = new NextRequest("http://localhost:3000/api/prompt-suggest", {
+      method: "POST",
+      body: "{bad-json",
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(badReq);
+    expect(res.status).toBe(400);
     expect(mockGenerateContent).not.toHaveBeenCalled();
   });
 

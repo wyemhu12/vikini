@@ -395,4 +395,111 @@ describe("createDeepSeekStream", () => {
     // processPostStream must NOT be called for completely empty response
     expect(processPostStream).not.toHaveBeenCalled();
   });
+
+  it("TC-W1-08: maps HTTP 429 to rate_limit_exceeded (not token_limit_exceeded) and skips processPostStream after partial mid-stream error", async () => {
+    const upsertMock = vi.fn().mockResolvedValue({});
+    mockCreate.mockResolvedValueOnce({
+      [Symbol.asyncIterator]() {
+        let count = 0;
+        return {
+          async next() {
+            if (count++ === 0) {
+              return {
+                value: { choices: [{ delta: { content: "Partial DS chunk" } }] },
+                done: false,
+              };
+            }
+            const err = Object.assign(new Error("Too many requests"), { status: 429 });
+            throw err;
+          },
+        };
+      },
+    });
+
+    const stream = createDeepSeekStream({
+      ai: mockAi,
+      model: "deepseek/deepseek-v4-pro",
+      contents: [{ role: "user", parts: [{ text: "Test 429" }] }],
+      sysPrompt: "System instruction",
+      thinkingLevel: "off",
+      gemMeta: { gemId: null },
+      modelMeta: { maxOutputTokens: 65536 },
+      createdConversation: null,
+      shouldGenerateTitle: false,
+      enableWebSearch: false,
+      WEB_SEARCH_AVAILABLE: false,
+      cookieWeb: "",
+      userId: "user-1",
+      conversationId: "conv-1",
+      content: "Test 429",
+      contextMessages: [],
+      appendToContext: vi.fn(),
+      upsertAssistantMessage: upsertMock,
+      setConversationAutoTitle: vi.fn(),
+      generateOptimisticTitle: vi.fn(),
+      generateFinalTitle: vi.fn(),
+    });
+
+    const output = await readStream(stream);
+    expect(output).toContain('"code":"rate_limit_exceeded"');
+    expect(output).not.toContain('"code":"token_limit_exceeded"');
+    expect(output).toContain('"ok":false');
+    expect(upsertMock).toHaveBeenCalledTimes(1);
+    expect(processPostStream).not.toHaveBeenCalled();
+  });
+
+  it("TC-W2A-16: forwards usageMetadata from final DeepSeek chunk into processPostStream", async () => {
+    mockCreate.mockResolvedValueOnce(
+      createAsyncIterable([
+        { choices: [{ delta: { reasoning_content: "Thinking..." } }] },
+        { choices: [{ delta: { content: "Done." } }] },
+        {
+          choices: [],
+          usage: {
+            prompt_tokens: 80,
+            completion_tokens: 45,
+            total_tokens: 125,
+            completion_tokens_details: { reasoning_tokens: 20 },
+          },
+        },
+      ])
+    );
+
+    const stream = createDeepSeekStream({
+      ai: mockAi,
+      model: "deepseek/deepseek-v4-pro",
+      contents: [{ role: "user", parts: [{ text: "Test usage" }] }],
+      sysPrompt: "System instruction",
+      thinkingLevel: "high",
+      gemMeta: { gemId: null },
+      modelMeta: { maxOutputTokens: 65536 },
+      createdConversation: null,
+      shouldGenerateTitle: false,
+      enableWebSearch: false,
+      WEB_SEARCH_AVAILABLE: false,
+      cookieWeb: "",
+      userId: "user-1",
+      conversationId: "conv-1",
+      content: "Test usage",
+      contextMessages: [],
+      appendToContext: vi.fn(),
+      upsertAssistantMessage: vi.fn(),
+      setConversationAutoTitle: vi.fn(),
+      generateOptimisticTitle: vi.fn(),
+      generateFinalTitle: vi.fn(),
+    });
+
+    await readStream(stream);
+    expect(processPostStream).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        usageMetadata: {
+          promptTokenCount: 80,
+          candidatesTokenCount: 45,
+          thoughtsTokenCount: 20,
+          totalTokenCount: 125,
+        },
+      })
+    );
+  });
 });

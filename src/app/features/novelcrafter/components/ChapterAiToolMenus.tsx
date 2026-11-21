@@ -228,7 +228,7 @@ export default function ChapterAiToolMenus({
                   type="button"
                   disabled={isStreaming}
                   onClick={triggerGuidedWrite}
-                  className="px-3 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-semibold text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
+                  className="px-3 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised-hover) text-xs font-semibold text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) shrink-0"
                 >
                   {t("novelcrafterWriteGuided")}
                 </button>
@@ -259,7 +259,7 @@ export default function ChapterAiToolMenus({
                       subLabel: `${t("novelcrafterWriteToneShift")}: ${t(TONE_LABELS[tone])}`,
                     })
                   }
-                  className="px-2.5 py-1 rounded-full border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
+                  className="px-2.5 py-1 rounded-full border border-(--line) bg-(--raised) hover:bg-(--raised-hover) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
                 >
                   {t(TONE_LABELS[tone])}
                 </button>
@@ -296,7 +296,7 @@ export default function ChapterAiToolMenus({
                   type="button"
                   disabled={isStreaming}
                   onClick={() => onRunRewrite(modeKey, modeLabel)}
-                  className="px-2.5 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-medium text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring)"
+                  className="px-2.5 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised-hover) text-xs font-medium text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
                 >
                   {modeLabel}
                 </button>
@@ -347,7 +347,7 @@ export default function ChapterAiToolMenus({
                     type="button"
                     onClick={() => setFeedbackMode(mode)}
                     className={cn(
-                      "p-2 rounded-xl border text-left transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+                      "p-2 rounded-xl border text-left transition-[background-color,border-color,color] focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
                       feedbackMode === mode
                         ? "bg-transparent border-(--accent) text-(--text)"
                         : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
@@ -470,7 +470,7 @@ export default function ChapterAiToolMenus({
                 onClick={() =>
                   onRunExpand("describe", t("novelcrafterDescribeAll"), selectedSenses)
                 }
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-xs font-semibold text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring)"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised-hover) text-xs font-semibold text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring)"
               >
                 <Wand2 className="w-3.5 h-3.5 text-(--accent)" />
                 <span>{t("novelcrafterDescribeAll")}</span>

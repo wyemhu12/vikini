@@ -1,30 +1,42 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { uploadFile, linkFilesToMessage, getFilesConfig } from "./fileService.server";
+import {
+  uploadFile,
+  createSignedUrl,
+  linkFilesToMessage,
+  getFilesConfig,
+  deleteFilesByConversation,
+  cleanupExpiredFiles,
+} from "./fileService.server";
 
 // Mock Supabase admin
 const mockStorageUpload = vi.fn();
 const mockStorageRemove = vi.fn();
+const mockStorageCreateSignedUrl = vi.fn();
+const mockStorageFrom = vi.fn(() => ({
+  upload: mockStorageUpload,
+  remove: mockStorageRemove,
+  createSignedUrl: mockStorageCreateSignedUrl,
+}));
 const mockFrom = vi.fn();
+const mockGeminiDelete = vi.fn();
+const mockGetGenAIClient = vi.fn(() => ({
+  files: {
+    upload: vi.fn(),
+    delete: mockGeminiDelete,
+  },
+}));
 
 vi.mock("@/lib/core/supabase.server", () => ({
   getSupabaseAdmin: () => ({
     from: mockFrom,
     storage: {
-      from: () => ({
-        upload: mockStorageUpload,
-        remove: mockStorageRemove,
-      }),
+      from: mockStorageFrom,
     },
   }),
 }));
 
 vi.mock("@/lib/core/genaiClient", () => ({
-  getGenAIClient: () => ({
-    files: {
-      upload: vi.fn(),
-      delete: vi.fn(),
-    },
-  }),
+  getGenAIClient: () => mockGetGenAIClient(),
 }));
 
 vi.mock("@/lib/core/limits", () => ({
@@ -169,6 +181,190 @@ describe("fileService.server", () => {
           token_count: expect.any(Number),
         })
       );
+    });
+
+    it("neutralizes SVG/HTML uploads to text/plain; charset=utf-8 and forces download on createSignedUrl (TC-W1-06)", async () => {
+      const quotaSelect = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ data: [] }),
+        }),
+      });
+      mockStorageUpload.mockResolvedValue({ error: null });
+      const insertSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: "file-svg-1",
+          user_id: "user-1",
+          conversation_id: "conv-1",
+          filename: "evil.svg",
+          storage_path: "user-1/conv-1/evil.svg",
+          mime_type: "image/svg+xml",
+          bucket: "attachments",
+        },
+        error: null,
+      });
+      const insertMock = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({ single: insertSingle }),
+      });
+
+      mockFrom.mockReturnValue({
+        select: quotaSelect,
+        insert: insertMock,
+      });
+
+      const svgFile = new File(["<svg onload='alert(1)'></svg>"], "evil.svg", {
+        type: "image/svg+xml",
+      });
+
+      await uploadFile({
+        userId: "user-1",
+        conversationId: "conv-1",
+        file: svgFile,
+        filename: "evil.svg",
+      });
+
+      expect(mockStorageUpload).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Buffer),
+        expect.objectContaining({
+          contentType: "text/plain; charset=utf-8",
+          upsert: false,
+        })
+      );
+
+      // Verify createSignedUrl forces Content-Disposition attachment download for SVG
+      mockFrom.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  id: "file-svg-1",
+                  user_id: "user-1",
+                  filename: "evil.svg",
+                  storage_path: "user-1/conv-1/evil.svg",
+                  mime_type: "image/svg+xml",
+                  bucket: "attachments",
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      });
+      mockStorageCreateSignedUrl.mockResolvedValueOnce({
+        data: { signedUrl: "https://storage.supabase.co/signed/evil.svg?download=evil.svg" },
+        error: null,
+      });
+
+      const signed = await createSignedUrl({ userId: "user-1", id: "file-svg-1" });
+      expect(signed.signedUrl).toContain("evil.svg");
+      expect(mockStorageCreateSignedUrl).toHaveBeenCalledWith(
+        "user-1/conv-1/evil.svg",
+        expect.any(Number),
+        { download: "evil.svg" }
+      );
+    });
+
+    it("TC-W2A-05 & NP-08: cleans up Gemini file when storage upload rejects or DB insert fails", async () => {
+      const quotaSelect = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ data: [] }),
+        }),
+      });
+      mockFrom.mockReturnValue({ select: quotaSelect });
+
+      // (a) Storage upload rejects with network exception -> Gemini file MUST still be deleted
+      mockStorageUpload.mockRejectedValueOnce(new Error("network timeout"));
+      const file1 = new File(["hello"], "note.txt", { type: "text/plain" });
+      await expect(
+        uploadFile({
+          userId: "user-1",
+          conversationId: "conv-1",
+          file: file1,
+          filename: "note.txt",
+        })
+      ).rejects.toThrow("Storage upload failed");
+      expect(mockGeminiDelete).toHaveBeenCalledWith({ name: "files/mock-gemini-name" });
+
+      vi.clearAllMocks();
+
+      // (b) Storage succeeds, DB insert fails -> both storagePath and Gemini file cleaned up
+      mockStorageUpload.mockResolvedValueOnce({ error: null });
+      const insertSingle = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "db constraint" },
+      });
+      mockFrom.mockReturnValue({
+        select: quotaSelect,
+        insert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({ single: insertSingle }),
+        }),
+      });
+
+      const file2 = new File(["hello"], "note2.txt", { type: "text/plain" });
+      await expect(
+        uploadFile({
+          userId: "user-1",
+          conversationId: "conv-1",
+          file: file2,
+          filename: "note2.txt",
+        })
+      ).rejects.toThrow("DB insert failed");
+      expect(mockStorageRemove).toHaveBeenCalledTimes(1);
+      expect(mockGeminiDelete).toHaveBeenCalledWith({ name: "files/mock-gemini-name" });
+    });
+  });
+
+  describe("deleteFilesByConversation & cleanupExpiredFiles (TC-W2A-05)", () => {
+    it("groups storage deletes by row bucket and skips getGenAIClient when no gemini_file_name exists", async () => {
+      const rows = [
+        { id: "f1", storage_path: "u/c/1.png", bucket: "attachments", gemini_file_name: null },
+        { id: "f2", storage_path: "u/c/2.png", bucket: "legacy-bucket", gemini_file_name: null },
+      ];
+      mockFrom.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: rows, error: null }),
+          }),
+        }),
+        delete: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+        }),
+      });
+
+      const res = await deleteFilesByConversation("user-1", "conv-1");
+      expect(res).toEqual({ ok: true, deleted: 2 });
+      expect(mockStorageFrom).toHaveBeenCalledWith("attachments");
+      expect(mockStorageFrom).toHaveBeenCalledWith("legacy-bucket");
+      expect(mockGetGenAIClient).not.toHaveBeenCalled();
+    });
+
+    it("breaks immediately on DB delete error (no spin-loop) and skips getGenAIClient when no gemini files", async () => {
+      const expiredBatch = Array.from({ length: 200 }, (_, i) => ({
+        id: `exp-${i}`,
+        storage_path: `u/c/${i}.txt`,
+        bucket: "attachments",
+        gemini_file_name: null,
+      }));
+      const limitMock = vi.fn().mockResolvedValue({ data: expiredBatch, error: null });
+      const deleteInMock = vi.fn().mockResolvedValue({ error: { message: "db outage" } });
+
+      mockFrom.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          lte: vi.fn().mockReturnValue({ limit: limitMock }),
+        }),
+        delete: vi.fn().mockReturnValue({
+          in: deleteInMock,
+        }),
+      });
+
+      const result = await cleanupExpiredFiles();
+      expect(result).toEqual({ deleted: 0, errors: 1 });
+      expect(limitMock).toHaveBeenCalledTimes(1);
+      expect(deleteInMock).toHaveBeenCalledTimes(1);
+      expect(mockGetGenAIClient).not.toHaveBeenCalled();
     });
   });
 });

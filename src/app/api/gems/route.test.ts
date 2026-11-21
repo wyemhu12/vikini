@@ -33,6 +33,7 @@ vi.mock("@/lib/core/rateLimit", () => ({
 import { GET, POST, PATCH, DELETE } from "./route";
 import { auth } from "@/lib/features/auth/auth";
 import { getGemsForUser, createGem, updateGem, deleteGem } from "@/lib/features/gems/gems";
+import { consumeRateLimit } from "@/lib/core/rateLimit";
 
 // ── Helpers ───────────────────────────────────────────────────────────
 const TEST_EMAIL = "test@example.com";
@@ -309,26 +310,43 @@ describe("/api/gems", () => {
       expect(json.success).toBe(false);
     });
 
-    it("should handle invalid JSON body gracefully", async () => {
+    it("should reject invalid JSON body with 400 VALIDATION_ERROR (TC-W1-09)", async () => {
       mockAuthenticated();
-      vi.mocked(createGem).mockResolvedValue({
-        id: TEST_GEM_ID,
-        name: "",
-        latestVersion: 0,
-        instructions: "",
-      });
 
-      // Create a request with malformed body - req.json() will throw,
-      // route catches with .catch(() => ({})) so it becomes {}
       const req = new NextRequest(new URL("/api/gems", "http://localhost:3000"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: "not-json{{{",
       });
       const res = await POST(req);
+      const json = await res.json();
 
-      // Empty body {} passes createGemSchema (all fields optional)
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(400);
+      expect(json.success).toBe(false);
+      expect(json.error.code).toBe("VALIDATION_ERROR");
+      expect(createGem).not.toHaveBeenCalled();
+    });
+
+    it("TC-W1-06: authenticates before rate limiting and keys consumeRateLimit by userId (ignores x-forwarded-for)", async () => {
+      mockUnauthenticated();
+      const unauthRes = await GET(
+        new NextRequest(new URL("/api/gems", "http://localhost:3000"), {
+          method: "GET",
+          headers: { "x-forwarded-for": "1.2.3.4" },
+        })
+      );
+      expect(unauthRes.status).toBe(401);
+      expect(consumeRateLimit).not.toHaveBeenCalled();
+
+      mockAuthenticated();
+      vi.mocked(getGemsForUser).mockResolvedValue([]);
+      await GET(
+        new NextRequest(new URL("/api/gems", "http://localhost:3000"), {
+          method: "GET",
+          headers: { "x-forwarded-for": "9.9.9.9" },
+        })
+      );
+      expect(consumeRateLimit).toHaveBeenCalledWith(`api-gems:${TEST_EMAIL}`);
     });
   });
 

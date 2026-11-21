@@ -147,6 +147,10 @@ export function createOpenAICompatibleStream(params: {
       let full = "";
       let fullReasoning = "";
       let streamFailed = false;
+      let promptTokens: number | undefined;
+      let completionTokens: number | undefined;
+      let totalTokens: number | undefined;
+      let reasoningTokens: number | undefined;
 
       try {
         // Map contents to OpenAI format with multimodal support
@@ -276,10 +280,6 @@ export function createOpenAICompatibleStream(params: {
         const guardedStream = withIdleTimeout(stream, idleTimeoutMs);
 
         // Track usage from final chunk
-        let promptTokens: number | undefined;
-        let completionTokens: number | undefined;
-        let totalTokens: number | undefined;
-        let reasoningTokens: number | undefined;
         for await (const chunk of guardedStream) {
           if (isCancelled || ac.signal.aborted) {
             break;
@@ -437,12 +437,23 @@ export function createOpenAICompatibleStream(params: {
         return;
       }
 
-      // 3. Post Stream Processing — skip if stream failed with no content and no reasoning
-      if (!streamFailed || full.trim() || fullReasoning.trim()) {
+      // 3. Post Stream Processing — skip on failure (partial content already saved in catch)
+      if (!streamFailed) {
+        const usageMetadata =
+          totalTokens !== undefined
+            ? {
+                promptTokenCount: promptTokens,
+                candidatesTokenCount: completionTokens,
+                thoughtsTokenCount: reasoningTokens,
+                totalTokenCount: totalTokens,
+              }
+            : undefined;
+
         await processPostStream(controller, {
           full,
           reasoning: fullReasoning || undefined,
           ragSources,
+          usageMetadata,
           isActuallyBlocked: false,
           shouldGenerateTitle,
           conversationId,

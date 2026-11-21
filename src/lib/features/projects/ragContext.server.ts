@@ -58,6 +58,7 @@ export async function buildRAGContext(
   options?: {
     maxChunks?: number;
     minSimilarity?: number;
+    projectId?: string | null;
   }
 ): Promise<RAGContext> {
   const emptyContext: RAGContext = {
@@ -68,8 +69,11 @@ export async function buildRAGContext(
   };
 
   try {
-    // Check if conversation has a project and belongs to userId
-    const projectId = await getConversationProjectId(conversationId, userId);
+    // Reuse preloaded projectId when explicitly provided (including null); fallback to DB when undefined
+    const projectId =
+      options?.projectId !== undefined
+        ? options.projectId
+        : await getConversationProjectId(conversationId, userId);
     ragLogger.info(`Conversation ${conversationId} projectId: ${projectId || "NULL"}`);
     if (!projectId) {
       ragLogger.info(`No project linked to conversation ${conversationId}`);

@@ -7,6 +7,8 @@ import { motion } from "framer-motion";
 import { ImageIcon, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { logger } from "@/lib/utils/logger";
+import { TRANSITION } from "@/lib/utils/motion";
+import { toast } from "@/lib/store/toastStore";
 import type { FileItem } from "@/types/files";
 import { useLanguage } from "../hooks/useLanguage";
 import { extractThinking } from "./markdownConfig";
@@ -141,10 +143,11 @@ export const ChatBubble = React.memo(
         await navigator.clipboard.writeText(safeMessage.content || "");
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-      } catch (err) {
-        logger.error("Failed to copy:", err);
+      } catch (err: unknown) {
+        logger.error("[ChatBubble] Failed to copy message:", err);
+        toast.error(t("describeCopyFailed"));
       }
-    }, [safeMessage.content]);
+    }, [safeMessage.content, t]);
 
     const handleSaveEdit = () => {
       if (editContent.trim() !== safeMessage.content) props.onEdit?.(safeMessage, editContent);
@@ -218,7 +221,7 @@ export const ChatBubble = React.memo(
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+        transition={TRANSITION.SPRING}
         className={`group flex w-full flex-col py-3.5 ${isBot ? "" : "items-end"}`}
       >
         <div

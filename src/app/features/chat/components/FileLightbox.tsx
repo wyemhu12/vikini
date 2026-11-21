@@ -27,6 +27,7 @@ import type { FileItem } from "@/types/files";
 import { formatFileSize } from "@/lib/utils/fileDisplayUtils";
 import { useLanguage } from "../hooks/useLanguage";
 import { logger } from "@/lib/utils/logger";
+import { TRANSITION } from "@/lib/utils/motion";
 
 interface FileLightboxProps {
   file: FileItem | null;
@@ -35,21 +36,14 @@ interface FileLightboxProps {
   files?: FileItem[];
   /** Called when user navigates to a different file */
   onNavigate?: (file: FileItem) => void;
-  /** Translation strings */
-  t?: Record<string, string>;
 }
 
-export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightboxProps) {
-  const { t: translate } = useLanguage();
+export function FileLightbox({ file, onClose, files, onNavigate }: FileLightboxProps) {
+  const { t } = useLanguage();
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [textContent, setTextContent] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
-
-  const label = useCallback(
-    (key: string, fallbackKey?: string) => t?.[key] ?? translate(fallbackKey ?? key),
-    [t, translate]
-  );
 
   // ─── Navigation helpers ──────────────────────────────────────────────
 
@@ -171,13 +165,14 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
           {file && (
             <>
               <Dialog.Title className="sr-only">
-                {file.filename || translate("filePreviewTitle")}
+                {file.filename || t("filePreviewTitle")}
               </Dialog.Title>
 
               {/* Header bar */}
               <motion.div
                 initial={{ y: -12, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
+                transition={TRANSITION.EXIT_FAST}
                 className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 md:px-6 py-4 bg-gradient-to-b from-(--overlay) to-transparent"
               >
                 <div className="flex items-center gap-3 text-(--on-overlay)/90 min-w-0">
@@ -208,7 +203,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay)/90 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                       >
                         <Download aria-hidden="true" className="w-4 h-4" />
-                        {label("fileDownload", "studioDownload")}
+                        {t("studioDownload")}
                       </a>
                       <a
                         href={signedUrl}
@@ -217,7 +212,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay)/90 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                       >
                         <ExternalLink aria-hidden="true" className="w-4 h-4" />
-                        {label("fileOpen", "openInNewTab")}
+                        {t("openInNewTab")}
                       </a>
                     </>
                   )}
@@ -225,7 +220,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
                     <button
                       type="button"
                       className="flex items-center justify-center w-10 h-10 rounded-full bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
-                      aria-label={label("fileClosePreview", "close")}
+                      aria-label={t("close")}
                     >
                       <X aria-hidden="true" className="w-5 h-5" />
                     </button>
@@ -239,7 +234,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
                   type="button"
                   onClick={navigatePrev}
                   className="absolute left-4 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
-                  aria-label={label("filePrev", "previousImage")}
+                  aria-label={t("previousImage")}
                 >
                   <ChevronLeft aria-hidden="true" className="w-6 h-6" />
                 </button>
@@ -251,7 +246,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
                   type="button"
                   onClick={navigateNext}
                   className="absolute right-4 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
-                  aria-label={label("fileNext", "nextImage")}
+                  aria-label={t("nextImage")}
                 >
                   <ChevronRight aria-hidden="true" className="w-6 h-6" />
                 </button>
@@ -261,6 +256,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
               <motion.div
                 initial={{ scale: 0.96, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
+                transition={TRANSITION.EXIT_FAST}
                 className="max-w-[90vw] max-h-[80vh] overflow-auto"
               >
                 {file.kind === "image" && signedUrl && (
@@ -319,7 +315,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
                         className="flex items-center gap-2 px-4 py-2 bg-(--accent) text-(--on-accent) rounded-lg hover:brightness-110 transition-[filter] mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                       >
                         <ExternalLink aria-hidden="true" className="w-4 h-4" />
-                        {label("fileOpenInNewTab", "openInNewTab")}
+                        {t("openInNewTab")}
                       </a>
                     )}
                   </div>
@@ -332,16 +328,14 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
                     className="flex flex-col items-center gap-4 p-12 bg-(--surface) rounded-2xl shadow-(--shadow-elevated)"
                   >
                     <AlertCircle aria-hidden="true" className="w-12 h-12 text-(--danger)" />
-                    <span className="text-sm text-(--muted)">
-                      {label("fileLoadFailed", "error")}
-                    </span>
+                    <span className="text-sm text-(--muted)">{t("error")}</span>
                     <button
                       type="button"
                       onClick={handleRetry}
                       className="flex items-center gap-2 px-4 py-2 bg-(--accent) text-(--on-accent) rounded-lg hover:brightness-110 transition-[filter] text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                     >
                       <RotateCcw aria-hidden="true" className="w-4 h-4" />
-                      {label("fileRetry", "tryAgain")}
+                      {t("tryAgain")}
                     </button>
                   </div>
                 )}
@@ -350,9 +344,7 @@ export function FileLightbox({ file, onClose, files, onNavigate, t }: FileLightb
                 {!signedUrl && !fetchError && (
                   <div className="flex flex-col items-center gap-4 p-12 bg-(--surface) rounded-2xl shadow-(--shadow-elevated)">
                     <div className="w-12 h-12 rounded-full border-2 border-(--accent) border-t-transparent animate-spin" />
-                    <span className="text-sm text-(--muted)">
-                      {label("fileLoadingPreview", "loading")}
-                    </span>
+                    <span className="text-sm text-(--muted)">{t("loading")}</span>
                   </div>
                 )}
               </motion.div>

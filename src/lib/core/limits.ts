@@ -2,7 +2,7 @@
 // Centralized limit checking system with Redis caching for rank-based permissions
 
 import { getSupabaseAdmin } from "./supabase.server";
-import { Redis } from "@upstash/redis";
+import { getSharedRedis } from "./redis.server";
 import { logger } from "@/lib/utils/logger";
 import { ForbiddenError, ServiceUnavailableError, UserBlockedError } from "@/lib/utils/errors";
 import { DEFAULT_MODEL, normalizeModelForApi, coerceStoredModel } from "./modelRegistry";
@@ -52,15 +52,8 @@ export interface DailyMessageStatus {
 // Redis Cache Setup
 // =====================================================================================
 
-let redis: Redis | null = null;
-
-function getRedisOptional(): Redis | null {
-  if (redis) return redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  redis = new Redis({ url, token });
-  return redis;
+function getRedisOptional() {
+  return getSharedRedis();
 }
 
 /** Ranks of approved users. Anything else is treated as unapproved. */
@@ -384,8 +377,12 @@ export async function isModelAllowedForUser(userId: string, model: string): Prom
  * Enforce rank-based model access on the server.
  * Throws ForbiddenError (403) if the user's rank is not permitted to use the model.
  */
-export async function assertModelAllowedForUser(userId: string, model: string): Promise<void> {
-  const limits = await getUserLimits(userId);
+export async function assertModelAllowedForUser(
+  userId: string,
+  model: string,
+  preloadedLimits?: UserLimits
+): Promise<void> {
+  const limits = preloadedLimits ?? (await getUserLimits(userId));
   if (limits.rank === "not_whitelisted") {
     throw new ForbiddenError("User account is not approved to access AI models");
   }

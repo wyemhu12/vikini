@@ -153,6 +153,27 @@ describe("sanitizeError", () => {
     expect(result).not.toContain("GEMINI_API_KEY");
   });
 
+  it("should sanitize all 10 provider/service environment variable keys in production (TC-W1-07)", () => {
+    const providerKeys = [
+      "ANTHROPIC_API_KEY",
+      "DEEPSEEK_API_KEY",
+      "OPENROUTER_API_KEY",
+      "GROQ_API_KEY",
+      "LLAMA3_API_KEY",
+      "OPENAI_API_KEY",
+      "REPLICATE_API_TOKEN",
+      "CRON_SECRET",
+      "ATTACHMENTS_CRON_SECRET",
+      "STRATA_API_KEY",
+    ];
+
+    for (const key of providerKeys) {
+      const result = sanitizeError(new Error(`Missing ${key} in server environment`), true);
+      expect(result).toContain("[REDACTED]");
+      expect(result).not.toContain(key);
+    }
+  });
+
   it("should sanitize environment variable values in production", () => {
     const error = new Error("API_KEY: sk-1234567890abcdef. Connection failed.");
     const result = sanitizeError(error, true);

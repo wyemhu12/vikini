@@ -136,7 +136,7 @@ export default function PromptStudioPresetBar({
             onClick={handleCreate}
             aria-label={t("novelcrafterPromptStudioPresetSaveAs")}
             title={t("novelcrafterPromptStudioPresetSaveAs")}
-            className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-(--accent) text-(--on-accent) hover:brightness-110 transition-all focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
+            className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-(--accent) text-(--on-accent) hover:brightness-110 transition-[filter] focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
           >
             <Save className="w-3.5 h-3.5" />
           </button>

@@ -20,6 +20,7 @@ import {
   truncateFilename,
 } from "@/lib/utils/fileDisplayUtils";
 import { useLanguage } from "../hooks/useLanguage";
+import { TRANSITION } from "@/lib/utils/motion";
 
 interface FilePreviewCardProps {
   /** Uploaded file data */
@@ -110,10 +111,10 @@ export function FilePreviewCard({
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.8 }}
+      initial={{ opacity: 0, scale: 0.94 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.8, x: -20 }}
-      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      exit={{ opacity: 0, scale: 0.94, x: -20 }}
+      transition={TRANSITION.SPRING_SOFT}
       className={`group relative ${cardSize} shrink-0 rounded-xl border transition-[border-color,box-shadow] duration-200 overflow-hidden ${
         isError
           ? "border-(--danger)/50 bg-(--danger)/5"
@@ -143,7 +144,7 @@ export function FilePreviewCard({
             className="h-full w-full bg-(--accent) origin-left"
             initial={{ transform: "scaleX(0)" }}
             animate={{ transform: `scaleX(${(upload.progress ?? 0) / 100})` }}
-            transition={{ ease: [0.23, 1, 0.32, 1] }}
+            transition={TRANSITION.EXIT_FAST}
           />
         </div>
       )}

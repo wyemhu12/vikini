@@ -1764,4 +1764,24 @@ export const vi = {
   adminAuditActionUpdateGem: "Sửa GEM",
   adminAuditActionDeleteGem: "Xóa GEM",
   adminAuditActionBulkUpdateUsers: "Cập nhật hàng loạt",
+  // Phase 5 UX/UI Audit — Compare Modal & Global Error
+  compareTitle: "So sánh hình ảnh",
+  compareImageA: "Ảnh A",
+  compareImageB: "Ảnh B",
+  globalErrorTitle: "Lỗi hệ thống nghiêm trọng",
+  globalErrorDescription:
+    "Ứng dụng gặp sự cố không mong muốn. Vui lòng thử lại hoặc tải lại trang.",
+  // Phase 6 UX/UI Audit — Scroll, Voice & Admin UI States
+  scrollToBottom: "Cuộn xuống cuối",
+  scrollToBottomUnread: "Cuộn xuống cuối ({count} chưa đọc)",
+  voiceNotSupported: "Trình duyệt này không hỗ trợ nhập giọng nói",
+  useChromeOrEdge: "Hãy dùng Chrome hoặc Edge cho tính năng giọng nói",
+  clickToStop: "Nhấn để dừng",
+  clickToSpeak: "Nhấn để nói",
+  stopSpeaking: "Dừng đọc",
+  clickToStopSpeaking: "Nhấn để dừng giọng đọc AI",
+  listeningAnnouncement: "Đang nghe: {transcript}",
+  adminRankConfigLoadFailed: "Không thể tải cấu hình giới hạn",
+  failedSaveConfigs: "Không thể lưu cấu hình giới hạn",
+  adminStatsLoadFailed: "Không thể tải dữ liệu thống kê",
 } as const;

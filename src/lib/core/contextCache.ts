@@ -9,6 +9,7 @@
 //
 // @see https://ai.google.dev/gemini-api/docs/caching
 
+import crypto from "crypto";
 import { getGenAIClient } from "@/lib/core/genaiClient";
 import { logger } from "@/lib/utils/logger";
 
@@ -35,25 +36,51 @@ const DEFAULT_CACHE_TTL_SECONDS = 3600; // 1 hour
 const KB_CACHE_TTL_SECONDS = 1800; // 30 minutes
 
 /**
+ * Hard ceiling for in-memory active cache tracking to prevent unbounded RAM growth.
+ */
+const MAX_ACTIVE_CACHES = 500;
+
+/**
  * In-memory map of cache names keyed by a composite key.
- * Format: `{type}:{model}:{hash}` -> `cachedContents/{id}`
- *
- * This avoids recreating caches for the same content on every request.
- * In a multi-instance deployment, each instance maintains its own map,
- * which is acceptable since Gemini API also deduplicates server-side.
+ * Format: `{type}:{userHash}:{model}:{hash}` -> `cachedContents/{id}`
  */
 const activeCacheNames = new Map<string, { name: string; expiresAt: number }>();
 
 /**
- * Simple hash for cache key deduplication.
- * Uses djb2 algorithm - fast, low collision for our use case.
+ * Cryptographic SHA-256 hash (128-bit truncated hex) for collision-resistant cache keys.
  */
 function hashString(str: string): string {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 33) ^ str.charCodeAt(i);
+  return crypto.createHash("sha256").update(str).digest("hex").slice(0, 32);
+}
+
+/**
+ * Shared bounded insertion helper for both Composite and KB caches.
+ * Lazily evicts expired entries first, then evicts the earliest-expiring entry if still at ceiling.
+ */
+function setBoundedCache(cacheKey: string, name: string, expiresAt: number, now: number): void {
+  if (!activeCacheNames.has(cacheKey) && activeCacheNames.size >= MAX_ACTIVE_CACHES) {
+    for (const [k, entry] of activeCacheNames) {
+      if (entry.expiresAt <= now) {
+        activeCacheNames.delete(k);
+      }
+    }
   }
-  return (hash >>> 0).toString(36);
+
+  if (!activeCacheNames.has(cacheKey) && activeCacheNames.size >= MAX_ACTIVE_CACHES) {
+    let evictKey: string | null = null;
+    let earliestExpiry = Infinity;
+    for (const [k, entry] of activeCacheNames) {
+      if (entry.expiresAt < earliestExpiry) {
+        earliestExpiry = entry.expiresAt;
+        evictKey = k;
+      }
+    }
+    if (evictKey !== null) {
+      activeCacheNames.delete(evictKey);
+    }
+  }
+
+  activeCacheNames.set(cacheKey, { name, expiresAt });
 }
 
 // ============================================
@@ -62,10 +89,11 @@ function hashString(str: string): string {
 
 /**
  * Configuration for composite cache creation.
- * Includes system instruction, tools, and toolConfig - all fields that
- * CANNOT be sent alongside cachedContent in generateContent requests.
+ * Includes userId (mandatory tenant isolation), system instruction, tools, and toolConfig -
+ * all fields that CANNOT be sent alongside cachedContent in generateContent requests.
  */
 export interface CompositeCacheConfig {
+  userId: string;
   model: string;
   systemInstruction: string;
   tools?: Array<Record<string, unknown>>;
@@ -80,14 +108,15 @@ interface CacheResult {
 }
 
 /**
- * Build a composite cache key from model + system instruction + tools fingerprint.
- * Different tool combinations (web search on/off) produce different cache keys.
+ * Build a tenant-scoped composite cache key from userId + model + system instruction + tools fingerprint.
+ * Different users and tool combinations (web search on/off) always produce distinct cache keys.
  */
 function buildCompositeCacheKey(config: CompositeCacheConfig): string {
+  const userHash = hashString(config.userId);
   const sysHash = hashString(config.systemInstruction);
   const toolsHash = config.tools?.length ? hashString(JSON.stringify(config.tools)) : "nt"; // no-tools
   const toolConfigHash = config.toolConfig ? hashString(JSON.stringify(config.toolConfig)) : "nc"; // no-config
-  return `comp:${config.model}:${sysHash}:${toolsHash}:${toolConfigHash}`;
+  return `comp:${userHash}:${config.model}:${sysHash}:${toolsHash}:${toolConfigHash}`;
 }
 
 /**
@@ -110,6 +139,11 @@ export async function getOrCreateCompositeCache(
   config: CompositeCacheConfig,
   ttlSeconds: number = DEFAULT_CACHE_TTL_SECONDS
 ): Promise<CacheResult | null> {
+  // Fail-closed tenant isolation: never create or share a cache without a valid userId
+  if (!config.userId?.trim()) {
+    return null;
+  }
+
   // Guard: skip if content is too short for caching to be cost-effective
   if (!config.systemInstruction || config.systemInstruction.length < MIN_CACHEABLE_CHARS) {
     cacheLogger.info(
@@ -163,9 +197,9 @@ export async function getOrCreateCompositeCache(
       return null;
     }
 
-    // Store in memory with expiration
+    // Store in memory with expiration (bounded to MAX_ACTIVE_CACHES)
     const expiresAt = now + ttlSeconds * 1000;
-    activeCacheNames.set(cacheKey, { name: cache.name, expiresAt });
+    setBoundedCache(cacheKey, cache.name, expiresAt, now);
 
     const toolNames = (config.tools || []).map((t) => Object.keys(t).join(",")).join("; ");
     cacheLogger.info(
@@ -257,7 +291,7 @@ export async function getOrCreateKBCache(
     }
 
     const expiresAt = now + ttlSeconds * 1000;
-    activeCacheNames.set(cacheKey, { name: cache.name, expiresAt });
+    setBoundedCache(cacheKey, cache.name, expiresAt, now);
 
     cacheLogger.info(
       `[KB CACHE] CREATED: ${cacheKey} → ${cache.name} (TTL: ${ttlSeconds}s, project: ${projectId}, contentChars: ${contentStr.length})`
@@ -282,9 +316,10 @@ export async function getOrCreateKBCache(
 export async function getOrCreateSystemCache(
   model: string,
   systemInstruction: string,
+  userId: string,
   ttlSeconds: number = DEFAULT_CACHE_TTL_SECONDS
 ): Promise<CacheResult | null> {
-  return getOrCreateCompositeCache({ model, systemInstruction }, ttlSeconds);
+  return getOrCreateCompositeCache({ userId, model, systemInstruction }, ttlSeconds);
 }
 
 // ============================================

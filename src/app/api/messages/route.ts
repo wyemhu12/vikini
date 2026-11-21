@@ -11,27 +11,65 @@ import { success, error, errorFromAppError } from "@/lib/utils/apiResponse";
 import { AppError } from "@/lib/utils/errors";
 import { logger } from "@/lib/utils/logger";
 import { HTTP_STATUS } from "@/lib/utils/constants";
+import { isValidUrl } from "@/lib/utils/xssProtection";
 
 const routeLogger = logger.withContext("/api/messages");
+
+const safeHttpUrlSchema = z.string().max(2048).refine(isValidUrl, {
+  message: "Must be a valid http(s) URL",
+});
 
 const postMessageSchema = z
   .object({
     conversationId: z.string().uuid(),
     role: z.literal("assistant"),
-    content: z.string(),
-    clientMessageId: z.string().min(1),
+    content: z.string().max(500_000),
+    clientMessageId: z.string().min(1).max(128),
     meta: z
       .object({
         isPartial: z.boolean().optional(),
         aborted: z.boolean().optional(),
         status: z.enum(["aborted", "error", "complete"]).optional(),
-        model: z.string().optional(),
-        sources: z.array(z.record(z.string(), z.unknown())).optional(),
-        urlContext: z.array(z.record(z.string(), z.unknown())).optional(),
-        clientMessageId: z.string().optional(),
-        reasoning: z.string().optional(),
+        model: z.string().max(120).optional(),
+        clientMessageId: z.string().max(128).optional(),
+        emptyAnswerReason: z.enum(["length", "no_content"]).optional(),
+        reasoning: z.string().max(200_000).optional(),
+        thinkingStats: z
+          .object({
+            tokens: z.number().finite().min(0),
+            elapsedMs: z.number().finite().min(0),
+          })
+          .optional(),
+        sources: z
+          .array(
+            z.object({
+              uri: safeHttpUrlSchema,
+              title: z.string().max(500),
+            })
+          )
+          .max(100)
+          .optional(),
+        urlContext: z
+          .array(
+            z.object({
+              retrievedUrl: safeHttpUrlSchema,
+              status: z.string().max(100),
+            })
+          )
+          .max(100)
+          .optional(),
+        ragSources: z
+          .array(
+            z.object({
+              filename: z.string().max(500),
+              documentId: z.string().max(128),
+              chunkId: z.string().max(128),
+              similarity: z.number().finite(),
+            })
+          )
+          .max(50)
+          .optional(),
       })
-      .passthrough()
       .optional(),
   })
   .refine(

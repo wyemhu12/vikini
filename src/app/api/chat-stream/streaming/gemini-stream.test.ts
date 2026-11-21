@@ -687,4 +687,185 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
     expect(getStreamTimeout("gemini-4-argon", "medium")).toBe(900000);
     expect(getStreamTimeout("gemini-4-argon-preview", "low")).toBe(900000);
   });
+
+  it("TC-W1-08: renders executableCode and codeExecutionResult parts into token stream", async () => {
+    const generateMock = vi.fn().mockImplementation(async function* () {
+      yield {
+        candidates: [
+          {
+            content: {
+              parts: [
+                { executableCode: { language: "PYTHON", code: "print(2 + 2)" } },
+                { codeExecutionResult: { output: "4\n", outcome: "OUTCOME_OK" } },
+              ],
+            },
+          },
+        ],
+      };
+    });
+
+    const params = createMockParams({
+      ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
+    });
+
+    const reader = createChatReadableStream(params).getReader();
+    const decoder = new TextDecoder();
+    let out = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      out += decoder.decode(value, { stream: true });
+    }
+
+    expect(out).toContain("```python");
+    expect(out).toContain("print(2 + 2)");
+    expect(out).toContain("**Output:**");
+  });
+
+  it("TC-W1-08: emits exactly ONE error SSE event when tools array is empty and stream fails", async () => {
+    const generateMock = vi.fn().mockRejectedValueOnce(new Error("Internal backend failure"));
+    const params = createMockParams({
+      ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
+      tools: [],
+    });
+
+    const reader = createChatReadableStream(params).getReader();
+    const decoder = new TextDecoder();
+    let out = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      out += decoder.decode(value, { stream: true });
+    }
+
+    const errorMatches = out.match(/event: error/g) || [];
+    expect(errorMatches).toHaveLength(1);
+    expect(out).toContain('"ok":false');
+  });
+
+  it("TC-W1-08: emits exactly ONE STREAM_TIMEOUT event, saves partial content, and sends done { ok: false } when primary stream stalls mid-stream", async () => {
+    vi.useFakeTimers();
+    const upsertMock = vi.fn().mockResolvedValue({});
+    const generateMock = vi.fn().mockReturnValue({
+      [Symbol.asyncIterator]() {
+        let count = 0;
+        return {
+          next() {
+            if (count++ === 0) {
+              return Promise.resolve({
+                value: {
+                  candidates: [{ content: { parts: [{ text: "Partial before idle stall" }] } }],
+                },
+                done: false,
+              });
+            }
+            return new Promise(() => {}); // Stalls forever
+          },
+        };
+      },
+    });
+
+    const params = createMockParams({
+      ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
+      upsertAssistantMessage: upsertMock,
+    });
+
+    const readable = createChatReadableStream(params);
+    const reader = readable.getReader();
+    const decoder = new TextDecoder();
+    let out = "";
+
+    const readAll = (async () => {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        out += decoder.decode(value, { stream: true });
+      }
+    })();
+
+    // Advance past idleTimeoutMs (default FLASH timeout is 240s -> idle is 120s)
+    try {
+      await vi.advanceTimersByTimeAsync(130_000);
+      await readAll;
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const errorMatches = out.match(/event: error/g) || [];
+    expect(errorMatches).toHaveLength(1);
+    expect(out).toContain('"code":"STREAM_TIMEOUT"');
+    expect(out).toContain('"ok":false');
+    expect(upsertMock).toHaveBeenCalledTimes(1);
+    expect(upsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: "Partial before idle stall",
+      })
+    );
+  });
+
+  it("TC-W1-08: propagates StreamTimeoutError out of continuation stream, emits STREAM_TIMEOUT once, and finishes ok: false", async () => {
+    vi.useFakeTimers();
+    const upsertMock = vi.fn().mockResolvedValue({});
+    let callCount = 0;
+    const generateMock = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return (async function* () {
+          yield {
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    { text: "Checking time..." },
+                    { functionCall: { name: "getTime", args: {}, id: "fc-t" } },
+                  ],
+                },
+              },
+            ],
+          };
+        })();
+      }
+      // Continuation stream stalls forever
+      return {
+        [Symbol.asyncIterator]() {
+          return {
+            next: () => new Promise(() => {}),
+          };
+        },
+      };
+    });
+
+    const params = createMockParams({
+      ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
+      tools: [{ functionDeclarations: [{ name: "getTime" }] }],
+      upsertAssistantMessage: upsertMock,
+    });
+
+    const readable = createChatReadableStream(params);
+    const reader = readable.getReader();
+    const decoder = new TextDecoder();
+    let out = "";
+
+    const readAll = (async () => {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        out += decoder.decode(value, { stream: true });
+      }
+    })();
+
+    try {
+      await vi.advanceTimersByTimeAsync(130_000);
+      await readAll;
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const errorMatches = out.match(/event: error/g) || [];
+    expect(errorMatches).toHaveLength(1);
+    expect(out).toContain('"code":"STREAM_TIMEOUT"');
+    expect(out).toContain('"ok":false');
+    expect(out).not.toContain('"ok":true');
+    expect(upsertMock).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import {
   DEFAULT_THEME_KEY,
   LEGACY_THEME_MAP,
@@ -335,19 +336,6 @@ describe("theme-config — CSS themes", () => {
     const legacyClassPattern =
       /(?<![a-zA-Z0-9_-])(text-primary|text-secondary|bg-surface|bg-surface-muted|bg-surface-elevated|bg-control|bg-control-hover|border-token|border-control|card-surface)(?![a-zA-Z0-9_-])/;
 
-    const collectSourceFiles = (dir: string): string[] => {
-      const files: string[] = [];
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          files.push(...collectSourceFiles(full));
-        } else if (/\.(ts|tsx)$/.test(entry.name) && !/\.(test|spec)\.(ts|tsx)$/.test(entry.name)) {
-          files.push(full);
-        }
-      }
-      return files;
-    };
-
     const srcRoot = path.resolve(process.cwd(), "src");
     const targets = [
       ...collectSourceFiles(path.join(srcRoot, "app")),
@@ -363,4 +351,241 @@ describe("theme-config — CSS themes", () => {
     }
     expect(violations).toEqual([]);
   });
+
+  it("TC-12 (TC-P5-01/02/03/08): zero dead hovers, zero transition-all, zero z-50 on standardized targets, zero useChatTranslations", () => {
+    const srcRoot = path.resolve(process.cwd(), "src");
+    const uiTargets = [
+      ...collectSourceFiles(path.join(srcRoot, "app")),
+      ...collectSourceFiles(path.join(srcRoot, "components")),
+    ];
+
+    const deadHoverHits: string[] = [];
+    const transitionAllHits: string[] = [];
+    for (const filePath of uiTargets) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const rel = path.relative(process.cwd(), filePath);
+      for (const hit of findDeadHoverViolations(content)) {
+        deadHoverHits.push(`${rel}: ${hit}`);
+      }
+      for (const hit of findTransitionAllViolations(content)) {
+        transitionAllHits.push(`${rel}: ${hit}`);
+      }
+    }
+    expect(deadHoverHits).toEqual([]);
+    expect(transitionAllHits).toEqual([]);
+
+    const zIndexTargets = [
+      "src/app/features/chat/components/ChatApp.tsx",
+      "src/app/features/layout/components/RootSkipLink.tsx",
+      "src/app/features/chat/components/FileManagerPanel.tsx",
+      "src/app/features/image-gen/components/ControlPanel.tsx",
+      "src/app/features/image-gen/components/ControlPanelPromptSection.tsx",
+      "src/app/features/gallery/components/ImageCompareModal.tsx",
+      "src/app/features/gems/components/GemModal.tsx",
+      "src/app/features/personas/components/PersonaModal.tsx",
+    ];
+    const z50Pattern = /(?<![a-zA-Z0-9_-])z-50(?![a-zA-Z0-9_-])/;
+    const z50Hits: string[] = [];
+    for (const relPath of zIndexTargets) {
+      const content = fs.readFileSync(path.resolve(process.cwd(), relPath), "utf-8");
+      if (z50Pattern.test(content)) {
+        z50Hits.push(relPath);
+      }
+    }
+    expect(z50Hits).toEqual([]);
+
+    const allSrcFiles = collectSourceFiles(srcRoot);
+    const chatTranslationsHits = allSrcFiles
+      .filter((fp) => fs.readFileSync(fp, "utf-8").includes("useChatTranslations"))
+      .map((fp) => path.relative(process.cwd(), fp));
+    expect(chatTranslationsHits).toEqual([]);
+    expect(
+      fs.existsSync(
+        path.resolve(process.cwd(), "src/app/features/chat/components/hooks/useChatTranslations.ts")
+      )
+    ).toBe(false);
+  });
+
+  it("TC-12b (Negative Probe NP-1/NP-2): dead-hover and transition-all scanners catch violations without false positives", () => {
+    expect(findDeadHoverViolations('"bg-(--raised) hover:bg-(--raised)"').length).toBeGreaterThan(
+      0
+    );
+    expect(
+      findDeadHoverViolations('"bg-(--raised) border-(--line) hover:bg-(--raised)"').length
+    ).toBeGreaterThan(0);
+    expect(
+      findDeadHoverViolations(
+        "const el = <div className={`bg-(--raised) hover:bg-(--raised) ${extra}`} />;"
+      ).length
+    ).toBeGreaterThan(0);
+
+    expect(findDeadHoverViolations('"bg-(--raised) hover:bg-(--raised-hover)"')).toEqual([]);
+    expect(findDeadHoverViolations('"bg-(--raised)/70 hover:bg-(--raised)"')).toEqual([]);
+    expect(
+      findDeadHoverViolations(
+        'const el = <div className={`${active ? "bg-(--raised)" : "hover:bg-(--raised)"}`} />;'
+      )
+    ).toEqual([]);
+
+    expect(findTransitionAllViolations('"px-3 transition-all"').length).toBeGreaterThan(0);
+    expect(
+      findTransitionAllViolations('"px-2 transition-all duration-200"').length
+    ).toBeGreaterThan(0);
+    expect(findTransitionAllViolations('"px-3 transition-[filter,opacity]"')).toEqual([]);
+  });
+
+  it("TC-13 (CT-6D-01): zero lucide namespace imports, zero t Record prop-drilling, hooks <= 350L, UserManager <= 500L, zero bg-(--soft) dead hovers, thin chat redirect", () => {
+    const srcRoot = path.resolve(process.cwd(), "src");
+    const allSrcFiles = collectSourceFiles(srcRoot);
+    const appFiles = collectSourceFiles(path.join(srcRoot, "app"));
+    const uiTargets = [...appFiles, ...collectSourceFiles(path.join(srcRoot, "components"))];
+
+    const lucideNamespaceHits = allSrcFiles
+      .filter((fp) => findLucideNamespaceImport(fs.readFileSync(fp, "utf-8")))
+      .map((fp) => path.relative(process.cwd(), fp));
+    expect(lucideNamespaceHits).toEqual([]);
+
+    const propDrillingHits = uiTargets
+      .filter((fp) => findTranslationPropDrilling(fs.readFileSync(fp, "utf-8")))
+      .map((fp) => path.relative(process.cwd(), fp));
+    expect(propDrillingHits).toEqual([]);
+
+    const oversizedHooks = appFiles
+      .filter((fp) => /^use[A-Z].*\.(ts|tsx)$/.test(path.basename(fp)))
+      .map((fp) => ({
+        file: path.relative(process.cwd(), fp),
+        lines: countFileLines(fs.readFileSync(fp, "utf-8")),
+      }))
+      .filter((entry) => entry.lines > MAX_HOOK_LINES);
+    expect(oversizedHooks).toEqual([]);
+
+    const userManagerPath = path.resolve(process.cwd(), "src/app/admin/components/UserManager.tsx");
+    const userManagerLines = countFileLines(fs.readFileSync(userManagerPath, "utf-8"));
+    expect(userManagerLines).toBeLessThanOrEqual(MAX_USER_MANAGER_LINES);
+
+    const softDeadHoverHits: string[] = [];
+    for (const filePath of uiTargets) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const rel = path.relative(process.cwd(), filePath);
+      for (const hit of findSoftDeadHoverViolations(content)) {
+        softDeadHoverHits.push(`${rel}: ${hit}`);
+      }
+    }
+    expect(softDeadHoverHits).toEqual([]);
+
+    const chatRedirectPath = path.resolve(process.cwd(), "src/app/features/chat/page.tsx");
+    const chatRedirectSource = fs.readFileSync(chatRedirectPath, "utf-8");
+    expect(chatRedirectSource).toContain("redirect(");
+    expect(countFileLines(chatRedirectSource)).toBeLessThanOrEqual(30);
+  });
+
+  it("TC-13b (Negative Probes NP-1/NP-2/NP-3): Phase 6 static scanners catch violations without false positives", () => {
+    expect(findLucideNamespaceImport('import * as Icons from "lucide-react";')).toBe(true);
+    expect(findLucideNamespaceImport("import * as LucideIcons from 'lucide-react'")).toBe(true);
+    expect(findLucideNamespaceImport('import { Sparkles, Star } from "lucide-react";')).toBe(false);
+
+    expect(findTranslationPropDrilling("interface Props { t?: Record<string, string>; }")).toBe(
+      true
+    );
+    expect(findTranslationPropDrilling("interface Props { t: Record<string, string>; }")).toBe(
+      true
+    );
+    expect(findTranslationPropDrilling("interface Props { t: (key: string) => string; }")).toBe(
+      false
+    );
+
+    expect(
+      findSoftDeadHoverViolations('"bg-(--soft) text-(--accent) hover:bg-(--soft)"').length
+    ).toBeGreaterThan(0);
+    expect(
+      findSoftDeadHoverViolations('"bg-(--soft) text-(--accent) hover:bg-(--raised-hover)"')
+    ).toEqual([]);
+    expect(
+      findSoftDeadHoverViolations(
+        'const el = <div className={`${active ? "bg-(--soft)" : "hover:bg-(--soft)"}`} />;'
+      )
+    ).toEqual([]);
+  });
 });
+
+const SOLID_BG_RAISED = /(?<![a-zA-Z0-9_:-])bg-\(--raised\)(?![/\w-])/;
+const HOVER_BG_RAISED = /(?<![a-zA-Z0-9_-])hover:bg-\(--raised\)(?![/\w-])/;
+const SOLID_BG_SOFT = /(?<![a-zA-Z0-9_:-])bg-\(--soft\)(?![/\w-])/;
+const HOVER_BG_SOFT = /(?<![a-zA-Z0-9_-])hover:bg-\(--soft\)(?![/\w-])/;
+const TRANSITION_ALL_TOKEN = /(?<![a-zA-Z0-9_-])transition-all(?![a-zA-Z0-9_-])/;
+const LUCIDE_NAMESPACE_IMPORT = /import\s+\*\s+as\s+[A-Za-z_$][\w$]*\s+from\s+["']lucide-react["']/;
+const TRANSLATION_PROP_DRILLING = /\bt\??\s*:\s*Record<\s*string\s*,\s*string\s*>/;
+const MAX_HOOK_LINES = 350;
+const MAX_USER_MANAGER_LINES = 500;
+
+function countFileLines(source: string): number {
+  const normalized = source.endsWith("\n") ? source.slice(0, -1) : source;
+  return normalized.length === 0 ? 0 : normalized.split("\n").length;
+}
+
+function findLucideNamespaceImport(source: string): boolean {
+  return LUCIDE_NAMESPACE_IMPORT.test(source);
+}
+
+function findTranslationPropDrilling(source: string): boolean {
+  return TRANSLATION_PROP_DRILLING.test(source);
+}
+
+function findSoftDeadHoverViolations(source: string): string[] {
+  if (!source.includes("bg-(--soft)")) return [];
+  return extractStaticClassChunks(source)
+    .filter((chunk) => SOLID_BG_SOFT.test(chunk) && HOVER_BG_SOFT.test(chunk))
+    .map((chunk) => chunk.trim());
+}
+
+function collectSourceFiles(dir: string): string[] {
+  const files: string[] = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectSourceFiles(full));
+    } else if (/\.(ts|tsx)$/.test(entry.name) && !/\.(test|spec)\.(ts|tsx)$/.test(entry.name)) {
+      files.push(full);
+    }
+  }
+  return files;
+}
+
+function extractStaticClassChunks(source: string): string[] {
+  const sf = ts.createSourceFile(
+    "scan.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    false,
+    ts.ScriptKind.TSX
+  );
+  const chunks: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isStringLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node) ||
+      ts.isTemplateHead(node) ||
+      ts.isTemplateMiddle(node) ||
+      ts.isTemplateTail(node)
+    ) {
+      chunks.push(node.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return chunks;
+}
+
+function findDeadHoverViolations(source: string): string[] {
+  if (!source.includes("bg-(--raised)")) return [];
+  return extractStaticClassChunks(source)
+    .filter((chunk) => SOLID_BG_RAISED.test(chunk) && HOVER_BG_RAISED.test(chunk))
+    .map((chunk) => chunk.trim());
+}
+
+function findTransitionAllViolations(source: string): string[] {
+  if (!source.includes("transition-all")) return [];
+  return extractStaticClassChunks(source)
+    .filter((chunk) => TRANSITION_ALL_TOKEN.test(chunk))
+    .map((chunk) => chunk.trim());
+}

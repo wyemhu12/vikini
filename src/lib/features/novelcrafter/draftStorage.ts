@@ -26,6 +26,8 @@ export const MAX_CONFLICT_BACKUP_CARD_CHARS = 16_000 as const;
 export const MAX_CONFLICT_BACKUP_CARDS = 3 as const;
 export const DEFAULT_MAX_STATE_PAYLOAD_BYTES = 1_800_000 as const;
 
+const textEncoder = new TextEncoder();
+
 export interface NovelcrafterLocalDraftEnvelope {
   baseVersion: number;
   dirty: boolean;
@@ -293,13 +295,50 @@ export interface PayloadBudgetFitResult {
   largestFields?: string[];
 }
 
+interface SnapshotSortEntry {
+  cIdx: number;
+  sIdx: number;
+  createdAt: number;
+}
+
+function buildChaptersDroppingSnapshots(
+  baseChapters: NovelcrafterChapter[],
+  sortedSnapshots: SnapshotSortEntry[],
+  dropCount: number
+): NovelcrafterChapter[] {
+  if (dropCount <= 0) return baseChapters;
+  const droppedByChapter = new Map<number, Set<number>>();
+  for (let i = 0; i < dropCount; i += 1) {
+    const entry = sortedSnapshots[i];
+    if (!entry) break;
+    let chapterDropped = droppedByChapter.get(entry.cIdx);
+    if (!chapterDropped) {
+      chapterDropped = new Set<number>();
+      droppedByChapter.set(entry.cIdx, chapterDropped);
+    }
+    chapterDropped.add(entry.sIdx);
+  }
+
+  return baseChapters.map((ch, cIdx) => {
+    const droppedIndices = droppedByChapter.get(cIdx);
+    if (!droppedIndices || !ch.snapshots) return ch;
+    const nextSnaps = ch.snapshots.filter((_, sIdx) => !droppedIndices.has(sIdx));
+    const nextCh = { ...ch };
+    if (nextSnaps.length > 0) {
+      nextCh.snapshots = nextSnaps;
+    } else {
+      delete nextCh.snapshots;
+    }
+    return nextCh;
+  });
+}
+
 export function enforceStatePayloadBudget(
   state: NovelcrafterStoryState,
   maxBytes: number = DEFAULT_MAX_STATE_PAYLOAD_BYTES
 ): PayloadBudgetFitResult {
-  const encoder = new TextEncoder();
   const measure = (candidate: NovelcrafterStoryState) =>
-    encoder.encode(JSON.stringify(candidate)).byteLength;
+    textEncoder.encode(JSON.stringify(candidate)).byteLength;
 
   if (measure(state) <= maxBytes) {
     return {
@@ -311,79 +350,94 @@ export function enforceStatePayloadBudget(
     };
   }
 
-  // Tier 1: Trim historyCards from oldest to newest down to 0
-  let currentCards = [...state.historyCards];
+  // Tier 1: Binary search max historyCards prefix that fits budget (trims oldest-to-newest)
   let trimmedHistoryCount = 0;
-  let candidate: NovelcrafterStoryState = { ...state, historyCards: currentCards };
+  let candidate: NovelcrafterStoryState = state;
+  const totalCards = state.historyCards.length;
 
-  while (currentCards.length > 0 && measure(candidate) > maxBytes) {
-    currentCards = currentCards.slice(0, currentCards.length - 1);
-    trimmedHistoryCount += 1;
-    candidate = { ...candidate, historyCards: currentCards };
-  }
-
-  if (measure(candidate) <= maxBytes) {
-    return {
-      state: candidate,
-      fits: true,
-      trimmedHistoryCount,
-      trimmedSnapshotCount: 0,
-      trimmedFeedbackCount: 0,
-    };
-  }
-
-  // Tier 2: Trim oldest chapter snapshots across chapters before touching resolved feedback
-  let trimmedSnapshotCount = 0;
-  let workingChapters = candidate.chapters.map((ch) => ({
-    ...ch,
-    ...(ch.snapshots ? { snapshots: [...ch.snapshots] } : {}),
-  }));
-
-  while (measure(candidate) > maxBytes) {
-    let oldestChapterIndex = -1;
-    let oldestSnapshotIndex = -1;
-    let oldestCreatedAt = Number.POSITIVE_INFINITY;
-
-    for (let cIdx = 0; cIdx < workingChapters.length; cIdx += 1) {
-      const snaps = workingChapters[cIdx]?.snapshots;
-      if (!snaps || snaps.length === 0) continue;
-      for (let sIdx = snaps.length - 1; sIdx >= 0; sIdx -= 1) {
-        const snap = snaps[sIdx];
-        if (snap && snap.createdAt < oldestCreatedAt) {
-          oldestCreatedAt = snap.createdAt;
-          oldestChapterIndex = cIdx;
-          oldestSnapshotIndex = sIdx;
+  if (totalCards > 0) {
+    const zeroHistoryCandidate: NovelcrafterStoryState = { ...state, historyCards: [] };
+    if (measure(zeroHistoryCandidate) <= maxBytes) {
+      let lo = 0;
+      let hi = totalCards - 1;
+      let bestCandidate = zeroHistoryCandidate;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        const trial: NovelcrafterStoryState = {
+          ...state,
+          historyCards: state.historyCards.slice(0, mid),
+        };
+        if (measure(trial) <= maxBytes) {
+          lo = mid;
+          bestCandidate = trial;
+        } else {
+          hi = mid - 1;
         }
       }
+      return {
+        state: bestCandidate,
+        fits: true,
+        trimmedHistoryCount: totalCards - lo,
+        trimmedSnapshotCount: 0,
+        trimmedFeedbackCount: 0,
+      };
     }
 
-    if (oldestChapterIndex === -1 || oldestSnapshotIndex === -1) {
-      break;
-    }
-
-    workingChapters = workingChapters.map((ch, idx) => {
-      if (idx !== oldestChapterIndex || !ch.snapshots) return ch;
-      const nextSnaps = ch.snapshots.filter((_, sIdx) => sIdx !== oldestSnapshotIndex);
-      const nextCh = { ...ch };
-      if (nextSnaps.length > 0) {
-        nextCh.snapshots = nextSnaps;
-      } else {
-        delete nextCh.snapshots;
-      }
-      return nextCh;
-    });
-    trimmedSnapshotCount += 1;
-    candidate = { ...candidate, chapters: workingChapters };
+    trimmedHistoryCount = totalCards;
+    candidate = zeroHistoryCandidate;
   }
 
-  if (measure(candidate) <= maxBytes) {
-    return {
-      state: candidate,
-      fits: true,
-      trimmedHistoryCount,
-      trimmedSnapshotCount,
-      trimmedFeedbackCount: 0,
+  // Tier 2: Binary search min oldest chapter snapshots to drop (preserving exact original tie-break)
+  let trimmedSnapshotCount = 0;
+  const snapshotEntries: SnapshotSortEntry[] = [];
+  for (let cIdx = 0; cIdx < candidate.chapters.length; cIdx += 1) {
+    const snaps = candidate.chapters[cIdx]?.snapshots;
+    if (!snaps || snaps.length === 0) continue;
+    for (let sIdx = 0; sIdx < snaps.length; sIdx += 1) {
+      const snap = snaps[sIdx];
+      if (snap && snap.createdAt < Number.POSITIVE_INFINITY) {
+        snapshotEntries.push({ cIdx, sIdx, createdAt: snap.createdAt });
+      }
+    }
+  }
+
+  if (snapshotEntries.length > 0) {
+    snapshotEntries.sort((a, b) => a.createdAt - b.createdAt || a.cIdx - b.cIdx || b.sIdx - a.sIdx);
+
+    const totalSnapshots = snapshotEntries.length;
+    const allDroppedCandidate: NovelcrafterStoryState = {
+      ...candidate,
+      chapters: buildChaptersDroppingSnapshots(candidate.chapters, snapshotEntries, totalSnapshots),
     };
+
+    if (measure(allDroppedCandidate) <= maxBytes) {
+      let lo = 1;
+      let hi = totalSnapshots;
+      let bestCandidate = allDroppedCandidate;
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        const trial: NovelcrafterStoryState = {
+          ...candidate,
+          chapters: buildChaptersDroppingSnapshots(candidate.chapters, snapshotEntries, mid),
+        };
+        if (measure(trial) <= maxBytes) {
+          hi = mid;
+          bestCandidate = trial;
+        } else {
+          lo = mid + 1;
+        }
+      }
+      return {
+        state: bestCandidate,
+        fits: true,
+        trimmedHistoryCount,
+        trimmedSnapshotCount: lo,
+        trimmedFeedbackCount: 0,
+      };
+    }
+
+    trimmedSnapshotCount = totalSnapshots;
+    candidate = allDroppedCandidate;
   }
 
   // Tier 3: Trim resolved feedbackItems across chapters (NEVER touch open feedback, chapter prose, or Story Bible)
@@ -414,11 +468,11 @@ export function enforceStatePayloadBudget(
   const fieldSizes: Array<{ label: string; bytes: number }> = [
     ...candidate.chapters.map((c) => ({
       label: c.title,
-      bytes: encoder.encode(c.content + c.scenes).byteLength,
+      bytes: textEncoder.encode(c.content + c.scenes).byteLength,
     })),
     {
       label: "Story Bible",
-      bytes: encoder.encode(JSON.stringify(candidate.storyBible)).byteLength,
+      bytes: textEncoder.encode(JSON.stringify(candidate.storyBible)).byteLength,
     },
   ].sort((a, b) => b.bytes - a.bytes);
 

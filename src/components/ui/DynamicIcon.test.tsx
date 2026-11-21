@@ -1,9 +1,61 @@
 import { describe, it, expect } from "vitest";
 import React from "react";
 import { render } from "@testing-library/react";
-import { DynamicIcon } from "./DynamicIcon";
+import { DynamicIcon, hasCuratedIcon } from "./DynamicIcon";
 
-describe("DynamicIcon", () => {
+const ICON_PICKER_NAMES = [
+  "Lightbulb",
+  "Target",
+  "Palette",
+  "Flame",
+  "Diamond",
+  "Sparkles",
+  "Rocket",
+  "BookOpen",
+  "Laptop",
+  "Music",
+  "Gamepad2",
+  "Star",
+  "Zap",
+  "Wand2",
+  "Drama",
+  "Camera",
+  "Clapperboard",
+  "Rainbow",
+  "Gift",
+  "FileEdit",
+  "Wrench",
+  "Settings",
+  "GraduationCap",
+  "Globe",
+  "Heart",
+  "Brain",
+  "Bot",
+  "MessageCircle",
+  "BarChart3",
+  "Dice5",
+];
+
+const PROJECT_ICON_AND_ALIASES = [
+  "folder",
+  "folder-open",
+  "briefcase",
+  "code",
+  "book-open",
+  "book",
+  "flask-conical",
+  "flask",
+  "bar-chart-3",
+  "chart",
+  "sparkles",
+  "rocket",
+  "globe",
+  "heart",
+  "star",
+  "lightbulb",
+];
+
+describe("DynamicIcon (CT-6B-01, NP-4)", () => {
   it("renders a Lucide icon when given a valid PascalCase icon name", () => {
     const { container } = render(<DynamicIcon name="Lightbulb" className="w-5 h-5" />);
     const svg = container.querySelector("svg");
@@ -18,14 +70,25 @@ describe("DynamicIcon", () => {
     expect(svg?.classList.contains("lucide-sparkles")).toBe(true);
   });
 
-  it("renders a Lucide icon when given kebab-case icon name like pen-tool", () => {
-    const { container, queryByText } = render(<DynamicIcon name="pen-tool" className="w-5 h-5" />);
-    const svg = container.querySelector("svg");
-    expect(svg).toBeTruthy();
-    expect(queryByText("pen-tool")).toBeNull();
+  it("renders a Lucide icon when given kebab-case, snake_case, and camelCase names", () => {
+    for (const name of ["pen-tool", "bar_chart_3", "bookOpen", "FileEdit"]) {
+      const { container, queryByText } = render(<DynamicIcon name={name} className="w-5 h-5" />);
+      expect(container.querySelector("svg"), `Expected SVG for ${name}`).toBeTruthy();
+      expect(queryByText(name)).toBeNull();
+    }
   });
 
-  it("Negative Probe #4: falls back safely for unknown multi-char ASCII slugs without spilling raw text", () => {
+  it("resolves all 30 IconPicker icons and all ProjectIcon names/aliases from curated registry", () => {
+    for (const iconName of [...ICON_PICKER_NAMES, ...PROJECT_ICON_AND_ALIASES]) {
+      expect(hasCuratedIcon(iconName), `Missing curated icon: ${iconName}`).toBe(true);
+      const { container, queryByText } = render(<DynamicIcon name={iconName} />);
+      expect(container.querySelector("svg"), `Failed to render SVG for ${iconName}`).toBeTruthy();
+      expect(queryByText(iconName)).toBeNull();
+    }
+  });
+
+  it("Negative Probe NP-4: falls back safely for unknown multi-char ASCII slugs without spilling raw text", () => {
+    expect(hasCuratedIcon("unknown-long-slug")).toBe(false);
     const { container, queryByText } = render(
       <DynamicIcon name="unknown-long-slug" className="w-4 h-4" />
     );

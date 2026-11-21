@@ -442,4 +442,71 @@ describe("useChatStreamController", () => {
     expect(toast.error).toHaveBeenCalledTimes(1);
     expect(result.current.messages).toEqual([]);
   });
+
+  it("CT-6C-01 (#10): aborts active fetch and skips partial persistence/finalize when unmounted mid-stream", async () => {
+    let capturedSignal: AbortSignal | undefined;
+    const encoder = new TextEncoder();
+    let chunkSent = false;
+
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (typeof url === "string" && url.includes("/api/chat-stream")) {
+        capturedSignal = init?.signal ?? undefined;
+        return Promise.resolve({
+          ok: true,
+          body: {
+            getReader: () => ({
+              read: () => {
+                if (!chunkSent) {
+                  chunkSent = true;
+                  return Promise.resolve({
+                    done: false,
+                    value: encoder.encode('event: token\ndata: {"t":"Partial chunk"}\n\n'),
+                  });
+                }
+                // Resolve cleanly right after unmount to also exercise the 30ms post-stream guard
+                return new Promise<{ done: boolean; value?: Uint8Array }>((resolve) => {
+                  capturedSignal?.addEventListener("abort", () =>
+                    resolve({ done: true, value: undefined })
+                  );
+                });
+              },
+              cancel: () => Promise.resolve(),
+            }),
+          },
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ success: true, data: {} }),
+      });
+    });
+
+    const { result, unmount } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: "conv-unmount",
+      })
+    );
+
+    await act(async () => {
+      result.current.handleSend("Hello before unmount");
+    });
+
+    await waitFor(() => {
+      expect(capturedSignal).toBeDefined();
+    });
+    expect(capturedSignal?.aborted).toBe(false);
+
+    unmount();
+
+    expect(capturedSignal?.aborted).toBe(true);
+    // Allow 30ms post-stream timer to flush; isUnmountedRef must block POST /api/messages
+    await new Promise((r) => setTimeout(r, 60));
+
+    const postMessageCalls = mockFetch.mock.calls.filter(
+      ([url, init]) =>
+        typeof url === "string" && url.includes("/api/messages") && init?.method === "POST"
+    );
+    expect(postMessageCalls).toHaveLength(0);
+  });
 });

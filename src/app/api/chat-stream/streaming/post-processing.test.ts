@@ -133,4 +133,36 @@ describe("processPostStream (M-1, M-9, m-16)", () => {
       })
     );
   });
+
+  it("TC-W2A-16: persists usageMetadata in Case 1 reasoning-only empty answer", async () => {
+    await processPostStream(controller, {
+      ...baseParams,
+      full: "",
+      reasoning: "Only reasoning generated",
+      emptyAnswerReason: "length",
+      usageMetadata: {
+        promptTokenCount: 100,
+        candidatesTokenCount: 50,
+        thoughtsTokenCount: 50,
+        totalTokenCount: 150,
+      },
+      appendToContext,
+      upsertAssistantMessage,
+      setConversationAutoTitle,
+      generateFinalTitle,
+    });
+
+    expect(upsertAssistantMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: "",
+        meta: expect.objectContaining({
+          reasoning: "Only reasoning generated",
+          promptTokenCount: 100,
+          candidatesTokenCount: 50,
+          thoughtsTokenCount: 50,
+          totalTokenCount: 150,
+        }),
+      })
+    );
+  });
 });

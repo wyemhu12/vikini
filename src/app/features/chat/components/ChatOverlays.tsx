@@ -24,7 +24,6 @@ interface ChatOverlaysProps {
   onNewChat: () => Promise<void>;
   /** Command palette selection (loads the conversation). */
   onSelectConversation: (id: string | null) => Promise<void>;
-  t: Record<string, string>;
 }
 
 /**
@@ -39,22 +38,21 @@ export default function ChatOverlays({
   conversations,
   onNewChat,
   onSelectConversation,
-  t,
 }: ChatOverlaysProps) {
-  const { t: translate } = useLanguage();
+  const { t } = useLanguage();
   const router = useRouter();
   const { closeCommandPalette } = shortcuts;
 
   const navCommands = useMemo(
     () =>
       buildNavigationCommands({
-        t: translate,
+        t,
         onNavigate: (href) => {
           closeCommandPalette();
           router.push(href);
         },
       }),
-    [translate, router, closeCommandPalette]
+    [t, router, closeCommandPalette]
   );
 
   return (
@@ -85,7 +83,6 @@ export default function ChatOverlays({
         closeProjectSettingsModal={projectNav.closeProjectSettings}
         onCreateProjectChat={projectNav.createProjectChat}
         onSelectChat={projectNav.openProjectChat}
-        t={t}
       />
 
       {/* Command Palette */}

@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest } from "next/server";
+import { z } from "zod";
 import { requireUser } from "./auth";
 import {
   parseJsonBody,
@@ -21,25 +22,31 @@ import {
   getUserConversations,
   getConversation,
   saveConversation,
-  updateConversationTitle,
+  updateConversation,
   deleteConversation,
-  setConversationGem,
-  setConversationModel,
-  setConversationProject,
-  setConversationPersona,
+  type ConversationUpdatePatch,
 } from "@/lib/features/chat/conversations";
 import { getMessages } from "@/lib/features/chat/messages";
 
 const routeLogger = logger.withContext("/api/conversations");
 
-// Type guard for Zod-like validation errors
-interface ZodLikeError {
-  errors?: Array<{ path: string[]; message: string }>;
-  message?: string;
+async function parseStrictJson(req: NextRequest): Promise<unknown> {
+  try {
+    return await parseJsonBody(req);
+  } catch {
+    throw new ValidationError("Invalid JSON body");
+  }
 }
 
-function isZodLikeError(e: unknown): e is ZodLikeError {
-  return typeof e === "object" && e !== null && ("errors" in e || "message" in e);
+function formatZodValidationError(e: unknown): ValidationError {
+  if (e instanceof z.ZodError) {
+    const firstIssue = e.issues[0];
+    const field = firstIssue?.path.join(".");
+    return new ValidationError(
+      field ? `${field}: ${firstIssue.message}` : firstIssue?.message || "Invalid request body"
+    );
+  }
+  return new ValidationError("Invalid request body");
 }
 
 // ------------------------------
@@ -124,8 +131,13 @@ export async function POST(req: NextRequest) {
     const { userId } = auth;
     perfMonitor.userId = userId;
 
-    const rawBody = await parseJsonBody(req, { fallback: {} });
-    const body = createConversationSchema.parse(rawBody);
+    const rawBody = await parseStrictJson(req);
+    let body;
+    try {
+      body = createConversationSchema.parse(rawBody);
+    } catch (e: unknown) {
+      throw formatZodValidationError(e);
+    }
     const title = body.title || CONVERSATION_DEFAULTS.TITLE;
     const model = body.model;
     const projectId = body.projectId;
@@ -170,19 +182,12 @@ export async function PATCH(req: NextRequest) {
     const { userId } = auth;
     perfMonitor.userId = userId;
 
-    // NOTE: keep strict parsing behavior (invalid JSON => throws => 500 as before)
-    const rawBody = await parseJsonBody(req);
+    const rawBody = await parseStrictJson(req);
     let body;
     try {
       body = updateConversationSchema.parse(rawBody);
     } catch (e: unknown) {
-      if (isZodLikeError(e) && e.errors) {
-        const firstError = e.errors[0];
-        const field = firstError.path.join(".");
-        return errorFromAppError(new ValidationError(`${field}: ${firstError.message}`));
-      }
-      const message = isZodLikeError(e) ? e.message : "Invalid request body";
-      return errorFromAppError(new ValidationError(message || "Invalid request body"));
+      return errorFromAppError(formatZodValidationError(e));
     }
 
     const { id, title, gemId, model, projectId, personaId } = body;
@@ -191,40 +196,28 @@ export async function PATCH(req: NextRequest) {
     const hasProjectId = Object.prototype.hasOwnProperty.call(rawBody, "projectId");
     const hasPersonaId = Object.prototype.hasOwnProperty.call(rawBody, "personaId");
 
-    let conversation = null;
-
-    // IMPORTANT: không đổi title trừ khi client gửi title explicitly
+    const patch: ConversationUpdatePatch = {};
+    // IMPORTANT: do not alter title unless explicitly sent by client
     if (typeof title === "string") {
-      conversation = await updateConversationTitle(userId, id, title);
+      patch.title = title;
     }
-
     if (hasGemId) {
-      conversation = await setConversationGem(userId, id, gemId ?? null);
+      patch.gemId = gemId ?? null;
     }
-
-    //  NEW: Handle model update
     if (hasModel && model) {
-      conversation = await setConversationModel(userId, id, model);
+      patch.model = model;
     }
-
-    //  NEW: Handle project update (for RAG)
     if (hasProjectId) {
-      conversation = await setConversationProject(userId, id, projectId ?? null);
+      patch.projectId = projectId ?? null;
     }
-
-    //  NEW: Handle persona update
     if (hasPersonaId) {
-      conversation = await setConversationPersona(userId, id, personaId ?? null);
+      patch.personaId = personaId ?? null;
     }
 
-    // fallback: return current
+    const conversation = await updateConversation(userId, id, patch);
     if (!conversation) {
-      const c = await getConversation(id);
-      if (!c || c.userId !== userId) {
-        routeLogger.warn(`Conversation not found: ${id} for user: ${userId}`);
-        return errorFromAppError(new NotFoundError("Conversation"));
-      }
-      conversation = c;
+      routeLogger.warn(`Conversation not found: ${id} for user: ${userId}`);
+      return errorFromAppError(new NotFoundError("Conversation"));
     }
 
     perfMonitor.end(200, {
@@ -262,18 +255,12 @@ export async function DELETE(req: NextRequest) {
     const { userId } = auth;
     perfMonitor.userId = userId;
 
-    const rawBody = await parseJsonBody(req, { fallback: {} });
+    const rawBody = await parseStrictJson(req);
     let body;
     try {
       body = deleteConversationSchema.parse(rawBody);
     } catch (e: unknown) {
-      if (isZodLikeError(e) && e.errors) {
-        const firstError = e.errors[0];
-        const field = firstError.path.join(".");
-        return errorFromAppError(new ValidationError(`${field}: ${firstError.message}`));
-      }
-      const message = isZodLikeError(e) ? e.message : "Invalid request body";
-      return errorFromAppError(new ValidationError(message || "Invalid request body"));
+      return errorFromAppError(formatZodValidationError(e));
     }
 
     const { id } = body;
@@ -306,8 +293,9 @@ export async function PUT(req: NextRequest) {
     if (!auth.ok) return auth.response;
     const { userId } = auth;
 
-    const body = (await parseJsonBody(req, { fallback: {} })) as { id?: string };
-    const { id } = body || {};
+    const rawBody = await parseStrictJson(req);
+    const body = (rawBody && typeof rawBody === "object" ? rawBody : {}) as { id?: string };
+    const { id } = body;
 
     if (!id) {
       return errorFromAppError(new ValidationError("Missing id"));

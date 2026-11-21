@@ -199,4 +199,43 @@ describe("createStrataStream & getStreamTimeout", () => {
     expect(events.some((e) => e.event === "error")).toBe(false);
     expect(events.some((e) => e.event === "done" && e.data.ok === false)).toBe(true);
   });
+
+  it("TC-W1-08: saves partial once and does NOT duplicate write via processPostStream on mid-stream failure", async () => {
+    const upsertMock = vi.fn().mockResolvedValue({});
+    const mockCreate = vi.fn().mockResolvedValue({
+      [Symbol.asyncIterator]() {
+        let count = 0;
+        return {
+          async next() {
+            if (count++ === 0) {
+              return {
+                value: { choices: [{ delta: { content: "Partial local text" } }] },
+                done: false,
+              };
+            }
+            throw new StrataOfflineError();
+          },
+        };
+      },
+    });
+
+    const mockAi = {
+      chat: { completions: { create: mockCreate } },
+    } as unknown as OpenAI;
+
+    const stream = createStrataStream(
+      makeBaseParams({
+        ai: mockAi,
+        queue: createStrataQueue({ maxPending: 2 }),
+        upsertAssistantMessage: upsertMock,
+      })
+    );
+    const events = await readAllSseEvents(stream);
+
+    expect(upsertMock).toHaveBeenCalledTimes(1);
+    expect(events.some((e) => e.event === "error" && e.data.code === "LOCAL_LLM_OFFLINE")).toBe(
+      true
+    );
+    expect(events.some((e) => e.event === "done" && e.data.ok === false)).toBe(true);
+  });
 });

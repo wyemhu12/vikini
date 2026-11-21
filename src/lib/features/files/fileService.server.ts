@@ -151,6 +151,47 @@ export async function linkFilesToMessage(
   }
 }
 
+// Active web MIME types that can execute scripts if rendered inline by a browser
+const ACTIVE_WEB_MIMES = new Set([
+  "image/svg+xml",
+  "text/html",
+  "application/xhtml+xml",
+  "text/xml",
+  "application/xml",
+]);
+
+async function deleteGeminiFileBestEffort(name: string): Promise<void> {
+  try {
+    const ai = getGenAIClient();
+    await ai.files.delete({ name });
+  } catch (err: unknown) {
+    fileLogger.warn(
+      `Gemini cleanup failed for ${name}: ${err instanceof Error ? err.message : "unknown"}`
+    );
+  }
+}
+
+async function extractTextSafe(
+  bytes: Buffer,
+  kind: string,
+  mime: string,
+  filename: string
+): Promise<{ extractedText: string | null; tokenCount: number | null }> {
+  if (kind !== "text" && kind !== "document") {
+    return { extractedText: null, tokenCount: null };
+  }
+  try {
+    const extractedText = await extractDocumentText(bytes, mime, filename);
+    const tokenCount = extractedText ? estimateTokens(extractedText) : null;
+    return { extractedText, tokenCount };
+  } catch (err: unknown) {
+    fileLogger.warn(
+      `Text extraction skipped for ${filename}: ${err instanceof Error ? err.message : String(err)}`
+    );
+    return { extractedText: null, tokenCount: null };
+  }
+}
+
 // ============================================
 // CORE OPERATIONS
 // ============================================
@@ -174,41 +215,49 @@ export async function uploadFile({
   // 2. Enforce quotas
   await enforceQuotas(userId, conversationId, v.sizeBytes);
 
-  // 3. Read file bytes
+  // 3. Read file bytes once
   const bytes = Buffer.from(await file.arrayBuffer());
 
-  // 4. Upload to Supabase Storage (permanent)
+  // 4. Parallelize Supabase Storage upload, Gemini Files upload, and text extraction.
+  // Promise.allSettled guarantees we can always clean up Gemini if storage upload rejects.
   // [C4 Fix]: Use safe extension and pure ASCII UUID for storage path. Original filename kept in PostgreSQL.
   const safeExt = getSafeExtension(v.filename);
   const storagePath = `${userId}/${conversationId}/${crypto.randomUUID()}.${safeExt}`;
 
-  const { error: upError } = await supabase.storage.from(cfg.bucket).upload(storagePath, bytes, {
-    contentType: v.mime,
-    upsert: false,
-  });
+  const storageContentType = ACTIVE_WEB_MIMES.has(v.mime.toLowerCase())
+    ? "text/plain; charset=utf-8"
+    : v.mime;
 
-  if (upError) throw new DatabaseError(`Storage upload failed: ${upError.message}`);
+  const [storageRes, geminiRes, extractRes] = await Promise.allSettled([
+    supabase.storage.from(cfg.bucket).upload(storagePath, bytes, {
+      contentType: storageContentType,
+      upsert: false,
+    }),
+    uploadToGemini(bytes, v.filename, v.mime),
+    extractTextSafe(bytes, v.kind, v.mime, v.filename),
+  ]);
 
-  // 5. Upload to Gemini Files API (non-blocking, best-effort)
-  const gemini = await uploadToGemini(bytes, v.filename, v.mime);
+  const gemini = geminiRes.status === "fulfilled" ? geminiRes.value : null;
 
-  // 6. Extract text + estimate tokens for text-kind and document-kind files
-  let extractedText: string | null = null;
-  let tokenCount: number | null = null;
-  if (v.kind === "text" || v.kind === "document") {
-    try {
-      extractedText = await extractDocumentText(bytes, v.mime, v.filename);
-      if (extractedText) {
-        tokenCount = estimateTokens(extractedText);
-      }
-    } catch (err: unknown) {
-      fileLogger.warn(
-        `Text extraction skipped for ${v.filename}: ${err instanceof Error ? err.message : String(err)}`
-      );
+  if (storageRes.status === "rejected" || storageRes.value.error) {
+    if (gemini?.name) {
+      await deleteGeminiFileBestEffort(gemini.name);
     }
+    const reason =
+      storageRes.status === "rejected"
+        ? storageRes.reason instanceof Error
+          ? storageRes.reason.message
+          : String(storageRes.reason)
+        : storageRes.value.error?.message || "unknown error";
+    throw new DatabaseError(`Storage upload failed: ${reason}`);
   }
 
-  // 7. Insert DB record
+  const { extractedText, tokenCount } =
+    extractRes.status === "fulfilled"
+      ? extractRes.value
+      : { extractedText: null, tokenCount: null };
+
+  // 5. Insert DB record
   const { data: row, error: insertError } = await supabase
     .from("files")
     .insert({
@@ -233,11 +282,14 @@ export async function uploadFile({
     .single();
 
   if (insertError) {
-    // Cleanup storage on DB failure
+    // Cleanup both Supabase Storage and Gemini File API on DB failure
     try {
       await supabase.storage.from(cfg.bucket).remove([storagePath]);
     } catch {
       /* ignore cleanup errors */
+    }
+    if (gemini?.name) {
+      await deleteGeminiFileBestEffort(gemini.name);
     }
     throw new DatabaseError(`DB insert failed: ${insertError.message}`);
   }
@@ -348,27 +400,41 @@ export async function deleteFilesByConversation(
     gemini_file_name?: string;
   }>;
 
-  // Batch delete from Supabase Storage
-  const storagePaths = files.filter((f) => f.storage_path).map((f) => f.storage_path as string);
+  // Batch delete from Supabase Storage grouped by each row's actual bucket
+  const byBucket = new Map<string, string[]>();
+  for (const f of files) {
+    if (f.storage_path) {
+      const bucket = f.bucket || cfg.bucket;
+      const list = byBucket.get(bucket);
+      if (list) {
+        list.push(f.storage_path);
+      } else {
+        byBucket.set(bucket, [f.storage_path]);
+      }
+    }
+  }
 
-  if (storagePaths.length > 0) {
+  for (const [bucket, paths] of byBucket) {
     try {
-      await supabase.storage.from(cfg.bucket).remove(storagePaths);
+      await supabase.storage.from(bucket).remove(paths);
     } catch (err: unknown) {
       fileLogger.warn(
-        `Batch storage delete failed: ${err instanceof Error ? err.message : "unknown"}`
+        `Batch storage delete failed for bucket ${bucket}: ${err instanceof Error ? err.message : "unknown"}`
       );
     }
   }
 
-  // Delete from Gemini (one by one - API doesn't support batch)
-  const ai = getGenAIClient();
-  for (const f of files) {
-    if (f.gemini_file_name) {
-      try {
-        await ai.files.delete({ name: f.gemini_file_name });
-      } catch {
-        /* ignore */
+  // Delete from Gemini only when at least one file has a Gemini reference
+  const geminiFiles = files.filter((f) => Boolean(f.gemini_file_name));
+  if (geminiFiles.length > 0) {
+    const ai = getGenAIClient();
+    for (const f of geminiFiles) {
+      if (f.gemini_file_name) {
+        try {
+          await ai.files.delete({ name: f.gemini_file_name });
+        } catch {
+          /* ignore */
+        }
       }
     }
   }
@@ -399,9 +465,14 @@ export async function createSignedUrl({ userId, id }: GetFileParams): Promise<{
 
   if (!row.storage_path) throw new ValidationError("File has no storage path");
 
-  const { data, error } = await supabase.storage
-    .from(row.bucket || cfg.bucket)
-    .createSignedUrl(row.storage_path, cfg.signedUrlSeconds);
+  const isActiveWebMime = ACTIVE_WEB_MIMES.has((row.mime_type || "").toLowerCase());
+  const { data, error } = isActiveWebMime
+    ? await supabase.storage
+        .from(row.bucket || cfg.bucket)
+        .createSignedUrl(row.storage_path, cfg.signedUrlSeconds, { download: row.filename })
+    : await supabase.storage
+        .from(row.bucket || cfg.bucket)
+        .createSignedUrl(row.storage_path, cfg.signedUrlSeconds);
 
   if (error) throw new DatabaseError(`Signed URL failed: ${error.message}`);
   if (!data?.signedUrl) throw new DatabaseError("Signed URL missing");
@@ -535,14 +606,17 @@ export async function cleanupExpiredFiles(): Promise<CleanupResult> {
       }
     }
 
-    // Delete from Gemini
-    const ai = getGenAIClient();
-    for (const f of files) {
-      if (f.gemini_file_name) {
-        try {
-          await ai.files.delete({ name: f.gemini_file_name });
-        } catch {
-          /* ignore - Gemini may have already auto-deleted */
+    // Delete from Gemini only when batch contains Gemini-hosted files
+    const geminiFiles = files.filter((f) => Boolean(f.gemini_file_name));
+    if (geminiFiles.length > 0) {
+      const ai = getGenAIClient();
+      for (const f of geminiFiles) {
+        if (f.gemini_file_name) {
+          try {
+            await ai.files.delete({ name: f.gemini_file_name });
+          } catch {
+            /* ignore - Gemini may have already auto-deleted */
+          }
         }
       }
     }
@@ -554,10 +628,10 @@ export async function cleanupExpiredFiles(): Promise<CleanupResult> {
     if (delError) {
       fileLogger.error(`Cleanup DB delete failed: ${delError.message}`);
       totalErrors++;
-    } else {
-      totalDeleted += files.length;
+      break;
     }
 
+    totalDeleted += files.length;
     fileLogger.info(`Cleanup iteration ${i + 1}: deleted ${files.length} files`);
 
     if (files.length < 200) break; // Last batch

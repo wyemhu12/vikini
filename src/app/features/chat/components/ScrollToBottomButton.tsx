@@ -4,6 +4,8 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "../hooks/useLanguage";
+import { TRANSITION } from "@/lib/utils/motion";
 
 export interface ScrollToBottomButtonProps {
   isAtBottom: boolean;
@@ -18,18 +20,22 @@ export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
   onClick,
   className,
 }) => {
+  const { t } = useLanguage();
+
   return (
     <AnimatePresence>
       {!isAtBottom && (
         <motion.button
           type="button"
           onClick={onClick}
-          initial={{ opacity: 0, scale: 0.8, y: 10 }}
+          initial={{ opacity: 0, scale: 0.9, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.8, y: 10 }}
-          transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+          exit={{ opacity: 0, scale: 0.9, y: 10 }}
+          transition={TRANSITION.EXIT_FAST}
           aria-label={
-            unreadCount > 0 ? `Scroll to bottom (${unreadCount} unread)` : "Scroll to bottom"
+            unreadCount > 0
+              ? t("scrollToBottomUnread").replace("{count}", String(unreadCount))
+              : t("scrollToBottom")
           }
           className={cn(
             "relative flex items-center justify-center p-2.5 rounded-full",

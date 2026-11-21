@@ -37,6 +37,7 @@ import type {
 } from "./types";
 
 const streamLogger = logger.withContext("novelcrafterStreamRunner");
+const textEncoder = new TextEncoder();
 
 const VALID_PERSONA_TONES: ReadonlySet<string> = new Set([
   "default",
@@ -60,7 +61,7 @@ export function formatSseEvent(
   data: Record<string, unknown>
 ): Uint8Array {
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  return new TextEncoder().encode(payload);
+  return textEncoder.encode(payload);
 }
 
 export interface ResolvedNovelcrafterRouting {
@@ -74,46 +75,57 @@ export async function resolveNovelcrafterRouting(
   feature: NovelcrafterFeatureSlot,
   routing: NovelcrafterRoutingConfig
 ): Promise<ResolvedNovelcrafterRouting> {
-  let masterGemInstructions: string | null = null;
-  let gemName: string | null = null;
-
   const masterGemId = routing.masterGemId?.trim();
-  if (masterGemId) {
+  const effectivePersonaId = resolveEffectivePersonaId(feature, routing);
+
+  const loadGems = async () => {
+    if (!masterGemId) return null;
     try {
-      const gems = await getGemsForUser(userId);
-      const foundGem = gems.find((g) => g.id === masterGemId);
-      if (foundGem) {
-        gemName = typeof foundGem.name === "string" ? foundGem.name : null;
-        masterGemInstructions =
-          (typeof foundGem.instructions === "string" && foundGem.instructions) ||
-          (typeof foundGem.instruction === "string" && foundGem.instruction) ||
-          null;
-      }
+      return await getGemsForUser(userId);
     } catch (err: unknown) {
       streamLogger.warn("Failed to load Master GEM, falling back to default:", err);
+      return null;
+    }
+  };
+
+  const loadPersonas = async () => {
+    if (!effectivePersonaId) return null;
+    try {
+      return await getPersonasForUser(userId);
+    } catch (err: unknown) {
+      streamLogger.warn("Failed to load Persona, falling back to null:", err);
+      return null;
+    }
+  };
+
+  const [gems, personas] = await Promise.all([loadGems(), loadPersonas()]);
+
+  let masterGemInstructions: string | null = null;
+  let gemName: string | null = null;
+  if (masterGemId && gems) {
+    const foundGem = gems.find((g) => g.id === masterGemId);
+    if (foundGem) {
+      gemName = typeof foundGem.name === "string" ? foundGem.name : null;
+      masterGemInstructions =
+        (typeof foundGem.instructions === "string" && foundGem.instructions) ||
+        (typeof foundGem.instruction === "string" && foundGem.instruction) ||
+        null;
     }
   }
 
   let personaInput: PersonaPromptInput | null = null;
   let personaName: string | null = null;
-
-  const effectivePersonaId = resolveEffectivePersonaId(feature, routing);
-  if (effectivePersonaId) {
-    try {
-      const personas = await getPersonasForUser(userId);
-      const foundPersona = personas.find((p) => p.id === effectivePersonaId);
-      if (foundPersona) {
-        personaName = foundPersona.name || null;
-        personaInput = {
-          tone: isValidPersonaTone(foundPersona.tone) ? foundPersona.tone : "default",
-          useEmojis: foundPersona.use_emojis ?? true,
-          useHeadersLists: foundPersona.use_headers_lists ?? true,
-          userContext: foundPersona.user_context ?? "",
-          customInstructions: foundPersona.custom_instructions ?? "",
-        };
-      }
-    } catch (err: unknown) {
-      streamLogger.warn("Failed to load Persona, falling back to null:", err);
+  if (effectivePersonaId && personas) {
+    const foundPersona = personas.find((p) => p.id === effectivePersonaId);
+    if (foundPersona) {
+      personaName = foundPersona.name || null;
+      personaInput = {
+        tone: isValidPersonaTone(foundPersona.tone) ? foundPersona.tone : "default",
+        useEmojis: foundPersona.use_emojis ?? true,
+        useHeadersLists: foundPersona.use_headers_lists ?? true,
+        userContext: foundPersona.user_context ?? "",
+        customInstructions: foundPersona.custom_instructions ?? "",
+      };
     }
   }
 
@@ -407,12 +419,34 @@ export function runNovelcrafterStream({
       : normalizedModel;
 
   const userPrompt = buildNovelcrafterUserPrompt(request);
+  const streamAc = new AbortController();
+  let isClosed = false;
+
+  const onExternalAbort = () => {
+    streamAc.abort();
+  };
+  if (signal) {
+    if (signal.aborted) {
+      streamAc.abort();
+    } else {
+      signal.addEventListener("abort", onExternalAbort, { once: true });
+    }
+  }
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       let hasEmittedFirstOutput = false;
+      const safeEnqueue = (chunk: Uint8Array) => {
+        if (isClosed || streamAc.signal.aborted) return;
+        try {
+          controller.enqueue(chunk);
+        } catch {
+          isClosed = true;
+        }
+      };
+
       const emitModelOutput: EmitModelOutputFn = (type, content) => {
-        if (!content) return;
+        if (!content || isClosed || streamAc.signal.aborted) return;
         if (type === "token" && !hasEmittedFirstOutput) {
           hasEmittedFirstOutput = true;
           try {
@@ -421,12 +455,11 @@ export function runNovelcrafterStream({
             // Ignore callback errors
           }
         }
-        controller.enqueue(formatSseEvent(type, { t: content }));
+        safeEnqueue(formatSseEvent(type, { t: content }));
       };
 
       try {
-        if (signal?.aborted) {
-          controller.close();
+        if (streamAc.signal.aborted) {
           return;
         }
 
@@ -436,12 +469,11 @@ export function runNovelcrafterStream({
           request.routing
         );
 
-        if (signal?.aborted) {
-          controller.close();
+        if (streamAc.signal.aborted) {
           return;
         }
 
-        controller.enqueue(
+        safeEnqueue(
           formatSseEvent("meta", {
             model: normalizedModel,
             routedModel,
@@ -459,7 +491,7 @@ export function runNovelcrafterStream({
             systemInstruction,
             userPrompt,
             emitModelOutput,
-            signal
+            streamAc.signal
           );
         } else if (providerId === "anthropic") {
           if (process.env.ANTHROPIC_API_KEY) {
@@ -468,7 +500,7 @@ export function runNovelcrafterStream({
               systemInstruction,
               userPrompt,
               emitModelOutput,
-              signal
+              streamAc.signal
             );
           } else {
             streamLogger.info(
@@ -480,7 +512,7 @@ export function runNovelcrafterStream({
               systemInstruction,
               userPrompt,
               emitModelOutput,
-              signal
+              streamAc.signal
             );
           }
         } else if (providerId === "local") {
@@ -488,7 +520,7 @@ export function runNovelcrafterStream({
             systemInstruction,
             userPrompt,
             emitModelOutput,
-            signal,
+            signal: streamAc.signal,
           });
         } else {
           finishReason = await streamOpenAICompatibleProvider(
@@ -497,12 +529,12 @@ export function runNovelcrafterStream({
             systemInstruction,
             userPrompt,
             emitModelOutput,
-            signal
+            streamAc.signal
           );
         }
 
-        if (!signal?.aborted) {
-          controller.enqueue(
+        if (!streamAc.signal.aborted && !isClosed) {
+          safeEnqueue(
             formatSseEvent("done", {
               model: normalizedModel,
               routedModel,
@@ -512,11 +544,11 @@ export function runNovelcrafterStream({
           );
         }
       } catch (err: unknown) {
-        if (!signal?.aborted) {
+        if (!streamAc.signal.aborted && !isClosed) {
           const rawMsg = err instanceof Error ? err.message : "Failed to generate story content";
           streamLogger.error("Novelcrafter stream failed:", rawMsg);
           const safeMsg = sanitizeError(err, true);
-          controller.enqueue(
+          safeEnqueue(
             formatSseEvent("error", {
               message: safeMsg,
               code: "STREAM_ERROR",
@@ -524,17 +556,27 @@ export function runNovelcrafterStream({
           );
         }
       } finally {
+        if (signal) {
+          signal.removeEventListener("abort", onExternalAbort);
+        }
         try {
           await onStreamComplete?.();
         } catch (completeErr: unknown) {
           streamLogger.error("onStreamComplete failed:", completeErr);
         }
-        try {
-          controller.close();
-        } catch {
-          // Stream may already be closed
+        if (!isClosed) {
+          isClosed = true;
+          try {
+            controller.close();
+          } catch {
+            // Stream may already be closed
+          }
         }
       }
+    },
+    cancel() {
+      isClosed = true;
+      streamAc.abort();
     },
   });
 }

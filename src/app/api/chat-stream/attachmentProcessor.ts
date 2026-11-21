@@ -237,36 +237,7 @@ export async function processAttachments(
       updatedContents.push({ role: "user", parts: [] });
     }
 
-    // A. Inject Historical Files into corresponding message positions
-    if (contentsMeta && contentsMeta.length > 0) {
-      for (let i = 0; i < contentsMeta.length && i < updatedContents.length; i++) {
-        const meta = contentsMeta[i];
-        if (!meta?.fileIds || meta.fileIds.length === 0) continue;
-
-        // Skip files that belong to the current priority message (they will be injected with [NEWLY ATTACHED])
-        const targetFileIds = meta.fileIds.filter(
-          (fid) => !priorityFileIds?.includes(fid) && !injectedFileIds.has(fid)
-        );
-
-        if (targetFileIds.length === 0) continue;
-
-        const turnParts: unknown[] = [];
-        for (const fid of targetFileIds) {
-          const fileRow = fileMap.get(fid);
-          if (!fileRow) continue; // IDOR / nonexistent guard
-
-          const parts = await processSingleFile(fileRow, false, ctx);
-          turnParts.push(...parts);
-          injectedFileIds.add(fid);
-        }
-
-        if (turnParts.length > 0) {
-          updatedContents[i].parts = [...turnParts, ...updatedContents[i].parts];
-        }
-      }
-    }
-
-    // B. Inject Current Turn Files into the last user message
+    // A. Inject Current Turn (Priority) Files FIRST so newly attached files claim budget before history
     const currentTurnFileIds = (priorityFileIds || []).filter((fid) => !injectedFileIds.has(fid));
     if (currentTurnFileIds.length > 0) {
       const currentParts: unknown[] = [
@@ -303,6 +274,32 @@ export async function processAttachments(
           ];
         } else {
           updatedContents.push({ role: "user", parts: currentParts });
+        }
+      }
+    }
+
+    // B. Inject Historical Files newest-to-oldest so recent context takes precedence over ancient turns
+    if (contentsMeta && contentsMeta.length > 0) {
+      const startIndex = Math.min(contentsMeta.length, updatedContents.length) - 1;
+      for (let i = startIndex; i >= 0; i--) {
+        const meta = contentsMeta[i];
+        if (!meta?.fileIds || meta.fileIds.length === 0) continue;
+
+        const targetFileIds = meta.fileIds.filter((fid) => !injectedFileIds.has(fid));
+        if (targetFileIds.length === 0) continue;
+
+        const turnParts: unknown[] = [];
+        for (const fid of targetFileIds) {
+          const fileRow = fileMap.get(fid);
+          if (!fileRow) continue; // IDOR / nonexistent guard
+
+          const parts = await processSingleFile(fileRow, false, ctx);
+          turnParts.push(...parts);
+          injectedFileIds.add(fid);
+        }
+
+        if (turnParts.length > 0) {
+          updatedContents[i].parts = [...turnParts, ...updatedContents[i].parts];
         }
       }
     }

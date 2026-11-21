@@ -27,7 +27,7 @@ import { useWebSearchPreference } from "./hooks/useWebSearchPreference";
 import { useChatStreamController } from "./hooks/useChatStreamController";
 import { useImageGenController } from "./hooks/useImageGenController";
 import { useChatModals } from "./hooks/useChatModals";
-import { useChatTranslations, useLanguage } from "./hooks/useChatTranslations";
+import { useLanguage } from "../hooks/useLanguage";
 import { useUrlSync } from "./hooks/useUrlSync";
 import { useChatScroll } from "./hooks/useChatScroll";
 import { useLandingModel, useModelSelection } from "./hooks/useModelSelection";
@@ -51,8 +51,7 @@ import { useRemixPrompt } from "./hooks/useRemixPrompt";
 export default function ChatApp() {
   const { session, isAuthLoading, isAuthed, isPendingAccess } = useAuthGate();
 
-  const { t: tRaw } = useLanguage();
-  const t = useChatTranslations();
+  const { t } = useLanguage();
 
   // Image Mode State (activated from DashboardView)
   const [pendingImageMode, setPendingImageMode] = useState(false);
@@ -104,7 +103,7 @@ export default function ChatApp() {
     selectedConversationId,
     refreshConversations,
     onBranchCreated: setSelectedConversationIdAndUrl,
-    t: tRaw,
+    t,
   });
 
   const attachments = useChatAttachments({
@@ -119,7 +118,7 @@ export default function ChatApp() {
     currentModel,
     isStreaming,
     handleRegenerate: chat.handleRegenerate,
-    t: tRaw,
+    t,
   });
 
   const modals = useChatModals({
@@ -140,7 +139,7 @@ export default function ChatApp() {
     patchConversationModel: conversation.patchConversationModel,
     setConversationModel: conversation.setConversationModel,
     openUpgradeModal: modals.openUpgradeModal,
-    errorMessage: t.error,
+    errorMessage: t("error"),
   });
 
   const tts = useTTS(); // Reads AI responses aloud
@@ -150,7 +149,7 @@ export default function ChatApp() {
     createConversation,
     setSelectedConversationIdAndUrl,
     currentModel,
-    t: tRaw,
+    t,
     onSuccess: () => {
       // Reload messages to show the generated image, then clear temporary state
       if (selectedConversationId) void handleSelectConversation(selectedConversationId);
@@ -201,7 +200,7 @@ export default function ChatApp() {
   // Must run before the early returns below (rules of hooks).
   const projects = useProjectStore((state) => state.projects);
 
-  if (isAuthLoading || !isAuthed) return <ChatLoadingScreen label={t.loading} />;
+  if (isAuthLoading || !isAuthed) return <ChatLoadingScreen label={t("loading")} />;
 
   if (isPendingAccess) return <AccessPendingScreen />;
 
@@ -233,11 +232,11 @@ export default function ChatApp() {
     <div className="h-dvh w-full text-(--text) overflow-hidden relative font-sans bg-(--bg)">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-1.5 focus:rounded-lg focus:bg-(--accent) focus:text-(--on-accent) focus:text-xs focus:font-semibold"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-(--z-banner) focus:px-3 focus:py-1.5 focus:rounded-lg focus:bg-(--accent) focus:text-(--on-accent) focus:text-xs focus:font-semibold"
       >
-        {tRaw("skipToMainContent")}
+        {t("skipToMainContent")}
       </a>
-      <h1 className="sr-only">{tRaw("appName")}</h1>
+      <h1 className="sr-only">{t("appName")}</h1>
       <div className="absolute inset-0 z-0 static-depth-bg pointer-events-none" />
 
       <StreamErrorBanner error={chat.streamError} onDismiss={chat.clearStreamError} />
@@ -335,8 +334,6 @@ export default function ChatApp() {
               openDeleteMessageModal={modals.openDeleteMessageModal}
               setSelectedConversationIdAndUrl={setSelectedConversationIdAndUrl}
               tts={tts}
-              tRaw={tRaw}
-              t={t}
               scrollContainerRef={scroll.scrollRef}
             />
           )}
@@ -357,7 +354,7 @@ export default function ChatApp() {
       </div>
 
       {showLanding && (
-        <LandingDisclaimer text={t.aiDisclaimer} sidebarCollapsed={sidebarCollapsed} />
+        <LandingDisclaimer text={t("aiDisclaimer")} sidebarCollapsed={sidebarCollapsed} />
       )}
 
       <ChatOverlays
@@ -368,7 +365,6 @@ export default function ChatApp() {
         conversations={filteredConversations}
         onNewChat={handleNewChat}
         onSelectConversation={handleSelectConversation}
-        t={t}
       />
     </div>
   );

@@ -90,6 +90,14 @@ export async function verifyNovelcrafterConversationOwnership(
   }
 }
 
+function getNumericMetaField(
+  meta: Record<string, unknown> | null,
+  key: "version" | "updatedAt"
+): number {
+  const val = meta?.[key];
+  return typeof val === "number" && Number.isFinite(val) ? val : 0;
+}
+
 async function fetchStoryStateRows(conversationId: string): Promise<RawStateMessageRow[]> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
@@ -104,15 +112,18 @@ async function fetchStoryStateRows(conversationId: string): Promise<RawStateMess
     throw new DatabaseError("Failed to load story state");
   }
 
-  const rows = (data ?? []) as RawStateMessageRow[];
-
-  if (rows.length > 1) {
-    const duplicateIds = rows.slice(1).map((r) => r.id);
-    const { error: delError } = await supabase.from("messages").delete().in("id", duplicateIds);
-    if (delError) {
-      dbLogger.warn("Failed to clean up duplicate story_state rows:", delError);
-    }
-  }
+  const rows = [...((data ?? []) as RawStateMessageRow[])];
+  rows.sort((a, b) => {
+    const versionDiff =
+      getNumericMetaField(b.meta, "version") - getNumericMetaField(a.meta, "version");
+    if (versionDiff !== 0) return versionDiff;
+    const updatedAtDiff =
+      getNumericMetaField(b.meta, "updatedAt") - getNumericMetaField(a.meta, "updatedAt");
+    if (updatedAtDiff !== 0) return updatedAtDiff;
+    const aCreated = String(a.created_at ?? "");
+    const bCreated = String(b.created_at ?? "");
+    return bCreated > aCreated ? 1 : bCreated < aCreated ? -1 : 0;
+  });
 
   return rows;
 }
@@ -157,6 +168,10 @@ export async function saveStoryState(
   const rows = await fetchStoryStateRows(conversationId);
   const existingRow = rows[0] ?? null;
   const existingMeta = existingRow?.meta ?? null;
+  const hasValidMetaChars =
+    typeof existingMeta?.contentChars === "number" &&
+    Number.isFinite(existingMeta.contentChars) &&
+    existingMeta.contentChars >= 0;
 
   let existingVersion = 0;
   let existingCorrupted = false;
@@ -171,7 +186,12 @@ export async function saveStoryState(
     if (existingRow.content) {
       try {
         const decryptedExisting = decryptText(existingRow.content);
-        parsedExistingState = sanitizeStoryState(JSON.parse(decryptedExisting));
+        const parsedRaw: unknown = JSON.parse(decryptedExisting);
+        if (!parsedRaw || typeof parsedRaw !== "object" || Array.isArray(parsedRaw)) {
+          existingCorrupted = true;
+        } else if (!hasValidMetaChars) {
+          parsedExistingState = sanitizeStoryState(parsedRaw);
+        }
       } catch {
         existingCorrupted = true;
       }
@@ -190,7 +210,9 @@ export async function saveStoryState(
   if (existingRow && !options?.allowDestructive) {
     if (existingCorrupted) {
       const fallbackPreviousChars =
-        typeof existingMeta?.contentChars === "number" && existingMeta.contentChars > 0
+        typeof existingMeta?.contentChars === "number" &&
+        Number.isFinite(existingMeta.contentChars) &&
+        existingMeta.contentChars > 0
           ? existingMeta.contentChars
           : DESTRUCTIVE_SAVE_MIN_CHARS;
       const corruptedErr = new AppError(
@@ -208,8 +230,7 @@ export async function saveStoryState(
       throw corruptedErr;
     }
 
-    let previousChars =
-      typeof existingMeta?.contentChars === "number" ? existingMeta.contentChars : -1;
+    let previousChars = hasValidMetaChars ? (existingMeta!.contentChars as number) : -1;
     if (previousChars < 0 && parsedExistingState) {
       previousChars = computeTotalStoryContentChars(parsedExistingState);
     } else if (previousChars < 0) {
@@ -309,6 +330,18 @@ export async function saveStoryState(
     if (updateRes.error) {
       dbLogger.error("Failed to update story_state message:", updateRes.error);
       throw new DatabaseError("Failed to save story state");
+    }
+
+    if (rows.length > 1 && !existingCorrupted) {
+      const duplicateIds = rows.slice(1).map((r) => r.id);
+      try {
+        const { error: delError } = await supabase.from("messages").delete().in("id", duplicateIds);
+        if (delError) {
+          dbLogger.warn("Failed to clean up duplicate story_state rows:", delError);
+        }
+      } catch (delErr: unknown) {
+        dbLogger.warn("Failed to clean up duplicate story_state rows:", delErr);
+      }
     }
   } else {
     const { error: insertError } = await supabase.from("messages").insert({

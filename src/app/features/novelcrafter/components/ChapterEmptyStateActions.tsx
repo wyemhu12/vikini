@@ -72,7 +72,7 @@ export default function ChapterEmptyStateActions({
                 title={desc}
                 aria-describedby={descId}
                 onClick={onClick}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-(--line) bg-(--surface)/80 hover:bg-(--raised) hover:border-(--accent)/50 text-xs font-medium text-(--text) transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-(--line) bg-(--surface)/80 hover:bg-(--raised) hover:border-(--accent)/50 text-xs font-medium text-(--text) transition-[background-color,border-color,color,opacity] disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
               >
                 <Icon className="w-3.5 h-3.5 text-(--accent) shrink-0" />
                 <span className="font-semibold">{title}</span>

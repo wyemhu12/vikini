@@ -6,8 +6,8 @@ import { NextRequest } from "next/server";
 // Mocks - declared BEFORE importing the route handlers
 // ---------------------------------------------------------------------------
 
-vi.mock("@/lib/features/auth/auth", () => ({
-  auth: vi.fn(),
+vi.mock("@/lib/features/auth/requireApprovedUser", () => ({
+  requireAdminUser: vi.fn(),
 }));
 
 const mockOrder = vi.fn();
@@ -69,7 +69,9 @@ vi.mock("@/lib/utils/logger", () => ({
 // ---------------------------------------------------------------------------
 
 import { GET, PATCH } from "./route";
-import { auth } from "@/lib/features/auth/auth";
+import { requireAdminUser } from "@/lib/features/auth/requireApprovedUser";
+import { invalidateRankConfigsCache } from "@/lib/core/limits";
+import { ForbiddenError, ServiceUnavailableError, UnauthorizedError } from "@/lib/utils/errors";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -85,19 +87,18 @@ function createRequest(method: string, url: string, body?: unknown): NextRequest
 }
 
 function mockAdmin() {
-  vi.mocked(auth).mockResolvedValue({
-    user: { email: "admin@test.com", id: "admin-id", rank: "admin" },
-  } as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireAdminUser).mockResolvedValue({
+    userId: "admin@test.com",
+    rank: "admin",
+  });
 }
 
 function mockNonAdmin() {
-  vi.mocked(auth).mockResolvedValue({
-    user: { email: "user@test.com", id: "user-id", rank: "basic" },
-  } as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireAdminUser).mockRejectedValue(new ForbiddenError("Admin access required"));
 }
 
 function mockUnauthenticated() {
-  vi.mocked(auth).mockResolvedValue(null as unknown as Awaited<ReturnType<typeof auth>>);
+  vi.mocked(requireAdminUser).mockRejectedValue(new UnauthorizedError());
 }
 
 // ---------------------------------------------------------------------------
@@ -111,10 +112,10 @@ describe("/api/admin/rank-configs", () => {
 
   // ======================== GET ========================
   describe("GET", () => {
-    it("should return 403 if not authenticated", async () => {
+    it("should return 401 if not authenticated", async () => {
       mockUnauthenticated();
       const res = await GET();
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(401);
       const json = await res.json();
       expect(json.success).toBe(false);
     });
@@ -125,6 +126,12 @@ describe("/api/admin/rank-configs", () => {
       expect(res.status).toBe(403);
       const json = await res.json();
       expect(json.success).toBe(false);
+    });
+
+    it("should return 503 if DB verification fails", async () => {
+      vi.mocked(requireAdminUser).mockRejectedValueOnce(new ServiceUnavailableError());
+      const res = await GET();
+      expect(res.status).toBe(503);
     });
 
     it("should return rank configs on success", async () => {
@@ -159,13 +166,13 @@ describe("/api/admin/rank-configs", () => {
 
   // ======================== PATCH ========================
   describe("PATCH", () => {
-    it("should return 403 if not authenticated", async () => {
+    it("should return 401 if not authenticated", async () => {
       mockUnauthenticated();
       const req = createRequest("PATCH", "/api/admin/rank-configs", {
         configs: [],
       });
       const res = await PATCH(req);
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(401);
     });
 
     it("should return 403 if user is not admin", async () => {
@@ -333,6 +340,98 @@ describe("/api/admin/rank-configs", () => {
       });
       const res = await PATCH(req);
       expect(res.status).toBe(500);
+    });
+
+    it("NP-04 & TC-W2A-04: rejects malformed JSON, non-object items, duplicate ranks, bad allowed_models/features with 0 DB writes", async () => {
+      mockAdmin();
+
+      const badJsonReq = new NextRequest(
+        new URL("/api/admin/rank-configs", "http://localhost:3000"),
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: "{broken",
+        }
+      );
+      expect((await PATCH(badJsonReq)).status).toBe(400);
+
+      // null element
+      expect(
+        (await PATCH(createRequest("PATCH", "/api/admin/rank-configs", { configs: [null] }))).status
+      ).toBe(400);
+
+      // first item valid, second item invalid -> 0 DB writes
+      const mixedRes = await PATCH(
+        createRequest("PATCH", "/api/admin/rank-configs", {
+          configs: [
+            { rank: "pro", daily_message_limit: 200, max_file_size_mb: 50 },
+            { rank: "hacker", daily_message_limit: 100, max_file_size_mb: 10 },
+          ],
+        })
+      );
+      expect(mixedRes.status).toBe(400);
+
+      // duplicate rank
+      const dupRes = await PATCH(
+        createRequest("PATCH", "/api/admin/rank-configs", {
+          configs: [
+            { rank: "pro", daily_message_limit: 200, max_file_size_mb: 50 },
+            { rank: "pro", daily_message_limit: 300, max_file_size_mb: 50 },
+          ],
+        })
+      );
+      expect(dupRes.status).toBe(400);
+
+      // non-array allowed_models
+      const badModelsRes = await PATCH(
+        createRequest("PATCH", "/api/admin/rank-configs", {
+          configs: [
+            {
+              rank: "basic",
+              daily_message_limit: 100,
+              max_file_size_mb: 10,
+              allowed_models: "not-array",
+            },
+          ],
+        })
+      );
+      expect(badModelsRes.status).toBe(400);
+
+      // array features
+      const badFeaturesRes = await PATCH(
+        createRequest("PATCH", "/api/admin/rank-configs", {
+          configs: [
+            {
+              rank: "basic",
+              daily_message_limit: 100,
+              max_file_size_mb: 10,
+              features: [],
+            },
+          ],
+        })
+      );
+      expect(badFeaturesRes.status).toBe(400);
+
+      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(invalidateRankConfigsCache).not.toHaveBeenCalled();
+    });
+
+    it("NP-04 & TC-W2A-04: invalidates rank configs cache in finally when partial write fails mid-batch", async () => {
+      mockAdmin();
+      mockEq
+        .mockResolvedValueOnce({ error: null })
+        .mockResolvedValueOnce({ error: { message: "second write failed" } });
+
+      const req = createRequest("PATCH", "/api/admin/rank-configs", {
+        configs: [
+          { rank: "basic", daily_message_limit: 50, max_file_size_mb: 10 },
+          { rank: "pro", daily_message_limit: 200, max_file_size_mb: 50 },
+        ],
+      });
+      const res = await PATCH(req);
+      expect(res.status).toBe(500);
+      expect(mockUpdate).toHaveBeenCalledTimes(2);
+      expect(invalidateRankConfigsCache).toHaveBeenCalledTimes(1);
     });
   });
 });

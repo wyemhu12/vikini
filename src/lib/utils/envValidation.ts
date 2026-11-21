@@ -29,7 +29,9 @@ const requiredEnvSchema = z.object({
   geminiApiKey: z.string().min(1),
 
   // Data Encryption (CRITICAL: Required for security)
-  dataEncryptionKey: z.string().min(32, "DATA_ENCRYPTION_KEY must be at least 32 characters"),
+  dataEncryptionKey: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/, "DATA_ENCRYPTION_KEY must be a 64-character hex string (32 bytes)"),
 });
 
 // Schema for optional environment variables
@@ -156,13 +158,16 @@ export function validateEnv(): ValidatedEnv {
       ...required,
       ...optional,
     };
-  } catch (error) {
-    const zodError = error as z.ZodError<unknown>;
+  } catch (error: unknown) {
+    if (!(error instanceof z.ZodError)) {
+      envLogger.error("Unexpected environment validation error:", error);
+      throw error instanceof Error ? error : new Error("Environment validation failed");
+    }
 
-    envLogger.error("Environment validation failed:", zodError);
+    envLogger.error("Environment validation failed:", error);
 
     const missingVars: string[] = [];
-    zodError.issues.forEach((err: z.ZodIssue) => {
+    error.issues.forEach((err: z.ZodIssue) => {
       const field = err.path.join(".");
       missingVars.push(`  - ${field}: ${err.message}`);
     });

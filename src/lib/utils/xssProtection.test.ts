@@ -1,6 +1,12 @@
 // Test file for xssProtection.ts
-import { describe, it, expect } from "vitest";
-import { isValidUrl, isValidImageUrl, sanitizeUrl, sanitizeImageUrl } from "./xssProtection";
+import { describe, it, expect, vi } from "vitest";
+import {
+  isValidUrl,
+  isValidImageUrl,
+  sanitizeUrl,
+  sanitizeImageUrl,
+  openSafeExternalUrl,
+} from "./xssProtection";
 
 describe("XSS Protection", () => {
   describe("isValidUrl", () => {
@@ -61,6 +67,19 @@ describe("XSS Protection", () => {
     it("should return true for data: URLs (base64 images)", () => {
       expect(isValidImageUrl("data:image/png;base64,iVBORw0KGgo=")).toBe(true);
       expect(isValidImageUrl("data:image/jpeg;base64,/9j/4AAQSkZJRg=")).toBe(true);
+      expect(isValidImageUrl("data:image/webp;base64,UklGRh4=")).toBe(true);
+      expect(isValidImageUrl("data:image/gif;base64,R0lGODlh")).toBe(true);
+    });
+
+    it("should reject dangerous data:text/html and data:image/svg+xml payloads (TC-W1-06)", () => {
+      expect(isValidImageUrl("data:text/html,<script>alert(1)</script>")).toBe(false);
+      expect(isValidImageUrl("data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==")).toBe(
+        false
+      );
+      expect(
+        isValidImageUrl("data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+PC9zdmc+")
+      ).toBe(false);
+      expect(isValidImageUrl("data:image/svg+xml,<svg onload=alert(1)>")).toBe(false);
     });
 
     it("should return false for javascript: protocol (XSS attack)", () => {
@@ -119,6 +138,27 @@ describe("XSS Protection", () => {
 
     it("should return custom fallback when provided", () => {
       expect(sanitizeImageUrl("javascript:alert(1)", "/placeholder.png")).toBe("/placeholder.png");
+    });
+  });
+
+  describe("openSafeExternalUrl", () => {
+    it("opens valid https URLs with noopener,noreferrer and returns true", () => {
+      const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+      expect(openSafeExternalUrl("https://example.com/image.png")).toBe(true);
+      expect(openSpy).toHaveBeenCalledWith(
+        "https://example.com/image.png",
+        "_blank",
+        "noopener,noreferrer"
+      );
+      openSpy.mockRestore();
+    });
+
+    it("blocks javascript: and data: URLs without calling window.open (TC-W1-06)", () => {
+      const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+      expect(openSafeExternalUrl("javascript:alert(1)")).toBe(false);
+      expect(openSafeExternalUrl("data:text/html,<script>alert(1)</script>")).toBe(false);
+      expect(openSpy).not.toHaveBeenCalled();
+      openSpy.mockRestore();
     });
   });
 });

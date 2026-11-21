@@ -449,5 +449,69 @@ describe("createOpenAICompatibleStream - GLM 5.2, Grok Reasoning & Error Mapping
       expect(errorEvent?.data.code).toBe("CONTEXT_LENGTH_EXCEEDED");
       expect(errorEvent?.data.isTokenLimit).toBe(true);
     });
+
+    it("TC-W1-08: does NOT call processPostStream when stream fails mid-stream after partial content (saves partial once)", async () => {
+      const { processPostStream } = await import("./post-processing");
+      const upsertMock = vi.fn().mockResolvedValue({});
+      mockCreate.mockImplementationOnce(async () => {
+        async function* failingGen() {
+          yield { choices: [{ delta: { content: "Partial token before crash" } }] };
+          throw new Error("Upstream connection dropped");
+        }
+        return failingGen();
+      });
+
+      const stream = createOpenAICompatibleStream({
+        ...baseParams,
+        model: "z-ai/glm-5.2",
+        ai: mockAi,
+        contents: [{ role: "user", parts: [{ text: "hi" }] }],
+        upsertAssistantMessage: upsertMock,
+      });
+
+      const events = await collectStreamEvents(stream);
+      expect(upsertMock).toHaveBeenCalledTimes(1);
+      expect(processPostStream).not.toHaveBeenCalled();
+      expect(events.some((e) => e.event === "done" && e.data.ok === false)).toBe(true);
+    });
+
+    it("TC-W2A-16: forwards usageMetadata from final chunk into processPostStream", async () => {
+      const { processPostStream } = await import("./post-processing");
+      mockCreate.mockImplementationOnce(async () => {
+        async function* genWithUsage() {
+          yield { choices: [{ delta: { content: "Answer" } }] };
+          yield {
+            choices: [],
+            usage: {
+              prompt_tokens: 120,
+              completion_tokens: 30,
+              total_tokens: 150,
+              completion_tokens_details: { reasoning_tokens: 10 },
+            },
+          };
+        }
+        return genWithUsage();
+      });
+
+      const stream = createOpenAICompatibleStream({
+        ...baseParams,
+        model: "z-ai/glm-5.2",
+        ai: mockAi,
+        contents: [{ role: "user", parts: [{ text: "hi" }] }],
+      });
+
+      await consumeStream(stream);
+      expect(processPostStream).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          usageMetadata: {
+            promptTokenCount: 120,
+            candidatesTokenCount: 30,
+            thoughtsTokenCount: 10,
+            totalTokenCount: 150,
+          },
+        })
+      );
+    });
   });
 });
