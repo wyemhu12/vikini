@@ -3,18 +3,13 @@
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
-import { useSWRConfig } from "swr";
 import { useFileUpload } from "@/lib/features/files/useFileUpload";
-import type { FileUploadError } from "@/lib/features/files/fileUploadHelpers";
-import {
-  formatFileUploadError,
-  mergeUploadedFileOptimistically,
-  sortComposerFiles,
-} from "@/lib/features/files/uploadPresentation";
+import { sortComposerFiles } from "@/lib/features/files/uploadPresentation";
 import { useFiles } from "@/lib/features/files/useFiles";
 import { useFileStore } from "@/lib/features/files/store";
-import { logger } from "@/lib/utils/logger";
 import { FilePreviewArea } from "./FilePreviewArea";
+import { PendingUploadSendBanner } from "./PendingUploadSendBanner";
+import { ComposerSubmitButton } from "./ComposerSubmitButton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
@@ -22,10 +17,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Image as ImageIcon, Upload, X, SendHorizontal, Square } from "lucide-react";
+import { Plus, Image as ImageIcon, Upload, X } from "lucide-react";
 import { toast } from "@/lib/store/toastStore";
 import { VoiceButton } from "./VoiceButton";
 import { useLanguage } from "../hooks/useLanguage";
+import { useComposerFileActions } from "./hooks/useComposerFileActions";
+import { usePendingUploadSend, type PendingSendBridge } from "./hooks/usePendingUploadSend";
 import type { FileItem } from "@/types/files";
 
 const FileLightbox = dynamic(() => import("./FileLightbox"), { ssr: false });
@@ -90,56 +87,44 @@ export default function InputForm({
 
   const { t, language } = useLanguage();
 
-  // === Unified file management ===
-  const { mutate: globalMutate } = useSWRConfig();
+  // === Unified file management & Queue-to-Send bridge ===
   const { files: allFiles, mutate } = useFiles(conversationId ?? null);
   const uploadQueue = useFileStore((s) => s.uploadQueue);
   const sentFileIds = useFileStore((s) => s.sentFileIds);
   const markAsSent = useFileStore((s) => s.markAsSent);
+  const clearSentFileIds = useFileStore((s) => s.clearSentFileIds);
   const releaseFileMetadata = useFileStore((s) => s.releaseFileMetadata);
+  const pendingSendBridgeRef = useRef<PendingSendBridge | null>(null);
+
+  const allSentFileIds = useMemo(
+    () => [...new Set([...sentMessageFileIds, ...sentFileIds])],
+    [sentMessageFileIds, sentFileIds]
+  );
 
   // Filter out files already sent & sort chronologically ascending (oldest left, newest right)
   // so in-place upload completions never teleport on SWR revalidation.
   const files = useMemo(() => {
-    const allSent = new Set([...sentMessageFileIds, ...sentFileIds]);
+    const allSent = new Set(allSentFileIds);
     return sortComposerFiles(allFiles.filter((f) => !allSent.has(f.id)));
-  }, [allFiles, sentMessageFileIds, sentFileIds]);
+  }, [allFiles, allSentFileIds]);
   const fileCount = files.length;
 
-  const handleUploadComplete = useCallback(
-    (uploadedFile: FileItem) => {
-      const fileConvId = uploadedFile.conversation_id;
-      if (conversationId && (!fileConvId || fileConvId === conversationId)) {
-        void mutate((current) => mergeUploadedFileOptimistically(current, uploadedFile), {
-          revalidate: true,
-        });
-      } else if (fileConvId) {
-        // New Chat race fallback: SWR key may still be null while ensureConversationId just resolved
-        void globalMutate<FileItem[]>(
-          `/api/files?conversationId=${fileConvId}`,
-          (current) => mergeUploadedFileOptimistically(current, uploadedFile),
-          { revalidate: true }
-        );
-      }
-    },
-    [conversationId, globalMutate, mutate]
-  );
-
-  const handleUploadError = useCallback(
-    (err: FileUploadError) => {
-      toast.error(formatFileUploadError(err, t));
-    },
-    [t]
-  );
-
-  const handleFinalTranscript = useCallback(
-    (text: string) => {
-      const next = inputRef.current ? `${inputRef.current} ${text}` : text;
-      inputRef.current = next;
-      onChangeInput(next);
-    },
-    [onChangeInput]
-  );
+  const {
+    handleUploadComplete,
+    handleUploadError,
+    handleConversationResolved,
+    handleSessionReset,
+    handleRemoveFile,
+    handleClearAll,
+  } = useComposerFileActions({
+    conversationId: conversationId ?? null,
+    files,
+    mutate,
+    releaseFileMetadata,
+    clearSentFileIds,
+    bridgeRef: pendingSendBridgeRef,
+    t,
+  });
 
   const {
     openFilePicker,
@@ -150,59 +135,70 @@ export default function InputForm({
     fileAccept,
     handleFileInputChange,
     isUploading,
+    isPreparingUpload,
+    isUploadBusy,
+    activeUploadCount,
   } = useFileUpload({
     conversationId: conversationId ?? null,
-    disabled: disabled || false,
+    disabled: Boolean(disabled),
     ensureConversationId,
     isSelfInitiatedUploadRef,
     onUploadComplete: handleUploadComplete,
     onError: handleUploadError,
+    onConversationResolved: handleConversationResolved,
+    onSessionReset: handleSessionReset,
   });
 
-  // === File removal ===
-  const handleRemoveFile = useCallback(
-    async (id: string) => {
-      try {
-        const res = await fetch(`/api/files?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        releaseFileMetadata(id);
-        void mutate();
-      } catch (err: unknown) {
-        logger.error("[InputForm] Failed to remove file:", err);
-        toast.error(t("deleteFileFailed"));
-      }
+  const effectiveUploadBusy = isUploadBusy ?? (Boolean(isPreparingUpload) || isUploading);
+  const effectiveUploadCount = activeUploadCount ?? (effectiveUploadBusy ? 1 : 0);
+
+  const dispatchSend = useCallback(
+    (fileIds: string[]) => {
+      if (fileIds.length > 0) markAsSent(fileIds);
+      onSubmit(fileIds.length > 0 ? fileIds : undefined);
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
     },
-    [mutate, releaseFileMetadata, t]
+    [markAsSent, onSubmit]
   );
 
-  const handleClearAll = useCallback(async () => {
-    if (files.length === 0) return;
-    let failedCount = 0;
-    for (const f of files) {
-      try {
-        const res = await fetch(`/api/files?id=${encodeURIComponent(f.id)}`, { method: "DELETE" });
-        if (!res.ok) {
-          failedCount += 1;
-          logger.error(`[InputForm] Failed to delete file ${f.id}: HTTP ${res.status}`);
-        } else {
-          releaseFileMetadata(f.id);
-        }
-      } catch (err: unknown) {
-        failedCount += 1;
-        logger.error(`[InputForm] Network error deleting file ${f.id}:`, err);
-      }
-    }
-    void mutate();
-    if (failedCount > 0) {
-      toast.error(
-        t("clearFilesPartialFailed")
-          .replace("{failed}", String(failedCount))
-          .replace("{total}", String(files.length))
-      );
-    } else {
-      toast.success(t("filesCleared").replace("{count}", String(files.length)));
-    }
-  }, [files, mutate, releaseFileMetadata, t]);
+  const handleCancelledByError = useCallback(() => {
+    toast.info(t("pendingSendCancelledOnError"));
+  }, [t]);
+
+  const { isPendingSend, queuePendingSend, cancelPendingSend, consumeMergedFileIds } =
+    usePendingUploadSend({
+      input,
+      files,
+      sentFileIds: allSentFileIds,
+      conversationId: conversationId ?? null,
+      isUploadBusy: effectiveUploadBusy,
+      disabled: Boolean(disabled),
+      isStreaming: Boolean(isStreaming),
+      isImageMode,
+      escapeDisabled: Boolean(lightboxFile),
+      bridgeRef: pendingSendBridgeRef,
+      onFlushSend: dispatchSend,
+      onConversationSwitch: clearSentFileIds,
+      onCancelledByError: handleCancelledByError,
+    });
+
+  const handleCancelUpload = useCallback(
+    (tempId: string) => {
+      cancelPendingSend();
+      cancelUpload(tempId);
+    },
+    [cancelPendingSend, cancelUpload]
+  );
+
+  const handleFinalTranscript = useCallback(
+    (text: string) => {
+      cancelPendingSend();
+      const next = inputRef.current ? `${inputRef.current} ${text}` : text;
+      inputRef.current = next;
+      onChangeInput(next);
+    },
+    [cancelPendingSend, onChangeInput]
+  );
 
   // Sync initialImageMode prop
   useEffect(() => {
@@ -211,13 +207,6 @@ export default function InputForm({
       onImageModeConsumed?.();
     }
   }, [initialImageMode, onImageModeConsumed]);
-
-  // Clear Zustand optimistic sentFileIds when switching conversations
-  // (sentMessageFileIds from props handles the persistent/reload case)
-  const clearSentFileIds = useFileStore((s) => s.clearSentFileIds);
-  useEffect(() => {
-    clearSentFileIds();
-  }, [conversationId, clearSentFileIds]);
 
   // Auto resize textarea (skip when empty or during hover preview to prevent Landing layout oscillation)
   useEffect(() => {
@@ -251,11 +240,13 @@ export default function InputForm({
     isSubmittingRef.current = false;
   }, [conversationId, isStreaming]);
 
+  const hasPromptText = Boolean(input.trim());
+
   const handleSubmit = () => {
-    if (disabled || isSubmittingRef.current || isStreaming || isUploading) return;
+    if (disabled || isSubmittingRef.current || isStreaming) return;
 
     if (isImageMode && onImageGen) {
-      if (input.trim()) {
+      if (hasPromptText) {
         isSubmittingRef.current = true;
         onImageGen(input);
         onChangeInput("");
@@ -265,33 +256,33 @@ export default function InputForm({
           isSubmittingRef.current = false;
         });
       }
-    } else {
-      if (input.trim() || fileCount > 0) {
-        isSubmittingRef.current = true;
-        const currentFileIds = files.map((f) => f.id);
-        if (currentFileIds.length > 0) {
-          markAsSent(currentFileIds);
-        }
-        onSubmit(currentFileIds.length > 0 ? currentFileIds : undefined);
-        if (textareaRef.current) textareaRef.current.style.height = "auto";
-        requestAnimationFrame(() => {
-          isSubmittingRef.current = false;
-        });
+      return;
+    }
+
+    if (effectiveUploadBusy) {
+      if (hasPromptText && !isPendingSend) {
+        queuePendingSend();
       }
+      return;
+    }
+
+    if (hasPromptText || fileCount > 0) {
+      isSubmittingRef.current = true;
+      dispatchSend(consumeMergedFileIds());
+      requestAnimationFrame(() => {
+        isSubmittingRef.current = false;
+      });
     }
   };
 
-  // Smart Send/Stop button state machine
-  const isReady = (Boolean(input.trim()) || fileCount > 0) && !disabled && !isUploading;
-  const isButtonDisabled = !isStreaming && !isReady;
-
-  const sendButtonClasses = `flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full transition-[background-color,color,transform,opacity,filter,box-shadow] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
-    isStreaming
-      ? "bg-(--accent) text-(--on-accent) ring-2 ring-(--accent)/30 hover:brightness-110 active:scale-[0.92]"
-      : isReady
-        ? "bg-(--accent) text-(--on-accent) hover:brightness-110 active:scale-[0.92] shadow-[0_0_15px_var(--accent)] scale-100"
-        : "bg-(--raised) text-(--muted) opacity-40 cursor-not-allowed scale-95"
-  }`;
+  // Smart Send/Stop button state machine (Queue-to-Send requires prompt text when uploading)
+  const isReady =
+    !disabled &&
+    (isImageMode
+      ? hasPromptText
+      : effectiveUploadBusy
+        ? hasPromptText
+        : hasPromptText || fileCount > 0);
 
   return (
     <>
@@ -331,12 +322,19 @@ export default function InputForm({
           files={files}
           uploadQueue={uploadQueue}
           onRemoveFile={handleRemoveFile}
-          onCancelUpload={cancelUpload}
+          onCancelUpload={handleCancelUpload}
           onDismissError={dismissUploadError}
           onClearAll={handleClearAll}
           onClickFile={setLightboxFile}
           isDragging={isDragging}
           disabled={disabled}
+        />
+
+        {/* Queued auto-send indicator while files finish uploading */}
+        <PendingUploadSendBanner
+          visible={isPendingSend && !isStreaming && !isImageMode}
+          activeUploadCount={effectiveUploadCount}
+          onCancel={cancelPendingSend}
         />
 
         {/* Input row: always 2 rows (Row 1: full-width textarea; Row 2: [+] left, model/thinking/mic/send right) */}
@@ -354,7 +352,10 @@ export default function InputForm({
               ref={textareaRef}
               rows={1}
               value={input}
-              onChange={(e) => onChangeInput(e.target.value)}
+              onChange={(e) => {
+                cancelPendingSend();
+                onChangeInput(e.target.value);
+              }}
               onKeyDown={handleKeyDown}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
@@ -441,27 +442,15 @@ export default function InputForm({
                 />
               )}
 
-              {/* Send / Stop Button */}
-              <button
-                type="submit"
-                disabled={isButtonDisabled}
-                onMouseDown={(e) => e.preventDefault()}
-                className={sendButtonClasses}
-                title={isStreaming ? t("stopBtn") || "Stop" : t("send") || "Send"}
-                aria-label={
-                  isStreaming
-                    ? t("stopGeneration") || "Stop generation"
-                    : t("send") || "Send message"
-                }
-              >
-                {isStreaming ? (
-                  <Square className="w-4 h-4 fill-current" />
-                ) : isImageMode ? (
-                  <ImageIcon className="w-5 h-5" />
-                ) : (
-                  <SendHorizontal className="w-5 h-5" />
-                )}
-              </button>
+              {/* Send / Stop / Pending-Send Cancel Button */}
+              <ComposerSubmitButton
+                isStreaming={Boolean(isStreaming)}
+                isPendingSend={isPendingSend}
+                isUploadBusy={effectiveUploadBusy}
+                isImageMode={isImageMode}
+                isReady={isReady}
+                onCancelPendingSend={cancelPendingSend}
+              />
             </div>
           </div>
         </div>
@@ -469,8 +458,14 @@ export default function InputForm({
         {/* Keyboard shortcut hints */}
         {isFocused && (
           <div className="hidden md:flex items-center justify-end gap-3 px-4 pb-2 -mt-1 text-xs text-(--muted)/60 select-none animate-in fade-in duration-200">
-            <span>↵ {t("send") || "Send"}</span>
-            <span>Shift+↵ {t("newLine") || "New line"}</span>
+            {isPendingSend ? (
+              <span>Esc {t("pendingSendEscHint")}</span>
+            ) : (
+              <>
+                <span>↵ {t("send") || "Send"}</span>
+                <span>Shift+↵ {t("newLine") || "New line"}</span>
+              </>
+            )}
           </div>
         )}
       </form>

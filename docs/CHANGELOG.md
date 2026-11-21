@@ -8,6 +8,19 @@
 
 ---
 
+## 2026-11-21: Queue-to-Send While Uploading (Auto-Send After Upload Completes)
+
+- **Bít khoảng mù New Chat & đồng bộ hóa luồng tải tệp (`useFileUpload.ts`, `useGlobalFileDropPaste.ts`, `uploadPresentation.ts`)**:
+  - Tách `useGlobalFileDropPaste.ts` (drag/drop & paste ở cấp `window`) và bổ sung helper thuần `mergeDispatchFileIds` / `isPendingSendReadyToFlush` / `safeAbortXhr` / `createAbortableSleep`.
+  - Nạp `enqueueFiles` + `hydrateQueuedImagePreviews` **đồng bộ trước khi `await ensureConversationId()`**, theo dõi `isPreparingUpload` (`preparingCountRef` guard `!isStale()`) để `isUploadBusy = isPreparingUpload || isUploading` là `true` ngay từ mili-giây `0` trên New Chat (chấm dứt gửi prompt trơn thiếu ảnh và tạo hội thoại trùng).
+  - Xử lý fail-closed toàn bộ nhánh cạnh: kiểm tra `if (isStale())` đầu tiên sau `ensureConversationId`, gọi `onSessionReset` trên `switchedAway` (`null -> conv-existing`) và `onError` trên `!targetConvId` / HTTP 200 thiếu payload `file` / XHR error **trước** khi xóa queue hay hạ `isUploadBusy`.
+- **Trải nghiệm Queue-to-Send chuẩn Gemini / Claude / ChatGPT (`usePendingUploadSend.ts`, `useComposerFileActions.ts`, `PendingUploadSendBanner.tsx`, `ComposerSubmitButton.tsx`, `InputForm.tsx`)**:
+  - Khi người dùng gõ lệnh và nhấn `Enter` hoặc click **Gửi** trong lúc ảnh/tệp đang tải lên, composer giữ nguyên prompt, hiển thị `<PendingUploadSendBanner />` (spinner + thông điệp song ngữ + nút **Hủy gửi**, hỗ trợ `Escape` có guard `FileLightbox`/IME), chuyển nút hành động sang `type="button"` click-to-cancel (trong khi nhấn `Enter` lặp là idempotent no-op), và tự động gửi kèm đầy đủ `fileIds` (gộp đồng bộ `files` + `recentCompletedIds`, chờ khớp `expectedConversationId` trên New Chat và không xóa ngược `sentFileIds`) ngay khi toàn bộ tệp tải xong.
+  - Tự động hủy chờ gửi sạch khi bất kỳ tệp nào lỗi (1 `toast.info` chống spam), người dùng hủy/xóa tệp, sửa văn bản / chèn giọng nói / chọn gợi ý, chuyển hội thoại, bật Image Mode, `isStreaming`, `disabled`, hoặc unmount.
+- **Song ngữ & Kiểm thử**: Bổ sung 6 khóa song ngữ VI/EN (`vi.ts`, `en.ts`), 4 bộ test co-located mới (`useGlobalFileDropPaste.test.ts`, `useComposerFileActions.test.ts`, `usePendingUploadSend.test.ts`, `PendingUploadSendBanner.test.tsx`, `ComposerSubmitButton.test.tsx`) + cập nhật `uploadPresentation.test.ts`, `useFileUpload.test.ts`, `InputForm.test.tsx` (`TC-QS-01`..`TC-QS-09`) và Playwright Visual QA 4 góc nhìn (Desktop/Mobile × Dark/Light).
+
+---
+
 ## 2026-11-21: Chat Streaming Progress, Tool Activity & Upload UX/Animation Overhaul
 
 - **Chat Streaming Progress & Anthropic Tool Activity (Workstream 1)**:

@@ -1832,4 +1832,12 @@ export const vi = {
   studioRefMaxReached: "Tối đa {max} ảnh tham chiếu",
   describeReadFailed: "Không thể đọc tệp ảnh này. Vui lòng thử ảnh khác.",
   templateDropPhotoHint: "Thả ảnh vào đây để áp dụng mẫu",
+  // Queue-to-Send While Uploading
+  pendingSendWaiting: "Đang tải tệp lên — sẽ tự động gửi khi hoàn tất",
+  pendingSendWaitingCount: "Đang tải {count} tệp lên — sẽ tự động gửi khi hoàn tất",
+  cancelPendingSend: "Hủy gửi",
+  pendingSendCancelledOnError:
+    "Đã hủy tự động gửi vì có tệp tải lên thất bại. Vui lòng kiểm tra lại.",
+  sendWhenUploadsReady: "Sẽ tự động gửi khi tải tệp xong",
+  pendingSendEscHint: "Hủy chờ gửi",
 } as const;

@@ -343,4 +343,253 @@ describe("useFileUpload (TC-W2B-07 / NP-2)", () => {
     unmount();
     expect(useFileStore.getState().localPreviewByFileId["db-b"]).toBeUndefined();
   });
+
+  it("TC-QS-01 & NP-1(a): enqueues synchronously before ensureConversationId resolves and cleans up with onError-first on rejection or empty ID", async () => {
+    let resolveConv!: (id: string) => void;
+    const ensureConversationId = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveConv = resolve;
+        })
+    );
+    const isSelfInitiatedRef = { current: false };
+    const onConversationResolved = vi.fn();
+    const onError = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({ convId }) =>
+        useFileUpload({
+          conversationId: convId,
+          ensureConversationId,
+          isSelfInitiatedUploadRef: isSelfInitiatedRef,
+          onConversationResolved,
+          onError,
+        }),
+      { initialProps: { convId: null as string | null } }
+    );
+
+    const photo = new File(["img"], "photo.png", { type: "image/png" });
+    let uploadPromise!: Promise<void>;
+    act(() => {
+      uploadPromise = result.current.uploadFiles([photo]);
+    });
+
+    // Immediately busy at T0 BEFORE ensureConversationId resolves
+    expect(useFileStore.getState().uploadQueue).toHaveLength(1);
+    expect(useFileStore.getState().uploadQueue[0].status).toBe("queued");
+    expect(result.current.isPreparingUpload).toBe(true);
+    expect(result.current.isUploading).toBe(true);
+    expect(result.current.isUploadBusy).toBe(true);
+    expect(result.current.activeUploadCount).toBe(1);
+    expect(MockXHR.instances).toHaveLength(0);
+
+    await act(async () => {
+      resolveConv("conv-new");
+      await Promise.resolve();
+    });
+
+    expect(onConversationResolved).toHaveBeenCalledWith("conv-new");
+    expect(result.current.isPreparingUpload).toBe(false);
+    expect(result.current.isUploadBusy).toBe(true);
+    expect(MockXHR.instances).toHaveLength(1);
+
+    MockXHR.instances[0].status = 200;
+    MockXHR.instances[0].responseText = JSON.stringify({
+      data: { file: { id: "f-new", filename: "photo.png" } },
+    });
+    await act(async () => {
+      MockXHR.instances[0].onload?.();
+      await uploadPromise;
+    });
+    expect(result.current.isUploadBusy).toBe(false);
+
+    // NP-1(a): ensureConversationId returning empty string calls onError BEFORE clearing queue
+    const order: string[] = [];
+    const onErrorOrder = vi.fn(() => {
+      order.push(`onError:queue=${useFileStore.getState().uploadQueue.length}`);
+    });
+    const ensureEmpty = vi.fn(async () => "");
+    const hookEmpty = renderHook(() =>
+      useFileUpload({
+        conversationId: null,
+        ensureConversationId: ensureEmpty,
+        isSelfInitiatedUploadRef: { current: false },
+        onError: onErrorOrder,
+      })
+    );
+    await act(async () => {
+      await hookEmpty.result.current.uploadFiles([photo]);
+    });
+    expect(order).toEqual(["onError:queue=1"]);
+    expect(useFileStore.getState().uploadQueue).toHaveLength(0);
+    expect(hookEmpty.result.current.isPreparingUpload).toBe(false);
+
+    // Ensure rerender with conv-new does not leave stale state
+    rerender({ convId: "conv-new" });
+    hookEmpty.unmount();
+  });
+
+  it("NP-1(b/c/d): handles switchedAway null->conv-existing, HTTP 200 missing file payload, onError-before-status, and stale multi-switch/New Chat #2 isolation", async () => {
+    // NP-1(b): null -> conv-existing while ensureConversationId is in-flight
+    let resolveSwitched!: (id: string) => void;
+    const ensureSwitched = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveSwitched = resolve;
+        })
+    );
+    const selfRefB = { current: false };
+    const eventsB: string[] = [];
+    const onSessionResetB = vi.fn(() => {
+      eventsB.push(`reset:queue=${useFileStore.getState().uploadQueue.length}`);
+    });
+
+    const hookB = renderHook(
+      ({ convId }) =>
+        useFileUpload({
+          conversationId: convId,
+          ensureConversationId: ensureSwitched,
+          isSelfInitiatedUploadRef: selfRefB,
+          onSessionReset: onSessionResetB,
+        }),
+      { initialProps: { convId: null as string | null } }
+    );
+
+    const img = new File(["img"], "room.png", { type: "image/png" });
+    let pB!: Promise<void>;
+    act(() => {
+      pB = hookB.result.current.uploadFiles([img]);
+    });
+    expect(selfRefB.current).toBe(true);
+
+    // User switches to existing conversation before ensureConversationId resolves
+    rerenderConv(hookB.rerender, "conv-existing");
+    await act(async () => {
+      resolveSwitched("conv-new");
+      await pB;
+    });
+
+    expect(eventsB).toEqual(["reset:queue=1"]);
+    expect(selfRefB.current).toBe(false);
+    expect(useFileStore.getState().uploadQueue).toHaveLength(0);
+    expect(MockXHR.instances).toHaveLength(0);
+    expect(hookB.result.current.isUploadBusy).toBe(false);
+    hookB.unmount();
+
+    // NP-1(c): HTTP 200 without file payload calls onError BEFORE removeFromQueue; XHR error calls onError BEFORE setStatus("error")
+    const eventsC: string[] = [];
+    const onErrorC = vi.fn(() => {
+      eventsC.push(`onError:active=${useFileStore.getState().uploadQueue[0]?.status ?? "none"}`);
+    });
+    const hookC = renderHook(() => useFileUpload({ conversationId: "conv-c", onError: onErrorC }));
+
+    let pC1!: Promise<void>;
+    act(() => {
+      pC1 = hookC.result.current.uploadFiles([img]);
+    });
+    MockXHR.instances[0].status = 200;
+    MockXHR.instances[0].responseText = JSON.stringify({ success: true, data: {} });
+    await act(async () => {
+      MockXHR.instances[0].onload?.();
+      await pC1;
+    });
+    expect(eventsC).toEqual(["onError:active=uploading"]);
+    expect(useFileStore.getState().uploadQueue).toHaveLength(0);
+
+    eventsC.length = 0;
+    let pC2!: Promise<void>;
+    act(() => {
+      pC2 = hookC.result.current.uploadFiles([img]);
+    });
+    MockXHR.instances[1].status = 500;
+    MockXHR.instances[1].responseText = JSON.stringify({ error: "Server error" });
+    await act(async () => {
+      MockXHR.instances[1].onload?.();
+      await pC2;
+    });
+    expect(eventsC).toEqual(["onError:active=uploading"]);
+    expect(useFileStore.getState().uploadQueue[0]?.status).toBe("error");
+    hookC.unmount();
+
+    // NP-1(d): Stale promise reject after null -> conv-1 -> null (New Chat #2) never clobbers New Chat #2
+    let rejectFirst!: (err: Error) => void;
+    let resolveSecond!: (id: string) => void;
+    let callCount = 0;
+    const ensureMulti = vi.fn(() => {
+      callCount += 1;
+      if (callCount === 1) {
+        return new Promise<string>((_, reject) => {
+          rejectFirst = reject;
+        });
+      }
+      return new Promise<string>((resolve) => {
+        resolveSecond = resolve;
+      });
+    });
+    const selfRefD = { current: false };
+    const onSessionResetD = vi.fn();
+    const onErrorD = vi.fn();
+
+    const hookD = renderHook(
+      ({ convId }) =>
+        useFileUpload({
+          conversationId: convId,
+          ensureConversationId: ensureMulti,
+          isSelfInitiatedUploadRef: selfRefD,
+          onSessionReset: onSessionResetD,
+          onError: onErrorD,
+        }),
+      { initialProps: { convId: null as string | null } }
+    );
+
+    let pD1!: Promise<void>;
+    act(() => {
+      pD1 = hookD.result.current.uploadFiles([img]);
+    });
+    // Multi-switch: null -> conv-1 -> conv-2 -> null (bumps sessionId!)
+    rerenderConv(hookD.rerender, "conv-1");
+    rerenderConv(hookD.rerender, "conv-2");
+    rerenderConv(hookD.rerender, null);
+    onSessionResetD.mockClear();
+
+    // Start New Chat #2 upload
+    let pD2!: Promise<void>;
+    act(() => {
+      pD2 = hookD.result.current.uploadFiles([img]);
+    });
+    expect(selfRefD.current).toBe(true);
+    expect(hookD.result.current.isPreparingUpload).toBe(true);
+
+    // Old New Chat #1 rejects now -> must NOT reset New Chat #2's flag, preparing state, or call onError/onSessionReset
+    await act(async () => {
+      rejectFirst(new Error("old timeout"));
+      await pD1;
+    });
+    expect(selfRefD.current).toBe(true);
+    expect(hookD.result.current.isPreparingUpload).toBe(true);
+    expect(onErrorD).not.toHaveBeenCalled();
+    expect(onSessionResetD).not.toHaveBeenCalled();
+
+    // Complete New Chat #2 cleanly
+    await act(async () => {
+      resolveSecond("conv-new-2");
+      await Promise.resolve();
+    });
+    const latestXhr = MockXHR.instances[MockXHR.instances.length - 1];
+    latestXhr.status = 200;
+    latestXhr.responseText = JSON.stringify({
+      data: { file: { id: "f-2", filename: "room.png" } },
+    });
+    await act(async () => {
+      latestXhr.onload?.();
+      await pD2;
+    });
+    hookD.unmount();
+  });
 });
+
+function rerenderConv(rerender: (props: { convId: string | null }) => void, convId: string | null) {
+  act(() => {
+    rerender({ convId });
+  });
+}

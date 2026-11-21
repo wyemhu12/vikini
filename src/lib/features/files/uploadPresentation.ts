@@ -281,3 +281,87 @@ export function validateReferenceImages(
 
   return { accepted, invalidTypeCount, tooLargeCount, overLimitCount };
 }
+
+/**
+ * Merges SWR-known composer files with synchronously completed upload IDs from the current
+ * batch, preserving chronological order, deduplicating IDs, and excluding already-sent files.
+ */
+export function mergeDispatchFileIds(
+  swrFiles: readonly FileItem[],
+  completedIds: readonly string[],
+  sentIds: readonly string[]
+): string[] {
+  const sent = new Set(sentIds);
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const file of swrFiles) {
+    if (!sent.has(file.id) && !seen.has(file.id)) {
+      seen.add(file.id);
+      result.push(file.id);
+    }
+  }
+  for (const id of completedIds) {
+    if (!sent.has(id) && !seen.has(id)) {
+      seen.add(id);
+      result.push(id);
+    }
+  }
+  return result;
+}
+
+export interface PendingSendFlushCheck {
+  isPendingSend: boolean;
+  isUploadBusy: boolean;
+  disabled: boolean;
+  isStreaming: boolean;
+  isImageMode: boolean;
+  expectedConversationId: string | null;
+  currentConversationId: string | null;
+  hasPromptText: boolean;
+}
+
+/** Pure gate deciding whether a queued send can safely flush right now. */
+export function isPendingSendReadyToFlush(p: PendingSendFlushCheck): boolean {
+  if (!p.isPendingSend || p.isUploadBusy || p.disabled || p.isStreaming || p.isImageMode) {
+    return false;
+  }
+  if (!p.hasPromptText) return false;
+  if (p.expectedConversationId && p.currentConversationId !== p.expectedConversationId) {
+    return false;
+  }
+  return true;
+}
+
+/** Safely aborts an XMLHttpRequest without throwing on already-settled instances. */
+export function safeAbortXhr(xhr: XMLHttpRequest | undefined): void {
+  if (!xhr) return;
+  try {
+    xhr.abort();
+  } catch {
+    // Ignore abort errors on already-settled XHRs
+  }
+}
+
+/** Creates a cancellable timer promise tracked in caller-owned timer and resolver collections. */
+export function createAbortableSleep(
+  delayMs: number,
+  tempId: string,
+  timers: Set<ReturnType<typeof setTimeout>>,
+  resolversByTempId: Map<string, () => void>
+): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      if (resolversByTempId.get(tempId) === done) resolversByTempId.delete(tempId);
+      clearTimeout(timer);
+      timers.delete(timer);
+      resolve();
+    };
+    const timer = setTimeout(done, delayMs);
+    timers.add(timer);
+    resolversByTempId.set(tempId, done);
+  });
+}

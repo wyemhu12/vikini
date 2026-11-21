@@ -7,6 +7,8 @@ import {
   formatRelativeFileDate,
   getStableFileKey,
   hydrateQueuedImagePreviews,
+  isPendingSendReadyToFlush,
+  mergeDispatchFileIds,
   mergeUploadedFileOptimistically,
   readImagePreviewDataUrl,
   revokeSafeObjectUrl,
@@ -178,5 +180,38 @@ describe("uploadPresentation (TC-SU-05, TC-SU-07)", () => {
       expect(onPreviewReady).toHaveBeenCalledWith("t-img", dataUrl);
     });
     expect(onPreviewReady).toHaveBeenCalledTimes(1);
+  });
+
+  it("TC-QS-03 & NP-7: merges SWR and synchronous completed file IDs without duplicates and gates pending-send flush", () => {
+    const f1 = makeFileItem("f-1", "2026-11-21T10:00:00.000Z");
+    const fOld = makeFileItem("f-old-sent", "2026-11-21T09:00:00.000Z");
+
+    expect(mergeDispatchFileIds([fOld, f1], ["f-1", "f-2"], ["f-old-sent"])).toEqual([
+      "f-1",
+      "f-2",
+    ]);
+    expect(mergeDispatchFileIds([], ["f-1"], [])).toEqual(["f-1"]);
+    expect(mergeDispatchFileIds([fOld], ["f-old-sent"], ["f-old-sent"])).toEqual([]);
+
+    const base = {
+      isPendingSend: true,
+      isUploadBusy: false,
+      disabled: false,
+      isStreaming: false,
+      isImageMode: false,
+      expectedConversationId: "conv-new",
+      currentConversationId: "conv-new",
+      hasPromptText: true,
+    };
+
+    expect(isPendingSendReadyToFlush(base)).toBe(true);
+    expect(isPendingSendReadyToFlush({ ...base, isUploadBusy: true })).toBe(false);
+    expect(isPendingSendReadyToFlush({ ...base, hasPromptText: false })).toBe(false);
+    expect(isPendingSendReadyToFlush({ ...base, currentConversationId: null })).toBe(false);
+    expect(isPendingSendReadyToFlush({ ...base, currentConversationId: "conv-other" })).toBe(false);
+    expect(isPendingSendReadyToFlush({ ...base, isImageMode: true })).toBe(false);
+    expect(isPendingSendReadyToFlush({ ...base, isStreaming: true })).toBe(false);
+    expect(isPendingSendReadyToFlush({ ...base, disabled: true })).toBe(false);
+    expect(isPendingSendReadyToFlush({ ...base, expectedConversationId: null })).toBe(true);
   });
 });

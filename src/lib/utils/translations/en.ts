@@ -1824,4 +1824,12 @@ export const en = {
   studioRefMaxReached: "Maximum {max} reference images",
   describeReadFailed: "Could not read this image file. Please try another.",
   templateDropPhotoHint: "Drop a photo here to apply template",
+  // Queue-to-Send While Uploading
+  pendingSendWaiting: "Uploading file — will send automatically when ready",
+  pendingSendWaitingCount: "Uploading {count} files — will send automatically when ready",
+  cancelPendingSend: "Cancel send",
+  pendingSendCancelledOnError:
+    "Auto-send cancelled because a file failed to upload. Please check and retry.",
+  sendWhenUploadsReady: "Will send automatically once uploads finish",
+  pendingSendEscHint: "Cancel queued send",
 } as const;

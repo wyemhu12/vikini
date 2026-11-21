@@ -60,6 +60,12 @@ vi.mock("../hooks/useLanguage", () => ({
         imagePlaceholder: "Describe the image you want to generate...",
         cancelImageMode: "Cancel Image Mode",
         newLine: "New line",
+        pendingSendWaiting: "Uploading file — will send automatically when ready",
+        pendingSendWaitingCount: "Uploading {count} files — will send automatically when ready",
+        cancelPendingSend: "Cancel send",
+        pendingSendCancelledOnError: "Auto-send cancelled on upload error",
+        sendWhenUploadsReady: "Will send automatically once uploads finish",
+        pendingSendEscHint: "Cancel queued send",
       };
       return dict[key] || key;
     },
@@ -69,19 +75,34 @@ vi.mock("../hooks/useLanguage", () => ({
 
 // Mock useFileUpload
 let mockIsUploading = false;
+let mockIsPreparingUpload = false;
+let mockActiveUploadCount = 0;
+let capturedUploadOpts: {
+  onUploadComplete?: (file: { id: string; conversation_id?: string; filename?: string }) => void;
+  onError?: (err: { code: string; detail?: string }) => void;
+  onConversationResolved?: (id: string) => void;
+  onSessionReset?: () => void;
+} = {};
 const mockCancelUpload = vi.fn();
 const mockDismissUploadError = vi.fn();
 vi.mock("@/lib/features/files/useFileUpload", () => ({
-  useFileUpload: () => ({
-    openFilePicker: vi.fn(),
-    cancelUpload: mockCancelUpload,
-    dismissUploadError: mockDismissUploadError,
-    isDragging: false,
-    fileInputRef: { current: null },
-    fileAccept: "image/*",
-    handleFileInputChange: vi.fn(),
-    isUploading: mockIsUploading,
-  }),
+  useFileUpload: (opts: typeof capturedUploadOpts) => {
+    capturedUploadOpts = opts;
+    const busy = mockIsPreparingUpload || mockIsUploading;
+    return {
+      openFilePicker: vi.fn(),
+      cancelUpload: mockCancelUpload,
+      dismissUploadError: mockDismissUploadError,
+      isDragging: false,
+      fileInputRef: { current: null },
+      fileAccept: "image/*",
+      handleFileInputChange: vi.fn(),
+      isUploading: mockIsUploading,
+      isPreparingUpload: mockIsPreparingUpload,
+      isUploadBusy: busy,
+      activeUploadCount: mockActiveUploadCount || (busy ? 1 : 0),
+    };
+  },
 }));
 
 // Mock useFiles
@@ -545,35 +566,246 @@ describe("InputForm", () => {
     });
   });
 
-  describe("Upload UX & Lightbox wiring (TC-SU-06, NP-3b)", () => {
-    it("NP-3b: disables Send and blocks desktop Enter while isUploading=true, yet keeps Plus menu and FilePreviewArea interactive", () => {
+  describe("Upload UX, Queue-to-Send & Lightbox wiring (TC-SU-06, TC-QS-02..08)", () => {
+    afterEach(() => {
+      mockIsUploading = false;
+      mockIsPreparingUpload = false;
+      mockActiveUploadCount = 0;
+      mockFiles.length = 0;
+    });
+
+    it("TC-QS-02 & NP-2: queues send on desktop Enter while uploading, keeps double-Enter idempotent, allows click-to-cancel via type=button, and auto-sends with merged fileIds once ready", async () => {
       mockIsUploading = true;
+      mockActiveUploadCount = 1;
       const onSubmit = vi.fn();
       Object.defineProperty(window, "innerWidth", { value: 1280, configurable: true });
 
-      try {
-        render(
-          <InputForm
-            input="Hello while uploading"
-            onChangeInput={vi.fn()}
-            onSubmit={onSubmit}
-            disabled={false}
-          />
-        );
+      const { rerender } = render(
+        <InputForm
+          input="Giải thích ảnh này"
+          onChangeInput={vi.fn()}
+          onSubmit={onSubmit}
+          conversationId="conv-1"
+          disabled={false}
+        />
+      );
 
-        const sendBtn = screen.getByRole("button", { name: "Send" });
-        expect(sendBtn).toBeDisabled();
+      // Send button is ENABLED while uploading when prompt text is present
+      const sendBtn = screen.getByRole("button", {
+        name: "Will send automatically once uploads finish",
+      });
+      expect(sendBtn).not.toBeDisabled();
 
-        const textarea = screen.getByPlaceholderText("Type a message...");
-        fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
-        expect(onSubmit).not.toHaveBeenCalled();
+      // Plus attachment button remains enabled so users can queue more files
+      expect(screen.getByRole("button", { name: "addAttachment" })).not.toBeDisabled();
 
-        // Plus attachment button remains enabled so users can queue more files
-        const addBtn = screen.getByRole("button", { name: "addAttachment" });
-        expect(addBtn).not.toBeDisabled();
-      } finally {
-        mockIsUploading = false;
-      }
+      // IME composing Enter does NOT arm pending send
+      const textarea = screen.getByPlaceholderText("Type a message...");
+      fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false, isComposing: true });
+      expect(screen.queryByTestId("pending-upload-send-banner")).not.toBeInTheDocument();
+
+      // Real desktop Enter arms pending send (does NOT submit early without the image!)
+      fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(screen.getByTestId("pending-upload-send-banner")).toBeInTheDocument();
+
+      // Pending-send action button switches to type="button" click-to-cancel
+      const pendingBtn = screen.getByTestId("composer-pending-send-button");
+      expect(pendingBtn).toHaveAttribute("type", "button");
+
+      // NP-2: Second Enter is an idempotent no-op (keeps pending send armed)
+      fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
+      expect(screen.getByTestId("pending-upload-send-banner")).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      // Upload completes (SWR mockFiles is still empty — tests synchronous recentCompletedIds merge!)
+      act(() => {
+        capturedUploadOpts.onUploadComplete?.({
+          id: "f-new",
+          conversation_id: "conv-1",
+          filename: "room.png",
+        });
+      });
+      mockIsUploading = false;
+      mockActiveUploadCount = 0;
+
+      rerender(
+        <InputForm
+          input="Giải thích ảnh này"
+          onChangeInput={vi.fn()}
+          onSubmit={onSubmit}
+          conversationId="conv-1"
+          disabled={false}
+        />
+      );
+
+      expect(mockMarkAsSent).toHaveBeenCalledWith(["f-new"]);
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      expect(onSubmit).toHaveBeenCalledWith(["f-new"]);
+      await waitFor(() => {
+        expect(screen.queryByTestId("pending-upload-send-banner")).not.toBeInTheDocument();
+      });
+    });
+
+    it("TC-QS-03: waits for New Chat null -> conv-new propagation and does NOT wipe sentFileIds via clearSentFileIds", () => {
+      mockIsPreparingUpload = true;
+      const onSubmit = vi.fn();
+      mockClearSentFileIds.mockClear();
+
+      const { rerender } = render(
+        <InputForm
+          input="Vẽ sơ đồ phòng"
+          onChangeInput={vi.fn()}
+          onSubmit={onSubmit}
+          conversationId={null}
+        />
+      );
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "Will send automatically once uploads finish" })
+      );
+      expect(screen.getByTestId("pending-upload-send-banner")).toBeInTheDocument();
+
+      act(() => {
+        capturedUploadOpts.onConversationResolved?.("conv-new");
+        capturedUploadOpts.onUploadComplete?.({
+          id: "f-1",
+          conversation_id: "conv-new",
+          filename: "floor.png",
+        });
+      });
+
+      // Upload finishes before prop conversationId updates to "conv-new" -> must wait!
+      mockIsPreparingUpload = false;
+      rerender(
+        <InputForm
+          input="Vẽ sơ đồ phòng"
+          onChangeInput={vi.fn()}
+          onSubmit={onSubmit}
+          conversationId={null}
+        />
+      );
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      // Prop conversationId updates to "conv-new" -> flushes & NEVER calls clearSentFileIds
+      rerender(
+        <InputForm
+          input="Vẽ sơ đồ phòng"
+          onChangeInput={vi.fn()}
+          onSubmit={onSubmit}
+          conversationId="conv-new"
+        />
+      );
+      expect(mockClearSentFileIds).not.toHaveBeenCalled();
+      expect(mockMarkAsSent).toHaveBeenCalledWith(["f-1"]);
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      expect(onSubmit).toHaveBeenCalledWith(["f-1"]);
+    });
+
+    it("TC-QS-05, TC-QS-06, TC-QS-07, NP-5 & NP-7: guards empty prompt, cancels cleanly on error / cancel-file / click-pending / external input change, and respects Lightbox Escape", async () => {
+      mockIsUploading = true;
+      mockFiles.push({ id: "f-existing", name: "old.png" });
+      const onSubmit = vi.fn();
+
+      // NP-7: Empty prompt + existing file while uploading keeps Send disabled & never arms
+      const { rerender } = render(
+        <InputForm
+          input="   "
+          onChangeInput={vi.fn()}
+          onSubmit={onSubmit}
+          conversationId="conv-1"
+        />
+      );
+      expect(
+        screen.getByRole("button", { name: "Will send automatically once uploads finish" })
+      ).toBeDisabled();
+      fireEvent.keyDown(screen.getByPlaceholderText("Type a message..."), {
+        key: "Enter",
+        shiftKey: false,
+      });
+      expect(screen.queryByTestId("pending-upload-send-banner")).not.toBeInTheDocument();
+
+      // Arm with real text, then click pending button -> cancels without submitting
+      rerender(
+        <InputForm
+          input="Xem ảnh này"
+          onChangeInput={vi.fn()}
+          onSubmit={onSubmit}
+          conversationId="conv-1"
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Will send automatically once uploads finish" })
+      );
+      expect(screen.getByTestId("pending-upload-send-banner")).toBeInTheDocument();
+
+      // NP-4: Opening FileLightbox sets escapeDisabled=true so Escape does not cancel pending send
+      const previewProps = capturedFilePreviewProps as {
+        onClickFile?: (file: unknown) => void;
+        onCancelUpload?: (tempId: string) => void;
+      };
+      act(() => {
+        previewProps.onClickFile?.({ id: "f-existing", filename: "old.png", kind: "image" });
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId("file-lightbox")).toBeInTheDocument();
+      });
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(screen.getByTestId("pending-upload-send-banner")).toBeInTheDocument();
+
+      // Click pending submit button (type=button) cancels cleanly
+      fireEvent.click(screen.getByTestId("composer-pending-send-button"));
+      await waitFor(() => {
+        expect(screen.queryByTestId("pending-upload-send-banner")).not.toBeInTheDocument();
+      });
+
+      // NP-5: Cancelling the only uploading file while pending cancels BEFORE upload queue clears
+      fireEvent.click(
+        screen.getByRole("button", { name: "Will send automatically once uploads finish" })
+      );
+      expect(screen.getByTestId("pending-upload-send-banner")).toBeInTheDocument();
+      act(() => {
+        previewProps.onCancelUpload?.("temp-1");
+      });
+      expect(mockCancelUpload).toHaveBeenCalledWith("temp-1");
+      mockIsUploading = false;
+      rerender(
+        <InputForm
+          input="Xem ảnh này"
+          onChangeInput={vi.fn()}
+          onSubmit={onSubmit}
+          conversationId="conv-1"
+        />
+      );
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      // TC-QS-05: Upload error cancels pending send and fires 1 toast.info
+      mockIsUploading = true;
+      rerender(
+        <InputForm
+          input="Xem ảnh này"
+          onChangeInput={vi.fn()}
+          onSubmit={onSubmit}
+          conversationId="conv-1"
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Will send automatically once uploads finish" })
+      );
+      act(() => {
+        capturedUploadOpts.onError?.({ code: "NETWORK_ERROR" });
+      });
+      expect(toast.info).toHaveBeenCalledWith("Auto-send cancelled on upload error");
+      mockIsUploading = false;
+      rerender(
+        <InputForm
+          input="Xem ảnh này"
+          onChangeInput={vi.fn()}
+          onSubmit={onSubmit}
+          conversationId="conv-1"
+        />
+      );
+      expect(onSubmit).not.toHaveBeenCalled();
     });
 
     it("wires onNavigate callback to FileLightbox when opening a file preview", async () => {

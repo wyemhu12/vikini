@@ -9,7 +9,12 @@ import { logger } from "@/lib/utils/logger";
 import { shouldClearQueue } from "@/lib/features/chat/draftConversation";
 import type { FileItem } from "@/types/files";
 import { useFileStore } from "./store";
-import { extractPastedFiles, hydrateQueuedImagePreviews } from "./uploadPresentation";
+import {
+  createAbortableSleep,
+  hydrateQueuedImagePreviews,
+  safeAbortXhr,
+} from "./uploadPresentation";
+import { useGlobalFileDropPaste } from "./useGlobalFileDropPaste";
 import {
   buildQueuedUploadItems,
   FILE_ACCEPT,
@@ -28,6 +33,8 @@ interface UseFileUploadOptions {
   ensureConversationId?: () => Promise<string>;
   isSelfInitiatedUploadRef?: React.MutableRefObject<boolean>;
   onError?: (error: FileUploadError) => void;
+  onConversationResolved?: (conversationId: string) => void;
+  onSessionReset?: () => void;
 }
 
 export function useFileUpload({
@@ -37,21 +44,29 @@ export function useFileUpload({
   ensureConversationId,
   isSelfInitiatedUploadRef,
   onError,
+  onConversationResolved,
+  onSessionReset,
 }: UseFileUploadOptions) {
-  const isUploading = useFileStore((s) =>
-    s.uploadQueue.some(
-      (q) => q.status === "queued" || q.status === "uploading" || q.status === "processing"
-    )
+  const activeUploadCount = useFileStore(
+    (s) =>
+      s.uploadQueue.filter(
+        (q) => q.status === "queued" || q.status === "uploading" || q.status === "processing"
+      ).length
   );
+  const isUploading = activeUploadCount > 0;
 
-  const [isDragging, setIsDragging] = useState(false);
-  const dragCounter = useRef(0);
+  const [isPreparingUpload, setIsPreparingUpload] = useState(false);
+  const preparingCountRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const prevConversationIdRef = useRef<string | null>(conversationId);
   const conversationIdRef = useRef<string | null>(conversationId);
-  const onUploadCompleteRef = useRef(onUploadComplete);
-  const ensureConversationIdRef = useRef(ensureConversationId);
-  const onErrorRef = useRef(onError);
+  const callbacksRef = useRef({
+    onUploadComplete,
+    ensureConversationId,
+    onError,
+    onConversationResolved,
+    onSessionReset,
+  });
   const isUnmountedRef = useRef(false);
   const uploadSessionIdRef = useRef(0);
   const activeXhrsRef = useRef<Map<string, XMLHttpRequest>>(new Map());
@@ -64,25 +79,25 @@ export function useFileUpload({
   }, [conversationId]);
 
   useEffect(() => {
-    onUploadCompleteRef.current = onUploadComplete;
-    ensureConversationIdRef.current = ensureConversationId;
-    onErrorRef.current = onError;
-  }, [onUploadComplete, ensureConversationId, onError]);
+    callbacksRef.current = {
+      onUploadComplete,
+      ensureConversationId,
+      onError,
+      onConversationResolved,
+      onSessionReset,
+    };
+  }, [onUploadComplete, ensureConversationId, onError, onConversationResolved, onSessionReset]);
 
   const cancelActiveUploads = useCallback(() => {
     uploadSessionIdRef.current += 1;
+    preparingCountRef.current = 0;
+    if (!isUnmountedRef.current) setIsPreparingUpload(false);
     cancelledTempIdsRef.current.clear();
     for (const timer of timersRef.current) clearTimeout(timer);
     timersRef.current.clear();
     for (const resolveSleep of sleepResolversByTempIdRef.current.values()) resolveSleep();
     sleepResolversByTempIdRef.current.clear();
-    for (const xhr of activeXhrsRef.current.values()) {
-      try {
-        xhr.abort();
-      } catch {
-        // Ignore abort errors on already-settled XHRs
-      }
-    }
+    for (const xhr of activeXhrsRef.current.values()) safeAbortXhr(xhr);
     activeXhrsRef.current.clear();
   }, []);
 
@@ -103,35 +118,18 @@ export function useFileUpload({
     timersRef.current.add(timer);
   }, []);
 
-  const abortableSleep = useCallback((delayMs: number, tempId: string): Promise<void> => {
-    return new Promise((resolve) => {
-      let settled = false;
-      const done = () => {
-        if (settled) return;
-        settled = true;
-        if (sleepResolversByTempIdRef.current.get(tempId) === done) {
-          sleepResolversByTempIdRef.current.delete(tempId);
-        }
-        clearTimeout(timer);
-        timersRef.current.delete(timer);
-        resolve();
-      };
-      const timer = setTimeout(done, delayMs);
-      timersRef.current.add(timer);
-      sleepResolversByTempIdRef.current.set(tempId, done);
-    });
-  }, []);
+  const abortableSleep = useCallback(
+    (delayMs: number, tempId: string): Promise<void> =>
+      createAbortableSleep(delayMs, tempId, timersRef.current, sleepResolversByTempIdRef.current),
+    []
+  );
 
   const cancelUpload = useCallback((tempId: string) => {
     cancelledTempIdsRef.current.add(tempId);
     const xhr = activeXhrsRef.current.get(tempId);
     if (xhr) {
       activeXhrsRef.current.delete(tempId);
-      try {
-        xhr.abort();
-      } catch {
-        // Ignore abort errors on already-settled XHR
-      }
+      safeAbortXhr(xhr);
     }
     const wakeSleep = sleepResolversByTempIdRef.current.get(tempId);
     if (wakeSleep) {
@@ -158,37 +156,80 @@ export function useFileUpload({
       const sessionId = uploadSessionIdRef.current;
       const isStale = () => isUnmountedRef.current || uploadSessionIdRef.current !== sessionId;
 
-      let targetConvId = conversationIdRef.current;
-      if (!targetConvId && ensureConversationIdRef.current) {
-        if (isSelfInitiatedUploadRef) isSelfInitiatedUploadRef.current = true;
-        try {
-          targetConvId = await ensureConversationIdRef.current();
-        } catch (err: unknown) {
-          if (isSelfInitiatedUploadRef) isSelfInitiatedUploadRef.current = false;
-          logger.error("[useFileUpload] Failed to initialize conversation:", err);
-          if (!isStale()) {
-            onErrorRef.current?.({
-              code: "CONVERSATION_INIT_FAILED",
-              detail: err instanceof Error ? err.message : undefined,
-            });
-          }
-          return;
-        }
-      }
-      if (isStale() || !targetConvId) return;
-
       const queuedItems = buildQueuedUploadItems(fileArray, (validationError) => {
         logger.warn("[useFileUpload] File rejected by client validation:", validationError);
-        onErrorRef.current?.(validationError);
+        callbacksRef.current.onError?.(validationError);
       });
       if (queuedItems.length === 0) return;
 
+      // Enqueue & hydrate previews synchronously BEFORE any await so isUploadBusy === true at T0
       useFileStore.getState().enqueueFiles(queuedItems);
       hydrateQueuedImagePreviews(
         queuedItems,
         (tempId) => !isStale() && !cancelledTempIdsRef.current.has(tempId),
         (tempId, previewUrl) => useFileStore.getState().setPreviewUrl(tempId, previewUrl)
       );
+
+      const removeBatchFromQueue = () => {
+        for (const item of queuedItems) useFileStore.getState().removeFromQueue(item.tempId);
+      };
+
+      let targetConvId = conversationIdRef.current;
+      if (!targetConvId && callbacksRef.current.ensureConversationId) {
+        if (isSelfInitiatedUploadRef) isSelfInitiatedUploadRef.current = true;
+        preparingCountRef.current += 1;
+        setIsPreparingUpload(true);
+        try {
+          targetConvId = await callbacksRef.current.ensureConversationId();
+          // Check isStale() FIRST before switchedAway / !targetConvId so stale/unmounted
+          // sessions never reset a newer conversation or touch store state after unmount.
+          if (isStale()) {
+            if (!isUnmountedRef.current) removeBatchFromQueue();
+            return;
+          }
+          const switchedAway = Boolean(
+            targetConvId && conversationIdRef.current && conversationIdRef.current !== targetConvId
+          );
+          if (switchedAway) {
+            if (isSelfInitiatedUploadRef) isSelfInitiatedUploadRef.current = false;
+            callbacksRef.current.onSessionReset?.();
+            removeBatchFromQueue();
+            return;
+          }
+          if (!targetConvId) {
+            if (isSelfInitiatedUploadRef) isSelfInitiatedUploadRef.current = false;
+            callbacksRef.current.onError?.({ code: "CONVERSATION_INIT_FAILED" });
+            removeBatchFromQueue();
+            return;
+          }
+        } catch (err: unknown) {
+          logger.error("[useFileUpload] Failed to initialize conversation:", err);
+          if (!isStale()) {
+            if (isSelfInitiatedUploadRef) isSelfInitiatedUploadRef.current = false;
+            callbacksRef.current.onError?.({
+              code: "CONVERSATION_INIT_FAILED",
+              detail: err instanceof Error ? err.message : undefined,
+            });
+            removeBatchFromQueue();
+          } else if (!isUnmountedRef.current) {
+            removeBatchFromQueue();
+          }
+          return;
+        } finally {
+          if (!isStale()) {
+            preparingCountRef.current = Math.max(0, preparingCountRef.current - 1);
+            if (!isUnmountedRef.current && preparingCountRef.current === 0) {
+              setIsPreparingUpload(false);
+            }
+          }
+        }
+      } else if (!targetConvId) {
+        callbacksRef.current.onError?.({ code: "CONVERSATION_INIT_FAILED" });
+        removeBatchFromQueue();
+        return;
+      }
+
+      callbacksRef.current.onConversationResolved?.(targetConvId);
 
       for (const item of queuedItems) {
         if (isStale()) break;
@@ -221,24 +262,33 @@ export function useFileUpload({
             }
           },
           onSuccess: (uploadedFile) => {
-            if (uploadedFile && !isUnmountedRef.current) {
+            if (isStale()) {
+              if (!isUnmountedRef.current) useFileStore.getState().removeFromQueue(item.tempId);
+              return;
+            }
+            if (uploadedFile) {
               const normalizedFile: FileItem = uploadedFile.conversation_id
                 ? uploadedFile
                 : { ...uploadedFile, conversation_id: targetConvId };
               useFileStore.getState().completeUpload(item.tempId, normalizedFile);
-              onUploadCompleteRef.current?.(normalizedFile);
+              callbacksRef.current.onUploadComplete?.(normalizedFile);
               scheduleManagedTimeout(
                 () => useFileStore.getState().clearRecentlyCompleted(normalizedFile.id),
                 RECENTLY_COMPLETED_TTL_MS
               );
             } else {
+              logger.error(
+                "[useFileUpload] Upload returned HTTP 200 without file payload:",
+                item.filename
+              );
+              callbacksRef.current.onError?.({ code: "UPLOAD_FAILED", filename: item.filename });
               useFileStore.getState().removeFromQueue(item.tempId);
             }
           },
         });
 
         if (result.outcome === "stale") {
-          useFileStore.getState().removeFromQueue(item.tempId);
+          if (!isUnmountedRef.current) useFileStore.getState().removeFromQueue(item.tempId);
           break;
         }
         if (result.outcome === "cancelled") {
@@ -248,10 +298,11 @@ export function useFileUpload({
         }
         if (result.outcome === "error") {
           logger.error("[useFileUpload] File upload failed:", result.error);
+          // Notify onError BEFORE setStatus("error") so pending-send cancels before isUploadBusy drops
+          callbacksRef.current.onError?.(result.error);
           useFileStore
             .getState()
             .setStatus(item.tempId, "error", result.error.detail || result.error.code);
-          onErrorRef.current?.(result.error);
           scheduleManagedTimeout(() => useFileStore.getState().removeFromQueue(item.tempId), 5000);
         }
       }
@@ -267,53 +318,7 @@ export function useFileUpload({
     [uploadFiles]
   );
 
-  useEffect(() => {
-    if (disabled) return;
-    const onDragEnter = (e: DragEvent) => {
-      e.preventDefault();
-      dragCounter.current++;
-      if (e.dataTransfer?.types.includes("Files")) setIsDragging(true);
-    };
-    const onDragLeave = (e: DragEvent) => {
-      e.preventDefault();
-      dragCounter.current--;
-      if (dragCounter.current <= 0) {
-        dragCounter.current = 0;
-        setIsDragging(false);
-      }
-    };
-    const onDragOver = (e: DragEvent) => e.preventDefault();
-    const onDrop = (e: DragEvent) => {
-      e.preventDefault();
-      dragCounter.current = 0;
-      setIsDragging(false);
-      if (e.dataTransfer?.files.length) void uploadFiles(e.dataTransfer.files);
-    };
-
-    window.addEventListener("dragenter", onDragEnter);
-    window.addEventListener("dragleave", onDragLeave);
-    window.addEventListener("dragover", onDragOver);
-    window.addEventListener("drop", onDrop);
-    return () => {
-      window.removeEventListener("dragenter", onDragEnter);
-      window.removeEventListener("dragleave", onDragLeave);
-      window.removeEventListener("dragover", onDragOver);
-      window.removeEventListener("drop", onDrop);
-    };
-  }, [disabled, uploadFiles]);
-
-  useEffect(() => {
-    if (disabled) return;
-    const onPaste = (e: ClipboardEvent) => {
-      const pastedFiles = extractPastedFiles(e.clipboardData?.items);
-      if (pastedFiles.length > 0) {
-        e.preventDefault();
-        void uploadFiles(pastedFiles);
-      }
-    };
-    window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
-  }, [disabled, uploadFiles]);
+  const { isDragging } = useGlobalFileDropPaste({ disabled, onFiles: uploadFiles });
 
   useEffect(() => {
     const prevId = prevConversationIdRef.current;
@@ -321,6 +326,7 @@ export function useFileUpload({
     if (shouldClearQueue(prevId, conversationId, isSelfInitiated)) {
       cancelActiveUploads();
       useFileStore.getState().clearQueue();
+      callbacksRef.current.onSessionReset?.();
     }
     if (isSelfInitiatedUploadRef) isSelfInitiatedUploadRef.current = false;
     prevConversationIdRef.current = conversationId;
@@ -336,5 +342,8 @@ export function useFileUpload({
     fileAccept: FILE_ACCEPT,
     handleFileInputChange,
     isUploading,
+    isPreparingUpload,
+    isUploadBusy: isPreparingUpload || isUploading,
+    activeUploadCount,
   };
 }
