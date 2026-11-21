@@ -117,6 +117,23 @@ describe("useBeatsAutoOpen", () => {
     rerender({ ...base, chapterId: "ch-1", chapterContent: PROSE });
     expect(result.current.beatsOpen).toBe(true);
   });
+
+  it("TC-W4-01: keeps beats collapsed by default when disableAutoOpen=true (mobile < 768px) and responds to Desktop <-> Mobile resize", () => {
+    const { result, rerender } = setup({ chapterContent: "", disableAutoOpen: true });
+    expect(result.current.beatsOpen).toBe(false);
+
+    // Resizing to Desktop (>= 768px) without manual choice auto-opens empty chapter
+    rerender({ ...base, chapterContent: "", disableAutoOpen: false });
+    expect(result.current.beatsOpen).toBe(true);
+
+    // Resizing back to Mobile (< 768px) collapses again when no manual choice was made
+    rerender({ ...base, chapterContent: "", disableAutoOpen: true });
+    expect(result.current.beatsOpen).toBe(false);
+
+    // Manual toggle on Mobile persists
+    act(() => result.current.setBeatsOpen(true));
+    expect(result.current.beatsOpen).toBe(true);
+  });
 });
 
 describe("resolveStoryStateSettled", () => {

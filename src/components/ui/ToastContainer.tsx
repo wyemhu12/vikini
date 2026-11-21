@@ -1,13 +1,24 @@
 "use client";
 
-import { useToastStore, Toast } from "@/lib/store/toastStore";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect } from "react";
+import { useToastStore, type Toast } from "@/lib/store/toastStore";
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 export default function ToastContainer() {
-  const { toasts, removeToast } = useToastStore();
+  const { toasts, removeToast, pauseToast, resumeToast, setVisibilityPaused } = useToastStore();
   const { t } = useLanguage();
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      setVisibilityPaused(document.hidden);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      setVisibilityPaused(false);
+    };
+  }, [setVisibilityPaused]);
 
   return (
     <div
@@ -16,52 +27,67 @@ export default function ToastContainer() {
       aria-label={t("notifications")}
       aria-live="polite"
     >
-      <AnimatePresence>
-        {toasts.map((toast) => (
-          <ToastItem key={toast.id} toast={toast} onRemove={removeToast} />
-        ))}
-      </AnimatePresence>
+      {toasts.map((item) => (
+        <ToastItem
+          key={item.id}
+          toast={item}
+          onRemove={removeToast}
+          onPause={pauseToast}
+          onResume={resumeToast}
+        />
+      ))}
     </div>
   );
 }
 
-function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) => void }) {
+interface ToastItemProps {
+  toast: Toast;
+  onRemove: (id: string) => void;
+  onPause: (id: string) => void;
+  onResume: (id: string) => void;
+}
+
+function ToastItem({ toast, onRemove, onPause, onResume }: ToastItemProps) {
   const { t } = useLanguage();
   const icons = {
-    success: <CheckCircle className="w-5 h-5 text-(--success)" />,
-    error: <AlertCircle className="w-5 h-5 text-(--danger)" />,
-    info: <Info className="w-5 h-5 text-(--accent)" />,
-    warning: <AlertTriangle className="w-5 h-5 text-(--warning)" />,
+    success: <CheckCircle aria-hidden className="w-5 h-5 shrink-0 text-(--success)" />,
+    error: <AlertCircle aria-hidden className="w-5 h-5 shrink-0 text-(--danger)" />,
+    info: <Info aria-hidden className="w-5 h-5 shrink-0 text-(--accent)" />,
+    warning: <AlertTriangle aria-hidden className="w-5 h-5 shrink-0 text-(--warning)" />,
   };
 
-  const colors = {
-    success: "bg-(--success)/10 border-(--success)/30 text-(--text)",
-    error: "bg-(--danger)/10 border-(--danger)/30 text-(--text)",
-    info: "bg-(--accent)/10 border-(--accent)/30 text-(--text)",
-    warning: "bg-(--warning)/10 border-(--warning)/30 text-(--text)",
+  const borders = {
+    success: "border-(--success)/40",
+    error: "border-(--danger)/40",
+    info: "border-(--accent)/40",
+    warning: "border-(--warning)/40",
   };
 
   return (
-    <motion.div
+    <div
       role="alert"
-      initial={{ opacity: 0, x: 50, scale: 0.9 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 20, scale: 0.95 }}
-      transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-      className={`
-        pointer-events-auto flex items-start gap-3 p-4 rounded-xl border backdrop-blur-xl shadow-2xl min-w-72 max-w-md
-        ${colors[toast.type]}
-      `}
+      onMouseEnter={() => onPause(toast.id)}
+      onMouseLeave={() => onResume(toast.id)}
+      onFocus={() => onPause(toast.id)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          onResume(toast.id);
+        }
+      }}
+      className={`toast-enter pointer-events-auto flex items-start gap-3 p-4 rounded-xl border bg-(--surface) text-(--text) shadow-(--shadow-elevated) w-[min(24rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] ${borders[toast.type]}`}
     >
       <div className="mt-0.5">{icons[toast.type]}</div>
-      <div className="flex-1 text-sm font-medium leading-relaxed">{toast.message}</div>
+      <div className="flex-1 min-w-0 break-words text-sm font-medium leading-relaxed">
+        {toast.message}
+      </div>
       <button
+        type="button"
         onClick={() => onRemove(toast.id)}
         aria-label={t("dismissNotification")}
-        className="mt-0.5 text-(--muted) hover:text-(--text) transition-colors rounded-md focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+        className="mt-0.5 p-1 -mr-1 text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors rounded-md focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
       >
-        <X className="w-4 h-4" />
+        <X aria-hidden className="w-4 h-4" />
       </button>
-    </motion.div>
+    </div>
   );
 }

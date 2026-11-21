@@ -99,7 +99,7 @@ export default function ControlPanelPromptSection({
           aria-pressed={promptMode === "free"}
           onClick={() => setPromptMode("free")}
           className={cn(
-            "relative z-10 flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200",
+            "relative z-10 flex-1 min-h-10 md:min-h-0 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
             promptMode === "free" ? "text-(--text)" : "text-(--muted) hover:text-(--text)"
           )}
         >
@@ -110,7 +110,7 @@ export default function ControlPanelPromptSection({
           aria-pressed={promptMode === "guided"}
           onClick={() => setPromptMode("guided")}
           className={cn(
-            "relative z-10 flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200",
+            "relative z-10 flex-1 min-h-10 md:min-h-0 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
             promptMode === "guided" ? "text-(--accent)" : "text-(--muted) hover:text-(--text)"
           )}
         >
@@ -189,7 +189,7 @@ export default function ControlPanelPromptSection({
                     const separator = prompt.trim() ? ", " : "";
                     setPrompt(prompt.trim() + separator + t(tagKey));
                   }}
-                  className="px-2.5 py-1 rounded-full text-xs font-medium border border-(--line) bg-(--raised) hover:bg-(--soft) hover:border-(--accent) text-(--muted) hover:text-(--text) transition-colors"
+                  className="px-2.5 py-1.5 min-h-9 md:min-h-0 md:py-1 rounded-full text-xs font-medium border border-(--line) bg-(--raised) hover:bg-(--soft) hover:border-(--accent) text-(--muted) hover:text-(--text) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                 >
                   {t(tagKey)}
                 </button>

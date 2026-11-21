@@ -51,9 +51,9 @@ export const BubbleAvatar = React.memo(function BubbleAvatar({
       className={`relative flex ${size === "sm" ? "h-6 w-6 rounded-md" : "h-8 w-8 rounded-lg"} shrink-0 select-none items-center justify-center border text-xs font-black tracking-tighter shadow-sm overflow-hidden transition-[border-color,background-color,box-shadow] duration-300 ${
         isBot
           ? isLoading
-            ? "border-(--accent)/30 bg-(--accent)/10 shadow-[0_0_15px_rgba(var(--accent-rgb,59,130,246),0.1)]"
+            ? "border-(--accent)/30 bg-(--accent)/10 shadow-[0_0_15px_color-mix(in_oklab,var(--accent)_15%,transparent)]"
             : isActivelyThinking
-              ? "border-(--accent)/40 bg-(--surface) text-(--text) shadow-[0_0_15px_rgba(var(--accent-rgb,59,130,246),0.2)]"
+              ? "border-(--accent)/40 bg-(--surface) text-(--text) shadow-[0_0_15px_color-mix(in_oklab,var(--accent)_25%,transparent)]"
               : isStreaming
                 ? "border-(--accent)/30 bg-(--surface) text-(--text)"
                 : "border-(--line) bg-(--surface) text-(--text)"

@@ -42,7 +42,7 @@ describe("Canvas Component - Keyboard Focus & A11y (A11Y-01, TC-GAL-03)", () => 
     vi.clearAllMocks();
   });
 
-  it("renders overlay with group-focus-within:opacity-100 for keyboard navigation", () => {
+  it("renders responsive mobile-visible footer and desktop hover/focus-within overlay (Loại C)", () => {
     const { container } = render(
       <Canvas
         images={[mockImage]}
@@ -53,15 +53,17 @@ describe("Canvas Component - Keyboard Focus & A11y (A11Y-01, TC-GAL-03)", () => 
       />
     );
 
-    // Find the overlay element containing controls
-    const overlay = container.querySelector(".group-focus-within\\:opacity-100");
+    // Responsive controls bar: visible on mobile, overlay on md+ hover/focus-within
+    const overlay = container.querySelector(".md\\:group-focus-within\\:opacity-100");
     expect(overlay).not.toBeNull();
-    expect(overlay?.className).toContain("opacity-0");
-    expect(overlay?.className).toContain("group-hover:opacity-100");
-    expect(overlay?.className).toContain("group-focus-within:opacity-100");
+    expect(overlay?.className).toContain("opacity-100");
+    expect(overlay?.className).toContain("md:opacity-0");
+    expect(overlay?.className).toContain("md:group-hover:opacity-100");
+    expect(overlay?.className).toContain("md:group-focus-within:opacity-100");
+    expect(overlay?.className).toContain("md:bg-transparent");
   });
 
-  it("ensures top badges and bottom controls slide into view on focus-within", () => {
+  it("ensures top badges and bottom controls slide into view on desktop focus-within (Loại C)", () => {
     const { container } = render(
       <Canvas
         images={[mockImage]}
@@ -72,16 +74,20 @@ describe("Canvas Component - Keyboard Focus & A11y (A11Y-01, TC-GAL-03)", () => 
       />
     );
 
-    const translatedElements = container.querySelectorAll(".group-focus-within\\:translate-y-0");
+    const translatedElements = container.querySelectorAll(
+      ".md\\:group-focus-within\\:translate-y-0"
+    );
     expect(translatedElements.length).toBeGreaterThanOrEqual(2);
 
     // Top metadata badges container
-    const topBadges = container.querySelector(".-translate-y-2.group-focus-within\\:translate-y-0");
+    const topBadges = container.querySelector(
+      ".md\\:-translate-y-2.md\\:group-focus-within\\:translate-y-0"
+    );
     expect(topBadges).not.toBeNull();
 
     // Bottom controls container
     const bottomControls = container.querySelector(
-      ".translate-y-4.group-focus-within\\:translate-y-0"
+      ".md\\:translate-y-4.md\\:group-focus-within\\:translate-y-0"
     );
     expect(bottomControls).not.toBeNull();
   });
@@ -235,5 +241,29 @@ describe("Canvas Component - Keyboard Focus & A11y (A11Y-01, TC-GAL-03)", () => 
       "href",
       "/gallery"
     );
+  });
+
+  it("TC-W3-04: template preview images use empty alt and generating text uses text-(--muted)", () => {
+    const { container, unmount } = render(
+      <Canvas
+        images={[]}
+        generating={false}
+        onRemix={mockOnRemix}
+        onDelete={mockOnDelete}
+        onSelectTemplate={mockOnSelectTemplate}
+      />
+    );
+    const templateImgs = container.querySelectorAll("button img");
+    expect(templateImgs.length).toBeGreaterThan(0);
+    for (const img of templateImgs) {
+      expect(img.getAttribute("alt")).toBe("");
+    }
+    unmount();
+
+    const { container: loadingContainer } = render(
+      <Canvas images={[]} generating={true} onRemix={mockOnRemix} onDelete={mockOnDelete} />
+    );
+    expect(loadingContainer.innerHTML).toContain("text-(--muted)");
+    expect(loadingContainer.innerHTML).not.toContain("text-muted-foreground");
   });
 });

@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 const Dialog = DialogPrimitive.Root;
 
@@ -16,12 +17,15 @@ const DialogClose = DialogPrimitive.Close;
 
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay> & { instant?: boolean }
+>(({ className, instant = false, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-(--z-modal) bg-(--overlay) backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-(--z-modal) bg-(--overlay) backdrop-blur-sm",
+      instant
+        ? "animate-none duration-0"
+        : "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
@@ -31,26 +35,47 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed left-[50%] top-[50%] z-(--z-modal) grid w-[calc(100vw-2rem)] sm:w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto overflow-x-hidden translate-x-[-50%] translate-y-[-50%] gap-4 rounded-(--radius) border border-(--line) bg-(--surface) text-(--text) p-6 shadow-2xl ring-1 ring-(--accent)/10 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
-        className
-      )}
-      {...props}
-    >
-      {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 z-20 rounded-md p-1 text-(--muted) opacity-70 transition-opacity hover:opacity-100 hover:text-(--text) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) disabled:pointer-events-none">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
-  </DialogPortal>
-));
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    instant?: boolean;
+    hideCloseButton?: boolean;
+    closeLabel?: string;
+  }
+>(
+  (
+    { className, children, instant = false, hideCloseButton = false, closeLabel, ...props },
+    ref
+  ) => {
+    const { t } = useLanguage();
+    const resolvedCloseLabel = closeLabel ?? t("close");
+    return (
+      <DialogPortal>
+        <DialogOverlay instant={instant} />
+        <DialogPrimitive.Content
+          ref={ref}
+          className={cn(
+            "fixed left-[50%] top-[50%] z-(--z-modal) grid w-[calc(100vw-2rem)] sm:w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto overflow-x-hidden translate-x-[-50%] translate-y-[-50%] gap-4 rounded-(--radius) border border-(--line) bg-(--surface) text-(--text) p-6 shadow-(--shadow-elevated) ring-1 ring-(--accent)/10",
+            instant
+              ? "animate-none duration-0"
+              : "duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+            className
+          )}
+          {...props}
+        >
+          {children}
+          {!hideCloseButton && (
+            <DialogPrimitive.Close
+              aria-label={resolvedCloseLabel}
+              className="absolute right-4 top-4 z-20 rounded-md p-1 text-(--muted) opacity-70 transition-opacity hover:opacity-100 hover:text-(--text) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) disabled:pointer-events-none"
+            >
+              <X aria-hidden="true" className="h-4 w-4" />
+              <span className="sr-only">{resolvedCloseLabel}</span>
+            </DialogPrimitive.Close>
+          )}
+        </DialogPrimitive.Content>
+      </DialogPortal>
+    );
+  }
+);
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

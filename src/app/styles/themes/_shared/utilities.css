@@ -87,10 +87,11 @@
 }
 
 .chat-markdown code:not(pre code) {
-  @apply rounded-md bg-(--raised) px-1.5 py-0.5 font-mono text-[0.85em] text-(--accent);
+  @apply rounded-md bg-(--raised) px-1.5 py-0.5 font-mono text-(--accent);
+  font-size: max(0.75rem, 0.85em);
 }
 
-.chat-markdown pre {
+.chat-markdown > pre {
   @apply my-6;
 }
 
@@ -111,7 +112,7 @@
 
 /* Typing Dots Animation */
 .typing-dots span {
-  @apply inline-block w-1.5 h-1.5 rounded-full bg-current opacity-60;
+  @apply inline-block w-1.5 h-1.5 rounded-full opacity-60;
   animation: typing 1.4s infinite ease-in-out both;
 }
 
@@ -177,9 +178,11 @@
   animation: wiggle 0.3s ease-in-out;
 }
 
-/* Trigger wiggle on parent hover */
-.group-del-hover:hover .wiggle-on-hover {
-  animation: wiggle 0.4s ease-in-out;
+/* Trigger wiggle on parent hover (fine pointer only) */
+@media (hover: hover) and (pointer: fine) {
+  .group-del-hover:hover .wiggle-on-hover {
+    animation: wiggle 0.4s ease-in-out;
+  }
 }
 
 @keyframes wiggle {
@@ -201,13 +204,34 @@
    ACCESSIBILITY - Reduced Motion
    =========================================== */
 @media (prefers-reduced-motion: reduce) {
+  html,
+  body {
+    scroll-behavior: auto !important;
+  }
+
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
+    --vikini-enter-translate-x: 0;
+    --vikini-enter-translate-y: 0;
+    --vikini-enter-scale: 1;
+    --vikini-exit-translate-x: 0;
+    --vikini-exit-translate-y: 0;
+    --vikini-exit-scale: 1;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  }
+
+  .animate-bounce-once,
+  .animate-wiggle,
+  .wiggle-on-hover,
+  .animate-voice-bar,
+  .typing-dots span {
+    animation-duration: 0.01ms !important;
+  }
+
+  .press-scale:active,
+  .hover-lift:hover {
+    transform: none !important;
   }
 }
 
@@ -241,13 +265,15 @@
   transform: scale(0.97);
 }
 
-/* Subtle hover elevation */
+/* Subtle hover elevation (fine pointer only) */
 .hover-lift {
   transition: transform 200ms ease;
 }
 
-.hover-lift:hover {
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .hover-lift:hover {
+    transform: translateY(-1px);
+  }
 }
 
 /* Tabular figures for data/numbers */
@@ -279,8 +305,10 @@
   transform-origin: center;
 }
 
-.sidebar-accent-bar:hover::before {
-  transform: scaleY(1);
+@media (hover: hover) and (pointer: fine) {
+  .sidebar-accent-bar:hover::before {
+    transform: scaleY(1);
+  }
 }
 
 /* Permanently visible accent bar for active state */
@@ -313,7 +341,7 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--line);
+  background: var(--faint);
 }
 
 @supports not selector(::-webkit-scrollbar) {

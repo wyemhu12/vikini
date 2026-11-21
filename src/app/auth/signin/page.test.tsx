@@ -1,14 +1,22 @@
 // src/app/auth/signin/page.test.tsx
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import SignInPage from "./page";
 
 const mockSignIn = vi.fn();
+const mockToastError = vi.fn();
 const mockT = vi.fn((key: string) => key);
 
 vi.mock("./actions", () => ({
   handleGoogleSignIn: () => mockSignIn(),
+}));
+
+vi.mock("@/lib/store/toastStore", () => ({
+  toast: {
+    error: (...args: unknown[]) => mockToastError(...args),
+    success: vi.fn(),
+  },
 }));
 
 vi.mock("../../features/chat/hooks/useLanguage", () => ({
@@ -24,11 +32,13 @@ const RAW_STYLE = /(#[0-9a-fA-F]{3,8}\b|text-white|bg-white|text-\[10px\]|(^|\s)
 
 describe("SignInPage (6B)", () => {
   beforeEach(() => {
-    mockSignIn.mockClear();
+    mockSignIn.mockReset();
+    mockToastError.mockReset();
     mockT.mockClear();
   });
 
   it("states encryption at rest, never end-to-end, and signs in with Google (TC-03)", () => {
+    mockSignIn.mockResolvedValue(undefined);
     render(<SignInPage />);
     expect(screen.getByText("encryptedAtRest")).toBeInTheDocument();
     expect(mockT).not.toHaveBeenCalledWith("encryptedE2E");
@@ -46,5 +56,31 @@ describe("SignInPage (6B)", () => {
     );
     expect(classes.filter((c) => RAW_STYLE.test(c))).toEqual([]);
     expect(container.querySelector("style")).toBeNull();
+  });
+
+  it("NP-3: disables button while signing in, shows toast.error on failure, and ignores NEXT_REDIRECT", async () => {
+    // 1. Real error shows toast and unlocks button
+    mockSignIn.mockRejectedValueOnce(new Error("OAuth down"));
+    render(<SignInPage />);
+
+    const btn = screen.getByRole("button", { name: "signInWithGoogle" });
+    fireEvent.click(btn);
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute("aria-busy", "true");
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("signInFailed");
+      expect(btn).not.toBeDisabled();
+    });
+
+    // 2. NEXT_REDIRECT control exception must NOT fire toast.error
+    mockToastError.mockClear();
+    mockSignIn.mockRejectedValueOnce({ digest: "NEXT_REDIRECT;replace;/;307" });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(mockSignIn).toHaveBeenCalledTimes(2);
+    });
+    expect(mockToastError).not.toHaveBeenCalled();
   });
 });

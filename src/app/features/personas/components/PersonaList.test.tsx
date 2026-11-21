@@ -14,6 +14,8 @@ const DICT: Record<string, string> = {
   personaDelete: "Xóa Persona",
   messageMoreActions: "Thêm thao tác",
   personaNoPersonas: "Chưa có persona nào.",
+  personaMyPersonas: "Persona của bạn",
+  toneFriendly: "Thân thiện",
 };
 
 vi.mock("../../chat/hooks/useLanguage", () => ({
@@ -109,5 +111,11 @@ describe("PersonaList (6A)", () => {
     expect(props.onPreview).toHaveBeenCalledWith(PREMADE);
     expect(props.onSelect).not.toHaveBeenCalled();
     expect(within(cards[0]).getAllByRole("button")).toHaveLength(1);
+  });
+
+  it("TC-W3-04: always renders h2 heading even with zero premade personas and localizes tone badge", () => {
+    setup({ personas: [MINE] });
+    expect(screen.getByRole("heading", { level: 2, name: "Persona của bạn" })).toBeInTheDocument();
+    expect(screen.getByText("Thân thiện")).toBeInTheDocument();
   });
 });

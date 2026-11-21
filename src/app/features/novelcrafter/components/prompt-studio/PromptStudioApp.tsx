@@ -1,10 +1,9 @@
 // /app/features/novelcrafter/components/prompt-studio/PromptStudioApp.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { signOut, useSession } from "next-auth/react";
+import React, { useEffect, useMemo, useState } from "react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import ToastContainer from "@/components/ui/ToastContainer";
 import { useCommandPaletteStore } from "@/lib/store/commandPaletteStore";
 import { useLayoutStore } from "@/lib/store/layoutStore";
 import { useAllowedModels } from "../../../chat/components/hooks/useAllowedModels";
@@ -46,6 +45,12 @@ export default function PromptStudioApp() {
   const togglePanel = useLayoutStore((s) => s.togglePanel);
   const openPalette = useCommandPaletteStore((s) => s.open);
 
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      void signIn();
+    }
+  }, [status]);
+
   const previewSource = useMemo(
     () => ({
       storyBible: story.storyState.storyBible,
@@ -67,6 +72,17 @@ export default function PromptStudioApp() {
     ]
   );
 
+  if (status === "loading") {
+    return (
+      <div className="h-dvh flex items-center justify-center bg-(--bg) text-(--text)">
+        {t("loading")}
+      </div>
+    );
+  }
+  if (!isAuthed) {
+    return null;
+  }
+
   const currentStoryObj = story.stories.find((s) => s.id === story.validStoryId);
   const currentTitle = currentStoryObj?.title || t("novelcrafterDefaultStoryTitle");
 
@@ -74,11 +90,10 @@ export default function PromptStudioApp() {
     <div className="h-dvh w-full bg-(--bg) text-(--text) overflow-hidden relative font-sans flex">
       <a
         href="#nc-ai-settings"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-1.5 focus:rounded-lg focus:bg-(--accent) focus:text-(--on-accent) focus:text-xs focus:font-semibold"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-(--z-banner) focus:px-3 focus:py-1.5 focus:rounded-lg focus:bg-(--accent) focus:text-(--on-accent) focus:text-xs focus:font-semibold"
       >
         {t("skipToMainContent")}
       </a>
-      <ToastContainer />
 
       <Sidebar
         conversations={story.stories}

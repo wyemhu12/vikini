@@ -1,0 +1,182 @@
+/* ===========================================
+   RADIX OVERLAY & TOAST ANIMATIONS (Pure CSS / Tailwind v4)
+   Emil Design Engineering: strong ease-out <= 200ms, transform-only
+   (never writes standalone `translate`, preserving Dialog centering).
+   =========================================== */
+
+@keyframes vikini-enter {
+  from {
+    opacity: var(--vikini-enter-opacity, 1);
+    transform: translate3d(
+        var(--vikini-enter-translate-x, 0),
+        var(--vikini-enter-translate-y, 0),
+        0
+      )
+      scale3d(
+        var(--vikini-enter-scale, 1),
+        var(--vikini-enter-scale, 1),
+        var(--vikini-enter-scale, 1)
+      );
+  }
+}
+
+@keyframes vikini-exit {
+  to {
+    opacity: var(--vikini-exit-opacity, 1);
+    transform: translate3d(var(--vikini-exit-translate-x, 0), var(--vikini-exit-translate-y, 0), 0)
+      scale3d(var(--vikini-exit-scale, 1), var(--vikini-exit-scale, 1), var(--vikini-exit-scale, 1));
+  }
+}
+
+@utility animate-in {
+  animation-name: vikini-enter;
+  animation-duration: var(--tw-duration, 180ms);
+  animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  animation-fill-mode: both;
+  --vikini-enter-opacity: initial;
+  --vikini-enter-scale: initial;
+  --vikini-enter-translate-x: initial;
+  --vikini-enter-translate-y: initial;
+}
+
+@utility animate-out {
+  animation-name: vikini-exit;
+  animation-duration: var(--tw-duration, 150ms);
+  animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  animation-fill-mode: both;
+  --vikini-exit-opacity: initial;
+  --vikini-exit-scale: initial;
+  --vikini-exit-translate-x: initial;
+  --vikini-exit-translate-y: initial;
+}
+
+@utility fade-in {
+  --vikini-enter-opacity: 0;
+}
+
+@utility fade-in-0 {
+  --vikini-enter-opacity: 0;
+}
+
+@utility fade-out {
+  --vikini-exit-opacity: 0;
+}
+
+@utility fade-out-0 {
+  --vikini-exit-opacity: 0;
+}
+
+@utility zoom-in {
+  --vikini-enter-scale: 0.95;
+}
+
+@utility zoom-in-95 {
+  --vikini-enter-scale: 0.95;
+}
+
+@utility zoom-out {
+  --vikini-exit-scale: 0.95;
+}
+
+@utility zoom-out-95 {
+  --vikini-exit-scale: 0.95;
+}
+
+@utility slide-in-from-top-1 {
+  --vikini-enter-translate-y: -0.25rem;
+}
+
+@utility slide-in-from-top-2 {
+  --vikini-enter-translate-y: -0.5rem;
+}
+
+@utility slide-in-from-bottom-1 {
+  --vikini-enter-translate-y: 0.25rem;
+}
+
+@utility slide-in-from-bottom-2 {
+  --vikini-enter-translate-y: 0.5rem;
+}
+
+@utility slide-in-from-left-2 {
+  --vikini-enter-translate-x: -0.5rem;
+}
+
+@utility slide-in-from-right-2 {
+  --vikini-enter-translate-x: 0.5rem;
+}
+
+@utility slide-out-to-top-2 {
+  --vikini-exit-translate-y: -0.5rem;
+}
+
+@utility slide-out-to-bottom-2 {
+  --vikini-exit-translate-y: 0.5rem;
+}
+
+@utility slide-out-to-left-2 {
+  --vikini-exit-translate-x: -0.5rem;
+}
+
+@utility slide-out-to-right-2 {
+  --vikini-exit-translate-x: 0.5rem;
+}
+
+/* Bare 100% Sheet slides */
+@utility slide-in-from-left {
+  --vikini-enter-translate-x: -100%;
+}
+
+@utility slide-in-from-right {
+  --vikini-enter-translate-x: 100%;
+}
+
+@utility slide-in-from-bottom {
+  --vikini-enter-translate-y: 100%;
+}
+
+@utility slide-in-from-top {
+  --vikini-enter-translate-y: -100%;
+}
+
+@utility slide-out-to-left {
+  --vikini-exit-translate-x: -100%;
+}
+
+@utility slide-out-to-right {
+  --vikini-exit-translate-x: 100%;
+}
+
+@utility slide-out-to-bottom {
+  --vikini-exit-translate-y: 100%;
+}
+
+@utility slide-out-to-top {
+  --vikini-exit-translate-y: -100%;
+}
+
+/* Interruptible CSS toast transition */
+.toast-enter {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  transition:
+    opacity 180ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 180ms cubic-bezier(0.23, 1, 0.32, 1);
+
+  @starting-style {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-enter {
+    transform: none;
+    transition: opacity 150ms ease;
+
+    @starting-style {
+      opacity: 0;
+      transform: none;
+    }
+  }
+}

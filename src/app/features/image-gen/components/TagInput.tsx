@@ -5,6 +5,7 @@ import { X, Plus, Tag } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { logger } from "@/lib/utils/logger";
+import { toast } from "@/lib/store/toastStore";
 
 interface TagInputProps {
   imageId: string;
@@ -38,17 +39,19 @@ export default function TagInput({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tags: newTags }),
         });
-        if (res.ok) {
-          setTags(newTags);
-          onTagsUpdated();
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
         }
-      } catch (err) {
+        setTags(newTags);
+        onTagsUpdated();
+      } catch (err: unknown) {
         logger.error("[TagInput] Save failed:", err);
+        toast.error(t("tagSaveFailed"));
       } finally {
         setSaving(false);
       }
     },
-    [imageId, onTagsUpdated]
+    [imageId, onTagsUpdated, t]
   );
 
   const addTag = useCallback(() => {
@@ -86,22 +89,24 @@ export default function TagInput({
             key={tag}
             className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-(--success)/15 text-(--success) border border-(--success)/20"
           >
-            <Tag className="w-2.5 h-2.5" />
+            <Tag aria-hidden="true" className="w-2.5 h-2.5" />
             {tag}
           </span>
         ))}
         {tags.length < MAX_TAGS && (
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               setIsEditing(true);
               setTimeout(() => inputRef.current?.focus(), 50);
             }}
-            className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-bold bg-(--success)/15 text-(--success) hover:bg-(--success)/25 hover:text-(--success) border border-(--success)/25 hover:border-(--success)/40 transition-colors shadow-sm"
+            className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-bold bg-(--success)/15 text-(--success) hover:bg-(--success)/25 hover:text-(--success) border border-(--success)/25 hover:border-(--success)/40 transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
             title={t("studioAddTagTooltip")}
+            aria-label={t("tagAddLabel")}
           >
-            <Plus className="w-2.5 h-2.5" />
-            <Tag className="w-2.5 h-2.5" />
+            <Plus aria-hidden="true" className="w-2.5 h-2.5" />
+            <Tag aria-hidden="true" className="w-2.5 h-2.5" />
           </button>
         )}
       </div>
@@ -115,7 +120,6 @@ export default function TagInput({
         "flex flex-wrap items-center gap-1 p-1.5 rounded-lg bg-(--bg) backdrop-blur-md border border-(--line)",
         className
       )}
-      onClick={(e) => e.stopPropagation()}
     >
       {tags.map((tag) => (
         <span
@@ -124,11 +128,13 @@ export default function TagInput({
         >
           {tag}
           <button
+            type="button"
             onClick={() => removeTag(tag)}
-            className="hover:text-(--danger) transition-colors"
+            aria-label={`${t("tagRemoveLabel")}: ${tag}`}
+            className="hover:text-(--danger) transition-colors rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
             disabled={saving}
           >
-            <X className="w-2.5 h-2.5" />
+            <X aria-hidden="true" className="w-2.5 h-2.5" />
           </button>
         </span>
       ))}
@@ -137,6 +143,7 @@ export default function TagInput({
           ref={inputRef}
           type="text"
           value={inputValue}
+          aria-label={t("tagAddLabel")}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={() => {
@@ -145,7 +152,7 @@ export default function TagInput({
           }}
           placeholder={t("studioAddTag")}
           maxLength={30}
-          className="flex-1 min-w-[60px] bg-transparent text-xs text-(--muted) placeholder:text-(--muted) outline-none"
+          className="flex-1 min-w-[60px] bg-transparent text-xs text-(--text) placeholder:text-(--muted) outline-none"
         />
       )}
       {tags.length >= MAX_TAGS && (

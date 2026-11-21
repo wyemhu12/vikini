@@ -182,11 +182,11 @@ export default function ControlPanel({
           <Select value={model} onValueChange={setModel}>
             <SelectTrigger
               aria-label={t("studioModel")}
-              className="w-full bg-(--raised) border-(--line) text-left"
+              className="h-auto min-h-10 py-2 [&>span]:line-clamp-none w-full bg-(--raised) border-(--line) text-left"
             >
               <SelectValue placeholder={t("studioSelectModel")} />
             </SelectTrigger>
-            <SelectContent className="bg-(--surface) border border-(--line) shadow-xl z-100">
+            <SelectContent className="bg-(--surface) border border-(--line) shadow-(--shadow-elevated) z-(--z-popover)">
               <SelectItem value="gemini-3.1-flash-image">
                 <div className="flex flex-col items-start gap-0.5 text-left">
                   <span className="font-medium">Gemini Image Flash</span>
@@ -246,7 +246,7 @@ export default function ControlPanel({
                   <span
                     className={cn(
                       "text-xs",
-                      resolution === opt.value ? "text-(--on-accent)/80" : "text-(--muted)"
+                      resolution === opt.value ? "text-(--on-accent)" : "text-(--muted)"
                     )}
                   >
                     ~${opt.cost}
@@ -353,7 +353,7 @@ export default function ControlPanel({
             {t("studioPromptRequired")}
           </p>
         )}
-        <p className="mt-2 text-center text-xs text-(--faint) pointer-coarse:hidden">
+        <p className="mt-2 hidden md:block text-center text-xs text-(--faint) pointer-coarse:hidden">
           {t("studioShortcutHint")}
         </p>
       </div>

@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils/cn";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-(--radius) text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:ring-offset-2 focus-visible:ring-offset-(--surface) disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-(--radius) text-sm font-medium transition-[background-color,color,border-color,transform] duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:ring-offset-2 focus-visible:ring-offset-(--surface) disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
@@ -12,15 +12,15 @@ const buttonVariants = cva(
         default:
           "bg-(--accent) text-(--on-accent) hover:brightness-110 active:brightness-95 shadow-sm",
         destructive: "bg-(--danger) text-(--danger-foreground) hover:bg-(--danger-hover) shadow-sm",
-        outline: "border border-(--line) bg-(--raised) text-(--text) hover:bg-(--raised)",
-        secondary: "bg-(--raised) text-(--text) border border-(--line) hover:bg-(--raised)",
+        outline: "border border-(--line) bg-transparent text-(--text) hover:bg-(--raised)",
+        secondary: "bg-(--raised) text-(--text) border border-(--line) hover:bg-(--raised-hover)",
         ghost: "text-(--text) hover:bg-(--raised)",
         link: "text-(--accent) underline-offset-4 hover:underline",
         // Vikini specific variants
         glass:
-          "bg-(--raised) hover:bg-(--raised) border border-(--line) text-(--text) shadow-sm backdrop-blur-md",
+          "bg-(--raised) hover:bg-(--raised-hover) border border-(--line) text-(--text) shadow-sm backdrop-blur-md",
         island:
-          "bg-(--raised) hover:bg-(--raised) text-(--text) backdrop-blur-xl border border-(--line) shadow-xl",
+          "bg-(--raised) hover:bg-(--raised-hover) text-(--text) backdrop-blur-xl border border-(--line) shadow-(--shadow-elevated)",
       },
       size: {
         default: "h-10 px-4 py-2",

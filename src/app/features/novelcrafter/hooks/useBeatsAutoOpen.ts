@@ -38,12 +38,14 @@ export interface UseBeatsAutoOpenOptions {
   isStateSettled: boolean;
   isStreaming: boolean;
   promotedDraftStoryId: string | null;
+  /** Suppresses automatic opening on compact mobile viewports (< 768px). */
+  disableAutoOpen?: boolean;
 }
 
 /** Story-level inputs the editor controller receives from the story hook. */
 export type BeatsStoryContext = Pick<
   UseBeatsAutoOpenOptions,
-  "storyId" | "isStateSettled" | "promotedDraftStoryId"
+  "storyId" | "isStateSettled" | "promotedDraftStoryId" | "disableAutoOpen"
 >;
 
 interface BeatsChoice {
@@ -59,6 +61,7 @@ export function useBeatsAutoOpen({
   isStateSettled,
   isStreaming,
   promotedDraftStoryId,
+  disableAutoOpen = false,
 }: UseBeatsAutoOpenOptions) {
   const [choice, setChoice] = useState<BeatsChoice | null>(null);
 
@@ -68,7 +71,7 @@ export function useBeatsAutoOpen({
     (choice.storyId === storyId ||
       (choice.storyId === null && storyId !== null && storyId === promotedDraftStoryId));
   const activeChoice = choice && choice.chapterId === chapterId && storyMatches ? choice : null;
-  const autoOpen = isStateSettled && chapterContent.trim().length === 0;
+  const autoOpen = !disableAutoOpen && isStateSettled && chapterContent.trim().length === 0;
   const beatsOpen = activeChoice ? activeChoice.open : autoOpen;
 
   const commit = useCallback(

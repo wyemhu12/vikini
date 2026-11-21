@@ -175,7 +175,7 @@ function Sidebar(props: SidebarProps) {
 
   return (
     <>
-      <TooltipProvider delayDuration={0}>
+      <TooltipProvider delayDuration={300} skipDelayDuration={300}>
         <AppRail
           onNewChat={handleNewChat}
           isCreatingChat={isCreatingChat}
@@ -191,7 +191,7 @@ function Sidebar(props: SidebarProps) {
             aria-label={panelLabel}
             className="hidden md:flex flex-col fixed top-0 bottom-0 left-[calc(4rem+var(--sal,0px))] w-68 z-20 border-r border-(--line) bg-(--surface) px-3 py-4"
           >
-            <ContextPanelContent {...panelProps} />
+            <ContextPanelContent {...panelProps} sectionLinks={undefined} />
           </aside>
         )}
 
@@ -205,7 +205,12 @@ function Sidebar(props: SidebarProps) {
           onAdmin={props.session?.user?.rank === "admin" ? () => router.push("/admin") : undefined}
           onLogout={props.onLogout}
           renderContent={(leading, footer) => (
-            <ContextPanelContent {...panelProps} leading={leading} footer={footer} />
+            <ContextPanelContent
+              {...panelProps}
+              onNavigate={onCloseMobile}
+              leading={leading}
+              footer={footer}
+            />
           )}
         />
       </TooltipProvider>

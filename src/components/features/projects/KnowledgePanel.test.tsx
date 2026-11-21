@@ -144,4 +144,70 @@ describe("KnowledgePanel (TC-08)", () => {
 
     expect(screen.getByText(/no documents/i)).toBeInTheDocument();
   });
+
+  it("TC-P1-08: renders Skeleton placeholders instead of Empty State while isLoading=true", () => {
+    render(
+      <KnowledgePanel
+        projectId="proj-1"
+        documents={[]}
+        storageUsedBytes={0}
+        storageMaxBytes={0}
+        isLoading={true}
+        onUpload={vi.fn()}
+        onDelete={vi.fn()}
+        onRefresh={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("kb-loading-skeletons")).toBeInTheDocument();
+    expect(screen.queryByText(/no documents/i)).toBeNull();
+  });
+
+  it("TC-P1-08: renders numeric chunk count with total_chunks, legacy chunk_count, or 0 fallback", () => {
+    const legacyDoc = {
+      ...mockDocuments[0],
+      id: "doc-legacy",
+      total_chunks: undefined as unknown as number,
+      chunk_count: 18,
+    };
+    const zeroDoc = {
+      ...mockDocuments[0],
+      id: "doc-zero",
+      filename: "empty.md",
+      total_chunks: undefined as unknown as number,
+      chunk_count: undefined,
+    };
+    render(
+      <KnowledgePanel
+        projectId="proj-1"
+        documents={[legacyDoc, zeroDoc]}
+        storageUsedBytes={2048}
+        storageMaxBytes={10485760}
+        onUpload={vi.fn()}
+        onDelete={vi.fn()}
+        onRefresh={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/18\s+chunks/i)).toBeInTheDocument();
+    expect(screen.getByText(/0\s+chunks/i)).toBeInTheDocument();
+  });
+
+  it("TC-W3-04 & TC-W3-07: renders section heading as h2 and keeps delete button visible on mobile", () => {
+    render(
+      <KnowledgePanel
+        projectId="proj-1"
+        documents={mockDocuments}
+        storageUsedBytes={1024}
+        storageMaxBytes={10485760}
+        onUpload={vi.fn()}
+        onDelete={vi.fn()}
+        onRefresh={vi.fn()}
+      />
+    );
+    expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument();
+    const deleteBtn = screen.getByTitle(/delete/i);
+    expect(deleteBtn.className).toContain("opacity-100");
+    expect(deleteBtn.className).toContain("md:opacity-0");
+  });
 });

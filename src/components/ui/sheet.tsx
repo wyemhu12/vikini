@@ -3,6 +3,7 @@
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 export const Sheet = DialogPrimitive.Root;
 export const SheetTrigger = DialogPrimitive.Trigger;
@@ -15,7 +16,7 @@ export const SheetOverlay = React.forwardRef<
 >(({ className = "", ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={`fixed inset-0 z-50 bg-(--overlay) backdrop-blur-xs transition-opacity data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 ${className}`}
+    className={`fixed inset-0 z-(--z-drawer) bg-(--overlay) backdrop-blur-xs transition-opacity data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 ${className}`}
     {...props}
   />
 ));
@@ -42,35 +43,32 @@ export const SheetContent = React.forwardRef<
   SheetContentProps
 >(
   (
-    {
-      side = "right",
-      closeLabel = "Close",
-      hideCloseButton = false,
-      className = "",
-      children,
-      ...props
-    },
+    { side = "right", closeLabel, hideCloseButton = false, className = "", children, ...props },
     ref
-  ) => (
-    <SheetPortal>
-      <SheetOverlay />
-      <DialogPrimitive.Content
-        ref={ref}
-        className={`fixed z-50 flex flex-col bg-(--surface) text-(--text) shadow-2xl transition ease-out focus:outline-none ${SIDE_CLASSES[side]} ${className}`}
-        {...props}
-      >
-        {children}
-        {!hideCloseButton && (
-          <DialogPrimitive.Close
-            aria-label={closeLabel}
-            className="absolute top-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-lg text-(--muted) transition-colors hover:bg-(--raised) hover:text-(--text)"
-          >
-            <X className="h-4 w-4" />
-          </DialogPrimitive.Close>
-        )}
-      </DialogPrimitive.Content>
-    </SheetPortal>
-  )
+  ) => {
+    const { t } = useLanguage();
+    const resolvedCloseLabel = closeLabel ?? t("close");
+    return (
+      <SheetPortal>
+        <SheetOverlay />
+        <DialogPrimitive.Content
+          ref={ref}
+          className={`fixed z-(--z-drawer) flex flex-col bg-(--surface) text-(--text) shadow-(--shadow-elevated) transition ease-out duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out focus:outline-none ${SIDE_CLASSES[side]} ${className}`}
+          {...props}
+        >
+          {children}
+          {!hideCloseButton && (
+            <DialogPrimitive.Close
+              aria-label={resolvedCloseLabel}
+              className="absolute top-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-lg text-(--muted) transition-colors hover:bg-(--raised) hover:text-(--text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+            >
+              <X aria-hidden="true" className="h-4 w-4" />
+            </DialogPrimitive.Close>
+          )}
+        </DialogPrimitive.Content>
+      </SheetPortal>
+    );
+  }
 );
 SheetContent.displayName = DialogPrimitive.Content.displayName;
 

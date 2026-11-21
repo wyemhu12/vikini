@@ -14,15 +14,18 @@ import {
   Palette,
   BarChart3,
   Star,
-  LucideIcon,
+  Sparkles,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
-// Map icon id to Lucide component
+// Map normalized icon id to Lucide component
 const ICON_MAP: Record<string, LucideIcon> = {
   folder: Folder,
   "folder-open": FolderOpen,
+  folderopen: FolderOpen,
   book: BookOpen,
+  bookopen: BookOpen,
   briefcase: Briefcase,
   target: Target,
   rocket: Rocket,
@@ -32,10 +35,13 @@ const ICON_MAP: Record<string, LucideIcon> = {
   palette: Palette,
   chart: BarChart3,
   star: Star,
+  sparkles: Sparkles,
 };
 
+const ASCII_SLUG_RE = /^[a-zA-Z0-9_-]{2,}$/;
+
 interface ProjectIconProps {
-  /** Icon ID from project (e.g., "flask", "zap") or emoji */
+  /** Icon ID from project (e.g., "flask", "sparkles") or emoji */
   icon?: string | null;
   /** Background color */
   color?: string | null;
@@ -52,39 +58,43 @@ const SIZE_MAP = {
 };
 
 /**
- * Renders a project icon - either as Lucide icon or emoji
+ * Renders a project icon — Lucide icon, emoji, or Folder fallback for empty/unknown ASCII slugs.
  */
 export function ProjectIcon({ icon, color, size = "sm", className }: ProjectIconProps) {
-  const IconComponent = icon ? ICON_MAP[icon] : Folder;
+  const trimmed = icon?.trim() ?? "";
+  const lower = trimmed.toLowerCase();
+  const compact = lower.replace(/[-_\s]+/g, "");
+  const IconComponent =
+    !trimmed || ASCII_SLUG_RE.test(trimmed)
+      ? ICON_MAP[lower] || ICON_MAP[compact] || Folder
+      : undefined;
   const sizes = SIZE_MAP[size];
 
-  // If icon is a Lucide icon name
   if (IconComponent) {
     return (
       <span
         className={cn(
           sizes.wrapper,
-          "flex items-center justify-center rounded shrink-0",
+          "flex items-center justify-center rounded shrink-0 overflow-hidden",
           className
         )}
         style={{ backgroundColor: color || "#6366f1" }}
       >
-        <IconComponent className={cn(sizes.icon, "text-(--on-overlay)")} />
+        <IconComponent aria-hidden className={cn(sizes.icon, "text-(--on-overlay)")} />
       </span>
     );
   }
 
-  // Fallback: render as emoji or text
   return (
     <span
       className={cn(
         sizes.wrapper,
-        "flex items-center justify-center rounded text-xs shrink-0",
+        "flex items-center justify-center rounded text-xs shrink-0 overflow-hidden",
         className
       )}
       style={{ backgroundColor: color || "#6366f1" }}
     >
-      {icon || ""}
+      {trimmed}
     </span>
   );
 }

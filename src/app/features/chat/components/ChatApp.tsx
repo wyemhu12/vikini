@@ -8,7 +8,6 @@ import HeaderBar from "../../layout/components/HeaderBar";
 import AccessPendingScreen from "@/app/components/AccessPendingScreen";
 import DashboardView from "./DashboardView";
 import ChatControls from "./ChatControls";
-import ToastContainer from "@/components/ui/ToastContainer";
 import StreamErrorBanner from "./StreamErrorBanner";
 import ScrollToBottomButton from "./ScrollToBottomButton";
 import ChatOverlays from "./ChatOverlays";
@@ -239,7 +238,6 @@ export default function ChatApp() {
         {tRaw("skipToMainContent")}
       </a>
       <h1 className="sr-only">{tRaw("appName")}</h1>
-      <ToastContainer />
       <div className="absolute inset-0 z-0 static-depth-bg pointer-events-none" />
 
       <StreamErrorBanner error={chat.streamError} onDismiss={chat.clearStreamError} />
@@ -313,7 +311,7 @@ export default function ChatApp() {
               />
             </Suspense>
           ) : showLanding ? (
-            <div className="min-h-full flex flex-col items-center justify-center pb-[25vh] animate-in fade-in zoom-in duration-500">
+            <div className="min-h-full flex flex-col items-center pt-[12vh] md:pt-[18vh] pb-24 animate-in fade-in-0 duration-200">
               <DashboardView
                 onPromptSelect={setInput}
                 onPromptPreview={setPreviewPrompt}

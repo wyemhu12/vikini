@@ -92,15 +92,16 @@ export function ProjectChatView({
 
             {/* Add files button - Simple like ChatGPT */}
             <button
+              type="button"
               onClick={onOpenSettings}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium",
                 "border border-(--line) bg-(--surface)/80 backdrop-blur-sm",
                 "hover:bg-(--raised) hover:border-(--line)",
-                "transition-colors duration-200 shadow-sm"
+                "transition-colors duration-200 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
               )}
             >
-              <FilePlus className="h-4 w-4" />
+              <FilePlus aria-hidden="true" className="h-4 w-4" />
               {t("projectAddFilesSettings")}
             </button>
           </div>
@@ -144,23 +145,26 @@ export function ProjectChatView({
                 <div
                   key={conv.id}
                   className={cn(
-                    "flex items-center justify-between px-4 py-3 rounded-xl",
+                    "flex items-center justify-between rounded-xl",
                     "hover:bg-(--raised)/60 transition-colors duration-200",
-                    "group cursor-pointer"
+                    "group"
                   )}
-                  onClick={() => onSelectConversation(conv.id)}
                 >
-                  {/* Chat title */}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate text-(--text) group-hover:text-(--accent) transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => onSelectConversation(conv.id)}
+                    className="flex flex-1 min-w-0 items-center justify-between gap-4 px-4 py-3 text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                  >
+                    {/* Chat title */}
+                    <span className="flex-1 min-w-0 font-medium truncate text-(--text) group-hover:text-(--accent) transition-colors">
                       {conv.title || t("newChat")}
-                    </div>
-                  </div>
+                    </span>
 
-                  {/* Date */}
-                  <span className="text-xs text-(--muted) mx-4 shrink-0">
-                    {formatDate(conv.updatedAt || conv.createdAt)}
-                  </span>
+                    {/* Date */}
+                    <span className="text-xs text-(--muted) shrink-0">
+                      {formatDate(conv.updatedAt || conv.createdAt)}
+                    </span>
+                  </button>
 
                   {/* Action menu - Radix Dropdown */}
                   <DropdownMenu.Root>
@@ -169,20 +173,19 @@ export function ProjectChatView({
                         type="button"
                         aria-label={t("chatHeaderMore")}
                         title={t("chatHeaderMore")}
-                        onClick={(e) => e.stopPropagation()}
                         className={cn(
-                          "p-1.5 rounded-lg transition-colors",
+                          "mr-2 inline-flex h-9 w-9 md:h-8 md:w-8 shrink-0 items-center justify-center rounded-lg transition-[opacity,color,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
                           "text-(--muted) hover:text-(--text) hover:bg-(--raised)",
-                          "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+                          "opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
                         )}
                       >
-                        <MoreHorizontal aria-hidden className="h-4 w-4" />
+                        <MoreHorizontal aria-hidden="true" className="h-4 w-4" />
                       </button>
                     </DropdownMenu.Trigger>
 
                     <DropdownMenu.Portal>
                       <DropdownMenu.Content
-                        className="z-9999 min-w-48 rounded-xl bg-(--raised)/95 backdrop-blur-xl border border-(--line) shadow-2xl overflow-hidden ring-1 ring-(--line) py-1.5 animate-in fade-in zoom-in-95 duration-200"
+                        className="z-(--z-popover) min-w-48 rounded-xl bg-(--surface)/95 backdrop-blur-xl border border-(--line) shadow-(--shadow-elevated) overflow-hidden ring-1 ring-(--line) py-1.5 origin-(--radix-dropdown-menu-content-transform-origin) animate-in fade-in zoom-in-95 duration-200"
                         align="end"
                         sideOffset={5}
                       >

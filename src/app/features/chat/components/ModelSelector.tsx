@@ -2,10 +2,11 @@
 
 import { useState, useMemo } from "react";
 import { ChevronDown } from "lucide-react";
-import { SELECTABLE_MODELS, isStrataLocalModel } from "@/lib/core/modelRegistry";
+import { isStrataLocalModel } from "@/lib/core/modelRegistry";
+import { resolveChatModelDisplay } from "@/lib/core/modelPicker";
 import { useRecentModelsStore } from "@/lib/store/recentModelsStore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useIsDesktop } from "../../layout/hooks/useIsDesktop";
 import { useLanguage } from "../hooks/useLanguage";
 import { useLocalLlmHealth } from "../hooks/useLocalLlmHealth";
@@ -36,8 +37,8 @@ export default function ModelSelector({
   const [isOpen, setIsOpen] = useState(false);
   const pushRecentModel = useRecentModelsStore((s) => s.pushRecentModel);
 
-  const currentModel = useMemo(
-    () => SELECTABLE_MODELS.find((m) => m.id === currentModelId),
+  const modelDisplayName = useMemo(
+    () => resolveChatModelDisplay(currentModelId).name,
     [currentModelId]
   );
 
@@ -48,15 +49,14 @@ export default function ModelSelector({
   const isLocalVisible =
     localStatus === "online" || localStatus === "busy" || localStatus === "offline";
 
-  const modelDisplayName = currentModel?.name || currentModelId;
   const isInline = variant === "inline";
 
   if (disabled) {
     if (isInline) {
       return (
-        <div className="h-10 inline-flex items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-(--muted) opacity-50 cursor-not-allowed">
+        <div className="h-9 sm:h-10 inline-flex min-w-0 max-w-full overflow-hidden items-center gap-1 sm:gap-1.5 rounded-full px-2 sm:px-3 text-xs font-semibold text-(--muted) opacity-50 cursor-not-allowed">
           {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
-          <span className="truncate max-w-[7rem] @sm/chat:max-w-[12rem]">{modelDisplayName}</span>
+          <span className="truncate max-w-[6.5rem] @sm/chat:max-w-[12rem]">{modelDisplayName}</span>
         </div>
       );
     }
@@ -71,10 +71,10 @@ export default function ModelSelector({
     <button
       type="button"
       aria-label={`${t("selectModel")}: ${modelDisplayName}`}
-      className="h-10 inline-flex items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-(--muted) hover:bg-(--raised) hover:text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.97]"
+      className="h-9 sm:h-10 inline-flex min-w-0 max-w-full overflow-hidden items-center gap-1 sm:gap-1.5 rounded-full px-2 sm:px-3 text-xs font-semibold text-(--muted) hover:bg-(--raised-hover) hover:text-(--text) transition-[background-color,color,transform] duration-150 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.97]"
     >
       {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
-      <span className="truncate max-w-[7rem] @sm/chat:max-w-[12rem]">{modelDisplayName}</span>
+      <span className="truncate max-w-[6.5rem] @sm/chat:max-w-[12rem]">{modelDisplayName}</span>
       <ChevronDown
         className={`w-3.5 h-3.5 shrink-0 text-(--muted) transition-transform ${isOpen ? "rotate-180" : ""}`}
       />
@@ -83,7 +83,7 @@ export default function ModelSelector({
     <button
       type="button"
       aria-label={`${t("selectModel")}: ${modelDisplayName}`}
-      className="flex items-center gap-2 rounded-full bg-(--raised) border border-(--line) md:bg-transparent md:border-0 md:hover:bg-(--raised) p-1 px-4 py-1.5 transition-colors md:shadow-none shadow-lg group text-(--text)"
+      className="flex items-center gap-2 rounded-full bg-(--raised) border border-(--line) md:bg-transparent md:border-0 hover:bg-(--raised-hover) p-1 px-4 py-1.5 transition-[background-color,color,transform] duration-150 md:shadow-none shadow-sm group text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.97]"
     >
       {isCurrentLocal && <LocalLlmStatusDot status={localStatus} />}
       <span className="text-xs font-bold text-(--muted) group-hover:text-(--text) transition-colors">
@@ -112,17 +112,13 @@ export default function ModelSelector({
 
   if (!isDesktop) {
     return (
-      <>
-        <span onClick={() => setIsOpen(true)} className="contents">
-          {triggerButton}
-        </span>
-        <Sheet open={isOpen} onOpenChange={setIsOpen}>
-          <SheetContent side="bottom" className="h-[82dvh] p-0">
-            <SheetTitle className="sr-only">{t("modelPickerTitle")}</SheetTitle>
-            {list}
-          </SheetContent>
-        </Sheet>
-      </>
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        <SheetTrigger asChild>{triggerButton}</SheetTrigger>
+        <SheetContent side="bottom" className="h-[82dvh] p-0">
+          <SheetTitle className="sr-only">{t("modelPickerTitle")}</SheetTitle>
+          {list}
+        </SheetContent>
+      </Sheet>
     );
   }
 
@@ -135,7 +131,7 @@ export default function ModelSelector({
         collisionPadding={12}
         sideOffset={8}
         aria-label={t("modelPickerTitle")}
-        className="flex max-h-[min(480px,var(--radix-popover-content-available-height,480px))] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-(--line) bg-(--surface) p-0 shadow-2xl"
+        className="flex max-h-[min(480px,var(--radix-popover-content-available-height,480px))] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-(--line) bg-(--surface) p-0 shadow-(--shadow-elevated)"
       >
         {list}
       </PopoverContent>

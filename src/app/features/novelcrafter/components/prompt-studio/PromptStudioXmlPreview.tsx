@@ -213,9 +213,10 @@ export default function PromptStudioXmlPreview({
 
       {previewResult.ok ? (
         <div
+          tabIndex={0}
           role="region"
           aria-label={t("novelcrafterPromptStudioPreviewShort")}
-          className="w-full max-h-96 lg:max-h-none lg:flex-1 min-h-0 overflow-auto rounded-xl border border-(--line) bg-(--bg) p-3.5 text-xs font-mono leading-relaxed space-y-2 custom-scrollbar"
+          className="w-full max-h-96 lg:max-h-none lg:flex-1 min-h-0 overflow-auto rounded-xl border border-(--line) bg-(--bg) p-3.5 text-xs font-mono leading-relaxed space-y-2 custom-scrollbar focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
         >
           {displayRootNodes.map((node) => renderXmlNode(node))}
         </div>

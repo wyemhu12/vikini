@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Gem, Loader2, Plus, Edit2, Trash2, AlertCircle, X } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Gem, Plus, Edit2, Trash2, AlertCircle, X, RotateCcw } from "lucide-react";
 import GemEditor from "@/app/features/gems/components/GemEditor";
 import { DynamicIcon } from "@/components/ui/DynamicIcon";
+import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { toast } from "@/lib/store/toastStore";
 import { confirm } from "@/lib/store/confirmStore";
+import { logger } from "@/lib/utils/logger";
 
 interface PremadeGem {
   id: string;
@@ -32,25 +34,32 @@ export default function GemsManager() {
   const [editingGem, setEditingGem] = useState<PremadeGem | null>(null);
 
   const { t } = useLanguage();
+  const tRef = useRef(t);
 
   useEffect(() => {
-    void fetchGems();
-  }, []);
+    tRef.current = t;
+  }, [t]);
 
-  const fetchGems = async () => {
+  const fetchGems = useCallback(async () => {
     try {
       setLoading(true);
+      setError("");
       const res = await fetch("/api/admin/gems");
-      if (!res.ok) throw new Error("Failed to fetch gems");
+      if (!res.ok) throw new Error(tRef.current("adminGemsLoadFailed"));
       const json = await res.json();
       const data = json.data || json;
       setGems(data.gems || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load gems");
+    } catch (err: unknown) {
+      logger.error("[GemsManager] Failed to load gems:", err);
+      setError(err instanceof Error ? err.message : tRef.current("adminGemsLoadFailed"));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchGems();
+  }, [fetchGems]);
 
   const deleteGem = async (gemId: string) => {
     const ok = await confirm({
@@ -116,44 +125,66 @@ export default function GemsManager() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-(--accent)" />
-        <span className="ml-2 text-(--muted)">{t("loadingGems")}</span>
+      <div role="status" className="space-y-4 py-2">
+        <span className="sr-only">{t("loadingGems")}</span>
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-9 w-28 rounded-lg" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <Skeleton key={idx} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center gap-2 text-(--danger) py-4">
-        <AlertCircle className="w-5 h-5" />
-        <span>{error}</span>
+      <div
+        role="alert"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg bg-(--danger)/10 border border-(--danger)/30 text-(--danger)"
+      >
+        <div className="flex items-center gap-2">
+          <AlertCircle aria-hidden="true" className="w-5 h-5 shrink-0" />
+          <span className="text-sm font-medium">{error}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => void fetchGems()}
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-(--raised) hover:bg-(--raised-hover) text-(--text) border border-(--line) transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+        >
+          <RotateCcw aria-hidden="true" className="w-4 h-4" />
+          {t("tryAgain")}
+        </button>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
-          <Gem className="w-5 h-5 text-(--accent)" />
+          <Gem aria-hidden="true" className="w-5 h-5 text-(--accent)" />
           <h2 className="text-xl font-semibold text-(--text)">{t("globalGemsManagement")}</h2>
           <span className="text-sm text-(--faint)">
             ({gems.length} {t("gems")})
           </span>
         </div>
         <button
+          type="button"
           onClick={openAddModal}
-          className="flex items-center gap-2 px-4 py-2 bg-(--soft) text-(--accent) rounded-lg hover:bg-(--soft) border border-(--accent)/30 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 min-h-10 bg-(--soft) text-(--accent) rounded-lg hover:bg-(--accent)/20 border border-(--accent)/30 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
         >
-          <Plus className="w-4 h-4" />
+          <Plus aria-hidden="true" className="w-4 h-4" />
           {t("addGem")}
         </button>
       </div>
 
       {gems.length === 0 ? (
         <div className="text-center py-12 text-(--muted)">
-          <Gem className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <Gem aria-hidden="true" className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p>{t("noGlobalGems")}</p>
         </div>
       ) : (
@@ -161,31 +192,35 @@ export default function GemsManager() {
           {gems.map((gem) => (
             <div
               key={gem.id}
-              className="p-4 rounded-lg bg-(--raised) border border-(--line) hover:border-(--line) transition-colors"
+              className="p-4 rounded-lg bg-(--raised) border border-(--line) hover:border-(--line-strong) transition-colors"
             >
               <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   {gem.icon && (
                     <span className="text-2xl shrink-0 flex items-center justify-center w-7 h-7 text-(--text)">
                       <DynamicIcon name={gem.icon} className="w-5 h-5" />
                     </span>
                   )}
-                  <h3 className="font-semibold text-(--text)">{gem.name}</h3>
+                  <h3 className="font-semibold text-(--text) truncate">{gem.name}</h3>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 shrink-0">
                   <button
+                    type="button"
                     onClick={() => openEditModal(gem)}
-                    className="p-1.5 rounded hover:bg-(--raised) transition-colors"
+                    aria-label={`${t("edit")} ${gem.name}`}
+                    className="inline-flex h-9 w-9 md:h-8 md:w-8 items-center justify-center rounded hover:bg-(--raised-hover) text-(--muted) hover:text-(--text) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                     title={t("edit")}
                   >
-                    <Edit2 className="w-4 h-4 text-(--muted) hover:text-(--text)" />
+                    <Edit2 aria-hidden="true" className="w-4 h-4" />
                   </button>
                   <button
+                    type="button"
                     onClick={() => deleteGem(gem.id)}
-                    className="p-1.5 rounded hover:bg-(--danger)/20 transition-colors"
+                    aria-label={`${t("deleteGem")} ${gem.name}`}
+                    className="inline-flex h-9 w-9 md:h-8 md:w-8 items-center justify-center rounded hover:bg-(--danger)/20 text-(--muted) hover:text-(--danger) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                     title={t("deleteGem")}
                   >
-                    <Trash2 className="w-4 h-4 text-(--muted) hover:text-(--danger)" />
+                    <Trash2 aria-hidden="true" className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -200,10 +235,10 @@ export default function GemsManager() {
       {/* Editor Modal */}
       <Dialog.Root open={isEditorOpen} onOpenChange={setIsEditorOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-(--overlay) backdrop-blur-sm" />
+          <Dialog.Overlay className="fixed inset-0 z-(--z-modal) bg-(--overlay) backdrop-blur-sm" />
           <Dialog.Content
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
-            aria-label="Gem editor"
+            aria-describedby={undefined}
+            className="fixed inset-0 z-(--z-modal) flex items-center justify-center p-4 pointer-events-none"
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 0 }}
@@ -215,8 +250,12 @@ export default function GemsManager() {
                   {editingGem ? t("editGlobalGem") : t("createGlobalGem")}
                 </Dialog.Title>
                 <Dialog.Close asChild>
-                  <button className="p-1 rounded-full hover:bg-(--raised) transition-colors">
-                    <X className="w-5 h-5 text-(--muted)" />
+                  <button
+                    type="button"
+                    aria-label={t("close")}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-(--raised-hover) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                  >
+                    <X aria-hidden="true" className="w-5 h-5 text-(--muted)" />
                   </button>
                 </Dialog.Close>
               </div>

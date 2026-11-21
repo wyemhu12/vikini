@@ -80,21 +80,22 @@ function SidebarItem({
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
           <button
-            className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-(--raised) cursor-pointer transition-opacity duration-200 z-10 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
+            type="button"
+            className={`absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 md:h-7 md:w-7 items-center justify-center rounded-md hover:bg-(--raised) cursor-pointer transition-opacity duration-200 z-10 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
               isActive
                 ? "opacity-100 text-(--text)"
-                : "opacity-0 group-hover:opacity-100 text-(--muted) hover:text-(--text)"
+                : "opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 text-(--muted) hover:text-(--text)"
             }`}
             aria-label={c.title ? `${t("optionsFor")} ${c.title}` : t("conversationOptions")}
             onClick={(e) => e.stopPropagation()}
           >
-            <MoreVertical className="w-5 h-5" />
+            <MoreVertical aria-hidden="true" className="w-5 h-5" />
           </button>
         </DropdownMenu.Trigger>
 
         <DropdownMenu.Portal>
           <DropdownMenu.Content
-            className="z-(--z-popover) min-w-48 rounded-xl bg-(--raised)/95 backdrop-blur-xl border border-(--line) shadow-2xl overflow-hidden ring-1 ring-(--line) py-1.5 animate-in fade-in zoom-in-95 duration-200"
+            className="z-(--z-popover) min-w-48 rounded-xl bg-(--surface)/95 backdrop-blur-xl border border-(--line) shadow-(--shadow-elevated) overflow-hidden ring-1 ring-(--line) py-1.5 origin-(--radix-dropdown-menu-content-transform-origin) animate-in fade-in zoom-in-95 duration-200"
             align="end"
             sideOffset={5}
           >

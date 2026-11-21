@@ -87,7 +87,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Key className="w-5 h-5 text-primary" />
+              <Key className="w-5 h-5 text-(--accent)" />
               {t("studioSettingsTitle")}
             </DialogTitle>
             <DialogDescription>{t("studioSettingsDesc")}</DialogDescription>
@@ -98,7 +98,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
             <div className="space-y-2">
               <Label htmlFor="gemini">{t("studioGeminiKey")}</Label>
               <div className="relative">
-                <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-(--muted)" />
                 <Input
                   id="gemini"
                   type={showKey.gemini ? "text" : "password"}
@@ -110,19 +110,24 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
                 <button
                   type="button"
                   onClick={() => toggleShow("gemini")}
-                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                  aria-label={showKey.gemini ? t("studioHideKey") : t("studioShowKey")}
+                  className="absolute right-2.5 top-2 p-0.5 rounded text-(--muted) hover:text-(--text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                 >
-                  {showKey.gemini ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showKey.gemini ? (
+                    <EyeOff aria-hidden="true" className="h-4 w-4" />
+                  ) : (
+                    <Eye aria-hidden="true" className="h-4 w-4" />
+                  )}
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">{t("studioGeminiKeyDesc")}</p>
+              <p className="text-xs text-(--muted)">{t("studioGeminiKeyDesc")}</p>
             </div>
 
             {/* OpenAI Key */}
             <div className="space-y-2">
               <Label htmlFor="openai">{t("studioOpenaiKey")}</Label>
               <div className="relative">
-                <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-(--muted)" />
                 <Input
                   id="openai"
                   type={showKey.openai ? "text" : "password"}
@@ -134,9 +139,14 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
                 <button
                   type="button"
                   onClick={() => toggleShow("openai")}
-                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                  aria-label={showKey.openai ? t("studioHideKey") : t("studioShowKey")}
+                  className="absolute right-2.5 top-2 p-0.5 rounded text-(--muted) hover:text-(--text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                 >
-                  {showKey.openai ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showKey.openai ? (
+                    <EyeOff aria-hidden="true" className="h-4 w-4" />
+                  ) : (
+                    <Eye aria-hidden="true" className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -145,7 +155,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
             <div className="space-y-2">
               <Label htmlFor="replicate">{t("studioReplicateKey")}</Label>
               <div className="relative">
-                <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-(--muted)" />
                 <Input
                   id="replicate"
                   type={showKey.replicate ? "text" : "password"}
@@ -157,9 +167,14 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
                 <button
                   type="button"
                   onClick={() => toggleShow("replicate")}
-                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                  aria-label={showKey.replicate ? t("studioHideKey") : t("studioShowKey")}
+                  className="absolute right-2.5 top-2 p-0.5 rounded text-(--muted) hover:text-(--text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                 >
-                  {showKey.replicate ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showKey.replicate ? (
+                    <EyeOff aria-hidden="true" className="h-4 w-4" />
+                  ) : (
+                    <Eye aria-hidden="true" className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -169,7 +184,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
             <Button
               variant="ghost"
               onClick={handleClearRequest}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="text-(--danger) hover:text-(--danger) hover:bg-(--danger)/10"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               {t("studioClearAll")}
@@ -193,7 +208,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
             <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleClearConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-(--danger) text-(--danger-foreground) hover:bg-(--danger-hover)"
             >
               {t("studioClearAll")}
             </AlertDialogAction>

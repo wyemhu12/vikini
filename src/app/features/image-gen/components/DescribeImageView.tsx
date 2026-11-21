@@ -21,6 +21,7 @@ import { useLanguage } from "../../chat/hooks/useLanguage";
 import { useRouter } from "next/navigation";
 import { logger } from "@/lib/utils/logger";
 import { toast } from "@/lib/store/toastStore";
+import { DURATION, EASE } from "@/lib/utils/motion";
 
 export function DescribeImageView() {
   const { theme: _theme } = useTheme();
@@ -62,35 +63,46 @@ export function DescribeImageView() {
     setHistory((prev) => {
       const item: DescribeHistoryItem = { thumbnail, prompt, timestamp: Date.now() };
       const next = [item, ...prev].slice(0, MAX_HISTORY);
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+      } catch (err: unknown) {
+        logger.warn("[DescribeImageView] failed to persist history:", err);
+      }
       return next;
     });
   }, []);
 
   const clearHistory = useCallback(() => {
     setHistory([]);
-    localStorage.removeItem(HISTORY_KEY);
+    try {
+      localStorage.removeItem(HISTORY_KEY);
+    } catch (err: unknown) {
+      logger.warn("[DescribeImageView] failed to clear history:", err);
+    }
   }, []);
 
-  const handleFileSelect = useCallback((file: File) => {
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("File size must be under 10MB");
-      return;
-    }
-    setImageFile(file);
-    setResult(null);
-    setCopied(false);
+  const handleFileSelect = useCallback(
+    (file: File) => {
+      if (!file.type.startsWith("image/")) {
+        toast.error(t("describeInvalidImage"));
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(t("describeFileTooLarge"));
+        return;
+      }
+      setImageFile(file);
+      setResult(null);
+      setCopied(false);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImagePreview(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-  }, []);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    },
+    [t]
+  );
 
   const handleDrop = useCallback(
     (e: DragEvent) => {
@@ -171,7 +183,7 @@ export function DescribeImageView() {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unknown error";
       logger.error("[DescribeImageView] copy failed:", message);
-      toast.error("Failed to copy");
+      toast.error(t("describeCopyFailed"));
     }
   }, [result, t]);
 
@@ -197,41 +209,45 @@ export function DescribeImageView() {
 
           {/* Upload / Preview Area */}
           <AnimatePresence mode="wait">
-            {!imagePreview ? (
+            {!(imagePreview || result) ? (
               <motion.div
                 key="upload"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: DURATION.NORMAL, ease: EASE.EXIT }}
               >
                 <div
-                  onClick={() => fileInputRef.current?.click()}
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
-                  className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-12 md:p-16 text-center transition-colors duration-300 backdrop-blur-sm ${
-                    isDragOver
-                      ? "border-(--accent) bg-(--soft) shadow-lg scale-[1.02]"
-                      : "border-(--line) bg-(--raised)/50 hover:border-(--accent) hover:bg-(--soft)"
-                  }`}
+                  className="relative"
                 >
-                  {/* Gradient glow effect */}
-
-                  <div className="relative space-y-4">
-                    <div className="mx-auto w-16 h-16 rounded-2xl bg-(--soft) flex items-center justify-center border border-(--accent)/30">
-                      <Upload aria-hidden="true" className="w-8 h-8 text-(--accent)" />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`relative block w-full cursor-pointer rounded-2xl border-2 border-dashed p-12 md:p-16 text-center transition-colors duration-300 backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) ${
+                      isDragOver
+                        ? "border-(--accent) bg-(--soft) shadow-lg scale-[1.02]"
+                        : "border-(--line) bg-(--raised)/50 hover:border-(--accent) hover:bg-(--soft)"
+                    }`}
+                  >
+                    <div className="relative space-y-4">
+                      <div className="mx-auto w-16 h-16 rounded-2xl bg-(--soft) flex items-center justify-center border border-(--accent)/30">
+                        <Upload aria-hidden="true" className="w-8 h-8 text-(--accent)" />
+                      </div>
+                      <div>
+                        <p className="text-lg font-semibold">{t("describeUpload")}</p>
+                        <p className="text-sm text-(--muted) mt-1">{t("describeUploadHint")}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-lg font-semibold">{t("describeUpload")}</p>
-                      <p className="text-sm text-(--muted) mt-1">{t("describeUploadHint")}</p>
-                    </div>
-                  </div>
+                  </button>
 
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
+                    aria-label={t("describeUpload")}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) handleFileSelect(file);
@@ -246,32 +262,35 @@ export function DescribeImageView() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: DURATION.NORMAL, ease: EASE.EXIT }}
                 className="space-y-6"
               >
-                {/* Image Preview */}
-                <div className="relative rounded-2xl overflow-hidden border border-(--line) bg-(--raised) shadow-xl">
-                  <div className="relative aspect-video w-full">
-                    <Image
-                      src={imagePreview}
-                      alt="Uploaded image"
-                      fill
-                      className="object-contain"
-                      unoptimized
-                    />
+                {/* Image Preview (guarded when history item has no thumbnail) */}
+                {imagePreview && (
+                  <div className="relative rounded-2xl overflow-hidden border border-(--line) bg-(--raised) shadow-(--shadow-elevated)">
+                    <div className="relative aspect-video w-full">
+                      <Image
+                        src={imagePreview}
+                        alt={t("describeUploadedAlt")}
+                        fill
+                        className="object-contain"
+                        unoptimized
+                      />
+                    </div>
+                    {/* Subtle gradient overlay at bottom */}
+                    <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-(--overlay) to-transparent pointer-events-none" />
                   </div>
-                  {/* Subtle gradient overlay at bottom */}
-                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-(--overlay) to-transparent pointer-events-none" />
-                </div>
+                )}
 
                 {/* Analyze Button */}
-                {!result && (
+                {!result && imagePreview && (
                   <motion.button
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: DURATION.FAST, ease: EASE.EXIT }}
                     onClick={handleAnalyze}
                     disabled={analyzing}
-                    className="w-full py-4 rounded-xl font-bold text-lg text-(--on-accent) bg-(--accent) hover:brightness-110 shadow-lg transition-colors duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                    className="w-full py-4 rounded-xl font-bold text-lg text-(--on-accent) bg-(--accent) hover:brightness-110 shadow-lg transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-3 active:scale-[0.98]"
                   >
                     {analyzing ? (
                       <>
@@ -291,10 +310,10 @@ export function DescribeImageView() {
                 <AnimatePresence>
                   {result && (
                     <motion.div
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ duration: 0.4 }}
+                      exit={{ opacity: 0, y: -12 }}
+                      transition={{ duration: DURATION.NORMAL, ease: EASE.EXIT }}
                       className="space-y-4"
                     >
                       {/* Result Label */}
@@ -312,8 +331,10 @@ export function DescribeImageView() {
                         </p>
                         {/* Copy Button */}
                         <button
+                          type="button"
                           onClick={handleCopy}
-                          className="absolute top-3 right-3 p-2 rounded-lg hover:bg-(--raised) transition-colors"
+                          aria-label={t("describeCopy")}
+                          className="absolute top-3 right-3 p-2 rounded-lg hover:bg-(--raised-hover) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                           title={t("describeCopy")}
                         >
                           {copied ? (
@@ -327,15 +348,17 @@ export function DescribeImageView() {
                       {/* Action Buttons */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <button
+                          type="button"
                           onClick={handleUseInStudio}
-                          className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-(--on-accent) bg-(--accent) hover:brightness-110 shadow-lg transition-colors duration-300"
+                          className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-(--on-accent) bg-(--accent) hover:brightness-110 shadow-sm transition-[filter,transform] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         >
                           <ImageIcon className="w-4 h-4" />
                           {t("describeUseInStudio")}
                         </button>
                         <button
+                          type="button"
                           onClick={handleReset}
-                          className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-(--raised) border border-(--line) hover:bg-(--raised) transition-colors"
+                          className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-(--raised) border border-(--line) hover:bg-(--raised-hover) transition-[background-color,transform] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         >
                           <RefreshCw className="w-4 h-4" />
                           {t("describeNewImage")}
@@ -349,7 +372,7 @@ export function DescribeImageView() {
           </AnimatePresence>
 
           {/* History Section */}
-          {history.length > 0 && !imagePreview && (
+          {history.length > 0 && !(imagePreview || result) && (
             <div className="mt-8 w-full max-w-2xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-(--muted)">
@@ -358,8 +381,9 @@ export function DescribeImageView() {
                   <span className="text-xs font-normal">({history.length})</span>
                 </div>
                 <button
+                  type="button"
                   onClick={clearHistory}
-                  className="text-xs text-(--danger) hover:text-(--danger) transition-colors flex items-center gap-1"
+                  className="text-xs text-(--danger) hover:underline transition-colors flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) rounded px-1"
                 >
                   <Trash2 className="w-3 h-3" />
                   {t("studioClearHistory") || "Clear"}
@@ -368,15 +392,27 @@ export function DescribeImageView() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {history.map((item, idx) => (
                   <button
+                    type="button"
                     key={idx}
-                    onClick={() => setResult(item.prompt)}
-                    className="flex items-start gap-3 p-3 rounded-xl border border-(--line) bg-(--raised)/50 hover:bg-(--raised) transition-colors text-left group"
+                    onClick={() => {
+                      setImageFile(null);
+                      setImagePreview(item.thumbnail || null);
+                      setResult(item.prompt);
+                      setCopied(false);
+                    }}
+                    className="flex items-start gap-3 p-3 rounded-xl border border-(--line) bg-(--raised)/50 hover:bg-(--raised-hover) transition-colors text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                   >
-                    <img
-                      src={item.thumbnail}
-                      alt=""
-                      className="w-12 h-12 rounded-lg object-cover shrink-0 border border-(--line)"
-                    />
+                    {item.thumbnail ? (
+                      <img
+                        src={item.thumbnail}
+                        alt=""
+                        className="w-12 h-12 rounded-lg object-cover shrink-0 border border-(--line)"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-(--surface) border border-(--line) flex items-center justify-center shrink-0">
+                        <ImageIcon aria-hidden className="w-5 h-5 text-(--muted)" />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-(--text) line-clamp-2 leading-relaxed">
                         {item.prompt}

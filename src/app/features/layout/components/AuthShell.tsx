@@ -12,7 +12,7 @@ const LANGUAGES = [
 
 /**
  * Shared frame of the signed-out pages (sign-in, auth error): themed background with the
- * horizon glow, a language switch, and the page content in a centered `main`.
+ * horizon glow, a language switch, and centered page content inside the root layout `<main>`.
  */
 export function AuthShell({ children }: { children: React.ReactNode }) {
   const { language, setLanguage, t } = useLanguage();
@@ -49,7 +49,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         })}
       </div>
 
-      <main className="relative z-10 w-full max-w-md space-y-8 text-center">{children}</main>
+      <div className="relative z-10 w-full max-w-md space-y-8 text-center">{children}</div>
     </div>
   );
 }

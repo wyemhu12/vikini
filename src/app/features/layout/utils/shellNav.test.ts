@@ -39,6 +39,11 @@ describe("shellNav", () => {
     }
   });
 
+  it("TC-W4-03: gems rail item links directly to /features/gems without redirect hop", () => {
+    const gemsItem = RAIL_ITEMS.find((item) => item.id === "gems");
+    expect(gemsItem?.href).toBe("/features/gems");
+  });
+
   it("TC-02: pads content by rail (+ panel when open) on desktop only", () => {
     expect(getShellPaddingClass(false)).toBe("md:pl-[calc(21rem+var(--sal,0px))]");
     expect(getShellPaddingClass(true)).toBe("md:pl-[calc(4rem+var(--sal,0px))]");

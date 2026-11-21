@@ -1,11 +1,11 @@
 // /app/features/novelcrafter/components/NovelcrafterStudioApp.tsx
 "use client";
 
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { AlertCircle } from "lucide-react";
 import Sidebar from "../../sidebar/components/Sidebar";
-import ToastContainer from "@/components/ui/ToastContainer";
 import { toast } from "@/lib/store/toastStore";
 import { useLayoutStore } from "@/lib/store/layoutStore";
 import { useCommandPaletteStore } from "@/lib/store/commandPaletteStore";
@@ -156,6 +156,7 @@ export default function NovelcrafterStudioApp() {
       storyId: story.validStoryId,
       isStateSettled: story.isStateSettled,
       promotedDraftStoryId: story.promotedDraftStoryId,
+      disableAutoOpen: isMobileLayout,
     },
   });
 
@@ -250,6 +251,12 @@ export default function NovelcrafterStudioApp() {
     [layout.navigatorMode, panes, story]
   );
 
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      void signIn();
+    }
+  }, [status]);
+
   if (status === "loading") {
     return (
       <div className="h-dvh flex items-center justify-center bg-(--bg) text-(--text)">
@@ -258,7 +265,6 @@ export default function NovelcrafterStudioApp() {
     );
   }
   if (!isAuthed) {
-    void signIn();
     return null;
   }
 
@@ -286,12 +292,11 @@ export default function NovelcrafterStudioApp() {
     >
       <a
         href="#nc-manuscript"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-1.5 focus:rounded-lg focus:bg-(--accent) focus:text-(--on-accent) focus:text-xs focus:font-semibold"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-(--z-banner) focus:px-3 focus:py-1.5 focus:rounded-lg focus:bg-(--accent) focus:text-(--on-accent) focus:text-xs focus:font-semibold"
       >
         {t("skipToMainContent")}
       </a>
       {!isRoutingModalOpen && <h1 className="sr-only">{t("novelcrafterStudio")}</h1>}
-      <ToastContainer />
       <Sidebar
         conversations={story.stories}
         selectedConversationId={story.validStoryId}
@@ -388,6 +393,25 @@ export default function NovelcrafterStudioApp() {
                   setRenamingStoryId(null);
                 }}
               />
+
+              {isLoadLocked && (
+                <div
+                  role="alert"
+                  className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-b border-(--danger)/30 bg-(--danger)/10 px-4 py-2 text-xs text-(--danger)"
+                >
+                  <span className="inline-flex items-center gap-2 font-medium">
+                    <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0" />
+                    {t("novelcrafterLoadStoryFailed")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={story.retryLoadStory}
+                    className="rounded-lg border border-(--danger)/40 bg-(--surface) px-3 py-1 text-xs font-semibold text-(--danger) hover:bg-(--danger)/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                  >
+                    {t("novelcrafterRetryLoad")}
+                  </button>
+                </div>
+              )}
 
               <NovelcrafterViewPanel
                 view={view}

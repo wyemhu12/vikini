@@ -62,12 +62,13 @@ export function SidebarSection({
       <h2 className="sr-only">{label}</h2>
       {/* Header */}
       <button
+        type="button"
         onClick={toggle}
         aria-expanded={isExpanded}
         className={cn(
-          "w-full flex items-center justify-between px-3 py-2",
+          "w-full min-h-10 md:min-h-0 flex items-center justify-between px-3 py-2",
           "text-xs font-medium text-(--muted) uppercase tracking-wider",
-          "hover:text-(--text) transition-colors"
+          "hover:text-(--text) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) rounded-lg"
         )}
       >
         <span className="flex items-center gap-2">
@@ -77,6 +78,7 @@ export function SidebarSection({
           )}
         </span>
         <ChevronDown
+          aria-hidden="true"
           className={cn(
             "h-3.5 w-3.5 transition-transform duration-200",
             isExpanded ? "rotate-0" : "-rotate-90"
@@ -97,11 +99,12 @@ export function SidebarSection({
             {/* Optional action button */}
             {action && (
               <button
+                type="button"
                 onClick={action.onClick}
                 className={cn(
-                  "w-full flex items-center gap-2 px-3 py-2 text-sm",
+                  "w-full min-h-10 md:min-h-0 flex items-center gap-2 px-3 py-2 text-sm",
                   "text-(--muted) hover:text-(--text)",
-                  "hover:bg-(--raised) rounded-lg transition-colors"
+                  "hover:bg-(--raised) rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                 )}
               >
                 {action.icon}

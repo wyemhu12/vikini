@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import PersonaList from "./PersonaList";
 import PersonaEditor from "./PersonaEditor";
@@ -214,13 +215,23 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
     ? `${t("personaApplied") || "Active Persona"}: ${conversationId.slice(0, 8)}...`
     : t("personasPageDescription");
   const headerActions = (
-    <button
-      type="button"
-      onClick={onCreate}
-      className="rounded-lg bg-(--accent) px-3 py-1.5 text-sm text-(--on-accent) font-medium hover:brightness-110 transition-colors active:scale-95"
-    >
-      + {t("personaCreate") || "New Persona"}
-    </button>
+    <div className="flex items-center gap-2">
+      {!inModal && (
+        <Link
+          href="/features/gems"
+          className="rounded-lg border border-(--line) bg-(--surface) px-3 py-1.5 text-sm font-medium text-(--text) transition-colors hover:bg-(--raised) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+        >
+          {t("manageGems")}
+        </Link>
+      )}
+      <button
+        type="button"
+        onClick={onCreate}
+        className="rounded-lg bg-(--accent) px-3 py-1.5 text-sm text-(--on-accent) font-medium hover:brightness-110 transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+      >
+        + {t("personaCreate") || "New Persona"}
+      </button>
+    </div>
   );
 
   return (
@@ -322,8 +333,9 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
               {editingPersona ? (
                 <div className="rounded-xl border border-(--line) bg-(--surface) p-4 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-medium">{t("personaEdit")}</h3>
+                    <h2 className="font-medium">{t("personaEdit")}</h2>
                     <button
+                      type="button"
                       onClick={() => setEditingPersona(null)}
                       className="text-xs text-(--muted) hover:text-(--text)"
                     >

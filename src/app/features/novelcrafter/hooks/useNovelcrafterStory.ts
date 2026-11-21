@@ -88,7 +88,12 @@ export function useNovelcrafterStory(isAuthed: boolean) {
   const [promotedDraftStoryId, setPromotedDraftStoryId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<StorySaveStatus>("saved");
   const [loadErrorStoryId, setLoadErrorStoryId] = useState<string | null>(null);
+  const [loadRetryNonce, setLoadRetryNonce] = useState(0);
   const loadErrorStoryIdRef = useRef<string | null>(null);
+
+  const retryLoadStory = useCallback(() => {
+    setLoadRetryNonce((n) => n + 1);
+  }, []);
 
   const updateLoadErrorStoryId = useCallback((id: string | null) => {
     loadErrorStoryIdRef.current = id;
@@ -301,6 +306,7 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     flushLocalDraftSync,
     executeCoordinatorSave,
     updateLoadErrorStoryId,
+    loadRetryNonce,
     t,
   ]);
 
@@ -433,6 +439,7 @@ export function useNovelcrafterStory(isAuthed: boolean) {
     destructivePrompt,
     confirmDestructiveSave,
     reloadAfterDestructiveRejection,
+    retryLoadStory,
     gems,
     personas,
     ensureActiveStory,

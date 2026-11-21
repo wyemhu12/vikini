@@ -105,30 +105,30 @@ function ImageGenPreview({ message, onRegenerate, onEdit }: ImageGenPreviewProps
 
   return (
     <>
-      <div className="mt-4 rounded-xl overflow-hidden border border-token shadow-sm max-w-sm bg-surface-elevated">
-        {/* Image with hover overlay */}
-        <div
-          className="relative group cursor-pointer overflow-hidden"
+      <div className="mt-4 rounded-xl overflow-hidden border border-(--line) shadow-sm max-w-sm bg-(--surface)">
+        {/* Image with accessible native button trigger & mobile-visible expand cue */}
+        <button
+          type="button"
+          className="relative block w-full text-left group cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--ring)"
           onClick={() => setShowLightbox(true)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setShowLightbox(true);
-            }
-          }}
           aria-label={t("imageFullscreen") || "View fullscreen"}
         >
           <img
             src={sanitizeImageUrl(imageUrl)}
-            alt={prompt || "Generated Image"}
+            alt={prompt || t("imagePreviewTitle")}
             className="w-full h-auto object-cover transition-transform duration-300 ease-out group-hover:scale-105"
             loading="lazy"
           />
 
-          {/* Hover Overlay */}
-          <div className="absolute inset-0 bg-(--overlay) opacity-0 active:opacity-100 md:active:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 ease-out flex items-center justify-center pointer-events-none">
+          {/* Mobile corner badge + Desktop hover/focus overlay */}
+          <span
+            aria-hidden="true"
+            className="absolute right-2.5 bottom-2.5 inline-flex items-center gap-1.5 rounded-full border border-(--on-overlay)/20 bg-(--overlay) px-2.5 py-1 text-xs font-medium text-(--on-overlay) backdrop-blur-sm md:hidden"
+          >
+            <Expand className="w-3.5 h-3.5" />
+            <span>{t("imageFullscreen")}</span>
+          </span>
+          <div className="hidden md:flex absolute inset-0 bg-(--overlay) opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity duration-300 ease-out items-center justify-center pointer-events-none">
             <div className="flex items-center gap-2 px-4 py-2 bg-(--on-overlay)/10 backdrop-blur-sm rounded-full border border-(--on-overlay)/20">
               <Expand className="w-5 h-5 text-(--on-overlay)" />
               <span className="text-(--on-overlay) text-sm font-medium">
@@ -136,18 +136,18 @@ function ImageGenPreview({ message, onRegenerate, onEdit }: ImageGenPreviewProps
               </span>
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Metadata Badges */}
         {hasOptions && (
-          <div className="flex flex-wrap gap-1.5 px-3 py-2 border-b border-token bg-surface-muted/50">
+          <div className="flex flex-wrap gap-1.5 px-3 py-2 border-b border-(--line) bg-(--raised)/50">
             {options.model && (
               <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-(--accent)/20 text-(--accent) border border-(--accent)/30">
                 {formatModelName(options.model)}
               </span>
             )}
             {options.aspectRatio && (
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-secondary/20 text-secondary border border-token">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-(--raised) text-(--muted) border border-(--line)">
                 {options.aspectRatio}
               </span>
             )}
@@ -166,29 +166,33 @@ function ImageGenPreview({ message, onRegenerate, onEdit }: ImageGenPreviewProps
         )}
 
         {/* Prompt Footer */}
-        <div className="bg-surface-muted px-3 py-2 text-xs text-secondary border-b border-token">
+        <div className="bg-(--raised) px-3 py-2 text-xs text-(--muted) border-b border-(--line)">
           <p className="truncate max-w-full" title={prompt}>
             {prompt}
           </p>
         </div>
 
         {/* Action Footer */}
-        <div className="bg-surface-elevated px-2 py-1.5 flex justify-between items-center">
+        <div className="bg-(--surface) px-2 py-1.5 flex justify-between items-center">
           {/* Left: Quick Actions */}
           <div className="flex gap-1">
             <button
+              type="button"
               onClick={handleCopyUrl}
-              className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
+              className="inline-flex h-9 w-9 md:h-8 md:w-8 items-center justify-center rounded-md hover:bg-(--raised-hover) text-(--muted) hover:text-(--text) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
               title={t("imageCopyUrl") || "Copy URL"}
+              aria-label={t("imageCopyUrl") || "Copy URL"}
             >
-              <Copy className="w-3.5 h-3.5" />
+              <Copy aria-hidden="true" className="w-3.5 h-3.5" />
             </button>
             <button
+              type="button"
               onClick={handleDownload}
-              className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
+              className="inline-flex h-9 w-9 md:h-8 md:w-8 items-center justify-center rounded-md hover:bg-(--raised-hover) text-(--muted) hover:text-(--text) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
               title={t("studioDownload") || "Download"}
+              aria-label={t("studioDownload") || "Download"}
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download aria-hidden="true" className="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -196,26 +200,30 @@ function ImageGenPreview({ message, onRegenerate, onEdit }: ImageGenPreviewProps
           <div className="flex gap-1">
             {onRegenerate && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onRegenerate(message);
                 }}
-                className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
+                className="inline-flex h-9 w-9 md:h-8 md:w-8 items-center justify-center rounded-md hover:bg-(--raised-hover) text-(--muted) hover:text-(--text) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                 title={t("regenerate") || "Regenerate Image"}
+                aria-label={t("regenerate") || "Regenerate Image"}
               >
-                <RefreshCw className="w-3.5 h-3.5" />
+                <RefreshCw aria-hidden="true" className="w-3.5 h-3.5" />
               </button>
             )}
             {onEdit && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(message);
                 }}
-                className="p-1.5 rounded-md hover:bg-control-hover text-secondary hover:text-primary transition-colors"
+                className="inline-flex h-9 w-9 md:h-8 md:w-8 items-center justify-center rounded-md hover:bg-(--raised-hover) text-(--muted) hover:text-(--text) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                 title={t("edit") || "Edit Prompt"}
+                aria-label={t("edit") || "Edit Prompt"}
               >
-                <Pencil className="w-3.5 h-3.5" />
+                <Pencil aria-hidden="true" className="w-3.5 h-3.5" />
               </button>
             )}
           </div>

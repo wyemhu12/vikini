@@ -1,0 +1,102 @@
+/* ===========================================
+   SYNTAX HIGHLIGHTING (.hljs-*) — Theme-aware WCAG AA (>= 4.5:1)
+   Maps rehype-highlight tokens for Dark & 5 Light theme classes
+   =========================================== */
+
+:root {
+  --hljs-comment: #9ca3af;
+  --hljs-keyword: #c4b5fd;
+  --hljs-string: #86efac;
+  --hljs-number: #fdba74;
+  --hljs-title: #93c5fd;
+  --hljs-attr: #f9a8d4;
+  --hljs-builtin: #67e8f9;
+  --hljs-deletion: #fca5a5;
+}
+
+.theme-hoanghon-light,
+.theme-muc-light,
+.theme-reu-light,
+.theme-sen-light,
+.theme-than-light {
+  --hljs-comment: #57534e;
+  --hljs-keyword: #6d28d9;
+  --hljs-string: #15803d;
+  --hljs-number: #b45309;
+  --hljs-title: #1d4ed8;
+  --hljs-attr: #be185d;
+  --hljs-builtin: #0e7490;
+  --hljs-deletion: #b91c1c;
+}
+
+.hljs {
+  color: var(--text);
+  background: transparent;
+}
+
+.hljs-comment,
+.hljs-quote,
+.hljs-meta {
+  color: var(--hljs-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-doctag,
+.hljs-template-tag,
+.hljs-type {
+  color: var(--hljs-keyword);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-selector-attr,
+.hljs-selector-pseudo {
+  color: var(--hljs-string);
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--hljs-number);
+}
+
+.hljs-title,
+.hljs-title\.function_,
+.hljs-title\.class_,
+.hljs-section,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--hljs-title);
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-property,
+.hljs-name,
+.hljs-tag {
+  color: var(--hljs-attr);
+}
+
+.hljs-built_in,
+.hljs-params,
+.hljs-link {
+  color: var(--hljs-builtin);
+}
+
+.hljs-deletion {
+  color: var(--hljs-deletion);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 600;
+}

@@ -3,6 +3,7 @@
 
 import React from "react";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 interface VoiceWaveformProps {
   /** Whether the waveform is active (animating) */
@@ -25,6 +26,7 @@ export function VoiceWaveform({
   className,
   variant = "accent",
 }: VoiceWaveformProps) {
+  const { t } = useLanguage();
   const barColors = {
     accent: "bg-(--accent)",
     muted: "bg-(--muted)",
@@ -34,7 +36,7 @@ export function VoiceWaveform({
     <div
       className={cn("flex items-center justify-center gap-0.5 h-4", className)}
       role="img"
-      aria-label={isActive ? "Audio playing" : "Audio paused"}
+      aria-label={isActive ? t("voiceAudioPlaying") : t("voiceAudioPaused")}
     >
       {Array.from({ length: bars }).map((_, i) => (
         <div

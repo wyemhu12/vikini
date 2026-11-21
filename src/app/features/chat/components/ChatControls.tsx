@@ -10,6 +10,7 @@ import InputModelControls from "./InputModelControls";
 import ComposerLeadingControls from "./ComposerLeadingControls";
 
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
+import { DURATION, EASE } from "@/lib/utils/motion";
 import { type ThinkingLevel } from "./hooks/useThinkingLevel";
 
 /** Gem info for display */
@@ -108,13 +109,13 @@ export default function ChatControls({
     <motion.div
       initial={false}
       animate={{ y: showMobileControls ? 0 : "100%" }}
-      transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+      transition={{ duration: DURATION.NORMAL, ease: EASE.EXIT }}
       className={`
-        w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-4 md:px-6
+        w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto
         ${
           isLanding
-            ? "relative z-40"
-            : "pt-3 md:pt-0 pb-[calc(1.5rem+var(--sab,0px))] md:pb-6 shadow-2xl md:shadow-none fixed bottom-0 left-0 right-0 z-40 bg-(--surface)/95 backdrop-blur-xl md:bg-transparent md:backdrop-blur-none md:static md:translate-y-0 pl-[calc(1rem+var(--sal,0px))] pr-[calc(1rem+var(--sar,0px))]"
+            ? "relative z-40 px-0"
+            : "pt-3 md:pt-0 pb-[calc(1.5rem+var(--sab,0px))] md:pb-6 shadow-(--shadow-elevated) md:shadow-none fixed bottom-0 left-0 right-0 z-40 bg-(--surface)/95 backdrop-blur-xl md:bg-transparent md:backdrop-blur-none md:static md:translate-y-0 pl-[calc(0.75rem+var(--sal,0px))] pr-[calc(0.75rem+var(--sar,0px))] md:px-6"
         }
       `}
     >
@@ -125,7 +126,7 @@ export default function ChatControls({
           data-testid="composer-horizon-glow"
           className="pointer-events-none absolute -inset-x-6 -inset-y-3 rounded-4xl composer-horizon-glow"
         />
-        <div className="pointer-events-none absolute -inset-0.5 bg-(--accent) rounded-4xl opacity-0 group-focus-within:opacity-20 transition-opacity duration-500 blur-lg" />
+        <div className="pointer-events-none absolute -inset-0.5 bg-(--accent) rounded-4xl opacity-0 group-focus-within:opacity-20 transition-opacity duration-300 blur-lg" />
         <div className="relative z-10">
           <InputForm
             input={isShowingPreview ? displayValue : input}

@@ -6,7 +6,7 @@ export default function HomePage() {
   return (
     <Suspense
       fallback={
-        <div className="h-screen w-screen flex flex-col items-center justify-center bg-surface text-primary gap-6">
+        <div className="h-screen w-screen flex flex-col items-center justify-center bg-(--bg) text-(--text) gap-6">
           {/* Branded V logo pulse */}
           <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-(--raised) border border-(--line) animate-pulse">
             <span className="text-xl font-black text-(--accent)">V</span>

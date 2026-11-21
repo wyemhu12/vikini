@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
 import { X, ZoomIn, ZoomOut, Download, Copy, RotateCcw } from "lucide-react";
 import { useLanguage } from "../hooks/useLanguage";
 import { toast } from "@/lib/store/toastStore";
@@ -42,32 +43,6 @@ function ImageLightbox({ isOpen, onClose, imageUrl, imageAlt, prompt }: ImageLig
     }
   }, [isOpen]);
 
-  // Handle ESC key to close
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isOpen]);
-
   const handleZoomIn = useCallback(() => {
     setZoom((prev) => Math.min(prev + ZOOM_STEP, MAX_ZOOM));
   }, []);
@@ -99,110 +74,135 @@ function ImageLightbox({ isOpen, onClose, imageUrl, imageAlt, prompt }: ImageLig
     document.body.removeChild(link);
   }, [imageUrl]);
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-(--overlay) backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("imageFullscreen") || "Fullscreen image view"}
+    <Dialog.Root
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
     >
-      {/* Toolbar */}
-      <div
-        className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-(--overlay) backdrop-blur-md rounded-full border border-(--on-overlay)/10 shadow-xl z-10"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Zoom controls */}
-        <button
-          onClick={handleZoomOut}
-          disabled={zoom <= MIN_ZOOM}
-          className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          title={t("imageZoomOut") || "Zoom out"}
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-(--z-modal) bg-(--overlay) backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <Dialog.Content
+          aria-describedby={undefined}
+          className="fixed inset-0 z-(--z-modal) flex items-center justify-center outline-none"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onClose();
+          }}
         >
-          <ZoomOut className="w-5 h-5" />
-        </button>
+          <Dialog.Title className="sr-only">
+            {imageAlt || t("imageFullscreen") || t("imagePreviewTitle")}
+          </Dialog.Title>
 
-        <span className="text-(--on-overlay)/80 text-sm font-mono min-w-12 text-center">
-          {Math.round(zoom * 100)}%
-        </span>
+          {/* Toolbar */}
+          <div
+            className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-(--overlay) backdrop-blur-md rounded-full border border-(--on-overlay)/10 shadow-xl z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Zoom controls */}
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              disabled={zoom <= MIN_ZOOM}
+              className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+              title={t("studioZoomOut")}
+              aria-label={t("studioZoomOut")}
+            >
+              <ZoomOut aria-hidden="true" className="w-5 h-5" />
+            </button>
 
-        <button
-          onClick={handleZoomIn}
-          disabled={zoom >= MAX_ZOOM}
-          className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          title={t("imageZoomIn") || "Zoom in"}
-        >
-          <ZoomIn className="w-5 h-5" />
-        </button>
+            <span className="text-(--on-overlay)/80 text-sm font-mono min-w-12 text-center">
+              {Math.round(zoom * 100)}%
+            </span>
 
-        <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              disabled={zoom >= MAX_ZOOM}
+              className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+              title={t("studioZoomIn")}
+              aria-label={t("studioZoomIn")}
+            >
+              <ZoomIn aria-hidden="true" className="w-5 h-5" />
+            </button>
 
-        <button
-          onClick={handleResetZoom}
-          className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
-          title="Reset zoom"
-        >
-          <RotateCcw className="w-5 h-5" />
-        </button>
+            <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
 
-        <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
+            <button
+              type="button"
+              onClick={handleResetZoom}
+              className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+              title={t("studioZoomReset")}
+              aria-label={t("studioZoomReset")}
+            >
+              <RotateCcw aria-hidden="true" className="w-5 h-5" />
+            </button>
 
-        {/* Action buttons */}
-        <button
-          onClick={handleCopyUrl}
-          className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
-          title={t("imageCopyUrl") || "Copy URL"}
-        >
-          <Copy className="w-5 h-5" />
-        </button>
+            <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
 
-        <button
-          onClick={handleDownload}
-          className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
-          title={t("studioDownload") || "Download"}
-        >
-          <Download className="w-5 h-5" />
-        </button>
+            {/* Action buttons */}
+            <button
+              type="button"
+              onClick={handleCopyUrl}
+              className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+              title={t("imageCopyUrl")}
+              aria-label={t("imageCopyUrl")}
+            >
+              <Copy aria-hidden="true" className="w-5 h-5" />
+            </button>
 
-        <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
+            <button
+              type="button"
+              onClick={handleDownload}
+              className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+              title={t("studioDownload")}
+              aria-label={t("studioDownload")}
+            >
+              <Download aria-hidden="true" className="w-5 h-5" />
+            </button>
 
-        <button
-          onClick={onClose}
-          className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors"
-          title={t("imageClose") || "Close"}
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
+            <div className="w-px h-6 bg-(--on-overlay)/20 mx-1" />
 
-      {/* Image container */}
-      <div
-        className="relative max-w-[90vw] max-h-[85vh] overflow-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <img
-          src={sanitizeImageUrl(imageUrl)}
-          alt={imageAlt || "Generated image"}
-          className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl transition-transform duration-200"
-          style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}
-          draggable={false}
-        />
-      </div>
+            <Dialog.Close asChild>
+              <button
+                type="button"
+                className="p-2 rounded-full hover:bg-(--on-overlay)/10 text-(--on-overlay)/80 hover:text-(--on-overlay) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                title={t("close")}
+                aria-label={t("close")}
+              >
+                <X aria-hidden="true" className="w-5 h-5" />
+              </button>
+            </Dialog.Close>
+          </div>
 
-      {/* Prompt display at bottom */}
-      {prompt && (
-        <div
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-2xl px-6 py-3 bg-(--overlay) backdrop-blur-md rounded-xl border border-(--on-overlay)/10 shadow-xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <p className="text-(--on-overlay)/80 text-sm font-mono leading-relaxed line-clamp-3">
-            &quot;{prompt}&quot;
-          </p>
-        </div>
-      )}
-    </div>
+          {/* Image container */}
+          <div
+            className="relative max-w-[90vw] max-h-[85vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={sanitizeImageUrl(imageUrl)}
+              alt={imageAlt || t("imagePreviewTitle")}
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-(--shadow-elevated) transition-transform duration-200"
+              style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}
+              draggable={false}
+            />
+          </div>
+
+          {/* Prompt display at bottom */}
+          {prompt && (
+            <div
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-2xl px-6 py-3 bg-(--overlay) backdrop-blur-md rounded-xl border border-(--on-overlay)/10 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="text-(--on-overlay)/80 text-sm font-mono leading-relaxed line-clamp-3">
+                &quot;{prompt}&quot;
+              </p>
+            </div>
+          )}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 

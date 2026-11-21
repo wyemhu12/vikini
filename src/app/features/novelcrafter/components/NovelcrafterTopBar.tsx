@@ -122,9 +122,9 @@ export default function NovelcrafterTopBar({
               type="button"
               onClick={onOpenSidebar}
               aria-label={t("novelcrafterOpenStoriesMenu")}
-              className="p-2 rounded-lg border border-(--line) bg-(--raised) text-(--text) shrink-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="h-10 w-10 flex items-center justify-center rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised-hover) text-(--text) shrink-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
-              <Menu className="w-4 h-4" />
+              <Menu aria-hidden="true" className="w-4 h-4" />
             </button>
           )}
           {!isMobileLayout && (

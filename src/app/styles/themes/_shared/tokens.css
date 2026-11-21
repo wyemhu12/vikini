@@ -1,58 +1,45 @@
 /* ===========================================
    DESIGN TOKEN UTILITIES
-   Map semantic CSS variables to utility-like classes
+   Layered in @layer components so Tailwind v4 utilities
+   (@layer utilities) always win cleanly without cascade conflicts.
+   Legacy classes colliding with @theme have been migrated and removed.
    =========================================== */
 
-/* Backgrounds */
-.bg-surface,
-.theme-surface-canvas {
-  background: var(--bg);
-}
+@layer components {
+  /* Backgrounds */
+  .bg-surface,
+  .theme-surface-canvas {
+    background: var(--bg);
+  }
 
-.bg-surface-muted {
-  background: var(--raised);
-}
+  .bg-surface-muted {
+    background: var(--raised);
+  }
 
-.bg-surface-elevated {
-  background: var(--surface);
-}
+  .bg-surface-elevated {
+    background: var(--surface);
+  }
 
-.bg-control {
-  background-color: var(--raised);
-}
+  .bg-control {
+    background-color: var(--raised);
+  }
 
-.bg-control-hover {
-  background-color: color-mix(in oklab, var(--raised) 88%, var(--text) 12%);
-}
+  .bg-control-hover {
+    background-color: color-mix(in oklab, var(--raised) 88%, var(--text) 12%);
+  }
 
-.bg-accent {
-  background-color: var(--accent);
-}
+  /* Borders */
+  .border-token {
+    border-color: var(--line);
+  }
 
-/* Borders */
-.border-token {
-  border-color: var(--line);
-}
+  .border-control {
+    border-color: var(--line);
+  }
 
-.border-control {
-  border-color: var(--line);
-}
-
-/* Text */
-.text-primary {
-  color: var(--text);
-}
-
-.text-secondary {
-  color: var(--muted);
-}
-
-.text-accent {
-  color: var(--accent);
-}
-
-/* Generic surface cards */
-.card-surface {
-  background: var(--surface);
-  border-color: var(--line);
+  /* Generic surface cards */
+  .card-surface {
+    background: var(--surface);
+    border-color: var(--line);
+  }
 }

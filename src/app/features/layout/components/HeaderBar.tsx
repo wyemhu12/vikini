@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { ChevronDown, Check, Settings, Menu } from "lucide-react";
+import { VikiniLogo } from "@/components/ui/vikini-logo";
+import { DURATION, EASE } from "@/lib/utils/motion";
 
 interface HeaderBarProps {
   onToggleSidebar?: () => void;
@@ -39,15 +41,17 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const languageOptions = useMemo(
     () => [
-      { id: "vi", label: t("vi") },
-      { id: "en", label: t("en") },
+      { id: "vi" as const, label: t("vi"), codeKey: "langCodeVi" },
+      { id: "en" as const, label: t("en"), codeKey: "langCodeEn" },
     ],
     [t]
   );
 
   // Common styles for triggers
   const triggerButtonStyles =
-    "flex items-center gap-2 rounded-full bg-(--raised) border border-(--line) hover:border-(--line) p-1 px-4 py-1.5 transition-[border-color,box-shadow] duration-200 shadow-lg group backdrop-blur-md text-(--text) cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)";
+    "flex items-center gap-2 rounded-full bg-(--raised) border border-(--line) hover:bg-(--raised-hover) hover:border-(--accent)/40 p-1 px-4 py-1.5 transition-[background-color,border-color,box-shadow] duration-200 shadow-sm group backdrop-blur-md text-(--text) cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)";
+  const mobileSettingsButtonStyles =
+    "inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--raised) border border-(--line) hover:bg-(--raised-hover) hover:border-(--accent)/40 transition-[background-color,border-color,box-shadow] duration-200 shadow-sm backdrop-blur-md text-(--text) cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)";
   const triggerLabelStyles =
     "text-xs font-bold text-(--muted) group-hover:text-(--text) transition-colors max-w-[100px] truncate";
 
@@ -55,7 +59,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     <motion.header
       initial={false}
       animate={{ y: showMobileControls ? 0 : "-100%" }}
-      transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+      transition={{ duration: DURATION.NORMAL, ease: EASE.EXIT }}
       className={`
       chat-header-bar
       fixed top-0 left-0 right-0 z-20 
@@ -85,12 +89,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             href="/"
             className="font-sans text-xl font-bold tracking-wide flex items-center gap-2 select-none text-(--text) hover:opacity-80 transition-opacity"
           >
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-br from-(--accent) to-[color-mix(in_srgb,var(--accent)_80%,black)] shadow-[0_0_15px_var(--glow)] text-(--surface) font-black text-lg">
-              V
-            </div>
-            <span className="bg-clip-text text-transparent bg-linear-to-r from-(--text) via-(--text) to-[color-mix(in_srgb,var(--text)_70%,transparent)]">
-              {t("appName")}
-            </span>
+            <VikiniLogo size="sm" />
+            <span className="text-(--text)">{t("appName")}</span>
           </Link>
         </div>
       </div>
@@ -101,8 +101,12 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         {mounted ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className={triggerButtonStyles} aria-label={t("selectLanguage")}>
-                <span className={triggerLabelStyles}>{language === "vi" ? "VN" : "EN"}</span>
+              <button
+                type="button"
+                className={triggerButtonStyles}
+                aria-label={t("selectLanguage")}
+              >
+                <span className={triggerLabelStyles}>{t("currentLanguageCode")}</span>
                 <ChevronDown className="w-3 h-3 text-(--muted) transition-transform group-data-[state=open]:rotate-180" />
               </button>
             </DropdownMenuTrigger>
@@ -113,15 +117,15 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                   onClick={() => setLanguage(lang.id as "vi" | "en")}
                   className="flex items-center justify-between cursor-pointer"
                 >
-                  <span className="text-xs font-bold">{lang.id === "vi" ? "VN" : "EN"}</span>
+                  <span className="text-xs font-bold">{t(lang.codeKey)}</span>
                   {language === lang.id && <Check className="w-3 h-3 text-(--accent)" />}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <button className={triggerButtonStyles} aria-label={t("selectLanguage")}>
-            <span className={triggerLabelStyles}>{language === "vi" ? "VN" : "EN"}</span>
+          <button type="button" className={triggerButtonStyles} aria-label={t("selectLanguage")}>
+            <span className={triggerLabelStyles}>{t("currentLanguageCode")}</span>
             <ChevronDown className="w-3 h-3 text-(--muted)" />
           </button>
         )}
@@ -171,8 +175,12 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         {mounted ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className={`${triggerButtonStyles} px-2`} aria-label={t("settings")}>
-                <Settings className="w-4 h-4" />
+              <button
+                type="button"
+                className={mobileSettingsButtonStyles}
+                aria-label={t("settings")}
+              >
+                <Settings aria-hidden="true" className="w-4 h-4 shrink-0" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 overflow-y-auto max-h-[80vh]">
@@ -187,7 +195,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                   className="flex items-center justify-between cursor-pointer"
                 >
                   <span className="text-xs font-medium">
-                    {lang.label} ({lang.id === "vi" ? "VN" : "EN"})
+                    {lang.label} ({t(lang.codeKey)})
                   </span>
                   {language === lang.id && <Check className="w-3 h-3 text-(--accent)" />}
                 </DropdownMenuItem>
@@ -200,8 +208,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <button className={`${triggerButtonStyles} px-2`} aria-label={t("settings")}>
-            <Settings className="w-4 h-4" />
+          <button type="button" className={mobileSettingsButtonStyles} aria-label={t("settings")}>
+            <Settings aria-hidden="true" className="w-4 h-4 shrink-0" />
           </button>
         )}
       </div>

@@ -8,6 +8,8 @@ import { LogOut, Plus, Shield, X } from "lucide-react";
 import { shouldCloseDrawer } from "../utils/drawerGesture";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { RAIL_ITEMS } from "../../layout/utils/shellNav";
+import { VikiniLogo } from "@/components/ui/vikini-logo";
+import { DURATION, EASE } from "@/lib/utils/motion";
 import { SidebarButton } from "./ContextPanelContent";
 
 interface MobileNavDrawerProps {
@@ -63,7 +65,16 @@ export default function MobileNavDrawer({
 
   const footer = (
     <>
-      {onAdmin && <SidebarButton onClick={onAdmin} icon={Shield} label={t("adminManagement")} />}
+      {onAdmin && (
+        <SidebarButton
+          onClick={() => {
+            onAdmin();
+            onClose?.();
+          }}
+          icon={Shield}
+          label={t("adminManagement")}
+        />
+      )}
       {onLogout && (
         <SidebarButton
           onClick={() => {
@@ -91,21 +102,20 @@ export default function MobileNavDrawer({
             <>
               <Dialog.Overlay asChild forceMount>
                 <motion.div
-                  className="fixed inset-0 z-(--z-drawer) bg-(--raised)/80 backdrop-blur-sm md:hidden"
+                  className="fixed inset-0 z-(--z-drawer) bg-(--overlay) backdrop-blur-sm md:hidden"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  transition={{ duration: DURATION.NORMAL, ease: EASE.EXIT }}
                 />
               </Dialog.Overlay>
-              <Dialog.Content asChild forceMount>
-                <motion.nav
-                  aria-label={t("navigation")}
-                  className="fixed top-0 left-0 bottom-0 z-(--z-drawer) w-[85vw] max-w-sm border-r border-(--line) bg-(--raised) p-5 pt-[calc(1.25rem+var(--sat,0px))] pb-[calc(4rem+var(--sab,0px))] pl-[calc(1.25rem+var(--sal,0px))] shadow-2xl flex flex-col md:hidden"
+              <Dialog.Content asChild forceMount aria-describedby={undefined}>
+                <motion.div
+                  className="fixed top-0 left-0 bottom-0 z-(--z-drawer) w-[85vw] max-w-sm border-r border-(--line) bg-(--surface) p-5 pt-[calc(1.25rem+var(--sat,0px))] pb-[calc(1.25rem+var(--sab,0px))] pl-[calc(1.25rem+var(--sal,0px))] shadow-(--shadow-elevated) flex flex-col md:hidden"
                   initial={{ x: "-100%" }}
                   animate={{ x: 0 }}
                   exit={{ x: "-100%" }}
-                  transition={{ duration: 0.25, ease: [0.0, 0.0, 0.2, 1.0] }}
+                  transition={{ duration: DURATION.NORMAL, ease: EASE.EXIT }}
                   drag="x"
                   dragDirectionLock
                   dragConstraints={{ left: 0, right: 0 }}
@@ -116,31 +126,32 @@ export default function MobileNavDrawer({
                   }}
                 >
                   <Dialog.Title className="sr-only">{t("navigation")}</Dialog.Title>
-                  <div className="mb-4 flex items-center justify-between shrink-0">
-                    <Link
-                      href="/"
-                      className="text-lg font-black tracking-tighter text-(--text) flex items-center gap-3 active:opacity-70 transition-opacity"
-                      onClick={() => {
-                        onLogoClick?.();
-                        onClose?.();
-                      }}
-                    >
-                      <div className="h-8 w-8 rounded-lg bg-(--raised) flex items-center justify-center border border-(--line) text-(--accent)">
-                        V
-                      </div>
-                      {t("appName")}
-                    </Link>
-                    <Dialog.Close asChild>
-                      <button
-                        aria-label={t("closeSidebar")}
-                        className="p-2 rounded-full text-(--muted) hover:bg-(--raised) hover:text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                  <nav aria-label={t("navigation")} className="flex flex-col flex-1 min-h-0">
+                    <div className="mb-4 flex items-center justify-between shrink-0">
+                      <Link
+                        href="/"
+                        className="text-lg font-bold tracking-tight text-(--text) flex items-center gap-2.5 active:opacity-70 transition-opacity"
+                        onClick={() => {
+                          onLogoClick?.();
+                          onClose?.();
+                        }}
                       >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </Dialog.Close>
-                  </div>
-                  {renderContent(leading, footer)}
-                </motion.nav>
+                        <VikiniLogo size="sm" />
+                        {t("appName")}
+                      </Link>
+                      <Dialog.Close asChild>
+                        <button
+                          type="button"
+                          aria-label={t("closeSidebar")}
+                          className="p-2 rounded-full text-(--muted) hover:bg-(--raised) hover:text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+                        >
+                          <X aria-hidden="true" className="w-5 h-5" />
+                        </button>
+                      </Dialog.Close>
+                    </div>
+                    {renderContent(leading, footer)}
+                  </nav>
+                </motion.div>
               </Dialog.Content>
             </>
           )}

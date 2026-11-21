@@ -11,6 +11,7 @@ import dynamic from "next/dynamic";
 import SmartCode, { extractText } from "./SmartCode";
 import { EXTENDED_TAG_NAMES } from "./markdownConfig";
 import { TypingCursor } from "./BubbleHelpers";
+import { useLanguage } from "../hooks/useLanguage";
 
 interface MarkdownChildrenProps {
   children?: React.ReactNode;
@@ -37,14 +38,33 @@ interface ChartData {
   colors?: string[];
 }
 
-const ChartTool = dynamic(() => import("./ChartTool"), {
-  loading: () => (
+function ChartLoadingFallback() {
+  const { t } = useLanguage();
+  return (
     <div className="w-full h-64 flex items-center justify-center bg-(--raised) rounded-xl animate-pulse">
-      <span className="text-sm text-(--muted)">Loading Chart...</span>
+      <span className="text-sm text-(--muted)">{t("loadingChart")}</span>
     </div>
-  ),
+  );
+}
+
+const ChartTool = dynamic(() => import("./ChartTool"), {
+  loading: () => <ChartLoadingFallback />,
   ssr: false,
 });
+
+function ScrollableTableWrapper({ children }: MarkdownChildrenProps) {
+  const { t } = useLanguage();
+  return (
+    <div
+      tabIndex={0}
+      role="region"
+      aria-label={t("markdownTableScrollLabel")}
+      className="overflow-x-auto my-4 rounded-lg border border-(--line) bg-(--surface) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+    >
+      <table className="w-full text-left text-sm">{children}</table>
+    </div>
+  );
+}
 
 function parseChart(textContent: string): ChartData | null {
   const start = textContent.indexOf("{");
@@ -97,17 +117,26 @@ const mdComponents = {
     <p className="mb-5 last:mb-0 leading-relaxed break-words">{children}</p>
   ),
   h1: ({ children }: MarkdownChildrenProps) => (
-    <h1 className="mt-8 mb-4 text-xl md:text-2xl font-bold tracking-tight text-(--text) border-b border-(--line) pb-2">
-      {children}
-    </h1>
-  ),
-  h2: ({ children }: MarkdownChildrenProps) => (
-    <h2 className="mt-7 mb-3 text-lg md:text-xl font-semibold tracking-tight text-(--text)">
+    <h2 className="mt-8 mb-4 text-xl md:text-2xl font-bold tracking-tight text-(--text) border-b border-(--line) pb-2">
       {children}
     </h2>
   ),
+  h2: ({ children }: MarkdownChildrenProps) => (
+    <h3 className="mt-7 mb-3 text-lg md:text-xl font-semibold tracking-tight text-(--text)">
+      {children}
+    </h3>
+  ),
   h3: ({ children }: MarkdownChildrenProps) => (
-    <h3 className="mt-6 mb-2 text-base font-semibold text-(--text)">{children}</h3>
+    <h4 className="mt-6 mb-2 text-base font-semibold text-(--text)">{children}</h4>
+  ),
+  h4: ({ children }: MarkdownChildrenProps) => (
+    <h5 className="mt-5 mb-2 text-sm font-semibold text-(--text)">{children}</h5>
+  ),
+  h5: ({ children }: MarkdownChildrenProps) => (
+    <h6 className="mt-4 mb-1.5 text-sm font-medium text-(--text)">{children}</h6>
+  ),
+  h6: ({ children }: MarkdownChildrenProps) => (
+    <h6 className="mt-4 mb-1.5 text-xs font-medium text-(--muted)">{children}</h6>
   ),
   blockquote: ({ children }: MarkdownChildrenProps) => (
     <blockquote className="border-l-2 border-(--accent)/60 pl-4 py-1 my-4 text-(--muted) italic">
@@ -131,11 +160,7 @@ const mdComponents = {
       {children}
     </a>
   ),
-  table: ({ children }: MarkdownChildrenProps) => (
-    <div className="overflow-x-auto my-4 rounded-lg border border-(--line) bg-(--surface)">
-      <table className="w-full text-left text-sm">{children}</table>
-    </div>
-  ),
+  table: ScrollableTableWrapper,
   thead: ({ children }: MarkdownChildrenProps) => (
     <thead className="bg-(--raised) font-bold text-xs text-(--muted)">{children}</thead>
   ),

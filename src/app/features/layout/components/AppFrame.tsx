@@ -7,8 +7,18 @@ import Sidebar from "../../sidebar/components/Sidebar";
 import HeaderBar from "./HeaderBar";
 import { useAppFrameState } from "../hooks/useAppFrameState";
 import { getShellPaddingClass } from "../utils/shellNav";
+import { useLanguage } from "../../chat/hooks/useLanguage";
 import { cn } from "@/lib/utils/cn";
 import { useCommandPaletteStore } from "@/lib/store/commandPaletteStore";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface AppFrameProps {
   children: React.ReactNode;
@@ -21,15 +31,29 @@ export default function AppFrame({ children, title }: AppFrameProps) {
   const f = useAppFrameState();
   const router = useRouter();
   const { data: session } = useSession();
+  const { t } = useLanguage();
   const openPalette = useCommandPaletteStore((s) => s.open);
+
+  const isImagesSection = f.section === "images";
 
   return (
     <div className="h-dvh w-full flex overflow-hidden relative font-sans bg-(--bg) text-(--text)">
       <Sidebar
-        conversations={f.mainChats}
+        conversations={isImagesSection ? f.studioProjects : f.mainChats}
+        conversationsLabel={isImagesSection ? t("studioProjectsLabel") : undefined}
+        sectionActionLabel={isImagesSection ? t("studioNewProject") : undefined}
+        onSectionAction={isImagesSection ? () => void f.handleCreateStudioProject() : undefined}
         allConversations={f.allConversations}
-        onSelectConversation={(id) => router.push(`/?id=${id}`)}
+        onSelectConversation={(id) =>
+          router.push(isImagesSection ? `/images?projectId=${id}` : `/?id=${id}`)
+        }
         onNewChat={() => router.push("/")}
+        onRenameChat={f.openRenameChat}
+        onDeleteChat={(id) => void f.handleDeleteChat(id)}
+        onSelectProject={f.handleSelectProject}
+        onCreateProjectChat={f.handleCreateProjectChat}
+        onRenameProjectConversation={f.openRenameChat}
+        onDeleteProjectConversation={(id) => void f.handleDeleteChat(id)}
         collapsed={f.sidebarCollapsed}
         onToggleCollapse={f.toggleCollapsed}
         onOpenCommandPalette={openPalette}
@@ -54,6 +78,41 @@ export default function AppFrame({ children, title }: AppFrameProps) {
           {children}
         </div>
       </div>
+
+      <Dialog
+        open={Boolean(f.renamingChatId)}
+        onOpenChange={(open) => {
+          if (!open) f.closeRenameChat();
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("renameChat")}</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void f.confirmRenameChat();
+            }}
+            className="space-y-4"
+          >
+            <Input
+              value={f.renameValue}
+              onChange={(e) => f.setRenameValue(e.target.value)}
+              placeholder={t("renamePlaceholder")}
+              autoFocus
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={f.closeRenameChat}>
+                {t("cancel")}
+              </Button>
+              <Button type="submit" disabled={!f.renameValue.trim()}>
+                {t("save")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

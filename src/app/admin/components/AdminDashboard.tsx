@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Shield, ArrowLeft, ExternalLink } from "lucide-react";
+import { Shield, ArrowLeft, ExternalLink, Palette } from "lucide-react";
 import Link from "next/link";
 import UserManager from "./UserManager";
 import RankConfigManager from "./RankConfigManager";
@@ -10,40 +10,62 @@ import PersonasManager from "./PersonasManager";
 import StatisticsOverview from "./StatisticsOverview";
 import AuditLogViewer from "./AuditLogViewer";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
+import ThemeMenuItems from "@/app/features/layout/components/ThemeMenuItems";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface AdminDashboardProps {
   currentUserId: string;
 }
 
+type AdminTab = "users" | "limits" | "gems" | "personas" | "stats" | "audit";
+
+const LANG_OPTIONS = [
+  { id: "vi" as const, labelKey: "langCodeVi" },
+  { id: "en" as const, labelKey: "langCodeEn" },
+];
+
+const ADMIN_TABS: readonly { id: AdminTab; labelKey: string }[] = [
+  { id: "users", labelKey: "adminUsers" },
+  { id: "limits", labelKey: "adminLimits" },
+  { id: "gems", labelKey: "adminGlobalGems" },
+  { id: "personas", labelKey: "adminGlobalPersonas" },
+  { id: "stats", labelKey: "adminStats" },
+  { id: "audit", labelKey: "adminAuditLog" },
+];
+
 export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<
-    "users" | "limits" | "gems" | "personas" | "stats" | "audit"
-  >("users");
+  const [activeTab, setActiveTab] = useState<AdminTab>("users");
   const { t, language, setLanguage } = useLanguage();
 
   return (
-    <div className="min-h-screen bg-(--surface)">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="min-h-screen bg-(--bg) text-(--text)">
+      <div className="container mx-auto px-4 py-6 sm:py-8 max-w-7xl">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-(--raised) border border-(--line) backdrop-blur-3xl">
-              <Shield className="w-8 h-8 text-(--accent)" />
+        <div className="mb-6 sm:mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 sm:p-3 rounded-xl bg-(--surface) border border-(--line) shrink-0">
+              <Shield aria-hidden="true" className="w-7 h-7 sm:w-8 sm:h-8 text-(--accent)" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-(--text)">{t("adminDashboard")}</h1>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-(--text) truncate">
+                {t("adminDashboard")}
+              </h1>
               <p className="text-(--muted) text-sm">{t("adminDescription")}</p>
             </div>
           </div>
 
           {/* Right-side controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {/* Back to Home */}
             <Link
               href="/"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--raised) border border-(--line) text-(--muted) hover:text-(--text) hover:bg-(--raised) hover:border-(--line) transition-colors"
+              className="inline-flex items-center gap-2 px-3.5 py-2 min-h-10 rounded-lg bg-(--raised) border border-(--line) text-(--muted) hover:text-(--text) hover:bg-(--raised-hover) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft aria-hidden="true" className="w-4 h-4" />
               <span className="text-sm font-medium">{t("adminBackToHome")}</span>
             </Link>
 
@@ -53,116 +75,97 @@ export default function AdminDashboard({ currentUserId }: AdminDashboardProps) {
                 href="https://vercel.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors text-xs"
+                className="inline-flex items-center gap-1.5 px-3 py-2 min-h-10 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised-hover) transition-colors text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                 title="Vercel Dashboard"
               >
-                <ExternalLink className="w-3 h-3" />
+                <ExternalLink aria-hidden="true" className="w-3 h-3" />
                 Vercel
               </a>
               <a
                 href="https://supabase.com/dashboard"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors text-xs"
+                className="inline-flex items-center gap-1.5 px-3 py-2 min-h-10 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised-hover) transition-colors text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                 title="Supabase Dashboard"
               >
-                <ExternalLink className="w-3 h-3" />
+                <ExternalLink aria-hidden="true" className="w-3 h-3" />
                 Supabase
               </a>
             </div>
 
+            {/* Theme Switcher */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={t("adminTheme")}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 min-h-10 rounded-lg bg-(--raised) border border-(--line) text-(--muted) hover:text-(--text) hover:bg-(--raised-hover) transition-colors text-sm font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                >
+                  <Palette aria-hidden="true" className="w-4 h-4" />
+                  <span className="hidden sm:inline">{t("adminTheme")}</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <ThemeMenuItems />
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {/* Language Selector */}
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-(--raised) border border-(--line)">
-              <button
-                onClick={() => setLanguage("vi")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  language === "vi"
-                    ? "bg-(--warning)/20 text-(--warning) border border-(--warning)/30"
-                    : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
-                }`}
-              >
-                VN
-              </button>
-              <button
-                onClick={() => setLanguage("en")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  language === "en"
-                    ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                    : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
-                }`}
-              >
-                EN
-              </button>
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-(--surface) border border-(--line)">
+              {LANG_OPTIONS.map((opt) => {
+                const isActive = language === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => setLanguage(opt.id)}
+                    className={`px-3 py-1.5 min-h-8 rounded-md text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) ${
+                      isActive
+                        ? "bg-(--soft) text-(--accent) border border-(--accent)/30"
+                        : "text-(--muted) hover:text-(--text) hover:bg-(--raised-hover)"
+                    }`}
+                  >
+                    {t(opt.labelKey)}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="mb-6 flex gap-2 p-1 rounded-xl bg-(--raised) border border-(--line) backdrop-blur-3xl w-fit">
-          <button
-            onClick={() => setActiveTab("users")}
-            className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
-              activeTab === "users"
-                ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
-            }`}
-          >
-            {t("adminUsers")}
-          </button>
-          <button
-            onClick={() => setActiveTab("limits")}
-            className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
-              activeTab === "limits"
-                ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
-            }`}
-          >
-            {t("adminLimits")}
-          </button>
-          <button
-            onClick={() => setActiveTab("gems")}
-            className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
-              activeTab === "gems"
-                ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
-            }`}
-          >
-            {t("adminGlobalGems")}
-          </button>
-          <button
-            onClick={() => setActiveTab("personas")}
-            className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
-              activeTab === "personas"
-                ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
-            }`}
-          >
-            {t("adminGlobalPersonas") || "Personas"}
-          </button>
-          <button
-            onClick={() => setActiveTab("stats")}
-            className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
-              activeTab === "stats"
-                ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
-            }`}
-          >
-            {t("adminStats")}
-          </button>
-          <button
-            onClick={() => setActiveTab("audit")}
-            className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
-              activeTab === "audit"
-                ? "bg-(--accent)/20 text-(--accent) border border-(--accent)/30"
-                : "text-(--muted) hover:text-(--text) hover:bg-(--raised)"
-            }`}
-          >
-            {t("adminAuditLog")}
-          </button>
+        <div
+          role="tablist"
+          aria-label={t("adminDashboard")}
+          className="mb-6 flex gap-1.5 sm:gap-2 p-1 rounded-xl bg-(--surface) border border-(--line) overflow-x-auto max-w-full"
+        >
+          {ADMIN_TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveTab(tab.id)}
+                className={`shrink-0 whitespace-nowrap px-4 sm:px-5 py-2.5 min-h-10 rounded-lg text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) ${
+                  isActive
+                    ? "bg-(--soft) text-(--accent) border border-(--accent)/30"
+                    : "text-(--muted) hover:text-(--text) hover:bg-(--raised-hover)"
+                }`}
+              >
+                {t(tab.labelKey)}
+              </button>
+            );
+          })}
         </div>
 
         {/* Tab Content */}
-        <div className="rounded-xl bg-(--raised) border border-(--line) backdrop-blur-3xl p-6">
+        <div
+          role="tabpanel"
+          className="rounded-xl bg-(--surface) border border-(--line) p-4 sm:p-6"
+        >
           {activeTab === "users" && <UserManager currentUserId={currentUserId} />}
           {activeTab === "limits" && <RankConfigManager />}
           {activeTab === "gems" && <GemsManager />}

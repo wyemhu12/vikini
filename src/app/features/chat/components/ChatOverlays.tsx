@@ -1,8 +1,11 @@
 // /app/features/chat/components/ChatOverlays.tsx
 "use client";
 
-import React, { lazy, Suspense } from "react";
+import React, { lazy, Suspense, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import ChatModalsSection from "./ChatModalsSection";
+import { useLanguage } from "../hooks/useLanguage";
+import { buildNavigationCommands } from "../../layout/utils/navigationCommands";
 import type { UseChatShortcutsReturn } from "./hooks/useChatShortcuts";
 import type { UseChatModalsReturn } from "./hooks/useChatModals";
 import type { useImageGenController } from "./hooks/useImageGenController";
@@ -38,6 +41,22 @@ export default function ChatOverlays({
   onSelectConversation,
   t,
 }: ChatOverlaysProps) {
+  const { t: translate } = useLanguage();
+  const router = useRouter();
+  const { closeCommandPalette } = shortcuts;
+
+  const navCommands = useMemo(
+    () =>
+      buildNavigationCommands({
+        t: translate,
+        onNavigate: (href) => {
+          closeCommandPalette();
+          router.push(href);
+        },
+      }),
+    [translate, router, closeCommandPalette]
+  );
+
   return (
     <>
       <Suspense fallback={null}>
@@ -77,6 +96,7 @@ export default function ChatOverlays({
             onClose={shortcuts.closeCommandPalette}
             onNewChat={() => void onNewChat()}
             onOpenShortcuts={shortcuts.openShortcutsModal}
+            extraCommands={navCommands}
             onSelectConversation={(id) => void onSelectConversation(id)}
             conversations={conversations}
           />

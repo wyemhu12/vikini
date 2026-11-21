@@ -331,8 +331,8 @@ describe("MessageActions", () => {
         // type="button" attribute
         expect(btn).toHaveAttribute("type", "button");
 
-        // Touch target >= 28px
-        expect(btn).toHaveClass("min-h-[28px]", "min-w-[28px]");
+        // Touch target >= 36px on mobile, 32px on desktop (Loại C — TC-W3-07)
+        expect(btn).toHaveClass("min-h-9", "min-w-9", "md:min-h-8", "md:min-w-8");
 
         // Micro-interactions and focus rings
         expect(btn).toHaveClass(

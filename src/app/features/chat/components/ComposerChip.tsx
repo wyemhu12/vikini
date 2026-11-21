@@ -21,13 +21,13 @@ export const ComposerChip = React.forwardRef<HTMLButtonElement, ComposerChipProp
       type={type}
       aria-pressed={pressed}
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium whitespace-nowrap transition-colors",
+        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 sm:px-3 text-[13px] font-medium whitespace-nowrap transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) disabled:cursor-not-allowed disabled:opacity-45",
         pressed
           ? "border-(--accent) bg-(--soft) text-(--accent)"
           : active
-            ? "border-(--accent) text-(--accent) hover:bg-(--raised)"
-            : "border-(--line) text-(--muted) hover:bg-(--raised) hover:text-(--text)",
+            ? "border-(--accent) text-(--accent) hover:bg-(--raised-hover)"
+            : "border-(--line) text-(--muted) hover:bg-(--raised-hover) hover:text-(--text)",
         className
       )}
       {...rest}

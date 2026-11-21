@@ -15,6 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Heart,
+  AlertCircle,
+  RotateCcw,
 } from "lucide-react";
 import Image from "next/image";
 import AppFrame from "../../layout/components/AppFrame";
@@ -36,7 +38,7 @@ export function GalleryView() {
   const { theme: _theme } = useTheme();
   const g = useGalleryController();
   // M3: a library with no images at all only shows the empty state (filters are noise).
-  const isEmptyLibrary = !g.loading && g.images.length === 0;
+  const isEmptyLibrary = !g.loading && !g.error && g.images.length === 0;
 
   return (
     <AppFrame>
@@ -118,40 +120,42 @@ export function GalleryView() {
               </div>
 
               {/* Results Count + Compare Button */}
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-(--muted)">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold text-(--muted) min-w-0">
                   {g.t("galleryYourCreations")}
                   {!g.loading && (
-                    <span className="ml-2 text-sm font-normal">
+                    <span className="ml-2 text-sm font-normal whitespace-nowrap">
                       ({g.filteredImages.length} {g.t("galleryImagesCount")})
                     </span>
                   )}
                 </h2>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   {g.compareMode && (
                     <>
-                      <span className="text-sm text-(--muted)">
+                      <span className="text-sm text-(--muted) whitespace-nowrap">
                         {[g.compareImages[0], g.compareImages[1]].filter(Boolean).length}/2{" "}
                         {g.t("compareSelected") || "selected"}
                       </span>
                       {g.compareImages[0] && g.compareImages[1] && (
                         <button
+                          type="button"
                           onClick={g.handleOpenCompare}
-                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--accent) text-(--on-accent) font-bold shadow-lg shadow-(--accent)/20 hover:opacity-90 transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-(--accent) text-(--on-accent) font-bold whitespace-nowrap shrink-0 shadow-sm hover:brightness-110 transition-[filter,transform] active:scale-[0.97]"
                         >
-                          <GitCompare className="w-4 h-4" />
+                          <GitCompare className="w-4 h-4 shrink-0" />
                           {g.t("compareNow") || "Compare"}
                         </button>
                       )}
                     </>
                   )}
                   <button
+                    type="button"
                     onClick={g.handleToggleCompareMode}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium whitespace-nowrap shrink-0 transition-colors ${
                       g.compareMode
                         ? "bg-(--danger)/20 text-(--danger) border border-(--danger)/30 hover:bg-(--danger)/30"
-                        : "bg-(--raised) border border-(--line) hover:bg-(--raised)"
+                        : "bg-(--raised) border border-(--line) hover:bg-(--raised-hover)"
                     }`}
                   >
                     {g.compareMode ? (
@@ -177,6 +181,22 @@ export function GalleryView() {
               {Array.from({ length: 10 }).map((_, i) => (
                 <Skeleton key={i} className="aspect-square w-full rounded-xl" />
               ))}
+            </div>
+          ) : g.error && g.images.length === 0 ? (
+            <div
+              role="alert"
+              className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-(--danger)/30 bg-(--danger)/10 px-6 py-12 text-center"
+            >
+              <AlertCircle aria-hidden="true" className="w-8 h-8 text-(--danger)" />
+              <p className="text-sm font-medium text-(--text)">{g.error}</p>
+              <button
+                type="button"
+                onClick={g.retryLoad}
+                className="inline-flex items-center gap-2 px-4 py-2 min-h-10 rounded-xl bg-(--raised) hover:bg-(--raised-hover) border border-(--line) text-sm font-medium text-(--text) transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+              >
+                <RotateCcw aria-hidden="true" className="w-4 h-4" />
+                {g.t("tryAgain")}
+              </button>
             </div>
           ) : g.filteredImages.length === 0 ? (
             <EmptyState
@@ -244,7 +264,7 @@ export function GalleryView() {
                     )}
 
                     {/* Hover Overlay */}
-                    <div className="absolute inset-0 bg-linear-to-t from-(--overlay) via-transparent to-transparent opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity p-3 flex flex-col justify-end">
+                    <div className="absolute inset-0 bg-linear-to-t from-(--overlay) via-transparent to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity p-3 flex flex-col justify-end">
                       <p className="text-(--on-overlay) text-xs line-clamp-2 font-medium">
                         {img.prompt}
                       </p>
@@ -270,7 +290,11 @@ export function GalleryView() {
 
       {/* Modal Detail View */}
       <Dialog open={!!g.selectedImage} onOpenChange={(open) => !open && g.setSelectedImage(null)}>
-        <DialogContent className="max-w-7xl w-full max-h-[95vh] p-0 gap-0 overflow-hidden border-(--line) [&>button]:hidden">
+        <DialogContent
+          hideCloseButton
+          aria-describedby={undefined}
+          className="max-w-7xl w-full max-h-[95vh] p-0 gap-0 overflow-hidden border-(--line)"
+        >
           <DialogTitle className="sr-only">{g.t("galleryImageDetails")}</DialogTitle>
 
           {g.selectedImage && (
@@ -280,14 +304,15 @@ export function GalleryView() {
                 {g.currentImageIndex + 1} / {g.filteredImages.length}
               </div>
 
-              {/* Floating Mobile Close Button (wrapped in div to prevent [&>button]:hidden override) */}
+              {/* Floating Mobile Close Button */}
               <div className="absolute top-3 right-3 z-20 lg:hidden">
                 <button
+                  type="button"
                   onClick={() => g.setSelectedImage(null)}
                   aria-label={g.t("closeImageDetails") || "Close image details"}
-                  className="p-2 rounded-full bg-(--overlay) backdrop-blur-md text-(--on-overlay)/90 hover:text-(--on-overlay) border border-(--on-overlay)/20 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) transition-colors"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--overlay) backdrop-blur-md text-(--on-overlay)/90 hover:text-(--on-overlay) border border-(--on-overlay)/20 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) transition-colors cursor-pointer"
                 >
-                  <X className="w-5 h-5" />
+                  <X aria-hidden="true" className="w-5 h-5" />
                 </button>
               </div>
 
@@ -308,28 +333,32 @@ export function GalleryView() {
                   {/* Previous Arrow */}
                   {g.currentImageIndex > 0 && (
                     <button
+                      type="button"
+                      aria-label={g.t("previousImage")}
                       onClick={(e) => {
                         e.stopPropagation();
                         g.handlePrevImage();
                       }}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-(--overlay) hover:bg-(--overlay) text-(--on-overlay)/80 hover:text-(--on-overlay) backdrop-blur-sm border border-(--on-overlay)/20 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
-                      title={g.t("galleryPrev") || "Previous"}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-(--overlay) hover:brightness-110 text-(--on-overlay)/80 hover:text-(--on-overlay) backdrop-blur-sm border border-(--on-overlay)/20 transition-[opacity,filter,color] shadow-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) cursor-pointer"
+                      title={g.t("previousImage")}
                     >
-                      <ChevronLeft className="w-6 h-6" />
+                      <ChevronLeft aria-hidden="true" className="w-6 h-6" />
                     </button>
                   )}
 
                   {/* Next Arrow */}
                   {g.currentImageIndex < g.filteredImages.length - 1 && (
                     <button
+                      type="button"
+                      aria-label={g.t("nextImage")}
                       onClick={(e) => {
                         e.stopPropagation();
                         g.handleNextImage();
                       }}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-(--overlay) hover:bg-(--overlay) text-(--on-overlay)/80 hover:text-(--on-overlay) backdrop-blur-sm border border-(--on-overlay)/20 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
-                      title={g.t("galleryNext") || "Next"}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-(--overlay) hover:brightness-110 text-(--on-overlay)/80 hover:text-(--on-overlay) backdrop-blur-sm border border-(--on-overlay)/20 transition-[opacity,filter,color] shadow-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) cursor-pointer"
+                      title={g.t("nextImage")}
                     >
-                      <ChevronRight className="w-6 h-6" />
+                      <ChevronRight aria-hidden="true" className="w-6 h-6" />
                     </button>
                   )}
                 </div>
@@ -339,11 +368,12 @@ export function GalleryView() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-lg">{g.t("galleryImageDetails")}</h3>
                     <button
+                      type="button"
                       onClick={() => g.setSelectedImage(null)}
                       aria-label={g.t("closeImageDetails") || "Close image details"}
-                      className="p-2 hover:bg-(--raised) rounded-full text-(--muted) hover:text-(--text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) transition-colors"
+                      className="p-2 hover:bg-(--raised-hover) rounded-full text-(--muted) hover:text-(--text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) transition-colors cursor-pointer"
                     >
-                      <X className="w-5 h-5" />
+                      <X aria-hidden="true" className="w-5 h-5" />
                     </button>
                   </div>
 
@@ -388,24 +418,27 @@ export function GalleryView() {
                   <div className="pt-6 border-t border-(--line) space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <button
+                        type="button"
                         onClick={() => window.open(g.selectedImage!.url, "_blank")}
-                        className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) font-medium transition-colors"
+                        className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--raised) hover:bg-(--raised-hover) border border-(--line) font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                       >
-                        <Download className="w-4 h-4" /> {g.t("studioDownload")}
+                        <Download aria-hidden="true" className="w-4 h-4" /> {g.t("studioDownload")}
                       </button>
                       <button
+                        type="button"
                         onClick={() => g.handleRemix(g.selectedImage!.prompt)}
-                        className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--accent) text-(--on-accent) hover:opacity-90 font-bold shadow-lg shadow-(--accent)/20 transition-colors"
+                        className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--accent) text-(--on-accent) hover:opacity-90 font-bold shadow-lg shadow-(--accent)/20 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                       >
-                        <Sparkles className="w-4 h-4" /> {g.t("galleryRemix")}
+                        <Sparkles aria-hidden="true" className="w-4 h-4" /> {g.t("galleryRemix")}
                       </button>
                     </div>
 
                     {/* Delete Button */}
                     <button
+                      type="button"
                       onClick={() => g.handleDelete(g.selectedImage!.id)}
                       disabled={g.deleting === g.selectedImage.id}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-(--danger) hover:bg-(--danger)/10 border border-(--danger)/30 font-medium transition-colors disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-(--danger) hover:bg-(--danger)/10 border border-(--danger)/30 font-medium transition-colors disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                     >
                       {g.deleting === g.selectedImage.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

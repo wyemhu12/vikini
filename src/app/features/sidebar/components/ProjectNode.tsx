@@ -98,12 +98,14 @@ export function ProjectNode({
       >
         {/* Expand chevron */}
         <button
+          type="button"
           onClick={toggleExpand}
-          className="p-0.5 hover:bg-(--raised) rounded shrink-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+          className="inline-flex h-9 w-9 md:h-6 md:w-6 items-center justify-center hover:bg-(--raised-hover) rounded shrink-0 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
           aria-expanded={isExpanded}
           aria-label={isExpanded ? t("collapse") : t("expand")}
         >
           <ChevronRight
+            aria-hidden="true"
             className={cn(
               "h-3.5 w-3.5 text-(--muted) transition-transform duration-150",
               isExpanded && "rotate-90"
@@ -113,24 +115,27 @@ export function ProjectNode({
 
         {/* Project icon + name - clicking opens project view */}
         <button
+          type="button"
           onClick={() => onSelect(project.id)}
-          className="flex items-center gap-2 flex-1 min-w-0 text-left rounded-md focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+          className="flex items-center gap-2 flex-1 min-w-0 min-h-9 md:min-h-0 text-left rounded-md focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
         >
           <ProjectIcon icon={project.icon} color={project.color} size="sm" />
           <span className="text-sm truncate">{project.name}</span>
         </button>
 
-        {/* Action buttons (visible on hover) */}
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Action buttons (always accessible on touch/keyboard; hover on desktop) */}
+        <div className="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onNewChat(project.id);
             }}
-            className="p-1 hover:bg-(--raised) rounded text-(--muted) hover:text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+            className="inline-flex h-9 w-9 md:h-6 md:w-6 items-center justify-center hover:bg-(--raised-hover) rounded text-(--muted) hover:text-(--text) focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             title={t("newChat")}
+            aria-label={t("newChat")}
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus aria-hidden="true" className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
@@ -152,9 +157,10 @@ export function ProjectNode({
               >
                 {/* Chat title - clickable */}
                 <button
+                  type="button"
                   onClick={() => onSelectConversation(conv.id)}
                   className={cn(
-                    "flex-1 min-w-0 px-2 py-1.5 text-sm text-left truncate rounded-md focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+                    "flex-1 min-w-0 min-h-9 md:min-h-0 px-2 py-1.5 text-sm text-left truncate rounded-md focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
                     conv.id === activeConversationId && "font-medium"
                   )}
                 >
@@ -165,21 +171,22 @@ export function ProjectNode({
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger asChild>
                     <button
+                      type="button"
                       onClick={(e) => e.stopPropagation()}
                       aria-label={t("conversationOptions")}
                       className={cn(
-                        "p-1 mr-1 rounded transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
-                        "text-(--muted) hover:text-(--text) hover:bg-(--raised)",
-                        "opacity-0 group-hover/chat:opacity-100 data-[state=open]:opacity-100"
+                        "inline-flex h-9 w-9 md:h-6 md:w-6 items-center justify-center mr-1 rounded transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+                        "text-(--muted) hover:text-(--text) hover:bg-(--raised-hover)",
+                        "opacity-100 md:opacity-0 md:group-hover/chat:opacity-100 md:group-focus-within/chat:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
                       )}
                     >
-                      <MoreHorizontal className="h-3.5 w-3.5" />
+                      <MoreHorizontal aria-hidden="true" className="h-3.5 w-3.5" />
                     </button>
                   </DropdownMenu.Trigger>
 
                   <DropdownMenu.Portal>
                     <DropdownMenu.Content
-                      className="z-(--z-popover) min-w-48 rounded-xl bg-(--raised)/95 backdrop-blur-xl border border-(--line) shadow-2xl overflow-hidden ring-1 ring-(--line) py-1.5 animate-in fade-in zoom-in-95 duration-200"
+                      className="z-(--z-popover) min-w-48 rounded-xl bg-(--surface)/95 backdrop-blur-xl border border-(--line) shadow-(--shadow-elevated) overflow-hidden ring-1 ring-(--line) py-1.5 origin-(--radix-dropdown-menu-content-transform-origin) animate-in fade-in zoom-in-95 duration-200"
                       align="end"
                       sideOffset={5}
                     >

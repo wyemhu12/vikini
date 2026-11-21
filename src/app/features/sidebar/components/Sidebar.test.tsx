@@ -58,7 +58,6 @@ vi.mock("framer-motion", () => ({
       props: Record<string, unknown>,
       ref: React.Ref<HTMLElement>
     ) {
-      latestAsideProps = props;
       const {
         drag: _drag,
         dragDirectionLock: _dragDirectionLock,
@@ -66,15 +65,35 @@ vi.mock("framer-motion", () => ({
         dragElastic: _dragElastic,
         dragSnapToOrigin: _dragSnapToOrigin,
         onDragEnd: _onDragEnd,
+        initial: _initial,
+        animate: _animate,
+        exit: _exit,
+        transition: _transition,
         ...htmlProps
       } = props;
       return <nav ref={ref} {...htmlProps} />;
     }),
     div: React.forwardRef(function MockDiv(
-      props: React.HTMLAttributes<HTMLDivElement>,
+      props: Record<string, unknown>,
       ref: React.Ref<HTMLDivElement>
     ) {
-      return <div ref={ref} {...props} />;
+      if ("drag" in props) {
+        latestAsideProps = props;
+      }
+      const {
+        drag: _drag,
+        dragDirectionLock: _dragDirectionLock,
+        dragConstraints: _dragConstraints,
+        dragElastic: _dragElastic,
+        dragSnapToOrigin: _dragSnapToOrigin,
+        onDragEnd: _onDragEnd,
+        initial: _initial,
+        animate: _animate,
+        exit: _exit,
+        transition: _transition,
+        ...htmlProps
+      } = props;
+      return <div ref={ref} {...(htmlProps as React.HTMLAttributes<HTMLDivElement>)} />;
     }),
   },
 }));
@@ -196,18 +215,53 @@ describe("Sidebar component", () => {
     const svgIcon = closeBtn.querySelector("svg");
     expect(svgIcon).not.toBeNull();
 
-    // Mobile aside is portaled to document.body, has z-(--z-drawer) and pb-[calc(4rem+var(--sab,0px))]
-    const mobileAside = document.body.querySelector("nav.md\\:hidden");
-    expect(mobileAside).not.toBeNull();
-    expect(mobileAside?.className).toContain("z-(--z-drawer)");
-    expect(mobileAside?.className).toContain("pb-[calc(4rem+var(--sab,0px))]");
+    // Mobile dialog is portaled to document.body as a DIV (not <nav role="dialog">), containing an inner <nav>
+    const mobileDialog = document.body.querySelector('[role="dialog"]');
+    expect(mobileDialog).not.toBeNull();
+    expect(mobileDialog?.tagName).toBe("DIV");
+    expect(mobileDialog?.className).toContain("z-(--z-drawer)");
+    expect(mobileDialog?.className).toContain("bg-(--surface)");
+    expect(mobileDialog?.className).toContain("pb-[calc(1.25rem+var(--sab,0px))]");
 
-    // Inside mobile aside, the custom-scrollbar is present
-    const mobileScrollContainer = mobileAside?.querySelector(".custom-scrollbar");
+    const innerNav = mobileDialog?.querySelector("nav");
+    expect(innerNav).not.toBeNull();
+    expect(innerNav?.getAttribute("role")).toBeNull();
+
+    const overlay = document.body.querySelector(".bg-\\(--overlay\\)");
+    expect(overlay).not.toBeNull();
+
+    // Inside mobile drawer, the custom-scrollbar is present
+    const mobileScrollContainer = mobileDialog?.querySelector(".custom-scrollbar");
     expect(mobileScrollContainer).not.toBeNull();
     expect(mobileScrollContainer?.className).toContain("flex-1");
     expect(mobileScrollContainer?.className).toContain("min-h-0");
     expect(mobileScrollContainer?.className).toContain("overflow-y-auto");
+  });
+
+  it("TC-P1-05: closes mobile drawer when clicking Admin Management or image section links", () => {
+    mockPathname = "/images";
+    const onCloseMobile = vi.fn();
+    render(
+      <Sidebar
+        chats={[]}
+        mobileOpen={true}
+        onCloseMobile={onCloseMobile}
+        allConversations={[]}
+        session={{ user: { rank: "admin", email: "admin@example.com" } }}
+      />
+    );
+
+    const mobileDialog = document.body.querySelector('[role="dialog"]') as HTMLElement;
+    const galleryLink = Array.from(mobileDialog.querySelectorAll("a")).find(
+      (a) => a.getAttribute("href") === "/gallery"
+    );
+    expect(galleryLink).toBeTruthy();
+    galleryLink?.click();
+    expect(onCloseMobile).toHaveBeenCalledTimes(1);
+
+    screen.getByText("Admin Management").click();
+    expect(onCloseMobile).toHaveBeenCalledTimes(2);
+    mockPathname = "/";
   });
 
   it("attaches drag gesture props to mobile drawer motion.nav with snap-to-origin", () => {
@@ -348,20 +402,33 @@ describe("Sidebar component", () => {
     ).toBeGreaterThanOrEqual(1);
   });
 
-  it("phase 4 TC-12: images panel links match the section tabs", () => {
+  it("phase 4 TC-12: desktop images aside avoids duplicate image section tabs while mobile drawer keeps them", () => {
     mockPathname = "/gallery";
     useLanguageStore.setState({ language: "vi" });
-    render(<Sidebar chats={[]} collapsed={false} allConversations={[]} />);
+    const { container } = render(
+      <Sidebar chats={[]} collapsed={false} mobileOpen={true} allConversations={[]} />
+    );
 
-    expect(screen.getAllByRole("link", { name: "Tạo ảnh" })[0]).toHaveAttribute("href", "/images");
-    expect(screen.getAllByRole("link", { name: "Thư viện" })[0]).toHaveAttribute(
-      "href",
-      "/gallery"
-    );
-    expect(screen.getAllByRole("link", { name: "Mô tả ảnh" })[0]).toHaveAttribute(
-      "href",
-      "/describe"
-    );
+    const desktopAside = container.querySelector("aside.hidden.md\\:flex");
+    expect(desktopAside).not.toBeNull();
+    expect(desktopAside?.querySelector('a[href="/images"]')).toBeNull();
+    expect(desktopAside?.querySelector('a[href="/gallery"]')).toBeNull();
+    expect(desktopAside?.querySelector('a[href="/describe"]')).toBeNull();
+
+    const mobileDialog = document.body.querySelector('[role="dialog"]');
+    expect(mobileDialog).not.toBeNull();
+    const mobileLinks = Array.from(mobileDialog?.querySelectorAll("a") ?? []);
+    expect(
+      mobileLinks.some((a) => a.getAttribute("href") === "/images" && a.textContent === "Tạo ảnh")
+    ).toBe(true);
+    expect(
+      mobileLinks.some((a) => a.getAttribute("href") === "/gallery" && a.textContent === "Thư viện")
+    ).toBe(true);
+    expect(
+      mobileLinks.some(
+        (a) => a.getAttribute("href") === "/describe" && a.textContent === "Mô tả ảnh"
+      )
+    ).toBe(true);
     expect(document.querySelector('[aria-label="Ảnh"]')).not.toBeNull();
     expect(screen.queryByText("Image Studio")).toBeNull();
   });

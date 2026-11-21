@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useChatStreamController } from "./useChatStreamController";
+import { toast } from "@/lib/store/toastStore";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -418,5 +419,27 @@ describe("useChatStreamController", () => {
       expect(meta?.reasoning).toBe("Suy nghĩ bước 1...");
       expect(meta?.ragSources).toEqual([{ filename: "doc1.pdf", similarity: 0.85 }]);
     });
+  });
+
+  it("TC-W4-05: fires toast.error when loading conversation history fails", async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: "DB unavailable" }),
+    });
+
+    const { result } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: null,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleSelectConversation("conv-err");
+    });
+
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(result.current.messages).toEqual([]);
   });
 });

@@ -12,7 +12,7 @@ export interface ThemeFamily {
 }
 
 export const THEME_FAMILIES: readonly ThemeFamily[] = [
-  { id: "hoanghon", labelKey: "themeHoangHon", swatch: { dark: "#ff8a4c", light: "#c2410c" } },
+  { id: "hoanghon", labelKey: "themeHoangHon", swatch: { dark: "#ff8a4c", light: "#b33a08" } },
   { id: "muc", labelKey: "themeMuc", swatch: { dark: "#8ea6ff", light: "#3451d1" } },
   { id: "reu", labelKey: "themeReu", swatch: { dark: "#5cd6a2", light: "#0b7550" } },
   { id: "sen", labelKey: "themeSen", swatch: { dark: "#f48fb8", light: "#b8285f" } },

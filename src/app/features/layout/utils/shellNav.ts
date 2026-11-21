@@ -33,7 +33,7 @@ export const RAIL_ITEMS: readonly RailItem[] = [
   },
   {
     id: "gems",
-    href: "/gems",
+    href: "/features/gems",
     icon: Sparkles,
     labelKey: "railGemsPersonas",
     match: (p) => startsWithAny(p, ["/gems", "/features/gems", "/features/personas"]),

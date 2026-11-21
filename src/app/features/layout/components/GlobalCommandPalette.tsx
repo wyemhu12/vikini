@@ -3,12 +3,18 @@
 import React, { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { LayoutGrid } from "lucide-react";
 import { CommandPalette, type CommandItem } from "../../chat/components/CommandPalette";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import { useAppFrameState } from "../hooks/useAppFrameState";
-import { RAIL_ITEMS, getSectionForPath } from "../utils/shellNav";
+import { buildNavigationCommands } from "../utils/navigationCommands";
 import { useCommandPaletteStore } from "@/lib/store/commandPaletteStore";
+
+/** True only on routes that mount ChatApp's dedicated CommandPalette. */
+export function isChatAppRoute(pathname: string): boolean {
+  return (
+    pathname === "/" || pathname === "/features/chat" || pathname.startsWith("/features/chat/")
+  );
+}
 
 /** Typing targets keep ⌘K for themselves (e.g. Novelcrafter Quick Edit, text fields). */
 export function isEditableTarget(target: EventTarget | null): boolean {
@@ -27,27 +33,17 @@ function OpenPalette({ onClose }: { onClose: () => void }) {
   const { t } = useLanguage();
   const { mainChats } = useAppFrameState();
 
-  const navCommands = useMemo<CommandItem[]>(() => {
-    const go = (href: string) => () => {
-      onClose();
-      router.push(href);
-    };
-    const items: CommandItem[] = RAIL_ITEMS.map(({ id, href, icon: Icon, labelKey }) => ({
-      id: `go-${id}`,
-      title: `${t("commandGoTo")} ${t(labelKey)}`,
-      category: "navigation",
-      icon: <Icon className="w-4 h-4 text-(--accent)" />,
-      perform: go(href),
-    }));
-    items.push({
-      id: "go-gallery",
-      title: `${t("commandGoTo")} ${t("gallery")}`,
-      category: "navigation",
-      icon: <LayoutGrid className="w-4 h-4 text-(--accent)" />,
-      perform: go("/gallery"),
-    });
-    return items;
-  }, [onClose, router, t]);
+  const navCommands = useMemo<CommandItem[]>(
+    () =>
+      buildNavigationCommands({
+        t,
+        onNavigate: (href) => {
+          onClose();
+          router.push(href);
+        },
+      }),
+    [onClose, router, t]
+  );
 
   return (
     <CommandPalette
@@ -69,9 +65,7 @@ export default function GlobalCommandPalette() {
   const close = useCommandPaletteStore((s) => s.close);
   const toggle = useCommandPaletteStore((s) => s.toggle);
   const enabled =
-    status === "authenticated" &&
-    !pathname.startsWith("/auth") &&
-    getSectionForPath(pathname) !== "chat";
+    status === "authenticated" && !pathname.startsWith("/auth") && !isChatAppRoute(pathname);
 
   useEffect(() => {
     if (!enabled) return;

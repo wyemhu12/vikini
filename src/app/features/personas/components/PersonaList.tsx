@@ -1,5 +1,6 @@
 "use client";
 
+import { User } from "lucide-react";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import type { PersonaForUI } from "./PersonaPreview";
 import { DynamicIcon } from "@/components/ui/DynamicIcon";
@@ -17,15 +18,15 @@ interface PersonaListProps {
   onDelete: (persona: PersonaForUI) => void;
 }
 
-const TONE_BADGES: Record<string, string> = {
-  default: "Default",
-  professional: "Professional",
-  friendly: "Friendly",
-  candid: "Candid",
-  quirky: "Quirky",
-  efficient: "Efficient",
-  cynical: "Cynical",
-  lawyer: "Lawyer",
+const TONE_KEYS: Record<string, string> = {
+  default: "toneDefault",
+  professional: "toneProfessional",
+  friendly: "toneFriendly",
+  candid: "toneCandid",
+  quirky: "toneQuirky",
+  efficient: "toneEfficient",
+  cynical: "toneCynical",
+  lawyer: "toneLawyer",
 };
 
 const GRID_CLASS = "grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3";
@@ -56,6 +57,8 @@ export default function PersonaList({
 
   const renderCard = (p: PersonaForUI) => {
     const selected = selectedPersonaId === p.id;
+    const toneKey = TONE_KEYS[p.tone];
+    const toneLabel = toneKey ? t(toneKey) : p.tone;
     const menuItems: LibraryCardMenuItem[] = [
       // Preview is the primary action when the persona cannot be applied.
       ...(canApply ? [{ label: t("preview"), onSelect: () => onPreview(p) }] : []),
@@ -69,9 +72,15 @@ export default function PersonaList({
     return (
       <LibraryCard
         key={p.id}
-        icon={<DynamicIcon name={p.icon} className="h-5 w-5" />}
+        icon={
+          <DynamicIcon
+            name={p.icon}
+            fallback={<User aria-hidden className="h-5 w-5" />}
+            className="h-5 w-5"
+          />
+        }
         title={p.name}
-        badges={[TONE_BADGES[p.tone] || p.tone, ...(p.isPremade ? [t("libraryBuiltIn")] : [])]}
+        badges={[toneLabel, ...(p.isPremade ? [t("libraryBuiltIn")] : [])]}
         description={p.description}
         selected={canApply ? selected : undefined}
         primaryLabel={canApply ? (selected ? t("libraryInUse") : t("personaUse")) : t("preview")}
@@ -92,9 +101,7 @@ export default function PersonaList({
       )}
 
       <section>
-        {premadePersonas.length > 0 && (
-          <h2 className={SECTION_TITLE_CLASS}>{t("personaMyPersonas")}</h2>
-        )}
+        <h2 className={SECTION_TITLE_CLASS}>{t("personaMyPersonas")}</h2>
         <div className={GRID_CLASS}>{userPersonas.map(renderCard)}</div>
         {userPersonas.length === 0 && premadePersonas.length > 0 && (
           <div className="py-4 text-center text-sm text-(--muted)">{t("personaNoPersonas")}</div>

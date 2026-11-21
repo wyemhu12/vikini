@@ -245,17 +245,22 @@ export default function ChapterFeedbackGutter({
               <article
                 key={item.id}
                 data-feedback-card-id={item.id}
-                onClick={() => onSelectFeedback(item)}
                 className={cn(
-                  "rounded-2xl border p-3.5 space-y-2.5 transition-all cursor-pointer",
+                  "rounded-2xl border p-3.5 space-y-2.5 transition-[background-color,border-color,box-shadow]",
                   isSelected
                     ? "bg-(--surface) border-(--accent) shadow-md"
-                    : "bg-(--surface)/80 border-(--line) hover:border-(--line)"
+                    : "bg-(--surface)/80 border-(--line) hover:border-(--accent)/40"
                 )}
               >
-                {/* 1. Category Badge + Accept (✓) / Dismiss (×) */}
+                {/* 1. Category Badge (accessible select trigger) + Accept (✓) / Dismiss (×) */}
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => onSelectFeedback(item)}
+                    aria-pressed={isSelected}
+                    aria-label={`${t("selectFeedbackItem")}: ${item.category}`}
+                    className="flex flex-1 min-w-0 items-center gap-1.5 flex-wrap text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                  >
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-(--accent)/15 text-(--accent) border border-(--accent)/30 text-xs font-bold">
                       {item.category}
                     </span>
@@ -264,12 +269,9 @@ export default function ChapterFeedbackGutter({
                         {t("novelcrafterQuoteModifiedBadge")}
                       </span>
                     )}
-                  </div>
+                  </button>
 
-                  <div
-                    className="flex items-center gap-1 shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <div className="flex items-center gap-1 shrink-0">
                     {item.suggestion && (
                       <button
                         type="button"

@@ -130,10 +130,7 @@ export default function NovelcrafterTopBarMenu({
             >
               <Globe aria-hidden="true" className="h-4 w-4 text-(--muted)" />
               <span>
-                {t("novelcrafterLanguageSwitch").replace(
-                  "{lang}",
-                  language === "vi" ? "Tiếng Việt" : "English"
-                )}
+                {t("novelcrafterLanguageSwitch").replace("{lang}", t("currentLanguageName"))}
               </span>
             </DropdownMenuItem>
             <DropdownMenuSub>

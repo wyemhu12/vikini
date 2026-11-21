@@ -16,35 +16,15 @@ import {
 // ============================================
 
 export const TypingDots = React.memo(function TypingDots({ statusText }: { statusText?: string }) {
-  const dotVariants = {
-    initial: { y: 0, opacity: 0.4 },
-    animate: { y: -4, opacity: 1 },
-  };
-
   return (
-    <motion.div
-      className="typing-dots flex items-center gap-1.5 px-2 py-2"
-      initial="initial"
-      animate="animate"
-      transition={{ staggerChildren: 0.15 }}
-    >
+    <div className="typing-dots flex items-center gap-1.5 px-2 py-2">
       {[0, 1, 2].map((i) => (
-        <motion.span
-          key={i}
-          variants={dotVariants}
-          transition={{
-            duration: 0.5,
-            repeat: Infinity,
-            repeatType: "reverse",
-            ease: "easeInOut",
-          }}
-          className="w-1.5 h-1.5 bg-(--accent) rounded-full"
-        />
+        <span key={i} className="w-1.5 h-1.5 bg-(--accent) rounded-full" />
       ))}
       {statusText && (
         <span className="text-xs text-(--muted) font-medium ml-1.5">{statusText}</span>
       )}
-    </motion.div>
+    </div>
   );
 });
 
@@ -99,7 +79,7 @@ export const ThinkingBlock = React.memo(function ThinkingBlock({
         type="button"
         onClick={() => setIsCollapsed(!isCollapsed)}
         aria-expanded={!isCollapsed}
-        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.98]"
+        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold text-(--muted) hover:text-(--text) hover:bg-(--raised-hover) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.98]"
       >
         <Brain className="w-3 h-3" />
         <span>{headerLabel}</span>

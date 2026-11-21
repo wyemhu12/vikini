@@ -155,13 +155,16 @@ export default function InputForm({
     clearSentFileIds();
   }, [conversationId, clearSentFileIds]);
 
-  // Auto resize textarea
+  // Auto resize textarea (skip when empty or during hover preview to prevent Landing layout oscillation)
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    if (!textareaRef.current) return;
+    if (isPreview || !input) {
+      textareaRef.current.style.height = "";
+      return;
     }
-  }, [input]);
+    textareaRef.current.style.height = "auto";
+    textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+  }, [input, isPreview]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Bỏ qua nếu đang gõ tiếng Việt Telex / IME CJK composition hoặc Safari keyCode 229 (m-9)
@@ -218,7 +221,7 @@ export default function InputForm({
   const isReady = (Boolean(input.trim()) || fileCount > 0) && (!disabled || isUploading);
   const isButtonDisabled = !isStreaming && !isReady;
 
-  const sendButtonClasses = `flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
+  const sendButtonClasses = `flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full transition-[background-color,color,transform,opacity,filter,box-shadow] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
     isStreaming
       ? "bg-(--accent) text-(--on-accent) ring-2 ring-(--accent)/30 hover:brightness-110 active:scale-[0.92]"
       : isReady
@@ -238,7 +241,7 @@ export default function InputForm({
             handleSubmit();
           }
         }}
-        className={`relative flex flex-col w-full rounded-3xl border shadow-2xl transition-[border-color,box-shadow] duration-300 ${
+        className={`relative flex flex-col w-full rounded-3xl border shadow-(--shadow-elevated) transition-[border-color,box-shadow] duration-200 ${
           isImageMode
             ? "bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface))] border-(--accent) ring-1 ring-(--accent)/50"
             : isDragging
@@ -291,102 +294,106 @@ export default function InputForm({
                   : t("placeholder") || "Message..."
               }
               disabled={disabled}
-              className={`max-h-[200px] min-h-[40px] h-10 w-full resize-none bg-transparent px-2 py-2.5 text-[15px] placeholder:text-(--muted) outline-none scrollbar-thin scrollbar-thumb-[var(--line)] border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--muted) italic" : "text-(--text)"}`}
+              className={`max-h-[200px] min-h-[40px] h-10 w-full resize-none bg-transparent px-2 py-2 text-base md:text-[15px] placeholder:text-(--muted) outline-none scrollbar-thin scrollbar-thumb-[var(--line)] border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--muted) italic overflow-hidden whitespace-nowrap text-ellipsis" : "text-(--text)"}`}
             />
           </div>
 
-          {/* Plus Menu Trigger */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                disabled={disabled || isUploading}
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] disabled:opacity-50 ${
-                  isImageMode
-                    ? "bg-(--accent) text-(--on-accent) hover:brightness-110"
-                    : "text-(--muted) hover:bg-(--raised) hover:text-(--text)"
-                }`}
-                title={t("addAttachment") || "Add..."}
-                aria-label={t("addAttachment") || "Add attachment or switch mode"}
-              >
-                {isImageMode ? <ImageIcon className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuItem onClick={openFilePicker}>
-                <Upload className="w-4 h-4 mr-2" />
-                {t("uploadFile") || "Upload File"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsImageMode(!isImageMode)}>
-                <ImageIcon className="w-4 h-4 mr-2" />
-                {isImageMode
-                  ? t("switchToChat") || "Switch to Chat"
-                  : t("createImage") || "Create Image"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex w-full items-center gap-1 @sm/chat:gap-2 min-w-0">
+            {/* Plus Menu Trigger */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  disabled={disabled || isUploading}
+                  className={`flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full transition-[background-color,color,transform,filter] duration-150 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] disabled:opacity-50 ${
+                    isImageMode
+                      ? "bg-(--accent) text-(--on-accent) hover:brightness-110"
+                      : "text-(--muted) hover:bg-(--raised-hover) hover:text-(--text)"
+                  }`}
+                  title={t("addAttachment") || "Add..."}
+                  aria-label={t("addAttachment") || "Add attachment or switch mode"}
+                >
+                  {isImageMode ? <ImageIcon className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem onClick={openFilePicker}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  {t("uploadFile") || "Upload File"}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsImageMode(!isImageMode)}>
+                  <ImageIcon className="w-4 h-4 mr-2" />
+                  {isImageMode
+                    ? t("switchToChat") || "Switch to Chat"
+                    : t("createImage") || "Create Image"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Hidden file input - controlled by useFileUpload */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileInputChange}
-            className="hidden"
-            multiple
-            accept={fileAccept}
-            aria-label={t("uploadFile") || "Upload file"}
-          />
+            {/* Hidden file input - controlled by useFileUpload */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileInputChange}
+              className="hidden"
+              multiple
+              accept={fileAccept}
+              aria-label={t("uploadFile") || "Upload file"}
+            />
 
-          {!isImageMode &&
-            renderLeadingControls?.({
-              openFilePicker,
-              attachDisabled: Boolean(disabled) || isUploading,
-            })}
+            {!isImageMode &&
+              renderLeadingControls?.({
+                openFilePicker,
+                attachDisabled: Boolean(disabled) || isUploading,
+              })}
 
-          <div className="flex items-center gap-1 @sm/chat:gap-2 ml-auto min-w-0">
-            {!isImageMode && trailingControls}
+            <div className="flex items-center gap-1 @sm/chat:gap-1.5 ml-auto min-w-0">
+              {!isImageMode && trailingControls}
 
-            {isImageMode && (
-              <button
-                type="button"
-                onClick={() => setIsImageMode(false)}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-(--muted) hover:bg-(--raised) hover:text-(--danger) transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95]"
-                title={t("cancelImageMode") || "Cancel Image Mode"}
-                aria-label={t("cancelImageMode") || "Cancel image mode"}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
-
-            {/* Voice Input Button */}
-            {!isImageMode && (
-              <VoiceButton
-                onTranscript={setVoiceTranscript}
-                onFinalTranscript={(text) => onChangeInput(input + (input ? " " : "") + text)}
-                disabled={disabled || isStreaming}
-                language={language === "vi" ? "vi-VN" : "en-US"}
-                t={tRecord}
-              />
-            )}
-
-            {/* Send / Stop Button */}
-            <button
-              type="submit"
-              disabled={isButtonDisabled}
-              className={sendButtonClasses}
-              title={isStreaming ? t("stopBtn") || "Stop" : t("send") || "Send"}
-              aria-label={
-                isStreaming ? t("stopGeneration") || "Stop generation" : t("send") || "Send message"
-              }
-            >
-              {isStreaming ? (
-                <Square className="w-4 h-4 fill-current" />
-              ) : isImageMode ? (
-                <ImageIcon className="w-5 h-5" />
-              ) : (
-                <SendHorizontal className="w-5 h-5" />
+              {isImageMode && (
+                <button
+                  type="button"
+                  onClick={() => setIsImageMode(false)}
+                  className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full text-(--muted) hover:bg-(--raised-hover) hover:text-(--danger) transition-[background-color,color,transform] duration-150 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95]"
+                  title={t("cancelImageMode") || "Cancel Image Mode"}
+                  aria-label={t("cancelImageMode") || "Cancel image mode"}
+                >
+                  <X className="w-5 h-5" />
+                </button>
               )}
-            </button>
+
+              {/* Voice Input Button */}
+              {!isImageMode && (
+                <VoiceButton
+                  onTranscript={setVoiceTranscript}
+                  onFinalTranscript={(text) => onChangeInput(input + (input ? " " : "") + text)}
+                  disabled={disabled || isStreaming}
+                  language={language === "vi" ? "vi-VN" : "en-US"}
+                  t={tRecord}
+                />
+              )}
+
+              {/* Send / Stop Button */}
+              <button
+                type="submit"
+                disabled={isButtonDisabled}
+                className={sendButtonClasses}
+                title={isStreaming ? t("stopBtn") || "Stop" : t("send") || "Send"}
+                aria-label={
+                  isStreaming
+                    ? t("stopGeneration") || "Stop generation"
+                    : t("send") || "Send message"
+                }
+              >
+                {isStreaming ? (
+                  <Square className="w-4 h-4 fill-current" />
+                ) : isImageMode ? (
+                  <ImageIcon className="w-5 h-5" />
+                ) : (
+                  <SendHorizontal className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
 

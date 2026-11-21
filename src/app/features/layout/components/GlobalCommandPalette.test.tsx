@@ -40,19 +40,37 @@ describe("GlobalCommandPalette", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     pressCtrlK();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText("Đi tới Ảnh")).toBeInTheDocument();
+    expect(screen.getByText("Đi tới Tạo ảnh")).toBeInTheDocument();
+    expect(screen.getByText("Đi tới Thư viện")).toBeInTheDocument();
+    expect(screen.getByText("Đi tới Mô tả ảnh")).toBeInTheDocument();
+    expect(screen.getByText("Đi tới Quản lý Gems")).toBeInTheDocument();
+    expect(screen.getByText("Đi tới Quản lý Personas")).toBeInTheDocument();
     expect(screen.getByText("Old chat")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Đi tới Novelcrafter"));
     expect(mockPush).toHaveBeenCalledWith("/novelcrafter");
   });
 
-  it("TC-11: stays off on Chat routes so only Chat's palette opens", () => {
+  it("TC-11 & Negative Probe #5: stays off on / and /features/chat, but opens on /projects/[id]", () => {
     mockPathname = "/";
-    render(<GlobalCommandPalette />);
+    const { unmount } = render(<GlobalCommandPalette />);
     pressCtrlK();
     expect(screen.queryByRole("dialog")).toBeNull();
     act(() => useCommandPaletteStore.getState().open());
     expect(screen.queryByRole("dialog")).toBeNull();
+    unmount();
+
+    useCommandPaletteStore.setState({ isOpen: false });
+    mockPathname = "/features/chat";
+    const chatRender = render(<GlobalCommandPalette />);
+    pressCtrlK();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    chatRender.unmount();
+
+    useCommandPaletteStore.setState({ isOpen: false });
+    mockPathname = "/projects/proj-1";
+    render(<GlobalCommandPalette />);
+    pressCtrlK();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("TC-13: ignores Ctrl+K from text fields, editors or already-handled events", () => {

@@ -400,4 +400,40 @@ describe("InputForm", () => {
       expect(label.className).not.toContain("tracking-wider");
     });
   });
+
+  describe("Hover preview anti-oscillation & mobile sizing (Negative Probe #2)", () => {
+    it("does not auto-resize textarea when isPreview=true, uses text-base on mobile, and avoids transition-all", () => {
+      const { container, rerender } = render(
+        <InputForm input="" onChangeInput={vi.fn()} onSubmit={vi.fn()} isPreview={false} />
+      );
+      const textarea = screen.getByPlaceholderText("Type a message...") as HTMLTextAreaElement;
+      expect(textarea.className).toContain("text-base");
+      expect(textarea.className).toContain("md:text-[15px]");
+      expect(container.innerHTML).not.toContain("transition-all");
+
+      Object.defineProperty(textarea, "scrollHeight", { value: 140, configurable: true });
+
+      // During hover preview: height must NOT grow to 140px
+      rerender(
+        <InputForm
+          input={"Line 1\n\nLine 2"}
+          onChangeInput={vi.fn()}
+          onSubmit={vi.fn()}
+          isPreview={true}
+        />
+      );
+      expect(textarea.style.height).toBe("");
+
+      // Once user actually selects/types (isPreview=false): height grows to 140px
+      rerender(
+        <InputForm
+          input={"Line 1\n\nLine 2"}
+          onChangeInput={vi.fn()}
+          onSubmit={vi.fn()}
+          isPreview={false}
+        />
+      );
+      expect(textarea.style.height).toBe("140px");
+    });
+  });
 });

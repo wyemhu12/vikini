@@ -103,12 +103,17 @@ export function useImageGenStudio() {
   const genStartTimeRef = useRef<number>(0);
   const genTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Read ?prompt= query param
+  // Read ?prompt= and ?projectId= query params
   const searchParams = useSearchParams();
   useEffect(() => {
     const promptParam = searchParams.get("prompt");
     if (promptParam) setPrompt(promptParam);
   }, [searchParams]);
+
+  useEffect(() => {
+    const projectIdParam = searchParams.get("projectId");
+    if (projectIdParam) setSelectedConversationId(projectIdParam);
+  }, [searchParams, setSelectedConversationId]);
 
   // Sync messages to generatedImages
   const generatedImages: GeneratedImage[] = useMemo(() => {

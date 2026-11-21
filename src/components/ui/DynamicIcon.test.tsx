@@ -18,10 +18,27 @@ describe("DynamicIcon", () => {
     expect(svg?.classList.contains("lucide-sparkles")).toBe(true);
   });
 
-  it("renders text or emoji when name is not a Lucide icon", () => {
+  it("renders a Lucide icon when given kebab-case icon name like pen-tool", () => {
+    const { container, queryByText } = render(<DynamicIcon name="pen-tool" className="w-5 h-5" />);
+    const svg = container.querySelector("svg");
+    expect(svg).toBeTruthy();
+    expect(queryByText("pen-tool")).toBeNull();
+  });
+
+  it("Negative Probe #4: falls back safely for unknown multi-char ASCII slugs without spilling raw text", () => {
+    const { container, queryByText } = render(
+      <DynamicIcon name="unknown-long-slug" className="w-4 h-4" />
+    );
+    expect(queryByText("unknown-long-slug")).toBeNull();
+    expect(container.querySelector("svg")).toBeTruthy();
+  });
+
+  it("renders emoji inside an overflow-hidden span", () => {
     const { container, getByText } = render(<DynamicIcon name="💡" className="text-xl" />);
     expect(container.querySelector("svg")).toBeNull();
-    expect(getByText("💡")).toBeTruthy();
+    const el = getByText("💡");
+    expect(el).toBeTruthy();
+    expect(el.className).toContain("overflow-hidden");
   });
 
   it("renders custom string symbol when provided", () => {

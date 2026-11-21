@@ -1,8 +1,18 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import ProjectPage from "./page";
 import type { ProjectWithStats } from "@/types/projects";
+import { toast } from "@/lib/store/toastStore";
+import { confirm } from "@/lib/store/confirmStore";
+
+vi.mock("@/lib/store/toastStore", () => ({
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
+}));
+
+vi.mock("@/lib/store/confirmStore", () => ({
+  confirm: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "p1" }),
@@ -30,17 +40,20 @@ const mockProject: ProjectWithStats = {
   updated_at: "2026-11-11T00:00:00.000Z",
 };
 
+const mockDeleteProject = vi.fn();
+let mockProjectConvs: Array<{ id: string; title?: string; createdAt?: string }> = [];
+
 vi.mock("@/lib/store/projectStore", () => ({
   useProjectStore: () => ({
     projects: [mockProject],
-    deleteProject: vi.fn(),
+    deleteProject: mockDeleteProject,
     fetchProjects: vi.fn(),
   }),
 }));
 
 vi.mock("@/app/features/chat/hooks/useConversation", () => ({
   useConversation: () => ({
-    getProjectConversations: () => [],
+    getProjectConversations: () => mockProjectConvs,
     createConversation: vi.fn(),
     deleteConversation: vi.fn(),
   }),
@@ -51,6 +64,8 @@ describe("ProjectPage knowledge defense & New Chat tokens (TC-6E-02)", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockProjectConvs = [];
+    mockDeleteProject.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -79,5 +94,28 @@ describe("ProjectPage knowledge defense & New Chat tokens (TC-6E-02)", () => {
     expect(newChatBtn.className).toContain("bg-(--accent)");
     expect(newChatBtn.className).toContain("text-(--on-accent)");
     expect(newChatBtn.className).not.toContain("bg-primary");
+  });
+
+  it("TC-W3-06 & TC-W4-05: renders sibling buttons for project chats (no nested buttons) and shows toast.error when project deletion fails", async () => {
+    mockProjectConvs = [
+      { id: "c-1", title: "Project Chat Alpha", createdAt: "2026-06-01T00:00:00Z" },
+    ];
+    mockDeleteProject.mockRejectedValueOnce(new Error("Delete failed"));
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: { documents: [] } }),
+    }) as unknown as typeof fetch;
+
+    render(<ProjectPage />);
+
+    const chatBtn = await screen.findByRole("button", { name: /Project Chat Alpha/i });
+    expect(chatBtn.querySelector("button")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /delete project/i }));
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledTimes(1);
+    });
   });
 });

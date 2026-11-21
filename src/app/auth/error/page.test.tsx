@@ -32,24 +32,27 @@ describe("AuthErrorPage (6B)", () => {
     mockError = null;
   });
 
-  it("explains a denied sign-in inside an alert and returns to sign-in (TC-05)", () => {
+  it("explains a denied sign-in inside an alert and returns to sign-in (TC-05, Loại C)", () => {
     render(<AuthErrorPage />);
     expect(
-      screen.getByRole("heading", { level: 1, name: "Truy cập bị từ chối" })
+      screen.getByRole("heading", { level: 1, name: "authErrorDeniedTitle" })
     ).toBeInTheDocument();
-    expect(within(screen.getByRole("alert")).getByText(/chưa được cấp phép/)).toBeInTheDocument();
+    expect(within(screen.getByRole("alert")).getByText("authErrorDeniedDesc")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("alert")).getByText("authErrorAllowlistHint")
+    ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Quay lại đăng nhập" }));
+    fireEvent.click(screen.getByRole("button", { name: "authErrorBackToSignIn" }));
     expect(mockSignOut).toHaveBeenCalledWith({ callbackUrl: "/auth/signin" });
   });
 
-  it("shows the blocked-account message for error=blocked (TC-05)", () => {
+  it("shows the blocked-account message for error=blocked (TC-05, Loại C)", () => {
     mockError = "blocked";
     render(<AuthErrorPage />);
     expect(
-      screen.getByRole("heading", { level: 1, name: "Tài khoản đã bị khóa" })
+      screen.getByRole("heading", { level: 1, name: "authErrorBlockedTitle" })
     ).toBeInTheDocument();
-    expect(within(screen.getByRole("alert")).getByText(/vô hiệu hóa/)).toBeInTheDocument();
+    expect(within(screen.getByRole("alert")).getByText("authErrorBlockedDesc")).toBeInTheDocument();
   });
 
   it("uses theme tokens and no styled-jsx block (TC-06)", () => {

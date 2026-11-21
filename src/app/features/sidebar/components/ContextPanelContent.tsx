@@ -54,7 +54,7 @@ export const SidebarButton = React.memo(function SidebarButton({
   const classes = cn(
     "flex w-full items-center justify-start gap-3 rounded-lg px-3 py-2.5 transition-[background-color,color,transform] duration-200 group active:scale-[0.97] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
     variant === "primary" &&
-      "bg-(--raised) hover:bg-(--raised) border border-(--line) text-(--accent) font-bold shadow-sm",
+      "bg-(--raised) hover:bg-(--raised-hover) border border-(--line) text-(--accent) font-bold shadow-sm",
     variant === "default" && "text-(--muted) hover:text-(--text) sidebar-accent-bar",
     variant === "default" && current && "bg-(--soft) text-(--accent)",
     variant === "destructive" && "text-(--muted) hover:bg-(--danger)/10 hover:text-(--danger)",

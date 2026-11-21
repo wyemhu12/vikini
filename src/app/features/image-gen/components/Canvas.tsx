@@ -199,7 +199,7 @@ export default function Canvas({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.3 }}
-                      className="text-muted-foreground text-sm font-medium"
+                      className="text-(--muted) text-sm font-medium"
                     >
                       {t(LOADING_MESSAGE_KEYS[loadingMsgIndex])}
                     </motion.span>
@@ -233,24 +233,24 @@ export default function Canvas({
                 </div>
               )}
 
-              {/* Overlay with Controls */}
-              <div className="absolute inset-0 bg-linear-to-t from-(--overlay) via-(--overlay) to-(--overlay) opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3 overflow-y-auto overflow-x-hidden">
+              {/* Responsive Controls: static WCAG AA footer on mobile; hover/focus overlay on desktop */}
+              <div className="static bg-(--surface) border-t border-(--line) opacity-100 flex flex-col justify-between gap-2.5 p-3 md:absolute md:inset-0 md:border-t-0 md:bg-transparent md:bg-linear-to-t md:from-(--overlay) md:via-(--overlay) md:to-(--overlay) md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 md:overflow-y-auto md:overflow-x-hidden transition-opacity duration-300">
                 {/* Top Metadata Badges */}
-                <div className="flex flex-wrap gap-1.5 transform -translate-y-2 group-hover:translate-y-0 group-focus-within:translate-y-0 transition-transform duration-300 content-start relative w-full shrink-0">
+                <div className="flex flex-wrap items-center gap-1.5 transform md:-translate-y-2 md:group-hover:translate-y-0 md:group-focus-within:translate-y-0 transition-transform duration-300 content-start relative w-full shrink-0">
                   {item.model && (
-                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-(--overlay) text-(--on-overlay) border border-(--on-overlay)/10 backdrop-blur-md">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-(--raised) text-(--text) border border-(--line) md:bg-(--overlay) md:text-(--on-overlay) md:border-(--on-overlay)/10 md:backdrop-blur-md">
                       {item.model}
                     </span>
                   )}
                   {item.aspectRatio && (
-                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-(--overlay) text-(--on-overlay) border border-(--on-overlay)/10 backdrop-blur-md">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-(--raised) text-(--text) border border-(--line) md:bg-(--overlay) md:text-(--on-overlay) md:border-(--on-overlay)/10 md:backdrop-blur-md">
                       {item.aspectRatio}
                     </span>
                   )}
                   {/* QW2: Enhanced badge with tooltip */}
                   {item.enhancer && (
                     <span
-                      className="text-xs font-bold px-2 py-0.5 rounded bg-(--accent) text-(--on-accent) border border-(--on-overlay)/10 backdrop-blur-md flex items-center gap-1 cursor-help"
+                      className="text-xs font-bold px-2 py-0.5 rounded bg-(--accent) text-(--on-accent) border border-(--accent)/30 md:border-(--on-overlay)/10 md:backdrop-blur-md flex items-center gap-1 cursor-help"
                       title={
                         item.enhancedPrompt
                           ? `${t("studioEnhancedPrompt")}: ${item.enhancedPrompt}`
@@ -263,7 +263,7 @@ export default function Canvas({
                   {/* MT2: Version chain badge */}
                   {item.editDepth && item.editDepth > 0 && (
                     <span
-                      className="text-xs font-bold px-2 py-0.5 rounded bg-(--warning) text-(--on-accent) border border-(--on-overlay)/10 backdrop-blur-md flex items-center gap-1 cursor-help"
+                      className="text-xs font-bold px-2 py-0.5 rounded bg-(--warning) text-(--on-accent) border border-(--warning)/30 md:border-(--on-overlay)/10 md:backdrop-blur-md flex items-center gap-1 cursor-help"
                       title={t("studioVersionTooltip")}
                     >
                       <Link2 className="w-3 h-3" />{" "}
@@ -276,37 +276,44 @@ export default function Canvas({
                     {/* QW4: Favorite toggle */}
                     {item.id && onToggleFavorite && (
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onToggleFavorite(item);
                         }}
-                        className={`p-1.5 rounded-full backdrop-blur-md transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) ${
+                        className={`inline-flex h-9 w-9 md:h-7 md:w-7 items-center justify-center rounded-full md:backdrop-blur-md transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) ${
                           item.isFavorite
                             ? "bg-(--accent) text-(--on-accent) border-(--accent) shadow-lg"
-                            : "bg-(--on-overlay)/10 hover:bg-(--overlay) text-(--on-overlay)/70 hover:text-(--on-overlay) border-(--on-overlay)/10"
+                            : "bg-(--raised) hover:bg-(--raised-hover) text-(--text) border-(--line) md:bg-(--on-overlay)/10 md:hover:bg-(--overlay) md:text-(--on-overlay)/80 md:hover:text-(--on-overlay) md:border-(--on-overlay)/10"
                         }`}
                         title={item.isFavorite ? t("studioUnfavorite") : t("studioFavorite")}
+                        aria-label={item.isFavorite ? t("studioUnfavorite") : t("studioFavorite")}
                       >
-                        <Heart className={`w-3 h-3 ${item.isFavorite ? "fill-current" : ""}`} />
+                        <Heart
+                          aria-hidden="true"
+                          className={`w-3.5 h-3.5 md:w-3 md:h-3 ${item.isFavorite ? "fill-current" : ""}`}
+                        />
                       </button>
                     )}
                     {item.id && (
                       <button
+                        type="button"
                         onClick={() => onDelete(item.id!)}
-                        className="p-1.5 rounded-full bg-(--overlay) hover:bg-(--danger) text-(--danger-foreground) backdrop-blur-md transition-colors border border-(--on-overlay)/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                        className="inline-flex h-9 w-9 md:h-7 md:w-7 items-center justify-center rounded-full bg-(--raised) hover:bg-(--danger) text-(--danger) hover:text-(--danger-foreground) border border-(--line) md:bg-(--overlay) md:text-(--on-overlay) md:border-(--on-overlay)/10 md:hover:bg-(--danger) md:hover:text-(--danger-foreground) md:backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("galleryDeleteImage")}
+                        aria-label={t("galleryDeleteImage")}
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 aria-hidden="true" className="w-3.5 h-3.5 md:w-3 md:h-3" />
                       </button>
                     )}
                   </div>
                 </div>
 
                 {/* Bottom Controls Area */}
-                <div className="flex flex-col gap-2 transform translate-y-4 group-hover:translate-y-0 group-focus-within:translate-y-0 transition-transform duration-300 mt-auto shrink-0">
+                <div className="flex flex-col gap-2 transform md:translate-y-4 md:group-hover:translate-y-0 md:group-focus-within:translate-y-0 transition-transform duration-300 mt-auto shrink-0">
                   {/* Scrollable Prompt */}
-                  <div className="max-h-[80px] overflow-y-auto custom-scrollbar bg-(--overlay) backdrop-blur-md p-2 rounded-lg border border-(--on-overlay)/10 shadow-lg">
-                    <p className="text-(--on-overlay)/90 text-xs font-medium leading-relaxed font-mono">
+                  <div className="max-h-[80px] overflow-y-auto custom-scrollbar bg-(--raised) border border-(--line) md:bg-(--overlay) md:backdrop-blur-md p-2 rounded-lg md:border-(--on-overlay)/10 shadow-sm md:shadow-lg">
+                    <p className="text-(--text) md:text-(--on-overlay)/90 text-xs font-medium leading-relaxed font-mono">
                       &quot;{item.prompt}&quot;
                     </p>
                   </div>
@@ -323,21 +330,23 @@ export default function Canvas({
                   {/* Action Buttons - wraps on small screens */}
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button
+                      type="button"
                       onClick={() => onRemix(item)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-(--accent) hover:brightness-110 text-(--on-accent) backdrop-blur-md transition-colors border border-(--accent) text-xs font-bold shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                      className="flex items-center gap-1 px-2.5 py-1.5 min-h-9 md:min-h-0 rounded-full bg-(--accent) hover:brightness-110 text-(--on-accent) md:backdrop-blur-md transition-colors border border-(--accent) text-xs font-bold shadow-sm md:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                       title={t("studioReuseTooltip")}
                     >
-                      <RefreshCcw className="w-3 h-3" />{" "}
+                      <RefreshCcw aria-hidden="true" className="w-3 h-3" />{" "}
                       <span className="hidden min-[300px]:inline">{t("studioReuse")}</span>
                     </button>
 
                     {onEdit && (
                       <button
+                        type="button"
                         onClick={() => onEdit(item)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-(--overlay) hover:bg-(--overlay) text-(--on-overlay) backdrop-blur-md transition-colors border border-(--on-overlay)/20 text-xs font-bold shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                        className="flex items-center gap-1 px-2.5 py-1.5 min-h-9 md:min-h-0 rounded-full bg-(--raised) hover:bg-(--raised-hover) text-(--text) border border-(--line) md:bg-(--overlay) md:hover:bg-(--overlay)/80 md:text-(--on-overlay) md:border-(--on-overlay)/20 md:backdrop-blur-md transition-colors text-xs font-bold shadow-sm md:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("studioEditTooltip")}
                       >
-                        <Pencil className="w-3 h-3" />{" "}
+                        <Pencil aria-hidden="true" className="w-3 h-3" />{" "}
                         <span className="hidden min-[300px]:inline">{t("studioEdit")}</span>
                       </button>
                     )}
@@ -345,29 +354,34 @@ export default function Canvas({
                     {/* QW3: Variation button */}
                     {onVariation && (
                       <button
+                        type="button"
                         onClick={() => onVariation(item)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-(--overlay) hover:bg-(--overlay) text-(--on-overlay) backdrop-blur-md transition-colors border border-(--on-overlay)/20 text-xs font-bold shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                        className="flex items-center gap-1 px-2.5 py-1.5 min-h-9 md:min-h-0 rounded-full bg-(--raised) hover:bg-(--raised-hover) text-(--text) border border-(--line) md:bg-(--overlay) md:hover:bg-(--overlay)/80 md:text-(--on-overlay) md:border-(--on-overlay)/20 md:backdrop-blur-md transition-colors text-xs font-bold shadow-sm md:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("studioVariationTooltip")}
                       >
-                        <Shuffle className="w-3 h-3" />{" "}
+                        <Shuffle aria-hidden="true" className="w-3 h-3" />{" "}
                         <span className="hidden min-[300px]:inline">{t("studioVariation")}</span>
                       </button>
                     )}
 
                     <div className="flex gap-1.5 ml-auto">
                       <button
+                        type="button"
                         onClick={() => void downloadImage(item)}
-                        className="p-1.5 rounded-full bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay) backdrop-blur-md transition-colors border border-(--on-overlay)/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                        className="inline-flex h-9 w-9 md:h-7 md:w-7 items-center justify-center rounded-full bg-(--raised) hover:bg-(--raised-hover) text-(--text) border border-(--line) md:bg-(--on-overlay)/10 md:hover:bg-(--on-overlay)/20 md:text-(--on-overlay) md:border-(--on-overlay)/10 md:backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("studioDownload")}
+                        aria-label={t("studioDownload")}
                       >
-                        <Download className="w-3.5 h-3.5" />
+                        <Download aria-hidden="true" className="w-3.5 h-3.5" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => window.open(item.url, "_blank")}
-                        className="p-1.5 rounded-full bg-(--on-overlay)/10 hover:bg-(--on-overlay)/20 text-(--on-overlay) backdrop-blur-md transition-colors border border-(--on-overlay)/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                        className="inline-flex h-9 w-9 md:h-7 md:w-7 items-center justify-center rounded-full bg-(--raised) hover:bg-(--raised-hover) text-(--text) border border-(--line) md:bg-(--on-overlay)/10 md:hover:bg-(--on-overlay)/20 md:text-(--on-overlay) md:border-(--on-overlay)/10 md:backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                         title={t("studioFullscreen")}
+                        aria-label={t("studioFullscreen")}
                       >
-                        <ExternalLink className="w-3.5 h-3.5" />
+                        <ExternalLink aria-hidden="true" className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -405,16 +419,17 @@ export default function Canvas({
               (tmpl, idx) => (
                 <motion.button
                   key={tmpl.id}
+                  type="button"
                   initial={{ opacity: 0, transform: "scale(0.9)" }}
                   animate={{ opacity: 1, transform: "scale(1)" }}
                   transition={{ delay: idx * 0.04, duration: 0.3, ease: "easeOut" }}
                   onClick={() => onSelectTemplate?.(tmpl)}
                   className="group relative aspect-[3/4] rounded-2xl overflow-hidden border border-(--line) hover:border-(--accent) transition-colors hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-(--ring)"
                 >
-                  {/* Preview image */}
+                  {/* Preview image (decorative — visible name label immediately below) */}
                   <img
                     src={tmpl.previewUrl}
-                    alt={tmpl.name[language]}
+                    alt=""
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
                     loading="lazy"
                   />

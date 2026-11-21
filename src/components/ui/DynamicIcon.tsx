@@ -10,18 +10,31 @@ export interface DynamicIconProps {
   className?: string;
 }
 
-// Build a normalized case-insensitive map of Lucide icon components
+/** Normalizes Lucide icon identifiers (PascalCase, kebab-case, snake_case) for lookup. */
+export function normalizeIconName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[-_\s]+/g, "");
+}
+
+const ASCII_SLUG_RE = /^[a-zA-Z0-9_-]{2,}$/;
+
+// Build a normalized case/separator-insensitive map of Lucide icon components
 const ICON_LOOKUP: Record<string, React.ComponentType<{ className?: string }>> = {};
 
 for (const [key, value] of Object.entries(Icons)) {
-  if (typeof value === "function" || (typeof value === "object" && value !== null)) {
-    ICON_LOOKUP[key.toLowerCase()] = value as React.ComponentType<{ className?: string }>;
+  if (
+    /^[A-Z]/.test(key) &&
+    (typeof value === "function" || (typeof value === "object" && value !== null))
+  ) {
+    ICON_LOOKUP[normalizeIconName(key)] = value as React.ComponentType<{ className?: string }>;
   }
 }
 
 /**
- * DynamicIcon renders a Lucide icon if `name` matches a Lucide icon name (case-insensitive),
- * an emoji / Unicode symbol if `name` is a text symbol, or `fallback` if empty / missing.
+ * DynamicIcon renders a Lucide icon if `name` matches a Lucide icon name (PascalCase or kebab-case),
+ * an emoji / Unicode symbol if `name` is a visual symbol, or `fallback` (or Sparkles) for empty / unknown slugs.
  */
 export function DynamicIcon({ name, fallback = null, className = "w-4 h-4" }: DynamicIconProps) {
   if (!name || typeof name !== "string" || name.trim() === "") {
@@ -29,17 +42,25 @@ export function DynamicIcon({ name, fallback = null, className = "w-4 h-4" }: Dy
   }
 
   const trimmed = name.trim();
-  const lower = trimmed.toLowerCase();
+  const normalized = normalizeIconName(trimmed);
 
-  const IconComponent = ICON_LOOKUP[lower];
+  const IconComponent = ICON_LOOKUP[normalized];
   if (IconComponent) {
     return <IconComponent className={className} />;
   }
 
-  // Not a Lucide icon name, render as emoji / text
+  // Prevent unknown multi-char ASCII slugs (e.g. "unknown-long-slug") from spilling raw text
+  if (ASCII_SLUG_RE.test(trimmed)) {
+    return fallback ? <>{fallback}</> : <Icons.Sparkles className={className} />;
+  }
+
+  // Emoji or single symbol
   return (
     <span
-      className={cn("inline-flex items-center justify-center select-none leading-none", className)}
+      className={cn(
+        "inline-flex items-center justify-center select-none leading-none overflow-hidden max-w-full",
+        className
+      )}
     >
       {trimmed}
     </span>

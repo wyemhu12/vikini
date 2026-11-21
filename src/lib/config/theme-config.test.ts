@@ -193,13 +193,16 @@ describe("theme-config — CSS themes", () => {
       expect(getToken(block, "color-scheme")).toBe(key.endsWith("-light") ? "light" : "dark");
     });
 
-    it("TC-09: satisfies WCAG 2.2 contrast thresholds", () => {
+    it("TC-09: satisfies WCAG 2.2 contrast thresholds across bg, surface, raised and state colors", () => {
       const pairs: ReadonlyArray<readonly [string, string, number]> = [
         ["--text", "--bg", 7],
         ["--muted", "--bg", 4.5],
+        ["--muted", "--raised", 4.5],
         ["--faint", "--bg", 4.5],
+        ["--faint", "--raised", 4.5],
         ["--on-accent", "--accent", 4.5],
-        ["--accent", "--bg", 3],
+        ["--accent", "--bg", 4.5],
+        ["--accent", "--raised", 4.5],
       ];
       for (const [tokenA, tokenB, threshold] of pairs) {
         const a = getToken(block, tokenA);
@@ -210,7 +213,50 @@ describe("theme-config — CSS themes", () => {
           `Theme '${key}' ${tokenA} (${a}) vs ${tokenB} (${b}) = ${ratio.toFixed(2)}:1 < ${threshold}`
         ).toBeGreaterThanOrEqual(threshold);
       }
+
+      // Check mode-specific semantic state colors from base.css
+      const isLight = key.endsWith("-light");
+      const rootBlock = baseCss.match(/:root\s*\{([^}]+)\}/)?.[1] ?? "";
+      const lightBlock = baseCss.match(/\.theme-hoanghon-light[\s\S]*?\{([^}]+)\}/)?.[1] ?? "";
+      const stateBlock = isLight ? lightBlock : rootBlock;
+
+      const danger = getToken(stateBlock, "--danger");
+      const dangerHover = getToken(stateBlock, "--danger-hover");
+      const dangerFg = getToken(stateBlock, "--danger-foreground");
+      const success = getToken(stateBlock, "--success");
+      const warning = getToken(stateBlock, "--warning");
+
+      for (const surfaceToken of ["--bg", "--surface", "--raised"] as const) {
+        const surfaceHex = getToken(block, surfaceToken);
+        for (const [stateName, stateHex] of [
+          ["--danger", danger],
+          ["--success", success],
+          ["--warning", warning],
+        ] as const) {
+          const ratio = getContrastRatio(stateHex, surfaceHex);
+          expect(
+            ratio,
+            `Theme '${key}' ${stateName} (${stateHex}) vs ${surfaceToken} (${surfaceHex}) = ${ratio.toFixed(2)}:1 < 4.5`
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+
+      expect(
+        getContrastRatio(dangerFg, danger),
+        `Theme '${key}' --danger-foreground vs --danger`
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(
+        getContrastRatio(dangerFg, dangerHover),
+        `Theme '${key}' --danger-foreground vs --danger-hover`
+      ).toBeGreaterThanOrEqual(4.5);
     });
+  });
+
+  it("TC-09b (Negative Probe): rejects legacy failing contrast pairs", () => {
+    expect(getContrastRatio("#c2410c", "#f3eae1")).toBeLessThan(4.5);
+    expect(getContrastRatio("#22c55e", "#f3eae1")).toBeLessThan(4.5);
+    expect(getContrastRatio("#ef4444", "#ffffff")).toBeLessThan(4.5);
+    expect(getContrastRatio("#ecedf0", "#f2f2f2")).toBeLessThan(3);
   });
 
   it("TC-10: legacy theme folders are gone and new themes are wired after base.css", () => {
@@ -224,10 +270,17 @@ describe("theme-config — CSS themes", () => {
     );
     expect(themeImports).toEqual(THEME_FAMILIES.map((f) => f.id));
     const baseIndex = globals.indexOf('@import "./styles/themes/_shared/base.css";');
+    const animIndex = globals.indexOf('@import "./styles/themes/_shared/animations.css";');
+    const hljsIndex = globals.indexOf('@import "./styles/themes/_shared/hljs.css";');
+    const firstThemeIndex = globals.indexOf(
+      `@import "./styles/themes/${THEME_FAMILIES[0].id}.css";`
+    );
     expect(baseIndex).toBeGreaterThanOrEqual(0);
-    expect(
-      globals.indexOf(`@import "./styles/themes/${THEME_FAMILIES[0].id}.css";`)
-    ).toBeGreaterThan(baseIndex);
+    expect(animIndex).toBeGreaterThan(baseIndex);
+    expect(hljsIndex).toBeGreaterThan(baseIndex);
+    expect(firstThemeIndex).toBeGreaterThan(animIndex);
+    expect(firstThemeIndex).toBeGreaterThan(hljsIndex);
+    expect(THEME_FAMILIES.find((f) => f.id === "hoanghon")?.swatch.light).toBe("#b33a08");
 
     const removedAliases = [
       "--surface-strong",
@@ -268,5 +321,46 @@ describe("theme-config — CSS themes", () => {
     }
     expect(baseCss).toContain("--on-overlay: #ffffff;");
     expect(baseCss).not.toContain("data-theme-tone");
+  });
+
+  it("TC-11 (NP-1): tokens.css is layered in @layer components without @theme collisions and zero legacy token callers remain", () => {
+    const tokensCssPath = path.resolve(themesDir, "_shared/tokens.css");
+    const tokensCss = fs.readFileSync(tokensCssPath, "utf-8");
+    expect(tokensCss).toContain("@layer components");
+    expect(tokensCss).not.toMatch(/\.text-primary\b/);
+    expect(tokensCss).not.toMatch(/\.text-secondary\b/);
+    expect(tokensCss).not.toMatch(/\.bg-accent\b/);
+    expect(tokensCss).not.toMatch(/\.text-accent\b/);
+
+    const legacyClassPattern =
+      /(?<![a-zA-Z0-9_-])(text-primary|text-secondary|bg-surface|bg-surface-muted|bg-surface-elevated|bg-control|bg-control-hover|border-token|border-control|card-surface)(?![a-zA-Z0-9_-])/;
+
+    const collectSourceFiles = (dir: string): string[] => {
+      const files: string[] = [];
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          files.push(...collectSourceFiles(full));
+        } else if (/\.(ts|tsx)$/.test(entry.name) && !/\.(test|spec)\.(ts|tsx)$/.test(entry.name)) {
+          files.push(full);
+        }
+      }
+      return files;
+    };
+
+    const srcRoot = path.resolve(process.cwd(), "src");
+    const targets = [
+      ...collectSourceFiles(path.join(srcRoot, "app")),
+      ...collectSourceFiles(path.join(srcRoot, "components")),
+    ];
+    const violations: string[] = [];
+    for (const filePath of targets) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const match = content.match(legacyClassPattern);
+      if (match) {
+        violations.push(`${path.relative(process.cwd(), filePath)}: ${match[0]}`);
+      }
+    }
+    expect(violations).toEqual([]);
   });
 });

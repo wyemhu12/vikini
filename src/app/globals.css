@@ -11,6 +11,8 @@
 @import "./styles/themes/_shared/base.css";
 @import "./styles/themes/_shared/tokens.css";
 @import "./styles/themes/_shared/utilities.css";
+@import "./styles/themes/_shared/animations.css";
+@import "./styles/themes/_shared/hljs.css";
 
 /* ===========================================
    THEMES (Vikini 3.0) — 5 families × dark/light

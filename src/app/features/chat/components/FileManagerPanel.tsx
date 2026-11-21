@@ -10,6 +10,7 @@ import type { FileItem } from "@/types/files";
 import { formatFileSize, KIND_ICONS, KIND_COLORS } from "@/lib/utils/fileDisplayUtils";
 import { logger } from "@/lib/utils/logger";
 import { toast } from "@/lib/store/toastStore";
+import { useLanguage } from "../hooks/useLanguage";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ export default function FileManagerPanel({
   onClose,
   t,
 }: FileManagerPanelProps) {
+  const { t: translate } = useLanguage();
   const { files, isLoading, mutate } = useFiles(conversationId);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -119,11 +121,12 @@ export default function FileManagerPanel({
               <span className="text-[var(--muted)] font-normal">({files.length})</span>
             </span>
             <button
+              type="button"
               onClick={onClose}
-              className="p-1 rounded-lg hover:bg-[var(--raised)] text-[var(--muted)] hover:text-[var(--text)] transition-colors"
-              aria-label="Close"
+              className="p-1.5 rounded-lg hover:bg-[var(--raised)] text-[var(--muted)] hover:text-[var(--text)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+              aria-label={t?.close ?? translate("close")}
             >
-              <X className="w-3.5 h-3.5" />
+              <X aria-hidden="true" className="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -165,6 +168,7 @@ interface FileListItemProps {
 }
 
 function FileListItem({ file, isDeleting, onDelete }: FileListItemProps) {
+  const { t } = useLanguage();
   const Icon = KIND_ICONS[file.kind] ?? File;
   const iconColor = KIND_COLORS[file.kind] ?? "text-[var(--muted)]";
 
@@ -199,8 +203,8 @@ function FileListItem({ file, isDeleting, onDelete }: FileListItemProps) {
           onDelete(file.id);
         }}
         disabled={isDeleting}
-        className="shrink-0 p-1 rounded-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-[opacity,color,background-color] hover:bg-(--danger)/15 text-[var(--muted)] hover:text-(--danger) disabled:opacity-50"
-        aria-label={`Delete ${file.filename}`}
+        className="shrink-0 p-1.5 rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 focus-visible:opacity-100 transition-[opacity,color,background-color] hover:bg-(--danger)/15 text-[var(--muted)] hover:text-(--danger) disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+        aria-label={`${t("removeFile")}: ${file.filename}`}
       >
         {isDeleting ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin" />

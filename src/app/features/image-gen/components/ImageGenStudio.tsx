@@ -53,6 +53,13 @@ export function ImageGenStudio() {
     if (isAuthed) void fetchBatchQuota();
   }, [isAuthed, fetchBatchQuota]);
 
+  // Redirect unauthenticated users via effect (never side-effect inside render body)
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      void signIn();
+    }
+  }, [status]);
+
   // Auth gates
   if (status === "loading") {
     return (
@@ -62,7 +69,6 @@ export function ImageGenStudio() {
     );
   }
   if (!isAuthed) {
-    void signIn();
     return null;
   }
 
@@ -110,8 +116,8 @@ export function ImageGenStudio() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("error")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              <div className="space-y-2">
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-(--muted)">
                 <p>{studio.showError?.message}</p>
                 {studio.showError?.suggestion && (
                   <p className="text-xs text-(--warning) bg-(--warning)/10 border border-(--warning)/20 rounded-lg px-3 py-2 mt-2">
@@ -139,6 +145,7 @@ export function ImageGenStudio() {
       {/* Project Sidebar */}
       <Sidebar
         conversations={studio.studioProjects}
+        conversationsLabel={t("studioProjectsLabel")}
         selectedConversationId={studio.selectedConversationId}
         onSelectConversation={(id) => {
           studio.setSelectedConversationId(id);
@@ -165,10 +172,11 @@ export function ImageGenStudio() {
         <ImageSectionHeader />
 
         {/* Main content area */}
-        <div className="flex flex-col md:flex-row h-full w-full relative overflow-hidden bg-(--surface)">
+        <div className="flex flex-col md:flex-row flex-1 min-h-0 w-full relative overflow-hidden bg-(--surface)">
           {/* Mobile Tab Bar */}
           <div className="md:hidden flex border-b border-(--line) bg-(--surface) shrink-0 z-10">
             <button
+              type="button"
               onClick={() => studio.setMobileTab("studio")}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors relative ${
                 studio.mobileTab === "studio"
@@ -186,6 +194,7 @@ export function ImageGenStudio() {
               )}
             </button>
             <button
+              type="button"
               onClick={() => studio.setMobileTab("results")}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors relative ${
                 studio.mobileTab === "results"
@@ -196,7 +205,7 @@ export function ImageGenStudio() {
               <Images className="w-4 h-4" />
               {t("studioTabResults")}
               {studio.generatedImages.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-xs font-bold rounded-full bg-(--accent)/20 text-(--accent)">
+                <span className="ml-1 px-1.5 py-0.5 text-xs font-bold rounded-full bg-(--soft) text-(--accent)">
                   {studio.generatedImages.length}
                 </span>
               )}
@@ -209,68 +218,64 @@ export function ImageGenStudio() {
             </button>
           </div>
 
-          {/* Content panels */}
-          <AnimatePresence mode="wait" initial={false}>
-            <ControlPanel
-              key="control-panel"
-              prompt={studio.prompt}
-              setPrompt={studio.setPrompt}
-              model={studio.model}
-              setModel={studio.setModel}
-              aspectRatio={studio.aspectRatio}
-              setAspectRatio={studio.setAspectRatio}
-              resolution={studio.resolution}
-              setResolution={studio.setResolution}
-              style={studio.style}
-              setStyle={studio.setStyle}
-              isEnhancerOn={studio.isEnhancerOn}
-              setIsEnhancerOn={studio.setIsEnhancerOn}
-              onGenerate={studio.handleGenerate}
-              generating={studio.generating}
-              className={studio.mobileTab !== "studio" ? "hidden md:flex" : "flex"}
-              referenceImages={studio.referenceImages}
-              setReferenceImages={studio.setReferenceImages}
-              numberOfImages={studio.numberOfImages}
-              setNumberOfImages={studio.setNumberOfImages}
-              batchQuota={studio.batchQuota}
-              generatingLabel={studio.generatingLabel || undefined}
-              negativePrompt={studio.negativePrompt}
-              setNegativePrompt={studio.setNegativePrompt}
-              promptHistory={studio.promptHistory}
-              onClearHistory={studio.clearPromptHistory}
-            />
+          {/* Content panels (no mode="wait" AnimatePresence around 3 permanent siblings) */}
+          <ControlPanel
+            prompt={studio.prompt}
+            setPrompt={studio.setPrompt}
+            model={studio.model}
+            setModel={studio.setModel}
+            aspectRatio={studio.aspectRatio}
+            setAspectRatio={studio.setAspectRatio}
+            resolution={studio.resolution}
+            setResolution={studio.setResolution}
+            style={studio.style}
+            setStyle={studio.setStyle}
+            isEnhancerOn={studio.isEnhancerOn}
+            setIsEnhancerOn={studio.setIsEnhancerOn}
+            onGenerate={studio.handleGenerate}
+            generating={studio.generating}
+            className={studio.mobileTab !== "studio" ? "hidden md:flex" : "flex"}
+            referenceImages={studio.referenceImages}
+            setReferenceImages={studio.setReferenceImages}
+            numberOfImages={studio.numberOfImages}
+            setNumberOfImages={studio.setNumberOfImages}
+            batchQuota={studio.batchQuota}
+            generatingLabel={studio.generatingLabel || undefined}
+            negativePrompt={studio.negativePrompt}
+            setNegativePrompt={studio.setNegativePrompt}
+            promptHistory={studio.promptHistory}
+            onClearHistory={studio.clearPromptHistory}
+          />
 
-            <Canvas
-              key="canvas"
-              images={studio.generatedImages}
-              generating={studio.generating}
-              selectedAspectRatio={studio.aspectRatio}
-              onRemix={studio.handleRemix}
-              onDelete={studio.handleDeleteRequest}
-              onEdit={studio.handleEdit}
-              onImageClick={studio.handleImageClick}
-              onSelectTemplate={studio.handleSelectTemplate}
-              onVariation={studio.handleVariation}
-              onToggleFavorite={studio.handleToggleFavorite}
-              onTagsUpdated={studio.handleEditComplete}
-              className={cn(
-                studio.mobileTab !== "results" ? "hidden md:flex" : "flex",
-                studio.editingImage ? "hidden lg:flex" : ""
-              )}
-            />
+          <Canvas
+            images={studio.generatedImages}
+            generating={studio.generating}
+            selectedAspectRatio={studio.aspectRatio}
+            onRemix={studio.handleRemix}
+            onDelete={studio.handleDeleteRequest}
+            onEdit={studio.handleEdit}
+            onImageClick={studio.handleImageClick}
+            onSelectTemplate={studio.handleSelectTemplate}
+            onVariation={studio.handleVariation}
+            onToggleFavorite={studio.handleToggleFavorite}
+            onTagsUpdated={studio.handleEditComplete}
+            className={cn(
+              studio.mobileTab !== "results" ? "hidden md:flex" : "flex",
+              studio.editingImage ? "hidden lg:flex" : ""
+            )}
+          />
 
-            {/* Multi-Turn Edit Panel */}
-            <AnimatePresence>
-              {studio.editingImage && studio.selectedConversationId && (
-                <EditPanel
-                  key="edit-panel"
-                  sourceImage={studio.editingImage}
-                  conversationId={studio.selectedConversationId}
-                  onClose={studio.handleCloseEditPanel}
-                  onEditComplete={studio.handleEditComplete}
-                />
-              )}
-            </AnimatePresence>
+          {/* Multi-Turn Edit Panel */}
+          <AnimatePresence>
+            {studio.editingImage && studio.selectedConversationId && (
+              <EditPanel
+                key="edit-panel"
+                sourceImage={studio.editingImage}
+                conversationId={studio.selectedConversationId}
+                onClose={studio.handleCloseEditPanel}
+                onEditComplete={studio.handleEditComplete}
+              />
+            )}
           </AnimatePresence>
         </div>
 
@@ -317,18 +322,20 @@ export function ImageGenStudio() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("renameChat") || "Rename Project"}</AlertDialogTitle>
-            <AlertDialogDescription>
-              <input
-                type="text"
-                value={studio.renameValue}
-                onChange={(e) => studio.setRenameValue(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && studio.confirmRename()}
-                autoFocus
-                className="w-full mt-2 px-4 py-3 rounded-lg bg-(--raised) border border-(--line) text-(--text) placeholder:text-(--muted) focus:outline-none focus:ring-2 focus:ring-(--accent)/50"
-                placeholder={t("renameChat") || "Enter new name"}
-              />
+            <AlertDialogDescription className="sr-only">
+              {t("renameChat") || "Rename Project"}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <input
+            type="text"
+            value={studio.renameValue}
+            onChange={(e) => studio.setRenameValue(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && studio.confirmRename()}
+            autoFocus
+            aria-label={t("renameChat") || "Rename Project"}
+            className="w-full px-4 py-3 rounded-lg bg-(--raised) border border-(--line) text-(--text) placeholder:text-(--muted) focus:outline-none focus:ring-2 focus:ring-(--ring)"
+            placeholder={t("renameChat") || "Enter new name"}
+          />
           <AlertDialogFooter>
             <AlertDialogCancel>{t("cancel") || "Cancel"}</AlertDialogCancel>
             <AlertDialogAction onClick={studio.confirmRename} disabled={!studio.renameValue.trim()}>

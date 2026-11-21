@@ -75,7 +75,7 @@ export default function GemList({
           {premade?.length ? (
             premade.map((g) => renderItem(g, true))
           ) : (
-            <div className="text-sm text-(--muted)">{t("noDescription")}</div>
+            <div className="text-sm text-(--muted)">{t("gemNoPremade")}</div>
           )}
         </div>
       </section>
@@ -86,7 +86,7 @@ export default function GemList({
           {mine?.length ? (
             mine.map((g) => renderItem(g, false))
           ) : (
-            <div className="text-sm text-(--muted)">{t("noDescription")}</div>
+            <div className="text-sm text-(--muted)">{t("gemNoMine")}</div>
           )}
         </div>
       </section>

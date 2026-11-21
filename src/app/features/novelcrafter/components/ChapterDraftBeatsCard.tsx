@@ -115,7 +115,7 @@ export default function ChapterDraftBeatsCard({
                       type="button"
                       disabled={isStreaming || !canSummarizeChapter}
                       onClick={onSummarizeChapter}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) text-xs font-medium text-(--text) disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-(--raised) hover:bg-(--raised-hover) border border-(--line) text-xs font-medium text-(--text) disabled:opacity-50"
                     >
                       <BookMarked className="w-3.5 h-3.5 text-(--accent)" />
                       <span>{t("novelcrafterSummarizeChapterBtn")}</span>
@@ -145,7 +145,7 @@ export default function ChapterDraftBeatsCard({
                     type="button"
                     disabled={isStreaming}
                     onClick={onGenerateBeats}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) text-xs font-medium text-(--text) disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--raised) hover:bg-(--raised-hover) border border-(--line) text-xs font-medium text-(--text) disabled:opacity-50 cursor-pointer"
                   >
                     <Wand2 className="w-3.5 h-3.5 text-(--accent)" />
                     <span>{t("novelcrafterGenerateBeatsBtn")}</span>
@@ -160,7 +160,7 @@ export default function ChapterDraftBeatsCard({
                     type="button"
                     disabled={isStreaming}
                     onClick={onRewriteBeats}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--raised) hover:bg-(--raised) border border-(--line) text-xs font-medium text-(--text) disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--raised) hover:bg-(--raised-hover) border border-(--line) text-xs font-medium text-(--text) disabled:opacity-50 cursor-pointer"
                   >
                     <RefreshCw className="w-3.5 h-3.5 text-(--muted)" />
                     <span>{t("novelcrafterRewriteBeatsBtn")}</span>

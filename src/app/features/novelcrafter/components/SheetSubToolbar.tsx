@@ -71,9 +71,12 @@ export default function SheetSubToolbar({
       )}
     >
       <div
-        className={cn(MANUSCRIPT_SHEET_CLASS, "flex items-center justify-between gap-2 flex-wrap")}
+        className={cn(
+          MANUSCRIPT_SHEET_CLASS,
+          "flex items-center justify-between gap-2 flex-nowrap overflow-x-auto [scrollbar-width:none] md:flex-wrap md:overflow-visible"
+        )}
       >
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="flex items-center gap-1 flex-nowrap md:flex-wrap shrink-0">
           {formatButtons.map(({ key, label, Icon }) => (
             <button
               key={key}
@@ -81,9 +84,9 @@ export default function SheetSubToolbar({
               onClick={() => onApplyMarkdownFormat(key)}
               title={label}
               aria-label={label}
-              className="p-1.5 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="inline-flex min-h-9 min-w-9 md:min-h-0 md:min-w-0 items-center justify-center p-1.5 rounded-lg text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none shrink-0"
             >
-              <Icon className="w-3.5 h-3.5" />
+              <Icon aria-hidden="true" className="w-3.5 h-3.5" />
             </button>
           ))}
 
@@ -95,20 +98,20 @@ export default function SheetSubToolbar({
           />
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-(--muted)">
+        <div className="flex items-center gap-2 text-xs text-(--muted) shrink-0">
           <button
             type="button"
             aria-pressed={beatsOpen}
             onClick={onToggleBeats}
             title={t("novelcrafterSceneBeatsBtn")}
             className={cn(
-              "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+              "inline-flex min-h-9 md:min-h-0 items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
               beatsOpen
                 ? "bg-transparent border-(--accent) text-(--accent)"
-                : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
+                : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text) hover:bg-(--raised-hover)"
             )}
           >
-            <ListOrdered className="w-3.5 h-3.5" />
+            <ListOrdered aria-hidden="true" className="w-3.5 h-3.5" />
             <span>{t("novelcrafterSceneBeatsBtn")}</span>
           </button>
 
@@ -118,9 +121,9 @@ export default function SheetSubToolbar({
               onClick={onOpenSnapshotsModal}
               title={t("novelcrafterSnapshotsBtn")}
               aria-label={t("novelcrafterSnapshotsBtn")}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised) text-(--text) font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
+              className="inline-flex min-h-9 md:min-h-0 items-center gap-1 px-2.5 py-1 rounded-lg border border-(--line) bg-(--raised) hover:bg-(--raised-hover) text-(--text) font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
             >
-              <History className="w-3.5 h-3.5 text-(--accent)" />
+              <History aria-hidden="true" className="w-3.5 h-3.5 text-(--accent)" />
               <span className="hidden md:inline">{t("novelcrafterSnapshotsBtn")}</span>
               <span>
                 ({snapshotsCount}/{MAX_CHAPTER_SNAPSHOTS})
@@ -133,17 +136,18 @@ export default function SheetSubToolbar({
             aria-pressed={focusMode}
             onClick={onToggleFocusMode}
             title={t("novelcrafterFocusModeToggle")}
+            aria-label={t("novelcrafterFocusModeToggle")}
             className={cn(
-              "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
+              "inline-flex min-h-9 min-w-9 md:min-h-0 md:min-w-0 items-center justify-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
               focusMode
                 ? "bg-transparent border-(--accent) text-(--accent)"
-                : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text)"
+                : "bg-(--raised) border-(--line) text-(--muted) hover:text-(--text) hover:bg-(--raised-hover)"
             )}
           >
             {focusMode ? (
-              <Minimize2 className="w-3.5 h-3.5" />
+              <Minimize2 aria-hidden="true" className="w-3.5 h-3.5" />
             ) : (
-              <Maximize2 className="w-3.5 h-3.5" />
+              <Maximize2 aria-hidden="true" className="w-3.5 h-3.5" />
             )}
             <span className="hidden md:inline">{t("novelcrafterFocusModeToggle")}</span>
           </button>

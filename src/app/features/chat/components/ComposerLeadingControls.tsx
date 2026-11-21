@@ -96,7 +96,11 @@ export default function ComposerLeadingControls(props: ComposerLeadingControlsPr
       : t("composerOptions");
 
   return (
-    <div className="flex flex-1 flex-wrap items-center gap-1.5 self-center">
+    <div
+      className={`flex min-w-0 shrink-0 @3xl/chat:flex-1 flex-wrap items-center gap-1.5 self-center ${
+        props.fileCount > 0 ? "max-w-[52%] @3xl/chat:max-w-none" : ""
+      }`}
+    >
       <div
         data-composer-group="desktop"
         className="hidden flex-wrap items-center gap-1.5 @3xl/chat:flex"
@@ -150,7 +154,7 @@ export default function ComposerLeadingControls(props: ComposerLeadingControlsPr
         aria-haspopup="dialog"
         aria-label={optionsLabel}
         onClick={() => setSheetOpen(true)}
-        className="@3xl/chat:hidden"
+        className="h-9 md:h-8 @3xl/chat:hidden"
       >
         {t("composerOptions")}
         {activeCount > 0 && (

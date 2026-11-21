@@ -35,7 +35,11 @@ describe("AuthShell (6B)", () => {
     expect(english).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(english);
     expect(mockSetLanguage).toHaveBeenCalledWith("en");
-    expect(within(screen.getByRole("main")).getByText("Nội dung")).toBeInTheDocument();
+    // AuthShell lives inside MainLayout's <main id="main">; it must NOT emit a nested <main>
+    expect(screen.queryByRole("main")).toBeNull();
+    const content = screen.getByText("Nội dung");
+    expect(content).toBeInTheDocument();
+    expect(content.parentElement?.tagName).toBe("DIV");
   });
 
   it("uses theme tokens only (TC-02)", () => {

@@ -15,6 +15,8 @@ const DICT: Record<string, string> = {
   messageMoreActions: "Thêm thao tác",
   premadeGems: "Gems hệ thống",
   myGems: "Gems của tôi",
+  gemNoPremade: "Chưa có Gem hệ thống nào",
+  gemNoMine: "Bạn chưa tạo Gem nào",
 };
 
 vi.mock("../../chat/hooks/useLanguage", () => ({
@@ -106,5 +108,11 @@ describe("GemList (6A)", () => {
     // Built-in gem: preview is the primary action, so there is nothing left for a menu.
     expect(within(cards[0]).getAllByRole("button")).toHaveLength(1);
     expect(within(cards[1]).getAllByRole("button")).toHaveLength(2);
+  });
+
+  it("renders dedicated empty messages instead of noDescription when sections are empty", () => {
+    setup({ premade: [], mine: [] });
+    expect(screen.getByText("Chưa có Gem hệ thống nào")).toBeInTheDocument();
+    expect(screen.getByText("Bạn chưa tạo Gem nào")).toBeInTheDocument();
   });
 });

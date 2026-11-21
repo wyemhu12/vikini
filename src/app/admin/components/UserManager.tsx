@@ -9,14 +9,14 @@ import {
   ShieldAlert,
   CheckSquare,
   Square,
-  X,
+  RotateCcw,
 } from "lucide-react";
-import { motion } from "framer-motion";
-import * as Dialog from "@radix-ui/react-dialog";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { toast } from "@/lib/store/toastStore";
 import { confirm } from "@/lib/store/confirmStore";
 import { formatDate } from "@/lib/utils/dateFormat";
+import { logger } from "@/lib/utils/logger";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectTrigger,
@@ -24,17 +24,22 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-
-interface Profile {
-  id: string;
-  email: string;
-  rank: "not_whitelisted" | "basic" | "pro" | "admin";
-  is_blocked: boolean;
-  created_at: string;
-}
+import UserDetailModal, { type Profile } from "./UserDetailModal";
 
 type RankFilter = "all" | Profile["rank"];
 type StatusFilter = "all" | "active" | "blocked";
+
+const RANK_OPTIONS: readonly { value: Profile["rank"]; labelKey: string }[] = [
+  { value: "not_whitelisted", labelKey: "userNotWhitelisted" },
+  { value: "basic", labelKey: "userBasic" },
+  { value: "pro", labelKey: "userPro" },
+  { value: "admin", labelKey: "userAdmin" },
+];
+
+const BULK_RANK_OPTIONS = RANK_OPTIONS.slice(0, 3);
+
+const CHECKBOX_BTN_CLASS =
+  "inline-flex h-9 w-9 md:h-7 md:w-7 items-center justify-center text-(--muted) hover:text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded cursor-pointer";
 
 interface UserManagerProps {
   currentUserId: string;
@@ -46,15 +51,10 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
 
-  // Search & Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [rankFilter, setRankFilter] = useState<RankFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-
-  // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  // User detail modal
   const [detailUser, setDetailUser] = useState<Profile | null>(null);
   const [detailStats, setDetailStats] = useState<{
     conversations: number;
@@ -64,7 +64,6 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
 
   const { t, language } = useLanguage();
   const tRef = useRef(t);
-
   useEffect(() => {
     tRef.current = t;
   }, [t]);
@@ -72,13 +71,14 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
+      setError("");
       const res = await fetch("/api/admin/users");
-      if (!res.ok) throw new Error(tRef.current("failedFetchUsers"));
+      if (!res.ok) throw new Error(tRef.current("adminLoadFailed"));
       const json = await res.json();
-      const data = json.data || json;
-      setUsers(data.users || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : tRef.current("failedLoadUsers"));
+      setUsers((json.data || json).users || []);
+    } catch (err: unknown) {
+      logger.error("[UserManager] Failed to load users:", err);
+      setError(err instanceof Error ? err.message : tRef.current("adminLoadFailed"));
     } finally {
       setLoading(false);
     }
@@ -88,23 +88,19 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
     void fetchUsers();
   }, [fetchUsers]);
 
-  // Filtered users
-  const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
-      // Search filter
-      if (searchQuery && !user.email.toLowerCase().includes(searchQuery.toLowerCase())) {
-        return false;
-      }
-      // Rank filter
-      if (rankFilter !== "all" && user.rank !== rankFilter) {
-        return false;
-      }
-      // Status filter
-      if (statusFilter === "active" && user.is_blocked) return false;
-      if (statusFilter === "blocked" && !user.is_blocked) return false;
-      return true;
-    });
-  }, [users, searchQuery, rankFilter, statusFilter]);
+  const filteredUsers = useMemo(
+    () =>
+      users.filter((user) => {
+        if (searchQuery && !user.email.toLowerCase().includes(searchQuery.toLowerCase())) {
+          return false;
+        }
+        if (rankFilter !== "all" && user.rank !== rankFilter) return false;
+        if (statusFilter === "active" && user.is_blocked) return false;
+        if (statusFilter === "blocked" && !user.is_blocked) return false;
+        return true;
+      }),
+    [users, searchQuery, rankFilter, statusFilter]
+  );
 
   const isSelf = (userId: string) => userId === currentUserId;
 
@@ -114,12 +110,12 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
     setDetailLoading(true);
     try {
       const res = await fetch(`/api/admin/stats?userId=${user.id}`);
-      if (res.ok) {
-        const json = await res.json();
-        setDetailStats(json.data || json);
-      }
-    } catch {
-      // Non-critical, just show empty stats
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setDetailStats(json.data || json);
+    } catch (err: unknown) {
+      logger.error("[UserManager] Failed to load user detail stats:", err);
+      toast.error(tRef.current("adminUserDetailFailed"));
     } finally {
       setDetailLoading(false);
     }
@@ -216,18 +212,44 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-(--accent)" />
-        <span className="ml-2 text-(--muted)">{t("userLoadingUsers")}</span>
+      <div role="status" className="space-y-4 py-2">
+        <span className="sr-only">{t("userLoadingUsers")}</span>
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-5 w-20" />
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Skeleton className="h-10 flex-1" />
+          <Skeleton className="h-10 w-full sm:w-[160px]" />
+          <Skeleton className="h-10 w-full sm:w-[160px]" />
+        </div>
+        <div className="space-y-2.5">
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <Skeleton key={idx} className="h-12 w-full rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center gap-2 text-(--danger) py-4">
-        <AlertCircle className="w-5 h-5" />
-        <span>{error}</span>
+      <div
+        role="alert"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg bg-(--danger)/10 border border-(--danger)/30 text-(--danger)"
+      >
+        <div className="flex items-center gap-2">
+          <AlertCircle aria-hidden="true" className="w-5 h-5 shrink-0" />
+          <span className="text-sm font-medium">{error}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => void fetchUsers()}
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-(--raised) hover:bg-(--raised-hover) text-(--text) border border-(--line) transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+        >
+          <RotateCcw aria-hidden="true" className="w-4 h-4" />
+          {t("tryAgain")}
+        </button>
       </div>
     );
   }
@@ -235,8 +257,8 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center gap-2 mb-4">
-        <Users className="w-5 h-5 text-(--accent)" />
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Users aria-hidden="true" className="w-5 h-5 text-(--accent)" />
         <h2 className="text-xl font-semibold text-(--text)">{t("userManagement")}</h2>
         <span className="text-sm text-(--faint)">
           ({filteredUsers.length}/{users.length} {t("userUsers")})
@@ -244,36 +266,39 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
       </div>
 
       {/* Search & Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-4">
         {/* Search */}
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--faint)" />
+        <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
+          <Search
+            aria-hidden="true"
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--faint)"
+          />
           <input
             type="text"
+            aria-label={t("adminSearchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t("adminSearchPlaceholder")}
-            className="w-full pl-9 pr-3 py-2 bg-(--raised) border border-(--line) rounded-lg text-sm text-(--text) placeholder:text-(--faint) focus:border-(--accent)/50 focus:outline-none transition-colors"
+            className="w-full pl-9 pr-3 py-2 bg-(--raised) border border-(--line) rounded-lg text-sm text-(--text) placeholder:text-(--faint) focus:border-(--accent)/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) transition-colors"
           />
         </div>
 
-        {/* Rank Filter */}
         <Select value={rankFilter} onValueChange={(v) => setRankFilter(v as RankFilter)}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]" aria-label={t("userRank")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("adminFilterAllRanks")}</SelectItem>
-            <SelectItem value="not_whitelisted">{t("userNotWhitelisted")}</SelectItem>
-            <SelectItem value="basic">{t("userBasic")}</SelectItem>
-            <SelectItem value="pro">{t("userPro")}</SelectItem>
-            <SelectItem value="admin">{t("userAdmin")}</SelectItem>
+            {RANK_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {t(opt.labelKey)}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
-        {/* Status Filter */}
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]" aria-label={t("userStatus")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -284,21 +309,22 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
         </Select>
       </div>
 
-      {/* Bulk Actions Bar */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-(--soft) border border-(--accent)/20">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 p-3 rounded-lg bg-(--soft) border border-(--accent)/20">
           <span className="text-sm text-(--accent)">
             {selectedIds.size} {t("adminBulkSelected")}
           </span>
-          <div className="flex gap-2 ml-auto">
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
             <Select onValueChange={(v) => bulkUpdate({ rank: v as Profile["rank"] })}>
-              <SelectTrigger className="w-[160px] h-auto py-1.5">
+              <SelectTrigger className="w-[160px] h-auto py-1.5" aria-label={t("adminBulkSetRank")}>
                 <SelectValue placeholder={t("adminBulkSetRank")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="not_whitelisted">{t("userNotWhitelisted")}</SelectItem>
-                <SelectItem value="basic">{t("userBasic")}</SelectItem>
-                <SelectItem value="pro">{t("userPro")}</SelectItem>
+                {BULK_RANK_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {t(opt.labelKey)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <button
@@ -321,22 +347,27 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
         </div>
       )}
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      <div
+        className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) rounded-lg"
+        tabIndex={0}
+        role="region"
+        aria-label={t("userManagement")}
+      >
         <table className="w-full">
           <thead>
             <tr className="border-b border-(--line)">
-              {/* Bulk select header */}
-              <th className="py-3 px-2 w-8">
+              <th className="py-3 px-2 w-10">
                 <button
                   type="button"
                   onClick={toggleSelectAll}
-                  className="text-(--muted) hover:text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded"
+                  aria-label={t("adminSelectAllUsers")}
+                  aria-pressed={allSelectableSelected}
+                  className={CHECKBOX_BTN_CLASS}
                 >
                   {allSelectableSelected ? (
-                    <CheckSquare className="w-4 h-4 text-(--accent)" />
+                    <CheckSquare aria-hidden="true" className="w-4 h-4 text-(--accent)" />
                   ) : (
-                    <Square className="w-4 h-4" />
+                    <Square aria-hidden="true" className="w-4 h-4" />
                   )}
                 </button>
               </th>
@@ -360,23 +391,25 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
           <tbody>
             {filteredUsers.map((user) => {
               const self = isSelf(user.id);
+              const isSelected = selectedIds.has(user.id);
               return (
                 <tr
                   key={user.id}
-                  className={`border-b border-(--line) hover:bg-(--raised) ${self ? "opacity-70" : ""}`}
+                  className={`border-b border-(--line) hover:bg-(--raised-hover) ${self ? "bg-(--soft)/30" : ""}`}
                 >
-                  {/* Bulk select checkbox */}
                   <td className="py-3 px-2">
                     {!self && (
                       <button
                         type="button"
                         onClick={() => toggleSelect(user.id)}
-                        className="text-(--muted) hover:text-(--text) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded"
+                        aria-label={`${t("adminSelectUser")}: ${user.email}`}
+                        aria-pressed={isSelected}
+                        className={CHECKBOX_BTN_CLASS}
                       >
-                        {selectedIds.has(user.id) ? (
-                          <CheckSquare className="w-4 h-4 text-(--accent)" />
+                        {isSelected ? (
+                          <CheckSquare aria-hidden="true" className="w-4 h-4 text-(--accent)" />
                         ) : (
-                          <Square className="w-4 h-4" />
+                          <Square aria-hidden="true" className="w-4 h-4" />
                         )}
                       </button>
                     )}
@@ -385,12 +418,12 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                     <button
                       type="button"
                       onClick={() => openUserDetail(user)}
-                      className="flex items-center gap-2 hover:text-(--accent) transition-colors text-left focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded"
+                      className="flex items-center gap-2 hover:text-(--accent) transition-colors text-left focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none rounded cursor-pointer"
                     >
                       {user.email}
                       {self && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-(--warning)/20 text-(--warning) border border-(--warning)/30">
-                          <ShieldAlert className="w-3 h-3" />
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-(--soft) text-(--accent) border border-(--accent)/30">
+                          <ShieldAlert aria-hidden="true" className="w-3 h-3" />
                           {t("adminSelfLabel")}
                         </span>
                       )}
@@ -402,14 +435,18 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                       onValueChange={(v) => handleRankChange(user.id, v)}
                       disabled={self || updating === user.id}
                     >
-                      <SelectTrigger className="w-[140px] h-auto py-1.5">
+                      <SelectTrigger
+                        className="w-[140px] h-auto py-1.5"
+                        aria-label={`${t("userRank")}: ${user.email}`}
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="not_whitelisted">{t("userNotWhitelisted")}</SelectItem>
-                        <SelectItem value="basic">{t("userBasic")}</SelectItem>
-                        <SelectItem value="pro">{t("userPro")}</SelectItem>
-                        <SelectItem value="admin">{t("userAdmin")}</SelectItem>
+                        {RANK_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {t(opt.labelKey)}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </td>
@@ -417,8 +454,8 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                     <span
                       className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                         user.is_blocked
-                          ? "bg-(--danger)/20 text-(--danger) border border-(--danger)/30"
-                          : "bg-(--success)/20 text-(--success) border border-(--success)/30"
+                          ? "bg-(--danger)/10 text-(--danger) border border-(--danger)/30"
+                          : "bg-(--success)/10 text-(--success) border border-(--success)/30"
                       }`}
                     >
                       {user.is_blocked ? t("userBlocked") : t("userActive")}
@@ -439,7 +476,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                       }`}
                     >
                       {updating === user.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin inline" />
+                        <Loader2 aria-hidden="true" className="w-4 h-4 animate-spin inline" />
                       ) : user.is_blocked ? (
                         t("userUnblock")
                       ) : (
@@ -454,105 +491,12 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
         </table>
       </div>
 
-      {/* User Detail Modal */}
-      <Dialog.Root
-        open={!!detailUser}
-        onOpenChange={(open) => {
-          if (!open) setDetailUser(null);
-        }}
-      >
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-(--overlay) backdrop-blur-sm" />
-          <Dialog.Content
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
-            aria-label={t("userDetailAria")}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-(--surface) text-(--text) border border-(--line) rounded-xl w-full max-w-md p-6 shadow-2xl pointer-events-auto"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <Dialog.Title className="text-lg font-semibold">
-                  {t("adminUserDetail")}
-                </Dialog.Title>
-                <Dialog.Close asChild>
-                  <button
-                    type="button"
-                    aria-label={t("close")}
-                    className="p-1 rounded-full hover:bg-(--raised) transition-colors focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none"
-                  >
-                    <X className="w-5 h-5 text-(--muted)" />
-                  </button>
-                </Dialog.Close>
-              </div>
-
-              <div className="space-y-4">
-                <div className="p-3 rounded-lg bg-(--raised) border border-(--line)">
-                  <div className="text-xs text-(--faint) mb-1">{t("userEmail")}</div>
-                  <div className="text-sm font-medium">{detailUser?.email}</div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-lg bg-(--raised) border border-(--line)">
-                    <div className="text-xs text-(--faint) mb-1">{t("userRank")}</div>
-                    <div className="text-sm font-medium capitalize">
-                      {detailUser?.rank === "not_whitelisted"
-                        ? t("userNotWhitelisted")
-                        : detailUser?.rank}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-(--raised) border border-(--line)">
-                    <div className="text-xs text-(--faint) mb-1">{t("userStatus")}</div>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        detailUser?.is_blocked
-                          ? "bg-(--danger)/20 text-(--danger) border border-(--danger)/30"
-                          : "bg-(--success)/20 text-(--success) border border-(--success)/30"
-                      }`}
-                    >
-                      {detailUser?.is_blocked ? t("userBlocked") : t("userActive")}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-lg bg-(--raised) border border-(--line)">
-                    <div className="text-xs text-(--faint) mb-1">{t("adminUserConvs")}</div>
-                    <div className="text-sm font-medium">
-                      {detailLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        (detailStats?.conversations ?? "-")
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-(--raised) border border-(--line)">
-                    <div className="text-xs text-(--faint) mb-1">{t("adminUserMsgs")}</div>
-                    <div className="text-sm font-medium">
-                      {detailLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        (detailStats?.messages ?? "-")
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-lg bg-(--raised) border border-(--line)">
-                  <div className="text-xs text-(--faint) mb-1">{t("adminUserJoined")}</div>
-                  <div className="text-sm font-medium">
-                    {formatDate(
-                      detailUser?.created_at ?? "",
-                      language === "vi" ? "vi-VN" : "en-GB"
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+      <UserDetailModal
+        user={detailUser}
+        stats={detailStats}
+        loading={detailLoading}
+        onClose={() => setDetailUser(null)}
+      />
     </div>
   );
 }

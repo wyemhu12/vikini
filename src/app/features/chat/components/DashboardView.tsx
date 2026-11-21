@@ -6,6 +6,8 @@ import { useSession } from "next-auth/react";
 import { useLanguage } from "../hooks/useLanguage";
 import { motion, AnimatePresence } from "framer-motion";
 import { Pencil, GraduationCap, CodeXml, BarChart3, Sparkles, ChevronRight, X } from "lucide-react";
+import { DURATION, EASE } from "@/lib/utils/motion";
+import type { TranslationKey } from "@/lib/utils/config";
 
 interface DashboardViewProps {
   onPromptSelect?: (prompt: string) => void;
@@ -14,11 +16,21 @@ interface DashboardViewProps {
   children?: React.ReactNode; // Slot for ChatControls between greeting and chips
 }
 
+interface SuggestionItem {
+  labelKey: TranslationKey;
+  promptKey: TranslationKey | null;
+}
+
 interface SuggestionCategory {
   id: string;
-  labelKey: string;
+  labelKey: TranslationKey;
   icon: React.ReactNode;
-  suggestions: { labelKey: string; prompt: string }[];
+  suggestions: SuggestionItem[];
+}
+
+/** Flattens multi-line prompts into a single line so hover previews never grow the composer. */
+export function toSingleLinePreview(prompt: string): string {
+  return prompt.replace(/\s*\n+\s*/g, " ").trim();
 }
 
 const CATEGORIES: SuggestionCategory[] = [
@@ -27,11 +39,11 @@ const CATEGORIES: SuggestionCategory[] = [
     labelKey: "catWrite",
     icon: <Pencil className="w-4 h-4" />,
     suggestions: [
-      { labelKey: "sugWriteEmail", prompt: "Help me draft a professional email about " },
-      { labelKey: "sugWriteEssay", prompt: "Write an essay or blog post about " },
-      { labelKey: "sugWriteStory", prompt: "Write a creative short story about " },
-      { labelKey: "sugWriteSummary", prompt: "Summarize the following document:\n\n" },
-      { labelKey: "sugWriteProduct", prompt: "Write a compelling product description for " },
+      { labelKey: "sugWriteEmail", promptKey: "promptWriteEmail" },
+      { labelKey: "sugWriteEssay", promptKey: "promptWriteEssay" },
+      { labelKey: "sugWriteStory", promptKey: "promptWriteStory" },
+      { labelKey: "sugWriteSummary", promptKey: "promptWriteSummary" },
+      { labelKey: "sugWriteProduct", promptKey: "promptWriteProduct" },
     ],
   },
   {
@@ -39,11 +51,11 @@ const CATEGORIES: SuggestionCategory[] = [
     labelKey: "catLearn",
     icon: <GraduationCap className="w-4 h-4" />,
     suggestions: [
-      { labelKey: "sugLearnExplain", prompt: "Explain in simple terms: " },
-      { labelKey: "sugLearnBooks", prompt: "Recommend the best books about " },
-      { labelKey: "sugLearnLesson", prompt: "Design a lesson plan or curriculum for " },
-      { labelKey: "sugLearnQuiz", prompt: "Create review questions about " },
-      { labelKey: "sugLearnLanguage", prompt: "Help me practice and learn " },
+      { labelKey: "sugLearnExplain", promptKey: "promptLearnExplain" },
+      { labelKey: "sugLearnBooks", promptKey: "promptLearnBooks" },
+      { labelKey: "sugLearnLesson", promptKey: "promptLearnLesson" },
+      { labelKey: "sugLearnQuiz", promptKey: "promptLearnQuiz" },
+      { labelKey: "sugLearnLanguage", promptKey: "promptLearnLanguage" },
     ],
   },
   {
@@ -51,11 +63,11 @@ const CATEGORIES: SuggestionCategory[] = [
     labelKey: "catCode",
     icon: <CodeXml className="w-4 h-4" />,
     suggestions: [
-      { labelKey: "sugCodeReview", prompt: "Review and optimize this code:\n\n" },
-      { labelKey: "sugCodeDebug", prompt: "Help me debug this error:\n\n" },
-      { labelKey: "sugCodeArchitecture", prompt: "Design system architecture for " },
-      { labelKey: "sugCodeAlgorithm", prompt: "Explain the algorithm for " },
-      { labelKey: "sugCodeApi", prompt: "Design a REST API for " },
+      { labelKey: "sugCodeReview", promptKey: "promptCodeReview" },
+      { labelKey: "sugCodeDebug", promptKey: "promptCodeDebug" },
+      { labelKey: "sugCodeArchitecture", promptKey: "promptCodeArchitecture" },
+      { labelKey: "sugCodeAlgorithm", promptKey: "promptCodeAlgorithm" },
+      { labelKey: "sugCodeApi", promptKey: "promptCodeApi" },
     ],
   },
   {
@@ -63,11 +75,11 @@ const CATEGORIES: SuggestionCategory[] = [
     labelKey: "catAnalyze",
     icon: <BarChart3 className="w-4 h-4" />,
     suggestions: [
-      { labelKey: "sugAnalyzeData", prompt: "Analyze this data and find insights:\n\n" },
-      { labelKey: "sugAnalyzeDecision", prompt: "Help me analyze the decision between " },
-      { labelKey: "sugAnalyzeMarket", prompt: "Research market trends for " },
-      { labelKey: "sugAnalyzeCompare", prompt: "Compare the pros and cons of " },
-      { labelKey: "sugAnalyzeTrend", prompt: "Analyze the trends in " },
+      { labelKey: "sugAnalyzeData", promptKey: "promptAnalyzeData" },
+      { labelKey: "sugAnalyzeDecision", promptKey: "promptAnalyzeDecision" },
+      { labelKey: "sugAnalyzeMarket", promptKey: "promptAnalyzeMarket" },
+      { labelKey: "sugAnalyzeCompare", promptKey: "promptAnalyzeCompare" },
+      { labelKey: "sugAnalyzeTrend", promptKey: "promptAnalyzeTrend" },
     ],
   },
   {
@@ -75,11 +87,11 @@ const CATEGORIES: SuggestionCategory[] = [
     labelKey: "catCreate",
     icon: <Sparkles className="w-4 h-4" />,
     suggestions: [
-      { labelKey: "sugCreateImage", prompt: "" }, // Special: activates image mode
-      { labelKey: "sugCreateBrand", prompt: "Help me build a brand identity for " },
-      { labelKey: "sugCreateIdea", prompt: "Brainstorm creative ideas for " },
-      { labelKey: "sugCreatePlan", prompt: "Create a detailed project plan for " },
-      { labelKey: "sugCreatePresentation", prompt: "Create presentation content about " },
+      { labelKey: "sugCreateImage", promptKey: null }, // Special: activates image mode
+      { labelKey: "sugCreateBrand", promptKey: "promptCreateBrand" },
+      { labelKey: "sugCreateIdea", promptKey: "promptCreateIdea" },
+      { labelKey: "sugCreatePlan", promptKey: "promptCreatePlan" },
+      { labelKey: "sugCreatePresentation", promptKey: "promptCreatePresentation" },
     ],
   },
 ];
@@ -128,39 +140,40 @@ export default function DashboardView({
   );
 
   const handleSuggestionClick = useCallback(
-    (suggestion: { labelKey: string; prompt: string }) => {
+    (suggestion: SuggestionItem) => {
       onPromptPreview?.(null);
-      if (suggestion.labelKey === "sugCreateImage") {
+      if (suggestion.labelKey === "sugCreateImage" || !suggestion.promptKey) {
         onActivateImageMode?.();
         setActiveCategory(null);
         return;
       }
-      onPromptSelect?.(suggestion.prompt);
+      onPromptSelect?.(t(suggestion.promptKey));
       setActiveCategory(null);
     },
-    [onPromptSelect, onActivateImageMode, onPromptPreview]
+    [onPromptSelect, onActivateImageMode, onPromptPreview, t]
   );
 
   const handleSuggestionHover = useCallback(
-    (prompt: string | null) => {
-      onPromptPreview?.(prompt);
+    (promptKey: TranslationKey | null) => {
+      if (!promptKey) {
+        onPromptPreview?.(null);
+        return;
+      }
+      onPromptPreview?.(toSingleLinePreview(t(promptKey)));
     },
-    [onPromptPreview]
+    [onPromptPreview, t]
   );
 
   return (
-    <div className="flex flex-col items-center w-full max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4">
+    <div className="flex flex-col items-center w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-0 md:px-6">
       {/* ── Greeting Section ── */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
+        transition={{ duration: DURATION.NORMAL, ease: EASE.EXIT }}
         className="text-center mb-8 flex flex-col items-center"
       >
-        <h2
-          className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text) via-(--accent) to-(--muted) bg-clip-text text-transparent leading-tight"
-          style={{ letterSpacing: "-0.03em", textWrap: "balance" }}
-        >
+        <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold bg-gradient-to-r from-(--text) via-(--accent) to-(--muted) bg-clip-text text-transparent leading-tight tracking-[-0.03em] text-balance">
           {t(greetingKey)}, {userName}
         </h2>
         <p className="mt-2 text-sm md:text-base text-(--muted)">{t("landingSubtitle")}</p>
@@ -172,9 +185,9 @@ export default function DashboardView({
       {/* ── Suggestion Chips + Dropdown wrapper ── */}
       <div className="relative w-full flex flex-col items-center">
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
+          transition={{ duration: DURATION.NORMAL, delay: 0.05, ease: EASE.EXIT }}
           className="flex flex-wrap items-center justify-center gap-2"
         >
           {CATEGORIES.map((cat) => {
@@ -182,10 +195,12 @@ export default function DashboardView({
             return (
               <button
                 key={cat.id}
+                type="button"
+                aria-expanded={isActive}
                 onClick={() => handleCategoryClick(cat.id)}
                 className={`
                   inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium
-                  transition-[background-color,color,border-color,transform,box-shadow] duration-200 border active:scale-[0.95]
+                  transition-[background-color,color,border-color,transform,box-shadow] duration-150 ease-out border active:scale-[0.95] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)
                   ${
                     isActive
                       ? "bg-(--accent)/15 text-(--accent) border-(--accent)/40 shadow-[0_0_12px_var(--glow)]"
@@ -205,13 +220,13 @@ export default function DashboardView({
           {activeCat && (
             <motion.div
               key={activeCat.id}
-              initial={{ opacity: 0, y: -8 }}
+              initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.25, ease: "easeInOut" }}
-              className="absolute top-full left-1/2 -translate-x-1/2 w-full max-w-md mt-2 z-50"
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: DURATION.FAST, ease: EASE.EXIT }}
+              className="absolute top-full left-1/2 -translate-x-1/2 w-full max-w-md mt-2 z-(--z-popover)"
             >
-              <div className="rounded-2xl border border-(--line) bg-(--raised)/60 backdrop-blur-2xl shadow-2xl overflow-hidden">
+              <div className="rounded-2xl border border-(--line) bg-(--surface)/95 backdrop-blur-2xl shadow-(--shadow-elevated) overflow-hidden">
                 {/* Category Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-(--line)">
                   <div className="flex items-center gap-2 text-(--accent) text-sm font-semibold">
@@ -219,43 +234,49 @@ export default function DashboardView({
                     <span>{t(activeCat.labelKey)}</span>
                   </div>
                   <button
+                    type="button"
+                    aria-label={t("close")}
                     onClick={() => {
                       setActiveCategory(null);
                       onPromptPreview?.(null);
                     }}
-                    className="p-1 rounded-full text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors"
+                    className="p-1 rounded-full text-(--muted) hover:text-(--text) hover:bg-(--raised) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                   >
-                    <X className="w-4 h-4" />
+                    <X aria-hidden className="w-4 h-4" />
                   </button>
                 </div>
 
                 {/* Suggestions List */}
-                <div className="py-1">
+                <div
+                  className="py-1"
+                  onMouseLeave={() => {
+                    setHoveredSuggestion(null);
+                    handleSuggestionHover(null);
+                  }}
+                >
                   {activeCat.suggestions.map((sug, idx) => (
                     <button
                       key={sug.labelKey}
+                      type="button"
                       onMouseEnter={() => {
                         setHoveredSuggestion(idx);
-                        handleSuggestionHover(sug.prompt || null);
-                      }}
-                      onMouseLeave={() => {
-                        setHoveredSuggestion(null);
-                        handleSuggestionHover(null);
+                        handleSuggestionHover(sug.promptKey);
                       }}
                       onClick={() => handleSuggestionClick(sug)}
                       className={`
                         w-full flex items-center justify-between px-4 py-3 text-left text-sm
-                        transition-[background-color,color] duration-150 group cursor-pointer
+                        transition-[background-color,color] duration-150 group cursor-pointer focus-visible:outline-none focus-visible:bg-(--raised)
                         ${
                           hoveredSuggestion === idx
-                            ? "bg-(--accent)/10 text-(--text)"
+                            ? "bg-(--soft) text-(--text)"
                             : "text-(--muted) hover:text-(--text)"
                         }
                       `}
                     >
                       <span className="flex-1 truncate">{t(sug.labelKey)}</span>
                       <ChevronRight
-                        className={`w-4 h-4 shrink-0 ml-2 transition-[opacity,transform,color] duration-200 ${
+                        aria-hidden
+                        className={`w-4 h-4 shrink-0 ml-2 transition-[opacity,transform,color] duration-150 ${
                           hoveredSuggestion === idx
                             ? "opacity-100 translate-x-0 text-(--accent)"
                             : "opacity-0 -translate-x-1"

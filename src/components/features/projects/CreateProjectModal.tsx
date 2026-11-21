@@ -175,14 +175,16 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                     key={id}
                     type="button"
                     onClick={() => setIcon(id)}
+                    aria-label={`${t("selectIcon")}: ${id}`}
+                    aria-pressed={icon === id}
                     className={cn(
-                      "p-1.5 rounded flex items-center justify-center transition-colors cursor-pointer",
+                      "p-1.5 rounded flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
                       icon === id
                         ? "bg-(--accent) text-(--on-accent)"
                         : "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
                     )}
                   >
-                    <IconComp className="w-4 h-4" />
+                    <IconComp aria-hidden="true" className="w-4 h-4" />
                   </button>
                 ))}
               </div>
@@ -197,8 +199,10 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                     key={c}
                     type="button"
                     onClick={() => setColor(c)}
+                    aria-label={`${t("selectColor")}: ${c}`}
+                    aria-pressed={color === c}
                     className={cn(
-                      "w-7 h-7 rounded-full transition-transform cursor-pointer",
+                      "w-7 h-7 rounded-full transition-transform cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
                       "hover:scale-110",
                       color === c &&
                         "ring-2 ring-offset-2 ring-offset-[var(--surface)] ring-[var(--accent)] scale-110"

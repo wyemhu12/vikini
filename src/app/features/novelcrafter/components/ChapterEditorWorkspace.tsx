@@ -304,10 +304,15 @@ export default function ChapterEditorWorkspace({
               <div
                 ref={manuscriptBoxRef}
                 data-testid="nc-manuscript-scroll"
+                tabIndex={manuscriptBoxHeight ? 0 : undefined}
+                role={manuscriptBoxHeight ? "region" : undefined}
+                aria-label={
+                  manuscriptBoxHeight ? t("novelcrafterManuscriptScrollLabel") : undefined
+                }
                 style={manuscriptBoxHeight ? { height: manuscriptBoxHeight } : undefined}
                 className={cn(
                   manuscriptBoxHeight &&
-                    "overflow-y-auto custom-scrollbar rounded-xl border border-(--line) px-2 py-3"
+                    "overflow-y-auto custom-scrollbar rounded-xl border border-(--line) px-2 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
                 )}
               >
                 <ChapterManuscriptEditor

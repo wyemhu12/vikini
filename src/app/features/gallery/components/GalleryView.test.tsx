@@ -15,6 +15,8 @@ let mockImages: (typeof SAMPLE_IMAGE)[] = [SAMPLE_IMAGE];
 let mockSelectedImage: typeof SAMPLE_IMAGE | null = SAMPLE_IMAGE;
 let mockAvailableModels: string[] = [];
 let mockLoading = false;
+let mockError: string | null = null;
+const mockRetryLoad = vi.fn();
 const mockSetShowFavoritesOnly = vi.fn();
 let mockCompareMode = false;
 const mockToggleCompareImage = vi.fn();
@@ -30,6 +32,8 @@ vi.mock("./hooks/useGalleryController", () => ({
     selectedImage: mockSelectedImage,
     setSelectedImage: mockSetSelectedImage,
     loading: mockLoading,
+    error: mockError,
+    retryLoad: mockRetryLoad,
     loadingMore: false,
     hasMore: false,
     searchQuery: "",
@@ -90,6 +94,8 @@ describe("GalleryView - Modal Close Button & Tokens (UI-02, M5, M8)", () => {
     mockSelectedImage = SAMPLE_IMAGE;
     mockAvailableModels = [];
     mockLoading = false;
+    mockError = null;
+    mockRetryLoad.mockClear();
     mockSetShowFavoritesOnly.mockClear();
     mockCompareMode = false;
     mockToggleCompareImage.mockClear();
@@ -225,5 +231,18 @@ describe("GalleryView - Modal Close Button & Tokens (UI-02, M5, M8)", () => {
     fireEvent.click(card);
     expect(mockToggleCompareImage).toHaveBeenCalledWith(SAMPLE_IMAGE);
     expect(mockSetSelectedImage).not.toHaveBeenCalled();
+  });
+
+  it("NP-4: renders role='alert' + Retry instead of EmptyState when gallery load fails", () => {
+    mockImages = [];
+    mockSelectedImage = null;
+    mockError = "galleryLoadFailed";
+    render(<GalleryView />);
+
+    expect(screen.queryByText("galleryNoImages")).toBeNull();
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("galleryLoadFailed");
+    fireEvent.click(screen.getByRole("button", { name: "tryAgain" }));
+    expect(mockRetryLoad).toHaveBeenCalledTimes(1);
   });
 });

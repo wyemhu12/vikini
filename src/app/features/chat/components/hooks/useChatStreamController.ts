@@ -114,6 +114,10 @@ export function useChatStreamController({
   onStreamError,
 }: UseChatStreamControllerParams) {
   const { t } = useLanguage();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const {
     stats: streamingThinkingStats,
     markThinking,
@@ -456,6 +460,7 @@ export function useChatStreamController({
         setMessages(normalizeMessages(data?.messages));
       } catch (e) {
         logger.error("Failed to load messages:", e);
+        toast.error(tRef.current("loadMessagesFailed"));
         setMessages([]);
       } finally {
         setLoadingMessages(false);
@@ -488,6 +493,7 @@ export function useChatStreamController({
         setMessages(normalizeMessages(data?.messages));
       } catch (e) {
         logger.error("Auto-load messages failed:", e);
+        toast.error(tRef.current("loadMessagesFailed"));
         setMessages([]);
       } finally {
         setLoadingMessages(false);

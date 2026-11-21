@@ -305,8 +305,9 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
               {editingGem ? (
                 <div className="rounded-xl border border-(--line) bg-(--surface) p-4 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-medium">{t("editGem")}</h3>
+                    <h2 className="font-medium">{t("editGem")}</h2>
                     <button
+                      type="button"
                       onClick={() => setEditingGem(null)}
                       className="text-xs text-(--muted) hover:text-(--text)"
                     >

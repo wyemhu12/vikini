@@ -43,7 +43,7 @@ export const EmptyReasoningNotice: React.FC<EmptyReasoningNoticeProps> = ({
             <button
               type="button"
               onClick={onRegenerate}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-(--raised) hover:bg-(--raised) text-(--text) border border-(--line) transition-all active:scale-[0.98] cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-(--raised) hover:bg-(--raised-hover) text-(--text) border border-(--line) transition-[background-color,color,transform] duration-150 active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
             >
               <RefreshCw className="w-3.5 h-3.5 text-(--accent)" />
               <span>{t("regenerate")}</span>
@@ -53,7 +53,7 @@ export const EmptyReasoningNotice: React.FC<EmptyReasoningNoticeProps> = ({
               <button
                 type="button"
                 onClick={onRegenerateLowerThinking}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-(--accent)/10 hover:bg-(--accent)/20 text-(--accent) border border-(--accent)/30 transition-all active:scale-[0.98] cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-(--soft) hover:bg-(--accent)/20 text-(--accent) border border-(--accent)/30 transition-[background-color,color,transform] duration-150 active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 text-(--accent)" />
                 <span>{t("regenerateWithLowerThinking")}</span>

@@ -19,6 +19,7 @@ const DICT: Record<string, string> = {
   novelcrafterExportMarkdownBtn: "Xuất Markdown",
   novelcrafterExportPlainTextBtn: "Xuất văn bản thuần",
   novelcrafterLanguageSwitch: "Ngôn ngữ: {lang}",
+  currentLanguageName: "Tiếng Việt",
   themes: "Giao diện",
   novelcrafterOpenStoriesMenu: "Mở danh sách truyện",
   novelcrafterToggleNavigatorPane: "Cột trái",

@@ -113,7 +113,8 @@ describe("ChatBubble", () => {
     it("renders assistant markdown display", () => {
       render(<ChatBubble message={assistantMsg} />);
 
-      expect(screen.getByRole("heading", { level: 1, name: "Hello World" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 2, name: "Hello World" })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
       expect(screen.getByText("This is assistant markdown response.")).toBeInTheDocument();
     });
 

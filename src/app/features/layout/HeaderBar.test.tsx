@@ -102,6 +102,9 @@ vi.mock("@/app/features/chat/hooks/useLanguage", () => ({
       const translations: Record<string, string> = {
         vi: "Tiếng Việt",
         en: "English",
+        langCodeVi: "VN",
+        langCodeEn: "EN",
+        currentLanguageCode: "VN",
         language: "Ngôn ngữ",
         theme: "Giao diện",
         themes: "Giao diện",
@@ -197,9 +200,12 @@ describe("HeaderBar", () => {
     expect(header?.className).not.toContain("bg-transparent");
   });
 
-  it("renders the V logo brand element", () => {
+  it("renders the unified VikiniLogo brand mark and crisp app title", () => {
     renderHeader();
-    expect(screen.getByText("V")).toBeInTheDocument();
+    expect(screen.getByText("v")).toBeInTheDocument();
+    const title = screen.getByText("Vikini Chat");
+    expect(title.className).toContain("text-(--text)");
+    expect(title.className).not.toContain("bg-clip-text");
   });
 
   it("includes safe-area horizontal insets with md:px-6 reset for landscape viewport", () => {

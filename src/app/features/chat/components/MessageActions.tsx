@@ -60,7 +60,7 @@ interface MessageActionsProps {
 // ============================================
 
 const ICON_BUTTON_CLASS =
-  "h-8 w-8 min-h-[28px] min-w-[28px] rounded-lg inline-flex items-center justify-center text-(--muted) hover:text-(--text) hover:bg-(--raised) disabled:opacity-40 disabled:pointer-events-none active:scale-[0.92] transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none";
+  "h-9 w-9 min-h-9 min-w-9 md:h-8 md:w-8 md:min-h-8 md:min-w-8 rounded-lg inline-flex items-center justify-center text-(--muted) hover:text-(--text) hover:bg-(--raised) disabled:opacity-40 disabled:pointer-events-none active:scale-[0.92] transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none";
 
 interface IconActionProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   label: string;

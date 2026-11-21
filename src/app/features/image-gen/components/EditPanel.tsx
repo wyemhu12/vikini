@@ -274,11 +274,12 @@ export default function EditPanel({
           </div>
         </div>
         <button
+          type="button"
           onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-(--raised) text-(--muted) hover:text-(--text) transition-colors"
-          aria-label="Close edit panel"
+          className="p-1.5 rounded-lg hover:bg-(--raised) text-(--muted) hover:text-(--text) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+          aria-label={t("closeEditPanel")}
         >
-          <X className="w-4 h-4" />
+          <X aria-hidden="true" className="w-4 h-4" />
         </button>
       </div>
 
@@ -288,7 +289,7 @@ export default function EditPanel({
           <SelectTrigger className="w-full h-8 text-xs bg-(--surface) border-(--line)">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-(--surface) border border-(--line) shadow-xl z-100">
+          <SelectContent className="bg-(--surface) border border-(--line) shadow-xl z-(--z-popover)">
             {EDIT_MODELS.map((m) => (
               <SelectItem key={m.value} value={m.value} className="text-xs">
                 {m.label}
@@ -440,15 +441,16 @@ export default function EditPanel({
             </span>
           </div>
           <button
+            type="button"
             onClick={() => void handleSendEdit()}
             disabled={loading || !inputText.trim() || turnCount >= MAX_TURNS}
             className={cn(
-              "p-2.5 rounded-xl transition-colors",
+              "p-2.5 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
               inputText.trim() && !loading
                 ? "bg-(--accent) text-(--on-accent) hover:opacity-95 shadow-lg hover:shadow-xl"
                 : "bg-(--raised) text-(--muted) cursor-not-allowed"
             )}
-            aria-label="Send edit"
+            aria-label={t("studioApplyEdit")}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>

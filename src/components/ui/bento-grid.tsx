@@ -37,33 +37,26 @@ export const BentoGridItem = ({
   onClick?: () => void;
 }) => {
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClick?.();
-        }
-      }}
       className={cn(
-        "row-span-1 rounded-xl group/bento transition duration-200 justify-start flex flex-row items-center gap-3 p-3 md:flex-col md:justify-between md:items-start md:space-y-4 md:p-4 cursor-pointer relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-(--accent)",
+        "row-span-1 w-full text-left rounded-xl group/bento transition-[background-color,border-color,box-shadow,transform] duration-200 justify-start flex flex-row items-center gap-3 p-3 md:flex-col md:justify-between md:items-start md:space-y-4 md:p-4 cursor-pointer relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)",
         // Glassmorphism 2.0
         "bg-(--raised)/40 backdrop-blur-xl border border-(--line)",
-        "hover:bg-(--raised) hover:border-(--accent)/30 hover:shadow-2xl hover:-translate-y-1",
+        "hover:bg-(--raised) hover:border-(--accent)/30 hover:shadow-(--shadow-elevated) md:hover:-translate-y-1 active:scale-[0.98]",
         "before:absolute before:inset-0 before:bg-linear-to-b before:from-(--soft) before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity",
         className
       )}
     >
       <div className="shrink-0 flex items-center justify-center">{header}</div>
-      <div className="group-hover/bento:translate-x-2 transition duration-200 min-w-0 flex-1">
+      <div className="md:group-hover/bento:translate-x-2 transition-transform duration-200 min-w-0 flex-1">
         {icon}
         <div className="font-sans font-bold text-(--text) text-sm md:text-base mb-0.5 md:mb-2 md:mt-2 truncate">
           {title}
         </div>
         <div className="font-sans font-normal text-(--muted) text-xs truncate">{description}</div>
       </div>
-    </div>
+    </button>
   );
 };

@@ -14,6 +14,8 @@ import { useProjectStore } from "@/lib/store/projectStore";
 import { useConversation } from "@/app/features/chat/hooks/useConversation";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { confirm } from "@/lib/store/confirmStore";
+import { toast } from "@/lib/store/toastStore";
+import { logger } from "@/lib/utils/logger";
 import type { KnowledgeDocument, ProjectWithStats } from "@/types/projects";
 
 export default function ProjectPage() {
@@ -22,7 +24,7 @@ export default function ProjectPage() {
   const { t } = useLanguage();
   const projectId = params.id as string;
 
-  const { projects, deleteProject, fetchProjects } = useProjectStore();
+  const { projects, limits, deleteProject, fetchProjects } = useProjectStore();
   const { getProjectConversations, createConversation, deleteConversation } = useConversation();
   const [project, setProject] = useState<ProjectWithStats | null>(null);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
@@ -143,8 +145,11 @@ export default function ProjectPage() {
     try {
       await deleteProject(projectId);
       router.push("/");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("deleteFailed"));
+    } catch (err: unknown) {
+      logger.error("[ProjectPage] Delete project failed:", err);
+      const msg = err instanceof Error ? err.message : t("projectDeleteFailed");
+      setError(msg);
+      toast.error(t("projectDeleteFailed"));
       setIsDeleting(false);
     }
   };
@@ -227,12 +232,12 @@ export default function ProjectPage() {
 
           <div className="grid gap-8 md:grid-cols-2">
             {/* Knowledge Base Panel */}
-            <div className="bg-(--surface) rounded-xl border border-(--line) overflow-hidden">
+            <div className="min-w-0 bg-(--surface) rounded-xl border border-(--line) overflow-hidden">
               <KnowledgePanel
                 projectId={projectId}
                 documents={documents}
                 storageUsedBytes={project?.storage_bytes || 0}
-                storageMaxBytes={5 * 1024 * 1024} // TODO: get from limits
+                storageMaxBytes={limits?.maxStorageBytesPerProject ?? 5 * 1024 * 1024}
                 isLoading={isLoading}
                 onUpload={handleUpload}
                 onDelete={handleDeleteDocument}
@@ -241,7 +246,7 @@ export default function ProjectPage() {
             </div>
 
             {/* Project Info */}
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
               {/* Stats */}
               <div className="bg-(--surface) rounded-xl border border-(--line) p-6">
                 <h2 className="font-semibold mb-4 flex items-center gap-2">
@@ -331,24 +336,29 @@ export default function ProjectPage() {
                       <div
                         key={conv.id}
                         className={cn(
-                          "flex items-center justify-between p-3 rounded-lg",
-                          "bg-(--raised) hover:bg-(--raised)",
-                          "cursor-pointer transition-colors group"
+                          "flex items-center justify-between rounded-lg",
+                          "bg-(--raised) hover:bg-(--raised-hover)",
+                          "transition-colors group"
                         )}
-                        onClick={() => router.push(`/?id=${conv.id}`)}
                       >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <MessageSquare className="h-4 w-4 text-(--muted) shrink-0" />
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/?id=${conv.id}`)}
+                          className="flex items-center gap-3 min-w-0 flex-1 p-3 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+                        >
+                          <MessageSquare
+                            aria-hidden="true"
+                            className="h-4 w-4 text-(--muted) shrink-0"
+                          />
                           <span className="text-sm truncate">
                             {conv.title || t("newConversation")}
                           </span>
-                        </div>
+                        </button>
                         <button
                           type="button"
                           aria-label={t("delete")}
                           title={t("delete")}
-                          onClick={async (e) => {
-                            e.stopPropagation();
+                          onClick={async () => {
                             const ok = await confirm({
                               title: t("deleteConversationQuestion"),
                               variant: "danger",
@@ -356,9 +366,9 @@ export default function ProjectPage() {
                             });
                             if (ok) void deleteConversation(conv.id);
                           }}
-                          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 hover:text-(--danger) transition-[opacity,color]"
+                          className="shrink-0 mr-1.5 inline-flex h-9 w-9 md:h-8 md:w-8 items-center justify-center rounded-lg text-(--muted) hover:text-(--danger) hover:bg-(--danger)/10 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) transition-[opacity,color,background-color]"
                         >
-                          <Trash2 aria-hidden className="h-4 w-4" />
+                          <Trash2 aria-hidden="true" className="h-4 w-4" />
                         </button>
                       </div>
                     ))}

@@ -36,6 +36,7 @@ export function useGalleryController() {
   // Data
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Filters
@@ -83,6 +84,7 @@ export function useGalleryController() {
         isFetchingMoreRef.current = false;
         setLoadingMore(false);
         setLoading(true);
+        setError(null);
         offsetRef.current = 0;
       }
 
@@ -98,6 +100,9 @@ export function useGalleryController() {
         if (currentRequestId !== requestIdRef.current) return;
 
         if (!res.ok) {
+          if (!isLoadMore) {
+            setError(tRef.current("galleryLoadFailed"));
+          }
           setHasMore(false);
           toast.error(tRef.current("galleryLoadFailed"));
           return;
@@ -118,9 +123,12 @@ export function useGalleryController() {
         const nextHasMore = Boolean(data.hasMore) && newImages.length > 0;
         setHasMore(nextHasMore);
         offsetRef.current = currentOffset + newImages.length;
-      } catch (error) {
-        logger.error("Failed to load gallery:", error);
+      } catch (err: unknown) {
+        logger.error("Failed to load gallery:", err);
         if (currentRequestId === requestIdRef.current) {
+          if (!isLoadMore) {
+            setError(tRef.current("galleryLoadFailed"));
+          }
           setHasMore(false);
           toast.error(tRef.current("galleryLoadFailed"));
         }
@@ -141,6 +149,10 @@ export function useGalleryController() {
   useEffect(() => {
     void fetchImages(false);
   }, [fetchImages]); // Refetch when favorites toggle changes
+
+  const retryLoad = useCallback(() => {
+    void fetchImages(false);
+  }, [fetchImages]);
 
   // Infinite scroll observer
   useEffect(() => {
@@ -322,6 +334,8 @@ export function useGalleryController() {
     // Data
     images,
     loading,
+    error,
+    retryLoad,
     searchQuery,
     setSearchQuery,
     filteredImages,

@@ -137,10 +137,10 @@ export function VoiceButton({
               type="button"
               onClick={handleClick}
               disabled={disabled}
-              className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors duration-200 ${
+              className={`relative flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full transition-colors duration-200 ${
                 isListening
                   ? "bg-(--danger) text-(--danger-foreground) animate-pulse shadow-lg shadow-(--danger)/50"
-                  : "text-(--muted) hover:bg-(--raised) hover:text-(--accent)"
+                  : "text-(--muted) hover:bg-(--raised-hover) hover:text-(--accent)"
               } disabled:opacity-50 disabled:cursor-not-allowed`}
               aria-label={
                 isListening

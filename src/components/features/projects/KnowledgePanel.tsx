@@ -12,11 +12,18 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { KnowledgeDocument } from "@/types/projects";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 import { confirm } from "@/lib/store/confirmStore";
 import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
+
+type KnowledgeDocumentWithLegacyChunks = KnowledgeDocument & { chunk_count?: number };
+
+export function resolveDocumentChunkCount(doc: KnowledgeDocumentWithLegacyChunks): number {
+  return doc.total_chunks ?? doc.chunk_count ?? 0;
+}
 
 interface KnowledgePanelProps {
   projectId: string;
@@ -51,9 +58,10 @@ export function KnowledgePanel({
   const [error, setError] = useState<string | null>(null);
   const { t } = useLanguage();
 
-  const storagePercent = Math.round((storageUsedBytes / storageMaxBytes) * 100);
+  const storagePercent =
+    storageMaxBytes > 0 ? Math.round((storageUsedBytes / storageMaxBytes) * 100) : 0;
   const storageUsedMB = (storageUsedBytes / (1024 * 1024)).toFixed(2);
-  const storageMaxMB = (storageMaxBytes / (1024 * 1024)).toFixed(0);
+  const storageMaxMB = (Math.max(0, storageMaxBytes) / (1024 * 1024)).toFixed(0);
 
   const handleFileSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,7 +128,7 @@ export function KnowledgePanel({
     <div className={cn("flex flex-col h-full", className)}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-(--line)">
-        <h3 className="font-semibold">{t("knowledgeBase")}</h3>
+        <h2 className="font-semibold">{t("knowledgeBase")}</h2>
         <button
           type="button"
           onClick={onRefresh}
@@ -206,7 +214,19 @@ export function KnowledgePanel({
 
       {/* Document List */}
       <div className="flex-1 overflow-auto px-4 py-3 space-y-2">
-        {safeDocuments.length === 0 ? (
+        {isLoading && safeDocuments.length === 0 ? (
+          <div className="space-y-2" aria-busy="true" data-testid="kb-loading-skeletons">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-(--raised)/30">
+                <Skeleton className="h-4 w-4 rounded shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : safeDocuments.length === 0 ? (
           <div className="text-center py-8 text-sm text-(--muted)">
             <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>{t("kbNoDocuments")}</p>
@@ -230,7 +250,7 @@ export function KnowledgePanel({
 }
 
 interface DocumentItemProps {
-  document: KnowledgeDocument;
+  document: KnowledgeDocumentWithLegacyChunks;
   isDeleting: boolean;
   onDelete: () => void;
   chunksLabel: string;
@@ -245,6 +265,7 @@ function DocumentItem({
   deleteLabel,
 }: DocumentItemProps) {
   const sizeKB = ((document.size_bytes ?? 0) / 1024).toFixed(1);
+  const chunkCount = resolveDocumentChunkCount(document);
 
   const getStatusIcon = () => {
     switch (document.status) {
@@ -273,7 +294,7 @@ function DocumentItem({
           {getStatusIcon()}
         </div>
         <div className="text-xs text-(--muted)">
-          {sizeKB} KB • {document.total_chunks} {chunksLabel}
+          {sizeKB} KB • {chunkCount} {chunksLabel}
           {document.status === "error" && document.error_message && (
             <span className="text-(--danger)"> • {document.error_message}</span>
           )}
@@ -284,7 +305,7 @@ function DocumentItem({
         onClick={onDelete}
         disabled={isDeleting}
         className={cn(
-          "p-1.5 rounded-lg opacity-0 group-hover:opacity-100",
+          "p-1.5 rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 focus-visible:opacity-100",
           "hover:bg-(--danger)/10 text-(--danger) transition-colors cursor-pointer",
           "focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none",
           isDeleting && "opacity-100"

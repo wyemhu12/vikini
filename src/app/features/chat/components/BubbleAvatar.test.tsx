@@ -151,9 +151,10 @@ describe("BubbleAvatar", () => {
 });
 
 describe("BubbleMarkdown", () => {
-  it("renders markdown content for bot messages", () => {
+  it("renders markdown content for bot messages without spawning duplicate h1", () => {
     render(<BubbleMarkdown content={`# Heading 1\n\nParagraph text`} isBot={true} />);
-    expect(screen.getByText("Heading 1")).toBeDefined();
+    expect(screen.getByRole("heading", { level: 2, name: "Heading 1" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
     expect(screen.getByText("Paragraph text")).toBeDefined();
   });
 
@@ -184,7 +185,7 @@ describe("BubbleMarkdown", () => {
     expect(link.className).not.toContain("text-(--primary-light)");
   });
 
-  it("renders tables with modern tokens", () => {
+  it("renders tables with modern tokens and focusable region semantics (TC-W3-03)", () => {
     const tableMd = `| Header 1 | Header 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |`;
     const { container } = render(<BubbleMarkdown content={tableMd} isBot={true} />);
     const wrapper = container.querySelector(".overflow-x-auto");
@@ -192,6 +193,18 @@ describe("BubbleMarkdown", () => {
     expect(wrapper?.className).toContain("bg-(--surface)");
     expect(wrapper?.className).not.toContain("border-token");
     expect(wrapper?.className.split(" ")).not.toContain("bg-surface-elevated");
+    expect(wrapper).toHaveAttribute("tabindex", "0");
+    expect(wrapper).toHaveAttribute("role", "region");
+    expect(wrapper).toHaveAttribute("aria-label", "markdownTableScrollLabel");
+  });
+
+  it("BubbleAvatar uses color-mix without dead --accent-rgb token when thinking/loading (TC-W4-05)", () => {
+    const { container } = render(
+      <BubbleAvatar isBot={true} isLoading={false} isStreaming={true} isStreamThinking={true} />
+    );
+    const botDiv = container.firstChild as HTMLElement;
+    expect(botDiv.className).toContain("color-mix");
+    expect(botDiv.className).not.toContain("accent-rgb");
   });
 
   it("renders typing cursor when streaming for last assistant", () => {
