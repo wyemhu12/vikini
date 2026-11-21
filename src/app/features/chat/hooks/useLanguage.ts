@@ -10,7 +10,8 @@ export type Language = (typeof LANGS)[number];
 export type SupportedLanguage = Language;
 
 export function useLanguage() {
-  const { language, setLanguage } = useLanguageStore();
+  const language = useLanguageStore((s) => s.language);
+  const setLanguage = useLanguageStore((s) => s.setLanguage);
 
   const dict = useMemo(() => {
     return (translations?.[language] || translations?.en || {}) as Record<string, string>;

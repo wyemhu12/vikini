@@ -36,6 +36,22 @@ interface UserManagerProps {
   currentUserId: string;
 }
 
+async function patchAdminUser(
+  userId: string,
+  updates: Partial<Profile>,
+  fallbackMsg: string
+): Promise<void> {
+  const res = await fetch("/api/admin/users", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, ...updates }),
+  });
+  if (res.ok) return;
+  const json = (await res.json().catch(() => ({}))) as { error?: { message?: string } | string };
+  const errMsg = typeof json.error === "string" ? json.error : json.error?.message;
+  throw new Error(errMsg || fallbackMsg);
+}
+
 export default function UserManager({ currentUserId }: UserManagerProps) {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,9 +71,20 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
 
   const { t } = useLanguage();
   const tRef = useRef(t);
+  const detailAbortRef = useRef<AbortController | null>(null);
+  const detailReqIdRef = useRef(0);
+  const isBulkUpdatingRef = useRef(false);
+
   useEffect(() => {
     tRef.current = t;
   }, [t]);
+
+  useEffect(() => {
+    return () => {
+      detailAbortRef.current?.abort();
+      detailAbortRef.current = null;
+    };
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -65,7 +92,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
       setError("");
       const res = await fetch("/api/admin/users");
       if (!res.ok) throw new Error(tRef.current("adminLoadFailed"));
-      const json = await res.json();
+      const json = (await res.json()) as { data?: { users?: Profile[] }; users?: Profile[] };
       setUsers((json.data || json).users || []);
     } catch (err: unknown) {
       logger.error("[UserManager] Failed to load users:", err);
@@ -95,42 +122,62 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
 
   const isSelf = (userId: string) => userId === currentUserId;
 
+  const closeUserDetail = useCallback(() => {
+    detailReqIdRef.current += 1;
+    detailAbortRef.current?.abort();
+    detailAbortRef.current = null;
+    setDetailUser(null);
+    setDetailStats(null);
+    setDetailLoading(false);
+  }, []);
+
   const openUserDetail = useCallback(async (user: Profile) => {
+    detailAbortRef.current?.abort();
+    const controller = new AbortController();
+    detailAbortRef.current = controller;
+    const reqId = ++detailReqIdRef.current;
+
     setDetailUser(user);
     setDetailStats(null);
     setDetailLoading(true);
     try {
-      const res = await fetch(`/api/admin/stats?userId=${user.id}`);
+      const res = await fetch(`/api/admin/stats?userId=${encodeURIComponent(user.id)}`, {
+        signal: controller.signal,
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      setDetailStats(json.data || json);
+      const json = (await res.json()) as {
+        data?: { conversations: number; messages: number };
+        conversations?: number;
+        messages?: number;
+      };
+      if (detailReqIdRef.current !== reqId || controller.signal.aborted) return;
+      setDetailStats(
+        json.data ?? {
+          conversations: json.conversations ?? 0,
+          messages: json.messages ?? 0,
+        }
+      );
     } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      if (detailReqIdRef.current !== reqId || controller.signal.aborted) return;
       logger.error("[UserManager] Failed to load user detail stats:", err);
       toast.error(tRef.current("adminUserDetailFailed"));
     } finally {
-      setDetailLoading(false);
+      if (detailReqIdRef.current === reqId) {
+        setDetailLoading(false);
+      }
     }
   }, []);
 
   const updateUser = async (userId: string, updates: Partial<Profile>) => {
-    // Self-protection: prevent modifying own account
     if (isSelf(userId)) return;
-
     try {
       setUpdating(userId);
-      const res = await fetch("/api/admin/users", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, ...updates }),
-      });
-
-      const json = await res.json().catch(() => ({}));
-
-      if (!res.ok) throw new Error(json?.error?.message || json?.error || t("failedUpdateUser"));
-
+      await patchAdminUser(userId, updates, t("failedUpdateUser"));
       toast.success(t("userUpdated") || "User updated successfully");
       await fetchUsers();
-    } catch (err) {
+    } catch (err: unknown) {
+      logger.error("[UserManager] Failed to update user:", err);
       toast.error(err instanceof Error ? err.message : t("failedUpdateUser"));
     } finally {
       setUpdating(null);
@@ -144,14 +191,13 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
         t("rankChangeDesc") ||
         "This will immediately change the user's access level and permissions.",
       variant: "danger",
-      confirmLabel: t("confirm") || "Confirm",
+      confirmLabel: t("confirmAction") || "Confirm",
       cancelLabel: t("cancel") || "Cancel",
     });
     if (!ok) return;
     await updateUser(userId, { rank: newRank as Profile["rank"] });
   };
 
-  // Bulk actions
   const selectableUsers = filteredUsers.filter((u) => !isSelf(u.id));
   const allSelectableSelected =
     selectableUsers.length > 0 && selectableUsers.every((u) => selectedIds.has(u.id));
@@ -167,36 +213,43 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
   };
 
   const toggleSelectAll = () => {
-    if (allSelectableSelected) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(selectableUsers.map((u) => u.id)));
-    }
+    setSelectedIds(allSelectableSelected ? new Set() : new Set(selectableUsers.map((u) => u.id)));
   };
 
   const bulkUpdate = async (updates: Partial<Profile>) => {
+    if (isBulkUpdatingRef.current) return;
     const ids = Array.from(selectedIds).filter((id) => !isSelf(id));
     if (ids.length === 0) return;
 
+    isBulkUpdatingRef.current = true;
+    setUpdating("bulk");
+    const succeededIds: string[] = [];
+    const failedIds: string[] = [];
     try {
-      setUpdating("bulk");
       for (const userId of ids) {
-        const res = await fetch("/api/admin/users", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, ...updates }),
-        });
-        if (!res.ok) {
-          const json = await res.json().catch(() => ({}));
-          throw new Error(json?.error?.message || t("failedUpdateUsers"));
+        try {
+          await patchAdminUser(userId, updates, t("failedUpdateUsers"));
+          succeededIds.push(userId);
+        } catch (err: unknown) {
+          failedIds.push(userId);
+          logger.error(`[UserManager] Bulk update failed for user ${userId}:`, err);
         }
       }
-      toast.success(t("adminBulkSuccess") || "Updated successfully");
-      setSelectedIds(new Set());
-      await fetchUsers();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("failedUpdateUsers"));
+      if (succeededIds.length > 0) await fetchUsers();
+      if (failedIds.length === 0) {
+        toast.success(t("adminBulkSuccess") || "Updated successfully");
+        setSelectedIds(new Set());
+      } else {
+        setSelectedIds(new Set(failedIds));
+        toast.error(
+          t("adminBulkPartialFailed")
+            .replace("{succeeded}", String(succeededIds.length))
+            .replace("{total}", String(ids.length))
+            .replace("{failed}", String(failedIds.length))
+        );
+      }
     } finally {
+      isBulkUpdatingRef.current = false;
       setUpdating(null);
     }
   };
@@ -306,7 +359,10 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
             {selectedIds.size} {t("adminBulkSelected")}
           </span>
           <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-            <Select onValueChange={(v) => bulkUpdate({ rank: v as Profile["rank"] })}>
+            <Select
+              disabled={updating === "bulk"}
+              onValueChange={(v) => void bulkUpdate({ rank: v as Profile["rank"] })}
+            >
               <SelectTrigger className="w-[160px] h-auto py-1.5" aria-label={t("adminBulkSetRank")}>
                 <SelectValue placeholder={t("adminBulkSetRank")} />
               </SelectTrigger>
@@ -320,7 +376,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
             </Select>
             <button
               type="button"
-              onClick={() => bulkUpdate({ is_blocked: true })}
+              onClick={() => void bulkUpdate({ is_blocked: true })}
               disabled={updating === "bulk"}
               className="px-3 py-1.5 rounded-lg text-sm font-medium bg-(--danger)/20 text-(--danger) hover:bg-(--danger)/30 border border-(--danger)/30 transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer"
             >
@@ -328,7 +384,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
             </button>
             <button
               type="button"
-              onClick={() => bulkUpdate({ is_blocked: false })}
+              onClick={() => void bulkUpdate({ is_blocked: false })}
               disabled={updating === "bulk"}
               className="px-3 py-1.5 rounded-lg text-sm font-medium bg-(--success)/20 text-(--success) hover:bg-(--success)/30 border border-(--success)/30 transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none cursor-pointer"
             >
@@ -390,8 +446,8 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
                 checkboxButtonClass={CHECKBOX_BTN_CLASS}
                 rankOptions={RANK_OPTIONS}
                 onToggleSelect={toggleSelect}
-                onOpenDetail={openUserDetail}
-                onRankChange={handleRankChange}
+                onOpenDetail={(u) => void openUserDetail(u)}
+                onRankChange={(id, r) => void handleRankChange(id, r)}
                 onToggleBlock={(id, isBlocked) => void updateUser(id, { is_blocked: isBlocked })}
               />
             ))}
@@ -403,7 +459,7 @@ export default function UserManager({ currentUserId }: UserManagerProps) {
         user={detailUser}
         stats={detailStats}
         loading={detailLoading}
-        onClose={() => setDetailUser(null)}
+        onClose={closeUserDetail}
       />
     </div>
   );

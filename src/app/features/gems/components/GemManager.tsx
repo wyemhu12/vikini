@@ -23,7 +23,9 @@ export default function GemManager({ inModal = false }: GemManagerProps) {
   const { t } = useLanguage();
 
   // Lấy ID từ store (do Sidebar truyền vào) hoặc từ URL (fallback)
-  const { contextConversationId, closeGemModal, triggerGemApplied } = useGemStore();
+  const contextConversationId = useGemStore((s) => s.contextConversationId);
+  const closeGemModal = useGemStore((s) => s.closeGemModal);
+  const triggerGemApplied = useGemStore((s) => s.triggerGemApplied);
   const urlConversationId = sp?.get("conversationId");
   const conversationId = contextConversationId || urlConversationId;
 

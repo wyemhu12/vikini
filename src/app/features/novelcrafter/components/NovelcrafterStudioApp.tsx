@@ -460,9 +460,6 @@ export default function NovelcrafterStudioApp() {
                   isStreaming={stream.isStreaming}
                   isDirectStreamingToChapter={isDirectStreamingToChapter}
                   isLoadLocked={isLoadLocked}
-                  streamingContent={stream.streamingContent}
-                  streamingThinking={stream.streamingThinking}
-                  streamingMeta={stream.streamingMeta}
                   onTriggerStream={stream.triggerStream}
                   onStopStream={stream.stopStream}
                   onAppendToChapter={handleAppendToChapter}

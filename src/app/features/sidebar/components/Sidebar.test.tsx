@@ -98,27 +98,35 @@ vi.mock("framer-motion", () => ({
   },
 }));
 
-// Mock project store
+// Mock project store (hoisted stable state/fns for selector-based Zustand v5)
+const mockSidebarProjects: unknown[] = [];
+const mockSidebarFetchProjects = vi.fn();
+const stableSidebarProjectStore = {
+  projects: mockSidebarProjects,
+  fetchProjects: mockSidebarFetchProjects,
+  currentProject: null,
+};
 vi.mock("@/lib/store/projectStore", () => ({
-  useProjectStore: () => ({
-    projects: [],
-    fetchProjects: vi.fn(),
-    currentProject: null,
-  }),
+  useProjectStore: (selector?: (s: typeof stableSidebarProjectStore) => unknown) =>
+    selector ? selector(stableSidebarProjectStore) : stableSidebarProjectStore,
 }));
 
 // Mock gem store
+const stableSidebarGemStore = {
+  openManager: vi.fn(),
+};
 vi.mock("../../gems/stores/useGemStore", () => ({
-  useGemStore: () => ({
-    openManager: vi.fn(),
-  }),
+  useGemStore: (selector?: (s: typeof stableSidebarGemStore) => unknown) =>
+    selector ? selector(stableSidebarGemStore) : stableSidebarGemStore,
 }));
 
 // Mock persona store
+const stableSidebarPersonaStore = {
+  openManager: vi.fn(),
+};
 vi.mock("../../personas/stores/usePersonaStore", () => ({
-  usePersonaStore: () => ({
-    openManager: vi.fn(),
-  }),
+  usePersonaStore: (selector?: (s: typeof stableSidebarPersonaStore) => unknown) =>
+    selector ? selector(stableSidebarPersonaStore) : stableSidebarPersonaStore,
 }));
 
 // Mock CreateProjectModal

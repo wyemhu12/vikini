@@ -3,6 +3,7 @@
 
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   type Dispatch,
@@ -65,6 +66,7 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
   const dirtyStoryIdsRef = useRef<Set<string>>(new Set());
   const quotaWarningShownRef = useRef(false);
   const isRetryingLockedStoryRef = useRef<string | null>(null);
+  const isUnmountedRef = useRef(false);
   const [destructivePrompt, setDestructivePrompt] = useState<DestructiveSavePromptState | null>(
     null
   );
@@ -75,6 +77,19 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
     saveTimerRef.current = null;
     retryTimerRef.current = null;
   }, []);
+
+  // Strict-Mode resilient unmount cleanup clearing all 3 persistence timers
+  useEffect(() => {
+    isUnmountedRef.current = false;
+    return () => {
+      isUnmountedRef.current = true;
+      cancelPendingSaveTimers();
+      if (draftThrottleTimerRef.current) {
+        clearTimeout(draftThrottleTimerRef.current);
+        draftThrottleTimerRef.current = null;
+      }
+    };
+  }, [cancelPendingSaveTimers]);
 
   const flushLocalDraftSync = useCallback(
     (targetStoryId: string | null, stateToWrite: NovelcrafterStoryState): boolean => {
@@ -105,7 +120,7 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
         allowDestructive?: boolean;
       }
     ): Promise<boolean> => {
-      if (!isAuthed || !storyId) return false;
+      if (!isAuthed || !storyId || isUnmountedRef.current) return false;
       if (latestStateRef.current.ownerStoryId === storyId) setSaveStatus("saving");
       const sendPut = (id: string, st: NovelcrafterStoryState) =>
         putStoryStateOnServer(id, st, t("novelcrafterSaveError"), {
@@ -114,6 +129,7 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
       const outcome = await coordinator.enqueueSave(storyId, stateToSave, sendPut, {
         epoch: options?.epoch,
       });
+      if (isUnmountedRef.current) return false;
 
       if (outcome.status === "saved") {
         return applySavedStoryOutcome({
@@ -149,7 +165,7 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
           if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
           retryTimerRef.current = setTimeout(() => {
             retryTimerRef.current = null;
-            if (latestStateRef.current.ownerStoryId === storyId) {
+            if (!isUnmountedRef.current && latestStateRef.current.ownerStoryId === storyId) {
               void executeCoordinatorSave(storyId, latestStateRef.current.state, {
                 epoch: coordinator.getEpoch(storyId),
               });
@@ -171,6 +187,7 @@ export function useStoryPersistenceLifecycle(params: UseStoryPersistenceLifecycl
           executeSave: executeCoordinatorSave,
           t,
         });
+        if (isUnmountedRef.current) return false;
         if (trimResult.retried) return trimResult.saved;
       }
 

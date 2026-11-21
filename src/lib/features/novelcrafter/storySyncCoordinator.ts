@@ -321,6 +321,7 @@ export class NovelcrafterSyncCoordinator {
         return await runQueue(state, callerEpoch);
       } finally {
         this.inFlightByStory.delete(storyId);
+        this.queuedByStory.delete(storyId);
       }
     })();
 
@@ -353,50 +354,30 @@ export function resolveSaveFailurePresentation(
   shouldTrimPayloadAndRetry: boolean;
   shouldRunConflictRecovery: boolean;
 } {
-  if (outcome.status === "saved") {
-    return {
-      nextSaveStatus: "saved",
-      shouldShowErrorToast: false,
-      shouldTrimPayloadAndRetry: false,
-      shouldRunConflictRecovery: false,
-    };
-  }
-  if (outcome.status === "superseded" || outcome.status === "rate_limited") {
-    return {
-      nextSaveStatus: "unsaved",
-      shouldShowErrorToast: false,
-      shouldTrimPayloadAndRetry: false,
-      shouldRunConflictRecovery: false,
-    };
-  }
-  if (outcome.status === "conflict") {
-    return {
-      nextSaveStatus: outcome.canAutoRecover ? "saving" : "error",
-      shouldShowErrorToast: !outcome.canAutoRecover && isManual,
-      shouldTrimPayloadAndRetry: false,
-      shouldRunConflictRecovery: outcome.canAutoRecover,
-    };
-  }
-  if (outcome.status === "destructive_rejected") {
-    return {
-      nextSaveStatus: "unsaved",
-      shouldShowErrorToast: false,
-      shouldTrimPayloadAndRetry: false,
-      shouldRunConflictRecovery: false,
-    };
-  }
-  if (outcome.status === "payload_too_large") {
-    return {
-      nextSaveStatus: "error",
-      shouldShowErrorToast: isManual,
-      shouldTrimPayloadAndRetry: true,
-      shouldRunConflictRecovery: false,
-    };
-  }
-  return {
-    nextSaveStatus: "error",
-    shouldShowErrorToast: isManual,
+  const base = {
+    nextSaveStatus: "error" as StorySaveStatus,
+    shouldShowErrorToast: false,
     shouldTrimPayloadAndRetry: false,
     shouldRunConflictRecovery: false,
   };
+  if (outcome.status === "saved") return { ...base, nextSaveStatus: "saved" };
+  if (
+    outcome.status === "superseded" ||
+    outcome.status === "rate_limited" ||
+    outcome.status === "destructive_rejected"
+  ) {
+    return { ...base, nextSaveStatus: "unsaved" };
+  }
+  if (outcome.status === "conflict") {
+    return {
+      ...base,
+      nextSaveStatus: outcome.canAutoRecover ? "saving" : "error",
+      shouldShowErrorToast: !outcome.canAutoRecover && isManual,
+      shouldRunConflictRecovery: outcome.canAutoRecover,
+    };
+  }
+  if (outcome.status === "payload_too_large") {
+    return { ...base, shouldShowErrorToast: isManual, shouldTrimPayloadAndRetry: true };
+  }
+  return { ...base, shouldShowErrorToast: isManual };
 }

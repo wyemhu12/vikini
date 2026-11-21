@@ -2,11 +2,16 @@
 "use client";
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useFileUpload } from "@/lib/features/files/useFileUpload";
+import {
+  CLIENT_MAX_FILE_SIZE_MB,
+  type FileUploadError,
+} from "@/lib/features/files/fileUploadHelpers";
 import { useFiles } from "@/lib/features/files/useFiles";
 import { useFileStore } from "@/lib/features/files/store";
+import { logger } from "@/lib/utils/logger";
 import { FilePreviewArea } from "./FilePreviewArea";
-import { FileLightbox } from "./FileLightbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
@@ -19,6 +24,30 @@ import { toast } from "@/lib/store/toastStore";
 import { VoiceButton } from "./VoiceButton";
 import { useLanguage } from "../hooks/useLanguage";
 import type { FileItem } from "@/types/files";
+
+const FileLightbox = dynamic(() => import("./FileLightbox"), { ssr: false });
+
+function formatFileUploadError(err: FileUploadError, t: (key: string) => string): string {
+  switch (err.code) {
+    case "BLOCKED_EXTENSION":
+      return t("fileUploadBlockedExt").replace("{ext}", err.ext || "");
+    case "BLOCKED_MIME":
+      return t("fileUploadBlockedMime");
+    case "FILE_TOO_LARGE":
+      return t("fileUploadTooLarge")
+        .replace("{size}", String(err.sizeMB ?? CLIENT_MAX_FILE_SIZE_MB))
+        .replace("{max}", String(CLIENT_MAX_FILE_SIZE_MB));
+    case "CONVERSATION_INIT_FAILED":
+      return err.detail || t("fileUploadInitFailed");
+    case "NETWORK_ERROR":
+      return t("fileUploadNetworkError");
+    case "TIMEOUT":
+      return t("fileUploadTimeout");
+    case "UPLOAD_FAILED":
+    default:
+      return err.detail || t("uploadFailed");
+  }
+}
 
 interface InputFormProps {
   input: string;
@@ -72,8 +101,11 @@ export default function InputForm({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isImageMode, setIsImageMode] = useState(initialImageMode);
   const [isFocused, setIsFocused] = useState(false);
-  const [_voiceTranscript, setVoiceTranscript] = useState("");
   const [lightboxFile, setLightboxFile] = useState<FileItem | null>(null);
+  const inputRef = useRef(input);
+  useEffect(() => {
+    inputRef.current = input;
+  }, [input]);
 
   const { t, language } = useLanguage();
 
@@ -91,6 +123,31 @@ export default function InputForm({
     return allFiles.filter((f) => !allSent.has(f.id));
   }, [allFiles, sentMessageFileIds, sentFileIds]);
   const fileCount = files.length;
+
+  const handleUploadComplete = useCallback(
+    (uploadedFile: FileItem) => {
+      // Optimistic SWR update: immediately add file to cache
+      void mutate((current) => [...(current ?? []), uploadedFile], { revalidate: true });
+    },
+    [mutate]
+  );
+
+  const handleUploadError = useCallback(
+    (err: FileUploadError) => {
+      toast.error(formatFileUploadError(err, t));
+    },
+    [t]
+  );
+
+  const handleFinalTranscript = useCallback(
+    (text: string) => {
+      const next = inputRef.current ? `${inputRef.current} ${text}` : text;
+      inputRef.current = next;
+      onChangeInput(next);
+    },
+    [onChangeInput]
+  );
+
   const {
     openFilePicker,
     isDragging,
@@ -103,36 +160,49 @@ export default function InputForm({
     disabled: disabled || false,
     ensureConversationId,
     isSelfInitiatedUploadRef,
-    onUploadComplete: (uploadedFile) => {
-      // Optimistic SWR update: immediately add file to cache
-      void mutate((current) => [...(current ?? []), uploadedFile], { revalidate: true });
-    },
+    onUploadComplete: handleUploadComplete,
+    onError: handleUploadError,
   });
 
   // === File removal ===
   const handleRemoveFile = useCallback(
     async (id: string) => {
       try {
-        await fetch(`/api/files?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+        const res = await fetch(`/api/files?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         void mutate();
-      } catch {
-        toast.error(t("uploadFailed") || "Failed to remove file");
+      } catch (err: unknown) {
+        logger.error("[InputForm] Failed to remove file:", err);
+        toast.error(t("deleteFileFailed"));
       }
     },
     [mutate, t]
   );
 
   const handleClearAll = useCallback(async () => {
-    try {
-      for (const f of files) {
-        await fetch(`/api/files?id=${encodeURIComponent(f.id)}`, { method: "DELETE" });
+    if (files.length === 0) return;
+    let failedCount = 0;
+    for (const f of files) {
+      try {
+        const res = await fetch(`/api/files?id=${encodeURIComponent(f.id)}`, { method: "DELETE" });
+        if (!res.ok) {
+          failedCount += 1;
+          logger.error(`[InputForm] Failed to delete file ${f.id}: HTTP ${res.status}`);
+        }
+      } catch (err: unknown) {
+        failedCount += 1;
+        logger.error(`[InputForm] Network error deleting file ${f.id}:`, err);
       }
-      void mutate();
-      toast.success(
-        (t("filesCleared") || "{count} files cleared").replace("{count}", String(files.length))
+    }
+    void mutate();
+    if (failedCount > 0) {
+      toast.error(
+        t("clearFilesPartialFailed")
+          .replace("{failed}", String(failedCount))
+          .replace("{total}", String(files.length))
       );
-    } catch {
-      toast.error(t("uploadFailed") || "Failed to clear files");
+    } else {
+      toast.success(t("filesCleared").replace("{count}", String(files.length)));
     }
   }, [files, mutate, t]);
 
@@ -360,8 +430,7 @@ export default function InputForm({
               {/* Voice Input Button */}
               {!isImageMode && (
                 <VoiceButton
-                  onTranscript={setVoiceTranscript}
-                  onFinalTranscript={(text) => onChangeInput(input + (input ? " " : "") + text)}
+                  onFinalTranscript={handleFinalTranscript}
                   disabled={disabled || isStreaming}
                   language={language === "vi" ? "vi-VN" : "en-US"}
                 />
@@ -401,7 +470,9 @@ export default function InputForm({
       </form>
 
       {/* File Lightbox */}
-      <FileLightbox file={lightboxFile} onClose={() => setLightboxFile(null)} files={files} />
+      {lightboxFile && (
+        <FileLightbox file={lightboxFile} onClose={() => setLightboxFile(null)} files={files} />
+      )}
     </>
   );
 }

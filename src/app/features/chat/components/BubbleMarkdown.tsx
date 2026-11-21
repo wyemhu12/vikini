@@ -177,6 +177,17 @@ const SANITIZE_SCHEMA = {
   tagNames: [...(defaultSchema.tagNames || []), ...EXTENDED_TAG_NAMES],
 };
 
+const REMARK_PLUGINS: React.ComponentProps<typeof ReactMarkdown>["remarkPlugins"] = [remarkGfm];
+const REHYPE_PLUGINS_STREAMING: React.ComponentProps<typeof ReactMarkdown>["rehypePlugins"] = [
+  rehypeRaw,
+  [rehypeSanitize, SANITIZE_SCHEMA],
+];
+const REHYPE_PLUGINS_FINAL: React.ComponentProps<typeof ReactMarkdown>["rehypePlugins"] = [
+  rehypeRaw,
+  [rehypeSanitize, SANITIZE_SCHEMA],
+  rehypeHighlight,
+];
+
 export interface BubbleMarkdownProps {
   content: string;
   isBot?: boolean;
@@ -192,14 +203,6 @@ export const BubbleMarkdown = React.memo(function BubbleMarkdown({
   isLastAssistant = false,
   className = "",
 }: BubbleMarkdownProps) {
-  const rehypePlugins = React.useMemo<
-    React.ComponentProps<typeof ReactMarkdown>["rehypePlugins"]
-  >(() => {
-    return isStreaming
-      ? [rehypeRaw, [rehypeSanitize, SANITIZE_SCHEMA]]
-      : [rehypeRaw, [rehypeSanitize, SANITIZE_SCHEMA], rehypeHighlight];
-  }, [isStreaming]);
-
   if (isBot === false) {
     return <span className={`whitespace-pre-wrap break-words ${className}`}>{content}</span>;
   }
@@ -209,8 +212,8 @@ export const BubbleMarkdown = React.memo(function BubbleMarkdown({
       className={`chat-markdown-container chat-markdown w-full overflow-hidden text-[15px] md:text-base leading-relaxed ${className}`}
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={rehypePlugins}
+        remarkPlugins={REMARK_PLUGINS}
+        rehypePlugins={isStreaming ? REHYPE_PLUGINS_STREAMING : REHYPE_PLUGINS_FINAL}
         components={mdComponents}
       >
         {content}

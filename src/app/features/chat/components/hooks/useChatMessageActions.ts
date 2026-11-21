@@ -1,39 +1,17 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
-} from "react";
+import { useCallback, useEffect } from "react";
 import { logger } from "@/lib/utils/logger";
 import {
+  countContextOnlyMessages,
   findMessageIndex,
   normalizeFrontendMessages,
   type ChatFrontendMessage,
-  type CoreSendOptions,
 } from "@/lib/features/chat/streamProtocol";
 import { toast } from "@/lib/store/toastStore";
+import type { UseChatMessageActionsParams } from "./chatStreamHookTypes";
 
-export interface UseChatMessageActionsParams {
-  selectedConversationId: string | null;
-  loadingMessages: boolean;
-  isStreaming: boolean;
-  messagesLength: number;
-  messagesRef: MutableRefObject<ChatFrontendMessage[]>;
-  prevConversationIdRef: MutableRefObject<string | null>;
-  tRef: MutableRefObject<(key: string) => string>;
-  setSelectedConversationId?: (id: string | null) => void;
-  createConversation?: () => Promise<{ id: string; [key: string]: unknown } | null>;
-  setMessages: Dispatch<SetStateAction<ChatFrontendMessage[]>>;
-  setInput: Dispatch<SetStateAction<string>>;
-  setLoadingMessages: Dispatch<SetStateAction<boolean>>;
-  setRegenerating: Dispatch<SetStateAction<boolean>>;
-  cancelStream: (commitPartial?: boolean) => void;
-  coreSend: (text: string, options?: CoreSendOptions) => Promise<void>;
-  waitForPartialMessageSaved: (lastMsg: ChatFrontendMessage) => Promise<boolean>;
-}
+export type { UseChatMessageActionsParams };
 
 export function useChatMessageActions(params: UseChatMessageActionsParams) {
   const {
@@ -42,11 +20,15 @@ export function useChatMessageActions(params: UseChatMessageActionsParams) {
     isStreaming,
     messagesLength,
     messagesRef,
+    activeConvIdRef,
     prevConversationIdRef,
+    loadAbortRef,
+    isUnmountedRef,
     tRef,
     setSelectedConversationId,
     createConversation,
     setMessages,
+    setContextMessagesCount,
     setInput,
     setLoadingMessages,
     setRegenerating,
@@ -55,83 +37,134 @@ export function useChatMessageActions(params: UseChatMessageActionsParams) {
     waitForPartialMessageSaved,
   } = params;
 
+  const fetchConversationMessages = useCallback(
+    async (id: string) => {
+      loadAbortRef.current?.abort();
+      const controller = new AbortController();
+      loadAbortRef.current = controller;
+
+      setLoadingMessages(true);
+      try {
+        const res = await fetch(`/api/conversations?id=${encodeURIComponent(id)}`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error("Failed to load conversation");
+        const json = await res.json();
+        if (isUnmountedRef.current || controller.signal.aborted || activeConvIdRef.current !== id) {
+          return;
+        }
+        const data = json.data || json;
+        setContextMessagesCount(countContextOnlyMessages(data?.messages));
+        setMessages(normalizeFrontendMessages(data?.messages));
+      } catch (e: unknown) {
+        const errName = e instanceof Error ? e.name : (e as { name?: string } | null)?.name;
+        if (errName === "AbortError" || controller.signal.aborted) {
+          return;
+        }
+        if (isUnmountedRef.current || activeConvIdRef.current !== id) {
+          return;
+        }
+        logger.error("Failed to load messages:", e);
+        toast.error(tRef.current("loadMessagesFailed"));
+        setContextMessagesCount(0);
+        setMessages([]);
+      } finally {
+        if (loadAbortRef.current === controller) {
+          loadAbortRef.current = null;
+          if (!isUnmountedRef.current) setLoadingMessages(false);
+        }
+      }
+    },
+    [
+      activeConvIdRef,
+      isUnmountedRef,
+      loadAbortRef,
+      setContextMessagesCount,
+      setLoadingMessages,
+      setMessages,
+      tRef,
+    ]
+  );
+
   const resetChatUI = useCallback(() => {
     cancelStream(false);
+    loadAbortRef.current?.abort();
+    loadAbortRef.current = null;
     setMessages([]);
+    setContextMessagesCount(0);
     setInput("");
-  }, [cancelStream, setInput, setMessages]);
+  }, [cancelStream, loadAbortRef, setContextMessagesCount, setInput, setMessages]);
 
   const handleNewChat = useCallback(async () => {
+    cancelStream(false);
+    loadAbortRef.current?.abort();
+    loadAbortRef.current = null;
     const conv = await createConversation?.();
-    if (conv?.id) {
+    if (conv?.id && !isUnmountedRef.current) {
+      activeConvIdRef.current = conv.id;
+      prevConversationIdRef.current = conv.id;
       setSelectedConversationId?.(conv.id);
       resetChatUI();
     }
-  }, [createConversation, resetChatUI, setSelectedConversationId]);
+  }, [
+    activeConvIdRef,
+    cancelStream,
+    createConversation,
+    isUnmountedRef,
+    loadAbortRef,
+    prevConversationIdRef,
+    resetChatUI,
+    setSelectedConversationId,
+  ]);
 
   const handleSelectConversation = useCallback(
     async (id: string | null) => {
       cancelStream(false);
+      loadAbortRef.current?.abort();
+      loadAbortRef.current = null;
+      activeConvIdRef.current = id;
+      prevConversationIdRef.current = id;
       setSelectedConversationId?.(id);
       setInput("");
 
       if (!id) {
         setMessages([]);
+        setContextMessagesCount(0);
         setLoadingMessages(false);
         return;
       }
 
-      setLoadingMessages(true);
-      try {
-        const res = await fetch(`/api/conversations?id=${id}`);
-        if (!res.ok) throw new Error("Failed to load conversation");
-        const json = await res.json();
-        const data = json.data || json;
-        setMessages(normalizeFrontendMessages(data?.messages));
-      } catch (e: unknown) {
-        logger.error("Failed to load messages:", e);
-        toast.error(tRef.current("loadMessagesFailed"));
-        setMessages([]);
-      } finally {
-        setLoadingMessages(false);
-      }
+      await fetchConversationMessages(id);
     },
-    [cancelStream, setInput, setLoadingMessages, setMessages, setSelectedConversationId, tRef]
+    [
+      activeConvIdRef,
+      cancelStream,
+      fetchConversationMessages,
+      loadAbortRef,
+      prevConversationIdRef,
+      setContextMessagesCount,
+      setInput,
+      setLoadingMessages,
+      setMessages,
+      setSelectedConversationId,
+    ]
   );
 
   useEffect(() => {
     if (!selectedConversationId || loadingMessages || isStreaming) return;
     if (prevConversationIdRef.current === selectedConversationId) return;
-    if (messagesLength > 0 && prevConversationIdRef.current === selectedConversationId) return;
 
-    const loadMessages = async () => {
-      setLoadingMessages(true);
-      try {
-        const res = await fetch(`/api/conversations?id=${selectedConversationId}`);
-        if (!res.ok) throw new Error("Failed to load conversation");
-        const json = await res.json();
-        const data = json.data || json;
-        setMessages(normalizeFrontendMessages(data?.messages));
-      } catch (e: unknown) {
-        logger.error("Auto-load messages failed:", e);
-        toast.error(tRef.current("loadMessagesFailed"));
-        setMessages([]);
-      } finally {
-        setLoadingMessages(false);
-      }
-    };
-
-    void loadMessages();
     prevConversationIdRef.current = selectedConversationId;
+    activeConvIdRef.current = selectedConversationId;
+    void fetchConversationMessages(selectedConversationId);
   }, [
     selectedConversationId,
     loadingMessages,
     isStreaming,
     messagesLength,
+    activeConvIdRef,
     prevConversationIdRef,
-    setLoadingMessages,
-    setMessages,
-    tRef,
+    fetchConversationMessages,
   ]);
 
   const handleRegenerate = useCallback(

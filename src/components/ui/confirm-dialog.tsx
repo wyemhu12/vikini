@@ -23,7 +23,10 @@ import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
  * scroll locking come for free - the gaps the old hand-rolled modals had.
  */
 export default function ConfirmDialogHost() {
-  const { open, loading, options, settle } = useConfirmStore();
+  const open = useConfirmStore((s) => s.open);
+  const loading = useConfirmStore((s) => s.loading);
+  const options = useConfirmStore((s) => s.options);
+  const settle = useConfirmStore((s) => s.settle);
   const { t } = useLanguage();
 
   const variant = options?.variant ?? "default";

@@ -3,13 +3,18 @@
 
 import React, { useEffect, useCallback } from "react";
 import { Mic, MicOff, Volume2 } from "lucide-react";
-import { useSpeechRecognition, useSpeechSynthesis } from "@/lib/features/voice";
+import {
+  useSpeechRecognition,
+  useSpeechSynthesis,
+  type SpeechErrorCode,
+} from "@/lib/features/voice";
+import { toast } from "@/lib/store/toastStore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLanguage } from "../hooks/useLanguage";
 
 interface VoiceButtonProps {
   /** Callback when voice transcript is available */
-  onTranscript: (text: string) => void;
+  onTranscript?: (text: string) => void;
   /** Callback when final transcript is ready (append to input) */
   onFinalTranscript?: (text: string) => void;
   /** Text to speak (AI response) */
@@ -20,6 +25,30 @@ interface VoiceButtonProps {
   disabled?: boolean;
   /** Language setting */
   language?: string;
+}
+
+function resolveVoiceErrorMessage(
+  errorCode: SpeechErrorCode | null | undefined,
+  t: (key: string) => string
+): string | null {
+  switch (errorCode) {
+    case "not-supported":
+      return t("voiceNotSupported");
+    case "not-allowed":
+      return t("voiceMicDenied");
+    case "no-speech":
+      return t("voiceNoSpeech");
+    case "audio-capture":
+      return t("voiceAudioCaptureError");
+    case "network":
+      return t("voiceNetworkError");
+    case "start-failed":
+    case "unknown":
+      return t("voiceStartFailed");
+    case "aborted":
+    default:
+      return null;
+  }
 }
 
 /**
@@ -44,7 +73,7 @@ export function VoiceButton({
     transcript,
     toggleListening,
     stopListening: _stopListening,
-    error: sttError,
+    errorCode: sttErrorCode,
   } = useSpeechRecognition({
     language,
     continuous: true,
@@ -53,7 +82,13 @@ export function VoiceButton({
     onFinalResult: (text) => {
       onFinalTranscript?.(text);
     },
+    onError: (_msg, code) => {
+      const translated = resolveVoiceErrorMessage(code, t);
+      if (translated) toast.error(translated);
+    },
   });
+
+  const translatedSttError = resolveVoiceErrorMessage(sttErrorCode, t);
 
   // Speech Synthesis (TTS)
   const {
@@ -70,7 +105,7 @@ export function VoiceButton({
   // Update transcript callback
   useEffect(() => {
     if (transcript) {
-      onTranscript(transcript);
+      onTranscript?.(transcript);
     }
   }, [transcript, onTranscript]);
 
@@ -154,7 +189,7 @@ export function VoiceButton({
           </TooltipTrigger>
           <TooltipContent>
             <p>{isListening ? t("clickToStop") : t("clickToSpeak")}</p>
-            {sttError && <p className="text-(--danger) text-xs">{sttError}</p>}
+            {translatedSttError && <p className="text-(--danger) text-xs">{translatedSttError}</p>}
           </TooltipContent>
         </Tooltip>
 

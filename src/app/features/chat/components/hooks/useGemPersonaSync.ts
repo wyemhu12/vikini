@@ -24,7 +24,7 @@ export function useGemPersonaSync({
   patchConversationPersona,
   refreshConversations,
 }: UseGemPersonaSyncOptions): void {
-  const { setOnGemApplied } = useGemStore();
+  const setOnGemApplied = useGemStore((s) => s.setOnGemApplied);
   useEffect(() => {
     setOnGemApplied((conversationId: string, gem: AttachmentInfo | null) => {
       patchConversationGem(conversationId, gem);
@@ -37,7 +37,7 @@ export function useGemPersonaSync({
     };
   }, [setOnGemApplied, patchConversationGem, refreshConversations]);
 
-  const { setOnPersonaApplied } = usePersonaStore();
+  const setOnPersonaApplied = usePersonaStore((s) => s.setOnPersonaApplied);
   useEffect(() => {
     setOnPersonaApplied((conversationId: string, persona: AttachmentInfo | null) => {
       patchConversationPersona(conversationId, persona);

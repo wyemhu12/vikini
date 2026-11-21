@@ -1,11 +1,42 @@
 // src/app/features/chat/components/InputForm.test.tsx
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import InputForm from "./InputForm";
+import { toast } from "@/lib/store/toastStore";
+import { logger } from "@/lib/utils/logger";
+
+vi.mock("next/dynamic", () => ({
+  default: () => {
+    return function DynamicFileLightbox() {
+      return <div data-testid="file-lightbox" />;
+    };
+  },
+}));
+
+vi.mock("@/lib/store/toastStore", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
+vi.mock("@/lib/utils/logger", () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+  },
+}));
 
 let mockCurrentLanguage = "en";
 const mockVoiceButton = vi.fn();
+const mockMutate = vi.fn();
+let capturedFilePreviewProps: {
+  onRemoveFile?: (id: string) => Promise<void> | void;
+  onClearAll?: () => Promise<void> | void;
+} = {};
 
 // Mock useLanguage hook
 vi.mock("../hooks/useLanguage", () => ({
@@ -51,29 +82,36 @@ const mockFiles: { id: string; name: string }[] = [];
 vi.mock("@/lib/features/files/useFiles", () => ({
   useFiles: () => ({
     files: mockFiles,
-    mutate: vi.fn(),
+    mutate: mockMutate,
   }),
 }));
 
 // Mock useFileStore
+const mockMarkAsSent = vi.fn();
+const mockClearSentFileIds = vi.fn();
+const stableFileStoreState = {
+  uploadQueue: [],
+  sentFileIds: [],
+  markAsSent: mockMarkAsSent,
+  clearSentFileIds: mockClearSentFileIds,
+};
 vi.mock("@/lib/features/files/store", () => ({
-  useFileStore: (selector: (state: unknown) => unknown) => {
-    const state = {
-      uploadQueue: [],
-      sentFileIds: [],
-      markAsSent: vi.fn(),
-      clearSentFileIds: vi.fn(),
-    };
-    return selector(state);
-  },
+  useFileStore: (selector: (state: unknown) => unknown) => selector(stableFileStoreState),
 }));
 
 // Mock child components that are not under test
 vi.mock("./FilePreviewArea", () => ({
-  FilePreviewArea: () => <div data-testid="file-preview-area" />,
+  FilePreviewArea: (props: {
+    onRemoveFile?: (id: string) => Promise<void> | void;
+    onClearAll?: () => Promise<void> | void;
+  }) => {
+    capturedFilePreviewProps = props;
+    return <div data-testid="file-preview-area" />;
+  },
 }));
 
 vi.mock("./FileLightbox", () => ({
+  default: () => <div data-testid="file-lightbox" />,
   FileLightbox: () => <div data-testid="file-lightbox" />,
 }));
 
@@ -87,6 +125,15 @@ vi.mock("./VoiceButton", () => ({
 describe("InputForm", () => {
   beforeEach(() => {
     mockFiles.length = 0;
+    mockMutate.mockReset();
+    capturedFilePreviewProps = {};
+    vi.mocked(toast.error).mockReset();
+    vi.mocked(toast.success).mockReset();
+    vi.mocked(logger.error).mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   describe("Send / Stop Button State Machine", () => {
@@ -434,6 +481,56 @@ describe("InputForm", () => {
         />
       );
       expect(textarea.style.height).toBe("140px");
+    });
+  });
+
+  describe("Wave 2B (TC-W2B-08 / NP-5): File HTTP errors & same-tick voice append", () => {
+    it("logs and displays toast.error when DELETE /api/files returns HTTP 500 or partial failure in handleClearAll", async () => {
+      mockFiles.push({ id: "file-1", name: "a.pdf" }, { id: "file-2", name: "b.pdf" });
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, status: 500 })
+        .mockResolvedValueOnce({ ok: true, status: 200 })
+        .mockResolvedValueOnce({ ok: false, status: 500 });
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<InputForm input="" onChangeInput={vi.fn()} onSubmit={vi.fn()} />);
+
+      // 1. Single remove returns HTTP 500
+      await capturedFilePreviewProps.onRemoveFile?.("file-1");
+      await waitFor(() => {
+        expect(logger.error).toHaveBeenCalled();
+        expect(toast.error).toHaveBeenCalledWith("deleteFileFailed");
+      });
+
+      vi.mocked(logger.error).mockReset();
+      vi.mocked(toast.error).mockReset();
+      mockMutate.mockReset();
+
+      // 2. handleClearAll with 1/2 failures still calls mutate() and surfaces partial failure
+      await capturedFilePreviewProps.onClearAll?.();
+      await waitFor(() => {
+        expect(mockMutate).toHaveBeenCalledTimes(1);
+        expect(logger.error).toHaveBeenCalledTimes(1);
+        expect(toast.error).toHaveBeenCalledWith("clearFilesPartialFailed");
+      });
+    });
+
+    it("appends two back-to-back same-tick voice final transcripts without overwriting the first", () => {
+      const onChangeInput = vi.fn();
+      render(<InputForm input="" onChangeInput={onChangeInput} onSubmit={vi.fn()} />);
+
+      const voiceProps = mockVoiceButton.mock.calls.at(-1)?.[0] as {
+        onFinalTranscript?: (text: string) => void;
+      };
+      expect(voiceProps?.onFinalTranscript).toBeDefined();
+
+      // Fire two final events in the SAME tick before parent re-renders `input` prop
+      voiceProps.onFinalTranscript?.("Xin chào");
+      voiceProps.onFinalTranscript?.("thế giới");
+
+      expect(onChangeInput).toHaveBeenNthCalledWith(1, "Xin chào");
+      expect(onChangeInput).toHaveBeenNthCalledWith(2, "Xin chào thế giới");
     });
   });
 });

@@ -1,6 +1,8 @@
-import { renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useConversation } from "./useConversation";
+import { logger } from "@/lib/utils/logger";
+import { toast } from "@/lib/store/toastStore";
 
 interface SwrState {
   data: { conversations?: Array<{ id: string; title: string; createdAt: string }> } | undefined;
@@ -60,5 +62,63 @@ describe("useConversation isLoadingConversations", () => {
     };
     rerender();
     expect(result.current.isLoadingConversations).toBe(false);
+  });
+});
+
+describe("useConversationMutations error feedback & partial delete-all (TC-W2B-16 / NP-5)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    swrState = {
+      data: {
+        conversations: [
+          { id: "c1", title: "First", createdAt: "2026-11-11T00:00:00.000Z" },
+          { id: "c2", title: "Second", createdAt: "2026-11-12T00:00:00.000Z" },
+        ],
+      },
+      error: undefined,
+      isLoading: false,
+      mutate: stableMutate,
+    };
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("encodes conversation id and calls both logger.error and toast.error on loadConversation HTTP 500", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useConversation());
+    await act(async () => {
+      await result.current.loadConversation("conv+1/test");
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/conversations?id=conv%2B1%2Ftest");
+    expect(logger.error).toHaveBeenCalledWith("loadConversation error:", expect.any(Error));
+    expect(toast.error).toHaveBeenCalledWith("loadMessagesFailed");
+  });
+
+  it("keeps failed conversations in local state during partial deleteAllConversations and calls mutate", async () => {
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { id?: string };
+      if (body.id === "c1") {
+        return Promise.resolve(new Response(JSON.stringify({ success: true }), { status: 200 }));
+      }
+      return Promise.resolve(new Response(null, { status: 500 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useConversation());
+    expect(result.current.conversations.map((c) => c.id)).toEqual(["c2", "c1"]);
+
+    await act(async () => {
+      await result.current.deleteAllConversations();
+    });
+
+    expect(result.current.conversations.map((c) => c.id)).toEqual(["c2"]);
+    expect(logger.error).toHaveBeenCalledWith("deleteConversation error:", expect.any(Error));
+    expect(toast.error).toHaveBeenCalledWith("deleteChatFailed2");
+    expect(stableMutate).toHaveBeenCalledTimes(1);
   });
 });

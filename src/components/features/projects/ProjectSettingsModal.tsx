@@ -39,7 +39,10 @@ export function ProjectSettingsModal({
 }: ProjectSettingsModalProps) {
   const { t, language } = useLanguage();
 
-  const { projects, limits, deleteProject, fetchProjects } = useProjectStore();
+  const projects = useProjectStore((s) => s.projects);
+  const limits = useProjectStore((s) => s.limits);
+  const deleteProject = useProjectStore((s) => s.deleteProject);
+  const fetchProjects = useProjectStore((s) => s.fetchProjects);
   const { getProjectConversations, deleteConversation, refreshConversations } = useConversation();
   const [project, setProject] = useState<ProjectWithStats | null>(null);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);

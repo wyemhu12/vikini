@@ -1,56 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { GeneratedImage } from "../Canvas";
-import type { BatchQuotaInfo } from "../ControlPanel";
-import type {
-  CreateConversationOptions,
-  FrontendConversation,
-} from "@/lib/features/chat/conversationListHelpers";
 import {
   buildFinalPrompt,
   buildGenerateImageBody,
-  buildVariationPrompt,
   classifyStudioError,
+  convertReferenceImagesToBase64,
   estimateGenerationSeconds,
-  fileToBase64,
+  fetchStudioBatchQuota,
   postGenerateImageRequest,
   readStoredApiKey,
+  requestImageVariation,
   resolveApiKeyStorageKey,
-  type StudioErrorDisplay,
+  resolveBatchFailureReason,
 } from "@/lib/features/image-gen/studioHelpers";
 import { logger } from "@/lib/utils/logger";
 import { toast } from "@/lib/store/toastStore";
 import { formatDate } from "@/lib/utils/dateFormat";
+import type { UseImageStudioActionsParams } from "./imageStudioTypes";
 
-export interface UseImageStudioActionsParams {
-  prompt: string;
-  negativePrompt: string;
-  model: string;
-  aspectRatio: string;
-  resolution: string;
-  style: string;
-  isEnhancerOn: boolean;
-  numberOfImages: number;
-  referenceImages: File[];
-  generating: boolean;
-  showDeleteConfirm: string | null;
-  selectedConversationId: string | null;
-  language: string;
-  t: (key: string) => string;
-  createConversation: (options?: CreateConversationOptions) => Promise<FrontendConversation | null>;
-  loadConversation: (id: string) => Promise<void>;
-  refreshConversations: () => Promise<void>;
-  setSelectedConversationId: (id: string | null) => void;
-  setGenerating: Dispatch<SetStateAction<boolean>>;
-  setGeneratingLabel: Dispatch<SetStateAction<string | null>>;
-  setMobileTab: Dispatch<SetStateAction<"studio" | "results">>;
-  setShowApiKeyWarning: Dispatch<SetStateAction<boolean>>;
-  setShowError: Dispatch<SetStateAction<StudioErrorDisplay | null>>;
-  setShowDeleteConfirm: Dispatch<SetStateAction<string | null>>;
-  setBatchQuota: Dispatch<SetStateAction<BatchQuotaInfo>>;
-  addToPromptHistory: (p: string) => void;
-}
+export type { UseImageStudioActionsParams };
 
 export function useImageStudioActions(params: UseImageStudioActionsParams) {
   const {
@@ -84,9 +54,13 @@ export function useImageStudioActions(params: UseImageStudioActionsParams) {
 
   const genStartTimeRef = useRef<number>(0);
   const genTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const generatingRef = useRef(false);
+  const isUnmountedRef = useRef(false);
 
   useEffect(() => {
+    isUnmountedRef.current = false;
     return () => {
+      isUnmountedRef.current = true;
       if (genTimerRef.current) {
         clearInterval(genTimerRef.current);
         genTimerRef.current = null;
@@ -95,20 +69,14 @@ export function useImageStudioActions(params: UseImageStudioActionsParams) {
   }, []);
 
   const fetchBatchQuota = useCallback(async () => {
-    try {
-      const res = await fetch("/api/batch-gen-quota");
-      if (res.ok) {
-        const json = await res.json();
-        const payload = json.data ?? json;
-        if (payload.maxBatchSize) setBatchQuota(payload);
-      }
-    } catch (e: unknown) {
-      logger.warn("Failed to fetch batch quota:", e);
-    }
+    const quota = await fetchStudioBatchQuota((e) =>
+      logger.warn("Failed to fetch batch quota:", e)
+    );
+    if (quota && !isUnmountedRef.current) setBatchQuota(quota);
   }, [setBatchQuota]);
 
   const handleGenerate = useCallback(async () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || generatingRef.current) return;
 
     const { storageKey, requiresUserKey } = resolveApiKeyStorageKey(model);
     const key = readStoredApiKey(storageKey);
@@ -117,116 +85,116 @@ export function useImageStudioActions(params: UseImageStudioActionsParams) {
       return;
     }
 
-    let targetId = selectedConversationId;
-    if (!targetId) {
-      const newProj = await createConversation({
-        title: `${t("studioNewProject")} ${formatDate(new Date(), language === "vi" ? "vi-VN" : "en-GB")}`,
-        model: "vikini-image-studio",
-      });
-      if (newProj) {
-        targetId = newProj.id;
-        setSelectedConversationId(newProj.id);
-      } else {
-        setShowError({ message: t("studioCreateProjectFailed") });
-        return;
-      }
-    }
-
-    setGenerating(true);
-    setMobileTab("results");
-    genStartTimeRef.current = Date.now();
-    setGeneratingLabel(
-      `${t("studioGenerating")} (~${estimateGenerationSeconds(model, numberOfImages)}s)`
-    );
-
-    genTimerRef.current = setInterval(() => {
-      const elapsed = Math.round((Date.now() - genStartTimeRef.current) / 1000);
-      setGeneratingLabel(`${t("studioGenerating")} (${elapsed}s)`);
-    }, 1000);
-
-    const finalPrompt = buildFinalPrompt(prompt, negativePrompt);
-    const referenceImagesBase64: string[] = [];
-    if (referenceImages.length > 0) {
-      try {
-        for (const refFile of referenceImages) {
-          referenceImagesBase64.push(await fileToBase64(refFile));
-        }
-      } catch (e: unknown) {
-        logger.warn("Failed to convert reference images:", e);
-      }
-    }
-
-    const totalImages = numberOfImages;
+    generatingRef.current = true;
     let successCount = 0;
-    const sendOne = async () => {
-      const body = buildGenerateImageBody({
-        prompt: finalPrompt,
-        conversationId: targetId!,
-        model,
-        aspectRatio,
-        resolution,
-        style,
-        isEnhancerOn,
-        referenceImagesBase64,
-        batchSize: totalImages > 1 ? totalImages : undefined,
-      });
-      const json = await postGenerateImageRequest(body, key, "Generation failed");
-      if (json.success) {
-        successCount++;
-        if (totalImages > 1) {
-          setGeneratingLabel(
-            t("studioGeneratingProgress")
-              .replace("{current}", String(successCount))
-              .replace("{total}", String(totalImages))
-          );
-        }
-      }
-      return json;
-    };
+    let startedGeneration = false;
 
     try {
-      if (totalImages > 1) {
+      let targetId = selectedConversationId;
+      if (!targetId) {
+        const newProj = await createConversation({
+          title: `${t("studioNewProject")} ${formatDate(new Date(), language === "vi" ? "vi-VN" : "en-GB")}`,
+          model: "vikini-image-studio",
+        });
+        if (isUnmountedRef.current) return;
+        if (newProj) {
+          targetId = newProj.id;
+          setSelectedConversationId(newProj.id);
+        } else {
+          setShowError({ message: t("studioCreateProjectFailed") });
+          return;
+        }
+      }
+
+      startedGeneration = true;
+      setGenerating(true);
+      setMobileTab("results");
+      genStartTimeRef.current = Date.now();
+      setGeneratingLabel(
+        `${t("studioGenerating")} (~${estimateGenerationSeconds(model, numberOfImages)}s)`
+      );
+
+      if (genTimerRef.current) {
+        clearInterval(genTimerRef.current);
+      }
+      genTimerRef.current = setInterval(() => {
+        if (isUnmountedRef.current) return;
+        const elapsed = Math.round((Date.now() - genStartTimeRef.current) / 1000);
+        setGeneratingLabel(`${t("studioGenerating")} (${elapsed}s)`);
+      }, 1000);
+
+      const finalPrompt = buildFinalPrompt(prompt, negativePrompt);
+      const referenceImagesBase64 = await convertReferenceImagesToBase64(referenceImages, (e) =>
+        logger.warn("Failed to convert reference images:", e)
+      );
+      if (isUnmountedRef.current) return;
+
+      const resolvedTargetId = targetId;
+      const sendOne = async () => {
+        const body = buildGenerateImageBody({
+          prompt: finalPrompt,
+          conversationId: resolvedTargetId,
+          model,
+          aspectRatio,
+          resolution,
+          style,
+          isEnhancerOn,
+          referenceImagesBase64,
+          batchSize: numberOfImages > 1 ? numberOfImages : undefined,
+        });
+        const json = await postGenerateImageRequest(body, key, "Generation failed");
+        if (json.success) {
+          successCount++;
+          if (numberOfImages > 1 && !isUnmountedRef.current) {
+            setGeneratingLabel(
+              t("studioGeneratingProgress")
+                .replace("{current}", String(successCount))
+                .replace("{total}", String(numberOfImages))
+            );
+          }
+        }
+        return json;
+      };
+
+      if (numberOfImages > 1) {
         setGeneratingLabel(
           t("studioGeneratingProgress")
             .replace("{current}", "1")
-            .replace("{total}", String(totalImages))
+            .replace("{total}", String(numberOfImages))
         );
         const results = await Promise.allSettled(
-          Array.from({ length: totalImages }, () => sendOne())
+          Array.from({ length: numberOfImages }, () => sendOne())
         );
-        const failures = results.filter((r) => r.status === "rejected").length;
-        if (successCount > 0) {
-          await loadConversation(targetId!);
-          void refreshConversations();
-        }
-        if (failures > 0 && successCount === 0) {
-          const firstRejected = results.find(
-            (r) => r.status === "rejected"
-          ) as PromiseRejectedResult;
-          throw firstRejected.reason;
-        }
+        const batchError = resolveBatchFailureReason(
+          results,
+          successCount,
+          t("studioGenerateFailed")
+        );
+        if (batchError) throw batchError;
       } else {
         await sendOne();
-        if (successCount > 0) {
-          await loadConversation(targetId!);
-          void refreshConversations();
-        }
       }
-      if (successCount > 0) addToPromptHistory(prompt);
+      if (successCount > 0 && !isUnmountedRef.current) {
+        await loadConversation(resolvedTargetId);
+        void refreshConversations();
+        addToPromptHistory(prompt);
+      }
     } catch (error: unknown) {
       logger.error("Gen Error:", error);
-      if (successCount === 0) {
-        const errMsg = error instanceof Error ? error.message : "";
-        setShowError(classifyStudioError(errMsg || t("studioGenerateFailed"), t));
+      if (successCount === 0 && !isUnmountedRef.current) {
+        setShowError(classifyStudioError(error instanceof Error ? error.message : "", t));
       }
     } finally {
       if (genTimerRef.current) {
         clearInterval(genTimerRef.current);
         genTimerRef.current = null;
       }
-      setGenerating(false);
-      setGeneratingLabel(null);
-      if (totalImages > 1) void fetchBatchQuota();
+      generatingRef.current = false;
+      if (!isUnmountedRef.current) {
+        setGenerating(false);
+        setGeneratingLabel(null);
+        if (startedGeneration && numberOfImages > 1) void fetchBatchQuota();
+      }
     }
   }, [
     prompt,
@@ -257,53 +225,51 @@ export function useImageStudioActions(params: UseImageStudioActionsParams) {
   const handleDeleteConfirm = useCallback(async () => {
     if (!showDeleteConfirm) return;
     try {
-      const res = await fetch(`/api/messages/${showDeleteConfirm}`, { method: "DELETE" });
-      if (res.ok && selectedConversationId) void loadConversation(selectedConversationId);
+      const res = await fetch(`/api/messages/${encodeURIComponent(showDeleteConfirm)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (selectedConversationId) void loadConversation(selectedConversationId);
     } catch (e: unknown) {
       logger.error("Delete error:", e);
-      toast.error(t("studioDeleteFailed") || "Failed to delete image");
+      toast.error(t("studioDeleteFailed"));
     } finally {
-      setShowDeleteConfirm(null);
+      if (!isUnmountedRef.current) setShowDeleteConfirm(null);
     }
   }, [showDeleteConfirm, selectedConversationId, loadConversation, setShowDeleteConfirm, t]);
 
   const handleVariation = useCallback(
     async (image: GeneratedImage) => {
-      if (generating || !selectedConversationId) return;
+      if (generating || generatingRef.current || !selectedConversationId) return;
+      generatingRef.current = true;
       const targetId = selectedConversationId;
       setGenerating(true);
       setMobileTab("results");
       setGeneratingLabel(t("studioCreatingVariation"));
 
       try {
-        const response = await fetch(image.url);
-        const base64 = await fileToBase64(await response.blob());
-        const key = readStoredApiKey("vikini-gemini-key");
-        const variationModel = model.includes("gemini-3") ? model : "gemini-3.1-flash-image";
-        const json = await postGenerateImageRequest(
-          {
-            prompt: buildVariationPrompt(image.prompt),
-            conversationId: targetId,
-            options: {
-              model: variationModel,
-              aspectRatio: image.aspectRatio || aspectRatio,
-              referenceImage: base64,
-            },
-          },
-          key,
-          "Variation failed"
-        );
-        if (json.success) {
+        const json = await requestImageVariation({
+          imageUrl: image.url,
+          originalPrompt: image.prompt,
+          conversationId: targetId,
+          model,
+          aspectRatio: image.aspectRatio || aspectRatio,
+        });
+        if (json.success && !isUnmountedRef.current) {
           await loadConversation(targetId);
           void refreshConversations();
         }
       } catch (error: unknown) {
         logger.error("Variation Error:", error);
-        const errMsg = error instanceof Error ? error.message : "";
-        setShowError(classifyStudioError(errMsg || t("studioGenerateFailed"), t));
+        if (!isUnmountedRef.current) {
+          setShowError(classifyStudioError(error instanceof Error ? error.message : "", t));
+        }
       } finally {
-        setGenerating(false);
-        setGeneratingLabel(null);
+        generatingRef.current = false;
+        if (!isUnmountedRef.current) {
+          setGenerating(false);
+          setGeneratingLabel(null);
+        }
       }
     },
     [
@@ -325,11 +291,14 @@ export function useImageStudioActions(params: UseImageStudioActionsParams) {
     async (image: GeneratedImage) => {
       if (!image.id) return;
       try {
-        const res = await fetch(`/api/messages/${image.id}/favorite`, { method: "PATCH" });
-        if (res.ok && selectedConversationId) await loadConversation(selectedConversationId);
+        const res = await fetch(`/api/messages/${encodeURIComponent(image.id)}/favorite`, {
+          method: "PATCH",
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (selectedConversationId) await loadConversation(selectedConversationId);
       } catch (e: unknown) {
         logger.error("Favorite toggle error:", e);
-        toast.error(t("studioFavoriteFailed") || "Failed to update favorite");
+        toast.error(t("studioFavoriteFailed"));
       }
     },
     [selectedConversationId, loadConversation, t]

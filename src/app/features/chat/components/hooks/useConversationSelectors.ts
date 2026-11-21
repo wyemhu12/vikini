@@ -8,7 +8,7 @@ import type { FrontendConversation, FrontendMessage } from "../../hooks/useConve
 interface UseConversationSelectorsOptions {
   conversations: FrontendConversation[];
   personalConversations: FrontendConversation[];
-  rawMessages: FrontendMessage[];
+  rawMessages?: FrontendMessage[];
   selectedConversationId: string | null;
 }
 

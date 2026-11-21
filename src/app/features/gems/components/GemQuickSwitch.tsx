@@ -23,7 +23,8 @@ export default function GemQuickSwitch({
   conversationId,
   showPrefix = true,
 }: GemQuickSwitchProps) {
-  const { openGemModal, triggerGemApplied } = useGemStore();
+  const openGemModal = useGemStore((s) => s.openGemModal);
+  const triggerGemApplied = useGemStore((s) => s.triggerGemApplied);
   const { t } = useLanguage();
   const [gems, setGems] = useState<Gem[]>([]);
   const [loading, setLoading] = useState(false);

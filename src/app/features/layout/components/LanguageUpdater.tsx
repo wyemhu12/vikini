@@ -10,7 +10,8 @@ import {
 export { LANGUAGE_STORAGE_KEY, resolveInitialLanguage };
 
 export default function LanguageUpdater() {
-  const { language, setLanguage } = useLanguageStore();
+  const language = useLanguageStore((s) => s.language);
+  const setLanguage = useLanguageStore((s) => s.setLanguage);
   const [hasHydrated, setHasHydrated] = useState(false);
 
   // 1. Read first on mount

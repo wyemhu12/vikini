@@ -24,7 +24,10 @@ export default function ProjectPage() {
   const { t } = useLanguage();
   const projectId = params.id as string;
 
-  const { projects, limits, deleteProject, fetchProjects } = useProjectStore();
+  const projects = useProjectStore((s) => s.projects);
+  const limits = useProjectStore((s) => s.limits);
+  const deleteProject = useProjectStore((s) => s.deleteProject);
+  const fetchProjects = useProjectStore((s) => s.fetchProjects);
   const { getProjectConversations, createConversation, deleteConversation } = useConversation();
   const [project, setProject] = useState<ProjectWithStats | null>(null);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);

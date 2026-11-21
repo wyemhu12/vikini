@@ -9,7 +9,8 @@ import { confirm } from "@/lib/store/confirmStore";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 export default function GemModal() {
-  const { isOpen, closeGemModal } = useGemStore();
+  const isOpen = useGemStore((s) => s.isOpen);
+  const closeGemModal = useGemStore((s) => s.closeGemModal);
   const { t } = useLanguage();
   const isConfirmingRef = useRef(false);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "@/lib/store/toastStore";
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
 import { logger } from "@/lib/utils/logger";
@@ -48,6 +48,10 @@ export function useImageGenController({
 
   const [showEditImageModal, setShowEditImageModal] = useState(false);
   const [editingImagePrompt, setEditingImagePrompt] = useState("");
+  const onSuccessRef = useRef(onSuccess);
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+  }, [onSuccess]);
 
   const handleImageGen = useCallback(
     async (prompt: string, options?: ImageGenOptions) => {
@@ -96,7 +100,7 @@ export function useImageGenController({
           }
           toast.success(t("studioGenerateSuccess"));
           // Refresh messages to show the generated image
-          onSuccess?.();
+          onSuccessRef.current?.();
           return true;
         } else {
           throw new Error(data.error?.message || t("studioGenerateFailed"));
@@ -108,14 +112,7 @@ export function useImageGenController({
         return false;
       }
     },
-    [
-      selectedConversationId,
-      createConversation,
-      setSelectedConversationIdAndUrl,
-      currentModel,
-      t,
-      onSuccess,
-    ]
+    [selectedConversationId, createConversation, setSelectedConversationIdAndUrl, currentModel, t]
   );
 
   const handleImageRegenerate = useCallback(

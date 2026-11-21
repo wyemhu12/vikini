@@ -73,11 +73,10 @@ export default function ChatApp() {
     setSelectedConversationId: conversation.setSelectedConversationId,
   });
 
-  const { contextMessagesCount, filteredConversations, currentConversation, parentConversation } =
+  const { filteredConversations, currentConversation, parentConversation } =
     useConversationSelectors({
       conversations,
       personalConversations: conversation.personalConversations,
-      rawMessages: conversation.messages,
       selectedConversationId,
     });
   const currentModel = currentConversation?.model || landingModel;
@@ -94,6 +93,7 @@ export default function ChatApp() {
     ),
     refreshConversations,
     renameConversationOptimistic: conversation.renameConversationOptimistic,
+    renameConversationFinal: conversation.renameConversationFinal,
     onWebSearchMeta: webSearch.applyServerMeta,
   });
   const { renderedMessages, setInput, isStreaming, streamingAssistant } = chat;
@@ -328,7 +328,7 @@ export default function ChatApp() {
               branching={branching}
               currentConversation={currentConversation}
               parentConversation={parentConversation}
-              contextMessagesCount={contextMessagesCount}
+              contextMessagesCount={chat.contextMessagesCount}
               selectedConversationId={selectedConversationId}
               currentModel={currentModel}
               openDeleteMessageModal={modals.openDeleteMessageModal}

@@ -44,9 +44,6 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
   const isPromotingStoryRef = useRef(false);
 
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState("");
-  const [streamingThinking, setStreamingThinking] = useState("");
-  const [streamingMeta, setStreamingMeta] = useState<StreamingCardMeta | null>(null);
 
   const { stopStream } = useNovelcrafterStreamGuards({
     selectedConversationId,
@@ -85,9 +82,6 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
       ).modelId;
       const initialMeta = createInitialStreamingMeta(effectiveSlotModel, params);
       setIsStreaming(true);
-      setStreamingContent("");
-      setStreamingThinking("");
-      setStreamingMeta(initialMeta);
       useNovelcrafterStreamStore.getState().beginStreamRun(runId, initialMeta);
 
       const targetConversationId = await resolveNovelcrafterTargetStory({
@@ -113,8 +107,6 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
       const batcher = createRafStreamBatcher(runId, (rId, content, thinking) => {
         if (registry.getActiveRunId() !== rId) return;
         useNovelcrafterStreamStore.getState().flushStreamSnapshot(rId, content, thinking);
-        setStreamingContent(content);
-        setStreamingThinking(thinking);
         opts.onStreamTokenChunk?.({ storyId: targetConversationId, fullContent: content, params });
       });
       opts.onStreamStarted?.({ storyId: targetConversationId, params });
@@ -128,7 +120,6 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
         triggerParams: params,
         registry,
         batcher,
-        onMetaUpdated: setStreamingMeta,
       });
 
       finalizeNovelcrafterStreamRun({
@@ -148,9 +139,6 @@ export function useNovelcrafterStream(options: UseNovelcrafterStreamOptions) {
 
   return {
     isStreaming,
-    streamingContent,
-    streamingThinking,
-    streamingMeta,
     triggerStream,
     stopStream,
   };

@@ -28,13 +28,15 @@ const STABLE_LIMITS = { maxStorageBytesPerProject: 50 * 1024 * 1024 };
 const STABLE_CONVS = [{ id: "chat-1", title: "Project Chat 1" }];
 const stableT = (k: string) => k;
 
+const stableProjectSettingsStore = {
+  projects: STABLE_PROJECTS,
+  limits: STABLE_LIMITS,
+  deleteProject: mockDeleteProject,
+  fetchProjects: mockFetchProjects,
+};
 vi.mock("@/lib/store/projectStore", () => ({
-  useProjectStore: () => ({
-    projects: STABLE_PROJECTS,
-    limits: STABLE_LIMITS,
-    deleteProject: mockDeleteProject,
-    fetchProjects: mockFetchProjects,
-  }),
+  useProjectStore: (selector?: (s: typeof stableProjectSettingsStore) => unknown) =>
+    selector ? selector(stableProjectSettingsStore) : stableProjectSettingsStore,
 }));
 
 vi.mock("@/app/features/chat/hooks/useConversation", () => ({

@@ -1,4 +1,5 @@
 import type { GeneratedImage } from "@/app/features/image-gen/components/Canvas";
+import type { BatchQuotaInfo } from "@/app/features/image-gen/components/ControlPanel";
 import type { FrontendMessage } from "@/lib/features/chat/conversationListHelpers";
 
 export interface StudioErrorDisplay {
@@ -161,4 +162,94 @@ export async function postGenerateImageRequest(
     throw new Error(errMsg || fallbackError);
   }
   return json;
+}
+
+export async function convertReferenceImagesToBase64(
+  files: readonly Blob[],
+  onError?: (error: unknown) => void
+): Promise<string[]> {
+  if (files.length === 0) return [];
+  const encoded: string[] = [];
+  try {
+    for (const refFile of files) {
+      encoded.push(await fileToBase64(refFile));
+    }
+  } catch (e: unknown) {
+    onError?.(e);
+  }
+  return encoded;
+}
+
+export function resolveBatchFailureReason(
+  results: readonly PromiseSettledResult<unknown>[],
+  successCount: number,
+  fallbackMessage = "Generation failed"
+): Error | null {
+  if (successCount > 0) return null;
+  const firstRejected = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
+  if (!firstRejected) return null;
+  const reason: unknown = firstRejected.reason;
+  if (reason instanceof Error) return reason;
+  if (typeof reason === "string" && reason.trim()) return new Error(reason);
+  return new Error(fallbackMessage);
+}
+
+export async function requestImageVariation(params: {
+  imageUrl: string;
+  originalPrompt: string;
+  conversationId: string;
+  model: string;
+  aspectRatio: string;
+}): Promise<{ success?: boolean; [key: string]: unknown }> {
+  const response = await fetch(params.imageUrl);
+  if (!response.ok) {
+    throw new Error("Failed to fetch source image");
+  }
+  const base64 = await fileToBase64(await response.blob());
+  const key = readStoredApiKey("vikini-gemini-key");
+  const variationModel = params.model.includes("gemini-3")
+    ? params.model
+    : "gemini-3.1-flash-image";
+  return postGenerateImageRequest(
+    {
+      prompt: buildVariationPrompt(params.originalPrompt),
+      conversationId: params.conversationId,
+      options: {
+        model: variationModel,
+        aspectRatio: params.aspectRatio,
+        referenceImage: base64,
+      },
+    },
+    key,
+    "Variation failed"
+  );
+}
+
+export async function fetchStudioBatchQuota(
+  onError?: (error: unknown) => void
+): Promise<BatchQuotaInfo | null> {
+  try {
+    const res = await fetch("/api/batch-gen-quota");
+    if (!res.ok) return null;
+    const raw: unknown = await res.json();
+    const candidate =
+      typeof raw === "object" && raw !== null && "data" in raw
+        ? (raw as { data?: unknown }).data
+        : raw;
+    if (typeof candidate !== "object" || candidate === null) return null;
+    const payload = candidate as Partial<BatchQuotaInfo>;
+    if (
+      typeof payload.rank === "string" &&
+      typeof payload.maxBatchSize === "number" &&
+      payload.maxBatchSize > 0 &&
+      typeof payload.quotas === "object" &&
+      payload.quotas !== null
+    ) {
+      return payload as BatchQuotaInfo;
+    }
+    return null;
+  } catch (e: unknown) {
+    onError?.(e);
+    return null;
+  }
 }

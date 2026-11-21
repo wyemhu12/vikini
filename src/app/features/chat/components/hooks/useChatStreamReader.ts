@@ -1,42 +1,18 @@
 "use client";
 
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import type { LocalStreamProgress } from "@/lib/features/chat/thinkingStats";
+import { useCallback } from "react";
 import {
   parseSSEEvent,
   safeArray,
+  splitSSEFrames,
   type ParsedSSEEvent,
   type StreamError,
 } from "@/lib/features/chat/streamProtocol";
 import { toast } from "@/lib/store/toastStore";
 import { resolveStreamErrorMessage } from "../StreamErrorBanner";
+import type { UseChatStreamReaderParams } from "./chatStreamHookTypes";
 
-export interface UseChatStreamReaderParams {
-  setSelectedConversationId?: (id: string | null) => void;
-  refreshConversations?: () => Promise<void>;
-  renameConversationOptimistic?: (id: string, title: string) => void;
-  renameConversationFinal?: (id: string, title: string) => void;
-  onWebSearchMeta?: (meta: { enabled?: boolean; available?: boolean; raw?: unknown }) => void;
-  onStreamError?: (error: StreamError) => void;
-  localSourcesRef: MutableRefObject<unknown[]>;
-  localRagSourcesRef: MutableRefObject<unknown[]>;
-  localUrlContextRef: MutableRefObject<unknown[]>;
-  hasStreamErrorRef: MutableRefObject<boolean>;
-  lastStreamErrorRef: MutableRefObject<StreamError | null>;
-  accumulatedThinkingRef: MutableRefObject<string>;
-  emptyAnswerReasonRef: MutableRefObject<"length" | "no_content" | null>;
-  setStreamingSources: Dispatch<SetStateAction<unknown[]>>;
-  setStreamingRagSources: Dispatch<SetStateAction<unknown[]>>;
-  setStreamingUrlContext: Dispatch<SetStateAction<unknown[]>>;
-  setStreamingThinking: Dispatch<SetStateAction<string>>;
-  setStreamingLocalProgress: Dispatch<SetStateAction<LocalStreamProgress | null>>;
-  setStreamError: Dispatch<SetStateAction<StreamError | null>>;
-  startTypewriter: () => void;
-  appendToTypewriterBuffer: (token: string) => void;
-  markThinking: (chunk: string) => void;
-  markAnswer: () => void;
-  t: (key: string) => string;
-}
+export type { UseChatStreamReaderParams };
 
 export function useChatStreamReader(params: UseChatStreamReaderParams) {
   const {
@@ -46,6 +22,8 @@ export function useChatStreamReader(params: UseChatStreamReaderParams) {
     renameConversationFinal,
     onWebSearchMeta,
     onStreamError,
+    activeConvIdRef,
+    prevConversationIdRef,
     localSourcesRef,
     localRagSourcesRef,
     localUrlContextRef,
@@ -73,6 +51,8 @@ export function useChatStreamReader(params: UseChatStreamReaderParams) {
       localUrlContext: { current: unknown[] }
     ) => {
       if (data?.type === "conversationCreated" && data?.conversation?.id) {
+        activeConvIdRef.current = data.conversation.id;
+        prevConversationIdRef.current = data.conversation.id;
         setSelectedConversationId?.(data.conversation.id);
         await refreshConversations?.();
       }
@@ -130,11 +110,13 @@ export function useChatStreamReader(params: UseChatStreamReaderParams) {
       }
     },
     [
+      activeConvIdRef,
       emptyAnswerReasonRef,
       localRagSourcesRef,
       localSourcesRef,
       localUrlContextRef,
       onWebSearchMeta,
+      prevConversationIdRef,
       refreshConversations,
       renameConversationFinal,
       renameConversationOptimistic,
@@ -156,64 +138,78 @@ export function useChatStreamReader(params: UseChatStreamReaderParams) {
       let buffer = "";
       let isFirstToken = true;
 
+      const processFrame = async (part: string) => {
+        const parsed = parseSSEEvent(part);
+        if (!parsed) return;
+
+        const { event, data } = parsed;
+
+        if (event === "token") {
+          const tok = data?.t || "";
+          if (tok) {
+            if (isFirstToken) {
+              isFirstToken = false;
+              markAnswer();
+              setStreamingLocalProgress(null);
+              startTypewriter();
+            }
+            appendToTypewriterBuffer(tok);
+          }
+        }
+
+        if (event === "thinking") {
+          const thinkingChunk = typeof data?.thinking === "string" ? data.thinking : "";
+          if (thinkingChunk) {
+            accumulatedThinkingRef.current += thinkingChunk;
+            setStreamingThinking((prev) => (prev || "") + thinkingChunk);
+            markThinking(thinkingChunk);
+            setStreamingLocalProgress(null);
+          }
+        }
+
+        if (event === "meta") {
+          await handleStreamMetaEvent(data, localSources, localUrlContext);
+        }
+
+        if (event === "error") {
+          const errorData: StreamError = {
+            message:
+              data?.message || (typeof data?.error === "string" ? data.error : "") || t("error"),
+            code: data?.code,
+            status: data?.status,
+            isTokenLimit: data?.isTokenLimit,
+            tokenInfo: data?.tokenInfo,
+          };
+          hasStreamErrorRef.current = true;
+          lastStreamErrorRef.current = errorData;
+          setStreamError(errorData);
+          onStreamError?.(errorData);
+          toast.error(resolveStreamErrorMessage(errorData, t));
+        }
+      };
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop() || "";
+        const { frames, remainder } = splitSSEFrames(buffer);
+        buffer = remainder;
 
-        for (const part of parts) {
-          const parsed = parseSSEEvent(part);
-          if (!parsed) continue;
+        for (const frame of frames) {
+          await processFrame(frame);
+        }
+      }
 
-          const { event, data } = parsed;
-
-          if (event === "token") {
-            const tok = data?.t || "";
-            if (tok) {
-              if (isFirstToken) {
-                isFirstToken = false;
-                markAnswer();
-                setStreamingLocalProgress(null);
-                startTypewriter();
-              }
-              appendToTypewriterBuffer(tok);
-            }
-          }
-
-          if (event === "thinking") {
-            const thinkingChunk = typeof data?.thinking === "string" ? data.thinking : "";
-            if (thinkingChunk) {
-              accumulatedThinkingRef.current += thinkingChunk;
-              setStreamingThinking((prev) => (prev || "") + thinkingChunk);
-              markThinking(thinkingChunk);
-              setStreamingLocalProgress(null);
-            }
-          }
-
-          if (event === "meta") {
-            await handleStreamMetaEvent(data, localSources, localUrlContext);
-          }
-
-          if (event === "error") {
-            const errorData: StreamError = {
-              message:
-                data?.message ||
-                (typeof data?.error === "string" ? data.error : "") ||
-                "An error occurred",
-              code: data?.code,
-              status: data?.status,
-              isTokenLimit: data?.isTokenLimit,
-              tokenInfo: data?.tokenInfo,
-            };
-            hasStreamErrorRef.current = true;
-            lastStreamErrorRef.current = errorData;
-            setStreamError(errorData);
-            onStreamError?.(errorData);
-            toast.error(resolveStreamErrorMessage(errorData, t));
-          }
+      // Flush final multi-byte UTF-8 sequence and trailing SSE frame without trailing blank line
+      buffer += decoder.decode();
+      if (buffer.trim()) {
+        const { frames, remainder } = splitSSEFrames(buffer);
+        for (const frame of frames) {
+          await processFrame(frame);
+        }
+        if (remainder.trim()) {
+          await processFrame(remainder);
         }
       }
     },

@@ -67,7 +67,7 @@ const COLORS = [
  * Modal to create a new project - uses Radix Dialog for focus trap + ESC
  */
 export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
-  const { createProject, isLoading: _isLoading } = useProjectStore();
+  const createProject = useProjectStore((s) => s.createProject);
   const { t } = useLanguage();
 
   const [name, setName] = useState("");

@@ -26,8 +26,10 @@ vi.mock("../../chat/hooks/useLanguage", () => ({
   }),
 }));
 
+const stablePersonaStore = { openPersonaModal: vi.fn(), triggerPersonaApplied: vi.fn() };
 vi.mock("../stores/usePersonaStore", () => ({
-  usePersonaStore: () => ({ openPersonaModal: vi.fn(), triggerPersonaApplied: vi.fn() }),
+  usePersonaStore: (selector?: (s: typeof stablePersonaStore) => unknown) =>
+    selector ? selector(stablePersonaStore) : stablePersonaStore,
 }));
 
 const mockToastError = vi.fn();

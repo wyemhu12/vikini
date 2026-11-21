@@ -3,6 +3,7 @@
 
 export { useSpeechRecognition } from "./useSpeechRecognition";
 export type {
+  SpeechErrorCode,
   SpeechStatus,
   SpeechResult,
   SpeechRecognitionOptions,

@@ -69,17 +69,17 @@ export interface ChatBubbleProps {
   isStreaming?: boolean;
   isSpeaking?: boolean;
   conversationId?: string;
-  onRegenerate?: () => void;
+  onRegenerate?: (message: ChatMessage) => void;
   onContinue?: (message: ChatMessage) => void;
   onRetrySave?: (message: ChatMessage) => void;
   onEdit?: (message: ChatMessage, newContent: string) => void;
   onDelete?: (messageId: string) => void;
   onImageRegenerate?: (message: ChatMessage) => void;
   onImageEdit?: (message: ChatMessage) => void;
-  onSpeak?: () => void;
+  onSpeak?: (messageId: string, content: string) => void;
   onBranch?: (messageId: string) => void;
   isBranching?: boolean;
-  onRegenerateLowerThinking?: (newLevel: ThinkingLevel) => void;
+  onRegenerateLowerThinking?: (message: ChatMessage, newLevel: ThinkingLevel) => void;
   lowerThinkingLevel?: ThinkingLevel | null;
 }
 
@@ -148,6 +148,15 @@ export const ChatBubble = React.memo(
         toast.error(t("describeCopyFailed"));
       }
     }, [safeMessage.content, t]);
+
+    const { onRegenerate, onSpeak } = props;
+    const handleRegenerateClick = useCallback(
+      () => onRegenerate?.(safeMessage),
+      [onRegenerate, safeMessage]
+    );
+    const handleSpeakClick = useCallback(() => {
+      if (safeMessage.id) onSpeak?.(safeMessage.id, safeMessage.content || "");
+    }, [onSpeak, safeMessage.id, safeMessage.content]);
 
     const handleSaveEdit = () => {
       if (editContent.trim() !== safeMessage.content) props.onEdit?.(safeMessage, editContent);
@@ -333,10 +342,10 @@ export const ChatBubble = React.memo(
                                 | "no_content"
                                 | undefined) || legacyNoticeResult?.reason
                             }
-                            onRegenerate={props.onRegenerate || (() => {})}
+                            onRegenerate={handleRegenerateClick}
                             onRegenerateLowerThinking={
                               onRegenerateLowerThinking && lowerThinkingLevel
-                                ? () => onRegenerateLowerThinking(lowerThinkingLevel)
+                                ? () => onRegenerateLowerThinking(safeMessage, lowerThinkingLevel)
                                 : undefined
                             }
                             lowerThinkingLevel={lowerThinkingLevel}
@@ -445,10 +454,12 @@ export const ChatBubble = React.memo(
                 isBranching={props.isBranching}
                 onCopy={handleCopyMessage}
                 onEdit={!isBot ? () => setIsEditing(true) : undefined}
-                onRegenerate={props.onRegenerate}
+                onRegenerate={props.onRegenerate ? handleRegenerateClick : undefined}
                 onContinue={props.onContinue ? () => props.onContinue?.(safeMessage) : undefined}
                 onDelete={props.onDelete}
-                onSpeak={isBot ? props.onSpeak : undefined}
+                onSpeak={
+                  isBot && Boolean(safeMessage.id) && props.onSpeak ? handleSpeakClick : undefined
+                }
                 onBranch={props.onBranch}
                 alwaysVisible={isBot && Boolean(props.isLastAssistant)}
               />

@@ -66,8 +66,8 @@ export default function NovelcrafterInheritanceTable({
 }: NovelcrafterInheritanceTableProps) {
   const { t } = useLanguage();
   const headingId = useId();
-  const { openGemModal } = useGemStore();
-  const { openPersonaModal } = usePersonaStore();
+  const openGemModal = useGemStore((s) => s.openGemModal);
+  const openPersonaModal = usePersonaStore((s) => s.openPersonaModal);
 
   const defaultModelName = useMemo(
     () => getSelectableModelDisplayName(selectedModel),

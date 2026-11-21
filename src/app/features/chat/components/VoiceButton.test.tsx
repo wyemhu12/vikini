@@ -3,17 +3,38 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { VoiceButton } from "./VoiceButton";
 import { useLanguageStore } from "@/lib/store/languageStore";
+import { toast } from "@/lib/store/toastStore";
+import type { SpeechErrorCode } from "@/lib/features/voice";
+
+vi.mock("@/lib/store/toastStore", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
+vi.mock("@/components/ui/tooltip", () => ({
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="tooltip-content">{children}</div>
+  ),
+}));
 
 const mockToggleListening = vi.fn();
 const mockStopListening = vi.fn();
 const mockSpeak = vi.fn();
 const mockStopSpeaking = vi.fn();
+let capturedOnError: ((error: string, errorCode: SpeechErrorCode) => void) | undefined;
 
 let sttState = {
   isListening: false,
   isSupported: true,
   transcript: "",
   error: null as string | null,
+  errorCode: null as SpeechErrorCode | null,
 };
 
 let ttsState = {
@@ -23,11 +44,14 @@ let ttsState = {
 };
 
 vi.mock("@/lib/features/voice", () => ({
-  useSpeechRecognition: () => ({
-    ...sttState,
-    toggleListening: mockToggleListening,
-    stopListening: mockStopListening,
-  }),
+  useSpeechRecognition: (opts?: { onError?: (err: string, code: SpeechErrorCode) => void }) => {
+    capturedOnError = opts?.onError;
+    return {
+      ...sttState,
+      toggleListening: mockToggleListening,
+      stopListening: mockStopListening,
+    };
+  },
   useSpeechSynthesis: () => ({
     ...ttsState,
     speak: mockSpeak,
@@ -38,12 +62,20 @@ vi.mock("@/lib/features/voice", () => ({
 describe("VoiceButton (CT-6B-02)", () => {
   beforeEach(() => {
     useLanguageStore.setState({ language: "en" });
-    sttState = { isListening: false, isSupported: true, transcript: "", error: null };
+    sttState = {
+      isListening: false,
+      isSupported: true,
+      transcript: "",
+      error: null,
+      errorCode: null,
+    };
     ttsState = { isSpeaking: false, isSupported: true, error: null };
+    capturedOnError = undefined;
     mockToggleListening.mockReset();
     mockStopListening.mockReset();
     mockSpeak.mockReset();
     mockStopSpeaking.mockReset();
+    vi.mocked(toast.error).mockReset();
   });
 
   afterEach(() => {
@@ -95,5 +127,29 @@ describe("VoiceButton (CT-6B-02)", () => {
     render(<VoiceButton onTranscript={vi.fn()} />);
 
     expect(screen.getByRole("status")).toHaveTextContent("Đang nghe: kiểm thử");
+  });
+
+  it("TC-W2B-09 / NP-6: translates errorCode into localized Vietnamese for BOTH toast.error and tooltip (no raw English sttError)", () => {
+    useLanguageStore.setState({ language: "vi" });
+    sttState.error = "Microphone access denied. Please allow microphone access.";
+    sttState.errorCode = "not-allowed";
+
+    render(<VoiceButton />);
+
+    const tooltip = screen.getByTestId("tooltip-content");
+    expect(tooltip).toHaveTextContent(
+      "Quyền truy cập micro bị từ chối. Vui lòng bật trong cài đặt trình duyệt."
+    );
+    expect(tooltip.textContent).not.toContain("Microphone access denied");
+
+    // Firing onError callback shows localized toast (and skips 'aborted')
+    capturedOnError?.("Microphone access denied. Please allow microphone access.", "not-allowed");
+    expect(toast.error).toHaveBeenCalledWith(
+      "Quyền truy cập micro bị từ chối. Vui lòng bật trong cài đặt trình duyệt."
+    );
+
+    vi.mocked(toast.error).mockReset();
+    capturedOnError?.("Recognition was aborted.", "aborted");
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });

@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-21: CI Hotfix — Prettier-Proof Hook Line Budget (`TC-13`) for `useChatStreamExecution` & `useImageStudioActions`
+
+- **Khắc phục lỗi CI `Verify / Type Check + Lint + Test` trên commit `adcb4b6` (`streamProtocol.ts`, `streamProtocol.test.ts`, `useChatStreamExecution.ts`, `studioHelpers.ts`, `studioHelpers.test.ts`, `useImageStudioActions.ts`)**: tách `resetStreamExecutionRefs` + `requestChatStream` + `StreamExecutionRefs` sang `src/lib/features/chat/streamProtocol.ts` (gộp `clearStreamBuffers` trong `useChatStreamExecution.ts` xuống **`294` dòng** sau `prettier --check`) và tách `convertReferenceImagesToBase64` + `resolveBatchFailureReason` + `requestImageVariation` + `fetchStudioBatchQuota` sang `src/lib/features/image-gen/studioHelpers.ts` (đưa `useImageStudioActions.ts` xuống **`316` dòng** sau `prettier --check`, dư `34–56` dòng dưới trần `MAX_HOOK_LINES = 350` của `TC-13`); bổ sung 8 cụm unit test co-located (`TC-HF-01`..`TC-HF-08`) và ghi nhận bài học vào `docs/lessons-learned.md`.
+
+---
+
 ## 2026-11-21: Code Audit Wave 2A — Backend Performance, DB/Storage Hygiene, Admin Scale & NovelCrafter Server Reliability
 
 - **Singletons & Shared Helpers (`cache.ts`, `authRevocation.ts`, `batchGenQuota.ts`, `limits.ts`, `openRouterClient.ts`, `deepseekClient.ts`, `projects.server.ts`)**: hợp nhất toàn bộ kết nối Upstash Redis qua singleton `getSharedRedis()` kèm `invalidateAllGemsCache()` (`SCAN` giới hạn 50 vòng + batch `DEL`); chuyển `OpenRouter` và `DeepSeek` SDK sang singleton theo `apiKey` (kèm 2 file unit test mới); thêm `verifyProjectOwnership(projectId, userId)` 1 query và khử N+1 trong `getUserProjects()` bằng 2 truy vấn bulk `.in("project_id", projectIds)` phân trang an toàn vượt trần 1,000 dòng PostgREST.

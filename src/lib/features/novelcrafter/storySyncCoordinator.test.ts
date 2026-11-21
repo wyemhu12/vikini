@@ -303,4 +303,42 @@ describe("NovelcrafterSyncCoordinator & Save Helpers (TC-01 & TC-06)", () => {
     const payloadError = resolveSaveFailurePresentation({ status: "payload_too_large" }, false);
     expect(payloadError.shouldTrimPayloadAndRetry).toBe(true);
   });
+
+  it("TC-W2B-12 (NP-3): clears orphaned queuedByStory on sendPut rejection so v2 never replays after v3", async () => {
+    const coordinator = new NovelcrafterSyncCoordinator();
+    coordinator.seedServerMeta("s1", { version: 1, updatedAt: 1000 });
+
+    const v1 = { ...createDefaultStoryState(), title: "v1", version: 1, updatedAt: 1100 };
+    const v2 = { ...createDefaultStoryState(), title: "v2", version: 1, updatedAt: 1200 };
+    const v3 = { ...createDefaultStoryState(), title: "v3", version: 1, updatedAt: 1300 };
+
+    let rejectV1!: (err: Error) => void;
+    const v1Gate = new Promise<never>((_res, rej) => {
+      rejectV1 = rej;
+    });
+
+    const failingSendPut = vi.fn(async () => v1Gate);
+
+    const p1 = coordinator.enqueueSave("s1", v1, failingSendPut);
+    const p2 = coordinator.enqueueSave("s1", v2, failingSendPut);
+
+    rejectV1(new Error("network"));
+
+    await expect(p1).rejects.toThrow("network");
+    await expect(p2).rejects.toThrow("network");
+
+    const sentTitles: string[] = [];
+    const recoverySendPut = vi.fn(async (_id: string, prepared) => {
+      sentTitles.push(prepared.title);
+      return {
+        status: "saved" as const,
+        savedState: { ...prepared, version: prepared.version + 1, updatedAt: 1400 },
+      };
+    });
+
+    const outcomeV3 = await coordinator.enqueueSave("s1", v3, recoverySendPut);
+    expect(outcomeV3.status).toBe("saved");
+    expect(recoverySendPut).toHaveBeenCalledTimes(1);
+    expect(sentTitles).toEqual(["v3"]);
+  });
 });

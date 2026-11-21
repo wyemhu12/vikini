@@ -509,4 +509,358 @@ describe("useChatStreamController", () => {
     );
     expect(postMessageCalls).toHaveLength(0);
   });
+
+  it("TC-W2B-01: avoids double-fetch on conversation selection and aborts stale slow loads without clobbering newer conversation or showing false error toasts", async () => {
+    let resolveConvA!: (val: unknown) => void;
+    let signalA: AbortSignal | undefined;
+
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes("conv-A")) {
+        signalA = init?.signal ?? undefined;
+        return new Promise((resolve) => {
+          resolveConvA = resolve;
+        });
+      }
+      if (url.includes("conv-B")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            data: {
+              messages: [
+                { id: "c1", role: "user", content: "Ctx", meta: { isContextOnly: true } },
+                { id: "b1", role: "user", content: "Message from B" },
+              ],
+            },
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ data: { messages: [] } }) });
+    });
+
+    let selectedId: string | null = null;
+    const { result, rerender } = renderHook(
+      ({ id }) =>
+        useChatStreamController({
+          isAuthed: true,
+          selectedConversationId: id,
+          setSelectedConversationId: (next) => {
+            selectedId = next;
+          },
+        }),
+      { initialProps: { id: null as string | null } }
+    );
+
+    // Start slow load for Conv A, then immediately switch to Conv B
+    let loadAPromise!: Promise<void>;
+    await act(async () => {
+      loadAPromise = result.current.handleSelectConversation("conv-A");
+      rerender({ id: selectedId });
+    });
+
+    await act(async () => {
+      await result.current.handleSelectConversation("conv-B");
+      rerender({ id: selectedId });
+    });
+
+    // Request A must have been aborted
+    expect(signalA?.aborted).toBe(true);
+
+    // Late resolution of A must NOT overwrite B's messages
+    await act(async () => {
+      resolveConvA({
+        ok: true,
+        json: async () => ({
+          data: { messages: [{ id: "a1", role: "user", content: "Stale A" }] },
+        }),
+      });
+      await loadAPromise;
+    });
+
+    expect(result.current.renderedMessages).toHaveLength(1);
+    expect(result.current.renderedMessages[0].content).toBe("Message from B");
+    expect(result.current.contextMessagesCount).toBe(1);
+    expect(toast.error).not.toHaveBeenCalled();
+
+    // Selecting Conv B must have fetched conv-B exactly ONCE (no double-fetch from auto-load effect)
+    const convBFetches = mockFetch.mock.calls.filter(
+      ([url]) => typeof url === "string" && url.includes("conv-B")
+    );
+    expect(convBFetches).toHaveLength(1);
+  });
+
+  it("TC-W2B-02 / NP-4: protects overlapping streams in finally, preserves input when createConversation fails/returns null, and prevents New Chat hijack on switch", async () => {
+    // (a) Overlapping streams: stream 1 finally must NOT reset stream 2's isStreaming
+    let rejectStream1!: (err: unknown) => void;
+    let stream2ReadCount = 0;
+    let callIdx = 0;
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/chat-stream")) {
+        callIdx += 1;
+        if (callIdx === 1) {
+          return new Promise((_resolve, reject) => {
+            rejectStream1 = reject;
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          body: {
+            getReader: () => ({
+              read: () => {
+                stream2ReadCount += 1;
+                if (stream2ReadCount === 1) {
+                  return Promise.resolve({
+                    done: false,
+                    value: new TextEncoder().encode('event: token\ndata: {"t":"Stream 2"}\n\n'),
+                  });
+                }
+                return new Promise(() => {});
+              },
+            }),
+          },
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ data: { messages: [] } }) });
+    });
+
+    const { result } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: "conv-1",
+      })
+    );
+
+    await act(async () => {
+      result.current.handleSend("Prompt 1");
+    });
+    await act(async () => {
+      result.current.handleSend("Prompt 2");
+    });
+    await act(async () => {
+      rejectStream1(new DOMException("Aborted", "AbortError"));
+      await Promise.resolve();
+    });
+    expect(result.current.isStreaming).toBe(true);
+    await act(async () => {
+      result.current.resetChatUI();
+    });
+
+    // (b) New Chat: createConversation returns null -> keeps input intact and resets isStreaming=false
+    const createNullMock = vi.fn().mockResolvedValue(null);
+    const { result: nullResult } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: null,
+        createConversation: createNullMock,
+      })
+    );
+
+    await act(async () => {
+      nullResult.current.setInput("Keep my draft");
+    });
+    await act(async () => {
+      await nullResult.current.handleSend("Keep my draft");
+    });
+    expect(nullResult.current.isStreaming).toBe(false);
+    expect(nullResult.current.input).toBe("Keep my draft");
+    expect(nullResult.current.messages).toHaveLength(0);
+
+    // (c) New Chat: user switches to Conv A while createConversation() is pending -> late conv-new must NOT hijack
+    let resolveNewConv!: (val: { id: string } | null) => void;
+    const setSelectedMock = vi.fn();
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { messages: [{ id: "a1", role: "user", content: "Conv A" }] } }),
+    });
+
+    const { result: hijackResult } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: null,
+        setSelectedConversationId: setSelectedMock,
+        createConversation: () =>
+          new Promise((resolve) => {
+            resolveNewConv = resolve;
+          }),
+      })
+    );
+
+    await act(async () => {
+      hijackResult.current.setInput("New chat draft");
+    });
+    await act(async () => {
+      hijackResult.current.handleSend("New chat draft");
+    });
+    await act(async () => {
+      await hijackResult.current.handleSelectConversation("conv-A");
+    });
+    await act(async () => {
+      resolveNewConv({ id: "conv-new" });
+      await Promise.resolve();
+    });
+
+    expect(setSelectedMock).not.toHaveBeenCalledWith("conv-new");
+    const streamCalls = mockFetch.mock.calls.filter(
+      ([url]) => typeof url === "string" && url.includes("/api/chat-stream")
+    );
+    expect(streamCalls).toHaveLength(0);
+  });
+
+  it("TC-W2B-03, TC-W2B-04 & TC-W2B-05: surfaces network error before first token, serializes cancelStream(true), flushes CRLF/UTF-8 trailing SSE frame, and forwards finalTitle", async () => {
+    // 1. Network error before first token -> sets streamError(NETWORK_ERROR) + onStreamError + toast.error
+    const onStreamError = vi.fn();
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/chat-stream")) {
+        return Promise.reject(new TypeError("Failed to fetch"));
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ data: { messages: [] } }) });
+    });
+    const { result: netErrResult } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: "conv-net",
+        onStreamError,
+      })
+    );
+
+    await act(async () => {
+      await netErrResult.current.handleSend("Hello network");
+    });
+    expect(netErrResult.current.streamError).toMatchObject({ code: "NETWORK_ERROR" });
+    expect(onStreamError).toHaveBeenCalledWith(expect.objectContaining({ code: "NETWORK_ERROR" }));
+    expect(toast.error).toHaveBeenCalled();
+
+    // 2. cancelStream(true) serializes POST /api/messages BEFORE GET /api/conversations
+    const callOrder: string[] = [];
+    let resolveSync!: (val: unknown) => void;
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes("/api/chat-stream")) {
+        let emitted = false;
+        return Promise.resolve({
+          ok: true,
+          body: {
+            getReader: () => ({
+              read: () => {
+                if (!emitted) {
+                  emitted = true;
+                  return Promise.resolve({
+                    done: false,
+                    value: new TextEncoder().encode('event: token\ndata: {"t":"Stop me"}\n\n'),
+                  });
+                }
+                return new Promise(() => {});
+              },
+            }),
+          },
+        });
+      }
+      if (url.includes("/api/messages") && init?.method === "POST") {
+        callOrder.push("POST /api/messages:start");
+        return new Promise((resolve) => {
+          resolveSync = resolve;
+        });
+      }
+      if (url.includes("/api/conversations?id=")) {
+        callOrder.push("GET /api/conversations");
+        return Promise.resolve({ ok: true, json: async () => ({ data: { messages: [] } }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    const { result: stopResult } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: "conv-stop",
+      })
+    );
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalled();
+    });
+    callOrder.length = 0;
+
+    await act(async () => {
+      stopResult.current.handleSend("Start");
+    });
+    await act(async () => {
+      stopResult.current.handleStop();
+    });
+    // GET /api/conversations must NOT have fired while POST /api/messages is still pending
+    expect(callOrder).toEqual(["POST /api/messages:start"]);
+
+    await act(async () => {
+      resolveSync({
+        ok: true,
+        json: async () => ({ data: { message: { id: "saved-1" } } }),
+      });
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(callOrder).toEqual(["POST /api/messages:start", "GET /api/conversations"]);
+    });
+
+    // 3. CRLF + split UTF-8 bytes + trailing frame without \n\n + finalTitle meta
+    const renameFinal = vi.fn();
+    const fullBytes = new TextEncoder().encode(
+      'event: token\r\ndata: {"t":"Tiếng Việt"}\r\n\r\nevent: meta\r\ndata: {"type":"finalTitle","conversationId":"conv-utf8","title":"Chủ đề mới"}'
+    );
+    // Split mid-UTF-8 character ("ế" starts around byte 26)
+    const chunk1 = fullBytes.slice(0, 27);
+    const chunk2 = fullBytes.slice(27);
+    let idx = 0;
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/chat-stream")) {
+        return Promise.resolve({
+          ok: true,
+          body: {
+            getReader: () => ({
+              read: () => {
+                if (idx === 0) {
+                  idx += 1;
+                  return Promise.resolve({ done: false, value: chunk1 });
+                }
+                if (idx === 1) {
+                  idx += 1;
+                  return Promise.resolve({ done: false, value: chunk2 });
+                }
+                return Promise.resolve({ done: true, value: undefined });
+              },
+            }),
+          },
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          data: {
+            messages: [
+              { id: "ctx-1", role: "user", content: "Hidden", meta: { isContextOnly: true } },
+              { id: "ctx-2", role: "assistant", content: "Hidden", meta: { isContextOnly: true } },
+              { id: "u-1", role: "user", content: "Hi" },
+              { id: "a-1", role: "assistant", content: "Tiếng Việt" },
+            ],
+          },
+        }),
+      });
+    });
+
+    const { result: utf8Result } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: "conv-utf8",
+        renameConversationFinal: renameFinal,
+      })
+    );
+
+    await act(async () => {
+      await utf8Result.current.handleSend("Hi");
+    });
+
+    await waitFor(() => {
+      expect(renameFinal).toHaveBeenCalledWith("conv-utf8", "Chủ đề mới");
+      expect(utf8Result.current.renderedMessages).toHaveLength(2);
+      expect(utf8Result.current.contextMessagesCount).toBe(2);
+    });
+  });
 });

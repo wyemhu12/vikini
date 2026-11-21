@@ -32,7 +32,7 @@ export default function PersonaEditor({ persona, onSave }: PersonaEditorProps) {
   const toneOptions = useMemo(() => getToneOptions(t), [t]);
 
   const [dirty, setDirty] = useState(false);
-  const { setHasDirtyEditor } = usePersonaStore();
+  const setHasDirtyEditor = usePersonaStore((s) => s.setHasDirtyEditor);
 
   // Sync dirty state to store for modal close warning
   useEffect(() => {

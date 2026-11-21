@@ -59,6 +59,7 @@ export function useChatStreamController({
   }, [streamingThinkingStats]);
 
   const [messages, setMessages] = useState<ChatFrontendMessage[]>([]);
+  const [contextMessagesCount, setContextMessagesCount] = useState(0);
   const [input, setInput] = useState("");
   const [creatingConversation, setCreatingConversation] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -77,6 +78,8 @@ export function useChatStreamController({
   // Concurrency, persistence & teardown refs
   const messagesRef = useRef<ChatFrontendMessage[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const loadAbortRef = useRef<AbortController | null>(null);
+  const activeConvIdRef = useRef<string | null>(selectedConversationId);
   const isUnmountedRef = useRef<boolean>(false);
   const streamingAssistantRef = useRef<string | null>(streamingAssistant);
   const currentClientMessageIdRef = useRef<string | null>(null);
@@ -90,6 +93,10 @@ export function useChatStreamController({
   const accumulatedThinkingRef = useRef<string>("");
   const emptyAnswerReasonRef = useRef<"length" | "no_content" | null>(null);
   const prevConversationIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    activeConvIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
 
   const onTypewriterChunk = useCallback((chunk: string) => {
     setStreamingAssistant((prev) => (prev || "") + chunk);
@@ -127,6 +134,8 @@ export function useChatStreamController({
       isUnmountedRef.current = true;
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
+      loadAbortRef.current?.abort();
+      loadAbortRef.current = null;
       stopTypewriter(false);
       resetTypewriterBuffer();
     };
@@ -134,6 +143,8 @@ export function useChatStreamController({
 
   const persistence = useChatPartialPersistence({
     selectedConversationId,
+    activeConvIdRef,
+    isUnmountedRef,
     messagesRef,
     streamingAssistantRef,
     accumulatedAssistantRef,
@@ -145,6 +156,7 @@ export function useChatStreamController({
     emptyAnswerReasonRef,
     thinkingStatsSnapshotRef,
     setMessages,
+    setContextMessagesCount,
     setIsStreaming,
     setStreamingAssistant,
     setStreamingThinking,
@@ -163,6 +175,8 @@ export function useChatStreamController({
     renameConversationFinal,
     onWebSearchMeta,
     onStreamError,
+    activeConvIdRef,
+    prevConversationIdRef,
     localSourcesRef,
     localRagSourcesRef,
     localUrlContextRef,
@@ -192,6 +206,8 @@ export function useChatStreamController({
     createConversation,
     onStreamError,
     abortControllerRef,
+    activeConvIdRef,
+    prevConversationIdRef,
     isUnmountedRef,
     currentClientMessageIdRef,
     currentTruncateClientMessageIdRef,
@@ -230,11 +246,15 @@ export function useChatStreamController({
     isStreaming,
     messagesLength: messages.length,
     messagesRef,
+    activeConvIdRef,
     prevConversationIdRef,
+    loadAbortRef,
+    isUnmountedRef,
     tRef,
     setSelectedConversationId,
     createConversation,
     setMessages,
+    setContextMessagesCount,
     setInput,
     setLoadingMessages,
     setRegenerating,
@@ -248,6 +268,7 @@ export function useChatStreamController({
   return {
     messages,
     renderedMessages,
+    contextMessagesCount,
     input,
     setInput,
     creatingConversation,

@@ -22,7 +22,9 @@ export default function PersonaManager({ inModal = false }: PersonaManagerProps)
   const sp = useSearchParams();
   const { t } = useLanguage();
 
-  const { contextConversationId, closePersonaModal, triggerPersonaApplied } = usePersonaStore();
+  const contextConversationId = usePersonaStore((s) => s.contextConversationId);
+  const closePersonaModal = usePersonaStore((s) => s.closePersonaModal);
+  const triggerPersonaApplied = usePersonaStore((s) => s.triggerPersonaApplied);
   const urlConversationId = sp?.get("conversationId");
   const conversationId = contextConversationId || urlConversationId;
 

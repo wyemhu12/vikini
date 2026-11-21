@@ -6,7 +6,11 @@ import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 export default function ToastContainer() {
-  const { toasts, removeToast, pauseToast, resumeToast, setVisibilityPaused } = useToastStore();
+  const toasts = useToastStore((s) => s.toasts);
+  const removeToast = useToastStore((s) => s.removeToast);
+  const pauseToast = useToastStore((s) => s.pauseToast);
+  const resumeToast = useToastStore((s) => s.resumeToast);
+  const setVisibilityPaused = useToastStore((s) => s.setVisibilityPaused);
   const { t } = useLanguage();
 
   useEffect(() => {

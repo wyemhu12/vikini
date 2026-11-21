@@ -74,7 +74,8 @@ function Sidebar(props: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname() ?? "/";
   const section = getSectionForPath(pathname);
-  const { projects, fetchProjects } = useProjectStore();
+  const projects = useProjectStore((s) => s.projects);
+  const fetchProjects = useProjectStore((s) => s.fetchProjects);
   const [showCreateProject, setShowCreateProject] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
 

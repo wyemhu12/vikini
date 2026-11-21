@@ -23,7 +23,8 @@ export default function PersonaQuickSwitch({
   conversationId,
   showPrefix = true,
 }: PersonaQuickSwitchProps) {
-  const { openPersonaModal, triggerPersonaApplied } = usePersonaStore();
+  const openPersonaModal = usePersonaStore((s) => s.openPersonaModal);
+  const triggerPersonaApplied = usePersonaStore((s) => s.triggerPersonaApplied);
   const { t } = useLanguage();
   const [personas, setPersonas] = useState<PersonaForUI[]>([]);
   const [loading, setLoading] = useState(false);

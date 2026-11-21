@@ -26,7 +26,7 @@ export default function GemEditor({ gem, onSave, language: languageProp }: GemEd
   const isReadOnly = !!gem?.isPremade;
 
   const [dirty, setDirty] = useState(false);
-  const { setHasDirtyEditor } = useGemStore();
+  const setHasDirtyEditor = useGemStore((s) => s.setHasDirtyEditor);
 
   // Sync dirty state to store for modal close warning
   useEffect(() => {

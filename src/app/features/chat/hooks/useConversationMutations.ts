@@ -51,7 +51,7 @@ export function useConversationMutations({
       if (!id) return;
       setLoadingMessages(true);
       try {
-        const res = await fetch(`/api/conversations?id=${id}`);
+        const res = await fetch(`/api/conversations?id=${encodeURIComponent(id)}`);
         if (!res.ok) throw new Error("Failed to load conversation messages");
         const json = await res.json();
         const loaded = json.data?.messages || json.messages;
@@ -60,11 +60,12 @@ export function useConversationMutations({
         setMessages((Array.isArray(loaded) ? loaded : []) as FrontendMessage[]);
       } catch (err: unknown) {
         logger.error("loadConversation error:", err);
+        toast.error(t("loadMessagesFailed"));
       } finally {
         setLoadingMessages(false);
       }
     },
-    [setActiveId, setLoadingMessages, setMessages]
+    [setActiveId, setLoadingMessages, setMessages, t]
   );
 
   const createConversation = useCallback(
@@ -174,33 +175,51 @@ export function useConversationMutations({
     [mutate, patchConversationModel]
   );
 
+  const deleteConversationRequest = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return true;
+    } catch (err: unknown) {
+      logger.error("deleteConversation error:", err);
+      return false;
+    }
+  }, []);
+
   const deleteConversation = useCallback(
     async (id: string) => {
       if (!id) return;
-      try {
-        const res = await fetch("/api/conversations", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id }),
-        });
-        if (!res.ok) throw new Error("Failed to delete conversation");
-
-        deletedIdsRef.current.add(id);
-        setConversations((prev) => prev.filter((c) => c.id !== id));
-
-        if (activeId === id) {
-          setActiveId(null);
-          setMessages([]);
-        }
-
-        toast.success(t("deleteChatSuccess"));
-        await mutate();
-      } catch (err: unknown) {
-        logger.error("deleteConversation error:", err);
+      const ok = await deleteConversationRequest(id);
+      if (!ok) {
         toast.error(t("deleteChatFailed2"));
+        return;
       }
+
+      deletedIdsRef.current.add(id);
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+
+      if (activeId === id) {
+        setActiveId(null);
+        setMessages([]);
+      }
+
+      toast.success(t("deleteChatSuccess"));
+      await mutate();
     },
-    [activeId, deletedIdsRef, mutate, setActiveId, setConversations, setMessages, t]
+    [
+      activeId,
+      deleteConversationRequest,
+      deletedIdsRef,
+      mutate,
+      setActiveId,
+      setConversations,
+      setMessages,
+      t,
+    ]
   );
 
   const deleteAllConversations = useCallback(async () => {
@@ -210,14 +229,41 @@ export function useConversationMutations({
 
     if (ids.length === 0) return;
 
-    await Promise.all(ids.map((id) => deleteConversation(id)));
+    const results = await Promise.all(
+      ids.map(async (id) => ({ id, ok: await deleteConversationRequest(id) }))
+    );
+    const deletedIds = new Set(results.filter((r) => r.ok).map((r) => r.id));
+    const failedCount = results.length - deletedIds.size;
 
-    setConversations([]);
-    setActiveId(null);
-    setMessages([]);
+    if (deletedIds.size > 0) {
+      for (const id of deletedIds) {
+        deletedIdsRef.current.add(id);
+      }
+      setConversations((prev) => prev.filter((c) => !deletedIds.has(c.id)));
+      if (activeId && deletedIds.has(activeId)) {
+        setActiveId(null);
+        setMessages([]);
+      }
+    }
+
+    if (failedCount > 0) {
+      toast.error(t("deleteChatFailed2"));
+    } else {
+      toast.success(t("deleteChatSuccess"));
+    }
 
     await mutate();
-  }, [conversations, deleteConversation, mutate, setActiveId, setConversations, setMessages]);
+  }, [
+    activeId,
+    conversations,
+    deleteConversationRequest,
+    deletedIdsRef,
+    mutate,
+    setActiveId,
+    setConversations,
+    setMessages,
+    t,
+  ]);
 
   return {
     loadConversation,

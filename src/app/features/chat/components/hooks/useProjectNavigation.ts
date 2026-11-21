@@ -31,7 +31,7 @@ export function useProjectNavigation({
   handleSelectConversation,
   closeMobileSidebar,
 }: UseProjectNavigationOptions) {
-  const { projects } = useProjectStore();
+  const projects = useProjectStore((s) => s.projects);
   const selectedProject = useMemo(
     () => (selectedProjectId ? projects.find((p) => p.id === selectedProjectId) : null),
     [projects, selectedProjectId]

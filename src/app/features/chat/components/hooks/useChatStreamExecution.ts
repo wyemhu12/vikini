@@ -1,69 +1,21 @@
 "use client";
 
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useCallback } from "react";
 import { logger } from "@/lib/utils/logger";
-import type { LocalStreamProgress } from "@/lib/features/chat/thinkingStats";
 import {
   appendUserMessageWithTruncate,
-  buildChatStreamPayload,
-  extractStreamHttpError,
-  generateClientMessageId,
   readStoredThinkingLevel,
-  type ChatFrontendMessage,
+  requestChatStream,
+  resetStreamExecutionRefs,
   type CoreSendOptions,
   type StreamError,
 } from "@/lib/features/chat/streamProtocol";
 import { toast } from "@/lib/store/toastStore";
 import { resolveStreamErrorMessage } from "../StreamErrorBanner";
 import { readStoredStrataSampling } from "./useStrataSampling";
+import type { UseChatStreamExecutionParams } from "./chatStreamHookTypes";
 
-export interface UseChatStreamExecutionParams {
-  isAuthed: boolean;
-  creatingConversation: boolean;
-  selectedConversationId: string | null;
-  input: string;
-  setSelectedConversationId?: (id: string | null) => void;
-  createConversation?: () => Promise<{ id: string; [key: string]: unknown } | null>;
-  onStreamError?: (error: StreamError) => void;
-  abortControllerRef: MutableRefObject<AbortController | null>;
-  isUnmountedRef: MutableRefObject<boolean>;
-  currentClientMessageIdRef: MutableRefObject<string | null>;
-  currentTruncateClientMessageIdRef: MutableRefObject<string | null>;
-  localSourcesRef: MutableRefObject<unknown[]>;
-  localRagSourcesRef: MutableRefObject<unknown[]>;
-  localUrlContextRef: MutableRefObject<unknown[]>;
-  hasStreamErrorRef: MutableRefObject<boolean>;
-  lastStreamErrorRef: MutableRefObject<StreamError | null>;
-  accumulatedAssistantRef: MutableRefObject<string>;
-  accumulatedThinkingRef: MutableRefObject<string>;
-  emptyAnswerReasonRef: MutableRefObject<"length" | "no_content" | null>;
-  setInput: Dispatch<SetStateAction<string>>;
-  setCreatingConversation: Dispatch<SetStateAction<boolean>>;
-  setIsStreaming: Dispatch<SetStateAction<boolean>>;
-  setRegenerating: Dispatch<SetStateAction<boolean>>;
-  setMessages: Dispatch<SetStateAction<ChatFrontendMessage[]>>;
-  setStreamingAssistant: Dispatch<SetStateAction<string | null>>;
-  setStreamingThinking: Dispatch<SetStateAction<string>>;
-  setStreamingLocalProgress: Dispatch<SetStateAction<LocalStreamProgress | null>>;
-  setStreamingSources: Dispatch<SetStateAction<unknown[]>>;
-  setStreamingRagSources: Dispatch<SetStateAction<unknown[]>>;
-  setStreamingUrlContext: Dispatch<SetStateAction<unknown[]>>;
-  setStreamError: Dispatch<SetStateAction<StreamError | null>>;
-  stopTypewriter: (flush?: boolean) => void;
-  resetTypewriterBuffer: () => void;
-  resetThinkingStats: () => void;
-  finalizeAssistantMessage: (
-    status: "aborted" | "error" | "complete",
-    convId: string | null
-  ) => void;
-  reloadMessagesAfterStream: (convId: string | null) => Promise<void>;
-  processStreamResponse: (
-    reader: ReadableStreamDefaultReader<Uint8Array>,
-    localSources: { current: unknown[] },
-    localUrlContext: { current: unknown[] }
-  ) => Promise<void>;
-  t: (key: string) => string;
-}
+export type { UseChatStreamExecutionParams };
 
 export function useChatStreamExecution(params: UseChatStreamExecutionParams) {
   const {
@@ -75,6 +27,8 @@ export function useChatStreamExecution(params: UseChatStreamExecutionParams) {
     createConversation,
     onStreamError,
     abortControllerRef,
+    activeConvIdRef,
+    prevConversationIdRef,
     isUnmountedRef,
     currentClientMessageIdRef,
     currentTruncateClientMessageIdRef,
@@ -107,144 +61,101 @@ export function useChatStreamExecution(params: UseChatStreamExecutionParams) {
     t,
   } = params;
 
+  const clearStreamBuffers = useCallback(
+    (assistantValue: string | null) => {
+      resetThinkingStats();
+      setStreamingLocalProgress(null);
+      setStreamingAssistant(assistantValue);
+      setStreamingThinking("");
+      setStreamingSources([]);
+      setStreamingRagSources([]);
+      setStreamingUrlContext([]);
+    },
+    [
+      resetThinkingStats,
+      setStreamingAssistant,
+      setStreamingLocalProgress,
+      setStreamingRagSources,
+      setStreamingSources,
+      setStreamingThinking,
+      setStreamingUrlContext,
+    ]
+  );
+
   const cancelStream = useCallback(
     (commitPartial = false) => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
+      const targetConvId = activeConvIdRef.current || selectedConversationId;
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
 
       if (commitPartial) {
-        finalizeAssistantMessage("aborted", selectedConversationId);
+        const syncPromise = finalizeAssistantMessage("aborted", targetConvId);
+        if (targetConvId) {
+          void syncPromise.then(() => {
+            if (!isUnmountedRef.current && activeConvIdRef.current === targetConvId) {
+              void reloadMessagesAfterStream(targetConvId);
+            }
+          });
+        }
       } else {
         stopTypewriter(false);
         resetTypewriterBuffer();
-        resetThinkingStats();
-        setStreamingLocalProgress(null);
+        clearStreamBuffers(null);
         setIsStreaming(false);
         setRegenerating(false);
-        setStreamingAssistant(null);
-        setStreamingThinking("");
-        setStreamingSources([]);
-        setStreamingRagSources([]);
-        setStreamingUrlContext([]);
-      }
-
-      if (commitPartial && selectedConversationId) {
-        void reloadMessagesAfterStream(selectedConversationId);
       }
     },
     [
       abortControllerRef,
+      activeConvIdRef,
+      clearStreamBuffers,
       finalizeAssistantMessage,
+      isUnmountedRef,
       reloadMessagesAfterStream,
-      resetThinkingStats,
       resetTypewriterBuffer,
       selectedConversationId,
       setIsStreaming,
       setRegenerating,
-      setStreamingAssistant,
-      setStreamingLocalProgress,
-      setStreamingRagSources,
-      setStreamingSources,
-      setStreamingThinking,
-      setStreamingUrlContext,
       stopTypewriter,
     ]
   );
 
-  const ensureConversationExists = useCallback(async (): Promise<string | null> => {
-    if (selectedConversationId) return selectedConversationId;
-    setCreatingConversation(true);
-    try {
-      const conv = await createConversation?.();
-      const convId = conv?.id || null;
-      if (convId) setSelectedConversationId?.(convId);
-      return convId;
-    } finally {
-      setCreatingConversation(false);
-    }
-  }, [
-    createConversation,
-    selectedConversationId,
-    setCreatingConversation,
-    setSelectedConversationId,
-  ]);
-
-  const prepareStreamRequest = useCallback(
-    (text: string, options: CoreSendOptions) => {
-      const regenerate = Boolean(options?.regenerate);
-      const skipUserAppend = Boolean(options?.skipUserAppend);
-      const truncateFromIndex = options?.truncateFromIndex;
-      const truncateMessageId = options?.truncateMessageId;
-      const skipSaveUserMessage = options?.skipSaveUserMessage;
-      const optFileIds = options?.fileIds;
-
-      if (abortControllerRef.current) abortControllerRef.current.abort();
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
-
-      currentClientMessageIdRef.current = generateClientMessageId();
-      currentTruncateClientMessageIdRef.current = options?.truncateClientMessageId || null;
-      localSourcesRef.current = [];
-      localRagSourcesRef.current = [];
-      localUrlContextRef.current = [];
-      hasStreamErrorRef.current = false;
-      lastStreamErrorRef.current = null;
-      accumulatedAssistantRef.current = "";
-      accumulatedThinkingRef.current = "";
-      emptyAnswerReasonRef.current = null;
-
-      setInput("");
-      setIsStreaming(true);
-      setStreamingAssistant("");
-      setStreamingThinking("");
-      resetThinkingStats();
-      setStreamingLocalProgress(null);
-      setStreamingSources([]);
-      setStreamingRagSources([]);
-      setStreamingUrlContext([]);
-
-      if (typeof truncateFromIndex === "number") {
-        setMessages((prev) => prev.slice(0, truncateFromIndex));
+  const ensureConversationExists = useCallback(
+    async (controller: AbortController): Promise<string | null> => {
+      if (selectedConversationId) {
+        activeConvIdRef.current = selectedConversationId;
+        return selectedConversationId;
       }
-
-      if (!skipUserAppend) {
-        setMessages((prev) =>
-          appendUserMessageWithTruncate(prev, text, { truncateFromIndex, fileIds: optFileIds })
-        );
+      setCreatingConversation(true);
+      try {
+        const conv = await createConversation?.();
+        if (
+          isUnmountedRef.current ||
+          controller.signal.aborted ||
+          abortControllerRef.current !== controller
+        ) {
+          return null;
+        }
+        const convId = conv?.id || null;
+        if (convId) {
+          activeConvIdRef.current = convId;
+          prevConversationIdRef.current = convId;
+          setSelectedConversationId?.(convId);
+        }
+        return convId;
+      } finally {
+        if (!isUnmountedRef.current) setCreatingConversation(false);
       }
-
-      return {
-        signal,
-        regenerate,
-        truncateMessageId,
-        truncateClientMessageId: options?.truncateClientMessageId,
-        skipSaveUserMessage,
-      };
     },
     [
       abortControllerRef,
-      accumulatedAssistantRef,
-      accumulatedThinkingRef,
-      currentClientMessageIdRef,
-      currentTruncateClientMessageIdRef,
-      emptyAnswerReasonRef,
-      hasStreamErrorRef,
-      lastStreamErrorRef,
-      localRagSourcesRef,
-      localSourcesRef,
-      localUrlContextRef,
-      resetThinkingStats,
-      setInput,
-      setIsStreaming,
-      setMessages,
-      setStreamingAssistant,
-      setStreamingLocalProgress,
-      setStreamingRagSources,
-      setStreamingSources,
-      setStreamingThinking,
-      setStreamingUrlContext,
+      activeConvIdRef,
+      createConversation,
+      isUnmountedRef,
+      prevConversationIdRef,
+      selectedConversationId,
+      setCreatingConversation,
+      setSelectedConversationId,
     ]
   );
 
@@ -252,88 +163,161 @@ export function useChatStreamExecution(params: UseChatStreamExecutionParams) {
     async (text: string, options: CoreSendOptions = {}) => {
       if (!isAuthed || creatingConversation || !text) return;
 
-      const { signal, regenerate, truncateMessageId, skipSaveUserMessage } = prepareStreamRequest(
-        text,
-        options
+      const { truncateFromIndex, fileIds } = options;
+      const signal = resetStreamExecutionRefs(
+        {
+          abortControllerRef,
+          currentClientMessageIdRef,
+          currentTruncateClientMessageIdRef,
+          localSourcesRef,
+          localRagSourcesRef,
+          localUrlContextRef,
+          hasStreamErrorRef,
+          lastStreamErrorRef,
+          accumulatedAssistantRef,
+          accumulatedThinkingRef,
+          emptyAnswerReasonRef,
+        },
+        options.truncateClientMessageId
       );
-      const convId = await ensureConversationExists();
-      if (isUnmountedRef.current) return;
+      const controller = abortControllerRef.current;
+      if (!controller) return;
+
+      let convId: string | null = selectedConversationId;
+      let didPrepareMessages = false;
+      setIsStreaming(true);
 
       try {
-        const thinkingLevel = readStoredThinkingLevel();
-        const strataSampling = readStoredStrataSampling(thinkingLevel !== "off");
-        const payload = buildChatStreamPayload({
-          conversationId: convId,
-          content: text,
-          clientMessageId: currentClientMessageIdRef.current,
-          truncateMessageId,
-          truncateClientMessageId: options?.truncateClientMessageId,
-          regenerate,
-          skipSaveUserMessage,
-          thinkingLevel,
-          strataSampling,
-          fileIds: options.fileIds,
-        });
-
-        const res = await fetch("/api/chat-stream", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify(payload),
-          signal,
-        });
-
-        if (!res.ok || !res.body) {
-          if (isUnmountedRef.current) return;
-          const errData = await extractStreamHttpError(res);
-          hasStreamErrorRef.current = true;
-          lastStreamErrorRef.current = errData;
-          setStreamError(errData);
-          onStreamError?.(errData);
-          toast.error(resolveStreamErrorMessage(errData, t));
-          finalizeAssistantMessage("error", convId);
+        convId = await ensureConversationExists(controller);
+        if (
+          isUnmountedRef.current ||
+          controller.signal.aborted ||
+          abortControllerRef.current !== controller
+        ) {
+          return;
+        }
+        if (!convId && createConversation) {
           return;
         }
 
-        const reader = res.body.getReader();
-        const localSources = { current: [] as unknown[] };
-        const localUrlContext = { current: [] as unknown[] };
+        didPrepareMessages = true;
+        setInput("");
+        clearStreamBuffers("");
 
-        await processStreamResponse(reader, localSources, localUrlContext);
+        if (typeof truncateFromIndex === "number") {
+          setMessages((prev) => prev.slice(0, truncateFromIndex));
+        }
+        if (!options.skipUserAppend) {
+          setMessages((prev) =>
+            appendUserMessageWithTruncate(prev, text, { truncateFromIndex, fileIds })
+          );
+        }
+
+        const thinkingLevel = readStoredThinkingLevel();
+        const streamResult = await requestChatStream({
+          conversationId: convId,
+          content: text,
+          clientMessageId: currentClientMessageIdRef.current,
+          truncateMessageId: options.truncateMessageId,
+          truncateClientMessageId: options.truncateClientMessageId,
+          regenerate: Boolean(options.regenerate),
+          skipSaveUserMessage: options.skipSaveUserMessage,
+          thinkingLevel,
+          strataSampling: readStoredStrataSampling(thinkingLevel !== "off"),
+          fileIds,
+          signal,
+        });
+        if (
+          isUnmountedRef.current ||
+          controller.signal.aborted ||
+          abortControllerRef.current !== controller
+        ) {
+          return;
+        }
+
+        if (!streamResult.ok) {
+          hasStreamErrorRef.current = true;
+          lastStreamErrorRef.current = streamResult.error;
+          setStreamError(streamResult.error);
+          onStreamError?.(streamResult.error);
+          toast.error(resolveStreamErrorMessage(streamResult.error, t));
+          void finalizeAssistantMessage("error", activeConvIdRef.current || convId);
+          return;
+        }
+
+        await processStreamResponse(streamResult.reader, { current: [] }, { current: [] });
         stopTypewriter(true);
 
         await new Promise((resolve) => setTimeout(resolve, 30));
-        if (isUnmountedRef.current) return;
+        if (
+          isUnmountedRef.current ||
+          controller.signal.aborted ||
+          abortControllerRef.current !== controller
+        ) {
+          return;
+        }
 
+        const effectiveConvId = activeConvIdRef.current || convId;
         const finalStatus = hasStreamErrorRef.current ? "error" : "complete";
-        finalizeAssistantMessage(finalStatus, convId);
-        await reloadMessagesAfterStream(convId);
+        await finalizeAssistantMessage(finalStatus, effectiveConvId);
+        await reloadMessagesAfterStream(effectiveConvId);
       } catch (e: unknown) {
-        const error = e as Error & { name?: string };
-        if (error?.name !== "AbortError" && !isUnmountedRef.current) {
+        const errName = e instanceof Error ? e.name : (e as { name?: string } | null)?.name;
+        const isStillActive =
+          !isUnmountedRef.current &&
+          !controller.signal.aborted &&
+          abortControllerRef.current === controller;
+        if (errName !== "AbortError" && isStillActive) {
           logger.error("Stream error:", e);
-          finalizeAssistantMessage("error", convId);
+          if (!hasStreamErrorRef.current) {
+            const errData: StreamError = {
+              message: t("streamNetworkError"),
+              code: "NETWORK_ERROR",
+            };
+            hasStreamErrorRef.current = true;
+            lastStreamErrorRef.current = errData;
+            setStreamError(errData);
+            onStreamError?.(errData);
+            toast.error(resolveStreamErrorMessage(errData, t));
+          }
+          if (didPrepareMessages) {
+            void finalizeAssistantMessage("error", activeConvIdRef.current || convId);
+          }
         }
       } finally {
-        if (!isUnmountedRef.current) setIsStreaming(false);
-        abortControllerRef.current = null;
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null;
+          if (!isUnmountedRef.current) setIsStreaming(false);
+        }
       }
     },
     [
       abortControllerRef,
+      accumulatedAssistantRef,
+      accumulatedThinkingRef,
+      activeConvIdRef,
+      clearStreamBuffers,
+      createConversation,
       creatingConversation,
       currentClientMessageIdRef,
+      currentTruncateClientMessageIdRef,
+      emptyAnswerReasonRef,
       ensureConversationExists,
       finalizeAssistantMessage,
       hasStreamErrorRef,
       isAuthed,
       isUnmountedRef,
       lastStreamErrorRef,
+      localRagSourcesRef,
+      localSourcesRef,
+      localUrlContextRef,
       onStreamError,
-      prepareStreamRequest,
       processStreamResponse,
       reloadMessagesAfterStream,
+      selectedConversationId,
+      setInput,
       setIsStreaming,
+      setMessages,
       setStreamError,
       stopTypewriter,
       t,
@@ -347,9 +331,7 @@ export function useChatStreamExecution(params: UseChatStreamExecutionParams) {
     [coreSend, input]
   );
 
-  const handleStop = useCallback(() => {
-    cancelStream(true);
-  }, [cancelStream]);
+  const handleStop = useCallback(() => cancelStream(true), [cancelStream]);
 
   return { cancelStream, coreSend, handleSend, handleStop };
 }

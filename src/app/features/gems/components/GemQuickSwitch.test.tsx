@@ -23,8 +23,10 @@ vi.mock("../../chat/hooks/useLanguage", () => ({
   }),
 }));
 
+const stableGemStore = { openGemModal: vi.fn(), triggerGemApplied: vi.fn() };
 vi.mock("../stores/useGemStore", () => ({
-  useGemStore: () => ({ openGemModal: vi.fn(), triggerGemApplied: vi.fn() }),
+  useGemStore: (selector?: (s: typeof stableGemStore) => unknown) =>
+    selector ? selector(stableGemStore) : stableGemStore,
 }));
 
 const mockToastError = vi.fn();

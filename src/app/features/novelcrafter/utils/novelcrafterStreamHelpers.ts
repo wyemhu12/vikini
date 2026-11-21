@@ -173,7 +173,7 @@ export async function runNovelcrafterSseStream(params: {
   triggerParams: TriggerNovelcrafterStreamParams;
   registry: NovelcrafterStreamRunRegistry;
   batcher: ReturnType<typeof createRafStreamBatcher>;
-  onMetaUpdated: (meta: StreamingCardMeta) => void;
+  onMetaUpdated?: (meta: StreamingCardMeta) => void;
 }): Promise<NovelcrafterStreamRunResult> {
   const {
     runId,
@@ -212,7 +212,7 @@ export async function runNovelcrafterSseStream(params: {
       state.resolvedGemName = applied.resolvedGemName;
       state.resolvedPersonaName = applied.resolvedPersonaName;
       if (registry.getActiveRunId() === runId) {
-        onMetaUpdated(applied.nextMeta);
+        onMetaUpdated?.(applied.nextMeta);
         useNovelcrafterStreamStore.getState().updateStreamMeta(runId, applied.nextMeta);
       }
     } else if (eventType === "thinking") {

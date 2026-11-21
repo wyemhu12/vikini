@@ -235,6 +235,60 @@ describe("ChatBubble", () => {
       expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument();
     });
 
+    it("TC-W2B-06: forwards (safeMessage), (safeMessage, level), and (id, content) via internal wrappers without leaking MouseEvent, and hides Read Aloud when message.id is missing", () => {
+      const onRegenerate = vi.fn();
+      const onRegenerateLowerThinking = vi.fn();
+      const onSpeak = vi.fn();
+
+      const { rerender } = render(
+        <ChatBubble
+          message={assistantMsg}
+          canRegenerate={true}
+          onRegenerate={onRegenerate}
+          onSpeak={onSpeak}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /regenerate/i }));
+      expect(onRegenerate).toHaveBeenCalledTimes(1);
+      expect(onRegenerate).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "msg-bot-1", role: "assistant" })
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /read aloud/i }));
+      expect(onSpeak).toHaveBeenCalledTimes(1);
+      expect(onSpeak).toHaveBeenCalledWith("msg-bot-1", assistantMsg.content);
+
+      // EmptyReasoningNotice: regenerate + lower thinking forwards (safeMessage, level)
+      const thoughtOnlyMsg: ChatMessage = {
+        id: "msg-empty-reason",
+        role: "assistant",
+        content: "<thought>Reasoning only</thought>",
+        meta: { emptyAnswerReason: "length" },
+      };
+      rerender(
+        <ChatBubble
+          message={thoughtOnlyMsg}
+          isStreaming={false}
+          canRegenerate={true}
+          lowerThinkingLevel="low"
+          onRegenerate={onRegenerate}
+          onRegenerateLowerThinking={onRegenerateLowerThinking}
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /regenerate with lower thinking/i }));
+      expect(onRegenerateLowerThinking).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "msg-empty-reason" }),
+        "low"
+      );
+
+      // Unsaved message without id hides Read Aloud button even when onSpeak is provided
+      rerender(
+        <ChatBubble message={{ role: "assistant", content: "Unsaved reply" }} onSpeak={onSpeak} />
+      );
+      expect(screen.queryByRole("button", { name: /read aloud/i })).not.toBeInTheDocument();
+    });
+
     it("shows typing dots when isLoading is true", () => {
       const emptyAssistantMsg: ChatMessage = {
         id: "msg-bot-empty",

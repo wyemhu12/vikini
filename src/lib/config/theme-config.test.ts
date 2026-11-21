@@ -506,6 +506,35 @@ describe("theme-config — CSS themes", () => {
       )
     ).toEqual([]);
   });
+
+  it("TC-14 (PERF-03): 0 unscoped Zustand use*Store() calls across all non-test files in src/", () => {
+    const srcRoot = path.resolve(process.cwd(), "src");
+    const allSrcFiles = collectSourceFiles(srcRoot);
+    const violations: string[] = [];
+
+    for (const filePath of allSrcFiles) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const rel = path.relative(process.cwd(), filePath);
+      for (const hit of findUnscopedZustandStoreCalls(content)) {
+        violations.push(`${rel}: ${hit}`);
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("TC-14b (Negative Probe NP-1): AST scanner catches unscoped use*Store() calls without false positives", () => {
+    expect(findUnscopedZustandStoreCalls("const { projects } = useProjectStore();")).toHaveLength(
+      1
+    );
+    expect(findUnscopedZustandStoreCalls("const store = useGemStore( );")).toHaveLength(1);
+    expect(
+      findUnscopedZustandStoreCalls("const projects = useProjectStore((s) => s.projects);")
+    ).toEqual([]);
+    expect(findUnscopedZustandStoreCalls("useFileStore.getState().clearQueue();")).toEqual([]);
+    expect(findUnscopedZustandStoreCalls("// useProjectStore() in comment")).toEqual([]);
+    expect(findUnscopedZustandStoreCalls('const note = "useGemStore()";')).toEqual([]);
+  });
 });
 
 const SOLID_BG_RAISED = /(?<![a-zA-Z0-9_:-])bg-\(--raised\)(?![/\w-])/;
@@ -588,4 +617,32 @@ function findTransitionAllViolations(source: string): string[] {
   return extractStaticClassChunks(source)
     .filter((chunk) => TRANSITION_ALL_TOKEN.test(chunk))
     .map((chunk) => chunk.trim());
+}
+
+const UNSCOPED_ZUSTAND_STORE_NAME = /^use[A-Z][A-Za-z0-9]*Store$/;
+
+function findUnscopedZustandStoreCalls(source: string): string[] {
+  if (!source.includes("Store")) return [];
+  const sf = ts.createSourceFile(
+    "scan.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    false,
+    ts.ScriptKind.TSX
+  );
+  const hits: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      UNSCOPED_ZUSTAND_STORE_NAME.test(node.expression.text) &&
+      node.arguments.length === 0
+    ) {
+      const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
+      hits.push(`${node.expression.text}() at line ${line + 1}`);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return hits;
 }

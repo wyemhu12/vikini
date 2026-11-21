@@ -4,9 +4,12 @@ import { render, screen } from "@testing-library/react";
 import { ChatMessagesArea } from "./ChatMessagesArea";
 import type { FrontendMessage, FrontendConversation } from "../hooks/useConversation";
 
-// Mock ChatBubble to simplify DOM assertions
-vi.mock("./ChatBubble", () => ({
-  default: ({
+// Track memoized ChatBubble render counts per message ID to verify 60fps stability (TC-W2B-06)
+const bubbleRenderCounts = new Map<string, number>();
+
+// Mock ChatBubble using React.memo to mirror real memoization behavior
+vi.mock("./ChatBubble", () => {
+  const MemoMockBubble = React.memo(function MockChatBubble({
     message,
     isStreaming,
     regenerating,
@@ -14,37 +17,31 @@ vi.mock("./ChatBubble", () => ({
     message: FrontendMessage;
     isStreaming?: boolean;
     regenerating?: boolean;
-  }) => (
-    <div
-      data-testid="chat-bubble"
-      data-role={message.role}
-      data-is-streaming={String(Boolean(isStreaming))}
-      data-regenerating={String(Boolean(regenerating))}
-      data-model={(message.meta as Record<string, unknown> | undefined)?.model || ""}
-    >
-      {message.content}
-    </div>
-  ),
-  ChatBubble: ({
-    message,
-    isStreaming,
-    regenerating,
-  }: {
-    message: FrontendMessage;
-    isStreaming?: boolean;
-    regenerating?: boolean;
-  }) => (
-    <div
-      data-testid="chat-bubble"
-      data-role={message.role}
-      data-is-streaming={String(Boolean(isStreaming))}
-      data-regenerating={String(Boolean(regenerating))}
-      data-model={(message.meta as Record<string, unknown> | undefined)?.model || ""}
-    >
-      {message.content}
-    </div>
-  ),
-}));
+    onRegenerate?: unknown;
+    onContinue?: unknown;
+    onRetrySave?: unknown;
+    onRegenerateLowerThinking?: unknown;
+    onSpeak?: unknown;
+  }) {
+    const key = message.id || "no-id";
+    bubbleRenderCounts.set(key, (bubbleRenderCounts.get(key) ?? 0) + 1);
+    return (
+      <div
+        data-testid="chat-bubble"
+        data-role={message.role}
+        data-is-streaming={String(Boolean(isStreaming))}
+        data-regenerating={String(Boolean(regenerating))}
+        data-model={(message.meta as Record<string, unknown> | undefined)?.model || ""}
+      >
+        {message.content}
+      </div>
+    );
+  });
+  return {
+    default: MemoMockBubble,
+    ChatBubble: MemoMockBubble,
+  };
+});
 
 describe("ChatMessagesArea", () => {
   const defaultProps = {
@@ -143,5 +140,29 @@ describe("ChatMessagesArea", () => {
     const historicalBubble = bubbles[1];
     expect(historicalBubble.getAttribute("data-is-streaming")).toBe("false");
     expect(historicalBubble.getAttribute("data-regenerating")).toBe("false");
+  });
+
+  it("TC-W2B-06: passes stable callback references so historical memoized ChatBubbles do NOT re-render across streaming updates", () => {
+    bubbleRenderCounts.clear();
+    const onRegenerateLowerThinking = vi.fn();
+    const baseProps = {
+      ...defaultProps,
+      onRegenerateLowerThinking,
+      isStreaming: true,
+      streamingAssistant: "Chunk 1",
+    };
+
+    const { rerender } = render(<ChatMessagesArea {...baseProps} />);
+    expect(bubbleRenderCounts.get("m1")).toBe(1);
+    expect(bubbleRenderCounts.get("m2")).toBe(1);
+
+    for (let i = 2; i <= 5; i += 1) {
+      rerender(<ChatMessagesArea {...baseProps} streamingAssistant={`Chunk ${i}`} />);
+    }
+
+    // Historical messages m1 and m2 must render ONLY ONCE across 5 streaming chunks
+    expect(bubbleRenderCounts.get("m1")).toBe(1);
+    expect(bubbleRenderCounts.get("m2")).toBe(1);
+    expect(bubbleRenderCounts.get("streaming-assistant")).toBe(5);
   });
 });

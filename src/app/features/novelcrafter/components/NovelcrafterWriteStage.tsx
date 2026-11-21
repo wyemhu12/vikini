@@ -23,10 +23,7 @@ import type {
   ChapterEditorController,
   FeedbackPaneControl,
 } from "../hooks/useChapterEditorController";
-import type {
-  StreamingCardMeta,
-  TriggerNovelcrafterStreamParams,
-} from "../hooks/useNovelcrafterStream";
+import type { TriggerNovelcrafterStreamParams } from "../hooks/useNovelcrafterStream";
 import ChapterAiToolbar from "./ChapterAiToolbar";
 import ChapterEditorWorkspace, { type EditorSelectionRange } from "./ChapterEditorWorkspace";
 import NovelcrafterAiComposer from "./NovelcrafterAiComposer";
@@ -70,9 +67,6 @@ interface NovelcrafterWriteStageProps {
   isStreaming: boolean;
   isDirectStreamingToChapter: boolean;
   isLoadLocked: boolean;
-  streamingContent: string;
-  streamingThinking: string;
-  streamingMeta: StreamingCardMeta | null;
   onTriggerStream: (params: TriggerNovelcrafterStreamParams) => Promise<void>;
   onStopStream: () => void;
   onAppendToChapter: (text: string) => void;
@@ -123,9 +117,6 @@ export default function NovelcrafterWriteStage({
   isStreaming,
   isDirectStreamingToChapter,
   isLoadLocked,
-  streamingContent,
-  streamingThinking,
-  streamingMeta,
   onTriggerStream,
   onStopStream,
   onAppendToChapter,
@@ -169,9 +160,6 @@ export default function NovelcrafterWriteStage({
       historyCards={historyCards}
       activeChapterId={activeChapter.id}
       isStreaming={isStreaming}
-      streamingContent={streamingContent}
-      streamingThinking={streamingThinking}
-      streamingMeta={streamingMeta}
       hasActiveSelection={hasActiveSelection}
       onAppendToChapter={onAppendToChapter}
       onReplaceSelection={onReplaceSelection}

@@ -9,7 +9,8 @@ import { confirm } from "@/lib/store/confirmStore";
 import { useLanguage } from "@/app/features/chat/hooks/useLanguage";
 
 export default function PersonaModal() {
-  const { isOpen, closePersonaModal } = usePersonaStore();
+  const isOpen = usePersonaStore((s) => s.isOpen);
+  const closePersonaModal = usePersonaStore((s) => s.closePersonaModal);
   const { t } = useLanguage();
   const isConfirmingRef = useRef(false);
 

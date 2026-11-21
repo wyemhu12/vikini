@@ -1,43 +1,24 @@
 "use client";
 
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useCallback } from "react";
 import { logger } from "@/lib/utils/logger";
 import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
 import { mergeMessages } from "@/lib/features/chat/messageMerge";
-import type { LocalStreamProgress, ThinkingStatsSnapshot } from "@/lib/features/chat/thinkingStats";
 import {
+  countContextOnlyMessages,
   normalizeFrontendMessages,
   safeArray,
   type ChatFrontendMessage,
 } from "@/lib/features/chat/streamProtocol";
+import type { UseChatPartialPersistenceParams } from "./chatStreamHookTypes";
 
-export interface UseChatPartialPersistenceParams {
-  selectedConversationId: string | null;
-  messagesRef: MutableRefObject<ChatFrontendMessage[]>;
-  streamingAssistantRef: MutableRefObject<string | null>;
-  accumulatedAssistantRef: MutableRefObject<string>;
-  accumulatedThinkingRef: MutableRefObject<string>;
-  currentClientMessageIdRef: MutableRefObject<string | null>;
-  localSourcesRef: MutableRefObject<unknown[]>;
-  localRagSourcesRef: MutableRefObject<unknown[]>;
-  localUrlContextRef: MutableRefObject<unknown[]>;
-  emptyAnswerReasonRef: MutableRefObject<"length" | "no_content" | null>;
-  thinkingStatsSnapshotRef: MutableRefObject<ThinkingStatsSnapshot | null>;
-  setMessages: Dispatch<SetStateAction<ChatFrontendMessage[]>>;
-  setIsStreaming: Dispatch<SetStateAction<boolean>>;
-  setStreamingAssistant: Dispatch<SetStateAction<string | null>>;
-  setStreamingThinking: Dispatch<SetStateAction<string>>;
-  setStreamingLocalProgress: Dispatch<SetStateAction<LocalStreamProgress | null>>;
-  setStreamingSources: Dispatch<SetStateAction<unknown[]>>;
-  setStreamingRagSources: Dispatch<SetStateAction<unknown[]>>;
-  setStreamingUrlContext: Dispatch<SetStateAction<unknown[]>>;
-  stopTypewriter: (flush?: boolean) => void;
-  markAnswer: () => void;
-}
+export type { UseChatPartialPersistenceParams };
 
 export function useChatPartialPersistence(params: UseChatPartialPersistenceParams) {
   const {
     selectedConversationId,
+    activeConvIdRef,
+    isUnmountedRef,
     messagesRef,
     streamingAssistantRef,
     accumulatedAssistantRef,
@@ -49,6 +30,7 @@ export function useChatPartialPersistence(params: UseChatPartialPersistenceParam
     emptyAnswerReasonRef,
     thinkingStatsSnapshotRef,
     setMessages,
+    setContextMessagesCount,
     setIsStreaming,
     setStreamingAssistant,
     setStreamingThinking,
@@ -77,6 +59,8 @@ export function useChatPartialPersistence(params: UseChatPartialPersistenceParam
         if (!res.ok) throw new Error("Sync failed");
 
         const json = await res.json();
+        if (isUnmountedRef.current || activeConvIdRef.current !== convId) return;
+
         const data = json.data;
         const savedMsg = data?.message;
         const alreadyComplete = Boolean(data?.alreadyComplete);
@@ -111,6 +95,7 @@ export function useChatPartialPersistence(params: UseChatPartialPersistenceParam
         );
       } catch (syncErr: unknown) {
         logger.error("Failed to sync partial message:", syncErr);
+        if (isUnmountedRef.current || activeConvIdRef.current !== convId) return;
         setMessages((prev) =>
           prev.map((m) => {
             const metaObj = m.meta as Record<string, unknown> | undefined;
@@ -125,13 +110,14 @@ export function useChatPartialPersistence(params: UseChatPartialPersistenceParam
         );
       }
     },
-    [setMessages]
+    [activeConvIdRef, isUnmountedRef, setMessages]
   );
 
   const finalizeAssistantMessage = useCallback(
-    (status: "aborted" | "error" | "complete", convId: string | null) => {
+    (status: "aborted" | "error" | "complete", convId: string | null): Promise<void> => {
       stopTypewriter(true);
       markAnswer();
+      if (isUnmountedRef.current) return Promise.resolve();
       setStreamingLocalProgress(null);
 
       const rawContent = accumulatedAssistantRef.current || streamingAssistantRef.current || "";
@@ -142,7 +128,7 @@ export function useChatPartialPersistence(params: UseChatPartialPersistenceParam
         setStreamingAssistant(null);
         setStreamingThinking("");
         setStreamingRagSources([]);
-        return;
+        return Promise.resolve();
       }
 
       const balanced = balanceThinkTags(rawContent);
@@ -175,7 +161,9 @@ export function useChatPartialPersistence(params: UseChatPartialPersistenceParam
         meta,
       };
 
-      setMessages((prev) => [...normalizeFrontendMessages(prev), assistantMsg]);
+      if (!convId || activeConvIdRef.current === convId) {
+        setMessages((prev) => [...normalizeFrontendMessages(prev), assistantMsg]);
+      }
       setIsStreaming(false);
       setStreamingAssistant(null);
       setStreamingThinking("");
@@ -184,14 +172,17 @@ export function useChatPartialPersistence(params: UseChatPartialPersistenceParam
       setStreamingUrlContext([]);
 
       if (isPartial && convId && clientMsgId) {
-        void syncPartialMessage(convId, clientMsgId, balanced, meta);
+        return syncPartialMessage(convId, clientMsgId, balanced, meta);
       }
+      return Promise.resolve();
     },
     [
       accumulatedAssistantRef,
       accumulatedThinkingRef,
+      activeConvIdRef,
       currentClientMessageIdRef,
       emptyAnswerReasonRef,
+      isUnmountedRef,
       localRagSourcesRef,
       localSourcesRef,
       localUrlContextRef,
@@ -213,23 +204,26 @@ export function useChatPartialPersistence(params: UseChatPartialPersistenceParam
 
   const reloadMessagesAfterStream = useCallback(
     async (convId: string | null) => {
-      if (!convId) return;
+      if (!convId || isUnmountedRef.current || activeConvIdRef.current !== convId) return;
       try {
-        const res = await fetch(`/api/conversations?id=${convId}`, { cache: "no-store" });
-        if (res.ok) {
-          const json = await res.json();
-          const data = json.data || json;
-          if (data?.messages && Array.isArray(data.messages)) {
-            setMessages((currentLocal) =>
-              mergeMessages(normalizeFrontendMessages(data.messages), currentLocal)
-            );
-          }
+        const res = await fetch(`/api/conversations?id=${encodeURIComponent(convId)}`, {
+          cache: "no-store",
+        });
+        if (!res.ok || isUnmountedRef.current || activeConvIdRef.current !== convId) return;
+        const json = await res.json();
+        if (isUnmountedRef.current || activeConvIdRef.current !== convId) return;
+        const data = json.data || json;
+        if (data?.messages && Array.isArray(data.messages)) {
+          setContextMessagesCount(countContextOnlyMessages(data.messages));
+          setMessages((currentLocal) =>
+            mergeMessages(normalizeFrontendMessages(data.messages), currentLocal)
+          );
         }
       } catch (reloadError: unknown) {
         logger.warn("Failed to reload messages after stream:", reloadError);
       }
     },
-    [setMessages]
+    [activeConvIdRef, isUnmountedRef, setContextMessagesCount, setMessages]
   );
 
   const retrySave = useCallback(

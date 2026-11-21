@@ -11,6 +11,7 @@ import type {
   NovelcrafterBibleTarget,
   NovelcrafterHistoryCard,
 } from "@/lib/features/novelcrafter/types";
+import { useNovelcrafterStreamStore } from "@/lib/features/novelcrafter/novelcrafterStreamStore";
 import type { StreamingCardMeta } from "../hooks/useNovelcrafterStream";
 import NovelcrafterCardMetaBadges from "./NovelcrafterCardMetaBadges";
 import NovelcrafterHistoryCardItem from "./NovelcrafterHistoryCardItem";
@@ -18,9 +19,10 @@ import NovelcrafterHistoryCardItem from "./NovelcrafterHistoryCardItem";
 interface NovelcrafterHistoryPaneProps {
   historyCards: NovelcrafterHistoryCard[];
   isStreaming: boolean;
-  streamingContent: string;
-  streamingThinking: string;
-  streamingMeta: StreamingCardMeta | null;
+  /** @deprecated Streaming text/thinking/meta are read directly by NovelcrafterStreamingCard */
+  streamingContent?: string;
+  streamingThinking?: string;
+  streamingMeta?: StreamingCardMeta | null;
   hasActiveSelection: boolean;
   onAppendToChapter: (text: string) => void;
   onReplaceSelection: (text: string) => void;
@@ -32,12 +34,46 @@ interface NovelcrafterHistoryPaneProps {
   isInSheet?: boolean;
 }
 
+const NovelcrafterStreamingCard = React.memo(function NovelcrafterStreamingCard() {
+  const { t } = useLanguage();
+  const isStreaming = useNovelcrafterStreamStore((s) => s.isStreaming);
+  const streamingText = useNovelcrafterStreamStore((s) => s.streamingText);
+  const streamingThinking = useNovelcrafterStreamStore((s) => s.streamingThinking);
+  const streamingMeta = useNovelcrafterStreamStore((s) => s.streamingMeta);
+
+  if (!isStreaming) return null;
+
+  return (
+    <div className="rounded-xl border border-(--accent) bg-(--bg) p-3.5 space-y-2.5">
+      <div className="space-y-1.5">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-(--accent)">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <span>{streamingMeta?.subLabel || t("novelcrafterStreamingLabel")}</span>
+        </span>
+        <NovelcrafterCardMetaBadges
+          model={streamingMeta?.model}
+          routedModel={streamingMeta?.routedModel}
+          gemName={streamingMeta?.gemName}
+          personaName={streamingMeta?.personaName}
+        />
+      </div>
+
+      {streamingThinking && (
+        <div className="rounded-lg bg-(--raised) border border-(--line) p-2.5 text-xs text-(--muted) italic whitespace-pre-wrap max-h-36 overflow-y-auto custom-scrollbar">
+          {streamingThinking}
+        </div>
+      )}
+
+      <div className="text-sm text-(--text) whitespace-pre-wrap leading-relaxed">
+        {streamingText || t("novelcrafterStreamingLabel")}
+      </div>
+    </div>
+  );
+});
+
 export default function NovelcrafterHistoryPane({
   historyCards,
   isStreaming,
-  streamingContent,
-  streamingThinking,
-  streamingMeta,
   hasActiveSelection,
   onAppendToChapter,
   onReplaceSelection,
@@ -140,32 +176,7 @@ export default function NovelcrafterHistoryPane({
         aria-live="polite"
         className="flex-1 min-h-0 overflow-y-auto p-3.5 space-y-3 custom-scrollbar"
       >
-        {isStreaming && (
-          <div className="rounded-xl border border-(--accent) bg-(--bg) p-3.5 space-y-2.5">
-            <div className="space-y-1.5">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-(--accent)">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>{streamingMeta?.subLabel || t("novelcrafterStreamingLabel")}</span>
-              </span>
-              <NovelcrafterCardMetaBadges
-                model={streamingMeta?.model}
-                routedModel={streamingMeta?.routedModel}
-                gemName={streamingMeta?.gemName}
-                personaName={streamingMeta?.personaName}
-              />
-            </div>
-
-            {streamingThinking && (
-              <div className="rounded-lg bg-(--raised) border border-(--line) p-2.5 text-xs text-(--muted) italic whitespace-pre-wrap max-h-36 overflow-y-auto custom-scrollbar">
-                {streamingThinking}
-              </div>
-            )}
-
-            <div className="text-sm text-(--text) whitespace-pre-wrap leading-relaxed">
-              {streamingContent || t("novelcrafterStreamingLabel")}
-            </div>
-          </div>
-        )}
+        <NovelcrafterStreamingCard />
 
         {!isStreaming && visibleCards.length === 0 && (
           <div className="py-10 px-4 text-center space-y-2">

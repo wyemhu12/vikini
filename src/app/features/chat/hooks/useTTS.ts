@@ -1,7 +1,7 @@
 // app/features/chat/hooks/useTTS.ts
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { detectLanguage } from "@/lib/utils/detectLanguage";
 
 /**
@@ -12,18 +12,27 @@ export function useTTS() {
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [isCurrentlySpeaking, setIsCurrentlySpeaking] = useState(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const speakingMessageIdRef = useRef<string | null>(null);
+  const isCurrentlySpeakingRef = useRef(false);
 
   // Check browser support
   const isSupported = typeof window !== "undefined" && "speechSynthesis" in window;
 
-  // Speak a message with auto language detection
+  useEffect(() => {
+    speakingMessageIdRef.current = speakingMessageId;
+    isCurrentlySpeakingRef.current = isCurrentlySpeaking;
+  }, [speakingMessageId, isCurrentlySpeaking]);
+
+  // Speak a message with auto language detection (stable reference via refs)
   const speakMessage = useCallback(
     (messageId: string, text: string) => {
       if (!isSupported || !text.trim()) return;
 
       // If same message is speaking, stop it (toggle behavior)
-      if (speakingMessageId === messageId && isCurrentlySpeaking) {
+      if (speakingMessageIdRef.current === messageId && isCurrentlySpeakingRef.current) {
         window.speechSynthesis.cancel();
+        speakingMessageIdRef.current = null;
+        isCurrentlySpeakingRef.current = false;
         setSpeakingMessageId(null);
         setIsCurrentlySpeaking(false);
         return;
@@ -42,27 +51,35 @@ export function useTTS() {
 
       // Track state changes
       utterance.onstart = () => {
+        speakingMessageIdRef.current = messageId;
+        isCurrentlySpeakingRef.current = true;
         setSpeakingMessageId(messageId);
         setIsCurrentlySpeaking(true);
       };
 
       utterance.onend = () => {
+        speakingMessageIdRef.current = null;
+        isCurrentlySpeakingRef.current = false;
         setSpeakingMessageId(null);
         setIsCurrentlySpeaking(false);
       };
 
       utterance.onerror = () => {
+        speakingMessageIdRef.current = null;
+        isCurrentlySpeakingRef.current = false;
         setSpeakingMessageId(null);
         setIsCurrentlySpeaking(false);
       };
 
       // Store ref and speak
       utteranceRef.current = utterance;
+      speakingMessageIdRef.current = messageId;
+      isCurrentlySpeakingRef.current = true;
       setSpeakingMessageId(messageId); // Optimistic update
       setIsCurrentlySpeaking(true);
       window.speechSynthesis.speak(utterance);
     },
-    [isSupported, speakingMessageId, isCurrentlySpeaking]
+    [isSupported]
   );
 
   // Stop all speech
@@ -70,6 +87,8 @@ export function useTTS() {
     if (isSupported) {
       window.speechSynthesis.cancel();
     }
+    speakingMessageIdRef.current = null;
+    isCurrentlySpeakingRef.current = false;
     setSpeakingMessageId(null);
     setIsCurrentlySpeaking(false);
   }, [isSupported]);
@@ -91,12 +110,22 @@ export function useTTS() {
     };
   }, []);
 
-  return {
-    speakMessage,
-    stopSpeaking,
-    isMessageSpeaking,
-    speakingMessageId,
-    isSpeaking: isCurrentlySpeaking,
-    isSupported,
-  };
+  return useMemo(
+    () => ({
+      speakMessage,
+      stopSpeaking,
+      isMessageSpeaking,
+      speakingMessageId,
+      isSpeaking: isCurrentlySpeaking,
+      isSupported,
+    }),
+    [
+      speakMessage,
+      stopSpeaking,
+      isMessageSpeaking,
+      speakingMessageId,
+      isCurrentlySpeaking,
+      isSupported,
+    ]
+  );
 }

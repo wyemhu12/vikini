@@ -72,13 +72,29 @@ export function generateClientMessageId(): string {
   return "cm-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
 }
 
-export function parseSSEEvent(part: string): ParsedSSEEvent | null {
-  const lines = part.split("\n").filter(Boolean);
-  const eventLine = lines.find((l) => l.startsWith("event:"));
-  const dataLine = lines.find((l) => l.startsWith("data:"));
-  const event = eventLine?.replace("event:", "").trim();
-  const dataStr = dataLine?.replace("data:", "").trim();
+export function splitSSEFrames(buffer: string): { frames: string[]; remainder: string } {
+  const parts = buffer.split(/\r?\n\r?\n/);
+  const remainder = parts.pop() ?? "";
+  return { frames: parts, remainder };
+}
 
+export function parseSSEEvent(part: string): ParsedSSEEvent | null {
+  const lines = part
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\r$/, ""))
+    .filter(Boolean);
+  let event: string | undefined;
+  const dataLines: string[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith("event:")) {
+      event = line.slice("event:".length).trim();
+    } else if (line.startsWith("data:")) {
+      dataLines.push(line.slice("data:".length).trim());
+    }
+  }
+
+  const dataStr = dataLines.join("\n").trim();
   if (!event || !dataStr) return null;
 
   try {
@@ -87,6 +103,17 @@ export function parseSSEEvent(part: string): ParsedSSEEvent | null {
   } catch {
     return null;
   }
+}
+
+export function countContextOnlyMessages(arr: ChatFrontendMessage[] | unknown): number {
+  const safe = safeArray<ChatFrontendMessage>(arr);
+  let count = 0;
+  for (const m of safe) {
+    if ((m?.meta as Record<string, unknown> | undefined)?.isContextOnly) {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 export function normalizeFrontendMessages(
@@ -229,4 +256,82 @@ export function appendUserMessageWithTruncate(
     meta: options.fileIds && options.fileIds.length > 0 ? { fileIds: options.fileIds } : undefined,
   };
   return [...current, userMsg];
+}
+
+export interface MutableRefBox<T> {
+  current: T;
+}
+
+export interface StreamExecutionRefs {
+  abortControllerRef: MutableRefBox<AbortController | null>;
+  currentClientMessageIdRef: MutableRefBox<string | null>;
+  currentTruncateClientMessageIdRef: MutableRefBox<string | null>;
+  localSourcesRef: MutableRefBox<unknown[]>;
+  localRagSourcesRef: MutableRefBox<unknown[]>;
+  localUrlContextRef: MutableRefBox<unknown[]>;
+  hasStreamErrorRef: MutableRefBox<boolean>;
+  lastStreamErrorRef: MutableRefBox<StreamError | null>;
+  accumulatedAssistantRef: MutableRefBox<string>;
+  accumulatedThinkingRef: MutableRefBox<string>;
+  emptyAnswerReasonRef: MutableRefBox<"length" | "no_content" | null>;
+}
+
+export interface ChatStreamRequestParams {
+  conversationId: string | null;
+  content: string;
+  clientMessageId: string | null;
+  truncateMessageId?: string;
+  truncateClientMessageId?: string;
+  regenerate: boolean;
+  skipSaveUserMessage?: boolean;
+  thinkingLevel: string;
+  strataSampling?: unknown;
+  fileIds?: string[];
+  signal: AbortSignal;
+}
+
+export type ChatStreamFetchResult =
+  | { ok: true; reader: ReadableStreamDefaultReader<Uint8Array> }
+  | { ok: false; error: StreamError };
+
+export function resetStreamExecutionRefs(
+  refs: StreamExecutionRefs,
+  truncateClientMessageId?: string
+): AbortSignal {
+  if (refs.abortControllerRef.current) {
+    refs.abortControllerRef.current.abort();
+  }
+  const controller = new AbortController();
+  refs.abortControllerRef.current = controller;
+  refs.currentClientMessageIdRef.current = generateClientMessageId();
+  refs.currentTruncateClientMessageIdRef.current = truncateClientMessageId || null;
+  refs.localSourcesRef.current = [];
+  refs.localRagSourcesRef.current = [];
+  refs.localUrlContextRef.current = [];
+  refs.hasStreamErrorRef.current = false;
+  refs.lastStreamErrorRef.current = null;
+  refs.accumulatedAssistantRef.current = "";
+  refs.accumulatedThinkingRef.current = "";
+  refs.emptyAnswerReasonRef.current = null;
+  return controller.signal;
+}
+
+export async function requestChatStream(
+  params: ChatStreamRequestParams
+): Promise<ChatStreamFetchResult> {
+  const { signal, ...payloadParams } = params;
+  const payload = buildChatStreamPayload(payloadParams);
+  const res = await fetch("/api/chat-stream", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify(payload),
+    signal,
+  });
+
+  if (!res.ok || !res.body) {
+    return { ok: false, error: await extractStreamHttpError(res) };
+  }
+
+  return { ok: true, reader: res.body.getReader() };
 }

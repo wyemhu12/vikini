@@ -41,14 +41,19 @@ const mockProject: ProjectWithStats = {
 };
 
 const mockDeleteProject = vi.fn();
+const mockFetchProjects = vi.fn();
+const STABLE_PROJECT_LIST = [mockProject];
+const stableProjectPageStore = {
+  projects: STABLE_PROJECT_LIST,
+  limits: undefined,
+  deleteProject: mockDeleteProject,
+  fetchProjects: mockFetchProjects,
+};
 let mockProjectConvs: Array<{ id: string; title?: string; createdAt?: string }> = [];
 
 vi.mock("@/lib/store/projectStore", () => ({
-  useProjectStore: () => ({
-    projects: [mockProject],
-    deleteProject: mockDeleteProject,
-    fetchProjects: vi.fn(),
-  }),
+  useProjectStore: (selector?: (s: typeof stableProjectPageStore) => unknown) =>
+    selector ? selector(stableProjectPageStore) : stableProjectPageStore,
 }));
 
 vi.mock("@/app/features/chat/hooks/useConversation", () => ({
