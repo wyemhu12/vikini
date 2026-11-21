@@ -52,7 +52,7 @@ type Props = React.ComponentProps<typeof ComposerLeadingControls>;
 
 function makeProps(overrides: Partial<Props> = {}): Props {
   return {
-    currentModel: "gemini-3.8-flash",
+    currentModel: "gemini-3.5-flash-lite",
     webSearchEnabled: true,
     toggleWebSearch: vi.fn(),
     alwaysSearch: false,
@@ -98,7 +98,7 @@ describe("ComposerLeadingControls", () => {
   });
 
   it("disables web search for unsupported models and hides always-search (TC-06)", () => {
-    const props = makeProps({ currentModel: "deepseek-v4-flash" });
+    const props = makeProps({ currentModel: "deepseek/deepseek-v4-pro" });
     render(<ComposerLeadingControls {...props} />);
 
     const web = screen.getByRole("button", { name: "Tìm web" });
@@ -124,7 +124,7 @@ describe("ComposerLeadingControls", () => {
 
   it("counts active options using the effective thinking level (TC-07)", () => {
     const base = {
-      currentModel: "gemini-3.8-flash",
+      currentModel: "gemini-3.5-flash-lite",
       webSearchEnabled: false,
       alwaysSearch: false,
       thinkingLevel: "off" as const,
@@ -142,7 +142,7 @@ describe("ComposerLeadingControls", () => {
         currentPersona: { name: "Mentor", icon: null, color: null },
       })
     ).toBe(5);
-    expect(countActiveComposerOptions({ ...base, currentModel: "gemini-4-argon" })).toBe(1);
+    expect(countActiveComposerOptions({ ...base, currentModel: "gemini-4-neon" })).toBe(1);
     expect(
       countActiveComposerOptions({
         ...base,
@@ -153,13 +153,13 @@ describe("ComposerLeadingControls", () => {
     expect(
       countActiveComposerOptions({
         ...base,
-        currentModel: "deepseek-v4-flash",
+        currentModel: "deepseek/deepseek-v4-pro",
         webSearchEnabled: true,
         alwaysSearch: true,
       })
     ).toBe(0);
     expect(
-      countActiveComposerOptions({ ...base, currentModel: "claude-sonnet-4.5", alwaysSearch: true })
+      countActiveComposerOptions({ ...base, currentModel: "claude-sonnet-5-5", alwaysSearch: true })
     ).toBe(0);
   });
 

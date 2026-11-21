@@ -5,6 +5,7 @@ const hoisted = vi.hoisted(() => ({
   generateContentStreamMock: vi.fn(),
   claudeMessagesCreateMock: vi.fn(),
   openRouterChatCreateMock: vi.fn(),
+  groqChatCreateMock: vi.fn(),
   streamStrataProviderMock: vi.fn(),
   getGemsForUserMock: vi.fn(),
   getPersonasForUserMock: vi.fn(),
@@ -35,6 +36,16 @@ vi.mock("@/lib/core/openRouterClient", () => ({
     chat: {
       completions: {
         create: hoisted.openRouterChatCreateMock,
+      },
+    },
+  }),
+}));
+
+vi.mock("@/lib/core/groqClient", () => ({
+  getGroqClient: () => ({
+    chat: {
+      completions: {
+        create: hoisted.groqChatCreateMock,
       },
     },
   }),
@@ -180,26 +191,26 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("TC-01: configures Gemini 4 Argon with uppercase ThinkingLevel.MEDIUM and maxOutputTokens", async () => {
-    async function* mockArgonGenerator() {
+  it("TC-01: configures Gemini 4 Neon with uppercase ThinkingLevel.MEDIUM and maxOutputTokens", async () => {
+    async function* mockNeonGenerator() {
       yield {
         candidates: [
           {
             content: {
-              parts: [{ text: "Argon draft generated.", thought: false }],
+              parts: [{ text: "Neon draft generated.", thought: false }],
             },
           },
         ],
       };
     }
 
-    hoisted.generateContentStreamMock.mockResolvedValue(mockArgonGenerator());
+    hoisted.generateContentStreamMock.mockResolvedValue(mockNeonGenerator());
 
     const stream = runNovelcrafterStream({
       userId: "u@vikini.net",
       request: {
         ...BASE_REQUEST,
-        model: "gemini-4-argon",
+        model: "gemini-4-neon",
       },
     });
 
@@ -207,7 +218,7 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
 
     expect(hoisted.generateContentStreamMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "gemini-4-argon",
+        model: "gemini-4-neon",
         config: expect.objectContaining({
           maxOutputTokens: 65536,
           thinkingConfig: {
@@ -217,7 +228,7 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
         }),
       })
     );
-    expect(rawSse).toContain("Argon draft generated.");
+    expect(rawSse).toContain("Neon draft generated.");
     expect(rawSse).toContain("event: done\n");
   });
 
@@ -252,20 +263,20 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     expect(callArg.config.thinkingConfig).not.toHaveProperty("thinkingBudget");
   });
 
-  it("TC-NCR-02: configures gemini-3.8-flash with ThinkingLevel.LOW (never MINIMAL)", async () => {
-    async function* mockFlash38Generator() {
+  it("TC-NCR-02: maps legacy gemini-3.8-flash to gemini-4-hydrogen with ThinkingLevel.MEDIUM (never MINIMAL)", async () => {
+    async function* mockHydrogenGenerator() {
       yield {
         candidates: [
           {
             content: {
-              parts: [{ text: "Flash 3.8 draft.", thought: false }],
+              parts: [{ text: "Hydrogen draft.", thought: false }],
             },
           },
         ],
       };
     }
 
-    hoisted.generateContentStreamMock.mockResolvedValue(mockFlash38Generator());
+    hoisted.generateContentStreamMock.mockResolvedValue(mockHydrogenGenerator());
 
     const stream = runNovelcrafterStream({
       userId: "u@vikini.net",
@@ -278,9 +289,9 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     await readStreamText(stream);
 
     const callArg = hoisted.generateContentStreamMock.mock.calls[0]?.[0];
-    expect(callArg.model).toBe("gemini-3.8-flash");
+    expect(callArg.model).toBe("gemini-4-hydrogen");
     expect(callArg.config.thinkingConfig).toEqual({
-      thinkingLevel: "LOW",
+      thinkingLevel: "MEDIUM",
       includeThoughts: true,
     });
   });
@@ -306,7 +317,7 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
       userId: "u@vikini.net",
       request: {
         ...BASE_REQUEST,
-        model: "claude-sonnet-4.5",
+        model: "claude-sonnet-5-5",
       },
     });
 
@@ -315,7 +326,7 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     expect(hoisted.claudeMessagesCreateMock).not.toHaveBeenCalled();
     expect(hoisted.openRouterChatCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "anthropic/claude-sonnet-4-6",
+        model: "anthropic/claude-sonnet-5.5",
       }),
       expect.anything()
     );
@@ -339,19 +350,45 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
       userId: "u@vikini.net",
       request: {
         ...BASE_REQUEST,
-        model: "claude-sonnet-4.5",
+        model: "claude-sonnet-5-5",
       },
     });
 
     const rawSse = await readStreamText(stream);
     expect(hoisted.claudeMessagesCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "claude-sonnet-4-6",
+        model: "claude-sonnet-5-5",
       }),
       expect.anything()
     );
     expect(rawSse).toContain('event: token\ndata: {"t":"Claude narrative output."}\n\n');
     expect(rawSse).toContain("event: done\n");
+  });
+
+  it("TC-MC-05: routes openai/gpt-oss-120b to Groq client and not OpenRouter", async () => {
+    async function* mockGroqGenerator() {
+      yield {
+        choices: [{ delta: { content: "Groq narrative output." } }],
+      };
+    }
+
+    hoisted.groqChatCreateMock.mockResolvedValue(mockGroqGenerator());
+
+    const stream = runNovelcrafterStream({
+      userId: "u@vikini.net",
+      request: {
+        ...BASE_REQUEST,
+        model: "openai/gpt-oss-120b",
+      },
+    });
+
+    const rawSse = await readStreamText(stream);
+    expect(hoisted.groqChatCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "openai/gpt-oss-120b" }),
+      expect.anything()
+    );
+    expect(hoisted.openRouterChatCreateMock).not.toHaveBeenCalled();
+    expect(rawSse).toContain("Groq narrative output.");
   });
 
   it("stops streaming immediately when AbortSignal is triggered and emits error frame on provider failure", async () => {
@@ -416,10 +453,10 @@ describe("novelcrafterStreamRunner.server (TC-06)", () => {
     const gemini3Sse = await readStreamText(gemini3Stream);
     expect(hoisted.generateContentStreamMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "gemini-3.8-flash",
+        model: "gemini-4-hydrogen",
         config: expect.objectContaining({
           thinkingConfig: {
-            thinkingLevel: "LOW",
+            thinkingLevel: "MEDIUM",
             includeThoughts: true,
           },
           safetySettings: expect.arrayContaining([

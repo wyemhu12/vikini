@@ -1,14 +1,16 @@
 // src/app/features/chat/components/InputForm.test.tsx
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import InputForm from "./InputForm";
 import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
 
+let capturedDynamicLightboxProps: { onNavigate?: unknown } = {};
 vi.mock("next/dynamic", () => ({
   default: () => {
-    return function DynamicFileLightbox() {
+    return function DynamicFileLightbox(props: { onNavigate?: unknown }) {
+      capturedDynamicLightboxProps = props;
       return <div data-testid="file-lightbox" />;
     };
   },
@@ -66,14 +68,19 @@ vi.mock("../hooks/useLanguage", () => ({
 }));
 
 // Mock useFileUpload
+let mockIsUploading = false;
+const mockCancelUpload = vi.fn();
+const mockDismissUploadError = vi.fn();
 vi.mock("@/lib/features/files/useFileUpload", () => ({
   useFileUpload: () => ({
     openFilePicker: vi.fn(),
+    cancelUpload: mockCancelUpload,
+    dismissUploadError: mockDismissUploadError,
     isDragging: false,
     fileInputRef: { current: null },
     fileAccept: "image/*",
     handleFileInputChange: vi.fn(),
-    isUploading: false,
+    isUploading: mockIsUploading,
   }),
 }));
 
@@ -89,11 +96,13 @@ vi.mock("@/lib/features/files/useFiles", () => ({
 // Mock useFileStore
 const mockMarkAsSent = vi.fn();
 const mockClearSentFileIds = vi.fn();
+const mockReleaseFileMetadata = vi.fn();
 const stableFileStoreState = {
   uploadQueue: [],
   sentFileIds: [],
   markAsSent: mockMarkAsSent,
   clearSentFileIds: mockClearSentFileIds,
+  releaseFileMetadata: mockReleaseFileMetadata,
 };
 vi.mock("@/lib/features/files/store", () => ({
   useFileStore: (selector: (state: unknown) => unknown) => selector(stableFileStoreState),
@@ -104,6 +113,8 @@ vi.mock("./FilePreviewArea", () => ({
   FilePreviewArea: (props: {
     onRemoveFile?: (id: string) => Promise<void> | void;
     onClearAll?: () => Promise<void> | void;
+    onClickFile?: (file: unknown) => void;
+    disabled?: boolean;
   }) => {
     capturedFilePreviewProps = props;
     return <div data-testid="file-preview-area" />;
@@ -531,6 +542,53 @@ describe("InputForm", () => {
 
       expect(onChangeInput).toHaveBeenNthCalledWith(1, "Xin chào");
       expect(onChangeInput).toHaveBeenNthCalledWith(2, "Xin chào thế giới");
+    });
+  });
+
+  describe("Upload UX & Lightbox wiring (TC-SU-06, NP-3b)", () => {
+    it("NP-3b: disables Send and blocks desktop Enter while isUploading=true, yet keeps Plus menu and FilePreviewArea interactive", () => {
+      mockIsUploading = true;
+      const onSubmit = vi.fn();
+      Object.defineProperty(window, "innerWidth", { value: 1280, configurable: true });
+
+      try {
+        render(
+          <InputForm
+            input="Hello while uploading"
+            onChangeInput={vi.fn()}
+            onSubmit={onSubmit}
+            disabled={false}
+          />
+        );
+
+        const sendBtn = screen.getByRole("button", { name: "Send" });
+        expect(sendBtn).toBeDisabled();
+
+        const textarea = screen.getByPlaceholderText("Type a message...");
+        fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
+        expect(onSubmit).not.toHaveBeenCalled();
+
+        // Plus attachment button remains enabled so users can queue more files
+        const addBtn = screen.getByRole("button", { name: "addAttachment" });
+        expect(addBtn).not.toBeDisabled();
+      } finally {
+        mockIsUploading = false;
+      }
+    });
+
+    it("wires onNavigate callback to FileLightbox when opening a file preview", async () => {
+      capturedDynamicLightboxProps = {};
+      render(<InputForm input="" onChangeInput={vi.fn()} onSubmit={vi.fn()} />);
+
+      const previewProps = capturedFilePreviewProps as { onClickFile?: (file: unknown) => void };
+      act(() => {
+        previewProps.onClickFile?.({ id: "f-1", filename: "a.png", kind: "image" });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("file-lightbox")).toBeInTheDocument();
+        expect(typeof capturedDynamicLightboxProps.onNavigate).toBe("function");
+      });
     });
   });
 });

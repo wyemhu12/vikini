@@ -2,8 +2,9 @@
 
 import {
   MODEL_ALIASES,
-  PROVIDER_LABELS,
   SELECTABLE_MODELS,
+  UI_GROUP_LABELS,
+  type ModelUiGroup,
   type SelectableModel,
 } from "@/lib/core/modelRegistry";
 
@@ -12,22 +13,27 @@ export type ModelFilter = (typeof MODEL_FILTERS)[number];
 
 export type ProviderId = SelectableModel["providerId"];
 
-/** Provider group order in the picker (unchanged from the previous selector). */
-export const PROVIDER_ORDER: readonly ProviderId[] = [
+/** Brand-based UI group order in the picker (Gemini first). */
+export const UI_GROUP_ORDER: readonly ModelUiGroup[] = [
   "gemini",
-  "grok",
-  "deepseek",
-  "openai",
   "anthropic",
+  "deepseek",
+  "grok",
+  "glm",
   "groq",
-  "openrouter-free",
-  "openrouter-pay",
   "local",
 ];
 
+/** Format token count as compact context string (e.g. 1048576 -> "1M", 131072 -> "131K", 32768 -> "32K"). */
+export function formatContextWindow(tokens: number): string {
+  if (tokens >= 1_000_000) return `${Math.round(tokens / 1_000_000)}M`;
+  if (tokens < 65_536) return `${Math.floor(tokens / 1024)}K`;
+  return `${Math.floor(tokens / 1000)}K`;
+}
+
 export interface ModelPickerSection {
-  id: "recent" | ProviderId;
-  /** Provider label for provider groups; the UI translates the "recent" group. */
+  id: "recent" | ModelUiGroup;
+  /** Group label for brand groups; the UI translates the "recent" group. */
   label: string;
   models: SelectableModel[];
 }
@@ -45,7 +51,7 @@ export interface BuildSectionsOptions {
 export function normalizeSearchText(value: string): string {
   return value
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/đ/g, "d")
     .replace(/Đ/g, "d")
     .toLowerCase()
@@ -59,7 +65,7 @@ function matchesFilter(model: SelectableModel, filter: ModelFilter): boolean {
     case "reasoning":
       return model.category === "reasoning";
     case "free":
-      return model.providerId === "openrouter-free";
+      return model.isFree === true;
     case "local":
       return model.providerId === "local";
     default:
@@ -74,17 +80,14 @@ function matchesQuery(
 ) {
   if (terms.length === 0) return true;
   const haystack = normalizeSearchText(
-    [
-      model.name ?? model.id,
-      model.id,
-      PROVIDER_LABELS[model.providerId] ?? "",
-      describe(model),
-    ].join(" ")
+    [model.name ?? model.id, model.id, UI_GROUP_LABELS[model.uiGroup] ?? "", describe(model)].join(
+      " "
+    )
   );
   return terms.every((term) => haystack.includes(term));
 }
 
-/** Filters, searches and groups models: "recent" first (only when browsing), then providers. */
+/** Filters, searches and groups models: "recent" first (only when browsing), then brand UI groups. */
 export function buildModelPickerSections(
   models: readonly SelectableModel[],
   opts: BuildSectionsOptions
@@ -107,12 +110,12 @@ export function buildModelPickerSections(
   if (recentModels.length > 0) sections.push({ id: "recent", label: "", models: recentModels });
 
   const recentSet = new Set(recentModels.map((m) => m.id));
-  for (const providerId of PROVIDER_ORDER) {
-    const group = visible.filter((m) => m.providerId === providerId && !recentSet.has(m.id));
+  for (const uiGroup of UI_GROUP_ORDER) {
+    const group = visible.filter((m) => m.uiGroup === uiGroup && !recentSet.has(m.id));
     if (group.length > 0) {
       sections.push({
-        id: providerId,
-        label: PROVIDER_LABELS[providerId] ?? providerId,
+        id: uiGroup,
+        label: UI_GROUP_LABELS[uiGroup] ?? uiGroup,
         models: group,
       });
     }
@@ -137,7 +140,7 @@ export function resolveChatModelDisplay(modelId: unknown): ChatModelDisplay {
   if (current) {
     return {
       name: current.name ?? current.id,
-      providerLabel: PROVIDER_LABELS[current.providerId] ?? current.providerId,
+      providerLabel: UI_GROUP_LABELS[current.uiGroup] ?? current.uiGroup,
       status: "current",
     };
   }
@@ -147,7 +150,7 @@ export function resolveChatModelDisplay(modelId: unknown): ChatModelDisplay {
     if (target) {
       return {
         name: target.name ?? target.id,
-        providerLabel: PROVIDER_LABELS[target.providerId] ?? target.providerId,
+        providerLabel: UI_GROUP_LABELS[target.uiGroup] ?? target.uiGroup,
         status: "legacy",
       };
     }

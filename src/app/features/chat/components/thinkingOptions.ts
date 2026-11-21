@@ -17,6 +17,7 @@ const LABEL_KEYS: Record<ThinkingLevel, string> = {
   low: "thinkingLevelLow",
   medium: "thinkingLevelMedium",
   high: "thinkingLevelHigh",
+  xhigh: "thinkingLevelXHigh",
 };
 
 /** Token budget shown next to each level for the local Strata model. */

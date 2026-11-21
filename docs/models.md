@@ -1,39 +1,60 @@
 # Danh sách Model và Tính năng - Vikini
 
-> **Updated**: 2026-11-02  
-> **Nguồn**: [Google AI - Gemini Models](https://ai.google.dev/gemini-api/docs/models), [What's new in Gemini 4 Argon](https://ai.google.dev/gemini-api/docs/latest-model), [Anthropic Claude Docs](https://docs.anthropic.com/), [DeepSeek API](https://api-docs.deepseek.com/), [OpenRouter](https://openrouter.ai), [Groq Cloud](https://console.groq.com/docs/models), [Strata Local Inference Engine](https://github.com/Niko1221/Strata)
+> **Updated**: 2026-11-21  
+> **Nguồn**: [Google AI - Gemini Models](https://ai.google.dev/gemini-api/docs/models), [Anthropic Claude Docs](https://docs.anthropic.com/), [DeepSeek API](https://api-docs.deepseek.com/), [OpenRouter](https://openrouter.ai), [Groq Cloud](https://console.groq.com/docs/models), [Strata Local Inference Engine](https://github.com/Niko1221/Strata)
 
 > [!NOTE]
 > Để tham khảo hướng dẫn phân bổ model cho AI Coding Agents, xem [Agent Task-to-Model Routing Guide](../.agents/README.md#agent-task-to-model-routing).
 
 ---
 
+## Bảng Tổng Hợp 12 Model Khả Dụng (Model Picker — 11/2026)
+
+Nhóm UI sắp xếp theo hãng (`uiGroup`), ưu tiên **Gemini** lên đầu tiên, chỉ hiển thị **Ngữ cảnh** và phân biệt **Miễn phí / Trả phí** (`isFree`):
+
+| Nhóm UI (`uiGroup`) | Model ID                             | Tên hiển thị              | Ngữ cảnh | Max Output |     Trả phí / Miễn phí     | Routing Backend                                               |
+| :------------------ | :----------------------------------- | :------------------------ | :------: | :--------: | :------------------------: | :------------------------------------------------------------ |
+| **Gemini**          | `gemini-3.5-flash-lite` _(Mặc định)_ | Gemini 3.5 Flash-Lite     |    1M    |    64K     |          Trả phí           | Google Gemini Direct                                          |
+| **Gemini**          | `gemini-4-hydrogen`                  | Gemini 4 Hydrogen         |    1M    |    64K     |          Trả phí           | Google Gemini Direct                                          |
+| **Gemini**          | `gemini-4-neon`                      | Gemini 4 Neon             |    1M    |    64K     |          Trả phí           | Google Gemini Direct                                          |
+| **Claude**          | `claude-haiku-5-5`                   | Claude 5.5 Haiku          |    1M    |    128K    |          Trả phí           | Anthropic Direct → OpenRouter (`anthropic/claude-haiku-5.5`)  |
+| **Claude**          | `claude-sonnet-5-5`                  | Claude 5.5 Sonnet         |    1M    |    128K    |          Trả phí           | Anthropic Direct → OpenRouter (`anthropic/claude-sonnet-5.5`) |
+| **DeepSeek**        | `deepseek/deepseek-v4.1-flash`       | DeepSeek V4.1 Flash       |    1M    |    384K    |          Trả phí           | OpenRouter                                                    |
+| **DeepSeek**        | `deepseek/deepseek-v4-pro`           | DeepSeek V4 Pro           |    1M    |    64K     |          Trả phí           | OpenRouter                                                    |
+| **DeepSeek**        | `deepseek/deepseek-v3.2:floor`       | DeepSeek V3.2             |   128K   |    16K     |          Trả phí           | OpenRouter                                                    |
+| **Grok**            | `x-ai/grok-4.7`                      | Grok 4.7                  |   500K   |     —      |          Trả phí           | OpenRouter                                                    |
+| **GLM**             | `z-ai/glm-5.2`                       | GLM 5.2                   |    1M    |    64K     |          Trả phí           | OpenRouter (CoreWeave FP4)                                    |
+| **Groq**            | `openai/gpt-oss-120b`                | GPT-OSS 120B              |   131K   |     8K     | **Miễn phí** _(Free Tier)_ | Groq Cloud (`isGroqModel`)                                    |
+| **Local Models**    | `strata-local`                       | Qwen3.8 125B MoE (Strata) |   32K    |    16K     |   **Miễn phí** _(Local)_   | Strata Local Engine                                           |
+
+---
+
 ## Gemini 4 Series
 
 > [!IMPORTANT]
-> **Gemini 4 Argon Architecture & Policy (October 2026)**:
+> **Gemini 4 Hydrogen & Neon Architecture & Policy (November 2026)**:
 >
-> - **Always-On Thinking**: `gemini-4-argon` không cho phép tắt thinking (`off`) và không hỗ trợ `minimal`. Các bậc hợp lệ là `low`, `medium` (mặc định), `high`.
-> - **Implicit Context Caching Only**: Tự động áp dụng chiết khấu 95% trên tiền tố lặp lại (tối thiểu 2,048 tokens); không hỗ trợ Explicit Context Caching (`caches.create`).
+> - **Always-On Thinking**: `gemini-4-hydrogen` và `gemini-4-neon` không cho phép tắt thinking (`off`) và không hỗ trợ `minimal`. Các bậc hợp lệ là `low`, `medium` (mặc định), `high`, `xhigh`.
+> - **Legacy Aliases**: `gemini-3.8-flash`, `gemini-3-flash-preview`, `gemini-3-flash`, `gemini-2.5-pro`, `gemini-3.1-pro-*` → `gemini-4-hydrogen`; `gemini-4-argon`, `gemini-4-argon-preview` → `gemini-4-neon`.
+> - **Implicit Context Caching Only**: Tự động áp dụng chiết khấu trên tiền tố lặp lại; không hỗ trợ Explicit Context Caching (`caches.create`).
 > - **15-Minute Timeout**: Áp dụng `TIMEOUT_CONFIG.ARGON = 900,000ms` (15 phút) trên self-hosted Node.js và `maxDuration = 800s` trên Vercel Pro.
-> - **Paid-Tier Only**: Chỉ khả dụng trên khóa API Gemini trả phí (cấp quyền cho hạng `pro` và `admin`).
+> - **Paid-Tier Only**: Chỉ khả dụng trên khóa API Gemini trả phí.
 
-### gemini-4-argon
+### gemini-4-hydrogen & gemini-4-neon
 
-| Thuộc tính                | Giá trị                                            |
-| ------------------------- | -------------------------------------------------- |
-| **Tên hiển thị**          | Gemini 4 Argon                                     |
-| **Alias tương thích**     | `gemini-4-argon-preview`                           |
-| **Unified context limit** | 1,048,576 (1M)                                     |
-| **Output token limit**    | 65,536 (64K streaming standard)                    |
-| **Inputs**                | Text, Image, Video, Audio, PDF                     |
-| **Outputs**               | Text                                               |
-| **Pricing (Intro)**       | \$2.00 / 1M input, \$10.00 / 1M output (+thinking) |
+| Thuộc tính                | Giá trị                                                                                                                          |
+| :------------------------ | :------------------------------------------------------------------------------------------------------------------------------- |
+| **Tên hiển thị**          | Gemini 4 Hydrogen / Gemini 4 Neon                                                                                                |
+| **Alias tương thích**     | `gemini-3.8-flash`, `gemini-3-flash-preview` → `gemini-4-hydrogen`; `gemini-4-argon`, `gemini-4-argon-preview` → `gemini-4-neon` |
+| **Unified context limit** | 1,048,576 (1M)                                                                                                                   |
+| **Output token limit**    | 65,536 (64K streaming standard)                                                                                                  |
+| **Inputs**                | Text, Image, Video, Audio, PDF                                                                                                   |
+| **Outputs**               | Text                                                                                                                             |
 
 **Supported Features:**
 | Feature | Status |
 |---------|--------|
-| Thinking Mode | ✅ Always-On (`low`, `medium` default, `high` — no `off`) |
+| Thinking Mode | ✅ Always-On (`low`, `medium` default, `high`, `xhigh` — no `off`) |
 | Search Grounding | ✅ Supported (with Tool Context Circulation) |
 | URL Context | ✅ Supported |
 | Function Calling | ✅ Supported |

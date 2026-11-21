@@ -1,5 +1,6 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { LocalStreamProgress, ThinkingStatsSnapshot } from "@/lib/features/chat/thinkingStats";
+import type { StreamActivity } from "@/lib/features/chat/streamActivity";
 import type {
   ChatFrontendMessage,
   CoreSendOptions,
@@ -28,6 +29,7 @@ export interface UseChatStreamReaderParams {
   setStreamingUrlContext: Dispatch<SetStateAction<unknown[]>>;
   setStreamingThinking: Dispatch<SetStateAction<string>>;
   setStreamingLocalProgress: Dispatch<SetStateAction<LocalStreamProgress | null>>;
+  setStreamingActivity: Dispatch<SetStateAction<StreamActivity | null>>;
   setStreamError: Dispatch<SetStateAction<StreamError | null>>;
   startTypewriter: () => void;
   appendToTypewriterBuffer: (token: string) => void;
@@ -56,6 +58,7 @@ export interface UseChatPartialPersistenceParams {
   setStreamingAssistant: Dispatch<SetStateAction<string | null>>;
   setStreamingThinking: Dispatch<SetStateAction<string>>;
   setStreamingLocalProgress: Dispatch<SetStateAction<LocalStreamProgress | null>>;
+  setStreamingActivity: Dispatch<SetStateAction<StreamActivity | null>>;
   setStreamingSources: Dispatch<SetStateAction<unknown[]>>;
   setStreamingRagSources: Dispatch<SetStateAction<unknown[]>>;
   setStreamingUrlContext: Dispatch<SetStateAction<unknown[]>>;
@@ -82,6 +85,7 @@ export interface UseChatStreamExecutionParams extends StreamExecutionRefs {
   setStreamingAssistant: Dispatch<SetStateAction<string | null>>;
   setStreamingThinking: Dispatch<SetStateAction<string>>;
   setStreamingLocalProgress: Dispatch<SetStateAction<LocalStreamProgress | null>>;
+  setStreamingActivity: Dispatch<SetStateAction<StreamActivity | null>>;
   setStreamingSources: Dispatch<SetStateAction<unknown[]>>;
   setStreamingRagSources: Dispatch<SetStateAction<unknown[]>>;
   setStreamingUrlContext: Dispatch<SetStateAction<unknown[]>>;

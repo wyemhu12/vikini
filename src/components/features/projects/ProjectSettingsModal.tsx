@@ -5,6 +5,10 @@ import { X, Trash2, Loader2, MessageSquare, Plus, FileText } from "lucide-react"
 import { cn } from "@/lib/utils/cn";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { KnowledgePanel } from "@/components/features/projects";
+import {
+  sendKnowledgeUploadXhr,
+  type KnowledgeUploadCallbacks,
+} from "@/lib/features/projects/knowledgeUploadHelpers";
 import { ProjectIcon } from "@/components/features/projects/ProjectIcon";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { useConversation } from "@/app/features/chat/hooks/useConversation";
@@ -74,7 +78,7 @@ export function ProjectSettingsModal({
       const data = await res.json();
 
       if (!data.success) {
-        throw new Error(data.error?.message || "Failed to fetch documents");
+        throw new Error(data.error?.message || t("fetchDocsFailed"));
       }
 
       setDocuments(Array.isArray(data?.data?.documents) ? data.data.documents : []);
@@ -95,15 +99,26 @@ export function ProjectSettingsModal({
   }, [isOpen, projectId, fetchDocuments]);
 
   // Upload document
-  const handleUpload = async (file: File, payload: FormData | string) => {
-    let res: Response;
+  const handleUpload = async (
+    file: File,
+    payload: FormData | string,
+    callbacks?: KnowledgeUploadCallbacks
+  ) => {
+    let truncated = false;
     if (payload instanceof FormData) {
-      res = await fetch(`/api/projects/${projectId}/knowledge`, {
-        method: "POST",
-        body: payload,
+      const uploaded = await sendKnowledgeUploadXhr({
+        projectId,
+        file,
+        formData: payload,
+        payloadTooLargeMessage: t("serverPayloadTooLarge"),
+        fallbackErrorMessage: t("uploadFailed"),
+        onProgress: callbacks?.onProgress,
+        onProcessing: callbacks?.onProcessing,
+        signal: callbacks?.signal,
       });
+      truncated = uploaded.truncated;
     } else {
-      res = await fetch(`/api/projects/${projectId}/knowledge`, {
+      const res = await fetch(`/api/projects/${projectId}/knowledge`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -111,30 +126,30 @@ export function ProjectSettingsModal({
           content: payload,
           mimeType: file.type || "text/plain",
         }),
+        signal: callbacks?.signal,
       });
-    }
 
-    if (res.status === 413) {
-      throw new Error(
-        t("serverPayloadTooLarge") || "File quá lớn, vượt quá giới hạn tải lên của máy chủ"
-      );
-    }
+      if (res.status === 413) {
+        throw new Error(t("serverPayloadTooLarge"));
+      }
 
-    let data: { success?: boolean; error?: { message?: string }; data?: { truncated?: boolean } };
-    try {
-      data = await res.json();
-    } catch {
-      throw new Error(res.ok ? "Upload failed" : `Upload failed (${res.status})`);
-    }
+      let data: { success?: boolean; error?: { message?: string }; data?: { truncated?: boolean } };
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(t("uploadFailed"));
+      }
 
-    if (!data.success) {
-      throw new Error(data.error?.message || "Upload failed");
+      if (!data.success) {
+        throw new Error(data.error?.message || t("uploadFailed"));
+      }
+      truncated = Boolean(data.data?.truncated);
     }
 
     // Refresh both document list and project stats (document_count, storage_bytes)
     await Promise.all([fetchDocuments(), fetchProjects()]);
 
-    return { truncated: Boolean(data.data?.truncated) };
+    return { truncated };
   };
 
   // Delete document
@@ -145,7 +160,7 @@ export function ProjectSettingsModal({
 
     const data = await res.json();
     if (!data.success) {
-      throw new Error(data.error?.message || "Delete failed");
+      throw new Error(data.error?.message || t("deleteFailed"));
     }
 
     // Refresh both document list and project stats (document_count, storage_bytes)

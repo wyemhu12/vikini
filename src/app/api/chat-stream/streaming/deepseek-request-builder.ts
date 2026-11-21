@@ -34,7 +34,7 @@ export interface DeepSeekEffortMapping {
 
 export function mapDeepSeekEffort(
   model: string,
-  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal"
+  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal" | "xhigh"
 ): DeepSeekEffortMapping {
   const isThinkingEnabled = thinkingLevel !== "off";
 
@@ -44,7 +44,7 @@ export function mapDeepSeekEffort(
   if (isDeepSeekV41FlashModel(model)) {
     if (!isThinkingEnabled) {
       reasoningEffort = "none";
-    } else if (thinkingLevel === "high") {
+    } else if (thinkingLevel === "high" || thinkingLevel === "xhigh") {
       reasoningEffort = "high";
     } else if (thinkingLevel === "low") {
       reasoningEffort = "low";
@@ -55,7 +55,7 @@ export function mapDeepSeekEffort(
   } else if (isDeepSeekV4ProModel(model)) {
     if (!isThinkingEnabled) {
       reasoningEffort = "none";
-    } else if (thinkingLevel === "high") {
+    } else if (thinkingLevel === "high" || thinkingLevel === "xhigh") {
       reasoningEffort = "xhigh";
     } else if (thinkingLevel === "low") {
       reasoningEffort = "high";
@@ -64,10 +64,10 @@ export function mapDeepSeekEffort(
       reasoningEffort = "high";
     }
   } else {
-    // Direct DeepSeek API
+    // Fallback
     if (!isThinkingEnabled) {
       reasoningEffort = "none";
-    } else if (thinkingLevel === "high") {
+    } else if (thinkingLevel === "high" || thinkingLevel === "xhigh") {
       reasoningEffort = "max";
     } else {
       // "low", "medium", "minimal", undefined -> map to "high"
@@ -93,7 +93,7 @@ export function mapDeepSeekEffort(
 export function buildDeepSeekRequestBody(params: {
   model: string;
   messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
-  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
+  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal" | "xhigh";
   modelMeta?: { maxOutputTokens?: number };
 }): DeepSeekStreamRequestBody {
   const { model, messages, thinkingLevel, modelMeta } = params;

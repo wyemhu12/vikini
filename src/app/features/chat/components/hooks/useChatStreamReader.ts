@@ -8,6 +8,11 @@ import {
   type ParsedSSEEvent,
   type StreamError,
 } from "@/lib/features/chat/streamProtocol";
+import {
+  reduceStreamActivityFromMeta,
+  reduceStreamActivityOnThinking,
+  reduceStreamActivityOnToken,
+} from "@/lib/features/chat/streamActivity";
 import { toast } from "@/lib/store/toastStore";
 import { resolveStreamErrorMessage } from "../StreamErrorBanner";
 import type { UseChatStreamReaderParams } from "./chatStreamHookTypes";
@@ -36,6 +41,7 @@ export function useChatStreamReader(params: UseChatStreamReaderParams) {
     setStreamingUrlContext,
     setStreamingThinking,
     setStreamingLocalProgress,
+    setStreamingActivity,
     setStreamError,
     startTypewriter,
     appendToTypewriterBuffer,
@@ -108,6 +114,7 @@ export function useChatStreamReader(params: UseChatStreamReaderParams) {
           time_ms: typeof data.time_ms === "number" ? data.time_ms : 0,
         });
       }
+      setStreamingActivity((prev) => reduceStreamActivityFromMeta(prev, data) ?? prev);
     },
     [
       activeConvIdRef,
@@ -121,6 +128,7 @@ export function useChatStreamReader(params: UseChatStreamReaderParams) {
       renameConversationFinal,
       renameConversationOptimistic,
       setSelectedConversationId,
+      setStreamingActivity,
       setStreamingLocalProgress,
       setStreamingRagSources,
       setStreamingSources,
@@ -137,6 +145,7 @@ export function useChatStreamReader(params: UseChatStreamReaderParams) {
       const decoder = new TextDecoder();
       let buffer = "";
       let isFirstToken = true;
+      let isThinkingActive = false;
 
       const processFrame = async (part: string) => {
         const parsed = parseSSEEvent(part);
@@ -147,12 +156,17 @@ export function useChatStreamReader(params: UseChatStreamReaderParams) {
         if (event === "token") {
           const tok = data?.t || "";
           if (tok) {
+            if (isThinkingActive) {
+              isThinkingActive = false;
+              markAnswer();
+            }
             if (isFirstToken) {
               isFirstToken = false;
               markAnswer();
               setStreamingLocalProgress(null);
               startTypewriter();
             }
+            setStreamingActivity((prev) => reduceStreamActivityOnToken(prev) ?? prev);
             appendToTypewriterBuffer(tok);
           }
         }
@@ -160,10 +174,12 @@ export function useChatStreamReader(params: UseChatStreamReaderParams) {
         if (event === "thinking") {
           const thinkingChunk = typeof data?.thinking === "string" ? data.thinking : "";
           if (thinkingChunk) {
+            isThinkingActive = true;
             accumulatedThinkingRef.current += thinkingChunk;
             setStreamingThinking((prev) => (prev || "") + thinkingChunk);
             markThinking(thinkingChunk);
             setStreamingLocalProgress(null);
+            setStreamingActivity((prev) => reduceStreamActivityOnThinking(prev) ?? prev);
           }
         }
 
@@ -176,7 +192,7 @@ export function useChatStreamReader(params: UseChatStreamReaderParams) {
             message:
               data?.message || (typeof data?.error === "string" ? data.error : "") || t("error"),
             code: data?.code,
-            status: data?.status,
+            status: typeof data?.status === "number" ? data.status : undefined,
             isTokenLimit: data?.isTokenLimit,
             tokenInfo: data?.tokenInfo,
           };
@@ -223,6 +239,7 @@ export function useChatStreamReader(params: UseChatStreamReaderParams) {
       markThinking,
       onStreamError,
       setStreamError,
+      setStreamingActivity,
       setStreamingLocalProgress,
       setStreamingThinking,
       startTypewriter,

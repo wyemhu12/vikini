@@ -33,7 +33,7 @@ describe("contextCache", () => {
 
       const result = await getOrCreateCompositeCache({
         userId: "user-a@example.com",
-        model: "gemini-4-argon",
+        model: "gemini-4-neon",
         systemInstruction: longInstruction,
       });
 
@@ -48,7 +48,7 @@ describe("contextCache", () => {
 
       const result = await getOrCreateCompositeCache({
         userId: "user-a@example.com",
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.5-flash-lite",
         systemInstruction: longInstruction,
       });
 
@@ -71,7 +71,7 @@ describe("contextCache", () => {
 
       const shortResult = await getOrCreateCompositeCache({
         userId: "user-a@example.com",
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.5-flash-lite",
         systemInstruction: "short",
       });
       expect(shortResult).toBeNull();
@@ -84,7 +84,7 @@ describe("contextCache", () => {
 
       const result = await getOrCreateCompositeCache({
         userId: "user-a@example.com",
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.5-flash-lite",
         systemInstruction: "D".repeat(5000),
       });
 
@@ -101,17 +101,17 @@ describe("contextCache", () => {
       const sharedInstruction = "S".repeat(5000);
       const resA = await getOrCreateCompositeCache({
         userId: "user-a@example.com",
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.5-flash-lite",
         systemInstruction: sharedInstruction,
       });
       const resB = await getOrCreateCompositeCache({
         userId: "user-b@example.com",
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.5-flash-lite",
         systemInstruction: sharedInstruction,
       });
       const resAHit = await getOrCreateCompositeCache({
         userId: "user-a@example.com",
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.5-flash-lite",
         systemInstruction: sharedInstruction,
       });
 
@@ -126,7 +126,7 @@ describe("contextCache", () => {
 
       const result = await getOrCreateCompositeCache({
         userId: "   ",
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.5-flash-lite",
         systemInstruction: "X".repeat(5000),
       });
 
@@ -144,7 +144,7 @@ describe("contextCache", () => {
       for (let i = 0; i < 510; i++) {
         await getOrCreateCompositeCache({
           userId: `user-${i}@example.com`,
-          model: "gemini-3-flash-preview",
+          model: "gemini-3.5-flash-lite",
           systemInstruction: `${"P".repeat(4200)}-${i}`,
         });
       }
@@ -157,7 +157,7 @@ describe("contextCache", () => {
       mockCachesCreate.mockResolvedValueOnce({ name: "cachedContents/sys-1" });
 
       const result = await getOrCreateSystemCache(
-        "gemini-3-flash-preview",
+        "gemini-3.5-flash-lite",
         "Y".repeat(5000),
         "user-sys@example.com"
       );
@@ -171,7 +171,7 @@ describe("contextCache", () => {
       const { getOrCreateKBCache } = await import("./contextCache");
       const kbContents = [{ role: "user", parts: [{ text: "E".repeat(5000) }] }];
 
-      const result = await getOrCreateKBCache("gemini-4-argon", "proj-1", kbContents);
+      const result = await getOrCreateKBCache("gemini-4-neon", "proj-1", kbContents);
 
       expect(result).toBeNull();
       expect(mockCachesCreate).toHaveBeenCalledTimes(0);
@@ -182,7 +182,7 @@ describe("contextCache", () => {
       mockCachesCreate.mockResolvedValueOnce({ name: "cachedContents/kb-123" });
       const kbContents = [{ role: "user", parts: [{ text: "F".repeat(5000) }] }];
 
-      const result = await getOrCreateKBCache("gemini-3-flash-preview", "proj-1", kbContents);
+      const result = await getOrCreateKBCache("gemini-3.5-flash-lite", "proj-1", kbContents);
 
       expect(mockCachesCreate).toHaveBeenCalledTimes(1);
       expect(result).toEqual({
@@ -196,7 +196,7 @@ describe("contextCache", () => {
       mockCachesCreate.mockRejectedValueOnce(new Error("KB cache creation failed"));
       const kbContents = [{ role: "user", parts: [{ text: "G".repeat(5000) }] }];
 
-      const result = await getOrCreateKBCache("gemini-3-flash-preview", "proj-2", kbContents);
+      const result = await getOrCreateKBCache("gemini-3.5-flash-lite", "proj-2", kbContents);
 
       expect(result).toBeNull();
       expect(mockCachesCreate).toHaveBeenCalledTimes(1);
@@ -210,7 +210,7 @@ describe("contextCache", () => {
       }));
 
       for (let i = 0; i < 510; i++) {
-        await getOrCreateKBCache("gemini-3-flash-preview", `proj-${i}`, [
+        await getOrCreateKBCache("gemini-3.5-flash-lite", `proj-${i}`, [
           { role: "user", parts: [{ text: `${"K".repeat(4200)}-${i}` }] },
         ]);
       }

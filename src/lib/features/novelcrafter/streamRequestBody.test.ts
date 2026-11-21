@@ -71,7 +71,7 @@ describe("streamRequestBody (RB-01..RB-05)", () => {
         bible: "inherit",
         write: "inherit",
         rewrite: "inherit",
-        feedback: "gemini-3.8-flash",
+        feedback: "gemini-4-hydrogen",
         expand: "inherit",
         brainstorm: "inherit",
       },
@@ -83,7 +83,7 @@ describe("streamRequestBody (RB-01..RB-05)", () => {
       params: { feature: "feedback", feedbackMode: "developmental" },
       promptSettings: createDefaultPromptStudioSettings(),
     });
-    expect(feedbackBody.model).toBe("gemini-3.8-flash");
+    expect(feedbackBody.model).toBe("gemini-4-hydrogen");
 
     const writeBody = buildNovelcrafterStreamRequestBody({
       conversationId: "123e4567-e89b-12d3-a456-426614174000",

@@ -460,4 +460,64 @@ describe("ChatBubble", () => {
       });
     });
   });
+
+  describe("Streaming activity & inline cursor (TC-SU-04)", () => {
+    it("renders StreamingActivityBar without duplicate status loader when code_writing is active before display text", () => {
+      const msg: ChatMessage = {
+        id: "streaming-assistant",
+        role: "assistant",
+        content: "",
+        meta: {
+          streamActivity: {
+            phase: "code_writing",
+            startedAt: Date.now() - 2000,
+            updatedAt: Date.now(),
+            chars: 1250,
+          },
+        },
+      };
+
+      render(<ChatBubble message={msg} isLastAssistant={true} isStreaming={true} />);
+
+      expect(screen.getAllByRole("status")).toHaveLength(1);
+      expect(screen.getByTestId("streaming-activity-bar")).toBeInTheDocument();
+    });
+
+    it("applies inline streaming CSS class instead of orphan cursor span when responding", () => {
+      const msg: ChatMessage = {
+        id: "streaming-assistant",
+        role: "assistant",
+        content: "Streaming sentence",
+        meta: {
+          streamActivity: {
+            phase: "responding",
+            startedAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+        },
+      };
+
+      const { container } = render(
+        <ChatBubble message={msg} isLastAssistant={true} isStreaming={true} />
+      );
+
+      expect(container.querySelector(".chat-markdown-streaming")).toBeInTheDocument();
+      expect(container.querySelector(".w-0\\.5.h-4")).not.toBeInTheDocument();
+    });
+
+    it("preserves standalone TypingDots when regenerating without streaming", () => {
+      const msg: ChatMessage = {
+        id: "regen-msg",
+        role: "assistant",
+        content: "",
+      };
+
+      render(
+        <ChatBubble message={msg} isLastAssistant={true} regenerating={true} isStreaming={false} />
+      );
+
+      expect(screen.getAllByRole("status")).toHaveLength(1);
+      expect(screen.queryByTestId("streaming-activity-bar")).not.toBeInTheDocument();
+    });
+  });
 });

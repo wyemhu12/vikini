@@ -2,7 +2,12 @@
 
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, Lock, Search } from "lucide-react";
-import { MODEL_FILTERS, buildModelPickerSections, type ModelFilter } from "@/lib/core/modelPicker";
+import {
+  MODEL_FILTERS,
+  buildModelPickerSections,
+  formatContextWindow,
+  type ModelFilter,
+} from "@/lib/core/modelPicker";
 import {
   SELECTABLE_MODELS,
   isStrataLocalModel,
@@ -185,13 +190,26 @@ export default function ModelPickerList({
                   )}
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                       {isStrataLocalModel(model.id) && <LocalLlmStatusDot status={localStatus} />}
                       <span className="truncate text-sm font-medium text-(--text)">
                         {model.name ?? model.id}
                       </span>
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                          model.isFree
+                            ? "bg-(--soft) text-(--accent)"
+                            : "border border-(--line) bg-(--raised) text-(--muted)"
+                        )}
+                      >
+                        {model.isFree ? t("modelBadgeFree") : t("modelBadgePaid")}
+                      </span>
+                      <span className="shrink-0 text-xs text-(--faint)">
+                        {formatContextWindow(model.contextWindow)} {t("modelContextSuffix")}
+                      </span>
                     </div>
-                    <p className="line-clamp-1 text-xs text-(--muted)">
+                    <p className="mt-0.5 line-clamp-2 text-xs text-(--muted)">
                       {reason ?? (model.descKey ? t(model.descKey) : "")}
                     </p>
                   </div>

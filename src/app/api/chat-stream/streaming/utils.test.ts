@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { withTimeout, withIdleTimeout, sendEvent } from "./utils";
-import { StreamTimeoutError } from "./types";
+import { withTimeout, withIdleTimeout, sendEvent, getStreamTimeout } from "./utils";
+import { StreamTimeoutError, TIMEOUT_CONFIG } from "./types";
 
 describe("streaming/utils (TC-W1-08)", () => {
   afterEach(() => {
@@ -116,6 +116,26 @@ describe("streaming/utils (TC-W1-08)", () => {
       expect(enqueue).toHaveBeenCalledTimes(1);
       const decoded = new TextDecoder().decode(enqueue.mock.calls[0][0]);
       expect(decoded).toBe('event: token\ndata: {"t":"hi"}\n\n');
+    });
+  });
+
+  describe("getStreamTimeout (TC-SU-02)", () => {
+    afterEach(() => {
+      delete process.env.STREAM_TIMEOUT_MS;
+    });
+
+    it("returns CLAUDE and CLAUDE_DEEP_THINKING timeouts for Claude models", () => {
+      expect(getStreamTimeout("claude-sonnet-4-5", "off")).toBe(TIMEOUT_CONFIG.CLAUDE);
+      expect(getStreamTimeout("claude-sonnet-4-5", "high")).toBe(
+        TIMEOUT_CONFIG.CLAUDE_DEEP_THINKING
+      );
+      expect(getStreamTimeout("gemini-4-argon", "high")).toBe(TIMEOUT_CONFIG.ARGON);
+      expect(getStreamTimeout("unknown-model", "off")).toBe(TIMEOUT_CONFIG.DEFAULT);
+    });
+
+    it("prioritizes STREAM_TIMEOUT_MS env override", () => {
+      process.env.STREAM_TIMEOUT_MS = "45000";
+      expect(getStreamTimeout("claude-sonnet-4-5", "high")).toBe(45000);
     });
   });
 });

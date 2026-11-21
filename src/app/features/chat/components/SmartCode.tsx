@@ -1,11 +1,21 @@
 // /app/features/chat/components/SmartCode.tsx
 "use client";
 
-import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
 import { Check, Copy, ChevronDown, ChevronUp } from "lucide-react";
 import { useLanguage } from "../hooks/useLanguage";
 import { logger } from "@/lib/utils/logger";
 import { toast } from "@/lib/store/toastStore";
+
+export const BubbleStreamingContext = createContext(false);
 
 // ============================================
 // Type Definitions
@@ -49,6 +59,7 @@ const COLLAPSE_AFTER_LINES = 20;
 
 function SmartCode({ inline, className, children }: SmartCodeProps) {
   const { t } = useLanguage();
+  const isBubbleStreaming = useContext(BubbleStreamingContext);
 
   const codeText = useMemo(() => {
     const raw = extractText(children);
@@ -115,7 +126,18 @@ function SmartCode({ inline, className, children }: SmartCodeProps) {
     <div className="group/code my-5 overflow-hidden rounded-xl border border-(--line) bg-(--surface) shadow-(--shadow-elevated) transition-colors">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-(--line) bg-(--raised) px-4 py-2.5 select-none">
-        <span className="font-mono text-xs font-semibold text-(--muted)">{lang}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-mono text-xs font-semibold text-(--muted)">{lang}</span>
+          {isBubbleStreaming && (
+            <span
+              className="inline-flex items-center gap-1.5 text-xs text-(--accent) tabular-nums"
+              aria-hidden="true"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-(--accent) animate-pulse motion-reduce:animate-none" />
+              <span>{lineCount}L</span>
+            </span>
+          )}
+        </div>
 
         <button
           type="button"

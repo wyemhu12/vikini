@@ -5,6 +5,8 @@ import { KnowledgePanel } from "./KnowledgePanel";
 import { toast } from "@/lib/store/toastStore";
 import { logger } from "@/lib/utils/logger";
 import { confirm } from "@/lib/store/confirmStore";
+import type { KnowledgeUploadCallbacks } from "@/lib/features/projects/knowledgeUploadHelpers";
+import { UPLOAD_ABORTED_SENTINEL } from "@/lib/features/files/fileUploadHelpers";
 
 vi.mock("@/lib/store/toastStore", () => ({
   toast: {
@@ -209,5 +211,78 @@ describe("KnowledgePanel (TC-08)", () => {
     const deleteBtn = screen.getByTitle(/delete/i);
     expect(deleteBtn.className).toContain("opacity-100");
     expect(deleteBtn.className).toContain("md:opacity-0");
+  });
+
+  it("TC-SU-08 & NP-5: rejects .exe on drop, keeps optimistic pending row visible on empty project even when isLoading=true, and aborts active XHR cleanly on unmount", async () => {
+    const signals: Array<AbortSignal | undefined> = [];
+    const resolvers: Array<() => void> = [];
+    const onUploadMock = vi.fn(
+      (_file: File, _payload: FormData | string, callbacks?: KnowledgeUploadCallbacks) => {
+        signals.push(callbacks?.signal);
+        callbacks?.onProgress?.(60);
+        callbacks?.onProcessing?.();
+        return new Promise<void>((resolve, reject) => {
+          callbacks?.signal?.addEventListener("abort", () => {
+            reject(new Error(UPLOAD_ABORTED_SENTINEL));
+          });
+          resolvers.push(resolve);
+        });
+      }
+    );
+
+    const { container, rerender, unmount } = render(
+      <KnowledgePanel
+        projectId="proj-1"
+        documents={[]}
+        storageUsedBytes={0}
+        storageMaxBytes={10485760}
+        isLoading={false}
+        onUpload={onUploadMock}
+        onDelete={vi.fn()}
+        onRefresh={vi.fn()}
+      />
+    );
+
+    const dropLabel = container.querySelector("label") as HTMLLabelElement;
+    const f1 = new File(["one"], "doc1.md", { type: "text/markdown" });
+    const f2 = new File(["two"], "doc2.pdf", { type: "application/pdf" });
+    const bad = new File(["x"], "virus.exe", { type: "application/octet-stream" });
+
+    fireEvent.drop(dropLabel, {
+      dataTransfer: { files: [f1, f2, bad], types: ["Files"] },
+    });
+
+    // Unsupported .exe rejected with toast.error
+    expect(toast.error).toHaveBeenCalledTimes(1);
+
+    // Both valid files appear as pending optimistic rows immediately
+    expect(await screen.findAllByTestId("kb-pending-upload-row")).toHaveLength(2);
+    expect(screen.getByText("doc1.md")).toBeInTheDocument();
+    expect(screen.getByText("doc2.pdf")).toBeInTheDocument();
+
+    // Even if parent sets isLoading=true while documents=[] (e.g. fetchDocuments after #1),
+    // pending rows MUST remain visible and skeleton must NOT wipe them out!
+    rerender(
+      <KnowledgePanel
+        projectId="proj-1"
+        documents={[]}
+        storageUsedBytes={0}
+        storageMaxBytes={10485760}
+        isLoading={true}
+        onUpload={onUploadMock}
+        onDelete={vi.fn()}
+        onRefresh={vi.fn()}
+      />
+    );
+    expect(screen.queryByTestId("kb-loading-skeletons")).not.toBeInTheDocument();
+    expect(screen.getByText("doc2.pdf")).toBeInTheDocument();
+
+    // Unmount mid-upload aborts active signal without calling toast.error again
+    vi.mocked(toast.error).mockClear();
+    unmount();
+    expect(signals[0]?.aborted).toBe(true);
+    await waitFor(() => {
+      expect(toast.error).not.toHaveBeenCalled();
+    });
   });
 });

@@ -227,4 +227,115 @@ describe("createAnthropicStream (M-1, M-2, m-15)", () => {
       })
     );
   });
+
+  it("TC-SU-01: emits codeExecutionStatus writing -> running -> done and streams code_execution_tool_result stdout without leaking input into subsequent tool_use", async () => {
+    const chunks: Array<Record<string, unknown>> = [
+      {
+        type: "content_block_start",
+        content_block: { type: "server_tool_use", id: "srv-1", name: "code_execution" },
+      },
+      ...Array.from({ length: 10 }, () => ({
+        type: "content_block_delta",
+        delta: { type: "input_json_delta", partial_json: "x".repeat(40) },
+      })),
+      { type: "content_block_stop" },
+      {
+        type: "content_block_start",
+        content_block: {
+          type: "code_execution_tool_result",
+          tool_use_id: "srv-1",
+          content: {
+            type: "code_execution_result",
+            stdout: "OK\n",
+            stderr: "",
+            return_code: 0,
+            content: [],
+          },
+        },
+      },
+      {
+        type: "content_block_start",
+        content_block: { type: "tool_use", id: "tool-1", name: "get_current_time" },
+      },
+      {
+        type: "content_block_delta",
+        delta: { type: "input_json_delta", partial_json: '{"timezone":"UTC"}' },
+      },
+      { type: "content_block_stop" },
+    ];
+
+    mockAi.beta.messages.create
+      .mockResolvedValueOnce(createAsyncIterable(chunks))
+      .mockResolvedValueOnce(
+        createAsyncIterable([
+          { type: "content_block_delta", delta: { type: "text_delta", text: "Done!" } },
+        ])
+      );
+
+    const stream = createAnthropicStream({
+      ...baseParams,
+      ai: mockAi as unknown as Anthropic,
+    });
+
+    const output = await readStream(stream);
+    expect(output).toContain('"type":"codeExecutionStatus","status":"writing","chars":0');
+    expect(output).toContain('"type":"codeExecutionStatus","status":"writing","chars":280');
+    expect(output).toContain('"type":"codeExecutionStatus","status":"running","chars":400');
+    expect(output).toContain('"type":"codeExecutionStatus","status":"done"');
+    expect(output).toContain("OK\\n");
+    expect(output).toContain(
+      '"type":"functionCall","name":"get_current_time","args":{"timezone":"UTC"}'
+    );
+    expect(output).toContain('"t":"Done!"');
+  });
+
+  it.each(["claude-sonnet-5-5", "claude-haiku-5-5"])(
+    "TC-MC-04: sends Adaptive Thinking (no budget_tokens) and temperature=1 for %s when thinkingLevel is high",
+    async (claudeModel) => {
+      mockAi.beta.messages.create.mockResolvedValue(
+        createAsyncIterable([
+          { type: "content_block_delta", delta: { type: "text_delta", text: "Adaptive ok" } },
+        ])
+      );
+
+      const stream = createAnthropicStream({
+        ...baseParams,
+        model: claudeModel,
+        ai: mockAi as unknown as Anthropic,
+        thinkingLevel: "high",
+      });
+
+      await readStream(stream);
+      const callArg = mockAi.beta.messages.create.mock.calls[0][0] as {
+        thinking?: Record<string, unknown>;
+        temperature?: number;
+      };
+      expect(callArg.thinking).toEqual({ type: "adaptive" });
+      expect(callArg.thinking).not.toHaveProperty("budget_tokens");
+      expect(callArg.temperature).toBe(1);
+    }
+  );
+
+  it("TC-MC-04: omits thinking and uses temperature=0.7 for Claude 5.5 when thinkingLevel is off", async () => {
+    mockAi.beta.messages.create.mockResolvedValue(
+      createAsyncIterable([
+        { type: "content_block_delta", delta: { type: "text_delta", text: "No thinking" } },
+      ])
+    );
+
+    const stream = createAnthropicStream({
+      ...baseParams,
+      model: "claude-sonnet-5-5",
+      ai: mockAi as unknown as Anthropic,
+      thinkingLevel: "off",
+    });
+
+    await readStream(stream);
+    const callArg = mockAi.beta.messages.create.mock.calls[0][0] as {
+      thinking?: Record<string, unknown>;
+      temperature?: number;
+    };
+    expect(callArg.thinking).toBeUndefined();
+    expect(callArg.temperature).toBe(0.7);
+  });
 });

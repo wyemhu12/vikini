@@ -7,20 +7,19 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { logger } from "@/lib/utils/logger";
 import { shouldClearQueue } from "@/lib/features/chat/draftConversation";
-import type { FileItem, FileUploadProgress } from "@/types/files";
+import type { FileItem } from "@/types/files";
 import { useFileStore } from "./store";
+import { extractPastedFiles, hydrateQueuedImagePreviews } from "./uploadPresentation";
 import {
-  classifyClientSide,
+  buildQueuedUploadItems,
   FILE_ACCEPT,
-  sendFileUploadXhr,
-  StructuredUploadError,
-  UPLOAD_ABORTED_SENTINEL,
-  validateFileForUpload,
+  uploadFileWithRetry,
   type FileUploadError,
 } from "./fileUploadHelpers";
 
 const MAX_RETRIES = 1;
 const RETRY_DELAY_MS = 1000;
+const RECENTLY_COMPLETED_TTL_MS = 1400;
 
 interface UseFileUploadOptions {
   conversationId: string | null;
@@ -39,7 +38,11 @@ export function useFileUpload({
   isSelfInitiatedUploadRef,
   onError,
 }: UseFileUploadOptions) {
-  const isUploading = useFileStore((s) => s.uploadQueue.some((q) => q.status === "uploading"));
+  const isUploading = useFileStore((s) =>
+    s.uploadQueue.some(
+      (q) => q.status === "queued" || q.status === "uploading" || q.status === "processing"
+    )
+  );
 
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
@@ -51,9 +54,10 @@ export function useFileUpload({
   const onErrorRef = useRef(onError);
   const isUnmountedRef = useRef(false);
   const uploadSessionIdRef = useRef(0);
-  const activeXhrsRef = useRef<Set<XMLHttpRequest>>(new Set());
+  const activeXhrsRef = useRef<Map<string, XMLHttpRequest>>(new Map());
+  const cancelledTempIdsRef = useRef<Set<string>>(new Set());
   const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
-  const sleepResolversRef = useRef<Set<() => void>>(new Set());
+  const sleepResolversByTempIdRef = useRef<Map<string, () => void>>(new Map());
 
   useEffect(() => {
     conversationIdRef.current = conversationId;
@@ -67,11 +71,12 @@ export function useFileUpload({
 
   const cancelActiveUploads = useCallback(() => {
     uploadSessionIdRef.current += 1;
+    cancelledTempIdsRef.current.clear();
     for (const timer of timersRef.current) clearTimeout(timer);
     timersRef.current.clear();
-    for (const resolveSleep of sleepResolversRef.current) resolveSleep();
-    sleepResolversRef.current.clear();
-    for (const xhr of activeXhrsRef.current) {
+    for (const resolveSleep of sleepResolversByTempIdRef.current.values()) resolveSleep();
+    sleepResolversByTempIdRef.current.clear();
+    for (const xhr of activeXhrsRef.current.values()) {
       try {
         xhr.abort();
       } catch {
@@ -86,6 +91,7 @@ export function useFileUpload({
     return () => {
       isUnmountedRef.current = true;
       cancelActiveUploads();
+      useFileStore.getState().clearQueue();
     };
   }, [cancelActiveUploads]);
 
@@ -97,21 +103,46 @@ export function useFileUpload({
     timersRef.current.add(timer);
   }, []);
 
-  const abortableSleep = useCallback((delayMs: number): Promise<void> => {
+  const abortableSleep = useCallback((delayMs: number, tempId: string): Promise<void> => {
     return new Promise((resolve) => {
       let settled = false;
       const done = () => {
         if (settled) return;
         settled = true;
-        sleepResolversRef.current.delete(done);
+        if (sleepResolversByTempIdRef.current.get(tempId) === done) {
+          sleepResolversByTempIdRef.current.delete(tempId);
+        }
         clearTimeout(timer);
         timersRef.current.delete(timer);
         resolve();
       };
       const timer = setTimeout(done, delayMs);
       timersRef.current.add(timer);
-      sleepResolversRef.current.add(done);
+      sleepResolversByTempIdRef.current.set(tempId, done);
     });
+  }, []);
+
+  const cancelUpload = useCallback((tempId: string) => {
+    cancelledTempIdsRef.current.add(tempId);
+    const xhr = activeXhrsRef.current.get(tempId);
+    if (xhr) {
+      activeXhrsRef.current.delete(tempId);
+      try {
+        xhr.abort();
+      } catch {
+        // Ignore abort errors on already-settled XHR
+      }
+    }
+    const wakeSleep = sleepResolversByTempIdRef.current.get(tempId);
+    if (wakeSleep) {
+      sleepResolversByTempIdRef.current.delete(tempId);
+      wakeSleep();
+    }
+    useFileStore.getState().removeFromQueue(tempId);
+  }, []);
+
+  const dismissUploadError = useCallback((tempId: string) => {
+    useFileStore.getState().removeFromQueue(tempId);
   }, []);
 
   const openFilePicker = useCallback(() => {
@@ -146,89 +177,82 @@ export function useFileUpload({
       }
       if (isStale() || !targetConvId) return;
 
-      for (const file of fileArray) {
+      const queuedItems = buildQueuedUploadItems(fileArray, (validationError) => {
+        logger.warn("[useFileUpload] File rejected by client validation:", validationError);
+        onErrorRef.current?.(validationError);
+      });
+      if (queuedItems.length === 0) return;
+
+      useFileStore.getState().enqueueFiles(queuedItems);
+      hydrateQueuedImagePreviews(
+        queuedItems,
+        (tempId) => !isStale() && !cancelledTempIdsRef.current.has(tempId),
+        (tempId, previewUrl) => useFileStore.getState().setPreviewUrl(tempId, previewUrl)
+      );
+
+      for (const item of queuedItems) {
         if (isStale()) break;
-        const validationError = validateFileForUpload(file);
-        if (validationError) {
-          logger.warn("[useFileUpload] File rejected by client validation:", validationError);
-          onErrorRef.current?.(validationError);
-          continue;
-        }
+        if (cancelledTempIdsRef.current.delete(item.tempId)) continue;
 
-        const ext = file.name.includes(".") ? file.name.split(".").pop()?.toLowerCase() || "" : "";
-        const tempId = crypto.randomUUID();
-        const queueItem: FileUploadProgress = {
-          tempId,
-          file,
-          filename: file.name,
-          size: file.size,
-          kind: classifyClientSide(ext, file.type),
-          progress: 0,
-          status: "uploading",
-        };
-        useFileStore.getState().addToQueue(queueItem);
+        useFileStore.getState().setStatus(item.tempId, "uploading");
 
-        let lastError: FileUploadError | null = null;
-        let wasAborted = false;
-
-        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-          if (isStale()) {
-            wasAborted = true;
-            break;
-          }
-          if (attempt > 0) {
+        const result = await uploadFileWithRetry({
+          item,
+          conversationId: targetConvId,
+          activeXhrs: activeXhrsRef.current,
+          maxRetries: MAX_RETRIES,
+          retryDelayMs: RETRY_DELAY_MS,
+          isStale,
+          isCancelled: () => cancelledTempIdsRef.current.has(item.tempId),
+          sleep: (ms) => abortableSleep(ms, item.tempId),
+          onRetry: (attempt) => {
             logger.info(
-              `[useFileUpload] Retrying upload for ${file.name} (attempt ${attempt + 1})`
+              `[useFileUpload] Retrying upload for ${item.filename} (attempt ${attempt + 1})`
             );
-            useFileStore.getState().updateProgress(tempId, 0);
-            await abortableSleep(RETRY_DELAY_MS);
-            if (isStale()) {
-              wasAborted = true;
-              break;
+            useFileStore.getState().updateProgress(item.tempId, 0);
+            useFileStore.getState().setStatus(item.tempId, "uploading");
+          },
+          onProgress: (pct) => {
+            if (!isUnmountedRef.current) useFileStore.getState().updateProgress(item.tempId, pct);
+          },
+          onProcessing: () => {
+            if (!isUnmountedRef.current) {
+              useFileStore.getState().setStatus(item.tempId, "processing");
             }
-          }
-
-          try {
-            await sendFileUploadXhr({
-              file,
-              conversationId: targetConvId,
-              activeXhrs: activeXhrsRef.current,
-              onProgress: (pct) => {
-                if (!isUnmountedRef.current) useFileStore.getState().updateProgress(tempId, pct);
-              },
-              onSuccess: (uploadedFile) => {
-                useFileStore.getState().setStatus(tempId, "ready");
-                if (uploadedFile && !isUnmountedRef.current) {
-                  onUploadCompleteRef.current?.(uploadedFile);
-                }
-                scheduleManagedTimeout(() => useFileStore.getState().removeFromQueue(tempId), 800);
-              },
-            });
-            lastError = null;
-            break;
-          } catch (attemptErr: unknown) {
-            if (attemptErr instanceof Error && attemptErr.message === UPLOAD_ABORTED_SENTINEL) {
-              wasAborted = true;
-              break;
+          },
+          onSuccess: (uploadedFile) => {
+            if (uploadedFile && !isUnmountedRef.current) {
+              const normalizedFile: FileItem = uploadedFile.conversation_id
+                ? uploadedFile
+                : { ...uploadedFile, conversation_id: targetConvId };
+              useFileStore.getState().completeUpload(item.tempId, normalizedFile);
+              onUploadCompleteRef.current?.(normalizedFile);
+              scheduleManagedTimeout(
+                () => useFileStore.getState().clearRecentlyCompleted(normalizedFile.id),
+                RECENTLY_COMPLETED_TTL_MS
+              );
+            } else {
+              useFileStore.getState().removeFromQueue(item.tempId);
             }
-            const structured =
-              attemptErr instanceof StructuredUploadError
-                ? attemptErr
-                : new StructuredUploadError({ code: "UPLOAD_FAILED", filename: file.name }, false);
-            lastError = structured.uploadError;
-            if (!structured.retryable || attempt >= MAX_RETRIES) break;
-          }
-        }
+          },
+        });
 
-        if (wasAborted || isStale()) {
-          useFileStore.getState().removeFromQueue(tempId);
+        if (result.outcome === "stale") {
+          useFileStore.getState().removeFromQueue(item.tempId);
           break;
         }
-        if (lastError) {
-          logger.error("[useFileUpload] File upload failed:", lastError);
-          useFileStore.getState().setStatus(tempId, "error", lastError.detail || lastError.code);
-          onErrorRef.current?.(lastError);
-          scheduleManagedTimeout(() => useFileStore.getState().removeFromQueue(tempId), 5000);
+        if (result.outcome === "cancelled") {
+          cancelledTempIdsRef.current.delete(item.tempId);
+          useFileStore.getState().removeFromQueue(item.tempId);
+          continue;
+        }
+        if (result.outcome === "error") {
+          logger.error("[useFileUpload] File upload failed:", result.error);
+          useFileStore
+            .getState()
+            .setStatus(item.tempId, "error", result.error.detail || result.error.code);
+          onErrorRef.current?.(result.error);
+          scheduleManagedTimeout(() => useFileStore.getState().removeFromQueue(item.tempId), 5000);
         }
       }
     },
@@ -281,22 +305,7 @@ export function useFileUpload({
   useEffect(() => {
     if (disabled) return;
     const onPaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      const pastedFiles: File[] = [];
-      for (const item of Array.from(items)) {
-        if (item.kind !== "file") continue;
-        const file = item.getAsFile();
-        if (!file) continue;
-        const isScreenshot = file.name === "image.png" || file.name.startsWith("blob");
-        pastedFiles.push(
-          isScreenshot
-            ? new File([file], `screenshot-${Date.now()}.${file.name.split(".").pop() || "png"}`, {
-                type: file.type,
-              })
-            : file
-        );
-      }
+      const pastedFiles = extractPastedFiles(e.clipboardData?.items);
       if (pastedFiles.length > 0) {
         e.preventDefault();
         void uploadFiles(pastedFiles);
@@ -320,6 +329,8 @@ export function useFileUpload({
   return {
     openFilePicker,
     uploadFiles,
+    cancelUpload,
+    dismissUploadError,
     isDragging,
     fileInputRef,
     fileAccept: FILE_ACCEPT,

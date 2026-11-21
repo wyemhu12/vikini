@@ -13,6 +13,7 @@ import {
   buildVariationPrompt,
   buildGenerateImageBody,
   readStoredApiKey,
+  parseImageApiResponse,
   postGenerateImageRequest,
 } from "./studioHelpers";
 import type { FrontendMessage } from "@/lib/features/chat/conversationListHelpers";
@@ -359,5 +360,105 @@ describe("studioHelpers (CT-6C-02)", () => {
     }
     vi.stubGlobal("FileReader", FailingReaderWithoutError);
     await expect(fileToBase64(new Blob(["x"]))).rejects.toThrow("Failed to read file");
+  });
+
+  it("TC-IMG-01..TC-IMG-06 & NP-1..NP-2: parseImageApiResponse and classifyStudioError handle 504/502 non-JSON and timeout errors safely", async () => {
+    // TC-IMG-01: 200 OK valid JSON object
+    const okRes = new Response(
+      JSON.stringify({ success: true, data: { imageUrl: "https://cdn.example/1.png" } }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+    expect(await parseImageApiResponse(okRes, "Generation failed")).toEqual({
+      success: true,
+      data: { imageUrl: "https://cdn.example/1.png" },
+    });
+
+    // TC-IMG-02 & NP-1: 504 plain-text Vercel timeout with timeoutError
+    const timeoutResWithMsg = new Response(
+      "An error occurred with your deployment\nFUNCTION_INVOCATION_TIMEOUT",
+      { status: 504, headers: { "Content-Type": "text/plain" } }
+    );
+    await expect(
+      parseImageApiResponse(timeoutResWithMsg, "Generation failed", "Custom timeout")
+    ).rejects.toThrow("Custom timeout");
+
+    // TC-IMG-03: 504 plain-text without timeoutError -> includes HTTP 504, never SyntaxError
+    const timeoutResNoMsg = new Response("An error occurred with your deployment", {
+      status: 504,
+      headers: { "Content-Type": "text/plain" },
+    });
+    const err504 = await parseImageApiResponse(timeoutResNoMsg, "Generation failed").catch(
+      (e: unknown) => e
+    );
+    expect(err504).toBeInstanceOf(Error);
+    expect((err504 as Error).message).toBe("Generation failed (HTTP 504)");
+    expect((err504 as Error).message).not.toContain("Unexpected token");
+    expect((err504 as Error).message).not.toContain("is not valid JSON");
+
+    // TC-IMG-04: 502 HTML & 503 empty body
+    await expect(
+      parseImageApiResponse(
+        new Response("<html>502 Bad Gateway</html>", { status: 502 }),
+        "Generation failed"
+      )
+    ).rejects.toThrow("Generation failed (HTTP 502)");
+    await expect(
+      parseImageApiResponse(new Response("", { status: 503 }), "Generation failed")
+    ).rejects.toThrow("Generation failed (HTTP 503)");
+
+    // TC-IMG-05 & NP-2: 200 OK with HTML / array / null -> fail-closed fallbackError
+    await expect(
+      parseImageApiResponse(
+        new Response("<html>Proxy</html>", { status: 200 }),
+        "Generation failed"
+      )
+    ).rejects.toThrow("Generation failed");
+    await expect(
+      parseImageApiResponse(new Response("[]", { status: 200 }), "Generation failed")
+    ).rejects.toThrow("Generation failed");
+    await expect(
+      parseImageApiResponse(new Response("null", { status: 200 }), "Generation failed")
+    ).rejects.toThrow("Generation failed");
+
+    // TC-IMG-06: 400/422 JSON error strings/objects preserved + classifyStudioError timeout branch
+    await expect(
+      parseImageApiResponse(
+        new Response(JSON.stringify({ error: { message: "Safety blocked" } }), { status: 400 }),
+        "Generation failed"
+      )
+    ).rejects.toThrow("Safety blocked");
+    await expect(
+      parseImageApiResponse(
+        new Response(JSON.stringify({ error: "Custom string" }), { status: 422 }),
+        "Generation failed"
+      )
+    ).rejects.toThrow("Custom string");
+
+    expect(classifyStudioError("Generation failed (HTTP 504)", identityT)).toEqual({
+      message: "studioErrorTimeout",
+      suggestion: "studioErrorTimeoutSuggestion",
+    });
+    expect(classifyStudioError("Task timed out after 60 seconds", identityT)).toEqual({
+      message: "studioErrorTimeout",
+      suggestion: "studioErrorTimeoutSuggestion",
+    });
+    expect(classifyStudioError("502 Bad Gateway", identityT)).toEqual({
+      message: "studioErrorTimeout",
+      suggestion: "studioErrorTimeoutSuggestion",
+    });
+
+    // NP-1 via postGenerateImageRequest end-to-end
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(
+        new Response("An error occurred with your deployment...", {
+          status: 504,
+          headers: { "Content-Type": "text/plain" },
+        })
+      )
+    );
+    await expect(
+      postGenerateImageRequest({ prompt: "dragon" }, "k", "Generation failed")
+    ).rejects.toThrow("Generation failed (HTTP 504)");
   });
 });

@@ -41,7 +41,7 @@ export interface CreateStrataStreamParams {
   contents: unknown[];
   contentsMeta?: StrataContentMeta[];
   sysPrompt: string;
-  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
+  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal" | "xhigh";
   strataSampling?: StrataSamplingInput;
   gemMeta: ChatStreamParams["gemMeta"];
   modelMeta: ChatStreamParams["modelMeta"];

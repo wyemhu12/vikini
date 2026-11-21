@@ -49,8 +49,8 @@ interface ImageGenPreviewProps {
 function formatModelName(model?: string): string {
   if (!model) return "";
   // Shorten common model names
-  if (model.includes("gemini-3.1-flash-image")) return "Gemini Image Flash";
-  if (model.includes("gemini-3-pro-image")) return "Gemini Image Pro";
+  if (model.includes("gemini-3.1-flash-image")) return "Nano Banana";
+  if (model.includes("gemini-3-pro-image")) return "Nano Banana Pro";
   if (model.includes("gpt-image")) return "GPT Image 2";
   if (model.includes("imagen")) return "Gemini Image";
   if (model.includes("dall-e")) return "DALL·E 3";

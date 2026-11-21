@@ -39,10 +39,11 @@ describe("deepseek-request-builder", () => {
       expect(body.reasoning).toEqual({ effort: "low" });
     });
 
-    it("maps medium and minimal effort to low for Flash", () => {
+    it("maps medium and minimal effort to low and xhigh to high for Flash (TC-MC-03)", () => {
       expect(mapDeepSeekEffort(flashModel, "medium").reasoningEffort).toBe("low");
       expect(mapDeepSeekEffort(flashModel, "minimal").reasoningEffort).toBe("low");
       expect(mapDeepSeekEffort(flashModel, undefined).reasoningEffort).toBe("low");
+      expect(mapDeepSeekEffort(flashModel, "xhigh").reasoningEffort).toBe("high");
     });
 
     it("handles off thinking level correctly", () => {
@@ -81,15 +82,16 @@ describe("deepseek-request-builder", () => {
       expect(body.max_tokens).toBe(65536);
     });
 
-    it("maps low/medium effort to high for Pro", () => {
+    it("maps low/medium effort to high and xhigh to xhigh for Pro (TC-MC-03)", () => {
       expect(mapDeepSeekEffort(proModel, "low").reasoningEffort).toBe("high");
       expect(mapDeepSeekEffort(proModel, "medium").reasoningEffort).toBe("high");
       expect(mapDeepSeekEffort(proModel, undefined).reasoningEffort).toBe("high");
+      expect(mapDeepSeekEffort(proModel, "xhigh").reasoningEffort).toBe("xhigh");
     });
   });
 
-  describe("Variant 3: DeepSeek Direct API", () => {
-    const directModel = "deepseek-chat";
+  describe("Variant 3: DeepSeek Direct API Fallback", () => {
+    const directModel = "deepseek-custom-direct";
 
     it("maps high effort to max and adds prefix with 16384 max_tokens", () => {
       const mapping = mapDeepSeekEffort(directModel, "high");
@@ -106,10 +108,10 @@ describe("deepseek-request-builder", () => {
 
       expect(body.thinking).toEqual({ type: "enabled" });
       expect(body.reasoning_effort).toBe("max");
-      expect(body.max_tokens).toBe(16384);
+      expect(body.max_tokens).toBe(65536);
     });
 
-    it("maps low/medium effort to high with 16384 max_tokens and no prefix", () => {
+    it("maps low/medium effort to high with fallback max_tokens and no prefix", () => {
       const mapping = mapDeepSeekEffort(directModel, "low");
       expect(mapping.reasoningEffort).toBe("high");
       expect(mapping.effectiveSysPromptPrefix).toBe("");
@@ -122,10 +124,10 @@ describe("deepseek-request-builder", () => {
 
       expect(body.thinking).toEqual({ type: "enabled" });
       expect(body.reasoning_effort).toBe("high");
-      expect(body.max_tokens).toBe(16384);
+      expect(body.max_tokens).toBe(65536);
     });
 
-    it("handles off thinking level with 8192 tokens and disabled thinking", () => {
+    it("handles off thinking level with fallback tokens and disabled thinking", () => {
       const mapping = mapDeepSeekEffort(directModel, "off");
       expect(mapping.reasoningEffort).toBe("none");
 
@@ -137,7 +139,7 @@ describe("deepseek-request-builder", () => {
 
       expect(body.thinking).toEqual({ type: "disabled" });
       expect(body.reasoning_effort).toBeNull();
-      expect(body.max_tokens).toBe(8192);
+      expect(body.max_tokens).toBe(65536);
       expect(body.temperature).toBe(0.7);
     });
   });

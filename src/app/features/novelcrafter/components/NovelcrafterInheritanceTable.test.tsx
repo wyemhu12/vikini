@@ -54,7 +54,7 @@ describe("NovelcrafterInheritanceTable (Phase 5D TC-04)", () => {
       <NovelcrafterInheritanceTable
         storyTitle="Gió mùa cuối"
         selectedModel="gemini-3.5-flash-lite"
-        allowedModelIds={new Set(["gemini-3.5-flash-lite", "gemini-3.8-flash"])}
+        allowedModelIds={new Set(["gemini-3.5-flash-lite", "gemini-4-hydrogen"])}
         routing={baseRouting}
         gems={[
           { id: "g1", name: "Văn xuôi trữ tình" },
@@ -102,8 +102,8 @@ describe("NovelcrafterInheritanceTable (Phase 5D TC-04)", () => {
     expect(onUpdateFeaturePersonaSlot).toHaveBeenCalledWith("write", "none");
 
     fireEvent.change(screen.getByRole("combobox", { name: /Viết tiếp: Model/i }), {
-      target: { value: "gemini-3.8-flash" },
+      target: { value: "gemini-4-hydrogen" },
     });
-    expect(onUpdateFeatureModelSlot).toHaveBeenCalledWith("write", "gemini-3.8-flash");
+    expect(onUpdateFeatureModelSlot).toHaveBeenCalledWith("write", "gemini-4-hydrogen");
   });
 });

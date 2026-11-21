@@ -1,6 +1,6 @@
 // src/app/features/image-gen/components/DescribeImageView.test.tsx
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DescribeImageView } from "./DescribeImageView";
 import { toast } from "@/lib/store/toastStore";
@@ -155,5 +155,73 @@ describe("DescribeImageView (phase 4 TC-08)", () => {
     expect(dropBtn.tagName).toBe("BUTTON");
     expect(dropBtn.querySelector("input")).toBeNull();
     expect(container.querySelector('input[type="file"]')).not.toBeNull();
+  });
+
+  it("TC-SU-10: resets file input value, shows describeReadFailed on FileReader.onerror, and resolves analyzing=false on corrupt img.onerror", async () => {
+    const originalFileReader = globalThis.FileReader;
+
+    class FailingFileReader {
+      onload: ((e: ProgressEvent<FileReader>) => void) | null = null;
+      onerror: (() => void) | null = null;
+      readAsDataURL() {
+        this.onerror?.();
+      }
+    }
+
+    vi.stubGlobal("FileReader", FailingFileReader);
+    const { container } = render(<DescribeImageView />);
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const png = new File(["corrupt"], "bad.png", { type: "image/png" });
+    fireEvent.change(input, { target: { files: [png] } });
+
+    expect(input.value).toBe("");
+    expect(toast.error).toHaveBeenCalledWith("describeReadFailed");
+
+    // Now simulate readable file whose thumbnail canvas decode fires img.onerror
+    class SucceedingFileReader {
+      onload: ((e: { target: { result: string } }) => void) | null = null;
+      onerror: (() => void) | null = null;
+      readAsDataURL() {
+        this.onload?.({ target: { result: "data:image/png;base64,CORRUPT" } });
+      }
+    }
+    vi.stubGlobal("FileReader", SucceedingFileReader);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: { description: "Corrupt image fallback description" } }),
+      })
+    );
+
+    const origCreateElement = document.createElement.bind(document);
+    const createSpy = vi.spyOn(document, "createElement").mockImplementation(((tag: string) => {
+      const el = origCreateElement(tag);
+      if (tag === "img") {
+        Object.defineProperty(el, "src", {
+          set() {
+            queueMicrotask(() => {
+              (el as HTMLImageElement).onerror?.(new Event("error"));
+            });
+          },
+          configurable: true,
+        });
+      }
+      return el;
+    }) as typeof document.createElement);
+
+    try {
+      fireEvent.change(input, { target: { files: [png] } });
+      const analyzeBtn = await screen.findByRole("button", { name: /describeAnalyze/i });
+      fireEvent.click(analyzeBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText("Corrupt image fallback description")).toBeInTheDocument();
+      });
+    } finally {
+      createSpy.mockRestore();
+      vi.stubGlobal("FileReader", originalFileReader);
+      vi.unstubAllGlobals();
+    }
   });
 });

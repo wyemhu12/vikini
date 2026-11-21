@@ -13,6 +13,8 @@ const SDK_THINKING_LEVEL: Record<GeminiThinkingLevel, ThinkingLevel> = {
   low: ThinkingLevel.LOW,
   medium: ThinkingLevel.MEDIUM,
   high: ThinkingLevel.HIGH,
+  // @google/genai@2.10.0 enum does not yet expose XHIGH
+  xhigh: "XHIGH" as ThinkingLevel,
 };
 
 function isRecord(val: unknown): val is Record<string, unknown> {

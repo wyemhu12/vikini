@@ -8,6 +8,44 @@
 
 ---
 
+## 2026-11-21: Chat Streaming Progress, Tool Activity & Upload UX/Animation Overhaul
+
+- **Chat Streaming Progress & Anthropic Tool Activity (Workstream 1)**:
+  - Tách `anthropic-tool-helpers.ts` theo dõi độc lập `server_tool_use` và `tool_use` (chấm dứt rò rỉ `currentToolInput`), sửa schema khối kết quả `code_execution_tool_result` / `bash_code_execution_tool_result` / `*_error` theo `@anthropic-ai/sdk`, phát sự kiện `event: meta` tiến độ có tiết lưu (`codeExecutionStatus` `writing` + `chars` ➔ `running` ➔ `done`, `webSearchStatus`, `webFetchStatus`), và thêm ngưỡng timeout riêng cho Claude (`CLAUDE: 300s`, `CLAUDE_DEEP_THINKING: 600s`) trong `types.ts` / `utils.ts`.
+  - Bổ sung máy trạng thái `streamActivity.ts` + nối qua `useChatStreamReader` / `useChatStreamController` / `useChatStreamExecution`, sửa `useThinkingStats.ts` và cờ `isThinkingActive` hỗ trợ **interleaved thinking** không rò timer `setInterval(1000)`.
+  - Loại bỏ dấu nháy dọc rơi dòng trống `<TypingCursor />` khỏi `BubbleMarkdown.tsx`, thay bằng chỉ báo cuối dòng inline thuần CSS (`.chat-markdown-streaming`), thêm `React.memo(StreamingActivityBar)` (1 vùng `role="status"` duy nhất, shimmer GPU `translate3d`, đếm giờ `tabular-nums`, tự chuyển `"Vẫn đang xử lý..."` sau 8s im lặng), chỉ báo dòng live trên `SmartCode`, và nâng cấp `composer-stream-line` sang shimmer GPU mượt mà.
+- **File & Image Upload UI + Animation Overhaul (Workstream 2 — 5 Surfaces)**:
+  - **Surface A (Chat Composer)**: Xóa triệt để hiện tượng nhân đôi thẻ + bóng ma 800ms + nhảy thứ tự SWR bằng `renderKeyByFileId` + `localPreviewByFileId` + `completeUpload` đồng bộ 0ms (`store.ts`, `uploadPresentation.ts`) + `sortComposerFiles` tăng dần; thêm xếp hàng upfront (`queued`), trạng thái `"processing"` shimmer khi XHR đạt 100%, hủy riêng từng tệp (`cancelledTempIdsRef` + `Map<tempId, XHR>`), dọn `URL.revokeObjectURL`, sửa `isReady` + chặn `Enter` khi đang tải, sửa dropzone 0px (`min-h-[88px]`) + spinner xóa kẹt, `React.forwardRef` cho `AnimatePresence mode="popLayout"`, nối `onNavigate` cho `FileLightbox`, và thumbnail ảnh trong `FileInMessage`.
+  - **Surface B (Files Popover)**: Chuyển `FileManagerPanel` sang Radix `<PopoverContent>` portaled (`ComposerLeadingControls`), đặt `<FileLightbox />` anh em ngoài `<Popover>` để không bị unmount khi Popover đóng, thay toàn bộ ngày tiếng Anh cứng & legacy `var(--...)` bằng khóa song ngữ & Vikini v4 tokens, thêm thumbnail + hàng đợi trực tiếp.
+  - **Surface C (Project Knowledge Base)**: Bổ sung `knowledgeUploadHelpers.ts` (XHR tiến độ `uploading %` ➔ `processing` lập chỉ mục + `AbortSignal` khi unmount), kéo-thả `dragDepthRef` + chọn nhiều tệp (`multiple`), hàng lạc quan tách ngoài skeleton/empty state, `AnimatePresence`, thanh dung lượng GPU `scaleX`, và song ngữ hóa lỗi.
+  - **Surfaces D & E (Image Studio References, Describe Image, Template Modal)**: Chuyển `ControlPanelReferenceImages` sang `URL.createObjectURL` + `WeakMap` stable key + revoke cleanup + drag-drop + nút xóa hiển thị trên cảm ứng; sửa `DescribeImageView` (`e.target.value = ""`, `dragDepthRef`, `reader.onerror`/`img.onerror` chống treo `analyzing`, cleanup `copyTimeoutRef`) và `TemplateModal` (kiểm tra loại/dung lượng kèm `toast.error` + kéo-thả).
+- **Song ngữ & Kiểm thử**: Bổ sung 25 khóa song ngữ VI/EN (`vi.ts`, `en.ts`), cập nhật `docs/contracts.md`, và thêm/cập nhật 21 bộ unit tests co-located + Playwright Visual QA.
+
+---
+
+## 2026-11-21: Fix Image Generation 504 Timeout & Non-JSON Error Parsing
+
+- **Nâng trần thời gian chạy serverless cho 3 route ảnh (`generate-image/route.ts`, `edit-image/route.ts`, `edit-image-multi/route.ts`)**: tăng in-place `export const maxDuration` từ `60` lên `300` giây (tương thích Vercel Fluid Compute, giữ nguyên dòng 36 cho `edit-image/route.ts`) để tránh ngắt sớm `504 Gateway Timeout` khi model `gemini-3-pro-image` xử lý ảnh phức tạp hoặc kèm ảnh tham chiếu.
+- **Parse JSON an toàn & phân loại lỗi timeout song ngữ (`studioHelpers.ts`, `useImageGenController.ts`, `EditPanel.tsx`, `vi.ts`, `en.ts`)**: bổ sung `parseImageApiResponse()` đọc `response.text()` và `JSON.parse()` fail-closed để không còn crash `Unexpected token 'A', "An error o"... is not valid JSON` khi gặp phản hồi plain-text/HTML (502/503/504); bổ sung nhánh timeout/gateway trong `classifyStudioError()` kèm 2 khóa song ngữ `studioErrorTimeout` & `studioErrorTimeoutSuggestion`.
+- **Kiểm thử co-located**: bổ sung `TC-IMG-01`..`TC-IMG-09` trong `studioHelpers.test.ts`, `useImageGenController.test.ts` (mới), và 3 file `route.test.ts`.
+
+---
+
+## 2026-11-21: Model Catalog Upgrade & Model Picker Redesign
+
+- **Nâng cấp đồng bộ danh mục 12 Model (`src/lib/core/modelRegistry.ts`, `src/lib/utils/constants.ts`, `src/lib/core/geminiSdkHelpers.ts`)**:
+  - **Gemini (đầu danh sách)**: giữ `gemini-3.5-flash-lite` (`DEFAULT_MODEL`), thay `gemini-3.8-flash` & `gemini-3-flash-preview` bằng **`gemini-4-hydrogen`** (`1M` ctx, `64K` out, thinking `low/medium/high/xhigh`), thay `gemini-4-argon` bằng **`gemini-4-neon`** (`1M` ctx, `64K` out, thinking `low/medium/high/xhigh`) kèm directional clamping cho `xhigh`.
+  - **Claude 5.5**: nâng `claude-haiku-4.5` → **`claude-haiku-5-5`** và `claude-sonnet-4.5` → **`claude-sonnet-5-5`** (`1M` ctx, `128K` out, OpenRouter `anthropic/claude-*-5.5`); cập nhật `anthropic-stream.ts` dùng **Adaptive Thinking** (`thinking: { type: "adaptive" }`, không gửi `budget_tokens`) và bật thinking UI cho cả `claude-haiku-5-5`.
+  - **DeepSeek / Grok / GLM / Groq / Local**: giữ 3 model DeepSeek (`v4.1-flash`, `v4-pro`, `v3.2:floor`) và bỏ `deepseek-v4-flash` (xóa dead code `src/lib/core/deepseekClient.ts`); nâng `x-ai/grok-4.3` → **`x-ai/grok-4.7`** (`500K` ctx); giữ `z-ai/glm-5.2` và `strata-local`; đổi Groq sang **`openai/gpt-oss-120b`** (Groq Free Tier, `131K` ctx) kèm helper `isGroqModel()` sửa routing trong `chatStreamCore.ts` và `novelcrafterStreamRunner.server.ts` tránh route nhầm sang OpenRouter.
+  - Mở rộng `ThinkingLevel` thêm `"xhigh"` xuyên suốt `validators.ts`, `streaming/*`, `strataThinking.ts`, `useThinkingLevel.ts`, `thinkingOptions.ts`, `novelcrafterStreamRunner.server.ts`, và `docs/contracts.md`.
+- **Thiết kế lại Model Picker & Mô tả song ngữ (`src/lib/core/modelPicker.ts`, `ModelPickerList.tsx`, `vi.ts`, `en.ts`)**:
+  - Tách `uiGroup` khỏi `providerId`, gom nhóm theo hãng (`Gemini` → `Claude` → `DeepSeek` → `Grok` → `GLM` → `Groq` → `Local Models`), không còn tách rời DeepSeek sang `OpenRouter (Pay)`.
+  - Chỉ hiển thị nhãn `Miễn phí` / `Trả phí` (`isFree`) và thông số ngữ cảnh (`formatContextWindow` + `ngữ cảnh`/`context`), bỏ hoàn toàn giá USD; sửa bộ lọc `Miễn phí` lọc theo `isFree === true`.
+  - Viết lại toàn bộ 12 `modelDesc*` song ngữ VI/EN theo khuôn mẫu `[Dùng để làm gì] · [Ưu điểm / hiệu quả]` (`line-clamp-2`) và dọn 9 khóa mô tả cũ thừa.
+- **Kiểm thử & Tài liệu**: cập nhật 24 bộ unit test liên quan (**24/24 file test, 336/336 tests đạt**), ESLint 0 lỗi trên toàn bộ file sửa, cập nhật `docs/models.md` và `docs/contracts.md`.
+
+---
+
 ## 2026-11-21: Code Audit Wave 2B — Frontend 60fps Re-Renders, Hooks Concurrency, Zustand Selectors, Voice/FileUpload & UI Reliability
 
 - **Khóa song ngữ (+16 khóa đối xứng `vi.ts` & `en.ts`)**: bổ sung `streamNetworkError`, `fileUploadBlockedExt`, `fileUploadBlockedMime`, `fileUploadTooLarge`, `fileUploadInitFailed`, `fileUploadNetworkError`, `fileUploadTimeout`, `clearFilesPartialFailed`, `voiceMicDenied`, `voiceNoSpeech`, `voiceAudioCaptureError`, `voiceNetworkError`, `voiceStartFailed`, `studioDeleteFailed`, `studioFavoriteFailed`, `adminBulkPartialFailed` đạt 100% parity qua `_AssertTranslationsParity`.

@@ -50,32 +50,41 @@ describe("getLowerThinkingLevel", () => {
 });
 
 describe("getAvailableThinkingLevels", () => {
-  it("returns full levels for Gemini 3 Flash", () => {
-    expect(getAvailableThinkingLevels("gemini-3-flash-preview")).toEqual([
-      "off",
-      "minimal",
+  it("returns low, medium, high, xhigh (without off) for Gemini 4 Hydrogen, Gemini 4 Neon, and legacy Gemini 3/4 aliases", () => {
+    expect(getAvailableThinkingLevels("gemini-4-hydrogen")).toEqual([
       "low",
       "medium",
       "high",
+      "xhigh",
     ]);
-  });
-
-  it("returns low, medium, high for legacy gemini-3.1-pro-preview alias", () => {
-    expect(getAvailableThinkingLevels("gemini-3.1-pro-preview")).toEqual([
-      "off",
-      "low",
-      "medium",
-      "high",
-    ]);
-  });
-
-  it("TC-UTL-01 & TC-UTL-02: returns correct available thinking levels for Gemini 3.8 Flash and Gemini 3.5 Flash-Lite", () => {
+    expect(getAvailableThinkingLevels("gemini-4-neon")).toEqual(["low", "medium", "high", "xhigh"]);
     expect(getAvailableThinkingLevels("gemini-3.8-flash")).toEqual([
-      "off",
       "low",
       "medium",
       "high",
+      "xhigh",
     ]);
+    expect(getAvailableThinkingLevels("gemini-3-flash-preview")).toEqual([
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+    ]);
+    expect(getAvailableThinkingLevels("gemini-3.1-pro-preview")).toEqual([
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+    ]);
+    expect(getAvailableThinkingLevels("gemini-4-argon")).toEqual([
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+    ]);
+  });
+
+  it("TC-UTL-02: returns full levels including off and minimal for Gemini 3.5 Flash-Lite", () => {
     expect(getAvailableThinkingLevels("gemini-3.5-flash-lite")).toEqual([
       "off",
       "minimal",
@@ -92,28 +101,31 @@ describe("getAvailableThinkingLevels", () => {
     ]);
   });
 
-  it("returns off, high for Claude", () => {
-    expect(getAvailableThinkingLevels("claude-sonnet-4.5")).toEqual(["off", "high"]);
+  it("returns off, high for Claude 5.5 Sonnet and Haiku", () => {
+    expect(getAvailableThinkingLevels("claude-sonnet-5-5")).toEqual(["off", "high"]);
+    expect(getAvailableThinkingLevels("claude-haiku-5-5")).toEqual(["off", "high"]);
   });
 
   it("returns off, low, high for DeepSeek V4", () => {
-    expect(getAvailableThinkingLevels("deepseek-v4-flash")).toEqual(["off", "low", "high"]);
+    expect(getAvailableThinkingLevels("deepseek/deepseek-v4.1-flash")).toEqual([
+      "off",
+      "low",
+      "high",
+    ]);
+    expect(getAvailableThinkingLevels("deepseek/deepseek-v4-pro")).toEqual(["off", "low", "high"]);
   });
 
   it("returns off, high for GLM 5.2", () => {
     expect(getAvailableThinkingLevels("z-ai/glm-5.2")).toEqual(["off", "high"]);
   });
-
-  it("returns low, medium, high (without off) for Gemini 4 Argon", () => {
-    expect(getAvailableThinkingLevels("gemini-4-argon")).toEqual(["low", "medium", "high"]);
-  });
 });
 
 describe("getEffectiveThinkingLevel", () => {
-  it("Claude maps non-off levels to high and preserves off", () => {
-    expect(getEffectiveThinkingLevel("claude-sonnet-4.5", "low")).toBe("high");
-    expect(getEffectiveThinkingLevel("claude-sonnet-4.5", "minimal")).toBe("high");
-    expect(getEffectiveThinkingLevel("claude-sonnet-4.5", "off")).toBe("off");
+  it("Claude 5.5 maps non-off levels to high and preserves off", () => {
+    expect(getEffectiveThinkingLevel("claude-sonnet-5-5", "low")).toBe("high");
+    expect(getEffectiveThinkingLevel("claude-sonnet-5-5", "xhigh")).toBe("high");
+    expect(getEffectiveThinkingLevel("claude-haiku-5-5", "high")).toBe("high");
+    expect(getEffectiveThinkingLevel("claude-sonnet-5-5", "off")).toBe("off");
   });
 
   it("legacy gemini-3.1-pro-preview alias clamps minimal to low", () => {
@@ -121,27 +133,31 @@ describe("getEffectiveThinkingLevel", () => {
     expect(getEffectiveThinkingLevel("gemini-3.1-pro-preview", "medium")).toBe("medium");
   });
 
-  it("Gemini 4 Argon clamps off and minimal to low and preserves medium/high", () => {
-    expect(getEffectiveThinkingLevel("gemini-4-argon", "minimal")).toBe("low");
-    expect(getEffectiveThinkingLevel("gemini-4-argon", "off")).toBe("low");
-    expect(getEffectiveThinkingLevel("gemini-4-argon", "medium")).toBe("medium");
-    expect(getEffectiveThinkingLevel("gemini-4-argon", "high")).toBe("high");
+  it("Gemini 4 Neon & Hydrogen clamp off/minimal to low and preserve medium/high/xhigh", () => {
+    expect(getEffectiveThinkingLevel("gemini-4-neon", "minimal")).toBe("low");
+    expect(getEffectiveThinkingLevel("gemini-4-neon", "off")).toBe("low");
+    expect(getEffectiveThinkingLevel("gemini-4-neon", "medium")).toBe("medium");
+    expect(getEffectiveThinkingLevel("gemini-4-neon", "high")).toBe("high");
+    expect(getEffectiveThinkingLevel("gemini-4-neon", "xhigh")).toBe("xhigh");
+    expect(getEffectiveThinkingLevel("gemini-4-hydrogen", "xhigh")).toBe("xhigh");
   });
 
-  it("Gemini 3 Flash preserves supported levels", () => {
-    expect(getEffectiveThinkingLevel("gemini-3-flash-preview", "minimal")).toBe("minimal");
-    expect(getEffectiveThinkingLevel("gemini-3-flash-preview", "high")).toBe("high");
+  it("Gemini 3.5 Flash-Lite preserves supported levels and clamps xhigh to high (TC-MC-03)", () => {
+    expect(getEffectiveThinkingLevel("gemini-3.5-flash-lite", "minimal")).toBe("minimal");
+    expect(getEffectiveThinkingLevel("gemini-3.5-flash-lite", "high")).toBe("high");
+    expect(getEffectiveThinkingLevel("gemini-3.5-flash-lite", "xhigh")).toBe("high");
   });
 
-  it("DeepSeek V4 maps minimal, low, medium to low and high to high", () => {
-    expect(getEffectiveThinkingLevel("deepseek-v4-flash", "minimal")).toBe("low");
-    expect(getEffectiveThinkingLevel("deepseek-v4-flash", "low")).toBe("low");
-    expect(getEffectiveThinkingLevel("deepseek-v4-flash", "medium")).toBe("low");
-    expect(getEffectiveThinkingLevel("deepseek-v4-flash", "high")).toBe("high");
+  it("DeepSeek V4 maps minimal/low/medium to low and high/xhigh to high (TC-MC-03)", () => {
+    expect(getEffectiveThinkingLevel("deepseek/deepseek-v4-pro", "minimal")).toBe("low");
+    expect(getEffectiveThinkingLevel("deepseek/deepseek-v4-pro", "low")).toBe("low");
+    expect(getEffectiveThinkingLevel("deepseek/deepseek-v4-pro", "medium")).toBe("low");
+    expect(getEffectiveThinkingLevel("deepseek/deepseek-v4-pro", "high")).toBe("high");
+    expect(getEffectiveThinkingLevel("deepseek/deepseek-v4-pro", "xhigh")).toBe("high");
   });
 
-  it("TC-UTL-03: clamps minimal to low on gemini-3.8-flash / gemini-2.5-pro and preserves minimal on gemini-2.5-flash", () => {
-    expect(getEffectiveThinkingLevel("gemini-3.8-flash", "minimal")).toBe("low");
+  it("TC-UTL-03: clamps minimal to low on gemini-4-hydrogen / gemini-2.5-pro and preserves minimal on gemini-2.5-flash", () => {
+    expect(getEffectiveThinkingLevel("gemini-4-hydrogen", "minimal")).toBe("low");
     expect(getEffectiveThinkingLevel("gemini-2.5-pro", "minimal")).toBe("low");
     expect(getEffectiveThinkingLevel("gemini-2.5-flash", "minimal")).toBe("minimal");
     expect(getEffectiveThinkingLevel("gemini-2.5-flash", "high")).toBe("high");
@@ -156,19 +172,20 @@ describe("getEffectiveThinkingLevel", () => {
 
   it("Non-thinking model returns off", () => {
     expect(getEffectiveThinkingLevel("claude-haiku-3.5", "high")).toBe("off");
-    expect(getEffectiveThinkingLevel("llama-3.3-70b-versatile", "low")).toBe("off");
+    expect(getEffectiveThinkingLevel("openai/gpt-oss-120b", "low")).toBe("off");
   });
 });
 
 describe("modelSupportsThinkingUI", () => {
-  it("returns true for GLM 5.2, Gemini 4 Argon, and other supported models", () => {
+  it("returns true for GLM 5.2, Gemini 4 Neon/Hydrogen, Claude 5.5 Haiku, and false for Groq", () => {
     expect(modelSupportsThinkingUI("z-ai/glm-5.2")).toBe(true);
-    expect(modelSupportsThinkingUI("gemini-4-argon")).toBe(true);
-    expect(modelSupportsThinkingUI("gemini-3-flash-preview")).toBe(true);
-    expect(modelSupportsThinkingUI("llama-3.3-70b-versatile")).toBe(false);
+    expect(modelSupportsThinkingUI("gemini-4-neon")).toBe(true);
+    expect(modelSupportsThinkingUI("gemini-4-hydrogen")).toBe(true);
+    expect(modelSupportsThinkingUI("claude-haiku-5-5")).toBe(true);
+    expect(modelSupportsThinkingUI("openai/gpt-oss-120b")).toBe(false);
   });
 
-  it("supports strata-local with off/low/medium/high and clamps minimal to low (TC-39)", () => {
+  it("supports strata-local with off/low/medium/high and clamps minimal -> low and xhigh -> high (TC-39, TC-MC-03)", () => {
     expect(isStrataLocalThinkingModel("strata-local")).toBe(true);
     expect(modelSupportsThinkingUI("strata-local")).toBe(true);
     expect(getAvailableThinkingLevels("strata-local")).toEqual(["off", "low", "medium", "high"]);
@@ -177,6 +194,7 @@ describe("modelSupportsThinkingUI", () => {
     expect(getEffectiveThinkingLevel("strata-local", "low")).toBe("low");
     expect(getEffectiveThinkingLevel("strata-local", "medium")).toBe("medium");
     expect(getEffectiveThinkingLevel("strata-local", "high")).toBe("high");
+    expect(getEffectiveThinkingLevel("strata-local", "xhigh")).toBe("high");
   });
 
   it("TC-UTL-04: supports legacy Gemini 2.5 aliases via modelSupportsThinkingUI and removes dead helpers isGemini25Model / isGemini3FlashModel", () => {

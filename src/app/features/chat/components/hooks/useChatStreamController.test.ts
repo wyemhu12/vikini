@@ -863,4 +863,124 @@ describe("useChatStreamController", () => {
       expect(utf8Result.current.contextMessagesCount).toBe(2);
     });
   });
+
+  it("TC-SU-03: tracks streamingActivity across codeExecutionStatus and clears thinkingStats.live after interleaved thinking", async () => {
+    const encoder = new TextEncoder();
+    const queue: Array<string | null> = [];
+    let pendingResolve: ((res: { done: boolean; value?: Uint8Array }) => void) | null = null;
+
+    const pushFrame = (frame: string | null) => {
+      if (pendingResolve) {
+        const resolve = pendingResolve;
+        pendingResolve = null;
+        if (frame === null) resolve({ done: true });
+        else resolve({ done: false, value: encoder.encode(frame) });
+      } else {
+        queue.push(frame);
+      }
+    };
+
+    mockFetch.mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/api/chat")) {
+        return Promise.resolve({
+          ok: true,
+          body: {
+            getReader: () => ({
+              read: () => {
+                if (queue.length > 0) {
+                  const next = queue.shift()!;
+                  return Promise.resolve(
+                    next === null ? { done: true } : { done: false, value: encoder.encode(next) }
+                  );
+                }
+                return new Promise<{ done: boolean; value?: Uint8Array }>((resolve) => {
+                  pendingResolve = resolve;
+                });
+              },
+              cancel: () => Promise.resolve(),
+            }),
+          },
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ success: true, data: { messages: [] } }),
+      });
+    });
+
+    const { result } = renderHook(() =>
+      useChatStreamController({
+        isAuthed: true,
+        selectedConversationId: "conv-activity",
+      })
+    );
+
+    await act(async () => {
+      result.current.handleSend("Draw room diagram");
+    });
+
+    await waitFor(() => expect(result.current.streamingActivity?.phase).toBe("connecting"));
+
+    await act(async () => {
+      pushFrame('event: thinking\ndata: {"thinking":"First plan"}\n\n');
+    });
+    await waitFor(() => {
+      expect(result.current.streamingActivity?.phase).toBe("thinking");
+      expect(result.current.streamingThinkingStats?.live).toBe(true);
+    });
+
+    await act(async () => {
+      pushFrame('event: token\ndata: {"t":"Intro"}\n\n');
+    });
+    await waitFor(() => {
+      expect(result.current.streamingActivity?.phase).toBe("responding");
+      expect(result.current.streamingThinkingStats?.live).toBe(false);
+    });
+
+    await act(async () => {
+      pushFrame(
+        'event: meta\ndata: {"type":"codeExecutionStatus","status":"writing","chars":420}\n\n'
+      );
+    });
+    await waitFor(() => {
+      expect(result.current.streamingActivity?.phase).toBe("code_writing");
+      expect(result.current.streamingActivity?.chars).toBe(420);
+    });
+
+    await act(async () => {
+      pushFrame('event: meta\ndata: {"type":"codeExecutionStatus","status":"running"}\n\n');
+    });
+    await waitFor(() => expect(result.current.streamingActivity?.phase).toBe("code_running"));
+
+    await act(async () => {
+      pushFrame('event: meta\ndata: {"type":"codeExecutionStatus","status":"done"}\n\n');
+    });
+    await waitFor(() => expect(result.current.streamingActivity?.phase).toBe("responding"));
+
+    // Interleaved thinking round 2 -> live turns true again, then post-tool token MUST turn live back to false!
+    await act(async () => {
+      pushFrame('event: thinking\ndata: {"thinking":"Reviewing result"}\n\n');
+    });
+    await waitFor(() => {
+      expect(result.current.streamingActivity?.phase).toBe("thinking");
+      expect(result.current.streamingThinkingStats?.live).toBe(true);
+    });
+
+    await act(async () => {
+      pushFrame('event: token\ndata: {"t":" Final"}\n\n');
+    });
+    await waitFor(() => {
+      expect(result.current.streamingActivity?.phase).toBe("responding");
+      expect(result.current.streamingThinkingStats?.live).toBe(false);
+    });
+
+    await act(async () => {
+      pushFrame('event: done\ndata: {"ok":true}\n\n');
+      pushFrame(null);
+    });
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+      expect(result.current.streamingActivity).toBeNull();
+    });
+  });
 });

@@ -25,7 +25,7 @@ export function createDeepSeekStream(params: {
   model: string;
   contents: unknown[];
   sysPrompt: string;
-  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
+  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal" | "xhigh";
   // Common params
   gemMeta: ChatStreamParams["gemMeta"];
   modelMeta: ChatStreamParams["modelMeta"];

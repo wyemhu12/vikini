@@ -71,7 +71,7 @@ export interface StreamResult {
   allResponseParts?: unknown[];
 }
 
-export type ThinkingLevel = "off" | "low" | "medium" | "high" | "minimal";
+export type ThinkingLevel = "off" | "low" | "medium" | "high" | "minimal" | "xhigh";
 
 // =====================================================
 // TIMEOUT CONFIGURATION
@@ -86,6 +86,8 @@ export type ThinkingLevel = "off" | "low" | "medium" | "high" | "minimal";
 export const TIMEOUT_CONFIG = {
   ARGON: 900000, // 15 minutes for Gemini 4 Argon (per Google migration guide)
   STRATA_LOCAL: 300000, // 5 minutes for Local Strata LLM (Qwen3.8 125B MoE)
+  CLAUDE: 300000, // 5 minutes for Claude models (including sandbox code execution)
+  CLAUDE_DEEP_THINKING: 600000, // 10 minutes for Claude + Extended Thinking
   PRO: 300000, // 5 minutes for Pro models
   PRO_DEEP_THINKING: 600000, // 10 minutes for Pro + Deep Thinking
   FLASH: 240000, // 4 minutes for Flash models
@@ -190,7 +192,7 @@ export interface ChatStreamParams {
     conversationId: string;
     messages: Message[];
   }) => Promise<string | null>;
-  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
+  thinkingLevel?: ThinkingLevel;
   /** Explicit context cache name (from contextCache.ts). When set, system instruction is omitted (it's in the cache). */
   cachedContent?: string;
   clientMessageId?: string;

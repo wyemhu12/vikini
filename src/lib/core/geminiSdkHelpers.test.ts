@@ -9,7 +9,7 @@ describe("geminiSdkHelpers", () => {
       expect(buildMinimalThinkingConfig("gemini-3.5-flash-lite")).toEqual({
         thinkingLevel: ThinkingLevel.MINIMAL,
       });
-      expect(buildMinimalThinkingConfig("gemini-3-flash-preview")).toEqual({
+      expect(buildMinimalThinkingConfig("gemini-2.5-flash")).toEqual({
         thinkingLevel: ThinkingLevel.MINIMAL,
       });
     });

@@ -59,6 +59,7 @@ export default function ChatConversationView({
       streamingThinking={chat.streamingThinking}
       streamingThinkingStats={chat.streamingThinkingStats}
       streamingLocalProgress={chat.streamingLocalProgress}
+      streamingActivity={chat.streamingActivity}
       streamingSources={chat.streamingSources}
       streamingRagSources={chat.streamingRagSources}
       streamingUrlContext={chat.streamingUrlContext}

@@ -31,6 +31,17 @@ export function classifyStudioError(
       suggestion: t("studioErrorContentPolicySuggestion"),
     };
   }
+  if (
+    lower.includes("504") ||
+    lower.includes("timeout") ||
+    lower.includes("timed out") ||
+    lower.includes("gateway")
+  ) {
+    return {
+      message: t("studioErrorTimeout"),
+      suggestion: t("studioErrorTimeoutSuggestion"),
+    };
+  }
   return { message: errorMsg || t("studioGenerateFailed") };
 }
 
@@ -142,26 +153,76 @@ export function readStoredApiKey(storageKey: string): string {
   }
 }
 
+export interface ImageApiJsonPayload {
+  success?: boolean;
+  data?: unknown;
+  error?: { message?: string } | string;
+  [key: string]: unknown;
+}
+
+/**
+ * Safely reads and parses a JSON response from image API routes.
+ * Never throws raw JSON SyntaxError on Vercel 502/503/504 plain-text/HTML bodies.
+ */
+export async function parseImageApiResponse(
+  response: Response,
+  fallbackError: string,
+  timeoutError?: string
+): Promise<ImageApiJsonPayload> {
+  let rawText = "";
+  try {
+    rawText = await response.text();
+  } catch {
+    rawText = "";
+  }
+
+  let parsed: ImageApiJsonPayload | null = null;
+  if (rawText.trim().length > 0) {
+    try {
+      const candidate: unknown = JSON.parse(rawText);
+      if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+        parsed = candidate as ImageApiJsonPayload;
+      }
+    } catch {
+      parsed = null;
+    }
+  }
+
+  if (!response.ok) {
+    const rawErr = parsed?.error;
+    const errMsg =
+      typeof rawErr === "string"
+        ? rawErr.trim()
+        : rawErr && typeof rawErr === "object" && typeof rawErr.message === "string"
+          ? rawErr.message.trim()
+          : "";
+    if (errMsg) {
+      throw new Error(errMsg);
+    }
+    if (response.status === 504 && timeoutError) {
+      throw new Error(timeoutError);
+    }
+    throw new Error(`${fallbackError} (HTTP ${response.status})`);
+  }
+
+  if (!parsed) {
+    throw new Error(fallbackError);
+  }
+
+  return parsed;
+}
+
 export async function postGenerateImageRequest(
   body: Record<string, unknown>,
   apiKey: string,
   fallbackError: string
-): Promise<{ success?: boolean; [key: string]: unknown }> {
+): Promise<ImageApiJsonPayload> {
   const response = await fetch("/api/generate-image", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": apiKey },
     body: JSON.stringify(body),
   });
-  const json = (await response.json()) as {
-    success?: boolean;
-    error?: { message?: string } | string;
-    [key: string]: unknown;
-  };
-  if (!response.ok) {
-    const errMsg = typeof json.error === "string" ? json.error : json.error?.message;
-    throw new Error(errMsg || fallbackError);
-  }
-  return json;
+  return parseImageApiResponse(response, fallbackError);
 }
 
 export async function convertReferenceImagesToBase64(

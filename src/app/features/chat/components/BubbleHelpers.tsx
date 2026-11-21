@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { ChevronDown, Brain } from "lucide-react";
+import { ChevronDown, Brain, Loader2 } from "lucide-react";
 import {
   formatThinkingDuration,
   type ThinkingStatsSnapshot,
@@ -116,6 +116,53 @@ export const ThinkingBlock = React.memo(function ThinkingBlock({
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+});
+
+// ============================================
+// Partial / Interrupted Message Status Badges
+// ============================================
+
+export const PartialMessageStatusBadges = React.memo(function PartialMessageStatusBadges({
+  status,
+  isSaving,
+  saveFailed,
+  onRetrySave,
+  t,
+}: {
+  status?: string;
+  isSaving?: boolean;
+  saveFailed?: boolean;
+  onRetrySave?: () => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="mt-2 flex items-center gap-2 text-xs flex-wrap">
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${
+          status === "error"
+            ? "bg-(--danger)/10 text-(--danger) border border-(--danger)/20"
+            : "bg-(--raised) text-(--muted) border border-(--line)"
+        }`}
+      >
+        {status === "error" ? t("interrupted") : t("stopped")}
+      </span>
+      {isSaving && (
+        <span className="text-(--muted) flex items-center gap-1">
+          <Loader2 className="w-3 h-3 animate-spin text-(--accent)" />
+          {t("saving")}
+        </span>
+      )}
+      {saveFailed && (
+        <button
+          type="button"
+          onClick={onRetrySave}
+          className="text-(--danger) hover:underline flex items-center gap-1 cursor-pointer font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) rounded"
+        >
+          {t("saveFailed")} ({t("retrySave")})
+        </button>
+      )}
     </div>
   );
 });

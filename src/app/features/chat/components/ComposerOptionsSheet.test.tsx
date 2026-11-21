@@ -52,7 +52,7 @@ function makeProps(overrides: Partial<ComposerOptionsSheetProps> = {}): Composer
   return {
     open: true,
     onOpenChange: vi.fn(),
-    currentModel: "gemini-3.8-flash",
+    currentModel: "gemini-3.5-flash-lite",
     webSearchEnabled: true,
     toggleWebSearch: vi.fn(),
     alwaysSearch: false,
@@ -124,7 +124,7 @@ describe("ComposerOptionsSheet", () => {
   });
 
   it("disables web search with an explanation when the model cannot search", () => {
-    const props = makeProps({ currentModel: "deepseek-v4-flash" });
+    const props = makeProps({ currentModel: "deepseek/deepseek-v4-pro" });
     render(<ComposerOptionsSheet {...props} />);
 
     const web = screen.getByRole("switch", { name: "Tìm web" });

@@ -8,9 +8,8 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeHighlight from "rehype-highlight";
 import dynamic from "next/dynamic";
-import SmartCode, { extractText } from "./SmartCode";
+import SmartCode, { BubbleStreamingContext, extractText } from "./SmartCode";
 import { EXTENDED_TAG_NAMES } from "./markdownConfig";
-import { TypingCursor } from "./BubbleHelpers";
 import { useLanguage } from "../hooks/useLanguage";
 
 interface MarkdownChildrenProps {
@@ -193,6 +192,7 @@ export interface BubbleMarkdownProps {
   isBot?: boolean;
   isStreaming?: boolean;
   isLastAssistant?: boolean;
+  showInlineCursor?: boolean;
   className?: string;
 }
 
@@ -201,25 +201,35 @@ export const BubbleMarkdown = React.memo(function BubbleMarkdown({
   isBot = true,
   isStreaming = false,
   isLastAssistant = false,
+  showInlineCursor,
   className = "",
 }: BubbleMarkdownProps) {
   if (isBot === false) {
     return <span className={`whitespace-pre-wrap break-words ${className}`}>{content}</span>;
   }
 
+  const activeStreaming = Boolean(isStreaming && isLastAssistant);
+  const inlineCursorActive =
+    showInlineCursor !== undefined
+      ? Boolean(showInlineCursor && content.trim())
+      : Boolean(activeStreaming && content.trim());
+
   return (
-    <div
-      className={`chat-markdown-container chat-markdown w-full overflow-hidden text-[15px] md:text-base leading-relaxed ${className}`}
-    >
-      <ReactMarkdown
-        remarkPlugins={REMARK_PLUGINS}
-        rehypePlugins={isStreaming ? REHYPE_PLUGINS_STREAMING : REHYPE_PLUGINS_FINAL}
-        components={mdComponents}
+    <BubbleStreamingContext.Provider value={activeStreaming}>
+      <div
+        className={`chat-markdown-container chat-markdown w-full overflow-hidden text-[15px] md:text-base leading-relaxed ${
+          inlineCursorActive ? "chat-markdown-streaming" : ""
+        } ${className}`}
       >
-        {content}
-      </ReactMarkdown>
-      {isStreaming && isLastAssistant && content.trim() && <TypingCursor />}
-    </div>
+        <ReactMarkdown
+          remarkPlugins={REMARK_PLUGINS}
+          rehypePlugins={isStreaming ? REHYPE_PLUGINS_STREAMING : REHYPE_PLUGINS_FINAL}
+          components={mdComponents}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+    </BubbleStreamingContext.Provider>
   );
 });
 

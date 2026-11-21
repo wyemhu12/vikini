@@ -141,7 +141,7 @@ async function executeStream(
     safetySettings: unknown[] | null;
     toolConfig?: Record<string, unknown>;
     useTools: boolean;
-    thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
+    thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal" | "xhigh";
     cachedContent?: string;
     acc?: { full: string; reasoning?: string };
     abortSignal?: AbortSignal;
@@ -551,7 +551,7 @@ async function runStreamWithFallback(
     tools: unknown[];
     safetySettings: unknown[] | null;
     toolConfig?: Record<string, unknown>;
-    thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
+    thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal" | "xhigh";
     cachedContent?: string;
     acc?: { full: string; reasoning?: string };
     abortSignal?: AbortSignal;
@@ -614,7 +614,7 @@ async function runStreamWithFallback(
       if (isGemini4Model(model) || /free tier|not available on the free tier/i.test(message)) {
         return {
           message:
-            "Gemini 4 Argon requires a paid-tier Gemini API key and is not available on the Free tier.",
+            "Gemini 4 models require a paid-tier Gemini API key and are not available on the Free tier.",
           code: "MODEL_TIER_RESTRICTED",
           status: status === 500 ? 403 : status,
           isRateLimit: false,

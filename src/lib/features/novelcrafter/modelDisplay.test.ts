@@ -13,18 +13,18 @@ vi.mock("@/lib/core/modelRegistry", async (importOriginal) => {
 
 describe("modelDisplay", () => {
   it("TC-12: resolves known model display info and routedModel fallback metadata", () => {
-    const geminiInfo = resolveModelDisplayInfo("gemini-4-argon");
-    expect(geminiInfo.id).toBe("gemini-4-argon");
+    const geminiInfo = resolveModelDisplayInfo("gemini-4-neon");
+    expect(geminiInfo.id).toBe("gemini-4-neon");
     expect(geminiInfo.providerId).toBe("gemini");
     expect(geminiInfo.displayName.length).toBeGreaterThan(0);
     expect(geminiInfo.routedVia).toBeUndefined();
 
     const claudeRouted = resolveModelDisplayInfo(
-      "claude-sonnet-4-6",
-      "anthropic/claude-sonnet-4.6"
+      "claude-sonnet-5-5",
+      "anthropic/claude-sonnet-5.5"
     );
     expect(claudeRouted.providerId).toBe("anthropic");
-    expect(claudeRouted.routedVia).toBe("anthropic/claude-sonnet-4.6");
+    expect(claudeRouted.routedVia).toBe("anthropic/claude-sonnet-5.5");
   });
 
   it("handles unknown or legacy model IDs gracefully without throwing", () => {
@@ -41,9 +41,9 @@ describe("modelDisplay", () => {
     expect(flash25.displayName).toBe("Gemini 3.5 Flash-Lite");
 
     const pro25 = resolveModelDisplayInfo("gemini-2.5-pro");
-    expect(pro25.id).toBe("gemini-3.8-flash");
+    expect(pro25.id).toBe("gemini-4-hydrogen");
     expect(pro25.providerId).toBe("gemini");
-    expect(pro25.displayName).toBe("Gemini 3.8 Flash");
+    expect(pro25.displayName).toBe("Gemini 4 Hydrogen");
   });
 
   it.each(["gemini-unknown-xyz", "constructor", "__proto__", "toString"])(

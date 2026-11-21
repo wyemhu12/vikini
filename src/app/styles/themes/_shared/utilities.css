@@ -95,6 +95,22 @@
   @apply my-6;
 }
 
+/* Inline streaming indicator appended cleanly inside the last text block (never drops onto a new blank line) */
+.chat-markdown-streaming > p:last-child::after,
+.chat-markdown-streaming > ul:last-child > li:last-child::after,
+.chat-markdown-streaming > ol:last-child > li:last-child::after,
+.chat-markdown-streaming > blockquote:last-child > p:last-child::after {
+  content: "";
+  display: inline-block;
+  width: 0.42rem;
+  height: 0.42rem;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+  border-radius: 9999px;
+  background-color: var(--accent);
+  animation: vikini-stream-dot 1s ease-in-out infinite;
+}
+
 /* Hide scrollbar but keep scroll functionality */
 .scrollbar-hide {
   -ms-overflow-style: none; /* IE and Edge */
@@ -225,7 +241,11 @@
   .animate-wiggle,
   .wiggle-on-hover,
   .animate-voice-bar,
-  .typing-dots span {
+  .typing-dots span,
+  .chat-markdown-streaming > p:last-child::after,
+  .chat-markdown-streaming > ul:last-child > li:last-child::after,
+  .chat-markdown-streaming > ol:last-child > li:last-child::after,
+  .chat-markdown-streaming > blockquote:last-child > p:last-child::after {
     animation-duration: 0.01ms !important;
   }
 

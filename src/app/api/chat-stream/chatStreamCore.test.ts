@@ -5,6 +5,7 @@ const {
   mockGetGenAIClient,
   mockGetOpenRouterClient,
   mockGetClaudeClient,
+  mockGetGroqClient,
   mockGetOrCreateCompositeCache,
   mockAssertModelAllowedForUser,
   mockGetUserLimits,
@@ -12,10 +13,12 @@ const {
   mockBuildRAGContext,
   mockCreateAnthropicStream,
   mockCreateChatReadableStream,
+  mockCreateOpenAICompatibleStream,
 } = vi.hoisted(() => ({
   mockGetGenAIClient: vi.fn(),
   mockGetOpenRouterClient: vi.fn(),
   mockGetClaudeClient: vi.fn(),
+  mockGetGroqClient: vi.fn(),
   mockGetOrCreateCompositeCache: vi.fn(),
   mockAssertModelAllowedForUser: vi.fn(),
   mockGetUserLimits: vi.fn(),
@@ -23,6 +26,7 @@ const {
   mockBuildRAGContext: vi.fn(),
   mockCreateAnthropicStream: vi.fn(),
   mockCreateChatReadableStream: vi.fn(),
+  mockCreateOpenAICompatibleStream: vi.fn(),
 }));
 
 vi.mock("@/lib/core/genaiClient", () => ({
@@ -35,10 +39,7 @@ vi.mock("@/lib/core/claudeClient", () => ({
   getClaudeClient: () => mockGetClaudeClient(),
 }));
 vi.mock("@/lib/core/groqClient", () => ({
-  getGroqClient: vi.fn(),
-}));
-vi.mock("@/lib/core/deepseekClient", () => ({
-  getDeepSeekClient: vi.fn(),
+  getGroqClient: () => mockGetGroqClient(),
 }));
 vi.mock("@/lib/core/contextCache", () => ({
   getOrCreateCompositeCache: (...args: unknown[]) => mockGetOrCreateCompositeCache(...args),
@@ -95,7 +96,7 @@ vi.mock("./attachmentProcessor", () => ({
 }));
 vi.mock("./streaming", () => ({
   createChatReadableStream: (...args: unknown[]) => mockCreateChatReadableStream(...args),
-  createOpenAICompatibleStream: vi.fn(() => new ReadableStream()),
+  createOpenAICompatibleStream: (...args: unknown[]) => mockCreateOpenAICompatibleStream(...args),
   createDeepSeekStream: vi.fn(() => new ReadableStream()),
   createAnthropicStream: (...args: unknown[]) => mockCreateAnthropicStream(...args),
   createStrataStream: vi.fn(() => new ReadableStream()),
@@ -128,8 +129,10 @@ describe("chatStreamCore (TC-W1-03, TC-W1-08, TC-W1-09)", () => {
     mockGetOrCreateCompositeCache.mockResolvedValue(null);
     mockGetGenAIClient.mockReturnValue({ models: { generateContentStream: vi.fn() } });
     mockGetClaudeClient.mockReturnValue({ beta: { messages: { create: vi.fn() } } });
+    mockGetGroqClient.mockReturnValue({ chat: { completions: { create: vi.fn() } } });
     mockCreateAnthropicStream.mockReturnValue(new ReadableStream());
     mockCreateChatReadableStream.mockReturnValue(new ReadableStream());
+    mockCreateOpenAICompatibleStream.mockReturnValue(new ReadableStream());
   });
 
   afterEach(() => {
@@ -155,7 +158,7 @@ describe("chatStreamCore (TC-W1-03, TC-W1-08, TC-W1-09)", () => {
     expect(invalidJson.error.message).toContain("content");
   });
 
-  it("TC-W1-08: routes claude-sonnet-4.5 to Direct Anthropic when ANTHROPIC_API_KEY is set without calling getGenAIClient or getOpenRouterClient", async () => {
+  it("TC-W1-08: routes claude-sonnet-5-5 to Direct Anthropic when ANTHROPIC_API_KEY is set without calling getGenAIClient or getOpenRouterClient", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test-key");
     vi.stubEnv("OPENROUTER_API_KEY", "");
     vi.stubEnv("GEMINI_API_KEY", "");
@@ -171,9 +174,9 @@ describe("chatStreamCore (TC-W1-03, TC-W1-08, TC-W1-09)", () => {
       isNew: false,
       isUntitled: false,
       shouldGenerateTitle: false,
-      requestedModel: "claude-sonnet-4.5",
-      model: "claude-sonnet-4.5",
-      modelLimitTokens: 200_000,
+      requestedModel: "claude-sonnet-5-5",
+      model: "claude-sonnet-5-5",
+      modelLimitTokens: 1_000_000,
     });
 
     const res = await handleChatStreamCore({
@@ -183,9 +186,37 @@ describe("chatStreamCore (TC-W1-03, TC-W1-08, TC-W1-09)", () => {
 
     expect(res.status).toBe(200);
     expect(mockGetClaudeClient).toHaveBeenCalledTimes(1);
-    expect(mockCreateAnthropicStream).toHaveBeenCalledTimes(1);
+    expect(mockCreateAnthropicStream).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "claude-sonnet-5-5" })
+    );
     expect(mockGetGenAIClient).not.toHaveBeenCalled();
     expect(mockGetOpenRouterClient).not.toHaveBeenCalled();
+  });
+
+  it("TC-MC-05: routes openai/gpt-oss-120b to Groq client and NEVER calls getOpenRouterClient or getGenAIClient", async () => {
+    mockLoadOrCreateConversation.mockResolvedValue({
+      conversation: { id: "conv-groq", gemId: null },
+      conversationId: "conv-groq",
+      isNew: false,
+      isUntitled: false,
+      shouldGenerateTitle: false,
+      requestedModel: "openai/gpt-oss-120b",
+      model: "openai/gpt-oss-120b",
+      modelLimitTokens: 131_072,
+    });
+
+    const res = await handleChatStreamCore({
+      req: makeReq({ content: "Hello Groq", thinkingLevel: "xhigh" }),
+      userId: "user@example.com",
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockGetGroqClient).toHaveBeenCalledTimes(1);
+    expect(mockCreateOpenAICompatibleStream).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "openai/gpt-oss-120b" })
+    );
+    expect(mockGetOpenRouterClient).not.toHaveBeenCalled();
+    expect(mockGetGenAIClient).not.toHaveBeenCalled();
   });
 
   it("TC-W1-08: blocks web search privilege escalation via cookie when user rank features.web_search is false", async () => {

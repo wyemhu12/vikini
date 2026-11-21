@@ -61,7 +61,7 @@ vi.mock("@/lib/utils/logger", () => ({
 }));
 
 // ── Import route handlers AFTER mocks ─────────────────────────────────
-import { POST } from "./route";
+import { POST, maxDuration } from "./route";
 import { auth } from "@/lib/features/auth/auth";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
 import { getUserProfile } from "@/lib/core/limits";
@@ -569,5 +569,9 @@ describe("/api/edit-image-multi", () => {
       })
     );
     expect(hugeRes.status).toBe(400);
+  });
+
+  it("TC-IMG-09: exports maxDuration = 300 for Vercel Fluid Compute", () => {
+    expect(maxDuration).toBe(300);
   });
 });

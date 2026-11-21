@@ -1,4 +1,5 @@
 import type { LocalStreamProgress, ThinkingStatsSnapshot } from "./thinkingStats";
+import type { StreamActivity } from "./streamActivity";
 
 export interface ChatFrontendMessage {
   id?: string;
@@ -9,6 +10,7 @@ export interface ChatFrontendMessage {
   meta?: {
     thinkingStats?: ThinkingStatsSnapshot;
     localProgress?: LocalStreamProgress;
+    streamActivity?: StreamActivity;
     [key: string]: unknown;
   };
   [key: string]: unknown;
@@ -48,7 +50,9 @@ export interface ParsedSSEEvent {
     error?: string;
     message?: string;
     code?: string;
-    status?: number;
+    status?: number | string;
+    chars?: number;
+    name?: string;
     isTokenLimit?: boolean;
     tokenInfo?: { limit?: number; requested?: number } | null;
     reason?: string;
@@ -334,4 +338,51 @@ export async function requestChatStream(
   }
 
   return { ok: true, reader: res.body.getReader() };
+}
+
+export function isExecutionAborted(
+  isUnmountedRef: MutableRefBox<boolean>,
+  abortControllerRef: MutableRefBox<AbortController | null>,
+  controller: AbortController
+): boolean {
+  return (
+    isUnmountedRef.current || controller.signal.aborted || abortControllerRef.current !== controller
+  );
+}
+
+export function recordStreamExecutionError(params: {
+  error: StreamError;
+  hasStreamErrorRef: MutableRefBox<boolean>;
+  lastStreamErrorRef: MutableRefBox<StreamError | null>;
+  setStreamError: (error: StreamError | null) => void;
+  onStreamError?: (error: StreamError) => void;
+  notifyError: (error: StreamError) => void;
+}): void {
+  params.hasStreamErrorRef.current = true;
+  params.lastStreamErrorRef.current = params.error;
+  params.setStreamError(params.error);
+  params.onStreamError?.(params.error);
+  params.notifyError(params.error);
+}
+
+export function clearStreamRuntimeState(params: {
+  assistantValue: string | null;
+  activityValue: StreamActivity | null;
+  resetThinkingStats: () => void;
+  setStreamingLocalProgress: (v: LocalStreamProgress | null) => void;
+  setStreamingActivity: (v: StreamActivity | null) => void;
+  setStreamingAssistant: (v: string | null) => void;
+  setStreamingThinking: (v: string) => void;
+  setStreamingSources: (v: unknown[]) => void;
+  setStreamingRagSources: (v: unknown[]) => void;
+  setStreamingUrlContext: (v: unknown[]) => void;
+}): void {
+  params.resetThinkingStats();
+  params.setStreamingLocalProgress(null);
+  params.setStreamingActivity(params.activityValue);
+  params.setStreamingAssistant(params.assistantValue);
+  params.setStreamingThinking("");
+  params.setStreamingSources([]);
+  params.setStreamingRagSources([]);
+  params.setStreamingUrlContext([]);
 }

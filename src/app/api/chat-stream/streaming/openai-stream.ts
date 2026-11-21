@@ -248,12 +248,12 @@ export function createOpenAICompatibleStream(params: {
           } else if (thinkingLevel) {
             const effort = isGlm
               ? "high" // GLM 5.2 chỉ hỗ trợ ["xhigh", "high"]
-              : thinkingLevel === "high"
+              : thinkingLevel === "high" || thinkingLevel === "xhigh"
                 ? "high"
-                : "low"; // Grok 4.3 hỗ trợ low/medium/high
+                : "low"; // Grok 4.7 hỗ trợ low/medium/high
             createParams.reasoning = { effort };
           }
-          // Khi Grok 4.3 nhận thinkingLevel === undefined, không gắn createParams.reasoning,
+          // Khi Grok 4.7 nhận thinkingLevel === undefined, không gắn createParams.reasoning,
           // bảo toàn mặc định của OpenRouter (effort: "low")
         }
 

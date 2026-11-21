@@ -136,7 +136,7 @@ describe("ControlPanel tokens, labels and M5 (phase 4)", () => {
   it("left-aligns the model option content", () => {
     render(<ControlPanel {...makeControlPanelProps()} />);
     const trigger = screen.getByRole("combobox", { name: "Model" });
-    const content = within(trigger).getByText("Gemini Image Flash").parentElement;
+    const content = within(trigger).getByText("Nano Banana").parentElement;
     expect(content?.className).toContain("items-start");
     expect(content?.className).toContain("text-left");
   });

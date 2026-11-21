@@ -10,6 +10,9 @@ import {
   buildChatStreamPayload,
   extractStreamHttpError,
   generateClientMessageId,
+  isExecutionAborted,
+  recordStreamExecutionError,
+  clearStreamRuntimeState,
   requestChatStream,
   resetStreamExecutionRefs,
   type ChatFrontendMessage,
@@ -332,5 +335,59 @@ describe("streamProtocol (CT-6C-01)", () => {
         signal: new AbortController().signal,
       })
     ).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("TC-SU-03: parses codeExecutionStatus/webSearchStatus/functionCall meta events and executes stream lifecycle helpers", () => {
+    const parsedMeta = parseSSEEvent(
+      'event: meta\ndata: {"type":"codeExecutionStatus","status":"writing","chars":512}'
+    );
+    expect(parsedMeta).toEqual({
+      event: "meta",
+      data: { type: "codeExecutionStatus", status: "writing", chars: 512 },
+    });
+
+    const parsedErr = parseSSEEvent('event: error\ndata: {"message":"Busy","status":429}');
+    expect(parsedErr?.data.status).toBe(429);
+
+    const ac = new AbortController();
+    const unmounted = { current: false };
+    const acRef = { current: ac };
+    expect(isExecutionAborted(unmounted, acRef, ac)).toBe(false);
+    ac.abort();
+    expect(isExecutionAborted(unmounted, acRef, ac)).toBe(true);
+
+    const hasErr = { current: false };
+    const lastErr = { current: null };
+    const setStreamError = vi.fn();
+    const onStreamError = vi.fn();
+    const notifyError = vi.fn();
+    recordStreamExecutionError({
+      error: { message: "Failed", status: 500 },
+      hasStreamErrorRef: hasErr,
+      lastStreamErrorRef: lastErr,
+      setStreamError,
+      onStreamError,
+      notifyError,
+    });
+    expect(hasErr.current).toBe(true);
+    expect(setStreamError).toHaveBeenCalledWith({ message: "Failed", status: 500 });
+    expect(notifyError).toHaveBeenCalledTimes(1);
+
+    const resetThinkingStats = vi.fn();
+    const setStreamingActivity = vi.fn();
+    clearStreamRuntimeState({
+      assistantValue: null,
+      activityValue: null,
+      resetThinkingStats,
+      setStreamingLocalProgress: vi.fn(),
+      setStreamingActivity,
+      setStreamingAssistant: vi.fn(),
+      setStreamingThinking: vi.fn(),
+      setStreamingSources: vi.fn(),
+      setStreamingRagSources: vi.fn(),
+      setStreamingUrlContext: vi.fn(),
+    });
+    expect(resetThinkingStats).toHaveBeenCalledTimes(1);
+    expect(setStreamingActivity).toHaveBeenCalledWith(null);
   });
 });

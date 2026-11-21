@@ -100,4 +100,11 @@ describe("FileLightbox (TC-W3-05, WP-4)", () => {
       );
     });
   });
+
+  it("NP-4: does not render dead Prev/Next arrows when onNavigate is omitted even with multiple files", () => {
+    render(<FileLightbox file={sampleFiles[1]} files={sampleFiles} onClose={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: /previousImage/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /nextImage/i })).not.toBeInTheDocument();
+  });
 });

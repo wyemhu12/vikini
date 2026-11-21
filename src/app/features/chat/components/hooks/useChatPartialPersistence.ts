@@ -35,6 +35,7 @@ export function useChatPartialPersistence(params: UseChatPartialPersistenceParam
     setStreamingAssistant,
     setStreamingThinking,
     setStreamingLocalProgress,
+    setStreamingActivity,
     setStreamingSources,
     setStreamingRagSources,
     setStreamingUrlContext,
@@ -119,6 +120,7 @@ export function useChatPartialPersistence(params: UseChatPartialPersistenceParam
       markAnswer();
       if (isUnmountedRef.current) return Promise.resolve();
       setStreamingLocalProgress(null);
+      setStreamingActivity(null);
 
       const rawContent = accumulatedAssistantRef.current || streamingAssistantRef.current || "";
       const reasoning = accumulatedThinkingRef.current.trim();
@@ -190,6 +192,7 @@ export function useChatPartialPersistence(params: UseChatPartialPersistenceParam
       setIsStreaming,
       setMessages,
       setStreamingAssistant,
+      setStreamingActivity,
       setStreamingLocalProgress,
       setStreamingRagSources,
       setStreamingSources,

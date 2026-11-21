@@ -9,6 +9,10 @@ import AppFrame from "@/app/features/layout/components/AppFrame";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { KnowledgePanel } from "@/components/features/projects";
+import {
+  sendKnowledgeUploadXhr,
+  type KnowledgeUploadCallbacks,
+} from "@/lib/features/projects/knowledgeUploadHelpers";
 import { ProjectIcon } from "@/components/features/projects/ProjectIcon";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { useConversation } from "@/app/features/chat/hooks/useConversation";
@@ -77,15 +81,26 @@ export default function ProjectPage() {
   }, [projectId, fetchDocuments]);
 
   // Upload document
-  const handleUpload = async (file: File, payload: FormData | string) => {
-    let res: Response;
+  const handleUpload = async (
+    file: File,
+    payload: FormData | string,
+    callbacks?: KnowledgeUploadCallbacks
+  ) => {
+    let truncated = false;
     if (payload instanceof FormData) {
-      res = await fetch(`/api/projects/${projectId}/knowledge`, {
-        method: "POST",
-        body: payload,
+      const uploaded = await sendKnowledgeUploadXhr({
+        projectId,
+        file,
+        formData: payload,
+        payloadTooLargeMessage: t("serverPayloadTooLarge"),
+        fallbackErrorMessage: t("uploadFailed"),
+        onProgress: callbacks?.onProgress,
+        onProcessing: callbacks?.onProcessing,
+        signal: callbacks?.signal,
       });
+      truncated = uploaded.truncated;
     } else {
-      res = await fetch(`/api/projects/${projectId}/knowledge`, {
+      const res = await fetch(`/api/projects/${projectId}/knowledge`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -93,30 +108,30 @@ export default function ProjectPage() {
           content: payload,
           mimeType: file.type || "text/plain",
         }),
+        signal: callbacks?.signal,
       });
-    }
 
-    if (res.status === 413) {
-      throw new Error(
-        t("serverPayloadTooLarge") || "File quá lớn, vượt quá giới hạn tải lên của máy chủ"
-      );
-    }
+      if (res.status === 413) {
+        throw new Error(t("serverPayloadTooLarge"));
+      }
 
-    let data: { success?: boolean; error?: { message?: string }; data?: { truncated?: boolean } };
-    try {
-      data = await res.json();
-    } catch {
-      throw new Error(res.ok ? "Upload failed" : `Upload failed (${res.status})`);
-    }
+      let data: { success?: boolean; error?: { message?: string }; data?: { truncated?: boolean } };
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(t("uploadFailed"));
+      }
 
-    if (!data.success) {
-      throw new Error(data.error?.message || t("uploadFailed"));
+      if (!data.success) {
+        throw new Error(data.error?.message || t("uploadFailed"));
+      }
+      truncated = Boolean(data.data?.truncated);
     }
 
     // Refresh both document list and project stats (document_count, storage_bytes)
     await Promise.all([fetchDocuments(), fetchProjects()]);
 
-    return { truncated: Boolean(data.data?.truncated) };
+    return { truncated };
   };
 
   // Delete document
@@ -200,7 +215,7 @@ export default function ProjectPage() {
                 size="lg"
                 className="w-10 h-10 rounded-lg"
               />
-              <span className="truncate">{project?.name || "Loading..."}</span>
+              <span className="truncate">{project?.name || t("loading")}</span>
             </span>
           }
           description={project?.description}

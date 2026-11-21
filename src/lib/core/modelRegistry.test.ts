@@ -6,7 +6,11 @@ import * as registry from "./modelRegistry";
 import {
   DEFAULT_MODEL,
   MODEL_ALIASES,
+  UI_GROUP_LABELS,
   isGemini4Model,
+  isGroqModel,
+  isClaude55Model,
+  modelSupportsClaudeThinking,
   modelSupportsThinking,
   getSupportedGeminiThinkingLevels,
   clampGeminiThinkingLevel,
@@ -23,6 +27,7 @@ import {
   SELECTABLE_MODELS,
   PROVIDER_LABELS,
 } from "./modelRegistry";
+import { UI_GROUP_ORDER } from "./modelPicker";
 
 describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
   describe("modelSupportsThinking", () => {
@@ -43,13 +48,7 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
   });
 
   describe("getSupportedGeminiThinkingLevels", () => {
-    it("returns full levels for Gemini 3 Flash and Flash-Lite", () => {
-      expect(getSupportedGeminiThinkingLevels("gemini-3-flash-preview")).toEqual([
-        "minimal",
-        "low",
-        "medium",
-        "high",
-      ]);
+    it("returns full levels for Gemini 3.5 Flash-Lite and its legacy aliases", () => {
       expect(getSupportedGeminiThinkingLevels("gemini-3.1-flash-lite-preview")).toEqual([
         "minimal",
         "low",
@@ -64,21 +63,43 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
       ]);
     });
 
-    it("returns low, medium, high for legacy Gemini 3.1 Pro alias and Gemini 3.8 Flash", () => {
-      expect(getSupportedGeminiThinkingLevels("gemini-3.1-pro-preview")).toEqual([
+    it("returns low, medium, high, xhigh for Gemini 4 Hydrogen, Gemini 4 Neon, and their legacy aliases", () => {
+      expect(getSupportedGeminiThinkingLevels("gemini-4-hydrogen")).toEqual([
         "low",
         "medium",
         "high",
+        "xhigh",
+      ]);
+      expect(getSupportedGeminiThinkingLevels("gemini-4-neon")).toEqual([
+        "low",
+        "medium",
+        "high",
+        "xhigh",
       ]);
       expect(getSupportedGeminiThinkingLevels("gemini-3.8-flash")).toEqual([
         "low",
         "medium",
         "high",
+        "xhigh",
       ]);
-    });
-
-    it("returns low, medium, high for Gemini 4 Argon", () => {
-      expect(getSupportedGeminiThinkingLevels("gemini-4-argon")).toEqual(["low", "medium", "high"]);
+      expect(getSupportedGeminiThinkingLevels("gemini-3-flash-preview")).toEqual([
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+      ]);
+      expect(getSupportedGeminiThinkingLevels("gemini-3.1-pro-preview")).toEqual([
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+      ]);
+      expect(getSupportedGeminiThinkingLevels("gemini-4-argon")).toEqual([
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+      ]);
     });
 
     it("returns target thinking levels for legacy Gemini 2.5 aliases", () => {
@@ -88,7 +109,12 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
         "medium",
         "high",
       ]);
-      expect(getSupportedGeminiThinkingLevels("gemini-2.5-pro")).toEqual(["low", "medium", "high"]);
+      expect(getSupportedGeminiThinkingLevels("gemini-2.5-pro")).toEqual([
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+      ]);
     });
 
     it("returns fallback levels for unlisted Gemini 3 models", () => {
@@ -101,35 +127,51 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
   });
 
   describe("clampGeminiThinkingLevel", () => {
-    it("TC-REG-04: clamps minimal to low on models without minimal support (including gemini-3.8-flash and gemini-2.5-pro)", () => {
-      expect(clampGeminiThinkingLevel("gemini-3.1-pro-preview", "minimal")).toBe("low");
-      expect(clampGeminiThinkingLevel("gemini-3.8-flash", "minimal")).toBe("low");
-      expect(clampGeminiThinkingLevel("gemini-3.8-flash", "high")).toBe("high");
-      expect(clampGeminiThinkingLevel("gemini-2.5-pro", "minimal")).toBe("low");
+    it("TC-MC-03: clamps directionally (xhigh -> high on 3.5-flash-lite; off/minimal -> low on gemini-4-*)", () => {
+      expect(clampGeminiThinkingLevel("gemini-4-neon", "xhigh")).toBe("xhigh");
+      expect(clampGeminiThinkingLevel("gemini-4-neon", "off")).toBe("low");
+      expect(clampGeminiThinkingLevel("gemini-4-neon", "minimal")).toBe("low");
+      expect(clampGeminiThinkingLevel("gemini-4-hydrogen", "xhigh")).toBe("xhigh");
+      expect(clampGeminiThinkingLevel("gemini-4-hydrogen", "minimal")).toBe("low");
+      expect(clampGeminiThinkingLevel("gemini-3.5-flash-lite", "xhigh")).toBe("high");
       expect(clampGeminiThinkingLevel("gemini-2.5-flash", "minimal")).toBe("minimal");
-      expect(clampGeminiThinkingLevel("gemini-4-argon", "minimal")).toBe("low");
-      expect(clampGeminiThinkingLevel("gemini-4-argon", "off")).toBe("low");
+      expect(clampGeminiThinkingLevel("gemini-2.5-pro", "minimal")).toBe("low");
+      expect(clampGeminiThinkingLevel("gemini-3.8-flash", "minimal")).toBe("low");
     });
 
     it("preserves valid supported levels", () => {
-      expect(clampGeminiThinkingLevel("gemini-3-flash-preview", "minimal")).toBe("minimal");
-      expect(clampGeminiThinkingLevel("gemini-3-flash-preview", "high")).toBe("high");
-      expect(clampGeminiThinkingLevel("gemini-3.1-pro-preview", "medium")).toBe("medium");
-      expect(clampGeminiThinkingLevel("gemini-4-argon", "medium")).toBe("medium");
-      expect(clampGeminiThinkingLevel("gemini-4-argon", "high")).toBe("high");
+      expect(clampGeminiThinkingLevel("gemini-3.5-flash-lite", "minimal")).toBe("minimal");
+      expect(clampGeminiThinkingLevel("gemini-3.5-flash-lite", "high")).toBe("high");
+      expect(clampGeminiThinkingLevel("gemini-4-hydrogen", "medium")).toBe("medium");
+      expect(clampGeminiThinkingLevel("gemini-4-neon", "medium")).toBe("medium");
+      expect(clampGeminiThinkingLevel("gemini-4-neon", "high")).toBe("high");
     });
 
     it("returns low when model has no supported thinking levels", () => {
-      expect(clampGeminiThinkingLevel("claude-sonnet-4.5", "high")).toBe("low");
+      expect(clampGeminiThinkingLevel("claude-sonnet-5-5", "high")).toBe("low");
     });
   });
 
   describe("normalizeModelForApi", () => {
-    it("maps model aliases to canonical IDs", () => {
-      expect(normalizeModelForApi("gemini-3-pro-preview")).toBe("gemini-3.8-flash");
+    it("TC-MC-02: maps all legacy model aliases to canonical IDs", () => {
+      expect(normalizeModelForApi("gemini-3.8-flash")).toBe(MODEL_IDS.GEMINI_4_HYDROGEN);
+      expect(normalizeModelForApi("gemini-3-flash-preview")).toBe(MODEL_IDS.GEMINI_4_HYDROGEN);
+      expect(normalizeModelForApi("gemini-3-flash")).toBe(MODEL_IDS.GEMINI_4_HYDROGEN);
+      expect(normalizeModelForApi("gemini-2.5-pro")).toBe(MODEL_IDS.GEMINI_4_HYDROGEN);
+      expect(normalizeModelForApi("gemini-3.1-pro-preview")).toBe(MODEL_IDS.GEMINI_4_HYDROGEN);
+      expect(normalizeModelForApi("gemini-3-pro-preview")).toBe(MODEL_IDS.GEMINI_4_HYDROGEN);
       expect(normalizeModelForApi("gemini-2.5-flash-preview")).toBe(DEFAULT_MODEL);
-      expect(normalizeModelForApi("gemini-4-argon")).toBe(MODEL_IDS.GEMINI_4_ARGON);
-      expect(normalizeModelForApi("gemini-4-argon-preview")).toBe(MODEL_IDS.GEMINI_4_ARGON);
+      expect(normalizeModelForApi("gemini-4-argon")).toBe(MODEL_IDS.GEMINI_4_NEON);
+      expect(normalizeModelForApi("gemini-4-argon-preview")).toBe(MODEL_IDS.GEMINI_4_NEON);
+      expect(normalizeModelForApi("claude-haiku-4.5")).toBe(MODEL_IDS.CLAUDE_HAIKU_55);
+      expect(normalizeModelForApi("claude-sonnet-4.5")).toBe(MODEL_IDS.CLAUDE_SONNET_55);
+      expect(normalizeModelForApi("deepseek-v4-flash")).toBe(MODEL_IDS.DEEPSEEK_V41_FLASH);
+      expect(normalizeModelForApi("deepseek-chat")).toBe(MODEL_IDS.DEEPSEEK_V41_FLASH);
+      expect(normalizeModelForApi("deepseek-reasoner")).toBe(MODEL_IDS.DEEPSEEK_V41_FLASH);
+      expect(normalizeModelForApi("x-ai/grok-4.3")).toBe(MODEL_IDS.GROK_47);
+      expect(normalizeModelForApi("llama-3.3-70b-versatile")).toBe(MODEL_IDS.GROQ_GPT_OSS_120B);
+      expect(normalizeModelForApi("llama-3.1-8b-instant")).toBe(MODEL_IDS.GROQ_GPT_OSS_120B);
+      expect(normalizeModelForApi("llama3-70b-8192")).toBe(MODEL_IDS.GROQ_GPT_OSS_120B);
       expect(normalizeModelForApi("z-ai/glm-5.2-20260616")).toBe(MODEL_IDS.GLM_52);
       expect(normalizeModelForApi("glm-5.2")).toBe(MODEL_IDS.GLM_52);
       expect(normalizeModelForApi(MODEL_IDS.GLM_52)).toBe(MODEL_IDS.GLM_52);
@@ -150,10 +192,47 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
     );
   });
 
-  describe("Gemini 2.5 Deprecation Migration -> Gemini 3.5 Flash-Lite & Gemini 3.8 Flash (TC-REG-01..08)", () => {
-    it("TC-REG-01: sets DEFAULT_MODEL and SELECTABLE_MODELS[0].id to gemini-3.5-flash-lite", () => {
+  describe("Model Catalog Upgrade & Redesign (TC-MC-01..06)", () => {
+    it("TC-MC-01: sets DEFAULT_MODEL and SELECTABLE_MODELS[0].id to gemini-3.5-flash-lite and exposes exact 12 models", () => {
       expect(DEFAULT_MODEL).toBe("gemini-3.5-flash-lite");
       expect(SELECTABLE_MODELS[0]?.id).toBe("gemini-3.5-flash-lite");
+      expect(SELECTABLE_MODELS).toHaveLength(12);
+
+      const removedIds = [
+        "gemini-3.8-flash",
+        "gemini-3-flash-preview",
+        "gemini-4-argon",
+        "claude-haiku-4.5",
+        "claude-sonnet-4.5",
+        "deepseek-v4-flash",
+        "x-ai/grok-4.3",
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+      ];
+      for (const id of removedIds) {
+        expect(SELECTABLE_MODELS.some((m) => m.id === id)).toBe(false);
+        expect(isSelectableModelId(id)).toBe(false);
+      }
+
+      for (const model of SELECTABLE_MODELS) {
+        expect(UI_GROUP_ORDER.includes(model.uiGroup)).toBe(true);
+        expect(typeof UI_GROUP_LABELS[model.uiGroup]).toBe("string");
+        expect(typeof model.isFree).toBe("boolean");
+        expect(Object.hasOwn(en, model.descKey)).toBe(true);
+        expect(Object.hasOwn(vi, model.descKey)).toBe(true);
+      }
+
+      const freeIds = SELECTABLE_MODELS.filter((m) => m.isFree).map((m) => m.id);
+      expect(freeIds).toEqual([MODEL_IDS.GROQ_GPT_OSS_120B, MODEL_IDS.STRATA_LOCAL]);
+    });
+
+    it("TC-MC-06 (No-USD Invariant): none of the selectable model descriptions contain $ or USD", () => {
+      for (const model of SELECTABLE_MODELS) {
+        const viDesc = vi[model.descKey as keyof typeof vi];
+        const enDesc = en[model.descKey as keyof typeof en];
+        expect(viDesc).not.toMatch(/\$|USD/i);
+        expect(enDesc).not.toMatch(/\$|USD/i);
+      }
     });
 
     it("TC-REG-02: registers gemini-3.5-flash-lite with exact 1M/64K specs and full thinking levels", () => {
@@ -168,30 +247,33 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
         category: "low-latency",
         supportedThinkingLevels: ["minimal", "low", "medium", "high"],
         providerId: "gemini",
+        uiGroup: "gemini",
+        isFree: false,
       });
     });
 
-    it("TC-REG-03: registers gemini-3.8-flash in reasoning category with low/medium/high (no minimal)", () => {
-      const entry = SELECTABLE_MODELS.find((m) => m.id === "gemini-3.8-flash");
-      expect(entry).toEqual({
-        id: "gemini-3.8-flash",
-        descKey: "modelDescFlash38",
-        name: "Gemini 3.8 Flash",
-        tokenLimit: 1048576,
-        contextWindow: 1048576,
-        maxOutputTokens: 65536,
-        category: "reasoning",
-        supportedThinkingLevels: ["low", "medium", "high"],
-        providerId: "gemini",
-      });
-      const levels = getSupportedGeminiThinkingLevels("gemini-3.8-flash");
-      expect(levels).toEqual(["low", "medium", "high"]);
-      expect(levels.includes("minimal")).toBe(false);
+    it("TC-MC-04: identifies Claude 5.5 models (including snapshot IDs) and enables thinking for Haiku 5.5 & Sonnet 5.5", () => {
+      expect(isClaude55Model("claude-sonnet-5-5")).toBe(true);
+      expect(isClaude55Model("claude-haiku-5-5")).toBe(true);
+      expect(isClaude55Model("claude-sonnet-5-5-20261001")).toBe(true);
+      expect(isClaude55Model("claude-sonnet-4.5")).toBe(true);
+      expect(isClaude55Model("gemini-4-neon")).toBe(false);
+
+      expect(modelSupportsClaudeThinking("claude-sonnet-5-5")).toBe(true);
+      expect(modelSupportsClaudeThinking("claude-haiku-5-5")).toBe(true);
+      expect(modelSupportsClaudeThinking("claude-haiku-4-5")).toBe(false);
+    });
+
+    it("TC-MC-05: isGroqModel identifies openai/gpt-oss-120b and legacy Llama aliases without misclassifying OpenRouter models", () => {
+      expect(isGroqModel("openai/gpt-oss-120b")).toBe(true);
+      expect(isGroqModel("llama-3.3-70b-versatile")).toBe(true);
+      expect(isGroqModel("x-ai/grok-4.7")).toBe(false);
+      expect(isGroqModel("deepseek/deepseek-v4.1-flash")).toBe(false);
     });
 
     it.each([
       ["gemini-2.5-flash", "gemini-3.5-flash-lite"],
-      ["gemini-2.5-pro", "gemini-3.8-flash"],
+      ["gemini-2.5-pro", MODEL_IDS.GEMINI_4_HYDROGEN],
     ] as const)(
       "TC-REG-05: maps legacy %s to %s in MODEL_ALIASES, normalizeModelForApi, and coerceStoredModel while removing from selectable set",
       (legacyId, targetId) => {
@@ -208,29 +290,41 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
       expect(normalizeModelForApi("gemini-2.5-flash-preview")).toBe(DEFAULT_MODEL);
     });
 
-    it("TC-REG-08: wires descKey translations for all SELECTABLE_MODELS and removes orphaned modelDescFlash25/modelDescPro25", () => {
-      for (const model of SELECTABLE_MODELS) {
-        expect(Object.hasOwn(en, model.descKey)).toBe(true);
-        expect(Object.hasOwn(vi, model.descKey)).toBe(true);
+    it("TC-REG-08: removes orphaned description keys from both en and vi", () => {
+      const removedDescKeys = [
+        "modelDescFlash25",
+        "modelDescPro25",
+        "modelDescFlash38",
+        "modelDescFlash3",
+        "modelDescArgon4",
+        "modelDescGrok43",
+        "modelDescLlama33_70b",
+        "modelDescLlama31_8b",
+        "modelDescDeepSeekV4Flash",
+        "modelDescDeepSeekV3",
+        "modelDescDeepSeekR1",
+      ];
+      for (const key of removedDescKeys) {
+        expect(Object.hasOwn(en, key)).toBe(false);
+        expect(Object.hasOwn(vi, key)).toBe(false);
       }
-      expect(Object.hasOwn(en, "modelDescFlash25")).toBe(false);
-      expect(Object.hasOwn(vi, "modelDescFlash25")).toBe(false);
-      expect(Object.hasOwn(en, "modelDescPro25")).toBe(false);
-      expect(Object.hasOwn(vi, "modelDescPro25")).toBe(false);
     });
   });
 
-  describe("Gemini 4 Argon Specifications", () => {
+  describe("Gemini 4 Hydrogen & Neon Specifications", () => {
     it("correctly identifies Gemini 4 models via isGemini4Model", () => {
+      expect(isGemini4Model("gemini-4-hydrogen")).toBe(true);
+      expect(isGemini4Model("gemini-4-neon")).toBe(true);
       expect(isGemini4Model("gemini-4-argon")).toBe(true);
       expect(isGemini4Model("gemini-4-argon-preview")).toBe(true);
-      expect(isGemini4Model("gemini-3.1-pro-preview")).toBe(false);
       expect(isGemini4Model("gemini-2.5-flash")).toBe(false);
     });
 
-    it("returns correct 1M unified tokenLimit and 64K maxOutputTokens for Gemini 4 Argon", () => {
-      expect(getModelTokenLimit("gemini-4-argon")).toBe(1048576);
-      expect(getModelMaxOutputTokens("gemini-4-argon")).toBe(65536);
+    it("returns correct 1M unified tokenLimit and 64K maxOutputTokens for Gemini 4 Hydrogen & Neon", () => {
+      expect(getModelTokenLimit("gemini-4-hydrogen")).toBe(1048576);
+      expect(getModelMaxOutputTokens("gemini-4-hydrogen")).toBe(65536);
+      expect(getModelTokenLimit("gemini-4-neon")).toBe(1048576);
+      expect(getModelMaxOutputTokens("gemini-4-neon")).toBe(65536);
     });
   });
 
@@ -345,11 +439,12 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
       }
     });
 
-    it("TC-ORF-08: preserves Groq llama-3.3-70b-versatile model without regression", () => {
-      expect(isSelectableModelId("llama-3.3-70b-versatile")).toBe(true);
-      expect(normalizeModelForApi("llama-3.3-70b-versatile")).toBe("llama-3.3-70b-versatile");
-      const groqModel = SELECTABLE_MODELS.find((m) => m.id === "llama-3.3-70b-versatile");
+    it("TC-ORF-08: maps legacy Groq llama-3.3-70b-versatile to openai/gpt-oss-120b under groq provider", () => {
+      expect(isSelectableModelId("openai/gpt-oss-120b")).toBe(true);
+      expect(normalizeModelForApi("llama-3.3-70b-versatile")).toBe("openai/gpt-oss-120b");
+      const groqModel = SELECTABLE_MODELS.find((m) => m.id === "openai/gpt-oss-120b");
       expect(groqModel?.providerId).toBe("groq");
+      expect(groqModel?.isFree).toBe(true);
     });
   });
 
@@ -360,7 +455,7 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
     });
 
     it.each([
-      ["gemini-3.1-pro-preview", "gemini-3.8-flash"],
+      ["gemini-3.1-pro-preview", MODEL_IDS.GEMINI_4_HYDROGEN],
       ["gemini-3.1-flash-lite-preview", "gemini-3.5-flash-lite"],
     ] as const)(
       "TC-G31-02: maps %s → %s across MODEL_ALIASES, normalizeModelForApi, coerceStoredModel, and marks non-selectable",
@@ -373,9 +468,9 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
     );
 
     it.each(["gemini-3.1-pro", "gemini-3-pro", "gemini-3-pro-preview"])(
-      "TC-G31-03: maps %s directly to gemini-3.8-flash",
+      "TC-G31-03: maps %s directly to gemini-4-hydrogen",
       (aliasId) => {
-        expect(normalizeModelForApi(aliasId)).toBe("gemini-3.8-flash");
+        expect(normalizeModelForApi(aliasId)).toBe(MODEL_IDS.GEMINI_4_HYDROGEN);
       }
     );
 
@@ -406,6 +501,7 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
         "low",
         "medium",
         "high",
+        "xhigh",
       ]);
       expect(clampGeminiThinkingLevel("gemini-3.1-pro-preview", "minimal")).toBe("low");
       expect(getSupportedGeminiThinkingLevels("gemini-3.1-flash-lite-preview")).toEqual([

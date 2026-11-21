@@ -73,11 +73,37 @@ describe("ModelPickerList", () => {
   });
 
   it("shows the recent group first and an empty message when nothing matches", () => {
-    useRecentModelsStore.setState({ recentModelIds: ["gemini-3.8-flash"] });
+    useRecentModelsStore.setState({ recentModelIds: ["gemini-4-hydrogen"] });
     renderList();
     const groups = screen.getAllByRole("group");
     expect(groups[0]).toHaveAccessibleName("Gần đây");
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "zzzz-none" } });
     expect(screen.getByText("Không tìm thấy model phù hợp")).toBeInTheDocument();
+  });
+
+  it("TC-MC-06: renders Free/Paid badges, context labels, line-clamp-2 descriptions, and Free filter", () => {
+    renderList();
+    const groups = screen.getAllByRole("group");
+    expect(groups.map((g) => g.getAttribute("aria-label"))).toEqual([
+      "Gemini",
+      "Claude",
+      "DeepSeek",
+      "Grok",
+      "GLM",
+      "Groq",
+    ]);
+
+    const listbox = screen.getByRole("listbox");
+    expect(within(listbox).getAllByText("Trả phí").length).toBeGreaterThan(0);
+    expect(within(listbox).getAllByText("Miễn phí")).toHaveLength(1);
+    expect(within(listbox).getAllByText("1M ngữ cảnh").length).toBeGreaterThan(0);
+    expect(within(listbox).getByText("131K ngữ cảnh")).toBeInTheDocument();
+
+    const firstOption = screen.getAllByRole("option")[0];
+    const descEl = firstOption.querySelector("p");
+    expect(descEl?.className).toContain("line-clamp-2");
+
+    fireEvent.click(screen.getByRole("button", { name: "Miễn phí" }));
+    expect(optionNames()).toEqual(["GPT-OSS 120B"]);
   });
 });

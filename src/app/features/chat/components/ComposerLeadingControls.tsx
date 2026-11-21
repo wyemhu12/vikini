@@ -2,7 +2,10 @@
 "use client";
 
 import React, { useState } from "react";
+import dynamic from "next/dynamic";
 import { AlertTriangle, FolderOpen, Globe, Search, SlidersHorizontal } from "lucide-react";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
+import type { FileItem } from "@/types/files";
 import {
   modelSupportsWebSearch,
   isDeepSeekV32Model,
@@ -19,6 +22,8 @@ import ComposerOptionsSheet, {
   type ComposerOptionsState,
 } from "./ComposerOptionsSheet";
 import { getEffectiveThinkingLevel, modelSupportsThinkingUI } from "./hooks/useThinkingLevel";
+
+const FileLightbox = dynamic(() => import("./FileLightbox"), { ssr: false });
 
 export interface ComposerLeadingControlsProps extends ComposerOptionsState {
   /** Unsent files in the composer; shows the "Tệp (n)" chip when > 0. */
@@ -57,16 +62,37 @@ function FilesChip({
 }) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
+  const [lightboxFile, setLightboxFile] = useState<FileItem | null>(null);
+  const [lightboxFiles, setLightboxFiles] = useState<FileItem[]>([]);
+
   return (
     <div className="relative shrink-0">
-      <ComposerChip icon={FolderOpen} active={open} onClick={() => setOpen((v) => !v)}>
-        {`${t("files")} (${fileCount})`}
-      </ComposerChip>
-      {conversationId && (
-        <FileManagerPanel
-          conversationId={conversationId}
-          isOpen={open}
-          onClose={() => setOpen(false)}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <ComposerChip icon={FolderOpen} active={open}>
+            {`${t("files")} (${fileCount})`}
+          </ComposerChip>
+        </PopoverTrigger>
+        {conversationId && (
+          <FileManagerPanel
+            conversationId={conversationId}
+            isOpen={open}
+            onClose={() => setOpen(false)}
+            onPreviewFile={(file, files) => {
+              setOpen(false);
+              setLightboxFiles(files);
+              setLightboxFile(file);
+            }}
+          />
+        )}
+      </Popover>
+
+      {lightboxFile && (
+        <FileLightbox
+          file={lightboxFile}
+          files={lightboxFiles}
+          onClose={() => setLightboxFile(null)}
+          onNavigate={setLightboxFile}
         />
       )}
     </div>

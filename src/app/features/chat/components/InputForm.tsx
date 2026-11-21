@@ -3,11 +3,14 @@
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
+import { useSWRConfig } from "swr";
 import { useFileUpload } from "@/lib/features/files/useFileUpload";
+import type { FileUploadError } from "@/lib/features/files/fileUploadHelpers";
 import {
-  CLIENT_MAX_FILE_SIZE_MB,
-  type FileUploadError,
-} from "@/lib/features/files/fileUploadHelpers";
+  formatFileUploadError,
+  mergeUploadedFileOptimistically,
+  sortComposerFiles,
+} from "@/lib/features/files/uploadPresentation";
 import { useFiles } from "@/lib/features/files/useFiles";
 import { useFileStore } from "@/lib/features/files/store";
 import { logger } from "@/lib/utils/logger";
@@ -26,28 +29,6 @@ import { useLanguage } from "../hooks/useLanguage";
 import type { FileItem } from "@/types/files";
 
 const FileLightbox = dynamic(() => import("./FileLightbox"), { ssr: false });
-
-function formatFileUploadError(err: FileUploadError, t: (key: string) => string): string {
-  switch (err.code) {
-    case "BLOCKED_EXTENSION":
-      return t("fileUploadBlockedExt").replace("{ext}", err.ext || "");
-    case "BLOCKED_MIME":
-      return t("fileUploadBlockedMime");
-    case "FILE_TOO_LARGE":
-      return t("fileUploadTooLarge")
-        .replace("{size}", String(err.sizeMB ?? CLIENT_MAX_FILE_SIZE_MB))
-        .replace("{max}", String(CLIENT_MAX_FILE_SIZE_MB));
-    case "CONVERSATION_INIT_FAILED":
-      return err.detail || t("fileUploadInitFailed");
-    case "NETWORK_ERROR":
-      return t("fileUploadNetworkError");
-    case "TIMEOUT":
-      return t("fileUploadTimeout");
-    case "UPLOAD_FAILED":
-    default:
-      return err.detail || t("uploadFailed");
-  }
-}
 
 interface InputFormProps {
   input: string;
@@ -110,26 +91,38 @@ export default function InputForm({
   const { t, language } = useLanguage();
 
   // === Unified file management ===
+  const { mutate: globalMutate } = useSWRConfig();
   const { files: allFiles, mutate } = useFiles(conversationId ?? null);
   const uploadQueue = useFileStore((s) => s.uploadQueue);
   const sentFileIds = useFileStore((s) => s.sentFileIds);
   const markAsSent = useFileStore((s) => s.markAsSent);
+  const releaseFileMetadata = useFileStore((s) => s.releaseFileMetadata);
 
-  // Filter out files already sent - combine:
-  // 1. sentMessageFileIds (from message meta, persistent/survives reload)
-  // 2. sentFileIds (Zustand, optimistic/instant UI update before message is saved)
+  // Filter out files already sent & sort chronologically ascending (oldest left, newest right)
+  // so in-place upload completions never teleport on SWR revalidation.
   const files = useMemo(() => {
     const allSent = new Set([...sentMessageFileIds, ...sentFileIds]);
-    return allFiles.filter((f) => !allSent.has(f.id));
+    return sortComposerFiles(allFiles.filter((f) => !allSent.has(f.id)));
   }, [allFiles, sentMessageFileIds, sentFileIds]);
   const fileCount = files.length;
 
   const handleUploadComplete = useCallback(
     (uploadedFile: FileItem) => {
-      // Optimistic SWR update: immediately add file to cache
-      void mutate((current) => [...(current ?? []), uploadedFile], { revalidate: true });
+      const fileConvId = uploadedFile.conversation_id;
+      if (conversationId && (!fileConvId || fileConvId === conversationId)) {
+        void mutate((current) => mergeUploadedFileOptimistically(current, uploadedFile), {
+          revalidate: true,
+        });
+      } else if (fileConvId) {
+        // New Chat race fallback: SWR key may still be null while ensureConversationId just resolved
+        void globalMutate<FileItem[]>(
+          `/api/files?conversationId=${fileConvId}`,
+          (current) => mergeUploadedFileOptimistically(current, uploadedFile),
+          { revalidate: true }
+        );
+      }
     },
-    [mutate]
+    [conversationId, globalMutate, mutate]
   );
 
   const handleUploadError = useCallback(
@@ -150,6 +143,8 @@ export default function InputForm({
 
   const {
     openFilePicker,
+    cancelUpload,
+    dismissUploadError,
     isDragging,
     fileInputRef,
     fileAccept,
@@ -170,13 +165,14 @@ export default function InputForm({
       try {
         const res = await fetch(`/api/files?id=${encodeURIComponent(id)}`, { method: "DELETE" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        releaseFileMetadata(id);
         void mutate();
       } catch (err: unknown) {
         logger.error("[InputForm] Failed to remove file:", err);
         toast.error(t("deleteFileFailed"));
       }
     },
-    [mutate, t]
+    [mutate, releaseFileMetadata, t]
   );
 
   const handleClearAll = useCallback(async () => {
@@ -188,6 +184,8 @@ export default function InputForm({
         if (!res.ok) {
           failedCount += 1;
           logger.error(`[InputForm] Failed to delete file ${f.id}: HTTP ${res.status}`);
+        } else {
+          releaseFileMetadata(f.id);
         }
       } catch (err: unknown) {
         failedCount += 1;
@@ -204,7 +202,7 @@ export default function InputForm({
     } else {
       toast.success(t("filesCleared").replace("{count}", String(files.length)));
     }
-  }, [files, mutate, t]);
+  }, [files, mutate, releaseFileMetadata, t]);
 
   // Sync initialImageMode prop
   useEffect(() => {
@@ -254,7 +252,7 @@ export default function InputForm({
   }, [conversationId, isStreaming]);
 
   const handleSubmit = () => {
-    if (disabled || isSubmittingRef.current || isStreaming) return;
+    if (disabled || isSubmittingRef.current || isStreaming || isUploading) return;
 
     if (isImageMode && onImageGen) {
       if (input.trim()) {
@@ -284,7 +282,7 @@ export default function InputForm({
   };
 
   // Smart Send/Stop button state machine
-  const isReady = (Boolean(input.trim()) || fileCount > 0) && (!disabled || isUploading);
+  const isReady = (Boolean(input.trim()) || fileCount > 0) && !disabled && !isUploading;
   const isButtonDisabled = !isStreaming && !isReady;
 
   const sendButtonClasses = `flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full transition-[background-color,color,transform,opacity,filter,box-shadow] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none ${
@@ -307,20 +305,25 @@ export default function InputForm({
             handleSubmit();
           }
         }}
-        className={`relative flex flex-col w-full rounded-3xl border shadow-(--shadow-elevated) transition-[border-color,box-shadow] duration-200 ${
+        className={`relative flex flex-col w-full rounded-3xl border shadow-(--shadow-elevated) transition-[border-color,box-shadow,background-color] duration-200 ${
           isImageMode
             ? "bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface))] border-(--accent) ring-1 ring-(--accent)/50"
             : isDragging
-              ? "bg-(--raised) border-(--accent) ring-2 ring-(--accent)/50 scale-[1.02]"
+              ? "bg-[color-mix(in_srgb,var(--accent)_6%,var(--raised))] border-(--accent) ring-2 ring-(--accent)/40"
               : "bg-(--raised) border-(--line) focus-within:border-(--accent) focus-within:ring-1 focus-within:ring-(--accent)/30"
         }`}
       >
         {isStreaming && (
           <div
             aria-hidden="true"
-            data-testid="composer-stream-line"
-            className="pointer-events-none absolute -top-px left-[24%] h-0.5 w-[52%] rounded-full bg-(--accent) animate-pulse motion-reduce:animate-none"
-          />
+            className="pointer-events-none absolute -top-px inset-x-6 h-0.5 overflow-hidden rounded-full bg-(--accent)/15"
+          >
+            <div
+              aria-hidden="true"
+              data-testid="composer-stream-line"
+              className="h-full w-2/5 rounded-full bg-(--accent) animate-vikini-shimmer motion-reduce:animate-none"
+            />
+          </div>
         )}
 
         {/* Inline File Preview Area (replaces AttachmentsPanel + FileChips) */}
@@ -328,10 +331,12 @@ export default function InputForm({
           files={files}
           uploadQueue={uploadQueue}
           onRemoveFile={handleRemoveFile}
+          onCancelUpload={cancelUpload}
+          onDismissError={dismissUploadError}
           onClearAll={handleClearAll}
           onClickFile={setLightboxFile}
           isDragging={isDragging}
-          disabled={disabled || isUploading}
+          disabled={disabled}
         />
 
         {/* Input row: always 2 rows (Row 1: full-width textarea; Row 2: [+] left, model/thinking/mic/send right) */}
@@ -359,7 +364,7 @@ export default function InputForm({
                   : t("placeholder") || "Message..."
               }
               disabled={disabled}
-              className={`max-h-[200px] min-h-[40px] h-10 w-full resize-none bg-transparent px-2 py-2 text-base md:text-[15px] placeholder:text-(--muted) outline-none scrollbar-thin scrollbar-thumb-[var(--line)] border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--muted) italic overflow-hidden whitespace-nowrap text-ellipsis" : "text-(--text)"}`}
+              className={`max-h-[200px] min-h-[40px] h-10 w-full resize-none bg-transparent px-2 py-2 text-base md:text-[15px] placeholder:text-(--muted) outline-none scrollbar-thin scrollbar-thumb-(--line) border-0 focus-visible:ring-0 shadow-none ${isPreview ? "text-(--muted) italic overflow-hidden whitespace-nowrap text-ellipsis" : "text-(--text)"}`}
             />
           </div>
 
@@ -369,7 +374,7 @@ export default function InputForm({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  disabled={disabled || isUploading}
+                  disabled={disabled}
                   className={`flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full transition-[background-color,color,transform,filter] duration-150 ease-out focus-visible:ring-2 focus-visible:ring-(--ring) focus-visible:outline-none active:scale-[0.95] disabled:opacity-50 ${
                     isImageMode
                       ? "bg-(--accent) text-(--on-accent) hover:brightness-110"
@@ -409,7 +414,7 @@ export default function InputForm({
             {!isImageMode &&
               renderLeadingControls?.({
                 openFilePicker,
-                attachDisabled: Boolean(disabled) || isUploading,
+                attachDisabled: Boolean(disabled),
               })}
 
             <div className="flex items-center gap-1 @sm/chat:gap-1.5 ml-auto min-w-0">
@@ -440,6 +445,7 @@ export default function InputForm({
               <button
                 type="submit"
                 disabled={isButtonDisabled}
+                onMouseDown={(e) => e.preventDefault()}
                 className={sendButtonClasses}
                 title={isStreaming ? t("stopBtn") || "Stop" : t("send") || "Send"}
                 aria-label={
@@ -471,7 +477,12 @@ export default function InputForm({
 
       {/* File Lightbox */}
       {lightboxFile && (
-        <FileLightbox file={lightboxFile} onClose={() => setLightboxFile(null)} files={files} />
+        <FileLightbox
+          file={lightboxFile}
+          onClose={() => setLightboxFile(null)}
+          files={files}
+          onNavigate={setLightboxFile}
+        />
       )}
     </>
   );

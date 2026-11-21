@@ -9,17 +9,19 @@ import {
   isGLMModel,
   isGemini4Model,
   isStrataLocalModel,
+  modelSupportsClaudeThinking,
 } from "@/lib/core/modelRegistry";
 
 /**
  * Thinking levels supported by AI models.
  * - "off" (default): No thinking mode
  * - "low": Faster responses, less reasoning
- * - "medium": Balanced (Gemini Flash / Gemini 4 Argon)
- * - "high": Maximum reasoning depth
- * - "minimal": Near-zero thinking (Gemini Flash only)
+ * - "medium": Balanced (Gemini Flash / Gemini 4)
+ * - "high": Deep reasoning
+ * - "xhigh": Maximum reasoning depth (Gemini 4 Hydrogen & Neon)
+ * - "minimal": Near-zero thinking (Gemini Flash-Lite only)
  */
-export type ThinkingLevel = "off" | "high" | "low" | "medium" | "minimal";
+export type ThinkingLevel = "off" | "high" | "low" | "medium" | "minimal" | "xhigh";
 
 /**
  * Check if a model is a Gemini 3 or Gemini 4 model (supports thinkingLevel config)
@@ -30,12 +32,10 @@ export function isGemini3Model(model: string): boolean {
 }
 
 /**
- * Check if a model is a Claude model that supports extended thinking
- * (Sonnet, Opus - Haiku does NOT support thinking)
+ * Check if a model is a Claude model that supports thinking (Sonnet, Opus, Claude 5.5 Haiku).
  */
 export function isClaudeThinkingModel(model: string): boolean {
-  const lower = model.toLowerCase();
-  return lower.includes("claude-sonnet") || lower.includes("claude-opus");
+  return modelSupportsClaudeThinking(model);
 }
 
 /**
@@ -130,6 +130,7 @@ export function getEffectiveThinkingLevel(
 
   if (isStrataLocalThinkingModel(currentModel)) {
     if (requestedLevel === "minimal") return "low";
+    if (requestedLevel === "xhigh") return "high";
     if (requestedLevel === "low" || requestedLevel === "medium" || requestedLevel === "high") {
       return requestedLevel;
     }
@@ -142,13 +143,13 @@ export function getEffectiveThinkingLevel(
   }
 
   if (isClaudeThinkingModel(currentModel)) {
-    // Claude only supports off/high; any non-off level activates extended thinking (high)
+    // Claude only supports off/high; any non-off level activates thinking (high)
     return "high";
   }
 
   if (isDeepSeekV4Model(currentModel)) {
-    // DeepSeek V4: minimal/low/medium -> low, high -> high (matches deepseek-request-builder.ts:35-75)
-    if (requestedLevel === "high") {
+    // DeepSeek V4: minimal/low/medium -> low, high/xhigh -> high (matches deepseek-request-builder.ts:35-75)
+    if (requestedLevel === "high" || requestedLevel === "xhigh") {
       return "high";
     }
     return "low";
@@ -182,7 +183,7 @@ export function useThinkingLevel(currentModel: string): UseThinkingLevelResult {
   useEffect(() => {
     try {
       const stored = localStorage.getItem("vikini.thinkingLevel");
-      if (stored && ["off", "high", "low", "medium", "minimal"].includes(stored)) {
+      if (stored && ["off", "high", "low", "medium", "minimal", "xhigh"].includes(stored)) {
         setThinkingLevelState(stored as ThinkingLevel);
       }
     } catch {
@@ -214,6 +215,7 @@ const LEVEL_ORDER: Record<ThinkingLevel, number> = {
   low: 2,
   medium: 3,
   high: 4,
+  xhigh: 5,
 };
 
 /**

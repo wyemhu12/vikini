@@ -293,7 +293,7 @@ interface ChatStreamRequest {
   truncateClientMessageId?: string | null; // Fallback xóa theo clientMessageId
   clientMessageId?: string | null; // UUID định danh tin nhắn phía client
   skipSaveUserMessage?: boolean; // Không lưu tin nhắn user mới
-  thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high"; // Mức độ suy luận
+  thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh"; // Mức độ suy luận
   fileIds?: string[]; // Danh sách UUID file đính kèm (max 10)
   strataSampling?: {
     mode?: "default" | "creative" | "custom";
@@ -357,6 +357,10 @@ type MetaEventPayload =
       totalTokenCount?: number;
     }
   | { type: "emptyAnswerNotice"; reason: "length" | "no_content" }
+  | { type: "codeExecutionStatus"; status: "writing" | "running" | "done"; chars?: number }
+  | { type: "webSearchStatus"; status: "searching" | "done" }
+  | { type: "webFetchStatus"; status: "fetching" | "done" }
+  | { type: "functionCall"; name: string; args?: Record<string, unknown> }
   | { type: "localQueue"; position: number }
   | {
       type: "localPromptProgress";

@@ -18,19 +18,22 @@ export const MODEL_IDS = {
   IMAGE_STUDIO: "vikini-image-studio",
   NOVELCRAFTER: "vikini-novelcrafter",
   USER_TEMPLATES_STORE: "user_templates_store",
-  // Gemini models
-  GEMINI_4_ARGON: "gemini-4-argon",
-  // Claude models
-  CLAUDE_SONNET_45: "claude-sonnet-4.5",
-  CLAUDE_HAIKU_45: "claude-haiku-4.5",
-  // DeepSeek V4 models
-  DEEPSEEK_V4_FLASH: "deepseek-v4-flash",
+  // Gemini 4 models
+  GEMINI_4_HYDROGEN: "gemini-4-hydrogen",
+  GEMINI_4_NEON: "gemini-4-neon",
+  // Claude 5.5 models
+  CLAUDE_SONNET_55: "claude-sonnet-5-5",
+  CLAUDE_HAIKU_55: "claude-haiku-5-5",
+  // DeepSeek models (all via OpenRouter)
   DEEPSEEK_V4_PRO: "deepseek/deepseek-v4-pro",
   DEEPSEEK_V41_FLASH: "deepseek/deepseek-v4.1-flash",
-  // DeepSeek V3.2 (via OpenRouter)
   DEEPSEEK_V32: "deepseek/deepseek-v3.2:floor",
+  // Grok (via OpenRouter)
+  GROK_47: "x-ai/grok-4.7",
   // Z.ai / GLM models (via OpenRouter)
   GLM_52: "z-ai/glm-5.2",
+  // Groq (Free Tier)
+  GROQ_GPT_OSS_120B: "openai/gpt-oss-120b",
   // Local LLM (Strata Engine)
   STRATA_LOCAL: "strata-local",
 } as const;
@@ -43,13 +46,13 @@ export type ModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];
 export const CLAUDE_API_MODELS = {
   // OpenRouter format
   OPENROUTER: {
-    [MODEL_IDS.CLAUDE_SONNET_45]: "anthropic/claude-sonnet-4-6",
-    [MODEL_IDS.CLAUDE_HAIKU_45]: "anthropic/claude-haiku-4-5",
+    [MODEL_IDS.CLAUDE_SONNET_55]: "anthropic/claude-sonnet-5.5",
+    [MODEL_IDS.CLAUDE_HAIKU_55]: "anthropic/claude-haiku-5.5",
   },
   // Native Anthropic format
   ANTHROPIC: {
-    [MODEL_IDS.CLAUDE_SONNET_45]: "claude-sonnet-4-6",
-    [MODEL_IDS.CLAUDE_HAIKU_45]: "claude-haiku-4-5",
+    [MODEL_IDS.CLAUDE_SONNET_55]: "claude-sonnet-5-5",
+    [MODEL_IDS.CLAUDE_HAIKU_55]: "claude-haiku-5-5",
   },
 } as const;
 

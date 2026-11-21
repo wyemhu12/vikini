@@ -2,8 +2,8 @@
 
 - **Date**: 2026-11-21
 - **Author**: Subagent @planner ([PLANNER_MODEL: gemini-4-argon])
-- **Status**: Ready for Review
-- **Revision**: 1
+- **Status**: Completed
+- **Revision**: 2
 - **Scope**: Nâng cấp đồng bộ danh mục AI Model (Gemini 4 Hydrogen/Neon, Claude 5.5 Haiku/Sonnet + Adaptive Thinking, DeepSeek gom nhóm, Grok 4.7, Groq `openai/gpt-oss-120b` + fix routing, giữ GLM 5.2 & Strata Local) và thiết kế lại Model Picker theo nhóm hãng (`uiGroup`), nhãn `Miễn phí` / `Trả phí`, thông số Context, và bộ mô tả song ngữ VI/EN mới.
 
 ---
@@ -46,15 +46,18 @@
 
 - `.agents/rules/00-core.md`, `.agents/rules/02-quality.md`, `.agents/rules/03-ui.md`, `.agents/rules/04-bilingual.md`, `.agents/rules/05-plan-review.md`
 - `docs/models.md` (`[SRC]` `docs/models.md:1-401`)
+- `docs/contracts.md` (`[SRC]` `docs/contracts.md:18,287-387`)
 - `package.json` (`[SRC]` `package.json:38-82`)
+- `node_modules/@google/genai/dist/genai.d.ts` (`[SRC]` `node_modules/@google/genai/dist/genai.d.ts:12185-12206`)
 
 #### Skills Loaded & Applied
 
-| Skill (`SKILL.md` đã đọc bằng `read_file`)   | Quyết định kỹ thuật chịu ảnh hưởng trực tiếp                                                                                                                                                                                                                                                                                      |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.agents/skills/add-model/SKILL.md`          | Tuân thủ đúng quy trình 4 bước: cập nhật `SELECTABLE_MODELS` + `API_ALLOWED` + `MODEL_ALIASES` trong `src/lib/core/modelRegistry.ts`, đồng bộ key mô tả song ngữ trong `vi.ts`/`en.ts`, kiểm tra tương thích `rank_configs` (`modelAccess.ts` / `limits.ts`), và cập nhật living doc `docs/models.md`.                            |
-| `.agents/skills/add-translation/SKILL.md`    | Mọi text UI mới (`modelBadgeFree`, `modelBadgePaid`, `modelContextSuffix`, `thinkingLevelXHigh`, các `modelDesc*`) đều thêm đồng thời vào `src/lib/utils/translations/vi.ts` và `en.ts`, gọi qua `useLanguage()` + `t("key")`, xóa các key mô tả đã ngừng dùng để tránh rác và kiểm tra key parity qua `npm run type-check`.      |
-| `.agents/skills/vikini-investigate/SKILL.md` | Thực hiện phân tích blast-radius đa tầng (static import, interface/type consumer, mocked test files) trên `src/lib/core/modelRegistry.ts`, `src/lib/core/modelPicker.ts`, `src/lib/utils/constants.ts`, `src/app/api/chat-stream/**`, `src/lib/features/novelcrafter/**` trước khi đề xuất thay đổi hoặc xóa `deepseekClient.ts`. |
+| Skill (`SKILL.md` đã đọc bằng `read_file`)   | Quyết định kỹ thuật chịu ảnh hưởng trực tiếp                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `.agents/skills/add-model/SKILL.md`          | Tuân thủ đúng quy trình 4 bước: cập nhật `SELECTABLE_MODELS` + `API_ALLOWED` + `MODEL_ALIASES` trong `src/lib/core/modelRegistry.ts`, đồng bộ key mô tả song ngữ trong `vi.ts`/`en.ts`, kiểm tra tương thích `rank_configs` (`src/lib/core/modelAccess.ts` / `src/lib/core/limits.ts`), và cập nhật living doc `docs/models.md`.                                                                       |
+| `.agents/skills/add-translation/SKILL.md`    | Mọi text UI mới (`modelBadgeFree`, `modelBadgePaid`, `modelContextSuffix`, `thinkingLevelXHigh`, các `modelDesc*`) đều thêm đồng thời vào `src/lib/utils/translations/vi.ts` và `en.ts`, gọi qua `useLanguage()` + `t("key")`, xóa các key mô tả đã ngừng dùng để tránh rác và kiểm tra key parity qua `npm run type-check`.                                                                           |
+| `.agents/skills/streaming-patterns/SKILL.md` | Bảo toàn SSE wire format chuẩn (`token`, `thinking`, `meta`, `done`, `error`), cơ chế `AbortController` teardown, `thoughtSignatures` và timeout theo từng họ model; mở rộng `thinkingLevel` thêm `"xhigh"` xuyên suốt `src/app/api/chat-stream/**` (gồm `openai-stream.ts`, `anthropic-stream.ts`, `gemini-stream.ts`, `deepseek-stream.ts`, `strata-stream.ts`) đồng bộ với `docs/contracts.md:296`. |
+| `.agents/skills/vikini-investigate/SKILL.md` | Thực hiện phân tích blast-radius đa tầng (static import, interface/type consumer, mocked test files) trên `src/lib/core/modelRegistry.ts`, `src/lib/core/modelPicker.ts`, `src/lib/utils/constants.ts`, `src/app/api/chat-stream/**`, `src/lib/features/novelcrafter/**` trước khi đề xuất thay đổi hoặc xóa `src/lib/core/deepseekClient.ts`.                                                         |
 
 ---
 
@@ -67,89 +70,93 @@
 3. **Gemini 4 Explicit Caching tiếp tục bị tắt**: `src/lib/core/contextCache.ts:157,251` đã chặn `model.startsWith("gemini-4")` (chỉ dùng implicit caching). `gemini-4-hydrogen` và `gemini-4-neon` đều bắt đầu bằng `"gemini-4"`, nên guard này tự động áp dụng an toàn.
 4. **Anthropic Claude 5.5 Adaptive Thinking**: Theo tài liệu Anthropic 2026, gửi `thinking: { type: "enabled", budget_tokens: N }` cho `claude-sonnet-5-5` hoặc `claude-haiku-5-5` sẽ trả lỗi `400 Bad Request`; phải dùng `thinking: { type: "adaptive" }` (không có `budget_tokens`) và giữ `temperature: 1`. Trong `src/app/api/chat-stream/streaming/anthropic-stream.ts:257`, payload đã được narrowed cast sang `Parameters<typeof ai.beta.messages.create>[0]`, tương thích với `@anthropic-ai/sdk@^0.71.2` (`package.json:39`).
 5. **Groq routing không thể dựa vào `!model.includes("/")`**: `src/app/api/chat-stream/chatStreamCore.ts:533-534` hiện dùng `model.includes("llama") && !model.includes("/")` và `isOpenRouter = model.includes("/") || model.includes(":free")`. Với `openai/gpt-oss-120b` (chứa `/`), bắt buộc kiểm tra `isGroqModel(model)` trước và loại trừ `!isGroq` khỏi `isOpenRouter`.
+6. **`@google/genai@2.10.0` `ThinkingLevel` enum chưa có member `XHIGH`**: Xác minh trực tiếp tại `node_modules/@google/genai/dist/genai.d.ts:12185-12206` cho thấy `export declare enum ThinkingLevel` chỉ chứa `THINKING_LEVEL_UNSPECIFIED`, `MINIMAL`, `LOW`, `MEDIUM`, `HIGH`. Do đó trong `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts:148-153`, không dùng `ThinkingLevel.XHIGH` (sẽ gây lỗi biên dịch `tsc --noEmit`) mà dùng `xhigh: "XHIGH" as ThinkingLevel` để an toàn kiểu mà không dùng `any`.
 
 #### Blast-Radius Analysis (theo `.agents/skills/vikini-investigate/SKILL.md` Mode 4)
 
-| Caller / Consumer                                    | `file:line` (`[SRC]`)                                                                                                                                                                                                                                                                                                                        | Tầng | Cách tham chiếu | Usage Pattern                                                                                                                     | Compatible?                                                                             |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `chatStreamCore.ts`                                  | `src/app/api/chat-stream/chatStreamCore.ts:11-21,530-630`                                                                                                                                                                                                                                                                                    | 2    | static import   | Routing Groq (`llama`), DeepSeek Direct (`getDeepSeekClient`), Claude fallback (`CLAUDE_HAIKU_45`)                                | **No** → Migrate sang `isGroqModel`, bỏ DeepSeek Direct, đổi sang `CLAUDE_HAIKU_55`     |
-| `anthropic-stream.ts`                                | `src/app/api/chat-stream/streaming/anthropic-stream.ts:3,53,225-257`                                                                                                                                                                                                                                                                         | 2    | static import   | `modelSupportsClaudeThinking`, gửi `budget_tokens`, union `thinkingLevel` thiếu `xhigh`                                           | **No** → Thêm nhánh Adaptive Thinking cho Claude 5.5, mở rộng union `ThinkingLevel`     |
-| `gemini-stream.ts`                                   | `src/app/api/chat-stream/streaming/gemini-stream.ts:144,176-195,554,614-623`                                                                                                                                                                                                                                                                 | 2    | static import   | Hardcode message `"Gemini 4 Argon..."`, union `thinkingLevel` thiếu `xhigh`                                                       | **No** → Cập nhật message sang Gemini 4 chung, mở rộng union `ThinkingLevel`            |
-| `streaming/utils.ts`                                 | `src/app/api/chat-stream/streaming/utils.ts:29,34-36,179-193`                                                                                                                                                                                                                                                                                | 2    | static import   | `isDeepThinking` chỉ check `high`, `isGemini3Model` liệt kê `gemini-4-argon`                                                      | **No** → Thêm `xhigh` vào `isDeepThinking`, cập nhật `isGemini3Model` nhận `gemini-4-*` |
-| `streaming/types.ts` & `validators.ts`               | `src/app/api/chat-stream/streaming/types.ts:74,193`; `validators.ts:22`                                                                                                                                                                                                                                                                      | 1    | static import   | `ThinkingLevel` & Zod enum thiếu `"xhigh"`                                                                                        | **No** → Thêm `"xhigh"`                                                                 |
-| `deepseek-stream.ts` & `deepseek-request-builder.ts` | `src/app/api/chat-stream/streaming/deepseek-stream.ts:28`; `deepseek-request-builder.ts:37,96`                                                                                                                                                                                                                                               | 2    | static import   | `thinkingLevel` union thiếu `"xhigh"`                                                                                             | **No** → Thêm `"xhigh"` (map tương đương `"high"`)                                      |
-| `strata-stream.ts` & `strataThinking.ts`             | `src/app/api/chat-stream/streaming/strata-stream.ts:44`; `strataThinking.ts:165-170`                                                                                                                                                                                                                                                         | 2    | static import   | `thinkingLevel` thiếu `"xhigh"`, `normalizeStrataThinkingLevel` chưa map `"xhigh"` → `"high"`                                     | **No** → Thêm `"xhigh"` và clamp `"xhigh"` → `"high"`                                   |
-| `novelcrafterStreamRunner.server.ts`                 | `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts:8,14,148-153,381,417`                                                                                                                                                                                                                                                      | 2    | static import   | Import `getDeepSeekClient`/`isDeepSeekDirectModel`, fallback `CLAUDE_HAIKU_45`, `GEMINI_SDK_THINKING_LEVEL_MAP`                   | **No** → Gỡ DeepSeek Direct, đổi fallback `CLAUDE_HAIKU_55`, bổ sung `xhigh` vào map    |
-| `useThinkingLevel.ts` & `thinkingOptions.ts`         | `src/app/features/chat/components/hooks/useThinkingLevel.ts:22,36-39,100-163,185,211-217`; `thinkingOptions.ts:14-20`                                                                                                                                                                                                                        | 2    | static import   | `ThinkingLevel` thiếu `xhigh`, `isClaudeThinkingModel` loại Haiku 5.5                                                             | **No** → Thêm `xhigh`, dùng SSOT `modelSupportsClaudeThinking`, clamp an toàn           |
-| `modelPicker.ts` & `ModelPickerList.tsx`             | `src/lib/core/modelPicker.ts:16-33,55-157`; `ModelPickerList.tsx:160-209`                                                                                                                                                                                                                                                                    | 1–2  | static import   | Nhóm theo `providerId`, filter `free` theo `openrouter-free`, `line-clamp-1`, thiếu badge Free/Paid & Context                     | **No** → Refactor sang `uiGroup`, `isFree`, `formatContextWindow`, `line-clamp-2`       |
-| `RankConfigManager.tsx`                              | `src/app/admin/components/RankConfigManager.tsx:5,287-313`                                                                                                                                                                                                                                                                                   | 2    | static import   | Duyệt `SELECTABLE_MODELS` render `name` & `contextWindow`                                                                         | **Yes** (tự động hiển thị catalog mới)                                                  |
-| Mocked / Unit Tests                                  | `modelRegistry.test.ts`, `modelPicker.test.ts`, `modelAccess.test.ts`, `ModelPickerList.test.tsx`, `useThinkingLevel.test.ts`, `chatStreamCore.test.ts`, `anthropic-stream.test.ts`, `gemini-stream.test.ts`, `openai-stream.test.ts`, `novelcrafterStreamRunner.server.test.ts`, `deepseek-request-builder.test.ts`, `contextCache.test.ts` | 1–3  | static / mock   | Chứa fixture ID cũ (`gemini-3.8-flash`, `gemini-4-argon`, `claude-sonnet-4.5`, `llama-3.3-70b-versatile`) & mock `deepseekClient` | **No** → Cập nhật theo Test Contract (Loại C: Approved Spec Change)                     |
+| Caller / Consumer                                    | `file:line` (`[SRC]`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Tầng | Cách tham chiếu | Usage Pattern                                                                                                                                                   | Compatible?                                                                                                              |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `chatStreamCore.ts`                                  | `src/app/api/chat-stream/chatStreamCore.ts:11-21,530-630`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | 2    | static import   | Routing Groq (`llama`), DeepSeek Direct (`getDeepSeekClient`), Claude fallback (`CLAUDE_HAIKU_45`)                                                              | **No** → Migrate sang `isGroqModel`, bỏ DeepSeek Direct, đổi sang `CLAUDE_HAIKU_55`                                      |
+| `anthropic-stream.ts`                                | `src/app/api/chat-stream/streaming/anthropic-stream.ts:3,53,225-257`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | 2    | static import   | `modelSupportsClaudeThinking`, gửi `budget_tokens`, union `thinkingLevel` thiếu `xhigh`                                                                         | **No** → Thêm nhánh Adaptive Thinking cho Claude 5.5, mở rộng union `ThinkingLevel`                                      |
+| `gemini-stream.ts`                                   | `src/app/api/chat-stream/streaming/gemini-stream.ts:144,176-195,554,614-623`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | 2    | static import   | Hardcode message `"Gemini 4 Argon..."`, union `thinkingLevel` thiếu `xhigh`                                                                                     | **No** → Cập nhật message sang Gemini 4 chung, mở rộng union `ThinkingLevel`                                             |
+| `openai-stream.ts`                                   | `src/app/api/chat-stream/streaming/openai-stream.ts:241-258`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | 2    | static import   | Grok reasoning effort chỉ check `thinkingLevel === "high" ? "high" : "low"` khiến `xhigh` tụt về `"low"`                                                        | **No** → Map `high` & `xhigh` → `"high"` cho Grok 4.7; xác nhận Groq `openai/gpt-oss-120b` không bị gắn field OpenRouter |
+| `streaming/utils.ts`                                 | `src/app/api/chat-stream/streaming/utils.ts:29,34-36,179-193`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 2    | static import   | `isDeepThinking` chỉ check `high`, `isGemini3Model` liệt kê `gemini-4-argon`                                                                                    | **No** → Thêm `xhigh` vào `isDeepThinking`, cập nhật `isGemini3Model` nhận `gemini-4-*`                                  |
+| `streaming/types.ts` & `validators.ts`               | `src/app/api/chat-stream/streaming/types.ts:74,193`; `src/app/api/chat-stream/validators.ts:22`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 1    | static import   | `ThinkingLevel` & Zod enum thiếu `"xhigh"`                                                                                                                      | **No** → Thêm `"xhigh"`                                                                                                  |
+| `deepseek-stream.ts` & `deepseek-request-builder.ts` | `src/app/api/chat-stream/streaming/deepseek-stream.ts:28`; `src/app/api/chat-stream/streaming/deepseek-request-builder.ts:37,47,58,96`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 2    | static import   | `thinkingLevel` union thiếu `"xhigh"`, nhánh `mapDeepSeekEffort` tại dòng 47 & 58 chỉ check `"high"`                                                            | **No** → Thêm `"xhigh"` và map `"high" \|\| "xhigh"` (Flash → `"high"`, Pro → `"xhigh"`)                                 |
+| `strata-stream.ts` & `strataThinking.ts`             | `src/app/api/chat-stream/streaming/strata-stream.ts:44`; `src/lib/features/local-llm/strataThinking.ts:165-170`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 2    | static import   | `thinkingLevel` thiếu `"xhigh"`, `normalizeStrataThinkingLevel` chưa map `"xhigh"` → `"high"`                                                                   | **No** → Thêm `"xhigh"` và clamp `"xhigh"` → `"high"`                                                                    |
+| `novelcrafterStreamRunner.server.ts`                 | `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts:8,14,148-153,381,417`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 2    | static import   | Import `getDeepSeekClient`/`isDeepSeekDirectModel`, fallback `CLAUDE_HAIKU_45`, `GEMINI_SDK_THINKING_LEVEL_MAP` (`@google/genai` chưa có `ThinkingLevel.XHIGH`) | **No** → Gỡ DeepSeek Direct, đổi fallback `CLAUDE_HAIKU_55`, dùng `xhigh: "XHIGH" as ThinkingLevel`                      |
+| `useThinkingLevel.ts` & `thinkingOptions.ts`         | `src/app/features/chat/components/hooks/useThinkingLevel.ts:22,36-39,100-163,185,211-217`; `src/app/features/chat/components/thinkingOptions.ts:14-20`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 2    | static import   | `ThinkingLevel` thiếu `xhigh`, `isClaudeThinkingModel` loại Haiku 5.5, Strata Local (`131-136`) & DeepSeek V4 (`149-155`) chưa map `"xhigh"` → `"high"`         | **No** → Thêm `xhigh`, dùng SSOT `modelSupportsClaudeThinking`, map `"xhigh"` → `"high"` cho Strata Local & DeepSeek V4  |
+| `modelPicker.ts` & `ModelPickerList.tsx`             | `src/lib/core/modelPicker.ts:16-33,55-157`; `src/app/features/chat/components/ModelPickerList.tsx:160-209`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 1–2  | static import   | Nhóm theo `providerId`, filter `free` theo `openrouter-free`, `line-clamp-1`, thiếu badge Free/Paid & Context                                                   | **No** → Refactor sang `uiGroup`, `isFree`, `formatContextWindow`, `line-clamp-2`                                        |
+| `RankConfigManager.tsx`                              | `src/app/admin/components/RankConfigManager.tsx:5,287-313`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 2    | static import   | Duyệt `SELECTABLE_MODELS` render `name` & `contextWindow`                                                                                                       | **Yes** (tự động hiển thị catalog mới)                                                                                   |
+| Mocked / Unit Tests                                  | `src/lib/core/modelRegistry.test.ts`, `src/lib/core/modelPicker.test.ts`, `src/lib/core/modelAccess.test.ts`, `src/app/features/chat/components/ModelPickerList.test.tsx`, `src/app/features/chat/components/hooks/useThinkingLevel.test.ts`, `src/app/api/chat-stream/chatStreamCore.test.ts`, `src/app/api/chat-stream/streaming/anthropic-stream.test.ts`, `src/app/api/chat-stream/streaming/gemini-stream.test.ts`, `src/app/api/chat-stream/streaming/openai-stream.test.ts`, `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.test.ts`, `src/app/api/chat-stream/streaming/deepseek-request-builder.test.ts`, `src/lib/core/contextCache.test.ts` | 1–3  | static / mock   | Chứa fixture ID cũ (`gemini-3.8-flash`, `gemini-4-argon`, `claude-sonnet-4.5`, `llama-3.3-70b-versatile`) & mock `deepseekClient`                               | **No** → Cập nhật theo Test Contract (Loại C: Approved Spec Change)                                                      |
 
 ---
 
 ### 4. Bảng Verified Versions (Online Grounding 2026)
 
-| Thành phần / Model / SDK         | Phiên bản / ID đã xác minh                                      | Thông số chính thức                                                                                                                     | Nguồn xác minh                                                        |
-| -------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `gemini-4-hydrogen`              | API ID: `gemini-4-hydrogen`                                     | `1,048,576` (1M) context, `65,536` (64K) sync output, `thinkingLevel`: `low`, `medium`, `high` (default), `xhigh`                       | `[URL]` Google Gemini API Docs 2026 (`ai.google.dev` / `blog.google`) |
-| `gemini-4-neon`                  | API ID: `gemini-4-neon`                                         | `1,048,576` (1M) context, `65,536` (64K) sync output, `thinkingLevel`: `low`, `medium`, `high` (default), `xhigh`, Paid tier            | `[URL]` Google Gemini API Docs & DeepMind 2026                        |
-| `claude-haiku-5-5`               | Direct: `claude-haiku-5-5` / OR: `anthropic/claude-haiku-5.5`   | `1,000,000` (1M) context, `128,000` (128K) max output, Adaptive Thinking (`thinking: { type: "adaptive" }`, không dùng `budget_tokens`) | `[URL]` Anthropic Claude Docs 2026 (`claude.com` / `anthropic.com`)   |
-| `claude-sonnet-5-5`              | Direct: `claude-sonnet-5-5` / OR: `anthropic/claude-sonnet-5.5` | `1,000,000` (1M) context, `128,000` (128K) max output, Adaptive Thinking (`thinking: { type: "adaptive" }`, `budget_tokens` gây 400)    | `[URL]` Anthropic Claude Docs 2026 (`claude.com` / `anthropic.com`)   |
-| `x-ai/grok-4.7`                  | OpenRouter ID: `x-ai/grok-4.7`                                  | `500,000` (500K) context                                                                                                                | `[URL]` OpenRouter Model Catalog 2026 (`openrouter.ai`)               |
-| `openai/gpt-oss-120b`            | Groq API ID: `openai/gpt-oss-120b`                              | `131,072` (131K) context; Groq Free Tier: 30 RPM / 1,000 RPD / 8,000 TPM / 200,000 TPD                                                  | `[URL]` Groq Rate Limits Docs 2026                                    |
-| `@google/genai`                  | `^2.10.0`                                                       | Hỗ trợ `thinkingConfig.thinkingLevel` gồm `xhigh`                                                                                       | `[SRC]` `package.json:40` + `[URL]` `@google/genai` TS SDK Docs 2026  |
-| `@anthropic-ai/sdk`              | `^0.71.2`                                                       | `ai.beta.messages.create` tương thích với `thinking: { type: "adaptive" }` qua narrowed payload cast                                    | `[SRC]` `package.json:39`                                             |
-| `next` / `react` / `tailwindcss` | `16.4.0` / `19.2.3` / `4.1.18`                                  | App Router + Tailwind CSS v4 semantic tokens (`bg-(--token)`)                                                                           | `[SRC]` `package.json:53,64,69`                                       |
+| Thành phần / Model / SDK         | Phiên bản / ID đã xác minh                                      | Thông số chính thức                                                                                                                                                                     | Nguồn xác minh                                                                      |
+| -------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `gemini-4-hydrogen`              | API ID: `gemini-4-hydrogen`                                     | `1,048,576` (1M) context, `65,536` (64K) sync output, `thinkingLevel`: `low`, `medium`, `high` (default), `xhigh`                                                                       | `[URL]` Google Gemini API Docs 2026 (`ai.google.dev` / `blog.google`)               |
+| `gemini-4-neon`                  | API ID: `gemini-4-neon`                                         | `1,048,576` (1M) context, `65,536` (64K) sync output, `thinkingLevel`: `low`, `medium`, `high` (default), `xhigh`, Paid tier                                                            | `[URL]` Google Gemini API Docs & DeepMind 2026                                      |
+| `claude-haiku-5-5`               | Direct: `claude-haiku-5-5` / OR: `anthropic/claude-haiku-5.5`   | `1,000,000` (1M) context, `128,000` (128K) max output, Adaptive Thinking (`thinking: { type: "adaptive" }`, không dùng `budget_tokens`)                                                 | `[URL]` Anthropic Claude Docs 2026 (`claude.com` / `anthropic.com`)                 |
+| `claude-sonnet-5-5`              | Direct: `claude-sonnet-5-5` / OR: `anthropic/claude-sonnet-5.5` | `1,000,000` (1M) context, `128,000` (128K) max output, Adaptive Thinking (`thinking: { type: "adaptive" }`, `budget_tokens` gây 400)                                                    | `[URL]` Anthropic Claude Docs 2026 (`claude.com` / `anthropic.com`)                 |
+| `x-ai/grok-4.7`                  | OpenRouter ID: `x-ai/grok-4.7`                                  | `500,000` (500K) context                                                                                                                                                                | `[URL]` OpenRouter Model Catalog 2026 (`openrouter.ai`)                             |
+| `openai/gpt-oss-120b`            | Groq API ID: `openai/gpt-oss-120b`                              | `131,072` (131K) context; Groq Free Tier: 30 RPM / 1,000 RPD / 8,000 TPM / 200,000 TPD                                                                                                  | `[URL]` Groq Rate Limits Docs 2026                                                  |
+| `@google/genai`                  | `^2.10.0`                                                       | `ThinkingLevel` enum (`node_modules/@google/genai/dist/genai.d.ts:12185-12206`) có `MINIMAL`/`LOW`/`MEDIUM`/`HIGH` (chưa có `XHIGH` → dùng `"XHIGH" as ThinkingLevel` tại SDK boundary) | `[SRC]` `package.json:40`, `node_modules/@google/genai/dist/genai.d.ts:12185-12206` |
+| `@anthropic-ai/sdk`              | `^0.71.2`                                                       | `ai.beta.messages.create` tương thích với `thinking: { type: "adaptive" }` qua narrowed payload cast                                                                                    | `[SRC]` `package.json:39`                                                           |
+| `next` / `react` / `tailwindcss` | `16.4.0` / `19.2.3` / `4.1.18`                                  | App Router + Tailwind CSS v4 semantic tokens (`bg-(--token)`)                                                                                                                           | `[SRC]` `package.json:53,64,69`                                                     |
 
 ---
 
 ### 5. Files Cần Chỉnh Sửa / Tạo Mới / Xóa
 
-#### `[MODIFY]` (Core, Constants, Streaming, Novelcrafter)
+#### Core, Constants, Streaming & Novelcrafter
 
-- `src/lib/utils/constants.ts`
-- `src/lib/core/modelRegistry.ts`
-- `src/lib/core/modelPicker.ts`
-- `src/app/api/chat-stream/validators.ts`
-- `src/app/api/chat-stream/chatStreamCore.ts`
-- `src/app/api/chat-stream/streaming/types.ts`
-- `src/app/api/chat-stream/streaming/utils.ts`
-- `src/app/api/chat-stream/streaming/gemini-stream.ts`
-- `src/app/api/chat-stream/streaming/anthropic-stream.ts`
-- `src/app/api/chat-stream/streaming/deepseek-stream.ts`
-- `src/app/api/chat-stream/streaming/deepseek-request-builder.ts`
-- `src/app/api/chat-stream/streaming/strata-stream.ts`
-- `src/lib/features/local-llm/strataThinking.ts`
-- `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts`
+- [MODIFY] `src/lib/utils/constants.ts`
+- [MODIFY] `src/lib/core/modelRegistry.ts`
+- [MODIFY] `src/lib/core/modelPicker.ts`
+- [MODIFY] `src/app/api/chat-stream/validators.ts`
+- [MODIFY] `src/app/api/chat-stream/chatStreamCore.ts`
+- [MODIFY] `src/app/api/chat-stream/streaming/types.ts`
+- [MODIFY] `src/app/api/chat-stream/streaming/utils.ts`
+- [MODIFY] `src/app/api/chat-stream/streaming/gemini-stream.ts`
+- [MODIFY] `src/app/api/chat-stream/streaming/anthropic-stream.ts`
+- [MODIFY] `src/app/api/chat-stream/streaming/openai-stream.ts`
+- [MODIFY] `src/app/api/chat-stream/streaming/deepseek-stream.ts`
+- [MODIFY] `src/app/api/chat-stream/streaming/deepseek-request-builder.ts`
+- [MODIFY] `src/app/api/chat-stream/streaming/strata-stream.ts`
+- [MODIFY] `src/lib/features/local-llm/strataThinking.ts`
+- [MODIFY] `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts`
 
-#### `[MODIFY]` (UI Components & Bilingual Translations)
+#### UI Components & Bilingual Translations
 
-- `src/app/features/chat/components/ModelPickerList.tsx`
-- `src/app/features/chat/components/hooks/useThinkingLevel.ts`
-- `src/app/features/chat/components/thinkingOptions.ts`
-- `src/lib/utils/translations/vi.ts`
-- `src/lib/utils/translations/en.ts`
+- [MODIFY] `src/app/features/chat/components/ModelPickerList.tsx`
+- [MODIFY] `src/app/features/chat/components/hooks/useThinkingLevel.ts`
+- [MODIFY] `src/app/features/chat/components/thinkingOptions.ts`
+- [MODIFY] `src/lib/utils/translations/vi.ts`
+- [MODIFY] `src/lib/utils/translations/en.ts`
 
-#### `[DELETE]` (Dead Code Removal — DeepSeek Direct API đã ngừng dùng)
+#### Dead Code Removal (DeepSeek Direct API đã ngừng dùng)
 
-- `src/lib/core/deepseekClient.ts`
+- [DELETE] `src/lib/core/deepseekClient.ts`
 
-#### `[MODIFY]` (Co-Located Tests & Living Docs)
+#### Co-Located Tests & Living Docs
 
-- `src/lib/core/modelRegistry.test.ts`
-- `src/lib/core/modelPicker.test.ts`
-- `src/lib/core/modelAccess.test.ts`
-- `src/lib/core/contextCache.test.ts`
-- `src/app/features/chat/components/ModelPickerList.test.tsx`
-- `src/app/features/chat/components/hooks/useThinkingLevel.test.ts`
-- `src/app/api/chat-stream/chatStreamCore.test.ts`
-- `src/app/api/chat-stream/streaming/anthropic-stream.test.ts`
-- `src/app/api/chat-stream/streaming/gemini-stream.test.ts`
-- `src/app/api/chat-stream/streaming/openai-stream.test.ts`
-- `src/app/api/chat-stream/streaming/deepseek-request-builder.test.ts`
-- `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.test.ts`
-- `docs/models.md`
-- `docs/CHANGELOG.md`
+- [MODIFY] `src/lib/core/modelRegistry.test.ts`
+- [MODIFY] `src/lib/core/modelPicker.test.ts`
+- [MODIFY] `src/lib/core/modelAccess.test.ts`
+- [MODIFY] `src/lib/core/contextCache.test.ts`
+- [MODIFY] `src/app/features/chat/components/ModelPickerList.test.tsx`
+- [MODIFY] `src/app/features/chat/components/hooks/useThinkingLevel.test.ts`
+- [MODIFY] `src/app/api/chat-stream/chatStreamCore.test.ts`
+- [MODIFY] `src/app/api/chat-stream/streaming/anthropic-stream.test.ts`
+- [MODIFY] `src/app/api/chat-stream/streaming/gemini-stream.test.ts`
+- [MODIFY] `src/app/api/chat-stream/streaming/openai-stream.test.ts`
+- [MODIFY] `src/app/api/chat-stream/streaming/deepseek-request-builder.test.ts`
+- [MODIFY] `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.test.ts`
+- [MODIFY] `docs/models.md`
+- [MODIFY] `docs/contracts.md`
+- [MODIFY] `docs/CHANGELOG.md`
 
 ---
 
@@ -244,23 +251,38 @@ export function isGroqModel(modelId: unknown): boolean {
 }
 
 export function isClaude55Model(modelId: unknown): boolean {
-  const normalized = normalizeModelForApi(modelId).toLowerCase();
+  const raw = String(modelId || "")
+    .trim()
+    .toLowerCase();
+  if (!raw) return false;
+  const normalized = normalizeModelForApi(raw).toLowerCase();
   return (
+    raw.includes("claude-sonnet-5") ||
+    raw.includes("claude-haiku-5") ||
     normalized === MODEL_IDS.CLAUDE_SONNET_55 ||
-    normalized === MODEL_IDS.CLAUDE_HAIKU_55 ||
-    normalized.includes("claude-sonnet-5") ||
-    normalized.includes("claude-haiku-5")
+    normalized === MODEL_IDS.CLAUDE_HAIKU_55
   );
 }
 
 export function modelSupportsClaudeThinking(modelId: unknown): boolean {
-  const normalized = normalizeModelForApi(modelId).toLowerCase();
+  const raw = String(modelId || "")
+    .trim()
+    .toLowerCase();
+  if (!raw) return false;
+  const normalized = normalizeModelForApi(raw).toLowerCase();
   return (
+    raw.includes("claude-sonnet") ||
+    raw.includes("claude-opus") ||
+    raw.includes("claude-haiku-5") ||
     normalized.includes("claude-sonnet") ||
     normalized.includes("claude-opus") ||
     normalized.includes("claude-haiku-5")
   );
 }
+
+// Sau khi gỡ isDeepSeekDirectModel() (src/lib/core/modelRegistry.ts:461-465):
+// - modelSupportsDeepSeekThinking (dòng 481-487): chỉ kiểm tra isDeepSeekV4ProModel(normalized) || isDeepSeekV41FlashModel(normalized)
+// - modelSupportsWebSearch (dòng 504-512): gỡ nhánh if (isDeepSeekDirectModel(id)) return false;
 ```
 
 #### 6.2 `clampGeminiThinkingLevel` Directional Clamping (chống tụt bậc ngược)
@@ -325,6 +347,36 @@ const claudeMaxTokens = isClaudeThinking ? 16384 : 8192;
     ? { thinking: { type: "adaptive" as const }, temperature: 1 }
     : { thinking: { type: "enabled" as const, budget_tokens: 10240 }, temperature: 1 }
   : { temperature: 0.7 })
+```
+
+```ts
+// src/app/api/chat-stream/streaming/openai-stream.ts (xhigh cho Grok 4.7, không gắn OpenRouter fields cho Groq)
+if (isOrReasoning) {
+  const isGlm = isGLMModel(model);
+  const isThinkingOff = thinkingLevel === "off" || (isGlm && !thinkingLevel);
+  if (isThinkingOff) {
+    createParams.reasoning = { enabled: false };
+  } else if (thinkingLevel) {
+    const effort = isGlm
+      ? "high"
+      : thinkingLevel === "high" || thinkingLevel === "xhigh"
+        ? "high"
+        : "low";
+    createParams.reasoning = { effort };
+  }
+}
+// Với openai/gpt-oss-120b (Groq): isOrReasoning === false, isGLMModel === false, isDeepSeekV32Model === false
+// => không gắn reasoning / provider / openrouter:web_search.
+
+// src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts:148-153
+const GEMINI_SDK_THINKING_LEVEL_MAP: Record<string, ThinkingLevel> = {
+  minimal: ThinkingLevel.MINIMAL,
+  low: ThinkingLevel.LOW,
+  medium: ThinkingLevel.MEDIUM,
+  high: ThinkingLevel.HIGH,
+  // @google/genai@2.10.0 enum chưa có XHIGH (node_modules/@google/genai/dist/genai.d.ts:12185-12206)
+  xhigh: "XHIGH" as ThinkingLevel,
+};
 ```
 
 #### 6.4 `src/lib/core/modelPicker.ts` & `ModelPickerList.tsx`
@@ -393,19 +445,20 @@ case "free":
       - `deepseek-v4-flash`, `deepseek-chat`, `deepseek-reasoner` → `"deepseek/deepseek-v4.1-flash"`
       - `x-ai/grok-4.3` → `"x-ai/grok-4.7"`
       - `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `llama3-70b-8192`, `llama3-8b-8192`, `llama-3.1-70b-versatile`, `llama-3.1-70b-specdec` → `"openai/gpt-oss-120b"`
-    - Thêm `isGroqModel()`, `isClaude55Model()`; cập nhật `modelSupportsClaudeThinking()` hỗ trợ `claude-haiku-5`; cập nhật `clampGeminiThinkingLevel()` với directional clamping; gỡ bỏ `isDeepSeekDirectModel()` hoặc chỉ giữ `isDeepSeekV4ProModel` / `isDeepSeekV41FlashModel` (xác minh không còn caller nào của `isDeepSeekDirectModel`).
+    - Thêm `isGroqModel()`, `isClaude55Model()` (check raw `.toLowerCase()` song song `normalizeModelForApi`); cập nhật `modelSupportsClaudeThinking()` hỗ trợ `claude-haiku-5`; cập nhật `clampGeminiThinkingLevel()` với directional clamping; gỡ bỏ `isDeepSeekDirectModel()` tại `src/lib/core/modelRegistry.ts:461-465` đồng thời cập nhật 2 caller nội bộ tại `src/lib/core/modelRegistry.ts:481-487` (`modelSupportsDeepSeekThinking`) và `src/lib/core/modelRegistry.ts:504-512` (`modelSupportsWebSearch`).
 - [ ] **Bước 2 — Streaming, Routing & Thinking Pipeline**:
   - Xóa `src/lib/core/deepseekClient.ts`.
   - Cập nhật `src/app/api/chat-stream/validators.ts` và `src/app/api/chat-stream/streaming/types.ts` thêm `"xhigh"` vào `ThinkingLevel`.
   - Cập nhật `src/app/api/chat-stream/chatStreamCore.ts`: thay `isStandardGroq` bằng `isGroqModel(model)`, đặt `isOpenRouter = !isGroq && (model.includes("/") || model.includes(":free"))`, gỡ `getDeepSeekClient`/`isDeepSeekDirectModel`, đổi fallback `CLAUDE_HAIKU_45` → `CLAUDE_HAIKU_55`.
   - Cập nhật `src/app/api/chat-stream/streaming/anthropic-stream.ts`: hỗ trợ Adaptive Thinking (`thinking: { type: "adaptive" }`, không gửi `budget_tokens`) cho Claude 5.5 (`isClaude55Model(model)`), mở rộng `thinkingLevel` thêm `"xhigh"`.
-  - Cập nhật `src/app/api/chat-stream/streaming/gemini-stream.ts` & `utils.ts`: mở rộng `thinkingLevel` thêm `"xhigh"`, cập nhật `isDeepThinking` (`"high" || "xhigh"`), cập nhật `isGemini3Model()` nhận `gemini-4-*`, cập nhật message lỗi 403 Gemini 4 không hardcode `"Gemini 4 Argon"`.
-  - Cập nhật `src/app/api/chat-stream/streaming/deepseek-stream.ts`, `deepseek-request-builder.ts`, `strata-stream.ts`, và `src/lib/features/local-llm/strataThinking.ts` để chấp nhận `"xhigh"` an toàn (clamp `"xhigh"` → `"high"`).
-  - Cập nhật `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts`: gỡ `getDeepSeekClient`/`isDeepSeekDirectModel`, đổi fallback `CLAUDE_HAIKU_45` → `CLAUDE_HAIKU_55`, thêm `xhigh` vào `GEMINI_SDK_THINKING_LEVEL_MAP`.
+  - Cập nhật `src/app/api/chat-stream/streaming/openai-stream.ts:241-258`: map `thinkingLevel === "high" || thinkingLevel === "xhigh"` → `effort: "high"` cho Grok 4.7; đảm bảo Groq `openai/gpt-oss-120b` không gắn `reasoning`/`provider`/`openrouter:web_search`.
+  - Cập nhật `src/app/api/chat-stream/streaming/gemini-stream.ts` & `src/app/api/chat-stream/streaming/utils.ts`: mở rộng `thinkingLevel` thêm `"xhigh"`, cập nhật `isDeepThinking` (`"high" || "xhigh"`), cập nhật `isGemini3Model()` nhận `gemini-4-*`, cập nhật message lỗi 403 Gemini 4 không hardcode `"Gemini 4 Argon"`.
+  - Cập nhật `src/app/api/chat-stream/streaming/deepseek-stream.ts`, `src/app/api/chat-stream/streaming/deepseek-request-builder.ts` (nhánh `47` & `58` xử lý `"high" || "xhigh"`), `src/app/api/chat-stream/streaming/strata-stream.ts`, và `src/lib/features/local-llm/strataThinking.ts` (`165-170` map `"xhigh"` → `"high"`).
+  - Cập nhật `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts`: gỡ `getDeepSeekClient`/`isDeepSeekDirectModel`, đổi fallback `CLAUDE_HAIKU_45` → `CLAUDE_HAIKU_55`, thêm `xhigh: "XHIGH" as ThinkingLevel` vào `GEMINI_SDK_THINKING_LEVEL_MAP`.
 - [ ] **Bước 3 — Model Picker Logic, Thinking UI & Bilingual Translations**:
   - Cập nhật `src/lib/core/modelPicker.ts`: chuyển `ModelPickerSection["id"]` sang `"recent" | ModelUiGroup`, sắp xếp theo `UI_GROUP_ORDER`, sửa filter `free` theo `model.isFree === true`, thêm `formatContextWindow()`, cập nhật `resolveChatModelDisplay()` dùng `UI_GROUP_LABELS`.
   - Cập nhật `src/app/features/chat/components/ModelPickerList.tsx`: hiển thị badge `Miễn phí`/`Trả phí` + thông số Context (`1M ngữ cảnh` / `1M context`), đổi mô tả dòng 2 sang `line-clamp-2`, tuân thủ Vikini 3.0 semantic tokens & `text-xs` minimum.
-  - Cập nhật `src/app/features/chat/components/hooks/useThinkingLevel.ts` & `thinkingOptions.ts`: thêm `"xhigh"` vào `ThinkingLevel`, `LEVEL_ORDER`, `localStorage` whitelist, `LABEL_KEYS`; `isClaudeThinkingModel` gọi SSOT `modelSupportsClaudeThinking`; clamp `"xhigh"` an toàn cho từng họ model.
+  - Cập nhật `src/app/features/chat/components/hooks/useThinkingLevel.ts` & `src/app/features/chat/components/thinkingOptions.ts`: thêm `"xhigh"` vào `ThinkingLevel`, `LEVEL_ORDER`, `localStorage` whitelist, `LABEL_KEYS`; `isClaudeThinkingModel` gọi SSOT `modelSupportsClaudeThinking`; map `"xhigh"` → `"high"` cho cả `isStrataLocalThinkingModel` (`131-137`) và `isDeepSeekV4Model` (`149-155`).
   - Cập nhật `src/lib/utils/translations/vi.ts` và `en.ts`:
     - Thêm `modelBadgeFree` (`"Miễn phí"` / `"Free"`), `modelBadgePaid` (`"Trả phí"` / `"Paid"`), `modelContextSuffix` (`"ngữ cảnh"` / `"context"`), `thinkingLevelXHigh` (`"Cực sâu"` / `"Extra Deep"`).
     - Thêm key tên model `"gemini-4-hydrogen"`, `"gemini-4-neon"`.
@@ -413,7 +466,7 @@ case "free":
     - Xóa các key mô tả cũ không còn dùng (`modelDescFlash38`, `modelDescFlash3`, `modelDescArgon4`, `modelDescGrok43`, `modelDescLlama33_70b`, `modelDescLlama31_8b`, `modelDescDeepSeekV4Flash`, `modelDescDeepSeekV3`, `modelDescDeepSeekR1`).
 - [ ] **Bước 4 — Co-Located Tests & Living Docs**:
   - Cập nhật toàn bộ 12 file test co-located liệt kê ở Mục 5 theo Test Contract (Mục 8).
-  - Cập nhật `docs/models.md` và `docs/CHANGELOG.md`.
+  - Cập nhật `docs/models.md`, `docs/contracts.md`, và `docs/CHANGELOG.md`.
 - [ ] **Bước 5 — Verification & Visual QA**:
   - Chạy `npm run type-check; npm run lint; npm run test:run`.
   - Thực hiện Visual QA Gate bằng Playwright (`1440×900` Desktop & `375×812` Mobile × Dark/Light) trên Model Picker và Thinking Level Selector, gọi `read_file` soi từng ảnh `.png`.
@@ -444,14 +497,15 @@ Mọi test case dưới đây là tiêu chí Pass/Fail bắt buộc để `@qa` 
    - `clampGeminiThinkingLevel("gemini-4-neon", "xhigh") === "xhigh"`; `clampGeminiThinkingLevel("gemini-4-neon", "off") === "low"`; `clampGeminiThinkingLevel("gemini-4-neon", "minimal") === "low"`.
    - `clampGeminiThinkingLevel("gemini-3.5-flash-lite", "xhigh") === "high"` (kẹp về bậc cao nhất thay vì `"minimal"`).
    - `chatStreamRequestSchema.safeParse({ content: "hi", thinkingLevel: "xhigh" }).success === true`.
-   - `getEffectiveThinkingLevel("strata-local", "xhigh") === "high"` và `resolveStrataThinkingPlan("xhigh").level === "high"`.
+   - `getEffectiveThinkingLevel("strata-local", "xhigh") === "high"`, `resolveStrataThinkingPlan("xhigh").level === "high"`, `getEffectiveThinkingLevel("deepseek/deepseek-v4-pro", "xhigh") === "high"`, `mapDeepSeekEffort("deepseek/deepseek-v4.1-flash", "xhigh").reasoningEffort === "high"`, `mapDeepSeekEffort("deepseek/deepseek-v4-pro", "xhigh").reasoningEffort === "xhigh"`, và `createOpenAICompatibleStream` với `x-ai/grok-4.7` + `thinkingLevel: "xhigh"` gửi `reasoning: { effort: "high" }`.
 4. **TC-MC-04 (Claude 5.5 Adaptive Thinking — Negative Probe chống 400)**:
-   - `modelSupportsClaudeThinking("claude-sonnet-5-5") === true` và `modelSupportsClaudeThinking("claude-haiku-5-5") === true`.
+   - `modelSupportsClaudeThinking("claude-sonnet-5-5") === true`, `modelSupportsClaudeThinking("claude-haiku-5-5") === true`, và `isClaude55Model("claude-sonnet-5-5-20261001") === true` (raw snapshot ID không fallback về `DEFAULT_MODEL`).
    - Khi `createAnthropicStream` gọi với `model: "claude-sonnet-5-5"` hoặc `"claude-haiku-5-5"` và `thinkingLevel: "high"`, payload gửi `ai.beta.messages.create` BẮT BUỘC có `thinking: { type: "adaptive" }`, `temperature: 1`, và **TUYỆT ĐỐI KHÔNG** có thuộc tính `budget_tokens` (`expect(callArg.thinking).not.toHaveProperty("budget_tokens")`).
    - Khi `thinkingLevel: "off"`, payload KHÔNG có `thinking` và có `temperature: 0.7`.
-5. **TC-MC-05 (Groq Routing Fix — Negative Probe chống route nhầm OpenRouter)**:
+5. **TC-MC-05 (Groq Routing Fix — Negative Probe chống route nhầm OpenRouter & OpenRouter-only fields)**:
    - `isGroqModel("openai/gpt-oss-120b") === true`, `isGroqModel("llama-3.3-70b-versatile") === true` (qua alias), `isGroqModel("x-ai/grok-4.7") === false`, `isGroqModel("deepseek/deepseek-v4.1-flash") === false`.
    - Trong `handleChatStreamCore`, khi conversation dùng `model: "openai/gpt-oss-120b"`, hệ thống BẮT BUỘC gọi `getGroqClient()` và **TUYỆT ĐỐI KHÔNG** gọi `getOpenRouterClient()` hay `getGenAIClient()`.
+   - Trong `createOpenAICompatibleStream`, khi gọi với `model: "openai/gpt-oss-120b"` và `thinkingLevel: "xhigh"`, payload KHÔNG chứa `reasoning`, `provider`, hay `tools` (`openrouter:web_search`).
    - Trong `runNovelcrafterStream`, khi `request.model: "openai/gpt-oss-120b"`, hệ thống gọi `getGroqClient()` và KHÔNG gọi `getOpenRouterClient()`.
 6. **TC-MC-06 (Model Picker Grouping, Free Filter, Context & No-Price Invariant)**:
    - `buildModelPickerSections` trả về các section đúng thứ tự `["gemini", "anthropic", "deepseek", "grok", "glm", "groq", "local"]` (bỏ `local` khi `isLocalVisible: false`).
@@ -502,17 +556,181 @@ Mọi test case dưới đây là tiêu chí Pass/Fail bắt buộc để `@qa` 
 
 ### 10. Rủi Ro Tiềm Ẩn & Phương Án Phòng Ngừa
 
-| Rủi ro                                                                                                                                 | Mức độ         | Technical Control & Kiểm chứng                                                                                                                                                                                                                                                                                                         |
-| -------------------------------------------------------------------------------------------------------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `openai/gpt-oss-120b` chứa dấu `/` bị route nhầm sang OpenRouter thay vì Groq                                                          | **Cao**        | Thêm `isGroqModel(model)` dựa trên `SELECTABLE_MODELS[].providerId === "groq"` (`src/lib/core/modelRegistry.ts`), ưu tiên kiểm tra trước `isOpenRouter` trong `src/app/api/chat-stream/chatStreamCore.ts:533-534`. Kiểm chứng bằng Negative Probe **TC-MC-05** (`chatStreamCore.test.ts` & `novelcrafterStreamRunner.server.test.ts`). |
-| Gửi `budget_tokens` cho Claude 5.5 gây HTTP 400 Bad Request                                                                            | **Cao**        | Thêm `isClaude55Model(model)` và gửi `thinking: { type: "adaptive" }` không kèm `budget_tokens` trong `src/app/api/chat-stream/streaming/anthropic-stream.ts:248-253`. Kiểm chứng bằng Negative Probe **TC-MC-04** (`anthropic-stream.test.ts`).                                                                                       |
-| User đang chọn `xhigh` trên Gemini 4 rồi chuyển sang Gemini 3.5 Flash-Lite / Strata Local / DeepSeek gây lỗi 400 hoặc tụt về `minimal` | **Trung bình** | Directional clamping trong `clampGeminiThinkingLevel()` (`xhigh → high`), `normalizeStrataThinkingLevel()` (`xhigh → high` tại `src/lib/features/local-llm/strataThinking.ts:165-170`), `mapDeepSeekEffort()` (`xhigh` → tương đương `high`), và `getEffectiveThinkingLevel()`. Kiểm chứng qua **TC-MC-03**.                           |
-| User có `rank_configs.allowed_models` lưu ID cũ (`gemini-3.8-flash`, `claude-sonnet-4.5`, ...) bị khóa quyền sau nâng cấp              | **Trung bình** | Bảo toàn ánh xạ 2 chiều trong `MODEL_ALIASES` (`src/lib/core/modelRegistry.ts`), được `modelAccess.ts:45-68` và `limits.ts:370-373` tự động giải quyết. Kiểm chứng qua `modelAccess.test.ts` (**TC-MC-02**).                                                                                                                           |
-| Xóa `src/lib/core/deepseekClient.ts` làm gãy import hoặc test mock ẩn                                                                  | **Trung bình** | Gỡ toàn bộ import/mock tại `chatStreamCore.ts:11`, `novelcrafterStreamRunner.server.ts:8`, `chatStreamCore.test.ts:40` trước khi xóa file; kiểm chứng bằng `npm run type-check; npm run test:run`.                                                                                                                                     |
-| UI Model Picker bị chật / tràn ngang trên Mobile `375px` khi thêm badge `Miễn phí`/`Trả phí` + `1M ngữ cảnh`                           | **Trung bình** | Dùng `flex-wrap items-center gap-x-1.5 gap-y-0.5` cho dòng meta, tối thiểu `text-xs` (không sub-12px), semantic tokens `bg-(--soft)`/`border-(--line)`, và kiểm chứng bằng Visual QA Gate Playwright `375×812` + `1440×900` × Dark/Light.                                                                                              |
+| Rủi ro                                                                                                                               | Mức độ         | Technical Control & Kiểm chứng                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `openai/gpt-oss-120b` chứa dấu `/` bị route nhầm sang OpenRouter thay vì Groq                                                        | **Cao**        | Thêm `isGroqModel(model)` dựa trên `SELECTABLE_MODELS[].providerId === "groq"` (`src/lib/core/modelRegistry.ts`), ưu tiên kiểm tra trước `isOpenRouter` trong `src/app/api/chat-stream/chatStreamCore.ts:533-534`. Kiểm chứng bằng Negative Probe **TC-MC-05** (`chatStreamCore.test.ts` & `novelcrafterStreamRunner.server.test.ts`).                                                                                                                                                                                        |
+| Gửi `budget_tokens` cho Claude 5.5 gây HTTP 400 Bad Request                                                                          | **Cao**        | Thêm `isClaude55Model(model)` và gửi `thinking: { type: "adaptive" }` không kèm `budget_tokens` trong `src/app/api/chat-stream/streaming/anthropic-stream.ts:248-253`. Kiểm chứng bằng Negative Probe **TC-MC-04** (`anthropic-stream.test.ts`).                                                                                                                                                                                                                                                                              |
+| User đang chọn `xhigh` trên Gemini 4 rồi chuyển sang Gemini 3.5 Flash-Lite / Strata Local / DeepSeek / Grok gây lỗi 400 hoặc tụt bậc | **Trung bình** | Directional clamping trong `clampGeminiThinkingLevel()` (`xhigh → high`), `normalizeStrataThinkingLevel()` (`xhigh → high` tại `src/lib/features/local-llm/strataThinking.ts:165-170`), `getEffectiveThinkingLevel()` (`src/app/features/chat/components/hooks/useThinkingLevel.ts:131-155`), `mapDeepSeekEffort()` (`src/app/api/chat-stream/streaming/deepseek-request-builder.ts:47,58`), và `createOpenAICompatibleStream()` (`src/app/api/chat-stream/streaming/openai-stream.ts:241-258`). Kiểm chứng qua **TC-MC-03**. |
+| User có `rank_configs.allowed_models` lưu ID cũ (`gemini-3.8-flash`, `claude-sonnet-4.5`, ...) bị khóa quyền sau nâng cấp            | **Trung bình** | Bảo toàn ánh xạ 2 chiều trong `MODEL_ALIASES` (`src/lib/core/modelRegistry.ts`), được `src/lib/core/modelAccess.ts:45-68` và `src/lib/core/limits.ts:370-373` tự động giải quyết. Kiểm chứng qua `src/lib/core/modelAccess.test.ts` (**TC-MC-02**).                                                                                                                                                                                                                                                                           |
+| Xóa `src/lib/core/deepseekClient.ts` làm gãy import hoặc test mock ẩn                                                                | **Trung bình** | Gỡ toàn bộ import/mock tại `src/app/api/chat-stream/chatStreamCore.ts:11`, `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts:8`, `src/app/api/chat-stream/chatStreamCore.test.ts:40` và 2 caller nội bộ `src/lib/core/modelRegistry.ts:483,509` trước khi xóa file; kiểm chứng bằng `npm run type-check; npm run test:run`.                                                                                                                                                                                   |
+| UI Model Picker bị chật / tràn ngang trên Mobile `375px` khi thêm badge `Miễn phí`/`Trả phí` + `1M ngữ cảnh`                         | **Trung bình** | Dùng `flex-wrap items-center gap-x-1.5 gap-y-0.5` cho dòng meta, tối thiểu `text-xs` (không sub-12px), semantic tokens `bg-(--soft)`/`border-(--line)`, và kiểm chứng bằng Visual QA Gate Playwright `375×812` + `1440×900` × Dark/Light.                                                                                                                                                                                                                                                                                     |
 
 ---
 
 ## Audit History
 
-<!-- Reviewer sẽ nối các lượt Audit Run tại đây -->
+### Audit Run [1]
+
+[REVIEWER_MODEL: gemini-4-argon]
+
+#### 1. Output verify-plan.mjs & Kiểm Chứng Lỗi Cũ
+
+- Revision 1 (chưa có lỗi cũ cần kiểm lại).
+- Output `node scripts/verify-plan.mjs docs/plans/2026-11-21-model-catalog-redesign-plan.md` (exit code `1`):
+
+```text
+[PASS] SECTIONS 7/7
+[FAIL] MISSING_FILE validators.ts:22
+[FAIL] MISSING_FILE deepseek-request-builder.ts:37
+[FAIL] MISSING_FILE deepseek-request-builder.ts:96
+[FAIL] MISSING_FILE strataThinking.ts:165-170
+[FAIL] MISSING_FILE thinkingOptions.ts:14-20
+[FAIL] MISSING_FILE ModelPickerList.tsx:160-209
+[FAIL] MISSING_FILE modelAccess.ts:45-68
+[FAIL] MISSING_FILE limits.ts:370-373
+[FAIL] MISSING_FILE chatStreamCore.ts:11
+[FAIL] MISSING_FILE novelcrafterStreamRunner.server.ts:8
+[FAIL] MISSING_FILE chatStreamCore.test.ts:40
+[INFO] CRITIC_REQUIRED no
+[INFO] CRITIC_FLOOR skipped (no audit run)
+VERIFY_PLAN: FAIL (11 failures, 0 warnings)
+```
+
+#### Critic Findings
+
+| #   | Loại           | Mức       | `file:line`                                                                  | Bằng chứng    | Lý do                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --- | -------------- | --------- | ---------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | DEFECT         | [BLOCKER] | `.agents/scripts/plan-scope.js:106-112`                                      | [SRC] + [CMD] | Mục 5 đặt `[MODIFY]`/`[DELETE]` trên heading thay vì trên từng dòng file (`- [MODIFY] \`src/...\``). `extractDeclaredFiles()`yêu cầu tag và đường dẫn nằm cùng dòng, nên trích xuất ra`[]`. Hệ quả: (a) `scripts/verify-plan.mjs:226,241-243`báo`CRITIC_REQUIRED no`dù plan chạm`src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts` (`\*.server.ts`bắt buộc Cross-Model Critic theo`.agents/rules/05-plan-review.md`), và (b) Plan Scope Guard sẽ chặn mọi thao tác sửa file sau khi Approved.                                                                                                                                                                                                                                 |
+| 2   | DEFECT         | [MAJOR]   | `scripts/verify-plan.mjs:180-197`                                            | [CMD] + [SRC] | `node scripts/verify-plan.mjs` trả exit `1` với 11 lỗi `MISSING_FILE` do viết tắt path không đầy đủ từ repo root (`validators.ts:22`, `deepseek-request-builder.ts:37`, `strataThinking.ts:165-170`, `thinkingOptions.ts:14-20`, `ModelPickerList.tsx:160-209`, `modelAccess.ts:45-68`, `limits.ts:370-373`, `chatStreamCore.ts:11`, `novelcrafterStreamRunner.server.ts:8`, `chatStreamCore.test.ts:40`). Vi phạm Fail Criterion #1.                                                                                                                                                                                                                                                                                                         |
+| 3   | DEFECT         | [MAJOR]   | `.agents/rules/02-quality.md:7`                                              | [SRC]         | Plan sửa 9 file trong `src/app/api/chat-stream/**` và mở rộng `ThinkingLevel` (`xhigh`) trong SSE streaming pipeline nhưng không ánh xạ skill bắt buộc `.agents/skills/streaming-patterns/SKILL.md` (và `docs/contracts.md`) vào mục `Skills Loaded & Applied`. Vi phạm Fail Criterion #4.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 4   | DEFECT         | [MAJOR]   | `src/app/api/chat-stream/streaming/openai-stream.ts:241-258`                 | [SRC]         | Plan bỏ sót `src/app/api/chat-stream/streaming/openai-stream.ts` khỏi danh sách `[MODIFY]` và bỏ sót xử lý `"xhigh"` tại 3 nhánh: (a) `openai-stream.ts:251-253` chỉ check `thinkingLevel === "high" ? "high" : "low"` khiến Grok 4.7 tụt từ `xhigh` xuống `"low"`; (b) `src/app/features/chat/components/hooks/useThinkingLevel.ts:131-136` chỉ cho qua `"low"                                                                                                                                                                                                                                                                                                                                                                               | "medium" | "high"`khiến Strata Local nhận`"xhigh"`trả về`"off"`; (c) `useThinkingLevel.ts:149-155`&`src/app/api/chat-stream/streaming/deepseek-request-builder.ts:47,58`chỉ check`"high"`khiến DeepSeek V4 nhận`"xhigh"` bị tụt bậc. |
+| 5   | DEFECT         | [MAJOR]   | `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts:5,148-153` | [SRC]         | Plan đề xuất thêm `xhigh` vào `GEMINI_SDK_THINKING_LEVEL_MAP` dùng `ThinkingLevel` enum từ `@google/genai@^2.10.0` nhưng chưa xác minh bằng `[SRC]` trong `node_modules/@google/genai` xem enum `ThinkingLevel` có member `XHIGH` hay không (nếu không có sẽ gây lỗi biên dịch `tsc --noEmit`). Ngoài ra, nếu gỡ `isDeepSeekDirectModel()` tại `src/lib/core/modelRegistry.ts:461-465`, cần cập nhật luôn 2 caller nội bộ tại `src/lib/core/modelRegistry.ts:483` (`modelSupportsDeepSeekThinking`) và `src/lib/core/modelRegistry.ts:509` (`modelSupportsWebSearch`); đồng thời `isClaude55Model` nên kiểm tra raw string `.toLowerCase()` trước/song song `normalizeModelForApi` để tránh fallback về `DEFAULT_MODEL` nếu nhận snapshot ID. |
+| 6   | RISK_DISMISSED | [MINOR]   | `src/lib/core/modelAccess.ts:45-68`                                          | [SRC]         | Rủi ro khóa quyền user khi không tạo SQL migration cho `rank_configs.allowed_models` được bác bỏ có căn cứ: cả `isModelAllowedById` (`src/lib/core/modelAccess.ts:45-68`) và `isModelAllowedForUser`/`assertModelAllowedForUser` (`src/lib/core/limits.ts:370-373`) đều khớp 2 chiều qua `normalizeModelForApi()` và `coerceStoredModel()` dựa trên `MODEL_ALIASES`.                                                                                                                                                                                                                                                                                                                                                                          |
+
+#### 2. Plan Completeness Gate & Mental Simulation Matrix
+
+| Mục                                           | Kết quả | Bằng chứng                                                                                                                               | Chi tiết                                                                                                                                                                                                                                                                      |
+| --------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan Completeness Gate (7/7 sections)         | FAIL    | [CMD] `verify-plan.mjs`                                                                                                                  | Có đủ 7 heading (`SECTIONS 7/7`), nhưng 11 `MISSING_FILE`, thiếu skill bắt buộc `streaming-patterns`, và mục 5 sai format `[MODIFY]`/`[DELETE]` làm hỏng `extractDeclaredFiles()`.                                                                                            |
+| S1: Cold-start & Build                        | FAIL    | [CMD] `npm run type-check` (exit 0) + [SRC] `novelcrafterStreamRunner.server.ts:148-153`                                                 | Baseline `tsc --noEmit` hiện sạch; tuy nhiên kế hoạch chưa chứng minh `ThinkingLevel.XHIGH` tồn tại trong `@google/genai@2.10.0`, có nguy cơ gãy build khi thêm vào `GEMINI_SDK_THINKING_LEVEL_MAP`.                                                                          |
+| S2: Runner Lifecycle & Teardown               | PASS    | [SRC] `anthropic-stream.ts:57-73,107-110`, `openai-stream.ts:71-87,121-124`, `novelcrafterStreamRunner.server.ts:422-434`                | Các stream runner giữ nguyên cơ chế `AbortController`, `signal.addEventListener("abort", ..., { once: true })`, `cancel()` và `savePartialOnce()`; plan không làm thay đổi vòng đời teardown.                                                                                 |
+| S3: Database & Temporal Logic                 | N/A     | [SRC] `src/lib/core/modelAccess.ts:45-68`, `src/lib/core/limits.ts:370-373`                                                              | Không thay đổi schema SQL, bảng hay RLS policy; tương thích ngược `rank_configs.allowed_models` xử lý qua `MODEL_ALIASES`.                                                                                                                                                    |
+| S4: Cross-Task State Flow                     | FAIL    | [SRC] `useThinkingLevel.ts:131-155`, `openai-stream.ts:241-258`, `ModelSelector.tsx:40-43`                                               | Trạng thái `localStorage.vikini.thinkingLevel = "xhigh"` khi đổi model từ Gemini 4 sang Strata Local (`useThinkingLevel.ts:131-136` trả `"off"`), DeepSeek V4 (`149-155` trả `"low"`), hoặc Grok 4.7 (`openai-stream.ts:251-253` gửi `effort: "low"`) chưa được xử lý đầy đủ. |
+| S5: Security Boundary & 3-Tier Auth           | PASS    | [SRC] `src/lib/core/limits.ts:380-395`, `src/lib/core/modelAccess.ts:21-70`                                                              | Giữ nguyên server-side `assertModelAllowedForUser` fail-closed và `Object.hasOwn(MODEL_ALIASES, raw)` chống prototype pollution; Test Contract có Negative Probe cho `constructor`/`__proto__`/`toString`.                                                                    |
+| S6: External Resilience & Serverless Cap      | PASS    | [SRC] `src/app/api/chat-stream/streaming/utils.ts:29-46`, `src/app/api/chat-stream/streaming/types.ts:86-94`, `gemini-stream.ts:606-630` | Timeout riêng cho `gemini-4*` (`TIMEOUT_CONFIG.ARGON = 900000ms`), `withTimeout` + `withIdleTimeout`, và `MODEL_TIER_RESTRICTED` được bảo toàn và cập nhật tránh hardcode tên Argon.                                                                                          |
+| Domain: Model Registry, Reasoning & Bilingual | FAIL    | [SRC] `modelRegistry.ts:461-512`, `openai-stream.ts:241-258`, `ModelPickerList.tsx:160-209`                                              | Thiếu cập nhật `openai-stream.ts` (Grok 4.7 `xhigh` + xác nhận không gửi field OpenRouter-only cho Groq `openai/gpt-oss-120b`), thiếu xử lý 2 caller nội bộ của `isDeepSeekDirectModel` trong `modelRegistry.ts:483,509`.                                                     |
+
+#### 3. Adversarial Timelines & Commands Executed
+
+- **Adversarial Timelines (4 trục)**:
+  1. **Đồng thời**: `N/A` — Thay đổi thuần catalog, routing nhánh model, thinking level mapping và UI picker; không thêm shared mutable state hay giao dịch ghi đồng thời mới.
+  2. **Khoảng trống check→use (TOCTOU)**:
+     - Cơ chế: Đổi model khi `localStorage.vikini.thinkingLevel` đang lưu `"xhigh"`.
+     - T1: User chọn `gemini-4-neon` với `thinkingLevel = "xhigh"` (lưu vào `localStorage`) | T2: User chuyển sang `strata-local` hoặc `x-ai/grok-4.7` hoặc `deepseek/deepseek-v4-pro` | T3: `getEffectiveThinkingLevel()` (`useThinkingLevel.ts:131-155`) hoặc `openai-stream.ts:251-253` đọc `"xhigh"` không khớp nhánh `"high"`.
+     - Kết cục: Strata Local bị tắt thinking về `"off"`, DeepSeek V4 & Grok 4.7 bị tụt xuống `"low"` → **Lỗi (`[MAJOR]`)**.
+  3. **Thất bại giữa chừng & thất bại của bước dọn dẹp**:
+     - Cơ chế: Client hủy kết nối giữa lúc Claude 5.5 Adaptive Thinking / Groq `openai/gpt-oss-120b` đang stream.
+     - T1: Client đóng tab / bấm Stop (`req.signal` phát `abort`) | T2: `anthropic-stream.ts:64-71` / `openai-stream.ts:78-85` gọi `ac.abort()` hủy request tới SDK | T3: `savePartialOnce()` lưu phần nội dung đã nhận (bọc `try/catch` ghi `streamLogger.error` nếu DB lỗi).
+     - Kết cục: Không rò rỉ kết nối LLM, không làm crash stream teardown → **An toàn (`[SRC]`)**.
+  4. **Môi trường serverless**:
+     - Cơ chế: Routing Groq `openai/gpt-oss-120b` và Claude 5.5 trên serverless instance không chia sẻ state.
+     - T1: Request vào instance cold-start với `model = "openai/gpt-oss-120b"` hoặc `model = "claude-sonnet-5-5"` | T2: `chatStreamCore.ts` kiểm tra `isGroqModel(model)` trước `isOpenRouter` và `Boolean(process.env.ANTHROPIC_API_KEY)` | T3: Khởi tạo lazy singleton client đúng provider (`getGroqClient()` / `getClaudeClient()` / `getOpenRouterClient()`).
+     - Kết cục: Định tuyến tất định theo config, không phụ thuộc in-memory state → **An toàn (`[SRC]`)**.
+
+- **Commands Executed**:
+  1. `node scripts/verify-plan.mjs docs/plans/2026-11-21-model-catalog-redesign-plan.md` → exit `1` (`VERIFY_PLAN: FAIL (11 failures, 0 warnings)`, `CRITIC_REQUIRED no`).
+  2. `npm run type-check` → exit `0` (`tsc --noEmit` sạch).
+  3. `npx vitest run src/lib/core/modelRegistry.test.ts src/lib/core/modelPicker.test.ts src/lib/core/modelAccess.test.ts --reporter=dot` → exit `0` (`3 passed (3), 91 passed (91)`).
+
+#### 4. Kết Luận
+
+Yêu cầu `@planner` lập Revision 2 khắc phục toàn bộ 5 lỗi (`1 [BLOCKER]`, `4 [MAJOR]`) nêu trong `Critic Findings`, sau đó chạy lại `node scripts/verify-plan.mjs docs/plans/2026-11-21-model-catalog-redesign-plan.md` đạt exit `0` và `CRITIC_REQUIRED yes` (vì chạm `novelcrafterStreamRunner.server.ts`).
+
+[CHANGES_REQUESTED]
+
+---
+
+### Audit Run [2]
+
+[REVIEWER_MODEL: gemini-4-argon]
+
+#### 1. Output verify-plan.mjs & Kiểm Chứng Lỗi Cũ
+
+- Output `node scripts/verify-plan.mjs docs/plans/2026-11-21-model-catalog-redesign-plan.md` (exit code `0`):
+
+```text
+[PASS] SECTIONS 7/7
+[PASS] LINE_REF (all 67 references verified against repository filesystem)
+[INFO] CRITIC_REQUIRED yes (src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts)
+[PASS] CRITIC_FLOOR 6 findings with valid file:line
+VERIFY_PLAN: PASS (0 failures, 0 warnings)
+```
+
+- **Bảng kiểm chứng lỗi cũ (Audit Run [1] → Revision 2)**:
+
+| #   | Lỗi cũ (Audit Run [1])                                                                                                                          | Trạng thái | Bằng chứng đối chiếu                                                                                                                                                                                                                                                 |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `[BLOCKER]` Mục 5 sai format `[MODIFY]`/`[DELETE]` làm `extractDeclaredFiles()` trả `[]` và bypass `CRITIC_REQUIRED`                            | **ĐÃ SỬA** | `[CMD]` `verify-plan.mjs` exit `0`, báo `CRITIC_REQUIRED yes (src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts)`; khớp parser `.agents/scripts/plan-scope.js:106-112`.                                                                               |
+| 2   | `[MAJOR]` 11 lỗi `MISSING_FILE` do viết tắt path                                                                                                | **ĐÃ SỬA** | `[CMD]` `verify-plan.mjs` trả `VERIFY_PLAN: PASS (0 failures, 0 warnings)` với toàn bộ 67 `LINE_REF` đều `[PASS]`.                                                                                                                                                   |
+| 3   | `[MAJOR]` Thiếu skill bắt buộc `.agents/skills/streaming-patterns/SKILL.md` & `docs/contracts.md`                                               | **ĐÃ SỬA** | `[SRC]` Đã ánh xạ `.agents/skills/streaming-patterns/SKILL.md` và đối chiếu `docs/contracts.md:296` (`thinkingLevel` union); đã khai báo `- [MODIFY] docs/contracts.md`.                                                                                             |
+| 4   | `[MAJOR]` Bỏ sót `openai-stream.ts` và nhánh `"xhigh"` cho Grok 4.7, Strata Local, DeepSeek V4                                                  | **ĐÃ SỬA** | `[SRC]` Đã khai báo `- [MODIFY] src/app/api/chat-stream/streaming/openai-stream.ts`, cập nhật `openai-stream.ts:241-258`, `useThinkingLevel.ts:131-155`, `deepseek-request-builder.ts:47,58`, và bao phủ trong TC-MC-03 & TC-MC-05.                                  |
+| 5   | `[MAJOR]` Chưa xác minh `ThinkingLevel.XHIGH` trong `@google/genai`, thiếu 2 caller nội bộ `isDeepSeekDirectModel`, edge case `isClaude55Model` | **ĐÃ SỬA** | `[SRC]` Đã tự đọc `node_modules/@google/genai/dist/genai.d.ts:12185-12206` xác nhận enum chỉ có `MINIMAL`/`LOW`/`MEDIUM`/`HIGH` → dùng `xhigh: "XHIGH" as ThinkingLevel`; đã bao phủ `modelRegistry.ts:481-487,504-512` và raw string check trong `isClaude55Model`. |
+
+#### Critic Findings
+
+| #   | Loại           | Mức     | `file:line`                                                  | Bằng chứng | Lý do                                                                                                                                                                                                                                                                                                                                                                       |
+| --- | -------------- | ------- | ------------------------------------------------------------ | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ----- | -------- | -------------------------------------------------------------------------------------- |
+| 1   | RISK_DISMISSED | [MINOR] | `node_modules/@google/genai/dist/genai.d.ts:12185-12206`     | [SRC]      | Rủi ro lỗi biên dịch TypeScript khi thêm `"xhigh"` vào `GEMINI_SDK_THINKING_LEVEL_MAP` tại `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts:148-153` đã được bác bỏ: enum `ThinkingLevel` trong `@google/genai@2.10.0` chỉ định nghĩa tới `HIGH`, và kế hoạch chuyển sang `xhigh: "XHIGH" as ThinkingLevel` (không dùng `any`, an toàn biên dịch).         |
+| 2   | RISK_DISMISSED | [MINOR] | `src/app/api/chat-stream/streaming/openai-stream.ts:220-260` | [SRC]      | Rủi ro rò rỉ trường OpenRouter-only (`provider`, `reasoning`, `openrouter:web_search`) sang Groq khi chạy `openai/gpt-oss-120b` được bác bỏ: `isGLMModel`, `isOpenRouterReasoningModel` (`src/lib/core/modelRegistry.ts:528-543`) và `isDeepSeekV32Model` đều trả `false` cho `openai/gpt-oss-120b`, kèm Negative Probe TC-MC-05 xác nhận payload không chứa 3 trường trên. |
+| 3   | RISK_DISMISSED | [MINOR] | `src/app/api/chat-stream/chatStreamCore.ts:530-630`          | [SRC]      | Rủi ro định tuyến nhầm `openai/gpt-oss-120b` (chứa `/`) sang OpenRouter được bác bỏ: kế hoạch tính `const isGroq = isGroqModel(model)` dựa trên `providerId === "groq"` trước `isOpenRouter = !isGroq && ...`, và đối chiếu tương tự tại `src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts:383-385`.                                                        |
+| 4   | RISK_DISMISSED | [MINOR] | `docs/contracts.md:287-306`                                  | [SRC]      | Rủi ro lệch tài liệu hợp đồng API khi mở rộng `thinkingLevel` thêm `"xhigh"` được bác bỏ: `docs/contracts.md:296` hiện ghi `thinkingLevel?: "off"                                                                                                                                                                                                                           | "minimal" | "low" | "medium" | "high"`và đã được đưa vào danh sách`- [MODIFY] docs/contracts.md` cùng bước thực hiện. |
+
+#### 2. Plan Completeness Gate & Mental Simulation Matrix
+
+| Mục                                           | Kết quả | Bằng chứng                                                                                                                               | Chi tiết                                                                                                                                                                                                                    |
+| --------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan Completeness Gate (7/7 sections)         | PASS    | [CMD] `verify-plan.mjs` (exit 0) + [SRC] `docs/contracts.md:296`                                                                         | Đủ 7/7 mục, 67/67 `LINE_REF` hợp lệ, 0 failures, 0 warnings, đủ 4 skill bắt buộc (`add-model`, `add-translation`, `streaming-patterns`, `vikini-investigate`), `CRITIC_REQUIRED yes` hoạt động đúng.                        |
+| S1: Cold-start & Build                        | PASS    | [CMD] `npm run type-check` (exit 0) + [SRC] `node_modules/@google/genai/dist/genai.d.ts:12185-12206`, `package.json:38-82`               | Baseline biên dịch sạch; không thêm dependency hay biến môi trường mới; boundary `@google/genai` (`"XHIGH" as ThinkingLevel`) và `@anthropic-ai/sdk` (`anthropic-stream.ts:257`) đã xác minh khớp kiểu.                     |
+| S2: Runner Lifecycle & Teardown               | PASS    | [SRC] `anthropic-stream.ts:57-73,107-110`, `openai-stream.ts:71-87,121-124`, `novelcrafterStreamRunner.server.ts:422-434`                | Giữ nguyên `AbortController`, `once: true` abort listener, `cancel()` và `savePartialOnce()` safety net trên mọi stream runner.                                                                                             |
+| S3: Database & Temporal Logic                 | N/A     | [SRC] `src/lib/core/modelAccess.ts:45-68`, `src/lib/core/limits.ts:370-373`                                                              | Không thay đổi schema SQL, bảng hay RLS policy; tương thích ngược `rank_configs.allowed_models` xử lý 2 chiều qua `MODEL_ALIASES`.                                                                                          |
+| S4: Cross-Task State Flow                     | PASS    | [SRC] `useThinkingLevel.ts:131-163`, `openai-stream.ts:241-258`, `deepseek-request-builder.ts:44-65`, `ModelSelector.tsx:40-43`          | Trạng thái `localStorage.vikini.thinkingLevel = "xhigh"` được kẹp nhất quán về `"high"` khi chuyển sang Gemini 3.5 Flash-Lite, Strata Local, DeepSeek V4 hoặc Grok 4.7; `resolveChatModelDisplay` dùng `UI_GROUP_LABELS`.   |
+| S5: Security Boundary & 3-Tier Auth           | PASS    | [SRC] `src/lib/core/limits.ts:380-395`, `src/lib/core/modelAccess.ts:21-70`                                                              | Giữ nguyên server-side `assertModelAllowedForUser` fail-closed và `Object.hasOwn(MODEL_ALIASES, raw)` chống prototype pollution; Test Contract có Negative Probe TC-MC-02.                                                  |
+| S6: External Resilience & Serverless Cap      | PASS    | [SRC] `src/app/api/chat-stream/streaming/utils.ts:29-46`, `src/app/api/chat-stream/streaming/types.ts:86-94`, `gemini-stream.ts:606-630` | Timeout riêng cho `gemini-4*` (`900000ms`), `withTimeout` + `withIdleTimeout`, `isDeepThinking` bao gồm `"xhigh"`, và xử lý lỗi `MODEL_TIER_RESTRICTED` bỏ hardcode tên Argon.                                              |
+| Domain: Model Registry, Reasoning & Bilingual | PASS    | [SRC] `modelRegistry.ts:452-543`, `modelPicker.ts:55-157`, `ModelPickerList.tsx:160-209`                                                 | Đủ 12 model theo thứ tự hãng (`uiGroup`), nhãn `Miễn phí`/`Trả phí` (`isFree`), chỉ hiện Context, không giá USD/`$` (Negative Probe TC-MC-06), song ngữ `vi.ts`/`en.ts` đồng bộ, xử lý đủ 2 caller `isDeepSeekDirectModel`. |
+
+#### 3. Adversarial Timelines & Commands Executed
+
+- **Adversarial Timelines (4 trục)**:
+  1. **Đồng thời**: `N/A` — Không thay đổi cơ chế khóa đồng thời, transaction hay shared mutable state.
+  2. **Khoảng trống check→use (TOCTOU)**:
+     - Cơ chế: User đổi model khi `localStorage.vikini.thinkingLevel` đang lưu `"xhigh"`.
+     - T1: User chọn `gemini-4-neon` với `thinkingLevel = "xhigh"` | T2: User đổi sang `gemini-3.5-flash-lite`, `strata-local`, `deepseek/deepseek-v4-pro`, hoặc `x-ai/grok-4.7` | T3: `clampGeminiThinkingLevel()`, `getEffectiveThinkingLevel()`, `normalizeStrataThinkingLevel()`, `mapDeepSeekEffort()`, và `createOpenAICompatibleStream()` đồng loạt kẹp `"xhigh"` sang mức cao nhất hợp lệ của từng model (`"high"` / `"xhigh"`).
+     - Kết cục: Không tụt về `"off"`/`"low"`/`"minimal"` và không phát sinh HTTP 400 → **An toàn (`[SRC]`)**.
+  3. **Thất bại giữa chừng & thất bại của bước dọn dẹp**:
+     - Cơ chế: Client hủy kết nối giữa lúc Claude 5.5 Adaptive Thinking / Groq `openai/gpt-oss-120b` đang stream.
+     - T1: Client đóng tab / bấm Stop (`req.signal` phát `abort`) | T2: `anthropic-stream.ts:64-71` / `openai-stream.ts:78-85` gọi `ac.abort()` hủy request tới SDK | T3: `savePartialOnce()` lưu phần nội dung đã nhận (bọc `try/catch` ghi `streamLogger.error` nếu DB lỗi).
+     - Kết cục: Không rò rỉ kết nối LLM, không làm crash stream teardown → **An toàn (`[SRC]`)**.
+  4. **Môi trường serverless**:
+     - Cơ chế: Cold-start routing Groq `openai/gpt-oss-120b` và Claude 5.5 trên serverless instance không chia sẻ state.
+     - T1: Request vào instance cold-start với `model = "openai/gpt-oss-120b"` hoặc `model = "claude-sonnet-5-5"` | T2: `chatStreamCore.ts` kiểm tra `isGroqModel(model)` trước `isOpenRouter` và `Boolean(process.env.ANTHROPIC_API_KEY)` | T3: Khởi tạo lazy singleton client đúng provider (`getGroqClient()` / `getClaudeClient()` / `getOpenRouterClient()`).
+     - Kết cục: Định tuyến tất định theo config, không phụ thuộc in-memory state → **An toàn (`[SRC]`)**.
+
+- **Commands Executed**:
+  1. `node scripts/verify-plan.mjs docs/plans/2026-11-21-model-catalog-redesign-plan.md` → exit `0` (`VERIFY_PLAN: PASS (0 failures, 0 warnings)`, `CRITIC_REQUIRED yes (src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts)`).
+  2. (Baseline từ lượt trước, chưa có thay đổi source code) `npm run type-check` → exit `0`; `npx vitest run src/lib/core/modelRegistry.test.ts src/lib/core/modelPicker.test.ts src/lib/core/modelAccess.test.ts --reporter=dot` → exit `0` (`3 passed (3), 91 passed (91)`).
+
+#### 4. Kết Luận
+
+Revision 2 đã khắc phục toàn bộ 5 lỗi từ Audit Run [1], không còn lỗi `[BLOCKER]` hay `[MAJOR]`, và vượt qua toàn bộ kiểm định `verify-plan.mjs` (exit `0`). Vì kế hoạch chạm tệp server nhạy cảm (`src/lib/features/novelcrafter/novelcrafterStreamRunner.server.ts`, `CRITIC_REQUIRED yes`), chuyển trạng thái sang `Awaiting Critic` để Claude CLI (`-Role critic`) thực hiện Cross-Model Critic Pass trước khi mở khóa mã nguồn.
+
+[AWAITING_CRITIC]
+
+---
+
+### Critic Waiver (PM Authorized)
+
+- **Lý do Circuit Breaker**: Claude Code CLI bị tổ chức tắt quyền subscription (`Your organization has disabled Claude subscription access for Claude Code`), không thể thực thi `-Role critic`.
+- **Xác nhận PM**: User (PM) đã kích hoạt Circuit Breaker Override (Cách 1), chấp thuận miễn bước Cross-Model Critic trên cơ sở `Audit Run [2]` (`gemini-4-argon`) đã xác minh `0 [BLOCKER]`, `0 [MAJOR]` và `node scripts/verify-plan.mjs` đạt `PASS (0 failures, 0 warnings)`.
+- **Trạng thái**: Chuyển `- **Status**: Completed` để mở khóa thực thi đúng phạm vi các file đã khai báo trong Mục 5.
+
+[PLAN_APPROVED]

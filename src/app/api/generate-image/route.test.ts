@@ -96,7 +96,7 @@ vi.mock("@/lib/utils/logger", () => ({
 }));
 
 // ── Import route handlers AFTER mocks ─────────────────────────────────
-import { POST } from "./route";
+import { POST, maxDuration } from "./route";
 import { auth } from "@/lib/features/auth/auth";
 import { consumeRateLimit } from "@/lib/core/rateLimit";
 import { assertModelAllowedForUser, getUserProfile } from "@/lib/core/limits";
@@ -886,7 +886,7 @@ describe("/api/generate-image", () => {
 
         expect(mockGenerateContent).toHaveBeenCalledOnce();
         const callArg = mockGenerateContent.mock.calls[0][0];
-        expect(callArg.model).toBe("gemini-3.8-flash");
+        expect(callArg.model).toBe("gemini-4-hydrogen");
         expect(callArg.config).toEqual({
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         });
@@ -943,12 +943,12 @@ describe("/api/generate-image", () => {
 
         const req = createRequest("POST", "/api/generate-image", {
           ...validBody,
-          options: { enhancer: true, enhancerModel: "gemini-3.8-flash" },
+          options: { enhancer: true, enhancerModel: "gemini-4-hydrogen" },
         });
         await POST(req);
 
         expect(mockGenerateContent).toHaveBeenCalledOnce();
-        expect(mockGenerateContent.mock.calls[0][0].model).toBe("gemini-3.8-flash");
+        expect(mockGenerateContent.mock.calls[0][0].model).toBe("gemini-4-hydrogen");
       });
 
       it("TC-GI-04b: normalizes legacy gemini-3.1-pro-preview enhancerModel to gemini-3.8-flash", async () => {
@@ -973,7 +973,7 @@ describe("/api/generate-image", () => {
         await POST(req);
 
         expect(mockGenerateContent).toHaveBeenCalledOnce();
-        expect(mockGenerateContent.mock.calls[0][0].model).toBe("gemini-3.8-flash");
+        expect(mockGenerateContent.mock.calls[0][0].model).toBe("gemini-4-hydrogen");
       });
 
       it("TC-GI-05: filters out thought: true parts at index 0 when reading enhancer candidate fallback", async () => {
@@ -1013,7 +1013,7 @@ describe("/api/generate-image", () => {
         mockAuthenticated();
         mockRateLimitAllowed();
 
-        for (const badModel of ["evil-model", "gemini-4-argon"]) {
+        for (const badModel of ["evil-model", "gemini-4-neon"]) {
           const req = createRequest("POST", "/api/generate-image", {
             ...validBody,
             options: { model: badModel },
@@ -1030,12 +1030,12 @@ describe("/api/generate-image", () => {
         mockRateLimitAllowed();
         mockValidConversation();
         vi.mocked(assertModelAllowedForUser).mockRejectedValueOnce(
-          new ForbiddenError('Model "gemini-3.8-flash" is not allowed for rank "basic"')
+          new ForbiddenError('Model "gemini-4-hydrogen" is not allowed for rank "basic"')
         );
 
         const req = createRequest("POST", "/api/generate-image", {
           ...validBody,
-          options: { enhancer: true, enhancerModel: "gemini-3.8-flash" },
+          options: { enhancer: true, enhancerModel: "gemini-4-hydrogen" },
         });
         const res = await POST(req);
 
@@ -1111,6 +1111,10 @@ describe("/api/generate-image", () => {
         expect(res2.status).toBe(500);
         expect(mockStorageRemove).not.toHaveBeenCalled();
       });
+    });
+
+    it("TC-IMG-09: exports maxDuration = 300 for Vercel Fluid Compute", () => {
+      expect(maxDuration).toBe(300);
     });
   });
 });

@@ -52,8 +52,8 @@ export function FileLightbox({ file, onClose, files, onNavigate }: FileLightboxP
     return files.findIndex((f) => f.id === file.id);
   }, [file, files]);
 
-  const hasPrev = currentIndex > 0;
-  const hasNext = files ? currentIndex < files.length - 1 : false;
+  const hasPrev = Boolean(onNavigate) && currentIndex > 0;
+  const hasNext = Boolean(onNavigate) && Boolean(files) && currentIndex < (files?.length ?? 0) - 1;
 
   const navigatePrev = useCallback(() => {
     if (hasPrev && files && onNavigate) {

@@ -49,8 +49,8 @@ describe("aiInheritanceTable (Phase 5D TC-01 & TC-02)", () => {
       baseRouting,
       allowed
     );
-    expect(overridden.modelId).toBe("gemini-3.8-flash");
-    expect(overridden.modelName).toBe("Gemini 3.8 Flash");
+    expect(overridden.modelId).toBe("gemini-4-hydrogen");
+    expect(overridden.modelName).toBe("Gemini 4 Hydrogen");
     expect(overridden.isOverridden).toBe(true);
 
     // Negative: disallowed model falls back to defaultModelId

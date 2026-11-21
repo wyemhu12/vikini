@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LocalStreamProgress } from "@/lib/features/chat/thinkingStats";
+import type { StreamActivity } from "@/lib/features/chat/streamActivity";
 import {
   normalizeFrontendMessages,
   type ChatFrontendMessage,
@@ -69,6 +70,7 @@ export function useChatStreamController({
   const [streamingLocalProgress, setStreamingLocalProgress] = useState<LocalStreamProgress | null>(
     null
   );
+  const [streamingActivity, setStreamingActivity] = useState<StreamActivity | null>(null);
   const [streamingSources, setStreamingSources] = useState<unknown[]>([]);
   const [streamingRagSources, setStreamingRagSources] = useState<unknown[]>([]);
   const [streamingUrlContext, setStreamingUrlContext] = useState<unknown[]>([]);
@@ -161,6 +163,7 @@ export function useChatStreamController({
     setStreamingAssistant,
     setStreamingThinking,
     setStreamingLocalProgress,
+    setStreamingActivity,
     setStreamingSources,
     setStreamingRagSources,
     setStreamingUrlContext,
@@ -189,6 +192,7 @@ export function useChatStreamController({
     setStreamingUrlContext,
     setStreamingThinking,
     setStreamingLocalProgress,
+    setStreamingActivity,
     setStreamError,
     startTypewriter,
     appendToTypewriterBuffer,
@@ -227,6 +231,7 @@ export function useChatStreamController({
     setStreamingAssistant,
     setStreamingThinking,
     setStreamingLocalProgress,
+    setStreamingActivity,
     setStreamingSources,
     setStreamingRagSources,
     setStreamingUrlContext,
@@ -278,6 +283,7 @@ export function useChatStreamController({
     streamingThinking,
     streamingThinkingStats,
     streamingLocalProgress,
+    streamingActivity,
     streamingSources,
     streamingRagSources,
     streamingUrlContext,

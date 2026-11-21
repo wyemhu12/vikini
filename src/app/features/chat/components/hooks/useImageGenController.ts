@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "@/lib/store/toastStore";
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
+import { parseImageApiResponse } from "@/lib/features/image-gen/studioHelpers";
 import { logger } from "@/lib/utils/logger";
 
 /** Conversation object returned from create */
@@ -86,15 +87,20 @@ export function useImageGenController({
           }),
         });
 
-        const data = await response.json();
+        const data = await parseImageApiResponse(
+          response,
+          t("studioGenerateFailed"),
+          t("studioErrorTimeout")
+        );
 
-        if (!response.ok) {
-          throw new Error(data.error?.message || data.error || t("studioGenerateFailed"));
-        }
+        const responseData =
+          data.data && typeof data.data === "object"
+            ? (data.data as { imageUrl?: string })
+            : undefined;
 
         // API returns { success: true, data: { message, imageUrl } }
-        if (data.success && data.data) {
-          const { imageUrl } = data.data;
+        if (data.success && responseData) {
+          const { imageUrl } = responseData;
           if (imageUrl) {
             setLastGeneratedImage({ url: imageUrl, prompt });
           }
@@ -103,7 +109,8 @@ export function useImageGenController({
           onSuccessRef.current?.();
           return true;
         } else {
-          throw new Error(data.error?.message || t("studioGenerateFailed"));
+          const errMsg = typeof data.error === "string" ? data.error : data.error?.message;
+          throw new Error(errMsg || t("studioGenerateFailed"));
         }
       } catch (e) {
         logger.error("Image generation error:", e);

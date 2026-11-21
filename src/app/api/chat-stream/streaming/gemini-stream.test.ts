@@ -36,7 +36,7 @@ function createMockParams(overrides: Partial<ChatStreamParams> = {}): ChatStream
         }),
       },
     } as unknown as ChatStreamParams["ai"],
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.5-flash-lite",
     contents: [],
     sysPrompt: "",
     tools: [],
@@ -95,7 +95,7 @@ describe("gemini-stream - Abort handling and safety net", () => {
 
     const params = createMockParams({
       ai: mockAi as unknown as ChatStreamParams["ai"],
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.5-flash-lite",
       upsertAssistantMessage: upsertAssistantMessageMock,
       signal: abortController.signal,
     });
@@ -143,7 +143,7 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
 
     const params = createMockParams({
       ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.5-flash-lite",
       thinkingLevel: "high",
     });
 
@@ -271,7 +271,7 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
 
     expect(generateMock).toHaveBeenCalledTimes(2);
     const contCall = generateMock.mock.calls[1][0];
-    expect(contCall.model).toBe("gemini-3.8-flash");
+    expect(contCall.model).toBe("gemini-4-hydrogen");
     expect(contCall.config.thinkingConfig).toEqual({ thinkingLevel: "medium" });
 
     const contContents = contCall.contents as Array<{ role: string; parts: unknown[] }>;
@@ -402,7 +402,7 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
 
     const params = createMockParams({
       ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
-      model: "gemini-3.8-flash",
+      model: "gemini-3.5-flash-lite",
       thinkingLevel: "off",
       tools: [{ functionDeclarations: [{ name: "getTime" }] }],
     });
@@ -435,7 +435,7 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
     }
 
     expect(generateMock).toHaveBeenCalledTimes(1);
-    expect(generateMock.mock.calls[0][0].model).toBe("gemini-3.8-flash");
+    expect(generateMock.mock.calls[0][0].model).toBe("gemini-4-hydrogen");
     const callConfig = generateMock.mock.calls[0][0].config;
 
     expect(callConfig.thinkingConfig).toEqual({
@@ -452,7 +452,7 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
 
     const params = createMockParams({
       ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.5-flash-lite",
       thinkingLevel: "off",
     });
 
@@ -508,7 +508,7 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
 
     const params = createMockParams({
       ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.5-flash-lite",
       tools: [{ functionDeclarations: [{ name: "testTool" }] }],
       toolConfig: { functionCallingConfig: { mode: "AUTO" } },
       signal: abortSignal,
@@ -571,7 +571,7 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
 
     const params = createMockParams({
       ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.5-flash-lite",
       sysPrompt: "You are a cached assistant",
       cachedContent: "cachedContents/composite-test-123",
       tools: [{ functionDeclarations: [{ name: "testTool" }] }],
@@ -593,15 +593,15 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
     expect(continuationConfig.tools).toBeUndefined();
   });
 
-  it("sets thinkingConfig with thinkingLevel: high and includeThoughts: true for Gemini 4 Argon", async () => {
+  it("sets thinkingConfig with thinkingLevel: xhigh and includeThoughts: true for Gemini 4 Neon", async () => {
     const generateMock = vi.fn().mockImplementation(async function* () {
-      yield { candidates: [{ content: { parts: [{ text: "Argon response" }] } }] };
+      yield { candidates: [{ content: { parts: [{ text: "Neon response" }] } }] };
     });
 
     const params = createMockParams({
       ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
-      model: "gemini-4-argon",
-      thinkingLevel: "high",
+      model: "gemini-4-neon",
+      thinkingLevel: "xhigh",
     });
 
     const reader = createChatReadableStream(params).getReader();
@@ -613,7 +613,7 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
     expect(generateMock).toHaveBeenCalledTimes(1);
     const callConfig = generateMock.mock.calls[0][0].config;
     expect(callConfig.thinkingConfig).toEqual({
-      thinkingLevel: "high",
+      thinkingLevel: "xhigh",
       includeThoughts: true,
     });
     expect(callConfig.thinkingConfig).not.toHaveProperty("thinkingBudget");
@@ -622,21 +622,21 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
     expect(callConfig).not.toHaveProperty("top_k");
   });
 
-  it("clamps minimal and off to low (Always-On Thinking) and defaults undefined to medium for Gemini 4 Argon", async () => {
+  it("clamps minimal and off to low (Always-On Thinking) and defaults undefined to medium for Gemini 4 Neon", async () => {
     for (const [requested, expected] of [
       ["minimal", "low"],
       ["off", "low"],
       [undefined, "medium"],
     ] as const) {
       const generateMock = vi.fn().mockImplementation(async function* () {
-        yield { candidates: [{ content: { parts: [{ text: "Argon response" }] } }] };
+        yield { candidates: [{ content: { parts: [{ text: "Neon response" }] } }] };
       });
 
       const params = createMockParams({
         ai: {
           models: { generateContentStream: generateMock },
         } as unknown as ChatStreamParams["ai"],
-        model: "gemini-4-argon",
+        model: "gemini-4-neon",
         thinkingLevel: requested,
       });
 
@@ -655,16 +655,16 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
     }
   });
 
-  it("emits MODEL_TIER_RESTRICTED without retrying tools fallback on HTTP 403 for gemini-4-argon", async () => {
+  it("emits MODEL_TIER_RESTRICTED without retrying tools fallback on HTTP 403 for gemini-4-neon", async () => {
     const tierError = Object.assign(
-      new Error("Model gemini-4-argon is not available on the Free tier (PERMISSION_DENIED)"),
+      new Error("Model gemini-4-neon is not available on the Free tier (PERMISSION_DENIED)"),
       { status: 403 }
     );
     const generateMock = vi.fn().mockRejectedValue(tierError);
 
     const params = createMockParams({
       ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
-      model: "gemini-4-argon",
+      model: "gemini-4-neon",
       tools: [{ googleSearch: {} }],
     });
 
@@ -682,8 +682,10 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
     expect(streamOutput).not.toContain("webSearchFallback");
   });
 
-  it("returns 900000ms (15m) timeout for gemini-4-argon and gemini-4-argon-preview", async () => {
+  it("returns 900000ms (15m) timeout for gemini-4-neon, gemini-4-hydrogen, and legacy argon", async () => {
     const { getStreamTimeout } = await import("./utils");
+    expect(getStreamTimeout("gemini-4-neon", "xhigh")).toBe(900000);
+    expect(getStreamTimeout("gemini-4-hydrogen", "medium")).toBe(900000);
     expect(getStreamTimeout("gemini-4-argon", "medium")).toBe(900000);
     expect(getStreamTimeout("gemini-4-argon-preview", "low")).toBe(900000);
   });

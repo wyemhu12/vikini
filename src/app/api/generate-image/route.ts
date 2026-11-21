@@ -58,7 +58,7 @@ const imageGenRequestSchema = z.object({
   batchSize: z.number().int().min(1).max(4).optional(),
 });
 
-export const maxDuration = 60; // Set max duration to 60s (Vercel functionality)
+export const maxDuration = 300; // Set max duration to 300s (Vercel Fluid Compute)
 
 export async function POST(req: NextRequest) {
   try {

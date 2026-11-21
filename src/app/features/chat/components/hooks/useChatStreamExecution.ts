@@ -4,12 +4,19 @@ import { useCallback } from "react";
 import { logger } from "@/lib/utils/logger";
 import {
   appendUserMessageWithTruncate,
+  clearStreamRuntimeState,
+  isExecutionAborted,
   readStoredThinkingLevel,
+  recordStreamExecutionError,
   requestChatStream,
   resetStreamExecutionRefs,
   type CoreSendOptions,
   type StreamError,
 } from "@/lib/features/chat/streamProtocol";
+import {
+  createInitialStreamActivity,
+  type StreamActivity,
+} from "@/lib/features/chat/streamActivity";
 import { toast } from "@/lib/store/toastStore";
 import { resolveStreamErrorMessage } from "../StreamErrorBanner";
 import { readStoredStrataSampling } from "./useStrataSampling";
@@ -48,6 +55,7 @@ export function useChatStreamExecution(params: UseChatStreamExecutionParams) {
     setStreamingAssistant,
     setStreamingThinking,
     setStreamingLocalProgress,
+    setStreamingActivity,
     setStreamingSources,
     setStreamingRagSources,
     setStreamingUrlContext,
@@ -62,17 +70,23 @@ export function useChatStreamExecution(params: UseChatStreamExecutionParams) {
   } = params;
 
   const clearStreamBuffers = useCallback(
-    (assistantValue: string | null) => {
-      resetThinkingStats();
-      setStreamingLocalProgress(null);
-      setStreamingAssistant(assistantValue);
-      setStreamingThinking("");
-      setStreamingSources([]);
-      setStreamingRagSources([]);
-      setStreamingUrlContext([]);
+    (assistantValue: string | null, activityValue: StreamActivity | null = null) => {
+      clearStreamRuntimeState({
+        assistantValue,
+        activityValue,
+        resetThinkingStats,
+        setStreamingLocalProgress,
+        setStreamingActivity,
+        setStreamingAssistant,
+        setStreamingThinking,
+        setStreamingSources,
+        setStreamingRagSources,
+        setStreamingUrlContext,
+      });
     },
     [
       resetThinkingStats,
+      setStreamingActivity,
       setStreamingAssistant,
       setStreamingLocalProgress,
       setStreamingRagSources,
@@ -100,7 +114,7 @@ export function useChatStreamExecution(params: UseChatStreamExecutionParams) {
       } else {
         stopTypewriter(false);
         resetTypewriterBuffer();
-        clearStreamBuffers(null);
+        clearStreamBuffers(null, null);
         setIsStreaming(false);
         setRegenerating(false);
       }
@@ -129,11 +143,7 @@ export function useChatStreamExecution(params: UseChatStreamExecutionParams) {
       setCreatingConversation(true);
       try {
         const conv = await createConversation?.();
-        if (
-          isUnmountedRef.current ||
-          controller.signal.aborted ||
-          abortControllerRef.current !== controller
-        ) {
+        if (isExecutionAborted(isUnmountedRef, abortControllerRef, controller)) {
           return null;
         }
         const convId = conv?.id || null;
@@ -187,22 +197,25 @@ export function useChatStreamExecution(params: UseChatStreamExecutionParams) {
       let didPrepareMessages = false;
       setIsStreaming(true);
 
+      const reportError = (error: StreamError) => {
+        recordStreamExecutionError({
+          error,
+          hasStreamErrorRef,
+          lastStreamErrorRef,
+          setStreamError,
+          onStreamError,
+          notifyError: (err) => toast.error(resolveStreamErrorMessage(err, t)),
+        });
+      };
+
       try {
         convId = await ensureConversationExists(controller);
-        if (
-          isUnmountedRef.current ||
-          controller.signal.aborted ||
-          abortControllerRef.current !== controller
-        ) {
-          return;
-        }
-        if (!convId && createConversation) {
-          return;
-        }
+        if (isExecutionAborted(isUnmountedRef, abortControllerRef, controller)) return;
+        if (!convId && createConversation) return;
 
         didPrepareMessages = true;
         setInput("");
-        clearStreamBuffers("");
+        clearStreamBuffers("", createInitialStreamActivity());
 
         if (typeof truncateFromIndex === "number") {
           setMessages((prev) => prev.slice(0, truncateFromIndex));
@@ -227,20 +240,10 @@ export function useChatStreamExecution(params: UseChatStreamExecutionParams) {
           fileIds,
           signal,
         });
-        if (
-          isUnmountedRef.current ||
-          controller.signal.aborted ||
-          abortControllerRef.current !== controller
-        ) {
-          return;
-        }
+        if (isExecutionAborted(isUnmountedRef, abortControllerRef, controller)) return;
 
         if (!streamResult.ok) {
-          hasStreamErrorRef.current = true;
-          lastStreamErrorRef.current = streamResult.error;
-          setStreamError(streamResult.error);
-          onStreamError?.(streamResult.error);
-          toast.error(resolveStreamErrorMessage(streamResult.error, t));
+          reportError(streamResult.error);
           void finalizeAssistantMessage("error", activeConvIdRef.current || convId);
           return;
         }
@@ -249,13 +252,7 @@ export function useChatStreamExecution(params: UseChatStreamExecutionParams) {
         stopTypewriter(true);
 
         await new Promise((resolve) => setTimeout(resolve, 30));
-        if (
-          isUnmountedRef.current ||
-          controller.signal.aborted ||
-          abortControllerRef.current !== controller
-        ) {
-          return;
-        }
+        if (isExecutionAborted(isUnmountedRef, abortControllerRef, controller)) return;
 
         const effectiveConvId = activeConvIdRef.current || convId;
         const finalStatus = hasStreamErrorRef.current ? "error" : "complete";
@@ -263,22 +260,13 @@ export function useChatStreamExecution(params: UseChatStreamExecutionParams) {
         await reloadMessagesAfterStream(effectiveConvId);
       } catch (e: unknown) {
         const errName = e instanceof Error ? e.name : (e as { name?: string } | null)?.name;
-        const isStillActive =
-          !isUnmountedRef.current &&
-          !controller.signal.aborted &&
-          abortControllerRef.current === controller;
-        if (errName !== "AbortError" && isStillActive) {
+        if (
+          errName !== "AbortError" &&
+          !isExecutionAborted(isUnmountedRef, abortControllerRef, controller)
+        ) {
           logger.error("Stream error:", e);
           if (!hasStreamErrorRef.current) {
-            const errData: StreamError = {
-              message: t("streamNetworkError"),
-              code: "NETWORK_ERROR",
-            };
-            hasStreamErrorRef.current = true;
-            lastStreamErrorRef.current = errData;
-            setStreamError(errData);
-            onStreamError?.(errData);
-            toast.error(resolveStreamErrorMessage(errData, t));
+            reportError({ message: t("streamNetworkError"), code: "NETWORK_ERROR" });
           }
           if (didPrepareMessages) {
             void finalizeAssistantMessage("error", activeConvIdRef.current || convId);

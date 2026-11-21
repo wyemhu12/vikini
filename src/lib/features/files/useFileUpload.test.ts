@@ -50,7 +50,13 @@ class MockXHR {
 describe("useFileUpload (TC-W2B-07 / NP-2)", () => {
   beforeEach(() => {
     MockXHR.instances = [];
-    useFileStore.setState({ uploadQueue: [], sentFileIds: [] });
+    useFileStore.setState({
+      uploadQueue: [],
+      sentFileIds: [],
+      renderKeyByFileId: {},
+      localPreviewByFileId: {},
+      recentlyCompletedAt: {},
+    });
     vi.clearAllMocks();
     vi.stubGlobal("XMLHttpRequest", MockXHR);
   });
@@ -232,5 +238,109 @@ describe("useFileUpload (TC-W2B-07 / NP-2)", () => {
 
     expect(MockXHR.instances).toHaveLength(1);
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("TC-SU-05 & NP-3: queues all files upfront, hydrates CSP-safe data previews, transitions uploading -> processing -> 0ms atomic completeUpload + 1400ms recentlyCompleted cleanup, and per-file cancel continues remaining queued files", async () => {
+    vi.useFakeTimers();
+    class SyncFileReader {
+      result: string | null = null;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      onabort: (() => void) | null = null;
+      readAsDataURL(file: Blob) {
+        const name = (file as File).name || "img";
+        this.result = `data:image/png;base64,${name}`;
+        this.onload?.();
+      }
+    }
+    vi.stubGlobal("FileReader", SyncFileReader);
+    const onUploadComplete = vi.fn();
+
+    const { result, unmount } = renderHook(() =>
+      useFileUpload({
+        conversationId: "conv-multi",
+        onUploadComplete,
+      })
+    );
+
+    const fA = new File(["a"], "a.png", { type: "image/png" });
+    const fB = new File(["b"], "b.png", { type: "image/png" });
+    const fC = new File(["c"], "c.png", { type: "image/png" });
+
+    let multiPromise!: Promise<void>;
+    await act(async () => {
+      multiPromise = result.current.uploadFiles([fA, fB, fC]);
+      await Promise.resolve();
+    });
+
+    // All 3 files queued immediately upfront with CSP-safe data URL image previews
+    const initialQueue = useFileStore.getState().uploadQueue;
+    expect(initialQueue).toHaveLength(3);
+    expect(initialQueue.map((q) => q.status)).toEqual(["uploading", "queued", "queued"]);
+    expect(initialQueue.map((q) => q.previewUrl)).toEqual([
+      "data:image/png;base64,a.png",
+      "data:image/png;base64,b.png",
+      "data:image/png;base64,c.png",
+    ]);
+    expect(result.current.isUploading).toBe(true);
+
+    const [itemA, itemB, itemC] = initialQueue;
+
+    // Cancel C while still queued AND cancel A while uploading -> loop MUST continue to upload B!
+    act(() => {
+      result.current.cancelUpload(itemC.tempId);
+      result.current.cancelUpload(itemA.tempId);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // File B should now be uploading on XHR #2
+    expect(MockXHR.instances).toHaveLength(2);
+    expect(MockXHR.instances[0].aborted).toBe(true);
+    expect(useFileStore.getState().uploadQueue.map((q) => q.tempId)).toEqual([itemB.tempId]);
+
+    // Trigger 100% upload bytes -> processing state
+    act(() => {
+      MockXHR.instances[1].upload.onprogress?.({
+        lengthComputable: true,
+        loaded: 100,
+        total: 100,
+      } as ProgressEvent);
+    });
+    expect(useFileStore.getState().uploadQueue[0].status).toBe("processing");
+
+    // Complete B -> 0ms atomic handoff (zero 800ms ghost!), normalized conversation_id, renderKey + previewUrl preserved
+    MockXHR.instances[1].status = 200;
+    MockXHR.instances[1].responseText = JSON.stringify({
+      data: { file: { id: "db-b", filename: "b.png" } },
+    });
+    await act(async () => {
+      MockXHR.instances[1].onload?.();
+      await multiPromise;
+    });
+
+    expect(useFileStore.getState().uploadQueue).toHaveLength(0);
+    expect(useFileStore.getState().renderKeyByFileId["db-b"]).toBe(itemB.tempId);
+    expect(useFileStore.getState().localPreviewByFileId["db-b"]).toBe(
+      "data:image/png;base64,b.png"
+    );
+    expect(useFileStore.getState().recentlyCompletedAt["db-b"]).toBeDefined();
+    expect(onUploadComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "db-b", conversation_id: "conv-multi" })
+    );
+    // C was cancelled while queued -> never opened XHR #3
+    expect(MockXHR.instances).toHaveLength(2);
+
+    // After 1400ms, transient recentlyCompleted highlight clears cleanly
+    act(() => {
+      vi.advanceTimersByTime(1400);
+    });
+    expect(useFileStore.getState().recentlyCompletedAt["db-b"]).toBeUndefined();
+
+    // Unmount clears store metadata cleanly
+    unmount();
+    expect(useFileStore.getState().localPreviewByFileId["db-b"]).toBeUndefined();
   });
 });

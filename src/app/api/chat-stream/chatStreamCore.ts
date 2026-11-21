@@ -8,14 +8,13 @@ import { getGenAIClient } from "@/lib/core/genaiClient";
 import { getGroqClient } from "@/lib/core/groqClient";
 import { getOpenRouterClient } from "@/lib/core/openRouterClient";
 import { getClaudeClient } from "@/lib/core/claudeClient";
-import { getDeepSeekClient } from "@/lib/core/deepseekClient";
 import {
   DEFAULT_MODEL,
   normalizeModelForApi,
   coerceStoredModel,
-  isDeepSeekDirectModel,
   isDeepSeekV4ProModel,
   isDeepSeekV41FlashModel,
+  isGroqModel,
   isStrataLocalModel,
 } from "@/lib/core/modelRegistry";
 import { CLAUDE_API_MODELS, MODEL_IDS, STRATA_DEFAULTS } from "@/lib/utils/constants";
@@ -521,17 +520,23 @@ async function createProviderStream(
       contentsMeta,
       gemMeta,
       modelMeta: { ...modelMeta, apiModel: model },
-      thinkingLevel: thinkingLevel as "off" | "low" | "medium" | "high" | "minimal" | undefined,
+      thinkingLevel: thinkingLevel as
+        | "off"
+        | "low"
+        | "medium"
+        | "high"
+        | "minimal"
+        | "xhigh"
+        | undefined,
       strataSampling,
       regenerate,
     } as unknown as Parameters<typeof createStrataStream>[0]);
   }
 
-  const isDeepSeekDirect = isDeepSeekDirectModel(model);
+  const isGroq = isGroqModel(model);
   const isDeepSeekV4Pro = isDeepSeekV4ProModel(model);
   const isDeepSeekV41Flash = isDeepSeekV41FlashModel(model);
-  const isStandardGroq = model.includes("llama") && !model.includes("/");
-  const isOpenRouter = model.includes("/") || model.includes(":free");
+  const isOpenRouter = !isGroq && (model.includes("/") || model.includes(":free"));
   const isClaude = model.startsWith("claude-");
   const useDirectAnthropic = isClaude && Boolean(process.env.ANTHROPIC_API_KEY);
 
@@ -539,7 +544,7 @@ async function createProviderStream(
   const apiModel =
     isClaude && !useDirectAnthropic
       ? CLAUDE_API_MODELS.OPENROUTER[model as keyof typeof CLAUDE_API_MODELS.OPENROUTER] ||
-        CLAUDE_API_MODELS.OPENROUTER[MODEL_IDS.CLAUDE_HAIKU_45]
+        CLAUDE_API_MODELS.OPENROUTER[MODEL_IDS.CLAUDE_HAIKU_55]
       : model;
 
   const streamParams = {
@@ -562,7 +567,7 @@ async function createProviderStream(
 
     const claudeModel =
       CLAUDE_API_MODELS.ANTHROPIC[model as keyof typeof CLAUDE_API_MODELS.ANTHROPIC] ||
-      CLAUDE_API_MODELS.ANTHROPIC[MODEL_IDS.CLAUDE_HAIKU_45];
+      CLAUDE_API_MODELS.ANTHROPIC[MODEL_IDS.CLAUDE_HAIKU_55];
 
     return createAnthropicStream({
       ...streamParams,
@@ -576,20 +581,15 @@ async function createProviderStream(
     } as unknown as Parameters<typeof createAnthropicStream>[0]);
   }
 
-  // DeepSeek (direct or via OpenRouter)
-  if (isDeepSeekDirect || isDeepSeekV4Pro || isDeepSeekV41Flash) {
+  // DeepSeek V4 Pro / V4.1 Flash (via OpenRouter)
+  if (isDeepSeekV4Pro || isDeepSeekV41Flash) {
     let deepSeekClient: OpenAI;
     try {
-      deepSeekClient = isDeepSeekDirect ? getDeepSeekClient() : getOpenRouterClient();
+      deepSeekClient = getOpenRouterClient();
     } catch (e: unknown) {
-      coreLogger.error(
-        isDeepSeekDirect ? "DeepSeek Init Error:" : "OpenRouter Init Error (for DeepSeek V4):",
-        e
-      );
+      coreLogger.error("OpenRouter Init Error (for DeepSeek V4):", e);
       return error(
-        isDeepSeekDirect
-          ? "DeepSeek API configuration missing. Add DEEPSEEK_API_KEY to .env"
-          : "OpenRouter configuration missing. Add OPENROUTER_API_KEY to .env",
+        "OpenRouter configuration missing. Add OPENROUTER_API_KEY to .env",
         500,
         "CONFIG_ERROR"
       );
@@ -604,16 +604,16 @@ async function createProviderStream(
   }
 
   // OpenRouter / Groq / Claude-via-OpenRouter
-  if (isOpenRouter || isStandardGroq || isClaude) {
+  if (isOpenRouter || isGroq || isClaude) {
     let openAiClient: OpenAI;
     try {
-      openAiClient = isStandardGroq ? getGroqClient() : getOpenRouterClient();
+      openAiClient = isGroq ? getGroqClient() : getOpenRouterClient();
     } catch (e: unknown) {
-      coreLogger.error(isStandardGroq ? "Groq Init Error:" : "OpenRouter Init Error:", e);
+      coreLogger.error(isGroq ? "Groq Init Error:" : "OpenRouter Init Error:", e);
       return error(
         isClaude
           ? "Claude via OpenRouter configuration missing. Add OPENROUTER_API_KEY to .env"
-          : isStandardGroq
+          : isGroq
             ? "Groq configuration missing"
             : "OpenRouter configuration missing",
         500,

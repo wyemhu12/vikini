@@ -165,7 +165,7 @@ export const STRATA_THINKING_TABLE: Record<StrataThinkingLevel, ThinkingTableEnt
 function normalizeStrataThinkingLevel(level: unknown): StrataThinkingLevel {
   if (level === "minimal" || level === "low") return "low";
   if (level === "medium") return "medium";
-  if (level === "high") return "high";
+  if (level === "high" || level === "xhigh") return "high";
   return "off";
 }
 

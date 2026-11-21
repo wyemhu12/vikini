@@ -66,7 +66,7 @@ const editImageMultiSchema = z.object({
     .optional(),
 });
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * Build Gemini contents[] array from edit history.

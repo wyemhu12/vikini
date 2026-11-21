@@ -1,11 +1,17 @@
 // /app/features/chat/components/FileManagerPanel.tsx
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { File, X, Trash2, Loader2 } from "lucide-react";
+import { File, X, Trash2, Loader2, Image as ImageIcon } from "lucide-react";
 
+import { PopoverContent } from "@/components/ui/popover";
 import { useFiles } from "@/lib/features/files/useFiles";
+import { useFileStore } from "@/lib/features/files/store";
+import {
+  filterVisibleUploadQueue,
+  formatRelativeFileDate,
+} from "@/lib/features/files/uploadPresentation";
 import type { FileItem } from "@/types/files";
 import { formatFileSize, KIND_ICONS, KIND_COLORS } from "@/lib/utils/fileDisplayUtils";
 import { logger } from "@/lib/utils/logger";
@@ -15,76 +21,39 @@ import { TRANSITION } from "@/lib/utils/motion";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
-interface FileManagerPanelProps {
+export interface FileManagerPanelProps {
   conversationId: string;
   isOpen: boolean;
   onClose: () => void;
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────
-
-function formatRelativeDate(isoDate: string): string {
-  const now = Date.now();
-  const then = new Date(isoDate).getTime();
-  const diffMs = now - then;
-  const diffMin = Math.floor(diffMs / 60_000);
-  const diffHr = Math.floor(diffMs / 3_600_000);
-  const diffDay = Math.floor(diffMs / 86_400_000);
-
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHr < 24) return `${diffHr}h ago`;
-  if (diffDay === 1) return "yesterday";
-  if (diffDay < 7) return `${diffDay}d ago`;
-  return new Date(isoDate).toLocaleDateString();
+  onPreviewFile?: (file: FileItem, files: FileItem[]) => void;
 }
 
 // ─── Component ───────────────────────────────────────────────────────
 
 export default function FileManagerPanel({
   conversationId,
-  isOpen,
   onClose,
+  onPreviewFile,
 }: FileManagerPanelProps) {
   const { t } = useLanguage();
   const { files, isLoading, mutate } = useFiles(conversationId);
+  const uploadQueue = useFileStore((s) => s.uploadQueue);
+  const localPreviewByFileId = useFileStore((s) => s.localPreviewByFileId);
+  const releaseFileMetadata = useFileStore((s) => s.releaseFileMetadata);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
 
-  // Close on click outside
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    // Delay listener to avoid instant close from toggle button click
-    const timer = setTimeout(() => {
-      document.addEventListener("mousedown", handleClickOutside);
-    }, 50);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen, onClose]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [isOpen, onClose]);
+  const visibleQueue = filterVisibleUploadQueue(uploadQueue, files);
+  const totalCount = files.length + visibleQueue.length;
 
   const handleDelete = useCallback(
     async (fileId: string) => {
       setDeletingId(fileId);
       try {
-        const res = await fetch(`/api/files?id=${fileId}`, { method: "DELETE" });
+        const res = await fetch(`/api/files?id=${encodeURIComponent(fileId)}`, {
+          method: "DELETE",
+        });
         if (res.ok) {
+          releaseFileMetadata(fileId);
           await mutate();
         } else {
           toast.error(t("deleteFileFailed"));
@@ -97,102 +66,159 @@ export default function FileManagerPanel({
         setDeletingId(null);
       }
     },
-    [mutate, t]
+    [mutate, releaseFileMetadata, t]
   );
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          ref={panelRef}
-          key="file-manager-dropdown"
-          initial={{ opacity: 0, y: -8, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -8, scale: 0.95 }}
-          transition={TRANSITION.FAST}
-          className="absolute bottom-full right-0 mb-2 w-72 sm:w-80 max-h-80 z-(--z-popover) rounded-2xl bg-[var(--surface)] border border-[var(--line)] shadow-2xl backdrop-blur-xl overflow-hidden flex flex-col"
+    <PopoverContent
+      side="top"
+      align="start"
+      sideOffset={8}
+      className="w-[min(20rem,calc(100vw-2rem))] max-h-80 p-0 rounded-2xl bg-(--surface) border border-(--line) shadow-(--shadow-elevated) overflow-hidden flex flex-col"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-(--line)">
+        <span className="text-xs font-bold text-(--text)">
+          {t("files")}{" "}
+          <span className="text-(--muted) font-normal tabular-nums">({totalCount})</span>
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1.5 rounded-lg hover:bg-(--raised) text-(--muted) hover:text-(--text) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+          aria-label={t("close")}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--line)]">
-            <span className="text-xs font-bold text-[var(--text)]">
-              {t("files")} <span className="text-[var(--muted)] font-normal">({files.length})</span>
-            </span>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-[var(--raised)] text-[var(--muted)] hover:text-[var(--text)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
-              aria-label={t("close")}
-            >
-              <X aria-hidden="true" className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <X aria-hidden="true" className="w-3.5 h-3.5" />
+        </button>
+      </div>
 
-          {/* File list */}
-          <div className="flex-1 overflow-y-auto overscroll-contain px-1.5 py-1.5 scrollbar-thin">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-4 h-4 animate-spin text-[var(--accent)]" />
-              </div>
-            ) : files.length === 0 ? (
-              <div className="flex items-center justify-center py-6 text-[var(--muted)]">
-                <p className="text-xs">{t("noFilesUploaded")}</p>
-              </div>
-            ) : (
-              <AnimatePresence mode="popLayout">
-                {files.map((file) => (
-                  <FileListItem
-                    key={file.id}
-                    file={file}
-                    isDeleting={deletingId === file.id}
-                    onDelete={handleDelete}
-                  />
-                ))}
-              </AnimatePresence>
-            )}
+      {/* File list */}
+      <div className="flex-1 overflow-y-auto overscroll-contain px-1.5 py-1.5 scrollbar-thin scrollbar-thumb-(--line)">
+        {isLoading && totalCount === 0 ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 aria-hidden="true" className="w-4 h-4 animate-spin text-(--accent)" />
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        ) : totalCount === 0 ? (
+          <div className="flex items-center justify-center py-6 text-(--muted)">
+            <p className="text-xs">{t("noFilesUploaded")}</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-0.5">
+            {visibleQueue.map((upload) => (
+              <div
+                key={upload.tempId}
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-(--raised)/60"
+              >
+                <div className="shrink-0">
+                  {upload.previewUrl ? (
+                    <img
+                      src={upload.previewUrl}
+                      alt={upload.filename}
+                      className="h-7 w-7 rounded-md object-cover opacity-75 border border-(--line)"
+                    />
+                  ) : (
+                    <Loader2
+                      aria-hidden="true"
+                      className="w-4 h-4 animate-spin motion-reduce:animate-none text-(--accent)"
+                    />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-(--text) truncate" title={upload.filename}>
+                    {upload.filename}
+                  </p>
+                  <p className="text-xs text-(--muted) mt-0.5 tabular-nums">
+                    {upload.status === "queued"
+                      ? t("fileStatusQueued")
+                      : upload.status === "processing"
+                        ? t("fileStatusProcessing")
+                        : `${upload.progress}%`}
+                  </p>
+                </div>
+              </div>
+            ))}
+
+            <AnimatePresence mode="popLayout" initial={false}>
+              {files.map((file) => (
+                <FileListItem
+                  key={file.id}
+                  file={file}
+                  localPreviewUrl={localPreviewByFileId[file.id]}
+                  isDeleting={deletingId === file.id}
+                  onDelete={handleDelete}
+                  onPreview={onPreviewFile ? () => onPreviewFile(file, files) : undefined}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+    </PopoverContent>
   );
 }
 
-// ─── File List Item ──────────────────────────────────────────────────
+// ─── File List Item (forwardRef for AnimatePresence mode="popLayout") ───
 
 interface FileListItemProps {
   file: FileItem;
+  localPreviewUrl?: string;
   isDeleting: boolean;
   onDelete: (id: string) => void;
+  onPreview?: () => void;
 }
 
-function FileListItem({ file, isDeleting, onDelete }: FileListItemProps) {
+const FileListItem = React.forwardRef<HTMLDivElement, FileListItemProps>(function FileListItem(
+  { file, localPreviewUrl, isDeleting, onDelete, onPreview },
+  ref
+) {
   const { t } = useLanguage();
   const Icon = KIND_ICONS[file.kind] ?? File;
-  const iconColor = KIND_COLORS[file.kind] ?? "text-[var(--muted)]";
+  const iconColor = KIND_COLORS[file.kind] ?? "text-(--muted)";
+  const isImage = file.kind === "image";
+
+  const rowContent = (
+    <>
+      <div className="shrink-0">
+        {isImage ? (
+          <ListImageThumb fileId={file.id} initialSrc={localPreviewUrl} alt={file.filename} />
+        ) : (
+          <Icon aria-hidden="true" className={`w-4 h-4 ${iconColor}`} />
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0 text-left">
+        <p className="text-xs font-medium text-(--text) truncate" title={file.filename}>
+          {file.filename}
+        </p>
+        <p className="text-xs text-(--muted) mt-0.5 tabular-nums">
+          {formatFileSize(file.size_bytes)} · {formatRelativeFileDate(file.created_at, t)}
+        </p>
+      </div>
+    </>
+  );
 
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: 20, transition: TRANSITION.EXIT_FAST }}
-      className="group flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-[var(--raised)] transition-colors"
+      exit={{ opacity: 0, x: 16, transition: TRANSITION.EXIT_FAST }}
+      className="group flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-(--raised) transition-colors"
     >
-      {/* Kind icon */}
-      <div className="shrink-0">
-        <Icon className={`w-4 h-4 ${iconColor}`} />
-      </div>
+      {onPreview ? (
+        <button
+          type="button"
+          onClick={onPreview}
+          aria-label={`${t("openFilePreview")}: ${file.filename}`}
+          className="flex flex-1 min-w-0 items-center gap-2.5 rounded-lg py-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+        >
+          {rowContent}
+        </button>
+      ) : (
+        <div className="flex flex-1 min-w-0 items-center gap-2.5 py-0.5">{rowContent}</div>
+      )}
 
-      {/* File info */}
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-[var(--text)] truncate" title={file.filename}>
-          {file.filename}
-        </p>
-        <p className="text-xs text-[var(--muted)] mt-0.5">
-          {formatFileSize(file.size_bytes)} · {formatRelativeDate(file.created_at)}
-        </p>
-      </div>
-
-      {/* Delete button */}
       <button
         type="button"
         onClick={(e) => {
@@ -200,15 +226,64 @@ function FileListItem({ file, isDeleting, onDelete }: FileListItemProps) {
           onDelete(file.id);
         }}
         disabled={isDeleting}
-        className="shrink-0 p-1.5 rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 focus-visible:opacity-100 transition-[opacity,color,background-color] hover:bg-(--danger)/15 text-[var(--muted)] hover:text-(--danger) disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+        className="shrink-0 p-1.5 rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 focus-visible:opacity-100 transition-[opacity,color,background-color,transform] active:scale-[0.95] hover:bg-(--danger)/15 text-(--muted) hover:text-(--danger) disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
         aria-label={`${t("removeFile")}: ${file.filename}`}
       >
         {isDeleting ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <Loader2 aria-hidden="true" className="w-3.5 h-3.5 animate-spin" />
         ) : (
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 aria-hidden="true" className="w-3.5 h-3.5" />
         )}
       </button>
     </motion.div>
+  );
+});
+
+function ListImageThumb({
+  fileId,
+  initialSrc,
+  alt,
+}: {
+  fileId: string;
+  initialSrc?: string;
+  alt: string;
+}) {
+  const [remoteSrc, setRemoteSrc] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (initialSrc) return;
+    let cancelled = false;
+    fetch(`/api/files/${fileId}/url`)
+      .then((r) => r.json())
+      .then((data: unknown) => {
+        if (!cancelled && typeof data === "object" && data !== null) {
+          const d = data as { data?: { signedUrl?: string }; signedUrl?: string };
+          const url = d.data?.signedUrl ?? d.signedUrl;
+          if (url) setRemoteSrc(url);
+          else setError(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fileId, initialSrc]);
+
+  const src = initialSrc ?? remoteSrc;
+  if (error || !src) {
+    return <ImageIcon aria-hidden="true" className="w-4 h-4 text-(--accent)" />;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      onError={() => setError(true)}
+      className="h-7 w-7 rounded-md object-cover border border-(--line)"
+      loading="lazy"
+    />
   );
 }

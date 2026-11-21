@@ -5,13 +5,11 @@
 import { HarmBlockThreshold, HarmCategory, ThinkingLevel } from "@google/genai";
 import { getGenAIClient } from "@/lib/core/genaiClient";
 import { getClaudeClient } from "@/lib/core/claudeClient";
-import { getDeepSeekClient } from "@/lib/core/deepseekClient";
 import { getGroqClient } from "@/lib/core/groqClient";
 import { getOpenRouterClient } from "@/lib/core/openRouterClient";
 import {
   clampGeminiThinkingLevel,
   getModelMaxOutputTokens,
-  isDeepSeekDirectModel,
   isGemini4Model,
   modelSupportsThinking,
   normalizeModelForApi,
@@ -150,6 +148,8 @@ const GEMINI_SDK_THINKING_LEVEL_MAP: Record<string, ThinkingLevel> = {
   low: ThinkingLevel.LOW,
   medium: ThinkingLevel.MEDIUM,
   high: ThinkingLevel.HIGH,
+  // @google/genai@2.10.0 enum does not yet expose XHIGH
+  xhigh: "XHIGH" as ThinkingLevel,
 };
 
 const DEFAULT_NOVELCRAFTER_SAFETY_SETTINGS = [
@@ -378,11 +378,7 @@ async function streamOpenAICompatibleProvider(
   emitModelOutput: EmitModelOutputFn,
   signal?: AbortSignal
 ): Promise<"stop" | "length" | "safety"> {
-  const client = isDeepSeekDirectModel(model)
-    ? getDeepSeekClient()
-    : providerId === "groq"
-      ? getGroqClient()
-      : getOpenRouterClient();
+  const client = providerId === "groq" ? getGroqClient() : getOpenRouterClient();
 
   const stream = await client.chat.completions.create(
     {
@@ -414,7 +410,7 @@ export function runNovelcrafterStream({
   const routedModel =
     providerId === "anthropic" && !process.env.ANTHROPIC_API_KEY
       ? openRouterMap[normalizedModel] ||
-        openRouterMap[MODEL_IDS.CLAUDE_HAIKU_45] ||
+        openRouterMap[MODEL_IDS.CLAUDE_HAIKU_55] ||
         normalizedModel
       : normalizedModel;
 

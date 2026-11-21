@@ -1,6 +1,6 @@
 // /app/api/chat-stream/streaming/anthropic-stream.ts
 import Anthropic from "@anthropic-ai/sdk";
-import { modelSupportsClaudeThinking } from "@/lib/core/modelRegistry";
+import { isClaude55Model, modelSupportsClaudeThinking } from "@/lib/core/modelRegistry";
 import { executeFunction } from "@/lib/features/chat/functionRegistry";
 
 import { StreamTimeoutError, type ChatStreamParams } from "./types";
@@ -9,6 +9,7 @@ import { sendInitialMetaEvents, generateAndSendOptimisticTitle } from "./gemini-
 import { processPostStream } from "./post-processing";
 import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
 import { sendThinkingChunk, accumulateReasoning } from "./reasoningStreamHelper.server";
+import { createAnthropicToolTracker } from "./anthropic-tool-helpers";
 
 export function createAnthropicStream({
   ai,
@@ -50,7 +51,7 @@ export function createAnthropicStream({
   upsertAssistantMessage: ChatStreamParams["upsertAssistantMessage"];
   setConversationAutoTitle: ChatStreamParams["setConversationAutoTitle"];
   generateFinalTitle: ChatStreamParams["generateFinalTitle"];
-  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal";
+  thinkingLevel?: "off" | "low" | "medium" | "high" | "minimal" | "xhigh";
   clientMessageId?: string;
   signal?: AbortSignal;
 }): ReadableStream {
@@ -221,12 +222,14 @@ export function createAnthropicStream({
           },
         });
 
-        // Build thinking config for Claude Extended Thinking
+        // Build thinking config for Claude Thinking
+        // Claude 5.5 uses Adaptive Thinking ({ type: "adaptive" }, NO budget_tokens).
+        // Legacy Claude 4.x uses Extended Thinking ({ type: "enabled", budget_tokens }).
         const isClaudeThinking =
-          modelSupportsClaudeThinking(model) && thinkingLevel && thinkingLevel !== "off";
-        // Budget tokens: min 1024, must be less than max_tokens
+          modelSupportsClaudeThinking(model) && Boolean(thinkingLevel) && thinkingLevel !== "off";
+        const isAdaptiveThinking = isClaude55Model(model);
         const claudeMaxTokens = isClaudeThinking ? 16384 : 8192;
-        const claudeBudgetTokens = 10240; // ~10K thinking budget
+        const claudeBudgetTokens = 10240; // Legacy 4.x only
 
         const timeoutMs = getStreamTimeout(model, thinkingLevel);
 
@@ -244,12 +247,17 @@ export function createAnthropicStream({
             messages: anthropicMessages,
             stream: true,
             max_tokens: claudeMaxTokens,
-            // Extended thinking requires temperature = 1 (Anthropic requirement)
+            // Thinking requires temperature = 1 (Anthropic requirement)
             ...(isClaudeThinking
-              ? {
-                  thinking: { type: "enabled" as const, budget_tokens: claudeBudgetTokens },
-                  temperature: 1,
-                }
+              ? isAdaptiveThinking
+                ? {
+                    thinking: { type: "adaptive" as const },
+                    temperature: 1,
+                  }
+                : {
+                    thinking: { type: "enabled" as const, budget_tokens: claudeBudgetTokens },
+                    temperature: 1,
+                  }
               : { temperature: 0.7 }),
             tools: anthropicTools,
             // Beta API types don't fully cover dynamic tool types (code_execution, web_fetch)
@@ -275,10 +283,8 @@ export function createAnthropicStream({
         const idleTimeoutMs = Math.max(timeoutMs / 2, 30_000);
         const guardedStream = withIdleTimeout(stream, idleTimeoutMs);
 
-        // Track tool_use blocks for function calling
-        let currentToolUseId = "";
-        let currentToolName = "";
-        let currentToolInput = "";
+        // Track both server_tool_use and client tool_use blocks cleanly without input leaks
+        const toolTracker = createAnthropicToolTracker();
 
         for await (const chunk of guardedStream) {
           if (isCancelled || ac.signal.aborted) {
@@ -314,34 +320,49 @@ export function createAnthropicStream({
             }
           }
 
-          // Handle tool_use blocks for function calling (get_current_time)
+          // Handle content_block_start (client tool_use, server_tool_use, tool results)
           if (chunk.type === "content_block_start" && chunk.content_block) {
-            const block = chunk.content_block as { type?: string; id?: string; name?: string };
-            if (block.type === "tool_use") {
-              currentToolUseId = block.id || "";
-              currentToolName = block.name || "";
-              currentToolInput = "";
+            const startOutcome = toolTracker.handleBlockStart(chunk.content_block, Date.now());
+            for (const metaEvt of startOutcome.metaEvents) {
+              sendEvent(controller, "meta", metaEvt);
+            }
+            if (startOutcome.codeResultMarkdown) {
+              full += startOutcome.codeResultMarkdown;
+              acc.full = full;
+              sendEvent(controller, "token", { t: startOutcome.codeResultMarkdown });
+            }
+            if (startOutcome.webSources.length > 0) {
+              collectedSources.push(...startOutcome.webSources);
             }
           }
 
-          // Accumulate tool input JSON
+          // Handle input_json_delta (client JSON buffering + throttled server code_execution progress)
           if (chunk.type === "content_block_delta" && chunk.delta?.type === "input_json_delta") {
             const partial = chunk.delta.partial_json;
-            if (partial) currentToolInput += partial;
+            if (partial) {
+              const deltaMeta = toolTracker.handleInputJsonDelta(partial, Date.now());
+              if (deltaMeta) {
+                sendEvent(controller, "meta", deltaMeta);
+              }
+            }
           }
 
-          // Tool use complete - execute and resume
-          if (chunk.type === "content_block_stop" && currentToolName && currentToolUseId) {
-            // Only handle our custom functions (not server tools like web_search)
-            if (currentToolName === "get_current_time") {
+          // Handle content_block_stop (server tool running transition + client function execution)
+          if (chunk.type === "content_block_stop") {
+            const stopOutcome = toolTracker.handleBlockStop();
+            if (stopOutcome.metaEvent) {
+              sendEvent(controller, "meta", stopOutcome.metaEvent);
+            }
+            if (stopOutcome.clientToolCall?.name === "get_current_time") {
+              const { id: toolUseId, name: toolName, inputJson } = stopOutcome.clientToolCall;
               try {
-                const args = currentToolInput ? JSON.parse(currentToolInput) : {};
+                const args = inputJson ? JSON.parse(inputJson) : {};
                 sendEvent(controller, "meta", {
                   type: "functionCall",
-                  name: currentToolName,
+                  name: toolName,
                   args,
                 });
-                const result = await executeFunction(currentToolName, args);
+                const result = await executeFunction(toolName, args);
 
                 // Resume conversation with tool result
                 const resumeMessages = [
@@ -351,8 +372,8 @@ export function createAnthropicStream({
                     content: [
                       {
                         type: "tool_use" as const,
-                        id: currentToolUseId,
-                        name: currentToolName,
+                        id: toolUseId,
+                        name: toolName,
                         input: args,
                       },
                     ],
@@ -362,7 +383,7 @@ export function createAnthropicStream({
                     content: [
                       {
                         type: "tool_result" as const,
-                        tool_use_id: currentToolUseId,
+                        tool_use_id: toolUseId,
                         content: result.error || result.result,
                       },
                     ],
@@ -408,10 +429,6 @@ export function createAnthropicStream({
                 streamLogger.error("Claude function call error:", fnErr);
               }
             }
-            // Reset
-            currentToolUseId = "";
-            currentToolName = "";
-            currentToolInput = "";
           }
 
           // Handle token usage from message_delta event
@@ -427,82 +444,6 @@ export function createAnthropicStream({
                 candidatesTokenCount: outputTokens,
                 totalTokenCount: totalTokens,
               });
-            }
-          }
-
-          // Handle content_block_start - extract web search results + code execution results
-          if (chunk.type === "content_block_start" && chunk.content_block) {
-            const block = chunk.content_block as Record<string, unknown>;
-
-            // web_search_tool_result contains the actual search results with URLs
-            if (block.type === "web_search_tool_result") {
-              const resultBlock = block as {
-                type: "web_search_tool_result";
-                content:
-                  | Array<{
-                      type: "web_search_result";
-                      url: string;
-                      title: string;
-                      page_age?: string | null;
-                      encrypted_content?: string;
-                    }>
-                  | { type: "web_search_tool_result_error"; error_code: string };
-              };
-
-              // Only process successful results (array), not errors (object)
-              if (Array.isArray(resultBlock.content)) {
-                for (const result of resultBlock.content) {
-                  if (result.type === "web_search_result" && result.url) {
-                    collectedSources.push({
-                      uri: result.url,
-                      title: result.title || result.url,
-                    });
-                  }
-                }
-              }
-            }
-
-            // Code execution result - extract stdout/stderr and render as code blocks
-            if (block.type === "code_execution_result") {
-              const ceResult = block as {
-                type: "code_execution_result";
-                stdout?: string;
-                stderr?: string;
-                return_code?: number;
-              };
-              if (ceResult.stdout) {
-                const output = `\n**Code Output:**\n\`\`\`\n${ceResult.stdout}\n\`\`\`\n`;
-                full += output;
-                acc.full = full;
-                sendEvent(controller, "token", { t: output });
-              }
-              if (ceResult.stderr) {
-                const errOutput = `\n**Error Output:**\n\`\`\`\n${ceResult.stderr}\n\`\`\`\n`;
-                full += errOutput;
-                acc.full = full;
-                sendEvent(controller, "token", { t: errOutput });
-              }
-            }
-
-            // server_tool_use - Claude deciding to use a tool (log for debugging)
-            if (block.type === "server_tool_use") {
-              const toolName = (block as { name?: string }).name;
-              if (toolName === "web_search") {
-                sendEvent(controller, "meta", {
-                  type: "webSearchStatus",
-                  status: "searching",
-                });
-              } else if (toolName === "code_execution") {
-                sendEvent(controller, "meta", {
-                  type: "codeExecutionStatus",
-                  status: "running",
-                });
-              } else if (toolName === "web_fetch") {
-                sendEvent(controller, "meta", {
-                  type: "webFetchStatus",
-                  status: "fetching",
-                });
-              }
             }
           }
         }
@@ -528,10 +469,10 @@ export function createAnthropicStream({
           await savePartialOnce();
           // Handle timeout specifically
           if (e instanceof StreamTimeoutError) {
-            const timeoutMs = getStreamTimeout();
-            streamLogger.error(`Anthropic stream timeout after ${timeoutMs}ms`);
+            const effectiveTimeoutMs = getStreamTimeout(model, thinkingLevel);
+            streamLogger.error(`Anthropic stream timeout after ${effectiveTimeoutMs}ms`);
             sendEvent(controller, "error", {
-              message: `Request timed out after ${Math.round(timeoutMs / 1000)} seconds. Please try again.`,
+              message: `Request timed out after ${Math.round(effectiveTimeoutMs / 1000)} seconds. Please try again.`,
               code: "STREAM_TIMEOUT",
               isTimeout: true,
             });

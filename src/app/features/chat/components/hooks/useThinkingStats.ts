@@ -25,8 +25,9 @@ export function useThinkingStats(): UseThinkingStatsResult {
     const now = Date.now();
     if (startedAtRef.current === null) {
       startedAtRef.current = now;
-      endedAtRef.current = null;
     }
+    // Reset endedAtRef so post-tool interleaved thinking resumes live timing
+    endedAtRef.current = null;
     textRef.current += chunk;
     setLive(true);
     setStats(

@@ -2,7 +2,7 @@
 // Client-side file upload classification, validation, and error extraction helpers.
 
 import { BLOCKED_EXTENSIONS, BLOCKED_MIME_TYPES } from "./fileValidation";
-import type { FileItem, FileKind } from "@/types/files";
+import type { FileItem, FileKind, FileUploadProgress } from "@/types/files";
 
 export const UPLOAD_ABORTED_SENTINEL = "__UPLOAD_ABORTED__";
 
@@ -189,19 +189,23 @@ export function extractUploadErrorMessage(responseText: string, fallback: string
 }
 
 export interface XhrUploadParams {
+  tempId: string;
   file: File;
   conversationId: string;
-  activeXhrs: Set<XMLHttpRequest>;
+  activeXhrs: Map<string, XMLHttpRequest>;
   onProgress: (percent: number) => void;
+  onProcessing?: () => void;
   onSuccess: (uploadedFile: FileItem | null) => void;
 }
 
-/** Executes a single XHR upload attempt, registering the XHR for lifecycle cancellation. */
+/** Executes a single XHR upload attempt, registering the XHR by tempId for per-file cancellation. */
 export function sendFileUploadXhr({
+  tempId,
   file,
   conversationId,
   activeXhrs,
   onProgress,
+  onProcessing,
   onSuccess,
 }: XhrUploadParams): Promise<void> {
   return new Promise<void>((resolve, reject) => {
@@ -210,13 +214,33 @@ export function sendFileUploadXhr({
     fd.append("conversationId", conversationId);
 
     const xhr = new XMLHttpRequest();
-    activeXhrs.add(xhr);
-    const cleanup = () => activeXhrs.delete(xhr);
+    activeXhrs.set(tempId, xhr);
+    const cleanup = () => {
+      if (activeXhrs.get(tempId) === xhr) {
+        activeXhrs.delete(tempId);
+      }
+    };
+
+    let processingFired = false;
+    const fireProcessing = () => {
+      if (processingFired) return;
+      processingFired = true;
+      onProcessing?.();
+    };
 
     xhr.upload.onprogress = (e: ProgressEvent) => {
-      if (e.lengthComputable) {
-        onProgress(Math.round((e.loaded / e.total) * 100));
+      if (e.lengthComputable && e.total > 0) {
+        const pct = Math.min(100, Math.round((e.loaded / e.total) * 100));
+        onProgress(pct);
+        if (pct >= 100) {
+          fireProcessing();
+        }
       }
+    };
+
+    xhr.upload.onload = () => {
+      onProgress(100);
+      fireProcessing();
     };
 
     xhr.onload = () => {
@@ -261,4 +285,114 @@ export function sendFileUploadXhr({
     xhr.open("POST", "/api/files/upload");
     xhr.send(fd);
   });
+}
+
+/** Validates files upfront and builds queued FileUploadProgress entries (previews hydrated CSP-safely). */
+export function buildQueuedUploadItems(
+  files: readonly File[],
+  onValidationError?: (err: FileUploadError) => void
+): FileUploadProgress[] {
+  const queued: FileUploadProgress[] = [];
+  for (const file of files) {
+    const validationError = validateFileForUpload(file);
+    if (validationError) {
+      onValidationError?.(validationError);
+      continue;
+    }
+    const ext = file.name.includes(".") ? file.name.split(".").pop()?.toLowerCase() || "" : "";
+    const kind = classifyClientSide(ext, file.type);
+    queued.push({
+      tempId: crypto.randomUUID(),
+      file,
+      filename: file.name,
+      size: file.size,
+      kind,
+      progress: 0,
+      status: "queued",
+      previewUrl: undefined,
+    });
+  }
+  return queued;
+}
+
+export interface UploadFileWithRetryParams {
+  item: FileUploadProgress;
+  conversationId: string;
+  activeXhrs: Map<string, XMLHttpRequest>;
+  maxRetries: number;
+  retryDelayMs: number;
+  isStale: () => boolean;
+  isCancelled: () => boolean;
+  sleep: (ms: number) => Promise<void>;
+  onRetry?: (attempt: number) => void;
+  onProgress: (percent: number) => void;
+  onProcessing: () => void;
+  onSuccess: (uploadedFile: FileItem | null) => void;
+}
+
+export type UploadFileWithRetryResult =
+  | { outcome: "success" }
+  | { outcome: "cancelled" }
+  | { outcome: "stale" }
+  | { outcome: "error"; error: FileUploadError };
+
+/** Uploads a single queued item with retry, distinguishing per-file cancellation from session abort. */
+export async function uploadFileWithRetry(
+  params: UploadFileWithRetryParams
+): Promise<UploadFileWithRetryResult> {
+  const {
+    item,
+    conversationId,
+    activeXhrs,
+    maxRetries,
+    retryDelayMs,
+    isStale,
+    isCancelled,
+    sleep,
+    onRetry,
+    onProgress,
+    onProcessing,
+    onSuccess,
+  } = params;
+
+  let lastError: FileUploadError = { code: "UPLOAD_FAILED", filename: item.filename };
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (isStale()) return { outcome: "stale" };
+    if (isCancelled()) return { outcome: "cancelled" };
+
+    if (attempt > 0) {
+      onRetry?.(attempt);
+      await sleep(retryDelayMs);
+      if (isStale()) return { outcome: "stale" };
+      if (isCancelled()) return { outcome: "cancelled" };
+    }
+
+    try {
+      await sendFileUploadXhr({
+        tempId: item.tempId,
+        file: item.file,
+        conversationId,
+        activeXhrs,
+        onProgress,
+        onProcessing,
+        onSuccess,
+      });
+      return { outcome: "success" };
+    } catch (attemptErr: unknown) {
+      if (attemptErr instanceof Error && attemptErr.message === UPLOAD_ABORTED_SENTINEL) {
+        return isStale() ? { outcome: "stale" } : { outcome: "cancelled" };
+      }
+      const structured =
+        attemptErr instanceof StructuredUploadError
+          ? attemptErr
+          : new StructuredUploadError({ code: "UPLOAD_FAILED", filename: item.filename }, false);
+      lastError = structured.uploadError;
+      if (!structured.retryable || attempt >= maxRetries) {
+        return { outcome: "error", error: lastError };
+      }
+    }
+  }
+
+  return { outcome: "error", error: lastError };
 }

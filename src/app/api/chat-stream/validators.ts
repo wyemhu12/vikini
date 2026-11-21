@@ -19,7 +19,7 @@ export const chatStreamRequestSchema = z.object({
   truncateClientMessageId: z.string().max(100).optional().nullable(),
   clientMessageId: z.string().max(100).optional().nullable(),
   skipSaveUserMessage: z.boolean().optional(),
-  thinkingLevel: z.enum(["off", "low", "medium", "high", "minimal"]).optional(),
+  thinkingLevel: z.enum(["off", "low", "medium", "high", "minimal", "xhigh"]).optional(),
   strataSampling: strataSamplingSchema.optional(),
   fileIds: z.array(z.string().uuid()).optional(),
 });

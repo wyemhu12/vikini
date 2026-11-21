@@ -6,6 +6,7 @@ import ChatBubble from "./ChatBubble";
 import type { FrontendConversation, FrontendMessage } from "../hooks/useConversation";
 import type { ThinkingLevel } from "./hooks/useThinkingLevel";
 import type { ThinkingStatsSnapshot, LocalStreamProgress } from "@/lib/features/chat/thinkingStats";
+import type { StreamActivity } from "@/lib/features/chat/streamActivity";
 import { ENABLE_VIRTUALIZED_CHAT } from "@/lib/utils/constants";
 import {
   createSizeCache,
@@ -26,6 +27,7 @@ export interface ChatMessagesAreaProps {
   streamingThinking?: string;
   streamingThinkingStats?: ThinkingStatsSnapshot | null;
   streamingLocalProgress?: LocalStreamProgress | null;
+  streamingActivity?: StreamActivity | null;
   streamingSources?: unknown[];
   streamingRagSources?: unknown[];
   streamingUrlContext?: unknown[];
@@ -66,6 +68,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = React.memo(
     streamingThinking,
     streamingThinkingStats,
     streamingLocalProgress,
+    streamingActivity,
     streamingSources,
     streamingRagSources,
     streamingUrlContext,
@@ -282,7 +285,8 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = React.memo(
         {isStreaming &&
           (streamingAssistant !== null ||
             Boolean(streamingThinking) ||
-            Boolean(streamingLocalProgress)) && (
+            Boolean(streamingLocalProgress) ||
+            Boolean(streamingActivity)) && (
             <ChatBubble
               message={{
                 id: "streaming-assistant",
@@ -295,6 +299,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = React.memo(
                   ...(streamingThinking ? { reasoning: streamingThinking } : {}),
                   ...(streamingThinkingStats ? { thinkingStats: streamingThinkingStats } : {}),
                   ...(streamingLocalProgress ? { localProgress: streamingLocalProgress } : {}),
+                  ...(streamingActivity ? { streamActivity: streamingActivity } : {}),
                   ...(streamingRagSources && streamingRagSources.length > 0
                     ? { ragSources: streamingRagSources }
                     : {}),

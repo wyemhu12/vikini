@@ -50,3 +50,45 @@
 [1121/204234.871:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
 [1121/204244.883:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
 [1121/204304.892:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/221622.916:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/221622.984:ERROR:ui\gl\angle_platform_impl.cc:47] vulkan_icd.cpp:158 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1121/221623.095:WARNING:ui\gl\angle_platform_impl.cc:52] vulkan_icd.cpp:388 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1121/221627.924:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/221637.934:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/221657.944:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/221731.731:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/221731.741:ERROR:ui\gl\angle_platform_impl.cc:47] vulkan_icd.cpp:158 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1121/221731.787:WARNING:ui\gl\angle_platform_impl.cc:52] vulkan_icd.cpp:388 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1121/221736.740:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/221746.747:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/221806.754:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/223927.239:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/223927.260:ERROR:ui\gl\angle_platform_impl.cc:47] vulkan_icd.cpp:158 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1121/223927.309:WARNING:ui\gl\angle_platform_impl.cc:52] vulkan_icd.cpp:388 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1121/223932.252:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/223942.266:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/224126.584:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/224126.593:ERROR:ui\gl\angle_platform_impl.cc:47] vulkan_icd.cpp:158 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1121/224126.642:WARNING:ui\gl\angle_platform_impl.cc:52] vulkan_icd.cpp:388 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1121/224131.586:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/224141.587:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/224349.707:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/224349.718:ERROR:ui\gl\angle_platform_impl.cc:47] vulkan_icd.cpp:158 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1121/224349.767:WARNING:ui\gl\angle_platform_impl.cc:52] vulkan_icd.cpp:388 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1121/224354.721:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/224404.724:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/225429.989:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/225429.998:ERROR:ui\gl\angle_platform_impl.cc:47] vulkan_icd.cpp:158 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1121/225430.047:WARNING:ui\gl\angle_platform_impl.cc:52] vulkan_icd.cpp:388 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1121/225435.005:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/225648.509:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/225648.516:ERROR:ui\gl\angle_platform_impl.cc:47] vulkan_icd.cpp:158 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1121/225648.566:WARNING:ui\gl\angle_platform_impl.cc:52] vulkan_icd.cpp:388 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1121/225653.518:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/225703.524:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/225906.007:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/225906.017:ERROR:ui\gl\angle_platform_impl.cc:47] vulkan_icd.cpp:158 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1121/225906.063:WARNING:ui\gl\angle_platform_impl.cc:52] vulkan_icd.cpp:388 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1121/225911.015:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/225921.019:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.
+[1121/225941.028:WARNING:net\dns\dns_config_service_win.cc:609] Failed to read DnsConfig.

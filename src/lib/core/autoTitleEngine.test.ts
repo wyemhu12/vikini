@@ -49,7 +49,7 @@ describe("autoTitleEngine - Title generation & sampling sanitization", () => {
       expect(firstCall.model).toBe("gemini-3-flash-preview");
       expect(firstCall.config).toEqual({
         maxOutputTokens: 15,
-        thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       });
       expect(firstCall.config).not.toHaveProperty("temperature");
       expect(firstCall.config).not.toHaveProperty("top_p");
@@ -86,7 +86,7 @@ describe("autoTitleEngine - Title generation & sampling sanitization", () => {
       expect(firstCall.model).toBe("gemini-3-flash-preview");
       expect(firstCall.config).toEqual({
         maxOutputTokens: 20,
-        thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       });
       expect(firstCall.config).not.toHaveProperty("temperature");
     });
@@ -113,12 +113,12 @@ describe("autoTitleEngine - Title generation & sampling sanitization", () => {
         true
       );
 
-      // TC-AT-02: Verify primary call uses gemini-3-flash-preview with MINIMAL
+      // TC-AT-02: Verify primary call uses gemini-3-flash-preview (aliased to gemini-4-hydrogen -> LOW)
       const primaryCall = mockGenerateContent.mock.calls[0][0];
       expect(primaryCall.model).toBe("gemini-3-flash-preview");
       expect(primaryCall.config).toEqual({
         maxOutputTokens: 20,
-        thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       });
 
       // TC-AT-01: Verify fallback model call uses gemini-3.5-flash-lite with MINIMAL

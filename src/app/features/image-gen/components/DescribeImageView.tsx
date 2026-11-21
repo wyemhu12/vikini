@@ -37,6 +37,20 @@ export function DescribeImageView() {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragDepthRef = useRef(0);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+        copyTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // History (localStorage)
   const HISTORY_KEY = "vikini-describe-history";
@@ -97,7 +111,22 @@ export function DescribeImageView() {
 
       const reader = new FileReader();
       reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
+        if (!mountedRef.current) return;
+        const dataUrl = typeof e.target?.result === "string" ? e.target.result : null;
+        if (dataUrl) {
+          setImagePreview(dataUrl);
+        } else {
+          setImageFile(null);
+          setImagePreview(null);
+          toast.error(t("describeReadFailed"));
+        }
+      };
+      reader.onerror = () => {
+        if (!mountedRef.current) return;
+        logger.error("[DescribeImageView] FileReader failed for:", file.name);
+        setImageFile(null);
+        setImagePreview(null);
+        toast.error(t("describeReadFailed"));
       };
       reader.readAsDataURL(file);
     },
@@ -107,6 +136,7 @@ export function DescribeImageView() {
   const handleDrop = useCallback(
     (e: DragEvent) => {
       e.preventDefault();
+      dragDepthRef.current = 0;
       setIsDragOver(false);
       const file = e.dataTransfer.files[0];
       if (file) handleFileSelect(file);
@@ -114,14 +144,25 @@ export function DescribeImageView() {
     [handleFileSelect]
   );
 
+  const handleDragEnter = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    dragDepthRef.current += 1;
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDragOver(true);
+    }
+  }, []);
+
   const handleDragOver = useCallback((e: DragEvent) => {
     e.preventDefault();
-    setIsDragOver(true);
   }, []);
 
   const handleDragLeave = useCallback((e: DragEvent) => {
     e.preventDefault();
-    setIsDragOver(false);
+    dragDepthRef.current -= 1;
+    if (dragDepthRef.current <= 0) {
+      dragDepthRef.current = 0;
+      setIsDragOver(false);
+    }
   }, []);
 
   const handleAnalyze = useCallback(async () => {
@@ -144,32 +185,45 @@ export function DescribeImageView() {
 
       // API returns success({ description }) → json.data.description
       const desc = json.data?.description || "";
+      if (!mountedRef.current) return;
       setResult(desc);
 
       // Save to history
       if (desc && imagePreview) {
-        // Create small thumbnail (max 100px) to save storage
-        const canvas = document.createElement("canvas");
-        const img = document.createElement("img");
-        img.src = imagePreview;
-        await new Promise<void>((resolve) => {
+        // Create small thumbnail (max 100px) to save storage; guard onerror so corrupt images never hang analyzing
+        const thumbnail = await new Promise<string>((resolve) => {
+          const canvas = document.createElement("canvas");
+          const img = document.createElement("img");
           img.onload = () => {
-            const scale = Math.min(100 / img.width, 100 / img.height, 1);
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
-            canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
-            resolve();
+            try {
+              const scale = Math.min(
+                100 / Math.max(1, img.width),
+                100 / Math.max(1, img.height),
+                1
+              );
+              canvas.width = Math.max(1, Math.round(img.width * scale));
+              canvas.height = Math.max(1, Math.round(img.height * scale));
+              canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+              resolve(canvas.toDataURL("image/jpeg", 0.6));
+            } catch {
+              resolve("");
+            }
           };
+          img.onerror = () => resolve("");
+          img.src = imagePreview;
         });
-        const thumbnail = canvas.toDataURL("image/jpeg", 0.6);
-        addToHistory(thumbnail, desc);
+        if (mountedRef.current) {
+          addToHistory(thumbnail, desc);
+        }
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unknown error";
       logger.error("[DescribeImageView] analyze failed:", message);
       toast.error(message);
     } finally {
-      setAnalyzing(false);
+      if (mountedRef.current) {
+        setAnalyzing(false);
+      }
     }
   }, [imageFile, imagePreview, addToHistory]);
 
@@ -179,7 +233,11 @@ export function DescribeImageView() {
       await navigator.clipboard.writeText(result);
       setCopied(true);
       toast.success(t("describeCopied"));
-      setTimeout(() => setCopied(false), 2000);
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => {
+        copyTimeoutRef.current = null;
+        if (mountedRef.current) setCopied(false);
+      }, 2000);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unknown error";
       logger.error("[DescribeImageView] copy failed:", message);
@@ -219,6 +277,7 @@ export function DescribeImageView() {
               >
                 <div
                   onDrop={handleDrop}
+                  onDragEnter={handleDragEnter}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   className="relative"
@@ -226,9 +285,9 @@ export function DescribeImageView() {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className={`relative block w-full cursor-pointer rounded-2xl border-2 border-dashed p-12 md:p-16 text-center transition-colors duration-300 backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) ${
+                    className={`relative block w-full cursor-pointer rounded-2xl border-2 border-dashed p-12 md:p-16 text-center transition-[border-color,background-color,box-shadow] duration-200 backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring) ${
                       isDragOver
-                        ? "border-(--accent) bg-(--soft) shadow-lg scale-[1.02]"
+                        ? "border-(--accent) bg-(--soft) shadow-lg ring-2 ring-(--accent)/30"
                         : "border-(--line) bg-(--raised)/50 hover:border-(--accent) hover:bg-(--soft)"
                     }`}
                   >
@@ -250,6 +309,7 @@ export function DescribeImageView() {
                     aria-label={t("describeUpload")}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
+                      e.target.value = "";
                       if (file) handleFileSelect(file);
                     }}
                     className="hidden"

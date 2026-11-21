@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils/cn";
 import { logger } from "@/lib/utils/logger";
 import { TRANSITION } from "@/lib/utils/motion";
+import { parseImageApiResponse } from "@/lib/features/image-gen/studioHelpers";
 import { useLanguage } from "../../chat/hooks/useLanguage";
 import {
   Select,
@@ -40,8 +41,8 @@ interface EditPanelProps {
 }
 
 const EDIT_MODELS = [
-  { value: "gemini-3.1-flash-image", label: "Gemini Flash" },
-  { value: "gemini-3-pro-image", label: "Gemini Pro" },
+  { value: "gemini-3.1-flash-image", label: "Nano Banana" },
+  { value: "gemini-3-pro-image", label: "Nano Banana Pro" },
 ] as const;
 
 const MAX_TURNS = 10;
@@ -171,26 +172,17 @@ export default function EditPanel({
           }),
         });
 
-        const data: unknown = await res.json();
-
-        if (!res.ok) {
-          const errObj =
-            data && typeof data === "object" && "error" in data
-              ? (data as Record<string, unknown>).error
-              : null;
-          const message =
-            errObj && typeof errObj === "object" && "message" in errObj
-              ? String((errObj as Record<string, unknown>).message)
-              : typeof errObj === "string"
-                ? errObj
-                : t("studioEditFailed");
-          throw new Error(message);
-        }
+        const data = await parseImageApiResponse(
+          res,
+          t("studioEditFailed"),
+          t("studioErrorTimeout")
+        );
 
         // Extract response data
-        const responseData = (data as Record<string, unknown>).data as
-          | Record<string, unknown>
-          | undefined;
+        const responseData =
+          data.data && typeof data.data === "object"
+            ? (data.data as Record<string, unknown>)
+            : undefined;
         const imageUrl = responseData?.imageUrl as string | undefined;
         const storagePath = responseData?.storagePath as string | undefined;
         const imageMimeType = responseData?.imageMimeType as string | undefined;

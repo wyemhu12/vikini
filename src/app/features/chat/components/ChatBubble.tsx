@@ -4,7 +4,7 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback, useDeferredValue } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { ImageIcon, Loader2 } from "lucide-react";
+import { ImageIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { logger } from "@/lib/utils/logger";
 import { TRANSITION } from "@/lib/utils/motion";
@@ -14,7 +14,8 @@ import { useLanguage } from "../hooks/useLanguage";
 import { extractThinking } from "./markdownConfig";
 import { BubbleAvatar } from "./BubbleAvatar";
 import { BubbleMarkdown } from "./BubbleMarkdown";
-import { TypingDots, ThinkingBlock } from "./BubbleHelpers";
+import { TypingDots, ThinkingBlock, PartialMessageStatusBadges } from "./BubbleHelpers";
+import { StreamingActivityBar } from "./StreamingActivityBar";
 import MessageActions from "./MessageActions";
 import SourceLinks from "./SourceLinks";
 import ImageGenPreview from "./ImageGenPreview";
@@ -23,6 +24,7 @@ import { FileInMessage } from "./FileInMessage";
 import { parseLegacyNotice } from "@/lib/features/chat/legacyNotice";
 import { resolveChatModelDisplay } from "@/lib/core/modelPicker";
 import type { ThinkingStatsSnapshot, LocalStreamProgress } from "@/lib/features/chat/thinkingStats";
+import { formatLocalProgressText, type StreamActivity } from "@/lib/features/chat/streamActivity";
 import { EmptyReasoningNotice } from "./EmptyReasoningNotice";
 import type { ThinkingLevel } from "./hooks/useThinkingLevel";
 
@@ -38,6 +40,7 @@ export interface MessageMeta {
   thoughtsTokenCount?: number;
   thinkingStats?: ThinkingStatsSnapshot;
   localProgress?: LocalStreamProgress;
+  streamActivity?: StreamActivity;
   isPartial?: boolean;
   aborted?: boolean;
   status?: string;
@@ -172,6 +175,7 @@ export const ChatBubble = React.memo(
       ? legacyNoticeResult.cleanContent
       : safeMessage.content || "";
 
+    const streamActivity = safeMessage.meta?.streamActivity ?? null;
     const {
       thought,
       rest: displayContent,
@@ -181,50 +185,53 @@ export const ChatBubble = React.memo(
       const extracted = extractThinking(effectiveRawContent);
       const metaReasoning =
         typeof safeMessage.meta?.reasoning === "string" ? safeMessage.meta.reasoning : null;
+      const activeThinkingPhase = Boolean(
+        isStreaming && isLastAssistant && streamActivity?.phase === "thinking"
+      );
       if (metaReasoning) {
         return {
           thought: metaReasoning,
           rest: extracted.rest,
-          isThinking: Boolean(isStreaming && isLastAssistant && !extracted.rest.trim()),
+          isThinking:
+            activeThinkingPhase ||
+            Boolean(isStreaming && isLastAssistant && !extracted.rest.trim()),
         };
       }
-      return extracted;
-    }, [effectiveRawContent, isBot, safeMessage.meta?.reasoning, isStreaming, isLastAssistant]);
+      return {
+        ...extracted,
+        isThinking: extracted.isThinking || activeThinkingPhase,
+      };
+    }, [
+      effectiveRawContent,
+      isBot,
+      safeMessage.meta?.reasoning,
+      isStreaming,
+      isLastAssistant,
+      streamActivity?.phase,
+    ]);
 
     const deferredDisplayContent = useDeferredValue(displayContent);
     const hasContent = Boolean(displayContent?.trim()) || Boolean(thought?.trim());
     const localProgress = safeMessage.meta?.localProgress;
-    const typingStatusText = useMemo(() => {
-      if (!localProgress) return undefined;
-      if (localProgress.type === "localQueue") {
-        return (t("localLlmQueued") || "Waiting in queue ({position})").replace(
-          "{position}",
-          String(localProgress.position)
-        );
-      }
-      if (localProgress.type === "localPromptProgress") {
-        const pct = Math.min(
-          100,
-          Math.max(
-            0,
-            Math.round(
-              ((localProgress.cache + localProgress.processed) / Math.max(1, localProgress.total)) *
-                100
-            )
-          )
-        );
-        return (t("localPromptProgress") || "Reading context {pct}%").replace("{pct}", String(pct));
-      }
-      return undefined;
-    }, [localProgress, t]);
+    const typingStatusText = useMemo(
+      () => formatLocalProgressText(localProgress, t),
+      [localProgress, t]
+    );
 
     const isLoading = isBot && isLastAssistant && (props.regenerating || !hasContent);
-    const showTyping =
-      isLoading ||
-      (isBot &&
-        isLastAssistant &&
-        (isStreamThinking || Boolean(localProgress)) &&
-        !displayContent.trim());
+    const useActivityBar = Boolean(
+      isBot && isStreaming && isLastAssistant && (streamActivity || localProgress)
+    );
+    const showStandaloneTyping =
+      !useActivityBar &&
+      (isLoading ||
+        (isBot &&
+          isLastAssistant &&
+          (isStreamThinking || Boolean(localProgress)) &&
+          !displayContent.trim()));
+    const showInlineCursor = Boolean(
+      isStreaming && isLastAssistant && (!streamActivity || streamActivity.phase === "responding")
+    );
 
     return (
       <motion.div
@@ -304,7 +311,7 @@ export const ChatBubble = React.memo(
                       stats={safeMessage.meta?.thinkingStats}
                     />
                   )}
-                  {(!hasContent && isLoading) || (showTyping && !displayContent.trim()) ? (
+                  {showStandaloneTyping ? (
                     <div role="status" aria-label={typingStatusText || t("aiIsTyping")}>
                       <TypingDots statusText={typingStatusText} />
                     </div>
@@ -333,6 +340,7 @@ export const ChatBubble = React.memo(
                               isBot={isBot}
                               isStreaming={isStreaming}
                               isLastAssistant={isLastAssistant}
+                              showInlineCursor={showInlineCursor}
                             />
                           ) : null}
                           <EmptyReasoningNotice
@@ -351,12 +359,21 @@ export const ChatBubble = React.memo(
                             lowerThinkingLevel={lowerThinkingLevel}
                           />
                         </>
-                      ) : (
+                      ) : displayContent.trim() || !useActivityBar ? (
                         <BubbleMarkdown
                           content={deferredDisplayContent}
                           isBot={isBot}
                           isStreaming={isStreaming}
                           isLastAssistant={isLastAssistant}
+                          showInlineCursor={showInlineCursor}
+                        />
+                      ) : null}
+                      {useActivityBar && (
+                        <StreamingActivityBar
+                          activity={streamActivity}
+                          localProgress={localProgress}
+                          isStreaming={true}
+                          hasDisplayContent={Boolean(displayContent.trim())}
                         />
                       )}
                     </>
@@ -412,32 +429,13 @@ export const ChatBubble = React.memo(
 
               {/* Status badges for partial / interrupted messages */}
               {isBot && safeMessage.meta?.isPartial && !isLoading && (
-                <div className="mt-2 flex items-center gap-2 text-xs flex-wrap">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${
-                      safeMessage.meta?.status === "error"
-                        ? "bg-(--danger)/10 text-(--danger) border border-(--danger)/20"
-                        : "bg-(--raised) text-(--muted) border border-(--line)"
-                    }`}
-                  >
-                    {safeMessage.meta?.status === "error" ? t("interrupted") : t("stopped")}
-                  </span>
-                  {safeMessage.meta?.isSaving && (
-                    <span className="text-(--muted) flex items-center gap-1">
-                      <Loader2 className="w-3 h-3 animate-spin text-(--accent)" />
-                      {t("saving")}
-                    </span>
-                  )}
-                  {safeMessage.meta?.saveFailed && (
-                    <button
-                      type="button"
-                      onClick={() => props.onRetrySave?.(safeMessage)}
-                      className="text-(--danger) hover:underline flex items-center gap-1 cursor-pointer font-medium"
-                    >
-                      {t("saveFailed")} ({t("retrySave")})
-                    </button>
-                  )}
-                </div>
+                <PartialMessageStatusBadges
+                  status={safeMessage.meta?.status}
+                  isSaving={safeMessage.meta?.isSaving}
+                  saveFailed={safeMessage.meta?.saveFailed}
+                  onRetrySave={() => props.onRetrySave?.(safeMessage)}
+                  t={t}
+                />
               )}
             </div>
 
@@ -475,6 +473,7 @@ export const ChatBubble = React.memo(
     p.message === n.message &&
     p.message?.meta?.thinkingStats === n.message?.meta?.thinkingStats &&
     p.message?.meta?.localProgress === n.message?.meta?.localProgress &&
+    p.message?.meta?.streamActivity === n.message?.meta?.streamActivity &&
     p.isLastAssistant === n.isLastAssistant &&
     p.regenerating === n.regenerating &&
     p.isStreaming === n.isStreaming &&

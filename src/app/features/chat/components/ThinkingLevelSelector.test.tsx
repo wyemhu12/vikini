@@ -16,6 +16,7 @@ vi.mock("../hooks/useLanguage", () => ({
         thinkingLevelLow: "Nhanh",
         thinkingLevelMedium: "Vừa",
         thinkingLevelHigh: "Sâu",
+        thinkingLevelXHigh: "Cực sâu",
         thinkingLevelMinimal: "Tối thiểu",
       };
       return dict[key] ?? key;
@@ -30,7 +31,7 @@ describe("ThinkingLevelSelector", () => {
       <ThinkingLevelSelector
         thinkingLevel="medium"
         setThinkingLevel={vi.fn()}
-        currentModel="gemini-3.8-flash"
+        currentModel="gemini-4-neon"
       />
     );
     const trigger = screen.getByRole("button", { name: "Suy luận: Vừa" });
@@ -47,18 +48,18 @@ describe("ThinkingLevelSelector", () => {
       <ThinkingLevelSelector
         thinkingLevel="medium"
         setThinkingLevel={setThinkingLevel}
-        currentModel="gemini-3.8-flash"
+        currentModel="gemini-4-neon"
       />
     );
     const trigger = screen.getByRole("button", { name: "Suy luận: Vừa" });
     fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
 
     const items = screen.getAllByRole("menuitem");
-    expect(items.map((i) => i.textContent)).toEqual(["Tắt", "Nhanh", "Vừa", "Sâu"]);
+    expect(items.map((i) => i.textContent)).toEqual(["Nhanh", "Vừa", "Sâu", "Cực sâu"]);
     for (const item of items) {
       expect(item.innerHTML).not.toContain("uppercase");
     }
-    fireEvent.click(screen.getByRole("menuitem", { name: "Sâu" }));
-    expect(setThinkingLevel).toHaveBeenCalledWith("high");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Cực sâu" }));
+    expect(setThinkingLevel).toHaveBeenCalledWith("xhigh");
   });
 });

@@ -25,14 +25,17 @@ function getStreamTimeout(model?: string, thinkingLevel?: ThinkingLevel): number
     }
   }
 
-  // Deep thinking requires longer timeouts (high = maximum reasoning depth)
-  const isDeepThinking = thinkingLevel === "high";
+  // Deep thinking requires longer timeouts (high / xhigh = maximum reasoning depth)
+  const isDeepThinking = thinkingLevel === "high" || thinkingLevel === "xhigh";
 
   // Model-specific timeouts with thinking level consideration
   if (model) {
     const normalized = normalizeModelForApi(model);
     if (normalized.startsWith("gemini-4") || model.includes("argon")) {
       return TIMEOUT_CONFIG.ARGON;
+    }
+    if (model.includes("claude")) {
+      return isDeepThinking ? TIMEOUT_CONFIG.CLAUDE_DEEP_THINKING : TIMEOUT_CONFIG.CLAUDE;
     }
     if (model.includes("pro")) {
       return isDeepThinking ? TIMEOUT_CONFIG.PRO_DEEP_THINKING : TIMEOUT_CONFIG.PRO;
@@ -177,9 +180,12 @@ export function safeText(respOrChunk: unknown): string {
  * Check if a model is Gemini 3/4 series (requires thoughtSignature handling)
  */
 export function isGemini3Model(model: string): boolean {
+  if (model.startsWith("gemini-4")) return true;
   const gemini3Identifiers = [
     "gemini-4-argon",
     "gemini-4-argon-preview",
+    "gemini-4-hydrogen",
+    "gemini-4-neon",
     "gemini-3-pro",
     "gemini-3-flash",
     "gemini-3-pro-preview",

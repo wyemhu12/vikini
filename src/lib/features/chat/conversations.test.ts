@@ -222,14 +222,14 @@ describe("Conversations", () => {
           error: null,
         })
         .mockResolvedValueOnce({
-          data: { id: "conv-1", user_id: "user-123", title: "Chat", model: "gemini-4-argon" },
+          data: { id: "conv-1", user_id: "user-123", title: "Chat", model: "gemini-4-neon" },
           error: null,
         });
 
-      const updated = await setConversationModel("user-123", "conv-1", "gemini-4-argon");
-      expect(mockAssertModelAllowedForUser).toHaveBeenCalledWith("user-123", "gemini-4-argon");
-      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ model: "gemini-4-argon" }));
-      expect(updated?.model).toBe("gemini-4-argon");
+      const updated = await setConversationModel("user-123", "conv-1", "gemini-4-neon");
+      expect(mockAssertModelAllowedForUser).toHaveBeenCalledWith("user-123", "gemini-4-neon");
+      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ model: "gemini-4-neon" }));
+      expect(updated?.model).toBe("gemini-4-neon");
     });
 
     it("throws ForbiddenError and does not update DB when assertModelAllowedForUser rejects", async () => {
@@ -238,10 +238,10 @@ describe("Conversations", () => {
         error: null,
       });
       mockAssertModelAllowedForUser.mockRejectedValueOnce(
-        new ForbiddenError('Model "gemini-4-argon" is not allowed for rank "basic"')
+        new ForbiddenError('Model "gemini-4-neon" is not allowed for rank "basic"')
       );
 
-      await expect(setConversationModel("user-123", "conv-1", "gemini-4-argon")).rejects.toThrow(
+      await expect(setConversationModel("user-123", "conv-1", "gemini-4-neon")).rejects.toThrow(
         ForbiddenError
       );
       expect(mockUpdate).not.toHaveBeenCalled();
@@ -392,7 +392,7 @@ describe("Conversations", () => {
             gem_id: "gem-1",
             persona_id: "persona-1",
             project_id: "proj-1",
-            model: "gemini-4-argon",
+            model: "gemini-4-neon",
           },
           error: null,
         });
@@ -402,7 +402,7 @@ describe("Conversations", () => {
         gemId: "gem-1",
         personaId: "persona-1",
         projectId: "proj-1",
-        model: "gemini-4-argon",
+        model: "gemini-4-neon",
       });
 
       expect(mockUpdate).toHaveBeenCalledTimes(1);
@@ -412,7 +412,7 @@ describe("Conversations", () => {
           gem_id: "gem-1",
           persona_id: "persona-1",
           project_id: "proj-1",
-          model: "gemini-4-argon",
+          model: "gemini-4-neon",
         })
       );
       expect(invalidateConversationsCache).toHaveBeenCalledTimes(1);

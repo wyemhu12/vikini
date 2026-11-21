@@ -133,6 +133,7 @@ export interface FileUploadProgress {
   kind: FileKind;
   progress: number;
   status: "queued" | "uploading" | "processing" | "ready" | "error";
+  previewUrl?: string;
   error?: string;
   result?: FileItem;
 }

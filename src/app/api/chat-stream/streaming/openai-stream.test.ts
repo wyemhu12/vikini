@@ -241,10 +241,10 @@ describe("createOpenAICompatibleStream - GLM 5.2, Grok Reasoning & Error Mapping
   }
 
   describe("Regression Token Limit Tests (B1)", () => {
-    it("preserves 8192 max_tokens for anthropic/claude-haiku-4-5 (TC-REG-01)", async () => {
+    it("preserves 8192 max_tokens for anthropic/claude-haiku-5.5 (TC-REG-01)", async () => {
       const stream = createOpenAICompatibleStream({
         ...baseParams,
-        model: "anthropic/claude-haiku-4-5",
+        model: "anthropic/claude-haiku-5.5",
         ai: mockAi,
         contents: [{ role: "user", parts: [{ text: "hi" }] }],
       });
@@ -252,10 +252,10 @@ describe("createOpenAICompatibleStream - GLM 5.2, Grok Reasoning & Error Mapping
       expect(mockCreate.mock.calls[0][0].max_tokens).toBe(8192);
     });
 
-    it("preserves 8192 max_tokens for x-ai/grok-4.3 (TC-REG-02)", async () => {
+    it("preserves 8192 max_tokens for x-ai/grok-4.7 (TC-REG-02)", async () => {
       const stream = createOpenAICompatibleStream({
         ...baseParams,
-        model: "x-ai/grok-4.3",
+        model: "x-ai/grok-4.7",
         ai: mockAi,
         contents: [{ role: "user", parts: [{ text: "hi" }] }],
       });
@@ -263,15 +263,32 @@ describe("createOpenAICompatibleStream - GLM 5.2, Grok Reasoning & Error Mapping
       expect(mockCreate.mock.calls[0][0].max_tokens).toBe(8192);
     });
 
-    it("preserves 8192 max_tokens for llama-3.3-70b-versatile (TC-REG-03)", async () => {
+    it("TC-MC-03: maps xhigh to effort high for x-ai/grok-4.7", async () => {
       const stream = createOpenAICompatibleStream({
         ...baseParams,
-        model: "llama-3.3-70b-versatile",
+        model: "x-ai/grok-4.7",
+        thinkingLevel: "xhigh",
         ai: mockAi,
         contents: [{ role: "user", parts: [{ text: "hi" }] }],
       });
       await consumeStream(stream);
-      expect(mockCreate.mock.calls[0][0].max_tokens).toBe(8192);
+      expect(mockCreate.mock.calls[0][0].reasoning).toEqual({ effort: "high" });
+    });
+
+    it("TC-MC-05: preserves 8192 max_tokens and omits OpenRouter-only fields for Groq openai/gpt-oss-120b", async () => {
+      const stream = createOpenAICompatibleStream({
+        ...baseParams,
+        model: "openai/gpt-oss-120b",
+        thinkingLevel: "xhigh",
+        ai: mockAi,
+        contents: [{ role: "user", parts: [{ text: "hi" }] }],
+      });
+      await consumeStream(stream);
+      const payload = mockCreate.mock.calls[0][0];
+      expect(payload.max_tokens).toBe(8192);
+      expect(payload.reasoning).toBeUndefined();
+      expect(payload.provider).toBeUndefined();
+      expect(payload.tools).toBeUndefined();
     });
 
     it("preserves 8192 max_tokens for deepseek/deepseek-v3.2:floor (TC-REG-04)", async () => {

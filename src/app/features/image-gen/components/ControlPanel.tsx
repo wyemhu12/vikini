@@ -189,13 +189,13 @@ export default function ControlPanel({
             <SelectContent className="bg-(--surface) border border-(--line) shadow-(--shadow-elevated) z-(--z-popover)">
               <SelectItem value="gemini-3.1-flash-image">
                 <div className="flex flex-col items-start gap-0.5 text-left">
-                  <span className="font-medium">Gemini Image Flash</span>
+                  <span className="font-medium">Nano Banana</span>
                   <span className="text-xs text-(--muted)">{t("studioModelFlashDesc")}</span>
                 </div>
               </SelectItem>
               <SelectItem value="gemini-3-pro-image">
                 <div className="flex flex-col items-start gap-0.5 text-left">
-                  <span className="font-medium">Gemini Image Pro</span>
+                  <span className="font-medium">Nano Banana Pro</span>
                   <span className="text-xs text-(--muted)">{t("studioModelProDesc")}</span>
                 </div>
               </SelectItem>
